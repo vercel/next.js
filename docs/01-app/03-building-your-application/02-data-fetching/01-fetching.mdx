@@ -4,6 +4,55 @@ nav_title: Data Fetching and Caching
 description: Learn best practices for fetching data on the server or client in Next.js.
 ---
 
+<details>
+  <summary>Examples</summary>
+
+- [Next.js Commerce](https://vercel.com/templates/next.js/nextjs-commerce)
+- [On-Demand ISR](https://on-demand-isr.vercel.app)
+- [Next.js Forms](https://github.com/vercel/next.js/tree/canary/examples/next-forms)
+
+</details>
+
+This guide will walk you through the basics of data fetching and caching in Next.js, providing practical examples and best practices.
+
+Here's a minimal example of data fetching in Next.js:
+
+```tsx filename="app/page.tsx" switcher
+export default async function Page() {
+  const data = await fetch('https://api.vercel.app/blog')
+  const posts = await data.json()
+  return (
+    <ul>
+      {posts.map((post) => (
+        <li key={post.id}>{post.title}</li>
+      ))}
+    </ul>
+  )
+}
+```
+
+```jsx filename="app/page.js" switcher
+export default async function Page() {
+  const data = await fetch('https://api.vercel.app/blog')
+  const posts = await data.json()
+  return (
+    <ul>
+      {posts.map((post) => (
+        <li key={post.id}>{post.title}</li>
+      ))}
+    </ul>
+  )
+}
+```
+
+This example demonstrates a basic server-side data fetch using the `fetch` API in an asynchronous React Server Component.
+
+## Reference
+
+- [`fetch`](/docs/app/api-reference/functions/fetch)
+- React [`cache`](https://react.dev/reference/react/cache)
+- Next.js [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache)
+
 ### Caching data with an ORM or Database
 
 You can use the `unstable_cache` API to cache the response when running `next build`.
@@ -190,111 +239,3 @@ export const getPost = cache(async (id) => {
 ### Revalidating cached data
 
 Learn more about revalidating cached data with [Incremental Static Regeneration](/docs/app/building-your-application/data-fetching/incremental-static-regeneration).
-
-## Patterns
-
-### Preloading Data
-
-Another way to prevent waterfalls is to use the _preload_ pattern by creating an utility function that you eagerly call above blocking requests. For example, `checkIsAvailable()` blocks `<Item/>` from rendering, so you can call `preload()` before it to eagerly initiate `<Item/>` data dependencies. By the time `<Item/>` is rendered, its data has already been fetched.
-
-Note that `preload` function doesn't block `checkIsAvailable()` from running.
-
-```tsx filename="components/Item.tsx" switcher
-import { getItem } from '@/utils/get-item'
-
-export const preload = (id: string) => {
-  // void evaluates the given expression and returns undefined
-  // https://developer.mozilla.org/docs/Web/JavaScript/Reference/Operators/void
-  void getItem(id)
-}
-export default async function Item({ id }: { id: string }) {
-  const result = await getItem(id)
-  // ...
-}
-```
-
-```jsx filename="components/Item.js" switcher
-import { getItem } from '@/utils/get-item'
-
-export const preload = (id) => {
-  // void evaluates the given expression and returns undefined
-  // https://developer.mozilla.org/docs/Web/JavaScript/Reference/Operators/void
-  void getItem(id)
-}
-export default async function Item({ id }) {
-  const result = await getItem(id)
-  // ...
-}
-```
-
-```tsx filename="app/item/[id]/page.tsx" switcher
-import Item, { preload, checkIsAvailable } from '@/components/Item'
-
-export default async function Page({
-  params,
-}: {
-  params: Promise<{ id: string }>
-}) {
-  const { id } = await params
-  // starting loading item data
-  preload(id)
-  // perform another asynchronous task
-  const isAvailable = await checkIsAvailable()
-
-  return isAvailable ? <Item id={id} /> : null
-}
-```
-
-```jsx filename="app/item/[id]/page.js" switcher
-import Item, { preload, checkIsAvailable } from '@/components/Item'
-
-export default async function Page({ params }) {
-  const { id } = await params
-  // starting loading item data
-  preload(id)
-  // perform another asynchronous task
-  const isAvailable = await checkIsAvailable()
-
-  return isAvailable ? <Item id={id} /> : null
-}
-```
-
-> **Good to know:** The "preload" function can also have any name as it's a pattern, not an API.
-
-#### Using React `cache` and `server-only` with the Preload Pattern
-
-You can combine the `cache` function, the `preload` pattern, and the `server-only` package to create a data fetching utility that can be used throughout your app.
-
-```ts filename="utils/get-item.ts" switcher
-import { cache } from 'react'
-import 'server-only'
-
-export const preload = (id: string) => {
-  void getItem(id)
-}
-
-export const getItem = cache(async (id: string) => {
-  // ...
-})
-```
-
-```js filename="utils/get-item.js" switcher
-import { cache } from 'react'
-import 'server-only'
-
-export const preload = (id) => {
-  void getItem(id)
-}
-
-export const getItem = cache(async (id) => {
-  // ...
-})
-```
-
-With this approach, you can eagerly fetch data, cache responses, and guarantee that this data fetching [only happens on the server](/docs/app/getting-started/server-and-client-components#examples#keeping-server-only-code-out-of-the-client-environment).
-
-The `utils/get-item` exports can be used by Layouts, Pages, or other components to give them control over when an item's data is fetched.
-
-> **Good to know:**
->
-> - We recommend using the [`server-only` package](/docs/app/getting-started/server-and-client-components#examples#keeping-server-only-code-out-of-the-client-environment) to make sure server data fetching functions are never used on the client.
