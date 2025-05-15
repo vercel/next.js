@@ -2300,8 +2300,8 @@
     "runtimeError": false
   },
   "test/development/app-dir/build-error-logs/build-error-logs.test.ts": {
-    "passed": [],
-    "failed": ["build-error-logs should only log error a single time"],
+    "passed": ["build-error-logs should only log error a single time"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2685,15 +2685,14 @@
       "react-dom/server in React Server environment explicit react-dom/server.browser usage in library code",
       "react-dom/server in React Server environment explicit react-dom/server.edge usage in app code",
       "react-dom/server in React Server environment explicit react-dom/server.edge usage in library code",
+      "react-dom/server in React Server environment explicit react-dom/server.node usage in app code",
       "react-dom/server in React Server environment explicit react-dom/server.node usage in library code",
       "react-dom/server in React Server environment implicit react-dom/server.edge usage in app code",
       "react-dom/server in React Server environment implicit react-dom/server.edge usage in library code",
+      "react-dom/server in React Server environment implicit react-dom/server.node usage in app code",
       "react-dom/server in React Server environment implicit react-dom/server.node usage in library code"
     ],
-    "failed": [
-      "react-dom/server in React Server environment explicit react-dom/server.node usage in app code",
-      "react-dom/server in React Server environment implicit react-dom/server.node usage in app code"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2747,7 +2746,7 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/development/basic/allowed-dev-origins.test.ts": {
     "passed": [
@@ -2768,7 +2767,8 @@
     "passed": [
       "asset-prefix rewrites rewrites that do not start with assetPrefix should still work",
       "asset-prefix rewrites should respect rewrites that start with assetPrefix",
-      "asset-prefix should load the app properly without reloading"
+      "asset-prefix should load the app properly without reloading",
+      "asset-prefix should navigate to another page without hard navigating"
     ],
     "failed": [],
     "pending": [],
@@ -6291,16 +6291,16 @@
   },
   "test/e2e/app-dir/error-on-next-codemod-comment/error-on-next-codemod-comment.test.ts": {
     "passed": [
-      "app-dir - error-on-next-codemod-comment should disappear the error when you replace with bypass comment",
-      "app-dir - error-on-next-codemod-comment should disappear the error when you rre the codemod comment",
       "app-dir - error-on-next-codemod-comment should error with inline comment as well"
     ],
     "failed": [
+      "app-dir - error-on-next-codemod-comment should disappear the error when you replace with bypass comment",
+      "app-dir - error-on-next-codemod-comment should disappear the error when you rre the codemod comment",
       "app-dir - error-on-next-codemod-comment should error with swc if you have codemod comments left"
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/errors/index.test.ts": {
     "passed": [
@@ -6759,14 +6759,14 @@
       "app-dir - logging with verbose logging for edge runtime should not log _rsc query for client navigation RSC request",
       "app-dir - logging with verbose logging for edge runtime should only log requests in development mode",
       "app-dir - logging with verbose logging for edge runtime should respect request.init.cache when use with fetch input is instance",
-      "app-dir - logging with verbose logging for edge runtime should show cache reason of noStore when use with fetch"
+      "app-dir - logging with verbose logging for edge runtime should show cache reason of noStore when use with fetch",
+      "app-dir - logging with verbose logging for edge runtime when logging.fetches.hmrRefreshes is true should log requests for HMR refreshes"
     ],
     "failed": [
       "app-dir - logging with default logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with fetches default logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with fetches verbose logging should not contain metadata internal segments for dynamic metadata routes",
-      "app-dir - logging with verbose logging for edge runtime should not contain metadata internal segments for dynamic metadata routes",
-      "app-dir - logging with verbose logging for edge runtime when logging.fetches.hmrRefreshes is true should log requests for HMR refreshes"
+      "app-dir - logging with verbose logging for edge runtime should not contain metadata internal segments for dynamic metadata routes"
     ],
     "pending": [],
     "flakey": [],
@@ -9484,13 +9484,13 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/use-cache-segment-configs/use-cache-segment-configs.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "use-cache-segment-configs it should error when using segment configs that aren't supported by useCache"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/app-dir/use-cache-standalone-search-params/use-cache-standalone-search-params.test.ts": {
     "passed": [
