@@ -4,8 +4,8 @@ use rustc_hash::FxHashMap;
 use swc_core::{
     base::SwcComments,
     common::{
-        comments::{Comment, CommentKind, Comments},
         BytePos,
+        comments::{Comment, CommentKind, Comments},
     },
 };
 

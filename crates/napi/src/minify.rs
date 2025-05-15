@@ -30,8 +30,8 @@ use napi::bindgen_prelude::*;
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
 use swc_core::{
-    base::{config::JsMinifyOptions, try_with_handler, TransformOutput},
-    common::{errors::ColorConfig, sync::Lrc, FileName, SourceFile, SourceMap, GLOBALS},
+    base::{TransformOutput, config::JsMinifyOptions, try_with_handler},
+    common::{FileName, GLOBALS, SourceFile, SourceMap, errors::ColorConfig, sync::Lrc},
 };
 
 use crate::{get_compiler, util::MapErr};

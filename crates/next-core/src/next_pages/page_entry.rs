@@ -1,10 +1,10 @@
 use std::io::Write;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use serde::Serialize;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{fxindexmap, FxIndexMap, ResolvedVc, Value, Vc};
-use turbo_tasks_fs::{rope::RopeBuilder, File, FileSystemPath};
+use turbo_tasks::{FxIndexMap, ResolvedVc, Value, Vc, fxindexmap};
+use turbo_tasks_fs::{File, FileSystemPath, rope::RopeBuilder};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     context::AssetContext,
@@ -20,7 +20,7 @@ use crate::{
     next_config::NextConfig,
     next_edge::entry::wrap_edge_entry,
     pages_structure::{PagesStructure, PagesStructureItem},
-    util::{file_content_rope, load_next_js_template, NextRuntime},
+    util::{NextRuntime, file_content_rope, load_next_js_template},
 };
 
 #[turbo_tasks::value]

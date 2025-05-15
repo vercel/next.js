@@ -1,16 +1,16 @@
 use std::io::Write;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{rope::RopeBuilder, FileContent};
+use turbo_tasks_fs::{FileContent, rope::RopeBuilder};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     ident::AssetIdent,
     source::Source,
 };
 use turbopack_ecmascript::utils::StringifyJs;
-use turbopack_image::process::{get_meta_data, BlurPlaceholderOptions};
+use turbopack_image::process::{BlurPlaceholderOptions, get_meta_data};
 
 use super::module::BlurPlaceholderMode;
 

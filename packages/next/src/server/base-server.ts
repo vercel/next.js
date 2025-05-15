@@ -84,7 +84,7 @@ import RenderResult from './render-result'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import * as Log from '../build/output/log'
-import { getPreviouslyRevalidatedTags, getUtils } from './server-utils'
+import { getPreviouslyRevalidatedTags, getServerUtils } from './server-utils'
 import isError, { getProperError } from '../lib/is-error'
 import {
   addRequestMeta,
@@ -1191,7 +1191,7 @@ export default abstract class Server<
             matchedPath = localeAnalysisResult.pathname
           }
 
-          const utils = getUtils({
+          const utils = getServerUtils({
             pageIsDynamic,
             page: srcPathname,
             i18n: this.nextConfig.i18n,

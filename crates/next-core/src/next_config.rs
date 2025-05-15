@@ -1,19 +1,19 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value as JsonValue;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, NonLocalValue, OperationValue,
-    ResolvedVc, TaskInput, Vc,
+    FxIndexMap, NonLocalValue, OperationValue, ResolvedVc, TaskInput, Vc, debug::ValueDebugFormat,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_env::EnvMap;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{
+    LoaderRuleItem, OptionWebpackRules,
     module_options_context::{
         ConditionItem, ConditionPath, MdxTransformOptions, OptionWebpackConditions,
     },
-    LoaderRuleItem, OptionWebpackRules,
 };
 use turbopack_core::{
     issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString},
@@ -1118,7 +1118,7 @@ impl NextConfig {
         let string = string.await?;
         let mut jdeserializer = serde_json::Deserializer::from_str(&string);
         let config: NextConfig = serde_path_to_error::deserialize(&mut jdeserializer)
-            .with_context(|| format!("failed to parse next.config.js: {}", string))?;
+            .with_context(|| format!("failed to parse next.config.js: {string}"))?;
         Ok(config.cell())
     }
 
@@ -1463,7 +1463,7 @@ impl NextConfig {
         let this = self.await?;
 
         match &this.deployment_id {
-            Some(deployment_id) => Ok(Vc::cell(Some(format!("?dpl={}", deployment_id).into()))),
+            Some(deployment_id) => Ok(Vc::cell(Some(format!("?dpl={deployment_id}").into()))),
             None => Ok(Vc::cell(None)),
         }
     }
@@ -1617,7 +1617,7 @@ impl JsConfig {
     pub async fn from_string(string: Vc<RcStr>) -> Result<Vc<Self>> {
         let string = string.await?;
         let config: JsConfig = serde_json::from_str(&string)
-            .with_context(|| format!("failed to parse next.config.js: {}", string))?;
+            .with_context(|| format!("failed to parse next.config.js: {string}"))?;
 
         Ok(config.cell())
     }

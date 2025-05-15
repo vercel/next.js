@@ -141,7 +141,7 @@ impl ImportContext {
                 if i > 0 {
                     modifier.push(' ');
                 }
-                write!(modifier, "layer({})", layer)?
+                write!(modifier, "layer({layer})")?
             }
         }
         if !self.media.is_empty() {
@@ -163,7 +163,7 @@ impl ImportContext {
                 if i > 0 {
                     modifier.push(' ');
                 }
-                write!(modifier, "supports({})", supports)?
+                write!(modifier, "supports({supports})")?
             }
         }
         Ok(Vc::cell(modifier.into()))

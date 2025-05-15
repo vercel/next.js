@@ -4,8 +4,9 @@ use turbo_tasks::TaskId;
 
 use crate::{
     backend::operation::{
+        AggregationUpdateJob, AggregationUpdateQueue, TaskGuard,
         aggregation_update::InnerOfUppersHasNewFollowersJob, get_aggregation_number, get_uppers,
-        is_aggregating_node, AggregationUpdateJob, AggregationUpdateQueue, TaskGuard,
+        is_aggregating_node,
     },
     data::CachedDataItem,
 };

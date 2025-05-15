@@ -1,6 +1,6 @@
 use std::{borrow::Cow, mem::take};
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use either::Either;
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -8,8 +8,8 @@ use tracing::Level;
 use turbo_tasks::{FxIndexMap, ResolvedVc, TryJoinIterExt, ValueToString};
 
 use crate::chunk::{
-    chunking::{make_chunk, ChunkItemOrBatchWithInfo, SplitContext},
     ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingContext,
+    chunking::{ChunkItemOrBatchWithInfo, SplitContext, make_chunk},
 };
 
 /// Handle chunk items based on their total size. If the total size is too
@@ -106,7 +106,7 @@ pub async fn app_vendors_split<'l>(
         }
     }
     if !chunk_group_specific_chunk_items.is_empty() {
-        let mut name = format!("{}-specific", name);
+        let mut name = format!("{name}-specific");
         make_chunk(
             chunk_group_specific_chunk_items,
             Vec::new(),
@@ -116,7 +116,7 @@ pub async fn app_vendors_split<'l>(
         .await?;
     }
     let mut remaining = Vec::new();
-    let mut key = format!("{}-app", name);
+    let mut key = format!("{name}-app");
     if !handle_split_group(
         &mut app_chunk_items,
         &mut key,
@@ -127,7 +127,7 @@ pub async fn app_vendors_split<'l>(
     {
         folder_split(app_chunk_items, 0, key.into(), split_context).await?;
     }
-    let mut key = format!("{}-vendors", name);
+    let mut key = format!("{name}-vendors");
     if !handle_split_group(
         &mut vendors_chunk_items,
         &mut key,
@@ -168,7 +168,7 @@ async fn package_name_split<'l>(
     }
     let mut remaining = Vec::new();
     for (package_name, mut list) in map {
-        let mut key = format!("{}-{}", name, package_name);
+        let mut key = format!("{name}-{package_name}");
         if !handle_split_group(&mut list, &mut key, split_context, Some(&mut remaining)).await? {
             folder_split(list, 0, key.into(), split_context).await?;
         }
@@ -216,7 +216,7 @@ async fn folder_split<'l>(
                 map = FxIndexMap::default();
                 continue;
             } else {
-                let mut key = format!("{}-{}", name, folder_name);
+                let mut key = format!("{name}-{folder_name}");
                 make_chunk(list, Vec::new(), &mut key, split_context).await?;
                 return Ok(());
             }
@@ -226,7 +226,7 @@ async fn folder_split<'l>(
     }
     let mut remaining = Vec::new();
     for (folder_name, (new_location, mut list)) in map {
-        let mut key = format!("{}-{}", name, folder_name);
+        let mut key = format!("{name}-{folder_name}");
         if !handle_split_group(&mut list, &mut key, split_context, Some(&mut remaining)).await? {
             if let Some(new_location) = new_location {
                 Box::pin(folder_split(

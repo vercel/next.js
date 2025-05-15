@@ -28,6 +28,7 @@
 
 #![feature(trivial_bounds)]
 #![feature(min_specialization)]
+#![feature(thread_local)]
 #![feature(try_trait_v2)]
 #![deny(unsafe_op_in_unsafe_fn)]
 #![feature(result_flattening)]
@@ -58,6 +59,7 @@ pub mod macro_helpers;
 mod magic_any;
 mod manager;
 mod marker_trait;
+pub mod message_queue;
 mod native_function;
 mod no_move_vec;
 mod once_map;
@@ -83,31 +85,32 @@ mod value;
 mod value_type;
 mod vc;
 
-use std::hash::BuildHasherDefault;
+use std::{cell::RefCell, hash::BuildHasherDefault, panic};
 
 pub use anyhow::{Error, Result};
 use auto_hash_map::AutoSet;
+pub use capture_future::TurboTasksPanic;
 pub use collectibles::CollectiblesSource;
 pub use completion::{Completion, Completions};
 pub use display::ValueToString;
-pub use effect::{apply_effects, effect, get_effects, ApplyEffectsContext, Effects};
+pub use effect::{ApplyEffectsContext, Effects, apply_effects, effect, get_effects};
 pub use id::{
-    ExecutionId, FunctionId, LocalTaskId, SessionId, TaskId, TraitTypeId, ValueTypeId,
-    TRANSIENT_TASK_BIT,
+    ExecutionId, FunctionId, LocalTaskId, SessionId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId,
+    ValueTypeId,
 };
 pub use invalidation::{
-    get_invalidator, DynamicEqHash, InvalidationReason, InvalidationReasonKind,
-    InvalidationReasonSet, Invalidator,
+    DynamicEqHash, InvalidationReason, InvalidationReasonKind, InvalidationReasonSet, Invalidator,
+    get_invalidator,
 };
 pub use join_iter_ext::{JoinIterExt, TryFlatJoinIterExt, TryJoinIterExt};
 pub use key_value_pair::KeyValuePair;
 pub use magic_any::MagicAny;
 pub use manager::{
+    CurrentCellRef, ReadConsistency, TaskPersistence, TurboTasks, TurboTasksApi,
+    TurboTasksBackendApi, TurboTasksBackendApiExt, TurboTasksCallApi, Unused, UpdateInfo,
     dynamic_call, emit, mark_finished, mark_root, mark_session_dependent, mark_stateful,
     prevent_gc, run_once, run_once_with_reason, spawn_blocking, spawn_thread, trait_call,
-    turbo_tasks, turbo_tasks_scope, CurrentCellRef, ReadConsistency, TaskPersistence, TurboTasks,
-    TurboTasksApi, TurboTasksBackendApi, TurboTasksBackendApiExt, TurboTasksCallApi, Unused,
-    UpdateInfo,
+    turbo_tasks, turbo_tasks_scope,
 };
 pub use output::OutputContent;
 pub use raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveTypeError};
@@ -118,9 +121,9 @@ pub use scope::scope;
 pub use serialization_invalidation::SerializationInvalidator;
 pub use shrink_to_fit::ShrinkToFit;
 pub use state::{State, TransientState};
-pub use task::{task_input::TaskInput, SharedReference, TypedSharedReference};
+pub use task::{SharedReference, TypedSharedReference, task_input::TaskInput};
 pub use trait_ref::{IntoTraitRef, TraitRef};
-pub use turbo_tasks_macros::{function, value_impl, TaskInput};
+pub use turbo_tasks_macros::{TaskInput, function, value_impl};
 pub use value::{TransientInstance, TransientValue, Value};
 pub use value_type::{TraitMethod, TraitType, ValueType};
 pub use vc::{
@@ -302,6 +305,19 @@ pub type TaskIdSet = AutoSet<TaskId, BuildHasherDefault<FxHasher>, 2>;
 
 pub mod test_helpers {
     pub use super::manager::{current_task_for_testing, with_turbo_tasks_for_testing};
+}
+
+thread_local! {
+    /// The location of the last error that occurred in the current thread.
+    ///
+    /// Used for debugging when errors are sent to telemetry
+    pub(crate) static LAST_ERROR_LOCATION: RefCell<Option<String>> = const { RefCell::new(None) };
+}
+
+pub fn handle_panic(info: &panic::PanicHookInfo<'_>) {
+    LAST_ERROR_LOCATION.with_borrow_mut(|loc| {
+        *loc = info.location().map(|l| l.to_string());
+    });
 }
 
 pub fn register() {

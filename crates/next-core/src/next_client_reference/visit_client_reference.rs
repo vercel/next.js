@@ -6,10 +6,10 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
+    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
     trace::TraceRawVcs,
-    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::css::chunk::CssChunkPlaceable;
@@ -19,8 +19,8 @@ use turbopack_core::{
 
 use crate::{
     next_client_reference::{
-        ecmascript_client_reference::ecmascript_client_reference_module::EcmascriptClientReferenceModule,
         CssClientReferenceModule,
+        ecmascript_client_reference::ecmascript_client_reference_module::EcmascriptClientReferenceModule,
     },
     next_server_component::server_component_module::NextServerComponentModule,
     next_server_utility::server_utility_module::NextServerUtilityModule,

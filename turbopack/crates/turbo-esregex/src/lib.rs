@@ -1,6 +1,6 @@
 #![feature(arbitrary_self_types_pointers)]
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 
 pub fn register() {
     turbo_tasks::register();
@@ -92,7 +92,7 @@ impl EsRegex {
         }
 
         let regex = if !applied_flags.is_empty() {
-            regex::Regex::new(&format!("(?{}){}", applied_flags, pattern))
+            regex::Regex::new(&format!("(?{applied_flags}){pattern}"))
         } else {
             regex::Regex::new(&pattern)
         };

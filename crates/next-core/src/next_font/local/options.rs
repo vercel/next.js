@@ -3,7 +3,7 @@ use std::{fmt::Display, str::FromStr};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, Value, Vc};
+use turbo_tasks::{NonLocalValue, Value, Vc, trace::TraceRawVcs};
 
 use super::request::{
     AdjustFontFallback, NextFontLocalRequest, NextFontLocalRequestArguments, SrcDescriptor,
@@ -149,7 +149,7 @@ impl Display for FontWeight {
             f,
             "{}",
             match self {
-                Self::Variable(start, end) => format!("{} {}", start, end),
+                Self::Variable(start, end) => format!("{start} {end}"),
                 Self::Fixed(val) => val.to_string(),
             }
         )
@@ -206,7 +206,7 @@ mod tests {
     use anyhow::Result;
     use turbo_tasks_fs::json::parse_json_with_source_context;
 
-    use super::{options_from_request, NextFontLocalOptions};
+    use super::{NextFontLocalOptions, options_from_request};
     use crate::next_font::local::{
         options::{FontDescriptor, FontDescriptors, FontWeight},
         request::{AdjustFontFallback, NextFontLocalRequest},
@@ -322,11 +322,12 @@ mod tests {
         );
 
         match request {
-            Ok(r) => panic!("Expected failure, received {:?}", r),
+            Ok(r) => panic!("Expected failure, received {r:?}"),
             Err(err) => {
-                assert!(err
-                    .to_string()
-                    .contains("expected Expected string or `false`. Received `true`"),)
+                assert!(
+                    err.to_string()
+                        .contains("expected Expected string or `false`. Received `true`"),
+                )
             }
         }
 

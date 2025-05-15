@@ -1,36 +1,36 @@
 use std::{fmt, hash::Hash};
 
 use petgraph::{
+    Direction, Graph,
     algo::{condensation, has_path_connecting},
     graph::NodeIndex,
     graphmap::GraphMap,
     prelude::DiGraphMap,
     visit::EdgeRef,
-    Direction, Graph,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
-    common::{comments::Comments, util::take::Take, BytePos, Spanned, SyntaxContext, DUMMY_SP},
+    common::{BytePos, DUMMY_SP, Spanned, SyntaxContext, comments::Comments, util::take::Take},
     ecma::{
         ast::{
-            op, ClassDecl, Decl, DefaultDecl, EsReserved, ExportAll, ExportDecl,
-            ExportNamedSpecifier, ExportSpecifier, Expr, ExprStmt, FnDecl, Id, Ident, IdentName,
-            ImportDecl, ImportNamedSpecifier, ImportSpecifier, ImportStarAsSpecifier, KeyValueProp,
-            Lit, Module, ModuleDecl, ModuleExportName, ModuleItem, NamedExport, ObjectLit, Prop,
-            PropName, PropOrSpread, Stmt, Str, VarDecl, VarDeclKind, VarDeclarator,
+            ClassDecl, Decl, DefaultDecl, EsReserved, ExportAll, ExportDecl, ExportNamedSpecifier,
+            ExportSpecifier, Expr, ExprStmt, FnDecl, Id, Ident, IdentName, ImportDecl,
+            ImportNamedSpecifier, ImportSpecifier, ImportStarAsSpecifier, KeyValueProp, Lit,
+            Module, ModuleDecl, ModuleExportName, ModuleItem, NamedExport, ObjectLit, Prop,
+            PropName, PropOrSpread, Stmt, Str, VarDecl, VarDeclKind, VarDeclarator, op,
         },
         atoms::Atom,
-        utils::{find_pat_ids, private_ident, quote_ident, ExprCtx, ExprExt},
+        utils::{ExprCtx, ExprExt, find_pat_ids, private_ident, quote_ident},
     },
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::FxIndexSet;
 
 use super::{
-    util::{
-        collect_top_level_decls, ids_captured_by, ids_used_by, ids_used_by_ignoring_nested, Vars,
-    },
     Key, TURBOPACK_PART_IMPORT_SOURCE,
+    util::{
+        Vars, collect_top_level_decls, ids_captured_by, ids_used_by, ids_used_by_ignoring_nested,
+    },
 };
 use crate::{magic_identifier, tree_shake::optimizations::GraphOptimizer};
 
@@ -86,10 +86,10 @@ impl fmt::Debug for ItemId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ItemId::Group(kind) => {
-                write!(f, "ItemId({:?})", kind)
+                write!(f, "ItemId({kind:?})")
             }
             ItemId::Item { index, kind } => {
-                write!(f, "ItemId({}, {:?})", index, kind)
+                write!(f, "ItemId({index}, {kind:?})")
             }
         }
     }
@@ -1659,11 +1659,7 @@ pub(crate) fn create_turbopack_part_id_assert(dep: PartId) -> ObjectLit {
                 PartId::Export(e) => format!("export {e}").into(),
                 PartId::Internal(dep, is_for_eval) => {
                     let v = dep as f64;
-                    if is_for_eval {
-                        v
-                    } else {
-                        -v
-                    }
+                    if is_for_eval { v } else { -v }
                 }
                 .into(),
             },

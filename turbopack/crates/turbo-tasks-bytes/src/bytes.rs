@@ -1,6 +1,6 @@
 use std::{
     ops::Deref,
-    str::{from_utf8, Utf8Error},
+    str::{Utf8Error, from_utf8},
 };
 
 use anyhow::Result;
@@ -70,7 +70,7 @@ impl From<Bytes> for CBytes {
 #[cfg(test)]
 mod tests {
     use bytes::Bytes as CBytes;
-    use serde_test::{assert_tokens, Token};
+    use serde_test::{Token, assert_tokens};
 
     use super::Bytes;
     impl PartialEq<&str> for Bytes {

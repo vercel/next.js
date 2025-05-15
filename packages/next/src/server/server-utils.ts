@@ -5,7 +5,6 @@ import type { BaseNextRequest } from './base-http'
 import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
 
-import { format as formatUrl, parse as parseUrl } from 'url'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
@@ -26,6 +25,8 @@ import { normalizeNextQueryParam } from './web/utils'
 import type { IncomingHttpHeaders, IncomingMessage } from 'http'
 import { decodeQueryPathParameter } from './lib/decode-query-path-parameter'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
+import { parseReqUrl } from '../lib/url'
+import { formatUrl } from '../shared/lib/router/utils/format-url'
 
 export function normalizeCdnUrl(
   req: BaseNextRequest | IncomingMessage,
@@ -34,7 +35,13 @@ export function normalizeCdnUrl(
 ) {
   // make sure to normalize req.url from CDNs to strip dynamic and rewrite
   // params from the query which are added during routing
-  const _parsedUrl = parseUrl(req.url!, true)
+  const _parsedUrl = parseReqUrl(req.url!)
+
+  // we can't normalize if we can't parse
+  if (!_parsedUrl) {
+    return req.url
+  }
+
   delete (_parsedUrl as any).search
 
   for (const key of Object.keys(_parsedUrl.query)) {
@@ -165,7 +172,7 @@ export function normalizeDynamicRouteParams(
   }
 }
 
-export function getUtils({
+export function getServerUtils({
   page,
   i18n,
   basePath,
