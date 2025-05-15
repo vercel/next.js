@@ -125,7 +125,7 @@ export const CODE_FRAME_STYLES = `
   .code-frame-pre {
     padding: var(--code-frame-padding);
   }
-    
+
   .code-frame-link svg {
     flex-shrink: 0;
   }

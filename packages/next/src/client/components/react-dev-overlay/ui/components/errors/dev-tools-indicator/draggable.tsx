@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef } from 'react'
 import { IconCross } from '../../../icons/icon-cross'
 
 interface Point {
@@ -197,7 +197,7 @@ export function useDrag({
     }
   }
 
-  function transition(transition: string, onTransitionEnd?: () => void) {
+  function transition(config: string, onTransitionEnd?: () => void) {
     const el = ref.current
     if (el === null) return
 
@@ -210,7 +210,7 @@ export function useDrag({
       }
     }
 
-    el.style.setProperty('transition', transition)
+    el.style.setProperty('transition', config)
     el.addEventListener('transitionend', listener)
   }
 
@@ -228,19 +228,17 @@ export function useDrag({
       e.preventDefault()
       e.stopPropagation()
       state.current = 'idle'
-      ref.current?.removeEventListener('click', onClick)
     }
   }
 
   function onPointerDown(e: React.PointerEvent) {
     origin.current = { x: e.clientX, y: e.clientY }
     state.current = 'press'
-    ref.current?.setPointerCapture(e.pointerId)
-    ref.current?.addEventListener('click', onClick)
   }
 
-  function onPointerMove(e: PointerEvent) {
+  function onPointerMove(e: React.PointerEvent) {
     if (state.current === 'press') {
+      ref.current?.setPointerCapture(e.pointerId)
       const dx = e.clientX - origin.current.x
       const dy = e.clientY - origin.current.y
       const distance = Math.sqrt(dx * dx + dy * dy)
@@ -311,7 +309,7 @@ export function useDrag({
     onDrag?.(translation.current)
   }
 
-  function onPointerUp(e: PointerEvent) {
+  function onPointerUp(e: React.PointerEvent) {
     state.current = state.current === 'drag' ? 'drag-end' : 'idle'
     const velocity = calculateVelocity(velocities.current)
     velocities.current = []
@@ -361,6 +359,7 @@ export function useDrag({
 
   return {
     ref,
+    onClick,
     onPointerDown,
     onPointerMove,
     onPointerUp,
