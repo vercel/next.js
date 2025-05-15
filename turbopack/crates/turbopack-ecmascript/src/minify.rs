@@ -134,7 +134,15 @@ pub fn minify(code: &Code, source_maps: bool, mangle: Option<MangleType>) -> Res
         src_map_buf.shrink_to_fit();
         builder.push_source(
             &src.into(),
-            Some(generate_js_source_map(cm, src_map_buf, Some(original_map))?),
+            Some(generate_js_source_map(
+                cm,
+                src_map_buf,
+                Some(original_map),
+                // We do not inline source contents.
+                // We provide a synthesized value to `cm.new_source_file` above, so it cannot be
+                // the value user expect anyway.
+                false,
+            )?),
         );
     } else {
         builder.push_source(&src.into(), None);

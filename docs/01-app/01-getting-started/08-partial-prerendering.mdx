@@ -135,7 +135,7 @@ const nextConfig = {
 
 The `'incremental'` value allows you to adopt PPR for specific routes:
 
-```tsx filename="/app/dashboard/layout.tsx" highlight={3}
+```tsx filename="/app/dashboard/layout.tsx"
 export const experimental_ppr = true
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -143,7 +143,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 }
 ```
 
-```jsx filename="/app/dashboard/layout.js" highlight={3}
+```jsx filename="/app/dashboard/layout.js"
 export const experimental_ppr = true
 
 export default function Layout({ children }) {

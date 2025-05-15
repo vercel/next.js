@@ -28,6 +28,7 @@
 
 #![feature(trivial_bounds)]
 #![feature(min_specialization)]
+#![feature(thread_local)]
 #![feature(try_trait_v2)]
 #![deny(unsafe_op_in_unsafe_fn)]
 #![feature(result_flattening)]
@@ -58,6 +59,7 @@ pub mod macro_helpers;
 mod magic_any;
 mod manager;
 mod marker_trait;
+pub mod message_queue;
 mod native_function;
 mod no_move_vec;
 mod once_map;
@@ -83,10 +85,11 @@ mod value;
 mod value_type;
 mod vc;
 
-use std::hash::BuildHasherDefault;
+use std::{cell::RefCell, hash::BuildHasherDefault, panic};
 
 pub use anyhow::{Error, Result};
 use auto_hash_map::AutoSet;
+pub use capture_future::TurboTasksPanic;
 pub use collectibles::CollectiblesSource;
 pub use completion::{Completion, Completions};
 pub use display::ValueToString;
@@ -302,6 +305,19 @@ pub type TaskIdSet = AutoSet<TaskId, BuildHasherDefault<FxHasher>, 2>;
 
 pub mod test_helpers {
     pub use super::manager::{current_task_for_testing, with_turbo_tasks_for_testing};
+}
+
+thread_local! {
+    /// The location of the last error that occurred in the current thread.
+    ///
+    /// Used for debugging when errors are sent to telemetry
+    pub(crate) static LAST_ERROR_LOCATION: RefCell<Option<String>> = const { RefCell::new(None) };
+}
+
+pub fn handle_panic(info: &panic::PanicHookInfo<'_>) {
+    LAST_ERROR_LOCATION.with_borrow_mut(|loc| {
+        *loc = info.location().map(|l| l.to_string());
+    });
 }
 
 pub fn register() {
