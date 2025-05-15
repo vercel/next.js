@@ -38,7 +38,10 @@ import {
   updateTelemetryLoaderCtxFromTransformOutput,
   type SwcTransformTelemetryOutput,
 } from '../plugins/telemetry-plugin/update-telemetry-loader-context-from-swc'
-import type { LoaderContext } from 'webpack'
+import type {
+  PitchLoaderDefinitionFunction,
+  RawLoaderDefinitionFunction,
+} from 'webpack'
 
 const maybeExclude = (
   excludePath: string,
@@ -62,7 +65,7 @@ export interface SWCLoaderOptions {
   hasReactRefresh: boolean
   optimizeServerReact?: boolean
   nextConfig: NextConfig
-  jsConfig: any
+  jsConfig?: any
   supportedBrowsers: string[] | undefined
   swcCacheDir: string
   serverComponents?: boolean
@@ -82,12 +85,29 @@ const FORCE_TRANSPILE_CONDITIONS_WITH_IMPORT = new RegExp(
   String.raw`(?:${FORCE_TRANSPILE_CONDITIONS.source})|import\s*\(`
 )
 
-async function loaderTransform(
-  this: LoaderContext<SWCLoaderOptions> & TelemetryLoaderContext,
-  source?: string,
-  inputSourceMap?: any
-) {
-  // Make the loader async
+type SourceMapArg = Parameters<RawLoaderDefinitionFunction>[1]
+
+type NextSwcLoaderTransformContext = Pick<
+  // The transform can be invoked in the pitch phase or the loader phase.
+  ThisParameterType<typeof pitch> | ThisParameterType<typeof loader>,
+  // `TraceEntryPointsPlugin` only passes a subset of the loader context.
+  | 'resourcePath'
+  | 'getOptions'
+  | 'mode'
+  | 'sourceMap'
+  | keyof TelemetryLoaderContext
+>
+
+export async function nextSwcLoaderTransform(
+  this: NextSwcLoaderTransformContext,
+  /**
+   * The source will be undefined if this is invoked from the pitching loader.
+   * in this case, the bindings will load the file by filename.
+   * It can also be a string if the loader is invoked manually from `TraceEntryPointsPlugin`.
+   */
+  source: Buffer | string | undefined,
+  inputSourceMap: SourceMapArg
+): Promise<[code: string | Buffer | undefined, sourceMap: SourceMapArg]> {
   const filename = this.resourcePath
 
   // Ensure `.d.ts` are not processed.
@@ -112,8 +132,17 @@ async function loaderTransform(
       ? FORCE_TRANSPILE_CONDITIONS_WITH_IMPORT
       : FORCE_TRANSPILE_CONDITIONS
 
-    if (!forceTranspileConditions.test(source)) {
-      return [source, inputSourceMap]
+    const sourceString = Buffer.isBuffer(source)
+      ? source.toString('utf-8')
+      : source
+    if (!forceTranspileConditions.test(sourceString)) {
+      return [
+        // If we return a buffer, webpack will have to convert it to a string:
+        // https://github.com/webpack/webpack/blob/c6ae84152e48cfa5b29eb313e81a35f86794d038/lib/NormalModule.js#L975
+        // so we can save it some work by returning the string we already have.
+        sourceString,
+        inputSourceMap,
+      ]
     }
   }
 
@@ -198,7 +227,7 @@ async function loaderTransform(
       this.mode === 'development'
   }
 
-  return transform(source as any, programmaticOptions).then(
+  return transform(source, programmaticOptions).then(
     (
       output: {
         code: string
@@ -226,7 +255,10 @@ function shouldTrackDynamicImports(loaderOptions: SWCLoaderOptions): boolean {
 const EXCLUDED_PATHS =
   /[\\/](cache[\\/][^\\/]+\.zip[\\/]node_modules|__virtual__)[\\/]/g
 
-export function pitch(this: any) {
+export const pitch: PitchLoaderDefinitionFunction<
+  SWCLoaderOptions,
+  TelemetryLoaderContext
+> = function pitch() {
   const callback = this.async()
   let loaderOptions: SWCLoaderOptions = this.getOptions() || {}
 
@@ -244,10 +276,12 @@ export function pitch(this: any) {
       !EXCLUDED_PATHS.test(this.resourcePath) &&
       this.loaders.length - 1 === this.loaderIndex &&
       isAbsolute(this.resourcePath) &&
+      // the native bindings will read the file from the filesystem,
+      // but the WASM bindings can't do that, so we have to exclude them.
       !(await isWasm())
     ) {
       this.addDependency(this.resourcePath)
-      return loaderTransform.call(this)
+      return nextSwcLoaderTransform.call(this, undefined, undefined)
     }
   })().then((r) => {
     if (r) return callback(null, ...r)
@@ -255,14 +289,13 @@ export function pitch(this: any) {
   }, callback)
 }
 
-export default function swcLoader(
-  this: any,
-  inputSource: string,
-  inputSourceMap: any
-) {
+const loader: RawLoaderDefinitionFunction<
+  SWCLoaderOptions,
+  TelemetryLoaderContext
+> = function swcLoader(inputSource, inputSourceMap) {
   const callback = this.async()
-  loaderTransform.call(this, inputSource, inputSourceMap).then(
-    ([transformedSource, outputSourceMap]: any) => {
+  nextSwcLoaderTransform.call(this, inputSource, inputSourceMap).then(
+    ([transformedSource, outputSourceMap]) => {
       callback(null, transformedSource, outputSourceMap || inputSourceMap)
     },
     (err: Error) => {
@@ -270,6 +303,7 @@ export default function swcLoader(
     }
   )
 }
+export default loader
 
 // accept Buffers instead of strings
 export const raw = true

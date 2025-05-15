@@ -18,7 +18,10 @@ import picomatch from 'next/dist/compiled/picomatch'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getPageFilePath } from '../../entries'
 import { resolveExternal } from '../../handle-externals'
-import swcLoader, { type SWCLoaderOptions } from '../loaders/next-swc-loader'
+import {
+  nextSwcLoaderTransform,
+  type SWCLoaderOptions,
+} from '../loaders/next-swc-loader'
 import { isMetadataRouteFile } from '../../../lib/metadata/is-metadata-route'
 import { getCompilationSpan } from '../utils'
 import { isClientComponentEntryModule } from '../loaders/utils'
@@ -141,7 +144,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
   private compilerType: CompilerNameValues
   private swcLoaderConfig: {
     loader: string
-    options: Partial<SWCLoaderOptions>
+    options: SWCLoaderOptions
   }
 
   constructor({
@@ -428,7 +431,9 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
 
               // map the transpiled source when available to avoid
               // parse errors in node-file-trace
-              let source: Buffer | string = mod?.originalSource?.()?.buffer()
+              let source: string | Buffer | undefined = mod
+                ?.originalSource?.()
+                ?.buffer()
 
               try {
                 // fallback to reading raw source file, this may fail
@@ -438,7 +443,6 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                   source = await readOriginalSource(path)
                   usingOriginalSource = true
                 }
-                const sourceString = source.toString()
 
                 // If this is a client component we need to trace the
                 // original transpiled source not the client proxy which is
@@ -449,35 +453,21 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                   // don't attempt transpiling CSS or image imports
                   path.match(/\.(tsx|ts|js|cjs|mjs|jsx)$/)
                 ) {
-                  let transformResolve: (result: string) => void
-                  let transformReject: (error: unknown) => void
-                  const transformPromise = new Promise<string>(
-                    (resolve, reject) => {
-                      transformResolve = resolve
-                      transformReject = reject
-                    }
-                  )
-
                   // TODO: should we apply all loaders except the
                   // client-module-loader?
-                  swcLoader.apply(
+                  const transformResult = await nextSwcLoaderTransform.call(
                     {
+                      mode: compilation.options.mode!,
                       resourcePath: path,
+                      sourceMap: undefined,
                       getOptions: () => {
                         return this.swcLoaderConfig.options
                       },
-                      async: () => {
-                        return (err: unknown, result: string) => {
-                          if (err) {
-                            return transformReject(err)
-                          }
-                          return transformResolve(result)
-                        }
-                      },
                     },
-                    [sourceString, undefined]
+                    source,
+                    undefined
                   )
-                  source = await transformPromise
+                  source = transformResult[0]
                 }
               } catch {
                 /* non-fatal */

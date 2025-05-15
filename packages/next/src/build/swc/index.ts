@@ -1093,11 +1093,17 @@ async function loadWasm(importPath = '') {
           },
         },
         isWasm: true,
-        transform(src: string, options: any) {
+        transform(src: string | Buffer | undefined, options: any) {
+          if (typeof src === 'undefined') {
+            throw new Error(
+              'Reading the file from the filesystem is not supported by the WASM bindings.'
+            )
+          }
+          src = Buffer.isBuffer(src) ? src.toString('utf-8') : src
           // TODO: we can remove fallback to sync interface once new stable version of next-swc gets published (current v12.2)
           return bindings?.transform
-            ? bindings.transform(src.toString(), options)
-            : Promise.resolve(bindings.transformSync(src.toString(), options))
+            ? bindings.transform(src, options)
+            : Promise.resolve(bindings.transformSync(src, options))
         },
         transformSync(src: string, options: any) {
           return bindings.transformSync(src.toString(), options)
@@ -1231,7 +1237,7 @@ function loadNative(importPath?: string) {
   if (bindings) {
     nativeBindings = {
       isWasm: false,
-      transform(src: string, options: any) {
+      transform(src: string | Buffer | undefined, options: any) {
         const isModule =
           typeof src !== 'undefined' &&
           typeof src !== 'string' &&
@@ -1349,7 +1355,10 @@ export async function isWasm(): Promise<boolean> {
   return bindings.isWasm
 }
 
-export async function transform(src: string, options?: any): Promise<any> {
+export async function transform(
+  src: string | Buffer | undefined,
+  options?: any
+): Promise<any> {
   let bindings = await loadBindings()
   return bindings.transform(src, options)
 }
