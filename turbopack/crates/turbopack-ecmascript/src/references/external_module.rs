@@ -3,8 +3,8 @@ use std::{fmt::Display, io::Write};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc, TaskInput, Vc};
-use turbo_tasks_fs::{glob::Glob, rope::RopeBuilder, FileContent, FileSystem, VirtualFileSystem};
+use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
+use turbo_tasks_fs::{FileContent, FileSystem, VirtualFileSystem, glob::Glob, rope::RopeBuilder};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
@@ -15,6 +15,7 @@ use turbopack_core::{
 };
 
 use crate::{
+    EcmascriptModuleContent, EcmascriptOptions,
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
         EcmascriptChunkType, EcmascriptExports,
@@ -24,7 +25,6 @@ use crate::{
         TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE,
     },
     utils::StringifyJs,
-    EcmascriptModuleContent, EcmascriptOptions,
 };
 
 #[turbo_tasks::function]

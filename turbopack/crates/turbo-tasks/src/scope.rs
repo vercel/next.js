@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{turbo_tasks, turbo_tasks_scope, TurboTasksApi};
+use crate::{TurboTasksApi, turbo_tasks, turbo_tasks_scope};
 
 /// A wrapper around [`rayon::Scope`] that preserves the [`turbo_tasks_scope`].
 pub struct Scope<'scope, 'a> {

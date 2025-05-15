@@ -3,7 +3,6 @@
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/duplicate-binding/input/table.js [test] (ecmascript)": ((__turbopack_context__) => {
 "use strict";
 
-var { g: global } = __turbopack_context__;
 {
 __turbopack_context__.s({
     "Table": (()=>Table)
@@ -15,7 +14,6 @@ const Table = ()=>{
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/duplicate-binding/input/index.js [test] (ecmascript)": ((__turbopack_context__) => {
 "use strict";
 
-var { g: global } = __turbopack_context__;
 {
 __turbopack_context__.s({
     "Table": (()=>Table)

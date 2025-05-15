@@ -114,11 +114,11 @@ pub enum TraceValue<'a> {
 impl Display for TraceValue<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            TraceValue::String(s) => write!(f, "{}", s),
-            TraceValue::Bool(b) => write!(f, "{}", b),
-            TraceValue::UInt(u) => write!(f, "{}", u),
-            TraceValue::Int(i) => write!(f, "{}", i),
-            TraceValue::Float(fl) => write!(f, "{}", fl),
+            TraceValue::String(s) => write!(f, "{s}"),
+            TraceValue::Bool(b) => write!(f, "{b}"),
+            TraceValue::UInt(u) => write!(f, "{u}"),
+            TraceValue::Int(i) => write!(f, "{i}"),
+            TraceValue::Float(fl) => write!(f, "{fl}"),
         }
     }
 }

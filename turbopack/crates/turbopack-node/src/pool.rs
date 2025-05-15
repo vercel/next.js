@@ -11,17 +11,17 @@ use std::{
     time::{Duration, Instant},
 };
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use futures::join;
 use once_cell::sync::Lazy;
 use owo_colors::{OwoColorize, Style};
 use parking_lot::Mutex;
 use rustc_hash::FxHashMap;
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 use tokio::{
     io::{
-        stderr, stdout, AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt,
-        BufReader, Stderr, Stdout,
+        AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader, Stderr,
+        Stdout, stderr, stdout,
     },
     net::{TcpListener, TcpStream},
     process::{Child, ChildStderr, ChildStdout, Command},
@@ -30,11 +30,11 @@ use tokio::{
     time::{sleep, timeout},
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{duration_span, FxIndexSet, ResolvedVc, Vc};
-use turbo_tasks_fs::{json::parse_json_with_source_context, FileSystemPath};
+use turbo_tasks::{FxIndexSet, ResolvedVc, Vc, duration_span};
+use turbo_tasks_fs::{FileSystemPath, json::parse_json_with_source_context};
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 
-use crate::{source_map::apply_source_mapping, AssetsForSourceMapping};
+use crate::{AssetsForSourceMapping, source_map::apply_source_mapping};
 
 #[derive(Clone, Copy)]
 pub enum FormattingMode {
@@ -47,8 +47,8 @@ pub enum FormattingMode {
 impl FormattingMode {
     pub fn magic_identifier<'a>(&self, content: impl Display + 'a) -> impl Display + 'a {
         match self {
-            FormattingMode::Plain => format!("{{{}}}", content),
-            FormattingMode::AnsiColors => format!("{{{}}}", content).italic().to_string(),
+            FormattingMode::Plain => format!("{{{content}}}"),
+            FormattingMode::AnsiColors => format!("{{{content}}}").italic().to_string(),
         }
     }
 
@@ -203,7 +203,7 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
         ) -> Result<()> {
             if let Ok(text) = std::str::from_utf8(bytes) {
                 let text = unmangle_identifiers(text, |content| {
-                    format!("{{{}}}", content).italic().to_string()
+                    format!("{{{content}}}").italic().to_string()
                 });
                 match apply_source_mapping(
                     text.as_ref(),

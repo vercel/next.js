@@ -107,7 +107,6 @@ interface TurbopackBaseContext<M> {
   L: LoadChunkByUrl
   w: LoadWebAssembly
   u: LoadWebAssemblyModule
-  g: typeof globalThis
   P: ResolveAbsolutePath
   U: RelativeURL
   b: GetWorkerBlobURL

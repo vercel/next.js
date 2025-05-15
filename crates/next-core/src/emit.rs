@@ -2,10 +2,10 @@ use anyhow::Result;
 use rustc_hash::FxHashSet;
 use tracing::Instrument;
 use turbo_tasks::{
-    graph::{AdjacencyMap, GraphTraversal},
     ResolvedVc, TryFlatJoinIterExt, ValueToString, Vc,
+    graph::{AdjacencyMap, GraphTraversal},
 };
-use turbo_tasks_fs::{rebase, FileSystemPath};
+use turbo_tasks_fs::{FileSystemPath, rebase};
 use turbopack_core::{
     asset::Asset,
     output::{OutputAsset, OutputAssets},

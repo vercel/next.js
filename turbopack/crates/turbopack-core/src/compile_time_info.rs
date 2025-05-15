@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, NonLocalValue, ResolvedVc, Vc};
+use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::environment::Environment;

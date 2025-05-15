@@ -1,7 +1,7 @@
 use std::{
     path::PathBuf,
     sync::Arc,
-    thread::{spawn, JoinHandle},
+    thread::{JoinHandle, spawn},
 };
 
 use anyhow::Result;
@@ -162,7 +162,7 @@ impl<'a> ConcurrentWriteBatch<'a> for TurboWriteBatch<'a> {
     }
 
     unsafe fn flush(&self, key_space: KeySpace) -> Result<()> {
-        self.batch.flush(key_space as u32)
+        unsafe { self.batch.flush(key_space as u32) }
     }
 }
 

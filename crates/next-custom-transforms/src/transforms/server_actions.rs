@@ -1539,6 +1539,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     }
                                 }
                             }
+                            Decl::TsInterface(_) => {}
+                            Decl::TsTypeAlias(_) => {}
+                            Decl::TsEnum(_) => {}
                             _ => {
                                 disallowed_export_span = *span;
                             }
@@ -1661,6 +1664,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 }
                             }
                         }
+                        DefaultDecl::TsInterfaceDecl(_) => {}
                         _ => {
                             disallowed_export_span = *span;
                         }

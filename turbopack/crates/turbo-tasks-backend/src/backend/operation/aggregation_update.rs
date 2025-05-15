@@ -1,6 +1,6 @@
 use std::{
-    cmp::{max, Ordering},
-    collections::{hash_map::Entry as HashMapEntry, VecDeque},
+    cmp::{Ordering, max},
+    collections::{VecDeque, hash_map::Entry as HashMapEntry},
     hash::Hash,
     mem::take,
     num::NonZeroU32,
@@ -8,8 +8,8 @@ use std::{
 
 use indexmap::map::Entry;
 use rustc_hash::{FxHashMap, FxHashSet};
-use serde::{ser::SerializeSeq, Deserialize, Serialize, Serializer};
-use smallvec::{smallvec, SmallVec};
+use serde::{Deserialize, Serialize, Serializer, ser::SerializeSeq};
+use smallvec::{SmallVec, smallvec};
 #[cfg(any(
     feature = "trace_aggregation_update",
     feature = "trace_find_and_schedule"
@@ -21,10 +21,9 @@ use turbo_tasks::{FxIndexMap, SessionId, TaskId};
 use crate::backend::operation::invalidate::TaskDirtyCause;
 use crate::{
     backend::{
-        get_mut, get_mut_or_insert_with,
-        operation::{invalidate::make_task_dirty, ExecuteContext, Operation, TaskGuard},
+        TaskDataCategory, get_mut, get_mut_or_insert_with,
+        operation::{ExecuteContext, Operation, TaskGuard, invalidate::make_task_dirty},
         storage::{count, get, get_many, iter_many, remove, update, update_count},
-        TaskDataCategory,
     },
     data::{
         ActivenessState, AggregationNumber, CachedDataItem, CachedDataItemKey, CollectibleRef,

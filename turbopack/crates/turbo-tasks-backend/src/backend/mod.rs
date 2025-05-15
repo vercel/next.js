@@ -10,31 +10,31 @@ use std::{
     mem::take,
     pin::Pin,
     sync::{
-        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
         Arc,
+        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
     },
     thread::available_parallelism,
 };
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use auto_hash_map::{AutoMap, AutoSet};
 use indexmap::IndexSet;
 use parking_lot::{Condvar, Mutex};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
-use smallvec::{smallvec, SmallVec};
+use smallvec::{SmallVec, smallvec};
 use tokio::time::{Duration, Instant};
 use turbo_tasks::{
+    CellId, FunctionId, FxDashMap, KeyValuePair, RawVc, ReadCellOptions, ReadConsistency,
+    SessionId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId, TurboTasksBackendApi, ValueTypeId,
     backend::{
         Backend, BackendJobId, CachedTaskType, CellContent, TaskExecutionSpec, TransientTaskRoot,
-        TransientTaskType, TypedCellContent,
+        TransientTaskType, TurboTasksExecutionError, TypedCellContent,
     },
     event::{Event, EventListener},
     registry::{self, get_value_type_global_name},
     task_statistics::TaskStatisticsApi,
     trace::TraceRawVcs,
     util::IdFactoryWithReuse,
-    CellId, FunctionId, FxDashMap, KeyValuePair, RawVc, ReadCellOptions, ReadConsistency,
-    SessionId, TaskId, TraitTypeId, TurboTasksBackendApi, ValueTypeId, TRANSIENT_TASK_BIT,
 };
 
 pub use self::{operation::AnyOperation, storage::TaskDataCategory};
@@ -43,14 +43,14 @@ use crate::backend::operation::TaskDirtyCause;
 use crate::{
     backend::{
         operation::{
-            connect_children, get_aggregation_number, is_root_node, prepare_new_children,
             AggregatedDataUpdate, AggregationUpdateJob, AggregationUpdateQueue,
             CleanupOldEdgesOperation, ConnectChildOperation, ExecuteContext, ExecuteContextImpl,
-            Operation, OutdatedEdge, TaskGuard,
+            Operation, OutdatedEdge, TaskGuard, connect_children, get_aggregation_number,
+            is_root_node, prepare_new_children,
         },
         storage::{
-            get, get_many, get_mut, get_mut_or_insert_with, iter_many, remove,
-            InnerStorageSnapshot, Storage,
+            InnerStorageSnapshot, Storage, get, get_many, get_mut, get_mut_or_insert_with,
+            iter_many, remove,
         },
     },
     backing_storage::BackingStorage,
@@ -265,8 +265,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         'tx: 'e,
     {
         // Safety: `tx` is from `self`.
-        let ctx = unsafe { ExecuteContextImpl::new_with_tx(self, tx, turbo_tasks) };
-        ctx
+        unsafe { ExecuteContextImpl::new_with_tx(self, tx, turbo_tasks) }
     }
 
     fn suspending_requested(&self) -> bool {
@@ -429,14 +428,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             done_event: &Event,
         ) -> EventListener {
             let reader_desc = reader.map(|r| this.get_task_desc_fn(r));
-            let listener = done_event.listen_with_note(move || {
+            done_event.listen_with_note(move || {
                 if let Some(reader_desc) = reader_desc.as_ref() {
                     format!("try_read_task_output from {}", reader_desc())
                 } else {
                     "try_read_task_output (untracked)".to_string()
                 }
-            });
-            listener
+            })
         }
 
         fn check_in_progress<B: BackingStorage>(
@@ -534,10 +532,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     get!(task, Activeness).unwrap()
                 };
                 let listener = root.all_clean_event.listen_with_note(move || {
-                    format!(
-                        "try_read_task_output (strongly consistent) from {:?}",
-                        reader
-                    )
+                    format!("try_read_task_output (strongly consistent) from {reader:?}")
                 });
                 drop(task);
                 if !task_ids_to_schedule.is_empty() {
@@ -558,9 +553,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             let result = match output {
                 OutputValue::Cell(cell) => Some(Ok(Ok(RawVc::TaskCell(cell.task, cell.cell)))),
                 OutputValue::Output(task) => Some(Ok(Ok(RawVc::TaskOutput(*task)))),
-                OutputValue::Error | OutputValue::Panic => {
-                    get!(task, Error).map(|error| Err(error.clone().into()))
-                }
+                OutputValue::Error => get!(task, Error).map(|error| Err(error.clone().into())),
             };
             if let Some(result) = result {
                 if self.should_track_dependencies() {
@@ -954,7 +947,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 persisted_task_cache_log,
                 task_snapshots,
             ) {
-                println!("Persisting failed: {:?}", err);
+                println!("Persisting failed: {err:?}");
                 return None;
             }
         }
@@ -989,7 +982,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
     fn stop(&self) {
         if let Err(err) = self.backing_storage.shutdown() {
-            println!("Shutting down failed: {}", err);
+            println!("Shutting down failed: {err}");
         }
     }
 
@@ -1411,7 +1404,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     fn task_execution_result(
         &self,
         task_id: TaskId,
-        result: Result<Result<RawVc>, Option<Cow<'static, str>>>,
+        result: Result<RawVc, Arc<TurboTasksExecutionError>>,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
         operation::UpdateOutputOperation::run(task_id, result, self.execute_context(turbo_tasks));
@@ -2343,7 +2336,7 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
     fn task_execution_result(
         &self,
         task_id: TaskId,
-        result: Result<Result<RawVc>, Option<Cow<'static, str>>>,
+        result: Result<RawVc, Arc<TurboTasksExecutionError>>,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) {
         self.0.task_execution_result(task_id, result, turbo_tasks);

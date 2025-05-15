@@ -4,12 +4,12 @@ use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext, ChunkingContextExt,
+        ChunkableModule, ChunkingContext, ChunkingContextExt, availability_info::AvailabilityInfo,
     },
     ident::AssetIdent,
     module::Module,
     module_graph::{
-        chunk_group_info::ChunkGroup, module_batch::ChunkableModuleOrBatch, ModuleGraph,
+        ModuleGraph, chunk_group_info::ChunkGroup, module_batch::ChunkableModuleOrBatch,
     },
     output::OutputAssets,
     reference::{ModuleReferences, SingleOutputAssetReference},
