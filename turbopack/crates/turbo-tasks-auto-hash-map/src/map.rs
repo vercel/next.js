@@ -908,14 +908,14 @@ where
     H: BuildHasher + Default,
 {
     fn shrink_to_fit(&mut self) {
+        if self.len() < MIN_HASH_SIZE {
+            self.convert_to_list();
+        }
+
         match self {
             AutoMap::List(list) => list.shrink_to_fit(),
             AutoMap::Map(map) => {
-                if map.len() < MIN_HASH_SIZE {
-                    self.convert_to_list();
-                } else {
-                    hashbrown::HashMap::shrink_to_fit(map);
-                }
+                hashbrown::HashMap::shrink_to_fit(map);
             }
         }
     }
