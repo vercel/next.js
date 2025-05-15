@@ -68,6 +68,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
 
     let span = span_outer.clone();
     async move {
+        let async_module_info = module_graph.async_module_info().await?;
         let module_graph = module_graph.await?;
 
         let graphs = module_graph.graphs.iter().try_join().await?;
@@ -134,15 +135,18 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                     Ok(if parent_module.is_some_and(|p| p == module) {
                         // A self-reference
                         GraphTraversalAction::Skip
-                    } else if let (Some(parent_module), true, true) = (
+                    } else if let (Some(parent_module), true, true, true) = (
                         parent_module.filter(|m| {
                             ResolvedVc::try_downcast::<Box<dyn MergeableModule>>(*m).is_some()
                         }),
                         ResolvedVc::try_downcast::<Box<dyn MergeableModule>>(module).is_some(),
                         hoisted,
+                        // TODO technically we could merge a sync child into an async parent
+                        !parent_module.is_some_and(|p| async_module_info.contains(&p))
+                            && !async_module_info.contains(&module),
                     ) {
-                        // A hoisted reference from a mergeable module to a mergeable module,
-                        // inherit bitmaps from parent.
+                        // A hoisted reference from a mergeable module to a non-async mergeable
+                        // module, inherit bitmaps from parent.
                         module_merged_groups.entry(node.module).or_default();
                         let [Some(parent_merged_groups), Some(current_merged_groups)] =
                             module_merged_groups.get_disjoint_mut([&parent_module, &node.module])
