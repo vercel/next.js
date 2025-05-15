@@ -143,7 +143,7 @@ function warnCustomizedOption(
 
 function assignDefaults(
   dir: string,
-  userConfig: { [key: string]: any; configFileName: string },
+  userConfig: NextConfig & { configFileName: string },
   silent: boolean
 ): NextConfigComplete {
   const configFileName = userConfig.configFileName
@@ -1108,11 +1108,11 @@ function assignDefaults(
   // If dynamicIO is enabled, we also enable PPR.
   if (result.experimental.dynamicIO) {
     if (
-      config.experimental?.ppr === false ||
-      config.experimental?.ppr === 'incremental'
+      userConfig.experimental?.ppr === false ||
+      userConfig.experimental?.ppr === 'incremental'
     ) {
       throw new Error(
-        `\`experimental.ppr\` can not be \`${JSON.stringify(config.experimental?.ppr)}\` when \`experimental.dynamicIO\` is \`true\`. PPR is implicitly enabled when Dynamic IO is enabled.`
+        `\`experimental.ppr\` can not be \`${JSON.stringify(userConfig.experimental?.ppr)}\` when \`experimental.dynamicIO\` is \`true\`. PPR is implicitly enabled when Dynamic IO is enabled.`
       )
     }
 
