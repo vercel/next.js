@@ -6,7 +6,7 @@ use std::{
 };
 
 use hashbrown::HashMap;
-use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use par_iter::prelude::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use rustc_hash::FxHashSet;
 
 use crate::{

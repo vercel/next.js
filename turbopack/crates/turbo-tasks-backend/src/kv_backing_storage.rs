@@ -1,7 +1,7 @@
 use std::{borrow::Borrow, cmp::max, sync::Arc};
 
 use anyhow::{Context, Result, anyhow};
-use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
+use par_iter::prelude::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use serde::Serialize;
 use smallvec::SmallVec;
 use tracing::Span;

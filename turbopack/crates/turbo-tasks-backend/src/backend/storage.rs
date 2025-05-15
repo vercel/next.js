@@ -6,7 +6,7 @@ use std::{
 };
 
 use bitfield::bitfield;
-use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use par_iter::prelude::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use turbo_tasks::{FxDashMap, TaskId};
 
 use crate::{

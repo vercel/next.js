@@ -45,7 +45,7 @@ use indexmap::IndexSet;
 use invalidator_map::InvalidatorMap;
 use jsonc_parser::{ParseOptions, parse_to_serde_value};
 use mime::Mime;
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use par_iter::prelude::{IntoParallelIterator, ParallelIterator};
 use read_glob::track_glob;
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};

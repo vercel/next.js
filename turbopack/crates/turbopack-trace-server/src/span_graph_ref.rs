@@ -4,7 +4,7 @@ use std::{
     sync::{Arc, OnceLock},
 };
 
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use par_iter::prelude::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::{
     FxIndexMap,

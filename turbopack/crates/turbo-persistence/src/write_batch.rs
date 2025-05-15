@@ -10,11 +10,9 @@ use std::{
 use anyhow::{Context, Result};
 use byteorder::{BE, WriteBytesExt};
 use lzzzz::lz4::{self, ACC_LEVEL_DEFAULT};
+use par_iter::prelude::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use parking_lot::Mutex;
-use rayon::{
-    iter::{Either, IndexedParallelIterator, IntoParallelIterator, ParallelIterator},
-    scope,
-};
+use rayon::{iter::Either, scope};
 use smallvec::SmallVec;
 use thread_local::ThreadLocal;
 use tracing::Span;

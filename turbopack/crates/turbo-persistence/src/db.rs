@@ -16,8 +16,8 @@ use byteorder::{BE, ReadBytesExt, WriteBytesExt};
 use jiff::Timestamp;
 use lzzzz::lz4::decompress;
 use memmap2::Mmap;
+use par_iter::prelude::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use parking_lot::{Mutex, RwLock};
-use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use tracing::Span;
 
 use crate::{
