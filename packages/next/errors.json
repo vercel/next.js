@@ -679,5 +679,6 @@
   "678": "CacheSignal got more endRead() calls than beginRead() calls",
   "679": "A CacheSignal cannot subscribe to itself",
   "680": "Expected clientReferenceManifest to be defined.",
-  "681": "Accessed fallback \\`params\\` during prerendering."
+  "681": "Accessed fallback \\`params\\` during prerendering.",
+  "682": "\\`experimental.ppr\\` can not be \\`%s\\` when \\`experimental.dynamicIO\\` is \\`true\\`. PPR is implicitly enabled when Dynamic IO is enabled."
 }
