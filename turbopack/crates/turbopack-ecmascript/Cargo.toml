@@ -72,7 +72,7 @@ swc_core = { workspace = true, features = [
   "testing",
   "base",
 ] }
-par-core = { workspace = true, features = ["rayon"] }
+par-core = { workspace = true, features = ["chili"] }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }

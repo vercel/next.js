@@ -375,7 +375,7 @@ nohash-hasher = "0.2.0"
 notify = "8.0.0"
 once_cell = "1.17.1"
 owo-colors = "3.5.0"
-par-core = { version = "1.0.3", features = ["rayon"] }
+par-core = { version = "1.0.3", features = ["chili"] }
 par-iter = "1.0.2"
 parcel_selectors = "0.28.1"
 parking_lot = "0.12.1"
