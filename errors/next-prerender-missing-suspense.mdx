@@ -34,6 +34,9 @@ export default async function Page() {
 After:
 
 ```jsx filename="app/page.js"
+import { unstable_cacheTag as cacheTag } from 'next/cache'
+import { unstable_cacheLife as cacheLife } from 'next/cache'
+
 async function getRecentArticles() {
   "use cache"
   // This cache can be revalidated by webhook or server action
@@ -219,6 +222,8 @@ If you expected the `"use cache"` entry to be prerenderable try describing a sli
 Before:
 
 ```jsx filename="app/page.js"
+import { unstable_cacheLife as cacheLife } from 'next/cache'
+
 async function getDashboard() {
   "use cache"
   // This cache will revalidate after 1 second. It is so short
@@ -237,6 +242,8 @@ export default async function Page() {
 After:
 
 ```jsx filename="app/page.js"
+import { unstable_cacheLife as cacheLife } from 'next/cache'
+
 async function getDashboard() {
   "use cache"
   // This cache will revalidate after 1 minute. It's long enough that
