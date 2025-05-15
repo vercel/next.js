@@ -98,6 +98,7 @@
       "test/e2e/app-dir/react-max-headers-length/react-max-headers-length.test.ts",
       "test/e2e/app-dir/searchparams-static-bailout/searchparams-static-bailout.test.ts",
       "test/e2e/app-dir/segment-cache/basic/segment-cache-basic.test.ts",
+      "test/e2e/app-dir/segment-cache/export/segment-cache-output-export.test.ts",
       "test/e2e/app-dir/segment-cache/incremental-opt-in/segment-cache-incremental-opt-in.test.ts",
       "test/e2e/app-dir/segment-cache/memory-pressure/segment-cache-memory-pressure.test.ts",
       "test/e2e/app-dir/segment-cache/prefetch-scheduling/prefetch-scheduling.test.ts",

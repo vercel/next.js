@@ -4,7 +4,6 @@
 const nextConfig = {
   output: 'export',
   experimental: {
-    dynamicIO: true,
     clientSegmentCache: true,
   },
 }
