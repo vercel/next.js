@@ -355,3 +355,278 @@ export default function BlogPage() {
 An instant loading state is fallback UI that is shown immediately to the user after navigation. For the best user experience, we recommend designing loading states that are meaningful and help users understand the app is responding. For example, you can use skeletons and spinners, or a small but meaningful part of future screens such as a cover photo, title, etc.
 
 In development, you can preview and inspect the loading state of your components using the [React Devtools](https://react.dev/learn/react-developer-tools).
+
+## Examples
+
+### Sequential data fetching
+
+Sequential data fetching happens when nested components in a tree each fetch their own data and the requests are not [deduplicated](/docs/app/deep-dive/caching#request-memoization), leading to longer response times.
+
+<Image
+  alt="Sequential and Parallel Data Fetching"
+  srcLight="/docs/light/sequential-parallel-data-fetching.png"
+  srcDark="/docs/dark/sequential-parallel-data-fetching.png"
+  width="1600"
+  height="525"
+/>
+
+There may be cases where you want this pattern because one fetch depends on the result of the other.
+
+For example, the `<Playlists>` component will only start fetching data once the `<Artist>` component has finished fetching data because `<Playlists>` depends on the `artistID` prop:
+
+```tsx filename="app/artist/[username]/page.tsx" switcher
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ username: string }>
+}) {
+  const { username } = await params
+  // Get artist information
+  const artist = await getArtist(username)
+
+  return (
+    <>
+      <h1>{artist.name}</h1>
+      {/* Show fallback UI while the Playlists component is loading */}
+      <Suspense fallback={<div>Loading...</div>}>
+        {/* Pass the artist ID to the Playlists component */}
+        <Playlists artistID={artist.id} />
+      </Suspense>
+    </>
+  )
+}
+
+async function Playlists({ artistID }: { artistID: string }) {
+  // Use the artist ID to fetch playlists
+  const playlists = await getArtistPlaylists(artistID)
+
+  return (
+    <ul>
+      {playlists.map((playlist) => (
+        <li key={playlist.id}>{playlist.name}</li>
+      ))}
+    </ul>
+  )
+}
+```
+
+```jsx filename="app/artist/[username]/page.js" switcher
+export default async function Page({ params }) {
+  const { username } = await params
+  // Get artist information
+  const artist = await getArtist(username)
+
+  return (
+    <>
+      <h1>{artist.name}</h1>
+      {/* Show fallback UI while the Playlists component is loading */}
+      <Suspense fallback={<div>Loading...</div>}>
+        {/* Pass the artist ID to the Playlists component */}
+        <Playlists artistID={artist.id} />
+      </Suspense>
+    </>
+  )
+}
+
+async function Playlists({ artistID }) {
+  // Use the artist ID to fetch playlists
+  const playlists = await getArtistPlaylists(artistID)
+
+  return (
+    <ul>
+      {playlists.map((playlist) => (
+        <li key={playlist.id}>{playlist.name}</li>
+      ))}
+    </ul>
+  )
+}
+```
+
+To improve the user experience, you should use [React `<Suspense>`](/docs/app/building-your-application/routing/loading-ui-and-streaming#streaming-with-suspense) to show a `fallback` while data is being fetch. This will enable [streaming](#streaming) and prevent the whole route from being blocked by the sequential data requests.
+
+### Parallel data fetching
+
+Parallel data fetching happens when data requests in a route are eagerly initiated and start at the same time.
+
+By default, [layouts and pages](/docs/app/getting-started/layouts-and-pages) are rendered in parallel. So each segment starts fetching data as soon as possible.
+
+However, within _any_ component, multiple`async`/`await` requests can still be sequential if placed after another. For example, `getAlbums` will be blocked until `getArtist` is resolved:
+
+```tsx filename="app/artist/[username]/page.tsx" switcher
+import { getArtist, getAlbums } from '@/app/lib/data'
+
+export default async function Page({ params }) {
+  // These requests will be sequential
+  const { username } = await params
+  const artist = await getArtist(username)
+  const albums = await getAlbums(username)
+  return <div>{artist.name}</div>
+}
+```
+
+You can initiate requests in parallel by defining them outside the components that use the data, and resolving them together with `Promise.all`:
+
+```tsx filename="app/artist/[username]/page.tsx" highlight={3,8,23} switcher
+import Albums from './albums'
+
+async function getArtist(username: string) {
+  const res = await fetch(`https://api.example.com/artist/${username}`)
+  return res.json()
+}
+
+async function getAlbums(username: string) {
+  const res = await fetch(`https://api.example.com/artist/${username}/albums`)
+  return res.json()
+}
+
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ username: string }>
+}) {
+  const { username } = await params
+  const artistData = getArtist(username)
+  const albumsData = getAlbums(username)
+
+  // Initiate both requests in parallel
+  const [artist, albums] = await Promise.all([artistData, albumsData])
+
+  return (
+    <>
+      <h1>{artist.name}</h1>
+      <Albums list={albums} />
+    </>
+  )
+}
+```
+
+```jsx filename="app/artist/[username]/page.js" highlight={3,8,19} switcher
+import Albums from './albums'
+
+async function getArtist(username) {
+  const res = await fetch(`https://api.example.com/artist/${username}`)
+  return res.json()
+}
+
+async function getAlbums(username) {
+  const res = await fetch(`https://api.example.com/artist/${username}/albums`)
+  return res.json()
+}
+
+export default async function Page({ params }) {
+  const { username } = await params
+  const artistData = getArtist(username)
+  const albumsData = getAlbums(username)
+
+  // Initiate both requests in parallel
+  const [artist, albums] = await Promise.all([artistData, albumsData])
+
+  return (
+    <>
+      <h1>{artist.name}</h1>
+      <Albums list={albums} />
+    </>
+  )
+}
+```
+
+### Tainting data
+
+You can use React's taint APIs, [`taintObjectReference`](https://react.dev/reference/react/experimental_taintObjectReference) and [`taintUniqueValue`](https://react.dev/reference/react/experimental_taintUniqueValue), to prevent whole data objects or sensitive values from being passed to the client.
+
+To enable tainting in your application, set the Next.js Config `experimental.taint` option to `true`:
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    taint: true,
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+module.exports = {
+  experimental: {
+    taint: true,
+  },
+}
+```
+
+Then, pass the object or value you want to taint to the `experimental_taintObjectReference` or `experimental_taintUniqueValue` functions:
+
+```ts filename="app/utils.ts" switcher
+import { queryDataFromDB } from './api'
+import {
+  experimental_taintObjectReference,
+  experimental_taintUniqueValue,
+} from 'react'
+
+export async function getUserData() {
+  const data = await queryDataFromDB()
+  experimental_taintObjectReference(
+    'Do not pass the whole user object to the client',
+    data
+  )
+  experimental_taintUniqueValue(
+    "Do not pass the user's address to the client",
+    data,
+    data.address
+  )
+  return data
+}
+```
+
+```js filename="app/utils.js" switcher
+import { queryDataFromDB } from './api'
+import {
+  experimental_taintObjectReference,
+  experimental_taintUniqueValue,
+} from 'react'
+
+export async function getUserData() {
+  const data = await queryDataFromDB()
+  experimental_taintObjectReference(
+    'Do not pass the whole user object to the client',
+    data
+  )
+  experimental_taintUniqueValue(
+    "Do not pass the user's address to the client",
+    data,
+    data.address
+  )
+  return data
+}
+```
+
+```tsx filename="app/page.tsx" switcher
+import { getUserData } from './data'
+
+export async function Page() {
+  const userData = getUserData()
+  return (
+    <ClientComponent
+      user={userData} // this will cause an error because of taintObjectReference
+      address={userData.address} // this will cause an error because of taintUniqueValue
+    />
+  )
+}
+```
+
+```jsx filename="app/page.js" switcher
+import { getUserData } from './data'
+
+export async function Page() {
+  const userData = await getUserData()
+  return (
+    <ClientComponent
+      user={userData} // this will cause an error because of taintObjectReference
+      address={userData.address} // this will cause an error because of taintUniqueValue
+    />
+  )
+}
+```
