@@ -16,10 +16,7 @@ import type {
   TurbopackRuleConfigItemOrShortcut,
 } from '../../server/config-shared'
 import { isDeepStrictEqual } from 'util'
-import {
-  type DefineEnvPluginOptions,
-  getDefineEnv,
-} from '../webpack/plugins/define-env-plugin'
+import { type DefineEnvOptions, getDefineEnv } from '../define-env'
 import { getReactCompilerLoader } from '../get-babel-loader-config'
 import type {
   NapiPartialProjectOptions,
@@ -393,7 +390,7 @@ export function createDefineEnv({
   hasRewrites,
   middlewareMatchers,
 }: Omit<
-  DefineEnvPluginOptions,
+  DefineEnvOptions,
   'isClient' | 'isNodeOrEdgeCompilation' | 'isEdgeServer' | 'isNodeServer'
 >): DefineEnv {
   let defineEnv: DefineEnv = {
