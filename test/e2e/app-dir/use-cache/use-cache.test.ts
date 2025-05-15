@@ -17,6 +17,19 @@ describe('use-cache', () => {
     files: __dirname,
   })
 
+  let cliOutputLength: number
+
+  beforeEach(() => {
+    cliOutputLength = next.cliOutput.length
+  })
+
+  afterEach(async () => {
+    // eslint-disable-next-line jest/no-standalone-expect
+    expect(next.cliOutput.slice(cliOutputLength)).not.toContain(
+      'unhandledRejection'
+    )
+  })
+
   it('should cache results', async () => {
     const browser = await next.browser(`/?n=1`)
     expect(await browser.waitForElementByCss('#x').text()).toBe('1')
@@ -103,6 +116,36 @@ describe('use-cache', () => {
     const b = await browser.waitForElementByCss('#b').text()
     expect(a).toBe(b)
   })
+
+  it('should dedupe shared inner caches across different outer caches', async () => {
+    const browser = await next.browser('/nested/1')
+    const first = await browser.elementByCss('.inner:nth-of-type(1)').text()
+    const second = await browser.elementByCss('.inner:nth-of-type(2)').text()
+    expect(first).toBe(second)
+  })
+
+  it('should stream the result of a deduped invocation', async () => {
+    const html = await next
+      .fetch('/nested/2')
+      .then((response) => response.text())
+
+    // The loading boundaries of both inner cache functions are expected to be
+    // shown while the page is loading.
+    expect(html).toIncludeRepeated('<p class="loading">Loading...</p>', 2)
+  })
+
+  if (!isNextDeploy) {
+    // This test is not guaranteed to pass in deploy mode, because we might hit
+    // two different lambdas.
+    it('should dedupe across concurrent requests', async () => {
+      const [{ rand: first }, { rand: second }] = await Promise.all([
+        next.fetch('/api/simple').then((response) => response.json()),
+        next.fetch('/api/simple').then((response) => response.json()),
+      ])
+
+      expect(first).toBe(second)
+    })
+  }
 
   it('should return the same object reference for multiple invocations', async () => {
     const browser = await next.browser('/referential-equality')
