@@ -450,7 +450,7 @@ Parallel data fetching happens when data requests in a route are eagerly initiat
 
 By default, [layouts and pages](/docs/app/getting-started/layouts-and-pages) are rendered in parallel. So each segment starts fetching data as soon as possible.
 
-However, within _any_ component, multiple`async`/`await` requests can still be sequential if placed after another. For example, `getAlbums` will be blocked until `getArtist` is resolved:
+However, within _any_ component, multiple `async`/`await` requests can still be sequential if placed after the other. For example, `getAlbums` will be blocked until `getArtist` is resolved:
 
 ```tsx filename="app/artist/[username]/page.tsx" switcher
 import { getArtist, getAlbums } from '@/app/lib/data'
@@ -528,6 +528,93 @@ export default async function Page({ params }) {
     </>
   )
 }
+```
+
+### Preloading data
+
+You can preload data by creating an utility function that you eagerly call above blocking requests. `<Item>` conditionally renders based on the `checkIsAvailable()` function.
+
+You can call `preload()` before `checkIsAvailable()` to eagerly initiate `<Item/>` data dependencies. By the time `<Item/>` is rendered, its data has already been fetched.
+
+```tsx filename="app/item/[id]/page.tsx" switcher
+import { getItem } from '@/lib/data'
+
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = await params
+  // starting loading item data
+  preload(id)
+  // perform another asynchronous task
+  const isAvailable = await checkIsAvailable()
+
+  return isAvailable ? <Item id={id} /> : null
+}
+
+export const preload = (id: string) => {
+  // void evaluates the given expression and returns undefined
+  // https://developer.mozilla.org/docs/Web/JavaScript/Reference/Operators/void
+  void getItem(id)
+}
+export async function Item({ id }: { id: string }) {
+  const result = await getItem(id)
+  // ...
+}
+```
+
+```jsx filename="app/item/[id]/page.js" switcher
+import { getItem } from '@/lib/data'
+
+export default async function Page({ params }) {
+  const { id } = await params
+  // starting loading item data
+  preload(id)
+  // perform another asynchronous task
+  const isAvailable = await checkIsAvailable()
+
+  return isAvailable ? <Item id={id} /> : null
+}
+
+export const preload = (id) => {
+  // void evaluates the given expression and returns undefined
+  // https://developer.mozilla.org/docs/Web/JavaScript/Reference/Operators/void
+  void getItem(id)
+}
+export async function Item({ id }) {
+  const result = await getItem(id)
+  // ...
+```
+
+Additionally, you can use React's [`cache` function](https://react.dev/reference/react/cache) and the [`server-only` package](https://www.npmjs.com/package/server-only) to create a reusable utility function. This approach allows you to cache the data fetching function and ensure that it's only executed on the server.
+
+```ts filename="utils/get-item.ts" switcher
+import { cache } from 'react'
+import 'server-only'
+import { getItem } from '@/lib/data'
+
+export const preload = (id: string) => {
+  void getItem(id)
+}
+
+export const getItem = cache(async (id: string) => {
+  // ...
+})
+```
+
+```js filename="utils/get-item.js" switcher
+import { cache } from 'react'
+import 'server-only'
+import { getItem } from '@/lib/data'
+
+export const preload = (id) => {
+  void getItem(id)
+}
+
+export const getItem = cache(async (id) => {
+  // ...
+})
 ```
 
 ### Tainting data
