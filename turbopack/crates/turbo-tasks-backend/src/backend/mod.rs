@@ -991,7 +991,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
     fn stop(&self, turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>) {
         #[cfg(feature = "verify_aggregation_graph")]
-        self.verify_aggregation_graph(turbo_tasks);
+        {
+            self.is_idle.store(false, Ordering::Release);
+            self.verify_aggregation_graph(turbo_tasks, false);
+        }
         if let Err(err) = self.backing_storage.shutdown() {
             println!("Shutting down failed: {err}");
         }
@@ -1020,7 +1023,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 if !this.is_idle.load(Ordering::Relaxed) {
                     return;
                 }
-                this.verify_aggregation_graph(&*turbo_tasks);
+                this.verify_aggregation_graph(&*turbo_tasks, true);
             });
         }
     }
@@ -2222,6 +2225,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     fn verify_aggregation_graph(
         &self,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
+        idle: bool,
     ) {
         if env::var("TURBO_ENGINE_VERIFY_GRAPH").ok().as_deref() == Some("0") {
             return;
@@ -2256,7 +2260,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     );
                 }
                 let task = ctx.task(task_id, TaskDataCategory::All);
-                if !self.is_idle.load(Ordering::Relaxed) {
+                if idle && !self.is_idle.load(Ordering::Relaxed) {
                     return;
                 }
 
