@@ -213,7 +213,7 @@ export function getServerUtils({
     req: BaseNextRequest | IncomingMessage,
     parsedUrl: UrlWithParsedQuery
   ) {
-    const rewriteParams = {}
+    const rewriteParams: Record<string, string> = {}
     let fsPathname = parsedUrl.pathname
 
     const matchesPage = () => {
@@ -291,6 +291,20 @@ export function getServerUtils({
         Object.assign(rewriteParams, destQuery, params)
         Object.assign(parsedUrl.query, parsedDestination.query)
         delete (parsedDestination as any).query
+
+        // for each property in parsedUrl.query, if the value is parametrized (eg :foo), look up the value
+        // in rewriteParams and replace the parametrized value with the actual value
+        // this is used when the rewrite destination does not contain the original source param
+        // and so the value is still parametrized and needs to be replaced with the actual rewrite param
+        Object.entries(parsedUrl.query).forEach(([key, value]) => {
+          if (value && typeof value === 'string' && value.startsWith(':')) {
+            const paramName = value.slice(1)
+            const actualValue = rewriteParams[paramName]
+            if (actualValue) {
+              parsedUrl.query[key] = actualValue
+            }
+          }
+        })
 
         Object.assign(parsedUrl, parsedDestination)
 
