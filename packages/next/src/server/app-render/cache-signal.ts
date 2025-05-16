@@ -16,6 +16,15 @@ export class CacheSignal {
 
   private subscribedSignals: Set<CacheSignal> | null = null
 
+  constructor() {
+    if (process.env.NEXT_RUNTIME === 'edge') {
+      // we rely on `process.nextTick`, which is not supported in edge
+      throw new InvariantError(
+        'CacheSignal cannot be used in the edge runtime, because `dynamicIO` does not support it.'
+      )
+    }
+  }
+
   private noMorePendingCaches() {
     if (!this.tickPending) {
       this.tickPending = true
