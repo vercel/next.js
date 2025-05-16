@@ -109,7 +109,9 @@ use crate::{
     merged_module::MergedEcmascriptModule,
     parse::generate_js_source_map,
     references::{
-        analyse_ecmascript_module, async_module::OptionAsyncModule, esm::base::EsmAssetReferences,
+        analyse_ecmascript_module,
+        async_module::OptionAsyncModule,
+        esm::{base::EsmAssetReferences, export},
     },
     side_effect_optimization::reference::EcmascriptModulePartReference,
     simple_tree_shake::{ModuleExportUsageInfo, get_module_export_usages},
@@ -1077,7 +1079,7 @@ impl EcmascriptModuleContent {
                 *generate_source_map,
                 *original_source_map,
                 *minify,
-                false,
+                None,
             )
             .await?;
             emit_content(content, Default::default()).await
@@ -1102,7 +1104,7 @@ impl EcmascriptModuleContent {
             generate_source_map,
             None,
             MinifyType::NoMinify,
-            false,
+            None,
         )
         .await?;
         emit_content(content, Default::default()).await
@@ -1190,7 +1192,7 @@ impl EcmascriptModuleContent {
                         *generate_source_map,
                         *original_source_map,
                         *chunking_context.minify_type().await?,
-                        true,
+                        Some(is_export_mark),
                     )
                     .await?,
                 ))
@@ -1261,6 +1263,7 @@ impl EcmascriptModuleContent {
             GLOBALS.set(&globals_merged, || {
                 merged_ast
                     .visit_mut_with(&mut swc_core::ecma::transforms::base::hygiene::hygiene());
+                // merged_ast.visit_mut_with(&mut DisplayContextVisitor { postfix: "merged" });
             });
             merged_ast
         };
@@ -1299,7 +1302,7 @@ impl EcmascriptModuleContent {
 //     postfix: &'static str,
 // }
 // impl VisitMut for DisplayContextVisitor {
-//     fn visit_mut_ident(&mut self, ident: &mut Ident) {
+//     fn visit_mut_ident(&mut self, ident: &mut swc_core::ecma::ast::Ident) {
 //         ident.sym = format!("{}$$${}{}", ident.sym, self.postfix, ident.ctxt.as_u32()).into();
 //     }
 // }
@@ -1332,7 +1335,7 @@ async fn process_parse_result(
     generate_source_map: bool,
     original_source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
     minify: MinifyType,
-    retain_syntax_context: bool,
+    retain_syntax_context: Option<Mark>,
 ) -> Result<CodeGenResult> {
     let parsed = parsed.final_read_hint().await?;
 
@@ -1403,8 +1406,11 @@ async fn process_parse_result(
             }
 
             GLOBALS.set(globals, || {
-                if retain_syntax_context {
-                    program.visit_mut_with(&mut hygiene_rename_only(Some(top_level_mark)));
+                if let Some(is_export_mark) = retain_syntax_context {
+                    program.visit_mut_with(&mut hygiene_rename_only(
+                        Some(top_level_mark),
+                        is_export_mark,
+                    ));
                 } else {
                     program.visit_mut_with(
                         &mut swc_core::ecma::transforms::base::hygiene::hygiene_with_config(
@@ -1646,14 +1652,22 @@ fn process_content_with_code_gens(
     };
 }
 
-/// Like `hygiene`, but only renames the Atoms without clearing all SyntaxContexts
-fn hygiene_rename_only(top_level_mark: Option<Mark>) -> impl VisitMut {
-    struct HygieneRenamer;
+/// Like `hygiene`, but only renames the Atoms without clearing all SyntaxContexts Don't rename
+/// idents marked with `is_export_mark`: even if they are causing collisions, they will be handled
+/// by the next hygiene pass over the whole module.
+fn hygiene_rename_only(top_level_mark: Option<Mark>, is_export_mark: Mark) -> impl VisitMut {
+    struct HygieneRenamer {
+        is_export_mark: Mark,
+    }
     impl swc_core::ecma::transforms::base::rename::Renamer for HygieneRenamer {
         const MANGLE: bool = false;
         const RESET_N: bool = true;
 
         fn new_name_for(&self, orig: &Id, n: &mut usize) -> Atom {
+            if orig.1.has_mark(self.is_export_mark) {
+                // Don't modify, it's an export
+                return orig.0.clone();
+            }
             let res = if *n == 0 {
                 orig.0.clone()
             } else {
@@ -1668,7 +1682,7 @@ fn hygiene_rename_only(top_level_mark: Option<Mark>) -> impl VisitMut {
             top_level_mark: top_level_mark.unwrap_or_default(),
             ..Default::default()
         },
-        HygieneRenamer,
+        HygieneRenamer { is_export_mark },
     )
 }
 
