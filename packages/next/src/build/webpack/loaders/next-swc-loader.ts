@@ -234,7 +234,6 @@ export function pitch(this: any) {
     this.resourcePath,
     loaderOptions.transpilePackages || []
   )
-
   ;(async () => {
     if (
       // if it might be excluded/no-op we can't use pitch loader

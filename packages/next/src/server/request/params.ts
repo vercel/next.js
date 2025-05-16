@@ -53,8 +53,9 @@ export type Params = Record<string, ParamValue>
  *
  * @deprecated
  */
-export type UnsafeUnwrappedParams<P> =
-  P extends Promise<infer U> ? Omit<U, 'then' | 'status' | 'value'> : never
+export type UnsafeUnwrappedParams<P> = P extends Promise<infer U>
+  ? Omit<U, 'then' | 'status' | 'value'>
+  : never
 
 export function createParamsFromClient(
   underlyingParams: Params,

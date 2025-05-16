@@ -1,6 +1,10 @@
 import type { LoaderTree } from '../../server/lib/app-dir-module'
-import { AppPageRouteModule } from '../../server/route-modules/app-page/module.compiled' with { 'turbopack-transition': 'next-ssr' }
-import { RouteKind } from '../../server/route-kind' with { 'turbopack-transition': 'next-server-utility' }
+import { AppPageRouteModule } from '../../server/route-modules/app-page/module.compiled' with {
+  'turbopack-transition': 'next-ssr',
+}
+import { RouteKind } from '../../server/route-kind' with {
+  'turbopack-transition': 'next-server-utility',
+}
 
 // These are injected by the loader afterwards.
 
@@ -18,7 +22,9 @@ declare const pages: any
 
 export { tree, pages }
 
-export { default as GlobalError } from 'VAR_MODULE_GLOBAL_ERROR' with { 'turbopack-transition': 'next-server-utility' }
+export { default as GlobalError } from 'VAR_MODULE_GLOBAL_ERROR' with {
+  'turbopack-transition': 'next-server-utility',
+}
 
 // These are injected by the loader afterwards.
 declare const __next_app_require__: (id: string | number) => unknown
@@ -32,7 +38,9 @@ export const __next_app__ = {
   loadChunk: __next_app_load_chunk__,
 }
 
-export * from '../../server/app-render/entry-base' with { 'turbopack-transition': 'next-server-utility' }
+export * from '../../server/app-render/entry-base' with {
+  'turbopack-transition': 'next-server-utility',
+}
 
 // Create and export the route module that will be consumed.
 export const routeModule = new AppPageRouteModule({

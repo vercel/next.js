@@ -19,7 +19,6 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
   )
   process.exit(0)
 }
-
 ;(async () => {
   try {
     if (existsSync(path.join(__dirname, '../SKIP_NEXT_STATS.txt'))) {

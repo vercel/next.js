@@ -59,7 +59,6 @@ describe.each([
   },
 ])('$title using Node.js API', ({ computeRoute }) => {
   const appDir = join(__dirname, '..')
-
   ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
     'development mode',
     () => {
@@ -108,8 +107,9 @@ describe.each([
         const res = await fetchViaHTTP(appPort, computeRoute(api))
         expect(res.status).toBe(500)
         await waitFor(500)
-        expect(output)
-          .toInclude(`A Node.js API is used (${api}) which is not supported in the Edge Runtime.
+        expect(
+          output
+        ).toInclude(`A Node.js API is used (${api}) which is not supported in the Edge Runtime.
 Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
         expect(stripAnsi(output)).toInclude(errorHighlight)
       })

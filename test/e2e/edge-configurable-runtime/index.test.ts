@@ -6,7 +6,6 @@ import stripAnsi from 'strip-ansi'
 
 const pagePath = 'pages/index.jsx'
 const apiPath = 'pages/api/edge.js'
-
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip.each : describe.each)([
   { appDir: join(__dirname, './app/src'), title: 'src/pages and API routes' },
   { appDir: join(__dirname, './app'), title: 'pages and API routes' },

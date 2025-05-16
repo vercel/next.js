@@ -41,7 +41,9 @@ function verifyTypeScriptSetup(
       maxRetries: 0,
     }
   ) as Worker & {
-    verifyTypeScriptSetup: typeof import('../lib/verify-typescript-setup').verifyTypeScriptSetup
+    verifyTypeScriptSetup: typeof import(
+      '../lib/verify-typescript-setup'
+    ).verifyTypeScriptSetup
   }
 
   return typeCheckWorker

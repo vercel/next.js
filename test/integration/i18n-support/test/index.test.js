@@ -422,7 +422,6 @@ describe('i18n Support', () => {
         }
       })
     }
-
     ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
       'development mode',
       () => {
@@ -492,7 +491,6 @@ describe('i18n Support', () => {
         }
       })
     }
-
     ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
       'development mode',
       () => {

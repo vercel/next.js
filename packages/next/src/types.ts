@@ -309,9 +309,7 @@ declare global {
         | Float64Array
         | DataView
         | null,
-    >(
-      array: T
-    ): T
+    >(array: T): T
     randomUUID(): string
   }
 

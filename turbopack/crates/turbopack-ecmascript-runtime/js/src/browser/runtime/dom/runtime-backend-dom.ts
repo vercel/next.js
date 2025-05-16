@@ -55,7 +55,6 @@ async function loadWebAssemblyModule(
  * Maps chunk paths to the corresponding resolver.
  */
 const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
-
 ;(() => {
   BACKEND = {
     async registerChunk(chunkPath, params) {

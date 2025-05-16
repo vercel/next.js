@@ -1,6 +1,3 @@
 {
-  "sideEffects": [
-    "./index.js",
-    "./valueSetter.js"
-  ]
+  "sideEffects": ["./index.js", "./valueSetter.js"]
 }

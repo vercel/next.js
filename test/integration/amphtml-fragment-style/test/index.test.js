@@ -15,7 +15,7 @@ const appDir = join(__dirname, '../')
 let appPort
 let app
 
-  // Turbopack does not support AMP rendering.
+// Turbopack does not support AMP rendering.
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'AMP Fragment Styles',
   () => {

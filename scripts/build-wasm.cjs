@@ -5,7 +5,6 @@ const fs = require('fs')
 const path = require('path')
 
 const nextSwcDir = path.join(NEXT_DIR, 'packages/next-swc')
-
 ;(async () => {
   await execAsyncWithOutput(
     'Build wasm bindings',

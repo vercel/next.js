@@ -106,7 +106,9 @@ import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import type { PagesDevOverlayType } from '../client/components/react-dev-overlay/pages/pages-dev-overlay'
 import { getScriptNonceFromHeader } from './app-render/get-script-nonce-from-header'
 
-let tryGetPreviewData: typeof import('./api-utils/node/try-get-preview-data').tryGetPreviewData
+let tryGetPreviewData: typeof import(
+  './api-utils/node/try-get-preview-data'
+).tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
 let postProcessHTML: typeof import('./post-process').postProcessHTML
 
@@ -976,7 +978,6 @@ export async function renderToHTMLImpl(
             `See more info here: https://nextjs.org/docs/messages/gsp-redirect-during-prerender`
         )
       }
-
       ;(data as any).props = {
         __N_REDIRECT: data.redirect.destination,
         __N_REDIRECT_STATUS: getRedirectStatus(data.redirect),

@@ -22,7 +22,6 @@ function runTest() {
     expect(response.headers.has(header)).toBe(true)
   })
 }
-
 ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
   'development mode',
   () => {

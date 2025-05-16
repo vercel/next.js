@@ -11,10 +11,7 @@
       "default": "./dist/google/index.js"
     }
   },
-  "files": [
-    "dist",
-    "google.d.ts"
-  ],
+  "files": ["dist", "google.d.ts"],
   "license": "MIT",
   "scripts": {
     "build": "node ../../scripts/rm.mjs dist && tsc -d -p tsconfig.json",

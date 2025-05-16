@@ -113,8 +113,9 @@ export function clearPreviewData<T>(
     return res
   }
 
-  const { serialize } =
-    require('next/dist/compiled/cookie') as typeof import('cookie')
+  const { serialize } = require('next/dist/compiled/cookie') as typeof import(
+    'cookie'
+  )
   const previous = res.getHeader('Set-Cookie')
   res.setHeader(`Set-Cookie`, [
     ...(typeof previous === 'string'

@@ -127,8 +127,9 @@ describe('getNamedRouteRegex', () => {
       '^\\/([^/]+?)\\/about\\.segments\\/\\$dname\\$d([^/]+?)\\.segment\\.rsc(?:\\/)?$'
     )
 
-    expect('/en/about.segments/$dname$dwyatt.segment.rsc'.match(re))
-      .toMatchInlineSnapshot(`
+    expect(
+      '/en/about.segments/$dname$dwyatt.segment.rsc'.match(re)
+    ).toMatchInlineSnapshot(`
      [
        "/en/about.segments/$dname$dwyatt.segment.rsc",
        "en",

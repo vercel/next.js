@@ -310,7 +310,6 @@ export class IncrementalCache implements IncrementalCacheType {
             arrayBuffer.set(chunk, offset)
             offset += chunk.length
           }
-
           ;(init as any)._ogBody = arrayBuffer
         } catch (err) {
           console.error('Problem reading body', err)

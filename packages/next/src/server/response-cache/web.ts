@@ -78,7 +78,6 @@ export default class WebResponseCache {
       this.pendingResponses.delete(pendingResponseKey)
       return promise
     }
-
     // We wait to do any async work until after we've added our promise to
     // `pendingResponses` to ensure that any any other calls will reuse the
     // same promise until we've fully finished our work.

@@ -498,15 +498,18 @@ function Router({
     //  - catch runtime errors and display global-error when necessary
     if (typeof window !== 'undefined') {
       const { DevRootHTTPAccessFallbackBoundary } =
-        require('./dev-root-http-access-fallback-boundary') as typeof import('./dev-root-http-access-fallback-boundary')
+        require('./dev-root-http-access-fallback-boundary') as typeof import(
+          './dev-root-http-access-fallback-boundary'
+        )
       content = (
         <DevRootHTTPAccessFallbackBoundary>
           {content}
         </DevRootHTTPAccessFallbackBoundary>
       )
     }
-    const HotReloader: typeof import('./react-dev-overlay/app/hot-reloader-client').default =
-      require('./react-dev-overlay/app/hot-reloader-client').default
+    const HotReloader: typeof import(
+      './react-dev-overlay/app/hot-reloader-client'
+    ).default = require('./react-dev-overlay/app/hot-reloader-client').default
 
     content = (
       <HotReloader assetPrefix={assetPrefix} globalError={globalError}>

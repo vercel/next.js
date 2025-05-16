@@ -906,7 +906,9 @@ export default async function getBaseWebpackConfig(
     !dev &&
     isClient &&
     new (
-      require('./webpack/plugins/telemetry-plugin/telemetry-plugin') as typeof import('./webpack/plugins/telemetry-plugin/telemetry-plugin')
+      require('./webpack/plugins/telemetry-plugin/telemetry-plugin') as typeof import(
+        './webpack/plugins/telemetry-plugin/telemetry-plugin'
+      )
     ).TelemetryPlugin(
       new Map(
         [
@@ -1206,7 +1208,9 @@ export default async function getBaseWebpackConfig(
             (compiler: webpack.Compiler) => {
               // @ts-ignore No typings yet
               const { MinifyPlugin } =
-                require('./webpack/plugins/minify-webpack-plugin/src/index.js') as typeof import('./webpack/plugins/minify-webpack-plugin/src')
+                require('./webpack/plugins/minify-webpack-plugin/src/index.js') as typeof import(
+                  './webpack/plugins/minify-webpack-plugin/src'
+                )
               new MinifyPlugin({
                 noMangling,
                 disableCharFreq: !isClient,
@@ -1954,20 +1958,22 @@ export default async function getBaseWebpackConfig(
       !isRspack && (isClient || isEdgeServer) && new DropClientPage(),
       isNodeServer &&
         !dev &&
-        new (require('./webpack/plugins/next-trace-entrypoints-plugin')
-          .TraceEntryPointsPlugin as typeof import('./webpack/plugins/next-trace-entrypoints-plugin').TraceEntryPointsPlugin)(
-          {
-            rootDir: dir,
-            appDir: appDir,
-            pagesDir: pagesDir,
-            esmExternals: config.experimental.esmExternals,
-            outputFileTracingRoot: config.outputFileTracingRoot,
-            appDirEnabled: hasAppDir,
-            traceIgnores: [],
-            compilerType,
-            swcLoaderConfig: swcDefaultLoader,
-          }
-        ),
+        new (
+          require('./webpack/plugins/next-trace-entrypoints-plugin')
+            .TraceEntryPointsPlugin as typeof import(
+            './webpack/plugins/next-trace-entrypoints-plugin'
+          ).TraceEntryPointsPlugin
+        )({
+          rootDir: dir,
+          appDir: appDir,
+          pagesDir: pagesDir,
+          esmExternals: config.experimental.esmExternals,
+          outputFileTracingRoot: config.outputFileTracingRoot,
+          appDirEnabled: hasAppDir,
+          traceIgnores: [],
+          compilerType,
+          swcLoaderConfig: swcDefaultLoader,
+        }),
       // Moment.js is an extremely popular library that bundles large locale files
       // by default due to how Webpack interprets its code. This is a practical
       // solution that requires the user to opt into importing specific locales.
@@ -1982,7 +1988,9 @@ export default async function getBaseWebpackConfig(
             // Even though require.cache is server only we have to clear assets from both compilations
             // This is because the client compilation generates the build manifest that's used on the server side
             const { NextJsRequireCacheHotReloader } =
-              require('./webpack/plugins/nextjs-require-cache-hot-reloader') as typeof import('./webpack/plugins/nextjs-require-cache-hot-reloader')
+              require('./webpack/plugins/nextjs-require-cache-hot-reloader') as typeof import(
+                './webpack/plugins/nextjs-require-cache-hot-reloader'
+              )
             const devPlugins: any[] = [
               new NextJsRequireCacheHotReloader({
                 serverComponents: hasAppDir,
@@ -2094,11 +2102,15 @@ export default async function getBaseWebpackConfig(
       !dev &&
         isNodeServer &&
         new (
-          require('./webpack/plugins/telemetry-plugin/telemetry-plugin') as typeof import('./webpack/plugins/telemetry-plugin/telemetry-plugin')
+          require('./webpack/plugins/telemetry-plugin/telemetry-plugin') as typeof import(
+            './webpack/plugins/telemetry-plugin/telemetry-plugin'
+          )
         ).TelemetryPlugin(new Map()),
       shouldEnableSlowModuleDetection &&
         new (
-          require('./webpack/plugins/slow-module-detection-plugin') as typeof import('./webpack/plugins/slow-module-detection-plugin')
+          require('./webpack/plugins/slow-module-detection-plugin') as typeof import(
+            './webpack/plugins/slow-module-detection-plugin'
+          )
         ).default({
           compilerType,
           ...config.experimental.slowModuleDetection!,

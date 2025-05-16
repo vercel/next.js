@@ -19,7 +19,6 @@ function runTests() {
     expect(html).toContain('Hello World')
   })
 }
-
 // This test is skipped in Turbopack because it uses a custom babelrc.
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'styled-jsx using in node_modules',

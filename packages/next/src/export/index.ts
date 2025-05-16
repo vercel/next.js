@@ -408,7 +408,6 @@ async function exportAppImpl(
   if (Object.keys(publicRuntimeConfig).length > 0) {
     renderOpts.runtimeConfig = publicRuntimeConfig
   }
-
   // We need this for server rendering the Link component.
   ;(globalThis as any).__NEXT_DATA__ = {
     nextExport: true,

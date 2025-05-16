@@ -93,7 +93,9 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
 
   try {
     const { eventCliSessionStopped } =
-      require('../telemetry/events/session-stopped') as typeof import('../telemetry/events/session-stopped')
+      require('../telemetry/events/session-stopped') as typeof import(
+        '../telemetry/events/session-stopped'
+      )
 
     config = config || (await loadConfig(PHASE_DEVELOPMENT_SERVER, dir))
 

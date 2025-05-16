@@ -1069,7 +1069,9 @@ function App<T>({
   const actionQueue = createMutableActionQueue(initialState, null)
 
   const { HeadManagerContext } =
-    require('../../shared/lib/head-manager-context.shared-runtime') as typeof import('../../shared/lib/head-manager-context.shared-runtime')
+    require('../../shared/lib/head-manager-context.shared-runtime') as typeof import(
+      '../../shared/lib/head-manager-context.shared-runtime'
+    )
 
   return (
     <HeadManagerContext.Provider
@@ -1910,8 +1912,9 @@ async function renderToStream(
         // We assume we have dynamic HTML requiring a resume render to complete
         const postponed = getPostponedFromState(postponedState)
 
-        const resume = require('react-dom/server.edge')
-          .resume as (typeof import('react-dom/server.edge'))['resume']
+        const resume = require('react-dom/server.edge').resume as typeof import(
+          'react-dom/server.edge'
+        )['resume']
 
         const htmlStream = await workUnitAsyncStorage.run(
           requestStore,
@@ -1953,7 +1956,9 @@ async function renderToStream(
 
     // This is a regular dynamic render
     const renderToReadableStream = require('react-dom/server.edge')
-      .renderToReadableStream as (typeof import('react-dom/server.edge'))['renderToReadableStream']
+      .renderToReadableStream as typeof import(
+      'react-dom/server.edge'
+    )['renderToReadableStream']
 
     const htmlStream = await workUnitAsyncStorage.run(
       requestStore,
@@ -2181,7 +2186,9 @@ async function renderToStream(
         isHTTPAccessFallbackError(finalErr)
       ) {
         const { bailOnRootNotFound } =
-          require('../../client/components/dev-root-http-access-fallback-boundary') as typeof import('../../client/components/dev-root-http-access-fallback-boundary')
+          require('../../client/components/dev-root-http-access-fallback-boundary') as typeof import(
+            '../../client/components/dev-root-http-access-fallback-boundary'
+          )
         bailOnRootNotFound()
       }
       throw finalErr
@@ -2327,7 +2334,7 @@ async function spawnDynamicValidationInDev(
 
   if (initialServerStream) {
     const prerender = require('react-dom/static.edge')
-      .prerender as (typeof import('react-dom/static.edge'))['prerender']
+      .prerender as typeof import('react-dom/static.edge')['prerender']
     const pendingInitialClientResult = workUnitAsyncStorage.run(
       initialClientPrerenderStore,
       prerender,
@@ -2471,7 +2478,7 @@ async function spawnDynamicValidationInDev(
   let preludeIsEmpty = false
   try {
     const prerender = require('react-dom/static.edge')
-      .prerender as (typeof import('react-dom/static.edge'))['prerender']
+      .prerender as typeof import('react-dom/static.edge')['prerender']
     const { prelude: unprocessedPrelude } = await prerenderClientWithPhases(
       () =>
         workUnitAsyncStorage.run(
@@ -2859,7 +2866,7 @@ async function prerenderToStream(
           }
 
           const prerender = require('react-dom/static.edge')
-            .prerender as (typeof import('react-dom/static.edge'))['prerender']
+            .prerender as typeof import('react-dom/static.edge')['prerender']
           const pendingInitialClientResult = workUnitAsyncStorage.run(
             initialClientPrerenderStore,
             prerender,
@@ -3020,7 +3027,7 @@ async function prerenderToStream(
         let dynamicValidation = createDynamicValidationState()
 
         const prerender = require('react-dom/static.edge')
-          .prerender as (typeof import('react-dom/static.edge'))['prerender']
+          .prerender as typeof import('react-dom/static.edge')['prerender']
         let { prelude: unprocessedPrelude, postponed } =
           await prerenderAndAbortInSequentialTasks(
             () =>
@@ -3155,7 +3162,7 @@ async function prerenderToStream(
             // We postponed but nothing dynamic was used. We resume the render now and immediately abort it
             // so we can set all the postponed boundaries to client render mode before we store the HTML response
             const resume = require('react-dom/server.edge')
-              .resume as (typeof import('react-dom/server.edge'))['resume']
+              .resume as typeof import('react-dom/server.edge')['resume']
 
             // We don't actually want to render anything so we just pass a stream
             // that never resolves. The resume call is going to abort immediately anyway
@@ -3344,7 +3351,7 @@ async function prerenderToStream(
 
         if (initialServerStream) {
           const prerender = require('react-dom/static.edge')
-            .prerender as (typeof import('react-dom/static.edge'))['prerender']
+            .prerender as typeof import('react-dom/static.edge')['prerender']
           const pendingInitialClientResult = workUnitAsyncStorage.run(
             initialClientPrerenderStore,
             prerender,
@@ -3505,7 +3512,7 @@ async function prerenderToStream(
         const serverPhasedStream = serverPrerenderStreamResult.asPhasedStream()
         try {
           const prerender = require('react-dom/static.edge')
-            .prerender as (typeof import('react-dom/static.edge'))['prerender']
+            .prerender as typeof import('react-dom/static.edge')['prerender']
           const result = await prerenderClientWithPhases(
             () =>
               workUnitAsyncStorage.run(
@@ -3696,7 +3703,7 @@ async function prerenderToStream(
         prerenderResumeDataCache,
       }
       const prerender = require('react-dom/static.edge')
-        .prerender as (typeof import('react-dom/static.edge'))['prerender']
+        .prerender as typeof import('react-dom/static.edge')['prerender']
       const { prelude, postponed } = await workUnitAsyncStorage.run(
         ssrPrerenderStore,
         prerender,
@@ -3826,7 +3833,7 @@ async function prerenderToStream(
           // We postponed but nothing dynamic was used. We resume the render now and immediately abort it
           // so we can set all the postponed boundaries to client render mode before we store the HTML response
           const resume = require('react-dom/server.edge')
-            .resume as (typeof import('react-dom/server.edge'))['resume']
+            .resume as typeof import('react-dom/server.edge')['resume']
 
           // We don't actually want to render anything so we just pass a stream
           // that never resolves. The resume call is going to abort immediately anyway
@@ -3908,7 +3915,9 @@ async function prerenderToStream(
         ))
 
       const renderToReadableStream = require('react-dom/server.edge')
-        .renderToReadableStream as (typeof import('react-dom/server.edge'))['renderToReadableStream']
+        .renderToReadableStream as typeof import(
+        'react-dom/server.edge'
+      )['renderToReadableStream']
 
       const htmlStream = await workUnitAsyncStorage.run(
         prerenderLegacyStore,
@@ -4156,7 +4165,9 @@ async function prerenderToStream(
         isHTTPAccessFallbackError(finalErr)
       ) {
         const { bailOnRootNotFound } =
-          require('../../client/components/dev-root-http-access-fallback-boundary') as typeof import('../../client/components/dev-root-http-access-fallback-boundary')
+          require('../../client/components/dev-root-http-access-fallback-boundary') as typeof import(
+            '../../client/components/dev-root-http-access-fallback-boundary'
+          )
         bailOnRootNotFound()
       }
       throw finalErr

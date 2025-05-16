@@ -273,7 +273,9 @@ export function hydrate(
     // Server rendering failed, fall back to client-side rendering
     if (process.env.NODE_ENV !== 'production') {
       const { createRootLevelDevOverlayElement } =
-        require('./components/react-dev-overlay/app/client-entry') as typeof import('./components/react-dev-overlay/app/client-entry')
+        require('./components/react-dev-overlay/app/client-entry') as typeof import(
+          './components/react-dev-overlay/app/client-entry'
+        )
 
       // Note this won't cause hydration mismatch because we are doing CSR w/o hydration
       element = createRootLevelDevOverlayElement(element)
@@ -291,8 +293,9 @@ export function hydrate(
 
   // TODO-APP: Remove this logic when Float has GC built-in in development.
   if (process.env.NODE_ENV !== 'production') {
-    const { linkGc } =
-      require('./app-link-gc') as typeof import('./app-link-gc')
+    const { linkGc } = require('./app-link-gc') as typeof import(
+      './app-link-gc'
+    )
     linkGc()
   }
 }

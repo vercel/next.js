@@ -5,7 +5,6 @@ import { join } from 'path'
 import { nextBuild } from 'next-test-utils'
 
 const appDir = join(__dirname, '../app')
-
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'build trace with extra entries',
   () => {

@@ -45,7 +45,6 @@ function runTests() {
     expect(await browser.eval('window.caughtErrors')).toBe('')
   })
 }
-
 // This test is not needed for Turbopack as it relies on an experimental webpack feature.
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'next/dynamic lazy compilation',

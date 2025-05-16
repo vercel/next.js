@@ -2,7 +2,6 @@
 // @ts-check
 
 const { spawn } = require('child_process')
-
 ;(async function () {
   const target = process.argv[process.argv.length - 1]
 

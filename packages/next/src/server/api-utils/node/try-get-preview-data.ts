@@ -81,7 +81,9 @@ export function tryGetPreviewData(
   }
   try {
     const jsonwebtoken =
-      require('next/dist/compiled/jsonwebtoken') as typeof import('next/dist/compiled/jsonwebtoken')
+      require('next/dist/compiled/jsonwebtoken') as typeof import(
+        'next/dist/compiled/jsonwebtoken'
+      )
     encryptedPreviewData = jsonwebtoken.verify(
       tokenPreviewData,
       options.previewModeSigningKey
@@ -92,8 +94,9 @@ export function tryGetPreviewData(
     return false
   }
 
-  const { decryptWithSecret } =
-    require('../../crypto-utils') as typeof import('../../crypto-utils')
+  const { decryptWithSecret } = require('../../crypto-utils') as typeof import(
+    '../../crypto-utils'
+  )
   const decryptedPreviewData = decryptWithSecret(
     Buffer.from(options.previewModeEncryptionKey),
     encryptedPreviewData.data

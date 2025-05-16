@@ -75,7 +75,6 @@ export async function createIncrementalCache({
     CurCacheHandler: CacheHandler,
     minimalMode: hasNextSupport,
   })
-
   ;(globalThis as any).__incrementalCache = incrementalCache
 
   return incrementalCache

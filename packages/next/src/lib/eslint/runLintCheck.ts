@@ -138,7 +138,9 @@ async function lint(
     // If V9 config was found, use flat config, or else use legacy.
     const useFlatConfig = eslintrcFile
       ? // eslintrcFile is absolute path
-        path.basename(eslintrcFile).startsWith('eslint.config.')
+        path
+          .basename(eslintrcFile)
+          .startsWith('eslint.config.')
       : false
 
     let ESLint

@@ -45,8 +45,9 @@ describe('react-dom/server in React Server environment', () => {
     await assertNoRedbox(browser)
     if (isTurbopack) {
       if (isReactExperimental) {
-        expect(await browser.elementByCss('main').text())
-          .toMatchInlineSnapshot(`
+        expect(
+          await browser.elementByCss('main').text()
+        ).toMatchInlineSnapshot(`
           "{
             "default": [
               "renderToReadableStream",
@@ -66,8 +67,9 @@ describe('react-dom/server in React Server environment', () => {
           }"
         `)
       } else {
-        expect(await browser.elementByCss('main').text())
-          .toMatchInlineSnapshot(`
+        expect(
+          await browser.elementByCss('main').text()
+        ).toMatchInlineSnapshot(`
           "{
             "default": [
               "renderToReadableStream",
@@ -87,8 +89,9 @@ describe('react-dom/server in React Server environment', () => {
       }
     } else {
       if (isReactExperimental) {
-        expect(await browser.elementByCss('main').text())
-          .toMatchInlineSnapshot(`
+        expect(
+          await browser.elementByCss('main').text()
+        ).toMatchInlineSnapshot(`
           "{
             "default": [
               "renderToReadableStream",
@@ -108,8 +111,9 @@ describe('react-dom/server in React Server environment', () => {
           }"
         `)
       } else {
-        expect(await browser.elementByCss('main').text())
-          .toMatchInlineSnapshot(`
+        expect(
+          await browser.elementByCss('main').text()
+        ).toMatchInlineSnapshot(`
           "{
             "default": [
               "renderToReadableStream",
@@ -157,8 +161,9 @@ describe('react-dom/server in React Server environment', () => {
     await assertNoRedbox(browser)
     if (isTurbopack) {
       if (isReactExperimental) {
-        expect(await browser.elementByCss('main').text())
-          .toMatchInlineSnapshot(`
+        expect(
+          await browser.elementByCss('main').text()
+        ).toMatchInlineSnapshot(`
           "{
             "default": [
               "renderToReadableStream",
@@ -178,8 +183,9 @@ describe('react-dom/server in React Server environment', () => {
           }"
         `)
       } else {
-        expect(await browser.elementByCss('main').text())
-          .toMatchInlineSnapshot(`
+        expect(
+          await browser.elementByCss('main').text()
+        ).toMatchInlineSnapshot(`
                   "{
                     "default": [
                       "renderToReadableStream",
@@ -199,8 +205,9 @@ describe('react-dom/server in React Server environment', () => {
       }
     } else {
       if (isReactExperimental) {
-        expect(await browser.elementByCss('main').text())
-          .toMatchInlineSnapshot(`
+        expect(
+          await browser.elementByCss('main').text()
+        ).toMatchInlineSnapshot(`
           "{
             "default": [
               "renderToReadableStream",
@@ -220,8 +227,9 @@ describe('react-dom/server in React Server environment', () => {
           }"
         `)
       } else {
-        expect(await browser.elementByCss('main').text())
-          .toMatchInlineSnapshot(`
+        expect(
+          await browser.elementByCss('main').text()
+        ).toMatchInlineSnapshot(`
           "{
             "default": [
               "renderToReadableStream",
@@ -548,8 +556,9 @@ describe('react-dom/server in React Server environment', () => {
     await assertNoRedbox(browser)
     if (isTurbopack) {
       if (isReactExperimental) {
-        expect(await browser.elementByCss('main').text())
-          .toMatchInlineSnapshot(`
+        expect(
+          await browser.elementByCss('main').text()
+        ).toMatchInlineSnapshot(`
           "{
             "default": {
               "default": [
@@ -571,8 +580,9 @@ describe('react-dom/server in React Server environment', () => {
           }"
         `)
       } else {
-        expect(await browser.elementByCss('main').text())
-          .toMatchInlineSnapshot(`
+        expect(
+          await browser.elementByCss('main').text()
+        ).toMatchInlineSnapshot(`
                   "{
                     "default": {
                       "default": [
@@ -594,8 +604,9 @@ describe('react-dom/server in React Server environment', () => {
       }
     } else {
       if (isReactExperimental) {
-        expect(await browser.elementByCss('main').text())
-          .toMatchInlineSnapshot(`
+        expect(
+          await browser.elementByCss('main').text()
+        ).toMatchInlineSnapshot(`
           "{
             "default": {
               "default": [
@@ -618,8 +629,9 @@ describe('react-dom/server in React Server environment', () => {
         `)
       } else {
         await assertNoRedbox(browser)
-        expect(await browser.elementByCss('main').text())
-          .toMatchInlineSnapshot(`
+        expect(
+          await browser.elementByCss('main').text()
+        ).toMatchInlineSnapshot(`
             "{
               "default": {
                 "default": [
@@ -669,8 +681,9 @@ describe('react-dom/server in React Server environment', () => {
     await assertNoRedbox(browser)
     if (isTurbopack) {
       if (isReactExperimental) {
-        expect(await browser.elementByCss('main').text())
-          .toMatchInlineSnapshot(`
+        expect(
+          await browser.elementByCss('main').text()
+        ).toMatchInlineSnapshot(`
           "{
             "default": {
               "default": [
@@ -692,8 +705,9 @@ describe('react-dom/server in React Server environment', () => {
           }"
         `)
       } else {
-        expect(await browser.elementByCss('main').text())
-          .toMatchInlineSnapshot(`
+        expect(
+          await browser.elementByCss('main').text()
+        ).toMatchInlineSnapshot(`
                   "{
                     "default": {
                       "default": [
@@ -715,8 +729,9 @@ describe('react-dom/server in React Server environment', () => {
       }
     } else {
       if (isReactExperimental) {
-        expect(await browser.elementByCss('main').text())
-          .toMatchInlineSnapshot(`
+        expect(
+          await browser.elementByCss('main').text()
+        ).toMatchInlineSnapshot(`
           "{
             "default": {
               "default": [
@@ -738,8 +753,9 @@ describe('react-dom/server in React Server environment', () => {
           }"
         `)
       } else {
-        expect(await browser.elementByCss('main').text())
-          .toMatchInlineSnapshot(`
+        expect(
+          await browser.elementByCss('main').text()
+        ).toMatchInlineSnapshot(`
           "{
             "default": {
               "default": [

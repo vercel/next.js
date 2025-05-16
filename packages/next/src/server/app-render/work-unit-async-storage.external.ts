@@ -7,7 +7,9 @@ import type { CacheSignal } from './cache-signal'
 import type { DynamicTrackingState } from './dynamic-rendering'
 
 // Share the instance module in the next-shared layer
-import { workUnitAsyncStorageInstance } from './work-unit-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
+import { workUnitAsyncStorageInstance } from './work-unit-async-storage-instance' with {
+  'turbopack-transition': 'next-shared',
+}
 import type { ServerComponentsHmrCache } from '../response-cache'
 import type {
   RenderResumeDataCache,

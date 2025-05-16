@@ -533,8 +533,9 @@ export async function collectBuildTraces({
   // apply outputFileTracingIncludes/outputFileTracingExcludes after runTurbotrace
   const includeExcludeSpan = nextBuildSpan.traceChild('apply-include-excludes')
   await includeExcludeSpan.traceAsyncFn(async () => {
-    const globOrig =
-      require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
+    const globOrig = require('next/dist/compiled/glob') as typeof import(
+      'next/dist/compiled/glob'
+    )
     const glob = (pattern: string): Promise<string[]> => {
       return new Promise((resolve, reject) => {
         globOrig(

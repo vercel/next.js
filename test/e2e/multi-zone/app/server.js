@@ -2,7 +2,6 @@ const next = require('next')
 const path = require('path')
 const { parse } = require('url')
 const http = require('http')
-
 ;(async () => {
   const requestHandlers = new Map()
   const dev = process.env.NODE_ENV !== 'production'

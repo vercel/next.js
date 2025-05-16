@@ -181,7 +181,9 @@ class Container extends React.Component<{
     } else {
       const {
         PagesDevOverlay,
-      }: typeof import('./components/react-dev-overlay/pages/pages-dev-overlay') = require('./components/react-dev-overlay/pages/pages-dev-overlay')
+      }: typeof import(
+        './components/react-dev-overlay/pages/pages-dev-overlay'
+      ) = require('./components/react-dev-overlay/pages/pages-dev-overlay')
       return <PagesDevOverlay>{this.props.children}</PagesDevOverlay>
     }
   }
@@ -194,7 +196,9 @@ export async function initialize(opts: { devClient?: any } = {}): Promise<{
   if (process.env.NODE_ENV === 'development') {
     tracer.onSpanEnd(
       (
-        require('./tracing/report-to-socket') as typeof import('./tracing/report-to-socket')
+        require('./tracing/report-to-socket') as typeof import(
+          './tracing/report-to-socket'
+        )
       ).default
     )
     devClient = opts.devClient
@@ -226,16 +230,24 @@ export async function initialize(opts: { devClient?: any } = {}): Promise<{
 
   if (process.env.__NEXT_I18N_SUPPORT) {
     const { normalizeLocalePath } =
-      require('../shared/lib/i18n/normalize-locale-path') as typeof import('../shared/lib/i18n/normalize-locale-path')
+      require('../shared/lib/i18n/normalize-locale-path') as typeof import(
+        '../shared/lib/i18n/normalize-locale-path'
+      )
 
     const { detectDomainLocale } =
-      require('../shared/lib/i18n/detect-domain-locale') as typeof import('../shared/lib/i18n/detect-domain-locale')
+      require('../shared/lib/i18n/detect-domain-locale') as typeof import(
+        '../shared/lib/i18n/detect-domain-locale'
+      )
 
     const { parseRelativeUrl } =
-      require('../shared/lib/router/utils/parse-relative-url') as typeof import('../shared/lib/router/utils/parse-relative-url')
+      require('../shared/lib/router/utils/parse-relative-url') as typeof import(
+        '../shared/lib/router/utils/parse-relative-url'
+      )
 
     const { formatUrl } =
-      require('../shared/lib/router/utils/format-url') as typeof import('../shared/lib/router/utils/format-url')
+      require('../shared/lib/router/utils/format-url') as typeof import(
+        '../shared/lib/router/utils/format-url'
+      )
 
     if (initialData.locales) {
       const parsedAs = parseRelativeUrl(asPath)
@@ -914,7 +926,9 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
   }
 
   if (process.env.NODE_ENV === 'development') {
-    const getServerError: typeof import('./components/react-dev-overlay/pages/client').getServerError =
+    const getServerError: typeof import(
+      './components/react-dev-overlay/pages/client'
+    ).getServerError =
       require('./components/react-dev-overlay/pages/client').getServerError
     // Server-side runtime errors need to be re-thrown on the client-side so
     // that the overlay is rendered.

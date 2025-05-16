@@ -163,8 +163,9 @@ export async function createHotReloaderTurbopack(
   const buildId = 'development'
   const { nextConfig, dir: projectPath } = opts
 
-  const { loadBindings } =
-    require('../../build/swc') as typeof import('../../build/swc')
+  const { loadBindings } = require('../../build/swc') as typeof import(
+    '../../build/swc'
+  )
 
   let bindings = await loadBindings()
 
@@ -839,7 +840,6 @@ export async function createHotReloaderTurbopack(
         if (devIndicatorServerState.disabledUntil < Date.now()) {
           devIndicatorServerState.disabledUntil = 0
         }
-
         ;(async function () {
           const versionInfo = await versionInfoPromise
 

@@ -2,9 +2,7 @@
   "private": true,
   "type": "module",
   "exports": "./dist/index.js",
-  "files": [
-    "src"
-  ],
+  "files": ["src"],
   "scripts": {
     "build": "pnpm types && ncc build src/index.ts -m -o ./dist --license licenses.txt",
     "types": "tsc"

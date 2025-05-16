@@ -81,7 +81,6 @@ async function loadWebAssemblyModule(
 
   return module
 }
-
 ;(() => {
   BACKEND = {
     // The "none" runtime expects all chunks within the same chunk group to be

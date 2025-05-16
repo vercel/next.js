@@ -11,7 +11,9 @@ function hasFallbackRouteParams() {
   if (typeof window === 'undefined') {
     // AsyncLocalStorage should not be included in the client bundle.
     const { workAsyncStorage } =
-      require('../../server/app-render/work-async-storage.external') as typeof import('../../server/app-render/work-async-storage.external')
+      require('../../server/app-render/work-async-storage.external') as typeof import(
+        '../../server/app-render/work-async-storage.external'
+      )
 
     const workStore = workAsyncStorage.getStore()
     if (!workStore) return false

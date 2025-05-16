@@ -58,8 +58,9 @@ export type SearchParams = { [key: string]: string | string[] | undefined }
  *
  * @deprecated
  */
-export type UnsafeUnwrappedSearchParams<P> =
-  P extends Promise<infer U> ? Omit<U, 'then' | 'status' | 'value'> : never
+export type UnsafeUnwrappedSearchParams<P> = P extends Promise<infer U>
+  ? Omit<U, 'then' | 'status' | 'value'>
+  : never
 
 export function createSearchParamsFromClient(
   underlyingSearchParams: SearchParams,

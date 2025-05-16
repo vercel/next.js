@@ -143,8 +143,9 @@ function setDraftMode<T>(
   // To delete a cookie, set `expires` to a date in the past:
   // https://tools.ietf.org/html/rfc6265#section-4.1.1
   // `Max-Age: 0` is not valid, thus ignored, and the cookie is persisted.
-  const { serialize } =
-    require('next/dist/compiled/cookie') as typeof import('cookie')
+  const { serialize } = require('next/dist/compiled/cookie') as typeof import(
+    'cookie'
+  )
   const previous = res.getHeader('Set-Cookie')
   res.setHeader(`Set-Cookie`, [
     ...(typeof previous === 'string'
@@ -182,9 +183,12 @@ function setPreviewData<T>(
   }
 
   const jsonwebtoken =
-    require('next/dist/compiled/jsonwebtoken') as typeof import('next/dist/compiled/jsonwebtoken')
-  const { encryptWithSecret } =
-    require('../../crypto-utils') as typeof import('../../crypto-utils')
+    require('next/dist/compiled/jsonwebtoken') as typeof import(
+      'next/dist/compiled/jsonwebtoken'
+    )
+  const { encryptWithSecret } = require('../../crypto-utils') as typeof import(
+    '../../crypto-utils'
+  )
   const payload = jsonwebtoken.sign(
     {
       data: encryptWithSecret(
@@ -209,8 +213,9 @@ function setPreviewData<T>(
     )
   }
 
-  const { serialize } =
-    require('next/dist/compiled/cookie') as typeof import('cookie')
+  const { serialize } = require('next/dist/compiled/cookie') as typeof import(
+    'cookie'
+  )
   const previous = res.getHeader('Set-Cookie')
   res.setHeader(`Set-Cookie`, [
     ...(typeof previous === 'string'

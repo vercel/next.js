@@ -6,7 +6,9 @@ export async function renderToString({
 }: {
   // `renderToReadableStream()` method could come from different react-dom/server implementations
   // such as `react-dom/server.edge` or `react-dom/server.node`, etc.
-  renderToReadableStream: typeof import('react-dom/server.edge').renderToReadableStream
+  renderToReadableStream: typeof import(
+    'react-dom/server.edge'
+  ).renderToReadableStream
   element: React.ReactElement
 }): Promise<string> {
   const renderStream = await renderToReadableStream(element)

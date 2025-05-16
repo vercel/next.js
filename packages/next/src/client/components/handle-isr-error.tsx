@@ -1,7 +1,9 @@
 const workAsyncStorage =
   typeof window === 'undefined'
     ? (
-        require('../../server/app-render/work-async-storage.external') as typeof import('../../server/app-render/work-async-storage.external')
+        require('../../server/app-render/work-async-storage.external') as typeof import(
+          '../../server/app-render/work-async-storage.external'
+        )
       ).workAsyncStorage
     : undefined
 

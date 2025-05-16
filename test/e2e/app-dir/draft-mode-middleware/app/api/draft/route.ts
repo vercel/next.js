@@ -14,7 +14,6 @@ export async function GET(request: Request) {
   if (secret !== 'secret-token' || !slug) {
     return new Response('Invalid token', { status: 401 })
   }
-
   // Enable Draft Mode by setting the cookie
   ;(await draftMode()).enable()
 

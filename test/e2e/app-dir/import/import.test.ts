@@ -4,7 +4,6 @@ describe('app dir - imports', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
-
   ;['js', 'jsx', 'ts', 'tsx'].forEach((ext) => {
     it(`we can import all components from .${ext}`, async () => {
       const $ = await next.render$(`/${ext}`)

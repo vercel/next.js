@@ -5,7 +5,6 @@ describe('withRouter', () => {
   const { next, isTurbopack, isNextDev } = nextTestSetup({
     files: __dirname,
   })
-
   ;(isTurbopack && isNextDev ? describe.skip : describe)(
     'production mode',
     () => {

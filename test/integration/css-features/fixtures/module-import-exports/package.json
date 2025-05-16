@@ -1,5 +1,3 @@
 {
-  "browserslist": [
-    "last 1 chrome version"
-  ]
+  "browserslist": ["last 1 chrome version"]
 }

@@ -57,7 +57,6 @@ const node: ConcreteRequest = (function () {
     },
   }
 })()
-
 ;(node as any).hash = '7f699085b71746bb18cb74e3a0776f46'
 
 export default node

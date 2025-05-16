@@ -37,11 +37,13 @@ export default async function Page() {
           fetchCachedValue(),
         ])
       }}
-      initialValues={await Promise.all([
-        getCachedValue(),
-        getCachedValue(),
-        fetchCachedValue(),
-      ])}
+      initialValues={
+        await Promise.all([
+          getCachedValue(),
+          getCachedValue(),
+          fetchCachedValue(),
+        ])
+      }
     />
   )
 }

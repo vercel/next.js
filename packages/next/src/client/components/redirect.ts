@@ -9,7 +9,9 @@ import {
 const actionAsyncStorage =
   typeof window === 'undefined'
     ? (
-        require('../../server/app-render/action-async-storage.external') as typeof import('../../server/app-render/action-async-storage.external')
+        require('../../server/app-render/action-async-storage.external') as typeof import(
+          '../../server/app-render/action-async-storage.external'
+        )
       ).actionAsyncStorage
     : undefined
 

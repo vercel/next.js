@@ -9,9 +9,7 @@
     "url": "vercel/next.js",
     "directory": "packages/eslint-plugin-next"
   },
-  "files": [
-    "dist"
-  ],
+  "files": ["dist"],
   "dependencies": {
     "fast-glob": "3.3.1"
   },
