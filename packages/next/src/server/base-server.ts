@@ -168,7 +168,6 @@ import { RouteKind } from './route-kind'
 import type { RouteModule } from './route-modules/route-module'
 import { FallbackMode, parseFallbackField } from '../lib/fallback'
 import { toResponseCacheEntry } from './response-cache/utils'
-import { scheduleOnNextTick } from '../lib/scheduler'
 import { SegmentPrefixRSCPathnameNormalizer } from './normalizers/request/segment-prefix-rsc'
 import {
   shouldServeStreamingMetadata,
@@ -564,6 +563,7 @@ export default abstract class Server<
     }
 
     this.renderOpts = {
+      dir: this.dir,
       supportsDynamicResponse: true,
       trailingSlash: this.nextConfig.trailingSlash,
       deploymentId: this.nextConfig.deploymentId,
@@ -615,6 +615,8 @@ export default abstract class Server<
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
       reactMaxHeadersLength: this.nextConfig.reactMaxHeadersLength,
+      devtoolSegmentExplorer:
+        this.nextConfig.experimental.devtoolSegmentExplorer,
     }
 
     // Initialize next/config with the environment configuration
@@ -2674,7 +2676,6 @@ export default abstract class Server<
                   headers,
                 },
                 cacheControl: { revalidate, expire },
-                isFallback: false,
               }
 
               return cacheEntry
@@ -2881,7 +2882,6 @@ export default abstract class Server<
         return {
           value: null,
           cacheControl,
-          isFallback: false,
         } satisfies ResponseCacheEntry
       }
 
@@ -2893,7 +2893,6 @@ export default abstract class Server<
             props: metadata.pageData ?? metadata.flightData,
           } satisfies CachedRedirectValue,
           cacheControl,
-          isFallback: false,
         } satisfies ResponseCacheEntry
       }
 
@@ -2915,7 +2914,6 @@ export default abstract class Server<
             segmentData: metadata.segmentData,
           } satisfies CachedAppPageValue,
           cacheControl,
-          isFallback: !!fallbackRouteParams,
         } satisfies ResponseCacheEntry
       }
 
@@ -2928,7 +2926,6 @@ export default abstract class Server<
           status: isAppPath ? res.statusCode : undefined,
         } satisfies CachedPageValue,
         cacheControl,
-        isFallback: pagesFallback,
       }
     }
 
@@ -3155,7 +3152,6 @@ export default abstract class Server<
       ) {
         return {
           cacheControl: { revalidate: 1, expire: undefined },
-          isFallback: false,
           value: {
             kind: CachedRouteKind.PAGES,
             html: RenderResult.fromStatic(''),
@@ -3218,46 +3214,6 @@ export default abstract class Server<
         throw new Error('invariant: cache entry required but not generated')
       }
       return null
-    }
-
-    // If we're not in minimal mode and the cache entry that was returned was a
-    // app page fallback, then we need to kick off the dynamic shell generation.
-    if (
-      ssgCacheKey &&
-      !this.minimalMode &&
-      isRoutePPREnabled &&
-      cacheEntry.value?.kind === CachedRouteKind.APP_PAGE &&
-      cacheEntry.isFallback &&
-      !isOnDemandRevalidate &&
-      // When we're debugging the fallback shell, we don't want to regenerate
-      // the route shell.
-      !isDebugFallbackShell &&
-      process.env.DISABLE_ROUTE_SHELL_GENERATION !== 'true'
-    ) {
-      scheduleOnNextTick(async () => {
-        try {
-          await this.responseCache.get(
-            ssgCacheKey,
-            () =>
-              doRender({
-                // We're an on-demand request, so we don't need to pass in the
-                // fallbackRouteParams.
-                fallbackRouteParams: null,
-                pagesFallback: undefined,
-                postponed: undefined,
-              }),
-            {
-              routeKind: RouteKind.APP_PAGE,
-              incrementalCache,
-              isOnDemandRevalidate: true,
-              isPrefetch: false,
-              isRoutePPREnabled: true,
-            }
-          )
-        } catch (err) {
-          console.error('Error occurred while rendering dynamic shell', err)
-        }
-      })
     }
 
     const didPostpone =

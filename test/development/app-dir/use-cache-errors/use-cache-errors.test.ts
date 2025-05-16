@@ -5,6 +5,7 @@ describe('use-cache-errors', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
+  const isRspack = Boolean(process.env.NEXT_RSPACK)
 
   it('should not show a false-positive compiler error about a misplaced "use cache" directive', async () => {
     // This is a regression test to ensure that an injected React Refresh
@@ -32,6 +33,21 @@ describe('use-cache-errors', () => {
            "<FIXME-file-protocol>",
            "<FIXME-file-protocol>",
            "Page app/page.tsx (22:10)",
+         ],
+       }
+      `)
+    } else if (isRspack) {
+      // TODO: the source is missing and the stack leaks rspack internals
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "Attempted to call useStuff() from the server but useStuff is on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component.",
+         "environmentLabel": "Cache",
+         "label": "Runtime Error",
+         "source": null,
+         "stack": [
+           "<FIXME-file-protocol>",
+           "useCachedStuff rsc:/Cache/webpack-internal:///(action-browser)/app/module-with-use-cache.ts (25:68)",
+           "Page ./app/page.tsx",
          ],
        }
       `)
