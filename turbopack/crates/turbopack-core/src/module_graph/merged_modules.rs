@@ -17,6 +17,7 @@ use crate::{
         GraphTraversalAction, ModuleGraph, RefData, SingleModuleGraphModuleNode,
         chunk_group_info::RoaringBitmapWrapper,
     },
+    resolve::ExportUsage,
 };
 
 #[turbo_tasks::value(transparent)]
@@ -254,11 +255,13 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                             .insert(mergeable_module);
                     }
 
-                    if parent_info.is_none_or(|(parent, _)| {
-                        module_merged_groups.get(&parent.module).unwrap()
-                            != module_merged_groups.get(&module).unwrap()
+                    if parent_info.is_none_or(|(parent, r)| {
+                        (module_merged_groups.get(&parent.module).unwrap()
+                            != module_merged_groups.get(&module).unwrap())
+                            || matches!(r.export, ExportUsage::All)
                     }) {
-                        // A reference from another group, this module needs to be exposed.
+                        // A reference from another group or a namespace import, this module needs
+                        // to be exposed.
                         exposed_modules.insert(module);
                     }
                 },
