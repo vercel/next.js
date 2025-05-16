@@ -325,6 +325,9 @@
         );
       return content;
     }
+    function byteLengthOfChunk(chunk) {
+      return chunk.byteLength;
+    }
     function closeWithError(destination, error) {
       "function" === typeof destination.error
         ? destination.error(error)
@@ -813,7 +816,7 @@
           void 0 === nonce
             ? startInlineScript
             : stringToPrecomputedChunk(
-                '<script nonce="' + escapeTextForBrowser(nonce) + '">'
+                '<script nonce="' + escapeTextForBrowser(nonce) + '"'
               ),
         idPrefix = resumableState.idPrefix;
       externalRuntimeConfig = [];
@@ -821,13 +824,15 @@
         bootstrapScripts = resumableState.bootstrapScripts,
         bootstrapModules = resumableState.bootstrapModules;
       void 0 !== bootstrapScriptContent &&
+        (externalRuntimeConfig.push(inlineScriptWithNonce),
+        pushCompletedShellIdAttribute(externalRuntimeConfig, resumableState),
         externalRuntimeConfig.push(
-          inlineScriptWithNonce,
+          endOfStartTag,
           stringToChunk(
             escapeEntireInlineScriptContent(bootstrapScriptContent)
           ),
           endInlineScript
-        );
+        ));
       bootstrapScriptContent = [];
       void 0 !== importMap &&
         (bootstrapScriptContent.push(importMapScriptStart),
@@ -924,23 +929,28 @@
           );
           externalRuntimeConfig.push(
             startScriptSrc,
-            stringToChunk(escapeTextForBrowser(inlineScriptWithNonce))
+            stringToChunk(escapeTextForBrowser(inlineScriptWithNonce)),
+            attributeEnd
           );
           nonce &&
             externalRuntimeConfig.push(
               scriptNonce,
-              stringToChunk(escapeTextForBrowser(nonce))
+              stringToChunk(escapeTextForBrowser(nonce)),
+              attributeEnd
             );
           "string" === typeof bootstrapScriptContent &&
             externalRuntimeConfig.push(
               scriptIntegirty,
-              stringToChunk(escapeTextForBrowser(bootstrapScriptContent))
+              stringToChunk(escapeTextForBrowser(bootstrapScriptContent)),
+              attributeEnd
             );
           "string" === typeof idPrefix &&
             externalRuntimeConfig.push(
               scriptCrossOrigin,
-              stringToChunk(escapeTextForBrowser(idPrefix))
+              stringToChunk(escapeTextForBrowser(idPrefix)),
+              attributeEnd
             );
+          pushCompletedShellIdAttribute(externalRuntimeConfig, resumableState);
           externalRuntimeConfig.push(endAsyncScript);
         }
       if (void 0 !== bootstrapModules)
@@ -978,23 +988,31 @@
             ),
             externalRuntimeConfig.push(
               startModuleSrc,
-              stringToChunk(escapeTextForBrowser(maxHeadersLength))
+              stringToChunk(escapeTextForBrowser(maxHeadersLength)),
+              attributeEnd
             ),
             nonce &&
               externalRuntimeConfig.push(
                 scriptNonce,
-                stringToChunk(escapeTextForBrowser(nonce))
+                stringToChunk(escapeTextForBrowser(nonce)),
+                attributeEnd
               ),
             "string" === typeof idPrefix &&
               externalRuntimeConfig.push(
                 scriptIntegirty,
-                stringToChunk(escapeTextForBrowser(idPrefix))
+                stringToChunk(escapeTextForBrowser(idPrefix)),
+                attributeEnd
               ),
             "string" === typeof inlineScriptWithNonce &&
               externalRuntimeConfig.push(
                 scriptCrossOrigin,
-                stringToChunk(escapeTextForBrowser(inlineScriptWithNonce))
+                stringToChunk(escapeTextForBrowser(inlineScriptWithNonce)),
+                attributeEnd
               ),
+            pushCompletedShellIdAttribute(
+              externalRuntimeConfig,
+              resumableState
+            ),
             externalRuntimeConfig.push(endAsyncScript);
       return onHeaders;
     }
@@ -1028,11 +1046,17 @@
     function createPreambleState() {
       return { htmlChunks: null, headChunks: null, bodyChunks: null };
     }
-    function createFormatContext(insertionMode, selectedValue, tagScope) {
+    function createFormatContext(
+      insertionMode,
+      selectedValue,
+      tagScope,
+      viewTransition
+    ) {
       return {
         insertionMode: insertionMode,
         selectedValue: selectedValue,
-        tagScope: tagScope
+        tagScope: tagScope,
+        viewTransition: viewTransition
       };
     }
     function createRootFormatContext(namespaceURI) {
@@ -1043,67 +1067,62 @@
             ? MATHML_MODE
             : ROOT_HTML_MODE,
         null,
-        0
+        0,
+        null
       );
     }
     function getChildFormatContext(parentContext, type, props) {
+      var subtreeScope = parentContext.tagScope & -25;
       switch (type) {
         case "noscript":
-          return createFormatContext(
-            HTML_MODE,
-            null,
-            parentContext.tagScope | 1
-          );
+          return createFormatContext(HTML_MODE, null, subtreeScope | 1, null);
         case "select":
           return createFormatContext(
             HTML_MODE,
             null != props.value ? props.value : props.defaultValue,
-            parentContext.tagScope
+            subtreeScope,
+            null
           );
         case "svg":
-          return createFormatContext(SVG_MODE, null, parentContext.tagScope);
+          return createFormatContext(SVG_MODE, null, subtreeScope, null);
         case "picture":
-          return createFormatContext(
-            HTML_MODE,
-            null,
-            parentContext.tagScope | 2
-          );
+          return createFormatContext(HTML_MODE, null, subtreeScope | 2, null);
         case "math":
-          return createFormatContext(MATHML_MODE, null, parentContext.tagScope);
+          return createFormatContext(MATHML_MODE, null, subtreeScope, null);
         case "foreignObject":
-          return createFormatContext(HTML_MODE, null, parentContext.tagScope);
+          return createFormatContext(HTML_MODE, null, subtreeScope, null);
         case "table":
-          return createFormatContext(
-            HTML_TABLE_MODE,
-            null,
-            parentContext.tagScope
-          );
+          return createFormatContext(HTML_TABLE_MODE, null, subtreeScope, null);
         case "thead":
         case "tbody":
         case "tfoot":
           return createFormatContext(
             HTML_TABLE_BODY_MODE,
             null,
-            parentContext.tagScope
+            subtreeScope,
+            null
           );
         case "colgroup":
           return createFormatContext(
             HTML_COLGROUP_MODE,
             null,
-            parentContext.tagScope
+            subtreeScope,
+            null
           );
         case "tr":
           return createFormatContext(
             HTML_TABLE_ROW_MODE,
             null,
-            parentContext.tagScope
+            subtreeScope,
+            null
           );
         case "head":
           if (parentContext.insertionMode < HTML_MODE)
             return createFormatContext(
               HTML_HEAD_MODE,
               null,
-              parentContext.tagScope
+              subtreeScope,
+              null
             );
           break;
         case "html":
@@ -1111,13 +1130,50 @@
             return createFormatContext(
               HTML_HTML_MODE,
               null,
-              parentContext.tagScope
+              subtreeScope,
+              null
             );
       }
       return parentContext.insertionMode >= HTML_TABLE_MODE ||
         parentContext.insertionMode < HTML_MODE
-        ? createFormatContext(HTML_MODE, null, parentContext.tagScope)
-        : parentContext;
+        ? createFormatContext(HTML_MODE, null, subtreeScope, null)
+        : parentContext.tagScope !== subtreeScope
+          ? createFormatContext(
+              parentContext.insertionMode,
+              parentContext.selectedValue,
+              subtreeScope,
+              null
+            )
+          : parentContext;
+    }
+    function getSuspenseViewTransition(parentViewTransition) {
+      return null === parentViewTransition
+        ? null
+        : {
+            update: parentViewTransition.update,
+            enter: null,
+            exit: null,
+            share: parentViewTransition.update,
+            name: parentViewTransition.autoName,
+            autoName: parentViewTransition.autoName,
+            nameIdx: 0
+          };
+    }
+    function getSuspenseFallbackFormatContext(parentContext) {
+      return createFormatContext(
+        parentContext.insertionMode,
+        parentContext.selectedValue,
+        parentContext.tagScope | 12,
+        getSuspenseViewTransition(parentContext.viewTransition)
+      );
+    }
+    function getSuspenseContentFormatContext(parentContext) {
+      return createFormatContext(
+        parentContext.insertionMode,
+        parentContext.selectedValue,
+        parentContext.tagScope | 16,
+        getSuspenseViewTransition(parentContext.viewTransition)
+      );
     }
     function pushTextInstance(target, text, renderState, textEmbedded) {
       if ("" === text) return textEmbedded;
@@ -1643,13 +1699,26 @@
       return content;
     }
     function injectFormReplayingRuntime(resumableState, renderState) {
-      (resumableState.instructions & 16) === NothingSent &&
-        ((resumableState.instructions |= 16),
-        renderState.bootstrapChunks.unshift(
-          renderState.startInlineScript,
-          formReplayingRuntimeScript,
-          endInlineScript
-        ));
+      if ((resumableState.instructions & 16) === NothingSent) {
+        resumableState.instructions |= 16;
+        var preamble = renderState.preamble,
+          bootstrapChunks = renderState.bootstrapChunks;
+        (preamble.htmlChunks || preamble.headChunks) &&
+        0 === bootstrapChunks.length
+          ? (bootstrapChunks.push(renderState.startInlineScript),
+            pushCompletedShellIdAttribute(bootstrapChunks, resumableState),
+            bootstrapChunks.push(
+              endOfStartTag,
+              formReplayingRuntimeScript,
+              endInlineScript
+            ))
+          : bootstrapChunks.unshift(
+              renderState.startInlineScript,
+              endOfStartTag,
+              formReplayingRuntimeScript,
+              endInlineScript
+            );
+      }
     }
     function pushLinkImpl(target, props) {
       target.push(startChunkForTag("link"));
@@ -1834,8 +1903,7 @@
       preambleState,
       hoistableState,
       formatContext,
-      textEmbedded,
-      isFallback
+      textEmbedded
     ) {
       validateProperties$2(type, props);
       ("input" !== type && "textarea" !== type && "select" !== type) ||
@@ -2464,8 +2532,8 @@
           } else JSCompiler_inline_result$jscomp$3 = children$jscomp$5;
           return JSCompiler_inline_result$jscomp$3;
         case "title":
-          var insertionMode = formatContext.insertionMode,
-            noscriptTagInScope = !!(formatContext.tagScope & 1);
+          var noscriptTagInScope = formatContext.tagScope & 1,
+            isFallback = formatContext.tagScope & 4;
           if (hasOwnProperty.call(props, "children")) {
             var children$jscomp$6 = props.children,
               child = Array.isArray(children$jscomp$6)
@@ -2494,7 +2562,7 @@
                       ));
           }
           if (
-            insertionMode === SVG_MODE ||
+            formatContext.insertionMode === SVG_MODE ||
             noscriptTagInScope ||
             null != props.itemProp
           )
@@ -2509,12 +2577,14 @@
                 (JSCompiler_inline_result$jscomp$4 = void 0));
           return JSCompiler_inline_result$jscomp$4;
         case "link":
-          var rel = props.rel,
+          var noscriptTagInScope$jscomp$0 = formatContext.tagScope & 1,
+            isFallback$jscomp$0 = formatContext.tagScope & 4,
+            rel = props.rel,
             href = props.href,
             precedence = props.precedence;
           if (
             formatContext.insertionMode === SVG_MODE ||
-            formatContext.tagScope & 1 ||
+            noscriptTagInScope$jscomp$0 ||
             null != props.itemProp ||
             "string" !== typeof rel ||
             "string" !== typeof href ||
@@ -2615,12 +2685,13 @@
                   props
                 ))
               : (textEmbedded && target$jscomp$0.push(textSeparator),
-                (JSCompiler_inline_result$jscomp$5 = isFallback
+                (JSCompiler_inline_result$jscomp$5 = isFallback$jscomp$0
                   ? null
                   : pushLinkImpl(renderState.hoistableChunks, props)));
           return JSCompiler_inline_result$jscomp$5;
         case "script":
-          var asyncProp = props.async;
+          var noscriptTagInScope$jscomp$1 = formatContext.tagScope & 1,
+            asyncProp = props.async;
           if (
             "string" !== typeof props.src ||
             !props.src ||
@@ -2630,7 +2701,7 @@
             props.onLoad ||
             props.onError ||
             formatContext.insertionMode === SVG_MODE ||
-            formatContext.tagScope & 1 ||
+            noscriptTagInScope$jscomp$1 ||
             null != props.itemProp
           )
             var JSCompiler_inline_result$jscomp$6 = pushScriptImpl(
@@ -2668,8 +2739,7 @@
           }
           return JSCompiler_inline_result$jscomp$6;
         case "style":
-          var insertionMode$jscomp$0 = formatContext.insertionMode,
-            noscriptTagInScope$jscomp$0 = !!(formatContext.tagScope & 1);
+          var noscriptTagInScope$jscomp$2 = formatContext.tagScope & 1;
           if (hasOwnProperty.call(props, "children")) {
             var children$jscomp$7 = props.children,
               child$jscomp$0 = Array.isArray(children$jscomp$7)
@@ -2692,8 +2762,8 @@
           var precedence$jscomp$0 = props.precedence,
             href$jscomp$0 = props.href;
           if (
-            insertionMode$jscomp$0 === SVG_MODE ||
-            noscriptTagInScope$jscomp$0 ||
+            formatContext.insertionMode === SVG_MODE ||
+            noscriptTagInScope$jscomp$2 ||
             null != props.itemProp ||
             "string" !== typeof precedence$jscomp$0 ||
             "string" !== typeof href$jscomp$0 ||
@@ -2815,9 +2885,11 @@
           }
           return JSCompiler_inline_result$jscomp$7;
         case "meta":
+          var noscriptTagInScope$jscomp$3 = formatContext.tagScope & 1,
+            isFallback$jscomp$1 = formatContext.tagScope & 4;
           if (
             formatContext.insertionMode === SVG_MODE ||
-            formatContext.tagScope & 1 ||
+            noscriptTagInScope$jscomp$3 ||
             null != props.itemProp
           )
             var JSCompiler_inline_result$jscomp$8 = pushSelfClosing(
@@ -2827,7 +2899,7 @@
             );
           else
             textEmbedded && target$jscomp$0.push(textSeparator),
-              (JSCompiler_inline_result$jscomp$8 = isFallback
+              (JSCompiler_inline_result$jscomp$8 = isFallback$jscomp$1
                 ? null
                 : "string" === typeof props.charSet
                   ? pushSelfClosing(renderState.charsetChunks, props, "meta")
@@ -2890,17 +2962,18 @@
             target$jscomp$0.push(leadingNewline);
           return children$jscomp$10;
         case "img":
-          var src = props.src,
+          var pictureOrNoScriptTagInScope = formatContext.tagScope & 3,
+            src = props.src,
             srcSet = props.srcSet;
           if (
             !(
               "lazy" === props.loading ||
               (!src && !srcSet) ||
               ("string" !== typeof src && null != src) ||
-              ("string" !== typeof srcSet && null != srcSet)
+              ("string" !== typeof srcSet && null != srcSet) ||
+              "low" === props.fetchPriority ||
+              pictureOrNoScriptTagInScope
             ) &&
-            "low" !== props.fetchPriority &&
-            !1 === !!(formatContext.tagScope & 3) &&
             ("string" !== typeof src ||
               ":" !== src[4] ||
               ("d" !== src[0] && "D" !== src[0]) ||
@@ -3399,6 +3472,17 @@
       styleQueue.sheets.forEach(preloadLateStyle, this);
       styleQueue.sheets.clear();
     }
+    function pushCompletedShellIdAttribute(target, resumableState) {
+      (resumableState.instructions & SentCompletedShellId) === NothingSent &&
+        ((resumableState.instructions |= SentCompletedShellId),
+        target.push(
+          completedShellIdAttributeStart,
+          stringToChunk(
+            escapeTextForBrowser("\u00ab" + resumableState.idPrefix + "R\u00bb")
+          ),
+          attributeEnd
+        ));
+    }
     function writeStyleResourceDependenciesInJS(destination, hoistableState) {
       writeChunk(destination, arrayFirstOpenBracket);
       var nextArrayOpenBrackChunk = arrayFirstOpenBracket;
@@ -3801,13 +3885,12 @@
       x >>>= 0;
       return 0 === x ? 32 : (31 - ((log(x) / LN2) | 0)) | 0;
     }
-    function noop$2() {}
+    function noop() {}
     function trackUsedThenable(thenableState, thenable, index) {
       index = thenableState[index];
       void 0 === index
         ? thenableState.push(thenable)
-        : index !== thenable &&
-          (thenable.then(noop$2, noop$2), (thenable = index));
+        : index !== thenable && (thenable.then(noop, noop), (thenable = index));
       switch (thenable.status) {
         case "fulfilled":
           return thenable.value;
@@ -3815,7 +3898,7 @@
           throw thenable.reason;
         default:
           "string" === typeof thenable.status
-            ? thenable.then(noop$2, noop$2)
+            ? thenable.then(noop, noop)
             : ((thenableState = thenable),
               (thenableState.status = "pending"),
               thenableState.then(
@@ -4101,7 +4184,6 @@
     function unsupportedRefresh() {
       throw Error("Cache cannot be refreshed during server rendering.");
     }
-    function noop$1() {}
     function disabledLog() {}
     function disableLogs() {
       if (0 === disabledDepth) {
@@ -4418,7 +4500,6 @@
       } else console.error(error);
       return null;
     }
-    function noop() {}
     function RequestInstance(
       resumableState,
       renderState,
@@ -4444,6 +4525,7 @@
       this.fatalError = null;
       this.pendingRootTasks = this.allPendingTasks = this.nextSegmentId = 0;
       this.completedPreambleSegments = this.completedRootSegment = null;
+      this.byteSize = 0;
       this.abortableTasks = abortSet;
       this.pingedTasks = [];
       this.clientRenderedBoundaries = [];
@@ -4514,7 +4596,6 @@
         null,
         emptyTreeContext,
         null,
-        !1,
         emptyContextObject,
         null
       );
@@ -4617,7 +4698,6 @@
       context,
       treeContext,
       componentStack,
-      isFallback,
       legacyContext,
       debugTask
     ) {
@@ -4642,8 +4722,7 @@
         context: context,
         treeContext: treeContext,
         componentStack: componentStack,
-        thenableState: thenableState,
-        isFallback: isFallback
+        thenableState: thenableState
       };
       task.debugTask = debugTask;
       abortSet.add(task);
@@ -4663,7 +4742,6 @@
       context,
       treeContext,
       componentStack,
-      isFallback,
       legacyContext,
       debugTask
     ) {
@@ -4689,8 +4767,7 @@
         context: context,
         treeContext: treeContext,
         componentStack: componentStack,
-        thenableState: thenableState,
-        isFallback: isFallback
+        thenableState: thenableState
       };
       task.debugTask = debugTask;
       abortSet.add(task);
@@ -5412,16 +5489,15 @@
             task.blockedPreamble,
             task.hoistableState,
             task.formatContext,
-            segment.lastPushedText,
-            task.isFallback
+            segment.lastPushedText
           );
           segment.lastPushedText = !1;
-          var _prevContext = task.formatContext,
+          var _prevContext2 = task.formatContext,
             _prevKeyPath2 = task.keyPath;
           task.keyPath = keyPath;
           if (
             (task.formatContext = getChildFormatContext(
-              _prevContext,
+              _prevContext2,
               type,
               props
             )).insertionMode === HTML_HEAD_MODE
@@ -5450,14 +5526,13 @@
               task.context,
               task.treeContext,
               task.componentStack,
-              task.isFallback,
               emptyContextObject,
               task.debugTask
             );
             pushComponentStack(preambleTask);
             request.pingedTasks.push(preambleTask);
           } else renderNode(request, task, _children, -1);
-          task.formatContext = _prevContext;
+          task.formatContext = _prevContext2;
           task.keyPath = _prevKeyPath2;
           a: {
             var target = segment.chunks,
@@ -5483,19 +5558,19 @@
               case "wbr":
                 break a;
               case "body":
-                if (_prevContext.insertionMode <= HTML_HTML_MODE) {
+                if (_prevContext2.insertionMode <= HTML_HTML_MODE) {
                   resumableState.hasBody = !0;
                   break a;
                 }
                 break;
               case "html":
-                if (_prevContext.insertionMode === ROOT_HTML_MODE) {
+                if (_prevContext2.insertionMode === ROOT_HTML_MODE) {
                   resumableState.hasHtml = !0;
                   break a;
                 }
                 break;
               case "head":
-                if (_prevContext.insertionMode <= HTML_HTML_MODE) break a;
+                if (_prevContext2.insertionMode <= HTML_HTML_MODE) break a;
             }
             target.push(endChunkForTag(type));
           }
@@ -5545,16 +5620,21 @@
             );
           case REACT_SUSPENSE_TYPE:
             a: if (null !== task.replay) {
-              var _prevKeyPath = task.keyPath;
+              var _prevKeyPath = task.keyPath,
+                _prevContext = task.formatContext;
               task.keyPath = keyPath;
+              task.formatContext =
+                getSuspenseContentFormatContext(_prevContext);
               var _content = props.children;
               try {
                 renderNode(request, task, _content, -1);
               } finally {
-                task.keyPath = _prevKeyPath;
+                (task.keyPath = _prevKeyPath),
+                  (task.formatContext = _prevContext);
               }
             } else {
               var prevKeyPath$jscomp$3 = task.keyPath,
+                prevContext$jscomp$0 = task.formatContext,
                 parentBoundary = task.blockedBoundary,
                 parentPreamble = task.blockedPreamble,
                 parentHoistableState = task.hoistableState,
@@ -5617,13 +5697,16 @@
                 task.blockedSegment = boundarySegment;
                 task.blockedPreamble = newBoundary.fallbackPreamble;
                 task.keyPath = fallbackKeyPath;
+                task.formatContext =
+                  getSuspenseFallbackFormatContext(prevContext$jscomp$0);
                 boundarySegment.status = 6;
                 try {
                   renderNode(request, task, fallback, -1),
                     boundarySegment.lastPushedText &&
                       boundarySegment.textEmbedded &&
                       boundarySegment.chunks.push(textSeparator),
-                    (boundarySegment.status = COMPLETED);
+                    (boundarySegment.status = COMPLETED),
+                    finishedSegment(request, parentBoundary, boundarySegment);
                 } catch (thrownValue) {
                   throw (
                     ((boundarySegment.status = 12 === request.status ? 3 : 4),
@@ -5632,7 +5715,8 @@
                 } finally {
                   (task.blockedSegment = parentSegment),
                     (task.blockedPreamble = parentPreamble),
-                    (task.keyPath = prevKeyPath$jscomp$3);
+                    (task.keyPath = prevKeyPath$jscomp$3),
+                    (task.formatContext = prevContext$jscomp$0);
                 }
                 var suspendedPrimaryTask = createRenderTask(
                   request,
@@ -5645,11 +5729,10 @@
                   newBoundary.contentState,
                   task.abortSet,
                   keyPath,
-                  task.formatContext,
+                  getSuspenseContentFormatContext(task.formatContext),
                   task.context,
                   task.treeContext,
                   task.componentStack,
-                  task.isFallback,
                   emptyContextObject,
                   task.debugTask
                 );
@@ -5661,6 +5744,8 @@
                 task.hoistableState = newBoundary.contentState;
                 task.blockedSegment = contentRootSegment;
                 task.keyPath = keyPath;
+                task.formatContext =
+                  getSuspenseContentFormatContext(prevContext$jscomp$0);
                 contentRootSegment.status = 6;
                 try {
                   if (
@@ -5669,11 +5754,13 @@
                       contentRootSegment.textEmbedded &&
                       contentRootSegment.chunks.push(textSeparator),
                     (contentRootSegment.status = COMPLETED),
+                    finishedSegment(request, newBoundary, contentRootSegment),
                     queueCompletedSegment(newBoundary, contentRootSegment),
                     0 === newBoundary.pendingTasks &&
-                      newBoundary.status === PENDING)
+                      newBoundary.status === PENDING &&
+                      ((newBoundary.status = COMPLETED),
+                      !(500 < newBoundary.byteSize)))
                   ) {
-                    newBoundary.status = COMPLETED;
                     0 === request.pendingRootTasks &&
                       task.blockedPreamble &&
                       preparePreamble(request);
@@ -5706,7 +5793,8 @@
                     (task.blockedPreamble = parentPreamble),
                     (task.hoistableState = parentHoistableState),
                     (task.blockedSegment = parentSegment),
-                    (task.keyPath = prevKeyPath$jscomp$3);
+                    (task.keyPath = prevKeyPath$jscomp$3),
+                    (task.formatContext = prevContext$jscomp$0);
                 }
                 var suspendedFallbackTask = createRenderTask(
                   request,
@@ -5719,11 +5807,10 @@
                   newBoundary.fallbackState,
                   fallbackAbortSet,
                   [keyPath[0], "Suspense Fallback", keyPath[2]],
-                  task.formatContext,
+                  getSuspenseFallbackFormatContext(task.formatContext),
                   task.context,
                   task.treeContext,
                   task.componentStack,
-                  !0,
                   emptyContextObject,
                   task.debugTask
                 );
@@ -5868,6 +5955,7 @@
           (task.blockedSegment = resumedSegment),
           renderNode(request, task, node, childIndex),
           (resumedSegment.status = COMPLETED),
+          finishedSegment(request, blockedBoundary, resumedSegment),
           null === blockedBoundary
             ? (request.completedRootSegment = resumedSegment)
             : (queueCompletedSegment(blockedBoundary, resumedSegment),
@@ -5903,9 +5991,9 @@
                   ">. The tree doesn't match so React will fallback to client rendering."
               );
             var childNodes = node[2];
-            node = node[3];
-            name = task.node;
-            task.replay = { nodes: childNodes, slots: node, pendingTasks: 1 };
+            name = node[3];
+            keyOrIndex = task.node;
+            task.replay = { nodes: childNodes, slots: name, pendingTasks: 1 };
             try {
               renderElement(request, task, keyPath, type, props, ref);
               if (
@@ -5922,21 +6010,21 @@
                 null !== x &&
                 (x === SuspenseException || "function" === typeof x.then)
               )
-                throw (task.node === name && (task.replay = replay), x);
+                throw (task.node === keyOrIndex && (task.replay = replay), x);
               task.replay.pendingTasks--;
               type = getThrownInfo(task.componentStack);
               props = request;
               request = task.blockedBoundary;
               keyPath = x;
-              ref = node;
-              node = logRecoverableError(props, keyPath, type, task.debugTask);
+              ref = name;
+              name = logRecoverableError(props, keyPath, type, task.debugTask);
               abortRemainingReplayNodes(
                 props,
                 request,
                 childNodes,
                 ref,
                 keyPath,
-                node,
+                name,
                 type,
                 !1
               );
@@ -5951,12 +6039,13 @@
               );
             a: {
               replay = void 0;
-              type = node[5];
-              ref = node[2];
-              name = node[3];
+              name = node[5];
+              type = node[2];
+              ref = node[3];
               keyOrIndex = null === node[4] ? [] : node[4][2];
               node = null === node[4] ? null : node[4][3];
               var prevKeyPath = task.keyPath,
+                prevContext = task.formatContext,
                 previousReplaySet = task.replay,
                 parentBoundary = task.blockedBoundary,
                 parentHoistableState = task.hoistableState,
@@ -5978,11 +6067,12 @@
                       null
                     );
               props.parentFlushed = !0;
-              props.rootSegmentID = type;
+              props.rootSegmentID = name;
               task.blockedBoundary = props;
               task.hoistableState = props.contentState;
               task.keyPath = keyPath;
-              task.replay = { nodes: ref, slots: name, pendingTasks: 1 };
+              task.formatContext = getSuspenseContentFormatContext(prevContext);
+              task.replay = { nodes: type, slots: ref, pendingTasks: 1 };
               try {
                 renderNode(request, task, content, -1);
                 if (
@@ -6014,7 +6104,8 @@
                 (task.blockedBoundary = parentBoundary),
                   (task.hoistableState = parentHoistableState),
                   (task.replay = previousReplaySet),
-                  (task.keyPath = prevKeyPath);
+                  (task.keyPath = prevKeyPath),
+                  (task.formatContext = prevContext);
               }
               props = createReplayTask(
                 request,
@@ -6026,11 +6117,10 @@
                 props.fallbackState,
                 fallbackAbortSet,
                 [keyPath[0], "Suspense Fallback", keyPath[2]],
-                task.formatContext,
+                getSuspenseFallbackFormatContext(task.formatContext),
                 task.context,
                 task.treeContext,
                 task.componentStack,
-                !0,
                 emptyContextObject,
                 task.debugTask
               );
@@ -6415,7 +6505,6 @@
         task.context,
         task.treeContext,
         task.componentStack,
-        task.isFallback,
         emptyContextObject,
         task.debugTask
       );
@@ -6447,7 +6536,6 @@
         task.context,
         task.treeContext,
         task.componentStack,
-        task.isFallback,
         emptyContextObject,
         task.debugTask
       );
@@ -6784,6 +6872,16 @@
           queueCompletedSegment(boundary, childSegment);
       } else boundary.completedSegments.push(segment);
     }
+    function finishedSegment(request, boundary, segment) {
+      if (null !== byteLengthOfChunk) {
+        segment = segment.chunks;
+        for (var segmentByteSize = 0, i = 0; i < segment.length; i++)
+          segmentByteSize += segment[i].byteLength;
+        null === boundary
+          ? (request.byteSize += segmentByteSize)
+          : (boundary.byteSize += segmentByteSize);
+      }
+    }
     function finishedTask(request, boundary, segment) {
       if (null === boundary) {
         if (null !== segment && segment.parentFlushed) {
@@ -6807,11 +6905,12 @@
                 boundary.parentFlushed &&
                   request.completedBoundaries.push(boundary),
                 boundary.status === COMPLETED &&
-                  (boundary.fallbackAbortableTasks.forEach(
-                    abortTaskSoft,
-                    request
-                  ),
-                  boundary.fallbackAbortableTasks.clear(),
+                  (500 < boundary.byteSize ||
+                    (boundary.fallbackAbortableTasks.forEach(
+                      abortTaskSoft,
+                      request
+                    ),
+                    boundary.fallbackAbortableTasks.clear()),
                   0 === request.pendingRootTasks &&
                     null === request.trackedPostpones &&
                     null !== boundary.contentPreamble &&
@@ -6951,6 +7050,11 @@
                     request$jscomp$1.chunks.push(textSeparator),
                   errorDigest.abortSet.delete(errorDigest),
                   (request$jscomp$1.status = COMPLETED),
+                  finishedSegment(
+                    request,
+                    errorDigest.blockedBoundary,
+                    request$jscomp$1
+                  ),
                   finishedTask(
                     request,
                     errorDigest.blockedBoundary,
@@ -7233,7 +7337,10 @@
               hoistableState
             )),
           flushSubtree(request, destination, segment, hoistableState);
-      else if (boundary.byteSize > request.progressiveChunkSize)
+      else if (
+        500 < boundary.byteSize &&
+        flushedByteSize + boundary.byteSize > request.progressiveChunkSize
+      )
         (boundary.rootSegmentID = request.nextSegmentId++),
           request.completedBoundaries.push(boundary),
           writeStartPendingSuspenseBoundary(
@@ -7243,6 +7350,7 @@
           ),
           flushSubtree(request, destination, segment, hoistableState);
       else {
+        flushedByteSize += boundary.byteSize;
         hoistableState &&
           ((segment = boundary.contentState),
           segment.styles.forEach(hoistStyleQueueDependency, hoistableState),
@@ -7276,6 +7384,7 @@
       return writeEndSegment(destination, segment.parentFormatContext);
     }
     function flushCompletedBoundary(request, destination, boundary) {
+      flushedByteSize = boundary.byteSize;
       for (
         var completedSegments = boundary.completedSegments, i = 0;
         i < completedSegments.length;
@@ -7300,22 +7409,24 @@
       var requiresStyleInsertion = request.stylesToHoist;
       request.stylesToHoist = !1;
       writeChunk(destination, request.startInlineScript);
+      writeChunk(destination, endOfStartTag);
       requiresStyleInsertion
-        ? (completedSegments.instructions & SentCompleteBoundaryFunction) ===
+        ? ((completedSegments.instructions & SentClientRenderFunction) ===
+            NothingSent &&
+            ((completedSegments.instructions |= SentClientRenderFunction),
+            writeChunk(destination, clientRenderScriptFunctionOnly)),
+          (completedSegments.instructions & SentCompleteBoundaryFunction) ===
+            NothingSent &&
+            ((completedSegments.instructions |= SentCompleteBoundaryFunction),
+            writeChunk(destination, completeBoundaryScriptFunctionOnly)),
+          (completedSegments.instructions & SentStyleInsertionFunction) ===
           NothingSent
-          ? ((completedSegments.instructions =
-              completedSegments.instructions |
-              SentStyleInsertionFunction |
-              SentCompleteBoundaryFunction),
-            writeChunk(destination, completeBoundaryWithStylesScript1FullBoth))
-          : (completedSegments.instructions & SentStyleInsertionFunction) ===
-              NothingSent
             ? ((completedSegments.instructions |= SentStyleInsertionFunction),
               writeChunk(
                 destination,
                 completeBoundaryWithStylesScript1FullPartial
               ))
-            : writeChunk(destination, completeBoundaryWithStylesScript1Partial)
+            : writeChunk(destination, completeBoundaryWithStylesScript1Partial))
         : (completedSegments.instructions & SentCompleteBoundaryFunction) ===
             NothingSent
           ? ((completedSegments.instructions |= SentCompleteBoundaryFunction),
@@ -7366,6 +7477,7 @@
       boundary = request.resumableState;
       request = request.renderState;
       writeChunk(destination, request.startInlineScript);
+      writeChunk(destination, endOfStartTag);
       (boundary.instructions & SentCompleteSegmentFunction) === NothingSent
         ? ((boundary.instructions |= SentCompleteSegmentFunction),
           writeChunk(destination, completeSegmentScript1Full))
@@ -7390,6 +7502,7 @@
             if (completedRootSegment.status === POSTPONED) return;
             var completedPreambleSegments = request.completedPreambleSegments;
             if (null === completedPreambleSegments) return;
+            flushedByteSize = request.byteSize;
             var renderState = request.renderState,
               preamble = renderState.preamble,
               htmlChunks = preamble.htmlChunks,
@@ -7477,11 +7590,45 @@
                 writeChunk(destination, bodyChunks[completedPreambleSegments]);
             flushSegment(request, destination, completedRootSegment, null);
             request.completedRootSegment = null;
-            writeBootstrap(destination, request.renderState);
+            var renderState$jscomp$0 = request.renderState;
+            if (
+              0 !== request.allPendingTasks ||
+              0 !== request.clientRenderedBoundaries.length ||
+              0 !== request.completedBoundaries.length ||
+              (null !== request.trackedPostpones &&
+                (0 !== request.trackedPostpones.rootNodes.length ||
+                  null !== request.trackedPostpones.rootSlots))
+            ) {
+              var resumableState = request.resumableState;
+              if (
+                (resumableState.instructions & SentMarkShellTime) ===
+                NothingSent
+              ) {
+                resumableState.instructions |= SentMarkShellTime;
+                writeChunk(destination, renderState$jscomp$0.startInlineScript);
+                if (
+                  (resumableState.instructions & SentCompletedShellId) ===
+                  NothingSent
+                ) {
+                  resumableState.instructions |= SentCompletedShellId;
+                  var shellId = "\u00ab" + resumableState.idPrefix + "R\u00bb";
+                  writeChunk(destination, completedShellIdAttributeStart);
+                  writeChunk(
+                    destination,
+                    stringToChunk(escapeTextForBrowser(shellId))
+                  );
+                  writeChunk(destination, attributeEnd);
+                }
+                writeChunk(destination, endOfStartTag);
+                writeChunk(destination, shellTimeRuntimeScript);
+                writeChunkAndReturn(destination, endInlineScript);
+              }
+            }
+            writeBootstrap(destination, renderState$jscomp$0);
           }
-          var renderState$jscomp$0 = request.renderState;
+          var renderState$jscomp$1 = request.renderState;
           completedRootSegment = 0;
-          var viewportChunks$jscomp$0 = renderState$jscomp$0.viewportChunks;
+          var viewportChunks$jscomp$0 = renderState$jscomp$1.viewportChunks;
           for (
             completedRootSegment = 0;
             completedRootSegment < viewportChunks$jscomp$0.length;
@@ -7492,21 +7639,21 @@
               viewportChunks$jscomp$0[completedRootSegment]
             );
           viewportChunks$jscomp$0.length = 0;
-          renderState$jscomp$0.preconnects.forEach(flushResource, destination);
-          renderState$jscomp$0.preconnects.clear();
-          renderState$jscomp$0.fontPreloads.forEach(flushResource, destination);
-          renderState$jscomp$0.fontPreloads.clear();
-          renderState$jscomp$0.highImagePreloads.forEach(
+          renderState$jscomp$1.preconnects.forEach(flushResource, destination);
+          renderState$jscomp$1.preconnects.clear();
+          renderState$jscomp$1.fontPreloads.forEach(flushResource, destination);
+          renderState$jscomp$1.fontPreloads.clear();
+          renderState$jscomp$1.highImagePreloads.forEach(
             flushResource,
             destination
           );
-          renderState$jscomp$0.highImagePreloads.clear();
-          renderState$jscomp$0.styles.forEach(preloadLateStyles, destination);
-          renderState$jscomp$0.scripts.forEach(flushResource, destination);
-          renderState$jscomp$0.scripts.clear();
-          renderState$jscomp$0.bulkPreloads.forEach(flushResource, destination);
-          renderState$jscomp$0.bulkPreloads.clear();
-          var hoistableChunks$jscomp$0 = renderState$jscomp$0.hoistableChunks;
+          renderState$jscomp$1.highImagePreloads.clear();
+          renderState$jscomp$1.styles.forEach(preloadLateStyles, destination);
+          renderState$jscomp$1.scripts.forEach(flushResource, destination);
+          renderState$jscomp$1.scripts.clear();
+          renderState$jscomp$1.bulkPreloads.forEach(flushResource, destination);
+          renderState$jscomp$1.bulkPreloads.clear();
+          var hoistableChunks$jscomp$0 = renderState$jscomp$1.hoistableChunks;
           for (
             completedRootSegment = 0;
             completedRootSegment < hoistableChunks$jscomp$0.length;
@@ -7520,29 +7667,32 @@
           var clientRenderedBoundaries = request.clientRenderedBoundaries;
           for (i = 0; i < clientRenderedBoundaries.length; i++) {
             var boundary = clientRenderedBoundaries[i];
-            renderState$jscomp$0 = destination;
-            var resumableState = request.resumableState,
-              renderState$jscomp$1 = request.renderState,
+            renderState$jscomp$1 = destination;
+            var resumableState$jscomp$0 = request.resumableState,
+              renderState$jscomp$2 = request.renderState,
               id = boundary.rootSegmentID,
               errorDigest = boundary.errorDigest,
               errorMessage = boundary.errorMessage,
               errorStack = boundary.errorStack,
               errorComponentStack = boundary.errorComponentStack;
             writeChunk(
-              renderState$jscomp$0,
-              renderState$jscomp$1.startInlineScript
+              renderState$jscomp$1,
+              renderState$jscomp$2.startInlineScript
             );
-            (resumableState.instructions & SentClientRenderFunction) ===
+            writeChunk(renderState$jscomp$1, endOfStartTag);
+            (resumableState$jscomp$0.instructions &
+              SentClientRenderFunction) ===
             NothingSent
-              ? ((resumableState.instructions |= SentClientRenderFunction),
-                writeChunk(renderState$jscomp$0, clientRenderScript1Full))
-              : writeChunk(renderState$jscomp$0, clientRenderScript1Partial);
+              ? ((resumableState$jscomp$0.instructions |=
+                  SentClientRenderFunction),
+                writeChunk(renderState$jscomp$1, clientRenderScript1Full))
+              : writeChunk(renderState$jscomp$1, clientRenderScript1Partial);
             writeChunk(
-              renderState$jscomp$0,
-              renderState$jscomp$1.boundaryPrefix
+              renderState$jscomp$1,
+              renderState$jscomp$2.boundaryPrefix
             );
-            writeChunk(renderState$jscomp$0, stringToChunk(id.toString(16)));
-            writeChunk(renderState$jscomp$0, clientRenderScript1A);
+            writeChunk(renderState$jscomp$1, stringToChunk(id.toString(16)));
+            writeChunk(renderState$jscomp$1, clientRenderScript1A);
             if (
               errorDigest ||
               errorMessage ||
@@ -7550,50 +7700,50 @@
               errorComponentStack
             )
               writeChunk(
-                renderState$jscomp$0,
+                renderState$jscomp$1,
                 clientRenderErrorScriptArgInterstitial
               ),
                 writeChunk(
-                  renderState$jscomp$0,
+                  renderState$jscomp$1,
                   stringToChunk(
                     escapeJSStringsForInstructionScripts(errorDigest || "")
                   )
                 );
             if (errorMessage || errorStack || errorComponentStack)
               writeChunk(
-                renderState$jscomp$0,
+                renderState$jscomp$1,
                 clientRenderErrorScriptArgInterstitial
               ),
                 writeChunk(
-                  renderState$jscomp$0,
+                  renderState$jscomp$1,
                   stringToChunk(
                     escapeJSStringsForInstructionScripts(errorMessage || "")
                   )
                 );
             if (errorStack || errorComponentStack)
               writeChunk(
-                renderState$jscomp$0,
+                renderState$jscomp$1,
                 clientRenderErrorScriptArgInterstitial
               ),
                 writeChunk(
-                  renderState$jscomp$0,
+                  renderState$jscomp$1,
                   stringToChunk(
                     escapeJSStringsForInstructionScripts(errorStack || "")
                   )
                 );
             errorComponentStack &&
               (writeChunk(
-                renderState$jscomp$0,
+                renderState$jscomp$1,
                 clientRenderErrorScriptArgInterstitial
               ),
               writeChunk(
-                renderState$jscomp$0,
+                renderState$jscomp$1,
                 stringToChunk(
                   escapeJSStringsForInstructionScripts(errorComponentStack)
                 )
               ));
             var JSCompiler_inline_result = writeChunkAndReturn(
-              renderState$jscomp$0,
+              renderState$jscomp$1,
               clientRenderScriptEnd
             );
             if (!JSCompiler_inline_result) {
@@ -7627,8 +7777,9 @@
             a: {
               clientRenderedBoundaries = request;
               boundary = destination;
-              var boundary$jscomp$0 = partialBoundaries[i],
-                completedSegments = boundary$jscomp$0.completedSegments;
+              var boundary$jscomp$0 = partialBoundaries[i];
+              flushedByteSize = boundary$jscomp$0.byteSize;
+              var completedSegments = boundary$jscomp$0.completedSegments;
               for (
                 JSCompiler_inline_result = 0;
                 JSCompiler_inline_result < completedSegments.length;
@@ -7676,7 +7827,6 @@
         }
       } finally {
         0 === request.allPendingTasks &&
-        0 === request.pingedTasks.length &&
         0 === request.clientRenderedBoundaries.length &&
         0 === request.completedBoundaries.length
           ? ((request.flushScheduled = !1),
@@ -7774,11 +7924,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.2.0-canary-197d6a04-20250424" !== isomorphicReactPackageVersion)
+      if ("19.2.0-canary-4448b187-20250515" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.2.0-canary-197d6a04-20250424\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.2.0-canary-4448b187-20250515\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react"),
@@ -8861,18 +9011,20 @@
       SentCompleteBoundaryFunction = 2,
       SentClientRenderFunction = 4,
       SentStyleInsertionFunction = 8,
+      SentCompletedShellId = 32,
+      SentMarkShellTime = 64,
       EXISTS = null,
       PRELOAD_NO_CREDS = [];
     Object.freeze(PRELOAD_NO_CREDS);
     stringToPrecomputedChunk('"></template>');
-    var startInlineScript = stringToPrecomputedChunk("<script>"),
+    var startInlineScript = stringToPrecomputedChunk("<script"),
       endInlineScript = stringToPrecomputedChunk("\x3c/script>"),
       startScriptSrc = stringToPrecomputedChunk('<script src="'),
       startModuleSrc = stringToPrecomputedChunk('<script type="module" src="'),
-      scriptNonce = stringToPrecomputedChunk('" nonce="'),
-      scriptIntegirty = stringToPrecomputedChunk('" integrity="'),
-      scriptCrossOrigin = stringToPrecomputedChunk('" crossorigin="'),
-      endAsyncScript = stringToPrecomputedChunk('" async="">\x3c/script>'),
+      scriptNonce = stringToPrecomputedChunk(' nonce="'),
+      scriptIntegirty = stringToPrecomputedChunk(' integrity="'),
+      scriptCrossOrigin = stringToPrecomputedChunk(' crossorigin="'),
+      endAsyncScript = stringToPrecomputedChunk(' async="">\x3c/script>'),
       scriptRegex = /(<\/|<)(s)(cript)/gi,
       importMapScriptStart = stringToPrecomputedChunk(
         '<script type="importmap">'
@@ -8935,6 +9087,9 @@
       validatedTagCache = new Map(),
       doctypeChunk = stringToPrecomputedChunk("<!DOCTYPE html>"),
       endTagCache = new Map(),
+      shellTimeRuntimeScript = stringToPrecomputedChunk(
+        "requestAnimationFrame(function(){$RT=performance.now()});"
+      ),
       placeholder1 = stringToPrecomputedChunk('<template id="'),
       placeholder2 = stringToPrecomputedChunk('"></template>'),
       startActivityBoundary = stringToPrecomputedChunk("\x3c!--&--\x3e"),
@@ -8999,15 +9154,15 @@
       completeSegmentScriptEnd = stringToPrecomputedChunk('")\x3c/script>');
     stringToPrecomputedChunk('<template data-rsi="" data-sid="');
     stringToPrecomputedChunk('" data-pid="');
-    var completeBoundaryScript1Full = stringToPrecomputedChunk(
-        '$RC=function(b,d,e){d=document.getElementById(d);d.parentNode.removeChild(d);var a=document.getElementById(b);if(a){b=a.previousSibling;if(e)b.data="$!",a.setAttribute("data-dgst",e);else{e=b.parentNode;a=b.nextSibling;var f=0;do{if(a&&8===a.nodeType){var c=a.data;if("/$"===c||"/&"===c)if(0===f)break;else f--;else"$"!==c&&"$?"!==c&&"$!"!==c&&"&"!==c||f++}c=a.nextSibling;e.removeChild(a);a=c}while(a);for(;d.firstChild;)e.insertBefore(d.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}};$RC("'
+    var completeBoundaryScriptFunctionOnly = stringToPrecomputedChunk(
+        '$RB=[];$RC=function(d,c){function m(){$RT=performance.now();var f=$RB;$RB=[];for(var e=0;e<f.length;e+=2){var a=f[e],l=f[e+1],g=a.parentNode;if(g){var h=a.previousSibling,k=0;do{if(a&&8===a.nodeType){var b=a.data;if("/$"===b||"/&"===b)if(0===k)break;else k--;else"$"!==b&&"$?"!==b&&"$~"!==b&&"$!"!==b&&"&"!==b||k++}b=a.nextSibling;g.removeChild(a);a=b}while(a);for(;l.firstChild;)g.insertBefore(l.firstChild,a);h.data="$";h._reactRetry&&h._reactRetry()}}}if(c=document.getElementById(c))if(c.parentNode.removeChild(c),d=\ndocument.getElementById(d))d.previousSibling.data="$~",$RB.push(d,c),2===$RB.length&&setTimeout(m,("number"!==typeof $RT?0:$RT)+300-performance.now())};'
+      ),
+      completeBoundaryScript1Full = stringToPrecomputedChunk(
+        '$RB=[];$RC=function(d,c){function m(){$RT=performance.now();var f=$RB;$RB=[];for(var e=0;e<f.length;e+=2){var a=f[e],l=f[e+1],g=a.parentNode;if(g){var h=a.previousSibling,k=0;do{if(a&&8===a.nodeType){var b=a.data;if("/$"===b||"/&"===b)if(0===k)break;else k--;else"$"!==b&&"$?"!==b&&"$~"!==b&&"$!"!==b&&"&"!==b||k++}b=a.nextSibling;g.removeChild(a);a=b}while(a);for(;l.firstChild;)g.insertBefore(l.firstChild,a);h.data="$";h._reactRetry&&h._reactRetry()}}}if(c=document.getElementById(c))if(c.parentNode.removeChild(c),d=\ndocument.getElementById(d))d.previousSibling.data="$~",$RB.push(d,c),2===$RB.length&&setTimeout(m,("number"!==typeof $RT?0:$RT)+300-performance.now())};$RC("'
       ),
       completeBoundaryScript1Partial = stringToPrecomputedChunk('$RC("'),
-      completeBoundaryWithStylesScript1FullBoth = stringToPrecomputedChunk(
-        '$RC=function(b,d,e){d=document.getElementById(d);d.parentNode.removeChild(d);var a=document.getElementById(b);if(a){b=a.previousSibling;if(e)b.data="$!",a.setAttribute("data-dgst",e);else{e=b.parentNode;a=b.nextSibling;var f=0;do{if(a&&8===a.nodeType){var c=a.data;if("/$"===c||"/&"===c)if(0===f)break;else f--;else"$"!==c&&"$?"!==c&&"$!"!==c&&"&"!==c||f++}c=a.nextSibling;e.removeChild(a);a=c}while(a);for(;d.firstChild;)e.insertBefore(d.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}};$RM=new Map;\n$RR=function(t,u,y){function v(n){this._p=null;n()}for(var w=$RC,p=$RM,q=new Map,r=document,g,b,h=r.querySelectorAll("link[data-precedence],style[data-precedence]"),x=[],k=0;b=h[k++];)"not all"===b.getAttribute("media")?x.push(b):("LINK"===b.tagName&&p.set(b.getAttribute("href"),b),q.set(b.dataset.precedence,g=b));b=0;h=[];var l,a;for(k=!0;;){if(k){var e=y[b++];if(!e){k=!1;b=0;continue}var c=!1,m=0;var d=e[m++];if(a=p.get(d)){var f=a._p;c=!0}else{a=r.createElement("link");a.href=\nd;a.rel="stylesheet";for(a.dataset.precedence=l=e[m++];f=e[m++];)a.setAttribute(f,e[m++]);f=a._p=new Promise(function(n,z){a.onload=v.bind(a,n);a.onerror=v.bind(a,z)});p.set(d,a)}d=a.getAttribute("media");!f||d&&!matchMedia(d).matches||h.push(f);if(c)continue}else{a=x[b++];if(!a)break;l=a.getAttribute("data-precedence");a.removeAttribute("media")}c=q.get(l)||g;c===g&&(g=a);q.set(l,a);c?c.parentNode.insertBefore(a,c.nextSibling):(c=r.head,c.insertBefore(a,c.firstChild))}Promise.all(h).then(w.bind(null,\nt,u,""),w.bind(null,t,u,"Resource failed to load"))};$RR("'
-      ),
       completeBoundaryWithStylesScript1FullPartial = stringToPrecomputedChunk(
-        '$RM=new Map;\n$RR=function(t,u,y){function v(n){this._p=null;n()}for(var w=$RC,p=$RM,q=new Map,r=document,g,b,h=r.querySelectorAll("link[data-precedence],style[data-precedence]"),x=[],k=0;b=h[k++];)"not all"===b.getAttribute("media")?x.push(b):("LINK"===b.tagName&&p.set(b.getAttribute("href"),b),q.set(b.dataset.precedence,g=b));b=0;h=[];var l,a;for(k=!0;;){if(k){var e=y[b++];if(!e){k=!1;b=0;continue}var c=!1,m=0;var d=e[m++];if(a=p.get(d)){var f=a._p;c=!0}else{a=r.createElement("link");a.href=\nd;a.rel="stylesheet";for(a.dataset.precedence=l=e[m++];f=e[m++];)a.setAttribute(f,e[m++]);f=a._p=new Promise(function(n,z){a.onload=v.bind(a,n);a.onerror=v.bind(a,z)});p.set(d,a)}d=a.getAttribute("media");!f||d&&!matchMedia(d).matches||h.push(f);if(c)continue}else{a=x[b++];if(!a)break;l=a.getAttribute("data-precedence");a.removeAttribute("media")}c=q.get(l)||g;c===g&&(g=a);q.set(l,a);c?c.parentNode.insertBefore(a,c.nextSibling):(c=r.head,c.insertBefore(a,c.firstChild))}Promise.all(h).then(w.bind(null,\nt,u,""),w.bind(null,t,u,"Resource failed to load"))};$RR("'
+        '$RM=new Map;$RR=function(n,w,p){function u(q){this._p=null;q()}for(var r=new Map,t=document,h,b,e=t.querySelectorAll("link[data-precedence],style[data-precedence]"),v=[],k=0;b=e[k++];)"not all"===b.getAttribute("media")?v.push(b):("LINK"===b.tagName&&$RM.set(b.getAttribute("href"),b),r.set(b.dataset.precedence,h=b));e=0;b=[];var l,a;for(k=!0;;){if(k){var f=p[e++];if(!f){k=!1;e=0;continue}var c=!1,m=0;var d=f[m++];if(a=$RM.get(d)){var g=a._p;c=!0}else{a=t.createElement("link");a.href=d;a.rel=\n"stylesheet";for(a.dataset.precedence=l=f[m++];g=f[m++];)a.setAttribute(g,f[m++]);g=a._p=new Promise(function(q,x){a.onload=u.bind(a,q);a.onerror=u.bind(a,x)});$RM.set(d,a)}d=a.getAttribute("media");!g||d&&!matchMedia(d).matches||b.push(g);if(c)continue}else{a=v[e++];if(!a)break;l=a.getAttribute("data-precedence");a.removeAttribute("media")}c=r.get(l)||h;c===h&&(h=a);r.set(l,a);c?c.parentNode.insertBefore(a,c.nextSibling):(c=t.head,c.insertBefore(a,c.firstChild))}if(p=document.getElementById(n))p.previousSibling.data=\n"$~";Promise.all(b).then($RC.bind(null,n,w),$RX.bind(null,n,"CSS failed to load"))};$RR("'
       ),
       completeBoundaryWithStylesScript1Partial =
         stringToPrecomputedChunk('$RR("'),
@@ -9019,7 +9174,10 @@
     stringToPrecomputedChunk('<template data-rri="" data-bid="');
     stringToPrecomputedChunk('" data-sid="');
     stringToPrecomputedChunk('" data-sty="');
-    var clientRenderScript1Full = stringToPrecomputedChunk(
+    var clientRenderScriptFunctionOnly = stringToPrecomputedChunk(
+        '$RX=function(b,c,d,e,f){var a=document.getElementById(b);a&&(b=a.previousSibling,b.data="$!",a=a.dataset,c&&(a.dgst=c),d&&(a.msg=d),e&&(a.stck=e),f&&(a.cstck=f),b._reactRetry&&b._reactRetry())};'
+      ),
+      clientRenderScript1Full = stringToPrecomputedChunk(
         '$RX=function(b,c,d,e,f){var a=document.getElementById(b);a&&(b=a.previousSibling,b.data="$!",a=a.dataset,c&&(a.dgst=c),d&&(a.msg=d),e&&(a.stck=e),f&&(a.cstck=f),b._reactRetry&&b._reactRetry())};;$RX("'
       ),
       clientRenderScript1Partial = stringToPrecomputedChunk('$RX("'),
@@ -9048,7 +9206,10 @@
       styleTagResourceOpen2 = stringToPrecomputedChunk('" data-href="'),
       spaceSeparator = stringToPrecomputedChunk(" "),
       styleTagResourceOpen3 = stringToPrecomputedChunk('">'),
-      styleTagResourceClose = stringToPrecomputedChunk("</style>"),
+      styleTagResourceClose = stringToPrecomputedChunk("</style>");
+    stringToPrecomputedChunk('<link rel="expect" href="#');
+    stringToPrecomputedChunk('" blocking="render"/>');
+    var completedShellIdAttributeStart = stringToPrecomputedChunk(' id="'),
       arrayFirstOpenBracket = stringToPrecomputedChunk("["),
       arraySubsequentOpenBracket = stringToPrecomputedChunk(",["),
       arrayInterstitial = stringToPrecomputedChunk(","),
@@ -9164,16 +9325,16 @@
           currentHookNameInDev = "useState";
           return useReducer(basicStateReducer, initialState);
         },
-        useInsertionEffect: noop$1,
-        useLayoutEffect: noop$1,
+        useInsertionEffect: noop,
+        useLayoutEffect: noop,
         useCallback: function (callback, deps) {
           return useMemo(function () {
             return callback;
           }, deps);
         },
-        useImperativeHandle: noop$1,
-        useEffect: noop$1,
-        useDebugValue: noop$1,
+        useImperativeHandle: noop,
+        useEffect: noop,
+        useDebugValue: noop,
         useDeferredValue: function (value, initialValue) {
           resolveCurrentlyRenderingComponent();
           return void 0 !== initialValue ? initialValue : value;
@@ -9304,7 +9465,8 @@
       didWarnAboutGetDerivedStateOnFunctionComponent = {},
       didWarnAboutReassigningProps = !1,
       didWarnAboutGenerators = !1,
-      didWarnAboutMaps = !1;
+      didWarnAboutMaps = !1,
+      flushedByteSize = 0;
     ensureCorrectIsomorphicReactVersion();
     ensureCorrectIsomorphicReactVersion();
     exports.prerender = function (children, options) {
@@ -9448,5 +9610,5 @@
         startWork(request);
       });
     };
-    exports.version = "19.2.0-canary-197d6a04-20250424";
+    exports.version = "19.2.0-canary-4448b187-20250515";
   })();
