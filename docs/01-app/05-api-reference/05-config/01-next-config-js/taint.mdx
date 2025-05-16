@@ -13,7 +13,7 @@ This flag enables usage of these React features:
 - [`experimental_taintObjectReference`](https://react.dev/reference/react/experimental_taintObjectReference)
 - [`experimental_taintUniqueValue`](https://react.dev/reference/react/experimental_taintUniqueValue)
 
-Activating this flag, enables the React `experimental` channel for App Router, `app` directory.
+> **Good to know**: Activating this flag, enables the React `experimental` channel for `app` directory
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
@@ -38,23 +38,24 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
-> **Warning:** Do not rely on the taint API, as your only mechanism to prevent exposing data to the client.
+The taint API includes two experimental functions, that allow you to mark objects and values, to prevent them from ever reaching the Client.
 
-Tainting means that whenever tainted data crosses a Server-Client boundary, React throws an error, to prevent passing this data to the client.
+- To taint objects references, use `experimental_taintObjectReference`.
+- To taint unique values, use `experimental_taintUniqueValue`.
+
+> **Warning:** Do not rely on the taint API, as your only mechanism to prevent exposing sensitive data to the client.
 
 It is recommended to model your data and APIs, so that sensitive data is not returned to contexts where it is not needed.
 
 For cases where:
 
-- the methods to read data are out of your control
-- you have to work sensitive data shapes not defined by you
-- sensitive data has to be used while rendering your server components
+- The methods to read data are out of your control
+- You have to work sensitive data shapes not defined by you
+- Sensitive data has to be used while rendering your server components
 
-The taint API, allows you to be defensive, by declaratively marking, data that is not allowed to pass through the Server-Client boundary.
+The taint API, allows you to be defensive, by declaratively and explicitly marking data that is not allowed to pass through the Server-Client boundary.
 
-To taint objects references, use `experimental_taintObjectReference`.
-
-To taint unique values, use `experimental_taintUniqueValue`.
+When an object or value, is passed through the Server-Client boundary, React throws an error.
 
 ## Caveats
 
