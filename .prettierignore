@@ -10,6 +10,8 @@
 *.d.mts
 *.json
 *.jsonc
+*.css
+*.scss
 
 # Temporarily continue to format files here until they're covered by Biome
 !examples/**/*
