@@ -73,6 +73,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
         AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext, EvaluatableAsset,
+        MinifyType,
     },
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
@@ -912,6 +913,7 @@ impl EcmascriptModuleContent {
             specified_module_type,
             generate_source_map,
             original_source_map,
+            chunking_context,
             ..
         } = &*input;
         let code_gens = input.merged_code_gens().await?;
@@ -923,6 +925,7 @@ impl EcmascriptModuleContent {
                 code_gens,
                 *generate_source_map,
                 *original_source_map,
+                *chunking_context.minify_type().await?,
             )
             .await?;
             emit_content(content).await
@@ -946,6 +949,7 @@ impl EcmascriptModuleContent {
             vec![],
             generate_source_map,
             None,
+            MinifyType::NoMinify,
         )
         .await?;
         emit_content(content).await
@@ -959,6 +963,7 @@ struct CodeGenResult {
     is_esm: bool,
     generate_source_map: bool,
     original_source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
+    minify_type: MinifyType,
 }
 
 async fn process_parse_result(
@@ -968,6 +973,7 @@ async fn process_parse_result(
     code_gens: Vec<CodeGeneration>,
     generate_source_map: bool,
     original_source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
+    minify_type: MinifyType,
 ) -> Result<CodeGenResult> {
     let parsed = parsed.final_read_hint().await?;
 
@@ -1026,6 +1032,7 @@ async fn process_parse_result(
                 is_esm,
                 generate_source_map,
                 original_source_map,
+                minify_type,
             }
         }
         ParseResult::Unparseable { messages } => {
@@ -1055,6 +1062,7 @@ async fn process_parse_result(
                 is_esm: false,
                 generate_source_map: false,
                 original_source_map: None,
+                minify_type,
             }
         }
         ParseResult::NotFound => {
@@ -1079,6 +1087,7 @@ async fn process_parse_result(
                 is_esm: false,
                 generate_source_map: false,
                 original_source_map: None,
+                minify_type,
             }
         }
     })
@@ -1092,6 +1101,7 @@ async fn emit_content(content: CodeGenResult) -> Result<Vc<EcmascriptModuleConte
         is_esm,
         generate_source_map,
         original_source_map,
+        minify_type,
     } = content;
 
     let mut bytes: Vec<u8> = vec![];
@@ -1111,7 +1121,8 @@ async fn emit_content(content: CodeGenResult) -> Result<Vc<EcmascriptModuleConte
         };
 
         let mut emitter = Emitter {
-            cfg: swc_core::ecma::codegen::Config::default(),
+            cfg: swc_core::ecma::codegen::Config::default()
+                .with_minify(matches!(minify_type, MinifyType::Minify { .. })),
             cm: source_map.clone(),
             comments: Some(&comments),
             wr: JsWriter::new(
