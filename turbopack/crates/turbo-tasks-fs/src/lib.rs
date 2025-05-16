@@ -30,7 +30,7 @@ use std::{
     fs::FileType,
     future::Future,
     io::{self, BufRead, ErrorKind},
-    mem::take,
+    mem::{take, transmute},
     path::{MAIN_SEPARATOR, Path, PathBuf},
     sync::Arc,
     time::Duration,
@@ -52,7 +52,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::{
     fs,
-    io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
+    io::{AsyncBufReadExt, AsyncReadExt, BufReader},
     sync::{RwLock, RwLockReadGuard},
 };
 use tracing::Instrument;
@@ -770,34 +770,39 @@ impl FileSystem for DiskFileSystem {
                             })?;
                         }
                     }
+
+                    let file = unsafe {
+                        // Safety: We are awaiting right away, so the file will be alive
+                        transmute::<&File, &'static File>(file)
+                    };
+
                     let full_path_to_write = full_path.clone();
-                    retry_future(move || {
-                        let full_path = full_path_to_write.clone();
-                        async move {
-                            let mut f = fs::File::create(&full_path).await?;
-                            tokio::io::copy(&mut file.read(), &mut f).await?;
+                    retry_blocking(&full_path_to_write, move |full_path| {
+                        use std::io::Write;
+
+                        let mut f = std::fs::File::create(full_path)?;
+                        std::io::copy(&mut file.read(), &mut f)?;
+                        #[cfg(target_family = "unix")]
+                        f.set_permissions(file.meta.permissions.into())?;
+                        f.flush()?;
+                        #[cfg(feature = "write_version")]
+                        {
+                            let mut full_path = full_path.into_owned();
+                            let hash = hash_xxh3_hash64(file);
+                            let ext = full_path.extension();
+                            let ext = if let Some(ext) = ext {
+                                format!("{:016x}.{}", hash, ext.to_string_lossy())
+                            } else {
+                                format!("{:016x}", hash)
+                            };
+                            full_path.set_extension(ext);
+                            let mut f = std::fs::File::create(&full_path)?;
+                            std::io::copy(&mut file.read(), &mut f)?;
                             #[cfg(target_family = "unix")]
-                            f.set_permissions(file.meta.permissions.into()).await?;
-                            f.flush().await?;
-                            #[cfg(feature = "write_version")]
-                            {
-                                let mut full_path = full_path.into_owned();
-                                let hash = hash_xxh3_hash64(file);
-                                let ext = full_path.extension();
-                                let ext = if let Some(ext) = ext {
-                                    format!("{:016x}.{}", hash, ext.to_string_lossy())
-                                } else {
-                                    format!("{:016x}", hash)
-                                };
-                                full_path.set_extension(ext);
-                                let mut f = fs::File::create(&full_path).await?;
-                                tokio::io::copy(&mut file.read(), &mut f).await?;
-                                #[cfg(target_family = "unix")]
-                                f.set_permissions(file.meta.permissions.into()).await?;
-                                f.flush().await?;
-                            }
-                            Ok::<(), io::Error>(())
+                            f.set_permissions(file.meta.permissions.into())?;
+                            f.flush()?;
                         }
+                        Ok::<(), io::Error>(())
                     })
                     .concurrency_limited(&inner.semaphore)
                     .instrument(tracing::info_span!(
