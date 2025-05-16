@@ -7,7 +7,6 @@ related:
   description: Learn more about the APIs mentioned in this page.
   links:
     - app/api-reference/directives/use-client
-    - app/api-reference/file-conventions/route
 ---
 
 By default, layouts and pages are [Server Components](https://react.dev/reference/rsc/server-components), which lets you fetch data and render parts of your UI on the server, optionally cache the result, and stream it to the client. When you need interactivity or browser APIs, you can use [Client Components](https://react.dev/reference/rsc/use-client) to layer in functionality.
@@ -186,7 +185,7 @@ export default function Search() {
 }
 ```
 
-```tsx filename="app/ui/search.tsx" highlight={1} switcher
+```jsx filename="app/ui/search.js" highlight={1} switcher
 'use client'
 
 export default function Search() {
@@ -508,9 +507,19 @@ export default function Page() {
 
 ### Preventing environment poisoning
 
-JavaScript modules can be shared between both Server and Client Components modules. This means it's possible to accidentanlly import server-only code into the client.
+JavaScript modules can be shared between both Server and Client Components modules. This means it's possible to accidentanlly import server-only code into the client. For example, consider the following function:
 
-For example, take the following function:
+```ts filename="lib/data.ts" switcher
+export async function getData() {
+  const res = await fetch('https://external-service.com/data', {
+    headers: {
+      authorization: process.env.API_KEY,
+    },
+  })
+
+  return res.json()
+}
+```
 
 ```js filename="lib/data.js" switcher
 export async function getData() {
@@ -554,4 +563,4 @@ export async function getData() {
 
 Now, if you try to import the module into a Client Component, there will be a build-time error.
 
-> **Good to know**: The corresponding [`client-only` package](https://www.npmjs.com/package/client-only) can be used to mark modules that contain client-only code – for example, code that accesses the `window` object.
+> **Good to know**: The corresponding [`client-only` package](https://www.npmjs.com/package/client-only) can be used to mark modules that contain client-only logic like code that accesses the `window` object.
