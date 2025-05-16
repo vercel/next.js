@@ -1578,11 +1578,11 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub async fn client_source_maps(&self, _mode: Vc<NextMode>) -> Result<Vc<bool>> {
-        // Temporarily always enable client source maps as tests regress.
-        // TODO: Respect both `self.experimental.turbopack_source_maps` and
-        //       `self.production_browser_source_maps`
-        let source_maps = self.experimental.turbopack_source_maps;
-        Ok(Vc::cell(source_maps.unwrap_or(true)))
+        let source_maps = self
+            .experimental
+            .turbopack_source_maps
+            .unwrap_or(self.production_browser_source_maps);
+        Ok(Vc::cell(source_maps))
     }
 
     #[turbo_tasks::function]
