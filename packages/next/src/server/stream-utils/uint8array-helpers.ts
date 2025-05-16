@@ -57,26 +57,3 @@ export function removeFromUint8Array(a: Uint8Array, b: Uint8Array) {
     return a
   }
 }
-
-/**
- * Replace Uint8Array `search` with Uint8Array `replacement` in Uint8Array `target`.
- * the tagIndex is the index of the `search` in `target`.
- */
-export function replaceInUint8Array(
-  target: Uint8Array,
-  search: Uint8Array,
-  replacement: Uint8Array,
-  tagIndex: number
-): Uint8Array {
-  const replaced = new Uint8Array(
-    target.length - search.length + replacement.length
-  )
-  replaced.set(target.slice(0, tagIndex))
-  replaced.set(replacement, tagIndex)
-  replaced.set(
-    target.slice(tagIndex + search.length),
-    tagIndex + replacement.length
-  )
-
-  return replaced
-}
