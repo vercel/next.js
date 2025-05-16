@@ -10,10 +10,7 @@
   "collection": "dist/collection/collection-manifest.json",
   "collection:main": "dist/collection/index.js",
   "unpkg": "dist/test-component/test-component.js",
-  "files": [
-    "dist/",
-    "loader/"
-  ],
+  "files": ["dist/", "loader/"],
   "scripts": {
     "build": "stencil build --docs",
     "start": "stencil build --dev --watch --serve",

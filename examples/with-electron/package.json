@@ -11,10 +11,7 @@
   },
   "build": {
     "asar": true,
-    "files": [
-      "main",
-      "renderer/out"
-    ]
+    "files": ["main", "renderer/out"]
   },
   "devDependencies": {
     "electron": "^12.0.2",

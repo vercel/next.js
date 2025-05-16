@@ -21,9 +21,7 @@
     "@babel/plugin-proposal-decorators": "7.22.5"
   },
   "babel": {
-    "presets": [
-      "next/babel"
-    ],
+    "presets": ["next/babel"],
     "plugins": [
       [
         "@babel/plugin-proposal-decorators",

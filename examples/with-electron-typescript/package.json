@@ -30,9 +30,6 @@
   },
   "build": {
     "asar": true,
-    "files": [
-      "main",
-      "renderer/out"
-    ]
+    "files": ["main", "renderer/out"]
   }
 }

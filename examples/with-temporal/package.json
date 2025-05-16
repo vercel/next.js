@@ -36,8 +36,6 @@
       "ts": "node --loader ts-node/esm"
     },
     "ext": "ts",
-    "watch": [
-      "temporal/src"
-    ]
+    "watch": ["temporal/src"]
   }
 }

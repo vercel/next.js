@@ -937,11 +937,7 @@ p {
   height: 780px;
   display: flex;
   align-items: center;
-  background: linear-gradient(
-    180deg,
-    #c2fbff 0%,
-    rgba(255, 255, 255, 0) 93.47%
-  );
+  background: linear-gradient(180deg, #c2fbff 0%, rgba(255, 255, 255, 0) 93.47%);
   z-index: 1;
 }
 
@@ -1405,11 +1401,7 @@ p {
 .single-post-nav,
 .blog-roll-nav {
   align-items: center;
-  background: linear-gradient(
-    180deg,
-    #c2fbff 0%,
-    rgba(255, 255, 255, 0) 93.47%
-  );
+  background: linear-gradient(180deg, #c2fbff 0%, rgba(255, 255, 255, 0) 93.47%);
   display: flex;
   height: 400px;
   overflow: hidden;
