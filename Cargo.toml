@@ -430,4 +430,4 @@ vergen-gitcl = { git = "https://github.com/bgw/vergen.git", branch = "bgw/no-opt
 webbrowser = "0.8.7"
 
 [patch.crates-io]
-mdxjs = { git = "https://github.com/kdy1/mdxjs-rs", branch = "swc-core-24" }
+mdxjs = { git = "https://github.com/kdy1/mdxjs-rs", branch = "swc-core-25" }
