@@ -60,7 +60,6 @@ impl RuleCondition {
         path: &FileSystemPath,
         reference_type: &ReferenceType,
     ) -> Result<bool> {
-        // Use an explicit stack to avoid recursion.
         enum Op<'a> {
             Condition(&'a RuleCondition),
             All(&'a [RuleCondition]), // Remaining conditions in an All
@@ -87,10 +86,8 @@ impl RuleCondition {
                             result = true;
                         } else {
                             if conditions.len() > 1 {
-                                stack.push(Op::All(&conditions.as_slice()));
+                                stack.push(Op::All(&conditions.as_slice()[1..]));
                             }
-                            // We could save some stack operation and destructing logic by looping
-                            // here.
                             stack.push(Op::Condition(&conditions[0]));
                         }
                     }
@@ -149,12 +146,11 @@ impl RuleCondition {
                         result = source.ident().await?.content_type.is_none();
                     }
                     RuleCondition::ResourcePathGlob { glob, base } => {
-                        let res = if let Some(rel_path) = base.get_relative_path_to(path) {
+                        result = if let Some(rel_path) = base.get_relative_path_to(path) {
                             glob.execute(&rel_path)
                         } else {
                             glob.execute(&path.path)
                         };
-                        result = res;
                     }
                     RuleCondition::ResourceBasePathGlob(glob) => {
                         let basename = path
@@ -180,7 +176,7 @@ impl RuleCondition {
                     }
                 }
                 Op::Any(remaining) => {
-                    // Previous was false, keep going if we have more
+                    // Previous was false, keep going
                     if !result {
                         if remaining.len() > 1 {
                             stack.push(Op::Any(&remaining[1..]));
