@@ -2300,8 +2300,8 @@
     "runtimeError": false
   },
   "test/development/app-dir/build-error-logs/build-error-logs.test.ts": {
-    "passed": [],
-    "failed": ["build-error-logs should only log error a single time"],
+    "passed": ["build-error-logs should only log error a single time"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2685,15 +2685,14 @@
       "react-dom/server in React Server environment explicit react-dom/server.browser usage in library code",
       "react-dom/server in React Server environment explicit react-dom/server.edge usage in app code",
       "react-dom/server in React Server environment explicit react-dom/server.edge usage in library code",
+      "react-dom/server in React Server environment explicit react-dom/server.node usage in app code",
       "react-dom/server in React Server environment explicit react-dom/server.node usage in library code",
       "react-dom/server in React Server environment implicit react-dom/server.edge usage in app code",
       "react-dom/server in React Server environment implicit react-dom/server.edge usage in library code",
+      "react-dom/server in React Server environment implicit react-dom/server.node usage in app code",
       "react-dom/server in React Server environment implicit react-dom/server.node usage in library code"
     ],
-    "failed": [
-      "react-dom/server in React Server environment explicit react-dom/server.node usage in app code",
-      "react-dom/server in React Server environment implicit react-dom/server.node usage in app code"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2731,6 +2730,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/use-cache-errors/use-cache-errors.test.ts": {
+    "passed": [
+      "use-cache-errors should not show a false-positive compiler error about a misplaced \"use cache\" directive",
+      "use-cache-errors should show a runtime error when calling the incorrectly used cache function"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-hmr/hmr.test.ts": {
     "passed": [
       "app-dir-hmr filesystem changes should have no unexpected action error for hmr",
@@ -2747,7 +2756,7 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/development/basic/allowed-dev-origins.test.ts": {
     "passed": [
@@ -2768,7 +2777,8 @@
     "passed": [
       "asset-prefix rewrites rewrites that do not start with assetPrefix should still work",
       "asset-prefix rewrites should respect rewrites that start with assetPrefix",
-      "asset-prefix should load the app properly without reloading"
+      "asset-prefix should load the app properly without reloading",
+      "asset-prefix should navigate to another page without hard navigating"
     ],
     "failed": [],
     "pending": [],
@@ -3909,6 +3919,17 @@
     "passed": [
       "typescript-auto-install should detect TypeScript being added and auto setup",
       "typescript-auto-install should work"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/typescript-plugin/client-boundary/client-boundary.test.ts": {
+    "passed": [
+      "typescript-plugin - client-boundary should have diagnostics for non-serializable props",
+      "typescript-plugin - client-boundary should not have diagnostics for non-serializable action props",
+      "typescript-plugin - client-boundary should not have diagnostics for serializable props"
     ],
     "failed": [],
     "pending": [],
@@ -5155,6 +5176,7 @@
       "app dir - basic searchParams prop server component should have the correct search params on middleware rewrite",
       "app dir - basic searchParams prop server component should have the correct search params on rewrite",
       "app dir - basic server components Loading should render loading.js in browser for slow layout",
+      "app dir - basic server components Loading should render loading.js in browser for slow layout and page",
       "app dir - basic server components Loading should render loading.js in browser for slow page",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout and page",
@@ -5169,7 +5191,6 @@
       "app dir - basic server components dynamic routes should only pass params that apply to the layout",
       "app dir - basic server components middleware should strip internal query parameters from requests to middleware for redirect",
       "app dir - basic server components middleware should strip internal query parameters from requests to middleware for rewrite",
-      "app dir - basic server components next/router should support router.back and router.forward",
       "app dir - basic server components should include client component layout with server component route should include it client-side",
       "app dir - basic server components should include client component layout with server component route should include it server-side",
       "app dir - basic server components should not serve .client.js as a path",
@@ -5211,7 +5232,7 @@
     ],
     "failed": [
       "app dir - basic <Link /> should navigate to pages dynamic route from pages page if it overlaps with an app page",
-      "app dir - basic server components Loading should render loading.js in browser for slow layout and page"
+      "app dir - basic server components next/router should support router.back and router.forward"
     ],
     "pending": [
       "app dir - basic HMR should HMR correctly when changing the component type",
@@ -6300,7 +6321,7 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/errors/index.test.ts": {
     "passed": [
@@ -6759,14 +6780,14 @@
       "app-dir - logging with verbose logging for edge runtime should not log _rsc query for client navigation RSC request",
       "app-dir - logging with verbose logging for edge runtime should only log requests in development mode",
       "app-dir - logging with verbose logging for edge runtime should respect request.init.cache when use with fetch input is instance",
-      "app-dir - logging with verbose logging for edge runtime should show cache reason of noStore when use with fetch"
+      "app-dir - logging with verbose logging for edge runtime should show cache reason of noStore when use with fetch",
+      "app-dir - logging with verbose logging for edge runtime when logging.fetches.hmrRefreshes is true should log requests for HMR refreshes"
     ],
     "failed": [
       "app-dir - logging with default logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with fetches default logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with fetches verbose logging should not contain metadata internal segments for dynamic metadata routes",
-      "app-dir - logging with verbose logging for edge runtime should not contain metadata internal segments for dynamic metadata routes",
-      "app-dir - logging with verbose logging for edge runtime when logging.fetches.hmrRefreshes is true should log requests for HMR refreshes"
+      "app-dir - logging with verbose logging for edge runtime should not contain metadata internal segments for dynamic metadata routes"
     ],
     "pending": [],
     "flakey": [],
@@ -7150,6 +7171,13 @@
       "modularizeImports should work",
       "modularizeImports should work with MDX"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/monaco-editor/monaco-editor.test.ts": {
+    "passed": ["monaco-editor should load monaco-editor"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -9484,13 +9512,13 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/use-cache-segment-configs/use-cache-segment-configs.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "use-cache-segment-configs it should error when using segment configs that aren't supported by useCache"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/app-dir/use-cache-standalone-search-params/use-cache-standalone-search-params.test.ts": {
     "passed": [
