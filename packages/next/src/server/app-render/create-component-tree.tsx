@@ -95,6 +95,7 @@ async function createComponentTreeInternal({
     renderOpts: { nextConfigOutput, experimental },
     workStore,
     componentMod: {
+      SegmentViewNode,
       HTTPAccessFallbackBoundary,
       LayoutRouter,
       RenderFromTemplateContext,
@@ -621,8 +622,26 @@ async function createComponentTreeInternal({
     )
   }
 
+  const dir = ctx.renderOpts.dir || process.cwd()
+  const isSegmentViewEnabled =
+    process.env.NODE_ENV === 'development' &&
+    ctx.renderOpts.devtoolSegmentExplorer
+  const nodeName = modType ?? 'page'
+
   if (isPage) {
-    const PageComponent = Component
+    const PageComponent = isSegmentViewEnabled
+      ? (pageProps: any) => {
+          return (
+            <SegmentViewNode
+              type={nodeName}
+              pagePath={normalizePageOrLayoutFilePath(dir, layoutOrPagePath)}
+            >
+              <Component {...pageProps} />
+            </SegmentViewNode>
+          )
+        }
+      : Component
+
     // Assign searchParams to props if this is a page
     let pageElement: React.ReactNode
     if (isClientComponent) {
@@ -708,7 +727,18 @@ async function createComponentTreeInternal({
       isPossiblyPartialResponse,
     ]
   } else {
-    const SegmentComponent = Component
+    const SegmentComponent = isSegmentViewEnabled
+      ? (segmentProps: any) => {
+          return (
+            <SegmentViewNode
+              type={nodeName}
+              pagePath={normalizePageOrLayoutFilePath(dir, layoutOrPagePath)}
+            >
+              <Component {...segmentProps} />
+            </SegmentViewNode>
+          )
+        }
+      : Component
 
     const isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot =
       rootLayoutAtThisLevel &&
@@ -963,4 +993,20 @@ function getRootParamsImpl(
       getDynamicParamFromSegment
     )
   }
+}
+
+function normalizePageOrLayoutFilePath(
+  projectDir: string,
+  layoutOrPagePath: string | undefined
+) {
+  const dir = projectDir /*ctx.renderOpts.dir*/ || process.cwd()
+  const relativePath = (layoutOrPagePath || '')
+    // remove turbopack [project] prefix
+    .replace(/^\[project\][\\/]/, '')
+    // remove the project root from the path
+    .replace(dir, '')
+    // remove /(src/)?app/ dir prefix
+    .replace(/^[\\/](src[\\/])?app[\\/]/, '')
+
+  return relativePath
 }
