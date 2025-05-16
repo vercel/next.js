@@ -2,7 +2,7 @@ import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
 import { DetachedPromise } from '../../lib/detached-promise'
 import { scheduleImmediate, atLeastOneTask } from '../../lib/scheduler'
-import { ENCODED_TAGS } from './encodedTags'
+import { ENCODED_TAGS } from './encoded-tags'
 import {
   indexOfUint8Array,
   isEquivalentUint8Arrays,
@@ -191,6 +191,90 @@ export function renderToInitialFizzStream({
   return getTracer().trace(AppRenderSpan.renderToReadableStream, async () =>
     ReactDOMServer.renderToReadableStream(element, streamOptions)
   )
+}
+
+function createMetadataTransformStream(
+  insert: () => Promise<string> | string
+): TransformStream<Uint8Array, Uint8Array> {
+  let isMarkRemoved = false
+  let isIconUnderHead = false
+  let chunkIndex = -1
+
+  return new TransformStream({
+    async transform(chunk, controller) {
+      let iconMarkIndex = -1
+      let closedHeadIndex = -1
+      chunkIndex++
+
+      if (isMarkRemoved) {
+        controller.enqueue(chunk)
+        return
+      }
+      // Only search for the closed head tag once
+      if (iconMarkIndex === -1) {
+        iconMarkIndex = indexOfUint8Array(chunk, ENCODED_TAGS.META.ICON_MARK)
+      }
+      if (iconMarkIndex === -1) {
+        controller.enqueue(chunk)
+        return
+      }
+
+      // Check if icon mark is inside <head> tag in the first chunk.
+      if (chunkIndex === 0 && closedHeadIndex === -1) {
+        closedHeadIndex = indexOfUint8Array(chunk, ENCODED_TAGS.CLOSED.HEAD)
+        // If we found the icon mark is inside <head> in the 1st chunk, which means
+        // the icon mark is before the closed head tag.
+        // We don't need to insert the script tag in this case.
+        if (closedHeadIndex > iconMarkIndex) {
+          isIconUnderHead = true
+        }
+        // Rest of the cases, the mark icon is either located in the body or after head tag.
+        // In this case, we always insert the script tag.
+      }
+
+      // Remove the icon mark from the chunk.
+      // When we found the `<meta name="«nxt-icon»"` tag prefix, we will remove it from the chunk.
+      // But the close tag could either be `/>` or `>`, checking the next char to ensure we cover both cases.
+      if (iconMarkIndex !== -1 && !isMarkRemoved) {
+        let replaceLength = 0
+        // If we don't need to insert the script tag, we can just remove the icon mark.
+        if (!isIconUnderHead) {
+          replaceLength = ENCODED_TAGS.META.ICON_MARK.length
+          // Check if next char is /, this is for xml mode.
+          if (chunk[iconMarkIndex + replaceLength] === 47) {
+            replaceLength += 2
+          }
+          // The last char is `>`
+          else {
+            replaceLength++
+          }
+        }
+
+        // Replace the icon mark with the hoist script or empty string.
+        const insertion = isIconUnderHead ? '' : await insert()
+        const encodedInsertion = encoder.encode(insertion)
+        const insertionLength = encodedInsertion.length
+        // Create a new chunk with the icon mark replaced with the insertion.
+        const replaced = new Uint8Array(
+          chunk.length - replaceLength + insertionLength
+        )
+        // Set the first part of the chunk, before the icon mark.
+        replaced.set(chunk.slice(0, iconMarkIndex))
+        // Set the insertion after the icon mark.
+        replaced.set(encodedInsertion, iconMarkIndex)
+        // Set the rest of the chunk after the icon mark.
+        replaced.set(
+          chunk.subarray(iconMarkIndex + replaceLength),
+          iconMarkIndex + insertionLength
+        )
+
+        isMarkRemoved = true
+        isIconUnderHead = true
+        chunk = replaced
+      }
+      controller.enqueue(chunk)
+    },
+  })
 }
 
 function createHeadInsertionTransformStream(
@@ -564,8 +648,8 @@ export async function continueFizzStream(
     // Buffer everything to avoid flushing too frequently
     createBufferedTransformStream(),
 
-    // Insert generated metadata
-    createHeadInsertionTransformStream(getServerInsertedMetadata),
+    // Transform metadata
+    createMetadataTransformStream(getServerInsertedMetadata),
 
     // Insert suffix content
     suffixUnclosed != null && suffixUnclosed.length > 0
@@ -607,10 +691,8 @@ export async function continueDynamicPrerender(
       .pipeThrough(createStripDocumentClosingTagsTransform())
       // Insert generated tags to head
       .pipeThrough(createHeadInsertionTransformStream(getServerInsertedHTML))
-      // Insert generated metadata
-      .pipeThrough(
-        createHeadInsertionTransformStream(getServerInsertedMetadata)
-      )
+      // Transform metadata
+      .pipeThrough(createMetadataTransformStream(getServerInsertedMetadata))
   )
 }
 
@@ -634,10 +716,8 @@ export async function continueStaticPrerender(
       .pipeThrough(createBufferedTransformStream())
       // Insert generated tags to head
       .pipeThrough(createHeadInsertionTransformStream(getServerInsertedHTML))
-      // Insert generated metadata to head
-      .pipeThrough(
-        createHeadInsertionTransformStream(getServerInsertedMetadata)
-      )
+      // Transform metadata
+      .pipeThrough(createMetadataTransformStream(getServerInsertedMetadata))
       // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
       .pipeThrough(createMergedTransformStream(inlinedDataStream))
       // Close tags should always be deferred to the end
@@ -665,10 +745,8 @@ export async function continueDynamicHTMLResume(
       .pipeThrough(createBufferedTransformStream())
       // Insert generated tags to head
       .pipeThrough(createHeadInsertionTransformStream(getServerInsertedHTML))
-      // Insert generated metadata to body
-      .pipeThrough(
-        createHeadInsertionTransformStream(getServerInsertedMetadata)
-      )
+      // Transform metadata
+      .pipeThrough(createMetadataTransformStream(getServerInsertedMetadata))
       // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
       .pipeThrough(createMergedTransformStream(inlinedDataStream))
       // Close tags should always be deferred to the end
