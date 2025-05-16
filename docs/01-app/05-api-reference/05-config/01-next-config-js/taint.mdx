@@ -1,0 +1,236 @@
+---
+title: taint
+description: Enable tainting Objects and Values.
+version: experimental
+---
+
+## Usage
+
+Experimental support for tainting Objects and Values.
+
+This flag enables usage of these React features:
+
+- [`experimental_taintObjectReference`](https://react.dev/reference/react/experimental_taintObjectReference)
+- [`experimental_taintUniqueValue`](https://react.dev/reference/react/experimental_taintUniqueValue)
+
+Activating this flag, enables the React `experimental` channel for App Router, `app` directory.
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    ppr: 'incremental',
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    ppr: 'incremental',
+  },
+}
+
+module.exports = nextConfig
+```
+
+> **Warning:** Do not rely on the taint API, as your only mechanism to prevent exposing data to the client.
+
+Tainting means that whenever tainted data crosses a Server-Client boundary, React throws an error, to prevent passing this data to the client.
+
+It is recommended to model your data and APIs, so that sensitive data is not returned to contexts where it is not needed.
+
+For cases where:
+
+- the methods to read data are out of your control
+- you have to work sensitive data shapes not defined by you
+- sensitive data has to be used while rendering your server components
+
+The taint API, allows you to be defensive, by declaratively marking, data that is not allowed to pass through the Server-Client boundary.
+
+To taint objects references, use `experimental_taintObjectReference`.
+
+To taint unique values, use `experimental_taintUniqueValue`.
+
+## Caveats
+
+Tainting can only keep track of objects by reference. Copying an object creates an untainted version, which loses all guarantees given by the API. You'll need to taint the copy.
+
+Tainting cannot keep track of data derived from a tainted value. You need to also taint the derived value.
+
+Tainted values, are tainted for as long as their lifetime reference is within scope. See the [`experimental_taintUniqueValue` parameters reference](https://react.dev/reference/react/experimental_taintUniqueValue#parameters), for more information.
+
+## Examples
+
+### Tainting an object reference
+
+In this case, the `getUserDetails` function returns data about a given user. We taint the user object reference, so that it cannot cross a Server-Client boundary. For example, assuming `UserCard` is a Client Component.
+
+```ts switcher
+import { experimental_taintObjectReference } from 'react'
+
+function getUserDetails(id: string): UserDetails {
+  const user = await db.queryUserById(id)
+
+  experimental_taintObjectReference(
+    'Do not use the entire user info object. Instead, select only the fields you need.',
+    user
+  )
+
+  return user
+}
+```
+
+```js switcher
+import { experimental_taintObjectReference } from 'react'
+
+function getUserDetails(id) {
+  const user = await db.queryUserById(id)
+
+  experimental_taintObjectReference(
+    'Do not use the entire user info object. Instead, select only the fields you need.',
+    user
+  )
+
+  return user
+}
+```
+
+We can still access individual fields from the tainted `userDetails` object.
+
+```tsx switcher
+export async function ContactPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = await params
+  const userDetails = await getUserDetails(id)
+
+  return (
+    <UserCard
+      firstName={userDetails.firstName}
+      lastName={userDetails.lastName}
+    />
+  )
+}
+```
+
+```jsx switcher
+export async function ContactPage({ params }) {
+  const { id } = await params
+  const userDetails = await getUserDetails(id)
+
+  return (
+    <UserCard
+      firstName={userDetails.firstName}
+      lastName={userDetails.lastName}
+    />
+  )
+}
+```
+
+However, passing the entire object throws an error.
+
+```tsx switcher
+export async function ContactPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const userDetails = await getUserDetails(id)
+
+  // Throws an error
+  return <UserCard user={userDetails} />
+}
+```
+
+```jsx switcher
+export async function ContactPage({ params }) {
+  const { id } = await params
+  const userDetails = await getUserDetails(id)
+
+  // Throws an error
+  return <UserCard user={userDetails} />
+}
+```
+
+### Tainting a unique value
+
+In this case, we can access our servers configuration by awaiting calls to `config.getConfigDetails`. Unfortunately, the system configuration contains the `SERVICE_API_KEY` that we don't want to expose to clients.
+
+We can taint the `config.SERVICE_API_KEY` value.
+
+```ts switcher
+import { experimental_taintUniqueValue } from 'react'
+
+function getSystemConfig(): SystemConfig {
+  const config = await config.getConfigDetails()
+
+  experimental_taintUniqueValue(
+    'Do not pass configuration tokens to the client',
+    config,
+    config.SERVICE_API_KEY
+  )
+
+  return config
+}
+```
+
+```js switcher
+import { experimental_taintUniqueValue } from 'react'
+
+function getSystemConfig() {
+  const config = await config.getConfigDetails()
+
+  experimental_taintUniqueValue(
+    'Do not pass configuration tokens to the client',
+    config,
+    config.SERVICE_API_KEY
+  )
+
+  return config
+}
+```
+
+We can still access other properties of the `systemConfig` object.
+
+```tsx
+export async function Dashboard() {
+  const systemConfig = await getSystemConfig()
+
+  return <ClientDashboard version={systemConfig.SERVICE_API_VERSION} />
+}
+```
+
+However, passing `SERVICE_API_KEY` to `ClientDashboard` throws an error.
+
+```tsx
+export async function Dashboard() {
+  const systemConfig = await getSystemConfig()
+  // Someone makes a mistake in a PR
+  const version = systemConfig.SERVICE_API_KEY
+
+  return <ClientDashboard version={version} />
+}
+```
+
+Note that, even though, `systemConfig.SERVICE_API_KEY` is reassigned to new variable. Passing it to a Client Component still throws an error.
+
+A value derived from a tainted unique value, will not be stopped.
+
+```tsx
+export async function Dashboard() {
+  const systemConfig = await getSystemConfig()
+  // Someone makes a mistake in a PR
+  const version = `version::${systemConfig.SERVICE_API_KEY}`
+
+  return <ClientDashboard version={version} />
+}
+```
+
+It would have been better to remove `SERVICE_API_KEY` altogether from the returned object from `getSystemConfig`, but that's not always possible.
