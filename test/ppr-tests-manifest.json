@@ -112,7 +112,7 @@
       "test/e2e/app-dir/use-cache-route-handler-only/**/*",
       "test/integration/app-dir-export/**/*",
       "test/production/app-dir/build-output-tree-view/build-output-tree-view.test.ts",
-      "test/production/app-dir/dynamic-io-cache-handlers/**/*"
+      "test/production/app-dir/global-default-cache-handler/global-default-cache-handler.test.ts"
     ]
   }
 }
