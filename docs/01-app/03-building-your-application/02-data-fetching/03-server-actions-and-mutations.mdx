@@ -115,7 +115,7 @@ Runtime type-checking will still ensure you don't accidentally pass a function t
 
 ## Behavior
 
-- Server actions can be invoked using the `action` attribute in a [`<form>` element](#forms):
+- Server actions can be invoked using the `action` attribute in a `<form>` element.
   - Server Components support progressive enhancement by default, meaning the form will be submitted even if JavaScript hasn't loaded yet or is disabled.
   - In Client Components, forms invoking Server Actions will queue submissions if JavaScript isn't loaded yet, prioritizing client hydration.
   - After hydration, the browser does not refresh on form submission.
@@ -263,7 +263,7 @@ When an error is thrown, it'll be caught by the nearest `error.js` or `<Suspense
 
 > **Good to know:**
 >
-> - Aside from throwing the error, you can also return an object to be handled by `useActionState`. See [Server-side validation and error handling](#server-side-form-validation).
+> - Aside from throwing the error, you can also return an object to be handled by `useActionState`.
 
 ### Revalidating data
 
