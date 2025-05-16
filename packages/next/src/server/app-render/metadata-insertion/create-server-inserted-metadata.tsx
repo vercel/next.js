@@ -1,10 +1,7 @@
-import React from 'react'
-import { renderToReadableStream } from 'react-dom/server.edge'
 import {
   ServerInsertedMetadataContext,
   type MetadataResolver,
 } from '../../../shared/lib/server-inserted-metadata.shared-runtime'
-import { renderToString } from '../render-to-string'
 
 /**
  * For chromium based browsers (Chrome, Edge, etc.) and Safari,
@@ -37,12 +34,7 @@ export function createServerInsertedMetadata(nonce: string | undefined) {
       }
 
       inserted = true
-      const html = await renderToString({
-        renderToReadableStream,
-        element: <script nonce={nonce}>{REINSERT_ICON_SCRIPT}</script>,
-      })
-
-      return html
+      return `<script nonce="${nonce}">${REINSERT_ICON_SCRIPT}</script>`
     },
   }
 }
