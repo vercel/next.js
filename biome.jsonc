@@ -100,8 +100,11 @@
       "turbopack/crates/turbopack-tests/tests/snapshot/comptime/early-return/input/module.js",
       // intentionally does not parse as esm
       "test/integration/eslint/mjs-cjs-linting/pages/index.cjs",
+      // Uses nonstandard/future syntax
+      "examples/with-custom-babel-config",
       // Flow-type files as JS but contain annotations which do not parse
       "test/integration/babel/pages/index.js",
+      "examples/with-flow/",
       // This file is intentionally very large
       "test/integration/api-support/big.json",
       // empty files
@@ -111,7 +114,6 @@
       "test/*-tests-manifest.json",
 
       // biome migration
-      "examples/",
       "packages/create-next-app/"
     ]
   },
@@ -140,5 +142,22 @@
       // Many files that are "json" in the codebase allow comments
       "allowComments": true
     }
-  }
+  },
+  "overrides": [
+    {
+      "include": ["examples/**"],
+      "javascript": {
+        "formatter": {
+          "semicolons": "always",
+          "quoteStyle": "double",
+          "trailingCommas": "all"
+        }
+      },
+      "css": {
+        "formatter": {
+          "quoteStyle": "double"
+        }
+      }
+    }
+  ]
 }
