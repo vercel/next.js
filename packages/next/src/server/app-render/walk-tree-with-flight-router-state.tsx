@@ -9,7 +9,10 @@ import { matchSegment } from '../../client/components/match-segments'
 import type { LoaderTree } from '../lib/app-dir-module'
 import { getLinkAndScriptTags } from './get-css-inlined-link-tags'
 import { getPreloadableFonts } from './get-preloadable-fonts'
-import { createFlightRouterStateFromLoaderTree } from './create-flight-router-state-from-loader-tree'
+import {
+  createFlightRouterStateFromLoaderTree,
+  createRouteTreePrefetch,
+} from './create-flight-router-state-from-loader-tree'
 import type { AppRenderContext } from './app-render'
 import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
 import {
@@ -153,12 +156,15 @@ export async function walkTreeWithFlightRouterState({
         ? flightRouterState[0]
         : actualSegment
 
-    const routerState = createFlightRouterStateFromLoaderTree(
-      // Create router state using the slice of the loaderTree
-      loaderTreeToFilter,
-      getDynamicParamFromSegment,
-      query
-    )
+    const routerState = parsedRequestHeaders.isRouteTreePrefetchRequest
+      ? // Route tree prefetch requests contain some extra information
+        createRouteTreePrefetch(loaderTreeToFilter, getDynamicParamFromSegment)
+      : createFlightRouterStateFromLoaderTree(
+          loaderTreeToFilter,
+          getDynamicParamFromSegment,
+          query
+        )
+
     return [
       [
         overriddenSegment,
@@ -202,7 +208,6 @@ export async function walkTreeWithFlightRouterState({
         getMetadataReady,
         preloadCallbacks,
         authInterrupts: experimental.authInterrupts,
-        StreamingMetadata: null,
         StreamingMetadataOutlet,
       }
     )

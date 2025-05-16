@@ -21,7 +21,7 @@ import {
   RSC_SEGMENTS_DIR_SUFFIX,
   RSC_SUFFIX,
 } from '../../../lib/constants'
-import { tagsManifest } from './tags-manifest.external'
+import { isStale, tagsManifest } from './tags-manifest.external'
 import { MultiFileWriter } from '../../../lib/multi-file-writer'
 
 type FileSystemCacheContext = Omit<
@@ -101,9 +101,9 @@ export default class FileSystemCache implements CacheHandler {
     }
 
     for (const tag of tags) {
-      const data = tagsManifest.items[tag] || {}
-      data.revalidatedAt = Date.now()
-      tagsManifest.items[tag] = data
+      if (!tagsManifest.has(tag)) {
+        tagsManifest.set(tag, Date.now())
+      }
     }
   }
 
@@ -310,18 +310,10 @@ export default class FileSystemCache implements CacheHandler {
       }
 
       if (cacheTags?.length) {
-        const isStale = cacheTags.some((tag) => {
-          return (
-            tagsManifest?.items[tag]?.revalidatedAt &&
-            tagsManifest?.items[tag].revalidatedAt >=
-              (data?.lastModified || Date.now())
-          )
-        })
-
         // we trigger a blocking validation if an ISR page
         // had a tag revalidated, if we want to be a background
         // revalidation instead we return data.lastModified = -1
-        if (isStale) {
+        if (isStale(cacheTags, data?.lastModified || Date.now())) {
           return null
         }
       }
@@ -336,11 +328,7 @@ export default class FileSystemCache implements CacheHandler {
           return true
         }
 
-        return (
-          tagsManifest?.items[tag]?.revalidatedAt &&
-          tagsManifest?.items[tag].revalidatedAt >=
-            (data?.lastModified || Date.now())
-        )
+        return isStale([tag], data?.lastModified || Date.now())
       })
       // When revalidate tag is called we don't return
       // stale data so it's updated right away

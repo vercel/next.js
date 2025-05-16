@@ -5,7 +5,7 @@ use parking_lot::Mutex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::ecma::ast::Id;
 
-use super::{graph::VarGraph, JsValue};
+use super::{JsValue, graph::VarGraph};
 
 pub async fn link<'a, B, RB, F, RF>(
     graph: &VarGraph,
@@ -61,13 +61,13 @@ enum Step {
 impl Display for Step {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Step::Enter(val) => write!(f, "Enter({})", val),
-            Step::EarlyVisit(val) => write!(f, "EarlyVisit({})", val),
-            Step::Leave(val) => write!(f, "Leave({})", val),
-            Step::LeaveVar(var) => write!(f, "LeaveVar({:?})", var),
-            Step::LeaveLate(val) => write!(f, "LeaveLate({})", val),
-            Step::Visit(val) => write!(f, "Visit({})", val),
-            Step::LeaveCall(func_ident) => write!(f, "LeaveCall({})", func_ident),
+            Step::Enter(val) => write!(f, "Enter({val})"),
+            Step::EarlyVisit(val) => write!(f, "EarlyVisit({val})"),
+            Step::Leave(val) => write!(f, "Leave({val})"),
+            Step::LeaveVar(var) => write!(f, "LeaveVar({var:?})"),
+            Step::LeaveLate(val) => write!(f, "LeaveLate({val})"),
+            Step::Visit(val) => write!(f, "Visit({val})"),
+            Step::LeaveCall(func_ident) => write!(f, "LeaveCall({func_ident})"),
             Step::TemporarySlot => write!(f, "TemporarySlot"),
         }
     }

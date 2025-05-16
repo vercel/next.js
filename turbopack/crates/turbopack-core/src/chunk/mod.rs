@@ -17,19 +17,19 @@ use auto_hash_map::AutoSet;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput,
-    Upcast, ValueToString, Vc,
+    FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, Upcast, ValueToString, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbo_tasks_hash::DeterministicHash;
 
 pub use self::{
     chunk_item_batch::{
-        batch_info, ChunkItemBatchGroup, ChunkItemBatchWithAsyncModuleInfo,
-        ChunkItemOrBatchWithAsyncModuleInfo,
+        ChunkItemBatchGroup, ChunkItemBatchWithAsyncModuleInfo,
+        ChunkItemOrBatchWithAsyncModuleInfo, batch_info,
     },
     chunking_context::{
         ChunkGroupResult, ChunkGroupType, ChunkingConfig, ChunkingConfigs, ChunkingContext,
-        ChunkingContextExt, EntryChunkGroupResult, MinifyType, SourceMapsType,
+        ChunkingContextExt, EntryChunkGroupResult, MangleType, MinifyType, SourceMapsType,
     },
     data::{ChunkData, ChunkDataOption, ChunksData},
     evaluate::{EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets},
@@ -39,8 +39,8 @@ use crate::{
     ident::AssetIdent,
     module::Module,
     module_graph::{
-        module_batch::{ChunkableModuleOrBatch, ModuleBatchGroup},
         ModuleGraph,
+        module_batch::{ChunkableModuleOrBatch, ModuleBatchGroup},
     },
     output::OutputAssets,
     reference::ModuleReference,
@@ -58,8 +58,8 @@ pub enum ModuleId {
 impl Display for ModuleId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ModuleId::Number(i) => write!(f, "{}", i),
-            ModuleId::String(s) => write!(f, "{}", s),
+            ModuleId::Number(i) => write!(f, "{i}"),
+            ModuleId::String(s) => write!(f, "{s}"),
         }
     }
 }
@@ -162,7 +162,6 @@ pub trait OutputChunk: Asset {
 /// group
 #[derive(
     Debug,
-    Default,
     Clone,
     Hash,
     TraceRawVcs,
@@ -174,14 +173,15 @@ pub trait OutputChunk: Asset {
     NonLocalValue,
 )]
 pub enum ChunkingType {
-    /// Module is placed in the same chunk group and is loaded in parallel. It
-    /// doesn't become an async module when the referenced module is async.
-    #[default]
-    Parallel,
-    /// Module is placed in the same chunk group and is loaded in parallel. It
-    /// becomes an async module when the referenced module is async.
-    // TODO make inherit_async a separate field
-    ParallelInheritAsync,
+    /// The referenced module is placed in the same chunk group and is loaded in parallel.
+    Parallel {
+        /// Whether the parent module becomes an async module when the referenced module is async.
+        /// This should happen for e.g. ESM imports, but not for CommonJS requires.
+        inherit_async: bool,
+        /// Whether the referenced module is executed always immediately before the parent module
+        /// (corresponding to ESM import semantics).
+        hoisted: bool,
+    },
     /// An async loader is placed into the referencing chunk and loads the
     /// separate chunk group in which the module is placed.
     Async,
@@ -205,30 +205,41 @@ pub enum ChunkingType {
 
 impl ChunkingType {
     pub fn is_inherit_async(&self) -> bool {
-        match self {
-            ChunkingType::Parallel => false,
-            ChunkingType::ParallelInheritAsync => true,
-            ChunkingType::Async => false,
-            ChunkingType::Isolated { .. } => false,
-            ChunkingType::Shared { inherit_async, .. } => *inherit_async,
-            ChunkingType::Traced => false,
-        }
+        matches!(
+            self,
+            ChunkingType::Parallel {
+                inherit_async: true,
+                ..
+            } | ChunkingType::Shared {
+                inherit_async: true,
+                ..
+            }
+        )
     }
 
     pub fn is_parallel(&self) -> bool {
-        match self {
-            ChunkingType::Parallel => true,
-            ChunkingType::ParallelInheritAsync => true,
-            ChunkingType::Async => false,
-            ChunkingType::Isolated { .. } => false,
-            ChunkingType::Shared { .. } => false,
-            ChunkingType::Traced => false,
-        }
+        matches!(self, ChunkingType::Parallel { .. })
+    }
+
+    pub fn is_merged(&self) -> bool {
+        matches!(
+            self,
+            ChunkingType::Isolated {
+                merge_tag: Some(_),
+                ..
+            } | ChunkingType::Shared {
+                merge_tag: Some(_),
+                ..
+            }
+        )
     }
 
     pub fn without_inherit_async(&self) -> Self {
         match self {
-            ChunkingType::Parallel | ChunkingType::ParallelInheritAsync => ChunkingType::Parallel,
+            ChunkingType::Parallel { hoisted, .. } => ChunkingType::Parallel {
+                hoisted: *hoisted,
+                inherit_async: false,
+            },
             ChunkingType::Async => ChunkingType::Async,
             ChunkingType::Isolated { _ty, merge_tag } => ChunkingType::Isolated {
                 _ty: *_ty,
@@ -258,7 +269,10 @@ pub struct ChunkingTypeOption(Option<ChunkingType>);
 #[turbo_tasks::value_trait]
 pub trait ChunkableModuleReference: ModuleReference + ValueToString {
     fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::default()))
+        Vc::cell(Some(ChunkingType::Parallel {
+            inherit_async: false,
+            hoisted: false,
+        }))
     }
 }
 
@@ -301,7 +315,7 @@ pub trait ChunkItem {
 #[turbo_tasks::value_trait]
 pub trait ChunkType: ValueToString {
     /// Whether the source (reference) order of items needs to be retained during chunking.
-    fn must_keep_item_order(self: Vc<Self>) -> Vc<bool>;
+    fn is_style(self: Vc<Self>) -> Vc<bool>;
 
     /// Create a new chunk for the given chunk items
     fn chunk(
@@ -408,6 +422,8 @@ mod tests {
         assert_eq!(round_chunk_item_size(6), 6);
         assert_eq!(round_chunk_item_size(7), 6);
         assert_eq!(round_chunk_item_size(8), 8);
+        assert_eq!(round_chunk_item_size(49000), 32_768);
+        assert_eq!(round_chunk_item_size(50000), 49_152);
 
         assert_eq!(changes_in_range(0..1000), 19);
         assert_eq!(changes_in_range(1000..2000), 2);

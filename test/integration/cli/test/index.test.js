@@ -675,7 +675,9 @@ describe('CLI Usage', () => {
         await killApp(appTwo).catch(console.error)
       }
 
-      expect(output).toMatch('⚠ Port 3000 is in use, trying 3001 instead.')
+      expect(output).toMatch(
+        '⚠ Port 3000 is in use, using available port 3001 instead.'
+      )
     })
 
     test('-p reserved', async () => {
@@ -899,7 +901,7 @@ Relevant Packages:
   eslint-config-next: .*
   react: .*
   react-dom: .*
-  typescript: .*
+  typescript: .*${process.env.NEXT_RSPACK ? '\n  next-rspack: .*' : ''}
 Next.js Config:
   output: ${nextConfigOutput}
 `)

@@ -1,8 +1,8 @@
 use std::sync::{Arc, OnceLock};
 
-use serde::{ser::SerializeMap, Serialize, Serializer};
+use serde::{Serialize, Serializer, ser::SerializeMap};
 
-use crate::{registry, FunctionId, FxDashMap};
+use crate::{FunctionId, FxDashMap, registry};
 
 /// An API for optionally enabling, updating, and reading aggregated statistics.
 #[derive(Default)]

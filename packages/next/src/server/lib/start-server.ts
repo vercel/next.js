@@ -30,7 +30,6 @@ import { CONFIG_FILES } from '../../shared/lib/constants'
 import { getStartServerInfo, logStartInfo } from './app-info-log'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import { type Span, trace, flushAllTraces } from '../../trace'
-import { isPostpone } from './router-utils/is-postpone'
 import { isIPv6 } from './is-ipv6'
 import { AsyncCallbackSet } from './async-callback-set'
 import type { NextServer } from '../next'
@@ -203,6 +202,7 @@ export async function startServer(
   })
 
   let portRetryCount = 0
+  const originalPort = port
 
   server.on('error', (err: NodeJS.ErrnoException) => {
     if (
@@ -212,7 +212,6 @@ export async function startServer(
       err.code === 'EADDRINUSE' &&
       portRetryCount < 10
     ) {
-      Log.warn(`Port ${port} is in use, trying ${port + 1} instead.`)
       port += 1
       portRetryCount += 1
       server.listen(port, hostname)
@@ -243,6 +242,12 @@ export async function startServer(
             : formatHostname(hostname)
 
       port = typeof addr === 'object' ? addr?.port || port : port
+
+      if (portRetryCount) {
+        Log.warn(
+          `Port ${originalPort} is in use, using available port ${port} instead.`
+        )
+      }
 
       const networkHostname =
         hostname ?? getNetworkHost(isIPv6(actualHostname) ? 'IPv6' : 'IPv4')
@@ -325,29 +330,13 @@ export async function startServer(
             process.exit(0)
           })()
         }
-        const exception = (err: Error) => {
-          if (isPostpone(err)) {
-            // React postpones that are unhandled might end up logged here but they're
-            // not really errors. They're just part of rendering.
-            return
-          }
 
-          // This is the render worker, we keep the process alive
-          console.error(err)
-        }
         // Make sure commands gracefully respect termination signals (e.g. from Docker)
         // Allow the graceful termination to be manually configurable
         if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
           process.on('SIGINT', cleanup)
           process.on('SIGTERM', cleanup)
         }
-        process.on('rejectionHandled', () => {
-          // It is ok to await a Promise late in Next.js as it allows for better
-          // prefetching patterns to avoid waterfalls. We ignore loggining these.
-          // We should've already errored in anyway unhandledRejection.
-        })
-        process.on('uncaughtException', exception)
-        process.on('unhandledRejection', exception)
 
         const initResult = await getRequestHandlers({
           dir,

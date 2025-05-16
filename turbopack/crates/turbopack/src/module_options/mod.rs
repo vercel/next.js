@@ -12,7 +12,7 @@ pub use module_rule::*;
 pub use rule_condition::*;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{glob::Glob, FileSystemPath};
+use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 use turbopack_core::{
     chunk::SourceMapsType,
     reference_type::{CssReferenceSubType, ReferenceType, UrlReferenceSubType},
@@ -36,10 +36,7 @@ async fn package_import_map_from_import_mapping(
     package_mapping: ResolvedVc<ImportMapping>,
 ) -> Vc<ImportMap> {
     let mut import_map = ImportMap::default();
-    import_map.insert_exact_alias(
-        format!("@vercel/turbopack/{}", package_name),
-        package_mapping,
-    );
+    import_map.insert_exact_alias(format!("@vercel/turbopack/{package_name}"), package_mapping);
     import_map.cell()
 }
 
@@ -50,7 +47,7 @@ async fn package_import_map_from_context(
 ) -> Vc<ImportMap> {
     let mut import_map = ImportMap::default();
     import_map.insert_exact_alias(
-        format!("@vercel/turbopack/{}", package_name),
+        format!("@vercel/turbopack/{package_name}"),
         ImportMapping::PrimaryAlternative(package_name, Some(context_path)).resolved_cell(),
     );
     import_map.cell()
@@ -258,13 +255,18 @@ impl ModuleOptions {
 
         let mut rules = vec![
             ModuleRule::new_all(
-                RuleCondition::ResourcePathEndsWith(".json".to_string()),
+                RuleCondition::any(vec![
+                    RuleCondition::ResourcePathEndsWith(".json".to_string()),
+                    RuleCondition::ContentTypeStartsWith("application/json".to_string()),
+                ]),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Json)],
             ),
             ModuleRule::new_all(
                 RuleCondition::any(vec![
                     RuleCondition::ResourcePathEndsWith(".js".to_string()),
                     RuleCondition::ResourcePathEndsWith(".jsx".to_string()),
+                    RuleCondition::ContentTypeStartsWith("application/javascript".to_string()),
+                    RuleCondition::ContentTypeStartsWith("text/javascript".to_string()),
                 ]),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript {
                     transforms: app_transforms.to_resolved().await?,
@@ -380,9 +382,10 @@ impl ModuleOptions {
             ),
             // WebAssembly
             ModuleRule::new(
-                RuleCondition::any(vec![RuleCondition::ResourcePathEndsWith(
-                    ".wasm".to_string(),
-                )]),
+                RuleCondition::any(vec![
+                    RuleCondition::ResourcePathEndsWith(".wasm".to_string()),
+                    RuleCondition::ContentTypeStartsWith("application/wasm".to_string()),
+                ]),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::WebAssembly {
                     source_ty: WebAssemblySourceType::Binary,
                 })],
@@ -397,7 +400,10 @@ impl ModuleOptions {
             ),
             // Fallback to ecmascript without extension (this is node.js behavior)
             ModuleRule::new(
-                RuleCondition::ResourcePathHasNoExtension,
+                RuleCondition::all(vec![
+                    RuleCondition::ResourcePathHasNoExtension,
+                    RuleCondition::ContentTypeEmpty,
+                ]),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript {
                     transforms: vendor_transforms.to_resolved().await?,
                     options: ecmascript_options_vc,
@@ -432,17 +438,19 @@ impl ModuleOptions {
         if enable_raw_css {
             rules.extend([
                 ModuleRule::new(
-                    RuleCondition::all(vec![RuleCondition::ResourcePathEndsWith(
-                        ".css".to_string(),
-                    )]),
+                    RuleCondition::any(vec![
+                        RuleCondition::ResourcePathEndsWith(".css".to_string()),
+                        RuleCondition::ContentTypeStartsWith("text/css".to_string()),
+                    ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Default,
                     })],
                 ),
                 ModuleRule::new(
-                    RuleCondition::all(vec![RuleCondition::ResourcePathEndsWith(
-                        ".module.css".to_string(),
-                    )]),
+                    RuleCondition::any(vec![
+                        RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                        RuleCondition::ContentTypeStartsWith("text/css+module".to_string()),
+                    ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
                     })],
@@ -464,7 +472,10 @@ impl ModuleOptions {
                 };
 
                 rules.push(ModuleRule::new(
-                    RuleCondition::ResourcePathEndsWith(".css".to_string()),
+                    RuleCondition::Any(vec![
+                        RuleCondition::ResourcePathEndsWith(".css".to_string()),
+                        RuleCondition::ContentTypeStartsWith("text/css".to_string()),
+                    ]),
                     vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
                         ResolvedVc::upcast(
                             PostCssTransform::new(
@@ -488,14 +499,20 @@ impl ModuleOptions {
 
             rules.extend([
                 ModuleRule::new_all(
-                    RuleCondition::ResourcePathEndsWith(".css".to_string()),
+                    RuleCondition::Any(vec![
+                        RuleCondition::ResourcePathEndsWith(".css".to_string()),
+                        RuleCondition::ContentTypeStartsWith("text/css".to_string()),
+                    ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Default,
                     })],
                 ),
                 ModuleRule::new(
                     RuleCondition::all(vec![
-                        RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                        RuleCondition::Any(vec![
+                            RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                            RuleCondition::ContentTypeStartsWith("text/css+module".to_string()),
+                        ]),
                         // Only create a module CSS asset if not `@import`ed from CSS already.
                         // NOTE: `composes` references should not be treated as `@import`s and
                         // should also create a module CSS asset.
@@ -507,7 +524,10 @@ impl ModuleOptions {
                 ),
                 ModuleRule::new(
                     RuleCondition::all(vec![
-                        RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                        RuleCondition::Any(vec![
+                            RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                            RuleCondition::ContentTypeStartsWith("text/css+module".to_string()),
+                        ]),
                         // Create a normal CSS asset if `@import`ed from CSS already.
                         RuleCondition::ReferenceType(ReferenceType::Css(
                             CssReferenceSubType::AtImport(None),
@@ -519,7 +539,10 @@ impl ModuleOptions {
                 ),
                 // Ecmascript CSS Modules referencing the actual CSS module to include it
                 ModuleRule::new_internal(
-                    RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                    RuleCondition::Any(vec![
+                        RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                        RuleCondition::ContentTypeStartsWith("text/css+module".to_string()),
+                    ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
                     })],
@@ -530,7 +553,10 @@ impl ModuleOptions {
                         RuleCondition::ReferenceType(ReferenceType::Css(
                             CssReferenceSubType::Analyze,
                         )),
-                        RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                        RuleCondition::Any(vec![
+                            RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                            RuleCondition::ContentTypeStartsWith("text/css+module".to_string()),
+                        ]),
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
@@ -569,6 +595,7 @@ impl ModuleOptions {
                 RuleCondition::any(vec![
                     RuleCondition::ResourcePathEndsWith(".md".to_string()),
                     RuleCondition::ResourcePathEndsWith(".mdx".to_string()),
+                    RuleCondition::ContentTypeStartsWith("text/markdown".to_string()),
                 ]),
                 vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
                     ResolvedVc::upcast(
@@ -597,16 +624,40 @@ impl ModuleOptions {
                     path.context("need_path in ModuleOptions::new is incorrect")?,
                 )
             };
-            for (glob, rule) in webpack_loaders_options.rules.await?.iter() {
+            for (key, rule) in webpack_loaders_options.rules.await?.iter() {
                 rules.push(ModuleRule::new(
                     RuleCondition::All(vec![
-                        if !glob.contains('/') {
-                            RuleCondition::ResourceBasePathGlob(Glob::new(glob.clone()).await?)
-                        } else {
+                        if key.starts_with("#") {
+                            // This is a custom marker requiring a corresponding condition entry
+                            let conditions = (*webpack_loaders_options.conditions.await?)
+                                .context(
+                                    "Expected a condition entry for the webpack loader rule \
+                                     matching {key}. Create a `conditions` mapping in your \
+                                     next.config.js",
+                                )?
+                                .await?;
+
+                            let condition = conditions.get(key).context(
+                                "Expected a condition entry for the webpack loader rule matching \
+                                 {key}.",
+                            )?;
+
+                            match &condition.path {
+                                ConditionPath::Glob(glob) => RuleCondition::ResourcePathGlob {
+                                    base: execution_context.project_path().await?,
+                                    glob: Glob::new(glob.clone()).await?,
+                                },
+                                ConditionPath::Regex(regex) => {
+                                    RuleCondition::ResourcePathEsRegex(regex.await?)
+                                }
+                            }
+                        } else if key.contains('/') {
                             RuleCondition::ResourcePathGlob {
                                 base: execution_context.project_path().await?,
-                                glob: Glob::new(glob.clone()).await?,
+                                glob: Glob::new(key.clone()).await?,
                             }
+                        } else {
+                            RuleCondition::ResourceBasePathGlob(Glob::new(key.clone()).await?)
                         },
                         RuleCondition::not(RuleCondition::ResourceIsVirtualSource),
                     ]),

@@ -3,7 +3,10 @@ import type { IncrementalCache } from '../../lib/incremental-cache'
 import { CACHE_ONE_YEAR } from '../../../lib/constants'
 import { validateRevalidate, validateTags } from '../../lib/patch-fetch'
 import { workAsyncStorage } from '../../app-render/work-async-storage.external'
-import { workUnitAsyncStorage } from '../../app-render/work-unit-async-storage.external'
+import {
+  getDraftModeProviderForCacheScope,
+  workUnitAsyncStorage,
+} from '../../app-render/work-unit-async-storage.external'
 import {
   CachedRouteKind,
   IncrementalCacheKind,
@@ -139,6 +142,18 @@ export function unstable_cache<T extends Callback>(
       const fetchIdx =
         (workStore ? workStore.nextFetchId : noStoreFetchIdx) ?? 1
 
+      const implicitTags = workUnitStore?.implicitTags
+
+      const innerCacheStore: UnstableCacheStore = {
+        type: 'unstable-cache',
+        phase: 'render',
+        implicitTags,
+        draftMode:
+          workUnitStore &&
+          workStore &&
+          getDraftModeProviderForCacheScope(workStore, workUnitStore),
+      }
+
       if (workStore) {
         workStore.nextFetchId = fetchIdx + 1
 
@@ -178,11 +193,6 @@ export function unstable_cache<T extends Callback>(
           }
         }
 
-        const implicitTags =
-          !workUnitStore || workUnitStore.type === 'unstable-cache'
-            ? []
-            : workUnitStore.implicitTags
-
         const isNestedUnstableCache =
           workUnitStore && workUnitStore.type === 'unstable-cache'
         if (
@@ -199,7 +209,7 @@ export function unstable_cache<T extends Callback>(
             kind: IncrementalCacheKind.FETCH,
             revalidate: options.revalidate,
             tags,
-            softTags: implicitTags,
+            softTags: implicitTags?.tags,
             fetchIdx,
             fetchUrl,
           })
@@ -227,10 +237,7 @@ export function unstable_cache<T extends Callback>(
                 if (!workStore.pendingRevalidates) {
                   workStore.pendingRevalidates = {}
                 }
-                const innerCacheStore: UnstableCacheStore = {
-                  type: 'unstable-cache',
-                  phase: 'render',
-                }
+
                 // We run the cache function asynchronously and save the result when it completes
                 workStore.pendingRevalidates[invocationKey] =
                   workUnitAsyncStorage
@@ -260,10 +267,6 @@ export function unstable_cache<T extends Callback>(
           }
         }
 
-        const innerCacheStore: UnstableCacheStore = {
-          type: 'unstable-cache',
-          phase: 'render',
-        }
         // If we got this far then we had an invalid cache entry and need to generate a new one
         const result = await workUnitAsyncStorage.run(
           innerCacheStore,
@@ -272,7 +275,14 @@ export function unstable_cache<T extends Callback>(
         )
 
         if (!workStore.isDraftMode) {
-          cacheNewResult(
+          if (!workStore.pendingRevalidates) {
+            workStore.pendingRevalidates = {}
+          }
+
+          // We need to push the cache result promise to pending
+          // revalidates otherwise it won't be awaited and is just
+          // dangling
+          workStore.pendingRevalidates[invocationKey] = cacheNewResult(
             result,
             incrementalCache,
             cacheKey,
@@ -293,18 +303,13 @@ export function unstable_cache<T extends Callback>(
 
         if (!incrementalCache.isOnDemandRevalidate) {
           // We aren't doing an on demand revalidation so we check use the cache if valid
-          const implicitTags =
-            !workUnitStore || workUnitStore.type === 'unstable-cache'
-              ? []
-              : workUnitStore.implicitTags
-
           const cacheEntry = await incrementalCache.get(cacheKey, {
             kind: IncrementalCacheKind.FETCH,
             revalidate: options.revalidate,
             tags,
             fetchIdx,
             fetchUrl,
-            softTags: implicitTags,
+            softTags: implicitTags?.tags,
           })
 
           if (cacheEntry && cacheEntry.value) {
@@ -326,17 +331,17 @@ export function unstable_cache<T extends Callback>(
           }
         }
 
-        const innerCacheStore: UnstableCacheStore = {
-          type: 'unstable-cache',
-          phase: 'render',
-        }
         // If we got this far then we had an invalid cache entry and need to generate a new one
         const result = await workUnitAsyncStorage.run(
           innerCacheStore,
           cb,
           ...args
         )
-        cacheNewResult(
+
+        // we need to wait setting the new cache result here as
+        // we don't have pending revalidates on workStore to
+        // push to and we can't have a dangling promise
+        await cacheNewResult(
           result,
           incrementalCache,
           cacheKey,

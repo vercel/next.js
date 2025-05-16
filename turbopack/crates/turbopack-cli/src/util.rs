@@ -4,10 +4,12 @@ use anyhow::{Context, Result};
 use dunce::canonicalize;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, TaskInput, Vc};
+use turbo_tasks::{NonLocalValue, TaskInput, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 
-#[derive(Clone, Debug, TaskInput, Hash, PartialEq, Eq, NonLocalValue, Serialize, Deserialize)]
+#[derive(
+    Clone, Debug, TaskInput, Hash, PartialEq, Eq, NonLocalValue, Serialize, Deserialize, TraceRawVcs,
+)]
 pub enum EntryRequest {
     Relative(RcStr),
     Module(RcStr, RcStr),

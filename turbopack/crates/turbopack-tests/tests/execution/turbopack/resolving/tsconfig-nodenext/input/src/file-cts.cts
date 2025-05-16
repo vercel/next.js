@@ -1,1 +1,1 @@
-module.exports = "file-cts";
+module.exports = 'file-cts'

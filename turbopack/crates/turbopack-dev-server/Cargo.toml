@@ -3,7 +3,7 @@ name = "turbopack-dev-server"
 version = "0.1.0"
 description = "TBD"
 license = "MIT"
-edition = "2021"
+edition = "2024"
 autobenches = false
 
 [lib]
@@ -47,6 +47,9 @@ turbopack-core = { workspace = true }
 turbopack-ecmascript = { workspace = true }
 turbopack-ecmascript-hmr-protocol = { workspace = true }
 urlencoding = "2.1.2"
+
+[dev-dependencies]
+turbo-tasks-backend = { workspace = true }
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }

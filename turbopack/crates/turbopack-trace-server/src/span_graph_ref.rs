@@ -7,13 +7,13 @@ use std::{
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::{
+    FxIndexMap,
     bottom_up::build_bottom_up_graph,
     span::{SpanGraph, SpanGraphEvent, SpanIndex},
     span_bottom_up_ref::SpanBottomUpRef,
     span_ref::SpanRef,
     store::{SpanId, Store},
     timestamp::Timestamp,
-    FxIndexMap,
 };
 
 #[derive(Clone)]

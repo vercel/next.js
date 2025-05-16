@@ -13,7 +13,7 @@ window.next = {
   emitter,
 }
 
-const devClient = initHMR('webpack')
+const devClient = initHMR()
 initialize({ devClient })
   .then(({ assetPrefix }) => {
     return pageBootstrap(assetPrefix)

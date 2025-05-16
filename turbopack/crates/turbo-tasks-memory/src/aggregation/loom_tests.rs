@@ -2,20 +2,20 @@ use std::{
     fmt::Debug,
     hash::Hash,
     ops::{Deref, DerefMut},
-    sync::{atomic::AtomicU32, Arc},
+    sync::{Arc, atomic::AtomicU32},
 };
 
 use loom::{
     sync::{Mutex, MutexGuard},
     thread,
 };
-use rand::{rngs::SmallRng, Rng, SeedableRng};
+use rand::{Rng, SeedableRng, rngs::SmallRng};
 use ref_cast::RefCast;
 use rstest::*;
 
 use super::{
-    aggregation_data, handle_new_edge, AggregationContext, AggregationNode, AggregationNodeGuard,
-    PreparedOperation,
+    AggregationContext, AggregationNode, AggregationNodeGuard, PreparedOperation, aggregation_data,
+    handle_new_edge,
 };
 
 struct Node {
@@ -217,7 +217,7 @@ fn fuzzy_loom_new() {
     for size in [10, 20] {
         for _ in 0..1000 {
             let seed = rand::random();
-            println!("Seed {} Size {}", seed, size);
+            println!("Seed {seed} Size {size}");
             fuzzy_loom(seed, size);
         }
     }
@@ -250,8 +250,8 @@ fn fuzzy_loom(#[case] seed: u32, #[case] count: u32) {
 
                 // setup graph
                 for _ in 0..20 {
-                    let parent = r.gen_range(0..nodes.len() - 1);
-                    let child = r.gen_range(parent + 1..nodes.len());
+                    let parent = r.random_range(0..nodes.len() - 1);
+                    let child = r.random_range(parent + 1..nodes.len());
                     let parent_node = nodes[parent].clone();
                     let child_node = nodes[child].clone();
                     parent_node.add_child(&ctx, child_node);
@@ -259,8 +259,8 @@ fn fuzzy_loom(#[case] seed: u32, #[case] count: u32) {
 
                 let mut edges = Vec::new();
                 for _ in 0..2 {
-                    let parent = r.gen_range(0..nodes.len() - 1);
-                    let child = r.gen_range(parent + 1..nodes.len());
+                    let parent = r.random_range(0..nodes.len() - 1);
+                    let child = r.random_range(parent + 1..nodes.len());
                     let parent_node = nodes[parent].clone();
                     let child_node = nodes[child].clone();
                     edges.push((parent_node, child_node));

@@ -1,21 +1,22 @@
 use std::mem::take;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use async_trait::async_trait;
+use base64::Engine;
 use either::Either;
+use futures::try_join;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value as JsonValue};
+use serde_json::{Map as JsonMap, Value as JsonValue, json};
 use serde_with::serde_as;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, Completion, NonLocalValue, OperationValue, OperationVc, ResolvedVc,
-    TaskInput, TryJoinIterExt, Value, ValueToString, Vc,
+    Completion, NonLocalValue, OperationValue, OperationVc, ResolvedVc, TaskInput, TryJoinIterExt,
+    Value, ValueToString, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{
-    glob::Glob, json::parse_json_with_source_context, rope::Rope, DirectoryEntry, File,
-    FileContent, FileSystemPath, ReadGlobResult,
+    File, FileContent, FileSystemPath, glob::Glob, json::parse_json_with_source_context, rope::Rope,
 };
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -34,7 +35,7 @@ use turbopack_core::{
     },
     source::Source,
     source_map::{
-        utils::resolve_source_map_sources, GenerateSourceMap, OptionStringifiedSourceMap,
+        GenerateSourceMap, OptionStringifiedSourceMap, utils::resolve_source_map_sources,
     },
     source_transform::SourceTransform,
     virtual_source::VirtualSource,
@@ -44,18 +45,18 @@ use turbopack_resolve::{
     resolve_options_context::ResolveOptionsContext,
 };
 
-use super::util::{emitted_assets_to_virtual_sources, EmittedAsset};
+use super::util::{EmittedAsset, emitted_assets_to_virtual_sources};
 use crate::{
+    AssetsForSourceMapping,
     debug::should_debug,
     embed_js::embed_file_path,
     evaluate::{
-        compute, custom_evaluate, get_evaluate_pool, EnvVarTracking, EvaluateContext,
-        EvaluationIssue, JavaScriptEvaluation, JavaScriptStreamSender,
+        EnvVarTracking, EvaluateContext, EvaluationIssue, JavaScriptEvaluation,
+        JavaScriptStreamSender, compute, custom_evaluate, get_evaluate_pool,
     },
     execution_context::ExecutionContext,
     pool::{FormattingMode, NodeJsPool},
     source_map::{StackFrame, StructuredError},
-    AssetsForSourceMapping,
 };
 
 #[serde_as]
@@ -212,7 +213,7 @@ impl WebpackLoadersProcessedAsset {
         let AssetContent::File(file) = *source_content.await? else {
             bail!("Webpack Loaders transform only support transforming files");
         };
-        let FileContent::Content(content) = &*file.await? else {
+        let FileContent::Content(file_content) = &*file.await? else {
             return Ok(ProcessWebpackLoadersResult {
                 content: AssetContent::File(FileContent::NotFound.resolved_cell()).resolved_cell(),
                 assets: Vec::new(),
@@ -220,7 +221,19 @@ impl WebpackLoadersProcessedAsset {
             }
             .cell());
         };
-        let content = content.content().to_str()?;
+
+        // If the content is not a valid string (e.g. binary file), handle the error and pass a
+        // Buffer to Webpack instead of a Base64 string so the build process doesn't crash.
+        let content: JsonValue = match file_content.content().to_str() {
+            Ok(utf8_str) => utf8_str.to_string().into(),
+            Err(_) => JsonValue::Object(JsonMap::from_iter(std::iter::once((
+                "binary".to_string(),
+                JsonValue::from(
+                    base64::engine::general_purpose::STANDARD
+                        .encode(file_content.content().to_bytes().unwrap()),
+                ),
+            )))),
+        };
         let evaluate_context = transform.evaluate_context;
 
         let webpack_loaders_executor = webpack_loaders_executor(*evaluate_context)
@@ -250,7 +263,7 @@ impl WebpackLoadersProcessedAsset {
             chunking_context,
             resolve_options_context: Some(transform.resolve_options_context),
             args: vec![
-                ResolvedVc::cell(content.into()),
+                ResolvedVc::cell(content),
                 // We need to pass the query string to the loader
                 ResolvedVc::cell(resource_path.to_string().into()),
                 ResolvedVc::cell(this.source.ident().query().await?.to_string().into()),
@@ -348,27 +361,29 @@ pub struct LogInfo {
 #[derive(Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum InfoMessage {
-    FileDependency {
-        path: RcStr,
-    },
-    BuildDependency {
-        path: RcStr,
-    },
-    DirDependency {
-        path: RcStr,
-        glob: RcStr,
-    },
-    EnvDependency {
-        name: RcStr,
+    // Sent to inform Turbopack about the dependencies of the task.
+    // All fields are `default` since it is ok for the client to
+    // simply omit instead of sending empty arrays.
+    Dependencies {
+        #[serde(default)]
+        env_variables: Vec<RcStr>,
+        #[serde(default)]
+        file_paths: Vec<RcStr>,
+        #[serde(default)]
+        directories: Vec<(RcStr, RcStr)>,
+        #[serde(default)]
+        build_file_paths: Vec<RcStr>,
     },
     EmittedError {
         severity: IssueSeverity,
         error: StructuredError,
     },
-    Log(LogInfo),
+    Log {
+        logs: Vec<LogInfo>,
+    },
 }
 
-#[derive(Debug, Clone, TaskInput, Hash, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, TaskInput, Hash, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct WebpackResolveOptions {
     alias_fields: Option<Vec<RcStr>>,
@@ -399,7 +414,7 @@ pub enum ResponseMessage {
     Resolve { path: RcStr },
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, TaskInput, Serialize, Deserialize, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, TaskInput, Serialize, Deserialize, Debug, TraceRawVcs)]
 pub struct WebpackLoaderContext {
     pub module_asset: ResolvedVc<Box<dyn Module>>,
     pub cwd: ResolvedVc<FileSystemPath>,
@@ -472,29 +487,54 @@ impl EvaluateContext for WebpackLoaderContext {
         pool: &NodeJsPool,
     ) -> Result<()> {
         match data {
-            InfoMessage::FileDependency { path } => {
-                // TODO We might miss some changes that happened during execution
-                // Read dependencies to make them a dependencies of this task. This task will
-                // execute again when they change.
-                self.cwd.join(path).read().await?;
-            }
-            InfoMessage::BuildDependency { path } => {
-                // TODO We might miss some changes that happened during execution
-                BuildDependencyIssue {
-                    context_ident: self.context_ident_for_issue,
-                    path: self.cwd.join(path).to_resolved().await?,
+            InfoMessage::Dependencies {
+                env_variables,
+                file_paths,
+                directories,
+                build_file_paths,
+            } => {
+                // Track dependencies of the loader task
+                // TODO: Because these are reported _after_ the loader actually read the dependency
+                // there is a race condition where we may miss updates that race
+                // with the loader execution.
+
+                // Track all the subscriptions in parallel, since certain loaders like tailwind
+                // might add thousands of subscriptions.
+                let env_subscriptions = env_variables
+                    .iter()
+                    .map(|e| self.env.read(e.clone()))
+                    .try_join();
+                let file_subscriptions = file_paths
+                    .iter()
+                    .map(|p| self.cwd.join(p.clone()).read())
+                    .try_join();
+                let directory_subscriptions = directories
+                    .iter()
+                    .map(|(dir, glob)| {
+                        self.cwd
+                            .join(dir.clone())
+                            .track_glob(Glob::new(glob.clone()), false)
+                    })
+                    .try_join();
+                let build_paths = build_file_paths
+                    .iter()
+                    .map(|path| self.cwd.join(path.clone()).to_resolved())
+                    .try_join();
+                let (resolved_build_paths, ..) = try_join!(
+                    build_paths,
+                    env_subscriptions,
+                    file_subscriptions,
+                    directory_subscriptions
+                )?;
+
+                for build_path in resolved_build_paths {
+                    BuildDependencyIssue {
+                        context_ident: self.context_ident_for_issue,
+                        path: build_path,
+                    }
+                    .resolved_cell()
+                    .emit();
                 }
-                .resolved_cell()
-                .emit();
-            }
-            InfoMessage::DirDependency { path, glob } => {
-                // TODO We might miss some changes that happened during execution
-                // Read dependencies to make them a dependencies of this task. This task will
-                // execute again when they change.
-                dir_dependency(self.cwd.join(path).read_glob(Glob::new(glob), false)).await?;
-            }
-            InfoMessage::EnvDependency { name } => {
-                self.env.read(name).await?;
             }
             InfoMessage::EmittedError { error, severity } => {
                 EvaluateEmittedErrorIssue {
@@ -508,8 +548,8 @@ impl EvaluateContext for WebpackLoaderContext {
                 .resolved_cell()
                 .emit();
             }
-            InfoMessage::Log(log) => {
-                state.push(log);
+            InfoMessage::Log { logs } => {
+                state.extend(logs);
             }
         }
         Ok(())
@@ -731,45 +771,6 @@ impl Issue for BuildDependencyIssue {
             .resolved_cell(),
         )))
     }
-}
-
-/// A hack to invalidate when any file in a directory changes. Need to be
-/// awaited before files are accessed.
-#[turbo_tasks::function]
-async fn dir_dependency(glob: Vc<ReadGlobResult>) -> Result<Vc<Completion>> {
-    let shallow = dir_dependency_shallow(glob);
-    let glob = glob.await?;
-    glob.inner
-        .values()
-        .map(|&inner| dir_dependency(*inner))
-        .try_join()
-        .await?;
-    shallow.await?;
-    Ok(Completion::new())
-}
-
-#[turbo_tasks::function]
-async fn dir_dependency_shallow(glob: Vc<ReadGlobResult>) -> Result<Vc<Completion>> {
-    let glob = glob.await?;
-    for item in glob.results.values() {
-        // Reading all files to add itself as dependency
-        match *item {
-            DirectoryEntry::File(file) => {
-                file.read().await?;
-            }
-            DirectoryEntry::Directory(dir) => {
-                dir_dependency(dir.read_glob(Glob::new("**".into()), false)).await?;
-            }
-            DirectoryEntry::Symlink(symlink) => {
-                symlink.read_link().await?;
-            }
-            DirectoryEntry::Other(other) => {
-                other.get_type().await?;
-            }
-            DirectoryEntry::Error => {}
-        }
-    }
-    Ok(Completion::new())
 }
 
 #[turbo_tasks::value(shared)]

@@ -45,7 +45,6 @@ describe('pages/ error recovery', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
@@ -59,7 +58,6 @@ describe('pages/ error recovery', () => {
     } else if (process.env.NEXT_RSPACK) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "  × Module build failed:",
          "environmentLabel": null,
          "label": "Build Error",
@@ -82,8 +80,7 @@ describe('pages/ error recovery', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error:   x Unexpected eof",
+         "description": "  x Unexpected eof",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
@@ -162,10 +159,9 @@ describe('pages/ error recovery', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
-       "count": 1,
-       "description": "Error: oops",
+       "description": "oops",
        "environmentLabel": null,
-       "label": "Unhandled Runtime Error",
+       "label": "Runtime Error",
        "source": "index.js (7:11) @ Index.useCallback[increment]
      >  7 |     throw new Error('oops')
           |           ^",
@@ -249,40 +245,56 @@ describe('pages/ error recovery', () => {
       `
     )
 
+    // TODO(veil): ignore-list Webpack runtime (https://linear.app/vercel/issue/NDX-945)
+    // TODO(veil): Don't bail in Turbopack for sources outside of the project (https://linear.app/vercel/issue/NDX-944)
     // Somehow we end up with two in React 18 due to React's attempt to recover from this error.
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
-       {
-         "count": 2,
-         "description": "Error: oops",
-         "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
-         "source": "child.js (3:9) @ Child
+       [
+         {
+           "description": "oops",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "child.js (3:9) @ Child
        > 3 |   throw new Error('oops')
            |         ^",
-         "stack": [
-           "Child child.js (3:9)",
-           "Set.forEach <anonymous> (0:0)",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
-         ],
-       }
+           "stack": [
+             "Child child.js (3:9)",
+             "Set.forEach <anonymous> (0:0)",
+             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
+             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
+           ],
+         },
+         {
+           "description": "oops",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "child.js (3:9) @ Child
+       > 3 |   throw new Error('oops')
+           |         ^",
+           "stack": [
+             "Child child.js (3:9)",
+             "Set.forEach <anonymous> (0:0)",
+             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
+             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
+           ],
+         },
+       ]
       `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error: oops",
+         "description": "oops",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": "child.js (3:9) @ Child
        > 3 |   throw new Error('oops')
            |         ^",
          "stack": [
            "Child child.js (3:9)",
            "Set.forEach <anonymous> (0:0)",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
+           "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
+           "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
          ],
        }
       `)
@@ -347,7 +359,6 @@ describe('pages/ error recovery', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
@@ -361,7 +372,6 @@ describe('pages/ error recovery', () => {
     } else if (process.env.NEXT_RSPACK) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "  × Module build failed:",
          "environmentLabel": null,
          "label": "Build Error",
@@ -390,8 +400,7 @@ describe('pages/ error recovery', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error:   x Expected '{', got 'return'",
+         "description": "  x Expected '{', got 'return'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
@@ -435,7 +444,6 @@ describe('pages/ error recovery', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
@@ -449,7 +457,6 @@ describe('pages/ error recovery', () => {
     } else if (process.env.NEXT_RSPACK) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "  × Module build failed:",
          "environmentLabel": null,
          "label": "Build Error",
@@ -479,8 +486,7 @@ describe('pages/ error recovery', () => {
     } else {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error:   x Expected '{', got 'throw'",
+         "description": "  x Expected '{', got 'throw'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
@@ -527,31 +533,47 @@ describe('pages/ error recovery', () => {
       await expect(session.getRedboxSource()).resolves.toInclude('render() {')
     })
 
+    // TODO(veil): ignore-list Webpack runtime (https://linear.app/vercel/issue/NDX-945)
+    // TODO(veil): Don't bail in Turbopack for sources outside of the project (https://linear.app/vercel/issue/NDX-944)
     // Somehow we end up with two in React 18 due to React's attempt to recover from this error.
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
-       {
-         "count": 2,
-         "description": "Error: nooo",
-         "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
-         "source": "index.js (5:11) @ ClassDefault.render
+       [
+         {
+           "description": "nooo",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "index.js (5:11) @ ClassDefault.render
        > 5 |     throw new Error('nooo');
            |           ^",
-         "stack": [
-           "ClassDefault.render index.js (5:11)",
-           "Set.forEach <anonymous> (0:0)",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
-         ],
-       }
+           "stack": [
+             "ClassDefault.render index.js (5:11)",
+             "Set.forEach <anonymous> (0:0)",
+             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
+             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
+           ],
+         },
+         {
+           "description": "nooo",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "index.js (5:11) @ ClassDefault.render
+       > 5 |     throw new Error('nooo');
+           |           ^",
+           "stack": [
+             "ClassDefault.render index.js (5:11)",
+             "Set.forEach <anonymous> (0:0)",
+             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
+             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
+           ],
+         },
+       ]
       `)
     } else {
       if (process.env.NEXT_RSPACK) {
         await expect(browser).toDisplayRedbox(`
          {
-           "count": 1,
-           "description": "Error: nooo",
+           "description": "nooo",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": "index.js (5:11) @ ClassDefault.render
@@ -564,22 +586,21 @@ describe('pages/ error recovery', () => {
         `)
       } else {
         await expect(browser).toDisplayRedbox(`
-                {
-                  "count": 1,
-                  "description": "Error: nooo",
-                  "environmentLabel": null,
-                  "label": "Unhandled Runtime Error",
-                  "source": "index.js (5:11) @ ClassDefault.render
-                > 5 |     throw new Error('nooo');
-                    |           ^",
-                  "stack": [
-                    "ClassDefault.render index.js (5:11)",
-                    "Set.forEach <anonymous> (0:0)",
-                    "<FIXME-file-protocol>",
-                    "<FIXME-file-protocol>",
-                  ],
-                }
-              `)
+         {
+           "description": "nooo",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "index.js (5:11) @ ClassDefault.render
+         > 5 |     throw new Error('nooo');
+             |           ^",
+           "stack": [
+             "ClassDefault.render index.js (5:11)",
+             "Set.forEach <anonymous> (0:0)",
+             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
+             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
+           ],
+         }
+        `)
       }
     }
   })
@@ -627,41 +648,57 @@ describe('pages/ error recovery', () => {
       `
     )
 
+    // TODO(veil): ignore-list Webpack runtime (https://linear.app/vercel/issue/NDX-945)
+    // TODO(veil): Don't bail in Turbopack for sources outside of the project (https://linear.app/vercel/issue/NDX-944)
     // We get an error because Foo didn't import React. Fair.
     // Somehow we end up with two in React 18 due to React's attempt to recover from this error.
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
-       {
-         "count": 2,
-         "description": "ReferenceError: React is not defined",
-         "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
-         "source": "Foo.js (3:3) @ Foo
+       [
+         {
+           "description": "React is not defined",
+           "environmentLabel": null,
+           "label": "Runtime ReferenceError",
+           "source": "Foo.js (3:3) @ Foo
        > 3 |   return React.createElement('h1', null, 'Foo');
            |   ^",
-         "stack": [
-           "Foo Foo.js (3:3)",
-           "Set.forEach <anonymous> (0:0)",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
-         ],
-       }
+           "stack": [
+             "Foo Foo.js (3:3)",
+             "Set.forEach <anonymous> (0:0)",
+             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
+             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
+           ],
+         },
+         {
+           "description": "React is not defined",
+           "environmentLabel": null,
+           "label": "Runtime ReferenceError",
+           "source": "Foo.js (3:3) @ Foo
+       > 3 |   return React.createElement('h1', null, 'Foo');
+           |   ^",
+           "stack": [
+             "Foo Foo.js (3:3)",
+             "Set.forEach <anonymous> (0:0)",
+             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
+             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
+           ],
+         },
+       ]
       `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "ReferenceError: React is not defined",
+         "description": "React is not defined",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime ReferenceError",
          "source": "Foo.js (3:3) @ Foo
        > 3 |   return React.createElement('h1', null, 'Foo');
            |   ^",
          "stack": [
            "Foo Foo.js (3:3)",
            "Set.forEach <anonymous> (0:0)",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
+           "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
+           "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
          ],
        }
       `)
@@ -718,10 +755,9 @@ describe('pages/ error recovery', () => {
     if (process.env.NEXT_RSPACK) {
       await expect(browser).toDisplayRedbox(`
             {
-              "count": 1,
-              "description": "Error: no 1",
+              "description": "no 1",
               "environmentLabel": null,
-              "label": "Unhandled Runtime Error",
+              "label": "Runtime Error",
               "source": "index.js (5:9) @ <unknown>
             > 5 |   throw Error('no ' + i)
                 |         ^",
@@ -733,10 +769,9 @@ describe('pages/ error recovery', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error: no 1",
+         "description": "no 1",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": "index.js (5:9) @ eval
        > 5 |   throw Error('no ' + i)
            |         ^",
@@ -767,7 +802,6 @@ describe('pages/ error recovery', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
@@ -781,7 +815,6 @@ describe('pages/ error recovery', () => {
     } else if (process.env.NEXT_RSPACK) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "  × Module build failed:",
          "environmentLabel": null,
          "label": "Build Error",
@@ -808,8 +841,7 @@ describe('pages/ error recovery', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error:   x Expected '}', got '<eof>'",
+         "description": "  x Expected '}', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
@@ -838,7 +870,6 @@ describe('pages/ error recovery', () => {
       // TODO: Remove this branching once import traces are implemented in Turbopack
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
@@ -852,7 +883,6 @@ describe('pages/ error recovery', () => {
     } else if (process.env.NEXT_RSPACK) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "  × Module build failed:",
          "environmentLabel": null,
          "label": "Build Error",
@@ -879,8 +909,7 @@ describe('pages/ error recovery', () => {
     } else {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error:   x Expected '}', got '<eof>'",
+         "description": "  x Expected '}', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js

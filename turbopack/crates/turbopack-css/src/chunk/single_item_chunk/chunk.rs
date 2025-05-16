@@ -3,10 +3,10 @@ use std::fmt::Write;
 use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{File, FileSystemPath};
+use turbo_tasks_fs::{File, FileSystemPath, rope::RopeBuilder};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{Chunk, ChunkItem, ChunkingContext},
+    chunk::{Chunk, ChunkItem, ChunkingContext, MinifyType},
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
     introspect::Introspectable,
@@ -15,14 +15,14 @@ use turbopack_core::{
 };
 
 use super::source_map::SingleItemCssChunkSourceMapAsset;
-use crate::chunk::{write_import_context, CssChunkItem};
+use crate::chunk::{CssChunkItem, write_import_context};
 
 /// A CSS chunk that only contains a single item. This is used for selectively
 /// loading CSS modules that are part of a larger chunk in development mode, and
 /// avoiding rule duplication.
 #[turbo_tasks::value]
 pub struct SingleItemCssChunk {
-    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    pub(super) chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     item: ResolvedVc<Box<dyn CssChunkItem>>,
 }
 
@@ -49,33 +49,33 @@ impl SingleItemCssChunk {
         use std::io::Write;
 
         let this = self.await?;
-        let mut code = CodeBuilder::default();
+        let source_maps = *this
+            .chunking_context
+            .reference_chunk_source_maps(Vc::upcast(self))
+            .await?;
+        let mut code = CodeBuilder::new(source_maps);
 
-        let id = &*this.item.id().await?;
-
-        writeln!(code, "/* {} */", id)?;
+        if matches!(
+            &*this.chunking_context.minify_type().await?,
+            MinifyType::NoMinify
+        ) {
+            let id = this.item.asset_ident().to_string().await?;
+            writeln!(code, "/* {id} */")?;
+        }
         let content = this.item.content().await?;
         let close = write_import_context(&mut code, content.import_context).await?;
 
         code.push_source(&content.inner_code, content.source_map.clone());
         write!(code, "{close}")?;
 
-        if *this
-            .chunking_context
-            .reference_chunk_source_maps(Vc::upcast(self))
-            .await?
-            && code.has_source_map()
-        {
-            let chunk_path = self.path().await?;
-            write!(
-                code,
-                "\n/*# sourceMappingURL={}.map*/",
-                urlencoding::encode(chunk_path.file_name())
-            )?;
-        }
-
         let c = code.build().cell();
         Ok(c)
+    }
+
+    #[turbo_tasks::function]
+    pub(super) async fn ident_for_path(&self) -> Result<Vc<AssetIdent>> {
+        let item = self.item.asset_ident();
+        Ok(item.with_modifier(single_item_modifier()))
     }
 }
 
@@ -101,13 +101,12 @@ fn single_item_modifier() -> Vc<RcStr> {
 #[turbo_tasks::value_impl]
 impl OutputAsset for SingleItemCssChunk {
     #[turbo_tasks::function]
-    fn path(&self) -> Vc<FileSystemPath> {
-        self.chunking_context.chunk_path(
-            self.item
-                .asset_ident()
-                .with_modifier(single_item_modifier()),
-            ".css".into(),
-        )
+    async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+        Ok(self.await?.chunking_context.chunk_path(
+            Some(Vc::upcast(self)),
+            self.ident_for_path(),
+            ".single.css".into(),
+        ))
     }
 
     #[turbo_tasks::function]
@@ -134,9 +133,23 @@ impl Asset for SingleItemCssChunk {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let code = self.code().await?;
-        Ok(AssetContent::file(
-            File::from(code.source_code().clone()).into(),
-        ))
+
+        let rope = if code.has_source_map() {
+            use std::io::Write;
+            let mut rope_builder = RopeBuilder::default();
+            rope_builder.concat(code.source_code());
+            let source_map_path = SingleItemCssChunkSourceMapAsset::new(self).path().await?;
+            write!(
+                rope_builder,
+                "\n/*# sourceMappingURL={}*/",
+                urlencoding::encode(source_map_path.file_name())
+            )?;
+            rope_builder.build()
+        } else {
+            code.source_code().clone()
+        };
+
+        Ok(AssetContent::file(File::from(rope).into()))
     }
 }
 

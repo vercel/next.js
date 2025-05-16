@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 
 export function useFocusTrap(
   rootRef: React.RefObject<HTMLElement | null>,
-  triggerRef: React.RefObject<HTMLButtonElement | null>,
+  triggerRef: React.RefObject<HTMLButtonElement | null> | null,
   active: boolean,
   onOpenFocus?: () => void
 ) {
@@ -46,7 +46,7 @@ export function useFocusTrap(
         // Only restore focus if the focus was previously on the content.
         // This avoids us accidentally focusing on mount when the
         // user could want to interact with their own app instead.
-        if (rootNode?.contains(activeElement)) {
+        if (triggerRef && rootNode?.contains(activeElement)) {
           triggerRef.current?.focus()
         }
       }

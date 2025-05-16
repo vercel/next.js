@@ -9,6 +9,7 @@ import { ErrorOverlay } from './components/errors/error-overlay/error-overlay'
 import { DevToolsIndicator } from './components/errors/dev-tools-indicator/dev-tools-indicator'
 import { RenderError } from './container/runtime-error/render-error'
 import { DarkTheme } from './styles/dark-theme'
+import { useDevToolsScale } from './components/errors/dev-tools-indicator/dev-tools-info/preferences'
 
 export function DevOverlay({
   state,
@@ -21,29 +22,35 @@ export function DevOverlay({
     isErrorOverlayOpen: boolean | ((prev: boolean) => boolean)
   ) => void
 }) {
+  const [scale, setScale] = useDevToolsScale()
   return (
     <ShadowPortal>
       <CssReset />
-      <Base />
+      <Base scale={scale} />
       <Colors />
       <ComponentStyles />
       <DarkTheme />
 
       <RenderError state={state} isAppDir={true}>
         {({ runtimeErrors, totalErrorCount }) => {
-          const isBuildError = runtimeErrors.length === 0
+          const isBuildError = state.buildError !== null
           return (
             <>
-              <DevToolsIndicator
-                state={state}
-                errorCount={totalErrorCount}
-                isBuildError={isBuildError}
-                setIsErrorOverlayOpen={setIsErrorOverlayOpen}
-              />
+              {state.showIndicator && (
+                <DevToolsIndicator
+                  scale={scale}
+                  setScale={setScale}
+                  state={state}
+                  errorCount={totalErrorCount}
+                  isBuildError={isBuildError}
+                  setIsErrorOverlayOpen={setIsErrorOverlayOpen}
+                />
+              )}
 
               <ErrorOverlay
                 state={state}
                 runtimeErrors={runtimeErrors}
+                errorCount={totalErrorCount}
                 isErrorOverlayOpen={isErrorOverlayOpen}
                 setIsErrorOverlayOpen={setIsErrorOverlayOpen}
               />

@@ -3,7 +3,6 @@
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/chained-attributes/input/index.js [test] (ecmascript)": ((__turbopack_context__) => {
 "use strict";
 
-var { g: global, d: __dirname } = __turbopack_context__;
 {
 __turbopack_context__.s({});
 ;

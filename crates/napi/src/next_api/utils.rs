@@ -1,25 +1,30 @@
 use std::{future::Future, ops::Deref, path::PathBuf, sync::Arc, time::Duration};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use napi::{
+    JsFunction, JsObject, JsUnknown, NapiRaw, NapiValue, Status,
     bindgen_prelude::{External, ToNapiValue},
     threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode},
-    JsFunction, JsObject, JsUnknown, NapiRaw, NapiValue, Status,
 };
 use rustc_hash::FxHashMap;
 use serde::Serialize;
+use tokio::sync::mpsc::Receiver;
 use turbo_tasks::{
-    task_statistics::TaskStatisticsApi, trace::TraceRawVcs, OperationVc, ReadRef, TaskId,
-    TryJoinIterExt, TurboTasks, TurboTasksApi, UpdateInfo, Vc,
+    Effects, OperationVc, ReadRef, TaskId, TryJoinIterExt, TurboTasks, TurboTasksApi, UpdateInfo,
+    Vc, VcValueType, get_effects, message_queue::CompilationEvent,
+    task_statistics::TaskStatisticsApi, trace::TraceRawVcs,
 };
 use turbo_tasks_backend::{
-    default_backing_storage, noop_backing_storage, DefaultBackingStorage, NoopBackingStorage,
+    DefaultBackingStorage, GitVersionInfo, NoopBackingStorage, default_backing_storage,
+    noop_backing_storage,
 };
 use turbo_tasks_fs::FileContent;
 use turbopack_core::{
     diagnostics::{Diagnostic, DiagnosticContextExt, PlainDiagnostic},
     error::PrettyPrintError,
-    issue::{IssueDescriptionExt, PlainIssue, PlainIssueSource, PlainSource, StyledString},
+    issue::{
+        IssueDescriptionExt, IssueSeverity, PlainIssue, PlainIssueSource, PlainSource, StyledString,
+    },
     source_pos::SourcePos,
 };
 
@@ -121,6 +126,29 @@ impl NextTurboTasks {
             NextTurboTasks::PersistentCaching(turbo_tasks) => turbo_tasks.task_statistics(),
         }
     }
+
+    pub fn get_compilation_events_stream(
+        &self,
+        event_types: Option<Vec<String>>,
+    ) -> Receiver<Arc<dyn CompilationEvent>> {
+        match self {
+            NextTurboTasks::Memory(turbo_tasks) => {
+                turbo_tasks.subscribe_to_compilation_events(event_types)
+            }
+            NextTurboTasks::PersistentCaching(turbo_tasks) => {
+                turbo_tasks.subscribe_to_compilation_events(event_types)
+            }
+        }
+    }
+
+    pub fn send_compilation_event(&self, event: Arc<dyn CompilationEvent>) {
+        match self {
+            NextTurboTasks::Memory(turbo_tasks) => turbo_tasks.send_compilation_event(event),
+            NextTurboTasks::PersistentCaching(turbo_tasks) => {
+                turbo_tasks.send_compilation_event(event)
+            }
+        }
+    }
 }
 
 pub fn create_turbo_tasks(
@@ -130,26 +158,10 @@ pub fn create_turbo_tasks(
     dependency_tracking: bool,
 ) -> Result<NextTurboTasks> {
     Ok(if persistent_caching {
-        let dirty_suffix = if crate::build::GIT_CLEAN
-            || option_env!("CI").is_some_and(|value| !value.is_empty())
-        {
-            ""
-        } else {
-            "-dirty"
-        };
-        #[allow(
-            clippy::const_is_empty,
-            reason = "LAST_TAG might be empty if the tag can't be determined"
-        )]
-        let version_info = if crate::build::LAST_TAG.is_empty() {
-            format!("{}{}", crate::build::SHORT_COMMIT, dirty_suffix)
-        } else {
-            format!(
-                "{}-{}{}",
-                crate::build::LAST_TAG,
-                crate::build::SHORT_COMMIT,
-                dirty_suffix
-            )
+        let version_info = GitVersionInfo {
+            describe: env!("VERGEN_GIT_DESCRIBE"),
+            dirty: option_env!("CI").is_none_or(|value| value.is_empty())
+                && env!("VERGEN_GIT_DIRTY") == "true",
         };
         NextTurboTasks::PersistentCaching(TurboTasks::new(
             turbo_tasks_backend::TurboTasksBackend::new(
@@ -441,10 +453,12 @@ impl<T: ToNapiValue> ToNapiValue for TurbopackResult<T> {
         env: napi::sys::napi_env,
         val: Self,
     ) -> napi::Result<napi::sys::napi_value> {
-        let mut obj = napi::Env::from_raw(env).create_object()?;
+        let mut obj = unsafe { napi::Env::from_raw(env).create_object()? };
 
-        let result = T::to_napi_value(env, val.result)?;
-        let result = JsUnknown::from_raw(env, result)?;
+        let result = unsafe {
+            let result = T::to_napi_value(env, val.result)?;
+            JsUnknown::from_raw(env, result)?
+        };
         if matches!(result.get_type()?, napi::ValueType::Object) {
             // SAFETY: We know that result is an object, so we can cast it to a JsObject
             let result = unsafe { result.cast::<JsObject>() };
@@ -458,7 +472,7 @@ impl<T: ToNapiValue> ToNapiValue for TurbopackResult<T> {
         obj.set_named_property("issues", val.issues)?;
         obj.set_named_property("diagnostics", val.diagnostics)?;
 
-        Ok(obj.raw())
+        Ok(unsafe { obj.raw() })
     }
 }
 
@@ -477,15 +491,14 @@ pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send,
 
             let status = func.call(
                 result.map_err(|e| {
-                    let error = PrettyPrintError(&e).to_string();
-                    log_internal_error_and_inform(&error);
-                    napi::Error::from_reason(error)
+                    log_internal_error_and_inform(&e);
+                    napi::Error::from_reason(PrettyPrintError(&e).to_string())
                 }),
                 ThreadsafeFunctionCallMode::NonBlocking,
             );
             if !matches!(status, Status::Ok) {
                 let error = anyhow!("Error calling JS function: {}", status);
-                eprintln!("{}", error);
+                eprintln!("{error}");
                 return Err::<Vc<()>, _>(error);
             }
             Ok(Default::default())
@@ -495,4 +508,28 @@ pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send,
         turbo_tasks,
         task_id: Some(task_id),
     }))
+}
+
+// Await the source and return fatal issues if there are any, otherwise
+// propagate any actual error results.
+pub async fn strongly_consistent_catch_collectables<R: VcValueType + Send>(
+    source_op: OperationVc<R>,
+) -> Result<(
+    Option<ReadRef<R>>,
+    Arc<Vec<ReadRef<PlainIssue>>>,
+    Arc<Vec<ReadRef<PlainDiagnostic>>>,
+    Arc<Effects>,
+)> {
+    let result = source_op.read_strongly_consistent().await;
+    let issues = get_issues(source_op).await?;
+    let diagnostics = get_diagnostics(source_op).await?;
+    let effects = Arc::new(get_effects(source_op).await?);
+
+    let result = if result.is_err() && issues.iter().any(|i| i.severity <= IssueSeverity::Error) {
+        None
+    } else {
+        Some(result?)
+    };
+
+    Ok((result, issues, diagnostics, effects))
 }

@@ -247,7 +247,7 @@ pub fn is_metadata_route(mut route: &str) -> bool {
 
     let mut page = route.to_string();
     if !page.starts_with('/') {
-        page = format!("/{}", page);
+        page = format!("/{page}");
     }
 
     !page.ends_with("/page") && is_metadata_route_file(&page, &[], false)

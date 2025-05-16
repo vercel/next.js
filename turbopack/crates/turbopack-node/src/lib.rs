@@ -1,28 +1,25 @@
 #![feature(min_specialization)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
-#![feature(extract_if)]
 
 use std::{iter::once, thread::available_parallelism};
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 pub use node_entry::{NodeEntry, NodeRenderingEntries, NodeRenderingEntry};
 use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    graph::{AdjacencyMap, GraphTraversal},
     FxIndexSet, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    graph::{AdjacencyMap, GraphTraversal},
 };
 use turbo_tasks_env::ProcessEnv;
-use turbo_tasks_fs::{to_sys_path, File, FileSystemPath};
+use turbo_tasks_fs::{File, FileSystemPath, to_sys_path};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     changed::content_changed,
-    chunk::{
-        ChunkGroupType, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets,
-    },
+    chunk::{ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets},
     module::Module,
-    module_graph::ModuleGraph,
+    module_graph::{ModuleGraph, chunk_group_info::ChunkGroupEntry},
     output::{OutputAsset, OutputAssets, OutputAssetsSet},
     source_map::GenerateSourceMap,
     virtual_output::VirtualOutputAsset,
@@ -258,9 +255,10 @@ pub async fn get_intermediate_asset(
     other_entries: Vc<EvaluatableAssets>,
 ) -> Result<Vc<Box<dyn OutputAsset>>> {
     Ok(Vc::upcast(chunking_context.root_entry_chunk_group_asset(
-        chunking_context.chunk_path(main_entry.ident(), ".js".into()),
+        chunking_context.chunk_path(None, main_entry.ident(), ".js".into()),
         other_entries.with_entry(*main_entry),
-        ModuleGraph::from_modules(Vc::cell(vec![(
+        ModuleGraph::from_modules(
+            Vc::cell(vec![ChunkGroupEntry::Entry(
                 other_entries
                     .await?
                     .into_iter()
@@ -268,8 +266,9 @@ pub async fn get_intermediate_asset(
                     .chain(std::iter::once(main_entry))
                     .map(ResolvedVc::upcast)
                     .collect(),
-                ChunkGroupType::Entry,
-            )])),
+            )]),
+            false,
+        ),
         OutputAssets::empty(),
     )))
 }

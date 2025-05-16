@@ -1,23 +1,14 @@
-use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
+    chunk::ChunkingContext,
     ident::AssetIdent,
     module::Module,
-    module_graph::ModuleGraph,
-    output::{OutputAsset, OutputAssets},
+    output::OutputAsset,
     source::Source,
 };
-use turbopack_css::{
-    chunk::{CssChunkItem, CssChunkItemContent, CssChunkType},
-    embed::CssEmbed,
-};
-use turbopack_ecmascript::{
-    chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
-    utils::StringifyJs,
-};
+use turbopack_css::embed::CssEmbed;
 
 use crate::output_asset::StaticOutputAsset;
 
@@ -65,102 +56,13 @@ impl Asset for StaticUrlCssModule {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableModule for StaticUrlCssModule {
+impl CssEmbed for StaticUrlCssModule {
     #[turbo_tasks::function]
-    async fn as_chunk_item(
-        self: ResolvedVc<Self>,
-        _module_graph: Vc<ModuleGraph>,
-        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
-        Ok(Vc::upcast(StaticUrlCssChunkItem::cell(
-            StaticUrlCssChunkItem {
-                module: self,
-                chunking_context,
-                static_asset: self
-                    .static_output_asset(*ResolvedVc::upcast(chunking_context))
-                    .to_resolved()
-                    .await?,
-            },
-        )))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl EcmascriptChunkPlaceable for StaticUrlCssModule {
-    #[turbo_tasks::function]
-    fn get_exports(&self) -> Vc<EcmascriptExports> {
-        EcmascriptExports::Value.into()
-    }
-}
-
-#[turbo_tasks::value]
-struct StaticUrlCssChunkItem {
-    module: ResolvedVc<StaticUrlCssModule>,
-    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    static_asset: ResolvedVc<StaticOutputAsset>,
-}
-
-#[turbo_tasks::value_impl]
-impl ChunkItem for StaticUrlCssChunkItem {
-    #[turbo_tasks::function]
-    fn asset_ident(&self) -> Vc<AssetIdent> {
-        self.module.ident()
-    }
-
-    #[turbo_tasks::function]
-    fn references(&self) -> Vc<OutputAssets> {
-        Vc::cell(vec![ResolvedVc::upcast(self.static_asset)])
-    }
-
-    #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *ResolvedVc::upcast(self.chunking_context)
-    }
-
-    #[turbo_tasks::function]
-    async fn ty(&self) -> Result<Vc<Box<dyn ChunkType>>> {
-        Ok(Vc::upcast(Vc::<CssChunkType>::default().resolve().await?))
-    }
-
-    #[turbo_tasks::function]
-    fn module(&self) -> Vc<Box<dyn Module>> {
-        *ResolvedVc::upcast(self.module)
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl CssChunkItem for StaticUrlCssChunkItem {
-    #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *self.chunking_context
-    }
-
-    #[turbo_tasks::function]
-    async fn content(&self) -> Result<Vc<CssChunkItemContent>> {
-        Ok(CssChunkItemContent {
-            import_context: None,
-            imports: Vec::new(),
-            source_map: None,
-            inner_code: format!(
-                "/* embedded static asset {path} */",
-                path = StringifyJs(
-                    &self
-                        .chunking_context
-                        .asset_url(self.static_asset.path())
-                        .await?
-                )
-            )
-            .into(),
-        }
-        .into())
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl CssEmbed for StaticUrlCssChunkItem {
-    #[turbo_tasks::function]
-    fn embedded_asset(&self) -> Vc<Box<dyn OutputAsset>> {
-        *ResolvedVc::upcast(self.static_asset)
+    fn embedded_asset(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Vc<Box<dyn OutputAsset>> {
+        Vc::upcast(self.static_output_asset(chunking_context))
     }
 }
 

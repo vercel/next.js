@@ -4,7 +4,7 @@ use anyhow::Result;
 use serde_json::Value as JsonValue;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ReadRef, ResolvedVc, Vc,
+    NonLocalValue, ReadRef, ResolvedVc, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileContent, FileJsonContent, FileSystemPath};
 
@@ -44,7 +44,7 @@ pub async fn read_package_json(path: ResolvedVc<FileSystemPath>) -> Result<Vc<Op
                 let text = content.content().to_str()?;
                 e.write_with_content(&mut message, &text)?;
             } else {
-                write!(message, "{}", e)?;
+                write!(message, "{e}")?;
             }
             PackageJsonIssue {
                 error_message: message.into(),

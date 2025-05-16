@@ -1,4 +1,4 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use swc_core::{common::DUMMY_SP, ecma::ast::Ident, quote};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
@@ -8,7 +8,6 @@ use turbopack_core::{
         ModuleChunkItemIdExt,
     },
     module::Module,
-    module_graph::ModuleGraph,
     reference::ModuleReference,
     resolve::{ModulePart, ModuleResolveResult},
 };
@@ -83,9 +82,7 @@ impl ModuleReference for EcmascriptModulePartReference {
                 | ModulePart::RenamedNamespace { .. } => Vc::upcast(
                     EcmascriptModuleFacadeModule::new(*self.module, part.clone()),
                 ),
-                ModulePart::Export(..)
-                | ModulePart::Internal(..)
-                | ModulePart::InternalEvaluation(..) => {
+                ModulePart::Export(..) | ModulePart::Internal(..) => {
                     bail!(
                         "Unexpected ModulePart \"{}\" for EcmascriptModulePartReference",
                         part
@@ -105,14 +102,16 @@ impl ModuleReference for EcmascriptModulePartReference {
 impl ChunkableModuleReference for EcmascriptModulePartReference {
     #[turbo_tasks::function]
     fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::ParallelInheritAsync))
+        Vc::cell(Some(ChunkingType::Parallel {
+            inherit_async: true,
+            hoisted: true,
+        }))
     }
 }
 
 impl EcmascriptModulePartReference {
     pub async fn code_generation(
         self: Vc<Self>,
-        _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let referenced_asset = ReferencedAsset::from_resolve_result(self.resolve_reference());

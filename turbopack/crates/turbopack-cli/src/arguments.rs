@@ -5,7 +5,7 @@ use std::{
 
 use clap::{Args, Parser, ValueEnum};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{NonLocalValue, TaskInput};
+use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
 use turbopack_cli_utils::issue::IssueSeverityCliOption;
 
 #[derive(Debug, Parser)]
@@ -37,6 +37,7 @@ impl Arguments {
     Hash,
     TaskInput,
     NonLocalValue,
+    TraceRawVcs,
 )]
 pub enum Target {
     Browser,

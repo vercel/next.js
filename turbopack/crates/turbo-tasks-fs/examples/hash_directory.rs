@@ -11,10 +11,10 @@ use std::{
 use anyhow::Result;
 use sha2::{Digest, Sha256};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{util::FormatDuration, ReadConsistency, TurboTasks, UpdateInfo, Vc};
+use turbo_tasks::{ReadConsistency, TurboTasks, UpdateInfo, Vc, util::FormatDuration};
 use turbo_tasks_fs::{
-    register, DirectoryContent, DirectoryEntry, DiskFileSystem, FileContent, FileSystem,
-    FileSystemPath,
+    DirectoryContent, DirectoryEntry, DiskFileSystem, FileContent, FileSystem, FileSystemPath,
+    register,
 };
 use turbo_tasks_memory::MemoryBackend;
 
@@ -100,7 +100,7 @@ async fn hash_directory(directory: Vc<FileSystemPath>) -> Result<Vc<RcStr>> {
             .join(",")
             .as_bytes(),
     );
-    println!("hash_directory({})", dir_path);
+    println!("hash_directory({dir_path})");
     Ok(hash)
 }
 

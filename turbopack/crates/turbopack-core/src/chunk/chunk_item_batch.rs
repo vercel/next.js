@@ -4,23 +4,23 @@ use anyhow::Result;
 use either::Either;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use smallvec::{smallvec, SmallVec};
+use smallvec::{SmallVec, smallvec};
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput,
-    TryFlatJoinIterExt, TryJoinIterExt, Vc,
+    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt,
+    Vc, trace::TraceRawVcs,
 };
 
 use crate::{
     chunk::{ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkableModule, ChunkingContext},
     module_graph::{
+        ModuleGraph,
         async_module_info::AsyncModulesInfo,
         chunk_group_info::RoaringBitmapWrapper,
         module_batch::{ChunkableModuleBatchGroup, ChunkableModuleOrBatch, ModuleBatch},
-        ModuleGraph,
     },
 };
 
-async fn attach_async_info_to_chunkable_module(
+pub async fn attach_async_info_to_chunkable_module(
     module: ResolvedVc<Box<dyn ChunkableModule>>,
     async_module_info: &ReadRef<AsyncModulesInfo>,
     module_graph: Vc<ModuleGraph>,
@@ -105,6 +105,7 @@ impl ChunkItemOrBatchWithAsyncModuleInfo {
 }
 
 #[turbo_tasks::value]
+#[derive(Debug, Clone, Hash, TaskInput)]
 pub struct ChunkItemBatchWithAsyncModuleInfo {
     pub chunk_items: Vec<ChunkItemWithAsyncModuleInfo>,
     pub chunk_groups: Option<RoaringBitmapWrapper>,
@@ -112,6 +113,15 @@ pub struct ChunkItemBatchWithAsyncModuleInfo {
 
 #[turbo_tasks::value_impl]
 impl ChunkItemBatchWithAsyncModuleInfo {
+    #[turbo_tasks::function]
+    pub fn new(chunk_items: Vec<ChunkItemWithAsyncModuleInfo>) -> Vc<Self> {
+        Self {
+            chunk_items,
+            chunk_groups: None,
+        }
+        .cell()
+    }
+
     #[turbo_tasks::function]
     pub async fn from_module_batch(
         batch: Vc<ModuleBatch>,

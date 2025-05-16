@@ -1,3 +1,4 @@
+import '../lib/require-instrumentation-client'
 import { hydrate, router } from './'
 import initOnDemandEntries from './dev/on-demand-entries-client'
 import { devBuildIndicator } from './dev/dev-build-indicator/internal/dev-build-indicator'

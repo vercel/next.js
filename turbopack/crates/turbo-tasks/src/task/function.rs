@@ -26,7 +26,7 @@ use std::{future::Future, marker::PhantomData, pin::Pin};
 use anyhow::Result;
 
 use super::{TaskInput, TaskOutput};
-use crate::{magic_any::MagicAny, RawVc, Vc, VcRead, VcValueType};
+use crate::{RawVc, Vc, VcRead, VcValueType, magic_any::MagicAny};
 
 pub type NativeTaskFuture = Pin<Box<dyn Future<Output = Result<RawVc>> + Send>>;
 

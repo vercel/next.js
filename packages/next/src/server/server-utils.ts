@@ -5,7 +5,6 @@ import type { BaseNextRequest } from './base-http'
 import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
 
-import { format as formatUrl, parse as parseUrl } from 'url'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
@@ -17,19 +16,32 @@ import {
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { normalizeRscURL } from '../shared/lib/router/utils/app-paths'
 import {
+  NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
+  NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   NEXT_INTERCEPTION_MARKER_PREFIX,
   NEXT_QUERY_PARAM_PREFIX,
 } from '../lib/constants'
 import { normalizeNextQueryParam } from './web/utils'
+import type { IncomingHttpHeaders, IncomingMessage } from 'http'
+import { decodeQueryPathParameter } from './lib/decode-query-path-parameter'
+import type { DeepReadonly } from '../shared/lib/deep-readonly'
+import { parseReqUrl } from '../lib/url'
+import { formatUrl } from '../shared/lib/router/utils/format-url'
 
-export function normalizeVercelUrl(
-  req: BaseNextRequest,
+export function normalizeCdnUrl(
+  req: BaseNextRequest | IncomingMessage,
   paramKeys: string[],
   defaultRouteRegex: ReturnType<typeof getNamedRouteRegex> | undefined
 ) {
-  // make sure to normalize req.url on Vercel to strip dynamic and rewrite
+  // make sure to normalize req.url from CDNs to strip dynamic and rewrite
   // params from the query which are added during routing
-  const _parsedUrl = parseUrl(req.url!, true)
+  const _parsedUrl = parseReqUrl(req.url!)
+
+  // we can't normalize if we can't parse
+  if (!_parsedUrl) {
+    return req.url
+  }
+
   delete (_parsedUrl as any).search
 
   for (const key of Object.keys(_parsedUrl.query)) {
@@ -160,7 +172,7 @@ export function normalizeDynamicRouteParams(
   }
 }
 
-export function getUtils({
+export function getServerUtils({
   page,
   i18n,
   basePath,
@@ -172,11 +184,11 @@ export function getUtils({
   page: string
   i18n?: NextConfig['i18n']
   basePath: string
-  rewrites: {
+  rewrites: DeepReadonly<{
     fallback?: ReadonlyArray<Rewrite>
     afterFiles?: ReadonlyArray<Rewrite>
     beforeFiles?: ReadonlyArray<Rewrite>
-  }
+  }>
   pageIsDynamic: boolean
   trailingSlash?: boolean
   caseSensitive: boolean
@@ -193,7 +205,10 @@ export function getUtils({
     defaultRouteMatches = dynamicRouteMatcher(page) as ParsedUrlQuery
   }
 
-  function handleRewrites(req: BaseNextRequest, parsedUrl: UrlWithParsedQuery) {
+  function handleRewrites(
+    req: BaseNextRequest | IncomingMessage,
+    parsedUrl: UrlWithParsedQuery
+  ) {
     const rewriteParams = {}
     let fsPathname = parsedUrl.pathname
 
@@ -205,7 +220,7 @@ export function getUtils({
       )
     }
 
-    const checkRewrite = (rewrite: Rewrite): boolean => {
+    const checkRewrite = (rewrite: DeepReadonly<Rewrite>): boolean => {
       const matcher = getPathMatch(
         rewrite.source + (trailingSlash ? '(/)?' : ''),
         {
@@ -223,8 +238,8 @@ export function getUtils({
         const hasParams = matchHas(
           req,
           parsedUrl.query,
-          rewrite.has,
-          rewrite.missing
+          rewrite.has as Rewrite['has'],
+          rewrite.missing as Rewrite['missing']
         )
 
         if (hasParams) {
@@ -359,11 +374,35 @@ export function getUtils({
     return routeMatches
   }
 
+  function normalizeQueryParams(
+    query: Record<string, string | string[] | undefined>
+  ) {
+    // this is used to pass query information in rewrites
+    // but should not be exposed in final query
+    delete query['nextInternalLocale']
+
+    for (const [key, value] of Object.entries(query)) {
+      const normalizedKey = normalizeNextQueryParam(key)
+      if (!normalizedKey) continue
+
+      // Remove the prefixed key from the query params because we want
+      // to consume it for the dynamic route matcher.
+      delete query[key]
+
+      if (typeof value === 'undefined') continue
+
+      query[normalizedKey] = Array.isArray(value)
+        ? value.map((v) => decodeQueryPathParameter(v))
+        : decodeQueryPathParameter(value)
+    }
+  }
+
   return {
     handleRewrites,
     defaultRouteRegex,
     dynamicRouteMatcher,
     defaultRouteMatches,
+    normalizeQueryParams,
     getParamsFromRouteMatches,
     /**
      * Normalize dynamic route params.
@@ -387,11 +426,23 @@ export function getUtils({
         ignoreMissingOptional
       )
     },
-    normalizeVercelUrl: (req: BaseNextRequest, paramKeys: string[]) =>
-      normalizeVercelUrl(req, paramKeys, defaultRouteRegex),
+    normalizeCdnUrl: (
+      req: BaseNextRequest | IncomingMessage,
+      paramKeys: string[]
+    ) => normalizeCdnUrl(req, paramKeys, defaultRouteRegex),
     interpolateDynamicPath: (
       pathname: string,
       params: Record<string, undefined | string | string[]>
     ) => interpolateDynamicPath(pathname, params, defaultRouteRegex),
   }
+}
+
+export function getPreviouslyRevalidatedTags(
+  headers: IncomingHttpHeaders,
+  previewModeId: string | undefined
+): string[] {
+  return typeof headers[NEXT_CACHE_REVALIDATED_TAGS_HEADER] === 'string' &&
+    headers[NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER] === previewModeId
+    ? headers[NEXT_CACHE_REVALIDATED_TAGS_HEADER].split(',')
+    : []
 }

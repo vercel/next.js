@@ -3,7 +3,7 @@ use std::{
     ffi::OsStr,
     fmt::{Debug, Display},
     hash::{Hash, Hasher},
-    mem::{forget, ManuallyDrop},
+    mem::{ManuallyDrop, forget},
     num::NonZeroU8,
     ops::Deref,
     path::{Path, PathBuf},
@@ -22,12 +22,15 @@ mod tagged_value;
 
 /// An immutable reference counted [`String`], similar to [`Arc<String>`][std::sync::Arc].
 ///
-/// This is the preferred immutable string type for [`turbo_task::function`][macro@crate::function]
-/// arguments and inside of [`turbo_task::value`][macro@crate::value].
+/// This is the preferred immutable string type for [`turbo_tasks::function`][func] arguments and
+/// inside of [`turbo_tasks::value`][value].
 ///
 /// As turbo-tasks must store copies of function arguments to enable caching, non-reference counted
 /// [`String`]s would incur frequent cloning. Reference counting typically decreases memory
 /// consumption and CPU time in these cases.
+///
+/// [func]: https://turbopack-rust-docs.vercel.sh/rustdoc/turbo_tasks/attr.function.html
+/// [value]: https://turbopack-rust-docs.vercel.sh/rustdoc/turbo_tasks/attr.value.html
 ///
 /// ## Conversion
 ///

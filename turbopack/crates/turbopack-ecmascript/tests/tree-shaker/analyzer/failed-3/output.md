@@ -1,6 +1,6 @@
 # Items
 
-Count: 31
+Count: 30
 
 ## Item 1: Stmt 0, `ImportOfModule`
 
@@ -470,11 +470,9 @@ graph TD
     Item27;
     Item28;
     Item29;
-    Item29["ModuleEvaluation"];
+    Item29["export structuredError"];
     Item30;
-    Item30["export structuredError"];
-    Item31;
-    Item31["export IPC"];
+    Item30["export IPC"];
     Item2 --> Item1;
     Item3 --> Item2;
 ```
@@ -510,11 +508,9 @@ graph TD
     Item27;
     Item28;
     Item29;
-    Item29["ModuleEvaluation"];
+    Item29["export structuredError"];
     Item30;
-    Item30["export structuredError"];
-    Item31;
-    Item31["export IPC"];
+    Item30["export IPC"];
     Item2 --> Item1;
     Item3 --> Item2;
     Item9 --> Item3;
@@ -633,9 +629,9 @@ graph TD
     Item28 -.-> Item5;
     Item28 -.-> Item4;
     Item28 -.-> Item7;
-    Item30 --> Item7;
-    Item31 --> Item11;
-    Item31 --> Item10;
+    Item29 --> Item7;
+    Item30 --> Item11;
+    Item30 --> Item10;
 ```
 # Phase 3
 ```mermaid
@@ -669,11 +665,9 @@ graph TD
     Item27;
     Item28;
     Item29;
-    Item29["ModuleEvaluation"];
+    Item29["export structuredError"];
     Item30;
-    Item30["export structuredError"];
-    Item31;
-    Item31["export IPC"];
+    Item30["export IPC"];
     Item2 --> Item1;
     Item3 --> Item2;
     Item9 --> Item3;
@@ -792,9 +786,9 @@ graph TD
     Item28 -.-> Item5;
     Item28 -.-> Item4;
     Item28 -.-> Item7;
-    Item30 --> Item7;
-    Item31 --> Item11;
-    Item31 --> Item10;
+    Item29 --> Item7;
+    Item30 --> Item11;
+    Item30 --> Item10;
     Item7 --> Item6;
     Item7 --> Item5;
     Item8 --> Item4;
@@ -832,11 +826,9 @@ graph TD
     Item27;
     Item28;
     Item29;
-    Item29["ModuleEvaluation"];
+    Item29["export structuredError"];
     Item30;
-    Item30["export structuredError"];
-    Item31;
-    Item31["export IPC"];
+    Item30["export IPC"];
     Item2 --> Item1;
     Item3 --> Item2;
     Item9 --> Item3;
@@ -955,14 +947,13 @@ graph TD
     Item28 -.-> Item5;
     Item28 -.-> Item4;
     Item28 -.-> Item7;
-    Item30 --> Item7;
-    Item31 --> Item11;
-    Item31 --> Item10;
+    Item29 --> Item7;
+    Item30 --> Item11;
+    Item30 --> Item10;
     Item7 --> Item6;
     Item7 --> Item5;
     Item8 --> Item4;
     Item8 --> Item7;
-    Item29 --> Item28;
 ```
 # Final
 ```mermaid
@@ -976,18 +967,18 @@ graph TD
     N6["Items: [ItemId(3, Normal)]"];
     N7["Items: [ItemId(4, Normal), ItemId(5, VarDeclarator(0)), ItemId(6, VarDeclarator(0))]"];
     N8["Items: [ItemId(7, Normal)]"];
-    N9["Items: [ItemId(8, VarDeclarator(0)), ItemId(9, Normal), ItemId(10, Normal), ItemId(11, Normal), ItemId(12, Normal), ItemId(13, Normal), ItemId(14, Normal), ItemId(15, Normal), ItemId(16, Normal), ItemId(17, Normal), ItemId(18, Normal), ItemId(19, Normal), ItemId(20, Normal), ItemId(21, Normal), ItemId(22, Normal), ItemId(23, Normal), ItemId(24, Normal), ItemId(ModuleEvaluation)]"];
+    N9["Items: [ItemId(8, VarDeclarator(0)), ItemId(9, Normal), ItemId(10, Normal), ItemId(11, Normal), ItemId(12, Normal), ItemId(13, Normal), ItemId(14, Normal), ItemId(15, Normal), ItemId(16, Normal), ItemId(17, Normal), ItemId(18, Normal), ItemId(19, Normal), ItemId(20, Normal), ItemId(21, Normal), ItemId(22, Normal), ItemId(23, Normal), ItemId(24, Normal)]"];
     N10["Items: [ItemId(Export((&quot;IPC&quot;, #2), &quot;IPC&quot;))]"];
     N11["Items: [ItemId(Export((&quot;structuredError&quot;, #2), &quot;structuredError&quot;))]"];
     N2 --> N0;
     N4 --> N2;
-    N9 -.-> N1;
+    N9 -.-> N5;
     N9 -.-> N3;
     N11 --> N6;
     N10 --> N7;
     N6 --> N5;
+    N3 --> N2;
     N5 --> N4;
-    N9 -.-> N6;
     N7 -.-> N5;
     N7 -.-> N3;
     N7 --> N1;
@@ -997,13 +988,13 @@ graph TD
     N8 -.-> N3;
     N8 -.-> N1;
     N8 -.-> N6;
+    N9 -.-> N1;
+    N9 -.-> N6;
     N7 --> N4;
     N10 --> N8;
-    N1 --> N0;
-    N9 -.-> N5;
     N9 --> N8;
     N6 --> N3;
-    N3 --> N2;
+    N1 --> N0;
 ```
 # Entrypoints
 
@@ -1032,10 +1023,6 @@ import "node:net";
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import { createConnection } from "node:net";
-export { createConnection as a } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
 
 ```
 ## Part 2
@@ -1051,10 +1038,6 @@ import "../compiled/stacktrace-parser";
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
-import { parse as parseStackTrace } from "../compiled/stacktrace-parser";
-export { parseStackTrace as b } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
 
 ```
 ## Part 4
@@ -1069,10 +1052,6 @@ import "./error";
 ```js
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 4
-};
-import { getProperError } from "./error";
-export { getProperError as c } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
 };
 
 ```
@@ -1094,14 +1073,14 @@ function structuredError(e) {
         stack: typeof e.stack === "string" ? parseStackTrace(e.stack) : []
     };
 }
-export { structuredError as d } from "__TURBOPACK_VAR__" assert {
+export { structuredError as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
 ## Part 7
 ```js
-import { d as structuredError } from "__TURBOPACK_PART__" assert {
+import { a as structuredError } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -6
 };
 import "__TURBOPACK_PART__" assert {
@@ -1245,20 +1224,20 @@ function createIpc(port) {
 }
 const PORT = process.argv[2];
 const IPC = createIpc(parseInt(PORT, 10));
-export { createIpc as e } from "__TURBOPACK_VAR__" assert {
+export { createIpc as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
-export { PORT as f } from "__TURBOPACK_VAR__" assert {
+export { PORT as c } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
-export { IPC as g } from "__TURBOPACK_VAR__" assert {
+export { IPC as d } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
 ## Part 8
 ```js
-import { g as IPC } from "__TURBOPACK_PART__" assert {
+import { d as IPC } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -7
 };
 import "__TURBOPACK_PART__" assert {
@@ -1281,16 +1260,16 @@ process.on("uncaughtException", (err)=>{
 ## Part 9
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
+    __turbopack_part__: 5
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
+    __turbopack_part__: 1
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 5
+    __turbopack_part__: 6
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
@@ -1325,15 +1304,15 @@ improveConsole("timeEnd", "stdout", true);
 improveConsole("timeLog", "stdout", true);
 improveConsole("timeStamp", "stdout", true);
 improveConsole("assert", "stderr", true);
-"module evaluation";
-export { improveConsole as h } from "__TURBOPACK_VAR__" assert {
+export { improveConsole as e } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+export { };
 
 ```
 ## Part 10
 ```js
-import { g as IPC } from "__TURBOPACK_PART__" assert {
+import { d as IPC } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -7
 };
 import "__TURBOPACK_PART__" assert {
@@ -1344,7 +1323,7 @@ export { IPC };
 ```
 ## Part 11
 ```js
-import { d as structuredError } from "__TURBOPACK_PART__" assert {
+import { a as structuredError } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -6
 };
 export { structuredError };
@@ -1363,16 +1342,16 @@ export { structuredError } from "__TURBOPACK_PART__" assert {
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
+    __turbopack_part__: 5
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
+    __turbopack_part__: 1
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 5
+    __turbopack_part__: 6
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
@@ -1407,10 +1386,10 @@ improveConsole("timeEnd", "stdout", true);
 improveConsole("timeLog", "stdout", true);
 improveConsole("timeStamp", "stdout", true);
 improveConsole("assert", "stderr", true);
-"module evaluation";
-export { improveConsole as h } from "__TURBOPACK_VAR__" assert {
+export { improveConsole as e } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+export { };
 
 ```
 # Entrypoints
@@ -1440,10 +1419,6 @@ import "node:net";
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import { createConnection } from "node:net";
-export { createConnection as a } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
 
 ```
 ## Part 2
@@ -1459,10 +1434,6 @@ import "../compiled/stacktrace-parser";
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
-import { parse as parseStackTrace } from "../compiled/stacktrace-parser";
-export { parseStackTrace as b } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
 
 ```
 ## Part 4
@@ -1477,10 +1448,6 @@ import "./error";
 ```js
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 4
-};
-import { getProperError } from "./error";
-export { getProperError as c } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
 };
 
 ```
@@ -1502,14 +1469,14 @@ function structuredError(e) {
         stack: typeof e.stack === "string" ? parseStackTrace(e.stack) : []
     };
 }
-export { structuredError as d } from "__TURBOPACK_VAR__" assert {
+export { structuredError as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
 ## Part 7
 ```js
-import { d as structuredError } from "__TURBOPACK_PART__" assert {
+import { a as structuredError } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -6
 };
 import "__TURBOPACK_PART__" assert {
@@ -1647,20 +1614,20 @@ function createIpc(port) {
 }
 const PORT = process.argv[2];
 const IPC = createIpc(parseInt(PORT, 10));
-export { createIpc as e } from "__TURBOPACK_VAR__" assert {
+export { createIpc as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
-export { PORT as f } from "__TURBOPACK_VAR__" assert {
+export { PORT as c } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
-export { IPC as g } from "__TURBOPACK_VAR__" assert {
+export { IPC as d } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
 ## Part 8
 ```js
-import { g as IPC } from "__TURBOPACK_PART__" assert {
+import { d as IPC } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -7
 };
 process.on("uncaughtException", (err)=>{
@@ -1703,15 +1670,15 @@ improveConsole("timeEnd", "stdout", true);
 improveConsole("timeLog", "stdout", true);
 improveConsole("timeStamp", "stdout", true);
 improveConsole("assert", "stderr", true);
-"module evaluation";
-export { improveConsole as h } from "__TURBOPACK_VAR__" assert {
+export { improveConsole as e } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+export { };
 
 ```
 ## Part 10
 ```js
-import { g as IPC } from "__TURBOPACK_PART__" assert {
+import { d as IPC } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -7
 };
 import "__TURBOPACK_PART__" assert {
@@ -1722,7 +1689,7 @@ export { IPC };
 ```
 ## Part 11
 ```js
-import { d as structuredError } from "__TURBOPACK_PART__" assert {
+import { a as structuredError } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -6
 };
 export { structuredError };
@@ -1773,9 +1740,9 @@ improveConsole("timeEnd", "stdout", true);
 improveConsole("timeLog", "stdout", true);
 improveConsole("timeStamp", "stdout", true);
 improveConsole("assert", "stderr", true);
-"module evaluation";
-export { improveConsole as h } from "__TURBOPACK_VAR__" assert {
+export { improveConsole as e } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+export { };
 
 ```

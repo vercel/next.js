@@ -5,14 +5,14 @@ description: Learn more about why accessing certain APIs synchronously now warns
 
 ## Why This Warning Occurred
 
-Somewhere in your code you used an API that opts into [dynamic rendering](/docs/app/building-your-application/rendering/server-components#dynamic-apis).
+Somewhere in your code you used an API that opts into [dynamic rendering](/docs/app/getting-started/partial-prerendering#dynamic-rendering).
 
 Dynamic APIs are:
 
 - The `params` and `searchParams` props that get provided to pages, layouts, metadata APIs, and route handlers.
 - `cookies()`, `draftMode()`, and `headers()` from `next/headers`
 
-In Next 15, these APIs have been made asynchronous. You can read more about this in the Next.js 15 [Upgrade Guide](/docs/app/building-your-application/upgrading/version-15).
+In Next 15, these APIs have been made asynchronous. You can read more about this in the Next.js 15 [Upgrade Guide](/docs/app/guides/upgrading/version-15).
 
 For example, the following code will issue a warning:
 
@@ -31,7 +31,7 @@ In future versions, these APIs will be async and direct access will not work as 
 
 ## Possible Ways to Fix It
 
-The [`next-async-request-api` codemod](/docs/app/building-your-application/upgrading/codemods#next-async-request-api) can fix many of these cases automatically:
+The [`next-async-request-api` codemod](/docs/app/guides/upgrading/codemods#next-async-request-api) can fix many of these cases automatically:
 
 ```bash filename="Terminal"
 $ npx @next/codemod@canary next-async-request-api .

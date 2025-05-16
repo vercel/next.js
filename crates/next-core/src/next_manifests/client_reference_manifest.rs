@@ -1,13 +1,14 @@
 use anyhow::Result;
 use either::Either;
 use indoc::formatdoc;
+use itertools::Itertools;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexSet, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt, ValueToString,
-    Vc,
+    Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
@@ -25,23 +26,24 @@ use crate::{
     next_app::ClientReferencesChunks,
     next_client_reference::{ClientReferenceGraphResult, ClientReferenceType},
     next_config::NextConfig,
+    next_manifests::encode_uri_component::encode_uri_component,
     util::NextRuntime,
 };
 
-#[derive(TaskInput, Clone, Hash, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(TaskInput, Clone, Hash, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
 pub struct ClientReferenceManifestOptions {
-    pub node_root: Vc<FileSystemPath>,
-    pub client_relative_path: Vc<FileSystemPath>,
+    pub node_root: ResolvedVc<FileSystemPath>,
+    pub client_relative_path: ResolvedVc<FileSystemPath>,
     pub entry_name: RcStr,
-    pub client_references: Vc<ClientReferenceGraphResult>,
-    pub client_references_chunks: Vc<ClientReferencesChunks>,
-    pub rsc_app_entry_chunks: Vc<OutputAssets>,
-    pub client_chunking_context: Vc<Box<dyn ChunkingContext>>,
-    pub ssr_chunking_context: Option<Vc<Box<dyn ChunkingContext>>>,
-    pub async_module_info: Vc<AsyncModulesInfo>,
-    pub next_config: Vc<NextConfig>,
+    pub client_references: ResolvedVc<ClientReferenceGraphResult>,
+    pub client_references_chunks: ResolvedVc<ClientReferencesChunks>,
+    pub rsc_app_entry_chunks: ResolvedVc<OutputAssets>,
+    pub client_chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    pub ssr_chunking_context: Option<ResolvedVc<Box<dyn ChunkingContext>>>,
+    pub async_module_info: ResolvedVc<AsyncModulesInfo>,
+    pub next_config: ResolvedVc<NextConfig>,
     pub runtime: NextRuntime,
-    pub mode: Vc<NextMode>,
+    pub mode: NextMode,
 }
 
 #[turbo_tasks::value_impl]
@@ -71,12 +73,20 @@ impl ClientReferenceManifest {
         async move {
             let mut entry_manifest: ClientReferenceManifest = Default::default();
             let mut references = FxIndexSet::default();
-            entry_manifest.module_loading.prefix = next_config
+            let chunk_suffix_path = next_config.chunk_suffix_path().await?;
+            let prefix_path = next_config
                 .computed_asset_prefix()
                 .await?
                 .as_ref()
                 .map(|p| p.clone())
                 .unwrap_or_default();
+            let suffix_path = chunk_suffix_path
+                .as_ref()
+                .map(|p| p.to_string())
+                .unwrap_or("".into());
+
+            // TODO: Add `suffix` to the manifest for React to use.
+            // entry_manifest.module_loading.prefix = prefix_path;
 
             entry_manifest.module_loading.cross_origin = next_config
                 .await?
@@ -171,7 +181,7 @@ impl ClientReferenceManifest {
                 let server_path = client_reference_module_ref.server_ident.to_string().await?;
                 let client_module = client_reference_module_ref.client_module;
                 let client_chunk_item_id = client_module
-                    .chunk_item_id(Vc::upcast(client_chunking_context))
+                    .chunk_item_id(*ResolvedVc::upcast(client_chunking_context))
                     .await?;
 
                 let (client_chunks_paths, client_is_async) =
@@ -193,8 +203,16 @@ impl ClientReferenceManifest {
                                     .map(ToString::to_string)
                             })
                             // It's possible that a chunk also emits CSS files, that will
-                            // be handled separatedly.
+                            // be handled separately.
                             .filter(|path| path.ends_with(".js"))
+                            .map(|path| {
+                                format!(
+                                    "{}{}{}",
+                                    prefix_path,
+                                    path.split('/').map(encode_uri_component).format("/"),
+                                    suffix_path
+                                )
+                            })
                             .map(RcStr::from)
                             .collect::<Vec<_>>();
 
@@ -208,11 +226,11 @@ impl ClientReferenceManifest {
                 if let Some(ssr_chunking_context) = ssr_chunking_context {
                     let ssr_module = client_reference_module_ref.ssr_module;
                     let ssr_chunk_item_id = ssr_module
-                        .chunk_item_id(Vc::upcast(ssr_chunking_context))
+                        .chunk_item_id(*ResolvedVc::upcast(ssr_chunking_context))
                         .await?;
 
                     let rsc_chunk_item_id = client_reference_module
-                        .chunk_item_id(Vc::upcast(ssr_chunking_context))
+                        .chunk_item_id(*ResolvedVc::upcast(ssr_chunking_context))
                         .await?;
 
                     let (ssr_chunks_paths, ssr_is_async) = if runtime == NextRuntime::Edge {
@@ -355,6 +373,8 @@ impl ClientReferenceManifest {
 
                 for (chunk, chunk_path) in client_chunks_with_path {
                     if let Some(path) = client_relative_path.get_path_to(&chunk_path) {
+                        // The entry CSS files and entry JS files don't have prefix and suffix
+                        // applied because it is added by Nex.js during rendering.
                         let path = path.into();
                         if chunk_path.extension_ref() == Some("css") {
                             entry_css_files_with_chunk.push((path, chunk));
@@ -365,7 +385,7 @@ impl ClientReferenceManifest {
                 }
 
                 let inlined = next_config.await?.experimental.inline_css.unwrap_or(false)
-                    && mode.await?.is_production();
+                    && mode.is_production();
                 let entry_css_files_vec = entry_css_files_with_chunk
                     .into_iter()
                     .map(async |(path, chunk)| {
@@ -442,6 +462,6 @@ pub fn get_client_reference_module_key(server_path: &str, export_name: &str) -> 
     if export_name == "*" {
         server_path.into()
     } else {
-        format!("{}#{}", server_path, export_name).into()
+        format!("{server_path}#{export_name}").into()
     }
 }

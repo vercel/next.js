@@ -1,9 +1,9 @@
 use std::{
     env::current_dir,
-    future::{join, Future},
-    io::{stdout, Write},
+    future::{Future, join},
+    io::{Write, stdout},
     net::{IpAddr, SocketAddr},
-    path::{PathBuf, MAIN_SEPARATOR},
+    path::{MAIN_SEPARATOR, PathBuf},
     sync::Arc,
     time::{Duration, Instant},
 };
@@ -13,11 +13,12 @@ use owo_colors::OwoColorize;
 use rustc_hash::FxHashSet;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
+    NonLocalValue, OperationVc, ResolvedVc, TransientInstance, TurboTasks, UpdateInfo, Value, Vc,
+    trace::TraceRawVcs,
     util::{FormatBytes, FormatDuration},
-    ResolvedVc, TransientInstance, TurboTasks, UpdateInfo, Value, Vc,
 };
 use turbo_tasks_backend::{
-    noop_backing_storage, BackendOptions, NoopBackingStorage, TurboTasksBackend,
+    BackendOptions, NoopBackingStorage, TurboTasksBackend, noop_backing_storage,
 };
 use turbo_tasks_fs::FileSystem;
 use turbo_tasks_malloc::TurboMalloc;
@@ -29,12 +30,12 @@ use turbopack_core::{
     server_fs::ServerFileSystem,
 };
 use turbopack_dev_server::{
+    DevServer, DevServerBuilder, SourceProvider,
     introspect::IntrospectionSource,
     source::{
-        combined::CombinedContentSource, router::PrefixedRouterContentSource,
-        static_assets::StaticAssetsContentSource, ContentSource,
+        ContentSource, combined::CombinedContentSource, router::PrefixedRouterContentSource,
+        static_assets::StaticAssetsContentSource,
     },
-    DevServer, DevServerBuilder, NonLocalSourceProvider,
 };
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_env::dotenv::load_env;
@@ -46,7 +47,7 @@ use crate::{
     arguments::DevArguments,
     contexts::NodeEnv,
     util::{
-        normalize_dirs, normalize_entries, output_fs, project_fs, EntryRequest, NormalizedDirs,
+        EntryRequest, NormalizedDirs, normalize_dirs, normalize_entries, output_fs, project_fs,
     },
 };
 
@@ -208,24 +209,39 @@ impl TurbopackDevServerBuilder {
             log_detail,
             log_level: self.log_level,
         });
-        let entry_requests = TransientInstance::new(self.entry_requests);
+        let entry_requests = Arc::new(self.entry_requests);
         let tasks = turbo_tasks.clone();
         let issue_provider = self.issue_reporter.unwrap_or_else(|| {
             // Initialize a ConsoleUi reporter if no custom reporter was provided
             Box::new(move || Vc::upcast(ConsoleUi::new(log_args.clone())))
         });
 
-        let source = move || {
-            source(
-                root_dir.clone(),
-                project_dir.clone(),
-                entry_requests.clone(),
-                eager_compile,
-                browserslist_query.clone(),
-            )
+        #[derive(Clone, TraceRawVcs, NonLocalValue)]
+        struct ServerSourceProvider {
+            root_dir: RcStr,
+            project_dir: RcStr,
+            entry_requests: Arc<Vec<EntryRequest>>,
+            eager_compile: bool,
+            browserslist_query: RcStr,
+        }
+        impl SourceProvider for ServerSourceProvider {
+            fn get_source(&self) -> OperationVc<Box<dyn ContentSource>> {
+                source(
+                    self.root_dir.clone(),
+                    self.project_dir.clone(),
+                    self.entry_requests.clone(),
+                    self.eager_compile,
+                    self.browserslist_query.clone(),
+                )
+            }
+        }
+        let source = ServerSourceProvider {
+            root_dir,
+            project_dir,
+            entry_requests,
+            eager_compile,
+            browserslist_query,
         };
-        // safety: Everything that `source` captures in its closure is a `NonLocalValue`
-        let source = unsafe { NonLocalSourceProvider::new(source) };
 
         let issue_reporter_arc = Arc::new(move || issue_provider.get_issue_reporter());
         Ok(server.serve(tasks, source, issue_reporter_arc))
@@ -236,7 +252,7 @@ impl TurbopackDevServerBuilder {
 async fn source(
     root_dir: RcStr,
     project_dir: RcStr,
-    entry_requests: TransientInstance<Vec<EntryRequest>>,
+    entry_requests: Arc<Vec<EntryRequest>>,
     eager_compile: bool,
     browserslist_query: RcStr,
 ) -> Result<Vc<Box<dyn ContentSource>>> {

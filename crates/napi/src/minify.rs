@@ -30,12 +30,8 @@ use napi::bindgen_prelude::*;
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
 use swc_core::{
-    base::{config::JsMinifyOptions, try_with_handler, BoolOrDataConfig, TransformOutput},
-    common::{errors::ColorConfig, sync::Lrc, FileName, SourceFile, SourceMap, GLOBALS},
-    ecma::minifier::option::{
-        terser::{TerserCompressorOptions, TerserInlineOption},
-        MangleOptions,
-    },
+    base::{TransformOutput, config::JsMinifyOptions, try_with_handler},
+    common::{FileName, GLOBALS, SourceFile, SourceMap, errors::ColorConfig, sync::Lrc},
 };
 
 use crate::{get_compiler, util::MapErr};
@@ -43,7 +39,7 @@ use crate::{get_compiler, util::MapErr};
 pub struct MinifyTask {
     c: swc_core::base::Compiler,
     code: MinifyTarget,
-    opts: swc_core::base::config::JsMinifyOptions,
+    opts: JsMinifyOptions,
 }
 
 #[derive(Deserialize)]
@@ -95,39 +91,12 @@ impl Task for MinifyTask {
                 })
             },
         )
+        .map_err(|e| e.to_pretty_error())
         .convert_err()
     }
 
     fn resolve(&mut self, _: napi::Env, output: Self::Output) -> napi::Result<Self::JsValue> {
         Ok(output)
-    }
-}
-
-/// **NOTE** `inline: 3` breaks some codes.
-///
-/// <https://github.com/vercel/next.js/pull/57904>
-fn patch_opts(opts: &mut JsMinifyOptions) {
-    opts.compress = BoolOrDataConfig::from_obj(TerserCompressorOptions {
-        inline: Some(TerserInlineOption::Num(2)),
-        global_defs: [(
-            "process.env.__NEXT_PRIVATE_MINIMIZE_MACRO_FALSE".into(),
-            false.into(),
-        )]
-        .iter()
-        .cloned()
-        .collect(),
-        ..Default::default()
-    });
-
-    if !opts.mangle.is_false() {
-        let mut mangle = std::mem::take(&mut opts.mangle);
-        if mangle.is_true() {
-            mangle = BoolOrDataConfig::from_obj(MangleOptions::default());
-        }
-        opts.mangle = mangle.map(|mut mangle_opts| {
-            mangle_opts.reserved.push("AbortSignal".into());
-            mangle_opts
-        });
     }
 }
 
@@ -138,8 +107,7 @@ pub fn minify(
     signal: Option<AbortSignal>,
 ) -> napi::Result<AsyncTask<MinifyTask>> {
     let code = serde_json::from_slice(&input)?;
-    let mut opts = serde_json::from_slice(&opts)?;
-    patch_opts(&mut opts);
+    let opts = serde_json::from_slice(&opts)?;
 
     let c = get_compiler();
 
@@ -151,8 +119,7 @@ pub fn minify(
 #[napi]
 pub fn minify_sync(input: Buffer, opts: Buffer) -> napi::Result<TransformOutput> {
     let code: MinifyTarget = serde_json::from_slice(&input)?;
-    let mut opts = serde_json::from_slice(&opts)?;
-    patch_opts(&mut opts);
+    let opts = serde_json::from_slice(&opts)?;
 
     let c = get_compiler();
 
@@ -170,5 +137,6 @@ pub fn minify_sync(input: Buffer, opts: Buffer) -> napi::Result<TransformOutput>
             })
         },
     )
+    .map_err(|e| e.to_pretty_error())
     .convert_err()
 }

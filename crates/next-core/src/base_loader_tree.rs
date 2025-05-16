@@ -3,7 +3,7 @@ use indoc::formatdoc;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack::{transition::Transition, ModuleAssetContext};
+use turbopack::{ModuleAssetContext, transition::Transition};
 use turbopack_core::{
     file_source::FileSource,
     module::Module,
@@ -16,8 +16,8 @@ pub struct BaseLoaderTreeBuilder {
     pub inner_assets: FxIndexMap<RcStr, ResolvedVc<Box<dyn Module>>>,
     counter: usize,
     pub imports: Vec<RcStr>,
-    pub module_asset_context: Vc<ModuleAssetContext>,
-    pub server_component_transition: Vc<Box<dyn Transition>>,
+    pub module_asset_context: ResolvedVc<ModuleAssetContext>,
+    pub server_component_transition: ResolvedVc<Box<dyn Transition>>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -32,6 +32,7 @@ pub enum AppDirModuleType {
     Forbidden,
     Unauthorized,
     GlobalError,
+    GlobalNotFound,
 }
 
 impl AppDirModuleType {
@@ -47,14 +48,15 @@ impl AppDirModuleType {
             AppDirModuleType::Forbidden => "forbidden",
             AppDirModuleType::Unauthorized => "unauthorized",
             AppDirModuleType::GlobalError => "global-error",
+            AppDirModuleType::GlobalNotFound => "global-not-found",
         }
     }
 }
 
 impl BaseLoaderTreeBuilder {
     pub fn new(
-        module_asset_context: Vc<ModuleAssetContext>,
-        server_component_transition: Vc<Box<dyn Transition>>,
+        module_asset_context: ResolvedVc<ModuleAssetContext>,
+        server_component_transition: ResolvedVc<Box<dyn Transition>>,
     ) -> Self {
         BaseLoaderTreeBuilder {
             inner_assets: FxIndexMap::default(),
@@ -77,13 +79,13 @@ impl BaseLoaderTreeBuilder {
         ));
 
         self.server_component_transition
-            .process(source, self.module_asset_context, reference_type)
+            .process(source, *self.module_asset_context, reference_type)
             .module()
     }
 
     pub fn process_module(&self, module: Vc<Box<dyn Module>>) -> Vc<Box<dyn Module>> {
         self.server_component_transition
-            .process_module(module, self.module_asset_context)
+            .process_module(module, *self.module_asset_context)
     }
 
     pub async fn create_module_tuple_code(

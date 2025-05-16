@@ -43,9 +43,13 @@ import { PAGE_TYPES } from '../../../lib/page-types'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getAssumedSourceType } from '../loaders/next-flight-loader'
 import { isAppRouteRoute } from '../../../lib/is-app-route-route'
-import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
+import {
+  DEFAULT_METADATA_ROUTE_EXTENSIONS,
+  isMetadataRouteFile,
+} from '../../../lib/metadata/is-metadata-route'
 import type { MetadataRouteLoaderOptions } from '../loaders/next-metadata-route-loader'
 import type { FlightActionEntryLoaderActions } from '../loaders/next-flight-action-entry-loader'
+import getWebpackBundler from '../../../shared/lib/get-webpack-bundler'
 
 interface Options {
   dev: boolean
@@ -346,13 +350,27 @@ export class FlightClientEntryPlugin {
           : entryRequest
 
         // Replace file suffix as `.js` will be added.
+        // bundlePath will have app/ prefix but not src/.
+        // e.g. src/app/foo/page.js -> app/foo/page
         let bundlePath = normalizePathSep(
           relativeRequest.replace(/\.[^.\\/]+$/, '').replace(/^src[\\/]/, '')
         )
 
         // For metadata routes, the entry name can be used as the bundle path,
         // as it has been normalized already.
-        if (isMetadataRoute(bundlePath)) {
+        // e.g.
+        // When `relativeRequest` is 'src/app/sitemap.js',
+        // `appDirRelativeRequest` will be '/sitemap.js'
+        // then `isMetadataEntryFile` will be `true`
+        const appDirRelativeRequest = relativeRequest
+          .replace(/^src[\\/]/, '')
+          .replace(/^app[\\/]/, '/')
+        const isMetadataEntryFile = isMetadataRouteFile(
+          appDirRelativeRequest,
+          DEFAULT_METADATA_ROUTE_EXTENSIONS,
+          true
+        )
+        if (isMetadataEntryFile) {
           bundlePath = name
         }
 
@@ -378,6 +396,20 @@ export class FlightClientEntryPlugin {
             compilation,
             entryName: name,
             clientComponentImports: {},
+            bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
+            absolutePagePath: entryRequest,
+          })
+        }
+
+        if (
+          name === `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}` &&
+          bundlePath === 'app/global-not-found'
+        ) {
+          clientEntriesToInject.push({
+            compiler,
+            compilation,
+            entryName: name,
+            clientComponentImports,
             bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
             absolutePagePath: entryRequest,
           })
@@ -767,6 +799,7 @@ export class FlightClientEntryPlugin {
     addRSCEntryPromise: Promise<void>,
     ssrDep: ReturnType<typeof webpack.EntryPlugin.createDependency>,
   ] {
+    const bundler = getWebpackBundler()
     let shouldInvalidate = false
 
     const modules = Object.keys(clientImports)
@@ -836,12 +869,12 @@ export class FlightClientEntryPlugin {
       pluginState.injectedClientEntries[bundlePath] = clientBrowserLoader
     }
 
-    const clientComponentSSREntryDep = webpack.EntryPlugin.createDependency(
+    const clientComponentSSREntryDep = bundler.EntryPlugin.createDependency(
       clientServerLoader,
       { name: bundlePath }
     )
 
-    const clientComponentRSCEntryDep = webpack.EntryPlugin.createDependency(
+    const clientComponentRSCEntryDep = bundler.EntryPlugin.createDependency(
       clientServerLoader,
       { name: bundlePath }
     )
@@ -880,6 +913,7 @@ export class FlightClientEntryPlugin {
     createdActionIds: Set<string>
     fromClient?: boolean
   }) {
+    const bundler = getWebpackBundler()
     const actionsArray = Array.from(actions.entries())
     for (const [, actionsFromModule] of actions) {
       for (const { id } of actionsFromModule) {
@@ -922,7 +956,7 @@ export class FlightClientEntryPlugin {
     }
 
     // Inject the entry to the server compiler
-    const actionEntryDep = webpack.EntryPlugin.createDependency(actionLoader, {
+    const actionEntryDep = bundler.EntryPlugin.createDependency(actionLoader, {
       name: bundlePath,
     })
 

@@ -2,7 +2,7 @@ import React from 'react'
 import { setTimeout } from 'timers/promises'
 
 async function getUncachedData() {
-  await setTimeout(0)
+  await setTimeout(100)
 
   return Math.random()
 }

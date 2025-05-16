@@ -50,6 +50,7 @@
         "webpack:///(?:../)*packages/next/dist/compiled/(.*)": "${workspaceFolder}/packages/next/src/compiled/$1",
         "webpack://next/./src/*": "${workspaceFolder}/packages/next/src/*",
         "webpack-internal:///\\(rsc\\)/(?:../)*packages/next/dist/(.*)": "${workspaceFolder}/packages/next/src/$1",
+        "webpack-internal:///(react-server)/./dist/compiled/*": "${workspaceFolder}/packages/next/src/compiled/*",
         "turbopack:///[project]/*": "${workspaceFolder}/*"
       },
       "env": {
@@ -86,6 +87,7 @@
         "webpack:///(?:../)*packages/next/dist/compiled/(.*)": "${workspaceFolder}/packages/next/src/compiled/$1",
         "webpack://next/./src/*": "${workspaceFolder}/packages/next/src/*",
         "webpack-internal:///\\(rsc\\)/(?:../)*packages/next/dist/(.*)": "${workspaceFolder}/packages/next/src/$1",
+        "webpack-internal:///(react-server)/./dist/compiled/*": "${workspaceFolder}/packages/next/src/compiled/*",
         "turbopack:///[project]/*": "${workspaceFolder}/*"
       },
       "env": {
@@ -114,6 +116,7 @@
         "webpack:///(?:../)*packages/next/dist/compiled/(.*)": "${workspaceFolder}/packages/next/src/compiled/$1",
         "webpack://next/./src/*": "${workspaceFolder}/packages/next/src/*",
         "webpack-internal:///\\(rsc\\)/(?:../)*packages/next/dist/(.*)": "${workspaceFolder}/packages/next/src/$1",
+        "webpack-internal:///(react-server)/./dist/compiled/*": "${workspaceFolder}/packages/next/src/compiled/*",
         "turbopack:///[project]/*": "${workspaceFolder}/*"
       },
       "env": {

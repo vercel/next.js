@@ -2,6 +2,7 @@ import { forwardRef, useEffect, useRef, useState } from 'react'
 import { css } from '../../../../utils/css'
 import mergeRefs from '../../../utils/merge-refs'
 import { useMinimumLoadingTimeMultiple } from './use-minimum-loading-time-multiple'
+import type { DevToolsScale } from './dev-tools-info/preferences'
 
 interface Props extends React.ComponentProps<'button'> {
   issueCount: number
@@ -10,53 +11,10 @@ interface Props extends React.ComponentProps<'button'> {
   isBuildError: boolean
   onTriggerClick: () => void
   toggleErrorOverlay: () => void
+  scale: DevToolsScale
 }
 
-const SIZE = '2.25rem' // 36px in 16px base
-const SIZE_PX = 36
 const SHORT_DURATION_MS = 150
-
-/**
- * A hook that creates an animated state based on changes to a dependency.
- * When the dependency changes and passes the shouldSkip check, it triggers
- * an animation state that lasts for the specified duration.
- *
- * @param dep The dependency to watch for changes
- * @param config Configuration object containing:
- *               - shouldSkip: Function to determine if animation should be skipped
- *               - animationDuration: Duration of the animation in milliseconds
- * @returns Boolean indicating if animation is currently active
- */
-const useAnimated = <T,>(
-  dep: T,
-  config: { shouldSkip: (dep: T) => boolean; animationDuration: number }
-) => {
-  const { shouldSkip: _shouldSkip, animationDuration } = config
-  const shouldSkipRef = useRef(_shouldSkip) // ensure stable reference in case it's not
-
-  const [animatedDep, setAnimatedDep] = useState(false)
-  const isInitialRef = useRef(true)
-
-  useEffect(() => {
-    if (isInitialRef.current) {
-      isInitialRef.current = false
-      return
-    }
-
-    if (shouldSkipRef.current(dep)) {
-      return
-    }
-
-    setAnimatedDep(true)
-    const timeoutId = setTimeout(() => {
-      setAnimatedDep(false)
-    }, animationDuration)
-
-    return () => clearTimeout(timeoutId)
-  }, [dep, animationDuration])
-
-  return animatedDep
-}
 
 export const NextLogo = forwardRef(function NextLogo(
   {
@@ -67,38 +25,38 @@ export const NextLogo = forwardRef(function NextLogo(
     isBuildError,
     onTriggerClick,
     toggleErrorOverlay,
+    scale = 1,
     ...props
   }: Props,
   propRef: React.Ref<HTMLButtonElement>
 ) {
+  const SIZE = 36 / scale
+
   const hasError = issueCount > 0
   const [isErrorExpanded, setIsErrorExpanded] = useState(hasError)
-  const newErrorDetected = useAnimated(issueCount, {
-    shouldSkip: (count) => count === 0,
-    animationDuration: SHORT_DURATION_MS,
-  })
   const [dismissed, setDismissed] = useState(false)
+  const newErrorDetected = useUpdateAnimation(issueCount, SHORT_DURATION_MS)
 
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   const ref = useRef<HTMLDivElement | null>(null)
-  const width = useMeasureWidth(ref)
+  const measuredWidth = useMeasureWidth(ref)
 
   const isLoading = useMinimumLoadingTimeMultiple(
     isDevBuilding || isDevRendering
   )
+  const isExpanded = isErrorExpanded || disabled
+  const width = measuredWidth === 0 ? 'auto' : measuredWidth
 
   useEffect(() => {
     setIsErrorExpanded(hasError)
   }, [hasError])
-
-  const isExpanded = isErrorExpanded || disabled
 
   return (
     <div
       data-next-badge-root
       style={
         {
-          '--size': SIZE,
+          '--size': `${SIZE}px`,
           '--duration-short': `${SHORT_DURATION_MS}ms`,
           // if the indicator is disabled, hide the badge
           // also allow the "disabled" state be dismissed, as long as there are no build errors
@@ -226,18 +184,23 @@ export const NextLogo = forwardRef(function NextLogo(
           }
 
           [data-issues] {
+            --padding-left: 8px;
             display: flex;
             gap: 2px;
             align-items: center;
             padding-left: 8px;
-            padding-right: ${isBuildError ? '8px' : 'calc(2px * 2)'};
+            padding-right: 8px;
             height: var(--size-32);
-            margin: 0 2px;
+            margin-right: 2px;
             border-radius: var(--rounded-full);
             transition: background var(--duration-short) ease;
 
             &:has([data-issues-open]:hover) {
               background: var(--color-hover-alpha-error);
+            }
+
+            &:has([data-issues-collapse]) {
+              padding-right: calc(var(--padding-left) / 2);
             }
 
             [data-cross] {
@@ -284,7 +247,7 @@ export const NextLogo = forwardRef(function NextLogo(
           [data-next-mark] {
             width: var(--mark-size);
             height: var(--mark-size);
-            margin-left: 2px;
+            margin: 0 2px;
             display: flex;
             align-items: center;
             border-radius: var(--rounded-full);
@@ -332,7 +295,9 @@ export const NextLogo = forwardRef(function NextLogo(
 
           [data-issues-count-plural] {
             display: inline-block;
-            animation: fadeIn 300ms var(--timing) forwards;
+            &[data-animate='true'] {
+              animation: fadeIn 300ms var(--timing) forwards;
+            }
           }
 
           .path0 {
@@ -426,9 +391,7 @@ export const NextLogo = forwardRef(function NextLogo(
         data-error={hasError}
         data-error-expanded={isExpanded}
         data-animate={newErrorDetected}
-        style={{
-          width: hasError && width > SIZE_PX ? width : SIZE,
-        }}
+        style={{ width }}
       >
         <div ref={ref}>
           {/* Children */}
@@ -466,7 +429,13 @@ export const NextLogo = forwardRef(function NextLogo(
                 <div>
                   Issue
                   {issueCount > 1 && (
-                    <span aria-hidden data-issues-count-plural>
+                    <span
+                      aria-hidden
+                      data-issues-count-plural
+                      // This only needs to animate once the count changes from 1 -> 2,
+                      // otherwise it should stay static between re-renders.
+                      data-animate={newErrorDetected && issueCount === 2}
+                    >
                       s
                     </span>
                   )}
@@ -518,7 +487,7 @@ function AnimateCount({
   )
 }
 
-function useMeasureWidth(ref: React.RefObject<HTMLDivElement | null>) {
+function useMeasureWidth(ref: React.RefObject<HTMLDivElement | null>): number {
   const [width, setWidth] = useState<number>(0)
 
   useEffect(() => {
@@ -528,9 +497,8 @@ function useMeasureWidth(ref: React.RefObject<HTMLDivElement | null>) {
       return
     }
 
-    const observer = new ResizeObserver(() => {
-      const { width: w } = el.getBoundingClientRect()
-      setWidth(w)
+    const observer = new ResizeObserver(([{ contentRect }]) => {
+      setWidth(contentRect.width)
     })
 
     observer.observe(el)
@@ -538,6 +506,39 @@ function useMeasureWidth(ref: React.RefObject<HTMLDivElement | null>) {
   }, [ref])
 
   return width
+}
+
+function useUpdateAnimation(issueCount: number, animationDurationMs = 0) {
+  const lastUpdatedTimeStamp = useRef<number | null>(null)
+  const [animate, setAnimate] = useState(false)
+
+  useEffect(() => {
+    if (issueCount > 0) {
+      const deltaMs = lastUpdatedTimeStamp.current
+        ? Date.now() - lastUpdatedTimeStamp.current
+        : -1
+      lastUpdatedTimeStamp.current = Date.now()
+
+      // We don't animate if `issueCount` changes too quickly
+      if (deltaMs <= animationDurationMs) {
+        return
+      }
+
+      setAnimate(true)
+      // It is important to use a CSS transitioned state, not a CSS keyframed animation
+      // because if the issue count increases faster than the animation duration, it
+      // will abruptly stop and not transition smoothly back to its original state.
+      const timeoutId = window.setTimeout(() => {
+        setAnimate(false)
+      }, animationDurationMs)
+
+      return () => {
+        clearTimeout(timeoutId)
+      }
+    }
+  }, [issueCount, animationDurationMs])
+
+  return animate
 }
 
 function NextMark({

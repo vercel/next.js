@@ -3,7 +3,7 @@ name = "turbo-tasks-backend"
 version = "0.1.0"
 description = "TBD"
 license = "MIT"
-edition = "2021"
+edition = "2024"
 autobenches = false
 
 [lib]
@@ -26,6 +26,7 @@ anyhow = { workspace = true }
 arc-swap = { version = "1.7.1" }
 async-trait = { workspace = true }
 auto-hash-map = { workspace = true }
+bitfield = { workspace = true }
 byteorder = "1.5.0"
 dashmap = { workspace = true, features = ["raw-api"]}
 either = { workspace = true }

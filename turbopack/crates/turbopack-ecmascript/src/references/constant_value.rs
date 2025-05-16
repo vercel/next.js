@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use swc_core::quote;
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, Value, Vc};
+use turbo_tasks::{NonLocalValue, Value, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
 use turbopack_core::{
     chunk::ChunkingContext, compile_time_info::CompileTimeDefineValue, module_graph::ModuleGraph,
 };

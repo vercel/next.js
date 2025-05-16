@@ -3,7 +3,6 @@
 	Author Tobias Koppers @sokra
 
   Forked to add support for `ignoreList`.
-  Keep in sync with packages/next/webpack-plugins/eval-source-map-dev-tool-plugin.js
 */
 import {
   type webpack,

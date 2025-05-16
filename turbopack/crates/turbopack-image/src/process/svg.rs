@@ -1,7 +1,7 @@
 // Ported from https://github.com/image-size/image-size/blob/94e9c1ee913b71222d7583dc904ac0116ae00834/lib/types/svg.ts
 // see SVG_LICENSE for license info
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use rustc_hash::FxHashMap;

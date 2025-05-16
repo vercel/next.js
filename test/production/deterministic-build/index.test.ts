@@ -1,10 +1,29 @@
 import crypto from 'crypto'
 import { NextInstance, nextTestSetup } from 'e2e-utils'
 
-function generateMD5(text: string) {
+type Md5Hash = string & { __brand: 'Md5Hash' }
+
+type Record = [filePath: string, hash: string, content: string]
+
+interface RouteFileHashRecords {
+  [key: string]: Record[]
+}
+
+function generateMD5(text: string): Md5Hash {
   const hash = crypto.createHash('md5')
   hash.update(text)
-  return hash.digest('hex')
+  return hash.digest('hex') as Md5Hash
+}
+
+function getNodeFileHashes(next: NextInstance): RouteFileHashRecords {
+  const nodeBuildFileMd5Hashes: RouteFileHashRecords = {}
+  for (const file of nodeFilePaths) {
+    const content = next.readFileSync(`.next/server/${file}.js`)
+    const md5 = generateMD5(content)
+    nodeBuildFileMd5Hashes[file] = [[file, md5, content]]
+  }
+
+  return nodeBuildFileMd5Hashes
 }
 
 const nodeFilePaths = [
@@ -14,22 +33,28 @@ const nodeFilePaths = [
   'pages/pages-page',
 ]
 
-async function getEdgeRouteFilesFromManifest(next: NextInstance) {
+function getEdgeRouteFileHashes(next: NextInstance): RouteFileHashRecords {
   const manifest: any = JSON.parse(
-    await next.readFile('.next/server/middleware-manifest.json')
+    next.readFileSync('.next/server/middleware-manifest.json')
   )
   const routeKeys = Object.keys(manifest.functions)
-  const md5Map: Record<string, string[]> = {}
+  const hashMap: RouteFileHashRecords = {}
   for (const route of routeKeys) {
     const files: string[] = manifest.functions[route].files
-    const filesMd5Promises = files.map(async (filePath: string) => {
-      const content = await next.readFile(`.next/${filePath}`)
-      return generateMD5(content)
-    })
-    const md5s = await Promise.all(filesMd5Promises)
-    md5Map[route] = md5s
+
+    const hashes: Record[] = []
+    for (const filePath of files) {
+      const content = next.readFileSync(`.next/${filePath}`)
+      hashes.push([filePath, generateMD5(content), content])
+    }
+    hashMap[route] = hashes
   }
-  return md5Map
+  return hashMap
+}
+
+interface Runs {
+  run1: RouteFileHashRecords
+  run2: RouteFileHashRecords
 }
 
 describe('deterministic build', () => {
@@ -38,31 +63,30 @@ describe('deterministic build', () => {
     skipStart: true,
   })
 
-  // Edge - { [route]: [file md5s] }
-  const edgeBuildFileMd5Hashes: Record<string, string[]>[] = []
-  // Node - { [route]: page.js or route.js md5 }
-  const nodeBuildFileMd5Hashes: Record<string, string>[] = [{}, {}]
+  const edgeBuildFileMd5Hashes: Runs = {
+    run1: {},
+    run2: {},
+  }
+
+  const nodeBuildFileMd5Hashes: Runs = {
+    run1: {},
+    run2: {},
+  }
 
   beforeAll(async () => {
     // First build
     await next.build()
-    edgeBuildFileMd5Hashes.push(await getEdgeRouteFilesFromManifest(next))
-    for (const file of nodeFilePaths) {
-      const content = await next.readFile(`.next/server/${file}.js`)
-      nodeBuildFileMd5Hashes[0][file] = generateMD5(content)
-    }
+    edgeBuildFileMd5Hashes.run1 = getEdgeRouteFileHashes(next)
+    nodeBuildFileMd5Hashes.run1 = getNodeFileHashes(next)
 
     // Second build
     await next.build()
-    edgeBuildFileMd5Hashes.push(await getEdgeRouteFilesFromManifest(next))
-    for (const file of nodeFilePaths) {
-      const content = await next.readFile(`.next/server/${file}.js`)
-      nodeBuildFileMd5Hashes[1][file] = generateMD5(content)
-    }
+    edgeBuildFileMd5Hashes.run2 = getEdgeRouteFileHashes(next)
+    nodeBuildFileMd5Hashes.run2 = getNodeFileHashes(next)
   })
 
   it('should have same md5 file across build', async () => {
-    expect(edgeBuildFileMd5Hashes[0]).toEqual(edgeBuildFileMd5Hashes[1])
-    expect(nodeBuildFileMd5Hashes[0]).toEqual(nodeBuildFileMd5Hashes[1])
+    expect(edgeBuildFileMd5Hashes.run1).toEqual(edgeBuildFileMd5Hashes.run2)
+    expect(nodeBuildFileMd5Hashes.run1).toEqual(nodeBuildFileMd5Hashes.run2)
   })
 })

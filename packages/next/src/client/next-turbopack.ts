@@ -1,6 +1,8 @@
 // A client-side entry point for Turbopack builds. Includes logic to load chunks,
 // but does not include development-time features like hot module reloading.
 
+import '../lib/require-instrumentation-client'
+
 // TODO: Remove use of `any` type.
 import { initialize, version, router, emitter, hydrate } from './'
 // TODO: This seems necessary, but is a module in the `dev` directory.

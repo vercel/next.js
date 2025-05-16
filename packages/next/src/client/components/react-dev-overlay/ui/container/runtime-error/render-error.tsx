@@ -6,10 +6,6 @@ import type {
 
 import { useMemo, useState, useEffect } from 'react'
 import {
-  ACTION_UNHANDLED_ERROR,
-  ACTION_UNHANDLED_REJECTION,
-} from '../../../shared'
-import {
   getErrorByType,
   type ReadyRuntimeError,
 } from '../../../utils/get-error-by-type'
@@ -17,17 +13,6 @@ import {
 export type SupportedErrorEvent = {
   id: number
   event: UnhandledErrorAction | UnhandledRejectionAction
-}
-
-function getErrorSignature(ev: SupportedErrorEvent): string {
-  const { event } = ev
-  // eslint-disable-next-line default-case -- TypeScript checks this
-  switch (event.type) {
-    case ACTION_UNHANDLED_ERROR:
-    case ACTION_UNHANDLED_REJECTION: {
-      return `${event.reason.name}::${event.reason.message}::${event.reason.stack}`
-    }
-  }
 }
 
 type Props = {
@@ -41,8 +26,7 @@ type Props = {
 
 export const RenderError = (props: Props) => {
   const { state } = props
-  const isBuildError =
-    !!state.rootLayoutMissingTags?.length || !!state.buildError
+  const isBuildError = !!state.buildError
 
   if (isBuildError) {
     return <RenderBuildError {...props} />
@@ -73,14 +57,6 @@ const RenderRuntimeError = ({ children, state, isAppDir }: Props) => {
         continue
       }
 
-      // Check for duplicate errors
-      if (idx > 0) {
-        const prev = errors[idx - 1]
-        if (getErrorSignature(prev) === getErrorSignature(e)) {
-          continue
-        }
-      }
-
       next = e
       break
     }
@@ -109,7 +85,7 @@ const RenderRuntimeError = ({ children, state, isAppDir }: Props) => {
     }
   }, [nextError, isAppDir])
 
-  const totalErrorCount = runtimeErrors.length
+  const totalErrorCount = errors.length
 
   return children({ runtimeErrors, totalErrorCount })
 }

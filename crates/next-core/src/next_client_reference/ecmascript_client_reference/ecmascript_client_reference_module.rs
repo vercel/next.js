@@ -1,6 +1,6 @@
 use std::{io::Write, iter::once};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use indoc::writedoc;
 use once_cell::sync::Lazy;
 use turbo_rcstr::RcStr;
@@ -179,7 +179,7 @@ impl EcmascriptClientReferenceModule {
 
 #[turbo_tasks::function]
 fn client_reference_modifier() -> Vc<RcStr> {
-    Vc::cell("client reference/proxy".into())
+    Vc::cell("client reference proxy".into())
 }
 
 #[turbo_tasks::function]
@@ -200,7 +200,9 @@ pub static ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG_SSR: Lazy<RcStr> = Lazy::new(||
 impl Module for EcmascriptClientReferenceModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        self.server_ident.with_modifier(client_reference_modifier())
+        self.server_ident
+            .with_modifier(client_reference_modifier())
+            .with_layer(self.server_asset_context.layer())
     }
 
     #[turbo_tasks::function]
