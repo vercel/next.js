@@ -31,7 +31,18 @@ use turbopack_core::{
 use crate::parse::generate_js_source_map;
 
 #[instrument(level = Level::INFO, skip_all)]
-pub fn minify(code: &Code, source_maps: bool, mangle: Option<MangleType>) -> Result<Code> {
+pub async fn minify(code: Code, source_maps: bool, mangle: Option<MangleType>) -> Result<Code> {
+    let (tx, rx) = tokio::sync::oneshot::channel();
+
+    rayon::spawn(move || {
+        let result = minify_inner(code, source_maps, mangle);
+        tx.send(result).unwrap();
+    });
+
+    rx.await.unwrap()
+}
+
+fn minify_inner(code: Code, source_maps: bool, mangle: Option<MangleType>) -> Result<Code> {
     let source_maps = source_maps
         .then(|| code.generate_source_map_ref())
         .transpose()?;
@@ -139,8 +150,8 @@ pub fn minify(code: &Code, source_maps: bool, mangle: Option<MangleType>) -> Res
                 src_map_buf,
                 Some(original_map),
                 // We do not inline source contents.
-                // We provide a synthesized value to `cm.new_source_file` above, so it cannot be
-                // the value user expect anyway.
+                // We provide a synthesized value to `cm.new_source_file` above, so it cannot
+                // be the value user expect anyway.
                 false,
             )?),
         );
