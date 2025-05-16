@@ -87,6 +87,7 @@ import { getNextErrorFeedbackMiddleware } from '../../client/components/react-de
 import { getDevOverlayFontMiddleware } from '../../client/components/react-dev-overlay/font/get-dev-overlay-font-middleware'
 import { getDisableDevIndicatorMiddleware } from './dev-indicator-middleware'
 import getWebpackBundler from '../../shared/lib/get-webpack-bundler'
+import { getRestartDevServerMiddleware } from '../../client/components/react-dev-overlay/server/restart-dev-server-middleware'
 
 const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
 
@@ -1569,6 +1570,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       getNextErrorFeedbackMiddleware(this.telemetry),
       getDevOverlayFontMiddleware(),
       getDisableDevIndicatorMiddleware(),
+      getRestartDevServerMiddleware(this.telemetry),
     ]
   }
 
