@@ -19583,8 +19583,8 @@
     "runtimeError": false
   },
   "test/production/standalone-mode/type-module/index.test.ts": {
-    "passed": [],
-    "failed": ["type-module should work"],
+    "passed": ["type-module should work"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
