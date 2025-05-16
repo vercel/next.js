@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use tracing::Span;
 
 use crate::{
-    RawVc, VcValueType,
+    RawVc, VcValueTrait, VcValueType,
     id::{FunctionId, TraitTypeId},
     magic_any::{AnyDeserializeSeed, MagicAny, MagicAnyDeserializeSeed, MagicAnySerializeSeed},
     registry::{register_trait_type, register_value_type},
@@ -39,7 +39,7 @@ pub struct ValueType {
     /// A readable name of the type
     pub name: String,
     /// List of traits available
-    pub traits: AutoSet<TraitTypeId>,
+    pub traits: AutoMap<TraitTypeId, fn(&dyn Any) -> &dyn T>,
     /// List of trait methods available
     pub trait_methods: AutoMap<(TraitTypeId, Cow<'static, str>), FunctionId>,
 
@@ -199,8 +199,12 @@ impl ValueType {
     }
 
     /// This is internally used by `#[turbo_tasks::value_impl]`
-    pub fn register_trait(&mut self, trait_type: TraitTypeId) {
-        self.traits.insert(trait_type);
+    pub fn register_trait<T: VcValueTrait>(
+        &mut self,
+        trait_type: TraitTypeId,
+        meta: std::ptr::DynMetadata<T>,
+    ) {
+        self.traits.insert(trait_type, meta);
     }
 
     pub fn has_trait(&self, trait_type: &TraitTypeId) -> bool {

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{IntoTraitRef, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use super::{Issue, IssueStage, OptionStyledString, StyledString};
@@ -38,7 +38,7 @@ impl Issue for ModuleIssue {
 #[turbo_tasks::function]
 pub async fn emit_unknown_module_type_error(source: Vc<Box<dyn Source>>) -> Result<()> {
     ModuleIssue {
-        ident: source.ident().to_resolved().await?,
+        ident: source.into_trait_ref().await?.ident(),
         title: StyledString::Text("Unknown module type".into()).resolved_cell(),
         description: StyledString::Text(
             r"This module doesn't have an associated type. Use a known file extension, or register a loader for it.
