@@ -1,5 +1,6 @@
 use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 use turbo_esregex::EsRegex;
 use turbo_tasks::{NonLocalValue, ReadRef, ResolvedVc, primitives::Regex, trace::TraceRawVcs};
 use turbo_tasks_fs::{FileSystemPath, glob::Glob};
@@ -60,43 +61,52 @@ impl RuleCondition {
         reference_type: &ReferenceType,
     ) -> Result<bool> {
         // Use an explicit stack to avoid recursion.
-        enum Frame<'a> {
+        enum Op<'a> {
             Condition(&'a RuleCondition),
             All(&'a [RuleCondition]), // Remaining conditions in an All
             Any(&'a [RuleCondition]), // Remaining conditions in an Any
             Not,                      // Inverts the previous condition
         }
-
-        let mut stack = Vec::new();
+        // The maximum stack height is 2 * the depth of the Any/All/Not rules
+        // Allocate a small inline stack to avoid heap allocations in the common case where
+        // conditions are not deeply stacked.
+        // To do better we could:
+        // introduce some local functions and loops so we can avoid allocating `Condition' ops
+        // and lazily allocate the stack since it is only truly needed for nested any/all/not
+        // conditions.  But a smallvec is probably good enough.
+        const EXPECTED_SIZE: usize = 8;
+        let mut stack = SmallVec::<[Op; EXPECTED_SIZE]>::with_capacity(EXPECTED_SIZE);
         let mut result = false;
-        stack.push(Frame::Condition(self));
+        stack.push(Op::Condition(self));
 
         while let Some(frame) = stack.pop() {
             match frame {
-                Frame::Condition(cond) => match cond {
+                Op::Condition(cond) => match cond {
                     RuleCondition::All(conditions) => {
                         if conditions.is_empty() {
                             result = true;
-                            continue;
+                        } else {
+                            if conditions.len() > 1 {
+                                stack.push(Op::All(&conditions.as_slice()));
+                            }
+                            // We could save some stack operation and destructing logic by looping
+                            // here.
+                            stack.push(Op::Condition(&conditions[0]));
                         }
-                        if conditions.len() > 1 {
-                            stack.push(Frame::All(&conditions.as_slice()[1..]));
-                        }
-                        stack.push(Frame::Condition(&conditions[0]));
                     }
                     RuleCondition::Any(conditions) => {
                         if conditions.is_empty() {
                             result = false;
-                            continue;
+                        } else {
+                            if conditions.len() > 1 {
+                                stack.push(Op::Any(&conditions.as_slice()[1..]));
+                            }
+                            stack.push(Op::Condition(&conditions[0]));
                         }
-                        if conditions.len() > 1 {
-                            stack.push(Frame::Any(&conditions.as_slice()[1..]));
-                        }
-                        stack.push(Frame::Condition(&conditions[0]));
                     }
                     RuleCondition::Not(inner) => {
-                        stack.push(Frame::Not);
-                        stack.push(Frame::Condition(inner));
+                        stack.push(Op::Not);
+                        stack.push(Op::Condition(inner));
                     }
                     RuleCondition::ReferenceType(condition_ty) => {
                         result = condition_ty.includes(reference_type);
@@ -160,25 +170,25 @@ impl RuleCondition {
                         result = regex.is_match(&path.path);
                     }
                 },
-                Frame::All(remaining) => {
-                    // Previous was true, keep going if we have more
+                Op::All(remaining) => {
+                    // Previous was true, keep going
                     if result {
                         if remaining.len() > 1 {
-                            stack.push(Frame::All(&remaining[1..]));
+                            stack.push(Op::All(&remaining[1..]));
                         }
-                        stack.push(Frame::Condition(&remaining[0]));
+                        stack.push(Op::Condition(&remaining[0]));
                     }
                 }
-                Frame::Any(remaining) => {
+                Op::Any(remaining) => {
                     // Previous was false, keep going if we have more
                     if !result {
                         if remaining.len() > 1 {
-                            stack.push(Frame::Any(&remaining[1..]));
+                            stack.push(Op::Any(&remaining[1..]));
                         }
-                        stack.push(Frame::Condition(&remaining[0]));
+                        stack.push(Op::Condition(&remaining[0]));
                     }
                 }
-                Frame::Not => {
+                Op::Not => {
                     result = !result;
                 }
             }
