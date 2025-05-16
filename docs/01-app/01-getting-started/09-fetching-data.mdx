@@ -626,7 +626,7 @@ export const getItem = cache(async (id) => {
 
 You can use React's taint APIs, [`taintObjectReference`](https://react.dev/reference/react/experimental_taintObjectReference) and [`taintUniqueValue`](https://react.dev/reference/react/experimental_taintUniqueValue), to prevent whole data objects or sensitive values from being passed to the client.
 
-To enable tainting in your application, set the Next.js Config `experimental.taint` option to `true`:
+To enable tainting in your application, set the Next.js config option `experimental.taint` to `true`:
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
