@@ -601,6 +601,7 @@ export default abstract class Server<
       htmlLimitedBots: this.nextConfig.htmlLimitedBots,
       experimental: {
         expireTime: this.nextConfig.expireTime,
+        staleTimes: this.nextConfig.experimental.staleTimes,
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
         dynamicIO: this.nextConfig.experimental.dynamicIO ?? false,
         clientSegmentCache:
