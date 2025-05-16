@@ -354,6 +354,7 @@ impl NodeJsPoolProcess {
             .context("binding to a port")?;
         let port = listener.local_addr().context("getting port")?.port();
         let mut cmd = Command::new("node");
+        cmd.env("UV_THREADPOOL_SIZE", "1");
         cmd.current_dir(cwd);
         if debug {
             cmd.arg("--inspect-brk");
