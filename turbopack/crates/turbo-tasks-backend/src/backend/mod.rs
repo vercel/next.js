@@ -2230,7 +2230,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         if env::var("TURBO_ENGINE_VERIFY_GRAPH").ok().as_deref() == Some("0") {
             return;
         }
-        use std::{collections::VecDeque, env};
+        use std::{collections::VecDeque, env, io::stdout};
 
         use crate::backend::operation::{get_uppers, is_aggregating_node};
 
@@ -2338,7 +2338,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
             for (collectible, (flag, task_ids)) in collectibles {
                 if !flag {
-                    println!(
+                    use std::io::Write;
+                    let mut stdout = stdout().lock();
+                    writeln!(
+                        stdout,
                         "{:?} that is not emitted in any child task but in these aggregated \
                          tasks: {:#?}",
                         collectible,
@@ -2347,6 +2350,44 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             .map(|t| format!("{t} {}", ctx.get_task_description(*t)))
                             .collect::<Vec<_>>()
                     );
+
+                    let task_id = collectible.cell.task;
+                    let mut queue = {
+                        let task = ctx.task(task_id, TaskDataCategory::All);
+                        get_uppers(&task)
+                    };
+                    let mut visited = FxHashSet::default();
+                    for &upper_id in queue.iter() {
+                        visited.insert(upper_id);
+                        writeln!(stdout, "{task_id:?} -> {upper_id:?}");
+                    }
+                    while let Some(task_id) = queue.pop() {
+                        let desc = ctx.get_task_description(task_id);
+                        let task = ctx.task(task_id, TaskDataCategory::All);
+                        let aggregated_collectible =
+                            get!(task, AggregatedCollectible { collectible })
+                                .copied()
+                                .unwrap_or_default();
+                        let uppers = get_uppers(&task);
+                        drop(task);
+                        writeln!(
+                            stdout,
+                            "upper {task_id} {desc} collectible={aggregated_collectible}"
+                        );
+                        if task_ids.contains(&task_id) {
+                            writeln!(
+                                stdout,
+                                "Task has an upper connection to an aggregated task that doesn't \
+                                 reference it. Upper connection is invalid!"
+                            );
+                        }
+                        for upper_id in uppers {
+                            writeln!(stdout, "{task_id:?} -> {upper_id:?}");
+                            if !visited.contains(&upper_id) {
+                                queue.push(upper_id);
+                            }
+                        }
+                    }
                 }
             }
             println!("visited {task_id} {} tasks", visited.len());
