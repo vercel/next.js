@@ -159,7 +159,7 @@ impl ReferencedAsset {
                             if let EcmascriptExports::EsmExports(exports) =
                                 *asset.get_exports().await?
                             {
-                                let exports = exports.await?;
+                                let exports = exports.expand_exports(None).await?;
                                 let export = exports.exports.get(export);
                                 match export {
                                     Some(EsmExport::LocalBinding(name, _)) => {
