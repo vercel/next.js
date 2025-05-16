@@ -66,13 +66,13 @@ pub enum ReferencedAssetIdent {
     },
     Module {
         namespace_ident: String,
-        ctxt: SyntaxContext,
+        ctxt: Option<SyntaxContext>,
         export: Option<RcStr>,
     },
 }
 
 impl ReferencedAssetIdent {
-    pub fn into_module_namespace_ident(self) -> Option<(String, SyntaxContext)> {
+    pub fn into_module_namespace_ident(self) -> Option<(String, Option<SyntaxContext>)> {
         match self {
             ReferencedAssetIdent::Module {
                 namespace_ident,
@@ -93,7 +93,11 @@ impl ReferencedAssetIdent {
                 ctxt,
                 export,
             } => {
-                let ns = Ident::new(namespace_ident.as_str().into(), span, *ctxt);
+                let ns = Ident::new(
+                    namespace_ident.as_str().into(),
+                    span,
+                    ctxt.unwrap_or_default(),
+                );
                 if let Some(export) = export {
                     Either::Right(MemberExpr {
                         span,
@@ -166,7 +170,15 @@ impl ReferencedAsset {
                                             ctxt: *ctxt,
                                         }));
                                     }
-                                    Some(EsmExport::ImportedBinding(esm_ref, name, _)) => {
+                                    Some(b @ EsmExport::ImportedBinding(esm_ref, _, _))
+                                    | Some(b @ EsmExport::ImportedNamespace(esm_ref)) => {
+                                        let export =
+                                            if let EsmExport::ImportedBinding(_, export, _) = b {
+                                                Some(export.clone())
+                                            } else {
+                                                None
+                                            };
+
                                         let referenced_asset =
                                             ReferencedAsset::from_resolve_result(
                                                 esm_ref.resolve_reference(),
@@ -175,50 +187,27 @@ impl ReferencedAsset {
 
                                         // If the target module is still in the same group, we can
                                         // refer it locally, otherwise it will be imported
-                                        return Box::pin(referenced_asset.get_ident(
-                                            chunking_context,
-                                            Some(name.clone()),
-                                            Some(scope_hoisting_context),
-                                        ))
-                                        .await;
-                                    }
-                                    Some(EsmExport::ImportedNamespace(esm_ref)) => {
-                                        let referenced_asset =
-                                            ReferencedAsset::from_resolve_result(
-                                                esm_ref.resolve_reference(),
-                                            )
-                                            .await?;
-
-                                        // We need the namespace object, so it needs to be imported
                                         return Ok(
                                             match Box::pin(referenced_asset.get_ident(
                                                 chunking_context,
-                                                None,
+                                                export,
                                                 Some(scope_hoisting_context),
                                             ))
                                             .await?
                                             {
                                                 Some(ReferencedAssetIdent::Module {
                                                     namespace_ident,
-                                                    export,
                                                     // Overwrite the context. This import isn't
                                                     // inserted in the module that uses the import,
                                                     // but in the module containing the reexport
-                                                    ctxt: _,
+                                                    ctxt: None,
+                                                    export,
                                                 }) => Some(ReferencedAssetIdent::Module {
                                                     namespace_ident,
-                                                    ctxt: *ctxt,
+                                                    ctxt: Some(*ctxt),
                                                     export,
                                                 }),
-                                                Some(ReferencedAssetIdent::LocalBinding {
-                                                    ..
-                                                }) => {
-                                                    bail!(
-                                                        "Cannot refer to imported namespace with \
-                                                         local binding"
-                                                    )
-                                                }
-                                                None => None,
+                                                ident => ident,
                                             },
                                         );
                                     }
@@ -269,13 +258,13 @@ impl ReferencedAsset {
                 Some(ReferencedAssetIdent::Module {
                     namespace_ident: Self::get_ident_from_placeable(asset, chunking_context)
                         .await?,
-                    ctxt: Default::default(),
+                    ctxt: None,
                     export,
                 })
             }
             ReferencedAsset::External(request, ty) => Some(ReferencedAssetIdent::Module {
                 namespace_ident: magic_identifier::mangle(&format!("{ty} external {request}")),
-                ctxt: Default::default(),
+                ctxt: None,
                 export,
             }),
             ReferencedAsset::None | ReferencedAsset::Unresolvable => None,
