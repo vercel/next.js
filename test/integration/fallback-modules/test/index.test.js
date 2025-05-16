@@ -22,7 +22,6 @@ describe('Fallback Modules', () => {
           if (process.env.NEXT_PRIVATE_SKIP_SIZE_TESTS) {
             return
           }
-
           ;({ stdout } = await nextBuild(appDir, [], {
             stdout: true,
           }))

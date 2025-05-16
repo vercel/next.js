@@ -1,12 +1,7 @@
 {
   "name": "@next/env",
   "version": "15.4.0-canary.36",
-  "keywords": [
-    "react",
-    "next",
-    "next.js",
-    "dotenv"
-  ],
+  "keywords": ["react", "next", "next.js", "dotenv"],
   "description": "Next.js dotenv file loading",
   "repository": {
     "type": "git",
@@ -17,9 +12,7 @@
   "license": "MIT",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "files": [
-    "dist"
-  ],
+  "files": ["dist"],
   "scripts": {
     "dev": "ncc build ./index.ts -w -o dist/",
     "prerelease": "node ../../scripts/rm.mjs dist",

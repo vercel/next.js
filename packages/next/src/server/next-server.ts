@@ -1028,8 +1028,9 @@ export default class NextNodeServer extends BaseServer<
       const cacheKey = ImageOptimizerCache.getCacheKey(paramsResult)
 
       try {
-        const { getExtension } =
-          require('./serve-static') as typeof import('./serve-static')
+        const { getExtension } = require('./serve-static') as typeof import(
+          './serve-static'
+        )
         const cacheEntry = await this.imageResponseCache.get(
           cacheKey,
           async ({ previousCacheEntry }) => {
@@ -1185,7 +1186,9 @@ export default class NextNodeServer extends BaseServer<
       try {
         if (this.renderOpts.dev) {
           const { formatServerError } =
-            require('../lib/format-server-error') as typeof import('../lib/format-server-error')
+            require('../lib/format-server-error') as typeof import(
+              '../lib/format-server-error'
+            )
           formatServerError(err)
           this.logErrorWithOriginalStack(err)
         } else {

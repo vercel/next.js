@@ -16,7 +16,6 @@ const readJson = async (filePath) =>
 
 const writeJson = async (filePath, data) =>
   fs.writeFile(filePath, JSON.stringify(data, null, 2) + '\n')
-
 ;(async function () {
   const packages = await fs.readdir(path.join(cwd, 'packages'))
 

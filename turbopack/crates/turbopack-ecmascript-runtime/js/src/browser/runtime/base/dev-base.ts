@@ -17,8 +17,9 @@ const devModuleCache: ModuleCache<HotModule> = Object.create(null)
 // This file must not use `import` and `export` statements. Otherwise, it
 // becomes impossible to augment interfaces declared in `<reference>`d files
 // (e.g. `Module`). Hence, the need for `import()` here.
-type RefreshRuntimeGlobals =
-  import('@next/react-refresh-utils/dist/runtime').RefreshRuntimeGlobals
+type RefreshRuntimeGlobals = import(
+  '@next/react-refresh-utils/dist/runtime'
+).RefreshRuntimeGlobals
 
 declare var $RefreshHelpers$: RefreshRuntimeGlobals['$RefreshHelpers$']
 declare var $RefreshReg$: RefreshRuntimeGlobals['$RefreshReg$']

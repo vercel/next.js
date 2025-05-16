@@ -1250,8 +1250,9 @@ export default async function loadConfig(
 
     if (!process.env.NEXT_MINIMAL) {
       // We only validate the config against schema in non minimal mode
-      const { configSchema } =
-        require('./config-schema') as typeof import('./config-schema')
+      const { configSchema } = require('./config-schema') as typeof import(
+        './config-schema'
+      )
       const state = configSchema.safeParse(userConfig)
 
       if (state.success === false) {

@@ -6,7 +6,6 @@ const { Sema } = require('async-sema')
 const { readFile, readdir, writeFile, cp } = require('fs/promises')
 
 const cwd = process.cwd()
-
 ;(async function () {
   try {
     const publishSema = new Sema(2)

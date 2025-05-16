@@ -9,12 +9,10 @@ type Task = [
    * The directory to create.
    */
   directory: string,
-
   /**
    * The promise to create the directory.
    */
   mkdir: Promise<unknown>,
-
   /**
    * The promises to write the files that are dependent on the directory being
    * created.

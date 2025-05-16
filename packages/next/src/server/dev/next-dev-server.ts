@@ -176,7 +176,9 @@ export default class DevServer extends Server {
       this.nextConfig.experimental?.amp?.skipValidation ?? false
     this.renderOpts.ampValidator = async (html: string, pathname: string) => {
       const { getAmpValidatorInstance, getBundledAmpValidatorFilepath } =
-        require('../../export/helpers/get-amp-html-validator') as typeof import('../../export/helpers/get-amp-html-validator')
+        require('../../export/helpers/get-amp-html-validator') as typeof import(
+          '../../export/helpers/get-amp-html-validator'
+        )
 
       const validatorPath =
         this.nextConfig.experimental?.amp?.validator ||

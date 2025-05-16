@@ -8,7 +8,6 @@ const { execSync } = require('child_process')
 const fs = require('fs')
 
 const cwd = process.cwd()
-
 ;(async function () {
   let isCanary = true
   let isReleaseCandidate = false

@@ -45,10 +45,13 @@ import { Postpone } from './rsc/postpone'
 import { taintObjectReference } from './rsc/taint'
 export { collectSegmentData } from './collect-segment-data'
 
-let SegmentViewNode: typeof import('../../shared/lib/devtool/app-segment-tree').SegmentViewNode =
-  () => null
+let SegmentViewNode: typeof import(
+  '../../shared/lib/devtool/app-segment-tree'
+).SegmentViewNode = () => null
 if (process.env.NODE_ENV === 'development') {
-  const appSegmentTree: typeof import('../../shared/lib/devtool/app-segment-tree') = require('../../shared/lib/devtool/app-segment-tree')
+  const appSegmentTree: typeof import(
+    '../../shared/lib/devtool/app-segment-tree'
+  ) = require('../../shared/lib/devtool/app-segment-tree')
   SegmentViewNode = appSegmentTree.SegmentViewNode
 }
 

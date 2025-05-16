@@ -10,16 +10,18 @@ describe('getFontAxes errors', () => {
   })
 
   test('Invalid axes value', async () => {
-    expect(() => getFontAxes('Inter', ['variable'], [], true as any))
-      .toThrowErrorMatchingInlineSnapshot(`
+    expect(() =>
+      getFontAxes('Inter', ['variable'], [], true as any)
+    ).toThrowErrorMatchingInlineSnapshot(`
       "Invalid axes value for font \`Inter\`, expected an array of axes.
       Available axes: \`opsz\`"
     `)
   })
 
   test('Invalid value in axes array', async () => {
-    expect(() => getFontAxes('Roboto Flex', ['variable'], [], ['INVALID']))
-      .toThrowErrorMatchingInlineSnapshot(`
+    expect(() =>
+      getFontAxes('Roboto Flex', ['variable'], [], ['INVALID'])
+    ).toThrowErrorMatchingInlineSnapshot(`
       "Invalid axes value \`INVALID\` for font \`Roboto Flex\`.
       Available axes: \`GRAD\`, \`XOPQ\`, \`XTRA\`, \`YOPQ\`, \`YTAS\`, \`YTDE\`, \`YTFI\`, \`YTLC\`, \`YTUC\`, \`opsz\`, \`slnt\`, \`wdth\`"
     `)

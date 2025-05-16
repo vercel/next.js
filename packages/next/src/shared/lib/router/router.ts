@@ -1028,7 +1028,9 @@ export default class Router implements BaseRouter {
     if (process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED) {
       if (!this._bfl_s && !this._bfl_d) {
         const { BloomFilter } =
-          require('../../lib/bloom-filter') as typeof import('../../lib/bloom-filter')
+          require('../../lib/bloom-filter') as typeof import(
+            '../../lib/bloom-filter'
+          )
 
         type Filter = ReturnType<
           import('../../lib/bloom-filter').BloomFilter['export']

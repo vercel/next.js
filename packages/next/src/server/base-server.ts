@@ -1971,7 +1971,9 @@ export default abstract class Server<
     pathname,
   }: {
     pathname: string
-    requestHeaders: import('./lib/incremental-cache').IncrementalCache['requestHeaders']
+    requestHeaders: import(
+      './lib/incremental-cache'
+    ).IncrementalCache['requestHeaders']
     page: string
     isAppPath: boolean
   }): Promise<{
@@ -2341,7 +2343,9 @@ export default abstract class Server<
       // For the edge runtime, we don't support preview mode in SSG.
       if (process.env.NEXT_RUNTIME !== 'edge') {
         const { tryGetPreviewData } =
-          require('./api-utils/node/try-get-preview-data') as typeof import('./api-utils/node/try-get-preview-data')
+          require('./api-utils/node/try-get-preview-data') as typeof import(
+            './api-utils/node/try-get-preview-data'
+          )
         previewData = tryGetPreviewData(
           req,
           res,
@@ -2633,7 +2637,6 @@ export default abstract class Server<
             )
 
             const response = await routeModule.handle(request, context)
-
             ;(req as any).fetchMetrics = (
               context.renderOpts as any
             ).fetchMetrics
@@ -2842,7 +2845,6 @@ export default abstract class Server<
       if (cacheTags) {
         headers[NEXT_CACHE_TAGS_HEADER] = cacheTags
       }
-
       // Pull any fetch metrics from the render onto the request.
       ;(req as any).fetchMetrics = metadata.fetchMetrics
 

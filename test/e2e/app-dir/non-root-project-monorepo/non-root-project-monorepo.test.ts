@@ -125,8 +125,9 @@ describe('non-root-project-monorepo', () => {
           `)
           // TODO webpack runtime code shouldn't be included in stack trace
           // TODO(veil): https://linear.app/vercel/issue/NDX-677
-          expect(normalizeStackTrace(await getRedboxCallStack(browser)))
-            .toMatchInlineSnapshot(`
+          expect(
+            normalizeStackTrace(await getRedboxCallStack(browser))
+          ).toMatchInlineSnapshot(`
            "eval app/separate-file.ts (1:11)
            <FIXME-file-protocol>
            <FIXME-file-protocol>
@@ -151,8 +152,9 @@ describe('non-root-project-monorepo', () => {
                |       ^
              2 |"
           `)
-          expect(normalizeStackTrace(await getRedboxCallStack(browser)))
-            .toMatchInlineSnapshot(`
+          expect(
+            normalizeStackTrace(await getRedboxCallStack(browser))
+          ).toMatchInlineSnapshot(`
            "[project]/apps/web/app/separate-file.ts [app-client] (ecmascript) app/separate-file.ts (1:7)
            innerArrowFunction app/source-maps-ssr/page.tsx (15:28)
            innerFunction app/source-maps-ssr/page.tsx (12:3)
@@ -168,8 +170,9 @@ describe('non-root-project-monorepo', () => {
               2 |"
           `)
           // TODO webpack runtime code shouldn't be included in stack trace
-          expect(normalizeStackTrace(await getRedboxCallStack(browser)))
-            .toMatchInlineSnapshot(`
+          expect(
+            normalizeStackTrace(await getRedboxCallStack(browser))
+          ).toMatchInlineSnapshot(`
            "eval app/separate-file.ts (1:7)
            <FIXME-next-dist-dir>
            <FIXME-next-dist-dir>
@@ -196,8 +199,9 @@ describe('non-root-project-monorepo', () => {
                |       ^
              2 |"
           `)
-          expect(normalizeStackTrace(await getRedboxCallStack(browser)))
-            .toMatchInlineSnapshot(`
+          expect(
+            normalizeStackTrace(await getRedboxCallStack(browser))
+          ).toMatchInlineSnapshot(`
            "[project]/apps/web/app/separate-file.ts [app-client] (ecmascript) app/separate-file.ts (1:7)
            innerArrowFunction app/source-maps-client/page.tsx (16:28)
            innerFunction app/source-maps-client/page.tsx (13:3)
@@ -213,8 +217,9 @@ describe('non-root-project-monorepo', () => {
               2 |"
           `)
           // TODO webpack runtime code shouldn't be included in stack trace
-          expect(normalizeStackTrace(await getRedboxCallStack(browser)))
-            .toMatchInlineSnapshot(`
+          expect(
+            normalizeStackTrace(await getRedboxCallStack(browser))
+          ).toMatchInlineSnapshot(`
            "eval app/separate-file.ts (1:7)
            <FIXME-next-dist-dir>
            <FIXME-next-dist-dir>

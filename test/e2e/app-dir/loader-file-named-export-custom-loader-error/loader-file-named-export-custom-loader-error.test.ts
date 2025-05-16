@@ -15,7 +15,6 @@ describe('Error test if the loader file export a named function', () => {
       skipDeployment: true,
       files: __dirname,
     })
-
     ;(isNextDev ? describe : describe.skip)('development only', () => {
       it('should show the error when using `Image` component', async () => {
         const browser = await next.browser('/')
@@ -35,7 +34,6 @@ describe('Error test if the loader file export a named function', () => {
       skipStart: true,
       files: __dirname,
     })
-
     ;(isNextStart ? describe : describe.skip)('build and start only', () => {
       it('should show the build error', async () => {
         await expect(next.start()).rejects.toThrow(

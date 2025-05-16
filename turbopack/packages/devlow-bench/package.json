@@ -19,9 +19,7 @@
     "test": "node --import tsx --test src/**/*-test.ts",
     "build": "tsc"
   },
-  "files": [
-    "dist"
-  ],
+  "files": ["dist"],
   "keywords": [],
   "author": "Tobias Koppers",
   "license": "MIT",

@@ -3,7 +3,6 @@ describe('app dir - css - experimental inline css', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
   })
-
   ;(isNextDev ? describe.skip : describe)('Production only', () => {
     it('should render page with correct styles', async () => {
       const browser = await next.browser('/')

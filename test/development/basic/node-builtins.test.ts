@@ -171,8 +171,9 @@ describe('node builtins', () => {
   it('should throw when unsupported builtins are used in middleware', async () => {
     const res = await next.fetch('/middleware-test')
     expect(res.status).toBe(200)
-    expect(JSON.parse(res.headers.get('supported-result')))
-      .toMatchInlineSnapshot(`
+    expect(
+      JSON.parse(res.headers.get('supported-result'))
+    ).toMatchInlineSnapshot(`
       {
         "assert": true,
         "buffer": "hello world",
@@ -180,8 +181,9 @@ describe('node builtins', () => {
         "util": true,
       }
     `)
-    expect(JSON.parse(res.headers.get('unsupported-result')))
-      .toMatchInlineSnapshot(`
+    expect(
+      JSON.parse(res.headers.get('unsupported-result'))
+    ).toMatchInlineSnapshot(`
       {
         "constants": false,
         "crypto": false,

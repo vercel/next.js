@@ -3,6 +3,7 @@
     // Linting / Formatting
     "rust-lang.rust-analyzer",
     "esbenp.prettier-vscode",
+    "biomejs.biome",
     "dbaeumer.vscode-eslint",
     "usernamehw.errorlens",
     "ast-grep.ast-grep-vscode",

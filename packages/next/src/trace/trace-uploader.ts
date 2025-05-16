@@ -106,7 +106,6 @@ interface TraceMetadata {
   platform: string
   sessionId: string
 }
-
 ;(async function upload() {
   const nextVersion = JSON.parse(
     await fsPromise.readFile(

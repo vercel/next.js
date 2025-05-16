@@ -56,7 +56,6 @@ describe('next/dynamic', () => {
     const html = await renderViaHTTP(next.url, path, query)
     return cheerio.load(html)
   }
-
   // Turbopack doesn't support babel.
   ;(process.env.IS_TURBOPACK_TEST && process.env.TEST_BABEL === '1'
     ? describe.skip

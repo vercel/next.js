@@ -77,7 +77,6 @@ class NextRootCommand extends Command {
           warn(NON_STANDARD_NODE_ENV)
         }
       }
-
       ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
       ;(process.env as any).NEXT_RUNTIME = 'nodejs'
 

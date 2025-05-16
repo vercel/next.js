@@ -121,8 +121,9 @@ export async function initialize(opts: {
   let originalFetch = globalThis.fetch
 
   if (opts.dev) {
-    const { Telemetry } =
-      require('../../telemetry/storage') as typeof import('../../telemetry/storage')
+    const { Telemetry } = require('../../telemetry/storage') as typeof import(
+      '../../telemetry/storage'
+    )
 
     const telemetry = new Telemetry({
       distDir: path.join(opts.dir, config.distDir),
@@ -132,7 +133,9 @@ export async function initialize(opts: {
     const { pagesDir, appDir } = findPagesDir(opts.dir)
 
     const { setupDevBundler } =
-      require('./router-utils/setup-dev-bundler') as typeof import('./router-utils/setup-dev-bundler')
+      require('./router-utils/setup-dev-bundler') as typeof import(
+        './router-utils/setup-dev-bundler'
+      )
 
     const resetFetch = () => {
       globalThis.fetch = originalFetch
@@ -170,8 +173,9 @@ export async function initialize(opts: {
     )
   }
 
-  renderServer.instance =
-    require('./render-server') as typeof import('./render-server')
+  renderServer.instance = require('./render-server') as typeof import(
+    './render-server'
+  )
 
   const requestHandlerImpl: WorkerRequestHandler = async (req, res) => {
     // internal headers should not be honored by the request handler
@@ -204,7 +208,9 @@ export async function initialize(opts: {
         domainLocale?.defaultLocale || config.i18n.defaultLocale
 
       const { getLocaleRedirect } =
-        require('../../shared/lib/i18n/get-locale-redirect') as typeof import('../../shared/lib/i18n/get-locale-redirect')
+        require('../../shared/lib/i18n/get-locale-redirect') as typeof import(
+          '../../shared/lib/i18n/get-locale-redirect'
+        )
 
       const parsedUrl = parseUrlUtil((req.url || '')?.replace(/^\/+/, '/'))
 
@@ -634,7 +640,9 @@ export async function initialize(opts: {
   if (config.experimental.testProxy) {
     // Intercept fetch and other testmode apis.
     const { wrapRequestHandlerWorker, interceptTestApis } =
-      require('next/dist/experimental/testmode/server') as typeof import('next/src/experimental/testmode/server')
+      require('next/dist/experimental/testmode/server') as typeof import(
+        'next/src/experimental/testmode/server'
+      )
     requestHandler = wrapRequestHandlerWorker(requestHandler)
     interceptTestApis()
     // We treat the intercepted fetch as "original" fetch that should be reset to during HMR.

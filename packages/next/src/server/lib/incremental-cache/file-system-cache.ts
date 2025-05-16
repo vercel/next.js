@@ -54,30 +54,31 @@ export default class FileSystemCache implements CacheHandler {
           console.log('using memory store for fetch cache')
         }
 
-        memoryCache = new LRUCache(ctx.maxMemoryCacheSize, function length({
-          value,
-        }) {
-          if (!value) {
-            return 25
-          } else if (value.kind === CachedRouteKind.REDIRECT) {
-            return JSON.stringify(value.props).length
-          } else if (value.kind === CachedRouteKind.IMAGE) {
-            throw new Error('invariant image should not be incremental-cache')
-          } else if (value.kind === CachedRouteKind.FETCH) {
-            return JSON.stringify(value.data || '').length
-          } else if (value.kind === CachedRouteKind.APP_ROUTE) {
-            return value.body.length
+        memoryCache = new LRUCache(
+          ctx.maxMemoryCacheSize,
+          function length({ value }) {
+            if (!value) {
+              return 25
+            } else if (value.kind === CachedRouteKind.REDIRECT) {
+              return JSON.stringify(value.props).length
+            } else if (value.kind === CachedRouteKind.IMAGE) {
+              throw new Error('invariant image should not be incremental-cache')
+            } else if (value.kind === CachedRouteKind.FETCH) {
+              return JSON.stringify(value.data || '').length
+            } else if (value.kind === CachedRouteKind.APP_ROUTE) {
+              return value.body.length
+            }
+            // rough estimate of size of cache value
+            return (
+              value.html.length +
+              (JSON.stringify(
+                value.kind === CachedRouteKind.APP_PAGE
+                  ? value.rscData
+                  : value.pageData
+              )?.length || 0)
+            )
           }
-          // rough estimate of size of cache value
-          return (
-            value.html.length +
-            (JSON.stringify(
-              value.kind === CachedRouteKind.APP_PAGE
-                ? value.rscData
-                : value.pageData
-            )?.length || 0)
-          )
-        })
+        )
       }
     } else if (this.debug) {
       console.log('not using memory store for fetch cache')

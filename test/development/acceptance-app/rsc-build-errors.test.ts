@@ -346,8 +346,9 @@ describe('Error overlay - RSC build errors', () => {
       /must be a Client \n| Component/
     )
     if (process.env.IS_TURBOPACK_TEST) {
-      expect(next.normalizeTestDirContent(await session.getRedboxSource()))
-        .toMatchInlineSnapshot(`
+      expect(
+        next.normalizeTestDirContent(await session.getRedboxSource())
+      ).toMatchInlineSnapshot(`
        "./app/server-with-errors/error-file/error.js (1:1)
        Ecmascript file had an error
        > 1 | export default function Error() {}

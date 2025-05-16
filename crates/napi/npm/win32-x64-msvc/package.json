@@ -6,16 +6,10 @@
     "url": "https://github.com/vercel/next.js",
     "directory": "crates/napi/npm/win32-x64-msvc"
   },
-  "os": [
-    "win32"
-  ],
-  "cpu": [
-    "x64"
-  ],
+  "os": ["win32"],
+  "cpu": ["x64"],
   "main": "next-swc.win32-x64-msvc.node",
-  "files": [
-    "next-swc.win32-x64-msvc.node"
-  ],
+  "files": ["next-swc.win32-x64-msvc.node"],
   "license": "MIT",
   "engines": {
     "node": ">= 10"

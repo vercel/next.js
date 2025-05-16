@@ -661,8 +661,9 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
         try {
           return await new Promise((resolve, reject) => {
             ;(
-              compilation.inputFileSystem
-                .readlink as typeof import('fs').readlink
+              compilation.inputFileSystem.readlink as typeof import(
+                'fs'
+              ).readlink
             )(path, (err, link) => {
               if (err) return reject(err)
               resolve(link)

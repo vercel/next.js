@@ -21,8 +21,9 @@ export default function uploadTrace({
 
   // Note: cross-spawn is not used here as it causes
   // a new command window to appear when we don't want it to
-  const child_process =
-    require('child_process') as typeof import('child_process')
+  const child_process = require('child_process') as typeof import(
+    'child_process'
+  )
 
   // we use spawnSync when debugging to ensure logs are piped
   // correctly to stdout/stderr

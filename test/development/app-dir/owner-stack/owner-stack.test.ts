@@ -72,8 +72,9 @@ describe('app-dir - owner-stack', () => {
      }
     `)
 
-    expect(normalizeBrowserConsoleStackTrace(errorStack))
-      .toMatchInlineSnapshot(`
+    expect(
+      normalizeBrowserConsoleStackTrace(errorStack)
+    ).toMatchInlineSnapshot(`
      "Error: browser error
      at useThrowError 
      at useErrorHook 
@@ -144,8 +145,9 @@ describe('app-dir - owner-stack', () => {
      }
     `)
 
-    expect(normalizeBrowserConsoleStackTrace(errorStack))
-      .toMatchInlineSnapshot(`
+    expect(
+      normalizeBrowserConsoleStackTrace(errorStack)
+    ).toMatchInlineSnapshot(`
      "Error: ssr error
      at useThrowError 
      at useErrorHook 

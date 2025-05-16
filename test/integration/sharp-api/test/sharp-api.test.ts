@@ -12,10 +12,9 @@ import fs from 'fs-extra'
 import { join } from 'path'
 
 const appDir = join(__dirname, '../app')
-let app,
-  appPort
+let app, appPort
 
-  // Skip as Turbopack doesn't support `next build` yet
+// Skip as Turbopack doesn't support `next build` yet
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)('sharp api', () => {
   beforeAll(async () => {
     await execa('npm', ['install'], { cwd: appDir, stdio: 'inherit' })

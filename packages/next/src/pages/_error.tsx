@@ -30,7 +30,9 @@ function _getInitialProps({
     hostname = window.location.hostname
   } else if (req) {
     const { getRequestMeta } =
-      require('../server/request-meta') as typeof import('../server/request-meta')
+      require('../server/request-meta') as typeof import(
+        '../server/request-meta'
+      )
 
     const initUrl = getRequestMeta(req, 'initURL')
     if (initUrl) {

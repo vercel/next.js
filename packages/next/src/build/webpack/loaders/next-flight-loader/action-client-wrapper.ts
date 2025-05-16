@@ -15,5 +15,7 @@ export const createServerReference = (
     ? // eslint-disable-next-line import/no-extraneous-dependencies
       require('react-server-dom-webpack/client.edge')
     : // eslint-disable-next-line import/no-extraneous-dependencies
-      require('react-server-dom-webpack/client')) as typeof import('react-server-dom-webpack/client')
+      require('react-server-dom-webpack/client')) as typeof import(
+    'react-server-dom-webpack/client'
+  )
 ).createServerReference

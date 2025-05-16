@@ -13,7 +13,6 @@ import {
 import rendering from './rendering'
 
 const context = {}
-
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)('Babel', () => {
   beforeAll(async () => {
     context.appPort = await findPort()

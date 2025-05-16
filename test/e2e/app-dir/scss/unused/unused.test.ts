@@ -19,7 +19,6 @@ describe.each([
       dependencies,
       nextConfig,
     })
-
     ;(isNextDev ? describe : describe.skip)('development only', () => {
       it('should have body visible', async () => {
         const browser = await next.browser('/')
@@ -37,7 +36,6 @@ describe.each([
       dependencies,
       nextConfig,
     })
-
     ;(isNextDev ? describe : describe.skip)('development only', () => {
       it('should have body visible', async () => {
         await next.patchFile('pages/index.js', (contents) => {

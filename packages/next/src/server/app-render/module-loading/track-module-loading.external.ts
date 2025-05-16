@@ -6,6 +6,8 @@ import {
   trackPendingChunkLoad,
   trackPendingImport,
   trackPendingModules,
-} from './track-module-loading.instance' with { 'turbopack-transition': 'next-shared' }
+} from './track-module-loading.instance' with {
+  'turbopack-transition': 'next-shared',
+}
 
 export { trackPendingChunkLoad, trackPendingImport, trackPendingModules }

@@ -19,7 +19,9 @@ import { ReadonlyURLSearchParams } from './navigation.react-server'
 const useDynamicRouteParams =
   typeof window === 'undefined'
     ? (
-        require('../../server/app-render/dynamic-rendering') as typeof import('../../server/app-render/dynamic-rendering')
+        require('../../server/app-render/dynamic-rendering') as typeof import(
+          '../../server/app-render/dynamic-rendering'
+        )
       ).useDynamicRouteParams
     : undefined
 
@@ -63,7 +65,9 @@ export function useSearchParams(): ReadonlyURLSearchParams {
   if (typeof window === 'undefined') {
     // AsyncLocalStorage should not be included in the client bundle.
     const { bailoutToClientRendering } =
-      require('./bailout-to-client-rendering') as typeof import('./bailout-to-client-rendering')
+      require('./bailout-to-client-rendering') as typeof import(
+        './bailout-to-client-rendering'
+      )
     // TODO-APP: handle dynamic = 'force-static' here and on the client
     bailoutToClientRendering('useSearchParams()')
   }

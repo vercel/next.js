@@ -13,7 +13,9 @@ appBootstrap(() => {
 
   if (process.env.NODE_ENV !== 'production') {
     const { initializeDevBuildIndicatorForAppRouter } =
-      require('./dev/dev-build-indicator/initialize-for-app-router') as typeof import('./dev/dev-build-indicator/initialize-for-app-router')
+      require('./dev/dev-build-indicator/initialize-for-app-router') as typeof import(
+        './dev/dev-build-indicator/initialize-for-app-router'
+      )
     initializeDevBuildIndicatorForAppRouter()
   }
 })

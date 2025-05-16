@@ -6,9 +6,7 @@
     "url": "vercel/next.js",
     "directory": "packages/react-refresh-utils"
   },
-  "files": [
-    "dist"
-  ],
+  "files": ["dist"],
   "author": "Joe Haddad <timer@vercel.com>",
   "license": "MIT",
   "scripts": {

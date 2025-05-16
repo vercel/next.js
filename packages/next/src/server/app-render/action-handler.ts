@@ -728,14 +728,15 @@ export async function handleAction({
           decodeReplyFromBusboy,
           decodeAction,
           decodeFormState,
-        } = require(
-          `./react-server.node`
-        ) as typeof import('./react-server.node')
+        } = require(`./react-server.node`) as typeof import(
+          './react-server.node'
+        )
 
         temporaryReferences = createTemporaryReferenceSet()
 
-        const { Transform, pipeline } =
-          require('node:stream') as typeof import('node:stream')
+        const { Transform, pipeline } = require('node:stream') as typeof import(
+          'node:stream'
+        )
 
         const defaultBodySizeLimit = '1 MB'
         const bodySizeLimit =
@@ -779,7 +780,9 @@ export async function handleAction({
         if (isMultipartAction) {
           if (isFetchAction) {
             const busboy = (
-              require('next/dist/compiled/busboy') as typeof import('next/dist/compiled/busboy')
+              require('next/dist/compiled/busboy') as typeof import(
+                'next/dist/compiled/busboy'
+              )
             )({
               defParamCharset: 'utf8',
               headers: req.headers,

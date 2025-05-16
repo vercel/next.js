@@ -772,8 +772,9 @@ async function writeFullyStaticExport(
   configOutDir: string,
   nextBuildSpan: Span
 ): Promise<void> {
-  const exportApp = require('../export')
-    .default as typeof import('../export').default
+  const exportApp = require('../export').default as typeof import(
+    '../export'
+  ).default
 
   await exportApp(
     dir,
@@ -2477,8 +2478,9 @@ export default async function build(
       await writeBuildId(distDir, buildId)
 
       if (config.experimental.optimizeCss) {
-        const globOrig =
-          require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
+        const globOrig = require('next/dist/compiled/glob') as typeof import(
+          'next/dist/compiled/glob'
+        )
 
         const cssFilePaths = await new Promise<string[]>((resolve, reject) => {
           globOrig(
@@ -2619,8 +2621,9 @@ export default async function build(
             )
           )
 
-          const exportApp = require('../export')
-            .default as typeof import('../export').default
+          const exportApp = require('../export').default as typeof import(
+            '../export'
+          ).default
 
           const exportConfig: NextConfigComplete = {
             ...config,

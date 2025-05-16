@@ -1,3 +1,20 @@
+*.node
+
+# These have moved to Biome -- see biome.jsonc
+*.js
+*.jsx
+*.ts
+*.tsx
+*.mjs
+*.cjs
+*.d.mts
+*.json
+*.jsonc
+
+# Temporarily continue to format files here until they're covered by Biome
+!examples/**/*
+!packages/create-next-app/**/*
+
 # Build artifacts
 .next/
 .turbo/
@@ -68,4 +85,3 @@ test/e2e/async-modules/amp-validator-wasm.js
 /turbopack/crates/turbopack-tests/tests/snapshot/import-meta/cjs/input/mod.cjs
 /turbopack/crates/turbopack-tests/tests/**/output*
 /turbopack/crates/turbopack-tests/tests/**/static
-

@@ -17,22 +17,20 @@ export default async function Icon() {
   const letter = await fetchIconLetter()
 
   return new ImageResponse(
-    (
-      <div
-        style={{
-          fontSize: 24,
-          background: 'black',
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'white',
-        }}
-      >
-        {letter}
-      </div>
-    ),
+    <div
+      style={{
+        fontSize: 24,
+        background: 'black',
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'white',
+      }}
+    >
+      {letter}
+    </div>,
     { ...size }
   )
 }

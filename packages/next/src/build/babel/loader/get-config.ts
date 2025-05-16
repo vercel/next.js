@@ -293,7 +293,7 @@ async function getFreshConfig(
   })()
 
   const reactCompilerPluginsIfEnabled = hasReactCompiler
-    ? loaderOptions.reactCompilerPlugins ?? []
+    ? (loaderOptions.reactCompilerPlugins ?? [])
     : []
 
   let { isServer, pagesDir, srcDir, development } = loaderOptions

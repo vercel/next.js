@@ -207,7 +207,6 @@ module.exports = {
         }
       })
     }
-
     ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
@@ -292,7 +291,6 @@ module.exports = {
             }
           })
         }
-
         ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
           'production mode',
           () => {
@@ -361,7 +359,6 @@ module.exports = {
           }
         })
       }
-
       // This test case will fail in Turbopack when both pages share some css chunks. Deleting them will cause the / page to fail too.
       ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
         'production mode',
@@ -477,7 +474,6 @@ module.exports = {
           }
         })
       }
-
       ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
         'production mode',
         () => {

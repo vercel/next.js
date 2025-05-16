@@ -397,9 +397,9 @@ async function createTreeCodeFromPath(
       if (isNotFoundRoute) {
         if (normalizedParallelKey === 'children') {
           const matchedGlobalNotFound = isGlobalNotFoundEnabled
-            ? definedFilePaths.find(
+            ? (definedFilePaths.find(
                 ([type]) => type === GLOBAL_NOT_FOUND_FILE_TYPE
-              )?.[1] ?? defaultGlobalNotFoundPath
+              )?.[1] ?? defaultGlobalNotFoundPath)
             : undefined
 
           // If custom global-not-found.js is defined, use global-not-found.js

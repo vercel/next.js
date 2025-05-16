@@ -31,8 +31,9 @@ describe('validateFontFunctionCall errors', () => {
   })
 
   test('Missing weight for non variable font', () => {
-    expect(() => validateGoogleFontFunctionCall('Abel', { subsets: ['latin'] }))
-      .toThrowErrorMatchingInlineSnapshot(`
+    expect(() =>
+      validateGoogleFontFunctionCall('Abel', { subsets: ['latin'] })
+    ).toThrowErrorMatchingInlineSnapshot(`
         "Missing weight for font \`Abel\`.
         Available weights: \`400\`"
       `)
@@ -84,8 +85,9 @@ describe('validateFontFunctionCall errors', () => {
   })
 
   test('Missing subsets in config and call', async () => {
-    expect(() => validateGoogleFontFunctionCall('Inter', {}))
-      .toThrowErrorMatchingInlineSnapshot(`
+    expect(() =>
+      validateGoogleFontFunctionCall('Inter', {})
+    ).toThrowErrorMatchingInlineSnapshot(`
       "Preload is enabled but no subsets were specified for font \`Inter\`. Please specify subsets or disable preloading if your intended subset can't be preloaded.
       Available subsets: \`cyrillic\`, \`cyrillic-ext\`, \`greek\`, \`greek-ext\`, \`latin\`, \`latin-ext\`, \`vietnamese\`
 

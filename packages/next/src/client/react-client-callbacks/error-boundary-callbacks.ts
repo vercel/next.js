@@ -24,7 +24,9 @@ export function onCaughtError(
 
   if (process.env.NODE_ENV !== 'production') {
     const { AppDevOverlayErrorBoundary } =
-      require('../components/react-dev-overlay/app/app-dev-overlay-error-boundary') as typeof import('../components/react-dev-overlay/app/app-dev-overlay-error-boundary')
+      require('../components/react-dev-overlay/app/app-dev-overlay-error-boundary') as typeof import(
+        '../components/react-dev-overlay/app/app-dev-overlay-error-boundary'
+      )
 
     isImplicitErrorBoundary =
       errorBoundaryComponent === AppDevOverlayErrorBoundary

@@ -66,8 +66,11 @@ const BUILD_FAILURE_RE = /Build failed because of (webpack|rspack) errors/
 
             const { version, mappings, sourcesContent } =
               JSON.parse(cssMapContent)
-            expect({ version, mappings, sourcesContent })
-              .toMatchInlineSnapshot(`
+            expect({
+              version,
+              mappings,
+              sourcesContent,
+            }).toMatchInlineSnapshot(`
 {
   "mappings": "AACA,gCACE,cACE,WACF,CACF,CAGA,OACE,eAA0B,CAA1B,gBACF",
   "sourcesContent": [
@@ -141,8 +144,11 @@ const BUILD_FAILURE_RE = /Build failed because of (webpack|rspack) errors/
 
             const { version, mappings, sourcesContent } =
               JSON.parse(cssMapContent)
-            expect({ version, mappings, sourcesContent })
-              .toMatchInlineSnapshot(`
+            expect({
+              version,
+              mappings,
+              sourcesContent,
+            }).toMatchInlineSnapshot(`
 {
   "mappings": "AACA,gCACE,SACE,UACF,CACA,cACE,WACF,CACF,CAGA,OACE,gBAA4B,CAA5B,iBAA4B,CAA5B,gBAA4B,CAA5B,iBACF",
   "sourcesContent": [

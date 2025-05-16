@@ -3,5 +3,7 @@ export const createRenderParamsFromClient =
     ? (require('./params.browser.dev') as typeof import('./params.browser.dev'))
         .makeDynamicallyTrackedExoticParamsWithDevWarnings
     : (
-        require('./params.browser.prod') as typeof import('./params.browser.prod')
+        require('./params.browser.prod') as typeof import(
+          './params.browser.prod'
+        )
       ).makeUntrackedExoticParams

@@ -1,9 +1,12 @@
 {
-  // Formatting using Prettier by default for all languages
+  // Formatting using Prettier by default for languages not covered below.
   "editor.defaultFormatter": "esbenp.prettier-vscode",
-  // Formatting using Prettier for JavaScript, overrides VSCode default.
+  // Formatting using Biome for JavaScript and TypeScript, overrides VSCode default.
   "[javascript]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "biomejs.biome"
   },
   // Formatting using Rust-Analyzer for Rust.
   "[rust]": {
@@ -117,5 +120,8 @@
     "${workspaceRoot}/.git-blame-ignore-revs"
   ],
   "astGrep.serverPath": "node_modules/@ast-grep/cli/ast-grep",
-  "rust-analyzer.imports.prefix": "crate"
+  "rust-analyzer.imports.prefix": "crate",
+  "[jsonc]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  }
 }

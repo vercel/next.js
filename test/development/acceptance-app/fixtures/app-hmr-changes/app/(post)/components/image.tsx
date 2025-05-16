@@ -17,7 +17,6 @@ export async function Image({ src, alt = null, width = null, height = null }) {
           .pathname
       )
     }
-
     ;({ width, height } = sizeOf(imageBuffer))
   }
 

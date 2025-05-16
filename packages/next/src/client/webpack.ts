@@ -29,7 +29,6 @@ if (process.env.NEXT_DEPLOYMENT_ID) {
   __webpack_require__.miniCssF = (...args: any[]) =>
     getMiniCssFilename(...args) + suffix
 }
-
 // Ignore the module ID transform in client.
 ;(self as any).__next_set_public_path__ = (path: string) => {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

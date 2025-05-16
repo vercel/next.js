@@ -43,33 +43,28 @@ describe('TypeScript with error handling options', () => {
               tsConfigFile.restore()
             })
 
-            it(
-              (ignoreBuildErrors
-                ? 'Next builds the application despite type errors'
-                : 'Next fails to build the application despite type errors') +
-                (incremental
-                  ? ' in incremental mode'
-                  : ' without incremental mode'),
-              async () => {
-                const { stdout, stderr } = await nextBuild(appDir, [], {
-                  stdout: true,
-                  stderr: true,
-                })
+            it((ignoreBuildErrors
+              ? 'Next builds the application despite type errors'
+              : 'Next fails to build the application despite type errors') +
+              (incremental
+                ? ' in incremental mode'
+                : ' without incremental mode'), async () => {
+              const { stdout, stderr } = await nextBuild(appDir, [], {
+                stdout: true,
+                stderr: true,
+              })
 
-                if (ignoreBuildErrors) {
-                  expect(stdout).toContain('Compiled successfully')
-                  expect(stderr).not.toContain('Failed to compile.')
-                  expect(stderr).not.toContain(
-                    "not assignable to type 'boolean'"
-                  )
-                } else {
-                  expect(stdout).not.toContain('Compiled successfully')
-                  expect(stderr).toContain('Failed to compile.')
-                  expect(stderr).toContain('./pages/index.tsx:2:31')
-                  expect(stderr).toContain("not assignable to type 'boolean'")
-                }
+              if (ignoreBuildErrors) {
+                expect(stdout).toContain('Compiled successfully')
+                expect(stderr).not.toContain('Failed to compile.')
+                expect(stderr).not.toContain("not assignable to type 'boolean'")
+              } else {
+                expect(stdout).not.toContain('Compiled successfully')
+                expect(stderr).toContain('Failed to compile.')
+                expect(stderr).toContain('./pages/index.tsx:2:31')
+                expect(stderr).toContain("not assignable to type 'boolean'")
               }
-            )
+            })
           })
         }
       }

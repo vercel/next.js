@@ -515,8 +515,9 @@ export function runErrorRecoveryHmrTest(nextConfig: {
               Read more: https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders"
             `)
       } else if (process.env.NEXT_RSPACK) {
-        expect(trimEndMultiline(await getRedboxSource(browser)))
-          .toMatchInlineSnapshot(`
+        expect(
+          trimEndMultiline(await getRedboxSource(browser))
+        ).toMatchInlineSnapshot(`
            "./components/parse-error.xyz
              × Module parse failed:
              ╰─▶   × JavaScript parsing error: Expression expected
@@ -600,8 +601,9 @@ export function runErrorRecoveryHmrTest(nextConfig: {
 
       redboxSource = redboxSource.replace(`${next.testDir}`, '.')
       if (process.env.IS_TURBOPACK_TEST) {
-        expect(next.normalizeTestDirContent(redboxSource))
-          .toMatchInlineSnapshot(`
+        expect(
+          next.normalizeTestDirContent(redboxSource)
+        ).toMatchInlineSnapshot(`
            "./components/parse-error.js (3:1)
            Parsing ecmascript source code failed
              1 | This
@@ -614,8 +616,9 @@ export function runErrorRecoveryHmrTest(nextConfig: {
            Expression expected"
           `)
       } else if (process.env.NEXT_RSPACK) {
-        expect(trimEndMultiline(next.normalizeTestDirContent(redboxSource)))
-          .toMatchInlineSnapshot(`
+        expect(
+          trimEndMultiline(next.normalizeTestDirContent(redboxSource))
+        ).toMatchInlineSnapshot(`
            "./components/parse-error.js
              × Module build failed:
              ├─▶   ×
@@ -639,8 +642,9 @@ export function runErrorRecoveryHmrTest(nextConfig: {
       } else {
         redboxSource = redboxSource.substring(0, redboxSource.indexOf('`----'))
 
-        expect(next.normalizeTestDirContent(redboxSource))
-          .toMatchInlineSnapshot(`
+        expect(
+          next.normalizeTestDirContent(redboxSource)
+        ).toMatchInlineSnapshot(`
             "./components/parse-error.js
             Error:   x Expression expected
                ,-[3:1]

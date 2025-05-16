@@ -7,11 +7,7 @@
     "directory": "packages/font"
   },
   "types": "dist/types.d.ts",
-  "files": [
-    "dist",
-    "google",
-    "local"
-  ],
+  "files": ["dist", "google", "local"],
   "license": "MIT",
   "scripts": {
     "build": "node ../../scripts/rm.mjs dist && pnpm ncc-fontkit && tsc -d -p tsconfig.build.json",

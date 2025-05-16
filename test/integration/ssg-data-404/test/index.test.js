@@ -51,7 +51,6 @@ describe('SSG data 404', () => {
     it('should skip this suite on Windows', () => {})
     return
   }
-
   ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
     'development mode',
     () => {

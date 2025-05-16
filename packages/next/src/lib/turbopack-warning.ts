@@ -63,15 +63,21 @@ export async function validateTurboNextConfig({
   isDev?: boolean
 }) {
   const { getPkgManager } =
-    require('../lib/helpers/get-pkg-manager') as typeof import('../lib/helpers/get-pkg-manager')
+    require('../lib/helpers/get-pkg-manager') as typeof import(
+      '../lib/helpers/get-pkg-manager'
+    )
   const { getBabelConfigFile } =
-    require('../build/get-babel-config-file') as typeof import('../build/get-babel-config-file')
-  const { defaultConfig } =
-    require('../server/config-shared') as typeof import('../server/config-shared')
+    require('../build/get-babel-config-file') as typeof import(
+      '../build/get-babel-config-file'
+    )
+  const { defaultConfig } = require('../server/config-shared') as typeof import(
+    '../server/config-shared'
+  )
   const { bold, cyan, red, underline } =
     require('../lib/picocolors') as typeof import('../lib/picocolors')
-  const { interopDefault } =
-    require('../lib/interop-default') as typeof import('../lib/interop-default')
+  const { interopDefault } = require('../lib/interop-default') as typeof import(
+    '../lib/interop-default'
+  )
 
   let unsupportedParts = ''
   let babelrc = await getBabelConfigFile(dir)

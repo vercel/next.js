@@ -14,25 +14,23 @@ export default async function Image() {
   const post = await fetchPostData()
 
   return new ImageResponse(
-    (
-      <div
-        style={{
-          fontSize: 48,
-          background: 'white',
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexDirection: 'column',
-        }}
-      >
-        <h1>{post.title}</h1>
-        <p style={{ fontSize: 32 }}>
-          {new Date(post.created).toLocaleTimeString()}
-        </p>
-      </div>
-    ),
+    <div
+      style={{
+        fontSize: 48,
+        background: 'white',
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexDirection: 'column',
+      }}
+    >
+      <h1>{post.title}</h1>
+      <p style={{ fontSize: 32 }}>
+        {new Date(post.created).toLocaleTimeString()}
+      </p>
+    </div>,
     size
   )
 }

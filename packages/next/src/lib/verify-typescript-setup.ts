@@ -106,9 +106,9 @@ export async function verifyTypeScriptSetup({
 
     // Load TypeScript after we're sure it exists:
     const tsPath = deps.resolved.get('typescript')!
-    const ts = (await Promise.resolve(
-      require(tsPath)
-    )) as typeof import('typescript')
+    const ts = (await Promise.resolve(require(tsPath))) as typeof import(
+      'typescript'
+    )
 
     if (semver.lt(ts.version, '4.5.2')) {
       log.warn(

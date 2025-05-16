@@ -50,7 +50,6 @@ import type { AppSharedContext } from '../server/app-render/app-render'
 import { MultiFileWriter } from '../lib/multi-file-writer'
 
 const envConfig = require('../shared/lib/runtime-config.external')
-
 ;(globalThis as any).__NEXT_DATA__ = {
   nextExport: true,
 }

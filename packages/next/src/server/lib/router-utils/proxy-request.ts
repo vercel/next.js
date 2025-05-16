@@ -19,8 +19,9 @@ export async function proxyRequest(
   parsedUrl.search = stringifyQuery(req as any, query)
 
   const target = url.format(parsedUrl)
-  const HttpProxy =
-    require('next/dist/compiled/http-proxy') as typeof import('next/dist/compiled/http-proxy')
+  const HttpProxy = require('next/dist/compiled/http-proxy') as typeof import(
+    'next/dist/compiled/http-proxy'
+  )
 
   const proxy = new HttpProxy({
     target,

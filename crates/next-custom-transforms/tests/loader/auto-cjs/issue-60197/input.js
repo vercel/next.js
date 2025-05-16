@@ -1,5 +1,4 @@
 var module = {}
-
 ;(function main(global, module) {
   module.exports = function () {}
 

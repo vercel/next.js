@@ -25,9 +25,7 @@ export default async function Page() {
       <p>/revalidate</p>
       <p>
         {' '}
-        revalidate (tags: thankyounext): <span id="thankyounext">
-          {data}
-        </span>{' '}
+        revalidate (tags: thankyounext): <span id="thankyounext">{data}</span>{' '}
         <span>
           <Link href="/revalidate-2" id="another">
             /revalidate-2

@@ -19,32 +19,27 @@ export function runSharedTests(type: 'app' | 'pages') {
     const isAppDir = type === 'app'
     const pathPrefix = isAppDir ? '' : '/pages-dir'
 
-    it(
-      'should soft-navigate on submit' +
-        (isAppDir ? ' and show the prefetched loading state' : ''),
-      async () => {
-        const session = await next.browser(pathPrefix + '/forms/basic')
-        const navigationTracker = await trackMpaNavs(session)
+    it('should soft-navigate on submit' +
+      (isAppDir ? ' and show the prefetched loading state' : ''), async () => {
+      const session = await next.browser(pathPrefix + '/forms/basic')
+      const navigationTracker = await trackMpaNavs(session)
 
-        const searchInput = await session.elementByCss('input[name="query"]')
-        await searchInput.fill('my search')
+      const searchInput = await session.elementByCss('input[name="query"]')
+      await searchInput.fill('my search')
 
-        const submitButton = await session.elementByCss('[type="submit"]')
-        await submitButton.click()
+      const submitButton = await session.elementByCss('[type="submit"]')
+      await submitButton.click()
 
-        if (isAppDir) {
-          // we should have prefetched a loading state, so it should be displayed
-          await session.waitForElementByCss('#loading')
-        }
-
-        const result = await session
-          .waitForElementByCss('#search-results')
-          .text()
-        expect(result).toMatch(/query: "my search"/)
-
-        expect(await navigationTracker.didMpaNavigate()).toBe(false)
+      if (isAppDir) {
+        // we should have prefetched a loading state, so it should be displayed
+        await session.waitForElementByCss('#loading')
       }
-    )
+
+      const result = await session.waitForElementByCss('#search-results').text()
+      expect(result).toMatch(/query: "my search"/)
+
+      expect(await navigationTracker.didMpaNavigate()).toBe(false)
+    })
 
     it('should soft-navigate to the formAction url of the submitter', async () => {
       const session = await next.browser(
