@@ -179,6 +179,7 @@ export type ServerOnInstrumentationRequestError = (
 ) => void | Promise<void>
 
 export interface RenderOptsPartial {
+  dir?: string
   previewProps: __ApiPreviewProps | undefined
   err?: Error | null
   dev?: boolean
@@ -269,6 +270,11 @@ export interface RenderOptsPartial {
    * statically generated.
    */
   doNotThrowOnEmptyStaticShell?: boolean
+
+  /**
+   * next config experimental.devtoolSegmentExplorer
+   */
+  devtoolSegmentExplorer?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType<AppPageModule> &
