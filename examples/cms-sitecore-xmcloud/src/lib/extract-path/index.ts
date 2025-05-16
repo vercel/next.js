@@ -19,7 +19,7 @@ export class PathExtractor {
     }
     let path = Array.isArray(params.path)
       ? params.path.join("/")
-      : params.path ?? "/";
+      : (params.path ?? "/");
 
     // Ensure leading '/'
     if (!path.startsWith("/")) {

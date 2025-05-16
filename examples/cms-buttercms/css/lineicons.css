@@ -7,11 +7,9 @@ Author: lineicons.com
 @font-face {
   font-family: "LineIcons";
   src: url("fonts/LineIcons.eot");
-  src:
-    url("fonts/LineIcons.eot") format("embedded-opentype"),
-    url("fonts/LineIcons.woff2") format("woff2"),
-    url("fonts/LineIcons.woff") format("woff"),
-    url("fonts/LineIcons.ttf") format("truetype"),
+  src: url("fonts/LineIcons.eot") format("embedded-opentype"),
+    url("fonts/LineIcons.woff2") format("woff2"), url("fonts/LineIcons.woff")
+    format("woff"), url("fonts/LineIcons.ttf") format("truetype"),
     url("fonts/LineIcons.svg") format("svg");
   font-weight: normal;
   font-style: normal;
@@ -21,7 +19,7 @@ Author: lineicons.com
 -------------------------*/
 .lni {
   display: inline-block;
-  font: normal normal normal 1em/1 "LineIcons";
+  font: normal normal normal 1em / 1 "LineIcons";
   color: inherit;
   flex-shrink: 0;
   speak: none;

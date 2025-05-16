@@ -2,16 +2,11 @@
   "private": true,
   "config": {
     "appName": "xmcloud-nextjs-starter",
-    "rootPlaceholders": [
-      "jss-main"
-    ],
+    "rootPlaceholders": ["jss-main"],
     "sitecoreConfigPath": "/App_Config/Include/zzz",
     "graphQLEndpointPath": "/sitecore/api/graph/edge",
     "language": "en",
-    "templates": [
-      "nextjs",
-      "nextjs-sxa"
-    ]
+    "templates": ["nextjs", "nextjs-sxa"]
   },
   "engines": {
     "node": ">=12",

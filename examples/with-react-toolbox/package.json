@@ -18,10 +18,7 @@
     "react-toolbox-themr": "^1.0.2"
   },
   "reactToolbox": {
-    "include": [
-      "BUTTON",
-      "DATE_PICKER"
-    ],
+    "include": ["BUTTON", "DATE_PICKER"],
     "customProperties": {
       "animation-duration": "0.3s",
       "color-accent": "var(--palette-pink-a200)",

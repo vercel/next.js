@@ -87,7 +87,7 @@ section {
   padding: 5rem;
   grid-gap: 2rem;
   margin: 5rem auto;
-  border-radius: 30px/15px;
+  border-radius: 30px / 15px;
   border: dashed 2px var(--xata-accent);
   font-size: 1.2rem;
   text-align: center;
@@ -144,7 +144,7 @@ li {
   position: relative;
   padding: 1rem 2rem;
   border: solid 2px var(--text-color);
-  border-radius: 10px/5px;
+  border-radius: 10px / 5px;
 }
 
 object {
