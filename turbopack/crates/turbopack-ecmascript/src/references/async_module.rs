@@ -127,7 +127,7 @@ impl AsyncModule {
                                 .get_ident(chunking_context, None, None)
                                 .await?
                                 .map(|i| i.into_module_namespace_ident().unwrap())
-                                .map(|(i, ctx)| (i, ctx.as_u32()))
+                                .map(|(i, ctx)| (i, ctx.unwrap_or_default().as_u32()))
                         } else {
                             None
                         }
@@ -141,7 +141,7 @@ impl AsyncModule {
                                 .get_ident(chunking_context, None, None)
                                 .await?
                                 .map(|i| i.into_module_namespace_ident().unwrap())
-                                .map(|(i, ctx)| (i, ctx.as_u32()))
+                                .map(|(i, ctx)| (i, ctx.unwrap_or_default().as_u32()))
                         } else {
                             None
                         }
