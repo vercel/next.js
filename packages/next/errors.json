@@ -677,5 +677,6 @@
   "676": "Invariant: missing internal router-server-methods this is an internal bug",
   "677": "`trackDynamicImport` should always receive a promise. Something went wrong in the dynamic imports transform.",
   "678": "CacheSignal got more endRead() calls than beginRead() calls",
-  "679": "A CacheSignal cannot subscribe to itself"
+  "679": "A CacheSignal cannot subscribe to itself",
+  "680": "Reading the file from the filesystem is not supported by the WASM bindings."
 }

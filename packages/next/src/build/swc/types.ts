@@ -25,7 +25,7 @@ export interface Binding {
   }
   minify(src: string, options: any): Promise<any>
   minifySync(src: string, options: any): any
-  transform(src: string, options: any): Promise<any>
+  transform(src: string | Buffer | undefined, options: any): Promise<any>
   transformSync(src: string, options: any): any
   parse(src: string, options: any): Promise<string>
 

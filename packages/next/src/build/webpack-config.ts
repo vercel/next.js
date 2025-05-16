@@ -510,6 +510,7 @@ export default async function getBaseWebpackConfig(
             'swc'
           ),
           serverReferenceHashSalt: encryptionKey,
+          nextConfig: config,
 
           // rspack specific options
           pnp: Boolean(process.versions.pnp),
