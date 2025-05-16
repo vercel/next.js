@@ -29,7 +29,7 @@ where
 {
     let path = path.as_ref().to_owned();
 
-    turbo_tasks::spawn_blocking(move || {
+    turbo_tasks::spawn_blocking_tokio(move || {
         let mut attempt = 1;
 
         loop {

@@ -108,8 +108,8 @@ pub use manager::{
     CurrentCellRef, ReadConsistency, TaskPersistence, TurboTasks, TurboTasksApi,
     TurboTasksBackendApi, TurboTasksBackendApiExt, TurboTasksCallApi, Unused, UpdateInfo,
     dynamic_call, emit, mark_finished, mark_root, mark_session_dependent, mark_stateful,
-    prevent_gc, run_once, run_once_with_reason, spawn_blocking, spawn_thread, trait_call,
-    turbo_tasks, turbo_tasks_scope,
+    prevent_gc, run_once, run_once_with_reason, spawn_blocking_rayon, spawn_blocking_tokio,
+    spawn_thread, trait_call, turbo_tasks, turbo_tasks_scope,
 };
 pub use output::OutputContent;
 pub use raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveTypeError};
