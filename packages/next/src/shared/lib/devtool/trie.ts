@@ -49,7 +49,7 @@ export function createTrie<Value = string>({
           children: {},
         }
       }
-      currentNode = currentNode.children[segment]!
+      currentNode = currentNode.children[segment]
     }
 
     currentNode.value = value

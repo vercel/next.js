@@ -35,7 +35,7 @@ function getSegmentTreeClientState(): DevtoolClientState {
       tree: DEFAULT_CLIENT_STATE,
     }
   }
-  return window.__NEXT_DEVTOOLS_CLIENT_STATE!
+  return window.__NEXT_DEVTOOLS_CLIENT_STATE
 }
 
 const listeners = typeof window === 'undefined' ? null : new Set<() => void>()
