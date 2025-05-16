@@ -44,7 +44,6 @@ turbopack-resolve = { workspace = true }
 turbopack-swc-utils = { workspace = true }
 url = { workspace = true }
 urlencoding = { workspace = true }
-rayon = { workspace = true }
 
 swc_core = { workspace = true, features = [
   "ecma_ast",
