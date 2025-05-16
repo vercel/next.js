@@ -13,25 +13,17 @@ document.querySelectorAll('body link[rel="icon"], body link[rel="apple-touch-ico
 
 export function createServerInsertedMetadata(nonce: string | undefined) {
   let inserted = false
-  const setMetadataResolver = (_resolver: MetadataResolver): void => {}
 
-  return {
-    ServerInsertedMetadataProvider: ({
-      children,
-    }: {
-      children: React.ReactNode
-    }) => {
-      return (
-        <ServerInsertedMetadataContext.Provider value={setMetadataResolver}>
-          {children}
-        </ServerInsertedMetadataContext.Provider>
-      )
-    },
+  return async function getServerInsertedMetadata(): Promise<string> {
+    if (inserted) {
+      return ''
+    }
 
-    async getServerInsertedMetadata(): Promise<string> {
-      if (inserted) {
-        return ''
-      }
+    inserted = true
+    const html = await renderToString({
+      renderToReadableStream,
+      element: <script nonce={nonce}>{REINSERT_ICON_SCRIPT}</script>,
+    })
 
       inserted = true
       return `<script nonce="${nonce}">${REINSERT_ICON_SCRIPT}</script>`
