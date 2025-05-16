@@ -107,7 +107,9 @@ export class CacheSignal {
 
   trackRead<T>(promise: Promise<T>) {
     this.beginRead()
-    promise.finally(this.endRead.bind(this))
+    // `promise.finally()` still rejects, so don't use it here to avoid unhandled rejections
+    const onFinally = this.endRead.bind(this)
+    promise.then(onFinally, onFinally)
     return promise
   }
 
