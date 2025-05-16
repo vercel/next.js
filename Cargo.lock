@@ -9897,6 +9897,7 @@ dependencies = [
  "turbo-esregex",
  "turbo-rcstr",
  "turbo-tasks",
+ "turbo-tasks-backend",
  "turbo-tasks-build",
  "turbo-tasks-env",
  "turbo-tasks-fs",
