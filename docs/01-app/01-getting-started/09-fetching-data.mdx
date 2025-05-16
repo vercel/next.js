@@ -467,7 +467,7 @@ export default async function Page({ params }) {
 }
 ```
 
-You can initiate requests in parallel by defining them outside the components that use the data, and resolving them together with `Promise.all`:
+You can initiate requests in parallel by defining them outside the components that use the data, and resolving them together, for example, with [`Promise.all`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/all):
 
 ```tsx filename="app/artist/[username]/page.tsx" highlight={3,8,23} switcher
 import Albums from './albums'
@@ -532,6 +532,8 @@ export default async function Page({ params }) {
   )
 }
 ```
+
+> **Good to know:** If one request fails when using `Promise.all`, the entire operation will fail. To handle this, you can use the [`Promise.allSettled`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/allSettled) method instead.
 
 ### Preloading data
 
