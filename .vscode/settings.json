@@ -8,6 +8,12 @@
   "[json]": {
     "editor.defaultFormatter": "biomejs.biome"
   },
+  "[css]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[scss]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
   // Formatting using Rust-Analyzer for Rust.
   "[rust]": {
     "editor.defaultFormatter": "rust-lang.rust-analyzer"

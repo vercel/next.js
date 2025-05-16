@@ -15,7 +15,9 @@
       "**/*.cjs",
       "**/*.d.mts",
       "**/*.json",
-      "**/*.jsonc"
+      "**/*.jsonc",
+      "**/*.css",
+      "**/*.scss"
     ],
     "ignoreUnknown": false,
     "ignore": [
@@ -92,6 +94,8 @@
       "turbopack/crates/turbopack-tests/tests/**/static",
       "turbopack/crates/turbopack/tests/node-file-trace/integration",
 
+      // invalid css
+      "test/integration/css-features/fixtures/inline-comments/pages/global.css",
       // does not parse with the top-level return
       "turbopack/crates/turbopack-tests/tests/snapshot/comptime/early-return/input/module.js",
       // intentionally does not parse as esm
@@ -115,6 +119,14 @@
     "enabled": true,
     "indentStyle": "space",
     "formatWithErrors": true
+  },
+  "css": {
+    "parser": {
+      "cssModules": true
+    },
+    "formatter": {
+      "quoteStyle": "single"
+    }
   },
   "javascript": {
     "formatter": {
