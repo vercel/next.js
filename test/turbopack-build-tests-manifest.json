@@ -739,6 +739,7 @@
   },
   "test/e2e/app-dir/app-prefetch/prefetching.stale-times.test.ts": {
     "passed": [
+      "app dir - prefetching (custom staleTime) should fetch again when a static page was prefetched when navigating to it after the stale time has passed",
       "app dir - prefetching (custom staleTime) should not fetch again when a static page was prefetched when navigating to it twice",
       "app dir - prefetching (custom staleTime) should not re-fetch cached data when navigating back to a route group"
     ],
@@ -1964,6 +1965,8 @@
   "test/e2e/app-dir/dynamic-io-dynamic-imports/dynamic-io-dynamic-imports.test.ts": {
     "passed": [
       "async imports in dynamicIO - external packages does not instrument import() in external packages",
+      "async imports in dynamicIO are not instrumented in edge edge route handler",
+      "async imports in dynamicIO are not instrumented in edge middleware",
       "async imports in dynamicIO does not cause any routes to become (partially) dynamic",
       "async imports in dynamicIO inside a GET route handler import of a sync module",
       "async imports in dynamicIO inside a GET route handler import of module with top-level-await",
