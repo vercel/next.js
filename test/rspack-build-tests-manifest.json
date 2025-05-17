@@ -740,6 +740,7 @@
   },
   "test/e2e/app-dir/app-prefetch/prefetching.stale-times.test.ts": {
     "passed": [
+      "app dir - prefetching (custom staleTime) should fetch again when a static page was prefetched when navigating to it after the stale time has passed",
       "app dir - prefetching (custom staleTime) should not fetch again when a static page was prefetched when navigating to it twice",
       "app dir - prefetching (custom staleTime) should not re-fetch cached data when navigating back to a route group"
     ],
@@ -2080,6 +2081,8 @@
   "test/e2e/app-dir/dynamic-io-dynamic-imports/dynamic-io-dynamic-imports.test.ts": {
     "passed": [
       "async imports in dynamicIO - external packages does not instrument import() in external packages",
+      "async imports in dynamicIO are not instrumented in edge edge route handler",
+      "async imports in dynamicIO are not instrumented in edge middleware",
       "async imports in dynamicIO does not cause any routes to become (partially) dynamic",
       "async imports in dynamicIO inside a GET route handler import of a sync module",
       "async imports in dynamicIO inside a GET route handler import of module with top-level-await",
@@ -10136,22 +10139,20 @@
     "runtimeError": false
   },
   "test/integration/create-next-app/templates/app-api.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "create-next-app --api (Headless App) should create JavaScript project with --js flag",
       "create-next-app --api (Headless App) should create TypeScript project with --ts flag",
-      "create-next-app --api (Headless App) should create project inside \"src\" directory with --src-dir flag",
+      "create-next-app --api (Headless App) should create project inside \"src\" directory with --src-dir flag"
+    ],
+    "failed": [],
+    "pending": [
       "create-next-app --api (Headless App) should enable turbopack dev with --turbopack flag"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/create-next-app/templates/app.test.ts": {
     "passed": [
-      "create-next-app --app (App Router) should enable turbopack dev with --turbopack flag"
-    ],
-    "failed": [
       "create-next-app --app (App Router) should create JavaScript project with --js flag",
       "create-next-app --app (App Router) should create TailwindCSS project with --tailwind flag",
       "create-next-app --app (App Router) should create TypeScript project with --ts flag",
@@ -10159,13 +10160,15 @@
       "create-next-app --app (App Router) should create an empty project with --empty flag",
       "create-next-app --app (App Router) should create project inside \"src\" directory with --src-dir flag"
     ],
-    "pending": [],
+    "failed": [],
+    "pending": [
+      "create-next-app --app (App Router) should enable turbopack dev with --turbopack flag"
+    ],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/create-next-app/templates/matrix.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "CNA options matrix - app --app --no-turbopack --js --import-alias=@/* --eslint --no-src-dir --no-tailwind",
       "CNA options matrix - app --app --no-turbopack --js --import-alias=@/* --eslint --no-src-dir --tailwind",
       "CNA options matrix - app --app --no-turbopack --js --import-alias=@/* --eslint --src-dir --no-tailwind",
@@ -10215,15 +10218,13 @@
       "CNA options matrix - pages --no-app --no-turbopack --ts --no-import-alias --eslint --src-dir --no-tailwind",
       "CNA options matrix - pages --no-app --no-turbopack --ts --no-import-alias --eslint --src-dir --tailwind"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/create-next-app/templates/pages.test.ts": {
     "passed": [
-      "create-next-app --no-app (Pages Router) should enable turbopack dev with --turbopack flag"
-    ],
-    "failed": [
       "create-next-app --no-app (Pages Router) should create JavaScript project with --js flag",
       "create-next-app --no-app (Pages Router) should create TailwindCSS project with --tailwind flag",
       "create-next-app --no-app (Pages Router) should create TypeScript project with --ts flag",
@@ -10231,7 +10232,10 @@
       "create-next-app --no-app (Pages Router) should create an empty project with --empty flag",
       "create-next-app --no-app (Pages Router) should create project inside \"src\" directory with --src-dir flag"
     ],
-    "pending": [],
+    "failed": [],
+    "pending": [
+      "create-next-app --no-app (Pages Router) should enable turbopack dev with --turbopack flag"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -19460,10 +19464,11 @@
   },
   "test/production/pnpm-support/index.test.ts": {
     "passed": [
-      "pnpm support should build with dependencies installed via pnpm",
+      "pnpm support should build with dependencies installed via pnpm"
+    ],
+    "failed": [
       "pnpm support should execute client-side JS on each page in output: \"standalone\""
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
