@@ -5693,6 +5693,8 @@
   "test/e2e/app-dir/dynamic-io-dynamic-imports/dynamic-io-dynamic-imports.test.ts": {
     "passed": [
       "async imports in dynamicIO - external packages does not instrument import() in external packages",
+      "async imports in dynamicIO are not instrumented in edge edge route handler",
+      "async imports in dynamicIO are not instrumented in edge middleware",
       "async imports in dynamicIO inside a GET route handler import of a sync module",
       "async imports in dynamicIO inside a GET route handler import of module with top-level-await",
       "async imports in dynamicIO inside a client component import of a sync module",
