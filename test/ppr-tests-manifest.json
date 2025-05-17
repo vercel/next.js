@@ -97,6 +97,7 @@
       "test/e2e/app-dir/static-shell-debugging/static-shell-debugging.test.ts",
       "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.prospective-fallback.test.ts",
       "test/e2e/app-dir/segment-cache/basic/segment-cache-basic.test.ts",
+      "test/e2e/app-dir/segment-cache/export/segment-cache-output-export.test.ts",
       "test/e2e/app-dir/segment-cache/incremental-opt-in/segment-cache-incremental-opt-in.test.ts",
       "test/e2e/app-dir/segment-cache/memory-pressure/segment-cache-memory-pressure.test.ts",
       "test/e2e/app-dir/segment-cache/prefetch-scheduling/prefetch-scheduling.test.ts",
