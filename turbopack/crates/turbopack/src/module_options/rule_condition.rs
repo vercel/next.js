@@ -67,7 +67,7 @@ impl RuleCondition {
         }
 
         // Evaluates the condition returning the result and possibly pushing additional operations
-        // onto the stack.
+        // onto the stack as a kind of continuation.
         async fn process_condition<'a, const SZ: usize>(
             source: ResolvedVc<Box<dyn Source + 'static>>,
             path: &FileSystemPath,
@@ -83,11 +83,12 @@ impl RuleCondition {
                             return Ok(true);
                         } else {
                             if conditions.len() > 1 {
-                                stack.push(Op::All(&conditions.as_slice()[1..]));
+                                stack.push(Op::All(&conditions[1..]));
                             }
                             cond = &conditions[0];
-                            continue; // jump directly to the next condition, no need to deal with
+                            // jump directly to the next condition, no need to deal with
                             // the stack.
+                            continue;
                         }
                     }
                     RuleCondition::Any(conditions) => {
@@ -95,7 +96,7 @@ impl RuleCondition {
                             return Ok(false);
                         } else {
                             if conditions.len() > 1 {
-                                stack.push(Op::Any(&conditions.as_slice()[1..]));
+                                stack.push(Op::Any(&conditions[1..]));
                             }
                             cond = &conditions[0];
                             continue;
