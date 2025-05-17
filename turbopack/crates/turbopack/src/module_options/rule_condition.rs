@@ -198,6 +198,9 @@ impl RuleCondition {
                         if remaining.len() > 1 {
                             stack.push(Op::Any(&remaining[1..]));
                         }
+                        // If the stack didn't change, we can loop inline, but we would still need
+                        // to pop the item.  This might be faster since we would avoid the `match`
+                        // but overall, that is quite minor for an enum with 3 cases.
                         result = process_condition(
                             source,
                             path,
