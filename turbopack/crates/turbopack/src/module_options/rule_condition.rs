@@ -61,120 +61,135 @@ impl RuleCondition {
         reference_type: &ReferenceType,
     ) -> Result<bool> {
         enum Op<'a> {
-            Condition(&'a RuleCondition),
             All(&'a [RuleCondition]), // Remaining conditions in an All
             Any(&'a [RuleCondition]), // Remaining conditions in an Any
             Not,                      // Inverts the previous condition
+        }
+
+        // Evaluates the condition returning the result and possibly pushing additional operations
+        // onto the stack.
+        async fn process_condition<'a, const SZ: usize>(
+            source: ResolvedVc<Box<dyn Source + 'static>>,
+            path: &FileSystemPath,
+            reference_type: &ReferenceType,
+            stack: &mut SmallVec<[Op<'a>; SZ]>,
+            mut cond: &'a RuleCondition,
+        ) -> Result<bool, anyhow::Error> {
+            // Use a loop to avoid recursion and unnecessary stack operations.
+            loop {
+                match cond {
+                    RuleCondition::All(conditions) => {
+                        if conditions.is_empty() {
+                            return Ok(true);
+                        } else {
+                            if conditions.len() > 1 {
+                                stack.push(Op::All(&conditions.as_slice()[1..]));
+                            }
+                            cond = &conditions[0];
+                            continue; // jump directly to the next condition, no need to deal with
+                            // the stack.
+                        }
+                    }
+                    RuleCondition::Any(conditions) => {
+                        if conditions.is_empty() {
+                            return Ok(false);
+                        } else {
+                            if conditions.len() > 1 {
+                                stack.push(Op::Any(&conditions.as_slice()[1..]));
+                            }
+                            cond = &conditions[0];
+                            continue;
+                        }
+                    }
+                    RuleCondition::Not(inner) => {
+                        stack.push(Op::Not);
+                        cond = inner.as_ref();
+                        continue;
+                    }
+                    RuleCondition::ReferenceType(condition_ty) => {
+                        return Ok(condition_ty.includes(reference_type));
+                    }
+                    RuleCondition::ResourceIsVirtualSource => {
+                        return Ok(ResolvedVc::try_downcast_type::<VirtualSource>(source).is_some());
+                    }
+                    RuleCondition::ResourcePathEquals(other) => {
+                        return Ok(path == &**other);
+                    }
+                    RuleCondition::ResourcePathEndsWith(end) => {
+                        return Ok(path.path.ends_with(end));
+                    }
+                    RuleCondition::ResourcePathHasNoExtension => {
+                        return Ok(if let Some(i) = path.path.rfind('.') {
+                            if let Some(j) = path.path.rfind('/') {
+                                j > i
+                            } else {
+                                false
+                            }
+                        } else {
+                            true
+                        });
+                    }
+                    RuleCondition::ResourcePathInDirectory(dir) => {
+                        return Ok(path.path.starts_with(&format!("{dir}/"))
+                            || path.path.contains(&format!("/{dir}/")));
+                    }
+                    RuleCondition::ResourcePathInExactDirectory(parent_path) => {
+                        return Ok(path.is_inside_ref(parent_path));
+                    }
+                    RuleCondition::ContentTypeStartsWith(start) => {
+                        let content_type = &source.ident().await?.content_type;
+                        return Ok(content_type
+                            .as_ref()
+                            .is_some_and(|ct| ct.starts_with(start)));
+                    }
+                    RuleCondition::ContentTypeEmpty => {
+                        return Ok(source.ident().await?.content_type.is_none());
+                    }
+                    RuleCondition::ResourcePathGlob { glob, base } => {
+                        return Ok(if let Some(rel_path) = base.get_relative_path_to(path) {
+                            glob.execute(&rel_path)
+                        } else {
+                            glob.execute(&path.path)
+                        });
+                    }
+                    RuleCondition::ResourceBasePathGlob(glob) => {
+                        let basename = path
+                            .path
+                            .rsplit_once('/')
+                            .map_or(path.path.as_str(), |(_, b)| b);
+                        return Ok(glob.execute(basename));
+                    }
+                    RuleCondition::ResourcePathRegex(_) => {
+                        bail!("ResourcePathRegex not implemented yet");
+                    }
+                    RuleCondition::ResourcePathEsRegex(regex) => {
+                        return Ok(regex.is_match(&path.path));
+                    }
+                }
+            }
         }
         // Allocate a small inline stack to avoid heap allocations in the common case where
         // conditions are not deeply stacked.  Additionally we take care to avoid stack
         // operations unless strictly necessary.
         const EXPECTED_SIZE: usize = 8;
         let mut stack = SmallVec::<[Op; EXPECTED_SIZE]>::with_capacity(EXPECTED_SIZE);
-        let mut result = false;
-        let mut next = Op::Condition(self);
-        loop {
-            match next {
-                Op::Condition(mut cond) => loop {
-                    match cond {
-                        RuleCondition::All(conditions) => {
-                            if conditions.is_empty() {
-                                result = true;
-                            } else {
-                                if conditions.len() > 1 {
-                                    stack.push(Op::All(&conditions.as_slice()[1..]));
-                                }
-                                cond = &conditions[0];
-                                continue;
-                            }
-                        }
-                        RuleCondition::Any(conditions) => {
-                            if conditions.is_empty() {
-                                result = false;
-                            } else {
-                                if conditions.len() > 1 {
-                                    stack.push(Op::Any(&conditions.as_slice()[1..]));
-                                }
-                                cond = &conditions[0];
-                                continue;
-                            }
-                        }
-                        RuleCondition::Not(inner) => {
-                            stack.push(Op::Not);
-                            cond = inner.as_ref();
-                            continue;
-                        }
-                        RuleCondition::ReferenceType(condition_ty) => {
-                            result = condition_ty.includes(reference_type);
-                        }
-                        RuleCondition::ResourceIsVirtualSource => {
-                            result =
-                                ResolvedVc::try_downcast_type::<VirtualSource>(source).is_some();
-                        }
-                        RuleCondition::ResourcePathEquals(other) => {
-                            result = path == &**other;
-                        }
-                        RuleCondition::ResourcePathEndsWith(end) => {
-                            result = path.path.ends_with(end);
-                        }
-                        RuleCondition::ResourcePathHasNoExtension => {
-                            result = if let Some(i) = path.path.rfind('.') {
-                                if let Some(j) = path.path.rfind('/') {
-                                    j > i
-                                } else {
-                                    false
-                                }
-                            } else {
-                                true
-                            };
-                        }
-                        RuleCondition::ResourcePathInDirectory(dir) => {
-                            result = path.path.starts_with(&format!("{dir}/"))
-                                || path.path.contains(&format!("/{dir}/"));
-                        }
-                        RuleCondition::ResourcePathInExactDirectory(parent_path) => {
-                            result = path.is_inside_ref(parent_path);
-                        }
-                        RuleCondition::ContentTypeStartsWith(start) => {
-                            let content_type = &source.ident().await?.content_type;
-                            result = content_type
-                                .as_ref()
-                                .is_some_and(|ct| ct.starts_with(start));
-                        }
-                        RuleCondition::ContentTypeEmpty => {
-                            result = source.ident().await?.content_type.is_none();
-                        }
-                        RuleCondition::ResourcePathGlob { glob, base } => {
-                            result = if let Some(rel_path) = base.get_relative_path_to(path) {
-                                glob.execute(&rel_path)
-                            } else {
-                                glob.execute(&path.path)
-                            };
-                        }
-                        RuleCondition::ResourceBasePathGlob(glob) => {
-                            let basename = path
-                                .path
-                                .rsplit_once('/')
-                                .map_or(path.path.as_str(), |(_, b)| b);
-                            result = glob.execute(basename);
-                        }
-                        RuleCondition::ResourcePathRegex(_) => {
-                            bail!("ResourcePathRegex not implemented yet");
-                        }
-                        RuleCondition::ResourcePathEsRegex(regex) => {
-                            result = regex.is_match(&path.path);
-                        }
-                    }
-                    break;
-                },
+        let mut result = process_condition(source, path, reference_type, &mut stack, self).await?;
+        while let Some(op) = stack.pop() {
+            match op {
                 Op::All(remaining) => {
                     // Previous was true, keep going
                     if result {
                         if remaining.len() > 1 {
                             stack.push(Op::All(&remaining[1..]));
                         }
-                        next = Op::Condition(&remaining[0]);
-                        continue;
+                        result = process_condition(
+                            source,
+                            path,
+                            reference_type,
+                            &mut stack,
+                            &remaining[0],
+                        )
+                        .await?;
                     }
                 }
                 Op::Any(remaining) => {
@@ -183,21 +198,20 @@ impl RuleCondition {
                         if remaining.len() > 1 {
                             stack.push(Op::Any(&remaining[1..]));
                         }
-                        next = Op::Condition(&remaining[0]);
-                        continue;
+                        result = process_condition(
+                            source,
+                            path,
+                            reference_type,
+                            &mut stack,
+                            &remaining[0],
+                        )
+                        .await?;
                     }
                 }
                 Op::Not => {
                     result = !result;
                 }
             }
-            // We are done with this operation, pop the next one.
-            // We only reach here in the case of a Not or leaf condition, in the other cases we
-            // avoid touching the stack altogether.
-            next = match stack.pop() {
-                Some(op) => op,
-                None => break,
-            };
         }
         Ok(result)
     }
