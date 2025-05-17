@@ -1203,10 +1203,23 @@ async function renderToHTMLOrFlightImpl(
     // to treat chunk/module loading with similar semantics as cache reads to avoid
     // module loading from causing a prerender to abort too early.
 
+    const shouldTrackModuleLoading = () => {
+      if (!renderOpts.experimental.dynamicIO) {
+        return false
+      }
+      const workUnitStore = workUnitAsyncStorage.getStore()
+      return !!(
+        workUnitStore &&
+        (workUnitStore.type === 'prerender' || workUnitStore.type === 'cache')
+      )
+    }
+
     const __next_require__: typeof instrumented.require = (...args) => {
       const exportsOrPromise = instrumented.require(...args)
-      // requiring an async module returns a promise.
-      trackPendingImport(exportsOrPromise)
+      if (shouldTrackModuleLoading()) {
+        // requiring an async module returns a promise.
+        trackPendingImport(exportsOrPromise)
+      }
       return exportsOrPromise
     }
     // @ts-expect-error
@@ -1214,7 +1227,9 @@ async function renderToHTMLOrFlightImpl(
 
     const __next_chunk_load__: typeof instrumented.loadChunk = (...args) => {
       const loadingChunk = instrumented.loadChunk(...args)
-      trackPendingChunkLoad(loadingChunk)
+      if (shouldTrackModuleLoading()) {
+        trackPendingChunkLoad(loadingChunk)
+      }
       return loadingChunk
     }
     // @ts-expect-error
