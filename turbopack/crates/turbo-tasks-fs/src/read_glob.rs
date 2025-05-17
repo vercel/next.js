@@ -83,7 +83,7 @@ async fn track_glob_internal(
 
                 match resolve_symlink_safely(entry).await? {
                     DirectoryEntry::Directory(path) => {
-                        if glob_value.match_in_directory(&entry_path) {
+                        if !glob_value.can_skip_directory(&entry_path) {
                             completions.push(track_glob_inner(
                                 entry_path,
                                 *path,
