@@ -8,15 +8,11 @@ import {
   retry,
 } from 'next-test-utils'
 
-describe('dynamic-io-cache-handlers', () => {
+describe('global-default-cache-handler', () => {
   let appPort: number
   let server: any
   let output = ''
   let next: NextInstance
-
-  if (process.env.__NEXT_EXPERIMENTAL_PPR) {
-    return it('should skip', () => {})
-  }
 
   beforeAll(async () => {
     next = await createNext({
