@@ -17,11 +17,10 @@ describe('async imports in dynamicIO', () => {
         await next.readFile('.next/prerender-manifest.json')
       )
 
-      let prerenderedRoutes = Object.keys(prerenderManifest.routes).sort()
-
-      if (process.env.__NEXT_EXPERIMENTAL_PPR === 'true') {
-        // For the purpose of this test we don't consider an incomplete shell.
-        prerenderedRoutes = prerenderedRoutes.filter((route) => {
+      // For the purpose of this test we don't consider an incomplete shell.
+      const prerenderedRoutes = Object.keys(prerenderManifest.routes)
+        .sort()
+        .filter((route) => {
           const filename = route.replace(/^\//, '').replace(/^$/, 'index')
           try {
             return next
@@ -37,7 +36,6 @@ describe('async imports in dynamicIO', () => {
             }
           }
         })
-      }
 
       expect(prerenderedRoutes).toMatchInlineSnapshot(`
        [
