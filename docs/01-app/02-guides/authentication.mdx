@@ -1307,7 +1307,7 @@ By centralizing your data requests and authorization logic in a DAL and using DT
 
 ### Server Components
 
-Auth check in [Server Components](/docs/app/building-your-application/rendering/server-components) are useful for role-based access. For example, to conditionally render components based on the user's role:
+Auth check in [Server Components](/docs/app/getting-started/server-and-client-components) are useful for role-based access. For example, to conditionally render components based on the user's role:
 
 ```tsx filename="app/dashboard/page.tsx" switcher
 import { verifySession } from '@/app/lib/dal'
@@ -1497,7 +1497,7 @@ The example above demonstrates a Route Handler with a two-tier security check. I
 
 ## Context Providers
 
-Using context providers for auth works due to [interleaving](/docs/app/building-your-application/rendering/composition-patterns#interleaving-server-and-client-components). However, React `context` is not supported in Server Components, making them only applicable to Client Components.
+Using context providers for auth works due to [interleaving](/docs/app/getting-started/server-and-client-components#examples#interleaving-server-and-client-components). However, React `context` is not supported in Server Components, making them only applicable to Client Components.
 
 This works, but any child Server Components will be rendered on the server first, and will not have access to the context provider’s session data:
 

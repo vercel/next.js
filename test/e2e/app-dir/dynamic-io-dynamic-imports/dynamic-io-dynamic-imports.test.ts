@@ -50,6 +50,7 @@ describe('async imports in dynamicIO', () => {
          "/inside-render/server/from-node-modules/esm/async-module",
          "/inside-render/server/from-node-modules/esm/sync-module",
          "/inside-render/server/sync-module",
+         "/not-instrumented/middleware",
          "/outside-of-render/client/async-module",
          "/outside-of-render/client/sync-module",
          "/outside-of-render/server/async-module",
@@ -152,6 +153,20 @@ describe('async imports in dynamicIO', () => {
       it('import of module with top-level-await', async () => {
         await testPage('/outside-of-render/client/async-module')
       })
+    })
+  })
+
+  describe('are not instrumented in edge', () => {
+    it('middleware', async () => {
+      // indirectly tests the behavior of middleware by rendering a page which the middleware matches
+      await testPage('/not-instrumented/middleware')
+    })
+
+    it('edge route handler', async () => {
+      const result = await next
+        .fetch('/not-instrumented/edge-route-handler')
+        .then((res) => res.text())
+      expect(result).toBe('hello')
     })
   })
 })

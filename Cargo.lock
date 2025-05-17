@@ -577,6 +577,7 @@ dependencies = [
  "hashbrown 0.14.5",
  "rustc-hash 2.1.1",
  "serde",
+ "shrink-to-fit",
  "smallvec",
 ]
 
@@ -6985,6 +6986,7 @@ version = "0.2.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "939a4c696178684fc5fc1426625b882805418bbb56e056d21f9d4946a9d6ff51"
 dependencies = [
+ "hashbrown 0.15.2",
  "indexmap 2.7.1",
  "serde_json",
  "shrink-to-fit-macro",
@@ -7159,9 +7161,9 @@ dependencies = [
 
 [[package]]
 name = "sourcemap"
-version = "9.2.0"
+version = "9.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd430118acc9fdd838557649b9b43fd0a78e3834d84a283b466f8e84720d6101"
+checksum = "bdee719193ae5c919a3ee43f64c2c0dd87f9b9a451d67918a2a5ec2e3c70561c"
 dependencies = [
  "base64-simd 0.8.0",
  "bitvec",
