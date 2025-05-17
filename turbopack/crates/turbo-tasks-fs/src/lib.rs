@@ -30,7 +30,7 @@ use std::{
     fs::FileType,
     future::Future,
     io::{self, BufRead, ErrorKind},
-    mem::{take, transmute},
+    mem::take,
     path::{MAIN_SEPARATOR, Path, PathBuf},
     sync::Arc,
     time::Duration,
@@ -757,7 +757,7 @@ impl FileSystem for DiskFileSystem {
             }
 
             match &*content {
-                FileContent::Content(file) => {
+                FileContent::Content(..) => {
                     let create_directory = compare == FileComparison::Create;
                     if create_directory {
                         if let Some(parent) = full_path.parent() {
@@ -771,38 +771,41 @@ impl FileSystem for DiskFileSystem {
                         }
                     }
 
-                    let file = unsafe {
-                        // Safety: We are awaiting right away, so the file will be alive
-                        transmute::<&File, &'static File>(file)
-                    };
-
                     let full_path_to_write = full_path.clone();
+                    let content = content.clone();
                     retry_blocking(&full_path_to_write, move |full_path| {
                         use std::io::Write;
 
                         let mut f = std::fs::File::create(full_path)?;
-                        std::io::copy(&mut file.read(), &mut f)?;
-                        #[cfg(target_family = "unix")]
-                        f.set_permissions(file.meta.permissions.into())?;
-                        f.flush()?;
-                        #[cfg(feature = "write_version")]
-                        {
-                            let mut full_path = full_path.into_owned();
-                            let hash = hash_xxh3_hash64(file);
-                            let ext = full_path.extension();
-                            let ext = if let Some(ext) = ext {
-                                format!("{:016x}.{}", hash, ext.to_string_lossy())
-                            } else {
-                                format!("{:016x}", hash)
-                            };
-                            full_path.set_extension(ext);
-                            let mut f = std::fs::File::create(&full_path)?;
-                            std::io::copy(&mut file.read(), &mut f)?;
-                            #[cfg(target_family = "unix")]
-                            f.set_permissions(file.meta.permissions.into())?;
-                            f.flush()?;
+                        match &*content {
+                            FileContent::Content(file) => {
+                                std::io::copy(&mut file.read(), &mut f)?;
+                                #[cfg(target_family = "unix")]
+                                f.set_permissions(file.meta.permissions.into())?;
+                                f.flush()?;
+                                #[cfg(feature = "write_version")]
+                                {
+                                    let mut full_path = full_path.into_owned();
+                                    let hash = hash_xxh3_hash64(file);
+                                    let ext = full_path.extension();
+                                    let ext = if let Some(ext) = ext {
+                                        format!("{:016x}.{}", hash, ext.to_string_lossy())
+                                    } else {
+                                        format!("{:016x}", hash)
+                                    };
+                                    full_path.set_extension(ext);
+                                    let mut f = std::fs::File::create(&full_path)?;
+                                    std::io::copy(&mut file.read(), &mut f)?;
+                                    #[cfg(target_family = "unix")]
+                                    f.set_permissions(file.meta.permissions.into())?;
+                                    f.flush()?;
+                                }
+                                Ok::<(), io::Error>(())
+                            }
+                            _ => {
+                                unreachable!()
+                            }
                         }
-                        Ok::<(), io::Error>(())
                     })
                     .concurrency_limited(&inner.semaphore)
                     .instrument(tracing::info_span!(
