@@ -189,6 +189,22 @@ impl Tokens {
     /// regular expression and will represent the matching semantics of this
     /// glob pattern and the options given.
     fn to_regex(&self) -> String {
+        self.to_regex_impl(Tokens::tokens_to_regex)
+    }
+
+    /// Convert this pattern to a string that is guaranteed to be a valid
+    /// regular expression and will represent the matching semantics of this
+    /// glob pattern when used to check if a directory path might contain files that match this
+    /// glob.
+    /// This means we care about matching prefixes that are bounded by `/` characters.
+    /// The basic strategy is to add 'early exits' to the regex at `/` boundaries.
+    /// e.g. `foo/bar/baz` -> `foo(?:/bar(?:/baz(?:/.*)?)?)?`
+    /// that way 'foo' will match but foo/baz will not
+    fn to_directory_match_regex(&self) -> String {
+        self.to_regex_impl(Tokens::tokens_to_directory_match_regex)
+    }
+
+    fn to_regex_impl(&self, tokens_to_regex_fn: fn(&[Token], &mut String)) -> String {
         let mut re = String::new();
         re.push_str("(?-u)^");
         // Special case. If the entire glob is just `**`, then it should match
@@ -197,7 +213,7 @@ impl Tokens {
             re.push_str(".*$");
             return re;
         }
-        Tokens::tokens_to_regex(self, &mut re);
+        tokens_to_regex_fn(self, &mut re);
         re.push('$');
         re
     }
@@ -227,66 +243,13 @@ impl Tokens {
                     negated,
                     ref ranges,
                 } => {
-                    re.push('[');
-                    if negated {
-                        re.push('^');
-                    }
-                    for r in ranges {
-                        if r.0 == r.1 {
-                            // Not strictly necessary, but nicer to look at.
-                            re.push_str(&char_to_escaped_literal(r.0));
-                        } else {
-                            re.push_str(&char_to_escaped_literal(r.0));
-                            re.push('-');
-                            re.push_str(&char_to_escaped_literal(r.1));
-                        }
-                    }
-                    re.push(']');
+                    build_char_class(re, negated, ranges);
                 }
                 Token::Alternates(ref patterns) => {
-                    let mut parts = vec![];
-                    for pat in patterns {
-                        let mut altre = String::new();
-                        Tokens::tokens_to_regex(pat, &mut altre);
-                        if !altre.is_empty() {
-                            parts.push(altre);
-                        }
-                    }
-
-                    // It is possible to have an empty set in which case the
-                    // resulting alternation '()' would be an error.
-                    if !parts.is_empty() {
-                        re.push_str("(?:");
-                        re.push_str(&parts.join("|"));
-                        re.push(')');
-                    }
+                    build_alternates(re, patterns, Tokens::tokens_to_regex);
                 }
             }
         }
-    }
-
-    /// Convert this pattern to a string that is guaranteed to be a valid
-    /// regular expression and will represent the matching semantics of this
-    /// glob pattern when used to check if a directory path might contain files that match this
-    /// glob.
-    /// This means we care about matching prefixes that are bounded by `/` characters.
-    /// The basic strategy is to add 'early exits' to the regex at `/` boundaries.
-    /// e.g. `foo/bar/baz` -> `foo(?:/bar(?:/baz(?:/.*)?)?)?`
-    /// that way 'foo' will match but foo/baz will not
-    fn to_directory_match_regex(&self) -> String {
-        let mut re = String::new();
-        re.push_str("(?-u)");
-        re.push('^');
-        // Special case. If the entire glob is just `**`, then it should match
-        // everything.
-        if self.len() == 1 && self[0] == Token::RecursivePrefix {
-            re.push_str(".*");
-            re.push('$');
-            return re;
-        }
-        Tokens::tokens_to_directory_match_regex(self, &mut re);
-        re.push('$');
-        re
     }
 
     fn tokens_to_directory_match_regex(tokens: &[Token], re: &mut String) {
@@ -335,39 +298,10 @@ impl Tokens {
                         re.push_str("(?:");
                         open_optional_suffixes += 1;
                     }
-                    re.push('[');
-                    if negated {
-                        re.push('^');
-                    }
-                    for r in ranges {
-                        if r.0 == r.1 {
-                            // Not strictly necessary, but nicer to look at.
-                            re.push_str(&char_to_escaped_literal(r.0));
-                        } else {
-                            re.push_str(&char_to_escaped_literal(r.0));
-                            re.push('-');
-                            re.push_str(&char_to_escaped_literal(r.1));
-                        }
-                    }
-                    re.push(']');
+                    build_char_class(re, negated, ranges);
                 }
                 Token::Alternates(ref patterns) => {
-                    let mut parts = Vec::with_capacity(patterns.len());
-                    for pat in patterns {
-                        let mut altre = String::new();
-                        Tokens::tokens_to_directory_match_regex(pat, &mut altre);
-                        if !altre.is_empty() {
-                            parts.push(altre);
-                        }
-                    }
-
-                    // It is possible to have an empty set in which case the
-                    // resulting alternation '()' would be an error.
-                    if !parts.is_empty() {
-                        re.push_str("(?:");
-                        re.push_str(&parts.join("|"));
-                        re.push(')');
-                    }
+                    build_alternates(re, patterns, Tokens::tokens_to_directory_match_regex);
                 }
             }
         }
@@ -376,6 +310,43 @@ impl Tokens {
             re.push_str(")?")
         }
     }
+}
+
+fn build_alternates(re: &mut String, patterns: &Vec<Tokens>, branch_fn: fn(&[Token], &mut String)) {
+    let mut parts = Vec::with_capacity(patterns.len());
+    for pat in patterns {
+        let mut altre = String::new();
+        branch_fn(pat, &mut altre);
+        if !altre.is_empty() {
+            parts.push(altre);
+        }
+    }
+
+    // It is possible to have an empty set in which case the
+    // resulting alternation '()' would be an error.
+    if !parts.is_empty() {
+        re.push_str("(?:");
+        re.push_str(&parts.join("|"));
+        re.push(')');
+    }
+}
+
+fn build_char_class(re: &mut String, negated: bool, ranges: &Vec<(char, char)>) {
+    re.push('[');
+    if negated {
+        re.push('^');
+    }
+    for r in ranges {
+        if r.0 == r.1 {
+            // Not strictly necessary, but nicer to look at.
+            re.push_str(&char_to_escaped_literal(r.0));
+        } else {
+            re.push_str(&char_to_escaped_literal(r.0));
+            re.push('-');
+            re.push_str(&char_to_escaped_literal(r.1));
+        }
+    }
+    re.push(']');
 }
 
 /// Convert a Unicode scalar value to an escaped string suitable for use as
