@@ -55,10 +55,7 @@ import {
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_HMR_REFRESH_HASH_COOKIE,
 } from '../../client/components/app-router-headers'
-import {
-  createTrackedMetadataContext,
-  createMetadataContext,
-} from '../../lib/metadata/metadata-context'
+import { createMetadataContext } from '../../lib/metadata/metadata-context'
 import { createRequestStoreForRender } from '../async-storage/request-store'
 import { createWorkStore } from '../async-storage/work-store'
 import {
@@ -496,11 +493,8 @@ async function generateDynamicRSCPayload(
     } = createMetadataComponents({
       tree: loaderTree,
       parsedQuery: query,
-      metadataContext: createTrackedMetadataContext(
-        url.pathname,
-        ctx.renderOpts,
-        workStore
-      ),
+      pathname: url.pathname,
+      metadataContext: createMetadataContext(ctx.renderOpts),
       getDynamicParamFromSegment,
       appUsingSizeAdjustment,
       workStore,
@@ -823,11 +817,8 @@ async function getRSCPayload(
     // TODO: remove this condition and keep it undefined when global-not-found is stabilized.
     errorType: is404 && !hasGlobalNotFound ? 'not-found' : undefined,
     parsedQuery: query,
-    metadataContext: createTrackedMetadataContext(
-      url.pathname,
-      ctx.renderOpts,
-      workStore
-    ),
+    pathname: url.pathname,
+    metadataContext: createMetadataContext(ctx.renderOpts),
     getDynamicParamFromSegment,
     appUsingSizeAdjustment,
     workStore,
@@ -945,9 +936,8 @@ async function getErrorRSCPayload(
   const { MetadataTree, ViewportTree } = createMetadataComponents({
     tree,
     parsedQuery: query,
-    // We create an untracked metadata context here because we can't postpone
-    // again during the error render.
-    metadataContext: createMetadataContext(url.pathname, ctx.renderOpts),
+    pathname: url.pathname,
+    metadataContext: createMetadataContext(ctx.renderOpts),
     errorType,
     getDynamicParamFromSegment,
     appUsingSizeAdjustment,
@@ -1213,10 +1203,23 @@ async function renderToHTMLOrFlightImpl(
     // to treat chunk/module loading with similar semantics as cache reads to avoid
     // module loading from causing a prerender to abort too early.
 
+    const shouldTrackModuleLoading = () => {
+      if (!renderOpts.experimental.dynamicIO) {
+        return false
+      }
+      const workUnitStore = workUnitAsyncStorage.getStore()
+      return !!(
+        workUnitStore &&
+        (workUnitStore.type === 'prerender' || workUnitStore.type === 'cache')
+      )
+    }
+
     const __next_require__: typeof instrumented.require = (...args) => {
       const exportsOrPromise = instrumented.require(...args)
-      // requiring an async module returns a promise.
-      trackPendingImport(exportsOrPromise)
+      if (shouldTrackModuleLoading()) {
+        // requiring an async module returns a promise.
+        trackPendingImport(exportsOrPromise)
+      }
       return exportsOrPromise
     }
     // @ts-expect-error
@@ -1224,7 +1227,9 @@ async function renderToHTMLOrFlightImpl(
 
     const __next_chunk_load__: typeof instrumented.loadChunk = (...args) => {
       const loadingChunk = instrumented.loadChunk(...args)
-      trackPendingChunkLoad(loadingChunk)
+      if (shouldTrackModuleLoading()) {
+        trackPendingChunkLoad(loadingChunk)
+      }
       return loadingChunk
     }
     // @ts-expect-error
@@ -2714,6 +2719,12 @@ async function prerenderToStream(
     setMetadataHeader(name)
   }
 
+  const selectStaleTime = (stale: number) =>
+    stale === INFINITE_CACHE &&
+    typeof renderOpts.experimental.staleTimes?.static === 'number'
+      ? renderOpts.experimental.staleTimes.static
+      : stale
+
   let prerenderStore: PrerenderStore | null = null
 
   try {
@@ -3149,7 +3160,7 @@ async function prerenderToStream(
             // TODO: Should this include the SSR pass?
             collectedRevalidate: finalRenderPrerenderStore.revalidate,
             collectedExpire: finalRenderPrerenderStore.expire,
-            collectedStale: finalRenderPrerenderStore.stale,
+            collectedStale: selectStaleTime(finalRenderPrerenderStore.stale),
             collectedTags: finalRenderPrerenderStore.tags,
           }
         } else {
@@ -3212,7 +3223,7 @@ async function prerenderToStream(
             // TODO: Should this include the SSR pass?
             collectedRevalidate: finalRenderPrerenderStore.revalidate,
             collectedExpire: finalRenderPrerenderStore.expire,
-            collectedStale: finalRenderPrerenderStore.stale,
+            collectedStale: selectStaleTime(finalRenderPrerenderStore.stale),
             collectedTags: finalRenderPrerenderStore.tags,
           }
         }
@@ -3649,7 +3660,7 @@ async function prerenderToStream(
           // TODO: Should this include the SSR pass?
           collectedRevalidate: finalServerPrerenderStore.revalidate,
           collectedExpire: finalServerPrerenderStore.expire,
-          collectedStale: finalServerPrerenderStore.stale,
+          collectedStale: selectStaleTime(finalServerPrerenderStore.stale),
           collectedTags: finalServerPrerenderStore.tags,
         }
       }
@@ -3799,7 +3810,7 @@ async function prerenderToStream(
           // TODO: Should this include the SSR pass?
           collectedRevalidate: reactServerPrerenderStore.revalidate,
           collectedExpire: reactServerPrerenderStore.expire,
-          collectedStale: reactServerPrerenderStore.stale,
+          collectedStale: selectStaleTime(reactServerPrerenderStore.stale),
           collectedTags: reactServerPrerenderStore.tags,
         }
       } else if (fallbackRouteParams && fallbackRouteParams.size > 0) {
@@ -3819,7 +3830,7 @@ async function prerenderToStream(
           // TODO: Should this include the SSR pass?
           collectedRevalidate: reactServerPrerenderStore.revalidate,
           collectedExpire: reactServerPrerenderStore.expire,
-          collectedStale: reactServerPrerenderStore.stale,
+          collectedStale: selectStaleTime(reactServerPrerenderStore.stale),
           collectedTags: reactServerPrerenderStore.tags,
         }
       } else {
@@ -3880,7 +3891,7 @@ async function prerenderToStream(
           // TODO: Should this include the SSR pass?
           collectedRevalidate: reactServerPrerenderStore.revalidate,
           collectedExpire: reactServerPrerenderStore.expire,
-          collectedStale: reactServerPrerenderStore.stale,
+          collectedStale: selectStaleTime(reactServerPrerenderStore.stale),
           collectedTags: reactServerPrerenderStore.tags,
         }
       }
@@ -3974,7 +3985,7 @@ async function prerenderToStream(
         // TODO: Should this include the SSR pass?
         collectedRevalidate: prerenderLegacyStore.revalidate,
         collectedExpire: prerenderLegacyStore.expire,
-        collectedStale: prerenderLegacyStore.stale,
+        collectedStale: selectStaleTime(prerenderLegacyStore.stale),
         collectedTags: prerenderLegacyStore.tags,
       }
     }
@@ -4156,8 +4167,9 @@ async function prerenderToStream(
           prerenderStore !== null ? prerenderStore.revalidate : INFINITE_CACHE,
         collectedExpire:
           prerenderStore !== null ? prerenderStore.expire : INFINITE_CACHE,
-        collectedStale:
-          prerenderStore !== null ? prerenderStore.stale : INFINITE_CACHE,
+        collectedStale: selectStaleTime(
+          prerenderStore !== null ? prerenderStore.stale : INFINITE_CACHE
+        ),
         collectedTags: prerenderStore !== null ? prerenderStore.tags : null,
       }
     } catch (finalErr: any) {
@@ -4246,27 +4258,8 @@ async function collectSegmentData(
     serverModuleMap: null,
   }
 
-  // When dynamicIO is enabled, missing data is encoded to an infinitely hanging
-  // promise, the absence of which we use to determine if a segment is fully
-  // static or partially static. However, when dynamicIO is not enabled, this
-  // trick doesn't work.
-  //
-  // So if PPR is enabled, and dynamicIO is not, we have to be conservative and
-  // assume all segments are partial.
-  //
-  // TODO: When PPR is on, we can at least optimize the case where the entire
-  // page is static. Either by passing that as an argument to this function, or
-  // by setting a header on the response like the we do for full page RSC
-  // prefetches today. The latter approach might be simpler since it requires
-  // less plumbing, and the client has to check the header regardless to see if
-  // PPR is enabled.
-  const shouldAssumePartialData =
-    renderOpts.experimental.isRoutePPREnabled === true && // PPR is enabled
-    !renderOpts.experimental.dynamicIO // dynamicIO is disabled
-
   const staleTime = prerenderStore.stale
   return await ComponentMod.collectSegmentData(
-    shouldAssumePartialData,
     fullPageDataBuffer,
     staleTime,
     clientReferenceManifest.clientModules as ManifestNode,

@@ -677,5 +677,8 @@
   "676": "Invariant: missing internal router-server-methods this is an internal bug",
   "677": "`trackDynamicImport` should always receive a promise. Something went wrong in the dynamic imports transform.",
   "678": "CacheSignal got more endRead() calls than beginRead() calls",
-  "679": "A CacheSignal cannot subscribe to itself"
+  "679": "A CacheSignal cannot subscribe to itself",
+  "680": "CacheSignal cannot be used in the edge runtime, because `dynamicIO` does not support it.",
+  "681": "Dynamic imports should not be instrumented in the edge runtime, because `dynamicIO` doesn't support it",
+  "682": "\\`experimental.ppr\\` can not be \\`%s\\` when \\`experimental.dynamicIO\\` is \\`true\\`. PPR is implicitly enabled when Dynamic IO is enabled."
 }

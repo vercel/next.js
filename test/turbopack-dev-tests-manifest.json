@@ -1930,9 +1930,10 @@
       "Error recovery app render error not shown right after syntax error",
       "Error recovery app server component can recover from a component error",
       "Error recovery app server component can recover from syntax error",
-      "Error recovery app stuck error"
+      "Error recovery app stuck error",
+      "Error recovery app syntax > runtime error"
     ],
-    "failed": ["Error recovery app syntax > runtime error"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2722,6 +2723,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/use-cache-errors/use-cache-errors.test.ts": {
+    "passed": [
+      "use-cache-errors should not show a false-positive compiler error about a misplaced \"use cache\" directive",
+      "use-cache-errors should show a runtime error when calling the incorrectly used cache function"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-hmr/hmr.test.ts": {
     "passed": [
       "app-dir-hmr filesystem changes can navigate cleanly to a page that requires a change in the Webpack runtime",
@@ -2758,7 +2769,8 @@
     "passed": [
       "asset-prefix rewrites rewrites that do not start with assetPrefix should still work",
       "asset-prefix rewrites should respect rewrites that start with assetPrefix",
-      "asset-prefix should load the app properly without reloading"
+      "asset-prefix should load the app properly without reloading",
+      "asset-prefix should navigate to another page without hard navigating"
     ],
     "failed": [],
     "pending": [],
@@ -3889,6 +3901,17 @@
     "passed": [
       "typescript-auto-install should detect TypeScript being added and auto setup",
       "typescript-auto-install should work"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/typescript-plugin/client-boundary/client-boundary.test.ts": {
+    "passed": [
+      "typescript-plugin - client-boundary should have diagnostics for non-serializable props",
+      "typescript-plugin - client-boundary should not have diagnostics for non-serializable action props",
+      "typescript-plugin - client-boundary should not have diagnostics for serializable props"
     ],
     "failed": [],
     "pending": [],
@@ -7008,6 +7031,13 @@
       "modularizeImports should work",
       "modularizeImports should work with MDX"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/monaco-editor/monaco-editor.test.ts": {
+    "passed": ["monaco-editor should load monaco-editor"],
     "failed": [],
     "pending": [],
     "flakey": [],

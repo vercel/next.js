@@ -744,15 +744,10 @@ export function cache(
 
         let entry = shouldForceRevalidate(workStore, workUnitStore)
           ? undefined
-          : 'getExpiration' in cacheHandler
-            ? await cacheHandler.get(serializedCacheKey)
-            : // Legacy cache handlers require implicit tags to be passed in,
-              // instead of checking their staleness here, as we do for modern
-              // cache handlers (see below).
-              await cacheHandler.get(
-                serializedCacheKey,
-                workUnitStore?.implicitTags?.tags ?? []
-              )
+          : await cacheHandler.get(
+              serializedCacheKey,
+              workUnitStore?.implicitTags?.tags ?? []
+            )
 
         if (entry) {
           const implicitTags = workUnitStore?.implicitTags?.tags ?? []

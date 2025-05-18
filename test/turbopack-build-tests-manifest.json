@@ -3292,6 +3292,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/monaco-editor/monaco-editor.test.ts": {
+    "passed": ["monaco-editor should load monaco-editor"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/navigation-layout-suspense/navigation-layout-suspense.test.ts": {
     "passed": [
       "app dir - navigation with Suspense in nested layout resolves data after client navigation to a nested layout with Suspense"
@@ -4185,12 +4192,11 @@
       "ppr-full Dynamic RSC Response for /on-demand/c should have correct headers",
       "ppr-full Dynamic RSC Response for /static should have correct headers",
       "ppr-full Dynamic RSC Response for /static should not contain dynamic content",
-      "ppr-full HTML Fallback Dynamic Shell should render the dynamic shell as static if the page is static",
+      "ppr-full HTML Fallback Dynamic Shell should render the fallback shell even if the page is static",
+      "ppr-full HTML Fallback Dynamic Shell should render the fallback shell every time",
       "ppr-full HTML Fallback Dynamic Shell should render the fallback shell on first visit",
-      "ppr-full HTML Fallback Dynamic Shell should render the route shell on the second visit",
       "ppr-full HTML Fallback Dynamic Shell will allow dynamic fallback shells even when static is enforced",
-      "ppr-full HTML Fallback Dynamic Shell will only revalidate the page",
-      "ppr-full HTML Fallback Dynamic Shell will revalidate the page and fallback shell",
+      "ppr-full HTML Fallback Dynamic Shell will not revalidate the fallback shell",
       "ppr-full HTML Fallback for /fallback/nested/params/slug-01/slug-02 should render the fallback HTML immediately",
       "ppr-full HTML Fallback for /fallback/nested/use-params/slug-01/slug-02 should render the fallback HTML immediately",
       "ppr-full HTML Fallback for /fallback/nested/use-pathname/slug-01/slug-02 should render the fallback HTML immediately",
@@ -18122,6 +18128,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/production/adapter-config/adapter-config.test.ts": {
+    "passed": ["adapter-config should apply modifyConfig from adapter"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/production/allow-development-build/allow-development-build.test.ts": {
     "passed": [
       "allow-development-build with NODE_ENV not set to development should fail the build with a message about not setting NODE_ENV",
@@ -19570,8 +19583,8 @@
     "runtimeError": false
   },
   "test/production/standalone-mode/type-module/index.test.ts": {
-    "passed": [],
-    "failed": ["type-module should work"],
+    "passed": ["type-module should work"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false

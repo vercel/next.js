@@ -317,6 +317,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     excludeDefaultMomentLocales: z.boolean().optional(),
     experimental: z
       .strictObject({
+        adapterPath: z.string().optional(),
         useSkewCookie: z.boolean().optional(),
         nodeMiddleware: z.boolean().optional(),
         after: z.boolean().optional(),
@@ -496,6 +497,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           })
           .optional(),
         globalNotFound: z.boolean().optional(),
+        devtoolSegmentExplorer: z.boolean().optional(),
       })
       .optional(),
     exportPathMap: z

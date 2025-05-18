@@ -22,7 +22,7 @@ use swc_core::{
         visit::{Visit, VisitMutWith, VisitWith, noop_visit_type},
     },
 };
-use tracing::Instrument;
+use tracing::{Instrument, Level, instrument};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc, util::WrapFuture};
 use turbo_tasks_fs::{FileContent, FileSystemPath, rope::Rope};
@@ -98,10 +98,12 @@ impl ParseResult {
     }
 }
 
+#[instrument(level = Level::INFO, skip_all)]
 pub fn generate_js_source_map(
     files_map: Arc<swc_core::common::SourceMap>,
     mappings: Vec<(BytePos, LineCol)>,
     original_source_map: Option<&Rope>,
+    inline_sources_content: bool,
 ) -> Result<Rope> {
     let input_map = if let Some(original_source_map) = original_source_map {
         Some(match sourcemap::decode(original_source_map.read())? {
@@ -114,8 +116,19 @@ pub fn generate_js_source_map(
         None
     };
 
-    let map =
-        files_map.build_source_map_with_config(&mappings, None, InlineSourcesContentConfig {});
+    let map = files_map.build_source_map(
+        &mappings,
+        None,
+        InlineSourcesContentConfig {
+            // If we are going to adjust the source map, we are going to throw the source contents
+            // of this source map away regardless.
+            //
+            // In other words, we don't need the content of `B` in source map chain of A -> B -> C.
+            // We only need the source content of `A`, and a way to map the content of `B` back to
+            // `A`, while constructing the final source map, `C`.
+            inline_sources_content: inline_sources_content && input_map.is_none(),
+        },
+    );
 
     let mut map = match input_map {
         Some(mut input_map) => {
@@ -134,7 +147,9 @@ pub fn generate_js_source_map(
 /// A config to generate a source map which includes the source content of every
 /// source file. SWC doesn't inline sources content by default when generating a
 /// sourcemap, so we need to provide a custom config to do it.
-pub struct InlineSourcesContentConfig {}
+pub struct InlineSourcesContentConfig {
+    inline_sources_content: bool,
+}
 
 impl SourceMapGenConfig for InlineSourcesContentConfig {
     fn file_name_to_source(&self, f: &FileName) -> String {
@@ -147,7 +162,7 @@ impl SourceMapGenConfig for InlineSourcesContentConfig {
     }
 
     fn inline_sources_content(&self, _f: &FileName) -> bool {
-        true
+        self.inline_sources_content
     }
 }
 
@@ -159,6 +174,7 @@ pub async fn parse(
 ) -> Result<Vc<ParseResult>> {
     let name = source.ident().to_string().await?.to_string();
     let span = tracing::info_span!("parse ecmascript", name = name, ty = display(&*ty));
+
     match parse_internal(source, ty, transforms)
         .instrument(span)
         .await
@@ -413,8 +429,8 @@ async fn parse_file_content(
                 }
                 anyhow::Ok(())
             }
-            .instrument(span)
-            .await?;
+                .instrument(span)
+                .await?;
 
             if parser_handler.has_errors() {
                 let messages = if let Some(error) = collector_parse.last_emitted_issue() {
@@ -461,7 +477,7 @@ async fn parse_file_content(
             })
         },
     )
-    .await?;
+        .await?;
     if let ParseResult::Ok {
         globals: ref mut g, ..
     } = result

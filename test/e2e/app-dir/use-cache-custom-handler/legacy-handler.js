@@ -13,7 +13,7 @@ const cacheHandler = {
       cacheKey,
       JSON.stringify(softTags)
     )
-    return defaultCacheHandler.get(cacheKey)
+    return defaultCacheHandler.get(cacheKey, softTags)
   },
 
   async set(cacheKey, pendingEntry) {
