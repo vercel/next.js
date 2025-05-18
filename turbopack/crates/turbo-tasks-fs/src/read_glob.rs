@@ -93,13 +93,21 @@ async fn track_glob_internal(
                         }
                     }
                     DirectoryEntry::File(path) => {
-                        if glob_value.execute(&entry_path) {
+                        if {
+                            let this = &glob_value;
+                            let path: &str = &entry_path;
+                            this.matches(path)
+                        } {
                             reads.push(fs.read(*path))
                         }
                     }
                     DirectoryEntry::Symlink(_) => panic!("we already resolved symlinks"),
                     DirectoryEntry::Other(path) => {
-                        if glob_value.execute(&entry_path) {
+                        if {
+                            let this = &glob_value;
+                            let path: &str = &entry_path;
+                            this.matches(path)
+                        } {
                             types.push(path.get_type())
                         }
                     }
