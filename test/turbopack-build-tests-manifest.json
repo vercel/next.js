@@ -739,6 +739,7 @@
   },
   "test/e2e/app-dir/app-prefetch/prefetching.stale-times.test.ts": {
     "passed": [
+      "app dir - prefetching (custom staleTime) should fetch again when a static page was prefetched when navigating to it after the stale time has passed",
       "app dir - prefetching (custom staleTime) should not fetch again when a static page was prefetched when navigating to it twice",
       "app dir - prefetching (custom staleTime) should not re-fetch cached data when navigating back to a route group"
     ],
@@ -1964,6 +1965,8 @@
   "test/e2e/app-dir/dynamic-io-dynamic-imports/dynamic-io-dynamic-imports.test.ts": {
     "passed": [
       "async imports in dynamicIO - external packages does not instrument import() in external packages",
+      "async imports in dynamicIO are not instrumented in edge edge route handler",
+      "async imports in dynamicIO are not instrumented in edge middleware",
       "async imports in dynamicIO does not cause any routes to become (partially) dynamic",
       "async imports in dynamicIO inside a GET route handler import of a sync module",
       "async imports in dynamicIO inside a GET route handler import of module with top-level-await",
@@ -2061,7 +2064,7 @@
   },
   "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.test.ts": {
     "passed": [
-      "Dynamic IO Errors - With Minification Dynamic Boundary should not error the build when all dynamic components are inside a Suspense boundary",
+      "Dynamic IO Errors - With Minification Dynamic Boundary should partially prerender when all dynamic components are inside a Suspense boundary",
       "Dynamic IO Errors - With Minification Dynamic Metadata - Dynamic Route should partially prerender when all dynamic components are inside a Suspense boundary",
       "Dynamic IO Errors - With Minification Dynamic Metadata - Error Route should error the build for the correct reason when there is a dynamic IO violation alongside dynamic metadata",
       "Dynamic IO Errors - With Minification Dynamic Metadata - Static Route With Suspense should not error the build if generateMetadata is dynamic",
@@ -2070,7 +2073,7 @@
       "Dynamic IO Errors - With Minification Dynamic Viewport - Dynamic Route should error the build if generateViewport is dynamic even if there are other uses of dynamic on the page",
       "Dynamic IO Errors - With Minification Dynamic Viewport - Static Route should error the build if generateViewport is dynamic",
       "Dynamic IO Errors - With Minification Static Route should not error the build when all routes are static",
-      "Dynamic IO Errors - Without Minification Dynamic Boundary should not error the build when all dynamic components are inside a Suspense boundary",
+      "Dynamic IO Errors - Without Minification Dynamic Boundary should partially prerender when all dynamic components are inside a Suspense boundary",
       "Dynamic IO Errors - Without Minification Dynamic Metadata - Dynamic Route should partially prerender when all dynamic components are inside a Suspense boundary",
       "Dynamic IO Errors - Without Minification Dynamic Metadata - Error Route should error the build for the correct reason when there is a dynamic IO violation alongside dynamic metadata",
       "Dynamic IO Errors - Without Minification Dynamic Metadata - Static Route With Suspense should not error the build if generateMetadata is dynamic",
@@ -2106,7 +2109,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/dynamic-io/dynamic-io.connection.test.ts": {
-    "passed": ["dynamic-io should produce dynamic pages when using connection"],
+    "passed": [
+      "dynamic-io should be able to pass connection as a promise to another component and trigger an intermediate Suspense boundary",
+      "dynamic-io should partially prerender pages that use connection"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -2116,7 +2122,9 @@
     "passed": [
       "dynamic-io should be able to access cookie properties asynchronously",
       "dynamic-io should be able to access cookie properties synchronously",
-      "dynamic-io should produce dynamic pages when using async or sync cookies"
+      "dynamic-io should be able to pass cookies as a promise to another component and trigger an intermediate Suspense boundary",
+      "dynamic-io should partially prerender pages that use async cookies",
+      "dynamic-io should partially prerender pages that use sync cookies"
     ],
     "failed": [],
     "pending": [],
@@ -2151,7 +2159,9 @@
     "passed": [
       "dynamic-io should be able to access headers properties asynchronously",
       "dynamic-io should be able to access headers properties synchronously",
-      "dynamic-io should produce dynamic pages when using async or sync headers"
+      "dynamic-io should be able to pass headers as a promise to another component and trigger an intermediate Suspense boundary",
+      "dynamic-io should partially prerender pages that use async headers",
+      "dynamic-io should partially prerender pages that use sync headers"
     ],
     "failed": [],
     "pending": [],
@@ -2189,28 +2199,20 @@
     "passed": [
       "dynamic-io Async Params should fully prerender pages that check individual param keys after `use`ing params in a client component",
       "dynamic-io Async Params should fully prerender pages that check individual param keys after awaiting params in a server component",
-      "dynamic-io Async Params should prerender pages that `use` params in a client component when prebuilt",
-      "dynamic-io Async Params should prerender pages that await params in a server component when prebuilt",
-      "dynamic-io Async Params should prerender pages that spread `use`ed params in a client component when prebuilt",
-      "dynamic-io Async Params should prerender pages that spread awaited params in a server component when prebuilt",
-      "dynamic-io Async Params should render pages that `use` params in a client component when not prebuilt",
-      "dynamic-io Async Params should render pages that await params in a server component when not prebuilt",
-      "dynamic-io Async Params should render pages that spread `use`ed params in a client component when not prebuilt",
-      "dynamic-io Async Params should render pages that spread awaited params in a server component when not prebuilt",
+      "dynamic-io Async Params should partially prerender pages that await params in a server components",
+      "dynamic-io Async Params should partially prerender pages that spread `use`ed params in a client component",
+      "dynamic-io Async Params should partially prerender pages that spread awaited params in a server component",
+      "dynamic-io Async Params should partially prerender pages that use params in a client components",
       "dynamic-io Param Shadowing should correctly allow param names like then, value, and status when `use`ing params in a client component",
       "dynamic-io Param Shadowing should correctly allow param names like then, value, and status when awaiting params in a server component",
       "dynamic-io Param Shadowing should not allow param names like then and status when accessing params directly in a client component",
       "dynamic-io Param Shadowing should not allow param names like then and status when accessing params directly in a server component",
       "dynamic-io Synchronous Params access should fully prerender pages that check individual param keys directly on the params prop in a client component",
       "dynamic-io Synchronous Params access should fully prerender pages that check individual param keys directly on the params prop in a server component",
-      "dynamic-io Synchronous Params access should prerender pages that access params synchronously in a client component when prebuilt",
-      "dynamic-io Synchronous Params access should prerender pages that access params synchronously in a server component when prebuilt",
-      "dynamic-io Synchronous Params access should prerender pages that spread params without `use`ing first in a client component when not prebuilt",
-      "dynamic-io Synchronous Params access should prerender pages that spread params without `use`ing first in a client component when prebuilt",
-      "dynamic-io Synchronous Params access should prerender pages that spread params without awaiting first in a server component when not prebuilt",
-      "dynamic-io Synchronous Params access should prerender pages that spread params without awaiting first in a server component when prebuilt",
-      "dynamic-io Synchronous Params access should render pages that access params synchronously in a client component when not prebuilt",
-      "dynamic-io Synchronous Params access should render pages that access params synchronously in a server component when not prebuilt"
+      "dynamic-io Synchronous Params access should partially prerender pages that access params synchronously in a client components",
+      "dynamic-io Synchronous Params access should partially prerender pages that access params synchronously in a server components",
+      "dynamic-io Synchronous Params access should partially prerender pages that spread params without `use`ing them first in a client component",
+      "dynamic-io Synchronous Params access should partially prerender pages that spread params without awaiting first in a server component"
     ],
     "failed": [],
     "pending": [
@@ -2250,15 +2252,15 @@
   },
   "test/e2e/app-dir/dynamic-io/dynamic-io.search.test.ts": {
     "passed": [
-      "dynamic-io should not prerender a page that accesses a searchParam property synchronously in a client component",
-      "dynamic-io should not prerender a page that accesses a searchParam property synchronously in a server component",
-      "dynamic-io should not prerender a page that checks for the existence of a searchParam property synchronously in a client component",
-      "dynamic-io should not prerender a page that checks for the existence of a searchParam property synchronously in a server component",
-      "dynamic-io should not prerender a page that spreads ...searchParam synchronously in a client component",
-      "dynamic-io should not prerender a page that spreads ...searchParam synchronously in a server component",
-      "dynamic-io should not prerender pages that `use` searchParams in a client component",
-      "dynamic-io should not prerender pages that `use` searchParams in a server component",
-      "dynamic-io should not prerender pages that await searchParams in a server component"
+      "dynamic-io should partially prerender pages that `use` searchParams in a client component",
+      "dynamic-io should partially prerender pages that `use` searchParams in a server component",
+      "dynamic-io should partially prerender pages that access a searchParam property synchronously in a client component",
+      "dynamic-io should partially prerender pages that access a searchParam property synchronously in a server component",
+      "dynamic-io should partially prerender pages that await searchParams in a server component",
+      "dynamic-io should partially prerender pages that checks for the existence of a searchParam property synchronously in a client component",
+      "dynamic-io should partially prerender pages that checks for the existence of a searchParam property synchronously in a server component",
+      "dynamic-io should partially prerender pages that spreads ...searchParam synchronously in a client component",
+      "dynamic-io should partially prerender pages that spreads ...searchParam synchronously in a server component"
     ],
     "failed": [],
     "pending": [],
@@ -2284,15 +2286,15 @@
       "dynamic-io does not prerender pages with parallel routes that uses a dynamic API",
       "dynamic-io should fully prerender pages that use `unstable_noStore()`",
       "dynamic-io should not have route specific errors",
-      "dynamic-io should not prerender pages that do any uncached IO",
-      "dynamic-io should not prerender pages that do any uncached IO (use cache)",
-      "dynamic-io should not prerender pages that take longer than a single task to render",
-      "dynamic-io should not prerender pages that use `cookies()`",
-      "dynamic-io should not prerender pages that use `headers()`",
-      "dynamic-io should not prerender pages that use `searchParams` in Client Components",
-      "dynamic-io should not prerender pages that use `searchParams` in Server Components",
-      "dynamic-io should not prerender pages that use at least one fetch without cache",
       "dynamic-io should not warn about potential memory leak for even listeners on AbortSignal",
+      "dynamic-io should partially prerender pages that do any uncached IO",
+      "dynamic-io should partially prerender pages that do any uncached IO (use cache)",
+      "dynamic-io should partially prerender pages that take longer than a task to render",
+      "dynamic-io should partially prerender pages that use `cookies()`",
+      "dynamic-io should partially prerender pages that use `headers()`",
+      "dynamic-io should partially prerender pages that use `searchParams` in Client Components",
+      "dynamic-io should partially prerender pages that use `searchParams` in Server Components",
+      "dynamic-io should partially prerender pages that use at least one fetch without cache",
       "dynamic-io should prerender fully static pages",
       "dynamic-io should prerender pages that cached the whole page",
       "dynamic-io should prerender pages that only use cached (\"use cache\") IO",
@@ -18415,21 +18417,21 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/production/app-dir/dynamic-io-cache-handlers/dynamic-io-cache-handlers.test.ts": {
+  "test/production/app-dir/empty-generate-static-params/empty-generate-static-params.test.ts": {
     "passed": [
-      "dynamic-io-cache-handlers should call expireTags on global default cache handler",
-      "dynamic-io-cache-handlers should call refreshTags on global default cache handler",
-      "dynamic-io-cache-handlers should use global symbol for default cache handler"
+      "empty-generate-static-params should be a cache miss on the initial render followed by a HIT after being generated",
+      "empty-generate-static-params should mark the page with empty generateStaticParams as SSG in build output"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/production/app-dir/empty-generate-static-params/empty-generate-static-params.test.ts": {
+  "test/production/app-dir/global-default-cache-handler/global-default-cache-handler.test.ts": {
     "passed": [
-      "empty-generate-static-params should be a cache miss on the initial render followed by a HIT after being generated",
-      "empty-generate-static-params should mark the page with empty generateStaticParams as SSG in build output"
+      "global-default-cache-handler should call expireTags on global default cache handler",
+      "global-default-cache-handler should call refreshTags on global default cache handler",
+      "global-default-cache-handler should use global symbol for default cache handler"
     ],
     "failed": [],
     "pending": [],
