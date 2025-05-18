@@ -52,23 +52,19 @@ impl TryFrom<GlobForm> for Glob {
 }
 
 impl Glob {
-    pub fn execute(&self, path: &str) -> bool {
-        self.matches(path)
-    }
-
     // Returns true if the glob matches the given path.
     pub fn matches(&self, path: &str) -> bool {
         self.regex.is_match(path.as_bytes())
     }
 
-    // Returns true if the glob couldn't possibly match a filename underneath this `path` where the
+    // Returns true if the glob might match a filename underneath this `path` where the
     // path represents a directory.
-    pub fn can_skip_directory(&self, path: &str) -> bool {
+    pub fn can_match_in_directory(&self, path: &str) -> bool {
         debug_assert!(
             !path.ends_with('/'),
             "Path should be a directory name and not end with /"
         );
-        !self.directory_match_regex.is_match(path.as_bytes())
+        self.directory_match_regex.is_match(path.as_bytes())
     }
 
     pub fn parse(input: &str) -> Result<Glob> {
@@ -269,13 +265,13 @@ impl Tokens {
                 Token::ZeroOrMore => {
                     re.push_str("[^/]*");
                 }
-                Token::RecursiveZeroOrMore | Token::RecursivePrefix => {
+                Token::RecursivePrefix => {
                     re.push_str(".*");
                     // A match like this will match all directories, so we don't need to examine the
                     // rest of the tokens.
                     break;
                 }
-                Token::RecursiveSuffix => {
+                Token::RecursiveZeroOrMore | Token::RecursiveSuffix => {
                     re.push_str("(?:/.*)?");
                     break;
                 }
@@ -727,7 +723,7 @@ mod tests {
 
         println!("{glob:?} {path}");
 
-        assert!(!glob.execute(path));
+        assert!(!glob.matches(path));
     }
 
     #[rstest]
@@ -740,11 +736,45 @@ mod tests {
     #[case::globstar_in_dir_partial("dir/**/sub/file.js", "dir/a")]
     #[case::globstar_in_dir_partial("dir/**/sub/file.js", "dir")]
     #[case::alternatives_chars("[abc]", "b")]
-    fn glob_can_skip_directory(#[case] glob: &str, #[case] path: &str) {
+    fn glob_can_match_directory(#[case] glob: &str, #[case] path: &str) {
         let glob = Glob::parse(glob).unwrap();
 
         println!("{glob:?} {path}");
 
-        assert!(!glob.can_skip_directory(path));
+        assert!(glob.can_match_in_directory(path));
+    }
+
+    #[rstest]
+    #[case::literal("dir/file.js", "dir/file\\.js", "dir(?:/file\\.js)?")]
+    #[case::literal("a/b/c/file.js", "a/b/c/file\\.js", "a(?:/b(?:/c(?:/file\\.js)?)?)?")]
+    #[case::globstar("**/file.js", "(?:/?|.*/)file\\.js", ".*")]
+    #[case::globstar("/**/file.js", "(?:/|/.*/)file\\.js", "(?:/.*)?")] // this one is a little silly since it does match the empty string
+    #[case::globstar("a/**/file.js", "a(?:/|/.*/)file\\.js", "a(?:/.*)?")]
+    #[case::globstar("a/**", "a/.*", "a(?:/.*)?")]
+    #[case::alternates("{a,b,c}/d/**", "(?:a|b|c)/d/.*", "(?:a|b|c)(?:/d(?:/.*)?)?")]
+    #[case::nested_alternates(
+        "{a,b,c/{e,f,g}}/h/**",
+        "(?:a|b|c/(?:e|f|g))/h/.*",
+        "(?:a|b|c(?:/(?:e|f|g))?)(?:/h(?:/.*)?)?"
+    )]
+    #[case::classes("[abc]/d/**", "[abc]/d/.*", "[abc](?:/d(?:/.*)?)?")]
+    fn glob_regex_mapping(
+        #[case] glob: &str,
+        #[case] glob_regex: &str,
+        #[case] directory_match_regex: &str,
+    ) {
+        let glob = Glob::parse(glob).unwrap();
+        // All our regexes come with a fixed prefix and suffix, just assert and drop them
+        fn strip_overhead(s: String) -> String {
+            assert!(s.starts_with("(?-u)^"));
+            assert!(s.ends_with("$"));
+            s["(?-u)^".len()..s.len() - 1].to_string()
+        }
+
+        assert_eq!(glob_regex, strip_overhead(glob.regex.to_string()));
+        assert_eq!(
+            directory_match_regex,
+            strip_overhead(glob.directory_match_regex.to_string())
+        );
     }
 }

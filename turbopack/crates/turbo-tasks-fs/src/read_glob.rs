@@ -83,7 +83,7 @@ async fn track_glob_internal(
 
                 match resolve_symlink_safely(entry).await? {
                     DirectoryEntry::Directory(path) => {
-                        if !glob_value.can_skip_directory(&entry_path) {
+                        if glob_value.can_match_in_directory(&entry_path) {
                             completions.push(track_glob_inner(
                                 entry_path,
                                 *path,
@@ -93,21 +93,13 @@ async fn track_glob_internal(
                         }
                     }
                     DirectoryEntry::File(path) => {
-                        if {
-                            let this = &glob_value;
-                            let path: &str = &entry_path;
-                            this.matches(path)
-                        } {
+                        if glob_value.matches(&entry_path) {
                             reads.push(fs.read(*path))
                         }
                     }
-                    DirectoryEntry::Symlink(_) => panic!("we already resolved symlinks"),
+                    DirectoryEntry::Symlink(_) => unreachable!("we already resolved symlinks"),
                     DirectoryEntry::Other(path) => {
-                        if {
-                            let this = &glob_value;
-                            let path: &str = &entry_path;
-                            this.matches(path)
-                        } {
+                        if glob_value.matches(&entry_path) {
                             types.push(path.get_type())
                         }
                     }

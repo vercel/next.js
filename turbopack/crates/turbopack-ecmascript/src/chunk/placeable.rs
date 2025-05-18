@@ -164,7 +164,7 @@ pub async fn is_marked_as_side_effect_free(
     path: Vc<FileSystemPath>,
     side_effect_free_packages: Vc<Glob>,
 ) -> Result<Vc<bool>> {
-    if side_effect_free_packages.await?.execute(&path.await?.path) {
+    if side_effect_free_packages.await?.matches(&path.await?.path) {
         return Ok(Vc::cell(true));
     }
 
@@ -181,7 +181,7 @@ pub async fn is_marked_as_side_effect_free(
                     .get_relative_path_to(&*path.await?)
                 {
                     let rel_path = rel_path.strip_prefix("./").unwrap_or(&rel_path);
-                    return Ok(Vc::cell(!glob.await?.execute(rel_path)));
+                    return Ok(Vc::cell(!glob.await?.matches(rel_path)));
                 }
             }
         }
