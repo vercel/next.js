@@ -49,6 +49,7 @@ use parse::{ParseResult, parse};
 use path_visitor::ApplyVisitors;
 use references::esm::UrlRewriteBehavior;
 pub use references::{AnalyzeEcmascriptModuleResult, TURBOPACK_HELPER};
+use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 pub use static_code::StaticEcmascriptCode;
@@ -1180,22 +1181,33 @@ impl EcmascriptModuleContent {
                     module_syntax_contexts: &module_syntax_contexts,
                 };
                 let code_gens = options.merged_code_gens(Some(ctx)).await?;
-                Ok((
-                    module,
-                    module_syntax_contexts,
-                    is_export_mark,
-                    process_parse_result(
-                        *parsed,
-                        **ident,
-                        *specified_module_type,
-                        code_gens,
-                        *generate_source_map,
-                        *original_source_map,
-                        *chunking_context.minify_type().await?,
-                        Some(is_export_mark),
-                    )
-                    .await?,
-                ))
+                let preserved_exports = match &*module.get_exports().await? {
+                    EcmascriptExports::EsmExports(exports) => exports
+                        .await?
+                        .exports
+                        .iter()
+                        .flat_map(|(_, e)| {
+                            if let export::EsmExport::LocalBinding(n, _) = e {
+                                Some(Atom::from(&**n))
+                            } else {
+                                None
+                            }
+                        })
+                        .collect(),
+                    _ => Default::default(),
+                };
+                let result = process_parse_result(
+                    *parsed,
+                    **ident,
+                    *specified_module_type,
+                    code_gens,
+                    *generate_source_map,
+                    *original_source_map,
+                    *chunking_context.minify_type().await?,
+                    Some((is_export_mark, preserved_exports)),
+                )
+                .await?;
+                Ok((module, module_syntax_contexts, is_export_mark, result))
             })
             .try_join()
             .await?;
@@ -1335,7 +1347,7 @@ async fn process_parse_result(
     generate_source_map: bool,
     original_source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
     minify: MinifyType,
-    retain_syntax_context: Option<Mark>,
+    retain_syntax_context: Option<(Mark, FxHashSet<Atom>)>,
 ) -> Result<CodeGenResult> {
     let parsed = parsed.final_read_hint().await?;
 
@@ -1406,10 +1418,11 @@ async fn process_parse_result(
             }
 
             GLOBALS.set(globals, || {
-                if let Some(is_export_mark) = retain_syntax_context {
+                if let Some((is_export_mark, preserved_symbols)) = retain_syntax_context {
                     program.visit_mut_with(&mut hygiene_rename_only(
                         Some(top_level_mark),
                         is_export_mark,
+                        preserved_symbols,
                     ));
                 } else {
                     program.visit_mut_with(
@@ -1652,11 +1665,18 @@ fn process_content_with_code_gens(
     };
 }
 
-/// Like `hygiene`, but only renames the Atoms without clearing all SyntaxContexts Don't rename
-/// idents marked with `is_export_mark`: even if they are causing collisions, they will be handled
-/// by the next hygiene pass over the whole module.
-fn hygiene_rename_only(top_level_mark: Option<Mark>, is_export_mark: Mark) -> impl VisitMut {
+/// Like `hygiene`, but only renames the Atoms without clearing all SyntaxContexts
+///
+/// Don't rename idents marked with `is_export_mark` (i.e. imported identifier from another module)
+/// or listed in `preserve_name` (i.e. export local binding): even if they are causing collisions,
+/// they will be handled by the next hygiene pass over the whole module.
+fn hygiene_rename_only(
+    top_level_mark: Option<Mark>,
+    is_export_mark: Mark,
+    preserved_symbols: FxHashSet<Atom>,
+) -> impl VisitMut {
     struct HygieneRenamer {
+        preserved_symbols: FxHashSet<Atom>,
         is_export_mark: Mark,
     }
     impl swc_core::ecma::transforms::base::rename::Renamer for HygieneRenamer {
@@ -1664,10 +1684,6 @@ fn hygiene_rename_only(top_level_mark: Option<Mark>, is_export_mark: Mark) -> im
         const RESET_N: bool = true;
 
         fn new_name_for(&self, orig: &Id, n: &mut usize) -> Atom {
-            if orig.1.has_mark(self.is_export_mark) {
-                // Don't modify, it's an export
-                return orig.0.clone();
-            }
             let res = if *n == 0 {
                 orig.0.clone()
             } else {
@@ -1676,13 +1692,20 @@ fn hygiene_rename_only(top_level_mark: Option<Mark>, is_export_mark: Mark) -> im
             *n += 1;
             res
         }
+
+        fn preserve_name(&self, orig: &Id) -> bool {
+            self.preserved_symbols.contains(&orig.0) || orig.1.has_mark(self.is_export_mark)
+        }
     }
     swc_core::ecma::transforms::base::rename::renamer(
         swc_core::ecma::transforms::base::hygiene::Config {
             top_level_mark: top_level_mark.unwrap_or_default(),
             ..Default::default()
         },
-        HygieneRenamer { is_export_mark },
+        HygieneRenamer {
+            preserved_symbols,
+            is_export_mark,
+        },
     )
 }
 
