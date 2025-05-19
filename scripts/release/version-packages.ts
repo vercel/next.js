@@ -1,6 +1,26 @@
 import execa from 'execa'
-import { existsSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync } from 'fs'
+import { writeFile, readFile, unlink } from 'fs/promises'
+import { join } from 'path'
+
+// NOTE: This type may change over time.
+type ChangesetStatusJson = {
+  changesets: {
+    releases: {
+      name: string
+      type: string
+      summary: string
+      id: string
+    }[]
+  }[]
+  releases: {
+    name: string
+    type: string
+    oldVersion: string
+    changesets: string[]
+    newVersion: string
+  }[]
+}
 
 async function versionPackages() {
   const preConfigPath = join(process.cwd(), '.changeset', 'pre.json')
@@ -23,13 +43,54 @@ async function versionPackages() {
     await execa('pnpm', ['changeset', 'pre', 'enter', 'canary'], {
       stdio: 'inherit',
     })
-    // TODO: Create empty changeset for `next` to bump canary version
-    // even if there is no changeset.
+
+    console.log(
+      '▲   Preparing to bump the canary version, checking if there are any changesets.'
+    )
+
+    // Create an empty changeset for `next` to bump the canary version
+    // even if there are no changesets for `next`.
+    await execa('pnpm', [
+      'changeset',
+      'status',
+      '--output',
+      './changeset-status.json',
+    ])
+
+    let hasNextChangeset = false
+    if (existsSync('./changeset-status.json')) {
+      const changesetStatus: ChangesetStatusJson = JSON.parse(
+        await readFile('./changeset-status.json', 'utf8')
+      )
+
+      console.log('▲   Changeset Status:')
+      console.log(changesetStatus)
+
+      hasNextChangeset =
+        changesetStatus.releases.find((release) => release.name === 'next') !==
+        undefined
+
+      await unlink('./changeset-status.json')
+    }
+
+    if (!hasNextChangeset) {
+      console.log(
+        '▲   No changesets found for `next`, creating an empty changeset.'
+      )
+      // TODO: Since this is temporary until we hard-require a changeset, we will
+      // need to remove this in the future to prevent publishing empty releases.
+      await writeFile(
+        join(process.cwd(), '.changeset', `next-canary-${Date.now()}.md`),
+        `---\n'next': patch\n---`
+      )
+    }
   }
 
   await execa('pnpm', ['changeset', 'version'], {
     stdio: 'inherit',
   })
+  // TODO: Update the pnpm-lock.yaml since the packages' depend on
+  // each other. Remove this once they use `workspace:` protocol.
   await execa('pnpm', ['install', '--no-frozen-lockfile'], {
     stdio: 'inherit',
   })
