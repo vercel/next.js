@@ -1,7 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
 
-const WITH_PPR = !!process.env.__NEXT_EXPERIMENTAL_PPR
-
 const stackStart = /\s+at /
 
 function createExpectError(cliOutput: string) {
@@ -62,11 +60,9 @@ describe(`Request Promises`, () => {
       }
       const expectError = createExpectError(next.cliOutput)
 
-      if (WITH_PPR) {
-        expectError(
-          'Error: During prerendering, `params` rejects when the prerender is complete'
-        )
-      }
+      expectError(
+        'Error: During prerendering, `params` rejects when the prerender is complete'
+      )
       expectError(
         'Error: During prerendering, `searchParams` rejects when the prerender is complete'
       )
@@ -104,11 +100,9 @@ describe(`Request Promises`, () => {
       }
       const expectError = createExpectError(next.cliOutput)
 
-      if (WITH_PPR) {
-        expectError(
-          'Error: During prerendering, `params` rejects when the prerender is complete'
-        )
-      }
+      expectError(
+        'Error: During prerendering, `params` rejects when the prerender is complete'
+      )
       expectError(
         'Error: During prerendering, `searchParams` rejects when the prerender is complete'
       )
