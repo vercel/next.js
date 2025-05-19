@@ -5,7 +5,8 @@ use roaring::RoaringBitmap;
 use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, SliceMap, TryJoinIterExt, ValueToString, Vc,
+    FxIndexMap, FxIndexSet, ResolvedVc, SliceMap, TryFlatJoinIterExt, TryJoinIterExt,
+    ValueToString, Vc,
 };
 
 use crate::{
@@ -103,6 +104,24 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         //     .into_iter()
         //     .collect::<FxIndexMap<_, _>>();
 
+        let mergeable = graphs
+            .iter()
+            .flat_map(|g| g.iter_nodes())
+            .map(async |n| {
+                let module = n.module;
+                let mergeable = ResolvedVc::try_downcast::<Box<dyn MergeableModule>>(module);
+                if let Some(mergeable) = mergeable
+                    && *mergeable.is_mergeable().await?
+                {
+                    return Ok(Some(module));
+                }
+                Ok(None)
+            })
+            .try_flat_join()
+            .await?
+            .into_iter()
+            .collect::<FxHashSet<_>>();
+
         let visit_count = module_graph
             .traverse_edges_fixed_point_with_priority(
                 entries.iter().map(|e| (*e, 0)),
@@ -140,7 +159,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                         parent_module.filter(|m| {
                             ResolvedVc::try_downcast::<Box<dyn MergeableModule>>(*m).is_some()
                         }),
-                        ResolvedVc::try_downcast::<Box<dyn MergeableModule>>(module).is_some(),
+                        mergeable.contains(&module),
                         hoisted,
                         // TODO technically we could merge a sync child into an async parent
                         !parent_module.is_some_and(|p| async_module_info.contains(&p))
@@ -287,76 +306,95 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                     return Ok(None);
                 }
 
-                let mut resulting_list = vec![];
-                let mut included: Vec<ResolvedVc<Box<dyn Module>>> = vec![];
+                let entry = *list.last().unwrap();
 
-                let mut i = 0;
-                while i < list.len() - 1 {
-                    let first = list[i];
-                    let modules = list[i..]
-                        .iter()
-                        .map(|&m| (m, exposed_modules.contains(&ResolvedVc::upcast(m))))
-                        .collect::<Vec<_>>();
-                    match *first.merge(MergeableModules::interned(modules)).await? {
-                        MergeableModuleResult::Merged {
-                            merged_module,
-                            consumed,
-                            skipped,
-                        } => {
-                            // println!(
-                            //     "accepted from {:?} {:#?} {:?} consumed {} {:#?} skipped {}
-                            // {:#?}",     first.ident().to_string().
-                            // await?,     list[i..]
-                            //         .iter()
-                            //         .map(|m| m.ident().to_string())
-                            //         .try_join()
-                            //         .await?,
-                            //     merged_module.ident().to_string().await?,
-                            //     consumed,
-                            //     list.iter()
-                            //         .skip(i)
-                            //         .skip(skipped as usize)
-                            //         .take(consumed as usize)
-                            //         .map(|m| m.ident().to_string())
-                            //         .try_join()
-                            //         .await?,
-                            //     skipped,
-                            //     list.iter()
-                            //         .skip(i)
-                            //         .take(skipped as usize)
-                            //         .map(|m| m.ident().to_string())
-                            //         .try_join()
-                            //         .await?,
-                            // );
+                let list_exposed = list
+                    .iter()
+                    .map(|&m| (m, exposed_modules.contains(&ResolvedVc::upcast(m))))
+                    .collect::<Vec<_>>();
 
-                            let mut current_included = list[i..]
-                                .iter()
-                                .skip(skipped as usize)
-                                .take(consumed as usize);
-                            // The first module should not be `included` but `replaced`
-                            let first = *current_included.next().unwrap();
-                            debug_assert!(
-                                first.ident().to_string().await?
-                                    == merged_module.ident().to_string().await?,
-                                "{} == {}",
-                                first.ident().to_string().await?,
-                                merged_module.ident().to_string().await?
-                            );
-                            resulting_list.push((
-                                ResolvedVc::upcast::<Box<dyn Module>>(first),
-                                merged_module,
-                            ));
-                            included.extend(current_included.copied().map(ResolvedVc::upcast));
-                            i += (skipped + consumed) as usize;
-                        }
-                        MergeableModuleResult::NotMerged => {
-                            // None of them are mergeable.
-                            return Ok(None);
-                        }
-                    }
-                }
+                let result = entry
+                    .merge(MergeableModules::interned(list_exposed))
+                    .to_resolved()
+                    .await?;
 
-                Ok(Some((resulting_list, included)))
+                let list_len = list.len();
+                Ok(Some((
+                    [(ResolvedVc::upcast::<Box<dyn Module>>(entry), result)],
+                    list.into_iter()
+                        .take(list_len - 1)
+                        .map(ResolvedVc::upcast)
+                        .collect::<Vec<_>>(),
+                )))
+
+                // let mut resulting_list = vec![];
+                // let mut included: Vec<ResolvedVc<Box<dyn Module>>> = vec![];
+                // let mut i = 0;
+                // while i < list.len() - 1 {
+                //     let first = list[i];
+                //     let modules = list[i..]
+                //         .iter()
+                //         .map(|&m| (m, exposed_modules.contains(&ResolvedVc::upcast(m))))
+                //         .collect::<Vec<_>>();
+                //     match *first.merge(MergeableModules::interned(modules)).await? {
+                //         MergeableModuleResult::Merged {
+                //             merged_module,
+                //             consumed,
+                //             skipped,
+                //         } => {
+                //             // println!(
+                //             //     "accepted from {:?} {:#?} {:?} consumed {} {:#?} skipped {}
+                //             // {:#?}",     first.ident().to_string().
+                //             // await?,     list[i..]
+                //             //         .iter()
+                //             //         .map(|m| m.ident().to_string())
+                //             //         .try_join()
+                //             //         .await?,
+                //             //     merged_module.ident().to_string().await?,
+                //             //     consumed,
+                //             //     list.iter()
+                //             //         .skip(i)
+                //             //         .skip(skipped as usize)
+                //             //         .take(consumed as usize)
+                //             //         .map(|m| m.ident().to_string())
+                //             //         .try_join()
+                //             //         .await?,
+                //             //     skipped,
+                //             //     list.iter()
+                //             //         .skip(i)
+                //             //         .take(skipped as usize)
+                //             //         .map(|m| m.ident().to_string())
+                //             //         .try_join()
+                //             //         .await?,
+                //             // );
+
+                //             let mut current_included = list[i..]
+                //                 .iter()
+                //                 .skip(skipped as usize)
+                //                 .take(consumed as usize);
+                //             // The first module should not be `included` but `replaced`
+                //             let first = *current_included.next().unwrap();
+                //             debug_assert!(
+                //                 first.ident().to_string().await?
+                //                     == merged_module.ident().to_string().await?,
+                //                 "{} == {}",
+                //                 first.ident().to_string().await?,
+                //                 merged_module.ident().to_string().await?
+                //             );
+                //             resulting_list.push((
+                //                 ResolvedVc::upcast::<Box<dyn Module>>(first),
+                //                 merged_module,
+                //             ));
+                //             included.extend(current_included.copied().map(ResolvedVc::upcast));
+                //             i += (skipped + consumed) as usize;
+                //         }
+                //         MergeableModuleResult::NotMerged => {
+                //             // None of them are mergeable.
+                //             return Ok(None);
+                //         }
+                //     }
+                // }
+                // Ok(Some((resulting_list, included)))
             })
             .try_join()
             .await?;

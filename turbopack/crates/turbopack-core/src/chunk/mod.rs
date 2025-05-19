@@ -124,9 +124,20 @@ impl MergeableModuleResult {
     }
 }
 
+/// A [Module] that can be merged with other [Module]s (to perform scope hoisting)
+// TODO currently this is only used for ecmascript modules, and with the current API cannot be used
+// with other module types (as a MergeableModule cannot prevent itself from being mrerged with other
+// arbitrary module types)
 #[turbo_tasks::value_trait]
 pub trait MergeableModule: Module + Asset {
-    fn merge(self: Vc<Self>, modules: Vc<MergeableModules>) -> Vc<MergeableModuleResult>;
+    /// Even though MergeableModule is implemented, this allows a dynamic condition to determine
+    /// mergeability
+    fn is_mergeable(self: Vc<Self>) -> Vc<bool> {
+        Vc::cell(true)
+    }
+
+    /// Create a new module representing the merged content of the given modules.
+    fn merge(self: Vc<Self>, modules: Vc<MergeableModules>) -> Vc<Box<dyn ChunkableModule>>;
 }
 #[turbo_tasks::value(transparent)]
 pub struct MergeableModules(Vec<(ResolvedVc<Box<dyn MergeableModule>>, bool)>);
