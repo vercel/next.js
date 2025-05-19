@@ -4,12 +4,7 @@ class Class {}
 
 type ArrowFunctionTypeAlias = () => void
 
-export default function ClientComponent({
-  _arrowFunction,
-  _arrowFunctionTypeAlias,
-  _class,
-  _constructor,
-}: {
+export default function ClientComponent(props: {
   _arrowFunction: () => void
   _arrowFunctionTypeAlias: ArrowFunctionTypeAlias
   _class: Class

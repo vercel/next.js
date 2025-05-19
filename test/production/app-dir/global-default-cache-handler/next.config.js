@@ -4,7 +4,7 @@
 const nextConfig = {
   output: 'standalone',
   experimental: {
-    dynamicIO: true,
+    useCache: true,
   },
 }
 

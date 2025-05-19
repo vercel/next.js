@@ -11,7 +11,7 @@ use swc_core::{
         ast::{Module, ModuleItem, Program, Script},
         preset_env::{self, Targets},
         transforms::{
-            base::{assumptions::Assumptions, feature::FeatureFlag, helpers::inject_helpers},
+            base::{assumptions::Assumptions, helpers::inject_helpers},
             optimization::inline_globals,
             react::react,
         },
@@ -211,11 +211,13 @@ impl EcmascriptInputTransform {
             }
             EcmascriptInputTransform::PresetEnv(env) => {
                 let versions = env.runtime_versions().await?;
-                let config = swc_core::ecma::preset_env::Config {
-                    targets: Some(Targets::Versions(*versions)),
-                    mode: None, // Don't insert core-js polyfills
-                    ..Default::default()
-                };
+                let config = swc_core::ecma::preset_env::EnvConfig::from(
+                    swc_core::ecma::preset_env::Config {
+                        targets: Some(Targets::Versions(*versions)),
+                        mode: None, // Don't insert core-js polyfills
+                        ..Default::default()
+                    },
+                );
 
                 let module_program = std::mem::replace(program, Program::Module(Module::dummy()));
 
@@ -237,12 +239,11 @@ impl EcmascriptInputTransform {
                 // Explicit type annotation to ensure that we don't duplicate transforms in the
                 // final binary
                 *program = module_program.apply((
-                    preset_env::preset_env::<&'_ dyn Comments>(
+                    preset_env::transform_from_env::<&'_ dyn Comments>(
                         top_level_mark,
                         Some(&comments),
                         config,
                         Assumptions::default(),
-                        &mut FeatureFlag::empty(),
                     ),
                     inject_helpers(unresolved_mark),
                 ));

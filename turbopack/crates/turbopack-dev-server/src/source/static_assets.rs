@@ -140,8 +140,9 @@ impl Introspectable for StaticAssetsContentSource {
                             .to_resolved()
                             .await?,
                         ),
-                        DirectoryEntry::Other(_) => todo!("what's DirectoryContent::Other?"),
-                        DirectoryEntry::Error => todo!(),
+                        DirectoryEntry::Other(_) | DirectoryEntry::Error => {
+                            todo!("unsupported DirectoryContent variant: {entry:?}")
+                        }
                     };
                     Ok((ResolvedVc::cell(name.clone()), child))
                 }

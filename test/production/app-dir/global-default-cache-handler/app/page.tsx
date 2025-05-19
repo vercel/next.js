@@ -1,5 +1,6 @@
 import React, { Suspense } from 'react'
 import { revalidate } from './actions'
+import { connection } from 'next/server'
 
 async function Random({ cached }: { cached?: boolean }) {
   const data = await fetch(
@@ -22,7 +23,9 @@ async function CachedRandom() {
   return <Random cached />
 }
 
-export default function Page() {
+export default async function Page() {
+  await connection()
+
   return (
     <>
       <p>index page</p>
