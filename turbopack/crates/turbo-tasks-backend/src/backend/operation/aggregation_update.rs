@@ -1287,7 +1287,7 @@ impl AggregationUpdateQueue {
                 // For performance reasons this should stay `Meta` and not `All`
                 TaskDataCategory::Meta,
             );
-            let mut removed_uppers = Vec::new();
+            let mut removed_uppers = SmallVec::new();
             swap_retain(&mut upper_ids, |&mut upper_id| {
                 let mut keep_upper = false;
                 let mut follower_in_upper = false;
@@ -1344,7 +1344,7 @@ impl AggregationUpdateQueue {
                 if !followers.is_empty() {
                     self.push(
                         InnerOfUppersLostFollowersJob {
-                            upper_ids: upper_ids.clone(),
+                            upper_ids: removed_uppers.clone(),
                             lost_follower_ids: followers,
                         }
                         .into(),
