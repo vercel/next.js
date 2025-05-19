@@ -70,7 +70,7 @@ export function makeHangingPromise<T>(
     return new Proxy(hangingPromise, {
       ...handler,
       get: function get(target, prop, receiver) {
-        if (prop === 'then' || prop === 'status') {
+        if (prop === 'then' || prop === 'catch' || prop === 'finally') {
           // TODO: Maybe annotate dynamic access here.
         }
 

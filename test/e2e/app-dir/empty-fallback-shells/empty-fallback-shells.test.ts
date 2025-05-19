@@ -95,7 +95,7 @@ describe('empty-fallback-shells', () => {
         })
       })
 
-      describe('and the params accessed in cached non-page function', () => {
+      describe('and the params accessed in a cached non-page function', () => {
         it('does not resume a postponed fallback shell', async () => {
           const res = await next.fetch(
             '/with-cached-io/without-suspense/params-not-in-page/bar'
@@ -108,6 +108,26 @@ describe('empty-fallback-shells', () => {
           if (isNextDeploy) {
             expect(res.headers.get('x-matched-path')).toBe(
               '/with-cached-io/without-suspense/params-not-in-page/[slug]'
+            )
+          } else {
+            expect(res.headers.get('x-nextjs-postponed')).not.toBe('1')
+          }
+        })
+      })
+
+      describe('and params.then/catch/finally passed to a cached function', () => {
+        it('does not resume a postponed fallback shell', async () => {
+          const res = await next.fetch(
+            '/with-cached-io/without-suspense/params-then-in-page/bar'
+          )
+
+          const html = await res.text()
+          expect(html).toIncludeRepeated('data-testid="page-bar"', 3)
+          expect(html).toContain('layout-runtime')
+
+          if (isNextDeploy) {
+            expect(res.headers.get('x-matched-path')).toBe(
+              '/with-cached-io/without-suspense/params-then-in-page/[slug]'
             )
           } else {
             expect(res.headers.get('x-nextjs-postponed')).not.toBe('1')
