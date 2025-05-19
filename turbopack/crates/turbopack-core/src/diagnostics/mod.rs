@@ -4,7 +4,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use auto_hash_map::AutoSet;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{emit, CollectiblesSource, FxIndexMap, ResolvedVc, Upcast, Vc};
+use turbo_tasks::{CollectiblesSource, FxIndexMap, ResolvedVc, Upcast, Vc, emit};
 
 #[turbo_tasks::value(serialization = "none")]
 #[derive(Clone, Debug)]

@@ -55,19 +55,16 @@ describe('persistent-caching', () => {
 
     {
       const browser = await next.browser('/')
-      // TODO Persistent Caching for webpack dev server is broken
       expect(await browser.elementByCss('main').text()).toBe(appTimestamp)
       await browser.close()
     }
     {
       const browser = await next.browser('/client')
-      // TODO Persistent Caching for webpack dev server is broken
       expect(await browser.elementByCss('main').text()).toBe(appClientTimestamp)
       await browser.close()
     }
     {
       const browser = await next.browser('/pages')
-      // TODO Persistent Caching for webpack dev server is broken
       expect(await browser.elementByCss('main').text()).toBe(pagesTimestamp)
       await browser.close()
     }

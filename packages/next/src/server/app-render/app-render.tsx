@@ -55,10 +55,7 @@ import {
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_HMR_REFRESH_HASH_COOKIE,
 } from '../../client/components/app-router-headers'
-import {
-  createTrackedMetadataContext,
-  createMetadataContext,
-} from '../../lib/metadata/metadata-context'
+import { createMetadataContext } from '../../lib/metadata/metadata-context'
 import { createRequestStoreForRender } from '../async-storage/request-store'
 import { createWorkStore } from '../async-storage/work-store'
 import {
@@ -178,7 +175,6 @@ import { CacheSignal } from './cache-signal'
 import { getTracedMetadata } from '../lib/trace/utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
-import './clean-async-snapshot.external'
 import { INFINITE_CACHE } from '../../lib/constants'
 import { createComponentStylesAndScripts } from './create-component-styles-and-scripts'
 import { parseLoaderTree } from './parse-loader-tree'
@@ -188,7 +184,6 @@ import {
 } from '../resume-data-cache/resume-data-cache'
 import type { MetadataErrorType } from '../../lib/metadata/resolve-metadata'
 import isError from '../../lib/is-error'
-import { isUseCacheTimeoutError } from '../use-cache/use-cache-errors'
 import { createServerInsertedMetadata } from './metadata-insertion/create-server-inserted-metadata'
 import { getPreviouslyRevalidatedTags } from '../server-utils'
 import { executeRevalidates } from '../revalidation-utils'
@@ -326,8 +321,8 @@ function parseRequestHeaders(
 }
 
 function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
-  // Align the segment with parallel-route-default in next-app-loader
   const components = loaderTree[2]
+  const hasGlobalNotFound = !!components['global-not-found']
   return [
     '',
     {
@@ -335,11 +330,12 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
         PAGE_SEGMENT_KEY,
         {},
         {
-          page: components['not-found'],
+          page: components['global-not-found'] ?? components['not-found'],
         },
       ],
     },
-    components,
+    // When global-not-found is present, skip layout from components
+    hasGlobalNotFound ? components : {},
   ]
 }
 
@@ -497,11 +493,8 @@ async function generateDynamicRSCPayload(
     } = createMetadataComponents({
       tree: loaderTree,
       parsedQuery: query,
-      metadataContext: createTrackedMetadataContext(
-        url.pathname,
-        ctx.renderOpts,
-        workStore
-      ),
+      pathname: url.pathname,
+      metadataContext: createMetadataContext(ctx.renderOpts),
       getDynamicParamFromSegment,
       appUsingSizeAdjustment,
       workStore,
@@ -632,7 +625,6 @@ async function generateDynamicFlightRenderResult(
       ctx,
       false,
       ctx.clientReferenceManifest,
-      ctx.workStore.route,
       requestStore
     )
   }
@@ -808,6 +800,7 @@ async function getRSCPayload(
     query
   )
   const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
+  const hasGlobalNotFound = !!tree[2]['global-not-found']
 
   const {
     ViewportTree,
@@ -817,13 +810,15 @@ async function getRSCPayload(
     StreamingMetadataOutlet,
   } = createMetadataComponents({
     tree,
-    errorType: is404 ? 'not-found' : undefined,
+    // When it's using global-not-found, metadata errorType is undefined, which will retrieve the
+    // metadata from the page.
+    // When it's using not-found, metadata errorType is 'not-found', which will retrieve the
+    // metadata from the not-found.js boundary.
+    // TODO: remove this condition and keep it undefined when global-not-found is stabilized.
+    errorType: is404 && !hasGlobalNotFound ? 'not-found' : undefined,
     parsedQuery: query,
-    metadataContext: createTrackedMetadataContext(
-      url.pathname,
-      ctx.renderOpts,
-      workStore
-    ),
+    pathname: url.pathname,
+    metadataContext: createMetadataContext(ctx.renderOpts),
     getDynamicParamFromSegment,
     appUsingSizeAdjustment,
     workStore,
@@ -941,9 +936,8 @@ async function getErrorRSCPayload(
   const { MetadataTree, ViewportTree } = createMetadataComponents({
     tree,
     parsedQuery: query,
-    // We create an untracked metadata context here because we can't postpone
-    // again during the error render.
-    metadataContext: createMetadataContext(url.pathname, ctx.renderOpts),
+    pathname: url.pathname,
+    metadataContext: createMetadataContext(ctx.renderOpts),
     errorType,
     getDynamicParamFromSegment,
     appUsingSizeAdjustment,
@@ -1209,10 +1203,23 @@ async function renderToHTMLOrFlightImpl(
     // to treat chunk/module loading with similar semantics as cache reads to avoid
     // module loading from causing a prerender to abort too early.
 
+    const shouldTrackModuleLoading = () => {
+      if (!renderOpts.experimental.dynamicIO) {
+        return false
+      }
+      const workUnitStore = workUnitAsyncStorage.getStore()
+      return !!(
+        workUnitStore &&
+        (workUnitStore.type === 'prerender' || workUnitStore.type === 'cache')
+      )
+    }
+
     const __next_require__: typeof instrumented.require = (...args) => {
       const exportsOrPromise = instrumented.require(...args)
-      // requiring an async module returns a promise.
-      trackPendingImport(exportsOrPromise)
+      if (shouldTrackModuleLoading()) {
+        // requiring an async module returns a promise.
+        trackPendingImport(exportsOrPromise)
+      }
       return exportsOrPromise
     }
     // @ts-expect-error
@@ -1220,7 +1227,9 @@ async function renderToHTMLOrFlightImpl(
 
     const __next_chunk_load__: typeof instrumented.loadChunk = (...args) => {
       const loadingChunk = instrumented.loadChunk(...args)
-      trackPendingChunkLoad(loadingChunk)
+      if (shouldTrackModuleLoading()) {
+        trackPendingChunkLoad(loadingChunk)
+      }
       return loadingChunk
     }
     // @ts-expect-error
@@ -1283,7 +1292,6 @@ async function renderToHTMLOrFlightImpl(
 
   // Pull out the hooks/references from the component.
   const { tree: loaderTree, taintObjectReference } = ComponentMod
-
   if (enableTainting) {
     taintObjectReference(
       'Do not pass process.env to Client Components since it will leak sensitive data',
@@ -1385,7 +1393,6 @@ async function renderToHTMLOrFlightImpl(
       res,
       ctx,
       metadata,
-      workStore,
       loaderTree
     )
 
@@ -1405,8 +1412,8 @@ async function renderToHTMLOrFlightImpl(
 
     // If we encountered any unexpected errors during build we fail the
     // prerendering phase and the build.
-    if (workStore.invalidUsageError) {
-      throw workStore.invalidUsageError
+    if (workStore.invalidDynamicUsageError) {
+      throw workStore.invalidDynamicUsageError
     }
     if (response.digestErrorsMap.size) {
       const buildFailingError = response.digestErrorsMap.values().next().value
@@ -1559,7 +1566,6 @@ async function renderToHTMLOrFlightImpl(
             req,
             res,
             ctx,
-            workStore,
             notFoundLoaderTree,
             formState,
             postponedState
@@ -1586,14 +1592,13 @@ async function renderToHTMLOrFlightImpl(
       req,
       res,
       ctx,
-      workStore,
       loaderTree,
       formState,
       postponedState
     )
 
-    if (workStore.invalidUsageError) {
-      throw workStore.invalidUsageError
+    if (workStore.invalidDynamicUsageError) {
+      throw workStore.invalidDynamicUsageError
     }
 
     // If we have pending revalidates, wait until they are all resolved.
@@ -1722,7 +1727,6 @@ async function renderToStream(
   req: BaseNextRequest,
   res: BaseNextResponse,
   ctx: AppRenderContext,
-  workStore: WorkStore,
   tree: LoaderTree,
   formState: any,
   postponedState: PostponedState | null
@@ -1868,7 +1872,6 @@ async function renderToStream(
         ctx,
         res.statusCode === 404,
         clientReferenceManifest,
-        workStore.route,
         requestStore
       )
 
@@ -2215,10 +2218,9 @@ async function spawnDynamicValidationInDev(
   ctx: AppRenderContext,
   isNotFound: boolean,
   clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>,
-  route: string,
   requestStore: RequestStore
 ): Promise<void> {
-  const { componentMod: ComponentMod, implicitTags } = ctx
+  const { componentMod: ComponentMod, implicitTags, workStore } = ctx
   const rootParams = getRootParams(
     ComponentMod.tree,
     ctx.getDynamicParamFromSegment
@@ -2312,7 +2314,7 @@ async function spawnDynamicValidationInDev(
             process.env.NEXT_DEBUG_BUILD ||
             process.env.__NEXT_VERBOSE_LOGGING
           ) {
-            printDebugThrownValueForProspectiveRender(err, route)
+            printDebugThrownValueForProspectiveRender(err, workStore.route)
           }
         },
         signal: initialServerRenderController.signal,
@@ -2330,7 +2332,7 @@ async function spawnDynamicValidationInDev(
     ) {
       // We don't normally log these errors because we are going to retry anyway but
       // it can be useful for debugging Next.js itself to get visibility here when needed
-      printDebugThrownValueForProspectiveRender(err, route)
+      printDebugThrownValueForProspectiveRender(err, workStore.route)
     }
   }
 
@@ -2370,7 +2372,7 @@ async function spawnDynamicValidationInDev(
           ) {
             // We don't normally log these errors because we are going to retry anyway but
             // it can be useful for debugging Next.js itself to get visibility here when needed
-            printDebugThrownValueForProspectiveRender(err, route)
+            printDebugThrownValueForProspectiveRender(err, workStore.route)
           }
         },
       }
@@ -2382,7 +2384,7 @@ async function spawnDynamicValidationInDev(
         // We're going to retry to so we normally would suppress this error but
         // when verbose logging is on we print it
         if (process.env.__NEXT_VERBOSE_LOGGING) {
-          printDebugThrownValueForProspectiveRender(err, route)
+          printDebugThrownValueForProspectiveRender(err, workStore.route)
         }
       }
     })
@@ -2462,10 +2464,6 @@ async function spawnDynamicValidationInDev(
         clientReferenceManifest.clientModules,
         {
           onError: (err) => {
-            if (isUseCacheTimeoutError(err)) {
-              return err.digest
-            }
-
             if (
               finalServerController.signal.aborted &&
               isPrerenderInterruptedError(err)
@@ -2506,12 +2504,6 @@ async function spawnDynamicValidationInDev(
           {
             signal: finalClientController.signal,
             onError: (err, errorInfo) => {
-              if (isUseCacheTimeoutError(err)) {
-                dynamicValidation.dynamicErrors.push(err)
-
-                return
-              }
-
               if (
                 isPrerenderInterruptedError(err) ||
                 finalClientController.signal.aborted
@@ -2526,7 +2518,7 @@ async function spawnDynamicValidationInDev(
                 const componentStack = errorInfo.componentStack
                 if (typeof componentStack === 'string') {
                   trackAllowedDynamicAccess(
-                    route,
+                    workStore.route,
                     componentStack,
                     dynamicValidation
                   )
@@ -2567,7 +2559,7 @@ async function spawnDynamicValidationInDev(
       // track any dynamic access that occurs above the suspense boundary because
       // we'll do so in the route shell.
       throwIfDisallowedDynamic(
-        route,
+        workStore,
         preludeIsEmpty,
         dynamicValidation,
         serverDynamicTracking,
@@ -2606,7 +2598,6 @@ async function prerenderToStream(
   res: BaseNextResponse,
   ctx: AppRenderContext,
   metadata: AppPageRenderResultMetadata,
-  workStore: WorkStore,
   tree: LoaderTree
 ): Promise<PrerenderToStreamResult> {
   // When prerendering formState is always null. We still include it
@@ -2621,6 +2612,7 @@ async function prerenderToStream(
     nonce,
     pagePath,
     renderOpts,
+    workStore,
   } = ctx
 
   const rootParams = getRootParams(tree, getDynamicParamFromSegment)
@@ -2726,6 +2718,12 @@ async function prerenderToStream(
     }
     setMetadataHeader(name)
   }
+
+  const selectStaleTime = (stale: number) =>
+    stale === INFINITE_CACHE &&
+    typeof renderOpts.experimental.staleTimes?.static === 'number'
+      ? renderOpts.experimental.staleTimes.static
+      : stale
 
   let prerenderStore: PrerenderStore | null = null
 
@@ -2834,6 +2832,12 @@ async function prerenderToStream(
 
         initialServerRenderController.abort()
         initialServerPrerenderController.abort()
+
+        // We don't need to continue the prerender process if we already
+        // detected invalid dynamic usage in the initial prerender phase.
+        if (workStore.invalidDynamicUsageError) {
+          throw workStore.invalidDynamicUsageError
+        }
 
         let initialServerResult
         try {
@@ -3101,7 +3105,7 @@ async function prerenderToStream(
         // we'll do so in the route shell.
         if (!ctx.renderOpts.doNotThrowOnEmptyStaticShell) {
           throwIfDisallowedDynamic(
-            workStore.route,
+            workStore,
             preludeIsEmpty,
             dynamicValidation,
             serverDynamicTracking,
@@ -3156,7 +3160,7 @@ async function prerenderToStream(
             // TODO: Should this include the SSR pass?
             collectedRevalidate: finalRenderPrerenderStore.revalidate,
             collectedExpire: finalRenderPrerenderStore.expire,
-            collectedStale: finalRenderPrerenderStore.stale,
+            collectedStale: selectStaleTime(finalRenderPrerenderStore.stale),
             collectedTags: finalRenderPrerenderStore.tags,
           }
         } else {
@@ -3219,7 +3223,7 @@ async function prerenderToStream(
             // TODO: Should this include the SSR pass?
             collectedRevalidate: finalRenderPrerenderStore.revalidate,
             collectedExpire: finalRenderPrerenderStore.expire,
-            collectedStale: finalRenderPrerenderStore.stale,
+            collectedStale: selectStaleTime(finalRenderPrerenderStore.stale),
             collectedTags: finalRenderPrerenderStore.tags,
           }
         }
@@ -3423,6 +3427,12 @@ async function prerenderToStream(
         initialServerRenderController.abort()
         initialServerPrerenderController.abort()
 
+        // We don't need to continue the prerender process if we already
+        // detected invalid dynamic usage in the initial prerender phase.
+        if (workStore.invalidDynamicUsageError) {
+          throw workStore.invalidDynamicUsageError
+        }
+
         // We've now filled caches and triggered any inadvertant sync bailouts
         // due to lazy module initialization. We can restart our render to capture results
 
@@ -3586,7 +3596,7 @@ async function prerenderToStream(
         if (!ctx.renderOpts.doNotThrowOnEmptyStaticShell) {
           // We don't have a shell because the root errored when we aborted.
           throwIfDisallowedDynamic(
-            workStore.route,
+            workStore,
             preludeIsEmpty,
             dynamicValidation,
             serverDynamicTracking,
@@ -3650,7 +3660,7 @@ async function prerenderToStream(
           // TODO: Should this include the SSR pass?
           collectedRevalidate: finalServerPrerenderStore.revalidate,
           collectedExpire: finalServerPrerenderStore.expire,
-          collectedStale: finalServerPrerenderStore.stale,
+          collectedStale: selectStaleTime(finalServerPrerenderStore.stale),
           collectedTags: finalServerPrerenderStore.tags,
         }
       }
@@ -3800,7 +3810,7 @@ async function prerenderToStream(
           // TODO: Should this include the SSR pass?
           collectedRevalidate: reactServerPrerenderStore.revalidate,
           collectedExpire: reactServerPrerenderStore.expire,
-          collectedStale: reactServerPrerenderStore.stale,
+          collectedStale: selectStaleTime(reactServerPrerenderStore.stale),
           collectedTags: reactServerPrerenderStore.tags,
         }
       } else if (fallbackRouteParams && fallbackRouteParams.size > 0) {
@@ -3820,7 +3830,7 @@ async function prerenderToStream(
           // TODO: Should this include the SSR pass?
           collectedRevalidate: reactServerPrerenderStore.revalidate,
           collectedExpire: reactServerPrerenderStore.expire,
-          collectedStale: reactServerPrerenderStore.stale,
+          collectedStale: selectStaleTime(reactServerPrerenderStore.stale),
           collectedTags: reactServerPrerenderStore.tags,
         }
       } else {
@@ -3881,7 +3891,7 @@ async function prerenderToStream(
           // TODO: Should this include the SSR pass?
           collectedRevalidate: reactServerPrerenderStore.revalidate,
           collectedExpire: reactServerPrerenderStore.expire,
-          collectedStale: reactServerPrerenderStore.stale,
+          collectedStale: selectStaleTime(reactServerPrerenderStore.stale),
           collectedTags: reactServerPrerenderStore.tags,
         }
       }
@@ -3975,7 +3985,7 @@ async function prerenderToStream(
         // TODO: Should this include the SSR pass?
         collectedRevalidate: prerenderLegacyStore.revalidate,
         collectedExpire: prerenderLegacyStore.expire,
-        collectedStale: prerenderLegacyStore.stale,
+        collectedStale: selectStaleTime(prerenderLegacyStore.stale),
         collectedTags: prerenderLegacyStore.tags,
       }
     }
@@ -4157,8 +4167,9 @@ async function prerenderToStream(
           prerenderStore !== null ? prerenderStore.revalidate : INFINITE_CACHE,
         collectedExpire:
           prerenderStore !== null ? prerenderStore.expire : INFINITE_CACHE,
-        collectedStale:
-          prerenderStore !== null ? prerenderStore.stale : INFINITE_CACHE,
+        collectedStale: selectStaleTime(
+          prerenderStore !== null ? prerenderStore.stale : INFINITE_CACHE
+        ),
         collectedTags: prerenderStore !== null ? prerenderStore.tags : null,
       }
     } catch (finalErr: any) {
@@ -4247,27 +4258,8 @@ async function collectSegmentData(
     serverModuleMap: null,
   }
 
-  // When dynamicIO is enabled, missing data is encoded to an infinitely hanging
-  // promise, the absence of which we use to determine if a segment is fully
-  // static or partially static. However, when dynamicIO is not enabled, this
-  // trick doesn't work.
-  //
-  // So if PPR is enabled, and dynamicIO is not, we have to be conservative and
-  // assume all segments are partial.
-  //
-  // TODO: When PPR is on, we can at least optimize the case where the entire
-  // page is static. Either by passing that as an argument to this function, or
-  // by setting a header on the response like the we do for full page RSC
-  // prefetches today. The latter approach might be simpler since it requires
-  // less plumbing, and the client has to check the header regardless to see if
-  // PPR is enabled.
-  const shouldAssumePartialData =
-    renderOpts.experimental.isRoutePPREnabled === true && // PPR is enabled
-    !renderOpts.experimental.dynamicIO // dynamicIO is disabled
-
   const staleTime = prerenderStore.stale
   return await ComponentMod.collectSegmentData(
-    shouldAssumePartialData,
     fullPageDataBuffer,
     staleTime,
     clientReferenceManifest.clientModules as ManifestNode,

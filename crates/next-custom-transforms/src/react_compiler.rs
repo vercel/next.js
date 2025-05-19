@@ -1,5 +1,5 @@
 use swc_core::ecma::{
-    ast::{Callee, Expr, FnDecl, FnExpr, Pat, Program, ReturnStmt, VarDeclarator},
+    ast::{Callee, Expr, FnDecl, FnExpr, Pat, Program, ReturnStmt, Stmt, VarDeclarator},
     visit::{Visit, VisitWith},
 };
 
@@ -31,6 +31,13 @@ impl Visit for Finder {
             }
         }
 
+        node.visit_children_with(self);
+    }
+
+    fn visit_expr(&mut self, node: &Expr) {
+        if self.found {
+            return;
+        }
         node.visit_children_with(self);
     }
 
@@ -66,6 +73,13 @@ impl Visit for Finder {
             }
         }
 
+        node.visit_children_with(self);
+    }
+
+    fn visit_stmt(&mut self, node: &Stmt) {
+        if self.found {
+            return;
+        }
         node.visit_children_with(self);
     }
 

@@ -2,14 +2,14 @@ use std::sync::OnceLock;
 
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
-use quote::{quote, quote_spanned, ToTokens};
+use quote::{ToTokens, quote, quote_spanned};
 use regex::Regex;
 use syn::{
+    Error, Expr, ExprLit, Fields, FieldsUnnamed, Generics, Item, ItemEnum, ItemStruct, Lit, LitStr,
+    Meta, MetaNameValue, Result, Token,
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote,
     spanned::Spanned,
-    Error, Expr, ExprLit, Fields, FieldsUnnamed, Generics, Item, ItemEnum, ItemStruct, Lit, LitStr,
-    Meta, MetaNameValue, Result, Token,
 };
 use turbo_tasks_macros_shared::{
     get_register_value_type_ident, get_value_type_id_ident, get_value_type_ident,
@@ -199,11 +199,11 @@ impl Parse for ValueArguments {
                     return Err(Error::new_spanned(
                         &meta,
                         format!(
-                            "unexpected {:?}, expected \"shared\", \"into\", \"serialization\", \
-                             \"cell\", \"eq\", \"transparent\", or \"operation\"",
-                            meta
+                            "unexpected {meta:?}, expected \"shared\", \"into\", \
+                             \"serialization\", \"cell\", \"eq\", \"transparent\", or \
+                             \"operation\""
                         ),
-                    ))
+                    ));
                 }
             }
         }
@@ -255,8 +255,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 // the leading whitespace.
                 let doc_str = format!(
                     "\n\nThis is a [transparent value type][turbo_tasks::value#transparent] \
-                     wrapping [`{}`].",
-                    inner_type_string,
+                     wrapping [`{inner_type_string}`].",
                 );
 
                 attrs.push(parse_quote! {

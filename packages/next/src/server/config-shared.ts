@@ -26,6 +26,13 @@ export type NextConfigComplete = Required<NextConfig> & {
   experimental: Omit<ExperimentalConfig, 'turbo'>
 }
 
+export interface NextAdapter {
+  name: string
+  modifyConfig(
+    config: NextConfigComplete
+  ): Promise<NextConfigComplete> | NextConfigComplete
+}
+
 export type I18NDomains = readonly DomainLocale[]
 
 export interface I18NConfig {
@@ -273,6 +280,7 @@ export interface LoggingConfig {
 }
 
 export interface ExperimentalConfig {
+  adapterPath?: string
   useSkewCookie?: boolean
   nodeMiddleware?: boolean
   cacheHandlers?: {
@@ -629,8 +637,10 @@ export interface ExperimentalConfig {
   serverComponentsHmrCache?: boolean
 
   /**
-   * When enabled will cause IO in App Router to be excluded from prerenders
-   * unless explicitly cached.
+   * When enabled, will cause IO in App Router to be excluded from prerenders,
+   * unless explicitly cached. This also enables the experimental Partial
+   * Prerendering feature of Next.js, and it enables `react@experimental` being
+   * used for the `app` directory.
    */
   dynamicIO?: boolean
 
@@ -671,6 +681,17 @@ export interface ExperimentalConfig {
    * Note: Use with caution as this can negatively impact page loading performance.
    */
   clientInstrumentationHook?: boolean
+
+  /**
+   * Enables using the global-not-found.js file in the app directory
+   *
+   */
+  globalNotFound?: boolean
+
+  /**
+   * Enable segment viewer for the app directory in dev tool.
+   */
+  devtoolSegmentExplorer?: boolean
 }
 
 export type ExportPathMap = {
@@ -1179,7 +1200,7 @@ export interface NextConfig extends Record<string, any> {
   htmlLimitedBots?: RegExp
 }
 
-export const defaultConfig: NextConfig = {
+export const defaultConfig = {
   env: {},
   webpack: null,
   eslint: {
@@ -1238,6 +1259,7 @@ export const defaultConfig: NextConfig = {
   outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
   allowedDevOrigins: undefined,
   experimental: {
+    adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
     useSkewCookie: false,
     nodeMiddleware: false,
     cacheLife: {
@@ -1366,10 +1388,12 @@ export const defaultConfig: NextConfig = {
     inlineCss: false,
     useCache: undefined,
     slowModuleDetection: undefined,
+    globalNotFound: false,
+    devtoolSegmentExplorer: false,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
-}
+} satisfies NextConfig
 
 export async function normalizeConfig(phase: string, config: any) {
   if (typeof config === 'function') {

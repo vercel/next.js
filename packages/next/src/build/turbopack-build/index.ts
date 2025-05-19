@@ -1,23 +1,19 @@
 import path from 'path'
-import {
-  formatNodeOptions,
-  getParsedNodeOptionsWithoutInspect,
-} from '../../server/lib/utils'
+
 import { Worker } from '../../lib/worker'
 import { NextBuildContext } from '../build-context'
 
 async function turbopackBuildWithWorker() {
-  const nodeOptions = getParsedNodeOptionsWithoutInspect()
-
   try {
     const worker = new Worker(path.join(__dirname, 'impl.js'), {
       exposedMethods: ['workerMain', 'waitForShutdown'],
+      debuggerPortOffset: -1,
+      isolatedMemory: false,
       numWorkers: 1,
       maxRetries: 0,
       forkOptions: {
         env: {
           NEXT_PRIVATE_BUILD_WORKER: '1',
-          NODE_OPTIONS: formatNodeOptions(nodeOptions),
         },
       },
     }) as Worker & typeof import('./impl')

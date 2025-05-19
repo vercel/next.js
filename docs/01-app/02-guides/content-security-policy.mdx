@@ -172,7 +172,54 @@ export const config = {
 
 ### Reading the nonce
 
-You can now read the nonce from a [Server Component](/docs/app/building-your-application/rendering/server-components) using [`headers`](/docs/app/api-reference/functions/headers):
+<PagesOnly>
+  You can provide the nonce to your page using
+  [`getServerSideProps`](/docs/pages/building-your-application/data-fetching/get-server-side-props):
+
+```tsx filename="pages/index.tsx" switcher
+import Script from 'next/script'
+
+import type { GetServerSideProps } from 'next'
+
+export default function Page({ nonce }) {
+  return (
+    <Script
+      src="https://www.googletagmanager.com/gtag/js"
+      strategy="afterInteractive"
+      nonce={nonce}
+    />
+  )
+}
+
+export const getServerSideProps: GetServerSideProps = async ({ req }) => {
+  const nonce = req.headers['x-nonce']
+  return { props: { nonce } }
+}
+```
+
+```jsx filename="pages/index.jsx" switcher
+import Script from 'next/script'
+export default function Page({ nonce }) {
+  return (
+    <Script
+      src="https://www.googletagmanager.com/gtag/js"
+      strategy="afterInteractive"
+      nonce={nonce}
+    />
+  )
+}
+
+export async function getServerSideProps({ req }) {
+  const nonce = req.headers['x-nonce']
+  return { props: { nonce } }
+}
+```
+
+</PagesOnly>
+
+<AppOnly>
+
+You can read the nonce from a [Server Component](/docs/app/getting-started/server-and-client-components) using [`headers`](/docs/app/api-reference/functions/headers):
 
 ```tsx filename="app/page.tsx" switcher
 import { headers } from 'next/headers'
@@ -207,6 +254,8 @@ export default async function Page() {
   )
 }
 ```
+
+</AppOnly>
 
 ## Without Nonces
 

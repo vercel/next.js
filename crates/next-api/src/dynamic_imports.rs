@@ -26,13 +26,13 @@ use next_core::{
 };
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc,
-    TryFlatJoinIterExt, TryJoinIterExt, Value, Vc,
+    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
     chunk::{
-        availability_info::AvailabilityInfo, ChunkItem, ChunkableModule, ChunkingContext,
-        ModuleChunkItemIdExt, ModuleId,
+        ChunkItem, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt, ModuleId,
+        availability_info::AvailabilityInfo,
     },
     module::Module,
     module_graph::{ModuleGraph, SingleModuleGraph, SingleModuleGraphModuleNode},

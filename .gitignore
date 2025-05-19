@@ -8,6 +8,9 @@ tarballs/
 packages/**/*.tgz
 .errors/
 
+# rust compiler crashes
+rustc-ice-*.txt
+
 # dependencies
 node_modules
 package-lock.json

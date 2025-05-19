@@ -6,23 +6,23 @@ use std::{
     iter::once,
 };
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Level};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, SliceMap,
-    TaskInput, TryJoinIterExt, Value, ValueToString, Vc,
+    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, SliceMap, TaskInput,
+    TryJoinIterExt, Value, ValueToString, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{
-    util::normalize_request, FileSystemEntryType, FileSystemPath, RealPathResult,
+    FileSystemEntryType, FileSystemPath, RealPathResult, util::normalize_request,
 };
 
 use self::{
     options::{
-        resolve_modules_options, ConditionValue, ImportMapResult, ResolveInPackage,
-        ResolveIntoPackage, ResolveModules, ResolveModulesOptions, ResolveOptions,
+        ConditionValue, ImportMapResult, ResolveInPackage, ResolveIntoPackage, ResolveModules,
+        ResolveModulesOptions, ResolveOptions, resolve_modules_options,
     },
     origin::{ResolveOrigin, ResolveOriginExt},
     parse::Request,
@@ -35,17 +35,17 @@ use crate::{
     data_uri_source::DataUriSource,
     file_source::FileSource,
     issue::{
-        module::emit_unknown_module_type_error, resolve::ResolvingIssue, IssueExt, IssueSource,
+        IssueExt, IssueSource, module::emit_unknown_module_type_error, resolve::ResolvingIssue,
     },
     module::{Module, Modules, OptionModule},
     output::{OutputAsset, OutputAssets},
-    package_json::{read_package_json, PackageJsonIssue},
+    package_json::{PackageJsonIssue, read_package_json},
     raw_module::RawModule,
     reference_type::ReferenceType,
     resolve::{
         node::{node_cjs_resolve_options, node_esm_resolve_options},
         parse::stringify_data_uri,
-        pattern::{read_matches, PatternMatch},
+        pattern::{PatternMatch, read_matches},
         plugin::AfterResolvePlugin,
     },
     source::{OptionSource, Source, Sources},
@@ -492,7 +492,7 @@ pub struct RequestKey {
 impl Display for RequestKey {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         if let Some(request) = &self.request {
-            write!(f, "{}", request)?;
+            write!(f, "{request}")?;
         } else {
             write!(f, "<default>")?;
         }
@@ -502,7 +502,7 @@ impl Display for RequestKey {
                 if i > 0 {
                     write!(f, ", ")?;
                 }
-                write!(f, "{}={}", k, v)?;
+                write!(f, "{k}={v}")?;
             }
             write!(f, ")")?;
         }
@@ -538,7 +538,7 @@ impl ValueToString for ResolveResult {
             if i > 0 {
                 result.push_str(", ");
             }
-            write!(result, "{} -> ", request).unwrap();
+            write!(result, "{request} -> ").unwrap();
             match item {
                 ResolveResultItem::Source(a) => {
                     result.push_str(&a.ident().to_string().await?);
@@ -550,7 +550,7 @@ impl ValueToString for ResolveResult {
                 } => {
                     result.push_str("external ");
                     result.push_str(s);
-                    write!(result, " ({}, {})", ty, traced)?;
+                    write!(result, " ({ty}, {traced})")?;
                 }
                 ResolveResultItem::Ignore => {
                     result.push_str("ignore");
@@ -1029,7 +1029,7 @@ impl ResolveResult {
                         request: request_key
                             .request
                             .as_ref()
-                            .map(|r| format!("{}{}", r, remaining).into()),
+                            .map(|r| format!("{r}{remaining}").into()),
                         conditions: request_key.conditions.clone(),
                     },
                     v.clone(),
@@ -1694,7 +1694,7 @@ async fn handle_after_resolve_plugins(
         request: Vc<Request>,
         options: Vc<ResolveOptions>,
     ) -> Result<Option<Vc<ResolveResult>>> {
-        for plugin in &options.await?.plugins {
+        for plugin in &options.await?.after_resolve_plugins {
             let after_resolve_condition = plugin.after_resolve_condition().resolve().await?;
             if *after_resolve_condition.matches(path).await? {
                 if let Some(result) = *plugin
@@ -2040,7 +2040,7 @@ async fn resolve_internal_inline(
                 query: _,
                 fragment: _,
             } => {
-                let uri: RcStr = format!("{}{}", protocol, remainder).into();
+                let uri: RcStr = format!("{protocol}{remainder}").into();
                 *ResolveResult::primary_with_key(
                     RequestKey::new(uri.clone()),
                     ResolveResultItem::External {
@@ -2054,7 +2054,7 @@ async fn resolve_internal_inline(
                 if !has_alias {
                     ResolvingIssue {
                         severity: error_severity(options).await?,
-                        request_type: format!("unknown import: `{}`", path),
+                        request_type: format!("unknown import: `{path}`"),
                         request: request.to_resolved().await?,
                         file_path: lookup_path.to_resolved().await?,
                         resolve_options: options.to_resolved().await?,
@@ -2464,7 +2464,7 @@ async fn apply_in_package(
                 .to_resolved()
                 .await?,
             resolve_options: options.to_resolved().await?,
-            error_message: Some(format!("invalid alias field value: {}", value)),
+            error_message: Some(format!("invalid alias field value: {value}")),
             source: None,
         }
         .resolved_cell()
@@ -2894,7 +2894,7 @@ async fn handle_exports_imports_field(
     let mut conditions_state = FxHashMap::default();
 
     let query_str = query.await?;
-    let req = Pattern::Constant(format!("{}{}", path, query_str).into());
+    let req = Pattern::Constant(format!("{path}{query_str}").into());
 
     let values = exports_imports_field
         .lookup(&req)
@@ -3215,15 +3215,15 @@ impl Display for ModulePart {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             ModulePart::Evaluation => f.write_str("module evaluation"),
-            ModulePart::Export(export) => write!(f, "export {}", export),
+            ModulePart::Export(export) => write!(f, "export {export}"),
             ModulePart::RenamedExport {
                 original_export,
                 export,
-            } => write!(f, "export {} as {}", original_export, export),
+            } => write!(f, "export {original_export} as {export}"),
             ModulePart::RenamedNamespace { export } => {
-                write!(f, "export * as {}", export)
+                write!(f, "export * as {export}")
             }
-            ModulePart::Internal(id) => write!(f, "internal part {}", id),
+            ModulePart::Internal(id) => write!(f, "internal part {id}"),
             ModulePart::Locals => f.write_str("locals"),
             ModulePart::Exports => f.write_str("exports"),
             ModulePart::Facade => f.write_str("facade"),

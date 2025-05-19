@@ -186,6 +186,9 @@ export function useDrag(options: UseDragOptions) {
   }
 
   function onPointerDown(e: React.PointerEvent) {
+    if (e.button !== 0) {
+      return // ignore right click
+    }
     origin.current = { x: e.clientX, y: e.clientY }
     state.current = 'press'
     window.addEventListener('pointermove', onPointerMove)

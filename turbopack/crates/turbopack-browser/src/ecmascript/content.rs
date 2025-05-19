@@ -1,11 +1,11 @@
 use std::io::Write;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use either::Either;
 use indoc::writedoc;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{rope::RopeBuilder, File};
+use turbo_tasks_fs::{File, rope::RopeBuilder};
 use turbopack_core::{
     asset::AssetContent,
     chunk::{ChunkingContext, MinifyType, ModuleId},
@@ -21,8 +21,8 @@ use super::{
     merged::merger::EcmascriptBrowserChunkContentMerger, version::EcmascriptBrowserChunkVersion,
 };
 use crate::{
-    chunking_context::{CurrentChunkMethod, CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR},
     BrowserChunkingContext,
+    chunking_context::{CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR, CurrentChunkMethod},
 };
 
 #[turbo_tasks::value(serialization = "none")]

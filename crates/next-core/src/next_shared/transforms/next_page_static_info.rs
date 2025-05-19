@@ -1,10 +1,13 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::page_static_info::{
-    collect_exports, extract_exported_const_values, Const,
+    Const, collect_exported_const_visitor::GetMut, collect_exports, extract_exported_const_values,
 };
 use serde_json::Value;
-use swc_core::{atoms::atom, ecma::ast::Program};
+use swc_core::{
+    atoms::{Atom, atom},
+    ecma::ast::Program,
+};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
@@ -45,15 +48,27 @@ struct NextPageStaticInfo {
     client_context: Option<ClientContextType>,
 }
 
+#[derive(Default)]
+struct PropertiesToExtract {
+    config: Option<Const>,
+}
+impl GetMut<Atom, Option<Const>> for PropertiesToExtract {
+    fn get_mut(&mut self, key: &Atom) -> Option<&mut Option<Const>> {
+        if key == &atom!("config") {
+            Some(&mut self.config)
+        } else {
+            None
+        }
+    }
+}
 #[async_trait]
 impl CustomTransformer for NextPageStaticInfo {
     #[tracing::instrument(level = tracing::Level::TRACE, name = "next_page_static_info", skip_all)]
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         if let Some(collected_exports) = collect_exports(program)? {
-            let mut properties_to_extract = collected_exports.extra_properties.clone();
-            properties_to_extract.insert(atom!("config"));
+            let mut properties_to_extract = PropertiesToExtract::default();
 
-            let extracted = extract_exported_const_values(program, properties_to_extract);
+            extract_exported_const_values(program, &mut properties_to_extract);
 
             let is_server_layer_page = matches!(
                 self.server_context,
@@ -82,8 +97,7 @@ impl CustomTransformer for NextPageStaticInfo {
             }
 
             if is_app_page {
-                if let Some(Some(Const::Value(Value::Object(config_obj)))) =
-                    extracted.get(&atom!("config"))
+                if let Some(Const::Value(Value::Object(config_obj))) = properties_to_extract.config
                 {
                     let mut messages = vec![format!(
                         "Page config in {} is deprecated. Replace `export const config=…` with \
@@ -92,11 +106,11 @@ impl CustomTransformer for NextPageStaticInfo {
                     )];
 
                     if let Some(runtime) = config_obj.get("runtime") {
-                        messages.push(format!("- `export const runtime = {}`", runtime));
+                        messages.push(format!("- `export const runtime = {runtime}`"));
                     }
 
                     if let Some(regions) = config_obj.get("regions") {
-                        messages.push(format!("- `export const preferredRegion = {}`", regions));
+                        messages.push(format!("- `export const preferredRegion = {regions}`"));
                     }
 
                     messages.push("Visit https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config for more information.".to_string());
@@ -164,7 +178,7 @@ impl Issue for PageStaticInfoIssue {
             StyledString::Line(
                 self.messages
                     .iter()
-                    .map(|v| StyledString::Text(format!("{}\n", v).into()))
+                    .map(|v| StyledString::Text(format!("{v}\n").into()))
                     .collect::<Vec<StyledString>>(),
             )
             .resolved_cell(),

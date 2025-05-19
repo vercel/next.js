@@ -31,4 +31,5 @@ export interface InstallTemplateArgs {
   importAlias: string;
   skipInstall: boolean;
   turbopack: boolean;
+  rspack: boolean;
 }

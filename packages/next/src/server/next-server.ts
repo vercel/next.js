@@ -1049,7 +1049,6 @@ export default class NextNodeServer extends BaseServer<
                 extension: getExtension(contentType) as string,
                 upstreamEtag,
               },
-              isFallback: false,
               cacheControl: { revalidate: maxAge, expire: undefined },
             }
           },
@@ -1529,26 +1528,31 @@ export default class NextNodeServer extends BaseServer<
   }
 
   private async loadNodeMiddleware() {
-    if (!this.nextConfig.experimental.nodeMiddleware) {
-      return
-    }
-
-    try {
-      const functionsConfig = this.renderOpts.dev
-        ? {}
-        : require(join(this.distDir, 'server', FUNCTIONS_CONFIG_MANIFEST))
-
-      if (this.renderOpts.dev || functionsConfig?.functions?.['/_middleware']) {
-        // if used with top level await, this will be a promise
-        return require(join(this.distDir, 'server', 'middleware.js'))
+    if (!process.env.NEXT_MINIMAL) {
+      if (!this.nextConfig.experimental.nodeMiddleware) {
+        return
       }
-    } catch (err) {
-      if (
-        isError(err) &&
-        err.code !== 'ENOENT' &&
-        err.code !== 'MODULE_NOT_FOUND'
-      ) {
-        throw err
+
+      try {
+        const functionsConfig = this.renderOpts.dev
+          ? {}
+          : require(join(this.distDir, 'server', FUNCTIONS_CONFIG_MANIFEST))
+
+        if (
+          this.renderOpts.dev ||
+          functionsConfig?.functions?.['/_middleware']
+        ) {
+          // if used with top level await, this will be a promise
+          return require(join(this.distDir, 'server', 'middleware.js'))
+        }
+      } catch (err) {
+        if (
+          isError(err) &&
+          err.code !== 'ENOENT' &&
+          err.code !== 'MODULE_NOT_FOUND'
+        ) {
+          throw err
+        }
       }
     }
   }

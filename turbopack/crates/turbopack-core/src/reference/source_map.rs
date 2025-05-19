@@ -9,7 +9,7 @@ use crate::{
     raw_module::RawModule,
     resolve::ModuleResolveResult,
     source_map::{
-        utils::resolve_source_map_sources, GenerateSourceMap, OptionStringifiedSourceMap,
+        GenerateSourceMap, OptionStringifiedSourceMap, utils::resolve_source_map_sources,
     },
 };
 
