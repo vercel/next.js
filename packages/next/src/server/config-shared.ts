@@ -560,6 +560,12 @@ export interface ExperimentalConfig {
   serverMinification?: boolean
 
   /**
+   * Enables source maps while generating static pages.
+   * Helps with errors during the prerender phase in `next build`.
+   */
+  enablePrerenderSourceMaps?: boolean
+
+  /**
    * Enables source maps generation for the server production bundle.
    */
   serverSourceMaps?: boolean
@@ -742,16 +748,6 @@ export type ExportPathMap = {
      * @internal
      */
     _isRoutePPREnabled?: boolean
-
-    /**
-     * When true, it indicates that this page is being rendered in an attempt to
-     * discover if the page will be safe to generate with PPR. This is only
-     * enabled when the app has `experimental.dynamicIO` enabled but does not
-     * have `experimental.ppr` enabled.
-     *
-     * @internal
-     */
-    _isProspectiveRender?: boolean
 
     /**
      * When true, it indicates that the diagnostic render for this page is
@@ -1309,6 +1305,7 @@ export const defaultConfig = {
     appNavFailHandling: false,
     prerenderEarlyExit: true,
     serverMinification: true,
+    enablePrerenderSourceMaps: false,
     serverSourceMaps: false,
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
