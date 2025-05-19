@@ -9202,6 +9202,7 @@ dependencies = [
  "turbo-tasks",
  "turbo-tasks-backend",
  "turbo-tasks-build",
+ "turbo-tasks-malloc",
 ]
 
 [[package]]
