@@ -12,9 +12,10 @@ anyhow = { workspace = true }
 arbitrary = { version = "1.4.1", features = ["derive"] }
 libfuzzer-sys = "0.4.9"
 serde = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
 turbo-tasks = { workspace = true }
 turbo-tasks-backend = { workspace = true }
+turbo-tasks-malloc = { workspace = true }
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }
