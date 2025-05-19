@@ -4346,8 +4346,8 @@ describe('app-dir static/dynamic handling', () => {
           expect(
             next.cliOutput.substring(cliOutputStart).match(/Load data/g).length
           ).toBe(2)
-          expect(next.cliOutput.substring(cliOutputStart)).toContain(
-            'Error: Failed to set Next.js data cache, items over 2MB can not be cached'
+          expect(stripAnsi(next.cliOutput.substring(cliOutputStart))).toMatch(
+            /Failed to set Next.js data cache for http:\/\/localhost:.*?\/api\/large-data, items over 2MB can not be cached/
           )
           return 'success'
         }, 'success')
@@ -4376,8 +4376,8 @@ describe('app-dir static/dynamic handling', () => {
           return 'success'
         }, 'success')
 
-        expect(next.cliOutput.substring(cliOutputStart)).not.toContain(
-          'Error: Failed to set Next.js data cache, items over 2MB can not be cached'
+        expect(next.cliOutput.substring(cliOutputStart)).not.toMatch(
+          /Failed to set Next.js data cache for http:\/\/localhost:.*?\/api\/large-data, items over 2MB can not be cached/
         )
       })
     }
