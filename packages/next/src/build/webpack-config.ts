@@ -534,6 +534,7 @@ export default async function getBaseWebpackConfig(
       loader: 'next-swc-loader',
       options: {
         isServer: isNodeOrEdgeCompilation,
+        compilerType,
         rootDir: dir,
         pagesDir,
         appDir,

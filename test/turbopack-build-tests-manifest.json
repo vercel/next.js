@@ -9393,12 +9393,11 @@
     "passed": [
       "Root components import order production mode root components should be imported in this order _document > _app > page in order to respect side effects"
     ],
-    "failed": [
-      "Root components import order production mode _app chunks should be attached to de dom before page chunks"
-    ],
+    "failed": [],
     "pending": [
       "development mode Skipped in Turbopack _app chunks should be attached to de dom before page chunks",
-      "development mode root components should be imported in this order _document > _app > page in order to respect side effects"
+      "development mode root components should be imported in this order _document > _app > page in order to respect side effects",
+      "Root components import order production mode  Skipped in Turbopack _app chunks should be attached to de dom before page chunks"
     ],
     "flakey": [],
     "runtimeError": false
@@ -19583,8 +19582,8 @@
     "runtimeError": false
   },
   "test/production/standalone-mode/type-module/index.test.ts": {
-    "passed": [],
-    "failed": ["type-module should work"],
+    "passed": ["type-module should work"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false

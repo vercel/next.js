@@ -1,14 +1,7 @@
 /* eslint-env jest */
 import { createSandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import {
-  assertHasRedbox,
-  check,
-  getRedboxCallStack,
-  getRedboxDescription,
-  getRedboxEnvironmentLabel,
-  getRedboxSource,
-} from 'next-test-utils'
+import { check } from 'next-test-utils'
 import path from 'path'
 import { outdent } from 'outdent'
 
@@ -382,55 +375,25 @@ describe('Error recovery app', () => {
         `
     )
 
-    {
-      // FIXME: `label` is flaking between "Runtime Error" and "Recoverable Error",
-      // so we have to snapshot the redbox manually we figure out why
+    await expect(browser).toDisplayRedbox(
+      `
+     {
+       "description": "oops",
+       "environmentLabel": "Server",
+       "label": "<FIXME-excluded-label>",
+       "source": "child.js (3:9) @ Child
+     > 3 |   throw new Error('oops')
+         |         ^",
+       "stack": [
+         "Child child.js (3:9)",
+         "Page app/server/page.js (3:10)",
+       ],
+     }
+    `,
 
-      // await expect(browser).toDisplayRedbox(`
-      //  {
-      //    "description": "oops",
-      //    "environmentLabel": "Server",
-      //    "label": "Recoverable Error",
-      //    "source": "child.js (3:9) @ Child
-      //  > 3 |   throw new Error('oops')
-      //      |         ^",
-      //    "stack": [
-      //      "Child child.js (3:9)",
-      //      "Page app/server/page.js (3:10)",
-      //    ],
-      //  }
-      // `)
-
-      await assertHasRedbox(browser)
-      const redbox = await Promise.all([
-        getRedboxDescription(browser),
-        getRedboxEnvironmentLabel(browser),
-        getRedboxSource(browser),
-        getRedboxCallStack(browser),
-      ]).then(([description, environmentLabel, source, stack]) => ({
-        description,
-        environmentLabel,
-        source,
-        stack,
-      }))
-      expect(redbox).toMatchInlineSnapshot(`
-      {
-        "description": "oops",
-        "environmentLabel": "Server",
-        "source": "child.js (3:9) @ Child
-
-        1 | // hello
-        2 | export default function Child() {
-      > 3 |   throw new Error('oops')
-          |         ^
-        4 | }",
-        "stack": [
-          "Child child.js (3:9)",
-          "Page app/server/page.js (3:10)",
-        ],
-      }
-      `)
-    }
+      // FIXME: `label` is flaking between "Runtime Error" and "Recoverable Error"
+      { label: false }
+    )
 
     // TODO-APP: re-enable when error recovery doesn't reload the page.
     /* const didNotReload = */ await session.patch(
