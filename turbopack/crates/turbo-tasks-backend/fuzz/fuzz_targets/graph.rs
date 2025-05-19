@@ -6,6 +6,7 @@ use arbitrary::Arbitrary;
 use libfuzzer_sys::fuzz_target;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{self, NonLocalValue, TurboTasks, Vc, trace::TraceRawVcs};
+use turbo_tasks_malloc::TurboMalloc;
 
 #[derive(Arbitrary, Debug, PartialEq, Eq, NonLocalValue, Serialize, Deserialize, TraceRawVcs)]
 struct TaskReferenceSpec {
@@ -39,8 +40,15 @@ fuzz_target!(|data: Vec<TaskSpec>| {
         },
         turbo_tasks_backend::noop_backing_storage(),
     ));
-    tokio::runtime::Runtime::new()
-        .unwrap()
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .worker_threads(1)
+        .on_thread_stop(|| {
+            TurboMalloc::thread_stop();
+        })
+        .build()
+        .unwrap();
+    runtime
         .block_on(async {
             tt.run_once(async move {
                 let spec: Vc<TasksSpec> = Vc::cell(data);
@@ -71,4 +79,33 @@ async fn run_task(spec: Vc<TasksSpec>, task: u16) -> Result<Vc<()>> {
 pub fn register() {
     turbo_tasks::register();
     include!(concat!(env!("OUT_DIR"), "/register_fuzz_graph.rs"));
+}
+
+#[allow(dead_code, reason = "used to minimize the graph when crash found")]
+fn optimize(spec: Vec<TaskSpec>) -> Vec<TaskSpec> {
+    let mut referenced = vec![false; spec.len()];
+    for task in &spec {
+        for reference in &task.references {
+            referenced[reference.task as usize] = true;
+        }
+    }
+    let mut new_index = vec![usize::MAX; spec.len()];
+    let mut index = 0;
+    for i in 0..spec.len() {
+        if referenced[i] {
+            new_index[i] = index;
+            index += 1;
+        }
+    }
+    let mut new_spec = vec![];
+    for (i, task) in spec.iter().enumerate() {
+        if referenced[i] {
+            let mut new_task = task.clone();
+            for reference in &mut new_task.references {
+                reference.task = new_index[reference.task as usize] as u16;
+            }
+            new_spec.push(new_task);
+        }
+    }
+    new_spec
 }
