@@ -6,9 +6,9 @@ version: experimental
 
 ## Usage
 
-The `taint` option enables support for experimental React APIs for tainting objects and values. This feature helps prevent sensitive data from being accidentally passed to the client. When enabled, you can use: 
+The `taint` option enables support for experimental React APIs for tainting objects and values. This feature helps prevent sensitive data from being accidentally passed to the client. When enabled, you can use:
 
-- [`experimental_taintObjectReference`](https://react.dev/reference/react/experimental_taintObjectReference) taint objects references. 
+- [`experimental_taintObjectReference`](https://react.dev/reference/react/experimental_taintObjectReference) taint objects references.
 - [`experimental_taintUniqueValue`](https://react.dev/reference/react/experimental_taintUniqueValue) to taint unique values.
 
 > **Good to know**: Activating this flag also enables the React `experimental` channel for `app` directory.
@@ -36,12 +36,11 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
-
 > **Warning:** Do not rely on the taint API as your only mechanism to prevent exposing sensitive data to the client. See our [security recommendations](/blog/security-nextjs-server-components-actions).
 
 The taint APIs allows you to be defensive, by declaratively and explicitly marking data that is not allowed to pass through the Server-Client boundary. When an object or value, is passed through the Server-Client boundary, React throws an error.
 
-This is helpful for cases where: 
+This is helpful for cases where:
 
 - The methods to read data are out of your control
 - You have to work with sensitive data shapes not defined by you
@@ -125,7 +124,7 @@ export async function ContactPage({ params }) {
 }
 ```
 
-Now, passing the entire object to the Client Component will throw an error. 
+Now, passing the entire object to the Client Component will throw an error.
 
 ```tsx switcher
 export async function ContactPage({
@@ -212,7 +211,7 @@ export async function Dashboard() {
 
 Note that, even though, `systemConfig.SERVICE_API_KEY` is reassigned to a new variable. Passing it to a Client Component still throws an error.
 
-Whereas, a value derived from a tainted unique value, will be exposed to the client. 
+Whereas, a value derived from a tainted unique value, will be exposed to the client.
 
 ```tsx
 export async function Dashboard() {
