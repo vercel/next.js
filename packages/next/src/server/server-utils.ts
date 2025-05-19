@@ -27,6 +27,10 @@ import { decodeQueryPathParameter } from './lib/decode-query-path-parameter'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { parseReqUrl } from '../lib/url'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
+import { parseAndValidateFlightRouterState } from './app-render/parse-and-validate-flight-router-state'
+import { isInterceptionRouteRewrite } from '../lib/generate-interception-routes-rewrites'
+import { NEXT_ROUTER_STATE_TREE_HEADER } from '../client/components/app-router-headers'
+import { getSelectedParams } from '../client/components/router-reducer/compute-changed-path'
 
 export function normalizeCdnUrl(
   req: BaseNextRequest | IncomingMessage,
@@ -209,7 +213,7 @@ export function getServerUtils({
     req: BaseNextRequest | IncomingMessage,
     parsedUrl: UrlWithParsedQuery
   ) {
-    const rewriteParams = {}
+    const rewriteParams: Record<string, string> = {}
     let fsPathname = parsedUrl.pathname
 
     const matchesPage = () => {
@@ -250,6 +254,28 @@ export function getServerUtils({
       }
 
       if (params) {
+        try {
+          // An interception rewrite might reference a dynamic param for a route the user
+          // is currently on, which wouldn't be extractable from the matched route params.
+          // This attempts to extract the dynamic params from the provided router state.
+          if (isInterceptionRouteRewrite(rewrite as Rewrite)) {
+            const stateHeader =
+              req.headers[NEXT_ROUTER_STATE_TREE_HEADER.toLowerCase()]
+
+            if (stateHeader) {
+              params = {
+                ...getSelectedParams(
+                  parseAndValidateFlightRouterState(stateHeader)
+                ),
+                ...params,
+              }
+            }
+          }
+        } catch (err) {
+          // this is a no-op -- we couldn't extract dynamic params from the provided router state,
+          // so we'll just use the params from the route matcher
+        }
+
         const { parsedDestination, destQuery } = prepareDestination({
           appendParamsToQuery: true,
           destination: rewrite.destination,
@@ -265,6 +291,20 @@ export function getServerUtils({
         Object.assign(rewriteParams, destQuery, params)
         Object.assign(parsedUrl.query, parsedDestination.query)
         delete (parsedDestination as any).query
+
+        // for each property in parsedUrl.query, if the value is parametrized (eg :foo), look up the value
+        // in rewriteParams and replace the parametrized value with the actual value
+        // this is used when the rewrite destination does not contain the original source param
+        // and so the value is still parametrized and needs to be replaced with the actual rewrite param
+        Object.entries(parsedUrl.query).forEach(([key, value]) => {
+          if (value && typeof value === 'string' && value.startsWith(':')) {
+            const paramName = value.slice(1)
+            const actualValue = rewriteParams[paramName]
+            if (actualValue) {
+              parsedUrl.query[key] = actualValue
+            }
+          }
+        })
 
         Object.assign(parsedUrl, parsedDestination)
 
