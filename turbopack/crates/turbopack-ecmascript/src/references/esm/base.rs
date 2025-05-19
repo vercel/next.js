@@ -39,7 +39,7 @@ use crate::{
     ScopeHoistingContext, TreeShakingMode,
     analyzer::imports::ImportAnnotations,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
-    code_gen::CodeGeneration,
+    code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
     magic_identifier,
     references::{
         esm::EsmExport,
@@ -513,7 +513,7 @@ impl EsmAssetReference {
         let this = &*self.await?;
 
         // only chunked references can be imported
-        let result = if this.annotations.chunking_type() != Some("none") {
+        if this.annotations.chunking_type() != Some("none") {
             let import_externals = this.import_externals;
             let referenced_asset = self.get_referenced_asset().await?;
 
@@ -526,22 +526,43 @@ impl EsmAssetReference {
                         expr: Box::new(throw_module_not_found_expr(&request)),
                         span: DUMMY_SP,
                     });
-                    Some((format!("throw {request}").into(), stmt))
+                    return Ok(CodeGeneration::hoisted_stmt(
+                        format!("throw {request}").into(),
+                        stmt,
+                    ));
                 }
-                ReferencedAsset::None => None,
+                ReferencedAsset::None => {}
                 _ => {
-                    if let ReferencedAsset::Some(asset) = &*referenced_asset
-                        && scope_hoisting_context
-                            .is_some_and(|c| c.modules.contains_key(&ResolvedVc::upcast(*asset)))
+                    let mut result = vec![];
+
+                    let merged_index = scope_hoisting_context
+                        .zip(if let ReferencedAsset::Some(asset) = &*referenced_asset {
+                            Some(*asset)
+                        } else {
+                            None
+                        })
+                        .and_then(|(c, asset)| c.modules.get_index_of(&ResolvedVc::upcast(asset)));
+
+                    if let Some(merged_index) = merged_index {
+                        // Insert a placeholder to inline the merged module at the right place
+                        // relative to the other references (so to keep reference order).
+                        result.push(CodeGenerationHoistedStmt::new(
+                            format!("hoisted {merged_index}").into(),
+                            quote!(
+                                "__turbopack_merged_esm__($id);" as Stmt,
+                                id: Expr = Lit::Num(merged_index.into()).into(),
+                            ),
+                        ));
+                    }
+
+                    if merged_index.is_some()
                         && !this
                             .export_name
                             .as_ref()
                             .is_none_or(|e| matches!(e, ModulePart::Exports))
                     {
                         // No need to import, the module is already available in the same scope
-                        // hoisting group.
-                        // And it's not requiring a namespace import,
-                        None
+                        // hoisting group (unless it's a namespace import)
                     } else if let Some(ident) = referenced_asset
                         .get_ident(chunking_context, None, scope_hoisting_context)
                         .await?
@@ -555,12 +576,12 @@ impl EsmAssetReference {
                             });
                         match &*referenced_asset {
                             ReferencedAsset::Unresolvable => {
-                                unreachable!()
+                                unreachable!();
                             }
                             ReferencedAsset::Some(asset) => {
                                 let id = asset.chunk_item_id(Vc::upcast(chunking_context)).await?;
                                 let name = ident.as_expr_individual(DUMMY_SP).unwrap_left();
-                                Some((
+                                result.push(CodeGenerationHoistedStmt::new(
                                     id.to_string().into(),
                                     var_decl_with_span(
                                         quote!(
@@ -571,7 +592,7 @@ impl EsmAssetReference {
                                         ),
                                         span,
                                     ),
-                                ))
+                                ));
                             }
                             ReferencedAsset::External(request, ExternalType::EcmaScriptModule) => {
                                 if !*chunking_context
@@ -587,7 +608,7 @@ impl EsmAssetReference {
                                     );
                                 }
                                 let name = ident.as_expr_individual(DUMMY_SP).unwrap_left();
-                                Some((
+                                result.push(CodeGenerationHoistedStmt::new(
                                     name.sym.as_str().into(),
                                     var_decl_with_span(
                                         if import_externals {
@@ -607,7 +628,7 @@ impl EsmAssetReference {
                                         },
                                         span,
                                     ),
-                                ))
+                                ));
                             }
                             ReferencedAsset::External(
                                 request,
@@ -626,7 +647,7 @@ impl EsmAssetReference {
                                     );
                                 }
                                 let name = ident.as_expr_individual(DUMMY_SP).unwrap_left();
-                                Some((
+                                result.push(CodeGenerationHoistedStmt::new(
                                     name.sym.as_str().into(),
                                     var_decl_with_span(
                                         quote!(
@@ -637,7 +658,7 @@ impl EsmAssetReference {
                                         ),
                                         span,
                                     ),
-                                ))
+                                ));
                             }
                             // fallback in case we introduce a new `ExternalType`
                             #[allow(unreachable_patterns)]
@@ -649,22 +670,15 @@ impl EsmAssetReference {
                                     request
                                 )
                             }
-                            ReferencedAsset::None => None,
-                        }
-                    } else {
-                        None
+                            ReferencedAsset::None => {}
+                        };
                     }
+                    return Ok(CodeGeneration::hoisted_stmts(result));
                 }
             }
-        } else {
-            None
         };
 
-        if let Some((key, stmt)) = result {
-            Ok(CodeGeneration::hoisted_stmt(key, stmt))
-        } else {
-            Ok(CodeGeneration::empty())
-        }
+        Ok(CodeGeneration::empty())
     }
 }
 

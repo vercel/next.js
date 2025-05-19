@@ -62,7 +62,10 @@ use swc_core::{
         util::take::Take,
     },
     ecma::{
-        ast::{self, Expr, Id, ModuleItem, Program, Script},
+        ast::{
+            self, CallExpr, Callee, EmptyStmt, Expr, ExprStmt, Id, ModuleItem, Program, Script,
+            Stmt,
+        },
         codegen::{Emitter, text_writer::JsWriter},
         visit::{VisitMut, VisitMutWith, VisitMutWithAstPath},
     },
@@ -1239,73 +1242,9 @@ impl EcmascriptModuleContent {
             .try_join()
             .await?;
 
-        struct SetSyntaxContextVisitor<'a> {
-            current_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
-            // A marker to quickly identify the special cross-module variable references
-            export_mark: Mark,
-            // The syntax contexts in the merged AST (each module has its own)
-            merged_ctxts:
-                &'a FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, SyntaxContext>,
-            // The export syntax contexts in the current AST, which will be mapped to merged_ctxts
-            current_module_contexts:
-                &'a FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, SyntaxContext>,
-        }
-        impl VisitMut for SetSyntaxContextVisitor<'_> {
-            fn visit_mut_syntax_context(&mut self, ctxt: &mut SyntaxContext) {
-                let module = if ctxt.has_mark(self.export_mark) {
-                    *self
-                        .current_module_contexts
-                        .iter()
-                        .find(|(_, module_ctxt)| *ctxt == **module_ctxt)
-                        .unwrap()
-                        .0
-                } else {
-                    self.current_module
-                };
-
-                *ctxt = *self.merged_ctxts.get(&module).unwrap();
-            }
-            // fn visit_mut_span(&mut self, span: &mut Span) {}
-        }
-
         // TODO properly merge ASTs:
         // - somehow merge the SourceMap struct
-        let merged_ast = {
-            let mut merged_ast = Program::Module(swc_core::ecma::ast::Module {
-                span: DUMMY_SP,
-                shebang: None,
-                body: contents
-                    .into_iter()
-                    .flat_map(|(module, module_contexts, export_mark, content)| {
-                        if let CodeGenResult {
-                            program: Program::Module(mut content),
-                            globals,
-                            ..
-                        } = content
-                        {
-                            GLOBALS.set(&*globals, || {
-                                content.visit_mut_with(&mut SetSyntaxContextVisitor {
-                                    current_module: module,
-                                    export_mark,
-                                    merged_ctxts: &merged_ctxts,
-                                    current_module_contexts: &module_contexts,
-                                });
-                            });
-
-                            content.body.clone()
-                        } else {
-                            unreachable!()
-                        }
-                    })
-                    .collect(),
-            });
-            GLOBALS.set(&globals_merged, || {
-                merged_ast
-                    .visit_mut_with(&mut swc_core::ecma::transforms::base::hygiene::hygiene());
-                // merged_ast.visit_mut_with(&mut DisplayContextVisitor { postfix: "merged" });
-            });
-            merged_ast
-        };
+        let merged_ast = merge_modules(contents, &merged_ctxts, &globals_merged).await?;
         let content = CodeGenResult {
             program: merged_ast,
             source_map: Arc::new(SourceMap::default()),
@@ -1337,6 +1276,132 @@ impl EcmascriptModuleContent {
 }
 
 #[allow(clippy::type_complexity)]
+async fn merge_modules(
+    mut contents: Vec<(
+        ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+        FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, SyntaxContext>,
+        Mark,
+        CodeGenResult,
+    )>,
+    merged_ctxts: &'_ FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, SyntaxContext>,
+    globals_merged: &'_ Globals,
+) -> Result<Program> {
+    struct SetSyntaxContextVisitor<'a> {
+        current_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+        // A marker to quickly identify the special cross-module variable references
+        export_mark: Mark,
+        // The syntax contexts in the merged AST (each module has its own)
+        merged_ctxts: &'a FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, SyntaxContext>,
+        // The export syntax contexts in the current AST, which will be mapped to merged_ctxts
+        current_module_contexts:
+            &'a FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, SyntaxContext>,
+    }
+    impl VisitMut for SetSyntaxContextVisitor<'_> {
+        fn visit_mut_syntax_context(&mut self, ctxt: &mut SyntaxContext) {
+            let module = if ctxt.has_mark(self.export_mark) {
+                *self
+                    .current_module_contexts
+                    .iter()
+                    .find(|(_, module_ctxt)| *ctxt == **module_ctxt)
+                    .unwrap()
+                    .0
+            } else {
+                self.current_module
+            };
+
+            *ctxt = *self.merged_ctxts.get(&module).unwrap();
+        }
+        // fn visit_mut_span(&mut self, span: &mut Span) {}
+    }
+
+    let prepare_module = |(module, module_contexts, export_mark, content): &mut (
+        ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+        FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, SyntaxContext>,
+        Mark,
+        CodeGenResult,
+    )| {
+        if let CodeGenResult {
+            program: Program::Module(content),
+            globals,
+            ..
+        } = content
+        {
+            GLOBALS.set(&*globals, || {
+                content.visit_mut_with(&mut SetSyntaxContextVisitor {
+                    current_module: *module,
+                    export_mark: *export_mark,
+                    merged_ctxts,
+                    current_module_contexts: module_contexts,
+                });
+            });
+
+            content.take().body
+        } else {
+            unreachable!()
+        }
+    };
+
+    let mut inserted = FxHashSet::with_capacity_and_hasher(contents.len(), Default::default());
+    inserted.insert(contents.len() - 1);
+
+    let mut merged_ast = swc_core::ecma::ast::Module {
+        span: DUMMY_SP,
+        shebang: None,
+        body: prepare_module(contents.last_mut().unwrap()),
+    };
+
+    // Replace inserted `__turbopack_merged_esm__(i);` statements with the corresponding ith-module
+    let mut i = 0;
+    loop {
+        if i >= merged_ast.body.len() {
+            break;
+        }
+        if let ModuleItem::Stmt(Stmt::Expr(ExprStmt { expr, .. })) = &merged_ast.body[i]
+            && let Expr::Call(CallExpr {
+                callee: Callee::Expr(callee),
+                args,
+                ..
+            }) = &**expr
+            && callee.is_ident_ref_to("__turbopack_merged_esm__")
+        {
+            let index = args[0].expr.as_lit().unwrap().as_num().unwrap().value as usize;
+
+                    if inserted.insert(index) {
+                        let module = &mut contents[index];
+                        merged_ast.body.splice(i..=i, prepare_module(module));
+
+                // Don't increment, the ith item has just changed
+                continue;
+            } else {
+                // Already inserted (and thus already executed), remove the placeholder
+                merged_ast.body[i] = ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
+            }
+        }
+
+        i += 1;
+    }
+
+    debug_assert!(
+        inserted.len() == contents.len(),
+        "Not all merged modules were inserted: {:?}",
+        contents
+            .iter()
+            .enumerate()
+            .map(async |(i, m)| Ok((inserted.contains(&i), m.0.ident().to_string().await?)))
+            .try_join()
+            .await?,
+    );
+
+    let mut merged_ast = Program::Module(merged_ast);
+
+    GLOBALS.set(globals_merged, || {
+        merged_ast.visit_mut_with(&mut swc_core::ecma::transforms::base::hygiene::hygiene());
+        // merged_ast.visit_mut_with(&mut DisplayContextVisitor { postfix: "merged" });
+    });
+
+    Ok(merged_ast)
+}
+
 // struct DisplayContextVisitor {
 //     postfix: &'static str,
 // }
