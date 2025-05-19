@@ -1,7 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
 
-const WITH_PPR = !!process.env.__NEXT_EXPERIMENTAL_PPR
-
 describe('dynamic-io', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
@@ -12,72 +10,44 @@ describe('dynamic-io', () => {
     return
   }
 
-  if (WITH_PPR) {
-    it('should partially prerender pages that use async headers', async () => {
-      let $ = await next.render$('/headers/static-behavior/async', {})
-      if (isNextDev) {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#x-sentinel').text()).toBe('hello')
-      } else {
-        expect($('#layout').text()).toBe('at buildtime')
-        expect($('#page').text()).toBe('at buildtime')
-        expect($('#x-sentinel').text()).toBe('hello')
-      }
-    })
+  it('should partially prerender pages that use async headers', async () => {
+    let $ = await next.render$('/headers/static-behavior/async', {})
+    if (isNextDev) {
+      expect($('#layout').text()).toBe('at runtime')
+      expect($('#page').text()).toBe('at runtime')
+      expect($('#x-sentinel').text()).toBe('hello')
+    } else {
+      expect($('#layout').text()).toBe('at buildtime')
+      expect($('#page').text()).toBe('at buildtime')
+      expect($('#x-sentinel').text()).toBe('hello')
+    }
+  })
 
-    it('should partially prerender pages that use sync headers', async () => {
-      let $ = await next.render$('/headers/static-behavior/sync', {})
-      if (isNextDev) {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#x-sentinel').text()).toBe('hello')
-      } else {
-        expect($('#layout').text()).toBe('at buildtime')
-        expect($('#page').text()).toBe('at buildtime')
-        expect($('#x-sentinel').text()).toBe('hello')
-      }
-    })
-  } else {
-    it('should produce dynamic pages when using async or sync headers', async () => {
-      let $ = await next.render$('/headers/static-behavior/sync', {})
-      if (isNextDev) {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#x-sentinel').text()).toBe('hello')
-      } else {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#x-sentinel').text()).toBe('hello')
-      }
+  it('should partially prerender pages that use sync headers', async () => {
+    let $ = await next.render$('/headers/static-behavior/sync', {})
+    if (isNextDev) {
+      expect($('#layout').text()).toBe('at runtime')
+      expect($('#page').text()).toBe('at runtime')
+      expect($('#x-sentinel').text()).toBe('hello')
+    } else {
+      expect($('#layout').text()).toBe('at buildtime')
+      expect($('#page').text()).toBe('at buildtime')
+      expect($('#x-sentinel').text()).toBe('hello')
+    }
+  })
 
-      $ = await next.render$('/headers/static-behavior/async', {})
-      if (isNextDev) {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#x-sentinel').text()).toBe('hello')
-      } else {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#x-sentinel').text()).toBe('hello')
-      }
-    })
-  }
-
-  if (WITH_PPR) {
-    it('should be able to pass headers as a promise to another component and trigger an intermediate Suspense boundary', async () => {
-      const $ = await next.render$('/headers/static-behavior/pass-deeply')
-      if (isNextDev) {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#fallback').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-      } else {
-        expect($('#layout').text()).toBe('at buildtime')
-        expect($('#fallback').text()).toBe('at buildtime')
-        expect($('#page').text()).toBe('at runtime')
-      }
-    })
-  }
+  it('should be able to pass headers as a promise to another component and trigger an intermediate Suspense boundary', async () => {
+    const $ = await next.render$('/headers/static-behavior/pass-deeply')
+    if (isNextDev) {
+      expect($('#layout').text()).toBe('at runtime')
+      expect($('#fallback').text()).toBe('at runtime')
+      expect($('#page').text()).toBe('at runtime')
+    } else {
+      expect($('#layout').text()).toBe('at buildtime')
+      expect($('#fallback').text()).toBe('at buildtime')
+      expect($('#page').text()).toBe('at runtime')
+    }
+  })
 
   it('should be able to access headers properties asynchronously', async () => {
     let $ = await next.render$('/headers/exercise/async', {})

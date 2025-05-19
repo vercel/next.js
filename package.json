@@ -13,6 +13,8 @@
     "lerna": "lerna",
     "dev": "turbo run dev --parallel",
     "pack-next": "tsx scripts/pack-next.ts",
+    "ci:version": "changeset version && pnpm install --no-frozen-lockfile",
+    "ci:publish": "changeset publish",
     "test-types": "tsc",
     "test-unit": "jest test/unit/ packages/next/ packages/font",
     "test-dev": "cross-env NEXT_TEST_MODE=dev pnpm testheadless",

@@ -41,7 +41,6 @@ const zExportMap: zod.ZodType<ExportPathMap> = z.record(
     _isAppDir: z.boolean().optional(),
     _isDynamicError: z.boolean().optional(),
     _isRoutePPREnabled: z.boolean().optional(),
-    _isProspectiveRender: z.boolean().optional(),
     _doNotThrowOnEmptyStaticShell: z.boolean().optional(),
   })
 )

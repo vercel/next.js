@@ -152,7 +152,7 @@ impl Module for ManifestAsyncModule {
 impl Asset for ManifestAsyncModule {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
-        todo!()
+        panic!("content() should not be called");
     }
 }
 
