@@ -41,7 +41,7 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use chunk::EcmascriptChunkItem;
 use code_gen::{CodeGeneration, CodeGenerationHoistedStmt};
 use either::Either;
@@ -725,109 +725,136 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
 #[turbo_tasks::value_impl]
 impl MergeableModule for EcmascriptModuleAsset {
     #[turbo_tasks::function]
-    async fn merge(
-        self: ResolvedVc<Self>,
-        modules: Vc<MergeableModules>,
-    ) -> Result<Vc<MergeableModuleResult>> {
-        let modules = modules.await?;
-
-        async fn is_eligible(
-            module: ResolvedVc<Box<dyn MergeableModule>>,
-        ) -> Result<Option<ResolvedVc<Box<dyn EcmascriptAnalyzable>>>> {
-            if let Some(analyzable) =
-                ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(module)
-            {
-                if let Some(placeable) =
-                    ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module)
-                {
-                    if matches!(
-                        &*placeable.get_exports().await?,
-                        |EcmascriptExports::DynamicNamespace| EcmascriptExports::CommonJs
-                            | EcmascriptExports::EmptyCommonJs
-                            | EcmascriptExports::Value
-                    ) {
-                        return Ok(None);
-                    }
-                }
-                Ok(Some(analyzable))
-            } else {
-                Ok(None)
-            }
+    async fn is_mergeable(self: ResolvedVc<Self>) -> Result<Vc<bool>> {
+        if matches!(
+            &*self.get_exports().await?,
+            EcmascriptExports::EsmExports(_)
+        ) {
+            return Ok(Vc::cell(true));
         }
 
-        // let mut start_idx = None;
-        // let mut length = 0;
-        // for i in 0..modules.len() {
-        //     let module = modules[i];
-        //     if let Some(module) = is_eligible(module).await? {
-        //         if start_idx.is_some() {
-        //             continue;
-        //         } else {
-        //             start_idx = Some(i);
-        //         }
-        //     } else {
-        //         if let Some(start_idx) = start_idx
-        //             && (i - start_idx) >= 2
+        Ok(Vc::cell(false))
+    }
+
+    #[turbo_tasks::function]
+    async fn merge(
+        self: Vc<Self>,
+        modules: Vc<MergeableModules>,
+    ) -> Result<Vc<Box<dyn ChunkableModule>>> {
+        Ok(Vc::upcast(*MergedEcmascriptModule::new(
+            modules
+                .await?
+                .iter()
+                .map(|(m, exposed)| {
+                    Ok((
+                        ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(*m)
+                            .context("expected EcmascriptAnalyzable")?,
+                        *exposed,
+                    ))
+                })
+                .collect::<Result<Vec<_>>>()?,
+            self.options().to_resolved().await?,
+        )))
+
+        // let modules = modules.await?;
+
+        // async fn is_eligible(
+        //     module: ResolvedVc<Box<dyn MergeableModule>>,
+        // ) -> Result<Option<ResolvedVc<Box<dyn EcmascriptAnalyzable>>>> {
+        //     if let Some(analyzable) =
+        //         ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(module)
+        //     {
+        //         if let Some(placeable) =
+        //             ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module)
         //         {
-        //             // We found a sequence of modules containing least 2 modules
-        //             length = i - start_idx;
-        //             break;
-        //         } else {
-        //             start_idx = None;
+        //             if matches!(
+        //                 &*placeable.get_exports().await?,
+        //                 |EcmascriptExports::DynamicNamespace| EcmascriptExports::CommonJs
+        //                     | EcmascriptExports::EmptyCommonJs
+        //                     | EcmascriptExports::Value
+        //             ) {
+        //                 return Ok(None);
+        //             }
         //         }
+        //         Ok(Some(analyzable))
+        //     } else {
+        //         Ok(None)
         //     }
         // }
-        // let Some(start_idx) = start_idx else {
-        //     return Ok(MergeableModuleResult::not_merged());
-        // };
-        // let consumed_modules = modules[start_idx..start_idx + length].to_vec();
 
-        let mut modules = modules.iter().zip(0u32..);
-        let mut merged_modules = vec![];
-        let mut start_index = 0;
-        while let Some(((first, exposed), first_i)) = modules.next() {
-            // Skip some modules, try to find the first eligible module
-            if let Some(first) = is_eligible(*first).await? {
-                if merged_modules.is_empty() {
-                    start_index = first_i;
-                }
-                merged_modules.push((first, *exposed));
+        // // let mut start_idx = None;
+        // // let mut length = 0;
+        // // for i in 0..modules.len() {
+        // //     let module = modules[i];
+        // //     if let Some(module) = is_eligible(module).await? {
+        // //         if start_idx.is_some() {
+        // //             continue;
+        // //         } else {
+        // //             start_idx = Some(i);
+        // //         }
+        // //     } else {
+        // //         if let Some(start_idx) = start_idx
+        // //             && (i - start_idx) >= 2
+        // //         {
+        // //             // We found a sequence of modules containing least 2 modules
+        // //             length = i - start_idx;
+        // //             break;
+        // //         } else {
+        // //             start_idx = None;
+        // //         }
+        // //     }
+        // // }
+        // // let Some(start_idx) = start_idx else {
+        // //     return Ok(MergeableModuleResult::not_merged());
+        // // };
+        // // let consumed_modules = modules[start_idx..start_idx + length].to_vec();
 
-                // Consume as many modules as possible to merge together
-                for ((m, exposed), _) in &mut modules {
-                    if let Some(m) = is_eligible(*m).await? {
-                        merged_modules.push((m, *exposed));
-                    } else {
-                        break;
-                    }
-                }
+        // let mut modules = modules.iter().zip(0u32..);
+        // let mut merged_modules = vec![];
+        // let mut start_index = 0;
+        // while let Some(((first, exposed), first_i)) = modules.next() {
+        //     // Skip some modules, try to find the first eligible module
+        //     if let Some(first) = is_eligible(*first).await? {
+        //         if merged_modules.is_empty() {
+        //             start_index = first_i;
+        //         }
+        //         merged_modules.push((first, *exposed));
 
-                // List has ended or incompatible module encountered
-                if merged_modules.len() > 1 {
-                    // ... but we successfully found something to merge.
-                    break;
-                }
+        //         // Consume as many modules as possible to merge together
+        //         for ((m, exposed), _) in &mut modules {
+        //             if let Some(m) = is_eligible(*m).await? {
+        //                 merged_modules.push((m, *exposed));
+        //             } else {
+        //                 break;
+        //             }
+        //         }
 
-                // Only a single module, ignore and try to find a bigger sequence in the remaining
-                // list.
-                merged_modules.clear();
-            }
-        }
+        //         // List has ended or incompatible module encountered
+        //         if merged_modules.len() > 1 {
+        //             // ... but we successfully found something to merge.
+        //             break;
+        //         }
 
-        if merged_modules.len() > 1 {
-            Ok(MergeableModuleResult::Merged {
-                consumed: merged_modules.len() as u32,
-                skipped: start_index,
-                merged_module: ResolvedVc::upcast(MergedEcmascriptModule::new(
-                    merged_modules,
-                    // TODO where to get options from?
-                    self.options().to_resolved().await?,
-                )),
-            }
-            .cell())
-        } else {
-            Ok(MergeableModuleResult::not_merged())
-        }
+        //         // Only a single module, ignore and try to find a bigger sequence in the
+        // remaining         // list.
+        //         merged_modules.clear();
+        //     }
+        // }
+
+        // if merged_modules.len() > 1 {
+        //     Ok(MergeableModuleResult::Merged {
+        //         consumed: merged_modules.len() as u32,
+        //         skipped: start_index,
+        //         merged_module: ResolvedVc::upcast(MergedEcmascriptModule::new(
+        //             merged_modules,
+        //             // TODO where to get options from?
+        //             self.options().to_resolved().await?,
+        //         )),
+        //     }
+        //     .cell())
+        // } else {
+        //     Ok(MergeableModuleResult::not_merged())
+        // }
     }
 }
 
@@ -1296,10 +1323,10 @@ impl EcmascriptModuleContent {
                 .await?,
             extra_comments: SwcComments::default(),
         };
-        let chunking_context = module_options.first().unwrap().await?.chunking_context;
+        let chunking_context = module_options.last().unwrap().await?.chunking_context;
         let additional_ids = modules
             .keys()
-            .skip(1)
+            .take(modules.len() - 1)
             .map(|m| m.chunk_item_id(*chunking_context).to_resolved())
             .try_join()
             .await?
