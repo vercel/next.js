@@ -253,8 +253,8 @@ async function collectResult(
   let idx = 0
   const bufferStream = new ReadableStream({
     pull(controller) {
-      if (workStore.invalidUsageError) {
-        controller.error(workStore.invalidUsageError)
+      if (workStore.invalidDynamicUsageError) {
+        controller.error(workStore.invalidDynamicUsageError)
       } else if (idx < buffer.length) {
         controller.enqueue(buffer[idx++])
       } else if (errors.length > 0) {
@@ -365,7 +365,6 @@ async function generateCacheEntryImpl(
   const resultPromise = createLazyResult(() => fn.apply(null, args))
 
   let errors: Array<unknown> = []
-  let timeoutErrorHandled = false
 
   // In the "Cache" environment, we only need to make sure that the error
   // digests are handled correctly. Error formatting and reporting is not
@@ -385,13 +384,6 @@ async function generateCacheEntryImpl(
       console.error(error)
     }
 
-    if (error === timeoutError) {
-      timeoutErrorHandled = true
-      // The timeout error already aborted the whole stream. We don't need
-      // to also push this error into the `errors` array.
-      return timeoutError.digest
-    }
-
     errors.push(error)
   }
 
@@ -404,6 +396,7 @@ async function generateCacheEntryImpl(
     // Otherwise we assume you stalled on hanging input and de-opt. This needs
     // to be lower than just the general timeout of 60 seconds.
     const timer = setTimeout(() => {
+      workStore.invalidDynamicUsageError = timeoutError
       timeoutAbortController.abort(timeoutError)
     }, 50000)
 
@@ -422,7 +415,7 @@ async function generateCacheEntryImpl(
         signal: abortSignal,
         temporaryReferences,
         onError(error) {
-          if (renderSignal.aborted && renderSignal.reason === error) {
+          if (abortSignal.aborted && abortSignal.reason === error) {
             return undefined
           }
 
@@ -433,11 +426,7 @@ async function generateCacheEntryImpl(
 
     clearTimeout(timer)
 
-    if (timeoutAbortController.signal.aborted && !timeoutErrorHandled) {
-      // When halting is enabled, the prerender will not call `onError` when
-      // it's aborted with the timeout abort signal, and hanging promises will
-      // also not be rejected. In this case, we're creating an erroring stream
-      // here, to ensure that the error is propagated to the server environment.
+    if (timeoutAbortController.signal.aborted) {
       stream = new ReadableStream({
         start(controller) {
           controller.error(timeoutError)
@@ -755,15 +744,10 @@ export function cache(
 
         let entry = shouldForceRevalidate(workStore, workUnitStore)
           ? undefined
-          : 'getExpiration' in cacheHandler
-            ? await cacheHandler.get(serializedCacheKey)
-            : // Legacy cache handlers require implicit tags to be passed in,
-              // instead of checking their staleness here, as we do for modern
-              // cache handlers (see below).
-              await cacheHandler.get(
-                serializedCacheKey,
-                workUnitStore?.implicitTags?.tags ?? []
-              )
+          : await cacheHandler.get(
+              serializedCacheKey,
+              workUnitStore?.implicitTags?.tags ?? []
+            )
 
         if (entry) {
           const implicitTags = workUnitStore?.implicitTags?.tags ?? []

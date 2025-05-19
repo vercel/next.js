@@ -3,10 +3,10 @@ use tracing::Instrument;
 use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbopack_core::{
     chunk::{
-        availability_info::AvailabilityInfo, ChunkGroupResult, ChunkingContext, EvaluatableAssets,
+        ChunkGroupResult, ChunkingContext, EvaluatableAssets, availability_info::AvailabilityInfo,
     },
     ident::AssetIdent,
-    module_graph::{chunk_group_info::ChunkGroup, ModuleGraph},
+    module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
     output::OutputAssets,
 };
 

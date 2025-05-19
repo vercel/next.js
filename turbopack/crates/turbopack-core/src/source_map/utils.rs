@@ -7,7 +7,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{ValueToString, Vc};
 use turbo_tasks_fs::{
-    rope::Rope, util::uri_from_file, DiskFileSystem, FileContent, FileSystemPath,
+    DiskFileSystem, FileContent, FileSystemPath, rope::Rope, util::uri_from_file,
 };
 
 use crate::SOURCE_URL_PROTOCOL;
@@ -86,7 +86,7 @@ pub async fn resolve_source_map_sources(
             .await?
         {
             let path_str = path.to_string().await?;
-            let source = format!("{SOURCE_URL_PROTOCOL}///{}", path_str);
+            let source = format!("{SOURCE_URL_PROTOCOL}///{path_str}");
             *original_source = source;
 
             if original_content.is_none() {
@@ -104,7 +104,7 @@ pub async fn resolve_source_map_sources(
             let source = INVALID_REGEX.replace_all(original_source, |s: &regex::Captures<'_>| {
                 s[0].replace('.', "_")
             });
-            *original_source = format!("{SOURCE_URL_PROTOCOL}///{}/{}", origin_str, source);
+            *original_source = format!("{SOURCE_URL_PROTOCOL}///{origin_str}/{source}");
             if original_content.is_none() {
                 *original_content = Some(format!(
                     "unable to access {original_source} in {origin_str} (it's leaving the \

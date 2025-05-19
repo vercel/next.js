@@ -20,7 +20,7 @@ describe('use-cache-segment-configs', () => {
       await assertHasRedbox(browser)
 
       if (isTurbopack) {
-        expect(browser).toDisplayRedbox(`
+        await expect(browser).toDisplayRedbox(`
          {
            "description": "Ecmascript file had an error",
            "environmentLabel": null,
@@ -34,7 +34,7 @@ describe('use-cache-segment-configs', () => {
         `)
       } else {
         // FIXME: Fix broken import trace for Webpack loader resource.
-        expect(browser).toDisplayRedbox(`
+        await expect(browser).toDisplayRedbox(`
          {
            "description": "  x Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it.",
            "environmentLabel": null,

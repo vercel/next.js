@@ -200,6 +200,7 @@
       "app-dir action handling should support setting cookies when redirecting (no javascript)",
       "app-dir action handling should support setting cookies when redirecting (with javascript)",
       "app-dir action handling should support uploading files",
+      "app-dir action handling should trace server action imported by client correctly",
       "app-dir action handling should trigger a refresh for a server action that also dispatches a navigation event",
       "app-dir action handling should trigger a refresh for a server action that gets discarded due to a navigation",
       "app-dir action handling should trigger an error boundary for action responses with an invalid content-type",
@@ -334,6 +335,7 @@
       "app-dir action handling should support setting cookies when redirecting (no javascript)",
       "app-dir action handling should support setting cookies when redirecting (with javascript)",
       "app-dir action handling should support uploading files",
+      "app-dir action handling should trace server action imported by client correctly",
       "app-dir action handling should trigger a refresh for a server action that also dispatches a navigation event",
       "app-dir action handling should trigger a refresh for a server action that gets discarded due to a navigation",
       "app-dir action handling should trigger an error boundary for action responses with an invalid content-type",
@@ -2596,6 +2598,56 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/global-not-found/basic/global-not-found-basic.test.ts": {
+    "passed": [
+      "global-not-found - basic should render global-not-found for 404",
+      "global-not-found - basic should render not-found boundary when calling notFound() in a page",
+      "global-not-found - basic should ssr global-not-found for 404"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/global-not-found/both-present/both-present.test.ts": {
+    "passed": [
+      "global-not-found - both-present should render global-not-found for 404 routes",
+      "global-not-found - both-present should render not-found boundary when calling notFound() in a page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/global-not-found/metadata/metadata.test.ts": {
+    "passed": [
+      "global-not-found - metadata should render metadata of global-not-found for 404"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/global-not-found/no-root-layout/no-root-layout.test.ts": {
+    "passed": [
+      "global-not-found - no-root-layout should render global-not-found for 404",
+      "global-not-found - no-root-layout should ssr global-not-found for 404"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/global-not-found/not-present/not-present.test.ts": {
+    "passed": [
+      "global-not-found - not-present should render custom not-found.js boundary when global-not-found is not defined but enabled",
+      "global-not-found - not-present should render default 404 when global-not-found is not defined but enabled"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/graceful-shutdown-next-after/custom-server/index.test.ts": {
     "passed": [
       "after during server shutdown - custom server waits for after callbacks when the server receives SIGINT",
@@ -3240,6 +3292,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/monaco-editor/monaco-editor.test.ts": {
+    "passed": ["monaco-editor should load monaco-editor"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/navigation-layout-suspense/navigation-layout-suspense.test.ts": {
     "passed": [
       "app dir - navigation with Suspense in nested layout resolves data after client navigation to a nested layout with Suspense"
@@ -3529,6 +3588,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/next-config-ts/tsconfig-extends/index.test.ts": {
+    "passed": [
+      "next-config-ts-tsconfig-extends should support tsconfig extends"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/next-config-ts/type-error/index.test.ts": {
     "passed": [
       "next-config-ts-type-error should throw with type error on build"
@@ -3584,58 +3652,6 @@
       "app dir - next/font app dir - next-font preload should preload correctly with layout using fonts",
       "app dir - next/font app dir - next-font preload should preload correctly with page using fonts",
       "app dir - next/font app dir - next-font preload should preload correctly with server components"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/next-form/basepath/next-form-basepath.test.ts": {
-    "passed": [
-      "app dir - form - with basepath should add basePath to `action`",
-      "app dir - form - with basepath should not add basePath to a submitter's formAction"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/next-form/default/next-form-prefetch.test.ts": {
-    "passed": [
-      "app dir - form prefetching should not prefetch when prefetch is set to false`",
-      "app dir - form prefetching should prefetch a loading state for the form's target"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/next-form/default/next-form.test.ts": {
-    "passed": [
-      "app dir - form does not navigate if preventDefault is called in onSubmit",
-      "app dir - form does not push a new history entry if `replace` is passed",
-      "app dir - form functions passed to action runs client action",
-      "app dir - form functions passed to action runs server action",
-      "app dir - form functions passed to action runs server action (closure)",
-      "app dir - form functions passed to formAction runs client action from submitter and doesn't warn about unsupported attributes",
-      "app dir - form functions passed to formAction runs server action (closure) from submitter and doesn't warn about unsupported attributes",
-      "app dir - form functions passed to formAction runs server action from submitter and doesn't warn about unsupported attributes",
-      "app dir - form should soft-navigate on submit and show the prefetched loading state",
-      "app dir - form should soft-navigate to the formAction url of the submitter",
-      "app dir - form unsupported attributes on submitter should warn if submitter sets \"formEncType\" to an unsupported value and fall back to default submit behavior",
-      "app dir - form unsupported attributes on submitter should warn if submitter sets \"formMethod\" to an unsupported value and fall back to default submit behavior",
-      "app dir - form unsupported attributes on submitter should warn if submitter sets \"formTarget\" to an unsupported value and fall back to default submit behavior",
-      "app dir - form url-encodes file inputs, but warns about them",
-      "pages dir - form does not navigate if preventDefault is called in onSubmit",
-      "pages dir - form does not push a new history entry if `replace` is passed",
-      "pages dir - form functions passed to action runs client action",
-      "pages dir - form functions passed to formAction runs client action from submitter and doesn't warn about unsupported attributes",
-      "pages dir - form should soft-navigate on submit",
-      "pages dir - form should soft-navigate to the formAction url of the submitter",
-      "pages dir - form unsupported attributes on submitter should warn if submitter sets \"formEncType\" to an unsupported value and fall back to default submit behavior",
-      "pages dir - form unsupported attributes on submitter should warn if submitter sets \"formMethod\" to an unsupported value and fall back to default submit behavior",
-      "pages dir - form unsupported attributes on submitter should warn if submitter sets \"formTarget\" to an unsupported value and fall back to default submit behavior",
-      "pages dir - form url-encodes file inputs, but warns about them"
     ],
     "failed": [],
     "pending": [],
@@ -4176,12 +4192,11 @@
       "ppr-full Dynamic RSC Response for /on-demand/c should have correct headers",
       "ppr-full Dynamic RSC Response for /static should have correct headers",
       "ppr-full Dynamic RSC Response for /static should not contain dynamic content",
-      "ppr-full HTML Fallback Dynamic Shell should render the dynamic shell as static if the page is static",
+      "ppr-full HTML Fallback Dynamic Shell should render the fallback shell even if the page is static",
+      "ppr-full HTML Fallback Dynamic Shell should render the fallback shell every time",
       "ppr-full HTML Fallback Dynamic Shell should render the fallback shell on first visit",
-      "ppr-full HTML Fallback Dynamic Shell should render the route shell on the second visit",
       "ppr-full HTML Fallback Dynamic Shell will allow dynamic fallback shells even when static is enforced",
-      "ppr-full HTML Fallback Dynamic Shell will only revalidate the page",
-      "ppr-full HTML Fallback Dynamic Shell will revalidate the page and fallback shell",
+      "ppr-full HTML Fallback Dynamic Shell will not revalidate the fallback shell",
       "ppr-full HTML Fallback for /fallback/nested/params/slug-01/slug-02 should render the fallback HTML immediately",
       "ppr-full HTML Fallback for /fallback/nested/use-params/slug-01/slug-02 should render the fallback HTML immediately",
       "ppr-full HTML Fallback for /fallback/nested/use-pathname/slug-01/slug-02 should render the fallback HTML immediately",
@@ -5399,6 +5414,7 @@
       "conflicting routes /en/vercel/~/monitoring matches the right route",
       "conflicting routes /es/vercel/~/monitoring matches the right route",
       "conflicting routes /fr/vercel/~/monitoring matches the right route",
+      "conflicting routes handles conflict between App Router and Pages Router routes",
       "conflicting routes matches the right route when the original route has no dynamic params, is dynamic, and PPR is disabled"
     ],
     "failed": [],
@@ -6028,6 +6044,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/webpack-loader-set-environment-variable/webpack-loader-set-environment-variable.test.ts": {
+    "passed": [
+      "webpack-loader-set-environment-variable loader that sets an environment variable should work"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/webpack-loader-ts-transform/webpack-loader-ts-transform.test.ts": {
     "passed": [
       "webpack-loader-ts-transform should accept Typescript returned from Webpack loaders"
@@ -6138,23 +6163,9 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/basepath/basepath-trailing-slash.test.ts": {
-    "passed": [
-      "basePath + trailingSlash should allow URL query strings on index without refresh",
-      "basePath + trailingSlash should allow URL query strings without refresh",
-      "basePath + trailingSlash should correctly replace state when same asPath but different url"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/basepath/basepath.test.ts": {
     "passed": [
       "basePath should 404 for public file without basePath",
-      "basePath should 404 when manually adding basePath with <Link>",
-      "basePath should 404 when manually adding basePath with router.push",
-      "basePath should 404 when manually adding basePath with router.replace",
       "basePath should add basePath to routes-manifest",
       "basePath should add header with basePath by default",
       "basePath should add header without basePath when set to false",
@@ -6163,17 +6174,6 @@
       "basePath should correctly replace state when same asPath but different url",
       "basePath should fetch data for getServerSideProps without reloading",
       "basePath should fetch data for getStaticProps without reloading",
-      "basePath should handle 404 urls that start with basePath",
-      "basePath should handle query/hash correctly during query updating ## $search",
-      "basePath should handle query/hash correctly during query updating ##? $search",
-      "basePath should handle query/hash correctly during query updating ##hello $search",
-      "basePath should handle query/hash correctly during query updating ##hello? $search",
-      "basePath should handle query/hash correctly during query updating #? $search",
-      "basePath should handle query/hash correctly during query updating #a ?hello",
-      "basePath should handle query/hash correctly during query updating #a ?hello=",
-      "basePath should handle query/hash correctly during query updating #a ?hello=world",
-      "basePath should handle query/hash correctly during query updating #hello? $search",
-      "basePath should handle query/hash correctly during query updating #hello?world $search",
       "basePath should have basePath field on Router",
       "basePath should have correct href for a link",
       "basePath should have correct href for a link to /",
@@ -6183,46 +6183,105 @@
       "basePath should navigate an absolute local url without basePath",
       "basePath should navigate an absolute url",
       "basePath should navigate back correctly to a dynamic route",
-      "basePath should navigate to /404 correctly client-side",
-      "basePath should navigate to /_error correctly client-side",
       "basePath should navigate to external site and back",
       "basePath should navigate to index page with getStaticProps",
       "basePath should navigate to the page without refresh",
       "basePath should not add header with basePath when set to false",
       "basePath should not add header without basePath without disabling",
-      "basePath should not redirect with basePath when set to false",
-      "basePath should not redirect without basePath without disabling",
-      "basePath should not rewrite with basePath when set to false",
-      "basePath should not rewrite without basePath without disabling",
-      "basePath should not update URL for a 404",
       "basePath should prefetch pages correctly in viewport with <Link>",
       "basePath should prefetch pages correctly when manually called",
       "basePath should redirect trailing slash correctly",
       "basePath should redirect trailing slash on root correctly",
-      "basePath should redirect with basePath by default",
-      "basePath should redirect without basePath when set to false",
       "basePath should respect basePath in amphtml link rel",
-      "basePath should rewrite with basePath by default",
-      "basePath should rewrite without basePath when set to false",
       "basePath should serve public file with basePath correctly",
       "basePath should show 404 for page not under the /docs prefix",
       "basePath should show the hello page under the /docs prefix",
       "basePath should show the other-page page under the /docs prefix",
       "basePath should update dynamic params after mount correctly",
-      "basePath should use urls with basepath in router events",
-      "basePath should use urls with basepath in router events for cancelled routes",
-      "basePath should use urls with basepath in router events for failed route change",
-      "basePath should use urls with basepath in router events for hash changes",
       "basePath should work with catch-all page",
-      "basePath should work with hash links",
       "basePath should work with nested folder with same name as basePath",
       "basePath should work with normal dynamic page"
     ],
     "failed": [],
     "pending": [
-      "basePath should navigate back to a non-basepath 404 that starts with basepath",
       "basePath should navigate to nested index page with getStaticProps"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/basepath/error-pages.test.ts": {
+    "passed": [
+      "basePath client-side navigation should navigate to /404 correctly client-side",
+      "basePath client-side navigation should navigate to /_error correctly client-side",
+      "basePath manually added basePath in application logic should 404 when manually adding basePath with <Link>",
+      "basePath manually added basePath in application logic should 404 when manually adding basePath with router.push",
+      "basePath manually added basePath in application logic should 404 when manually adding basePath with router.replace",
+      "basePath should handle 404 urls that start with basePath",
+      "basePath should not update URL for a 404",
+      "basePath should show 404 for page not under the /docs prefix"
+    ],
+    "failed": [],
+    "pending": [
+      "basePath should navigate back to a non-basepath 404 that starts with basepath"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/basepath/query-hash.test.ts": {
+    "passed": [
+      "basePath query/hash handling is correct during query updating ## $search",
+      "basePath query/hash handling is correct during query updating ##? $search",
+      "basePath query/hash handling is correct during query updating ##hello $search",
+      "basePath query/hash handling is correct during query updating ##hello? $search",
+      "basePath query/hash handling is correct during query updating #? $search",
+      "basePath query/hash handling is correct during query updating #a ?hello",
+      "basePath query/hash handling is correct during query updating #a ?hello=",
+      "basePath query/hash handling is correct during query updating #a ?hello=world",
+      "basePath query/hash handling is correct during query updating #hello? $search",
+      "basePath query/hash handling is correct during query updating #hello?world $search",
+      "basePath query/hash handling should work with hash links"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/basepath/redirect-and-rewrite.test.ts": {
+    "passed": [
+      "basePath should not redirect with basePath when set to false",
+      "basePath should not redirect without basePath without disabling",
+      "basePath should not rewrite with basePath when set to false",
+      "basePath should not rewrite without basePath without disabling",
+      "basePath should redirect with basePath by default",
+      "basePath should redirect without basePath when set to false",
+      "basePath should rewrite with basePath by default",
+      "basePath should rewrite without basePath when set to false"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/basepath/router-events.test.ts": {
+    "passed": [
+      "basePath should use urls with basepath in router events",
+      "basePath should use urls with basepath in router events for cancelled routes",
+      "basePath should use urls with basepath in router events for failed route change",
+      "basePath should use urls with basepath in router events for hash changes"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/basepath/trailing-slash.test.ts": {
+    "passed": [
+      "basePath + trailingSlash should allow URL query strings on index without refresh",
+      "basePath + trailingSlash should allow URL query strings without refresh",
+      "basePath + trailingSlash should correctly replace state when same asPath but different url"
+    ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -6634,20 +6693,8 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/i18n-data-fetching-redirect/index.test.ts": {
+  "test/e2e/i18n-data-fetching-redirect/redirect-from-context.test.ts": {
     "passed": [
-      "i18n-data-fetching-redirect Redirect to another locale gsp-blocking-redirect en -> sv",
-      "i18n-data-fetching-redirect Redirect to another locale gsp-blocking-redirect sv -> en",
-      "i18n-data-fetching-redirect Redirect to another locale gsp-fallback-redirect en -> sv",
-      "i18n-data-fetching-redirect Redirect to another locale gsp-fallback-redirect sv -> en",
-      "i18n-data-fetching-redirect Redirect to another locale gssp-redirect en -> sv",
-      "i18n-data-fetching-redirect Redirect to another locale gssp-redirect sv -> en",
-      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-blocking-redirect en -> sv",
-      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-blocking-redirect sv -> en",
-      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-fallback-redirect en -> sv",
-      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-fallback-redirect sv -> en",
-      "i18n-data-fetching-redirect Redirect to another locale next/link gssp-redirect en -> sv",
-      "i18n-data-fetching-redirect Redirect to another locale next/link gssp-redirect sv -> en",
       "i18n-data-fetching-redirect Redirect to locale from context gsp-blocking-redirect en",
       "i18n-data-fetching-redirect Redirect to locale from context gsp-blocking-redirect sv",
       "i18n-data-fetching-redirect Redirect to locale from context gsp-fallback-redirect en",
@@ -6660,6 +6707,26 @@
       "i18n-data-fetching-redirect Redirect to locale from context next/link gsp-fallback-redirect sv",
       "i18n-data-fetching-redirect Redirect to locale from context next/link gssp-redirect en",
       "i18n-data-fetching-redirect Redirect to locale from context next/link gssp-redirect sv"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/i18n-data-fetching-redirect/redirect.test.ts": {
+    "passed": [
+      "i18n-data-fetching-redirect Redirect to another locale gsp-blocking-redirect en -> sv",
+      "i18n-data-fetching-redirect Redirect to another locale gsp-blocking-redirect sv -> en",
+      "i18n-data-fetching-redirect Redirect to another locale gsp-fallback-redirect en -> sv",
+      "i18n-data-fetching-redirect Redirect to another locale gsp-fallback-redirect sv -> en",
+      "i18n-data-fetching-redirect Redirect to another locale gssp-redirect en -> sv",
+      "i18n-data-fetching-redirect Redirect to another locale gssp-redirect sv -> en",
+      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-blocking-redirect en -> sv",
+      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-blocking-redirect sv -> en",
+      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-fallback-redirect en -> sv",
+      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-fallback-redirect sv -> en",
+      "i18n-data-fetching-redirect Redirect to another locale next/link gssp-redirect en -> sv",
+      "i18n-data-fetching-redirect Redirect to another locale next/link gssp-redirect sv -> en"
     ],
     "failed": [],
     "pending": [],
@@ -7723,6 +7790,66 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/next-form/basepath/next-form-basepath.test.ts": {
+    "passed": [
+      "app dir - form - with basepath should add basePath to `action`",
+      "app dir - form - with basepath should not add basePath to a submitter's formAction"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/next-form/default/app-dir.test.ts": {
+    "passed": [
+      "next-form - app dir does not navigate if preventDefault is called in onSubmit",
+      "next-form - app dir does not push a new history entry if `replace` is passed",
+      "next-form - app dir functions passed to action runs client action",
+      "next-form - app dir functions passed to action runs server action",
+      "next-form - app dir functions passed to action runs server action (closure)",
+      "next-form - app dir functions passed to formAction runs client action from submitter and doesn't warn about unsupported attributes",
+      "next-form - app dir functions passed to formAction runs server action (closure) from submitter and doesn't warn about unsupported attributes",
+      "next-form - app dir functions passed to formAction runs server action from submitter and doesn't warn about unsupported attributes",
+      "next-form - app dir should soft-navigate on submit and show the prefetched loading state",
+      "next-form - app dir should soft-navigate to the formAction url of the submitter",
+      "next-form - app dir unsupported attributes on submitter should warn if submitter sets \"formEncType\" to an unsupported value and fall back to default submit behavior",
+      "next-form - app dir unsupported attributes on submitter should warn if submitter sets \"formMethod\" to an unsupported value and fall back to default submit behavior",
+      "next-form - app dir unsupported attributes on submitter should warn if submitter sets \"formTarget\" to an unsupported value and fall back to default submit behavior",
+      "next-form - app dir url-encodes file inputs, but warns about them"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/next-form/default/next-form-prefetch.test.ts": {
+    "passed": [
+      "app dir - form prefetching should not prefetch when prefetch is set to false`",
+      "app dir - form prefetching should prefetch a loading state for the form's target"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/next-form/default/pages-dir.test.ts": {
+    "passed": [
+      "next-form - pages dir does not navigate if preventDefault is called in onSubmit",
+      "next-form - pages dir does not push a new history entry if `replace` is passed",
+      "next-form - pages dir functions passed to action runs client action",
+      "next-form - pages dir functions passed to formAction runs client action from submitter and doesn't warn about unsupported attributes",
+      "next-form - pages dir should soft-navigate on submit",
+      "next-form - pages dir should soft-navigate to the formAction url of the submitter",
+      "next-form - pages dir unsupported attributes on submitter should warn if submitter sets \"formEncType\" to an unsupported value and fall back to default submit behavior",
+      "next-form - pages dir unsupported attributes on submitter should warn if submitter sets \"formMethod\" to an unsupported value and fall back to default submit behavior",
+      "next-form - pages dir unsupported attributes on submitter should warn if submitter sets \"formTarget\" to an unsupported value and fall back to default submit behavior",
+      "next-form - pages dir url-encodes file inputs, but warns about them"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/next-head/index.test.ts": {
     "passed": [
       "next/head should have correct head tags after hydration",
@@ -8434,6 +8561,110 @@
       "@next/third-parties basic usage renders GTM",
       "@next/third-parties basic usage renders GoogleMapsEmbed",
       "@next/third-parties basic usage renders YoutubeEmbed"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/trailing-slashes/basepath.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "Trailing slashes in development mode, with basepath, trailingSlash: true /docs should redirect to /docs/",
+      "Trailing slashes in development mode, with basepath, trailingSlash: true /docs/about should redirect to /docs/about/",
+      "Trailing slashes in development mode, with basepath, trailingSlash: true /docs/catch-all/hello.world/ should redirect to /docs/catch-all/hello.world",
+      "Trailing slashes in development mode, with basepath, trailingSlash: true /docs/catch-all/hello/world should redirect to /docs/catch-all/hello/world/",
+      "Trailing slashes in development mode, with basepath, trailingSlash: true /docs/linker?href=/ should have href /docs/",
+      "Trailing slashes in development mode, with basepath, trailingSlash: true /docs/linker?href=/ should navigate to /docs/",
+      "Trailing slashes in development mode, with basepath, trailingSlash: true /docs/linker?href=/ should push route to /docs/",
+      "Trailing slashes in development mode, with basepath, trailingSlash: true /docs/linker?href=/about should have href /docs/about/",
+      "Trailing slashes in development mode, with basepath, trailingSlash: true /docs/linker?href=/about should navigate to /docs/about/",
+      "Trailing slashes in development mode, with basepath, trailingSlash: true /docs/linker?href=/about should push route to /docs/about/"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/trailing-slashes/with-trailing-slash.test.ts": {
+    "passed": [
+      "Trailing slashes with trailingSlash: true / should client side render /index.js, with router path /",
+      "Trailing slashes with trailingSlash: true / should resolve to /index.js, with router path /",
+      "Trailing slashes with trailingSlash: true /about should redirect to /about/",
+      "Trailing slashes with trailingSlash: true /about/ should client side render /about.js, with router path /about",
+      "Trailing slashes with trailingSlash: true /about/ should resolve to /about.js, with router path /about",
+      "Trailing slashes with trailingSlash: true /about/?hello=world should client side render /about.js, with router path /about",
+      "Trailing slashes with trailingSlash: true /about/?hello=world should resolve to /about.js, with router path /about",
+      "Trailing slashes with trailingSlash: true /catch-all/hello.world/ should redirect to /catch-all/hello.world",
+      "Trailing slashes with trailingSlash: true /catch-all/hello/world should redirect to /catch-all/hello/world/",
+      "Trailing slashes with trailingSlash: true /catch-all/hello/world/ should client side render /catch-all/[...slug].js, with router path /catch-all/[...slug]",
+      "Trailing slashes with trailingSlash: true /catch-all/hello/world/ should resolve to /catch-all/[...slug].js, with router path /catch-all/[...slug]",
+      "Trailing slashes with trailingSlash: true /external-linker?href=https://nextjs.org should have href https://nextjs.org",
+      "Trailing slashes with trailingSlash: true /external-linker?href=https://nextjs.org/ should have href https://nextjs.org/",
+      "Trailing slashes with trailingSlash: true /linker?href=/ should have href /",
+      "Trailing slashes with trailingSlash: true /linker?href=/ should navigate to /",
+      "Trailing slashes with trailingSlash: true /linker?href=/ should push route to /",
+      "Trailing slashes with trailingSlash: true /linker?href=/about should have href /about/",
+      "Trailing slashes with trailingSlash: true /linker?href=/about should navigate to /about/",
+      "Trailing slashes with trailingSlash: true /linker?href=/about should push route to /about/",
+      "Trailing slashes with trailingSlash: true /linker?href=/about/ should have href /about/",
+      "Trailing slashes with trailingSlash: true /linker?href=/about/ should navigate to /about/",
+      "Trailing slashes with trailingSlash: true /linker?href=/about/ should push route to /about/",
+      "Trailing slashes with trailingSlash: true /linker?href=/about/?hello=world should have href /about/?hello=world",
+      "Trailing slashes with trailingSlash: true /linker?href=/about/?hello=world should navigate to /about/?hello=world",
+      "Trailing slashes with trailingSlash: true /linker?href=/about/?hello=world should push route to /about/?hello=world",
+      "Trailing slashes with trailingSlash: true /linker?href=/about?hello=world should have href /about/?hello=world",
+      "Trailing slashes with trailingSlash: true /linker?href=/about?hello=world should navigate to /about/?hello=world",
+      "Trailing slashes with trailingSlash: true /linker?href=/about?hello=world should push route to /about/?hello=world",
+      "Trailing slashes with trailingSlash: true /linker?href=/catch-all/hello.world/ should have href /catch-all/hello.world",
+      "Trailing slashes with trailingSlash: true /linker?href=/catch-all/hello.world/ should navigate to /catch-all/hello.world",
+      "Trailing slashes with trailingSlash: true /linker?href=/catch-all/hello.world/ should push route to /catch-all/hello.world",
+      "Trailing slashes with trailingSlash: true /linker?href=/catch-all/hello/ should have href /catch-all/hello/",
+      "Trailing slashes with trailingSlash: true /linker?href=/catch-all/hello/ should navigate to /catch-all/hello/",
+      "Trailing slashes with trailingSlash: true /linker?href=/catch-all/hello/ should push route to /catch-all/hello/",
+      "Trailing slashes with trailingSlash: true should have a trailing redirect in the routesmanifest"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/trailing-slashes/without-trailing-slash.test.ts": {
+    "passed": [
+      "Trailing slashes with trailingSlash: false / should client side render /index.js, with router path /",
+      "Trailing slashes with trailingSlash: false / should resolve to /index.js, with router path /",
+      "Trailing slashes with trailingSlash: false /about should client side render /about.js, with router path /about",
+      "Trailing slashes with trailingSlash: false /about should resolve to /about.js, with router path /about",
+      "Trailing slashes with trailingSlash: false /about/ should redirect to /about",
+      "Trailing slashes with trailingSlash: false /about?hello=world should client side render /about.js, with router path /about",
+      "Trailing slashes with trailingSlash: false /about?hello=world should resolve to /about.js, with router path /about",
+      "Trailing slashes with trailingSlash: false /catch-all/hello.world/ should redirect to /catch-all/hello.world",
+      "Trailing slashes with trailingSlash: false /catch-all/hello/world should client side render /catch-all/[...slug].js, with router path /catch-all/[...slug]",
+      "Trailing slashes with trailingSlash: false /catch-all/hello/world should resolve to /catch-all/[...slug].js, with router path /catch-all/[...slug]",
+      "Trailing slashes with trailingSlash: false /catch-all/hello/world/ should redirect to /catch-all/hello/world",
+      "Trailing slashes with trailingSlash: false /external-linker?href=https://nextjs.org should have href https://nextjs.org",
+      "Trailing slashes with trailingSlash: false /external-linker?href=https://nextjs.org/ should have href https://nextjs.org/",
+      "Trailing slashes with trailingSlash: false /linker?href=/ should have href /",
+      "Trailing slashes with trailingSlash: false /linker?href=/ should navigate to /",
+      "Trailing slashes with trailingSlash: false /linker?href=/ should push route to /",
+      "Trailing slashes with trailingSlash: false /linker?href=/about should have href /about",
+      "Trailing slashes with trailingSlash: false /linker?href=/about should navigate to /about",
+      "Trailing slashes with trailingSlash: false /linker?href=/about should push route to /about",
+      "Trailing slashes with trailingSlash: false /linker?href=/about/ should have href /about",
+      "Trailing slashes with trailingSlash: false /linker?href=/about/ should navigate to /about",
+      "Trailing slashes with trailingSlash: false /linker?href=/about/ should push route to /about",
+      "Trailing slashes with trailingSlash: false /linker?href=/about/?hello=world should have href /about?hello=world",
+      "Trailing slashes with trailingSlash: false /linker?href=/about/?hello=world should navigate to /about?hello=world",
+      "Trailing slashes with trailingSlash: false /linker?href=/about/?hello=world should push route to /about?hello=world",
+      "Trailing slashes with trailingSlash: false /linker?href=/about?hello=world should have href /about?hello=world",
+      "Trailing slashes with trailingSlash: false /linker?href=/about?hello=world should navigate to /about?hello=world",
+      "Trailing slashes with trailingSlash: false /linker?href=/about?hello=world should push route to /about?hello=world",
+      "Trailing slashes with trailingSlash: false /linker?href=/catch-all/hello.world/ should have href /catch-all/hello.world",
+      "Trailing slashes with trailingSlash: false /linker?href=/catch-all/hello.world/ should navigate to /catch-all/hello.world",
+      "Trailing slashes with trailingSlash: false /linker?href=/catch-all/hello.world/ should push route to /catch-all/hello.world",
+      "Trailing slashes with trailingSlash: false /linker?href=/catch-all/hello/ should have href /catch-all/hello",
+      "Trailing slashes with trailingSlash: false /linker?href=/catch-all/hello/ should navigate to /catch-all/hello",
+      "Trailing slashes with trailingSlash: false /linker?href=/catch-all/hello/ should push route to /catch-all/hello",
+      "Trailing slashes with trailingSlash: false should have a redirect in the routesmanifest"
     ],
     "failed": [],
     "pending": [],
@@ -9162,12 +9393,11 @@
     "passed": [
       "Root components import order production mode root components should be imported in this order _document > _app > page in order to respect side effects"
     ],
-    "failed": [
-      "Root components import order production mode _app chunks should be attached to de dom before page chunks"
-    ],
+    "failed": [],
     "pending": [
       "development mode Skipped in Turbopack _app chunks should be attached to de dom before page chunks",
-      "development mode root components should be imported in this order _document > _app > page in order to respect side effects"
+      "development mode root components should be imported in this order _document > _app > page in order to respect side effects",
+      "Root components import order production mode  Skipped in Turbopack _app chunks should be attached to de dom before page chunks"
     ],
     "flakey": [],
     "runtimeError": false
@@ -17592,172 +17822,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/trailing-slashes/test/index.test.js": {
-    "passed": [
-      "Trailing slashes development mode, trailingSlash: false / should client side render /index.js, with router path /",
-      "Trailing slashes development mode, trailingSlash: false / should resolve to /index.js, with router path /",
-      "Trailing slashes development mode, trailingSlash: false /about should client side render /about.js, with router path /about",
-      "Trailing slashes development mode, trailingSlash: false /about should resolve to /about.js, with router path /about",
-      "Trailing slashes development mode, trailingSlash: false /about/ should redirect to /about",
-      "Trailing slashes development mode, trailingSlash: false /about?hello=world should client side render /about.js, with router path /about",
-      "Trailing slashes development mode, trailingSlash: false /about?hello=world should resolve to /about.js, with router path /about",
-      "Trailing slashes development mode, trailingSlash: false /catch-all/hello.world/ should redirect to /catch-all/hello.world",
-      "Trailing slashes development mode, trailingSlash: false /catch-all/hello/world should client side render /catch-all/[...slug].js, with router path /catch-all/[...slug]",
-      "Trailing slashes development mode, trailingSlash: false /catch-all/hello/world should resolve to /catch-all/[...slug].js, with router path /catch-all/[...slug]",
-      "Trailing slashes development mode, trailingSlash: false /catch-all/hello/world/ should redirect to /catch-all/hello/world",
-      "Trailing slashes development mode, trailingSlash: false /external-linker?href=https://nextjs.org should have href https://nextjs.org",
-      "Trailing slashes development mode, trailingSlash: false /external-linker?href=https://nextjs.org/ should have href https://nextjs.org/",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/ should have href /",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/ should navigate to /",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/ should push route to /",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/about should have href /about",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/about should navigate to /about",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/about should push route to /about",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/about/ should have href /about",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/about/ should navigate to /about",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/about/ should push route to /about",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/about/?hello=world should have href /about?hello=world",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/about/?hello=world should navigate to /about?hello=world",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/about/?hello=world should push route to /about?hello=world",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/about?hello=world should have href /about?hello=world",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/about?hello=world should navigate to /about?hello=world",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/about?hello=world should push route to /about?hello=world",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/catch-all/hello.world/ should have href /catch-all/hello.world",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/catch-all/hello.world/ should navigate to /catch-all/hello.world",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/catch-all/hello.world/ should push route to /catch-all/hello.world",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/catch-all/hello/ should have href /catch-all/hello",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/catch-all/hello/ should navigate to /catch-all/hello",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/catch-all/hello/ should push route to /catch-all/hello",
-      "Trailing slashes development mode, trailingSlash: true / should client side render /index.js, with router path /",
-      "Trailing slashes development mode, trailingSlash: true / should resolve to /index.js, with router path /",
-      "Trailing slashes development mode, trailingSlash: true /about should redirect to /about/",
-      "Trailing slashes development mode, trailingSlash: true /about/ should client side render /about.js, with router path /about",
-      "Trailing slashes development mode, trailingSlash: true /about/ should resolve to /about.js, with router path /about",
-      "Trailing slashes development mode, trailingSlash: true /about/?hello=world should client side render /about.js, with router path /about",
-      "Trailing slashes development mode, trailingSlash: true /about/?hello=world should resolve to /about.js, with router path /about",
-      "Trailing slashes development mode, trailingSlash: true /catch-all/hello.world/ should redirect to /catch-all/hello.world",
-      "Trailing slashes development mode, trailingSlash: true /catch-all/hello/world should redirect to /catch-all/hello/world/",
-      "Trailing slashes development mode, trailingSlash: true /catch-all/hello/world/ should client side render /catch-all/[...slug].js, with router path /catch-all/[...slug]",
-      "Trailing slashes development mode, trailingSlash: true /catch-all/hello/world/ should resolve to /catch-all/[...slug].js, with router path /catch-all/[...slug]",
-      "Trailing slashes development mode, trailingSlash: true /external-linker?href=https://nextjs.org should have href https://nextjs.org",
-      "Trailing slashes development mode, trailingSlash: true /external-linker?href=https://nextjs.org/ should have href https://nextjs.org/",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/ should have href /",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/ should navigate to /",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/ should push route to /",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/about should have href /about/",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/about should navigate to /about/",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/about should push route to /about/",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/about/ should have href /about/",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/about/ should navigate to /about/",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/about/ should push route to /about/",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/about/?hello=world should have href /about/?hello=world",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/about/?hello=world should navigate to /about/?hello=world",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/about/?hello=world should push route to /about/?hello=world",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/about?hello=world should have href /about/?hello=world",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/about?hello=world should navigate to /about/?hello=world",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/about?hello=world should push route to /about/?hello=world",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/catch-all/hello.world/ should have href /catch-all/hello.world",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/catch-all/hello.world/ should navigate to /catch-all/hello.world",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/catch-all/hello.world/ should push route to /catch-all/hello.world",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/catch-all/hello/ should have href /catch-all/hello/",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/catch-all/hello/ should navigate to /catch-all/hello/",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/catch-all/hello/ should push route to /catch-all/hello/",
-      "Trailing slashes development mode, with basepath, trailingSlash: true /docs should redirect to /docs/",
-      "Trailing slashes development mode, with basepath, trailingSlash: true /docs/about should redirect to /docs/about/",
-      "Trailing slashes development mode, with basepath, trailingSlash: true /docs/catch-all/hello.world/ should redirect to /docs/catch-all/hello.world",
-      "Trailing slashes development mode, with basepath, trailingSlash: true /docs/catch-all/hello/world should redirect to /docs/catch-all/hello/world/",
-      "Trailing slashes development mode, with basepath, trailingSlash: true /docs/linker?href=/ should have href /docs/",
-      "Trailing slashes development mode, with basepath, trailingSlash: true /docs/linker?href=/ should navigate to /docs/",
-      "Trailing slashes development mode, with basepath, trailingSlash: true /docs/linker?href=/ should push route to /docs/",
-      "Trailing slashes development mode, with basepath, trailingSlash: true /docs/linker?href=/about should have href /docs/about/",
-      "Trailing slashes development mode, with basepath, trailingSlash: true /docs/linker?href=/about should navigate to /docs/about/",
-      "Trailing slashes development mode, with basepath, trailingSlash: true /docs/linker?href=/about should push route to /docs/about/",
-      "Trailing slashes production mode, trailingSlash: false / should client side render /index.js, with router path /",
-      "Trailing slashes production mode, trailingSlash: false / should resolve to /index.js, with router path /",
-      "Trailing slashes production mode, trailingSlash: false /about should client side render /about.js, with router path /about",
-      "Trailing slashes production mode, trailingSlash: false /about should resolve to /about.js, with router path /about",
-      "Trailing slashes production mode, trailingSlash: false /about/ should redirect to /about",
-      "Trailing slashes production mode, trailingSlash: false /about?hello=world should client side render /about.js, with router path /about",
-      "Trailing slashes production mode, trailingSlash: false /about?hello=world should resolve to /about.js, with router path /about",
-      "Trailing slashes production mode, trailingSlash: false /catch-all/hello.world/ should redirect to /catch-all/hello.world",
-      "Trailing slashes production mode, trailingSlash: false /catch-all/hello/world should client side render /catch-all/[...slug].js, with router path /catch-all/[...slug]",
-      "Trailing slashes production mode, trailingSlash: false /catch-all/hello/world should resolve to /catch-all/[...slug].js, with router path /catch-all/[...slug]",
-      "Trailing slashes production mode, trailingSlash: false /catch-all/hello/world/ should redirect to /catch-all/hello/world",
-      "Trailing slashes production mode, trailingSlash: false /external-linker?href=https://nextjs.org should have href https://nextjs.org",
-      "Trailing slashes production mode, trailingSlash: false /external-linker?href=https://nextjs.org/ should have href https://nextjs.org/",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/ should have href /",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/ should navigate to /",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/ should push route to /",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/about should have href /about",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/about should navigate to /about",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/about should push route to /about",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/about/ should have href /about",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/about/ should navigate to /about",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/about/ should push route to /about",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/about/?hello=world should have href /about?hello=world",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/about/?hello=world should navigate to /about?hello=world",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/about/?hello=world should push route to /about?hello=world",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/about?hello=world should have href /about?hello=world",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/about?hello=world should navigate to /about?hello=world",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/about?hello=world should push route to /about?hello=world",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/catch-all/hello.world/ should have href /catch-all/hello.world",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/catch-all/hello.world/ should navigate to /catch-all/hello.world",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/catch-all/hello.world/ should push route to /catch-all/hello.world",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/catch-all/hello/ should have href /catch-all/hello",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/catch-all/hello/ should navigate to /catch-all/hello",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/catch-all/hello/ should push route to /catch-all/hello",
-      "Trailing slashes production mode, trailingSlash: false should have a redirect in the routesmanifest",
-      "Trailing slashes production mode, trailingSlash: true / should client side render /index.js, with router path /",
-      "Trailing slashes production mode, trailingSlash: true / should resolve to /index.js, with router path /",
-      "Trailing slashes production mode, trailingSlash: true /about should redirect to /about/",
-      "Trailing slashes production mode, trailingSlash: true /about/ should client side render /about.js, with router path /about",
-      "Trailing slashes production mode, trailingSlash: true /about/ should resolve to /about.js, with router path /about",
-      "Trailing slashes production mode, trailingSlash: true /about/?hello=world should client side render /about.js, with router path /about",
-      "Trailing slashes production mode, trailingSlash: true /about/?hello=world should resolve to /about.js, with router path /about",
-      "Trailing slashes production mode, trailingSlash: true /catch-all/hello.world/ should redirect to /catch-all/hello.world",
-      "Trailing slashes production mode, trailingSlash: true /catch-all/hello/world should redirect to /catch-all/hello/world/",
-      "Trailing slashes production mode, trailingSlash: true /catch-all/hello/world/ should client side render /catch-all/[...slug].js, with router path /catch-all/[...slug]",
-      "Trailing slashes production mode, trailingSlash: true /catch-all/hello/world/ should resolve to /catch-all/[...slug].js, with router path /catch-all/[...slug]",
-      "Trailing slashes production mode, trailingSlash: true /external-linker?href=https://nextjs.org should have href https://nextjs.org",
-      "Trailing slashes production mode, trailingSlash: true /external-linker?href=https://nextjs.org/ should have href https://nextjs.org/",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/ should have href /",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/ should navigate to /",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/ should push route to /",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/about should have href /about/",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/about should navigate to /about/",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/about should push route to /about/",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/about/ should have href /about/",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/about/ should navigate to /about/",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/about/ should push route to /about/",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/about/?hello=world should have href /about/?hello=world",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/about/?hello=world should navigate to /about/?hello=world",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/about/?hello=world should push route to /about/?hello=world",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/about?hello=world should have href /about/?hello=world",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/about?hello=world should navigate to /about/?hello=world",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/about?hello=world should push route to /about/?hello=world",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/catch-all/hello.world/ should have href /catch-all/hello.world",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/catch-all/hello.world/ should navigate to /catch-all/hello.world",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/catch-all/hello.world/ should push route to /catch-all/hello.world",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/catch-all/hello/ should have href /catch-all/hello/",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/catch-all/hello/ should navigate to /catch-all/hello/",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/catch-all/hello/ should push route to /catch-all/hello/",
-      "Trailing slashes production mode, trailingSlash: true should have a trailing redirect in the routesmanifest",
-      "Trailing slashes production mode, with basepath, trailingSlash: true /docs should redirect to /docs/",
-      "Trailing slashes production mode, with basepath, trailingSlash: true /docs/about should redirect to /docs/about/",
-      "Trailing slashes production mode, with basepath, trailingSlash: true /docs/catch-all/hello.world/ should redirect to /docs/catch-all/hello.world",
-      "Trailing slashes production mode, with basepath, trailingSlash: true /docs/catch-all/hello/world should redirect to /docs/catch-all/hello/world/",
-      "Trailing slashes production mode, with basepath, trailingSlash: true /docs/linker?href=/ should have href /docs/",
-      "Trailing slashes production mode, with basepath, trailingSlash: true /docs/linker?href=/ should navigate to /docs/",
-      "Trailing slashes production mode, with basepath, trailingSlash: true /docs/linker?href=/ should push route to /docs/",
-      "Trailing slashes production mode, with basepath, trailingSlash: true /docs/linker?href=/about should have href /docs/about/",
-      "Trailing slashes production mode, with basepath, trailingSlash: true /docs/linker?href=/about should navigate to /docs/about/",
-      "Trailing slashes production mode, with basepath, trailingSlash: true /docs/linker?href=/about should push route to /docs/about/"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/tsconfig-verifier/test/index.test.js": {
     "passed": [
       "tsconfig.json verifier Creates a default tsconfig.json when one is missing",
@@ -18060,6 +18124,13 @@
       "Web Workers with webpack 5 development mode should pass on both client and worker",
       "Web Workers with webpack 5 production mode should pass on both client and worker"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/adapter-config/adapter-config.test.ts": {
+    "passed": ["adapter-config should apply modifyConfig from adapter"],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -18497,6 +18568,7 @@
   "test/production/app-dir/no-mangling/no-mangling.test.ts": {
     "passed": [
       "no-mangling with `next build --no-mangling` should show original function names in stack traces",
+      "no-mangling with `next build --no-mangling` with \"use cache\" functions should show original function names in stack traces",
       "no-mangling with the default `next build` should show mangled function names in stack traces"
     ],
     "failed": [],
@@ -19510,8 +19582,8 @@
     "runtimeError": false
   },
   "test/production/standalone-mode/type-module/index.test.ts": {
-    "passed": [],
-    "failed": ["type-module should work"],
+    "passed": ["type-module should work"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false

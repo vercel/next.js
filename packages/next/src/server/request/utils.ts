@@ -29,7 +29,7 @@ export function throwForSearchParamsAccessInUseCache(
   )
 
   Error.captureStackTrace(error, constructorOpt)
-  workStore.invalidUsageError ??= error
+  workStore.invalidDynamicUsageError ??= error
 
   throw error
 }

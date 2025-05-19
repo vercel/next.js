@@ -19,7 +19,9 @@ runs:
     - name: 'Install LLD (LLVM Linker) for Linux'
       if: runner.os == 'Linux'
       shell: bash
-      run: sudo apt-get -y update && sudo apt-get install -y lld
+      run: |
+        sudo apt-get -y -o DPkg::Lock::Timeout=60 update
+        sudo apt-get -o DPkg::Lock::Timeout=60 -y install lld
 
     - name: 'Add cargo problem matchers'
       shell: bash

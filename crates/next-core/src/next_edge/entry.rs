@@ -1,6 +1,6 @@
 use indoc::formatdoc;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{fxindexmap, ResolvedVc, Value, Vc};
+use turbo_tasks::{ResolvedVc, Value, Vc, fxindexmap};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent, context::AssetContext, module::Module, reference_type::ReferenceType,
@@ -39,7 +39,7 @@ pub async fn wrap_edge_entry(
                 }},
             }});
         "#,
-        StringifyJs(&format_args!("middleware_{}", pathname))
+        StringifyJs(&format_args!("middleware_{pathname}"))
     );
     let file = File::from(source);
 
