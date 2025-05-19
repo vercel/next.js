@@ -1,0 +1,27 @@
+[package]
+name = "turbo-tasks-backend-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+anyhow = { workspace = true }
+arbitrary = { version = "1.4.1", features = ["derive"] }
+libfuzzer-sys = "0.4.9"
+serde = { workspace = true }
+tokio = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-backend = { workspace = true }
+
+[build-dependencies]
+turbo-tasks-build = { workspace = true }
+
+[[bin]]
+name = "graph"
+path = "fuzz_targets/graph.rs"
+test = false
+doc = false
+bench = false
