@@ -123,7 +123,7 @@ impl EcmascriptChunkItemContent {
         if self.options.async_module.is_some() {
             code += "__turbopack_async_module__(async (__turbopack_handle_async_dependencies__, \
                      __turbopack_async_result__) => { try {\n";
-        } else {
+        } else if !args.is_empty() {
             code += "{\n";
         }
 
@@ -142,7 +142,7 @@ impl EcmascriptChunkItemContent {
                  }}, {});",
                 opts.has_top_level_await
             )?;
-        } else {
+        } else if !args.is_empty() {
             code += "}";
         }
 
