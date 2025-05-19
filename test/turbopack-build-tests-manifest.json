@@ -16641,11 +16641,10 @@
       "Non-Standard NODE_ENV should not show the warning with no NODE_ENV set",
       "Non-Standard NODE_ENV should show the warning with NODE_ENV set to invalid value",
       "Non-Standard NODE_ENV should show the warning with NODE_ENV set to invalid value (custom server)",
-      "Non-Standard NODE_ENV should show the warning with NODE_ENV set to production with next dev"
-    ],
-    "failed": [
+      "Non-Standard NODE_ENV should show the warning with NODE_ENV set to production with next dev",
       "Non-Standard NODE_ENV production mode should still DCE NODE_ENV specific code"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
