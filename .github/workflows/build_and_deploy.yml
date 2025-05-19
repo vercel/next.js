@@ -49,7 +49,7 @@ jobs:
         run: |
           # TODO: Remove the new release check once the new release workflow is fully replaced.
           RELEASE_CHECK=$(node ./scripts/check-is-release.js 2> /dev/null || :)
-          if [[ $RELEASE_CHECK =~ ^Version\ Packages\ \((canary|release-candidate|stable)\)$ ]];
+          if [[ $RELEASE_CHECK =~ ^Version\ Packages$ ]];
           then
             echo "__NEW_RELEASE=true" >> $GITHUB_ENV
           elif [[ $RELEASE_CHECK = v* ]];
