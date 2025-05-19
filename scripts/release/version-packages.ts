@@ -36,6 +36,8 @@ async function versionPackages() {
     }
   }
 
+  // For prereleases, we need to set the "mode" on `pre.json`, which
+  // can be done by running `changeset pre enter <mode>`.
   const releaseType = process.env.RELEASE_TYPE
   switch (releaseType) {
     case 'canary': {
