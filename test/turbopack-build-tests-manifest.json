@@ -15233,11 +15233,11 @@
   },
   "test/integration/invalid-document-image-import/test/index.test.js": {
     "passed": [],
-    "failed": [
+    "failed": [],
+    "pending": [
       "Invalid static image import in _document production mode Should fail to build when disableStaticImages in next.config.js",
       "Invalid static image import in _document production mode Should fail to build when no next.config.js"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
