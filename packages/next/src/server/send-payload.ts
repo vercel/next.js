@@ -85,6 +85,14 @@ export async function sendRenderResult({
     )
   }
 
+  // Add vary header for RSC responses to prevent CDN caching
+  if (type === 'rsc') {
+    res.setHeader(
+      'Vary',
+      'RSC, Next-Router-State-Tree, Next-Url, Accept-Encoding'
+    )
+  }
+
   if (payload) {
     res.setHeader('Content-Length', Buffer.byteLength(payload))
   }
