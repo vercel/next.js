@@ -3,10 +3,9 @@
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/url-in-supports-query/input/index.js [test] (ecmascript)": ((__turbopack_context__) => {
 "use strict";
 
-{
 __turbopack_context__.s({});
 ;
-}}),
+}),
 }]);
 
 //# sourceMappingURL=b1abf_turbopack-tests_tests_snapshot_css_url-in-supports-query_input_index_160b9ebb.js.map

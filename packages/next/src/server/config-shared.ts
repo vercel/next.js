@@ -637,8 +637,10 @@ export interface ExperimentalConfig {
   serverComponentsHmrCache?: boolean
 
   /**
-   * When enabled will cause IO in App Router to be excluded from prerenders
-   * unless explicitly cached.
+   * When enabled, will cause IO in App Router to be excluded from prerenders,
+   * unless explicitly cached. This also enables the experimental Partial
+   * Prerendering feature of Next.js, and it enables `react@experimental` being
+   * used for the `app` directory.
    */
   dynamicIO?: boolean
 
@@ -740,16 +742,6 @@ export type ExportPathMap = {
      * @internal
      */
     _isRoutePPREnabled?: boolean
-
-    /**
-     * When true, it indicates that this page is being rendered in an attempt to
-     * discover if the page will be safe to generate with PPR. This is only
-     * enabled when the app has `experimental.dynamicIO` enabled but does not
-     * have `experimental.ppr` enabled.
-     *
-     * @internal
-     */
-    _isProspectiveRender?: boolean
 
     /**
      * When true, it indicates that the diagnostic render for this page is
@@ -1198,7 +1190,7 @@ export interface NextConfig extends Record<string, any> {
   htmlLimitedBots?: RegExp
 }
 
-export const defaultConfig: NextConfig = {
+export const defaultConfig = {
   env: {},
   webpack: null,
   eslint: {
@@ -1391,7 +1383,7 @@ export const defaultConfig: NextConfig = {
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
-}
+} satisfies NextConfig
 
 export async function normalizeConfig(phase: string, config: any) {
   if (typeof config === 'function') {

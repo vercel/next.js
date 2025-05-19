@@ -26,7 +26,7 @@ import { createRequestResponseMocks } from '../server/lib/mock-request'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { hasNextSupport } from '../server/ci-info'
 import { exportAppRoute } from './routes/app-route'
-import { exportAppPage, prospectiveRenderAppPage } from './routes/app-page'
+import { exportAppPage } from './routes/app-page'
 import { exportPagesPage } from './routes/pages'
 import { getParams } from './helpers/get-params'
 import { createIncrementalCache } from './helpers/create-incremental-cache'
@@ -103,10 +103,6 @@ async function exportPageImpl(
     // If this page supports partial prerendering, then we need to pass that to
     // the renderOpts.
     _isRoutePPREnabled: isRoutePPREnabled,
-
-    // If this is a prospective render, we don't actually want to persist the
-    // result, we just want to use it to error the build if there's a problem.
-    _isProspectiveRender: isProspectiveRender = false,
 
     // Configure the rendering of the page not to throw if an empty static shell
     // is generated while rendering using PPR.
@@ -285,21 +281,6 @@ async function exportPageImpl(
   if (isAppDir) {
     const sharedContext: AppSharedContext = {
       buildId: input.buildId,
-    }
-
-    // If this is a prospective render, don't return any metrics or revalidate
-    // timings as we aren't persisting this render (it was only to error).
-    if (isProspectiveRender) {
-      return prospectiveRenderAppPage(
-        req,
-        res,
-        page,
-        pathname,
-        query,
-        fallbackRouteParams,
-        renderOpts,
-        sharedContext
-      )
     }
 
     return exportAppPage(
