@@ -738,7 +738,6 @@ async function startWatcher(opts: SetupOpts) {
                   hasRewrites,
                   isClient,
                   isEdgeServer,
-                  isNodeOrEdgeCompilation: isNodeServer || isEdgeServer,
                   isNodeServer,
                   middlewareMatchers: undefined,
                 })

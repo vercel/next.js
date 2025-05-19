@@ -411,7 +411,6 @@ export function createDefineEnv({
         hasRewrites,
         isClient: variant === 'client',
         isEdgeServer: variant === 'edge',
-        isNodeOrEdgeCompilation: variant === 'nodejs' || variant === 'edge',
         isNodeServer: variant === 'nodejs',
         middlewareMatchers,
       })

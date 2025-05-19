@@ -1086,6 +1086,12 @@ export interface NextConfig extends Record<string, any> {
     define?: Record<string, string>
 
     /**
+     * Replaces server-only (Node.js and Edge) variables in your code during compile time.
+     * Each key will be replaced with the respective values.
+     */
+    defineServer?: Record<string, string>
+
+    /**
      * A hook function that executes after production build compilation finishes,
      * but before running post-compilation tasks such as type checking and
      * static page generation.

@@ -270,6 +270,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           }),
         ]),
         define: z.record(z.string(), z.string()).optional(),
+        defineServer: z.record(z.string(), z.string()).optional(),
         runAfterProductionCompile: z
           .function()
           .returns(z.promise(z.void()))
