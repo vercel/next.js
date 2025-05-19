@@ -560,6 +560,12 @@ export interface ExperimentalConfig {
   serverMinification?: boolean
 
   /**
+   * Enables source maps while generating static pages.
+   * Helps with errors during the prerender phase in `next build`.
+   */
+  enablePrerenderSourceMaps?: boolean
+
+  /**
    * Enables source maps generation for the server production bundle.
    */
   serverSourceMaps?: boolean
@@ -637,8 +643,10 @@ export interface ExperimentalConfig {
   serverComponentsHmrCache?: boolean
 
   /**
-   * When enabled will cause IO in App Router to be excluded from prerenders
-   * unless explicitly cached.
+   * When enabled, will cause IO in App Router to be excluded from prerenders,
+   * unless explicitly cached. This also enables the experimental Partial
+   * Prerendering feature of Next.js, and it enables `react@experimental` being
+   * used for the `app` directory.
    */
   dynamicIO?: boolean
 
@@ -685,6 +693,11 @@ export interface ExperimentalConfig {
    *
    */
   globalNotFound?: boolean
+
+  /**
+   * Enable segment viewer for the app directory in dev tool.
+   */
+  devtoolSegmentExplorer?: boolean
 }
 
 export type ExportPathMap = {
@@ -735,16 +748,6 @@ export type ExportPathMap = {
      * @internal
      */
     _isRoutePPREnabled?: boolean
-
-    /**
-     * When true, it indicates that this page is being rendered in an attempt to
-     * discover if the page will be safe to generate with PPR. This is only
-     * enabled when the app has `experimental.dynamicIO` enabled but does not
-     * have `experimental.ppr` enabled.
-     *
-     * @internal
-     */
-    _isProspectiveRender?: boolean
 
     /**
      * When true, it indicates that the diagnostic render for this page is
@@ -1083,6 +1086,12 @@ export interface NextConfig extends Record<string, any> {
     define?: Record<string, string>
 
     /**
+     * Replaces server-only (Node.js and Edge) variables in your code during compile time.
+     * Each key will be replaced with the respective values.
+     */
+    defineServer?: Record<string, string>
+
+    /**
      * A hook function that executes after production build compilation finishes,
      * but before running post-compilation tasks such as type checking and
      * static page generation.
@@ -1193,7 +1202,7 @@ export interface NextConfig extends Record<string, any> {
   htmlLimitedBots?: RegExp
 }
 
-export const defaultConfig: NextConfig = {
+export const defaultConfig = {
   env: {},
   webpack: null,
   eslint: {
@@ -1302,6 +1311,7 @@ export const defaultConfig: NextConfig = {
     appNavFailHandling: false,
     prerenderEarlyExit: true,
     serverMinification: true,
+    enablePrerenderSourceMaps: false,
     serverSourceMaps: false,
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
@@ -1382,10 +1392,11 @@ export const defaultConfig: NextConfig = {
     useCache: undefined,
     slowModuleDetection: undefined,
     globalNotFound: false,
+    devtoolSegmentExplorer: false,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
-}
+} satisfies NextConfig
 
 export async function normalizeConfig(phase: string, config: any) {
   if (typeof config === 'function') {

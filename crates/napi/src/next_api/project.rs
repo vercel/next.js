@@ -31,6 +31,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{
     Completion, Effects, FxIndexSet, OperationVc, ReadRef, ResolvedVc, TransientInstance,
     TryJoinIterExt, UpdateInfo, Vc, get_effects,
+    message_queue::{CompilationEvent, DiagnosticEvent, Severity},
 };
 use turbo_tasks_fs::{
     DiskFileSystem, FileContent, FileSystem, FileSystemPath, get_relative_path_to,
@@ -402,6 +403,12 @@ pub async fn project_new(
         memory_limit,
         dependency_tracking,
     )?;
+
+    turbo_tasks.send_compilation_event(Arc::new(DiagnosticEvent::new(
+        "Starting the compilation events server...".to_owned(),
+        Severity::Trace,
+    )));
+
     let stats_path = std::env::var_os("NEXT_TURBOPACK_TASK_STATISTICS");
     if let Some(stats_path) = stats_path {
         let task_stats = turbo_tasks.task_statistics().enable().clone();
@@ -429,8 +436,9 @@ pub async fn project_new(
         .await
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
 
+    let tasks_ref = turbo_tasks.clone();
     turbo_tasks.spawn_once_task(async move {
-        benchmark_file_io(container.project().node_root())
+        benchmark_file_io(tasks_ref, container.project().node_root())
             .await
             .inspect_err(|err| tracing::warn!(%err, "failed to benchmark file IO"))
     });
@@ -444,6 +452,35 @@ pub async fn project_new(
     ))
 }
 
+#[derive(Debug, Clone, serde::Serialize)]
+struct SlowFilesystemEvent {
+    directory: String,
+    duration_ms: u128,
+}
+
+impl CompilationEvent for SlowFilesystemEvent {
+    fn type_name(&self) -> &'static str {
+        "SlowFilesystemEvent"
+    }
+
+    fn severity(&self) -> Severity {
+        Severity::Warning
+    }
+
+    fn message(&self) -> String {
+        format!(
+            "Slow filesystem detected. The benchmark took {}ms. If {} is a network drive, \
+             consider moving it to a local folder. If you have an antivirus enabled, consider \
+             excluding your project directory.",
+            self.duration_ms, self.directory
+        )
+    }
+
+    fn to_json(&self) -> String {
+        serde_json::to_string(self).unwrap()
+    }
+}
+
 /// A very simple and low-overhead, but potentially noisy benchmark to detect
 /// very slow disk IO. Warns the user (via `println!`) if the benchmark takes
 /// more than `SLOW_FILESYSTEM_THRESHOLD`.
@@ -451,8 +488,11 @@ pub async fn project_new(
 /// This idea is copied from Bun:
 /// - https://x.com/jarredsumner/status/1637549427677364224
 /// - https://github.com/oven-sh/bun/blob/06a9aa80c38b08b3148bfeabe560/src/install/install.zig#L3038
-#[tracing::instrument]
-async fn benchmark_file_io(directory: Vc<FileSystemPath>) -> Result<Vc<Completion>> {
+#[tracing::instrument(skip(turbo_tasks))]
+async fn benchmark_file_io(
+    turbo_tasks: NextTurboTasks,
+    directory: Vc<FileSystemPath>,
+) -> Result<Vc<Completion>> {
     // try to get the real file path on disk so that we can use it with tokio
     let fs = Vc::try_resolve_downcast_type::<DiskFileSystem>(directory.fs())
         .await?
@@ -490,12 +530,20 @@ async fn benchmark_file_io(directory: Vc<FileSystemPath>) -> Result<Vc<Completio
     .instrument(tracing::info_span!("benchmark file IO (measurement)"))
     .await?;
 
-    if Instant::now().duration_since(start) > SLOW_FILESYSTEM_THRESHOLD {
+    let duration = Instant::now().duration_since(start);
+    if duration > SLOW_FILESYSTEM_THRESHOLD {
         println!(
-            "Slow filesystem detected. If {} is a network drive, consider moving it to a local \
-             folder. If you have an antivirus enabled, consider excluding your project directory.",
+            "Slow filesystem detected. The benchmark took {}ms. If {} is a network drive, \
+             consider moving it to a local folder. If you have an antivirus enabled, consider \
+             excluding your project directory.",
+            duration.as_millis(),
             directory.to_string_lossy(),
         );
+
+        turbo_tasks.send_compilation_event(Arc::new(SlowFilesystemEvent {
+            directory: directory.to_string_lossy().into(),
+            duration_ms: duration.as_millis(),
+        }));
     }
 
     Ok(Completion::new())
@@ -783,11 +831,14 @@ pub async fn project_write_all_entrypoints_to_disk(
     app_dir_only: bool,
 ) -> napi::Result<TurbopackResult<NapiEntrypoints>> {
     let turbo_tasks = project.turbo_tasks.clone();
+    let compilation_event_sender = turbo_tasks.clone();
+
     let (entrypoints, issues, diags) = turbo_tasks
         .run_once(async move {
             let entrypoints_with_issues_op =
                 get_all_written_entrypoints_with_issues_operation(project.container, app_dir_only);
 
+            // Read and compile the files
             let EntrypointsWithIssues {
                 entrypoints,
                 issues,
@@ -796,7 +847,25 @@ pub async fn project_write_all_entrypoints_to_disk(
             } = &*entrypoints_with_issues_op
                 .read_strongly_consistent()
                 .await?;
+
+            // Start timing writing the files to disk
+            let now = Instant::now();
+            compilation_event_sender.send_compilation_event(Arc::new(DiagnosticEvent::new(
+                "Starting to write all entrypoints to disk...".to_owned(),
+                Severity::Event,
+            )));
+
+            // Write the files to disk
             effects.apply().await?;
+
+            // Send a compilation event to indicate that the files have been written to disk
+            compilation_event_sender.send_compilation_event(Arc::new(DiagnosticEvent::new(
+                format!(
+                    "Finished writing all entrypoints to disk in {:?}",
+                    now.elapsed()
+                ),
+                Severity::Event,
+            )));
 
             Ok((entrypoints.clone(), issues.clone(), diagnostics.clone()))
         })
@@ -1218,6 +1287,44 @@ pub fn project_update_info_subscribe(
             }
         }
     });
+    Ok(())
+}
+
+/// Subscribes to all compilation events that are not cached like timing and progress information.
+#[napi]
+pub fn project_compilation_events_subscribe(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    func: JsFunction,
+    event_types: Option<Vec<String>>,
+) -> napi::Result<()> {
+    let turbo_tasks = project.turbo_tasks.clone();
+    let tsfn: ThreadsafeFunction<Arc<dyn CompilationEvent>> =
+        func.create_threadsafe_function(0, |ctx| {
+            let event: Arc<dyn CompilationEvent> = ctx.value;
+
+            let env = ctx.env;
+            let mut obj = env.create_object()?;
+            obj.set_named_property("typeName", event.type_name())?;
+            obj.set_named_property("severity", event.severity().to_string())?;
+            obj.set_named_property("message", event.message())?;
+
+            let external = env.create_external(event, None);
+            obj.set_named_property("eventData", external)?;
+
+            Ok(vec![obj])
+        })?;
+
+    tokio::spawn(async move {
+        let mut receiver = turbo_tasks.get_compilation_events_stream(event_types);
+        while let Some(msg) = receiver.recv().await {
+            let status = tsfn.call(Ok(msg), ThreadsafeFunctionCallMode::Blocking);
+
+            if status != Status::Ok {
+                break;
+            }
+        }
+    });
+
     Ok(())
 }
 

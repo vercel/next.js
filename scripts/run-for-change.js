@@ -9,6 +9,7 @@ const CHANGE_ITEM_GROUPS = {
     'docs',
     'errors',
     'examples',
+    '.changeset',
     'UPGRADING.md',
     'contributing.md',
     'contributing',

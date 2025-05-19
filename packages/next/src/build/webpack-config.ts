@@ -5,6 +5,7 @@ import crypto from 'crypto'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import path from 'path'
 
+import { getDefineEnv } from './define-env'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import { WEBPACK_LAYERS, WEBPACK_RESOURCE_QUERIES } from '../lib/constants'
 import type { WebpackLayerName } from '../lib/constants'
@@ -68,7 +69,6 @@ import { getSupportedBrowsers } from './utils'
 import { MemoryWithGcCachePlugin } from './webpack/plugins/memory-with-gc-cache-plugin'
 import { getBabelConfigFile } from './get-babel-config-file'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
-import { getDefineEnvPlugin } from './webpack/plugins/define-env-plugin'
 import type { SWCLoaderOptions } from './webpack/loaders/next-swc-loader'
 import { isResourceInPackages, makeExternalHandler } from './handle-externals'
 import {
@@ -534,6 +534,7 @@ export default async function getBaseWebpackConfig(
       loader: 'next-swc-loader',
       options: {
         isServer: isNodeOrEdgeCompilation,
+        compilerType,
         rootDir: dir,
         pagesDir,
         appDir,
@@ -1941,20 +1942,22 @@ export default async function getBaseWebpackConfig(
           // Avoid process being overridden when in web run time
           ...(isClient && { process: [require.resolve('process')] }),
         }),
-      getDefineEnvPlugin({
-        isTurbopack: false,
-        config,
-        dev,
-        distDir,
-        fetchCacheKeyPrefix,
-        hasRewrites,
-        isClient,
-        isEdgeServer,
-        isNodeOrEdgeCompilation,
-        isNodeServer,
-        middlewareMatchers,
-        omitNonDeterministic: isCompileMode,
-      }),
+
+      new (getWebpackBundler().DefinePlugin)(
+        getDefineEnv({
+          isTurbopack: false,
+          config,
+          dev,
+          distDir,
+          fetchCacheKeyPrefix,
+          hasRewrites,
+          isClient,
+          isEdgeServer,
+          isNodeServer,
+          middlewareMatchers,
+          omitNonDeterministic: isCompileMode,
+        })
+      ),
       isClient &&
         new ReactLoadablePlugin({
           filename: REACT_LOADABLE_MANIFEST,

@@ -1049,7 +1049,6 @@ export default class NextNodeServer extends BaseServer<
                 extension: getExtension(contentType) as string,
                 upstreamEtag,
               },
-              isFallback: false,
               cacheControl: { revalidate: maxAge, expire: undefined },
             }
           },

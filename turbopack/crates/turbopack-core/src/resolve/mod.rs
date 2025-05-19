@@ -1694,7 +1694,7 @@ async fn handle_after_resolve_plugins(
         request: Vc<Request>,
         options: Vc<ResolveOptions>,
     ) -> Result<Option<Vc<ResolveResult>>> {
-        for plugin in &options.await?.plugins {
+        for plugin in &options.await?.after_resolve_plugins {
             let after_resolve_condition = plugin.after_resolve_condition().resolve().await?;
             if *after_resolve_condition.matches(path).await? {
                 if let Some(result) = *plugin

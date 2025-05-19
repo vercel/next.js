@@ -1,5 +1,4 @@
 use std::{
-    borrow::Cow,
     fmt::{self, Debug, Display, Formatter},
     future::Future,
     hash::{BuildHasherDefault, Hash},
@@ -21,7 +20,10 @@ use turbo_prehash::PreHashed;
 use turbo_tasks::{
     CellId, Invalidator, RawVc, ReadConsistency, TaskId, TaskIdSet, TraitTypeId,
     TurboTasksBackendApi, TurboTasksBackendApiExt, ValueTypeId,
-    backend::{CachedTaskType, CellContent, TaskCollectiblesMap, TaskExecutionSpec},
+    backend::{
+        CachedTaskType, CellContent, TaskCollectiblesMap, TaskExecutionSpec,
+        TurboTasksExecutionError,
+    },
     event::{Event, EventListener},
     get_invalidator, registry,
 };
@@ -837,7 +839,7 @@ impl Task {
 
     pub(crate) fn execution_result(
         &self,
-        result: Result<Result<RawVc>, Option<Cow<'static, str>>>,
+        result: Result<RawVc, Arc<TurboTasksExecutionError>>,
         backend: &MemoryBackend,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) {
@@ -849,7 +851,7 @@ impl Task {
                 // TODO maybe this should be controlled by a heuristic
             }
             InProgress(..) => match result {
-                Ok(Ok(result)) => {
+                Ok(result) => {
                     if state.output != result {
                         if backend.print_task_invalidation && state.output.content.is_some() {
                             println!(
@@ -865,13 +867,17 @@ impl Task {
                         state.output.link(result, turbo_tasks)
                     }
                 }
-                Ok(Err(mut err)) => {
-                    if let Some(name) = self.get_function_name() {
-                        err = err.context(format!("Execution of {name} failed"));
-                    }
+                Err(err) => {
+                    let err = anyhow::Error::new(err).context(
+                        if let Some(name) = self.get_function_name() {
+                            format!("Execution of {name} failed")
+                        } else {
+                            "Execution failed".to_string()
+                        },
+                    );
+
                     state.output.error(err, turbo_tasks)
                 }
-                Err(message) => state.output.panic(message, turbo_tasks),
             },
 
             Dirty { .. } | Scheduled { .. } | Done { .. } => {

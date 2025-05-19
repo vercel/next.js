@@ -16,10 +16,7 @@ import type {
   TurbopackRuleConfigItemOrShortcut,
 } from '../../server/config-shared'
 import { isDeepStrictEqual } from 'util'
-import {
-  type DefineEnvPluginOptions,
-  getDefineEnv,
-} from '../webpack/plugins/define-env-plugin'
+import { type DefineEnvOptions, getDefineEnv } from '../define-env'
 import { getReactCompilerLoader } from '../get-babel-loader-config'
 import type {
   NapiPartialProjectOptions,
@@ -27,6 +24,7 @@ import type {
 } from './generated-native'
 import type {
   Binding,
+  CompilationEvent,
   DefineEnv,
   Endpoint,
   HmrIdentifiers,
@@ -392,7 +390,7 @@ export function createDefineEnv({
   hasRewrites,
   middlewareMatchers,
 }: Omit<
-  DefineEnvPluginOptions,
+  DefineEnvOptions,
   'isClient' | 'isNodeOrEdgeCompilation' | 'isEdgeServer' | 'isNodeServer'
 >): DefineEnv {
   let defineEnv: DefineEnv = {
@@ -413,7 +411,6 @@ export function createDefineEnv({
         hasRewrites,
         isClient: variant === 'client',
         isEdgeServer: variant === 'edge',
-        isNodeOrEdgeCompilation: variant === 'nodejs' || variant === 'edge',
         isNodeServer: variant === 'nodejs',
         middlewareMatchers,
       })
@@ -709,6 +706,18 @@ function bindingToApi(
           aggregationMs,
           callback
         )
+      )
+    }
+
+    compilationEventsSubscribe() {
+      return subscribe<TurbopackResult<CompilationEvent>>(
+        true,
+        async (callback) => {
+          binding.projectCompilationEventsSubscribe(
+            this._nativeProject,
+            callback
+          )
+        }
       )
     }
 

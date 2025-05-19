@@ -1,5 +1,5 @@
 use std::{
-    borrow::{Borrow, Cow},
+    borrow::Borrow,
     future::Future,
     hash::{BuildHasher, BuildHasherDefault, Hash},
     num::NonZeroU32,
@@ -22,7 +22,7 @@ use turbo_tasks::{
     TaskIdSet, TraitTypeId, TurboTasksBackendApi, Unused, ValueTypeId,
     backend::{
         Backend, BackendJobId, CachedTaskType, CellContent, TaskCollectiblesMap, TaskExecutionSpec,
-        TransientTaskType, TypedCellContent,
+        TransientTaskType, TurboTasksExecutionError, TypedCellContent,
     },
     event::EventListener,
     task_statistics::TaskStatisticsApi,
@@ -415,12 +415,12 @@ impl Backend for MemoryBackend {
     fn task_execution_result(
         &self,
         task_id: TaskId,
-        result: Result<Result<RawVc>, Option<Cow<'static, str>>>,
+        result: Result<RawVc, Arc<TurboTasksExecutionError>>,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) {
         self.with_task(task_id, |task| {
             #[cfg(debug_assertions)]
-            if let Ok(Ok(RawVc::TaskOutput(result))) = result.as_ref() {
+            if let Ok(RawVc::TaskOutput(result)) = result.as_ref() {
                 if *result == task_id {
                     panic!("Task {} returned itself as output", task.get_description());
                 }
