@@ -8,14 +8,18 @@ use serde::{Deserialize, Serialize};
 use turbo_tasks::{self, NonLocalValue, TurboTasks, Vc, trace::TraceRawVcs};
 use turbo_tasks_malloc::TurboMalloc;
 
-#[derive(Arbitrary, Debug, PartialEq, Eq, NonLocalValue, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Arbitrary, Clone, Debug, PartialEq, Eq, NonLocalValue, Serialize, Deserialize, TraceRawVcs,
+)]
 struct TaskReferenceSpec {
     task: u16,
     read: bool,
     read_strongly_consistent: bool,
 }
 
-#[derive(Arbitrary, Debug, PartialEq, Eq, NonLocalValue, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Arbitrary, Clone, Debug, PartialEq, Eq, NonLocalValue, Serialize, Deserialize, TraceRawVcs,
+)]
 struct TaskSpec {
     references: Vec<TaskReferenceSpec>,
 }
