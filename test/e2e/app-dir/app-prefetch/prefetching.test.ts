@@ -26,6 +26,8 @@ const browserConfigWithFixedTime = {
   },
 }
 
+const itHeaded = process.env.HEADLESS ? it.skip : it
+
 describe('app dir - prefetching', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
@@ -91,12 +93,7 @@ describe('app dir - prefetching', () => {
     )
   })
 
-  it('should not suppress prefetches after navigating back', async () => {
-    if (!process.env.CI && process.env.HEADLESS) {
-      console.warn('This test can only run in headed mode. Skipping...')
-      return
-    }
-
+  itHeaded('should not suppress prefetches after navigating back', async () => {
     // Force headed mode, as bfcache is not available in headless mode.
     const browser = await next.browser('/', { headless: false })
 
