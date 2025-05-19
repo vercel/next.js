@@ -416,8 +416,29 @@ The `query` objects are as follows:
   - `pages/api/post/[pid].js` - Will match `/api/post/1`, `/api/post/abc`, etc. But not `/api/post/create`
   - `pages/api/post/[...slug].js` - Will match `/api/post/1/2`, `/api/post/a/b/c`, etc. But not `/api/post/create`, `/api/post/abc`
 
-## Edge API Routes
+## Streaming responses
 
-If you would like to use API Routes with the Edge Runtime, we recommend incrementally adopting the App Router and using [Route Handlers](/docs/app/building-your-application/routing/route-handlers) instead.
+While the Pages Router does support streaming responses with API Routes, we recommend incrementally adopting the App Router and using [Route Handlers](/docs/app/building-your-application/routing/route-handlers) if you are on Next.js 14+.
 
-The Route Handlers function signature is isomorphic, meaning you can use the same function for both Edge and Node.js runtimes.
+Here's how you can stream a response from an API Route with `writeHead`:
+
+```js filename="pages/api/hello.js"
+import { NextApiRequest, NextApiResponse } from 'next'
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': "no-store",
+  })
+  let i = 0
+  while (i < 10) {
+    res.write(`data: ${i}\n\n`)
+    i++
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+  }
+  res.end()
+}
+```

@@ -76,7 +76,7 @@ impl Module for AsyncLoaderModule {
 impl Asset for AsyncLoaderModule {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
-        todo!()
+        panic!("content() should not be called");
     }
 }
 

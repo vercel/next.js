@@ -44,6 +44,7 @@ export const installTemplate = async ({
   importAlias,
   skipInstall,
   turbopack,
+  rspack,
 }: InstallTemplateArgs) => {
   console.log(bold(`Using ${packageManager}.`));
 
@@ -76,6 +77,21 @@ export const installTemplate = async ({
       }
     },
   });
+
+  if (rspack) {
+    const nextConfigFile = path.join(
+      root,
+      mode === "js" ? "next.config.mjs" : "next.config.ts",
+    );
+    await fs.writeFile(
+      nextConfigFile,
+      `import withRspack from "next-rspack";\n\n` +
+        (await fs.readFile(nextConfigFile, "utf8")).replace(
+          "export default nextConfig;",
+          "export default withRspack(nextConfig);",
+        ),
+    );
+  }
 
   const tsconfigFile = path.join(
     root,
@@ -187,6 +203,21 @@ export const installTemplate = async ({
     },
     devDependencies: {},
   };
+
+  if (rspack) {
+    const NEXT_PRIVATE_TEST_VERSION = process.env.NEXT_PRIVATE_TEST_VERSION;
+    if (
+      NEXT_PRIVATE_TEST_VERSION &&
+      path.isAbsolute(NEXT_PRIVATE_TEST_VERSION)
+    ) {
+      packageJson.dependencies["next-rspack"] = path.resolve(
+        path.dirname(NEXT_PRIVATE_TEST_VERSION),
+        "../next-rspack/next-rspack-packed.tgz",
+      );
+    } else {
+      packageJson.dependencies["next-rspack"] = version;
+    }
+  }
 
   /**
    * TypeScript projects will have type definitions and other devDependencies.
