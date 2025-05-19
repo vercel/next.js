@@ -744,16 +744,6 @@ export type ExportPathMap = {
     _isRoutePPREnabled?: boolean
 
     /**
-     * When true, it indicates that this page is being rendered in an attempt to
-     * discover if the page will be safe to generate with PPR. This is only
-     * enabled when the app has `experimental.dynamicIO` enabled but does not
-     * have `experimental.ppr` enabled.
-     *
-     * @internal
-     */
-    _isProspectiveRender?: boolean
-
-    /**
      * When true, it indicates that the diagnostic render for this page is
      * disabled. This is only used when the app has `experimental.ppr` and
      * `experimental.dynamicIO` enabled.
