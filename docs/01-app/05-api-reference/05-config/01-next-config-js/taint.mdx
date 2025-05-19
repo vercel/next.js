@@ -39,17 +39,15 @@ module.exports = nextConfig
 
 > **Warning:** Do not rely on the taint API as your only mechanism to prevent exposing sensitive data to the client. See our [security recommendations](/blog/security-nextjs-server-components-actions).
 
-It is recommended to model your data and APIs, so that sensitive data is not returned to contexts where it is not needed.
+The taint APIs allows you to be defensive, by declaratively and explicitly marking data that is not allowed to pass through the Server-Client boundary. When an object or value, is passed through the Server-Client boundary, React throws an error.
 
-For cases where:
+This is helpful for cases where: 
 
 - The methods to read data are out of your control
-- You have to work sensitive data shapes not defined by you
-- Sensitive data has to be used while rendering your server components
+- You have to work with sensitive data shapes not defined by you
+- Sensitive data is accessed during Server Component rendering
 
-The taint API, allows you to be defensive, by declaratively and explicitly marking data that is not allowed to pass through the Server-Client boundary.
-
-When an object or value, is passed through the Server-Client boundary, React throws an error.
+It is recommended to model your data and APIs so that sensitive data is not returned to contexts where it is not needed.
 
 ## Caveats
 
