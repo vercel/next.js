@@ -989,6 +989,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         self.stopping_event.notify(usize::MAX);
     }
 
+    #[allow(unused_variables)]
     fn stop(&self, turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>) {
         #[cfg(feature = "verify_aggregation_graph")]
         {
