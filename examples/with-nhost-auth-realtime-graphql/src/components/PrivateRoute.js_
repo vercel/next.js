@@ -1,0 +1,21 @@
+"use client";
+import { useRouter } from "next/navigation";
+import { useAuthenticationStatus } from "@nhost/react";
+import { useEffect } from "react";
+
+export default function PrivateRoute({ children }) {
+  const router = useRouter();
+  const { isAuthenticated, isLoading } = useAuthenticationStatus();
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.push("/login");
+    }
+  }, [isAuthenticated, isLoading, router]);
+
+  if (isLoading || !isAuthenticated) {
+    return <div>Checking auth...</div>; // Or a spinner
+  }
+
+  return <>{children}</>;
+}
