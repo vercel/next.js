@@ -199,6 +199,33 @@ function createRenderParams(
 interface CacheLifetime {}
 const CachedParams = new WeakMap<CacheLifetime, Promise<Params>>()
 
+const fallbackParamsProxyHandler: ProxyHandler<Promise<Params>> = {
+  get: function get(target, prop, receiver) {
+    if (prop === 'then' || prop === 'catch' || prop === 'finally') {
+      const originalMethod = ReflectAdapter.get(target, prop, receiver)
+
+      return {
+        [prop]: (...args: unknown[]) => {
+          const store = dynamicAccessAsyncStorage.getStore()
+
+          if (store) {
+            store.abortController.abort(
+              new Error(`Accessed fallback \`params\` during prerendering.`)
+            )
+          }
+
+          return new Proxy(
+            originalMethod.apply(target, args),
+            fallbackParamsProxyHandler
+          )
+        },
+      }[prop]
+    }
+
+    return ReflectAdapter.get(target, prop, receiver)
+  },
+}
+
 function makeAbortingExoticParams(
   underlyingParams: Params,
   route: string,
@@ -212,38 +239,9 @@ function makeAbortingExoticParams(
   const promise = makeHangingPromise<Params>(
     prerenderStore.renderSignal,
     '`params`',
-    {
-      get: function get(target, prop, receiver) {
-        if (prop === 'then' || prop === 'catch' || prop === 'finally') {
-          const originalMethod = ReflectAdapter.get(target, prop, receiver)
-
-          return {
-            [prop]: (...args: unknown[]) => {
-              const store = dynamicAccessAsyncStorage.getStore()
-
-              if (store)
-                store.abortController.abort(
-                  new Error(`Accessed fallback \`params\` during prerendering.`)
-                )
-
-              // Make sure the original method of the proxied promise is called.
-              // We don't use the returned new promise though. This is mostly
-              // needed to ensure the hanging promise rejection is triggered
-              // when the prerender signal is aborted.
-              originalMethod.apply(target, args)
-
-              // Instead, we return the instrumented proxied promise again, to
-              // ensure that it's also used when params.then(), params.catch(),
-              // or params.finally() is passed to another function.
-              return promise
-            },
-          }[prop]
-        }
-
-        return ReflectAdapter.get(target, prop, receiver)
-      },
-    }
+    fallbackParamsProxyHandler
   )
+
   CachedParams.set(underlyingParams, promise)
 
   Object.keys(underlyingParams).forEach((prop) => {

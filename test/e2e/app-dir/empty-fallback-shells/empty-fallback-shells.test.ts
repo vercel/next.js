@@ -122,7 +122,7 @@ describe('empty-fallback-shells', () => {
           )
 
           const html = await res.text()
-          expect(html).toIncludeRepeated('data-testid="page-bar"', 3)
+          expect(html).toIncludeRepeated('data-testid="page-bar"', 4)
           expect(html).toContain('layout-runtime')
 
           if (isNextDeploy) {
@@ -136,4 +136,10 @@ describe('empty-fallback-shells', () => {
       })
     })
   })
+
+  if (isNextStart) {
+    it('should not log a HANGING_PROMISE_REJECTION error', async () => {
+      expect(next.cliOutput).not.toContain('HANGING_PROMISE_REJECTION')
+    })
+  }
 })
