@@ -12,7 +12,9 @@
   },
   "devDependencies": {
     "@types/loader-runner": "^2.2.4",
-    "@types/node": "^18.11.11"
+    "@types/node": "^18.11.11",
+    "webpack": "5.98.0",
+    "webpack-cli": "6.0.1"
   },
   "exports": {
     "./*": "./src/*.ts"
