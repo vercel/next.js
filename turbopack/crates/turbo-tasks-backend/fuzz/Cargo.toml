@@ -8,6 +8,7 @@ edition = "2024"
 cargo-fuzz = true
 
 [dependencies]
+afl = "0.15.18"
 anyhow = { workspace = true }
 arbitrary = { version = "1.4.1", features = ["derive"] }
 libfuzzer-sys = "0.4.9"
@@ -21,8 +22,15 @@ turbo-tasks-malloc = { workspace = true }
 turbo-tasks-build = { workspace = true }
 
 [[bin]]
-name = "graph"
+name = "fuzz_graph"
 path = "fuzz_targets/graph.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "afl_graph"
+path = "afl_targets/graph.rs"
 test = false
 doc = false
 bench = false
