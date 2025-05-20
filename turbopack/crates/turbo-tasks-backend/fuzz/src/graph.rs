@@ -1,5 +1,6 @@
 use anyhow::Result;
 use arbitrary::Arbitrary;
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{self, NonLocalValue, TurboTasks, Vc, trace::TraceRawVcs};
 use turbo_tasks_malloc::TurboMalloc;
@@ -18,6 +19,20 @@ pub struct TaskReferenceSpec {
 )]
 pub struct TaskSpec {
     references: Vec<TaskReferenceSpec>,
+}
+
+static RUNTIME: Lazy<tokio::runtime::Runtime> = Lazy::new(|| {
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .on_thread_stop(|| {
+            TurboMalloc::thread_stop();
+        })
+        .build()
+        .unwrap()
+});
+
+pub fn init() {
+    let _ = &*RUNTIME;
 }
 
 pub fn run(data: Vec<TaskSpec>) {
@@ -57,14 +72,7 @@ fn actual_operation(data: Vec<TaskSpec>) {
         },
         turbo_tasks_backend::noop_backing_storage(),
     ));
-    let runtime = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .on_thread_stop(|| {
-            TurboMalloc::thread_stop();
-        })
-        .build()
-        .unwrap();
-    runtime
+    RUNTIME
         .block_on(async {
             tt.run_once(async move {
                 let spec: Vc<TasksSpec> = Vc::cell(data);

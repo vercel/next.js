@@ -3,7 +3,7 @@
 
 use libfuzzer_sys::fuzz_target;
 
-use crate::graph::TaskSpec;
+use crate::graph::{TaskSpec, init};
 
 #[path = "../src/graph.rs"]
 mod graph;
@@ -12,7 +12,7 @@ mod graph;
 // cd turbopack/crates/turbo-tasks-backend
 // cargo fuzz run fuzz_graph
 
-fuzz_target!(init: register(), |data: Vec<TaskSpec>| {
+fuzz_target!(init: { register(); init(); }, |data: Vec<TaskSpec>| {
     graph::run(data);
 });
 
