@@ -621,7 +621,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }
 
       - name: Send a Slack notification of the publish status
-        if: steps.changesets.outputs.published == 'true'
         run: pnpm tsx scripts/release/slack.ts
         env:
           SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
