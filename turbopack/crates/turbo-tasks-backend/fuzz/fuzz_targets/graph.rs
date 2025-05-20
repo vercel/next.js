@@ -44,6 +44,15 @@ fuzz_target!(|data: Vec<TaskSpec>| {
             }
         }
     }
+    let mut referenced = vec![false; data.len()];
+    for task in &data {
+        for reference in &task.references {
+            referenced[reference.task as usize] = true;
+        }
+    }
+    if !referenced.iter().all(|&x| x) {
+        return;
+    }
     register();
     let tt = TurboTasks::new(turbo_tasks_backend::TurboTasksBackend::new(
         turbo_tasks_backend::BackendOptions {
