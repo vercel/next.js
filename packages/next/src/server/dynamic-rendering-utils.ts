@@ -1,5 +1,3 @@
-import { ReflectAdapter } from './web/spec-extension/adapters/reflect'
-
 export function isHangingPromiseRejectionError(
   err: unknown
 ): err is HangingPromiseRejectionError {
@@ -34,8 +32,7 @@ const abortListenersBySignal = new WeakMap<AbortSignal, AbortListeners>()
  */
 export function makeHangingPromise<T>(
   signal: AbortSignal,
-  expression: string,
-  handler?: ProxyHandler<Promise<T>>
+  expression: string
 ): Promise<T> {
   if (signal.aborted) {
     return Promise.reject(new HangingPromiseRejectionError(expression))
@@ -66,21 +63,7 @@ export function makeHangingPromise<T>(
     // we attach a noop catch handler here to suppress this warning. If you actually await somewhere or construct
     // your own promise out of it you'll need to ensure you handle the error when it rejects.
     hangingPromise.catch(ignoreReject)
-
-    return new Proxy(hangingPromise, {
-      ...handler,
-      get: function get(target, prop, receiver) {
-        if (prop === 'then' || prop === 'catch' || prop === 'finally') {
-          // TODO: Maybe annotate dynamic access here.
-        }
-
-        if (handler?.get) {
-          return handler.get(target, prop, receiver)
-        }
-
-        return ReflectAdapter.get(target, prop, receiver)
-      },
-    })
+    return hangingPromise
   }
 }
 

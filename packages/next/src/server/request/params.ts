@@ -236,9 +236,8 @@ function makeAbortingExoticParams(
     return cachedParams
   }
 
-  const promise = makeHangingPromise<Params>(
-    prerenderStore.renderSignal,
-    '`params`',
+  const promise = new Proxy(
+    makeHangingPromise<Params>(prerenderStore.renderSignal, '`params`'),
     fallbackParamsProxyHandler
   )
 

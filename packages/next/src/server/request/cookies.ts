@@ -23,7 +23,6 @@ import { makeHangingPromise } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { scheduleImmediate } from '../../lib/scheduler'
 import { isRequestAPICallableInsideAfter } from './utils'
-import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 
 /**
  * In this version of Next.js `cookies()` returns a Promise however you can still reference the properties of the underlying cookies object
@@ -167,64 +166,154 @@ function makeDynamicallyTrackedExoticCookies(
     return cachedPromise
   }
 
-  const abortAndThrow = (property: string) => {
-    const expression = `\`cookies()${property}\``
-    const error = createCookiesAccessError(route, expression)
-    abortAndThrowOnSynchronousRequestDataAccess(
-      route,
-      expression,
-      error,
-      prerenderStore
-    )
-  }
-
   const promise = makeHangingPromise<ReadonlyRequestCookies>(
     prerenderStore.renderSignal,
-    '`cookies()`',
-    {
-      get: function get(target, prop, receiver) {
-        switch (prop) {
-          case Symbol.iterator:
-            return function () {
-              abortAndThrow('[Symbol.iterator]')
-            }
-          case 'size':
-            abortAndThrow('.size')
-            break
-          case 'get':
-          case 'getAll':
-          case 'has':
-            return function () {
-              abortAndThrow(
-                arguments.length === 0
-                  ? `.${prop}()`
-                  : `.${prop}(${describeNameArg(arguments[0])})`
-              )
-            }
-          case 'set':
-          case 'delete':
-            return function () {
-              abortAndThrow(
-                arguments.length === 0
-                  ? `.${prop}()`
-                  : arguments[0]
-                    ? `.${prop}(${describeNameArg(arguments[0])}, ...)`
-                    : `.${prop}(...)`
-              )
-            }
-          case 'clear':
-          case 'toString':
-            return function () {
-              abortAndThrow(`.${prop}()`)
-            }
-          default:
-            return ReflectAdapter.get(target, prop, receiver)
-        }
-      },
-    }
+    '`cookies()`'
   )
-
   CachedCookies.set(prerenderStore, promise)
+
+  Object.defineProperties(promise, {
+    [Symbol.iterator]: {
+      value: function () {
+        const expression = '`cookies()[Symbol.iterator]()`'
+        const error = createCookiesAccessError(route, expression)
+        abortAndThrowOnSynchronousRequestDataAccess(
+          route,
+          expression,
+          error,
+          prerenderStore
+        )
+      },
+    },
+    size: {
+      get() {
+        const expression = '`cookies().size`'
+        const error = createCookiesAccessError(route, expression)
+        abortAndThrowOnSynchronousRequestDataAccess(
+          route,
+          expression,
+          error,
+          prerenderStore
+        )
+      },
+    },
+    get: {
+      value: function get() {
+        let expression: string
+        if (arguments.length === 0) {
+          expression = '`cookies().get()`'
+        } else {
+          expression = `\`cookies().get(${describeNameArg(arguments[0])})\``
+        }
+        const error = createCookiesAccessError(route, expression)
+        abortAndThrowOnSynchronousRequestDataAccess(
+          route,
+          expression,
+          error,
+          prerenderStore
+        )
+      },
+    },
+    getAll: {
+      value: function getAll() {
+        let expression: string
+        if (arguments.length === 0) {
+          expression = '`cookies().getAll()`'
+        } else {
+          expression = `\`cookies().getAll(${describeNameArg(arguments[0])})\``
+        }
+        const error = createCookiesAccessError(route, expression)
+        abortAndThrowOnSynchronousRequestDataAccess(
+          route,
+          expression,
+          error,
+          prerenderStore
+        )
+      },
+    },
+    has: {
+      value: function has() {
+        let expression: string
+        if (arguments.length === 0) {
+          expression = '`cookies().has()`'
+        } else {
+          expression = `\`cookies().has(${describeNameArg(arguments[0])})\``
+        }
+        const error = createCookiesAccessError(route, expression)
+        abortAndThrowOnSynchronousRequestDataAccess(
+          route,
+          expression,
+          error,
+          prerenderStore
+        )
+      },
+    },
+    set: {
+      value: function set() {
+        let expression: string
+        if (arguments.length === 0) {
+          expression = '`cookies().set()`'
+        } else {
+          const arg = arguments[0]
+          if (arg) {
+            expression = `\`cookies().set(${describeNameArg(arg)}, ...)\``
+          } else {
+            expression = '`cookies().set(...)`'
+          }
+        }
+        const error = createCookiesAccessError(route, expression)
+        abortAndThrowOnSynchronousRequestDataAccess(
+          route,
+          expression,
+          error,
+          prerenderStore
+        )
+      },
+    },
+    delete: {
+      value: function () {
+        let expression: string
+        if (arguments.length === 0) {
+          expression = '`cookies().delete()`'
+        } else if (arguments.length === 1) {
+          expression = `\`cookies().delete(${describeNameArg(arguments[0])})\``
+        } else {
+          expression = `\`cookies().delete(${describeNameArg(arguments[0])}, ...)\``
+        }
+        const error = createCookiesAccessError(route, expression)
+        abortAndThrowOnSynchronousRequestDataAccess(
+          route,
+          expression,
+          error,
+          prerenderStore
+        )
+      },
+    },
+    clear: {
+      value: function clear() {
+        const expression = '`cookies().clear()`'
+        const error = createCookiesAccessError(route, expression)
+        abortAndThrowOnSynchronousRequestDataAccess(
+          route,
+          expression,
+          error,
+          prerenderStore
+        )
+      },
+    },
+    toString: {
+      value: function toString() {
+        const expression = '`cookies().toString()`'
+        const error = createCookiesAccessError(route, expression)
+        abortAndThrowOnSynchronousRequestDataAccess(
+          route,
+          expression,
+          error,
+          prerenderStore
+        )
+      },
+    },
+  } satisfies CookieExtensions)
 
   return promise
 }
