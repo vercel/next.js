@@ -1245,6 +1245,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         })
         incrementalCache.resetRequestCache()
         addRequestMeta(req, 'incrementalCache', incrementalCache)
+        // This is needed for pages router to leverage unstable_cache
+        // TODO: re-work this handling to not use global and use a AsyncStore
         ;(globalThis as any).__incrementalCache = incrementalCache
       }
 
@@ -2106,13 +2108,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     // use existing incrementalCache instance if available
     const incrementalCache =
-      (globalThis as any).__incrementalCache ||
-      (await this.getIncrementalCache({
-        requestHeaders: Object.assign({}, req.headers),
-        requestProtocol: protocol.substring(0, protocol.length - 1) as
-          | 'http'
-          | 'https',
-      }))
+      process.env.NEXT_RUNTIME === 'edge' &&
+      (globalThis as any).__incrementalCache
+        ? (globalThis as any).__incrementalCache
+        : await this.getIncrementalCache({
+            requestHeaders: Object.assign({}, req.headers),
+            requestProtocol: protocol.substring(0, protocol.length - 1) as
+              | 'http'
+              | 'https',
+          })
 
     incrementalCache?.resetRequestCache()
 

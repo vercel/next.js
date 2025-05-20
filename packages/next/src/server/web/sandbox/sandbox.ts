@@ -72,6 +72,7 @@ export async function getRuntimeContext(params: {
   })
 
   if (params.incrementalCache) {
+    runtime.context.globalThis.__incrementalCacheShared = true
     runtime.context.globalThis.__incrementalCache = params.incrementalCache
   }
 
