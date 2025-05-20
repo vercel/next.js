@@ -149,6 +149,14 @@ impl NextTurboTasks {
             }
         }
     }
+
+    pub fn invalidate_persistent_cache(&self) -> Result<()> {
+        match self {
+            NextTurboTasks::Memory(_) => {}
+            NextTurboTasks::PersistentCaching(turbo_tasks) => turbo_tasks.backend().invalidate()?,
+        }
+        Ok(())
+    }
 }
 
 pub fn create_turbo_tasks(

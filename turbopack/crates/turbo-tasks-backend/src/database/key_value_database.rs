@@ -52,6 +52,19 @@ pub trait KeyValueDatabase {
         &self,
     ) -> Result<WriteBatch<'_, Self::SerialWriteBatch<'_>, Self::ConcurrentWriteBatch<'_>>>;
 
+    /// Called when the database has been invalidated via
+    /// [`crate::backing_storage::BackingStorage::invalidate`]
+    ///
+    /// This typically means that we'll restart the process or `turbo-tasks` soon with a fresh
+    /// database. If this happens, there's no point in writing anything else to disk, or flushing
+    /// during [`KeyValueDatabase::shutdown`].
+    ///
+    /// This is a best-effort optimization hint, and the database may choose to ignore this and
+    /// continue file writes.
+    fn prevent_writes(&self) {
+        // this is an optional performance hint to the database
+    }
+
     fn shutdown(&self) -> Result<()> {
         Ok(())
     }

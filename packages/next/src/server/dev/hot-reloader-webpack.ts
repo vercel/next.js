@@ -1570,7 +1570,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       getNextErrorFeedbackMiddleware(this.telemetry),
       getDevOverlayFontMiddleware(),
       getDisableDevIndicatorMiddleware(),
-      getRestartDevServerMiddleware(this.telemetry),
+      getRestartDevServerMiddleware({
+        telemetry: this.telemetry,
+      }),
     ]
   }
 
