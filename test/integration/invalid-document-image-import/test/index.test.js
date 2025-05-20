@@ -7,7 +7,7 @@ jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '../')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'Invalid static image import in _document',
   () => {
     ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
