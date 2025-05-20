@@ -682,5 +682,7 @@
   "681": "Dynamic imports should not be instrumented in the edge runtime, because `dynamicIO` doesn't support it",
   "682": "\\`experimental.ppr\\` can not be \\`%s\\` when \\`experimental.dynamicIO\\` is \\`true\\`. PPR is implicitly enabled when Dynamic IO is enabled.",
   "683": "The \\`compiler.define\\` option is configured to replace the \\`%s\\` variable. This variable is either part of a Next.js built-in or is already configured.",
-  "684": "The \\`compiler.defineServer\\` option is configured to replace the \\`%s\\` variable. This variable is either part of a Next.js built-in or is already configured."
+  "684": "The \\`compiler.defineServer\\` option is configured to replace the \\`%s\\` variable. This variable is either part of a Next.js built-in or is already configured.",
+  "685": "Accessed fallback \\`params\\` during prerendering.",
+  "686": "Expected clientReferenceManifest to be defined."
 }

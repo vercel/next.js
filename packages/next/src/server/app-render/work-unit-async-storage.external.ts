@@ -163,6 +163,11 @@ export interface CommonCacheStore
    * from which implicit tags could be inherited.
    */
   readonly implicitTags: ImplicitTags | undefined
+  /**
+   * Draft mode is only available if the outer work unit store is a request
+   * store and draft mode is enabled.
+   */
+  readonly draftMode: DraftModeProvider | undefined
 }
 
 export interface UseCacheStore extends CommonCacheStore {
@@ -179,21 +184,20 @@ export interface UseCacheStore extends CommonCacheStore {
   readonly isHmrRefresh: boolean
   readonly serverComponentsHmrCache: ServerComponentsHmrCache | undefined
   readonly forceRevalidate: boolean
-  // Draft mode is only available if the outer work unit store is a request
-  // store and draft mode is enabled.
-  readonly draftMode: DraftModeProvider | undefined
 }
 
 export interface UnstableCacheStore extends CommonCacheStore {
   type: 'unstable-cache'
-  // Draft mode is only available if the outer work unit store is a request
-  // store and draft mode is enabled.
-  readonly draftMode: DraftModeProvider | undefined
 }
 
 /**
- * The Cache store is for tracking information inside a "use cache" or unstable_cache context.
- * Inside this context we should never expose any request or page specific information.
+ * The Cache store is for tracking information inside a "use cache" or
+ * unstable_cache context. A cache store shadows an outer request store (if
+ * present) as a work unit, so that we never accidentally expose any request or
+ * page specific information to cache functions, unless it's explicitly desired.
+ * For those exceptions, the data is copied over from the request store to the
+ * cache store, instead of generally making the request store available to cache
+ * functions.
  */
 export type CacheStore = UseCacheStore | UnstableCacheStore
 
