@@ -1,3 +1,5 @@
+const nodeExternals = require('webpack-node-externals')
+
 module.exports = {
   mode: 'production',
   entry: {
@@ -8,6 +10,9 @@ module.exports = {
   output: {
     filename: '[name].bundle.js',
     module: true,
+    library: {
+      type: 'module',
+    },
   },
   module: {
     rules: [
@@ -20,14 +25,14 @@ module.exports = {
   },
   resolve: {
     extensions: ['.tsx', '.ts', '.js'],
-    alias: {
-      '@vercel/turbopack/postcss': false,
-      '@vercel/turbopack/loader-runner': false,
-      CONFIG: false,
-    },
   },
   target: 'node',
-  externals: /^(node:|@vercel\/turbopack\/|\$)$/i,
+  externals: [
+    nodeExternals({}),
+    '@vercel/turbopack/postcss',
+    '@vercel/turbopack/loader-runner',
+    'CONFIG',
+  ],
   experiments: {
     outputModule: true,
   },
