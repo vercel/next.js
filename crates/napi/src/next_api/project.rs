@@ -48,7 +48,7 @@ use turbopack_core::{
     source_map::{OptionStringifiedSourceMap, SourceMap, Token},
     version::{PartialUpdate, TotalUpdate, Update, VersionState},
 };
-use turbopack_ecmascript_hmr_protocol::{ClientUpdateInstruction, ResourceIdentifier};
+use turbopack_ecmascript_hmr_protocol::{ClientUpdateInstruction, Issue, ResourceIdentifier};
 use turbopack_trace_utils::{
     exit::{ExitHandler, ExitReceiver},
     filter_layer::FilterLayer,
@@ -794,7 +794,7 @@ impl NapiEntrypoints {
 #[turbo_tasks::value(serialization = "none")]
 struct EntrypointsWithIssues {
     entrypoints: ReadRef<EntrypointsOperation>,
-    issues: Arc<Vec<ReadRef<PlainIssue>>>,
+    issues: Arc<Vec<PlainIssue>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
     effects: Arc<Effects>,
 }
@@ -830,7 +830,7 @@ fn project_container_entrypoints_operation(
 #[turbo_tasks::value(serialization = "none")]
 struct AllWrittenEntrypointsWithIssues {
     entrypoints: Option<ReadRef<Entrypoints>>,
-    issues: Arc<Vec<ReadRef<PlainIssue>>>,
+    issues: Arc<Vec<PlainIssue>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
     effects: Arc<Effects>,
 }
@@ -877,7 +877,7 @@ pub async fn project_write_all_entrypoints_to_disk(
 
     Ok(TurbopackResult {
         result: NapiEntrypoints::from_entrypoints_op(&entrypoints, &turbo_tasks)?,
-        issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
+        issues: issues.iter().map(NapiIssue::from).collect(),
         diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
     })
 }
@@ -971,10 +971,7 @@ pub fn project_entrypoints_subscribe(
 
             Ok(vec![TurbopackResult {
                 result: NapiEntrypoints::from_entrypoints_op(&entrypoints, &turbo_tasks)?,
-                issues: issues
-                    .iter()
-                    .map(|issue| NapiIssue::from(&**issue))
-                    .collect(),
+                issues: issues.iter().map(NapiIssue::from).collect(),
                 diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
             }])
         },
@@ -984,7 +981,7 @@ pub fn project_entrypoints_subscribe(
 #[turbo_tasks::value(serialization = "none")]
 struct HmrUpdateWithIssues {
     update: ReadRef<Update>,
-    issues: Arc<Vec<ReadRef<PlainIssue>>>,
+    issues: Arc<Vec<PlainIssue>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
     effects: Arc<Effects>,
 }
@@ -1073,14 +1070,8 @@ pub fn project_hmr_events(
         move |ctx| {
             let (update, issues, diags) = ctx.value;
 
-            let napi_issues = issues
-                .iter()
-                .map(|issue| NapiIssue::from(&**issue))
-                .collect();
-            let update_issues = issues
-                .iter()
-                .map(|issue| (&**issue).into())
-                .collect::<Vec<_>>();
+            let napi_issues = issues.iter().map(NapiIssue::from).collect();
+            let update_issues = issues.iter().map(Issue::from).collect::<Vec<_>>();
 
             let identifier = ResourceIdentifier {
                 path: identifier.clone(),
@@ -1115,7 +1106,7 @@ struct HmrIdentifiers {
 #[turbo_tasks::value(serialization = "none")]
 struct HmrIdentifiersWithIssues {
     identifiers: ReadRef<Vec<RcStr>>,
-    issues: Arc<Vec<ReadRef<PlainIssue>>>,
+    issues: Arc<Vec<PlainIssue>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
     effects: Arc<Effects>,
 }
@@ -1177,10 +1168,7 @@ pub fn project_hmr_identifiers_subscribe(
                 result: HmrIdentifiers {
                     identifiers: ReadRef::into_owned(identifiers),
                 },
-                issues: issues
-                    .iter()
-                    .map(|issue| NapiIssue::from(&**issue))
-                    .collect(),
+                issues: issues.iter().map(NapiIssue::from).collect(),
                 diagnostics: diagnostics
                     .iter()
                     .map(|d| NapiDiagnostic::from(d))

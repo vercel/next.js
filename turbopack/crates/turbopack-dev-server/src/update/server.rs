@@ -183,10 +183,7 @@ where
                     .await?;
             }
             UpdateStreamItem::Found { update, issues } => {
-                let issues = issues
-                    .iter()
-                    .map(|p| (&**p).into())
-                    .collect::<Vec<Issue<'_>>>();
+                let issues = issues.iter().map(|p| p.into()).collect::<Vec<Issue<'_>>>();
                 match &**update {
                     Update::Partial(partial) => {
                         let partial_instruction = &partial.instruction;

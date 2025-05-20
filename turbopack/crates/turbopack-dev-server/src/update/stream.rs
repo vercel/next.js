@@ -87,13 +87,13 @@ impl GetContentFn {
     }
 }
 
-async fn peek_issues<T: Send>(source: OperationVc<T>) -> Result<Vec<ReadRef<PlainIssue>>> {
+async fn peek_issues<T: Send>(source: OperationVc<T>) -> Result<Vec<PlainIssue>> {
     let captured = source.peek_issues_with_path().await?;
 
     captured.get_plain_issues().await
 }
 
-fn extend_issues(issues: &mut Vec<ReadRef<PlainIssue>>, new_issues: Vec<ReadRef<PlainIssue>>) {
+fn extend_issues(issues: &mut Vec<PlainIssue>, new_issues: Vec<PlainIssue>) {
     for issue in new_issues {
         if issues.contains(&issue) {
             continue;
@@ -125,13 +125,20 @@ async fn get_update_stream_item_operation(
         Ok(content) => content,
         Err(e) => {
             plain_issues.push(
-                FatalStreamIssue {
-                    resource,
-                    description: StyledString::Text(format!("{}", PrettyPrintError(&e)).into())
+                PlainIssue::from_issue(
+                    ResolvedVc::upcast(
+                        FatalStreamIssue {
+                            resource,
+                            description: StyledString::Text(
+                                format!("{}", PrettyPrintError(&e)).into(),
+                            )
+                            .resolved_cell(),
+                        }
                         .resolved_cell(),
-                }
-                .cell()
-                .into_plain(OptionIssueProcessingPathItems::none())
+                    ),
+                    Vec::new(),
+                    OptionIssueProcessingPathItems::none(),
+                )
                 .await?,
             );
 
@@ -360,7 +367,8 @@ pub enum UpdateStreamItem {
     NotFound,
     Found {
         update: ReadRef<Update>,
-        issues: Vec<ReadRef<PlainIssue>>,
+        #[turbo_tasks(trace_ignore)]
+        issues: Vec<PlainIssue>,
     },
 }
 

@@ -17,3 +17,7 @@ error - [code gen] [project]/turbopack/crates/turbopack-tests/tests/snapshot/imp
            |                          ^
          4 |   }
          5 | }
+  
+  Example import trace:
+    ./turbopack/crates/turbopack-tests/tests/snapshot/imports/json/input/invalid.json
+    ./turbopack/crates/turbopack-tests/tests/snapshot/imports/json/input/index.js [test] [entrypoint]

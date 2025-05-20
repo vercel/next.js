@@ -11,3 +11,8 @@
        8 | child_process.spawnSync('node', [unknown, unknown])
        9 | 
       10 | require(unknown)
+  
+  
+  
+  Example import trace:
+    ./turbopack/crates/turbopack-tests/tests/snapshot/dynamic-request/very-dynamic/input/index.js [test] [entrypoint]

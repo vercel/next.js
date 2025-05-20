@@ -10,3 +10,6 @@
       18 | 
   
   - *0* import.meta: The import.meta object
+  
+  Example import trace:
+    ./turbopack/crates/turbopack-tests/tests/snapshot/dynamic-request/very-dynamic/input/index.js [test] [entrypoint]

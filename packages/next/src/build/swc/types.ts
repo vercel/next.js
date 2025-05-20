@@ -95,6 +95,14 @@ export interface Issue {
     }
   }
   documentationLink: string
+  importTraces?: PlainTraceItem[][]
+}
+export interface PlainTraceItem {
+  fsName: string
+  isSynthetic: boolean
+  path: string
+  rootPath: string
+  layer?: string
 }
 
 export interface Diagnostics {

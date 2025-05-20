@@ -425,7 +425,10 @@ describe('react-dom/server in React Server environment', () => {
          6 |
 
        You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
-       Learn more: https://nextjs.org/docs/app/building-your-application/rendering",
+       Learn more: https://nextjs.org/docs/app/building-your-application/rendering
+
+       Example import trace:
+         ./app/exports/app-code/react-dom-server-node-implicit/page.js [app-rsc] [entrypoint]",
        }
       `)
     } else if (isRspack) {

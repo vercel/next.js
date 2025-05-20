@@ -62,7 +62,17 @@ describe('Error Overlay for server components compiler errors in pages', () => {
          3 | export default function Page() {
          4 |   return <p>hello world</p>
 
-       You're importing a component that needs "next/headers". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components"
+       You're importing a component that needs "next/headers". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+
+       Example import traces:
+         #1:
+           ./components/Comp.js [ssr]
+           ./pages/index.js [ssr] [entrypoint]
+
+         #2:
+           ./components/Comp.js [client]
+           ./pages/index.js [client]
+           ./pages/index [entrypoint]"
       `)
     } else if (isRspack) {
       expect(
@@ -138,7 +148,17 @@ describe('Error Overlay for server components compiler errors in pages', () => {
          3 | export default function Page() {
          4 |   return 'hello world'
 
-       You're importing a component that needs "server-only". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components"
+       You're importing a component that needs "server-only". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+
+       Example import traces:
+         #1:
+           ./components/Comp.js [ssr]
+           ./pages/index.js [ssr] [entrypoint]
+
+         #2:
+           ./components/Comp.js [client]
+           ./pages/index.js [client]
+           ./pages/index [entrypoint]"
       `)
     } else if (isRspack) {
       expect(
@@ -216,7 +236,17 @@ describe('Error Overlay for server components compiler errors in pages', () => {
          3 | export default function Page() {
          4 |   return 'hello world'
 
-       You're importing a component that needs "after". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components"
+       You're importing a component that needs "after". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+
+       Example import traces:
+         #1:
+           ./components/Comp.js [ssr]
+           ./pages/index.js [ssr] [entrypoint]
+
+         #2:
+           ./components/Comp.js [client]
+           ./pages/index.js [client]
+           ./pages/index [entrypoint]"
       `)
     } else if (isRspack) {
       expect(

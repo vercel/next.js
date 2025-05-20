@@ -14,4 +14,6 @@ error - [resolve] [project]/turbopack/crates/turbopack-tests/tests/snapshot/impo
   | Parsed request as written in source code: module "does-not-exist" with subpath '/path'
   | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/resolve_error_esm/input/index.js
   | Type of request: EcmaScript Modules request
-  |
+  | 
+  Example import trace:
+    ./turbopack/crates/turbopack-tests/tests/snapshot/imports/resolve_error_esm/input/index.js [test] [entrypoint]

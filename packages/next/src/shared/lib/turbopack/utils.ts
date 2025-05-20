@@ -1,5 +1,6 @@
 import type {
   Issue,
+  PlainTraceItem,
   StyledString,
   TurbopackResult,
 } from '../../../build/swc/types'
@@ -129,9 +130,9 @@ export function processIssues(
 }
 
 export function formatIssue(issue: Issue) {
-  const { filePath, title, description, source } = issue
+  const { filePath, title, description, source, importTraces } = issue
   let { documentationLink } = issue
-  let formattedTitle = renderStyledStringToErrorAnsi(title).replace(
+  const formattedTitle = renderStyledStringToErrorAnsi(title).replace(
     /\n/g,
     '\n    '
   )
@@ -144,14 +145,14 @@ export function formatIssue(issue: Issue) {
     documentationLink = 'https://nextjs.org/docs/messages/module-not-found'
   }
 
-  let formattedFilePath = filePath
+  const formattedFilePath = filePath
     .replace('[project]/', './')
     .replaceAll('/./', '/')
     .replace('\\\\?\\', '')
 
   let message = ''
 
-  if (source && source.range) {
+  if (source?.range) {
     const { start } = source.range
     message = `${formattedFilePath}:${start.line + 1}:${
       start.column + 1
@@ -208,13 +209,47 @@ export function formatIssue(issue: Issue) {
   //   message += renderStyledStringToErrorAnsi(detail) + '\n\n'
   // }
 
-  // TODO: Include a trace from the issue.
-
+  if (importTraces?.length) {
+    // This is the same logic as in turbopack/crates/turbopack-cli-utils/src/issue.rs
+    if (importTraces.length > 1) {
+      // We end up with multiple traces when the file with the error is reachable from multiple different entry points (e.g. ssr, client)
+      message += 'Example import traces:\n'
+      for (let i = 0; i < importTraces.length; i++) {
+        message += `  #${i + 1}:\n${formatIssueTraceItems(importTraces[i], '    ')}\n\n`
+      }
+    } else {
+      message += `Example import trace:\n${formatIssueTraceItems(importTraces[0], '  ')}\n\n`
+    }
+  }
   if (documentationLink) {
     message += documentationLink + '\n\n'
   }
 
   return message
+}
+function formatIssueTraceItems(
+  items: PlainTraceItem[],
+  indent: string
+): string {
+  return items
+    .map((item, index, array) => {
+      let r = indent
+      if (item.fsName !== 'project') {
+        r += `[${item.fsName}]`
+      } else {
+        // This is consistent with webpack's output
+        r += './'
+      }
+      r += item.path
+      if (item.layer) {
+        r += ` [${item.layer}]`
+      }
+      if (index === array.length - 1) {
+        r += ' [entrypoint]'
+      }
+      return r
+    })
+    .join('\n')
 }
 
 export function isRelevantWarning(issue: Issue): boolean {

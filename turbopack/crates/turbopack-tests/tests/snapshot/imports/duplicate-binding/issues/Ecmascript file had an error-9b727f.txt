@@ -9,3 +9,6 @@ error - [analysis] [project]/turbopack/crates/turbopack-tests/tests/snapshot/imp
        6 | 
   
   the name `Table` is defined multiple times
+  
+  Example import trace:
+    ./turbopack/crates/turbopack-tests/tests/snapshot/imports/duplicate-binding/input/index.js [test] [entrypoint]

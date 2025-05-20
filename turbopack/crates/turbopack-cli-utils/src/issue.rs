@@ -12,11 +12,11 @@ use anyhow::{Result, anyhow};
 use crossterm::style::{StyledContent, Stylize};
 use owo_colors::{OwoColorize as _, Style};
 use rustc_hash::{FxHashMap, FxHashSet};
-use turbo_tasks::{RawVc, ReadRef, TransientInstance, TransientValue, TryJoinIterExt, Vc};
+use turbo_tasks::{RawVc, ReadRef, TransientInstance, TransientValue, Vc};
 use turbo_tasks_fs::{FileLinesContent, source_context::get_source_context};
 use turbopack_core::issue::{
-    CapturedIssues, Issue, IssueReporter, IssueSeverity, PlainIssue, PlainIssueProcessingPathItem,
-    PlainIssueSource, StyledString,
+    CapturedIssues, IssueReporter, IssueSeverity, PlainIssue, PlainIssueProcessingPathItem,
+    PlainIssueSource, PlainTraceItem, StyledString,
 };
 
 use crate::source_context::format_source_context_lines;
@@ -141,7 +141,7 @@ pub fn format_issue(
         .replace("[project]", &current_dir.to_string_lossy())
         .replace("/./", "/")
         .replace("\\\\?\\", "");
-    let stgae = plain_issue.stage.to_string();
+    let stage = plain_issue.stage.to_string();
 
     let mut styled_issue = style_issue_source(plain_issue, &context_path);
     let description = &plain_issue.description;
@@ -170,12 +170,56 @@ pub fn format_issue(
             writeln!(styled_issue, "{path}").unwrap();
         }
     }
+    let traces = &*plain_issue.import_traces;
+    if !traces.is_empty() {
+        fn format_trace_items(out: &mut String, indent: &'static str, items: &[PlainTraceItem]) {
+            let mut it = items.iter().peekable();
+            while let Some(item) = it.next() {
+                out.push_str(indent);
+                // We want to format the filepath but with a few caveats
+                // - if it is part of the `[project]` filesystem, omit the fs name
+                // - format the label at the end
+                // - if it is the last item add the special marker `[entrypoint]` to help clarify
+                //   that this is an application entry point
+                // TODO(lukesandberg): some formatting could be useful. We could use colors,
+                // bold/faint, links?
+                if item.fs_name != "project" {
+                    out.push('[');
+                    out.push_str(&item.fs_name);
+                    out.push(']');
+                } else {
+                    // This is consistent with webpack's output
+                    out.push_str("./");
+                }
+                out.push_str(&item.path);
+                if let Some(ref label) = item.layer {
+                    out.push_str(" [");
+                    out.push_str(label);
+                    out.push(']');
+                }
+                if it.peek().is_none() {
+                    out.push_str(" [entrypoint]");
+                }
+                out.push('\n');
+            }
+        }
+        if traces.len() == 1 {
+            writeln!(styled_issue, "Example import trace:").unwrap();
+            format_trace_items(&mut styled_issue, "  ", &traces[0]);
+        } else {
+            styled_issue.push_str("Example import traces:\n");
+            for (index, trace) in traces.iter().enumerate() {
+                writeln!(styled_issue, "#{}:", index + 1).unwrap();
+                format_trace_items(&mut styled_issue, "    ", trace);
+            }
+        }
+    }
 
     write!(
         issue_text,
         "{} - [{}] {}",
         severity.style(severity_to_style(severity)),
-        stgae,
+        stage,
         plain_issue.file_path
     )
     .unwrap();
@@ -354,15 +398,14 @@ impl IssueReporter for ConsoleUi {
         } = self.options;
         let mut grouped_issues: GroupedIssues = FxHashMap::default();
 
-        let issues = issues
-            .iter_with_shortest_path()
-            .map(|(issue, path)| async move {
-                let plain_issue = issue.into_plain(path);
-                let id = plain_issue.internal_hash(false).await?;
-                Ok((plain_issue.await?, *id))
+        let plain_issues = issues.get_plain_issues().await?;
+        let issues = plain_issues
+            .iter()
+            .map(|plain_issue| {
+                let id = plain_issue.internal_hash_ref(false);
+                (plain_issue, id)
             })
-            .try_join()
-            .await?;
+            .collect::<Vec<_>>();
 
         let issue_ids = issues.iter().map(|(_, id)| *id).collect::<FxHashSet<_>>();
         let mut new_ids = self
@@ -390,7 +433,7 @@ impl IssueReporter for ConsoleUi {
             let category_map = severity_map.entry(stage.clone()).or_default();
             let issues = category_map.entry(context_path.to_string()).or_default();
 
-            let mut styled_issue = style_issue_source(&plain_issue, &context_path);
+            let mut styled_issue = style_issue_source(plain_issue, &context_path);
             let description = &plain_issue.description;
             if let Some(description) = description {
                 writeln!(

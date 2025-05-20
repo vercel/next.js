@@ -264,7 +264,7 @@ pub fn root_task_dispose(
     Ok(())
 }
 
-pub async fn get_issues<T: Send>(source: OperationVc<T>) -> Result<Arc<Vec<ReadRef<PlainIssue>>>> {
+pub async fn get_issues<T: Send>(source: OperationVc<T>) -> Result<Arc<Vec<PlainIssue>>> {
     let issues = source.peek_issues_with_path().await?;
     Ok(Arc::new(issues.get_plain_issues().await?))
 }
@@ -299,6 +299,7 @@ pub struct NapiIssue {
     pub detail: Option<serde_json::Value>,
     pub source: Option<NapiIssueSource>,
     pub documentation_link: String,
+    pub import_traces: serde_json::Value,
 }
 
 impl From<&PlainIssue> for NapiIssue {
@@ -318,6 +319,7 @@ impl From<&PlainIssue> for NapiIssue {
             severity: issue.severity.as_str().to_string(),
             source: issue.source.as_ref().map(|source| source.into()),
             title: serde_json::to_value(StyledStringSerialize::from(&issue.title)).unwrap(),
+            import_traces: serde_json::to_value(&issue.import_traces).unwrap(),
         }
     }
 }
@@ -525,7 +527,7 @@ pub async fn strongly_consistent_catch_collectables<R: VcValueType + Send>(
     source_op: OperationVc<R>,
 ) -> Result<(
     Option<ReadRef<R>>,
-    Arc<Vec<ReadRef<PlainIssue>>>,
+    Arc<Vec<PlainIssue>>,
     Arc<Vec<ReadRef<PlainDiagnostic>>>,
     Arc<Effects>,
 )> {
