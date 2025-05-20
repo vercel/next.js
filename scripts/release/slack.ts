@@ -13,7 +13,7 @@ async function slack() {
   const message =
     process.env.RELEASE_STATUS === 'true'
       ? `Successfully published a new release!\n<https://github.com/vercel/next.js/releases|Releases Link>`
-      : `Failed to publish a new release.\n<${workflowLink}|Workflow Link>`
+      : `Failed to publish a new release triggered by "${process.env.WORKFLOW_ACTOR}". @nextjs-oncall\n<${workflowLink}|Workflow Link>`
 
   const slackClient = new WebClient(process.env.SLACK_TOKEN)
   const res = await slackClient.chat.postMessage({

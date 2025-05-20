@@ -626,6 +626,7 @@ jobs:
           SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
           RELEASE_STATUS: ${{ steps.changesets.outputs.published }}
           WORKFLOW_LINK: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          WORKFLOW_ACTOR: ${{ github.actor }}
 
       - name: Upload npm log artifact
         if: steps.changesets.outputs.published == 'true'
