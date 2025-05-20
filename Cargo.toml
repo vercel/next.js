@@ -22,6 +22,10 @@ exclude = [
 [workspace.lints.clippy]
 too_many_arguments = "allow"
 
+[workspace.lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(fuzzing)']}
+
+
 # This crate is particularly sensitive to compiler optimizations
 [profile.dev.package.turbo-persistence]
 opt-level = 1

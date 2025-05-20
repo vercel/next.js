@@ -612,7 +612,13 @@ pub struct Storage {
 
 impl Storage {
     pub fn new() -> Self {
+        #[cfg(fuzzing)]
+        const MAP_CAPACITY: usize = 1024;
+        #[cfg(not(fuzzing))]
         const MAP_CAPACITY: usize = 1024 * 1024;
+        #[cfg(fuzzing)]
+        const SHARD_FACTOR: usize = 4;
+        #[cfg(not(fuzzing))]
         const SHARD_FACTOR: usize = 64;
 
         let shard_amount =
