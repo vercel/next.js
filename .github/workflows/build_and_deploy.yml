@@ -618,7 +618,15 @@ jobs:
         if: steps.changesets.outputs.pullRequestNumber
         run: 'gh pr edit ${{ steps.changesets.outputs.pullRequestNumber }} --add-label "created-by: CI"'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }
+
+      - name: Send a Slack notification of the publish status
+        if: steps.changesets.outputs.published == 'true'
+        run: pnpm tsx scripts/release/slack.ts
+        env:
+          SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
+          RELEASE_STATUS: ${{ steps.changesets.outputs.published }}
+          WORKFLOW_LINK: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
       - name: Upload npm log artifact
         if: steps.changesets.outputs.published == 'true'
