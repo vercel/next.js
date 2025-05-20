@@ -15648,10 +15648,11 @@
     "runtimeError": false
   },
   "test/integration/next-dynamic/test/index.test.js": {
-    "passed": ["next/dynamic production mode should render server value"],
-    "failed": [
+    "passed": [
+      "next/dynamic production mode should render server value",
       "next/dynamic production mode should render dynamic server rendered values on client mount"
     ],
+    "failed": [],
     "pending": [
       "next/dynamic development mode should render dynamic server rendered values on client mount",
       "next/dynamic development mode should render server value"
