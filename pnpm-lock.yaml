@@ -1775,6 +1775,9 @@ importers:
       webpack-cli:
         specifier: 6.0.1
         version: 6.0.1(webpack-bundle-analyzer@4.7.0)(webpack-dev-server@5.2.0(webpack@5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.15))))(webpack@5.98.0)
+      webpack-node-externals:
+        specifier: 3.0.0
+        version: 3.0.0
 
   turbopack/crates/turbopack-tests/tests/execution:
     dependencies:
@@ -16548,6 +16551,10 @@ packages:
   webpack-merge@6.0.1:
     resolution: {integrity: sha512-hXXvrjtx2PLYx4qruKl+kyRSLc52V+cCvMxRjmKwoA+CBbbF5GfIBtR6kCvl0fYGqTUPKB+1ktVmTHqMOzgCBg==}
     engines: {node: '>=18.0.0'}
+
+  webpack-node-externals@3.0.0:
+    resolution: {integrity: sha512-LnL6Z3GGDPht/AigwRh2dvL9PQPFQ8skEpVrWZXLWBYmqcaojHNN0onvHzie6rq7EWKrrBfPYqNEzTJgiwEQDQ==}
+    engines: {node: '>=6'}
 
   webpack-sources@1.4.3:
     resolution: {integrity: sha512-lgTS3Xhv1lCOKo7SA5TjKXMjpSM4sBjNV5+q2bqesbSPs5FjGmU6jjtBSkX9b4qW87vDIsCIlUPOEhbZrMdjeQ==}
@@ -35259,6 +35266,8 @@ snapshots:
       clone-deep: 4.0.1
       flat: 5.0.2
       wildcard: 2.0.1
+
+  webpack-node-externals@3.0.0: {}
 
   webpack-sources@1.4.3:
     dependencies:
