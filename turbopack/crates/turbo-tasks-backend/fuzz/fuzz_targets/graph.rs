@@ -63,7 +63,6 @@ fuzz_target!(|data: Vec<TaskSpec>| {
     ));
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
-        .worker_threads(1)
         .on_thread_stop(|| {
             TurboMalloc::thread_stop();
         })
