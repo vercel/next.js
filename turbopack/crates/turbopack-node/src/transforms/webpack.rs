@@ -189,7 +189,7 @@ async fn webpack_loaders_executor(
 ) -> Result<Vc<ProcessResult>> {
     Ok(evaluate_context.process(
         Vc::upcast(FileSource::new(embed_file_path(
-            "transforms/webpack-loaders.ts".into(),
+            "dist/webpack-loaders.js".into(),
         ))),
         Value::new(ReferenceType::Internal(
             InnerAssets::empty().to_resolved().await?,

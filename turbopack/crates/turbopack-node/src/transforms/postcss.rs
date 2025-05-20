@@ -410,9 +410,7 @@ async fn postcss_executor(
         .await?;
 
     Ok(asset_context.process(
-        Vc::upcast(FileSource::new(embed_file_path(
-            "transforms/postcss.ts".into(),
-        ))),
+        Vc::upcast(FileSource::new(embed_file_path("dist/postcss.js".into()))),
         Value::new(ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
             "CONFIG".into() => config_asset
         }))),
