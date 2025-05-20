@@ -212,6 +212,7 @@ describe('next.rs api', () => {
       },
       dev: true,
       defineEnv: createDefineEnv({
+        projectPath: next.testDir,
         isTurbopack: true,
         clientRouterFilters: undefined,
         config: nextConfig,

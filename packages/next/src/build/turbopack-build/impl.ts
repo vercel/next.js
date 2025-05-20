@@ -70,6 +70,7 @@ export async function turbopackBuild(): Promise<{
         config,
         dev,
         distDir,
+        projectPath: dir,
         fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
         hasRewrites,
         // Implemented separately in Turbopack, doesn't have to be passed here.

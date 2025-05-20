@@ -574,6 +574,10 @@ export interface ExperimentalConfig {
    * @internal Used by the Next.js internals only.
    */
   trustHostHeader?: boolean
+  /**
+   * @internal Used by the Next.js internals only.
+   */
+  isExperimentalCompile?: boolean
 
   useWasmBinary?: boolean
 
