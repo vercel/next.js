@@ -97,7 +97,7 @@ async fn emit_evaluate_pool_assets_operation(
     let runtime_asset = asset_context
         .process(
             Vc::upcast(FileSource::new(embed_file_path(
-                "dist/ipc-evaluate.js".into(),
+                "out/ipc-evaluate.js".into(),
             ))),
             Value::new(ReferenceType::Internal(
                 InnerAssets::empty().to_resolved().await?,
@@ -137,7 +137,7 @@ async fn emit_evaluate_pool_assets_operation(
     let runtime_entries = {
         let globals_module = asset_context
             .process(
-                Vc::upcast(FileSource::new(embed_file_path("dist/globals.js".into()))),
+                Vc::upcast(FileSource::new(embed_file_path("out/globals.js".into()))),
                 Value::new(ReferenceType::Internal(
                     InnerAssets::empty().to_resolved().await?,
                 )),

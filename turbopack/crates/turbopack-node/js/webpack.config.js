@@ -10,7 +10,7 @@ module.exports = {
     globals: './src/globals.ts',
   },
   output: {
-    path: path.resolve(__dirname, 'src', 'dist'),
+    path: path.resolve(__dirname, 'src', 'out'),
     filename: '[name].js',
     module: true,
     library: {
