@@ -72,6 +72,31 @@ describe('empty-fallback-shells', () => {
           }
         })
       })
+
+      describe('and params.then/catch/finally passed to a cached function', () => {
+        it('resumes a postponed fallback shell', async () => {
+          const res = await next.fetch(
+            '/with-cached-io/with-suspense/params-then-in-page/bar'
+          )
+
+          const html = await res.text()
+          expect(html).toIncludeRepeated('data-testid="page-bar"', 4)
+
+          if (isNextDev) {
+            expect(html).toContain('layout-runtime')
+          } else {
+            expect(html).toContain('layout-buildtime')
+          }
+
+          if (isNextDeploy) {
+            expect(res.headers.get('x-matched-path')).toBe(
+              '/with-cached-io/with-suspense/params-then-in-page/[slug]'
+            )
+          } else if (isNextStart) {
+            expect(res.headers.get('x-nextjs-postponed')).toBe('1')
+          }
+        })
+      })
     })
 
     describe('and the page not wrapped in Suspense', () => {
