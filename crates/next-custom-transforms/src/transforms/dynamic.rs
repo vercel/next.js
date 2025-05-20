@@ -6,16 +6,16 @@ use std::{
 use pathdiff::diff_paths;
 use swc_core::{
     atoms::Atom,
-    common::{errors::HANDLER, FileName, Span, DUMMY_SP},
+    common::{DUMMY_SP, FileName, Span, errors::HANDLER},
     ecma::{
         ast::{
-            op, ArrayLit, ArrowExpr, BinExpr, BlockStmt, BlockStmtOrExpr, Bool, CallExpr, Callee,
-            Expr, ExprOrSpread, ExprStmt, Id, Ident, IdentName, ImportDecl, ImportNamedSpecifier,
+            ArrayLit, ArrowExpr, BinExpr, BlockStmt, BlockStmtOrExpr, Bool, CallExpr, Callee, Expr,
+            ExprOrSpread, ExprStmt, Id, Ident, IdentName, ImportDecl, ImportNamedSpecifier,
             ImportSpecifier, KeyValueProp, Lit, ModuleDecl, ModuleItem, ObjectLit, Pass, Prop,
-            PropName, PropOrSpread, Stmt, Str, Tpl, UnaryExpr, UnaryOp,
+            PropName, PropOrSpread, Stmt, Str, Tpl, UnaryExpr, UnaryOp, op,
         },
-        utils::{private_ident, quote_ident, ExprFactory},
-        visit::{fold_pass, Fold, FoldWith, VisitMut, VisitMutWith},
+        utils::{ExprFactory, private_ident, quote_ident},
+        visit::{Fold, FoldWith, VisitMut, VisitMutWith, fold_pass},
     },
     quote,
 };
@@ -256,7 +256,12 @@ impl Fold for NextDynamicPatcher {
                                     specifier: dynamically_imported_specifier.clone(),
                                 });
 
-                                module_id_options(Expr::Ident(id_ident))
+                                // Turn into string here to ensure that it matches the
+                                // react-loadable-manifest `id` property which is a string too.
+                                // These are used during hydration in Pages Router.
+                                module_id_options(
+                                    quote!("String($id)" as Expr, id: Ident = id_ident),
+                                )
                             }
                         },
                     }));
