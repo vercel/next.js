@@ -1,4 +1,5 @@
 const nodeExternals = require('webpack-node-externals')
+const path = require('path')
 
 module.exports = {
   mode: 'production',
@@ -9,6 +10,7 @@ module.exports = {
     globals: './src/globals.ts',
   },
   output: {
+    path: path.resolve(__dirname, 'src', 'dist'),
     filename: '[name].js',
     module: true,
     library: {
