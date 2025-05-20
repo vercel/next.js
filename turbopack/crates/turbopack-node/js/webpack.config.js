@@ -4,8 +4,9 @@ module.exports = {
   mode: 'production',
   entry: {
     postcss: './src/transforms/postcss.ts',
-    transforms: './src/transforms/transforms.ts',
     'webpack-loaders': './src/transforms/webpack-loaders.ts',
+    'ipc-evaluate': './src/ipc/evaluate.ts',
+    globals: './src/globals.ts',
   },
   output: {
     filename: '[name].js',
