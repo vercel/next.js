@@ -1763,6 +1763,12 @@ importers:
       '@types/node':
         specifier: 20.17.6
         version: 20.17.6
+      ts-loader:
+        specifier: 9.5.2
+        version: 9.5.2(typescript@5.8.2)(webpack@5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.15))(webpack-cli@6.0.1))
+      typescript:
+        specifier: 5.8.2
+        version: 5.8.2
       webpack:
         specifier: 5.98.0
         version: 5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.15))(webpack-cli@6.0.1)
@@ -15703,6 +15709,13 @@ packages:
     resolution: {integrity: sha512-q5W7tVM71e2xjHZTlgfTDoPF/SmqKG5hddq9SzR49CH2hayqRKJtQ4mtRlSxKaJlR/+9rEM+mnBHf7I2/BQcpQ==}
     engines: {node: '>=6.10'}
 
+  ts-loader@9.5.2:
+    resolution: {integrity: sha512-Qo4piXvOTWcMGIgRiuFa6nHNm+54HbYaZCKqc9eeZCLRy3XqafQgwX2F7mofrbJG3g7EEb+lkiR+z2Lic2s3Zw==}
+    engines: {node: '>=12.0.0'}
+    peerDependencies:
+      typescript: '*'
+      webpack: 5.98.0
+
   tsconfig-paths@3.15.0:
     resolution: {integrity: sha512-2Ac2RgzDe/cn48GvOe3M+o82pEFewD3UPbyoUHHdKasHwJKjds4fLXWf/Ux5kATBKN20oaFGu+jbElp1pos0mg==}
 
@@ -27951,7 +27964,7 @@ snapshots:
       jest-regex-util: 29.4.3
       jest-util: 29.7.0
       jest-worker: 29.7.0
-      micromatch: 4.0.5
+      micromatch: 4.0.8
       walker: 1.0.8
     optionalDependencies:
       fsevents: 2.3.3
@@ -34235,6 +34248,16 @@ snapshots:
     optional: true
 
   ts-dedent@2.2.0: {}
+
+  ts-loader@9.5.2(typescript@5.8.2)(webpack@5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.15))(webpack-cli@6.0.1)):
+    dependencies:
+      chalk: 4.1.2
+      enhanced-resolve: 5.17.1
+      micromatch: 4.0.8
+      semver: 7.6.3
+      source-map: 0.7.4
+      typescript: 5.8.2
+      webpack: 5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.15))(webpack-cli@6.0.1)
 
   tsconfig-paths@3.15.0:
     dependencies:
