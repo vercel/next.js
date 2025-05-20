@@ -256,12 +256,7 @@ impl Fold for NextDynamicPatcher {
                                     specifier: dynamically_imported_specifier.clone(),
                                 });
 
-                                // Turn into string here to ensure that it matches the
-                                // react-loadable-manifest `id` property which is a string too.
-                                // These are used during hydration in Pages Router.
-                                module_id_options(
-                                    quote!("String($id)" as Expr, id: Ident = id_ident),
-                                )
+                                module_id_options(Expr::Ident(id_ident))
                             }
                         },
                     }));
