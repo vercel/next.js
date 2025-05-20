@@ -4,6 +4,7 @@ declare const __turbopack_external_require__: (
   esm?: boolean
 ) => any
 
+// @ts-ignore
 import type { Processor } from 'postcss'
 
 // @ts-ignore
