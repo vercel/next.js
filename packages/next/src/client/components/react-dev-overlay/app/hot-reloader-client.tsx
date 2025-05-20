@@ -150,7 +150,7 @@ function tryApplyUpdatesWebpack(
   if (!isUpdateAvailable() || !canApplyUpdates()) {
     resolvePendingHotUpdateWebpack()
     dispatcher.onBuildOk()
-    reportHmrLatency(sendMessage, [], webpackStartMsSinceEpoch!, Date.now())
+    reportHmrLatency(sendMessage, [], webpackStartMsSinceEpoch, Date.now())
     return
   }
 
@@ -181,7 +181,7 @@ function tryApplyUpdatesWebpack(
     reportHmrLatency(
       sendMessage,
       updatedModules,
-      webpackStartMsSinceEpoch!,
+      webpackStartMsSinceEpoch,
       Date.now()
     )
 
