@@ -651,30 +651,30 @@ export function cache(
 
       // For page and layout components, the cache function is overwritten,
       // which allows us to apply special handling for params and searchParams.
-      // For pages and layouts we're using the original params prop, and not the
-      // serialized one. While it's not generally true for "use cache" args, in
-      // the case of `params` the serialized and original object are essentially
-      // equivalent, so this is safe to do (including fallback params that are
-      // hanging promises). It allows us to avoid waiting for the timeout, when
-      // prerendering a fallback shell of a cached page or layout that awaits
-      // params.
+      // For pages and layouts we're using the outer params prop, and not the
+      // inner one that was serialized/deserialized. While it's not generally
+      // true for "use cache" args, in the case of `params` the inner and outer
+      // object are essentially equivalent, so this is safe to do (including
+      // fallback params that are hanging promises). It allows us to avoid
+      // waiting for the timeout, when prerendering a fallback shell of a cached
+      // page or layout that awaits params.
       if (isPageComponent(args)) {
         isPageOrLayout = true
 
-        const [{ params, searchParams }] = args
+        const [{ params: outerParams, searchParams: outerSearchParams }] = args
         // Overwrite the props to omit $$isPageComponent.
-        args = [{ params, searchParams }]
+        args = [{ params: outerParams, searchParams: outerSearchParams }]
 
         fn = {
           [name]: async ({
-            params: _serializedParams,
-            searchParams: serializedSearchParams,
+            params: _innerParams,
+            searchParams: innerSearchParams,
           }: Omit<UseCachePageComponentProps, '$$isPageComponent'>) =>
             originalFn.apply(null, [
               {
-                params,
+                params: outerParams,
                 searchParams: workStore.dynamicIOEnabled
-                  ? serializedSearchParams
+                  ? innerSearchParams
                   : // When dynamicIO is not enabled, we can not encode
                     // searchParams as a hanging promise. To still avoid unused
                     // search params from making a page dynamic, we define them
@@ -690,16 +690,17 @@ export function cache(
       } else if (isLayoutComponent(args)) {
         isPageOrLayout = true
 
-        const [{ params, $$isLayoutComponent, ...slots }] = args
+        const [{ params: outerParams, $$isLayoutComponent, ...outerSlots }] =
+          args
         // Overwrite the props to omit $$isLayoutComponent.
-        args = [{ params, ...slots }]
+        args = [{ params: outerParams, ...outerSlots }]
 
         fn = {
           [name]: async ({
-            params: _serializedParams,
-            ...serializedSlots
+            params: _innerParams,
+            ...innerSlots
           }: Omit<UseCacheLayoutComponentProps, '$$isLayoutComponent'>) =>
-            originalFn.apply(null, [{ params, ...serializedSlots }]),
+            originalFn.apply(null, [{ params: outerParams, ...innerSlots }]),
         }[name] as (...args: unknown[]) => Promise<unknown>
       }
 
