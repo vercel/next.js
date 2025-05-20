@@ -2438,8 +2438,8 @@ fn retry_loop(mut f: impl FnMut() -> ControlFlow<()>) -> Result<()> {
         }
         yield_now();
         if let Some(t) = time {
-            if t.elapsed() > Duration::from_secs(2) {
-                bail!("Retry loop timed out, probably do to an graph invariant violation");
+            if t.elapsed() > Duration::from_secs(60) {
+                bail!("Retry loop timed out, probably due to an graph invariant violation");
             }
         } else {
             time = Some(Instant::now());
