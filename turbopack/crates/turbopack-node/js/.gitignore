@@ -1,1 +1,4 @@
 out/
+src/ipc/*.js
+src/transforms/*.js
+src/globals.js

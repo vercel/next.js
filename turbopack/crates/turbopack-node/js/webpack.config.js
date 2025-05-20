@@ -4,13 +4,13 @@ const path = require('path')
 module.exports = {
   mode: 'production',
   entry: {
-    postcss: './src/transforms/postcss.ts',
-    'webpack-loaders': './src/transforms/webpack-loaders.ts',
-    'ipc-evaluate': './src/ipc/evaluate.ts',
+    'transforms/postcss': './src/transforms/postcss.ts',
+    'transforms/webpack-loaders': './src/transforms/webpack-loaders.ts',
+    'ipc/evaluate': './src/ipc/evaluate.ts',
     globals: './src/globals.ts',
   },
   output: {
-    path: path.resolve(__dirname, 'src', 'out'),
+    path: path.resolve(__dirname, 'src'),
     filename: '[name].js',
     module: true,
     library: {
