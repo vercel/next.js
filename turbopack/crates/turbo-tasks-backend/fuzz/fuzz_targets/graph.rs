@@ -30,12 +30,20 @@ struct TasksSpec(Vec<TaskSpec>);
 fuzz_target!(|data: Vec<TaskSpec>| {
     let mut data = data;
     let len = data.len();
+    if len == 0 {
+        return;
+    }
     for (i, task) in data.iter_mut().enumerate() {
         for reference in task.references.iter_mut() {
-            reference.task = (i + 1 + (reference.task as usize % (len - i))) as u16;
+            let task = reference.task as usize;
+            if task <= i {
+                return;
+            }
+            if task >= len {
+                return;
+            }
         }
     }
-    data.push(TaskSpec { references: vec![] });
     register();
     let tt = TurboTasks::new(turbo_tasks_backend::TurboTasksBackend::new(
         turbo_tasks_backend::BackendOptions {
