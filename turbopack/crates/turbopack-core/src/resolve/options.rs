@@ -557,7 +557,7 @@ impl ResolvedMap {
         for (root, glob, mapping) in self.by_glob.iter() {
             let root = root.await?;
             if let Some(path) = root.get_path_to(&resolved) {
-                if glob.await?.execute(path) {
+                if glob.await?.matches(path) {
                     return Ok(import_mapping_to_result(
                         *mapping.convert().await?,
                         lookup_path,

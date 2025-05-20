@@ -9736,6 +9736,7 @@ dependencies = [
  "notify",
  "parking_lot",
  "rayon",
+ "regex",
  "rstest",
  "rustc-hash 2.1.1",
  "serde",
