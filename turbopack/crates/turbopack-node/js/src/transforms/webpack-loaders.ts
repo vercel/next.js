@@ -3,7 +3,7 @@ declare const __turbopack_external_require__: {
 } & ((id: string, thunk: () => any, esm?: boolean) => any)
 
 import type { Ipc } from '../ipc/evaluate'
-import { dirname, resolve as pathResolve } from 'path'
+import { dirname, resolve as pathResolve } from 'node:path'
 import {
   StackFrame,
   parse as parseStackTrace,

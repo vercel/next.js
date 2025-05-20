@@ -3,7 +3,7 @@
  */
 
 import type { Ipc } from '../ipc/evaluate'
-import { relative, isAbsolute, join, sep } from 'path'
+import { relative, isAbsolute, join, sep } from 'node:path'
 import { type StructuredError } from '../ipc'
 import { type StackFrame } from '../compiled/stacktrace-parser'
 
