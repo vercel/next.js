@@ -612,8 +612,12 @@ pub struct Storage {
 
 impl Storage {
     pub fn new() -> Self {
+        const MAP_CAPACITY: usize = 1024 * 1024;
+        const SHARD_FACTOR: usize = 64;
+
         let shard_amount =
-            (available_parallelism().map_or(4, |v| v.get()) * 64).next_power_of_two();
+            (available_parallelism().map_or(4, |v| v.get()) * SHARD_FACTOR).next_power_of_two();
+
         Self {
             snapshot_mode: AtomicBool::new(false),
             modified: FxDashMap::with_capacity_and_hasher_and_shard_amount(
@@ -622,7 +626,7 @@ impl Storage {
                 shard_amount,
             ),
             map: FxDashMap::with_capacity_and_hasher_and_shard_amount(
-                1024 * 1024,
+                MAP_CAPACITY,
                 Default::default(),
                 shard_amount,
             ),
