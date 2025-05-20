@@ -9210,6 +9210,7 @@ dependencies = [
  "anyhow",
  "arbitrary",
  "libfuzzer-sys",
+ "once_cell",
  "serde",
  "tokio",
  "turbo-tasks",

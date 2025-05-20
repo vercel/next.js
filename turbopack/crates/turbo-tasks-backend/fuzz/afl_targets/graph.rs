@@ -2,7 +2,7 @@
 
 use afl::fuzz;
 
-use crate::graph::{TaskSpec, run};
+use crate::graph::{TaskSpec, init, run};
 
 #[path = "../src/graph.rs"]
 mod graph;
@@ -14,6 +14,7 @@ mod graph;
 
 fn main() {
     register();
+    init();
     fuzz!(|data: Vec<TaskSpec>| {
         run(data);
     });
