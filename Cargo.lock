@@ -34,6 +34,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "512761e0bb2578dd7380c6baaa0f4ce03e84f95e960231d1dec8bf4d7d6e2627"
 
 [[package]]
+name = "afl"
+version = "0.15.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eda81c043843d2eeb489c3f30774953326fa043b7a6470d4c2ad7c3cdfd9847b"
+dependencies = [
+ "home",
+ "libc",
+ "rustc_version",
+ "xdg",
+]
+
+[[package]]
 name = "ahash"
 version = "0.7.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9194,6 +9206,7 @@ dependencies = [
 name = "turbo-tasks-backend-fuzz"
 version = "0.0.0"
 dependencies = [
+ "afl",
  "anyhow",
  "arbitrary",
  "libfuzzer-sys",
@@ -11494,6 +11507,12 @@ dependencies = [
  "linux-raw-sys 0.4.14",
  "rustix 0.38.41",
 ]
+
+[[package]]
+name = "xdg"
+version = "2.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "213b7324336b53d2414b2db8537e56544d981803139155afa84f76eeebb7a546"
 
 [[package]]
 name = "xtask"
