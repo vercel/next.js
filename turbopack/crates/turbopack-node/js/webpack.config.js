@@ -7,6 +7,7 @@ module.exports = {
   },
   output: {
     filename: '[name].bundle.js',
+    module: true,
   },
   module: {
     rules: [
@@ -26,5 +27,8 @@ module.exports = {
     },
   },
   target: 'node',
-  externals: /^(node:|next\/dist|\$)$/i,
+  externals: /^(node:|@vercel\/turbopack\/|\$)$/i,
+  experiments: {
+    outputModule: true,
+  },
 }
