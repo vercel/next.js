@@ -596,7 +596,6 @@ export default abstract class Server<
           ? publicRuntimeConfig
           : undefined,
 
-      // @ts-expect-error internal field not publicly exposed
       isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
       // `htmlLimitedBots` is passed to server as serialized config in string format
       htmlLimitedBots: this.nextConfig.htmlLimitedBots,
@@ -2733,55 +2732,101 @@ export default abstract class Server<
           }
 
           if (isPagesRouteModule(routeModule)) {
-            // Due to the way we pass data by mutating `renderOpts`, we can't extend
-            // the object here but only updating its `clientReferenceManifest` and
-            // `nextFontManifest` properties.
-            // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
-            renderOpts.nextFontManifest = this.nextFontManifest
-            renderOpts.clientReferenceManifest =
-              components.clientReferenceManifest
-
             const request = isNodeNextRequest(req) ? req.originalRequest : req
+
             const response = isNodeNextResponse(res)
               ? res.originalResponse
               : res
 
-            // Call the built-in render method on the module.
-            try {
-              result = await routeModule.render(
-                request as any,
-                response as any,
-                {
-                  page: pathname,
-                  params: opts.params,
-                  query,
-                  renderOpts,
-                  sharedContext: {
-                    buildId: this.buildId,
-                    deploymentId: this.nextConfig.deploymentId,
-                    customServer: this.serverOptions.customServer || undefined,
-                  },
-                  renderContext: {
-                    isFallback: pagesFallback,
-                    isDraftMode: renderOpts.isDraftMode,
-                    developmentNotFoundSourcePage: getRequestMeta(
-                      req,
-                      'developmentNotFoundSourcePage'
-                    ),
-                  },
-                }
+            if (
+              components.ComponentMod.handler &&
+              process.env.NEXT_RUNTIME !== 'edge'
+            ) {
+              const parsedInitUrl = parseUrl(
+                getRequestMeta(req, 'initURL') || req.url
               )
-            } catch (err) {
-              await this.instrumentationOnRequestError(err, req, {
-                routerKind: 'Pages Router',
-                routePath: pathname,
-                routeType: 'render',
-                revalidateReason: getRevalidateReason({
-                  isRevalidate: isSSG,
-                  isOnDemandRevalidate: renderOpts.isOnDemandRevalidate,
-                }),
+              request.url =
+                req.url = `${parsedInitUrl.pathname}${parsedInitUrl.search || ''}`
+
+              // propagate the request context for dev
+              setRequestMeta(request, getRequestMeta(req))
+              addRequestMeta(request, 'projectDir', this.dir)
+              addRequestMeta(request, 'isIsrFallback', pagesFallback)
+              addRequestMeta(request, 'query', query)
+              addRequestMeta(request, 'params', opts.params)
+              addRequestMeta(
+                request,
+                'ampValidator',
+                this.renderOpts.ampValidator
+              )
+
+              if (renderOpts.err) {
+                addRequestMeta(request, 'invokeError', renderOpts.err)
+              }
+              const handler: (
+                req: ServerRequest | IncomingMessage,
+                res: ServerResponse | HTTPServerResponse,
+                ctx: {
+                  waitUntil: ReturnType<Server['getWaitUntil']>
+                }
+              ) => Promise<RenderResult> = components.ComponentMod.handler
+
+              result = await handler(request, response, {
+                waitUntil: this.getWaitUntil(),
               })
-              throw err
+
+              if (!result) {
+                throw new Error(
+                  `Invariant: missing result from invoking ${pathname} handler`
+                )
+              }
+            } else {
+              // Due to the way we pass data by mutating `renderOpts`, we can't extend
+              // the object here but only updating its `clientReferenceManifest` and
+              // `nextFontManifest` properties.
+              // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
+              renderOpts.nextFontManifest = this.nextFontManifest
+              renderOpts.clientReferenceManifest =
+                components.clientReferenceManifest
+
+              // Call the built-in render method on the module.
+              try {
+                result = await routeModule.render(
+                  request as any,
+                  response as any,
+                  {
+                    page: pathname,
+                    params: opts.params,
+                    query,
+                    renderOpts,
+                    sharedContext: {
+                      buildId: this.buildId,
+                      deploymentId: this.nextConfig.deploymentId,
+                      customServer:
+                        this.serverOptions.customServer || undefined,
+                    },
+                    renderContext: {
+                      isFallback: pagesFallback,
+                      isDraftMode: renderOpts.isDraftMode,
+                      developmentNotFoundSourcePage: getRequestMeta(
+                        req,
+                        'developmentNotFoundSourcePage'
+                      ),
+                    },
+                  }
+                )
+              } catch (err) {
+                await this.instrumentationOnRequestError(err, req, {
+                  routerKind: 'Pages Router',
+                  routePath: pathname,
+                  routeType: 'render',
+                  revalidateReason: getRevalidateReason({
+                    isRevalidate: isSSG,
+                    isOnDemandRevalidate: renderOpts.isOnDemandRevalidate,
+                  }),
+                })
+                throw err
+              }
             }
           } else {
             const module = components.routeModule as AppPageRouteModule
@@ -3018,7 +3063,6 @@ export default abstract class Server<
       // When experimental compile is used, no pages have been prerendered,
       // so they should all be blocking.
 
-      // @ts-expect-error internal field
       if (this.nextConfig.experimental.isExperimentalCompile) {
         fallbackMode = FallbackMode.BLOCKING_STATIC_RENDER
       }

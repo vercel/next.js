@@ -227,6 +227,7 @@ export async function createHotReloaderTurbopack(
         config: nextConfig,
         dev,
         distDir,
+        projectPath,
         fetchCacheKeyPrefix: opts.nextConfig.experimental.fetchCacheKeyPrefix,
         hasRewrites,
         // TODO: Implement
