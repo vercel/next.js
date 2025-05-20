@@ -254,12 +254,23 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         let mut exposed_modules: FxHashSet<ResolvedVc<Box<dyn Module>>> =
             FxHashSet::with_capacity_and_hasher(module_merged_groups.len(), Default::default());
 
+        let mut visited = FxHashSet::default();
         module_graph
             .traverse_edges_from_entries_topological(
-                entries,
+                entries.iter().copied(),
                 &mut (),
-                |_, _, _| Ok(GraphTraversalAction::Continue),
-                |parent_info, node, _| {
+                |_, node, _| {
+                    // This is necessary to have the correct order with cycles: a `a -> b -> a`
+                    // graph would otherwise be visited as `b->a`, `a->b`,
+                    // leading to the list `a, b` which is not execution order.
+
+                    if visited.insert(node.module) {
+                        Ok(GraphTraversalAction::Continue)
+                    } else {
+                        Ok(GraphTraversalAction::Exclude)
+                    }
+                },
+                |_, node, _| {
                     let module = node.module;
 
                     if let Some(mergeable_module) =
@@ -273,6 +284,19 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                             .or_default()
                             .insert(mergeable_module);
                     }
+                },
+            )
+            .await?;
+
+        // TODO ideally this would be done in the previous traversal, but we need to traverse all
+        // edges here, which screws up the order for `lists`
+        module_graph
+            .traverse_edges_from_entries_topological(
+                entries,
+                &mut (),
+                |_, _, _| Ok(GraphTraversalAction::Continue),
+                |parent_info, node, _| {
+                    let module = node.module;
 
                     if parent_info.is_none_or(|(parent, r)| {
                         (module_merged_groups.get(&parent.module).unwrap()
