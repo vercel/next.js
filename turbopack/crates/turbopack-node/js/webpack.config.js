@@ -8,7 +8,7 @@ module.exports = {
     'webpack-loaders': './src/transforms/webpack-loaders.ts',
   },
   output: {
-    filename: '[name].bundle.js',
+    filename: '[name].js',
     module: true,
     library: {
       type: 'module',
