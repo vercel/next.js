@@ -16971,11 +16971,11 @@
     "runtimeError": false
   },
   "test/integration/production-browser-sourcemaps/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Production browser sourcemaps production mode Server support correctly generated the source map",
       "Production browser sourcemaps production mode Server support includes sourcemaps for all browser files"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
