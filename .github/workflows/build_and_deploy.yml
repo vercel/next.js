@@ -603,7 +603,7 @@ jobs:
 
       # New release process
       - name: Publish to NPM
-        id: publish-packages
+        id: changesets
         if: ${{ env.__NEW_RELEASE == 'true' }}
         uses: changesets/action@v1
         with:
@@ -622,7 +622,7 @@ jobs:
 
       - name: Upload npm log artifact
         uses: actions/upload-artifact@v4
-        if: always()
+        if: steps.changesets.outputs.published == 'true'
         with:
           name: npm-publish-logs
           path: /home/runner/.npm/_logs/*
