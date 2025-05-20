@@ -19,7 +19,12 @@ module.exports = {
   },
   resolve: {
     extensions: ['.tsx', '.ts', '.js'],
+    alias: {
+      '@vercel/turbopack/postcss': false,
+      '@vercel/turbopack/loader-runner': false,
+      CONFIG: false,
+    },
   },
   target: 'node',
-  externals: /^(node:|\$)$/i,
+  externals: /^(node:|next\/dist|\$)$/i,
 }
