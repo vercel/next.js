@@ -11,7 +11,7 @@ export type StructuredError = {
   cause: StructuredError | undefined
 }
 
-export function structuredError(e: unknown): StructuredError {
+export function structuredError(e: any): StructuredError {
   e = getProperError(e)
 
   return {

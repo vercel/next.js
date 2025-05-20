@@ -23,7 +23,7 @@
     "moduleResolution": "node",
 
     // emit
-    "noEmit": true,
+    // "noEmit": true,
     "stripInternal": true
   },
   "include": ["src"]
