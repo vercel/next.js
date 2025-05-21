@@ -1287,6 +1287,7 @@ impl AggregationUpdateQueue {
         #[cfg(feature = "trace_aggregation_update")]
         let _span = trace_span!("lost follower (n uppers)", uppers = upper_ids.len()).entered();
 
+        // see documentation of `retry_loop` for more information why this is needed
         let result = retry_loop(|| {
             let mut follower = ctx.task(
                 lost_follower_id,
@@ -1455,6 +1456,7 @@ impl AggregationUpdateQueue {
         )
         .entered();
 
+        // see documentation of `retry_loop` for more information why this is needed
         let result = retry_loop(|| {
             swap_retain(&mut lost_follower_ids, |&mut lost_follower_id| {
                 let mut follower = ctx.task(
