@@ -79,7 +79,10 @@ export interface RequestStore extends CommonWorkUnitStore {
  * to fill all caches.
  */
 export interface PrerenderStoreModern extends CommonWorkUnitStore {
-  type: 'prerender'
+  // In the future the prerender-client variant will get it's own type.
+  // prerender represents the RSC scope of the prerender.
+  // prerender-client represents the HTML scope of the prerender.
+  type: 'prerender' | 'prerender-client'
 
   /**
    * This signal is aborted when the React render is complete. (i.e. it is the same signal passed to react)
@@ -221,6 +224,7 @@ export function getExpectedRequestStore(
       return workUnitStore
 
     case 'prerender':
+    case 'prerender-client':
     case 'prerender-ppr':
     case 'prerender-legacy':
       // This should not happen because we should have checked it already.
@@ -255,6 +259,8 @@ export function getPrerenderResumeDataCache(
 ): PrerenderResumeDataCache | null {
   if (
     workUnitStore.type === 'prerender' ||
+    // TODO eliminate fetch caching in client scope and stop exposing this data cache during SSR
+    workUnitStore.type === 'prerender-client' ||
     workUnitStore.type === 'prerender-ppr'
   ) {
     return workUnitStore.prerenderResumeDataCache

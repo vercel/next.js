@@ -1223,7 +1223,9 @@ async function renderToHTMLOrFlightImpl(
       const workUnitStore = workUnitAsyncStorage.getStore()
       return !!(
         workUnitStore &&
-        (workUnitStore.type === 'prerender' || workUnitStore.type === 'cache')
+        (workUnitStore.type === 'prerender' ||
+          workUnitStore.type === 'prerender-client' ||
+          workUnitStore.type === 'cache')
       )
     }
 
@@ -2398,7 +2400,7 @@ async function spawnDynamicValidationInDev(
   if (initialServerResult) {
     const initialClientController = new AbortController()
     const initialClientPrerenderStore: PrerenderStore = {
-      type: 'prerender',
+      type: 'prerender-client',
       phase: 'render',
       rootParams,
       implicitTags,
@@ -2546,7 +2548,7 @@ async function spawnDynamicValidationInDev(
   )
   const finalClientController = new AbortController()
   const finalClientPrerenderStore: PrerenderStore = {
-    type: 'prerender',
+    type: 'prerender-client',
     phase: 'render',
     rootParams,
     implicitTags,
@@ -2997,7 +2999,7 @@ async function prerenderToStream(
       if (initialServerResult) {
         const initialClientController = new AbortController()
         const initialClientPrerenderStore: PrerenderStore = {
-          type: 'prerender',
+          type: 'prerender-client',
           phase: 'render',
           rootParams,
           implicitTags,
@@ -3153,7 +3155,7 @@ async function prerenderToStream(
       )
       const finalClientController = new AbortController()
       const finalClientPrerenderStore: PrerenderStore = {
-        type: 'prerender',
+        type: 'prerender-client',
         phase: 'render',
         rootParams,
         implicitTags,
