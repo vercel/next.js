@@ -25,8 +25,9 @@ function formatProdErrorMessage(code) {
     " for the full message or use the non-minified dev environment for full errors and additional helpful warnings."
   );
 }
-var isArrayImpl = Array.isArray,
-  REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
+var isArrayImpl = Array.isArray;
+function noop() {}
+var REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
   REACT_PORTAL_TYPE = Symbol.for("react.portal"),
   REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"),
   REACT_STRICT_MODE_TYPE = Symbol.for("react.strict_mode"),
@@ -87,7 +88,6 @@ function getElementKey(element, index) {
     ? escape("" + element.key)
     : index.toString(36);
 }
-function noop() {}
 function resolveThenable(thenable) {
   switch (thenable.status) {
     case "fulfilled":
@@ -426,4 +426,4 @@ exports.useId = function () {
 exports.useMemo = function (create, deps) {
   return ReactSharedInternals.H.useMemo(create, deps);
 };
-exports.version = "19.2.0-canary-197d6a04-20250424";
+exports.version = "19.2.0-canary-3820740a-20250509";

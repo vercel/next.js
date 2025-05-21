@@ -75,8 +75,9 @@ var pureComponentPrototype = (PureComponent.prototype = new ComponentDummy());
 pureComponentPrototype.constructor = PureComponent;
 assign(pureComponentPrototype, Component.prototype);
 pureComponentPrototype.isPureReactComponent = !0;
-var isArrayImpl = Array.isArray,
-  ReactSharedInternals = { H: null, A: null, T: null, S: null, G: null },
+var isArrayImpl = Array.isArray;
+function noop() {}
+var ReactSharedInternals = { H: null, A: null, T: null, S: null, G: null },
   hasOwnProperty = Object.prototype.hasOwnProperty;
 function ReactElement(type, key, self, source, owner, props) {
   self = props.ref;
@@ -120,7 +121,6 @@ function getElementKey(element, index) {
     ? escape("" + element.key)
     : index.toString(36);
 }
-function noop$1() {}
 function resolveThenable(thenable) {
   switch (thenable.status) {
     case "fulfilled":
@@ -130,7 +130,7 @@ function resolveThenable(thenable) {
     default:
       switch (
         ("string" === typeof thenable.status
-          ? thenable.then(noop$1, noop$1)
+          ? thenable.then(noop, noop)
           : ((thenable.status = "pending"),
             thenable.then(
               function (fulfilledValue) {
@@ -347,7 +347,6 @@ function startTransition(scope) {
       (ReactSharedInternals.T = prevTransition);
   }
 }
-function noop() {}
 function addTransitionType(type) {
   var transition = ReactSharedInternals.T;
   if (null !== transition) {
@@ -540,7 +539,7 @@ exports.unstable_startGestureTransition = function (provider, scope, options) {
   } finally {
     ReactSharedInternals.T = prevTransition;
   }
-  return function () {};
+  return noop;
 };
 exports.unstable_useCacheRefresh = function () {
   return ReactSharedInternals.H.useCacheRefresh();
@@ -603,4 +602,4 @@ exports.useSyncExternalStore = function (
 exports.useTransition = function () {
   return ReactSharedInternals.H.useTransition();
 };
-exports.version = "19.2.0-experimental-197d6a04-20250424";
+exports.version = "19.2.0-experimental-3820740a-20250509";
