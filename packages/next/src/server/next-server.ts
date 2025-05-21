@@ -11,7 +11,7 @@ import {
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
-import type { PrerenderManifest } from '../build'
+import type { PrerenderManifest, RoutesManifest } from '../build'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { Params } from './request/params'
@@ -25,7 +25,7 @@ import type { CacheControl } from './lib/cache-control'
 import type { WaitUntil } from './after/builtin-request-context'
 
 import fs from 'fs'
-import { join, resolve } from 'path'
+import { join } from 'path'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 import {
@@ -85,7 +85,6 @@ import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
 import { isPagesAPIRouteMatch } from './route-matches/pages-api-route-match'
 import type { PagesAPIRouteMatch } from './route-matches/pages-api-route-match'
 import type { MatchOptions } from './route-matcher-managers/route-matcher-manager'
-import { INSTRUMENTATION_HOOK_FILENAME } from '../lib/constants'
 import { BubbledError, getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
 import { nodeFs } from './lib/node-fs-methods'
@@ -94,7 +93,7 @@ import { pipeToNodeResponse } from './pipe-readable'
 import { createRequestResponseMocks } from './lib/mock-request'
 import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 import { signalFromNodeResponse } from './web/spec-extension/adapters/next-request'
-import { loadManifest } from './load-manifest'
+import { loadManifest } from './load-manifest.external'
 import { lazyRenderAppPage } from './route-modules/app-page/module.render'
 import { lazyRenderPagesPage } from './route-modules/pages/module.render'
 import { interopDefault } from '../lib/interop-default'
@@ -111,6 +110,10 @@ import type { UnwrapPromise } from '../lib/coalesced-function'
 import { populateStaticEnv } from '../lib/static-env'
 import { isPostpone } from './lib/router-utils/is-postpone'
 import { NodeModuleLoader } from './lib/module-loader/node-module-loader'
+import {
+  ensureInstrumentationRegistered,
+  getInstrumentationModule,
+} from './lib/router-utils/instrumentation-globals.external'
 
 export * from './base-server'
 
@@ -121,11 +124,6 @@ const dynamicImportEsmDefault = process.env.NEXT_MINIMAL
   ? (id: string) =>
       import(/* webpackIgnore: true */ id).then((mod) => mod.default || mod)
   : (id: string) => import(id).then((mod) => mod.default || mod)
-
-// For module that will be compiled to CJS, e.g. instrument
-const dynamicRequire = process.env.NEXT_MINIMAL
-  ? __non_webpack_require__
-  : require
 
 export type NodeRequestHandler = BaseRequestHandler<
   IncomingMessage | NodeNextRequest,
@@ -284,7 +282,9 @@ export default class NextNodeServer extends BaseServer<
     if (this.renderOpts.nextScriptWorkers) {
       process.env.__NEXT_SCRIPT_WORKERS = JSON.stringify(true)
     }
-    process.env.NEXT_DEPLOYMENT_ID = this.nextConfig.deploymentId || ''
+    process.env.NEXT_DEPLOYMENT_ID = this.nextConfig.experimental.useSkewCookie
+      ? ''
+      : this.nextConfig.deploymentId || ''
 
     if (!this.minimalMode) {
       this.imageResponseCache = new ResponseCache(this.minimalMode)
@@ -376,6 +376,9 @@ export default class NextNodeServer extends BaseServer<
   }
 
   public async unstable_preloadEntries(): Promise<void> {
+    // Ensure prepare process will be finished before preloading entries.
+    await this.prepare()
+
     const appPathsManifest = this.getAppPathsManifest()
     const pagesManifest = this.getPagesManifest()
 
@@ -424,13 +427,9 @@ export default class NextNodeServer extends BaseServer<
   protected async loadInstrumentationModule() {
     if (!this.serverOptions.dev) {
       try {
-        this.instrumentation = await dynamicRequire(
-          resolve(
-            this.serverOptions.dir || '.',
-            this.serverOptions.conf.distDir!,
-            'server',
-            INSTRUMENTATION_HOOK_FILENAME
-          )
+        this.instrumentation = await getInstrumentationModule(
+          this.dir,
+          this.nextConfig.distDir
         )
       } catch (err: any) {
         if (err.code !== 'MODULE_NOT_FOUND') {
@@ -450,9 +449,7 @@ export default class NextNodeServer extends BaseServer<
   }
 
   protected async runInstrumentationHookIfAvailable() {
-    if (this.registeredInstrumentation) return
-    this.registeredInstrumentation = true
-    await this.instrumentation?.register?.()
+    await ensureInstrumentationRegistered(this.dir, this.nextConfig.distDir)
   }
 
   protected loadEnvConfig({
@@ -667,6 +664,7 @@ export default class NextNodeServer extends BaseServer<
         }
       ) => Promise<void>
     }
+    addRequestMeta(req.originalRequest, 'projectDir', this.dir)
     await module.handler(req.originalRequest, res.originalResponse, {
       waitUntil: this.getWaitUntil(),
     })
@@ -1044,7 +1042,6 @@ export default class NextNodeServer extends BaseServer<
                 extension: getExtension(contentType) as string,
                 upstreamEtag,
               },
-              isFallback: false,
               cacheControl: { revalidate: maxAge, expire: undefined },
             }
           },
@@ -1524,26 +1521,31 @@ export default class NextNodeServer extends BaseServer<
   }
 
   private async loadNodeMiddleware() {
-    if (!this.nextConfig.experimental.nodeMiddleware) {
-      return
-    }
-
-    try {
-      const functionsConfig = this.renderOpts.dev
-        ? {}
-        : require(join(this.distDir, 'server', FUNCTIONS_CONFIG_MANIFEST))
-
-      if (this.renderOpts.dev || functionsConfig?.functions?.['/_middleware']) {
-        // if used with top level await, this will be a promise
-        return require(join(this.distDir, 'server', 'middleware.js'))
+    if (!process.env.NEXT_MINIMAL) {
+      if (!this.nextConfig.experimental.nodeMiddleware) {
+        return
       }
-    } catch (err) {
-      if (
-        isError(err) &&
-        err.code !== 'ENOENT' &&
-        err.code !== 'MODULE_NOT_FOUND'
-      ) {
-        throw err
+
+      try {
+        const functionsConfig = this.renderOpts.dev
+          ? {}
+          : require(join(this.distDir, 'server', FUNCTIONS_CONFIG_MANIFEST))
+
+        if (
+          this.renderOpts.dev ||
+          functionsConfig?.functions?.['/_middleware']
+        ) {
+          // if used with top level await, this will be a promise
+          return require(join(this.distDir, 'server', 'middleware.js'))
+        }
+      } catch (err) {
+        if (
+          isError(err) &&
+          err.code !== 'ENOENT' &&
+          err.code !== 'MODULE_NOT_FOUND'
+        ) {
+          throw err
+        }
       }
     }
   }
@@ -1684,11 +1686,26 @@ export default class NextNodeServer extends BaseServer<
       const adapterFn: typeof import('./web/adapter').adapter =
         middlewareModule.default || middlewareModule
 
-      result = await adapterFn({
-        handler: middlewareModule.middleware || middlewareModule,
-        request: requestData,
-        page: 'middleware',
-      })
+      const hasRequestBody =
+        !['HEAD', 'GET'].includes(params.request.method) &&
+        Boolean(requestData.body)
+
+      try {
+        result = await adapterFn({
+          handler: middlewareModule.middleware || middlewareModule,
+          request: {
+            ...requestData,
+            body: hasRequestBody
+              ? requestData.body.cloneBodyStream()
+              : undefined,
+          },
+          page: 'middleware',
+        })
+      } finally {
+        if (hasRequestBody) {
+          requestData.body.finalize()
+        }
+      }
     } else {
       const { run } = require('./web/sandbox') as typeof import('./web/sandbox')
 
@@ -1863,25 +1880,10 @@ export default class NextNodeServer extends BaseServer<
   }
 
   protected getRoutesManifest(): NormalizedRouteManifest | undefined {
-    return getTracer().trace(NextNodeServerSpan.getRoutesManifest, () => {
-      const manifest = loadManifest(join(this.distDir, ROUTES_MANIFEST)) as any
-
-      let rewrites = manifest.rewrites ?? {
-        beforeFiles: [],
-        afterFiles: [],
-        fallback: [],
-      }
-
-      if (Array.isArray(rewrites)) {
-        rewrites = {
-          beforeFiles: [],
-          afterFiles: rewrites,
-          fallback: [],
-        }
-      }
-
-      return { ...manifest, rewrites }
-    })
+    return getTracer().trace(
+      NextNodeServerSpan.getRoutesManifest,
+      () => loadManifest(join(this.distDir, ROUTES_MANIFEST)) as RoutesManifest
+    )
   }
 
   protected attachRequestMeta(

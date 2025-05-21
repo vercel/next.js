@@ -7,8 +7,8 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput,
-    TryJoinIterExt, Vc,
+    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Vc,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
@@ -269,10 +269,10 @@ pub struct AppPathsManifest {
 // The manifest is in a format of:
 // { [`${origin} -> ${imported}`]: { id: `${origin} -> ${imported}`, files:
 // string[] } }
-#[derive(Serialize, Default, Debug)]
+#[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct LoadableManifest {
-    pub id: RcStr,
+    pub id: ModuleId,
     pub files: Vec<RcStr>,
 }
 

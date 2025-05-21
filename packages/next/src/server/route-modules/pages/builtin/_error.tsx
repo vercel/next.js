@@ -15,6 +15,8 @@ export const routeModule = new PagesRouteModule({
     filename: '',
     bundlePath: '',
   },
+  distDir: process.env.__NEXT_RELATIVE_DIST_DIR || '',
+  projectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
   components: {
     App,
     Document,

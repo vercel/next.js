@@ -3,7 +3,7 @@ import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 
 export type FallbackRouteParams = ReadonlyMap<string, string>
 
-export function getParamKeys(page: string) {
+function getParamKeys(page: string) {
   const pattern = getRouteRegex(page)
   const matcher = getRouteMatcher(pattern)
 

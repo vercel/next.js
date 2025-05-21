@@ -1,11 +1,11 @@
 use std::{env, sync::MutexGuard};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 
-use crate::{sorted_env_vars, EnvMap, ProcessEnv, GLOBAL_ENV_LOCK};
+use crate::{EnvMap, GLOBAL_ENV_LOCK, ProcessEnv, sorted_env_vars};
 
 /// Load the environment variables defined via a dotenv file, with an
 /// optional prior state that we can lookup already defined variables
@@ -95,13 +95,13 @@ fn restore_env(
 ) {
     for key in from.keys() {
         if !to.contains_key(key) {
-            env::remove_var(key);
+            unsafe { env::remove_var(key) };
         }
     }
     for (key, value) in to {
         match from.get(key) {
             Some(v) if v == value => {}
-            _ => env::set_var(key, value),
+            _ => unsafe { env::set_var(key, value) },
         }
     }
 }

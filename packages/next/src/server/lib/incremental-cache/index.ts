@@ -477,7 +477,6 @@ export class IncrementalCache implements IncrementalCacheType {
     }
 
     let entry: IncrementalResponseCacheEntry | null = null
-    const { isFallback } = ctx
     const cacheControl = this.cacheControls.get(toRoute(cacheKey))
 
     let isStale: boolean | -1 | undefined
@@ -506,7 +505,6 @@ export class IncrementalCache implements IncrementalCacheType {
         cacheControl,
         revalidateAfter,
         value: cacheData.value,
-        isFallback,
       }
     }
 
@@ -524,7 +522,6 @@ export class IncrementalCache implements IncrementalCacheType {
         value: null,
         cacheControl,
         revalidateAfter,
-        isFallback,
       }
       this.set(cacheKey, entry.value, { ...ctx, cacheControl })
     }
@@ -574,11 +571,12 @@ export class IncrementalCache implements IncrementalCacheType {
       !this.hasCustomCacheHandler &&
       itemSize > 2 * 1024 * 1024
     ) {
+      const warningText = `Failed to set Next.js data cache for ${ctx.fetchUrl || pathname}, items over 2MB can not be cached (${itemSize} bytes)`
+
       if (this.dev) {
-        throw new Error(
-          `Failed to set Next.js data cache, items over 2MB can not be cached (${itemSize} bytes)`
-        )
+        throw new Error(warningText)
       }
+      console.warn(warningText)
       return
     }
 

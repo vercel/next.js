@@ -1,11 +1,11 @@
 use std::collections::BTreeMap;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkableModule, ChunkingContext},
+    chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext},
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
@@ -15,12 +15,13 @@ use turbopack_core::{
 
 use super::chunk_item::EcmascriptModuleLocalsChunkItem;
 use crate::{
+    AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptModuleAsset,
+    EcmascriptModuleContent, EcmascriptModuleContentOptions,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     references::{
         async_module::OptionAsyncModule,
         esm::{EsmExport, EsmExports},
     },
-    EcmascriptModuleAsset,
 };
 
 /// A module derived from an original ecmascript module that only contains the
@@ -71,6 +72,61 @@ impl Asset for EcmascriptModuleLocalsModule {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
         self.module.content()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptAnalyzable for EcmascriptModuleLocalsModule {
+    #[turbo_tasks::function]
+    fn analyze(&self) -> Vc<AnalyzeEcmascriptModuleResult> {
+        self.module.analyze()
+    }
+
+    #[turbo_tasks::function]
+    fn module_content_without_analysis(
+        &self,
+        generate_source_map: bool,
+    ) -> Vc<EcmascriptModuleContent> {
+        self.module
+            .module_content_without_analysis(generate_source_map)
+    }
+
+    #[turbo_tasks::function]
+    async fn module_content_options(
+        self: Vc<Self>,
+        module_graph: ResolvedVc<ModuleGraph>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+        async_module_info: Option<ResolvedVc<AsyncModuleInfo>>,
+    ) -> Result<Vc<EcmascriptModuleContentOptions>> {
+        let exports = self.get_exports().to_resolved().await?;
+        let original_module = self.await?.module;
+        let parsed = original_module.parse().to_resolved().await?;
+
+        let analyze = original_module.analyze();
+        let analyze_result = analyze.await?;
+
+        let module_type_result = *original_module.determine_module_type().await?;
+        let generate_source_map = *chunking_context
+            .reference_module_source_maps(Vc::upcast(self))
+            .await?;
+
+        Ok(EcmascriptModuleContentOptions {
+            parsed,
+            ident: self.ident().to_resolved().await?,
+            specified_module_type: module_type_result.module_type,
+            module_graph,
+            chunking_context,
+            references: analyze.local_references().to_resolved().await?,
+            esm_references: analyze_result.esm_local_references,
+            part_references: vec![],
+            code_generation: analyze_result.code_generation,
+            async_module: analyze_result.async_module,
+            generate_source_map,
+            original_source_map: analyze_result.source_map,
+            exports,
+            async_module_info,
+        }
+        .cell())
     }
 }
 

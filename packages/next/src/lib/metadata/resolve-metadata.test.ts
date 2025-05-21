@@ -13,8 +13,9 @@ function accumulateMetadata(metadataItems: MetadataItems) {
     item[0],
     item[1],
   ])
-  return originAccumulateMetadata(fullMetadataItems, {
-    pathname: '/test',
+  const route = '/test'
+  const pathname = Promise.resolve('/test')
+  return originAccumulateMetadata(route, fullMetadataItems, pathname, {
     trailingSlash: false,
     isStaticMetadataRouteFile: false,
   })

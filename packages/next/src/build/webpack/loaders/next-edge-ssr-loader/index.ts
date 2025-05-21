@@ -55,6 +55,9 @@ function getRouteModuleOptions(page: string) {
       bundlePath: '',
       filename: '',
     },
+    // edge runtime doesn't read from distDir or projectDir
+    distDir: '',
+    projectDir: '',
   }
 
   return options

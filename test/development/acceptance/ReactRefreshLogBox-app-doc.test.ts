@@ -19,16 +19,13 @@ describe('ReactRefreshLogBox _app _document', () => {
     const { browser, session } = sandbox
     await expect(browser).toDisplayRedbox(`
      {
-       "description": "Error: The default export is not a React Component in page: "/_app"",
+       "description": "The default export is not a React Component in page: "/_app"",
        "environmentLabel": null,
        "label": "Runtime Error",
        "source": null,
        "stack": [],
      }
     `)
-    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
-      `"Error: The default export is not a React Component in page: "/_app""`
-    )
 
     await session.patch(
       'pages/_app.js',
@@ -51,7 +48,7 @@ describe('ReactRefreshLogBox _app _document', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
-       "description": "Error: The default export is not a React Component in page: "/_document"",
+       "description": "The default export is not a React Component in page: "/_document"",
        "environmentLabel": null,
        "label": "Runtime Error",
        "source": null,
@@ -127,34 +124,33 @@ describe('ReactRefreshLogBox _app _document', () => {
          "label": "Build Error",
          "source": "./pages/_app.js
          × Module build failed:
-         ├─▶   ×
-         │     │   x Expression expected
-         │     │    ,-[<FIXME-project-root>/pages/_app.js:2:1]
-         │     │  1 | function MyApp({ Component, pageProps }) {
-         │     │  2 |   return <<Component {...pageProps} />;
-         │     │    :           ^
-         │     │  3 | }
-         │     │  4 | export default MyApp
-         │     │    \`----
-         │     │
-         │     │   x Expression expected
-         │     │    ,-[<FIXME-project-root>/pages/_app.js:2:1]
-         │     │  1 | function MyApp({ Component, pageProps }) {
-         │     │  2 |   return <<Component {...pageProps} />;
-         │     │    :            ^^^^^^^^^
-         │     │  3 | }
-         │     │  4 | export default MyApp
-         │     │    \`----
-         │     │
-         │
-         ╰─▶ Syntax Error",
+         ╰─▶   × Error:   x Expression expected
+               │    ,-[2:1]
+               │  1 | function MyApp({ Component, pageProps }) {
+               │  2 |   return <<Component {...pageProps} />;
+               │    :           ^
+               │  3 | }
+               │  4 | export default MyApp
+               │    \`----
+               │   x Expression expected
+               │    ,-[2:1]
+               │  1 | function MyApp({ Component, pageProps }) {
+               │  2 |   return <<Component {...pageProps} />;
+               │    :            ^^^^^^^^^
+               │  3 | }
+               │  4 | export default MyApp
+               │    \`----
+               │
+               │
+               │ Caused by:
+               │     Syntax Error",
          "stack": [],
        }
       `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error:   x Expression expected",
+         "description": "  x Expression expected",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./pages/_app.js
@@ -248,27 +244,27 @@ describe('ReactRefreshLogBox _app _document', () => {
          "label": "Build Error",
          "source": "./pages/_document.js
          × Module build failed:
-         ├─▶   ×
-         │     │   x Unexpected token \`{\`. Expected identifier, string literal, numeric literal or [ for the computed key
-         │     │    ,-[<FIXME-project-root>/pages/_document.js:3:1]
-         │     │  1 | import Document, { Html, Head, Main, NextScript } from 'next/document'
-         │     │  2 |
-         │     │  3 | class MyDocument extends Document {{
-         │     │    :                                    ^
-         │     │  4 |   static async getInitialProps(ctx) {
-         │     │  5 |     const initialProps = await Document.getInitialProps(ctx)
-         │     │  6 |     return { ...initialProps }
-         │     │    \`----
-         │     │
-         │
-         ╰─▶ Syntax Error",
+         ╰─▶   × Error:   x Unexpected token \`{\`. Expected identifier, string literal, numeric literal or [ for the computed key
+               │    ,-[3:1]
+               │  1 | import Document, { Html, Head, Main, NextScript } from 'next/document'
+               │  2 |
+               │  3 | class MyDocument extends Document {{
+               │    :                                    ^
+               │  4 |   static async getInitialProps(ctx) {
+               │  5 |     const initialProps = await Document.getInitialProps(ctx)
+               │  6 |     return { ...initialProps }
+               │    \`----
+               │
+               │
+               │ Caused by:
+               │     Syntax Error",
          "stack": [],
        }
       `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error:   x Unexpected token \`{\`. Expected identifier, string literal, numeric literal or [ for the computed key",
+         "description": "  x Unexpected token \`{\`. Expected identifier, string literal, numeric literal or [ for the computed key",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./pages/_document.js

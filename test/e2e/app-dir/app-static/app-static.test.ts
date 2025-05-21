@@ -2818,9 +2818,7 @@ describe('app-dir static/dynamic handling', () => {
     for (let i = 0; i < 5; i++) {
       const res = await next.fetch('/articles/non-existent')
 
-      // Only the first request should be a 200 while using PPR. When the route
-      // shell is generated, the status code will switch to 404.
-      if (process.env.__NEXT_EXPERIMENTAL_PPR && !isNextDev && i === 0) {
+      if (process.env.__NEXT_EXPERIMENTAL_PPR && !isNextDev) {
         expect(res.status).toBe(200)
       } else {
         expect(res.status).toBe(404)
@@ -3789,34 +3787,20 @@ describe('app-dir static/dynamic handling', () => {
       expect(res.status).toBe(200)
 
       const html = await res.text()
-      let $ = cheerio.load(html)
+      const $ = cheerio.load(html)
 
       expect(JSON.parse($('#params').text())).toEqual({ slug: 'random' })
       expect(JSON.parse($('#headers').text())).toEqual([])
       expect(JSON.parse($('#cookies').text())).toEqual([])
 
+      const firstTime = $('#now').text()
+
       if (!(global as any).isNextDev) {
-        if (process.env.__NEXT_EXPERIMENTAL_PPR) {
-          // When PPR is enabled, we first encounter the fallback shell. We do
-          // expect though that the page does not change after the dynamic shell
-          // has been finalized.
-          await retry(async () => {
-            $ = await next.render$('/force-static/random')
+        const res2 = await next.fetch('/force-static/random')
+        expect(res2.status).toBe(200)
 
-            const first = $('#now').text()
-
-            $ = await next.render$('/force-static/random')
-
-            // The page should not change after the dynamic shell has been
-            // finalized.
-            expect($('#now').text()).toBe(first)
-          })
-        } else {
-          const first = $('#now').text()
-
-          $ = await next.render$('/force-static/random')
-          expect($('#now').text()).toBe(first)
-        }
+        const $2 = cheerio.load(await res2.text())
+        expect(firstTime).toBe($2('#now').text())
       }
     })
   }
@@ -4362,8 +4346,8 @@ describe('app-dir static/dynamic handling', () => {
           expect(
             next.cliOutput.substring(cliOutputStart).match(/Load data/g).length
           ).toBe(2)
-          expect(next.cliOutput.substring(cliOutputStart)).toContain(
-            'Error: Failed to set Next.js data cache, items over 2MB can not be cached'
+          expect(stripAnsi(next.cliOutput.substring(cliOutputStart))).toMatch(
+            /Failed to set Next.js data cache for http:\/\/localhost:.*?\/api\/large-data, items over 2MB can not be cached/
           )
           return 'success'
         }, 'success')
@@ -4392,8 +4376,8 @@ describe('app-dir static/dynamic handling', () => {
           return 'success'
         }, 'success')
 
-        expect(next.cliOutput.substring(cliOutputStart)).not.toContain(
-          'Error: Failed to set Next.js data cache, items over 2MB can not be cached'
+        expect(next.cliOutput.substring(cliOutputStart)).not.toMatch(
+          /Failed to set Next.js data cache for http:\/\/localhost:.*?\/api\/large-data, items over 2MB can not be cached/
         )
       })
     }

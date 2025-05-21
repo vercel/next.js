@@ -1,13 +1,13 @@
 use std::future::IntoFuture;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use next_core::{
     all_assets_from_entries,
     middleware::get_middleware_module,
     next_edge::entry::wrap_edge_entry,
     next_manifests::{EdgeFunctionDefinition, MiddlewareMatcher, MiddlewaresManifestV2, Regions},
-    next_server::{get_server_runtime_entries, ServerContextType},
-    util::{parse_config_from_source, MiddlewareMatcherKind, NextRuntime},
+    next_server::{ServerContextType, get_server_runtime_entries},
+    util::{MiddlewareMatcherKind, NextRuntime, parse_config_from_source},
 };
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
@@ -16,14 +16,14 @@ use turbo_tasks_fs::{self, File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt,
-        EntryChunkGroupResult,
+        ChunkingContext, ChunkingContextExt, EntryChunkGroupResult,
+        availability_info::AvailabilityInfo,
     },
     context::AssetContext,
     module::Module,
     module_graph::{
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
         GraphEntries,
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
     },
     output::{OutputAsset, OutputAssets},
     reference_type::{EntryReferenceSubType, ReferenceType},
@@ -44,7 +44,6 @@ use crate::{
 #[turbo_tasks::value]
 pub struct MiddlewareEndpoint {
     project: ResolvedVc<Project>,
-    build_id: RcStr,
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
     source: ResolvedVc<Box<dyn Source>>,
     app_dir: Option<ResolvedVc<FileSystemPath>>,
@@ -56,7 +55,6 @@ impl MiddlewareEndpoint {
     #[turbo_tasks::function]
     pub fn new(
         project: ResolvedVc<Project>,
-        build_id: RcStr,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
         source: ResolvedVc<Box<dyn Source>>,
         app_dir: Option<ResolvedVc<FileSystemPath>>,
@@ -64,7 +62,6 @@ impl MiddlewareEndpoint {
     ) -> Vc<Self> {
         Self {
             project,
-            build_id,
             asset_context,
             source,
             app_dir,
@@ -304,7 +301,7 @@ impl MiddlewareEndpoint {
 
             let edge_function_definition = EdgeFunctionDefinition {
                 files: file_paths_from_root,
-                wasm: wasm_paths_to_bindings(wasm_paths_from_root),
+                wasm: wasm_paths_to_bindings(wasm_paths_from_root).await?,
                 assets: paths_to_bindings(all_assets),
                 name: "middleware".into(),
                 page: "/".into(),

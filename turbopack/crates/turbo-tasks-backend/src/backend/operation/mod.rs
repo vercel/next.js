@@ -14,12 +14,12 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{SessionId, TaskId, TurboTasksBackendApi};
+use turbo_tasks::{KeyValuePair, SessionId, TaskId, TurboTasksBackendApi};
 
 use crate::{
     backend::{
-        storage::StorageWriteGuard, OperationGuard, TaskDataCategory, TransientTask,
-        TurboTasksBackend, TurboTasksBackendInner,
+        OperationGuard, TaskDataCategory, TransientTask, TurboTasksBackend, TurboTasksBackendInner,
+        storage::{SpecificTaskDataCategory, StorageWriteGuard},
     },
     backing_storage::BackingStorage,
     data::{
@@ -451,7 +451,7 @@ impl<B: BackingStorage> Debug for TaskGuardImpl<'_, B> {
             d.field("task_type", &task_type);
         };
         for (key, value) in self.task.iter_all() {
-            d.field(&format!("{:?}", key), &value);
+            d.field(&format!("{key:?}"), &value);
         }
         d.finish()
     }
@@ -463,9 +463,13 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
     }
 
     fn add(&mut self, item: CachedDataItem) -> bool {
-        self.check_access(item.category());
+        let category = item.category();
+        self.check_access(category);
         if !self.task_id.is_transient() && item.is_persistent() {
-            self.task.track_modification();
+            if self.task.contains_key(&item.key()) {
+                return false;
+            }
+            self.task.track_modification(category.into_specific());
         }
         self.task.add(item)
     }
@@ -477,9 +481,10 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
     }
 
     fn insert(&mut self, item: CachedDataItem) -> Option<CachedDataItemValue> {
-        self.check_access(item.category());
+        let category = item.category();
+        self.check_access(category);
         if !self.task_id.is_transient() && item.is_persistent() {
-            self.task.track_modification();
+            self.task.track_modification(category.into_specific());
         }
         self.task.insert(item)
     }
@@ -489,17 +494,19 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         key: CachedDataItemKey,
         update: impl FnOnce(Option<CachedDataItemValue>) -> Option<CachedDataItemValue>,
     ) {
-        self.check_access(key.category());
+        let category = key.category();
+        self.check_access(category);
         if !self.task_id.is_transient() && key.is_persistent() {
-            self.task.track_modification();
+            self.task.track_modification(category.into_specific());
         }
         self.task.update(key, update);
     }
 
     fn remove(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValue> {
-        self.check_access(key.category());
+        let category = key.category();
+        self.check_access(category);
         if !self.task_id.is_transient() && key.is_persistent() {
-            self.task.track_modification();
+            self.task.track_modification(category.into_specific());
         }
         self.task.remove(key)
     }
@@ -510,9 +517,10 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
     }
 
     fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRefMut<'_>> {
-        self.check_access(key.category());
+        let category = key.category();
+        self.check_access(category);
         if !self.task_id.is_transient() && key.is_persistent() {
-            self.task.track_modification();
+            self.task.track_modification(category.into_specific());
         }
         self.task.get_mut(key)
     }
@@ -522,9 +530,10 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         key: CachedDataItemKey,
         insert: impl FnOnce() -> CachedDataItemValue,
     ) -> CachedDataItemValueRefMut<'_> {
-        self.check_access(key.category());
+        let category = key.category();
+        self.check_access(category);
         if !self.task_id.is_transient() && key.is_persistent() {
-            self.task.track_modification();
+            self.task.track_modification(category.into_specific());
         }
         self.task.get_mut_or_insert_with(key, insert)
     }
@@ -561,14 +570,17 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
     {
         self.check_access(ty.category());
         if !self.task_id.is_transient() && ty.is_persistent() {
-            self.task.track_modification();
+            self.task.track_modification(ty.category().into_specific());
         }
         self.task.extract_if(ty, f)
     }
 
     fn invalidate_serialization(&mut self) {
+        // TODO this causes race conditions, since we never know when a value is changed. We can't
+        // "snapshot" the value correctly.
         if !self.task_id.is_transient() {
-            self.task.track_modification();
+            self.task.track_modification(SpecificTaskDataCategory::Data);
+            self.task.track_modification(SpecificTaskDataCategory::Meta);
         }
     }
 }
@@ -633,8 +645,8 @@ impl_operation!(AggregationUpdate aggregation_update::AggregationUpdateQueue);
 pub use self::invalidate::TaskDirtyCause;
 pub use self::{
     aggregation_update::{
-        get_aggregation_number, get_uppers, is_aggregating_node, is_root_node,
-        AggregatedDataUpdate, AggregationUpdateJob,
+        AggregatedDataUpdate, AggregationUpdateJob, get_aggregation_number, get_uppers,
+        is_aggregating_node, is_root_node,
     },
     cleanup_old_edges::OutdatedEdge,
     connect_children::connect_children,

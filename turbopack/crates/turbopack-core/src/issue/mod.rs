@@ -5,19 +5,19 @@ pub mod resolve;
 
 use std::{
     borrow::Cow,
-    cmp::{min, Ordering},
+    cmp::{Ordering, min},
     fmt::{Display, Formatter},
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use auto_hash_map::AutoSet;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    emit, trace::TraceRawVcs, CollectiblesSource, NonLocalValue, OperationVc, RawVc, ReadRef,
-    ResolvedVc, TaskInput, TransientInstance, TransientValue, TryJoinIterExt, Upcast,
-    ValueToString, Vc,
+    CollectiblesSource, NonLocalValue, OperationVc, RawVc, ReadRef, ResolvedVc, TaskInput,
+    TransientInstance, TransientValue, TryJoinIterExt, Upcast, ValueToString, Vc, emit,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileContent, FileLine, FileLinesContent, FileSystemPath};
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
@@ -672,7 +672,7 @@ impl Display for IssueStage {
             IssueStage::Unsupported => write!(f, "unsupported"),
             IssueStage::AppStructure => write!(f, "app structure"),
             IssueStage::Misc => write!(f, "misc"),
-            IssueStage::Other(s) => write!(f, "{}", s),
+            IssueStage::Other(s) => write!(f, "{s}"),
         }
     }
 }
@@ -904,13 +904,7 @@ where
                                 description: ResolvedVc::cell(RcStr::from(description.into())),
                             },
                         )),
-                        children
-                            .into_iter()
-                            .map(|v: Vc<Box<dyn IssueProcessingPath>>| v.to_resolved())
-                            .try_join()
-                            .await?
-                            .into_iter()
-                            .collect(),
+                        children,
                     )),
                 ));
             }
@@ -943,13 +937,7 @@ where
                                 description: ResolvedVc::cell(RcStr::from(description.into())),
                             },
                         )),
-                        children
-                            .into_iter()
-                            .map(|v: Vc<Box<dyn IssueProcessingPath>>| v.to_resolved())
-                            .try_join()
-                            .await?
-                            .into_iter()
-                            .collect(),
+                        children,
                     )),
                 ));
             }
@@ -967,48 +955,22 @@ where
 
     async fn peek_issues_with_path(self) -> Result<CapturedIssues> {
         Ok(CapturedIssues {
-            issues: self
-                .peek_collectibles()
-                .into_iter()
-                .map(|v: Vc<Box<dyn Issue>>| v.to_resolved())
-                .try_join()
-                .await?
-                .into_iter()
-                .collect(),
+            issues: self.peek_collectibles(),
             #[cfg(feature = "issue_path")]
             processing_path: ItemIssueProcessingPath::resolved_cell(ItemIssueProcessingPath(
                 None,
-                self.peek_collectibles()
-                    .into_iter()
-                    .map(|v: Vc<Box<dyn IssueProcessingPath>>| v.to_resolved())
-                    .try_join()
-                    .await?
-                    .into_iter()
-                    .collect(),
+                self.peek_collectibles(),
             )),
         })
     }
 
     async fn take_issues_with_path(self) -> Result<CapturedIssues> {
         Ok(CapturedIssues {
-            issues: self
-                .take_collectibles()
-                .into_iter()
-                .map(|v: Vc<Box<dyn Issue>>| v.to_resolved())
-                .try_join()
-                .await?
-                .into_iter()
-                .collect(),
+            issues: self.take_collectibles(),
             #[cfg(feature = "issue_path")]
             processing_path: ItemIssueProcessingPath::resolved_cell(ItemIssueProcessingPath(
                 None,
-                self.take_collectibles()
-                    .into_iter()
-                    .map(|v: Vc<Box<dyn IssueProcessingPath>>| v.to_resolved())
-                    .try_join()
-                    .await?
-                    .into_iter()
-                    .collect(),
+                self.take_collectibles(),
             )),
         })
     }

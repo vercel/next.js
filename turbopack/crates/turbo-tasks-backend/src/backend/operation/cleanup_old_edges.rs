@@ -9,17 +9,16 @@ use turbo_tasks::TaskId;
 use crate::backend::operation::invalidate::TaskDirtyCause;
 use crate::{
     backend::{
-        get, get_many,
+        TaskDataCategory, get, get_many,
         operation::{
+            AggregatedDataUpdate, ExecuteContext, Operation, TaskGuard,
             aggregation_update::{
-                get_aggregation_number, get_uppers, is_aggregating_node, AggregationUpdateJob,
-                AggregationUpdateQueue, InnerOfUppersLostFollowersJob,
+                AggregationUpdateJob, AggregationUpdateQueue, InnerOfUppersLostFollowersJob,
+                get_aggregation_number, get_uppers, is_aggregating_node,
             },
             invalidate::make_task_dirty,
-            AggregatedDataUpdate, ExecuteContext, Operation, TaskGuard,
         },
         storage::update_count,
-        TaskDataCategory,
     },
     data::{CachedDataItemKey, CellRef, CollectibleRef, CollectiblesRef},
 };

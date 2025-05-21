@@ -1,8 +1,8 @@
 use proc_macro::TokenStream;
 use quote::quote;
 use rustc_hash::FxHashSet;
-use syn::{parse_macro_input, spanned::Spanned, visit_mut::VisitMut, GenericParam, Lifetime, Type};
-use turbo_tasks_macros_shared::{get_type_ident, GenericTypeInput};
+use syn::{GenericParam, Lifetime, Type, parse_macro_input, spanned::Spanned, visit_mut::VisitMut};
+use turbo_tasks_macros_shared::{GenericTypeInput, get_type_ident};
 
 use crate::value_macro::value_type_and_register;
 

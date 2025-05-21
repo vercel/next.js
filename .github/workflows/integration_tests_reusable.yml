@@ -92,7 +92,6 @@ jobs:
         # e2e and ${{ inputs.test_type }} tests with `node run-tests.js`
 
         export NEXT_TEST_CONTINUE_ON_ERROR=TRUE
-        export NEXT_E2E_TEST_TIMEOUT=240000
         export NEXT_TEST_MODE=${{
           inputs.test_type == 'development' && 'dev' || 'start'
         }}
@@ -101,7 +100,6 @@ jobs:
 
         node run-tests.js \
           --group ${{ matrix.group }}/${{ inputs.e2e_groups }} \
-          --concurrency $TEST_CONCURRENCY \
           --retries ${{ inputs.num_retries }} \
           --type ${{ inputs.test_type }}
       stepName: test-${{ inputs.name }}-${{ matrix.group }}
@@ -126,7 +124,6 @@ jobs:
         # legacy integration tests with `node run-tests.js`
 
         export NEXT_TEST_CONTINUE_ON_ERROR=TRUE
-        export NEXT_E2E_TEST_TIMEOUT=240000
 
         # HACK: Despite the name, these environment variables are just used to
         # gate tests, so they're applicable to both turbopack and rspack tests
@@ -140,7 +137,6 @@ jobs:
 
         node run-tests.js \
           --group ${{ matrix.group }}/${{ inputs.integration_groups }} \
-          --concurrency $TEST_CONCURRENCY \
           --retries ${{ inputs.num_retries }} \
           --type integration
       stepName: test-${{ inputs.name }}-integration-${{ matrix.group }}

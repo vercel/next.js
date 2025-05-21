@@ -37,7 +37,10 @@ declare global {
        *
        * @param inlineSnapshot - The snapshot to compare against.
        */
-      toDisplayRedbox(inlineSnapshot?: string): Promise<void>
+      toDisplayRedbox(
+        inlineSnapshot?: string,
+        opts?: ErrorSnapshotOptions
+      ): Promise<void>
 
       /**
        * Inline snapshot matcher for a Redbox that's collapsed by default.
@@ -57,9 +60,16 @@ declare global {
        *
        * @param inlineSnapshot - The snapshot to compare against.
        */
-      toDisplayCollapsedRedbox(inlineSnapshot?: string): Promise<void>
+      toDisplayCollapsedRedbox(
+        inlineSnapshot?: string,
+        opts?: ErrorSnapshotOptions
+      ): Promise<void>
     }
   }
+}
+
+interface ErrorSnapshotOptions {
+  label?: boolean
 }
 
 interface ErrorSnapshot {
@@ -73,11 +83,12 @@ interface ErrorSnapshot {
 
 async function createErrorSnapshot(
   browser: Playwright,
-  next: NextInstance | null
+  next: NextInstance | null,
+  { label: includeLabel = true }: ErrorSnapshotOptions = {}
 ): Promise<ErrorSnapshot> {
   const [label, environmentLabel, description, source, stack, componentStack] =
     await Promise.all([
-      getRedboxLabel(browser),
+      includeLabel ? getRedboxLabel(browser) : null,
       getRedboxEnvironmentLabel(browser),
       getRedboxDescription(browser),
       getRedboxSource(browser),
@@ -134,11 +145,28 @@ async function createErrorSnapshot(
         '<FIXME-project-root>'
       )
     }
+
+    // This is the processed path the nextjs file from node_modules,
+    // likely not being processed properly and it's not deterministic among tests.
+    // e.g. it could be a encoded url of loader path:
+    // ../packages/next/dist/build/webpack/loaders/next-app-loader/index.js...
+    const sourceLines = focusedSource.split('\n')
+    if (
+      sourceLines[0].startsWith('./node_modules/.pnpm/next@file+') ||
+      sourceLines[0].startsWith('./node_modules/.pnpm/file+') ||
+      // e.g. "next-app-loader?<SEARCH PARAMS>" (in rspack, the loader doesn't seem to be prefixed with node_modules)
+      /^next-[a-zA-Z0-9\-_]+?-loader\?/.test(sourceLines[0])
+    ) {
+      focusedSource =
+        `<FIXME-nextjs-internal-source>` +
+        '\n' +
+        sourceLines.slice(1).join('\n')
+    }
   }
 
   const snapshot: ErrorSnapshot = {
     environmentLabel,
-    label,
+    label: label ?? '<FIXME-excluded-label>',
     description:
       description !== null && next !== null
         ? description.replace(next.testDir, '<FIXME-project-root>')
@@ -165,13 +193,14 @@ type RedboxSnapshot = ErrorSnapshot | ErrorSnapshot[]
 
 async function createRedboxSnapshot(
   browser: Playwright,
-  next: NextInstance | null
+  next: NextInstance | null,
+  opts?: ErrorSnapshotOptions
 ): Promise<RedboxSnapshot> {
   const errorTally = await getRedboxTotalErrorCount(browser)
   const errorSnapshots: ErrorSnapshot[] = []
 
   for (let errorIndex = 0; errorIndex < errorTally; errorIndex++) {
-    const errorSnapshot = await createErrorSnapshot(browser, next)
+    const errorSnapshot = await createErrorSnapshot(browser, next, opts)
     errorSnapshots.push(errorSnapshot)
 
     if (errorIndex < errorTally - 1) {
@@ -197,7 +226,8 @@ expect.extend({
   async toDisplayRedbox(
     this: MatcherContext,
     browserOrContext: Playwright | { browser: Playwright; next: NextInstance },
-    expectedRedboxSnapshot?: string
+    expectedRedboxSnapshot?: string,
+    opts?: ErrorSnapshotOptions
   ) {
     let browser: Playwright
     let next: NextInstance | null
@@ -233,7 +263,7 @@ expect.extend({
       }
     }
 
-    const redbox = await createRedboxSnapshot(browser, next)
+    const redbox = await createRedboxSnapshot(browser, next, opts)
 
     // argument length is relevant.
     // Jest will update absent snapshots but fail if you specify a snapshot even if undefined.
@@ -246,7 +276,8 @@ expect.extend({
   async toDisplayCollapsedRedbox(
     this: MatcherContext,
     browserOrContext: Playwright | { browser: Playwright; next: NextInstance },
-    expectedRedboxSnapshot?: string
+    expectedRedboxSnapshot?: string,
+    opts?: ErrorSnapshotOptions
   ) {
     let browser: Playwright
     let next: NextInstance | null
@@ -289,7 +320,7 @@ expect.extend({
       }
     }
 
-    const redbox = await createRedboxSnapshot(browser, next)
+    const redbox = await createRedboxSnapshot(browser, next, opts)
 
     // argument length is relevant.
     // Jest will update absent snapshots but fail if you specify a snapshot even if undefined.

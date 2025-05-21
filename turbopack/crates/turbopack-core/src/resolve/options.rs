@@ -1,21 +1,21 @@
 use std::{collections::BTreeMap, future::Future, pin::Pin};
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexSet, NonLocalValue, ResolvedVc,
-    TryJoinIterExt, Value, ValueToString, Vc,
+    FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs,
 };
-use turbo_tasks_fs::{glob::Glob, FileSystemPath};
+use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 
 use super::{
+    AliasPattern, ExternalType, ResolveResult, ResolveResultItem,
     alias_map::{AliasMap, AliasTemplate},
     pattern::Pattern,
     plugin::BeforeResolvePlugin,
-    AliasPattern, ExternalType, ResolveResult, ResolveResultItem,
 };
-use crate::resolve::{parse::Request, plugin::AfterResolvePlugin, ExternalTraced};
+use crate::resolve::{ExternalTraced, parse::Request, plugin::AfterResolvePlugin};
 
 #[turbo_tasks::value(shared)]
 #[derive(Hash, Debug)]
@@ -557,7 +557,7 @@ impl ResolvedMap {
         for (root, glob, mapping) in self.by_glob.iter() {
             let root = root.await?;
             if let Some(path) = root.get_path_to(&resolved) {
-                if glob.await?.execute(path) {
+                if glob.await?.matches(path) {
                     return Ok(import_mapping_to_result(
                         *mapping.convert().await?,
                         lookup_path,
@@ -597,7 +597,7 @@ pub struct ResolveOptions {
     pub fallback_import_map: Option<ResolvedVc<ImportMap>>,
     pub resolved_map: Option<ResolvedVc<ResolvedMap>>,
     pub before_resolve_plugins: Vec<ResolvedVc<Box<dyn BeforeResolvePlugin>>>,
-    pub plugins: Vec<ResolvedVc<Box<dyn AfterResolvePlugin>>>,
+    pub after_resolve_plugins: Vec<ResolvedVc<Box<dyn AfterResolvePlugin>>>,
     /// Support resolving *.js requests to *.ts files
     pub enable_typescript_with_output_extension: bool,
     /// Warn instead of error for resolve errors

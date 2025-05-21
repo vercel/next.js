@@ -24,10 +24,7 @@ import fs from 'fs'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import { join as pathJoin } from 'path'
 import { ampValidation } from '../../build/output'
-import {
-  INSTRUMENTATION_HOOK_FILENAME,
-  PUBLIC_DIR_MIDDLEWARE_CONFLICT,
-} from '../../lib/constants'
+import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../../lib/constants'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import {
   PHASE_DEVELOPMENT_SERVER,
@@ -70,6 +67,10 @@ import type { ServerComponentsHmrCache } from '../response-cache'
 import { logRequests } from './log-requests'
 import { FallbackMode } from '../../lib/fallback'
 import type { PagesDevOverlayType } from '../../client/components/react-dev-overlay/pages/pages-dev-overlay'
+import {
+  ensureInstrumentationRegistered,
+  getInstrumentationModule,
+} from '../lib/router-utils/instrumentation-globals.external'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: PagesDevOverlayType
@@ -174,27 +175,59 @@ export default class DevServer extends Server {
     )
     this.renderOpts.ampSkipValidation =
       this.nextConfig.experimental?.amp?.skipValidation ?? false
-    this.renderOpts.ampValidator = (html: string, pathname: string) => {
-      const validatorPath =
-        (this.nextConfig.experimental &&
-          this.nextConfig.experimental.amp &&
-          this.nextConfig.experimental.amp.validator) ||
-        require.resolve(
-          'next/dist/compiled/amphtml-validator/validator_wasm.js'
-        )
+    this.renderOpts.ampValidator = async (html: string, pathname: string) => {
+      const { getAmpValidatorInstance, getBundledAmpValidatorFilepath } =
+        require('../../export/helpers/get-amp-html-validator') as typeof import('../../export/helpers/get-amp-html-validator')
 
-      const AmpHtmlValidator =
-        require('next/dist/compiled/amphtml-validator') as typeof import('next/dist/compiled/amphtml-validator')
-      return AmpHtmlValidator.getInstance(validatorPath).then((validator) => {
-        const result = validator.validateString(html)
-        ampValidation(
-          pathname,
-          result.errors
-            .filter((e) => e.severity === 'ERROR')
-            .filter((e) => this._filterAmpDevelopmentScript(html, e)),
-          result.errors.filter((e) => e.severity !== 'ERROR')
-        )
-      })
+      const validatorPath =
+        this.nextConfig.experimental?.amp?.validator ||
+        getBundledAmpValidatorFilepath()
+
+      const validator = await getAmpValidatorInstance(validatorPath)
+
+      const result = validator.validateString(html)
+      ampValidation(
+        pathname,
+        result.errors
+          .filter((error) => {
+            if (error.severity === 'ERROR') {
+              // Unclear yet if these actually prevent the page from being indexed by the AMP cache.
+              // These are coming from React so all we can do is ignore them for now.
+
+              // <link rel="expect" blocking="render" />
+              // https://github.com/ampproject/amphtml/issues/40279
+              if (
+                error.code === 'DISALLOWED_ATTR' &&
+                error.params[0] === 'blocking' &&
+                error.params[1] === 'link'
+              ) {
+                return false
+              }
+              // <template> without type
+              // https://github.com/ampproject/amphtml/issues/40280
+              if (
+                error.code === 'MANDATORY_ATTR_MISSING' &&
+                error.params[0] === 'type' &&
+                error.params[1] === 'template'
+              ) {
+                return false
+              }
+              // <template> without type
+              // https://github.com/ampproject/amphtml/issues/40280
+              if (
+                error.code === 'MISSING_REQUIRED_EXTENSION' &&
+                error.params[0] === 'template' &&
+                error.params[1] === 'amp-mustache'
+              ) {
+                return false
+              }
+              return true
+            }
+            return false
+          })
+          .filter((e) => this._filterAmpDevelopmentScript(html, e)),
+        result.errors.filter((e) => e.severity !== 'ERROR')
+      )
     }
 
     const { pagesDir, appDir } = findPagesDir(this.dir)
@@ -657,8 +690,9 @@ export default class DevServer extends Server {
         .catch(() => false))
     ) {
       try {
-        instrumentationModule = await require(
-          pathJoin(this.distDir, 'server', INSTRUMENTATION_HOOK_FILENAME)
+        instrumentationModule = await getInstrumentationModule(
+          this.dir,
+          this.nextConfig.distDir
         )
       } catch (err: any) {
         err.message = `An error occurred while loading instrumentation hook: ${err.message}`
@@ -669,9 +703,7 @@ export default class DevServer extends Server {
   }
 
   protected async runInstrumentationHookIfAvailable() {
-    await this.startServerSpan
-      .traceChild('run-instrumentation-hook')
-      .traceAsyncFn(() => this.instrumentation?.register?.())
+    await ensureInstrumentationRegistered(this.dir, this.nextConfig.distDir)
   }
 
   protected async ensureEdgeFunction({

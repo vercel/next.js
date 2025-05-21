@@ -1,15 +1,15 @@
 use std::{sync::Arc, time::Duration};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use chromiumoxide::{
+    Page,
     cdp::js_protocol::runtime::{EventBindingCalled, EventExceptionThrown},
     listeners::EventStream,
-    Page,
 };
 use futures::{Stream, StreamExt};
 use tokio::time::timeout;
 
-use crate::{PreparedApp, BINDING_NAME};
+use crate::{BINDING_NAME, PreparedApp};
 
 const MAX_HYDRATION_TIMEOUT: Duration = Duration::from_secs(120);
 const TEST_APP_HYDRATION_DONE: &str = "Hydration done";

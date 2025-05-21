@@ -31,7 +31,6 @@ import {
   EVENT_BUILD_FEATURE_USAGE,
   eventCliSession,
 } from '../../../telemetry/events'
-import { getDefineEnv } from '../../../build/webpack/plugins/define-env-plugin'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import {
   getStaticInfoIncludingLayouts,
@@ -83,6 +82,7 @@ import {
   ModuleBuildError,
   TurbopackInternalError,
 } from '../../../shared/lib/turbopack/utils'
+import { getDefineEnv } from '../../../build/define-env'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -99,6 +99,17 @@ export type SetupOpts = {
   port: number
   onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
   resetFetch: () => void
+}
+
+export interface DevRoutesManifest {
+  version: number
+  caseSensitive: RoutesManifest['caseSensitive']
+  basePath: RoutesManifest['basePath']
+  rewrites: RoutesManifest['rewrites']
+  redirects: RoutesManifest['redirects']
+  headers: RoutesManifest['headers']
+  i18n: RoutesManifest['i18n']
+  skipMiddlewareUrlNormalize: RoutesManifest['skipMiddlewareUrlNormalize']
 }
 
 export type ServerFields = {
@@ -200,14 +211,13 @@ async function startWatcher(opts: SetupOpts) {
   // have to write this after starting hot-reloader since that
   // cleans the dist dir
   const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
-  const routesManifest: Partial<RoutesManifest> = {
+  const routesManifest: DevRoutesManifest = {
     version: 3,
     caseSensitive: !!nextConfig.experimental.caseSensitiveRoutes,
     basePath: nextConfig.basePath,
     rewrites: opts.fsChecker.rewrites,
     redirects: opts.fsChecker.redirects,
     headers: opts.fsChecker.headers,
-    dataRoutes: [],
     i18n: nextConfig.i18n || undefined,
     skipMiddlewareUrlNormalize: nextConfig.skipMiddlewareUrlNormalize,
   }
@@ -656,6 +666,7 @@ async function startWatcher(opts: SetupOpts) {
               hasRewrites,
               // TODO: Implement
               middlewareMatchers: undefined,
+              projectPath: opts.dir,
             }),
           })
         }
@@ -728,9 +739,9 @@ async function startWatcher(opts: SetupOpts) {
                   hasRewrites,
                   isClient,
                   isEdgeServer,
-                  isNodeOrEdgeCompilation: isNodeServer || isEdgeServer,
                   isNodeServer,
                   middlewareMatchers: undefined,
+                  projectPath: opts.dir,
                 })
 
                 Object.keys(plugin.definitions).forEach((key) => {

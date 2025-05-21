@@ -282,7 +282,7 @@ export default async function Page() {
 }
 ```
 
-We recommend setting a high revalidation time. For instance, 1 hour instead of 1 second. If you need more precision, consider using on-demand revalidation. If you need real-time data, consider switching to [dynamic rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering).
+We recommend setting a high revalidation time. For instance, 1 hour instead of 1 second. If you need more precision, consider using on-demand revalidation. If you need real-time data, consider switching to [dynamic rendering](/docs/app/getting-started/partial-prerendering#dynamic-rendering).
 
 ### On-demand revalidation with `revalidatePath`
 
@@ -539,11 +539,7 @@ export async function getStaticProps({ params }) {
 
 ### Customizing the cache location
 
-Caching and revalidating pages (with Incremental Static Regeneration) use the same shared cache. When [deploying to Vercel](https://vercel.com/docs/incremental-static-regeneration?utm_source=next-site&utm_medium=docs&utm_campaign=next-website), the ISR cache is automatically persisted to durable storage.
-
-When self-hosting, the ISR cache is stored to the filesystem (on disk) on your Next.js server. This works automatically when self-hosting using both the Pages and App Router.
-
-You can configure the Next.js cache location if you want to persist cached pages and data to durable storage, or share the cache across multiple containers or instances of your Next.js application. [Learn more](/docs/app/building-your-application/deploying#caching-and-isr).
+You can configure the Next.js cache location if you want to persist cached pages and data to durable storage, or share the cache across multiple containers or instances of your Next.js application. [Learn more](/docs/app/guides/self-hosting#caching-and-isr).
 
 ## Troubleshooting
 
@@ -578,9 +574,9 @@ This will make the Next.js server console log ISR cache hits and misses. You can
 <AppOnly>
 
 - ISR is only supported when using the Node.js runtime (default).
-- ISR is not supported when creating a [Static Export](/docs/app/building-your-application/deploying/static-exports).
-- If you have multiple `fetch` requests in a statically rendered route, and each has a different `revalidate` frequency, the lowest time will be used for ISR. However, those revalidate frequencies will still be respected by the [Data Cache](/docs/app/building-your-application/caching#data-cache).
-- If any of the `fetch` requests used on a route have a `revalidate` time of `0`, or an explicit `no-store`, the route will be [dynamically rendered](/docs/app/building-your-application/rendering/server-components#dynamic-rendering).
+- ISR is not supported when creating a [Static Export](/docs/app/guides/static-exports).
+- If you have multiple `fetch` requests in a statically rendered route, and each has a different `revalidate` frequency, the lowest time will be used for ISR. However, those revalidate frequencies will still be respected by the [Data Cache](/docs/app/deep-dive/caching#data-cache).
+- If any of the `fetch` requests used on a route have a `revalidate` time of `0`, or an explicit `no-store`, the route will be [dynamically rendered](/docs/app/getting-started/partial-prerendering#dynamic-rendering).
 - Middleware won't be executed for on-demand ISR requests, meaning any path rewrites or logic in Middleware will not be applied. Ensure you are revalidating the exact path. For example, `/post/1` instead of a rewritten `/post-1`.
 
 </AppOnly>
@@ -588,10 +584,21 @@ This will make the Next.js server console log ISR cache hits and misses. You can
 <PagesOnly>
 
 - ISR is only supported when using the Node.js runtime (default).
-- ISR is not supported when creating a [Static Export](/docs/app/building-your-application/deploying/static-exports).
+- ISR is not supported when creating a [Static Export](/docs/app/guides/static-exports).
 - Middleware won't be executed for on-demand ISR requests, meaning any path rewrites or logic in Middleware will not be applied. Ensure you are revalidating the exact path. For example, `/post/1` instead of a rewritten `/post-1`.
 
 </PagesOnly>
+
+## Platform Support
+
+| Deployment Option                                                   | Supported         |
+| ------------------------------------------------------------------- | ----------------- |
+| [Node.js server](/docs/app/getting-started/deploying#nodejs-server) | Yes               |
+| [Docker container](/docs/app/getting-started/deploying#docker)      | Yes               |
+| [Static export](/docs/app/getting-started/deploying#static-export)  | No                |
+| [Adapters](/docs/app/getting-started/deploying#adapters)            | Platform-specific |
+
+Learn how to [configure ISR](/docs/app/guides/self-hosting#caching-and-isr) when self-hosting Next.js.
 
 ## Version history
 

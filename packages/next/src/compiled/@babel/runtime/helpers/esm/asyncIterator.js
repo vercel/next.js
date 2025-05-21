@@ -1,44 +1,45 @@
-export default function _asyncIterator(iterable) {
-  var method,
-    async,
-    sync,
-    retry = 2;
-  for ("undefined" != typeof Symbol && (async = Symbol.asyncIterator, sync = Symbol.iterator); retry--;) {
-    if (async && null != (method = iterable[async])) return method.call(iterable);
-    if (sync && null != (method = iterable[sync])) return new AsyncFromSyncIterator(method.call(iterable));
-    async = "@@asyncIterator", sync = "@@iterator";
+function _asyncIterator(r) {
+  var n,
+    t,
+    o,
+    e = 2;
+  for ("undefined" != typeof Symbol && (t = Symbol.asyncIterator, o = Symbol.iterator); e--;) {
+    if (t && null != (n = r[t])) return n.call(r);
+    if (o && null != (n = r[o])) return new AsyncFromSyncIterator(n.call(r));
+    t = "@@asyncIterator", o = "@@iterator";
   }
   throw new TypeError("Object is not async iterable");
 }
-function AsyncFromSyncIterator(s) {
+function AsyncFromSyncIterator(r) {
   function AsyncFromSyncIteratorContinuation(r) {
     if (Object(r) !== r) return Promise.reject(new TypeError(r + " is not an object."));
-    var done = r.done;
-    return Promise.resolve(r.value).then(function (value) {
+    var n = r.done;
+    return Promise.resolve(r.value).then(function (r) {
       return {
-        value: value,
-        done: done
+        value: r,
+        done: n
       };
     });
   }
-  return AsyncFromSyncIterator = function AsyncFromSyncIterator(s) {
-    this.s = s, this.n = s.next;
+  return AsyncFromSyncIterator = function AsyncFromSyncIterator(r) {
+    this.s = r, this.n = r.next;
   }, AsyncFromSyncIterator.prototype = {
     s: null,
     n: null,
     next: function next() {
       return AsyncFromSyncIteratorContinuation(this.n.apply(this.s, arguments));
     },
-    "return": function _return(value) {
-      var ret = this.s["return"];
-      return void 0 === ret ? Promise.resolve({
-        value: value,
+    "return": function _return(r) {
+      var n = this.s["return"];
+      return void 0 === n ? Promise.resolve({
+        value: r,
         done: !0
-      }) : AsyncFromSyncIteratorContinuation(ret.apply(this.s, arguments));
+      }) : AsyncFromSyncIteratorContinuation(n.apply(this.s, arguments));
     },
-    "throw": function _throw(value) {
-      var thr = this.s["return"];
-      return void 0 === thr ? Promise.reject(value) : AsyncFromSyncIteratorContinuation(thr.apply(this.s, arguments));
+    "throw": function _throw(r) {
+      var n = this.s["return"];
+      return void 0 === n ? Promise.reject(r) : AsyncFromSyncIteratorContinuation(n.apply(this.s, arguments));
     }
-  }, new AsyncFromSyncIterator(s);
+  }, new AsyncFromSyncIterator(r);
 }
+export { _asyncIterator as default };

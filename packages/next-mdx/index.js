@@ -49,11 +49,16 @@ module.exports =
     if (process.env.TURBOPACK) {
       nextConfig.turbopack = Object.assign({}, nextConfig?.turbopack, {
         rules: Object.assign({}, nextConfig?.turbopack?.rules, {
-          '*.mdx': {
+          '#next-mdx': {
             loaders: [loader],
             as: '*.tsx',
           },
         }),
+        conditions: {
+          '#next-mdx': {
+            path: extension,
+          },
+        },
         resolveAlias: Object.assign({}, nextConfig?.turbopack?.resolveAlias, {
           'next-mdx-import-source-file':
             '@vercel/turbopack-next/mdx-import-source',

@@ -1,20 +1,20 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc, Value, Vc};
-use turbo_tasks_fs::{self, glob::Glob, FileJsonContent, FileSystemPath};
+use turbo_tasks::{NonLocalValue, ResolvedVc, Value, Vc, trace::TraceRawVcs};
+use turbo_tasks_fs::{self, FileJsonContent, FileSystemPath, glob::Glob};
 use turbopack_core::{
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::{
-        find_context_file,
+        ExternalTraced, ExternalType, FindContextFileResult, ResolveResult, ResolveResultItem,
+        ResolveResultOption, find_context_file,
         node::{node_cjs_resolve_options, node_esm_resolve_options},
         package_json,
         parse::Request,
         pattern::Pattern,
         plugin::{AfterResolvePlugin, AfterResolvePluginCondition},
-        resolve, ExternalTraced, ExternalType, FindContextFileResult, ResolveResult,
-        ResolveResultItem, ResolveResultOption,
+        resolve,
     },
     source::Source,
 };
@@ -119,8 +119,8 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                     request_glob,
                 }) = *exception_glob
                 {
-                    let path_match = path_glob.await?.execute(&raw_fs_path.path);
-                    let request_match = request_glob.await?.execute(&request_str);
+                    let path_match = path_glob.await?.matches(&raw_fs_path.path);
+                    let request_match = request_glob.await?.matches(&request_str);
                     if path_match || request_match {
                         return Ok(ResolveResultOption::none());
                     }
@@ -135,8 +135,8 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                     request_glob,
                 }) = *external_glob
                 {
-                    let path_match = path_glob.await?.execute(&raw_fs_path.path);
-                    let request_match = request_glob.await?.execute(&request_str);
+                    let path_match = path_glob.await?.matches(&raw_fs_path.path);
+                    let request_match = request_glob.await?.matches(&request_str);
 
                     if !path_match && !request_match {
                         return Ok(ResolveResultOption::none());

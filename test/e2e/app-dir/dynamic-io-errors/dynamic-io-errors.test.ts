@@ -1,7 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
 
-const WITH_PPR = !!process.env.__NEXT_EXPERIMENTAL_PPR
-
 const stackStart = /\s+at /
 
 function createExpectError(cliOutput: string) {
@@ -71,20 +69,60 @@ function runTests(options: { withMinification: boolean }) {
 
       // This test used to assert the opposite but now that metadata is streaming during prerenders
       // we don't have to error the build when it is dynamic
-      it('should not error the build if generateMetadata is dynamic', async () => {
+      it('should error the build if generateMetadata is dynamic when the rest of the route is prerenderable', async () => {
         try {
           await next.start()
         } catch {
-          throw new Error('expected build not to fail')
+          // we expect the build to fail
         }
+        const expectError = createExpectError(next.cliOutput)
 
-        if (WITH_PPR) {
-          expect(next.cliOutput).toContain('◐ / ')
-        } else {
-          expect(next.cliOutput).toContain('ƒ / ')
+        expectError(
+          'Route "/" has a `generateMetadata` that depends on Request data (`cookies()`, etc...) or uncached external data (`fetch(...)`, etc...) when the rest of the route does not'
+        )
+        expectError('Error occurred prerendering page "/"')
+      })
+    })
+    describe('Dynamic Metadata - Error Route', () => {
+      const { next, isNextDev, skipped } = nextTestSetup({
+        files: __dirname + '/fixtures/dynamic-metadata-error-route',
+        skipStart: true,
+        skipDeployment: true,
+      })
+
+      if (skipped) {
+        return
+      }
+
+      if (isNextDev) {
+        it('does not run in dev', () => {})
+        return
+      }
+
+      beforeEach(async () => {
+        if (!withMinification) {
+          await next.patchFile('next.config.js', (content) =>
+            content.replace(
+              'serverMinification: true,',
+              'serverMinification: false,'
+            )
+          )
         }
-        const $ = await next.render$('/')
-        expect($('#sentinel').text()).toBe('sentinel')
+      })
+
+      // This test is just here because there was a bug when dynamic metadata was used alongside another dynamic IO violation which caused the validation to be skipped.
+      it('should error the build for the correct reason when there is a dynamic IO violation alongside dynamic metadata', async () => {
+        try {
+          await next.start()
+        } catch {
+          // we expect the build to fail
+        }
+        const expectError = createExpectError(next.cliOutput)
+
+        expectError(
+          'Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary'
+        )
+        expectError('Error occurred prerendering page "/"')
       })
     })
     describe('Dynamic Metadata - Static Route With Suspense', () => {
@@ -120,16 +158,14 @@ function runTests(options: { withMinification: boolean }) {
         try {
           await next.start()
         } catch {
-          throw new Error('expected build not to fail')
+          // we expect the build to fail
         }
+        const expectError = createExpectError(next.cliOutput)
 
-        if (WITH_PPR) {
-          expect(next.cliOutput).toContain('◐ / ')
-        } else {
-          expect(next.cliOutput).toContain('ƒ / ')
-        }
-        const $ = await next.render$('/')
-        expect($('#sentinel').text()).toBe('sentinel')
+        expectError(
+          'Route "/" has a `generateMetadata` that depends on Request data (`cookies()`, etc...) or uncached external data (`fetch(...)`, etc...) when the rest of the route does not'
+        )
+        expectError('Error occurred prerendering page "/"')
       })
     })
 
@@ -167,16 +203,10 @@ function runTests(options: { withMinification: boolean }) {
           throw new Error('expected build not to fail for fully static project')
         }
 
-        if (WITH_PPR) {
-          expect(next.cliOutput).toContain('◐ / ')
-          const $ = await next.render$('/')
-          expect($('#dynamic').text()).toBe('Dynamic')
-          expect($('[data-fallback]').length).toBe(1)
-        } else {
-          expect(next.cliOutput).toContain('ƒ / ')
-          const $ = await next.render$('/')
-          expect($('#dynamic').text()).toBe('Dynamic')
-        }
+        expect(next.cliOutput).toContain('◐ / ')
+        const $ = await next.render$('/')
+        expect($('#dynamic').text()).toBe('Dynamic')
+        expect($('[data-fallback]').length).toBe(1)
       })
     })
 
@@ -215,10 +245,10 @@ function runTests(options: { withMinification: boolean }) {
         }
         const expectError = createExpectError(next.cliOutput)
 
-        expectError('Error occurred prerendering page "/"')
         expectError(
           'Route "/" has a `generateViewport` that depends on Request data (`cookies()`, etc...) or uncached external data (`fetch(...)`, etc...) without explicitly allowing fully dynamic rendering. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport'
         )
+        expectError('Error occurred prerendering page "/"')
       })
     })
 
@@ -257,10 +287,10 @@ function runTests(options: { withMinification: boolean }) {
         }
         const expectError = createExpectError(next.cliOutput)
 
-        expectError('Error occurred prerendering page "/"')
         expectError(
           'Route "/" has a `generateViewport` that depends on Request data (`cookies()`, etc...) or uncached external data (`fetch(...)`, etc...) without explicitly allowing fully dynamic rendering. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport'
         )
+        expectError('Error occurred prerendering page "/"')
       })
     })
 
@@ -341,16 +371,11 @@ function runTests(options: { withMinification: boolean }) {
           // Turbopack doesn't support disabling minification yet
           withMinification || isTurbopack ? undefined : 'IndirectionTwo'
         )
-        if (WITH_PPR) {
-          // React currently fatals the render in canary because we don't have access to the prerender API there. with a fatal only
-          // one task actually reports and error at the moment. We should fix upstream but for now we exclude the second error when PPR is off
-          // because we are using canary React and renderToReadableStream rather than experimental React and prerender
-          expectError(
-            'Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it.',
-            // Turbopack doesn't support disabling minification yet
-            withMinification || isTurbopack ? undefined : 'IndirectionThree'
-          )
-        }
+        expectError(
+          'Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it.',
+          // Turbopack doesn't support disabling minification yet
+          withMinification || isTurbopack ? undefined : 'IndirectionThree'
+        )
         expectError('Error occurred prerendering page "/"')
         expectError('exiting the build.')
       })
@@ -383,36 +408,18 @@ function runTests(options: { withMinification: boolean }) {
         }
       })
 
-      if (WITH_PPR) {
-        it('should partially prerender when all dynamic components are inside a Suspense boundary', async () => {
-          try {
-            await next.start()
-          } catch {
-            throw new Error(
-              'expected build not to fail for fully static project'
-            )
-            // we expect the build to fail
-          }
+      it('should partially prerender when all dynamic components are inside a Suspense boundary', async () => {
+        try {
+          await next.start()
+        } catch {
+          throw new Error('expected build not to fail for fully static project')
+          // we expect the build to fail
+        }
 
-          expect(next.cliOutput).toContain('◐ / ')
-          const $ = await next.render$('/')
-          expect($('[data-fallback]').length).toBe(2)
-        })
-      } else {
-        it('should not error the build when all dynamic components are inside a Suspense boundary', async () => {
-          try {
-            await next.start()
-          } catch {
-            throw new Error(
-              'expected build not to fail for fully static project'
-            )
-          }
-
-          expect(next.cliOutput).toContain('ƒ / ')
-          const $ = await next.render$('/')
-          expect($('[data-fallback]').length).toBe(2)
-        })
-      }
+        expect(next.cliOutput).toContain('◐ / ')
+        const $ = await next.render$('/')
+        expect($('[data-fallback]').length).toBe(2)
+      })
     })
   })
 }

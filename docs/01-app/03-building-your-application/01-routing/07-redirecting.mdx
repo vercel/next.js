@@ -37,7 +37,7 @@ There are a few ways you can handle redirects in Next.js. This page will go thro
 
 ## `redirect` function
 
-The `redirect` function allows you to redirect the user to another URL. You can call `redirect` in [Server Components](/docs/app/building-your-application/rendering/server-components), [Route Handlers](/docs/app/building-your-application/routing/route-handlers), and [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
+The `redirect` function allows you to redirect the user to another URL. You can call `redirect` in [Server Components](/docs/app/getting-started/server-and-client-components), [Route Handlers](/docs/app/building-your-application/routing/route-handlers), and [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
 
 `redirect` is often used after a mutation or event. For example, creating a post:
 
@@ -89,7 +89,7 @@ See the [`redirect` API reference](/docs/app/api-reference/functions/redirect) f
 
 ## `permanentRedirect` function
 
-The `permanentRedirect` function allows you to **permanently** redirect the user to another URL. You can call `permanentRedirect` in [Server Components](/docs/app/building-your-application/rendering/server-components), [Route Handlers](/docs/app/building-your-application/routing/route-handlers), and [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
+The `permanentRedirect` function allows you to **permanently** redirect the user to another URL. You can call `permanentRedirect` in [Server Components](/docs/app/getting-started/server-and-client-components), [Route Handlers](/docs/app/building-your-application/routing/route-handlers), and [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
 
 `permanentRedirect` is often used after a mutation or event that changes an entity's canonical URL, such as updating a user's profile URL after they change their username:
 
@@ -375,7 +375,7 @@ Consider the following data structure:
 }
 ```
 
-In [Middleware](/docs/app/building-your-application/routing/middleware), you can read from a database such as Vercel's [Edge Config](https://vercel.com/docs/storage/edge-config/get-started?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) or [Redis](https://vercel.com/docs/storage/vercel-kv?utm_source=next-site&utm_medium=docs&utm_campaign=next-website), and redirect the user based on the incoming request:
+In [Middleware](/docs/app/building-your-application/routing/middleware), you can read from a database such as Vercel's [Edge Config](https://vercel.com/docs/edge-config/get-started) or [Redis](https://vercel.com/docs/redis), and redirect the user based on the incoming request:
 
 ```ts filename="middleware.ts" switcher
 import { NextResponse, NextRequest } from 'next/server'
@@ -424,7 +424,7 @@ export async function middleware(request) {
 
 Reading a large dataset for every incoming request can be slow and expensive. There are two ways you can optimize data lookup performance:
 
-- Use a database that is optimized for fast reads, such as [Vercel Edge Config](https://vercel.com/docs/storage/edge-config/get-started?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) or [Redis](https://vercel.com/docs/storage/vercel-kv?utm_source=next-site&utm_medium=docs&utm_campaign=next-website).
+- Use a database that is optimized for fast reads
 - Use a data lookup strategy such as a [Bloom filter](https://en.wikipedia.org/wiki/Bloom_filter) to efficiently check if a redirect exists **before** reading the larger redirects file or database.
 
 Considering the previous example, you can import a generated bloom filter file into Middleware, then, check if the incoming request pathname exists in the bloom filter.

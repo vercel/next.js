@@ -1,10 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import {
-  assertHasRedbox,
-  assertNoRedbox,
-  getRedboxDescription,
-  getRedboxSource,
-} from 'next-test-utils'
+import { assertHasRedbox } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 describe('use-cache-segment-configs', () => {
@@ -22,31 +17,40 @@ describe('use-cache-segment-configs', () => {
     if (isNextDev) {
       const browser = await next.browser('/runtime')
 
+      await assertHasRedbox(browser)
+
       if (isTurbopack) {
-        await assertHasRedbox(browser)
-
-        const description = await getRedboxDescription(browser)
-        expect(description).toMatchInlineSnapshot(
-          `"Ecmascript file had an error"`
-        )
-        const source = await getRedboxSource(browser)
-
-        expect(source).toMatchInlineSnapshot(`
-         "./app/runtime/page.tsx (1:14)
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "Ecmascript file had an error",
+           "environmentLabel": null,
+           "label": "Build Error",
+           "source": "./app/runtime/page.tsx (1:14)
          Ecmascript file had an error
          > 1 | export const runtime = 'edge'
-             |              ^^^^^^^
-           2 |
-           3 | export default function Page() {
-           4 |   return <div>This page uses \`export const runtime\`.</div>
-
-         Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it."
+             |              ^^^^^^^",
+           "stack": [],
+         }
         `)
       } else {
-        // TODO(veil): Figure out why dev overlay is not shown with Webpack when
-        // the runtime is 'edge'. It's possibly related to the import trace
-        // being wrong (pointing at the Webpack loader resource).
-        await assertNoRedbox(browser)
+        // FIXME: Fix broken import trace for Webpack loader resource.
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "  x Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it.",
+           "environmentLabel": null,
+           "label": "Build Error",
+           "source": "<FIXME-nextjs-internal-source>
+         Error:   x Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it.
+            ,-[1:1]
+          1 | export const runtime = 'edge'
+            :              ^^^^^^^
+          2 |
+          3 | export default function Page() {
+          4 |   return <div>This page uses \`export const runtime\`.</div>
+            \`----",
+           "stack": [],
+         }
+        `)
       }
     } else {
       const { cliOutput } = await next.build()

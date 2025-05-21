@@ -6,8 +6,8 @@ use std::{
 };
 
 use auto_hash_map::{
-    map::{Entry, Iter, RawEntry},
     AutoMap,
+    map::{Entry, Iter, RawEntry},
 };
 use rustc_hash::FxHasher;
 
@@ -277,11 +277,7 @@ impl<T: Eq + Hash + Clone, H: BuildHasher + Default> CountHashSet<T, H> {
 }
 
 fn filter<'a, T>((k, v): (&'a T, &'a isize)) -> Option<&'a T> {
-    if *v > 0 {
-        Some(k)
-    } else {
-        None
-    }
+    if *v > 0 { Some(k) } else { None }
 }
 
 type InnerIter<'a, T> =
@@ -348,7 +344,7 @@ mod tests {
         assert!(set.is_empty());
 
         assert_eq!(
-            format!("{:?}", set),
+            format!("{set:?}"),
             "CountHashSet { inner: {}, negative_entries: 0 }"
         );
     }
@@ -392,7 +388,7 @@ mod tests {
         assert!(set.is_empty());
 
         assert_eq!(
-            format!("{:?}", set),
+            format!("{set:?}"),
             "CountHashSet { inner: {}, negative_entries: 0 }"
         );
     }

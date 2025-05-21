@@ -70,7 +70,7 @@ impl Issue for ResolvingIssue {
             for request in request_parts {
                 match lookup_import_map(**import_map, *self.file_path, **request).await {
                     Ok(None) => {}
-                    Ok(Some(str)) => writeln!(description, "Import map: {}", str)?,
+                    Ok(Some(str)) => writeln!(description, "Import map: {str}")?,
                     Err(err) => {
                         writeln!(
                             description,

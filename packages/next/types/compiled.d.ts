@@ -55,6 +55,10 @@ declare module 'next/dist/compiled/jest-worker' {
 }
 
 declare module 'next/dist/compiled/amphtml-validator' {
+  export type Validator = {
+    validateString(html: string): Promise<any>
+  }
+  export function getInstance(validatorPath: string): Promise<Validator>
   export type ValidationError = any
 }
 

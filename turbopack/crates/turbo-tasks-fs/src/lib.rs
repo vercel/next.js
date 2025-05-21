@@ -11,6 +11,7 @@
 pub mod attach;
 pub mod embed;
 pub mod glob;
+mod globset;
 pub mod invalidation;
 mod invalidator_map;
 pub mod json;
@@ -25,46 +26,44 @@ mod watcher;
 
 use std::{
     borrow::Cow,
-    cmp::{min, Ordering},
-    fmt::{self, Debug, Display, Formatter, Write as _},
+    cmp::{Ordering, min},
+    fmt::{self, Debug, Display, Formatter},
     fs::FileType,
     future::Future,
     io::{self, BufRead, ErrorKind},
     mem::take,
-    path::{Path, PathBuf, MAIN_SEPARATOR},
+    path::{MAIN_SEPARATOR, Path, PathBuf},
     sync::Arc,
     time::Duration,
 };
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use auto_hash_map::{AutoMap, AutoSet};
 use bitflags::bitflags;
 use dunce::simplified;
 use glob::Glob;
 use indexmap::IndexSet;
 use invalidator_map::InvalidatorMap;
-use jsonc_parser::{parse_to_serde_value, ParseOptions};
+use jsonc_parser::{ParseOptions, parse_to_serde_value};
 use mime::Mime;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
-use read_glob::read_glob;
-pub use read_glob::ReadGlobResult;
+use read_glob::track_glob;
+use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::{
     fs,
-    io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
+    io::{AsyncBufReadExt, AsyncReadExt, BufReader},
     sync::{RwLock, RwLockReadGuard},
 };
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, effect, mark_session_dependent, mark_stateful, trace::TraceRawVcs,
-    Completion, InvalidationReason, Invalidator, NonLocalValue, ReadRef, ResolvedVc, ValueToString,
-    Vc,
+    ApplyEffectsContext, Completion, InvalidationReason, Invalidator, NonLocalValue, ReadRef,
+    ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, effect, mark_session_dependent,
+    mark_stateful, trace::TraceRawVcs,
 };
-use turbo_tasks_hash::{
-    hash_xxh3_hash128, hash_xxh3_hash64, DeterministicHash, DeterministicHasher,
-};
+use turbo_tasks_hash::{DeterministicHash, DeterministicHasher, hash_xxh3_hash64};
 use util::{extract_disk_access, join_path, normalize_path, sys_to_unix, unix_to_sys};
 pub use virtual_fs::VirtualFileSystem;
 use watcher::DiskWatcher;
@@ -203,10 +202,15 @@ pub trait FileSystem: ValueToString {
     fn read(self: Vc<Self>, fs_path: Vc<FileSystemPath>) -> Vc<FileContent>;
     fn read_link(self: Vc<Self>, fs_path: Vc<FileSystemPath>) -> Vc<LinkContent>;
     fn raw_read_dir(self: Vc<Self>, fs_path: Vc<FileSystemPath>) -> Vc<RawDirectoryContent>;
-    fn track(self: Vc<Self>, fs_path: Vc<FileSystemPath>) -> Vc<Completion>;
     fn write(self: Vc<Self>, fs_path: Vc<FileSystemPath>, content: Vc<FileContent>) -> Vc<()>;
     fn write_link(self: Vc<Self>, fs_path: Vc<FileSystemPath>, target: Vc<LinkContent>) -> Vc<()>;
     fn metadata(self: Vc<Self>, fs_path: Vc<FileSystemPath>) -> Vc<FileMeta>;
+}
+
+#[derive(Default)]
+struct DiskFileSystemApplyContext {
+    /// A cache of already created directories to avoid creating them multiple times.
+    created_directories: FxHashSet<PathBuf>,
 }
 
 #[derive(Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
@@ -394,6 +398,29 @@ impl DiskFileSystemInner {
 
         Ok(())
     }
+
+    async fn create_directory(self: &Arc<Self>, directory: &Path) -> Result<()> {
+        let already_created = ApplyEffectsContext::with_or_insert_with(
+            DiskFileSystemApplyContext::default,
+            |fs_context| fs_context.created_directories.contains(directory),
+        );
+        if !already_created {
+            let func = |p: &Path| std::fs::create_dir_all(p);
+            retry_blocking(directory, func)
+                .concurrency_limited(&self.semaphore)
+                .instrument(tracing::info_span!(
+                    "create directory",
+                    path = display(directory.display())
+                ))
+                .await?;
+            ApplyEffectsContext::with(|fs_context: &mut DiskFileSystemApplyContext| {
+                fs_context
+                    .created_directories
+                    .insert(directory.to_path_buf())
+            });
+        }
+        Ok(())
+    }
 }
 
 #[turbo_tasks::value(cell = "new", eq = "manual")]
@@ -459,18 +486,17 @@ struct PathLockGuard<'a>(
 );
 
 fn format_absolute_fs_path(path: &Path, name: &str, root_path: &Path) -> Option<String> {
-    let path = if let Ok(rel_path) = path.strip_prefix(root_path) {
+    if let Ok(rel_path) = path.strip_prefix(root_path) {
         let path = if MAIN_SEPARATOR != '/' {
             let rel_path = rel_path.to_string_lossy().replace(MAIN_SEPARATOR, "/");
-            format!("[{name}]/{}", rel_path)
+            format!("[{name}]/{rel_path}")
         } else {
             format!("[{name}]/{}", rel_path.display())
         };
         Some(path)
     } else {
         None
-    };
-    path
+    }
 }
 
 pub fn path_to_key(path: impl AsRef<Path>) -> String {
@@ -687,14 +713,6 @@ impl FileSystem for DiskFileSystem {
     }
 
     #[turbo_tasks::function(fs)]
-    async fn track(&self, fs_path: Vc<FileSystemPath>) -> Result<Vc<Completion>> {
-        mark_session_dependent();
-        let full_path = self.to_sys_path(fs_path).await?;
-        self.inner.register_read_invalidator(&full_path)?;
-        Ok(Completion::new())
-    }
-
-    #[turbo_tasks::function(fs)]
     async fn write(&self, fs_path: Vc<FileSystemPath>, content: Vc<FileContent>) -> Result<()> {
         mark_session_dependent();
         let full_path = self.to_sys_path(fs_path).await?;
@@ -740,54 +758,51 @@ impl FileSystem for DiskFileSystem {
             }
 
             match &*content {
-                FileContent::Content(file) => {
+                FileContent::Content(..) => {
                     let create_directory = compare == FileComparison::Create;
                     if create_directory {
                         if let Some(parent) = full_path.parent() {
-                            retry_blocking(parent, |p| std::fs::create_dir_all(p))
-                                .concurrency_limited(&inner.semaphore)
-                                .instrument(tracing::info_span!(
-                                    "create directory",
-                                    path = display(parent.display())
-                                ))
-                                .await
-                                .with_context(|| {
-                                    format!(
-                                        "failed to create directory {} for write to {}",
-                                        parent.display(),
-                                        full_path.display()
-                                    )
-                                })?;
+                            inner.create_directory(parent).await.with_context(|| {
+                                format!(
+                                    "failed to create directory {} for write to {}",
+                                    parent.display(),
+                                    full_path.display()
+                                )
+                            })?;
                         }
                     }
+
                     let full_path_to_write = full_path.clone();
-                    retry_future(move || {
-                        let full_path = full_path_to_write.clone();
-                        async move {
-                            let mut f = fs::File::create(&full_path).await?;
-                            tokio::io::copy(&mut file.read(), &mut f).await?;
+                    let content = content.clone();
+                    retry_blocking(&full_path_to_write, move |full_path| {
+                        use std::io::Write;
+
+                        let mut f = std::fs::File::create(full_path)?;
+                        let FileContent::Content(file) = &*content else {
+                            unreachable!()
+                        };
+                        std::io::copy(&mut file.read(), &mut f)?;
+                        #[cfg(target_family = "unix")]
+                        f.set_permissions(file.meta.permissions.into())?;
+                        f.flush()?;
+                        #[cfg(feature = "write_version")]
+                        {
+                            let mut full_path = full_path.into_owned();
+                            let hash = hash_xxh3_hash64(file);
+                            let ext = full_path.extension();
+                            let ext = if let Some(ext) = ext {
+                                format!("{:016x}.{}", hash, ext.to_string_lossy())
+                            } else {
+                                format!("{:016x}", hash)
+                            };
+                            full_path.set_extension(ext);
+                            let mut f = std::fs::File::create(&full_path)?;
+                            std::io::copy(&mut file.read(), &mut f)?;
                             #[cfg(target_family = "unix")]
-                            f.set_permissions(file.meta.permissions.into()).await?;
-                            f.flush().await?;
-                            #[cfg(feature = "write_version")]
-                            {
-                                let mut full_path = full_path.into_owned();
-                                let hash = hash_xxh3_hash64(file);
-                                let ext = full_path.extension();
-                                let ext = if let Some(ext) = ext {
-                                    format!("{:016x}.{}", hash, ext.to_string_lossy())
-                                } else {
-                                    format!("{:016x}", hash)
-                                };
-                                full_path.set_extension(ext);
-                                let mut f = fs::File::create(&full_path).await?;
-                                tokio::io::copy(&mut file.read(), &mut f).await?;
-                                #[cfg(target_family = "unix")]
-                                f.set_permissions(file.meta.permissions.into()).await?;
-                                f.flush().await?;
-                            }
-                            Ok::<(), io::Error>(())
+                            f.set_permissions(file.meta.permissions.into())?;
+                            f.flush()?;
                         }
+                        Ok::<(), io::Error>(())
                     })
                     .concurrency_limited(&inner.semaphore)
                     .instrument(tracing::info_span!(
@@ -881,20 +896,13 @@ impl FileSystem for DiskFileSystem {
                     let create_directory = old_content.is_none();
                     if create_directory {
                         if let Some(parent) = full_path.parent() {
-                            retry_blocking(parent, |path| std::fs::create_dir_all(path))
-                                .concurrency_limited(&inner.semaphore)
-                                .instrument(tracing::info_span!(
-                                    "create directory",
-                                    path = display(parent.display())
-                                ))
-                                .await
-                                .with_context(|| {
-                                    format!(
-                                        "failed to create directory {} for write to {}",
-                                        parent.display(),
-                                        full_path.display()
-                                    )
-                                })?;
+                            inner.create_directory(parent).await.with_context(|| {
+                                format!(
+                                    "failed to create directory {} for write link to {}",
+                                    parent.display(),
+                                    full_path.display()
+                                )
+                            })?;
                         }
                     }
 
@@ -927,7 +935,7 @@ impl FileSystem for DiskFileSystem {
                         }
                     })
                     .await
-                    .with_context(|| format!("create symlink to {}", target))?;
+                    .with_context(|| format!("create symlink to {target}"))?;
                 }
                 LinkContent::Invalid => {
                     anyhow::bail!("invalid symlink target: {}", full_path.display())
@@ -1131,65 +1139,6 @@ impl FileSystemPath {
             (None, path_before_extension, extension)
         }
     }
-
-    /// Ensure the given filename (just the name, not the full path) is less than
-    /// [`MAX_SAFE_FILE_NAME_LENGTH`], truncating and suffixing with a hash as needed.
-    ///
-    /// If given a file extension, we will attempt to preserve that extension, failing with an error
-    /// if the extension is too long.
-    ///
-    /// A high-quality non-cryptographic 128-bit hash is used, which guarantees that there are no
-    /// collisions in the absence of malicious input. Given two unique input file paths, we
-    /// guarantee two unique output file paths.
-    ///
-    /// Note: We are hashing the _file name stem_, not the _contents_.
-    ///
-    /// If you have a [`Vc<FileSystemPath>`], call
-    /// [`FileSystemPath::truncate_file_name_with_hash_vc`] instead.
-    pub fn truncate_file_name_with_hash(&self) -> Result<Cow<'_, FileSystemPath>> {
-        let (parent, stem, extension) = self.split_file_stem_extension();
-        // length of the extension plus the dot ('.')
-        let extension_with_dot_len = extension.map(|ext| ext.len() + 1).unwrap_or(0);
-
-        // common case: file name is a safe length
-        if (stem.len() + extension_with_dot_len) <= MAX_SAFE_FILE_NAME_LENGTH {
-            return Ok(Cow::Borrowed(self));
-        }
-
-        // generate a 32-character hex-encoded hash
-        let hash = hash_xxh3_hash128(stem);
-        let hash_str = format!("{:01$x}", hash, std::mem::size_of::<u128>() * 2);
-
-        let remaining_len = MAX_SAFE_FILE_NAME_LENGTH
-            .checked_sub(
-                // +1 byte here for the underscore ('_') separator
-                hash_str.len() + extension_with_dot_len + 1,
-            )
-            .with_context(|| {
-                format!(
-                    "Unable to truncate {} because the file extension exceeds {} bytes",
-                    self.path,
-                    MAX_SAFE_FILE_NAME_LENGTH - 2
-                )
-            })?;
-
-        let mut path_str = String::with_capacity(
-            parent.map(|p| p.len() + 1).unwrap_or(0) + MAX_SAFE_FILE_NAME_LENGTH,
-        );
-        if let Some(parent) = parent {
-            // unwrap: write!() on a string should never fail
-            write!(path_str, "{parent}/").unwrap();
-        }
-        write!(path_str, "{}_{}", &stem[..remaining_len], hash_str).unwrap();
-        if let Some(extension) = extension {
-            write!(path_str, ".{extension}").unwrap();
-        }
-
-        Ok(Cow::Owned(FileSystemPath {
-            fs: self.fs,
-            path: RcStr::from(path_str),
-        }))
-    }
 }
 
 #[turbo_tasks::value(transparent)]
@@ -1215,13 +1164,12 @@ impl FileSystemPath {
         // provided by the user, so we allow it.
         debug_assert!(
             MAIN_SEPARATOR != '\\' || !path.contains('\\'),
-            "path {} must not contain a Windows directory '\\', it must be normalized to Unix '/'",
-            path,
+            "path {path} must not contain a Windows directory '\\', it must be normalized to Unix \
+             '/'",
         );
         debug_assert!(
             normalize_path(&path).as_deref() == Some(&*path),
-            "path {} must be normalized",
-            path,
+            "path {path} must be normalized",
         );
         Self::cell(FileSystemPath { fs, path })
     }
@@ -1275,7 +1223,7 @@ impl FileSystemPath {
         if let (path, Some(ext)) = this.split_extension() {
             return Ok(Self::new_normalized(
                 *this.fs,
-                format!("{}{}.{}", path, appending, ext).into(),
+                format!("{path}{appending}.{ext}").into(),
             ));
         }
         Ok(Self::new_normalized(
@@ -1288,6 +1236,10 @@ impl FileSystemPath {
     /// None when the joined path would leave the filesystem root.
     #[turbo_tasks::function]
     pub async fn try_join(&self, path: RcStr) -> Result<Vc<FileSystemPathOption>> {
+        // TODO(PACK-3279): Remove this once we do not produce invalid paths at the first place.
+        #[cfg(target_os = "windows")]
+        let path = path.replace('\\', "/");
+
         if let Some(path) = join_path(&self.path, &path) {
             Ok(Vc::cell(Some(
                 Self::new_normalized(*self.fs, path.into())
@@ -1315,13 +1267,11 @@ impl FileSystemPath {
         Ok(FileSystemPathOption::none())
     }
 
+    // Tracks all files and directories matching the glob
+    // Follows symlinks as though they were part of the original hierarchy.
     #[turbo_tasks::function]
-    pub fn read_glob(
-        self: Vc<Self>,
-        glob: Vc<Glob>,
-        include_dot_files: bool,
-    ) -> Vc<ReadGlobResult> {
-        read_glob(self, glob, include_dot_files)
+    pub fn track_glob(self: Vc<Self>, glob: Vc<Glob>, include_dot_files: bool) -> Vc<Completion> {
+        track_glob(self, glob, include_dot_files)
     }
 
     #[turbo_tasks::function]
@@ -1380,16 +1330,6 @@ impl FileSystemPath {
             return Vc::cell(None);
         }
         Vc::cell(Some(file_stem.into()))
-    }
-
-    /// See [`truncate_file_name_with_hash`]. Preserves the input [`Vc`] if no truncation was
-    /// performed.
-    #[turbo_tasks::function]
-    pub async fn truncate_file_name_with_hash_vc(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        Ok(match self.await?.truncate_file_name_with_hash()? {
-            Cow::Borrowed(_) => self,
-            Cow::Owned(path) => path.cell(),
-        })
     }
 }
 
@@ -1462,10 +1402,6 @@ impl FileSystemPath {
         self.fs().raw_read_dir(self)
     }
 
-    pub fn track(self: Vc<Self>) -> Vc<Completion> {
-        self.fs().track(self)
-    }
-
     pub fn write(self: Vc<Self>, content: Vc<FileContent>) -> Vc<()> {
         self.fs().write(self, content)
     }
@@ -1499,24 +1435,29 @@ impl FileSystemPath {
     /// depend on the order.
     #[turbo_tasks::function]
     pub async fn read_dir(self: Vc<Self>) -> Result<Vc<DirectoryContent>> {
-        match &*self.await?.fs.raw_read_dir(self).await? {
+        let this = self.await?;
+        let fs = this.fs;
+        match &*fs.raw_read_dir(self).await? {
             RawDirectoryContent::NotFound => Ok(DirectoryContent::not_found()),
             RawDirectoryContent::Entries(entries) => {
                 let mut normalized_entries = AutoMap::new();
+                let dir_path = &this.path;
                 for (name, entry) in entries {
+                    // Construct the path directly instead of going through `join`.
+                    // We do not need to normalize since the `name` is guaranteed to be a simple
+                    // path segment.
+                    let path = if dir_path.is_empty() {
+                        name.clone()
+                    } else {
+                        RcStr::from(format!("{dir_path}/{name}"))
+                    };
+
+                    let entry_path = Self::new_normalized(*fs, path).to_resolved().await?;
                     let entry = match entry {
-                        RawDirectoryEntry::File => {
-                            DirectoryEntry::File(self.join(name.clone()).to_resolved().await?)
-                        }
-                        RawDirectoryEntry::Directory => {
-                            DirectoryEntry::Directory(self.join(name.clone()).to_resolved().await?)
-                        }
-                        RawDirectoryEntry::Symlink => {
-                            DirectoryEntry::Symlink(self.join(name.clone()).to_resolved().await?)
-                        }
-                        RawDirectoryEntry::Other => {
-                            DirectoryEntry::Other(self.join(name.clone()).to_resolved().await?)
-                        }
+                        RawDirectoryEntry::File => DirectoryEntry::File(entry_path),
+                        RawDirectoryEntry::Directory => DirectoryEntry::Directory(entry_path),
+                        RawDirectoryEntry::Symlink => DirectoryEntry::Symlink(entry_path),
+                        RawDirectoryEntry::Other => DirectoryEntry::Other(entry_path),
                         RawDirectoryEntry::Error => DirectoryEntry::Error,
                     };
                     normalized_entries.insert(name.clone(), entry);
@@ -1973,7 +1914,7 @@ mod mime_option_serde {
     use std::{fmt, str::FromStr};
 
     use mime::Mime;
-    use serde::{de, Deserializer, Serializer};
+    use serde::{Deserializer, Serializer, de};
 
     pub fn serialize<S>(mime: &Option<Mime>, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -2008,7 +1949,7 @@ mod mime_option_serde {
                 } else {
                     Mime::from_str(value)
                         .map(Some)
-                        .map_err(|e| E::custom(format!("{}", e)))
+                        .map_err(|e| E::custom(format!("{e}")))
                 }
             }
         }
@@ -2301,10 +2242,10 @@ pub enum DirectoryEntry {
     Error,
 }
 
-/// Handles the `DirectoryEntry::Symlink` variant by checking the symlink target
-/// type and replacing it with `DirectoryEntry::File` or
-/// `DirectoryEntry::Directory`.
 impl DirectoryEntry {
+    /// Handles the `DirectoryEntry::Symlink` variant by checking the symlink target
+    /// type and replacing it with `DirectoryEntry::File` or
+    /// `DirectoryEntry::Directory`.
     pub async fn resolve_symlink(self) -> Result<Self> {
         if let DirectoryEntry::Symlink(symlink) = self {
             let real_path = symlink.realpath().to_resolved().await?;
@@ -2315,6 +2256,16 @@ impl DirectoryEntry {
             }
         } else {
             Ok(self)
+        }
+    }
+
+    pub fn path(self) -> Option<ResolvedVc<FileSystemPath>> {
+        match self {
+            DirectoryEntry::File(path)
+            | DirectoryEntry::Directory(path)
+            | DirectoryEntry::Symlink(path)
+            | DirectoryEntry::Other(path) => Some(path),
+            DirectoryEntry::Error => None,
         }
     }
 }
@@ -2380,6 +2331,8 @@ impl From<&RawDirectoryEntry> for FileSystemEntryType {
 #[turbo_tasks::value]
 #[derive(Debug)]
 pub enum RawDirectoryContent {
+    // The entry keys are the directory relative file names
+    // e.g. for `/bar/foo`, it will be `foo`
     Entries(AutoMap<RcStr, RawDirectoryEntry>),
     NotFound,
 }
@@ -2429,11 +2382,6 @@ impl FileSystem for NullFileSystem {
     #[turbo_tasks::function]
     fn raw_read_dir(&self, _fs_path: Vc<FileSystemPath>) -> Vc<RawDirectoryContent> {
         RawDirectoryContent::not_found()
-    }
-
-    #[turbo_tasks::function]
-    fn track(&self, _fs_path: Vc<FileSystemPath>) -> Vc<Completion> {
-        Completion::immutable()
     }
 
     #[turbo_tasks::function]
@@ -2560,48 +2508,6 @@ mod tests {
 
             let path = FileSystemPath::new_normalized(fs, "foo/.bar".into());
             assert_eq!(path.file_stem().await.unwrap().as_deref(), Some(".bar"));
-
-            anyhow::Ok(())
-        })
-        .await
-        .unwrap()
-    }
-
-    #[tokio::test]
-    async fn test_truncate_file_name_with_hash() {
-        crate::register();
-
-        turbo_tasks_testing::VcStorage::with(async {
-            let fs = Vc::upcast::<Box<dyn FileSystem>>(VirtualFileSystem::new());
-
-            let mut long_str = String::new();
-            for _i in 0..1000 {
-                long_str.push_str("long")
-            }
-
-            // does not change the path (returns exact same Vc) if the file name is short
-            let path = FileSystemPath::new_normalized(fs, format!("{long_str}/short.ext").into())
-                .resolve()
-                .await?;
-            assert_eq!(
-                path.truncate_file_name_with_hash_vc().resolve().await?,
-                path,
-            );
-
-            // truncates and adds hash so that the file name length equals MAX_SAFE_FILE_NAME_LENGTH
-            let path = FileSystemPath::new_normalized(fs, format!("path/{long_str}.ext").into());
-            let truncated_path = path.truncate_file_name_with_hash_vc().await?;
-            assert_eq!(
-                truncated_path.path,
-                "path/longlonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglong\
-                longlonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglong\
-                longlon_235b5eceeef9efad5b37fd5057ab8317.ext",
-            );
-            assert_eq!(truncated_path.file_name().len(), MAX_SAFE_FILE_NAME_LENGTH);
-
-            // an extension that's too long should fail
-            let path = FileSystemPath::new_normalized(fs, format!("path/foo.{long_str}").into());
-            assert!(path.truncate_file_name_with_hash_vc().await.is_err());
 
             anyhow::Ok(())
         })

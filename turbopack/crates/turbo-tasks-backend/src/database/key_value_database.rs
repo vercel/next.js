@@ -6,11 +6,11 @@ use crate::database::write_batch::{
 
 #[derive(Debug, Clone, Copy)]
 pub enum KeySpace {
-    Infra,
-    TaskMeta,
-    TaskData,
-    ForwardTaskCache,
-    ReverseTaskCache,
+    Infra = 0,
+    TaskMeta = 1,
+    TaskData = 2,
+    ForwardTaskCache = 3,
+    ReverseTaskCache = 4,
 }
 
 pub trait KeyValueDatabase {

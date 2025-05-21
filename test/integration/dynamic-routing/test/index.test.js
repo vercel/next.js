@@ -1256,7 +1256,11 @@ function runTests({ dev }) {
         caseSensitive: false,
         basePath: '',
         headers: [],
-        rewrites: [],
+        rewrites: {
+          beforeFiles: [],
+          afterFiles: [],
+          fallback: [],
+        },
         staticRoutes: [
           {
             namedRegex: '^/(?:/)?$',

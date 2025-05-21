@@ -4,10 +4,10 @@
 
 use std::time::Duration;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{emit, CollectiblesSource, ResolvedVc, State, ValueToString, Vc};
-use turbo_tasks_testing::{register, run, Registration};
+use turbo_tasks::{CollectiblesSource, ResolvedVc, State, ValueToString, Vc, emit};
+use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 
@@ -23,7 +23,7 @@ async fn dirty_in_progress() {
             (11, 13, 2, 2, ""),
         ];
         for (a, b, c, value, collectible) in cases {
-            println!("{} -> {} -> {} = {} {}", a, b, c, value, collectible);
+            println!("{a} -> {b} -> {c} = {value} {collectible}");
             let input = ChangingInput {
                 state: State::new(a),
             }
@@ -31,10 +31,10 @@ async fn dirty_in_progress() {
             let input_val = input.await?;
             let output = compute(input);
             output.await?;
-            println!("update to {}", b);
+            println!("update to {b}");
             input_val.state.set(b);
             tokio::time::sleep(Duration::from_millis(50)).await;
-            println!("update to {}", c);
+            println!("update to {c}");
             input_val.state.set(c);
             let read = output.strongly_consistent().await?;
             assert_eq!(read.value, value);

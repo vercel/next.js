@@ -21,13 +21,15 @@ export function throwWithStaticGenerationBailoutErrorWithDynamicError(
 }
 
 export function throwForSearchParamsAccessInUseCache(
-  workStore: WorkStore
+  workStore: WorkStore,
+  constructorOpt: Function
 ): never {
   const error = new Error(
     `Route ${workStore.route} used "searchParams" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "searchParams" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
   )
 
-  workStore.invalidUsageError ??= error
+  Error.captureStackTrace(error, constructorOpt)
+  workStore.invalidDynamicUsageError ??= error
 
   throw error
 }

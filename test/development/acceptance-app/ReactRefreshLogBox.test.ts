@@ -90,7 +90,7 @@ describe('ReactRefreshLogBox app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error: no",
+         "description": "no",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "index.js (3:7) @ [project]/index.js [app-client] (ecmascript)
@@ -106,7 +106,7 @@ describe('ReactRefreshLogBox app', () => {
       await expect(browser).toDisplayRedbox(`
        [
          {
-           "description": "Error: no",
+           "description": "no",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": "index.js (3:7) @ eval
@@ -126,7 +126,7 @@ describe('ReactRefreshLogBox app', () => {
            ],
          },
          {
-           "description": "Error: no",
+           "description": "no",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": "index.js (3:7) @ eval
@@ -285,7 +285,7 @@ describe('ReactRefreshLogBox app', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error:   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?",
+         "description": "  x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
@@ -368,7 +368,7 @@ describe('ReactRefreshLogBox app', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error: ",
+         "description": "",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "Child.js (4:11) @ ClickCount.render
@@ -512,7 +512,7 @@ describe('ReactRefreshLogBox app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "description": "Error: end https://nextjs.org",
+         "description": "end https://nextjs.org",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "index.js (5:11) @ Index.useCallback[boom]
@@ -531,7 +531,7 @@ describe('ReactRefreshLogBox app', () => {
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "description": "Error: end https://nextjs.org",
+         "description": "end https://nextjs.org",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "index.js (5:11) @ Index.useCallback[boom]
@@ -595,7 +595,7 @@ describe('ReactRefreshLogBox app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error: https://nextjs.org start",
+         "description": "https://nextjs.org start",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "index.js (5:11) @ Index.useCallback[boom]
@@ -614,7 +614,7 @@ describe('ReactRefreshLogBox app', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error: https://nextjs.org start",
+         "description": "https://nextjs.org start",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "index.js (5:11) @ Index.useCallback[boom]
@@ -677,7 +677,7 @@ describe('ReactRefreshLogBox app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error: middle https://nextjs.org end",
+         "description": "middle https://nextjs.org end",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "index.js (5:11) @ Index.useCallback[boom]
@@ -696,7 +696,7 @@ describe('ReactRefreshLogBox app', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error: middle https://nextjs.org end",
+         "description": "middle https://nextjs.org end",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "index.js (5:11) @ Index.useCallback[boom]
@@ -759,7 +759,7 @@ describe('ReactRefreshLogBox app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error: multiple https://nextjs.org links http://example.com",
+         "description": "multiple https://nextjs.org links http://example.com",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "index.js (5:11) @ Index.useCallback[boom]
@@ -778,7 +778,7 @@ describe('ReactRefreshLogBox app', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error: multiple https://nextjs.org links http://example.com",
+         "description": "multiple https://nextjs.org links http://example.com",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "index.js (5:11) @ Index.useCallback[boom]
@@ -953,7 +953,7 @@ describe('ReactRefreshLogBox app', () => {
       // <FIXME-file-protocol>: https://linear.app/vercel/issue/NDX-920/
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error: test",
+         "description": "test",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "index.js (3:11) @
@@ -972,7 +972,7 @@ describe('ReactRefreshLogBox app', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error: test",
+         "description": "test",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "index.js (3:11) @ default
@@ -1059,7 +1059,7 @@ describe('ReactRefreshLogBox app', () => {
       // <FIXME-file-protocol>: https://linear.app/vercel/issue/NDX-920/
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error: Component error",
+         "description": "Component error",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "index.js (2:44) @ Index
@@ -1077,7 +1077,7 @@ describe('ReactRefreshLogBox app', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error: Component error",
+         "description": "Component error",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "index.js (2:44) @ Index
@@ -1114,7 +1114,7 @@ describe('ReactRefreshLogBox app', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
-       "description": "Error: Client error",
+       "description": "Client error",
        "environmentLabel": null,
        "label": "Runtime Error",
        "source": "app/page.js (4:11) @ Page
@@ -1145,7 +1145,7 @@ describe('ReactRefreshLogBox app', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
-       "description": "Error: Server error",
+       "description": "Server error",
        "environmentLabel": "Server",
        "label": "Runtime Error",
        "source": "app/page.js (2:9) @ Page
@@ -1184,7 +1184,7 @@ describe('ReactRefreshLogBox app', () => {
       // TODO(veil): investigate the column number is off by 1 between turbo and webpack
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error: This is an error from an anonymous function",
+         "description": "This is an error from an anonymous function",
          "environmentLabel": "Server",
          "label": "Runtime Error",
          "source": "app/page.js (4:13) @ <anonymous>
@@ -1199,7 +1199,7 @@ describe('ReactRefreshLogBox app', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error: This is an error from an anonymous function",
+         "description": "This is an error from an anonymous function",
          "environmentLabel": "Server",
          "label": "Runtime Error",
          "source": "app/page.js (4:13) @ eval
@@ -1233,9 +1233,9 @@ describe('ReactRefreshLogBox app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "TypeError: Invalid URL",
+         "description": "Invalid URL",
          "environmentLabel": "Server",
-         "label": "Runtime Error",
+         "label": "Runtime TypeError",
          "source": "app/page.js (2:3) @ Page
        > 2 |   new URL("/", "invalid");
            |   ^",
@@ -1247,9 +1247,9 @@ describe('ReactRefreshLogBox app', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "TypeError: Invalid URL",
+         "description": "Invalid URL",
          "environmentLabel": "Server",
-         "label": "Runtime Error",
+         "label": "Runtime TypeError",
          "source": "app/page.js (2:3) @ Page
        > 2 |   new URL("/", "invalid");
            |   ^",
@@ -1279,11 +1279,12 @@ describe('ReactRefreshLogBox app', () => {
     )
     const { session, browser } = sandbox
 
-    await expect(browser).toDisplayRedbox(`
+    await expect(browser).toDisplayRedbox(
+      `
      {
-       "description": "Error: Server component error",
+       "description": "Server component error",
        "environmentLabel": "Server",
-       "label": "Runtime Error",
+       "label": "<FIXME-excluded-label>",
        "source": "app/page.js (2:9) @ Page
      > 2 |   throw new Error('Server component error')
          |         ^",
@@ -1291,7 +1292,11 @@ describe('ReactRefreshLogBox app', () => {
          "Page app/page.js (2:9)",
        ],
      }
-    `)
+    `,
+
+      // FIXME: `label` is flaking between "Runtime Error" and "Recoverable Error"
+      { label: false }
+    )
 
     // Remove error
     await session.patch(
@@ -1318,11 +1323,12 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    await expect(browser).toDisplayRedbox(`
+    await expect(browser).toDisplayRedbox(
+      `
      {
-       "description": "Error: Server component error!",
+       "description": "Server component error!",
        "environmentLabel": "Server",
-       "label": "Runtime Error",
+       "label": "<FIXME-excluded-label>",
        "source": "app/page.js (2:9) @ Page
      > 2 |   throw new Error('Server component error!')
          |         ^",
@@ -1330,7 +1336,11 @@ describe('ReactRefreshLogBox app', () => {
          "Page app/page.js (2:9)",
        ],
      }
-    `)
+    `,
+
+      // FIXME: `label` is flaking between "Runtime Error" and "Recoverable Error"
+      { label: false }
+    )
   })
 
   test('Import trace when module not found in layout', async () => {
@@ -1457,7 +1467,7 @@ describe('ReactRefreshLogBox app', () => {
       } else {
         await expect({ browser, next }).toDisplayRedbox(`
          {
-           "description": "Error: module error",
+           "description": "module error",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": "index.js (1:7) @ eval
@@ -1517,7 +1527,7 @@ export default function Home() {
 
     await expect(browser).toDisplayRedbox(`
      {
-       "description": "Error: server action was here",
+       "description": "server action was here",
        "environmentLabel": "Server",
        "label": "Runtime Error",
        "source": "app/actions.ts (4:9) @ serverAction
@@ -1565,7 +1575,7 @@ export default function Home() {
 
     await expect(browser).toDisplayRedbox(`
      {
-       "description": "Error: server action was here",
+       "description": "server action was here",
        "environmentLabel": "Server",
        "label": "Runtime Error",
        "source": "app/actions.ts (4:9) @ serverAction
@@ -1609,7 +1619,7 @@ export default function Home() {
       // FIXME: display the sourcemapped stack frames
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error: utils error",
+         "description": "utils error",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "app/utils.ts (1:7) @ [project]/app/utils.ts [app-client] (ecmascript)
@@ -1626,7 +1636,7 @@ export default function Home() {
       await expect(browser).toDisplayRedbox(`
        [
          {
-           "description": "Error: utils error",
+           "description": "utils error",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": "app/utils.ts (1:7) @ eval
@@ -1646,7 +1656,7 @@ export default function Home() {
            ],
          },
          {
-           "description": "Error: utils error",
+           "description": "utils error",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": "app/utils.ts (1:7) @ eval

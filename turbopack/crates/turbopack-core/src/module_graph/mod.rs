@@ -1,9 +1,9 @@
 use std::{
-    collections::{HashSet, VecDeque},
+    collections::{BinaryHeap, HashSet, VecDeque},
     future::Future,
 };
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use petgraph::{
     graph::{DiGraph, EdgeIndex, NodeIndex},
     visit::{Dfs, EdgeRef, IntoNodeReferences, NodeIndexable, VisitMap, Visitable},
@@ -13,10 +13,10 @@ use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Span};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
-    trace::TraceRawVcs,
     CollectiblesSource, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt,
     ValueToString, Vc,
+    graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
+    trace::TraceRawVcs,
 };
 
 use crate::{
@@ -24,11 +24,11 @@ use crate::{
     issue::Issue,
     module::Module,
     module_graph::{
-        async_module_info::{compute_async_module_info, AsyncModulesInfo},
-        chunk_group_info::{compute_chunk_group_info, ChunkGroupEntry, ChunkGroupInfo},
-        module_batches::{compute_module_batches, ModuleBatchesGraph},
-        style_groups::{compute_style_groups, StyleGroups, StyleGroupsConfig},
-        traced_di_graph::{iter_neighbors_rev, TracedDiGraph},
+        async_module_info::{AsyncModulesInfo, compute_async_module_info},
+        chunk_group_info::{ChunkGroupEntry, ChunkGroupInfo, compute_chunk_group_info},
+        module_batches::{ModuleBatchesGraph, compute_module_batches},
+        style_groups::{StyleGroups, StyleGroupsConfig, compute_style_groups},
+        traced_di_graph::{TracedDiGraph, iter_neighbors_rev},
     },
     reference::primary_chunkable_referenced_modules,
 };
@@ -187,6 +187,7 @@ impl SingleModuleGraph {
     async fn new_inner(
         entries: &GraphEntriesT,
         visited_modules: &FxIndexMap<ResolvedVc<Box<dyn Module>>, GraphNodeIndex>,
+        include_traced: bool,
     ) -> Result<Vc<Self>> {
         let root_edges = entries
             .iter()
@@ -201,7 +202,13 @@ impl SingleModuleGraph {
 
         let (children_nodes_iter, visited_nodes) = AdjacencyMap::new()
             .skip_duplicates()
-            .visit(root_edges, SingleModuleGraphBuilder { visited_modules })
+            .visit(
+                root_edges,
+                SingleModuleGraphBuilder {
+                    visited_modules,
+                    include_traced,
+                },
+            )
             .await
             .completed()?
             .into_inner_with_visited();
@@ -336,7 +343,7 @@ impl SingleModuleGraph {
                 }
             }
             if !duplicates.is_empty() {
-                panic!("Duplicate module idents in graph: {:#?}", duplicates);
+                panic!("Duplicate module idents in graph: {duplicates:#?}");
             }
         }
 
@@ -726,15 +733,19 @@ impl ModuleGraph {
     }
 
     #[turbo_tasks::function]
-    pub fn from_entry_module(module: ResolvedVc<Box<dyn Module>>) -> Vc<Self> {
-        Self::from_single_graph(SingleModuleGraph::new_with_entries(Vc::cell(vec![
-            ChunkGroupEntry::Entry(vec![module]),
-        ])))
+    pub fn from_entry_module(
+        module: ResolvedVc<Box<dyn Module>>,
+        include_traced: bool,
+    ) -> Vc<Self> {
+        Self::from_single_graph(SingleModuleGraph::new_with_entries(
+            Vc::cell(vec![ChunkGroupEntry::Entry(vec![module])]),
+            include_traced,
+        ))
     }
 
     #[turbo_tasks::function]
-    pub fn from_modules(modules: Vc<GraphEntries>) -> Vc<Self> {
-        Self::from_single_graph(SingleModuleGraph::new_with_entries(modules))
+    pub fn from_modules(modules: Vc<GraphEntries>, include_traced: bool) -> Vc<Self> {
+        Self::from_single_graph(SingleModuleGraph::new_with_entries(modules, include_traced))
     }
 
     #[turbo_tasks::function]
@@ -1144,6 +1155,8 @@ impl ModuleGraph {
         Ok(())
     }
 
+    /// Traverse all cycles in the graph (where the edge filter returns true for the whole cycle)
+    /// and call the visitor with the nodes in the cycle.
     pub async fn traverse_cycles(
         &self,
         edge_filter: impl Fn(&ChunkingType) -> bool,
@@ -1154,21 +1167,132 @@ impl ModuleGraph {
         }
         Ok(())
     }
+
+    /// Traverses all reachable nodes and also continue revisiting them as long the visitor returns
+    /// GraphTraversalAction::Continue. The visitor is responsible for the runtime complexity and
+    /// eventual termination of the traversal. This corresponds to computing a fixed point state for
+    /// the graph.
+    ///
+    /// Nodes are (re)visited according to the returned priority of the node, prioritizing high
+    /// values. This priority is intended to be used a heuristic to reduce the number of
+    /// retraversals.
+    ///
+    /// * `entries` - The entry modules to start the traversal from
+    /// * `state` - The state to be passed to the callbacks
+    /// * `visit` - Called for a specific edge
+    ///    - Receives: (originating &SingleModuleGraphNode, edge &ChunkingType), target
+    ///      &SingleModuleGraphNode, state &S
+    ///    - Return [GraphTraversalAction]s to control the traversal
+    /// * `priority` - Called for before visiting the children of a node to determine its priority.
+    ///    - Receives: target &SingleModuleGraphNode, state &S
+    ///    - Return a priority value for the node
+    ///
+    /// Returns the number of node visits (i.e. higher than the node count if there are
+    /// retraversals).
+    pub async fn traverse_edges_fixed_point_with_priority<S, P: Ord>(
+        &self,
+        entries: impl IntoIterator<Item = (ResolvedVc<Box<dyn Module>>, P)>,
+        state: &mut S,
+        mut visit: impl FnMut(
+            Option<(&'_ SingleModuleGraphModuleNode, &'_ ChunkingType)>,
+            &'_ SingleModuleGraphModuleNode,
+            &mut S,
+        ) -> GraphTraversalAction,
+        priority: impl Fn(&'_ SingleModuleGraphModuleNode, &mut S) -> P,
+    ) -> Result<usize> {
+        let graphs = self.get_graphs().await?;
+
+        #[derive(PartialEq, Eq)]
+        struct NodeWithPriority<T: Ord> {
+            node: GraphNodeIndex,
+            priority: T,
+        }
+        impl<T: Ord> PartialOrd for NodeWithPriority<T> {
+            fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+                Some(self.cmp(other))
+            }
+        }
+        impl<T: Ord> Ord for NodeWithPriority<T> {
+            fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+                // BinaryHeap prioritizes high values
+
+                self.priority
+                    .cmp(&other.priority)
+                    // include GraphNodeIndex for total and deterministic ordering
+                    .then(other.node.cmp(&self.node))
+            }
+        }
+
+        let mut queue_set = FxHashSet::default();
+        let mut queue = BinaryHeap::from_iter(
+            entries
+                .into_iter()
+                .map(async |(m, priority)| {
+                    Ok(NodeWithPriority {
+                        node: ModuleGraph::get_entry(&graphs, m).await?,
+                        priority,
+                    })
+                })
+                .try_join()
+                .await?,
+        );
+        for entry_node in &queue {
+            visit(None, get_node!(graphs, entry_node.node)?, state);
+        }
+
+        let mut visit_count = 0usize;
+        while let Some(NodeWithPriority { node, .. }) = queue.pop() {
+            queue_set.remove(&node);
+            let (node_weight, node) = get_node_idx!(graphs, node)?;
+            let graph = &graphs[node.graph_idx].graph;
+            let neighbors = iter_neighbors_rev(graph, node.node_idx);
+
+            visit_count += 1;
+
+            for (edge, succ) in neighbors {
+                let succ = GraphNodeIndex {
+                    graph_idx: node.graph_idx,
+                    node_idx: succ,
+                };
+                let (succ_weight, succ) = get_node_idx!(graphs, succ)?;
+                let edge_weight = graph.edge_weight(edge).unwrap();
+                let action = visit(Some((node_weight, edge_weight)), succ_weight, state);
+
+                if action == GraphTraversalAction::Continue && queue_set.insert(succ) {
+                    queue.push(NodeWithPriority {
+                        node: succ,
+                        priority: priority(succ_weight, state),
+                    });
+                }
+            }
+        }
+
+        Ok(visit_count)
+    }
 }
 
 #[turbo_tasks::value_impl]
 impl SingleModuleGraph {
     #[turbo_tasks::function]
-    pub async fn new_with_entries(entries: Vc<GraphEntries>) -> Result<Vc<Self>> {
-        SingleModuleGraph::new_inner(&*entries.await?, &Default::default()).await
+    pub async fn new_with_entries(
+        entries: Vc<GraphEntries>,
+        include_traced: bool,
+    ) -> Result<Vc<Self>> {
+        SingleModuleGraph::new_inner(&*entries.await?, &Default::default(), include_traced).await
     }
 
     #[turbo_tasks::function]
     pub async fn new_with_entries_visited(
         entries: Vc<GraphEntries>,
         visited_modules: Vc<VisitedModules>,
+        include_traced: bool,
     ) -> Result<Vc<Self>> {
-        SingleModuleGraph::new_inner(&*entries.await?, &visited_modules.await?.modules).await
+        SingleModuleGraph::new_inner(
+            &*entries.await?,
+            &visited_modules.await?.modules,
+            include_traced,
+        )
+        .await
     }
 
     #[turbo_tasks::function]
@@ -1176,8 +1300,10 @@ impl SingleModuleGraph {
         // This must not be a Vc<Vec<_>> to ensure layout segment optimization hits the cache
         entries: GraphEntriesT,
         visited_modules: Vc<VisitedModules>,
+        include_traced: bool,
     ) -> Result<Vc<Self>> {
-        SingleModuleGraph::new_inner(&entries, &visited_modules.await?.modules).await
+        SingleModuleGraph::new_inner(&entries, &visited_modules.await?.modules, include_traced)
+            .await
     }
 }
 
@@ -1295,10 +1421,15 @@ struct SingleModuleGraphBuilderEdge {
 
 /// The chunking type that occurs most often, is handled more efficiently by not creating
 /// intermediate SingleModuleGraphBuilderNode::ChunkableReference nodes.
-const COMMON_CHUNKING_TYPE: ChunkingType = ChunkingType::ParallelInheritAsync;
+const COMMON_CHUNKING_TYPE: ChunkingType = ChunkingType::Parallel {
+    inherit_async: true,
+    hoisted: true,
+};
 
 struct SingleModuleGraphBuilder<'a> {
     visited_modules: &'a FxIndexMap<ResolvedVc<Box<dyn Module>>, GraphNodeIndex>,
+    /// Whether to walk ChunkingType::Traced references
+    include_traced: bool,
 }
 impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder<'_> {
     type Edge = SingleModuleGraphBuilderEdge;
@@ -1333,10 +1464,11 @@ impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder<'_> {
             | SingleModuleGraphBuilderNode::Issues(_) => unreachable!(),
         };
         let visited_modules = self.visited_modules;
+        let include_traced = self.include_traced;
         async move {
             Ok(match (module, chunkable_ref_target) {
                 (Some(module), None) => {
-                    let refs_cell = primary_chunkable_referenced_modules(*module);
+                    let refs_cell = primary_chunkable_referenced_modules(*module, include_traced);
                     let refs = match refs_cell.await {
                         Ok(refs) => refs,
                         Err(e) => {
@@ -1400,7 +1532,10 @@ impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder<'_> {
                 target_ident,
                 ..
             } => match chunking_type {
-                ChunkingType::Parallel => Span::current(),
+                ChunkingType::Parallel {
+                    inherit_async: false,
+                    ..
+                } => Span::current(),
                 _ => {
                     tracing::info_span!(
                         "chunkable reference",
