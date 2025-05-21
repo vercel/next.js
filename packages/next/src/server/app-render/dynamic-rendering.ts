@@ -664,21 +664,21 @@ export function throwIfDisallowedDynamic(
     throw new StaticGenBailoutError()
   }
 
+  if (serverDynamic.syncDynamicErrorWithStack) {
+    // Regardless of whether there is a shell or not, if we have sync IO in the server
+    // we need to fail the prerender. This is because sync IO on the server should always
+    // be considered incorrect and must be avoided. There are always ways to work around it
+    console.error(serverDynamic.syncDynamicErrorWithStack)
+    // We terminate the build/validating render
+    throw new StaticGenBailoutError()
+  }
+
   if (hasEmptyShell) {
     if (dynamicValidation.hasSuspenseAboveBody) {
       // This route has opted into allowing fully dynamic rendering
       // by including a Suspense boundary above the body. In this case
       // a lack of a shell is not considered disallowed so we simply return
       return
-    }
-
-    if (serverDynamic.syncDynamicErrorWithStack) {
-      // There is no shell and the server did something sync dynamic likely
-      // leading to an early termination of the prerender before the shell
-      // could be completed.
-      console.error(serverDynamic.syncDynamicErrorWithStack)
-      // We terminate the build/validating render
-      throw new StaticGenBailoutError()
     }
 
     if (clientDynamic.syncDynamicErrorWithStack) {
