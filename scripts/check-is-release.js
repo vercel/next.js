@@ -13,7 +13,7 @@ const checkIsRelease = async () => {
 
   const versionString = commitMsg.split(' ').pop().trim()
   const publishMsgRegex = /^v\d{1,}\.\d{1,}\.\d{1,}(-\w{1,}\.\d{1,})?$/
-  const newPublishMsgRegex = /^Version Packages$/
+  const newPublishMsgRegex = /^Version Packages( \(canary\))?$/
 
   if (publishMsgRegex.test(versionString)) {
     console.log(versionString)

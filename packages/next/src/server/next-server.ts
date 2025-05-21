@@ -25,7 +25,7 @@ import type { CacheControl } from './lib/cache-control'
 import type { WaitUntil } from './after/builtin-request-context'
 
 import fs from 'fs'
-import { join, resolve } from 'path'
+import { join } from 'path'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 import {
@@ -85,7 +85,6 @@ import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
 import { isPagesAPIRouteMatch } from './route-matches/pages-api-route-match'
 import type { PagesAPIRouteMatch } from './route-matches/pages-api-route-match'
 import type { MatchOptions } from './route-matcher-managers/route-matcher-manager'
-import { INSTRUMENTATION_HOOK_FILENAME } from '../lib/constants'
 import { BubbledError, getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
 import { nodeFs } from './lib/node-fs-methods'
@@ -111,6 +110,10 @@ import type { UnwrapPromise } from '../lib/coalesced-function'
 import { populateStaticEnv } from '../lib/static-env'
 import { isPostpone } from './lib/router-utils/is-postpone'
 import { NodeModuleLoader } from './lib/module-loader/node-module-loader'
+import {
+  ensureInstrumentationRegistered,
+  getInstrumentationModule,
+} from './lib/router-utils/instrumentation-globals.external'
 
 export * from './base-server'
 
@@ -121,11 +124,6 @@ const dynamicImportEsmDefault = process.env.NEXT_MINIMAL
   ? (id: string) =>
       import(/* webpackIgnore: true */ id).then((mod) => mod.default || mod)
   : (id: string) => import(id).then((mod) => mod.default || mod)
-
-// For module that will be compiled to CJS, e.g. instrument
-const dynamicRequire = process.env.NEXT_MINIMAL
-  ? __non_webpack_require__
-  : require
 
 export type NodeRequestHandler = BaseRequestHandler<
   IncomingMessage | NodeNextRequest,
@@ -429,13 +427,9 @@ export default class NextNodeServer extends BaseServer<
   protected async loadInstrumentationModule() {
     if (!this.serverOptions.dev) {
       try {
-        this.instrumentation = await dynamicRequire(
-          resolve(
-            this.serverOptions.dir || '.',
-            this.serverOptions.conf.distDir!,
-            'server',
-            INSTRUMENTATION_HOOK_FILENAME
-          )
+        this.instrumentation = await getInstrumentationModule(
+          this.dir,
+          this.nextConfig.distDir
         )
       } catch (err: any) {
         if (err.code !== 'MODULE_NOT_FOUND') {
@@ -455,9 +449,7 @@ export default class NextNodeServer extends BaseServer<
   }
 
   protected async runInstrumentationHookIfAvailable() {
-    if (this.registeredInstrumentation) return
-    this.registeredInstrumentation = true
-    await this.instrumentation?.register?.()
+    await ensureInstrumentationRegistered(this.dir, this.nextConfig.distDir)
   }
 
   protected loadEnvConfig({
@@ -672,6 +664,7 @@ export default class NextNodeServer extends BaseServer<
         }
       ) => Promise<void>
     }
+    addRequestMeta(req.originalRequest, 'projectDir', this.dir)
     await module.handler(req.originalRequest, res.originalResponse, {
       waitUntil: this.getWaitUntil(),
     })

@@ -17,7 +17,7 @@ type CompilationEventChannel = mpsc::Sender<Arc<dyn CompilationEvent>>;
 
 pub struct CompilationEventQueue {
     event_history: ArcMx<VecDeque<Arc<dyn CompilationEvent>>>,
-    subscribers: DashMap<String, Vec<CompilationEventChannel>>,
+    subscribers: Arc<DashMap<String, Vec<CompilationEventChannel>>>,
 }
 
 impl Default for CompilationEventQueue {
@@ -27,7 +27,7 @@ impl Default for CompilationEventQueue {
 
         Self {
             event_history: Arc::new(Mutex::new(VecDeque::with_capacity(MAX_QUEUE_SIZE))),
-            subscribers,
+            subscribers: Arc::new(subscribers),
         }
     }
 }
@@ -125,6 +125,7 @@ pub enum Severity {
     Warning,
     Error,
     Fatal,
+    Event,
 }
 
 impl Display for Severity {
@@ -135,6 +136,7 @@ impl Display for Severity {
             Severity::Warning => write!(f, "WARNING"),
             Severity::Error => write!(f, "ERROR"),
             Severity::Fatal => write!(f, "FATAL"),
+            Severity::Event => write!(f, "EVENT"),
         }
     }
 }

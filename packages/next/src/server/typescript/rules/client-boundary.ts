@@ -60,7 +60,11 @@ const clientBoundary = {
                 propTypeInfo.symbol?.getDeclarations()?.[0]
 
               if (typeDeclarationNode) {
-                if (ts.isFunctionTypeNode(typeDeclarationNode)) {
+                if (
+                  ts.isFunctionTypeNode(typeDeclarationNode) ||
+                  // someFunc(): void
+                  ts.isMethodSignature(typeDeclarationNode)
+                ) {
                   // By convention, props named "action" can accept functions since we
                   // assume these are Server Actions. Structurally, there's no
                   // difference between a Server Action and a normal function until

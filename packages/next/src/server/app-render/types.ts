@@ -269,11 +269,12 @@ export interface RenderOptsPartial {
   isStaticGeneration?: boolean
 
   /**
-   * When true, the page will be rendered using the static rendering to detect
-   * any dynamic API's that would have stopped the page from being fully
-   * statically generated.
+   * When true, the page is prerendered as a fallback shell, while allowing any
+   * dynamic accesses to result in an empty shell. This is the case when there
+   * are also routes prerendered with a more complete set of params.
+   * Prerendering those routes would catch any invalid dynamic accesses.
    */
-  doNotThrowOnEmptyStaticShell?: boolean
+  allowEmptyStaticShell?: boolean
 
   /**
    * next config experimental.devtoolSegmentExplorer
