@@ -130,12 +130,12 @@ pub trait MergeableModule: Module + Asset {
     fn merge(self: Vc<Self>, modules: Vc<MergeableModules>) -> Vc<MergeableModuleResult>;
 }
 #[turbo_tasks::value(transparent)]
-pub struct MergeableModules(Vec<ResolvedVc<Box<dyn MergeableModule>>>);
+pub struct MergeableModules(Vec<(ResolvedVc<Box<dyn MergeableModule>>, bool)>);
 
 #[turbo_tasks::value_impl]
 impl MergeableModules {
     #[turbo_tasks::function]
-    pub fn interned(modules: Vec<ResolvedVc<Box<dyn MergeableModule>>>) -> Vc<Self> {
+    pub fn interned(modules: Vec<(ResolvedVc<Box<dyn MergeableModule>>, bool)>) -> Vc<Self> {
         Vc::cell(modules)
     }
 }

@@ -984,7 +984,7 @@ impl ModuleGraph {
     }
 
     #[turbo_tasks::function]
-    pub async fn merged_modules(&self) -> Result<Vc<MergedModuleInfo>> {
+    pub async fn merged_modules(self: Vc<Self>) -> Result<Vc<MergedModuleInfo>> {
         compute_merged_modules(self).await
     }
 

@@ -782,18 +782,18 @@ impl MergeableModule for EcmascriptModuleAsset {
         let mut modules = modules.iter().zip(0u32..);
         let mut merged_modules = vec![];
         let mut start_index = 0;
-        while let Some((first, first_i)) = modules.next() {
+        while let Some(((first, exposed), first_i)) = modules.next() {
             // Skip some modules, try to find the first eligible module
             if let Some(first) = is_eligible(*first).await? {
                 if merged_modules.is_empty() {
                     start_index = first_i;
                 }
-                merged_modules.push(first);
+                merged_modules.push((first, *exposed));
 
                 // Consume as many modules as possible to merge together
-                for (m, _) in &mut modules {
+                for ((m, exposed), _) in &mut modules {
                     if let Some(m) = is_eligible(*m).await? {
-                        merged_modules.push(m);
+                        merged_modules.push((m, *exposed));
                     } else {
                         break;
                     }
@@ -1112,16 +1112,15 @@ impl EcmascriptModuleContent {
     /// hoisting.
     #[turbo_tasks::function]
     pub async fn new_merged(
-        modules: Vec<ResolvedVc<Box<dyn EcmascriptAnalyzable>>>,
+        modules: Vec<(ResolvedVc<Box<dyn EcmascriptAnalyzable>>, bool)>,
         module_options: Vec<Vc<EcmascriptModuleContentOptions>>,
     ) -> Result<Vc<Self>> {
         let modules = modules
-            .iter()
-            .map(|m| {
+            .into_iter()
+            .map(|(m, exposed)| {
                 (
-                    ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(*m).unwrap(),
-                    // TODO when is a module exposed?
-                    true,
+                    ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(m).unwrap(),
+                    exposed,
                 )
             })
             .collect::<FxIndexMap<_, _>>();

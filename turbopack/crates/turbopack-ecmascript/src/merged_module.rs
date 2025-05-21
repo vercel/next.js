@@ -16,13 +16,13 @@ use crate::{
 
 #[turbo_tasks::value(shared)]
 pub(crate) struct MergedEcmascriptModule {
-    modules: Vec<ResolvedVc<Box<dyn EcmascriptAnalyzable>>>,
+    modules: Vec<(ResolvedVc<Box<dyn EcmascriptAnalyzable>>, bool)>,
     options: ResolvedVc<EcmascriptOptions>,
 }
 
 impl MergedEcmascriptModule {
     pub fn new(
-        modules: Vec<ResolvedVc<Box<dyn EcmascriptAnalyzable>>>,
+        modules: Vec<(ResolvedVc<Box<dyn EcmascriptAnalyzable>>, bool)>,
         options: ResolvedVc<EcmascriptOptions>,
     ) -> ResolvedVc<Self> {
         MergedEcmascriptModule { modules, options }.resolved_cell()
@@ -43,7 +43,7 @@ impl Module for MergedEcmascriptModule {
     fn ident(&self) -> Vc<AssetIdent> {
         // This purposely reuses the module's ident as it has replaced the original module, thus
         // there can never be a collision.
-        self.modules.first().unwrap().ident()
+        self.modules.first().unwrap().0.ident()
     }
 
     #[turbo_tasks::function]
@@ -132,7 +132,7 @@ impl EcmascriptChunkItem for MergedEcmascriptModuleChunkItem {
         // );
         let options = modules
             .iter()
-            .map(|m| {
+            .map(|(m, _)| {
                 let Some(m) = ResolvedVc::try_downcast::<Box<dyn EcmascriptAnalyzable>>(*m) else {
                     anyhow::bail!("Expected EcmascriptAnalyzable in scope hoisting group");
                 };
@@ -144,8 +144,7 @@ impl EcmascriptChunkItem for MergedEcmascriptModuleChunkItem {
             })
             .collect::<Result<Vec<_>>>()?;
 
-        let content =
-            EcmascriptModuleContent::new_merged(modules.iter().map(|m| **m).collect(), options);
+        let content = EcmascriptModuleContent::new_merged(modules.clone(), options);
 
         // Currently, merged modules never include async modules.
         let async_module_options = Vc::cell(None);
