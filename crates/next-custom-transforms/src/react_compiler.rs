@@ -38,6 +38,18 @@ impl Visit for Finder {
         if self.found {
             return;
         }
+        if matches!(
+            node,
+            Expr::JSXMember(..)
+                | Expr::JSXNamespacedName(..)
+                | Expr::JSXEmpty(..)
+                | Expr::JSXElement(..)
+                | Expr::JSXFragment(..)
+        ) {
+            self.found = true;
+            return;
+        }
+
         node.visit_children_with(self);
     }
 
