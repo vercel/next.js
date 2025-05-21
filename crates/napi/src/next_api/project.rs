@@ -1,3 +1,5 @@
+#![allow(clippy::not_unsafe_ptr_arg_deref)]
+
 use std::{io::Write, path::PathBuf, sync::Arc, thread, time::Duration};
 
 use anyhow::{Context, Result, anyhow, bail};
@@ -308,12 +310,14 @@ pub struct ProjectInstance {
     turbo_tasks: NextTurboTasks,
     container: ResolvedVc<ProjectContainer>,
     exit_receiver: tokio::sync::Mutex<Option<ExitReceiver>>,
+    worker: ThreadsafeFunction<String>,
 }
 
 #[napi(ts_return_type = "Promise<{ __napiType: \"Project\" }>")]
 pub async fn project_new(
     options: NapiProjectOptions,
     turbo_engine_options: NapiTurboEngineOptions,
+    worker: External<JsWorker>,
 ) -> napi::Result<External<ProjectInstance>> {
     register();
     let (exit, exit_receiver) = ExitHandler::new_receiver();
@@ -442,11 +446,15 @@ pub async fn project_new(
             .await
             .inspect_err(|err| tracing::warn!(%err, "failed to benchmark file IO"))
     });
+
+    let worker = worker.as_ref().worker.clone();
+
     Ok(External::new_with_size_hint(
         ProjectInstance {
             turbo_tasks,
             container,
             exit_receiver: tokio::sync::Mutex::new(Some(exit_receiver)),
+            worker,
         },
         100,
     ))
@@ -1573,4 +1581,30 @@ pub fn project_get_source_map_sync(
     within_runtime_if_available(|| {
         tokio::runtime::Handle::current().block_on(project_get_source_map(project, file_path))
     })
+}
+
+#[turbo_tasks::value(serialization = "none", eq = "manual")]
+pub struct JsWorker {
+    #[turbo_tasks(debug_ignore, trace_ignore)]
+    worker: ThreadsafeFunction<String>,
+}
+
+impl PartialEq for JsWorker {
+    fn eq(&self, _: &Self) -> bool {
+        false
+    }
+}
+
+#[js_function(1)]
+pub fn new_js_worker(ctx: napi::CallContext) -> napi::Result<External<JsWorker>> {
+    let worker = ctx.get::<JsFunction>(0)?;
+
+    let worker = ctx
+        .env
+        .create_threadsafe_function(&worker, 1024 * 16, |ctx| {
+            let s = ctx.env.create_string_from_std(ctx.value)?;
+
+            Ok(vec![s])
+        })?;
+    Ok(External::new(JsWorker { worker }))
 }
