@@ -40,7 +40,7 @@ After running `next build`, Next.js will create an `out` folder with the HTML/CS
 
 <PagesOnly>
 
-You can utilize [`getStaticProps`](/docs/pages/building-your-application/data-fetching/get-static-props) and [`getStaticPaths`](/docs/pages/building-your-application/data-fetching/get-static-paths) to generate an HTML file for each page in your `pages` directory (or more for [dynamic routes](/docs/app/building-your-application/routing/dynamic-routes)).
+You can utilize [`getStaticProps`](/docs/pages/building-your-application/data-fetching/get-static-props) and [`getStaticPaths`](/docs/pages/building-your-application/data-fetching/get-static-paths) to generate an HTML file for each page in your `pages` directory (or more for [dynamic routes](/docs/app/api-reference/file-conventions/dynamic-routes)).
 
 </PagesOnly>
 
@@ -154,7 +154,7 @@ export default function Page() {
 
 The majority of core Next.js features needed to build a static site are supported, including:
 
-- [Dynamic Routes when using `getStaticPaths`](/docs/app/building-your-application/routing/dynamic-routes)
+- [Dynamic Routes when using `getStaticPaths`](/docs/app/api-reference/file-conventions/dynamic-routes)
 - Prefetching with `next/link`
 - Preloading JavaScript
 - [Dynamic Imports](/docs/pages/guides/lazy-loading)
@@ -277,8 +277,8 @@ Features that require a Node.js server, or dynamic logic that cannot be computed
 
 <AppOnly>
 
-- [Dynamic Routes](/docs/app/building-your-application/routing/dynamic-routes) with `dynamicParams: true`
-- [Dynamic Routes](/docs/app/building-your-application/routing/dynamic-routes) without `generateStaticParams()`
+- [Dynamic Routes](/docs/app/api-reference/file-conventions/dynamic-routes) with `dynamicParams: true`
+- [Dynamic Routes](/docs/app/api-reference/file-conventions/dynamic-routes) without `generateStaticParams()`
 - [Route Handlers](/docs/app/building-your-application/routing/route-handlers) that rely on Request
 - [Cookies](/docs/app/api-reference/functions/cookies)
 - [Rewrites](/docs/app/api-reference/config/next-config-js/rewrites)
