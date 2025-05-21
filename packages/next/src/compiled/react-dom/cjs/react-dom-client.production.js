@@ -1018,13 +1018,11 @@ function isCheckable(elem) {
     ("checkbox" === type || "radio" === type)
   );
 }
-function trackValueOnNode(node) {
-  var valueField = isCheckable(node) ? "checked" : "value",
-    descriptor = Object.getOwnPropertyDescriptor(
-      node.constructor.prototype,
-      valueField
-    ),
-    currentValue = "" + node[valueField];
+function trackValueOnNode(node, valueField, currentValue) {
+  var descriptor = Object.getOwnPropertyDescriptor(
+    node.constructor.prototype,
+    valueField
+  );
   if (
     !node.hasOwnProperty(valueField) &&
     "undefined" !== typeof descriptor &&
@@ -1061,7 +1059,14 @@ function trackValueOnNode(node) {
   }
 }
 function track(node) {
-  node._valueTracker || (node._valueTracker = trackValueOnNode(node));
+  if (!node._valueTracker) {
+    var valueField = isCheckable(node) ? "checked" : "value";
+    node._valueTracker = trackValueOnNode(
+      node,
+      valueField,
+      "" + node[valueField]
+    );
+  }
 }
 function updateValueIfChanged(node) {
   if (!node) return !1;
@@ -1161,8 +1166,10 @@ function initInput(
         ("submit" !== type && "reset" !== type) ||
         (void 0 !== value && null !== value)
       )
-    )
+    ) {
+      track(element);
       return;
+    }
     defaultValue =
       null != defaultValue ? "" + getToStringValue(defaultValue) : "";
     value = null != value ? "" + getToStringValue(value) : defaultValue;
@@ -1179,6 +1186,7 @@ function initInput(
     "symbol" !== typeof name &&
     "boolean" !== typeof name &&
     (element.name = name);
+  track(element);
 }
 function setDefaultValue(node, type, value) {
   ("number" === type && getActiveElement(node.ownerDocument) === node) ||
@@ -1242,6 +1250,7 @@ function initTextarea(element, value, defaultValue, children) {
     "" !== children &&
     null !== children &&
     (element.value = children);
+  track(element);
 }
 function setTextContent(node, text) {
   if (text) {
@@ -1406,6 +1415,7 @@ function sanitizeURL(url) {
     ? "javascript:throw new Error('React has blocked a javascript: URL as a security precaution.')"
     : url;
 }
+function noop$1() {}
 var currentReplayingEvent = null;
 function getEventTarget(nativeEvent) {
   nativeEvent = nativeEvent.target || nativeEvent.srcElement || window;
@@ -2035,19 +2045,19 @@ function getTargetInstForChangeEvent(domEventName, targetInst) {
 }
 var isInputEventSupported = !1;
 if (canUseDOM) {
-  var JSCompiler_inline_result$jscomp$293;
+  var JSCompiler_inline_result$jscomp$294;
   if (canUseDOM) {
-    var isSupported$jscomp$inline_433 = "oninput" in document;
-    if (!isSupported$jscomp$inline_433) {
-      var element$jscomp$inline_434 = document.createElement("div");
-      element$jscomp$inline_434.setAttribute("oninput", "return;");
-      isSupported$jscomp$inline_433 =
-        "function" === typeof element$jscomp$inline_434.oninput;
+    var isSupported$jscomp$inline_434 = "oninput" in document;
+    if (!isSupported$jscomp$inline_434) {
+      var element$jscomp$inline_435 = document.createElement("div");
+      element$jscomp$inline_435.setAttribute("oninput", "return;");
+      isSupported$jscomp$inline_434 =
+        "function" === typeof element$jscomp$inline_435.oninput;
     }
-    JSCompiler_inline_result$jscomp$293 = isSupported$jscomp$inline_433;
-  } else JSCompiler_inline_result$jscomp$293 = !1;
+    JSCompiler_inline_result$jscomp$294 = isSupported$jscomp$inline_434;
+  } else JSCompiler_inline_result$jscomp$294 = !1;
   isInputEventSupported =
-    JSCompiler_inline_result$jscomp$293 &&
+    JSCompiler_inline_result$jscomp$294 &&
     (!document.documentMode || 9 < document.documentMode);
 }
 function stopWatchingForValueChange() {
@@ -2294,25 +2304,6 @@ simpleEventPluginEvents.push("scrollEnd");
 function registerSimpleEvent(domEventName, reactName) {
   topLevelEventsToReactNames.set(domEventName, reactName);
   registerTwoPhaseEvent(reactName, [domEventName]);
-}
-var CapturedStacks = new WeakMap();
-function createCapturedValueAtFiber(value, source) {
-  if ("object" === typeof value && null !== value) {
-    var existing = CapturedStacks.get(value);
-    if (void 0 !== existing) return existing;
-    source = {
-      value: value,
-      source: source,
-      stack: getStackByFiberInDevAndProd(source)
-    };
-    CapturedStacks.set(value, source);
-    return source;
-  }
-  return {
-    value: value,
-    source: source,
-    stack: getStackByFiberInDevAndProd(source)
-  };
 }
 var concurrentQueues = [],
   concurrentQueuesIndex = 0,
@@ -2619,6 +2610,25 @@ function createFiberFromPortal(portal, mode, lanes) {
   };
   return mode;
 }
+var CapturedStacks = new WeakMap();
+function createCapturedValueAtFiber(value, source) {
+  if ("object" === typeof value && null !== value) {
+    var existing = CapturedStacks.get(value);
+    if (void 0 !== existing) return existing;
+    source = {
+      value: value,
+      source: source,
+      stack: getStackByFiberInDevAndProd(source)
+    };
+    CapturedStacks.set(value, source);
+    return source;
+  }
+  return {
+    value: value,
+    source: source,
+    stack: getStackByFiberInDevAndProd(source)
+  };
+}
 var forkStack = [],
   forkStackIndex = 0,
   treeForkProvider = null,
@@ -2753,15 +2763,13 @@ function prepareToHydrateHostInstance(fiber) {
         props.name,
         !0
       );
-      track(instance);
       break;
     case "select":
       listenToNonDelegatedEvent("invalid", instance);
       break;
     case "textarea":
       listenToNonDelegatedEvent("invalid", instance),
-        initTextarea(instance, props.value, props.defaultValue, props.children),
-        track(instance);
+        initTextarea(instance, props.value, props.defaultValue, props.children);
   }
   type = props.children;
   ("string" !== typeof type &&
@@ -3162,12 +3170,11 @@ function isThenableResolved(thenable) {
   thenable = thenable.status;
   return "fulfilled" === thenable || "rejected" === thenable;
 }
-function noop$3() {}
 function trackUsedThenable(thenableState, thenable, index) {
   index = thenableState[index];
   void 0 === index
     ? thenableState.push(thenable)
-    : index !== thenable && (thenable.then(noop$3, noop$3), (thenable = index));
+    : index !== thenable && (thenable.then(noop$1, noop$1), (thenable = index));
   switch (thenable.status) {
     case "fulfilled":
       return thenable.value;
@@ -3178,7 +3185,7 @@ function trackUsedThenable(thenableState, thenable, index) {
         thenableState)
       );
     default:
-      if ("string" === typeof thenable.status) thenable.then(noop$3, noop$3);
+      if ("string" === typeof thenable.status) thenable.then(noop$1, noop$1);
       else {
         thenableState = workInProgressRoot;
         if (null !== thenableState && 100 < thenableState.shellSuspendCounter)
@@ -4242,7 +4249,7 @@ function findFirstSuspended(row) {
         null !== state &&
         ((state = state.dehydrated),
         null === state ||
-          "$?" === state.data ||
+          isSuspenseInstancePending(state) ||
           isSuspenseInstanceFallback(state))
       )
         return node;
@@ -5182,7 +5189,7 @@ function startTransition(fiber, queue, pendingState, finishedState, callback) {
       (ReactSharedInternals.T = prevTransition);
   }
 }
-function noop$2() {}
+function noop() {}
 function startHostTransition(formFiber, pendingState, action, formData) {
   if (5 !== formFiber.tag) throw Error(formatProdErrorMessage(476));
   var queue = ensureFormComponentIsStateful(formFiber).queue;
@@ -5192,7 +5199,7 @@ function startHostTransition(formFiber, pendingState, action, formData) {
     pendingState,
     sharedNotPendingObject,
     null === action
-      ? noop$2
+      ? noop
       : function () {
           requestFormReset$1(formFiber);
           return action(formData);
@@ -5235,8 +5242,14 @@ function ensureFormComponentIsStateful(formFiber) {
   return existingStateHook;
 }
 function requestFormReset$1(formFiber) {
-  var resetStateQueue = ensureFormComponentIsStateful(formFiber).next.queue;
-  dispatchSetStateInternal(formFiber, resetStateQueue, {}, requestUpdateLane());
+  var stateHook = ensureFormComponentIsStateful(formFiber);
+  null === stateHook.next && (stateHook = formFiber.alternate.memoizedState);
+  dispatchSetStateInternal(
+    formFiber,
+    stateHook.next.queue,
+    {},
+    requestUpdateLane()
+  );
 }
 function useHostTransitionStatus() {
   return readContext(HostTransitionContext);
@@ -6806,14 +6819,15 @@ function updateSuspenseComponent(current, workInProgress, renderLanes) {
           scheduleUpdateOnFiber(JSCompiler_temp, current, nextProps),
           SelectiveHydrationException)
         );
-      "$?" === nextPrimaryChildren.data || renderDidSuspendDelayIfPossible();
+      isSuspenseInstancePending(nextPrimaryChildren) ||
+        renderDidSuspendDelayIfPossible();
       workInProgress = retrySuspenseComponentWithoutHydrating(
         current,
         workInProgress,
         renderLanes
       );
     } else
-      "$?" === nextPrimaryChildren.data
+      isSuspenseInstancePending(nextPrimaryChildren)
         ? ((workInProgress.flags |= 192),
           (workInProgress.child = current.child),
           (workInProgress = null))
@@ -10736,7 +10750,7 @@ function commitRootWhenReady(
     16785408 === (suspendedCommitReason & 16785408)
   )
     if (
-      ((suspendedState = { stylesheets: null, count: 0, unsuspend: noop }),
+      ((suspendedState = { stylesheets: null, count: 0, unsuspend: noop$1 }),
       accumulateSuspenseyCommitOnFiber(finishedWork),
       (suspendedCommitReason = waitForCommitToBeReady()),
       null !== suspendedCommitReason)
@@ -12039,20 +12053,20 @@ function extractEvents$1(
   }
 }
 for (
-  var i$jscomp$inline_1573 = 0;
-  i$jscomp$inline_1573 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1573++
+  var i$jscomp$inline_1590 = 0;
+  i$jscomp$inline_1590 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1590++
 ) {
-  var eventName$jscomp$inline_1574 =
-      simpleEventPluginEvents[i$jscomp$inline_1573],
-    domEventName$jscomp$inline_1575 =
-      eventName$jscomp$inline_1574.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1576 =
-      eventName$jscomp$inline_1574[0].toUpperCase() +
-      eventName$jscomp$inline_1574.slice(1);
+  var eventName$jscomp$inline_1591 =
+      simpleEventPluginEvents[i$jscomp$inline_1590],
+    domEventName$jscomp$inline_1592 =
+      eventName$jscomp$inline_1591.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1593 =
+      eventName$jscomp$inline_1591[0].toUpperCase() +
+      eventName$jscomp$inline_1591.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1575,
-    "on" + capitalizedEvent$jscomp$inline_1576
+    domEventName$jscomp$inline_1592,
+    "on" + capitalizedEvent$jscomp$inline_1593
   );
 }
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
@@ -12502,36 +12516,34 @@ function dispatchEventForPluginEventSystem(
             accumulateTargetOnly = _instance;
             if (SyntheticEventCtor && reactEventType)
               b: {
-                inCapturePhase = SyntheticEventCtor;
-                reactEventName = reactEventType;
-                instance = 0;
-                for (
-                  lastHostComponent = inCapturePhase;
-                  lastHostComponent;
-                  lastHostComponent = getParent(lastHostComponent)
-                )
-                  instance++;
+                inCapturePhase = getParent;
+                reactEventName = SyntheticEventCtor;
+                instance = reactEventType;
                 lastHostComponent = 0;
                 for (
                   _instance = reactEventName;
                   _instance;
-                  _instance = getParent(_instance)
+                  _instance = inCapturePhase(_instance)
                 )
                   lastHostComponent++;
-                for (; 0 < instance - lastHostComponent; )
-                  (inCapturePhase = getParent(inCapturePhase)), instance--;
-                for (; 0 < lastHostComponent - instance; )
-                  (reactEventName = getParent(reactEventName)),
+                _instance = 0;
+                for (var tempB = instance; tempB; tempB = inCapturePhase(tempB))
+                  _instance++;
+                for (; 0 < lastHostComponent - _instance; )
+                  (reactEventName = inCapturePhase(reactEventName)),
                     lastHostComponent--;
-                for (; instance--; ) {
+                for (; 0 < _instance - lastHostComponent; )
+                  (instance = inCapturePhase(instance)), _instance--;
+                for (; lastHostComponent--; ) {
                   if (
-                    inCapturePhase === reactEventName ||
-                    (null !== reactEventName &&
-                      inCapturePhase === reactEventName.alternate)
-                  )
+                    reactEventName === instance ||
+                    (null !== instance && reactEventName === instance.alternate)
+                  ) {
+                    inCapturePhase = reactEventName;
                     break b;
-                  inCapturePhase = getParent(inCapturePhase);
-                  reactEventName = getParent(reactEventName);
+                  }
+                  reactEventName = inCapturePhase(reactEventName);
+                  instance = inCapturePhase(instance);
                 }
                 inCapturePhase = null;
               }
@@ -12793,7 +12805,6 @@ function checkForUnmatchedText(serverText, clientText) {
   clientText = normalizeMarkupForTextOrAttribute(clientText);
   return normalizeMarkupForTextOrAttribute(serverText) === clientText ? !0 : !1;
 }
-function noop$1() {}
 function setProp(domElement, tag, key, value, props, prevValue) {
   switch (key) {
     case "children":
@@ -13269,7 +13280,6 @@ function setInitialProperties(domElement, tag, props) {
         hasSrcSet,
         !1
       );
-      track(domElement);
       return;
     case "select":
       listenToNonDelegatedEvent("invalid", domElement);
@@ -13323,7 +13333,6 @@ function setInitialProperties(domElement, tag, props) {
               setProp(domElement, tag, propValue, defaultValue, props, null);
           }
       initTextarea(domElement, hasSrc, hasSrcSet, propKey);
-      track(domElement);
       return;
     case "option":
       for (checked in props)
@@ -13835,7 +13844,13 @@ function clearHydrationBoundary(parentInstance, hydrationInstance) {
           return;
         }
         depth--;
-      } else if ("$" === node || "$?" === node || "$!" === node || "&" === node)
+      } else if (
+        "$" === node ||
+        "$?" === node ||
+        "$~" === node ||
+        "$!" === node ||
+        "&" === node
+      )
         depth++;
       else if ("html" === node)
         releaseSingletonInstance(parentInstance.ownerDocument.documentElement);
@@ -13880,7 +13895,8 @@ function hideOrUnhideDehydratedBoundary(suspenseInstance, isHidden) {
         if (0 === suspenseInstance) break;
         else suspenseInstance--;
       else
-        ("$" !== node && "$?" !== node && "$!" !== node) || suspenseInstance++;
+        ("$" !== node && "$?" !== node && "$~" !== node && "$!" !== node) ||
+          suspenseInstance++;
     node = nextNode;
   } while (node);
 }
@@ -13994,15 +14010,19 @@ function canHydrateHydrationBoundary(instance, inRootOrSingleton) {
   }
   return instance;
 }
+function isSuspenseInstancePending(instance) {
+  return "$?" === instance.data || "$~" === instance.data;
+}
 function isSuspenseInstanceFallback(instance) {
   return (
     "$!" === instance.data ||
-    ("$?" === instance.data && "complete" === instance.ownerDocument.readyState)
+    ("$?" === instance.data && "loading" !== instance.ownerDocument.readyState)
   );
 }
 function registerSuspenseInstanceRetry(instance, callback) {
   var ownerDocument = instance.ownerDocument;
-  if ("$?" !== instance.data || "complete" === ownerDocument.readyState)
+  if ("$~" === instance.data) instance._reactRetry = callback;
+  else if ("$?" !== instance.data || "loading" !== ownerDocument.readyState)
     callback();
   else {
     var listener = function () {
@@ -14023,6 +14043,7 @@ function getNextHydratable(node) {
         "$" === nodeType ||
         "$!" === nodeType ||
         "$?" === nodeType ||
+        "$~" === nodeType ||
         "&" === nodeType ||
         "F!" === nodeType ||
         "F" === nodeType
@@ -14044,7 +14065,11 @@ function getNextHydratableInstanceAfterHydrationBoundary(hydrationInstance) {
           return getNextHydratable(hydrationInstance.nextSibling);
         depth--;
       } else
-        ("$" !== data && "$!" !== data && "$?" !== data && "&" !== data) ||
+        ("$" !== data &&
+          "$!" !== data &&
+          "$?" !== data &&
+          "$~" !== data &&
+          "&" !== data) ||
           depth++;
     }
     hydrationInstance = hydrationInstance.nextSibling;
@@ -14056,7 +14081,13 @@ function getParentHydrationBoundary(targetInstance) {
   for (var depth = 0; targetInstance; ) {
     if (8 === targetInstance.nodeType) {
       var data = targetInstance.data;
-      if ("$" === data || "$!" === data || "$?" === data || "&" === data) {
+      if (
+        "$" === data ||
+        "$!" === data ||
+        "$?" === data ||
+        "$~" === data ||
+        "&" === data
+      ) {
         if (0 === depth) return targetInstance;
         depth--;
       } else ("/$" !== data && "/&" !== data) || depth++;
@@ -14714,7 +14745,6 @@ function preloadResource(resource) {
     : !0;
 }
 var suspendedState = null;
-function noop() {}
 function suspendResource(hoistableRoot, resource, props) {
   if (null === suspendedState) throw Error(formatProdErrorMessage(475));
   var state = suspendedState;
@@ -14867,6 +14897,7 @@ function FiberRootNode(
   onUncaughtError,
   onCaughtError,
   onRecoverableError,
+  onDefaultTransitionIndicator,
   formState
 ) {
   this.tag = 1;
@@ -14909,11 +14940,11 @@ function createFiberRoot(
   hydrationCallbacks,
   isStrictMode,
   identifierPrefix,
+  formState,
   onUncaughtError,
   onCaughtError,
   onRecoverableError,
-  transitionCallbacks,
-  formState
+  onDefaultTransitionIndicator
 ) {
   containerInfo = new FiberRootNode(
     containerInfo,
@@ -14923,6 +14954,7 @@ function createFiberRoot(
     onUncaughtError,
     onCaughtError,
     onRecoverableError,
+    onDefaultTransitionIndicator,
     formState
   );
   tag = 1;
@@ -15564,6 +15596,9 @@ function retryIfBlockedOn(unblocked) {
       }
     }
 }
+function defaultOnDefaultTransitionIndicator() {
+  return function () {};
+}
 function ReactDOMRoot(internalRoot) {
   this._internalRoot = internalRoot;
 }
@@ -15604,16 +15639,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_1829 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_1849 = React.version;
 if (
-  "19.2.0-canary-197d6a04-20250424" !==
-  isomorphicReactPackageVersion$jscomp$inline_1829
+  "19.2.0-canary-3820740a-20250509" !==
+  isomorphicReactPackageVersion$jscomp$inline_1849
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_1829,
-      "19.2.0-canary-197d6a04-20250424"
+      isomorphicReactPackageVersion$jscomp$inline_1849,
+      "19.2.0-canary-3820740a-20250509"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -15633,24 +15668,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2318 = {
+var internals$jscomp$inline_2342 = {
   bundleType: 0,
-  version: "19.2.0-canary-197d6a04-20250424",
+  version: "19.2.0-canary-3820740a-20250509",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.2.0-canary-197d6a04-20250424"
+  reconcilerVersion: "19.2.0-canary-3820740a-20250509"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2319 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2343 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2319.isDisabled &&
-    hook$jscomp$inline_2319.supportsFiber
+    !hook$jscomp$inline_2343.isDisabled &&
+    hook$jscomp$inline_2343.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2319.inject(
-        internals$jscomp$inline_2318
+      (rendererID = hook$jscomp$inline_2343.inject(
+        internals$jscomp$inline_2342
       )),
-        (injectedHook = hook$jscomp$inline_2319);
+        (injectedHook = hook$jscomp$inline_2343);
     } catch (err) {}
 }
 exports.createRoot = function (container, options) {
@@ -15659,8 +15694,7 @@ exports.createRoot = function (container, options) {
     identifierPrefix = "",
     onUncaughtError = defaultOnUncaughtError,
     onCaughtError = defaultOnCaughtError,
-    onRecoverableError = defaultOnRecoverableError,
-    transitionCallbacks = null;
+    onRecoverableError = defaultOnRecoverableError;
   null !== options &&
     void 0 !== options &&
     (!0 === options.unstable_strictMode && (isStrictMode = !0),
@@ -15670,9 +15704,7 @@ exports.createRoot = function (container, options) {
       (onUncaughtError = options.onUncaughtError),
     void 0 !== options.onCaughtError && (onCaughtError = options.onCaughtError),
     void 0 !== options.onRecoverableError &&
-      (onRecoverableError = options.onRecoverableError),
-    void 0 !== options.unstable_transitionCallbacks &&
-      (transitionCallbacks = options.unstable_transitionCallbacks));
+      (onRecoverableError = options.onRecoverableError));
   options = createFiberRoot(
     container,
     1,
@@ -15681,11 +15713,11 @@ exports.createRoot = function (container, options) {
     null,
     isStrictMode,
     identifierPrefix,
+    null,
     onUncaughtError,
     onCaughtError,
     onRecoverableError,
-    transitionCallbacks,
-    null
+    defaultOnDefaultTransitionIndicator
   );
   container[internalContainerInstanceKey] = options.current;
   listenToAllSupportedEvents(container);
@@ -15698,7 +15730,6 @@ exports.hydrateRoot = function (container, initialChildren, options) {
     onUncaughtError = defaultOnUncaughtError,
     onCaughtError = defaultOnCaughtError,
     onRecoverableError = defaultOnRecoverableError,
-    transitionCallbacks = null,
     formState = null;
   null !== options &&
     void 0 !== options &&
@@ -15710,8 +15741,6 @@ exports.hydrateRoot = function (container, initialChildren, options) {
     void 0 !== options.onCaughtError && (onCaughtError = options.onCaughtError),
     void 0 !== options.onRecoverableError &&
       (onRecoverableError = options.onRecoverableError),
-    void 0 !== options.unstable_transitionCallbacks &&
-      (transitionCallbacks = options.unstable_transitionCallbacks),
     void 0 !== options.formState && (formState = options.formState));
   initialChildren = createFiberRoot(
     container,
@@ -15721,11 +15750,11 @@ exports.hydrateRoot = function (container, initialChildren, options) {
     null != options ? options : null,
     isStrictMode,
     identifierPrefix,
+    formState,
     onUncaughtError,
     onCaughtError,
     onRecoverableError,
-    transitionCallbacks,
-    formState
+    defaultOnDefaultTransitionIndicator
   );
   initialChildren.context = getContextForSubtree(null);
   options = initialChildren.current;
@@ -15742,4 +15771,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.2.0-canary-197d6a04-20250424";
+exports.version = "19.2.0-canary-3820740a-20250509";
