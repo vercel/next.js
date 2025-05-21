@@ -11,7 +11,7 @@ use turbo_tasks::{
 
 use crate::{
     chunk::{
-        ChunkableModule, ChunkingType, MergeableModule, MergeableModuleResult, MergeableModules,
+        ChunkableModule, ChunkingType, MergeableModule, MergeableModules, MergeableModulesExposed,
     },
     module::Module,
     module_graph::{
@@ -396,9 +396,14 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         let mut exposed_modules: FxHashSet<ResolvedVc<Box<dyn Module>>> =
             FxHashSet::with_capacity_and_hasher(module_merged_groups.len(), Default::default());
 
-        // A map of all references inside of merged groups, if both modules have the same bitmap
-        // (and thus are in the same group, unless they are further split up below).
+        // A map of all references inside of merged groups, if both
+        // modules have the same bitmap (and thus are in the same group, unless they are further
+        // split up below).
         let mut intra_group_references: FxIndexMap<
+            ResolvedVc<Box<dyn Module>>,
+            FxIndexSet<ResolvedVc<Box<dyn Module>>>,
+        > = FxIndexMap::default();
+        let mut intra_group_references_rev: FxIndexMap<
             ResolvedVc<Box<dyn Module>>,
             FxIndexSet<ResolvedVc<Box<dyn Module>>>,
         > = FxIndexMap::default();
@@ -425,9 +430,13 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
 
                         if !same_bitmap {
                             intra_group_references
-                                .entry(parent.module)
+                                .entry(module)
                                 .or_default()
-                                .insert(module);
+                                .insert(parent.module);
+                            intra_group_references_rev
+                                .entry(module)
+                                .or_default()
+                                .insert(parent.module);
                         }
                     }
                 },
@@ -509,30 +518,31 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 list.truncate(common_occurrence.entry);
                 let before_list = &*list;
 
-                // For all references that exist from "after" to "common" and from "common" to
-                // "before", mark the referenced modules as exposed.
-                // for m in &common_list {
-                //     let m = ResolvedVc::upcast(*m);
-                //     if let Some(refs) = intra_group_references.get(&m) {
-                //         exposed_modules.extend(
-                //             before_list
-                //                 .iter()
-                //                 .map(|n| ResolvedVc::upcast(*n))
-                //                 .filter(|n| refs.contains(n)),
-                //         );
-                //     }
-                // }
-                // for m in &after_list {
-                //     let m = ResolvedVc::upcast(*m);
-                //     if let Some(refs) = intra_group_references.get(&m) {
-                //         exposed_modules.extend(
-                //             common_list
-                //                 .iter()
-                //                 .map(|n| ResolvedVc::upcast(*n))
-                //                 .filter(|n| refs.contains(n)),
-                //         );
-                //     }
-                // }
+                // For all references that exist from "after" to "common"/"before" and from "common"
+                // to "before", mark the referenced modules as exposed.
+                for m in &common_list {
+                    let m = ResolvedVc::upcast(*m);
+                    if let Some(refs) = intra_group_references.get(&m) {
+                        exposed_modules.extend(
+                            before_list
+                                .iter()
+                                .map(|n| ResolvedVc::upcast(*n))
+                                .filter(|n| refs.contains(n)),
+                        );
+                    }
+                }
+                for m in &after_list {
+                    let m = ResolvedVc::upcast(*m);
+                    if let Some(refs) = intra_group_references.get(&m) {
+                        exposed_modules.extend(
+                            before_list
+                                .iter()
+                                .chain(common_list.iter())
+                                .map(|n| ResolvedVc::upcast(*n))
+                                .filter(|n| refs.contains(n)),
+                        );
+                    }
+                }
 
                 // println!(
                 //     "{} {:#?} {:#?} {:#?}",
@@ -628,15 +638,33 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                     return Ok(None);
                 }
 
-                let entry = *list.last().unwrap();
+                let list_set = list
+                    .iter()
+                    .map(|&m| ResolvedVc::upcast::<Box<dyn Module>>(m))
+                    .collect::<FxIndexSet<_>>();
+
+                // Group entries are not referenced by any other module in the group
+                let entries = list
+                    .iter()
+                    .filter(|m| {
+                        intra_group_references_rev
+                            .get(&ResolvedVc::upcast(**m))
+                            .is_none_or(|refs| refs.is_disjoint(&list_set))
+                    })
+                    .map(|m| **m)
+                    .collect::<Vec<_>>();
 
                 let list_exposed = list
                     .iter()
                     .map(|&m| (m, exposed_modules.contains(&ResolvedVc::upcast(m))))
                     .collect::<Vec<_>>();
 
+                let entry = *list.last().unwrap();
                 let result = entry
-                    .merge(MergeableModules::interned(list_exposed))
+                    .merge(
+                        MergeableModulesExposed::interned(list_exposed),
+                        MergeableModules::interned(entries),
+                    )
                     .to_resolved()
                     .await?;
 

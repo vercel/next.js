@@ -141,13 +141,28 @@ pub trait MergeableModule: Module + Asset {
     /// Create a new module representing the merged content of the given `modules``, `entries` are
     /// all entries in `modules` that are not imported from within the group.
     #[turbo_tasks::function]
-    fn merge(self: Vc<Self>, modules: Vc<MergeableModules>) -> Vc<Box<dyn ChunkableModule>>;
+    fn merge(
+        self: Vc<Self>,
+        modules: Vc<MergeableModulesExposed>,
+        entries: Vc<MergeableModules>,
+    ) -> Vc<Box<dyn ChunkableModule>>;
 }
 #[turbo_tasks::value(transparent)]
-pub struct MergeableModules(Vec<(ResolvedVc<Box<dyn MergeableModule>>, bool)>);
+pub struct MergeableModules(Vec<ResolvedVc<Box<dyn MergeableModule>>>);
 
 #[turbo_tasks::value_impl]
 impl MergeableModules {
+    #[turbo_tasks::function]
+    pub fn interned(modules: Vec<ResolvedVc<Box<dyn MergeableModule>>>) -> Vc<Self> {
+        Vc::cell(modules)
+    }
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct MergeableModulesExposed(Vec<(ResolvedVc<Box<dyn MergeableModule>>, bool)>);
+
+#[turbo_tasks::value_impl]
+impl MergeableModulesExposed {
     #[turbo_tasks::function]
     pub fn interned(modules: Vec<(ResolvedVc<Box<dyn MergeableModule>>, bool)>) -> Vc<Self> {
         Vc::cell(modules)

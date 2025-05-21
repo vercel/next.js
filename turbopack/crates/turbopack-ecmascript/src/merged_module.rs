@@ -17,15 +17,22 @@ use crate::{
 #[turbo_tasks::value(shared)]
 pub(crate) struct MergedEcmascriptModule {
     modules: Vec<(ResolvedVc<Box<dyn EcmascriptAnalyzable>>, bool)>,
+    entries: Vec<ResolvedVc<Box<dyn EcmascriptAnalyzable>>>,
     options: ResolvedVc<EcmascriptOptions>,
 }
 
 impl MergedEcmascriptModule {
     pub fn new(
         modules: Vec<(ResolvedVc<Box<dyn EcmascriptAnalyzable>>, bool)>,
+        entries: Vec<ResolvedVc<Box<dyn EcmascriptAnalyzable>>>,
         options: ResolvedVc<EcmascriptOptions>,
     ) -> ResolvedVc<Self> {
-        MergedEcmascriptModule { modules, options }.resolved_cell()
+        MergedEcmascriptModule {
+            modules,
+            entries,
+            options,
+        }
+        .resolved_cell()
     }
 }
 
@@ -122,6 +129,7 @@ impl EcmascriptChunkItem for MergedEcmascriptModuleChunkItem {
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let module = self.module.await?;
         let modules = &module.modules;
+        let entries = &module.entries;
         // println!(
         //     "merged chunk item: {:?}",
         //     modules
@@ -144,7 +152,11 @@ impl EcmascriptChunkItem for MergedEcmascriptModuleChunkItem {
             })
             .collect::<Result<Vec<_>>>()?;
 
-        let content = EcmascriptModuleContent::new_merged(modules.clone(), options);
+        let content = EcmascriptModuleContent::new_merged(
+            modules.clone(),
+            options,
+            entries.iter().map(|m| **m).collect(),
+        );
 
         // Currently, merged modules never include async modules.
         let async_module_options = Vc::cell(None);
