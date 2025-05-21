@@ -6,7 +6,6 @@ export default function Header() {
       <Link href="/" className="hover:underline">
         Blog
       </Link>
-      .
     </h2>
   );
 }
