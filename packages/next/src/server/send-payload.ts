@@ -6,7 +6,10 @@ import { isResSent } from '../shared/lib/utils'
 import { generateETag } from './lib/etag'
 import fresh from 'next/dist/compiled/fresh'
 import { getCacheControlHeader } from './lib/cache-control'
-import { RSC_CONTENT_TYPE_HEADER } from '../client/components/app-router-headers'
+import {
+  RSC_CONTENT_TYPE_HEADER,
+  RSC_VARY_HEADER_VALUE,
+} from '../client/components/app-router-headers'
 
 export function sendEtagResponse(
   req: IncomingMessage,
@@ -87,10 +90,7 @@ export async function sendRenderResult({
 
   // Add vary header for RSC responses to prevent CDN caching
   if (type === 'rsc') {
-    res.setHeader(
-      'Vary',
-      'RSC, Next-Router-State-Tree, Next-Url, Accept-Encoding'
-    )
+    res.setHeader('Vary', RSC_VARY_HEADER_VALUE)
   }
 
   if (payload) {
