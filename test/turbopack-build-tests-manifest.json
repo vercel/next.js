@@ -10345,11 +10345,10 @@
       "Ordering with Global CSS and Modules (prod) production mode useLightnincsss(false) should have the correct color (css ordering)",
       "Ordering with Global CSS and Modules (prod) production mode useLightnincsss(true) should have compiled successfully",
       "Ordering with Global CSS and Modules (prod) production mode useLightnincsss(true) should have the correct color (css ordering)",
-      "should handle unresolved files gracefully production mode should build correctly"
-    ],
-    "failed": [
+      "should handle unresolved files gracefully production mode should build correctly",
       "should handle unresolved files gracefully production mode should have correct file references in CSS output"
     ],
+    "failed": [],
     "pending": [
       "Basic CSS Modules Ordering useLightnincsss(false) Development Mode should have correct color on index page (on hover)",
       "Basic CSS Modules Ordering useLightnincsss(false) Development Mode should have correct color on index page (on load)",
