@@ -1032,7 +1032,8 @@ pub async fn get_server_chunking_context_with_client_assets(
         SourceMapsType::None
     })
     .module_id_strategy(module_id_strategy)
-    .file_tracing(next_mode.is_production());
+    .file_tracing(next_mode.is_production())
+    .module_merging(next_mode.is_production());
 
     if next_mode.is_development() {
         builder = builder.use_file_source_map_uris();
@@ -1103,7 +1104,8 @@ pub async fn get_server_chunking_context(
         SourceMapsType::None
     })
     .module_id_strategy(module_id_strategy)
-    .file_tracing(next_mode.is_production());
+    .file_tracing(next_mode.is_production())
+    .module_merging(next_mode.is_production());
 
     if next_mode.is_development() {
         builder = builder.use_file_source_map_uris()

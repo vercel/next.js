@@ -258,20 +258,22 @@ pub async fn get_edge_chunking_context_with_client_assets(
     .module_id_strategy(module_id_strategy);
 
     if !next_mode.is_development() {
-        builder = builder.chunking_config(
-            Vc::<EcmascriptChunkType>::default().to_resolved().await?,
-            ChunkingConfig {
-                min_chunk_size: 20_000,
-                ..Default::default()
-            },
-        );
-        builder = builder.chunking_config(
-            Vc::<CssChunkType>::default().to_resolved().await?,
-            ChunkingConfig {
-                max_merge_chunk_size: 100_000,
-                ..Default::default()
-            },
-        );
+        builder = builder
+            .chunking_config(
+                Vc::<EcmascriptChunkType>::default().to_resolved().await?,
+                ChunkingConfig {
+                    min_chunk_size: 20_000,
+                    ..Default::default()
+                },
+            )
+            .chunking_config(
+                Vc::<CssChunkType>::default().to_resolved().await?,
+                ChunkingConfig {
+                    max_merge_chunk_size: 100_000,
+                    ..Default::default()
+                },
+            )
+            .module_merging(true);
     }
 
     Ok(Vc::upcast(builder.build()))
@@ -321,20 +323,22 @@ pub async fn get_edge_chunking_context(
     .module_id_strategy(module_id_strategy);
 
     if !next_mode.is_development() {
-        builder = builder.chunking_config(
-            Vc::<EcmascriptChunkType>::default().to_resolved().await?,
-            ChunkingConfig {
-                min_chunk_size: 20_000,
-                ..Default::default()
-            },
-        );
-        builder = builder.chunking_config(
-            Vc::<CssChunkType>::default().to_resolved().await?,
-            ChunkingConfig {
-                max_merge_chunk_size: 100_000,
-                ..Default::default()
-            },
-        );
+        builder = builder
+            .chunking_config(
+                Vc::<EcmascriptChunkType>::default().to_resolved().await?,
+                ChunkingConfig {
+                    min_chunk_size: 20_000,
+                    ..Default::default()
+                },
+            )
+            .chunking_config(
+                Vc::<CssChunkType>::default().to_resolved().await?,
+                ChunkingConfig {
+                    max_merge_chunk_size: 100_000,
+                    ..Default::default()
+                },
+            )
+            .module_merging(true);
     }
 
     Ok(Vc::upcast(builder.build()))
