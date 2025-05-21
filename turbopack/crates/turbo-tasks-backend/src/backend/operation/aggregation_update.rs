@@ -1304,10 +1304,6 @@ impl AggregationUpdateQueue {
                         follower_in_upper = true;
                         return None;
                     };
-                    if old < 0 {
-                        follower_in_upper = true;
-                        return Some(old);
-                    }
                     if old == 1 {
                         keep_upper = true;
                         removed_uppers.push(upper_id);
@@ -1382,10 +1378,6 @@ impl AggregationUpdateQueue {
                             inner_in_upper = true;
                             return None;
                         };
-                        if old < 0 {
-                            inner_in_upper = true;
-                            return Some(old);
-                        }
                         if old == 1 {
                             removed_follower = true;
                             return None;
@@ -1471,10 +1463,6 @@ impl AggregationUpdateQueue {
                         follower_in_upper = true;
                         return None;
                     };
-                    if old < 0 {
-                        follower_in_upper = true;
-                        return Some(old);
-                    }
                     if old == 1 {
                         remove_upper = true;
                         return None;
@@ -1543,10 +1531,6 @@ impl AggregationUpdateQueue {
                             inner_in_upper = true;
                             return None;
                         };
-                        if old < 0 {
-                            inner_in_upper = true;
-                            return Some(old);
-                        }
                         if old == 1 {
                             removed_follower = true;
                             return None;
