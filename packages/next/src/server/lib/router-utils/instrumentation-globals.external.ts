@@ -13,7 +13,7 @@ export async function getInstrumentationModule(
   projectDir: string,
   distDir: string
 ): Promise<InstrumentationModule | undefined> {
-  if (cachedInstrumentationModule && process.env.NODE_ENV === 'production') {
+  if (cachedInstrumentationModule) {
     return cachedInstrumentationModule
   }
 
@@ -42,9 +42,12 @@ export async function getInstrumentationModule(
 }
 
 let instrumentationModulePromise: Promise<any> | null = null
+
 async function registerInstrumentation(projectDir: string, distDir: string) {
   // Ensure registerInstrumentation is not called in production build
-  if (process.env.NEXT_PHASE === 'phase-production-build') return
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    return
+  }
   if (!instrumentationModulePromise) {
     instrumentationModulePromise = getInstrumentationModule(projectDir, distDir)
   }

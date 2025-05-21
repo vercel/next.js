@@ -15233,11 +15233,11 @@
   },
   "test/integration/invalid-document-image-import/test/index.test.js": {
     "passed": [],
-    "failed": [
+    "failed": [],
+    "pending": [
       "Invalid static image import in _document production mode Should fail to build when disableStaticImages in next.config.js",
       "Invalid static image import in _document production mode Should fail to build when no next.config.js"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -15648,10 +15648,11 @@
     "runtimeError": false
   },
   "test/integration/next-dynamic/test/index.test.js": {
-    "passed": ["next/dynamic production mode should render server value"],
-    "failed": [
+    "passed": [
+      "next/dynamic production mode should render server value",
       "next/dynamic production mode should render dynamic server rendered values on client mount"
     ],
+    "failed": [],
     "pending": [
       "next/dynamic development mode should render dynamic server rendered values on client mount",
       "next/dynamic development mode should render server value"
@@ -16648,11 +16649,10 @@
       "Non-Standard NODE_ENV should not show the warning with no NODE_ENV set",
       "Non-Standard NODE_ENV should show the warning with NODE_ENV set to invalid value",
       "Non-Standard NODE_ENV should show the warning with NODE_ENV set to invalid value (custom server)",
-      "Non-Standard NODE_ENV should show the warning with NODE_ENV set to production with next dev"
-    ],
-    "failed": [
+      "Non-Standard NODE_ENV should show the warning with NODE_ENV set to production with next dev",
       "Non-Standard NODE_ENV production mode should still DCE NODE_ENV specific code"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -16971,11 +16971,11 @@
     "runtimeError": false
   },
   "test/integration/production-browser-sourcemaps/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Production browser sourcemaps production mode Server support correctly generated the source map",
       "Production browser sourcemaps production mode Server support includes sourcemaps for all browser files"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false

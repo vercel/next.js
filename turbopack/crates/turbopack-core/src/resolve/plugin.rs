@@ -31,7 +31,7 @@ impl AfterResolvePluginCondition {
         let path = fs_path.await?;
 
         if let Some(path) = root.get_path_to(&path) {
-            if glob.execute(path) {
+            if glob.matches(path) {
                 return Ok(Vc::cell(true));
             }
         }
@@ -66,7 +66,7 @@ impl BeforeResolvePluginCondition {
     pub async fn matches(&self, request: Vc<Request>) -> Result<Vc<bool>> {
         Ok(Vc::cell(match self {
             BeforeResolvePluginCondition::Request(glob) => match request.await?.request() {
-                Some(request) => glob.await?.execute(request.as_str()),
+                Some(request) => glob.await?.matches(request.as_str()),
                 None => false,
             },
             BeforeResolvePluginCondition::Modules(modules) => {

@@ -32,23 +32,16 @@ import { isInterceptionRouteRewrite } from '../lib/generate-interception-routes-
 import { NEXT_ROUTER_STATE_TREE_HEADER } from '../client/components/app-router-headers'
 import { getSelectedParams } from '../client/components/router-reducer/compute-changed-path'
 
-export function normalizeCdnUrl(
-  req: BaseNextRequest | IncomingMessage,
+function filterInternalQuery(
+  query: Record<string, undefined | string | string[]>,
   paramKeys: string[],
   defaultRouteRegex: ReturnType<typeof getNamedRouteRegex> | undefined
 ) {
-  // make sure to normalize req.url from CDNs to strip dynamic and rewrite
-  // params from the query which are added during routing
-  const _parsedUrl = parseReqUrl(req.url!)
+  // this is used to pass query information in rewrites
+  // but should not be exposed in final query
+  delete query['nextInternalLocale']
 
-  // we can't normalize if we can't parse
-  if (!_parsedUrl) {
-    return req.url
-  }
-
-  delete (_parsedUrl as any).search
-
-  for (const key of Object.keys(_parsedUrl.query)) {
+  for (const key in query) {
     const isNextQueryPrefix =
       key !== NEXT_QUERY_PARAM_PREFIX && key.startsWith(NEXT_QUERY_PARAM_PREFIX)
 
@@ -62,9 +55,26 @@ export function normalizeCdnUrl(
       paramKeys.includes(key) ||
       (defaultRouteRegex && Object.keys(defaultRouteRegex.groups).includes(key))
     ) {
-      delete _parsedUrl.query[key]
+      delete query[key]
     }
   }
+}
+
+export function normalizeCdnUrl(
+  req: BaseNextRequest | IncomingMessage,
+  paramKeys: string[],
+  defaultRouteRegex: ReturnType<typeof getNamedRouteRegex> | undefined
+) {
+  // make sure to normalize req.url from CDNs to strip dynamic and rewrite
+  // params from the query which are added during routing
+  const _parsedUrl = parseReqUrl(req.url!)
+
+  // we can't normalize if we can't parse
+  if (!_parsedUrl) {
+    return req.url
+  }
+  delete (_parsedUrl as any).search
+  filterInternalQuery(_parsedUrl.query, paramKeys, defaultRouteRegex)
 
   req.url = formatUrl(_parsedUrl)
 }
@@ -415,7 +425,8 @@ export function getServerUtils({
   }
 
   function normalizeQueryParams(
-    query: Record<string, string | string[] | undefined>
+    query: Record<string, string | string[] | undefined>,
+    routeParamKeys: Set<string>
   ) {
     // this is used to pass query information in rewrites
     // but should not be exposed in final query
@@ -428,6 +439,7 @@ export function getServerUtils({
       // Remove the prefixed key from the query params because we want
       // to consume it for the dynamic route matcher.
       delete query[key]
+      routeParamKeys.add(normalizedKey)
 
       if (typeof value === 'undefined') continue
 
@@ -466,14 +478,19 @@ export function getServerUtils({
         ignoreMissingOptional
       )
     },
+
     normalizeCdnUrl: (
       req: BaseNextRequest | IncomingMessage,
       paramKeys: string[]
     ) => normalizeCdnUrl(req, paramKeys, defaultRouteRegex),
+
     interpolateDynamicPath: (
       pathname: string,
       params: Record<string, undefined | string | string[]>
     ) => interpolateDynamicPath(pathname, params, defaultRouteRegex),
+
+    filterInternalQuery: (query: ParsedUrlQuery, paramKeys: string[]) =>
+      filterInternalQuery(query, paramKeys, defaultRouteRegex),
   }
 }
 
