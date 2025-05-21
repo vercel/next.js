@@ -261,12 +261,17 @@ pub struct ProjectContainer {
     name: RcStr,
     options_state: State<Option<ProjectOptions>>,
     versioned_content_map: Option<ResolvedVc<VersionedContentMap>>,
+    worker: ResolvedVc<Box<dyn JsEvaluator>>,
 }
 
 #[turbo_tasks::value_impl]
 impl ProjectContainer {
     #[turbo_tasks::function]
-    pub async fn new(name: RcStr, dev: bool) -> Result<Vc<Self>> {
+    pub async fn new(
+        name: RcStr,
+        dev: bool,
+        worker: ResolvedVc<Box<dyn JsEvaluator>>,
+    ) -> Result<Vc<Self>> {
         Ok(ProjectContainer {
             name,
             // we only need to enable versioning in dev mode, since build
@@ -277,6 +282,7 @@ impl ProjectContainer {
                 None
             },
             options_state: State::new(None),
+            worker,
         }
         .cell())
     }
@@ -1838,3 +1844,6 @@ async fn all_assets_from_entries_operation(
 fn stable_endpoint(endpoint: Vc<Box<dyn Endpoint>>) -> Vc<Box<dyn Endpoint>> {
     endpoint
 }
+
+#[turbo_tasks::value_trait]
+pub trait JsEvaluator {}

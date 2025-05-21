@@ -15,7 +15,7 @@ use next_api::{
         RouteOperation,
     },
     project::{
-        DefineEnv, DraftModeOptions, PartialProjectOptions, Project, ProjectContainer,
+        DefineEnv, DraftModeOptions, JsEvaluator, PartialProjectOptions, Project, ProjectContainer,
         ProjectOptions, WatchOptions,
     },
     route::Endpoint,
@@ -310,7 +310,6 @@ pub struct ProjectInstance {
     turbo_tasks: NextTurboTasks,
     container: ResolvedVc<ProjectContainer>,
     exit_receiver: tokio::sync::Mutex<Option<ExitReceiver>>,
-    worker: ThreadsafeFunction<String>,
 }
 
 #[napi(ts_return_type = "Promise<{ __napiType: \"Project\" }>")]
@@ -429,10 +428,13 @@ pub async fn project_new(
             .unwrap();
         });
     }
+
+    let worker = worker.as_ref().clone().cell();
+
     let options: ProjectOptions = options.into();
     let container = turbo_tasks
         .run_once(async move {
-            let project = ProjectContainer::new("next.js".into(), options.dev);
+            let project = ProjectContainer::new("next.js".into(), options.dev, Vc::upcast(worker));
             let project = project.to_resolved().await?;
             project.initialize(options).await?;
             Ok(project)
@@ -447,14 +449,11 @@ pub async fn project_new(
             .inspect_err(|err| tracing::warn!(%err, "failed to benchmark file IO"))
     });
 
-    let worker = worker.as_ref().worker.clone();
-
     Ok(External::new_with_size_hint(
         ProjectInstance {
             turbo_tasks,
             container,
             exit_receiver: tokio::sync::Mutex::new(Some(exit_receiver)),
-            worker,
         },
         100,
     ))
@@ -1584,6 +1583,7 @@ pub fn project_get_source_map_sync(
 }
 
 #[turbo_tasks::value(serialization = "none", eq = "manual")]
+#[derive(Clone)]
 pub struct JsWorker {
     #[turbo_tasks(debug_ignore, trace_ignore)]
     worker: ThreadsafeFunction<String>,
@@ -1594,6 +1594,9 @@ impl PartialEq for JsWorker {
         false
     }
 }
+
+#[turbo_tasks::value_impl]
+impl JsEvaluator for JsWorker {}
 
 #[js_function(1)]
 pub fn new_js_worker(ctx: napi::CallContext) -> napi::Result<External<JsWorker>> {
