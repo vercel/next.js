@@ -14,7 +14,7 @@ use crate::{
     },
     module::Module,
     module_graph::{
-        GraphTraversalAction, ModuleGraph, SingleModuleGraphModuleNode,
+        GraphTraversalAction, ModuleGraph, RefData, SingleModuleGraphModuleNode,
         chunk_group_info::RoaringBitmapWrapper,
     },
 };
@@ -106,7 +106,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             .traverse_edges_fixed_point_with_priority(
                 entries.iter().map(|e| (*e, 0)),
                 &mut (),
-                |parent_info: Option<(&'_ SingleModuleGraphModuleNode, &'_ ChunkingType)>,
+                |parent_info: Option<(&'_ SingleModuleGraphModuleNode, &'_ RefData)>,
                  node: &'_ SingleModuleGraphModuleNode,
                  _|
                  -> Result<GraphTraversalAction> {
@@ -116,7 +116,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                         parent_info.map_or((None, false), |(node, ty)| {
                             (
                                 Some(node.module),
-                                match ty {
+                                match &ty.chunking_type {
                                     ChunkingType::Parallel { hoisted, .. } => *hoisted,
                                     _ => false,
                                 },
