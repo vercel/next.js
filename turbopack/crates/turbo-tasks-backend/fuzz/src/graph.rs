@@ -10,6 +10,7 @@ use turbo_tasks_malloc::TurboMalloc;
 )]
 pub struct TaskReferenceSpec {
     task: u16,
+    chain: u8,
     read: bool,
     read_strongly_consistent: bool,
 }
@@ -19,6 +20,7 @@ pub struct TaskReferenceSpec {
 )]
 pub struct TaskSpec {
     references: Vec<TaskReferenceSpec>,
+    children: u8,
 }
 
 static RUNTIME: Lazy<tokio::runtime::Runtime> = Lazy::new(|| {
@@ -77,7 +79,7 @@ fn actual_operation(data: Vec<TaskSpec>) {
         .block_on(async {
             tt.run_once(async move {
                 let spec: Vc<TasksSpec> = Vc::cell(data);
-                run_task(spec, 0).await?;
+                run_task(spec, 0).strongly_consistent().await?;
                 Ok(())
             })
             .await
@@ -87,12 +89,36 @@ fn actual_operation(data: Vec<TaskSpec>) {
 
 #[turbo_tasks::value(transparent)]
 struct TasksSpec(Vec<TaskSpec>);
+
 #[turbo_tasks::function]
-async fn run_task(spec: Vc<TasksSpec>, task: u16) -> Result<Vc<()>> {
+async fn run_task_chain(
+    spec: Vc<TasksSpec>,
+    from: u16,
+    ref_index: usize,
+    to: u16,
+    chain: u8,
+) -> Result<Vc<()>> {
+    if chain > 0 {
+        run_task_chain(spec, from, ref_index, to, chain - 1).await?;
+    } else {
+        run_task(spec, to).await?;
+    }
+    Ok(Vc::cell(()))
+}
+
+#[turbo_tasks::function]
+async fn run_task(spec: Vc<TasksSpec>, task_index: u16) -> Result<Vc<()>> {
     let spec_ref = spec.await?;
-    let task = &spec_ref[task as usize];
-    for reference in &task.references {
-        let call = run_task(spec, reference.task);
+    let task = &spec_ref[task_index as usize];
+    for i in 0..task.children {
+        run_task_child(task_index, i).await?;
+    }
+    for (i, reference) in task.references.iter().enumerate() {
+        let call = if reference.chain > 0 {
+            run_task_chain(spec, task_index, i, reference.task, reference.chain)
+        } else {
+            run_task(spec, reference.task)
+        };
         if reference.read {
             call.await?;
         }
@@ -100,6 +126,13 @@ async fn run_task(spec: Vc<TasksSpec>, task: u16) -> Result<Vc<()>> {
             call.strongly_consistent().await?;
         }
     }
+    Ok(Vc::cell(()))
+}
+
+#[turbo_tasks::function]
+async fn run_task_child(from: u16, i: u8) -> Result<Vc<()>> {
+    let _ = from;
+    let _ = i;
     Ok(Vc::cell(()))
 }
 
