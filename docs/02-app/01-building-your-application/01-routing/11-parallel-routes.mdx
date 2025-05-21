@@ -18,6 +18,48 @@ For example, considering a dashboard, you can use parallel routes to simultaneou
   height="942"
 />
 
+> **Good to know**:
+>
+> - Before learning about slots, note that literal `@` symbols in routes require [special handling](#using-literal--symbols-in-routes).
+
+## Using literal @ symbols in routes
+
+When you need to use an `@` symbol in your route path (not as a parallel route segment), you have several options:
+
+### URL Encoding
+
+Replace `@` with its URL-encoded equivalent `%40`: app/[%40grida]/pixel-grid/page.tsx
+
+This will match routes like `/@grida/pixel-grid`.
+
+### Dynamic Segments
+
+Create a dynamic segment that specifically matches your pattern:
+
+```
+// app/[@grida]/pixel-grid/page.tsx
+export default function Page({
+  params,
+}: {
+  params: { "@grida": string }
+}) {
+  // Your page content
+}
+```
+
+### Middleware rewrites
+
+For more complex cases, middleware can be used to rewrite incoming requests:
+
+```
+// middleware.ts
+export function middleware(request: NextRequest) {
+  if (request.nextUrl.pathname.startsWith('/@grida')) {
+    return NextResponse.rewrite(new URL('/@grida-handler', request.url))
+  }
+}
+```
+
 ## Slots
 
 Parallel routes are created using named **slots**. Slots are defined with the `@folder` convention. For example, the following file structure defines two slots: `@analytics` and `@team`:
