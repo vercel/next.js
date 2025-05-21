@@ -3,7 +3,7 @@ title: images
 description: Custom configuration for the next/image loader
 ---
 
-{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+{/*The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component.*/}
 
 If you want to use a cloud provider to optimize images instead of using the Next.js built-in Image Optimization API, you can configure `next.config.js` with the following:
 
@@ -54,6 +54,7 @@ To learn more about configuring the behavior of the built-in [Image Optimization
 
 - [Akamai](#akamai)
 - [AWS CloudFront](#aws-cloudfront)
+- [Azion](#azion)
 - [Cloudinary](#cloudinary)
 - [Cloudflare](#cloudflare)
 - [Contentful](#contentful)
@@ -86,6 +87,15 @@ export default function cloudfrontLoader({ src, width, quality }) {
   url.searchParams.set('width', width.toString())
   url.searchParams.set('quality', (quality || 75).toString())
   return url.href
+```
+
+### Azion
+
+```js
+// Docs: https://www.azion.com/en/documentation/products/build/edge-application/image-processor/
+export default function azionLoader({ src, width, quality}) {
+  return `https://example.com/${src}?ims=${width}x/filters:quality(${quality} || 75)`
+}
 ```
 
 ### Cloudinary
