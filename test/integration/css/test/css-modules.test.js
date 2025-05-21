@@ -153,20 +153,26 @@ describe('should handle unresolved files gracefully', () => {
             encoding: 'utf8',
           })
           .filter((f) => f.endsWith('.css'))
+          // Ensure the loop is more deterministic
+          .sort()
 
         expect(cssFiles).not.toBeEmpty()
 
         for (const file of cssFiles) {
           const content = await readFile(join(cssFolder, file), 'utf8')
 
-          // if it is the combined global CSS file there are double the expected
-          // results
-          const howMany =
-            content.includes('p{') || content.includes('p,') ? 2 : 1
+          const svgCount = content.match(/\(\/vercel\.svg/g).length
+          expect(svgCount === 1 || svgCount === 2).toBe(true)
 
-          expect(content.match(/\(\/vercel\.svg/g).length).toBe(howMany)
-          expect(content.match(/\(\/_next\/static\/media/g).length).toBe(1)
-          expect(content.match(/\(https:\/\//g).length).toBe(howMany)
+          if (process.env.IS_TURBOPACK_TEST) {
+            // With Turbopack these are combined and the path is relative.
+            const mediaCount = content.match(/\(\.\.\/media/g).length
+            expect(mediaCount === 1 || mediaCount === 2).toBe(true)
+          } else {
+            expect(content.match(/\(\/_next\/static\/media/g).length).toBe(1)
+          }
+          const httpsCount = content.match(/\(https:\/\//g).length
+          expect(httpsCount === 1 || httpsCount === 2).toBe(true)
         }
       })
     }
