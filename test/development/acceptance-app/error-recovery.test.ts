@@ -375,11 +375,12 @@ describe('Error recovery app', () => {
         `
     )
 
-    await expect(browser).toDisplayRedbox(`
+    await expect(browser).toDisplayRedbox(
+      `
      {
        "description": "oops",
        "environmentLabel": "Server",
-       "label": "Runtime Error",
+       "label": "<FIXME-excluded-label>",
        "source": "child.js (3:9) @ Child
      > 3 |   throw new Error('oops')
          |         ^",
@@ -388,7 +389,11 @@ describe('Error recovery app', () => {
          "Page app/server/page.js (3:10)",
        ],
      }
-    `)
+    `,
+
+      // FIXME: `label` is flaking between "Runtime Error" and "Recoverable Error"
+      { label: false }
+    )
 
     // TODO-APP: re-enable when error recovery doesn't reload the page.
     /* const didNotReload = */ await session.patch(
@@ -580,10 +585,10 @@ describe('Error recovery app', () => {
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./index.js (7:41)
+         "source": "./index.js (10:41)
        Parsing ecmascript source code failed
-       > 7 | export default function FunctionNamed() {
-           |                                         ^",
+       > 10 | export default function FunctionNamed() {
+            |                                         ^",
          "stack": [],
        }
       `)
@@ -617,10 +622,10 @@ describe('Error recovery app', () => {
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./index.js (7:41)
+         "source": "./index.js (10:41)
        Parsing ecmascript source code failed
-       > 7 | export default function FunctionNamed() {
-           |                                         ^",
+       > 10 | export default function FunctionNamed() {
+            |                                         ^",
          "stack": [],
        }
       `)

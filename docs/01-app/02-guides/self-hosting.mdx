@@ -6,7 +6,7 @@ description: Learn how to self-host your Next.js application on a Node.js server
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
-When [deploying](docs/app/getting-started/deploying) your Next.js app, you may want to configure how different features are handled based on your infrastructure.
+When [deploying](/docs/app/getting-started/deploying) your Next.js app, you may want to configure how different features are handled based on your infrastructure.
 
 > **🎥 Watch:** Learn more about self-hosting Next.js → [YouTube (45 minutes)](https://www.youtube.com/watch?v=sIVL4JMqRfc).
 
@@ -28,7 +28,7 @@ Image Optimization can be used with a [static export](/docs/app/guides/static-ex
 
 Middleware uses the [Edge runtime](/docs/app/api-reference/edge), a subset of all available Node.js APIs to help ensure low latency, since it may run in front of every route or asset in your application. If you do not want this, you can use the [full Node.js runtime](/blog/next-15-2#nodejs-middleware-experimental) to run Middleware.
 
-If you are looking to add logic (or use an external package) that requires all Node.js APIs, you might be able to move this logic to a [layout](/docs/app/building-your-application/routing/layouts-and-templates#layouts) as a [Server Component](/docs/app/building-your-application/rendering/server-components). For example, checking [headers](/docs/app/api-reference/functions/headers) and [redirecting](/docs/app/api-reference/functions/redirect). You can also use headers, cookies, or query parameters to [redirect](/docs/app/api-reference/config/next-config-js/redirects#header-cookie-and-query-matching) or [rewrite](/docs/app/api-reference/config/next-config-js/rewrites#header-cookie-and-query-matching) through `next.config.js`. If that does not work, you can also use a [custom server](/docs/pages/guides/custom-server).
+If you are looking to add logic (or use an external package) that requires all Node.js APIs, you might be able to move this logic to a [layout](/docs/app/building-your-application/routing/layouts-and-templates#layouts) as a [Server Component](/docs/app/getting-started/server-and-client-components). For example, checking [headers](/docs/app/api-reference/functions/headers) and [redirecting](/docs/app/api-reference/functions/redirect). You can also use headers, cookies, or query parameters to [redirect](/docs/app/api-reference/config/next-config-js/redirects#header-cookie-and-query-matching) or [rewrite](/docs/app/api-reference/config/next-config-js/rewrites#header-cookie-and-query-matching) through `next.config.js`. If that does not work, you can also use a [custom server](/docs/pages/guides/custom-server).
 
 ## Environment Variables
 
@@ -85,7 +85,7 @@ This allows you to use a singular Docker image that can be promoted through mult
 
 Next.js can cache responses, generated static pages, build outputs, and other static assets like images, fonts, and scripts.
 
-Caching and revalidating pages (with [Incremental Static Regeneration](/docs/app/building-your-application/data-fetching/incremental-static-regeneration)) use the **same shared cache**. By default, this cache is stored to the filesystem (on disk) on your Next.js server. **This works automatically when self-hosting** using both the Pages and App Router.
+Caching and revalidating pages (with [Incremental Static Regeneration](/docs/app/guides/incremental-static-regeneration)) use the **same shared cache**. By default, this cache is stored to the filesystem (on disk) on your Next.js server. **This works automatically when self-hosting** using both the Pages and App Router.
 
 You can configure the Next.js cache location if you want to persist cached pages and data to durable storage, or share the cache across multiple containers or instances of your Next.js application.
 

@@ -269,10 +269,10 @@ pub struct AppPathsManifest {
 // The manifest is in a format of:
 // { [`${origin} -> ${imported}`]: { id: `${origin} -> ${imported}`, files:
 // string[] } }
-#[derive(Serialize, Default, Debug)]
+#[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct LoadableManifest {
-    pub id: RcStr,
+    pub id: ModuleId,
     pub files: Vec<RcStr>,
 }
 

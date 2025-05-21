@@ -265,14 +265,17 @@ This option has been superseded by [`optimizePackageImports`](/docs/app/api-refe
 The `define` option allows you to statically replace variables in your code at build-time.
 The option takes an object as key-value pairs, where the keys are the variables that should be replaced with the corresponding values.
 
-Use the `compiler.define` field in `next.config.js`:
+Use the `compiler.define` field in `next.config.js` to define variables for all environments (server, edge, and client). Or, use `compiler.defineServer` to define variables only for server-side (server and edge) code:
 
 ```js filename="next.config.js"
 module.exports = {
   compiler: {
     define: {
-      MY_STRING_VARIABLE: JSON.stringify('my-string'),
-      MY_NUMBER_VARIABLE: '42',
+      MY_VARIABLE: 'my-string',
+      'process.env.MY_ENV_VAR': 'my-env-var',
+    },
+    defineServer: {
+      MY_SERVER_VARIABLE: 'my-server-var',
     },
   },
 }

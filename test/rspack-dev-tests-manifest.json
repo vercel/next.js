@@ -1050,7 +1050,9 @@
       "loadConfig canary-only features errors when using persistentCaching if not in canary",
       "loadConfig canary-only features should not print a stack trace when throwing an error",
       "loadConfig nextConfig.images defaults should assign a `images.remotePatterns` when using assetPrefix",
-      "loadConfig nextConfig.images defaults should not assign a duplicate `images.remotePatterns` value when using assetPrefix"
+      "loadConfig nextConfig.images defaults should not assign a duplicate `images.remotePatterns` value when using assetPrefix",
+      "loadConfig with a canary version errors when dynamicIO is enabled but PPR is disabled",
+      "loadConfig with a canary version errors when dynamicIO is enabled but PPR set to \"incremental\""
     ],
     "failed": [],
     "pending": [],
@@ -2097,11 +2099,10 @@
     "runtimeError": false
   },
   "test/development/acceptance/ReactRefreshLogBox-app-doc.test.ts": {
-    "passed": [
-      "ReactRefreshLogBox _app _document empty _app shows logbox",
-      "ReactRefreshLogBox _app _document empty _document shows logbox"
-    ],
+    "passed": [],
     "failed": [
+      "ReactRefreshLogBox _app _document empty _app shows logbox",
+      "ReactRefreshLogBox _app _document empty _document shows logbox",
       "ReactRefreshLogBox _app _document _app syntax error shows logbox",
       "ReactRefreshLogBox _app _document _document syntax error shows logbox"
     ],
@@ -2300,8 +2301,8 @@
     "runtimeError": false
   },
   "test/development/app-dir/build-error-logs/build-error-logs.test.ts": {
-    "passed": [],
-    "failed": ["build-error-logs should only log error a single time"],
+    "passed": ["build-error-logs should only log error a single time"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2685,15 +2686,14 @@
       "react-dom/server in React Server environment explicit react-dom/server.browser usage in library code",
       "react-dom/server in React Server environment explicit react-dom/server.edge usage in app code",
       "react-dom/server in React Server environment explicit react-dom/server.edge usage in library code",
+      "react-dom/server in React Server environment explicit react-dom/server.node usage in app code",
       "react-dom/server in React Server environment explicit react-dom/server.node usage in library code",
       "react-dom/server in React Server environment implicit react-dom/server.edge usage in app code",
       "react-dom/server in React Server environment implicit react-dom/server.edge usage in library code",
+      "react-dom/server in React Server environment implicit react-dom/server.node usage in app code",
       "react-dom/server in React Server environment implicit react-dom/server.node usage in library code"
     ],
-    "failed": [
-      "react-dom/server in React Server environment explicit react-dom/server.node usage in app code",
-      "react-dom/server in React Server environment implicit react-dom/server.node usage in app code"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2725,6 +2725,16 @@
     "passed": [
       "typed-env should have env types from next config",
       "typed-env should rewrite env types if .env is modified"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/app-dir/use-cache-errors/use-cache-errors.test.ts": {
+    "passed": [
+      "use-cache-errors should not show a false-positive compiler error about a misplaced \"use cache\" directive",
+      "use-cache-errors should show a runtime error when calling the incorrectly used cache function"
     ],
     "failed": [],
     "pending": [],
@@ -2768,7 +2778,8 @@
     "passed": [
       "asset-prefix rewrites rewrites that do not start with assetPrefix should still work",
       "asset-prefix rewrites should respect rewrites that start with assetPrefix",
-      "asset-prefix should load the app properly without reloading"
+      "asset-prefix should load the app properly without reloading",
+      "asset-prefix should navigate to another page without hard navigating"
     ],
     "failed": [],
     "pending": [],
@@ -3751,10 +3762,7 @@
       "Client Navigation rendering Rendering via HTTP allows to import .json files",
       "Client Navigation rendering Rendering via HTTP asPath",
       "Client Navigation rendering Rendering via HTTP default Content-Type",
-      "Client Navigation rendering Rendering via HTTP default export is not a React Component",
       "Client Navigation rendering Rendering via HTTP getInitialProps circular structure",
-      "Client Navigation rendering Rendering via HTTP getInitialProps resolves to null",
-      "Client Navigation rendering Rendering via HTTP getInitialProps should be class method",
       "Client Navigation rendering Rendering via HTTP renders a link component",
       "Client Navigation rendering Rendering via HTTP renders a stateless component",
       "Client Navigation rendering Rendering via HTTP renders properties populated asynchronously",
@@ -3777,6 +3785,9 @@
       "Client Navigation rendering Rendering via HTTP with the HOC based router should navigate as expected"
     ],
     "failed": [
+      "Client Navigation rendering Rendering via HTTP default export is not a React Component",
+      "Client Navigation rendering Rendering via HTTP getInitialProps should be class method",
+      "Client Navigation rendering Rendering via HTTP getInitialProps resolves to null",
       "Client Navigation rendering Rendering via HTTP error-in-the-global-scope",
       "Client Navigation rendering Rendering via HTTP error-inside-page"
     ],
@@ -3909,6 +3920,17 @@
     "passed": [
       "typescript-auto-install should detect TypeScript being added and auto setup",
       "typescript-auto-install should work"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/typescript-plugin/client-boundary/client-boundary.test.ts": {
+    "passed": [
+      "typescript-plugin - client-boundary should have diagnostics for non-serializable props",
+      "typescript-plugin - client-boundary should not have diagnostics for non-serializable action props",
+      "typescript-plugin - client-boundary should not have diagnostics for serializable props"
     ],
     "failed": [],
     "pending": [],
@@ -5809,6 +5831,8 @@
   "test/e2e/app-dir/dynamic-io-dynamic-imports/dynamic-io-dynamic-imports.test.ts": {
     "passed": [
       "async imports in dynamicIO - external packages does not instrument import() in external packages",
+      "async imports in dynamicIO are not instrumented in edge edge route handler",
+      "async imports in dynamicIO are not instrumented in edge middleware",
       "async imports in dynamicIO inside a GET route handler import of a sync module",
       "async imports in dynamicIO inside a GET route handler import of module with top-level-await",
       "async imports in dynamicIO inside a client component import of a sync module",
@@ -5851,15 +5875,6 @@
     "passed": [
       "Dynamic IO Prospective Render Errors - Debug Build should error on the first visit to each page",
       "Dynamic IO Prospective Render Errors - Standard Build should error on the first visit to each page"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.prospective-fallback.test.ts": {
-    "passed": [
-      "Dynamic IO Prospective Fallback should not error when visiting the page"
     ],
     "failed": [],
     "pending": [],
@@ -5933,7 +5948,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/dynamic-io/dynamic-io.connection.test.ts": {
-    "passed": ["dynamic-io should produce dynamic pages when using connection"],
+    "passed": [
+      "dynamic-io should be able to pass connection as a promise to another component and trigger an intermediate Suspense boundary",
+      "dynamic-io should partially prerender pages that use connection"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -5943,7 +5961,9 @@
     "passed": [
       "dynamic-io should be able to access cookie properties asynchronously",
       "dynamic-io should be able to access cookie properties synchronously",
-      "dynamic-io should produce dynamic pages when using async or sync cookies"
+      "dynamic-io should be able to pass cookies as a promise to another component and trigger an intermediate Suspense boundary",
+      "dynamic-io should partially prerender pages that use async cookies",
+      "dynamic-io should partially prerender pages that use sync cookies"
     ],
     "failed": [],
     "pending": [],
@@ -5978,7 +5998,9 @@
     "passed": [
       "dynamic-io should be able to access headers properties asynchronously",
       "dynamic-io should be able to access headers properties synchronously",
-      "dynamic-io should produce dynamic pages when using async or sync headers"
+      "dynamic-io should be able to pass headers as a promise to another component and trigger an intermediate Suspense boundary",
+      "dynamic-io should partially prerender pages that use async headers",
+      "dynamic-io should partially prerender pages that use sync headers"
     ],
     "failed": [],
     "pending": [],
@@ -6016,28 +6038,20 @@
     "passed": [
       "dynamic-io Async Params should fully prerender pages that check individual param keys after `use`ing params in a client component",
       "dynamic-io Async Params should fully prerender pages that check individual param keys after awaiting params in a server component",
-      "dynamic-io Async Params should prerender pages that `use` params in a client component when prebuilt",
-      "dynamic-io Async Params should prerender pages that await params in a server component when prebuilt",
-      "dynamic-io Async Params should prerender pages that spread `use`ed params in a client component when prebuilt",
-      "dynamic-io Async Params should prerender pages that spread awaited params in a server component when prebuilt",
-      "dynamic-io Async Params should render pages that `use` params in a client component when not prebuilt",
-      "dynamic-io Async Params should render pages that await params in a server component when not prebuilt",
-      "dynamic-io Async Params should render pages that spread `use`ed params in a client component when not prebuilt",
-      "dynamic-io Async Params should render pages that spread awaited params in a server component when not prebuilt",
+      "dynamic-io Async Params should partially prerender pages that await params in a server components",
+      "dynamic-io Async Params should partially prerender pages that spread `use`ed params in a client component",
+      "dynamic-io Async Params should partially prerender pages that spread awaited params in a server component",
+      "dynamic-io Async Params should partially prerender pages that use params in a client components",
       "dynamic-io Param Shadowing should correctly allow param names like then, value, and status when `use`ing params in a client component",
       "dynamic-io Param Shadowing should correctly allow param names like then, value, and status when awaiting params in a server component",
       "dynamic-io Param Shadowing should not allow param names like then and status when accessing params directly in a client component",
       "dynamic-io Param Shadowing should not allow param names like then and status when accessing params directly in a server component",
       "dynamic-io Synchronous Params access should fully prerender pages that check individual param keys directly on the params prop in a client component",
       "dynamic-io Synchronous Params access should fully prerender pages that check individual param keys directly on the params prop in a server component",
-      "dynamic-io Synchronous Params access should prerender pages that access params synchronously in a client component when prebuilt",
-      "dynamic-io Synchronous Params access should prerender pages that access params synchronously in a server component when prebuilt",
-      "dynamic-io Synchronous Params access should prerender pages that spread params without `use`ing first in a client component when not prebuilt",
-      "dynamic-io Synchronous Params access should prerender pages that spread params without `use`ing first in a client component when prebuilt",
-      "dynamic-io Synchronous Params access should prerender pages that spread params without awaiting first in a server component when not prebuilt",
-      "dynamic-io Synchronous Params access should prerender pages that spread params without awaiting first in a server component when prebuilt",
-      "dynamic-io Synchronous Params access should render pages that access params synchronously in a client component when not prebuilt",
-      "dynamic-io Synchronous Params access should render pages that access params synchronously in a server component when not prebuilt"
+      "dynamic-io Synchronous Params access should partially prerender pages that access params synchronously in a client components",
+      "dynamic-io Synchronous Params access should partially prerender pages that access params synchronously in a server components",
+      "dynamic-io Synchronous Params access should partially prerender pages that spread params without `use`ing them first in a client component",
+      "dynamic-io Synchronous Params access should partially prerender pages that spread params without awaiting first in a server component"
     ],
     "failed": [],
     "pending": [],
@@ -6075,15 +6089,15 @@
   },
   "test/e2e/app-dir/dynamic-io/dynamic-io.search.test.ts": {
     "passed": [
-      "dynamic-io should not prerender a page that accesses a searchParam property synchronously in a client component",
-      "dynamic-io should not prerender a page that accesses a searchParam property synchronously in a server component",
-      "dynamic-io should not prerender a page that checks for the existence of a searchParam property synchronously in a client component",
-      "dynamic-io should not prerender a page that checks for the existence of a searchParam property synchronously in a server component",
-      "dynamic-io should not prerender a page that spreads ...searchParam synchronously in a client component",
-      "dynamic-io should not prerender a page that spreads ...searchParam synchronously in a server component",
-      "dynamic-io should not prerender pages that `use` searchParams in a client component",
-      "dynamic-io should not prerender pages that `use` searchParams in a server component",
-      "dynamic-io should not prerender pages that await searchParams in a server component"
+      "dynamic-io should partially prerender pages that `use` searchParams in a client component",
+      "dynamic-io should partially prerender pages that `use` searchParams in a server component",
+      "dynamic-io should partially prerender pages that access a searchParam property synchronously in a client component",
+      "dynamic-io should partially prerender pages that access a searchParam property synchronously in a server component",
+      "dynamic-io should partially prerender pages that await searchParams in a server component",
+      "dynamic-io should partially prerender pages that checks for the existence of a searchParam property synchronously in a client component",
+      "dynamic-io should partially prerender pages that checks for the existence of a searchParam property synchronously in a server component",
+      "dynamic-io should partially prerender pages that spreads ...searchParam synchronously in a client component",
+      "dynamic-io should partially prerender pages that spreads ...searchParam synchronously in a server component"
     ],
     "failed": [],
     "pending": [],
@@ -6108,20 +6122,16 @@
       "dynamic-io does not prerender pages with parallel routes that resolve in a task",
       "dynamic-io does not prerender pages with parallel routes that uses a dynamic API",
       "dynamic-io should fully prerender pages that use `unstable_noStore()`",
-      "dynamic-io should have static indicator on not-found route",
-      "dynamic-io should have static indicator on static route",
       "dynamic-io should not have route specific errors",
-      "dynamic-io should not have static indicator on dynamic IO route",
-      "dynamic-io should not have static indicator on dynamic method route",
       "dynamic-io should not log not-found errors",
-      "dynamic-io should not prerender pages that do any uncached IO",
-      "dynamic-io should not prerender pages that do any uncached IO (use cache)",
-      "dynamic-io should not prerender pages that take longer than a single task to render",
-      "dynamic-io should not prerender pages that use `cookies()`",
-      "dynamic-io should not prerender pages that use `headers()`",
-      "dynamic-io should not prerender pages that use `searchParams` in Client Components",
-      "dynamic-io should not prerender pages that use `searchParams` in Server Components",
-      "dynamic-io should not prerender pages that use at least one fetch without cache",
+      "dynamic-io should partially prerender pages that do any uncached IO",
+      "dynamic-io should partially prerender pages that do any uncached IO (use cache)",
+      "dynamic-io should partially prerender pages that take longer than a task to render",
+      "dynamic-io should partially prerender pages that use `cookies()`",
+      "dynamic-io should partially prerender pages that use `headers()`",
+      "dynamic-io should partially prerender pages that use `searchParams` in Client Components",
+      "dynamic-io should partially prerender pages that use `searchParams` in Server Components",
+      "dynamic-io should partially prerender pages that use at least one fetch without cache",
       "dynamic-io should prerender fully static pages",
       "dynamic-io should prerender pages that cached the whole page",
       "dynamic-io should prerender pages that only use cached (\"use cache\") IO",
@@ -6300,7 +6310,7 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/errors/index.test.ts": {
     "passed": [
@@ -6759,14 +6769,14 @@
       "app-dir - logging with verbose logging for edge runtime should not log _rsc query for client navigation RSC request",
       "app-dir - logging with verbose logging for edge runtime should only log requests in development mode",
       "app-dir - logging with verbose logging for edge runtime should respect request.init.cache when use with fetch input is instance",
-      "app-dir - logging with verbose logging for edge runtime should show cache reason of noStore when use with fetch"
+      "app-dir - logging with verbose logging for edge runtime should show cache reason of noStore when use with fetch",
+      "app-dir - logging with verbose logging for edge runtime when logging.fetches.hmrRefreshes is true should log requests for HMR refreshes"
     ],
     "failed": [
       "app-dir - logging with default logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with fetches default logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with fetches verbose logging should not contain metadata internal segments for dynamic metadata routes",
-      "app-dir - logging with verbose logging for edge runtime should not contain metadata internal segments for dynamic metadata routes",
-      "app-dir - logging with verbose logging for edge runtime when logging.fetches.hmrRefreshes is true should log requests for HMR refreshes"
+      "app-dir - logging with verbose logging for edge runtime should not contain metadata internal segments for dynamic metadata routes"
     ],
     "pending": [],
     "flakey": [],
@@ -7150,6 +7160,13 @@
       "modularizeImports should work",
       "modularizeImports should work with MDX"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/monaco-editor/monaco-editor.test.ts": {
+    "passed": ["monaco-editor should load monaco-editor"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -7760,6 +7777,15 @@
   "test/e2e/app-dir/parallel-routes-and-interception-from-root/parallel-routes-and-interception-from-root.test.ts": {
     "passed": [
       "parallel-routes-and-interception-from-root should interpolate [locale] in \"/[locale]/example/(...)[locale]/intercepted\""
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/parallel-routes-and-interception-nested-dynamic-routes/parallel-routes-and-interception-nested-dynamic-routes.test.ts": {
+    "passed": [
+      "parallel-routes-and-interception-nested-dynamic-routes should intercept the route for nested dynamic routes"
     ],
     "failed": [],
     "pending": [],
@@ -9484,13 +9510,13 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/use-cache-segment-configs/use-cache-segment-configs.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "use-cache-segment-configs it should error when using segment configs that aren't supported by useCache"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/app-dir/use-cache-standalone-search-params/use-cache-standalone-search-params.test.ts": {
     "passed": [
@@ -9997,8 +10023,14 @@
   },
   "test/e2e/define/define.test.ts": {
     "passed": [
-      "compiler.define should render the magic variable on client side",
-      "compiler.define should render the magic variable on server side"
+      "compiler.define compiler.define should render the magic expression on client side",
+      "compiler.define compiler.define should render the magic expression on server side",
+      "compiler.define compiler.define should render the magic variable on client side",
+      "compiler.define compiler.define should render the magic variable on server side",
+      "compiler.define compiler.defineServer should not render the inlined expression on client side",
+      "compiler.define compiler.defineServer should not render the inlined variable on client side",
+      "compiler.define compiler.defineServer should render the inlined expression on server side",
+      "compiler.define compiler.defineServer should render the inlined variable on server side"
     ],
     "failed": [],
     "pending": [],
@@ -12962,7 +12994,7 @@
     ],
     "failed": [],
     "pending": [
-      "Root components import order production mode _app chunks should be attached to de dom before page chunks",
+      "Root components import order production mode Skipped in Turbopack _app chunks should be attached to de dom before page chunks",
       "Root components import order production mode root components should be imported in this order _document > _app > page in order to respect side effects"
     ],
     "flakey": [],
@@ -13584,22 +13616,20 @@
     "runtimeError": false
   },
   "test/integration/create-next-app/templates/app-api.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "create-next-app --api (Headless App) should create JavaScript project with --js flag",
       "create-next-app --api (Headless App) should create TypeScript project with --ts flag",
-      "create-next-app --api (Headless App) should create project inside \"src\" directory with --src-dir flag",
+      "create-next-app --api (Headless App) should create project inside \"src\" directory with --src-dir flag"
+    ],
+    "failed": [],
+    "pending": [
       "create-next-app --api (Headless App) should enable turbopack dev with --turbopack flag"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/create-next-app/templates/app.test.ts": {
     "passed": [
-      "create-next-app --app (App Router) should enable turbopack dev with --turbopack flag"
-    ],
-    "failed": [
       "create-next-app --app (App Router) should create JavaScript project with --js flag",
       "create-next-app --app (App Router) should create TailwindCSS project with --tailwind flag",
       "create-next-app --app (App Router) should create TypeScript project with --ts flag",
@@ -13607,13 +13637,15 @@
       "create-next-app --app (App Router) should create an empty project with --empty flag",
       "create-next-app --app (App Router) should create project inside \"src\" directory with --src-dir flag"
     ],
-    "pending": [],
+    "failed": [],
+    "pending": [
+      "create-next-app --app (App Router) should enable turbopack dev with --turbopack flag"
+    ],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/create-next-app/templates/matrix.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "CNA options matrix - app --app --no-turbopack --js --import-alias=@/* --eslint --no-src-dir --no-tailwind",
       "CNA options matrix - app --app --no-turbopack --js --import-alias=@/* --eslint --no-src-dir --tailwind",
       "CNA options matrix - app --app --no-turbopack --js --import-alias=@/* --eslint --src-dir --no-tailwind",
@@ -13663,15 +13695,13 @@
       "CNA options matrix - pages --no-app --no-turbopack --ts --no-import-alias --eslint --src-dir --no-tailwind",
       "CNA options matrix - pages --no-app --no-turbopack --ts --no-import-alias --eslint --src-dir --tailwind"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/create-next-app/templates/pages.test.ts": {
     "passed": [
-      "create-next-app --no-app (Pages Router) should enable turbopack dev with --turbopack flag"
-    ],
-    "failed": [
       "create-next-app --no-app (Pages Router) should create JavaScript project with --js flag",
       "create-next-app --no-app (Pages Router) should create TailwindCSS project with --tailwind flag",
       "create-next-app --no-app (Pages Router) should create TypeScript project with --ts flag",
@@ -13679,7 +13709,10 @@
       "create-next-app --no-app (Pages Router) should create an empty project with --empty flag",
       "create-next-app --no-app (Pages Router) should create project inside \"src\" directory with --src-dir flag"
     ],
-    "pending": [],
+    "failed": [],
+    "pending": [
+      "create-next-app --no-app (Pages Router) should enable turbopack dev with --turbopack flag"
+    ],
     "flakey": [],
     "runtimeError": false
   },

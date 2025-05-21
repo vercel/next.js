@@ -1,0 +1,23 @@
+name: Force Merge Canary Release PR
+
+on: pull_request
+
+permissions:
+  # To bypass and merge PR
+  pull-requests: write
+
+jobs:
+  force-merge-canary-release-pr:
+    runs-on: ubuntu-latest
+    # Validate the login, PR title, and the label to ensure the PR is
+    # from the release PR and prevent spoofing.
+    if: |
+      github.event.pull_request.user.login == 'vercel-release-bot' &&
+      github.event.pull_request.title == 'Version Packages (canary)' &&
+      contains(github.event.pull_request.labels.*.name, 'created-by: CI')
+    steps:
+      - name: Bypass required status checks and merge PR
+        run: gh pr merge --admin --squash "$PR_URL"
+        env:
+          PR_URL: ${{github.event.pull_request.html_url}}
+          GH_TOKEN: ${{secrets.GITHUB_TOKEN}}

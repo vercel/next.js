@@ -35,6 +35,7 @@ describe('create-next-app --no-app (Pages Router)', () => {
           '--no-src-dir',
           '--no-tailwind',
           '--no-import-alias',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
         nextTgzFilename,
         {
@@ -69,6 +70,7 @@ describe('create-next-app --no-app (Pages Router)', () => {
           '--no-src-dir',
           '--no-tailwind',
           '--no-import-alias',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
         nextTgzFilename,
         {
@@ -100,6 +102,7 @@ describe('create-next-app --no-app (Pages Router)', () => {
           '--src-dir',
           '--no-tailwind',
           '--no-import-alias',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
         nextTgzFilename,
         {
@@ -135,6 +138,7 @@ describe('create-next-app --no-app (Pages Router)', () => {
           '--src-dir',
           '--tailwind',
           '--no-import-alias',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
         nextTgzFilename,
         {
@@ -172,6 +176,7 @@ describe('create-next-app --no-app (Pages Router)', () => {
           '--no-tailwind',
           '--empty',
           '--no-import-alias',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
         nextTgzFilename,
         {
@@ -211,6 +216,7 @@ describe('create-next-app --no-app (Pages Router)', () => {
           '--tailwind',
           '--empty',
           '--no-import-alias',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
         nextTgzFilename,
         {
@@ -235,31 +241,35 @@ describe('create-next-app --no-app (Pages Router)', () => {
       })
     })
   })
+  ;(process.env.NEXT_RSPACK ? it.skip : it)(
+    'should enable turbopack dev with --turbopack flag',
+    async () => {
+      await useTempDir(async (cwd) => {
+        const projectName = 'pages-turbo'
+        const { exitCode } = await run(
+          [
+            projectName,
+            '--ts',
+            '--no-app',
+            '--eslint',
+            '--turbopack',
+            '--no-src-dir',
+            '--no-tailwind',
+            '--no-import-alias',
+          ],
+          nextTgzFilename,
+          {
+            cwd,
+          }
+        )
 
-  it('should enable turbopack dev with --turbopack flag', async () => {
-    await useTempDir(async (cwd) => {
-      const projectName = 'pages-turbo'
-      const { exitCode } = await run(
-        [
-          projectName,
-          '--ts',
-          '--no-app',
-          '--eslint',
-          '--turbopack',
-          '--no-src-dir',
-          '--no-tailwind',
-          '--no-import-alias',
-        ],
-        nextTgzFilename,
-        {
-          cwd,
-        }
-      )
-
-      expect(exitCode).toBe(0)
-      const projectRoot = join(cwd, projectName)
-      const pkgJson = require(join(projectRoot, 'package.json'))
-      expect(pkgJson.scripts.dev).toBe('next dev --turbopack')
-    })
-  })
+        // eslint-disable-next-line jest/no-standalone-expect
+        expect(exitCode).toBe(0)
+        const projectRoot = join(cwd, projectName)
+        const pkgJson = require(join(projectRoot, 'package.json'))
+        // eslint-disable-next-line jest/no-standalone-expect
+        expect(pkgJson.scripts.dev).toBe('next dev --turbopack')
+      })
+    }
+  )
 })

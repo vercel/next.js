@@ -168,7 +168,6 @@ import { RouteKind } from './route-kind'
 import type { RouteModule } from './route-modules/route-module'
 import { FallbackMode, parseFallbackField } from '../lib/fallback'
 import { toResponseCacheEntry } from './response-cache/utils'
-import { scheduleOnNextTick } from '../lib/scheduler'
 import { SegmentPrefixRSCPathnameNormalizer } from './normalizers/request/segment-prefix-rsc'
 import {
   shouldServeStreamingMetadata,
@@ -564,6 +563,7 @@ export default abstract class Server<
     }
 
     this.renderOpts = {
+      dir: this.dir,
       supportsDynamicResponse: true,
       trailingSlash: this.nextConfig.trailingSlash,
       deploymentId: this.nextConfig.deploymentId,
@@ -596,12 +596,12 @@ export default abstract class Server<
           ? publicRuntimeConfig
           : undefined,
 
-      // @ts-expect-error internal field not publicly exposed
       isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
       // `htmlLimitedBots` is passed to server as serialized config in string format
       htmlLimitedBots: this.nextConfig.htmlLimitedBots,
       experimental: {
         expireTime: this.nextConfig.expireTime,
+        staleTimes: this.nextConfig.experimental.staleTimes,
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
         dynamicIO: this.nextConfig.experimental.dynamicIO ?? false,
         clientSegmentCache:
@@ -615,6 +615,8 @@ export default abstract class Server<
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
       reactMaxHeadersLength: this.nextConfig.reactMaxHeadersLength,
+      devtoolSegmentExplorer:
+        this.nextConfig.experimental.devtoolSegmentExplorer,
     }
 
     // Initialize next/config with the environment configuration
@@ -1464,6 +1466,8 @@ export default abstract class Server<
 
         incrementalCache.resetRequestCache()
         addRequestMeta(req, 'incrementalCache', incrementalCache)
+        // This is needed for pages router to leverage unstable_cache
+        // TODO: re-work this handling to not use global and use a AsyncStore
         ;(globalThis as any).__incrementalCache = incrementalCache
       }
 
@@ -2454,13 +2458,15 @@ export default abstract class Server<
 
     // use existing incrementalCache instance if available
     const incrementalCache: import('./lib/incremental-cache').IncrementalCache =
-      (globalThis as any).__incrementalCache ||
-      (await this.getIncrementalCache({
-        requestHeaders: Object.assign({}, req.headers),
-        requestProtocol: protocol.substring(0, protocol.length - 1) as
-          | 'http'
-          | 'https',
-      }))
+      process.env.NEXT_RUNTIME === 'edge' &&
+      (globalThis as any).__incrementalCache
+        ? (globalThis as any).__incrementalCache
+        : await this.getIncrementalCache({
+            requestHeaders: Object.assign({}, req.headers),
+            requestProtocol: protocol.substring(0, protocol.length - 1) as
+              | 'http'
+              | 'https',
+          })
 
     // TODO: investigate, this is not safe across multiple concurrent requests
     incrementalCache.resetRequestCache()
@@ -2674,7 +2680,6 @@ export default abstract class Server<
                   headers,
                 },
                 cacheControl: { revalidate, expire },
-                isFallback: false,
               }
 
               return cacheEntry
@@ -2727,55 +2732,101 @@ export default abstract class Server<
           }
 
           if (isPagesRouteModule(routeModule)) {
-            // Due to the way we pass data by mutating `renderOpts`, we can't extend
-            // the object here but only updating its `clientReferenceManifest` and
-            // `nextFontManifest` properties.
-            // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
-            renderOpts.nextFontManifest = this.nextFontManifest
-            renderOpts.clientReferenceManifest =
-              components.clientReferenceManifest
-
             const request = isNodeNextRequest(req) ? req.originalRequest : req
+
             const response = isNodeNextResponse(res)
               ? res.originalResponse
               : res
 
-            // Call the built-in render method on the module.
-            try {
-              result = await routeModule.render(
-                request as any,
-                response as any,
-                {
-                  page: pathname,
-                  params: opts.params,
-                  query,
-                  renderOpts,
-                  sharedContext: {
-                    buildId: this.buildId,
-                    deploymentId: this.nextConfig.deploymentId,
-                    customServer: this.serverOptions.customServer || undefined,
-                  },
-                  renderContext: {
-                    isFallback: pagesFallback,
-                    isDraftMode: renderOpts.isDraftMode,
-                    developmentNotFoundSourcePage: getRequestMeta(
-                      req,
-                      'developmentNotFoundSourcePage'
-                    ),
-                  },
-                }
+            if (
+              components.ComponentMod.handler &&
+              process.env.NEXT_RUNTIME !== 'edge'
+            ) {
+              const parsedInitUrl = parseUrl(
+                getRequestMeta(req, 'initURL') || req.url
               )
-            } catch (err) {
-              await this.instrumentationOnRequestError(err, req, {
-                routerKind: 'Pages Router',
-                routePath: pathname,
-                routeType: 'render',
-                revalidateReason: getRevalidateReason({
-                  isRevalidate: isSSG,
-                  isOnDemandRevalidate: renderOpts.isOnDemandRevalidate,
-                }),
+              request.url =
+                req.url = `${parsedInitUrl.pathname}${parsedInitUrl.search || ''}`
+
+              // propagate the request context for dev
+              setRequestMeta(request, getRequestMeta(req))
+              addRequestMeta(request, 'projectDir', this.dir)
+              addRequestMeta(request, 'isIsrFallback', pagesFallback)
+              addRequestMeta(request, 'query', query)
+              addRequestMeta(request, 'params', opts.params)
+              addRequestMeta(
+                request,
+                'ampValidator',
+                this.renderOpts.ampValidator
+              )
+
+              if (renderOpts.err) {
+                addRequestMeta(request, 'invokeError', renderOpts.err)
+              }
+              const handler: (
+                req: ServerRequest | IncomingMessage,
+                res: ServerResponse | HTTPServerResponse,
+                ctx: {
+                  waitUntil: ReturnType<Server['getWaitUntil']>
+                }
+              ) => Promise<RenderResult> = components.ComponentMod.handler
+
+              result = await handler(request, response, {
+                waitUntil: this.getWaitUntil(),
               })
-              throw err
+
+              if (!result) {
+                throw new Error(
+                  `Invariant: missing result from invoking ${pathname} handler`
+                )
+              }
+            } else {
+              // Due to the way we pass data by mutating `renderOpts`, we can't extend
+              // the object here but only updating its `clientReferenceManifest` and
+              // `nextFontManifest` properties.
+              // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
+              renderOpts.nextFontManifest = this.nextFontManifest
+              renderOpts.clientReferenceManifest =
+                components.clientReferenceManifest
+
+              // Call the built-in render method on the module.
+              try {
+                result = await routeModule.render(
+                  request as any,
+                  response as any,
+                  {
+                    page: pathname,
+                    params: opts.params,
+                    query,
+                    renderOpts,
+                    sharedContext: {
+                      buildId: this.buildId,
+                      deploymentId: this.nextConfig.deploymentId,
+                      customServer:
+                        this.serverOptions.customServer || undefined,
+                    },
+                    renderContext: {
+                      isFallback: pagesFallback,
+                      isDraftMode: renderOpts.isDraftMode,
+                      developmentNotFoundSourcePage: getRequestMeta(
+                        req,
+                        'developmentNotFoundSourcePage'
+                      ),
+                    },
+                  }
+                )
+              } catch (err) {
+                await this.instrumentationOnRequestError(err, req, {
+                  routerKind: 'Pages Router',
+                  routePath: pathname,
+                  routeType: 'render',
+                  revalidateReason: getRevalidateReason({
+                    isRevalidate: isSSG,
+                    isOnDemandRevalidate: renderOpts.isOnDemandRevalidate,
+                  }),
+                })
+                throw err
+              }
             }
           } else {
             const module = components.routeModule as AppPageRouteModule
@@ -2881,7 +2932,6 @@ export default abstract class Server<
         return {
           value: null,
           cacheControl,
-          isFallback: false,
         } satisfies ResponseCacheEntry
       }
 
@@ -2893,7 +2943,6 @@ export default abstract class Server<
             props: metadata.pageData ?? metadata.flightData,
           } satisfies CachedRedirectValue,
           cacheControl,
-          isFallback: false,
         } satisfies ResponseCacheEntry
       }
 
@@ -2915,7 +2964,6 @@ export default abstract class Server<
             segmentData: metadata.segmentData,
           } satisfies CachedAppPageValue,
           cacheControl,
-          isFallback: !!fallbackRouteParams,
         } satisfies ResponseCacheEntry
       }
 
@@ -2928,7 +2976,6 @@ export default abstract class Server<
           status: isAppPath ? res.statusCode : undefined,
         } satisfies CachedPageValue,
         cacheControl,
-        isFallback: pagesFallback,
       }
     }
 
@@ -3016,7 +3063,6 @@ export default abstract class Server<
       // When experimental compile is used, no pages have been prerendered,
       // so they should all be blocking.
 
-      // @ts-expect-error internal field
       if (this.nextConfig.experimental.isExperimentalCompile) {
         fallbackMode = FallbackMode.BLOCKING_STATIC_RENDER
       }
@@ -3155,7 +3201,6 @@ export default abstract class Server<
       ) {
         return {
           cacheControl: { revalidate: 1, expire: undefined },
-          isFallback: false,
           value: {
             kind: CachedRouteKind.PAGES,
             html: RenderResult.fromStatic(''),
@@ -3218,46 +3263,6 @@ export default abstract class Server<
         throw new Error('invariant: cache entry required but not generated')
       }
       return null
-    }
-
-    // If we're not in minimal mode and the cache entry that was returned was a
-    // app page fallback, then we need to kick off the dynamic shell generation.
-    if (
-      ssgCacheKey &&
-      !this.minimalMode &&
-      isRoutePPREnabled &&
-      cacheEntry.value?.kind === CachedRouteKind.APP_PAGE &&
-      cacheEntry.isFallback &&
-      !isOnDemandRevalidate &&
-      // When we're debugging the fallback shell, we don't want to regenerate
-      // the route shell.
-      !isDebugFallbackShell &&
-      process.env.DISABLE_ROUTE_SHELL_GENERATION !== 'true'
-    ) {
-      scheduleOnNextTick(async () => {
-        try {
-          await this.responseCache.get(
-            ssgCacheKey,
-            () =>
-              doRender({
-                // We're an on-demand request, so we don't need to pass in the
-                // fallbackRouteParams.
-                fallbackRouteParams: null,
-                pagesFallback: undefined,
-                postponed: undefined,
-              }),
-            {
-              routeKind: RouteKind.APP_PAGE,
-              incrementalCache,
-              isOnDemandRevalidate: true,
-              isPrefetch: false,
-              isRoutePPREnabled: true,
-            }
-          )
-        } catch (err) {
-          console.error('Error occurred while rendering dynamic shell', err)
-        }
-      })
     }
 
     const didPostpone =

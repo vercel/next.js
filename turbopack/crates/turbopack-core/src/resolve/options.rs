@@ -557,7 +557,7 @@ impl ResolvedMap {
         for (root, glob, mapping) in self.by_glob.iter() {
             let root = root.await?;
             if let Some(path) = root.get_path_to(&resolved) {
-                if glob.await?.execute(path) {
+                if glob.await?.matches(path) {
                     return Ok(import_mapping_to_result(
                         *mapping.convert().await?,
                         lookup_path,
@@ -597,7 +597,7 @@ pub struct ResolveOptions {
     pub fallback_import_map: Option<ResolvedVc<ImportMap>>,
     pub resolved_map: Option<ResolvedVc<ResolvedMap>>,
     pub before_resolve_plugins: Vec<ResolvedVc<Box<dyn BeforeResolvePlugin>>>,
-    pub plugins: Vec<ResolvedVc<Box<dyn AfterResolvePlugin>>>,
+    pub after_resolve_plugins: Vec<ResolvedVc<Box<dyn AfterResolvePlugin>>>,
     /// Support resolving *.js requests to *.ts files
     pub enable_typescript_with_output_extension: bool,
     /// Warn instead of error for resolve errors

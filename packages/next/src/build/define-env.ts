@@ -1,5 +1,6 @@
 import type { I18NDomains, NextConfigComplete } from '../server/config-shared'
 import type { MiddlewareMatcher } from './analysis/get-page-static-info'
+import path from 'node:path'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
 import { checkIsAppPPREnabled } from '../server/lib/experimental/ppr'
 import {
@@ -20,11 +21,11 @@ export interface DefineEnvOptions {
   config: NextConfigComplete
   dev: boolean
   distDir: string
+  projectPath: string
   fetchCacheKeyPrefix: string | undefined
   hasRewrites: boolean
   isClient: boolean
   isEdgeServer: boolean
-  isNodeOrEdgeCompilation: boolean
   isNodeServer: boolean
   middlewareMatchers: MiddlewareMatcher[] | undefined
   omitNonDeterministic?: boolean
@@ -90,11 +91,11 @@ export function getDefineEnv({
   config,
   dev,
   distDir,
+  projectPath,
   fetchCacheKeyPrefix,
   hasRewrites,
   isClient,
   isEdgeServer,
-  isNodeOrEdgeCompilation,
   isNodeServer,
   middlewareMatchers,
   omitNonDeterministic,
@@ -250,7 +251,7 @@ export function getDefineEnv({
     'process.env.__NEXT_TELEMETRY_DISABLED': Boolean(
       process.env.NEXT_TELEMETRY_DISABLED
     ),
-    ...(isNodeOrEdgeCompilation
+    ...(isNodeServer || isEdgeServer
       ? {
           // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
           // This is typically found in unmaintained modules from the
@@ -258,7 +259,7 @@ export function getDefineEnv({
           'global.GENTLY': false,
         }
       : undefined),
-    ...(isNodeOrEdgeCompilation
+    ...(isNodeServer || isEdgeServer
       ? {
           'process.env.__NEXT_EXPERIMENTAL_REACT':
             needsExperimentalReact(config),
@@ -277,18 +278,36 @@ export function getDefineEnv({
     ...(isNodeServer
       ? {
           'process.env.__NEXT_RELATIVE_DIST_DIR': config.distDir,
+          'process.env.__NEXT_RELATIVE_PROJECT_DIR': path.relative(
+            process.cwd(),
+            projectPath
+          ),
         }
       : {}),
+    'process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER':
+      config.experimental.devtoolSegmentExplorer ?? false,
   }
 
   const userDefines = config.compiler?.define ?? {}
   for (const key in userDefines) {
     if (defineEnv.hasOwnProperty(key)) {
       throw new Error(
-        `The \`compiler.define\` option is configured to replace the \`${key}\` variable. This variable is either part of a Next.js built-in or is already configured via the \`env\` option.`
+        `The \`compiler.define\` option is configured to replace the \`${key}\` variable. This variable is either part of a Next.js built-in or is already configured.`
       )
     }
     defineEnv[key] = userDefines[key]
+  }
+
+  if (isNodeServer || isEdgeServer) {
+    const userDefinesServer = config.compiler?.defineServer ?? {}
+    for (const key in userDefinesServer) {
+      if (defineEnv.hasOwnProperty(key)) {
+        throw new Error(
+          `The \`compiler.defineServer\` option is configured to replace the \`${key}\` variable. This variable is either part of a Next.js built-in or is already configured.`
+        )
+      }
+      defineEnv[key] = userDefinesServer[key]
+    }
   }
 
   const serializedDefineEnv = serializeDefineEnv(defineEnv)

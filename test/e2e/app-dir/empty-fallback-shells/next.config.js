@@ -4,7 +4,7 @@
 const nextConfig = {
   experimental: {
     dynamicIO: true,
-    ppr: true,
+    prerenderEarlyExit: false,
   },
 }
 

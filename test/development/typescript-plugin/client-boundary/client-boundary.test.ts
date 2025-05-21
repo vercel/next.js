@@ -58,15 +58,15 @@ describe('typescript-plugin - client-boundary', () => {
        "app/non-serializable-action-props.tsx": [
          {
            "code": 71007,
-           "length": 12,
+           "length": 5,
            "messageText": "Props must be serializable for components in the "use client" entry file, "_classAction" is invalid.",
-           "start": 221,
+           "start": 357,
          },
          {
            "code": 71007,
-           "length": 18,
+           "length": 14,
            "messageText": "Props must be serializable for components in the "use client" entry file, "_constructorAction" is invalid.",
-           "start": 237,
+           "start": 385,
          },
        ],
      }
@@ -91,27 +91,33 @@ describe('typescript-plugin - client-boundary', () => {
        "app/non-serializable-props.tsx": [
          {
            "code": 71007,
-           "length": 14,
+           "length": 10,
            "messageText": "Props must be serializable for components in the "use client" entry file. "_arrowFunction" is a function that's not a Server Action. Rename "_arrowFunction" either to "action" or have its name end with "Action" e.g. "_arrowFunctionAction" to indicate it is a Server Action.",
-           "start": 116,
+           "start": 159,
          },
          {
            "code": 71007,
-           "length": 23,
+           "length": 22,
            "messageText": "Props must be serializable for components in the "use client" entry file. "_arrowFunctionTypeAlias" is a function that's not a Server Action. Rename "_arrowFunctionTypeAlias" either to "action" or have its name end with "Action" e.g. "_arrowFunctionTypeAliasAction" to indicate it is a Server Action.",
-           "start": 134,
+           "start": 197,
          },
          {
            "code": 71007,
-           "length": 6,
+           "length": 19,
+           "messageText": "Props must be serializable for components in the "use client" entry file. "_arrowFunctionConditional" is a function that's not a Server Action. Rename "_arrowFunctionConditional" either to "action" or have its name end with "Action" e.g. "_arrowFunctionConditionalAction" to indicate it is a Server Action.",
+           "start": 249,
+         },
+         {
+           "code": 71007,
+           "length": 5,
            "messageText": "Props must be serializable for components in the "use client" entry file, "_class" is invalid.",
-           "start": 161,
+           "start": 279,
          },
          {
            "code": 71007,
-           "length": 12,
+           "length": 14,
            "messageText": "Props must be serializable for components in the "use client" entry file, "_constructor" is invalid.",
-           "start": 171,
+           "start": 301,
          },
        ],
      }
