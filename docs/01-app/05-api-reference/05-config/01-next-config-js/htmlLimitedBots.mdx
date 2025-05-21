@@ -9,7 +9,7 @@ The `htmlLimitedBots` config allows you to specify a list of user agents that sh
 import type { NextConfig } from 'next'
 
 const config: NextConfig = {
-  htmlLimitedBots: 'MySpecialBot|MyAnotherSpecialBot|SimpleCrawler',
+  htmlLimitedBots: /MySpecialBot|MyAnotherSpecialBot|SimpleCrawler/,
 }
 
 export default config
@@ -17,7 +17,7 @@ export default config
 
 ```js filename="next.config.js" switcher
 module.exports = {
-  htmlLimitedBots: 'MySpecialBot|MyAnotherSpecialBot|SimpleCrawler',
+  htmlLimitedBots: /MySpecialBot|MyAnotherSpecialBot|SimpleCrawler/,
 }
 ```
 

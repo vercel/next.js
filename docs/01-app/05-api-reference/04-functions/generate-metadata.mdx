@@ -1152,7 +1152,7 @@ ReactDOM.prefetchDNS(href: string)
 > - These methods are currently only supported in Client Components, which are still Server Side Rendered on initial page load.
 > - Next.js in-built features such as `next/font`, `next/image` and `next/script` automatically handle relevant resource hints.
 
-## Behavior
+## Behavior
 
 ### Default Fields
 
@@ -1182,7 +1182,7 @@ If you need to customize this list, you can define them manually using the `html
 import type { NextConfig } from 'next'
 
 const config: NextConfig = {
-  htmlLimitedBots: 'MySpecialBot|MyAnotherSpecialBot|SimpleCrawler',
+  htmlLimitedBots: /MySpecialBot|MyAnotherSpecialBot|SimpleCrawler/,
 }
 
 export default config
@@ -1190,7 +1190,7 @@ export default config
 
 ```js filename="next.config.js" switcher
 module.exports = {
-  htmlLimitedBots: 'MySpecialBot|MyAnotherSpecialBot|SimpleCrawler',
+  htmlLimitedBots: /MySpecialBot|MyAnotherSpecialBot|SimpleCrawler/,
 }
 ```
 
