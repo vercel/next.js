@@ -71,6 +71,6 @@ While `assetPrefix` covers requests to `_next/static`, it does not influence the
 
 - Files in the [public](/docs/pages/api-reference/file-conventions/public-folder) folder; if you want to serve those assets over a CDN, you'll have to introduce the prefix yourself
 - `/_next/data/` requests for `getServerSideProps` pages. These requests will always be made against the main domain since they're not static.
-- `/_next/data/` requests for `getStaticProps` pages. These requests will always be made against the main domain to support [Incremental Static Generation](/docs/pages/building-your-application/data-fetching/incremental-static-regeneration), even if you're not using it (for consistency).
+- `/_next/data/` requests for `getStaticProps` pages. These requests will always be made against the main domain to support [Incremental Static Generation](/docs/pages/guides/incremental-static-regeneration), even if you're not using it (for consistency).
 
 </PagesOnly>

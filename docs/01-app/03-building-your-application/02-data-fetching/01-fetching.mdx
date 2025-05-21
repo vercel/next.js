@@ -87,7 +87,7 @@ export default async function Page() {
 }
 ```
 
-If you are not using any [Dynamic APIs](/docs/app/getting-started/partial-prerendering#dynamic-rendering) anywhere else in this route, it will be prerendered during `next build` to a static page. The data can then be updated using [Incremental Static Regeneration](/docs/app/building-your-application/data-fetching/incremental-static-regeneration).
+If you are not using any [Dynamic APIs](/docs/app/getting-started/partial-prerendering#dynamic-rendering) anywhere else in this route, it will be prerendered during `next build` to a static page. The data can then be updated using [Incremental Static Regeneration](/docs/app/guides/incremental-static-regeneration).
 
 To prevent the page from prerendering, you can add the following to your file:
 
@@ -131,7 +131,7 @@ export default async function Page() {
 }
 ```
 
-If you are not using any [Dynamic APIs](/docs/app/getting-started/partial-prerendering#dynamic-rendering) anywhere else in this route, it will be prerendered during `next build` to a static page. The data can then be updated using [Incremental Static Regeneration](/docs/app/building-your-application/data-fetching/incremental-static-regeneration).
+If you are not using any [Dynamic APIs](/docs/app/getting-started/partial-prerendering#dynamic-rendering) anywhere else in this route, it will be prerendered during `next build` to a static page. The data can then be updated using [Incremental Static Regeneration](/docs/app/guides/incremental-static-regeneration).
 
 To prevent the page from prerendering, you can add the following to your file:
 
@@ -259,7 +259,7 @@ export default async function Page() {
 }
 ```
 
-This example caches the result of the database query for 1 hour (3600 seconds). It also adds the cache tag `posts` which can then be invalidated with [Incremental Static Regeneration](/docs/app/building-your-application/data-fetching/incremental-static-regeneration).
+This example caches the result of the database query for 1 hour (3600 seconds). It also adds the cache tag `posts` which can then be invalidated with [Incremental Static Regeneration](/docs/app/guides/incremental-static-regeneration).
 
 ### Reusing data across multiple functions
 
@@ -390,7 +390,7 @@ export const getPost = cache(async (id) => {
 
 ### Revalidating cached data
 
-Learn more about revalidating cached data with [Incremental Static Regeneration](/docs/app/building-your-application/data-fetching/incremental-static-regeneration).
+Learn more about revalidating cached data with [Incremental Static Regeneration](/docs/app/guides/incremental-static-regeneration).
 
 ## Patterns
 

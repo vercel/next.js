@@ -193,7 +193,6 @@ import {
 } from '../server/lib/experimental/ppr'
 import { FallbackMode, fallbackModeToFallbackField } from '../lib/fallback'
 import { RenderingMode } from './rendering-mode'
-import { getParamKeys } from '../server/request/fallback-params'
 import { InvariantError } from '../shared/lib/invariant-error'
 import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
 import type { UseCacheTrackerKey } from './webpack/plugins/telemetry-plugin/use-cache-tracker-utils'
@@ -552,7 +551,7 @@ async function writeFunctionsConfigManifest(
   )
 }
 
-interface RequiredServerFilesManifest {
+export interface RequiredServerFilesManifest {
   version: number
   config: NextConfigComplete
   appDir: string
@@ -758,6 +757,7 @@ export function createStaticWorker(
       progress?.clear()
     },
     debuggerPortOffset,
+    enableSourceMaps: config.experimental.enablePrerenderSourceMaps,
     // remove --max-old-space-size flag as it can cause memory issues.
     isolatedMemory: true,
     enableWorkerThreads: config.experimental.workerThreads,
@@ -1613,10 +1613,6 @@ export default async function build(
       const serverPropsPages = new Set<string>()
       const additionalPaths = new Map<string, PrerenderedRoute[]>()
       const staticPaths = new Map<string, PrerenderedRoute[]>()
-      const prospectiveRenders = new Map<
-        string,
-        { page: string; originalAppPath: string }
-      >()
       const appNormalizedPaths = new Map<string, string>()
       const fallbackModes = new Map<string, FallbackMode>()
       const appDefaultConfigs = new Map<string, AppSegmentConfig>()
@@ -1975,31 +1971,6 @@ export default async function build(
 
                             staticPaths.set(originalAppPath, [])
                           }
-                          // As PPR isn't enabled for this route, if dynamic IO
-                          // is enabled, and this is a dynamic route, we should
-                          // complete a prospective render for the route so that
-                          // we can use the fallback behavior. This lets us
-                          // check that dynamic pages won't error when they
-                          // enable PPR.
-                          else if (config.experimental.dynamicIO && isDynamic) {
-                            // If there's a page with a more specific render
-                            // available, then we should skip the prospective
-                            // render because it'll be done as a part of the
-                            // that render to validate the dynamic state.
-                            if (
-                              // The existence of any prerendered routes when
-                              // PPR is disabled means that the route has more
-                              // specific prerendered routes that should be
-                              // used for the diagnostic render anyways.
-                              !workerResult.prerenderedRoutes ||
-                              workerResult.prerenderedRoutes.length === 0
-                            ) {
-                              prospectiveRenders.set(originalAppPath, {
-                                page,
-                                originalAppPath,
-                              })
-                            }
-                          }
 
                           if (workerResult.prerenderedRoutes) {
                             staticPaths.set(
@@ -2291,8 +2262,6 @@ export default async function build(
                 ...config.experimental,
                 cacheHandlers: normalizedCacheHandlers,
                 trustHostHeader: ciEnvironment.hasNextSupport,
-
-                // @ts-expect-error internal field TODO: fix this, should use a separate mechanism to pass the info.
                 isExperimentalCompile: isCompileMode,
               },
             },
@@ -2351,6 +2320,7 @@ export default async function build(
               BUILD_ID_FILE,
               path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.js'),
               path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.json'),
+              SERVER_FILES_MANIFEST,
               ...instrumentationHookEntryFiles,
             ]
               .filter(nonNullable)
@@ -2712,33 +2682,10 @@ export default async function build(
                     _isDynamicError: isDynamicError,
                     _isAppDir: true,
                     _isRoutePPREnabled: isRoutePPREnabled,
-                    _doNotThrowOnEmptyStaticShell:
-                      !route.throwOnEmptyStaticShell,
+                    _allowEmptyStaticShell: !route.throwOnEmptyStaticShell,
                   }
                 })
               })
-
-              // If the app does have dynamic IO enabled but does not have PPR
-              // enabled, then we need to perform a prospective render for all
-              // the dynamic pages to ensure that they won't error during
-              // rendering (due to a missing prelude).
-              for (const {
-                page,
-                originalAppPath,
-              } of prospectiveRenders.values()) {
-                defaultMap[page] = {
-                  page: originalAppPath,
-                  _ssgPath: page,
-                  _fallbackRouteParams: getParamKeys(page),
-                  // Prospective renders are only enabled for app pages.
-                  _isAppDir: true,
-                  // Prospective renders are only enabled when PPR is disabled.
-                  _isRoutePPREnabled: false,
-                  _isProspectiveRender: true,
-                  // Dynamic IO does not currently support `dynamic === 'error'`.
-                  _isDynamicError: false,
-                }
-              }
 
               if (i18n) {
                 for (const page of [

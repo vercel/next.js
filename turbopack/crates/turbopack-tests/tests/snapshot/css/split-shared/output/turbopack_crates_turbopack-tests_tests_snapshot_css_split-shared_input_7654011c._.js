@@ -2,7 +2,6 @@
 
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/entry.css [test] (css, async loader)": ((__turbopack_context__) => {
 
-{
 __turbopack_context__.v((parentImport) => {
     return Promise.all([
   {
@@ -67,10 +66,9 @@ __turbopack_context__.v((parentImport) => {
   }
 ].map((chunk) => __turbopack_context__.l(chunk))).then(() => {});
 });
-}}),
+}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/b1.css [test] (css, async loader)": ((__turbopack_context__) => {
 
-{
 __turbopack_context__.v((parentImport) => {
     return Promise.all([
   {
@@ -90,10 +88,9 @@ __turbopack_context__.v((parentImport) => {
   }
 ].map((chunk) => __turbopack_context__.l(chunk))).then(() => {});
 });
-}}),
+}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/entry2.css [test] (css, async loader)": ((__turbopack_context__) => {
 
-{
 __turbopack_context__.v((parentImport) => {
     return Promise.all([
   {
@@ -133,5 +130,5 @@ __turbopack_context__.v((parentImport) => {
   }
 ].map((chunk) => __turbopack_context__.l(chunk))).then(() => {});
 });
-}}),
+}),
 }]);
