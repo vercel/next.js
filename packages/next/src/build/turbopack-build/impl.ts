@@ -91,8 +91,27 @@ export async function turbopackBuild(): Promise<{
   try {
     ;(async function logCompilationEvents() {
       for await (const event of project.compilationEventsSubscribe()) {
-        if (event.severity === 'EVENT') {
-          Log.event(event.message)
+        switch (event.severity) {
+          case 'EVENT':
+            Log.event(event.message)
+            break
+          case 'TRACE':
+            Log.trace(event.message)
+            break
+          case 'INFO':
+            Log.info(event.message)
+            break
+          case 'WARNING':
+            console.warn(event.message)
+            break
+          case 'ERROR':
+            Log.error(event.message)
+            break
+          case 'FATAL':
+            Log.error(event.message)
+            break
+          default:
+            break
         }
       }
     })()
