@@ -32,12 +32,14 @@ async function ProductsSkeleton() {
 
 export default async function Page() {
   const products = await getCachedProducts();
-  return <Suspense fallback={<ProductsSkeleton />}>
-    <DynamicProductsView products={products} />
-  </Suspense>
+  return (
+    <Suspense fallback={<ProductsSkeleton />}>
+      <DynamicProductsView products={products} />
+    </Suspense>
+  )
 }
 
-async function DynamicProductsView() {
+async function DynamicProductsView({ products }) {
   await connection();
   const randomSeed = Math.random()
   const randomizedProducts = randomize(products, randomSeed)
