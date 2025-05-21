@@ -46,8 +46,8 @@ export default async function Page() {
 The following Next.js APIs rely on throwing an error which should be rethrown and handled by Next.js itself:
 
 - [`notFound()`](/docs/app/api-reference/functions/not-found)
-- [`redirect()`](/docs/app/building-your-application/routing/redirecting#redirect-function)
-- [`permanentRedirect()`](/docs/app/building-your-application/routing/redirecting#permanentredirect-function)
+- [`redirect()`](/docs/app/guides/redirecting#redirect-function)
+- [`permanentRedirect()`](/docs/app/guides/redirecting#permanentredirect-function)
 
 If a route segment is marked to throw an error unless it's static, a Dynamic API call will also throw an error that should similarly not be caught by the developer. Note that Partial Prerendering (PPR) affects this behavior as well. These APIs are:
 
