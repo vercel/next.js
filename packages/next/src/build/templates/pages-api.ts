@@ -12,6 +12,7 @@ import { hoist } from './helpers'
 import * as userland from 'VAR_USERLAND'
 import { getTracer, SpanKind } from '../../server/lib/trace/tracer'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
+import type { InstrumentationOnRequestError } from '../../server/instrumentation/types'
 
 // Re-export the handler (should be the default export).
 export default hoist(userland, 'default')
@@ -31,6 +32,7 @@ const routeModule = new PagesAPIRouteModule({
   },
   userland,
   distDir: process.env.__NEXT_RELATIVE_DIST_DIR || '',
+  projectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
 })
 
 export async function handler(
@@ -44,11 +46,12 @@ export async function handler(
 
   // turbopack doesn't normalize `/index` in the page name
   // so we need to to process dynamic routes properly
+  // TODO: fix turbopack providing differing value from webpack
   if (process.env.TURBOPACK) {
-    srcPage = srcPage.replace(/\/index$/, '')
+    srcPage = srcPage.replace(/\/index$/, '') || '/'
   }
 
-  const prepareResult = await routeModule.prepare(req, srcPage)
+  const prepareResult = await routeModule.prepare(req, res, { srcPage })
 
   if (!prepareResult) {
     res.statusCode = 400
@@ -64,11 +67,16 @@ export async function handler(
     const tracer = getTracer()
 
     const activeSpan = tracer.getActiveScopeSpan()
+    const onRequestError =
+      routeModule.instrumentationOnRequestError.bind(routeModule)
 
     const invokeRouteModule = async (span?: Span) =>
       routeModule
         .render(req, res, {
-          query,
+          query: {
+            ...query,
+            ...params,
+          },
           params,
           allowedRevalidateHeaderKeys: process.env
             .__NEXT_ALLOWED_REVALIDATE_HEADERS as any as string[],
@@ -81,8 +89,10 @@ export async function handler(
           propagateError: false,
           dev: routeModule.isDev,
           page: 'VAR_DEFINITION_PAGE',
+          projectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
 
-          onError: routeModule.instrumentationOnRequestError.bind(routeModule),
+          onError: (...args: Parameters<InstrumentationOnRequestError>) =>
+            onRequestError(req, ...args),
         })
         .finally(() => {
           if (!span) return

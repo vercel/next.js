@@ -560,6 +560,12 @@ export interface ExperimentalConfig {
   serverMinification?: boolean
 
   /**
+   * Enables source maps while generating static pages.
+   * Helps with errors during the prerender phase in `next build`.
+   */
+  enablePrerenderSourceMaps?: boolean
+
+  /**
    * Enables source maps generation for the server production bundle.
    */
   serverSourceMaps?: boolean
@@ -568,6 +574,10 @@ export interface ExperimentalConfig {
    * @internal Used by the Next.js internals only.
    */
   trustHostHeader?: boolean
+  /**
+   * @internal Used by the Next.js internals only.
+   */
+  isExperimentalCompile?: boolean
 
   useWasmBinary?: boolean
 
@@ -744,13 +754,15 @@ export type ExportPathMap = {
     _isRoutePPREnabled?: boolean
 
     /**
-     * When true, it indicates that the diagnostic render for this page is
-     * disabled. This is only used when the app has `experimental.ppr` and
-     * `experimental.dynamicIO` enabled.
+     * When true, the page is prerendered as a fallback shell, while allowing
+     * any dynamic accesses to result in an empty shell. This is the case when
+     * the app has `experimental.ppr` and `experimental.dynamicIO` enabled, and
+     * there are also routes prerendered with a more complete set of params.
+     * Prerendering those routes would catch any invalid dynamic accesses.
      *
      * @internal
      */
-    _doNotThrowOnEmptyStaticShell?: boolean
+    _allowEmptyStaticShell?: boolean
   }
 }
 
@@ -1080,6 +1092,12 @@ export interface NextConfig extends Record<string, any> {
     define?: Record<string, string>
 
     /**
+     * Replaces server-only (Node.js and Edge) variables in your code during compile time.
+     * Each key will be replaced with the respective values.
+     */
+    defineServer?: Record<string, string>
+
+    /**
      * A hook function that executes after production build compilation finishes,
      * but before running post-compilation tasks such as type checking and
      * static page generation.
@@ -1299,6 +1317,7 @@ export const defaultConfig = {
     appNavFailHandling: false,
     prerenderEarlyExit: true,
     serverMinification: true,
+    enablePrerenderSourceMaps: false,
     serverSourceMaps: false,
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
