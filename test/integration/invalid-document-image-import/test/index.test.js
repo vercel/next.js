@@ -7,6 +7,7 @@ jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '../')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 
+// Skipped in Turbopack as Turbopack doesn't have this error as it can process these imports.
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'Invalid static image import in _document',
   () => {
