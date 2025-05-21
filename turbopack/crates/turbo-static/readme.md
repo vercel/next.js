@@ -5,7 +5,7 @@ graph for your turbo tasks project.
 
 ## How it works
 
-- find all occurences of #[turbo_tasks::function] across all the packages you
+- find all occurrences of #[turbo_tasks::function] across all the packages you
   want to query
 - for each of the tasks we find, query rust analyzer to see which tasks call
   them

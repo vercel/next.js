@@ -144,7 +144,7 @@ Then set each variable on `.env.local`:
 
 ### Step 9. Configure Image Optimization
 
-To safely allow optimizing images, define a list of supported URL patterns in `next.config.js`. Use the following configuration to allow Storyblok assets and Unspash image URL's
+To safely allow optimizing images, define a list of supported URL patterns in `next.config.js`. Use the following configuration to allow Storyblok assets and Unsplash image URL's
 
 ```
 module.exports = {
