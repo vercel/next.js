@@ -289,7 +289,82 @@ export default function Layout({ children }) {
 
 Layouts cannot pass data to their `children`. However, you can fetch the same data in a route more than once, and use React [`cache`](https://react.dev/reference/react/cache) to dedupe the requests without affecting performance.
 
-> **Good to know:** When using [`fetch`](https://nextjs.org/docs/app/api-reference/functions/fetch) Next.js, requests are automatically deduped.
+Alternatively, when using [`fetch`](https://nextjs.org/docs/app/api-reference/functions/fetch)in Next.js, requests are automatically deduped.
+
+```tsx filename="app/lib/data.ts" switcher
+export async function getUser(id: string) {
+  const res = await fetch(`https://.../users/${id}`)
+  return res.json()
+}
+```
+
+```tsx filename="app/dashboard/layout.tsx" switcher
+import { getUser } from '@/app/lib/data'
+import { UserName } from '@/app/ui/user-name'
+
+export default async function Layout({ children }) {
+  const user = await getUser('1')
+
+  return (
+    <>
+      <nav>
+        {/* ... */}
+        <UserName user={user.name} />
+      </nav>
+      {children}
+    </>
+  )
+}
+```
+
+```jsx filename="app/dashboard/layout.js" switcher
+import { getUser } from '@/app/lib/data'
+import { UserName } from '@/app/ui/user-name'
+
+export default async function Layout({ children }) {
+  const user = await getUser('1')
+
+  return (
+    <>
+      <nav>
+        {/* ... */}
+        <UserName user={user.name} />
+      </nav>
+      {children}
+    </>
+  )
+}
+```
+
+```tsx filename="app/dashboard/page.tsx" switcher
+import { getUser } from '@/app/lib/data'
+import { UserName } from '@/app/ui/user-name'
+
+export default async function Page() {
+  const user = await getUser('1')
+
+  return (
+    <div>
+      <h1>Welcome {user.name}</h1>
+    </div>
+  )
+}
+```
+
+```jsx filename="app/dashboard/page.js" switcher
+import { getUser } from '@/app/lib/data'
+import { UserName } from '@/app/ui/user-name'
+
+export default async function Page() {
+  const user = await getUser('1')
+
+  return (
+    <div>
+      <h1>Welcome {user.name}</h1>
+    </div>
+  )
+}
+```
 
 ### Accessing child segments
 
