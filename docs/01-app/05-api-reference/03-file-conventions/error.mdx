@@ -153,7 +153,7 @@ export default function Error({ error, reset }) {
 
 ### Global Error
 
-While less common, you can handle errors in the root layout or template using `global-error.js`, located in the root app directory, even when leveraging [internationalization](/docs/app/building-your-application/routing/internationalization). Global error UI must define its own `<html>` and `<body>` tags. This file replaces the root layout or template when active.
+While less common, you can handle errors in the root layout or template using `global-error.js`, located in the root app directory, even when leveraging [internationalization](/docs/app/guides/internationalization). Global error UI must define its own `<html>` and `<body>` tags. This file replaces the root layout or template when active.
 
 ```tsx filename="app/global-error.tsx" switcher
 'use client' // Error boundaries must be Client Components

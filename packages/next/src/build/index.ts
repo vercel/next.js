@@ -551,7 +551,7 @@ async function writeFunctionsConfigManifest(
   )
 }
 
-interface RequiredServerFilesManifest {
+export interface RequiredServerFilesManifest {
   version: number
   config: NextConfigComplete
   appDir: string
@@ -2262,8 +2262,6 @@ export default async function build(
                 ...config.experimental,
                 cacheHandlers: normalizedCacheHandlers,
                 trustHostHeader: ciEnvironment.hasNextSupport,
-
-                // @ts-expect-error internal field TODO: fix this, should use a separate mechanism to pass the info.
                 isExperimentalCompile: isCompileMode,
               },
             },
@@ -2322,6 +2320,7 @@ export default async function build(
               BUILD_ID_FILE,
               path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.js'),
               path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.json'),
+              SERVER_FILES_MANIFEST,
               ...instrumentationHookEntryFiles,
             ]
               .filter(nonNullable)
@@ -2683,8 +2682,7 @@ export default async function build(
                     _isDynamicError: isDynamicError,
                     _isAppDir: true,
                     _isRoutePPREnabled: isRoutePPREnabled,
-                    _doNotThrowOnEmptyStaticShell:
-                      !route.throwOnEmptyStaticShell,
+                    _allowEmptyStaticShell: !route.throwOnEmptyStaticShell,
                   }
                 })
               })

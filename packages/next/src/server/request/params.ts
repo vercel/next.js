@@ -24,6 +24,7 @@ import {
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { scheduleImmediate } from '../../lib/scheduler'
+import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
 
 export type ParamValue = string | Array<string> | undefined
 export type Params = Record<string, ParamValue>
@@ -198,6 +199,33 @@ function createRenderParams(
 interface CacheLifetime {}
 const CachedParams = new WeakMap<CacheLifetime, Promise<Params>>()
 
+const fallbackParamsProxyHandler: ProxyHandler<Promise<Params>> = {
+  get: function get(target, prop, receiver) {
+    if (prop === 'then' || prop === 'catch' || prop === 'finally') {
+      const originalMethod = ReflectAdapter.get(target, prop, receiver)
+
+      return {
+        [prop]: (...args: unknown[]) => {
+          const store = dynamicAccessAsyncStorage.getStore()
+
+          if (store) {
+            store.abortController.abort(
+              new Error(`Accessed fallback \`params\` during prerendering.`)
+            )
+          }
+
+          return new Proxy(
+            originalMethod.apply(target, args),
+            fallbackParamsProxyHandler
+          )
+        },
+      }[prop]
+    }
+
+    return ReflectAdapter.get(target, prop, receiver)
+  },
+}
+
 function makeAbortingExoticParams(
   underlyingParams: Params,
   route: string,
@@ -208,10 +236,11 @@ function makeAbortingExoticParams(
     return cachedParams
   }
 
-  const promise = makeHangingPromise<Params>(
-    prerenderStore.renderSignal,
-    '`params`'
+  const promise = new Proxy(
+    makeHangingPromise<Params>(prerenderStore.renderSignal, '`params`'),
+    fallbackParamsProxyHandler
   )
+
   CachedParams.set(underlyingParams, promise)
 
   Object.keys(underlyingParams).forEach((prop) => {

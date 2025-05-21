@@ -104,9 +104,9 @@ async function exportPageImpl(
     // the renderOpts.
     _isRoutePPREnabled: isRoutePPREnabled,
 
-    // Configure the rendering of the page not to throw if an empty static shell
-    // is generated while rendering using PPR.
-    _doNotThrowOnEmptyStaticShell: doNotThrowOnEmptyStaticShell = false,
+    // Configure the rendering of the page to allow that an empty static shell
+    // is generated while rendering using PPR and Dynamic IO.
+    _allowEmptyStaticShell: allowEmptyStaticShell = false,
 
     // Pull the original query out.
     query: originalQuery = {},
@@ -266,7 +266,7 @@ async function exportPageImpl(
     // If it's static, then it won't affect anything.
     // If it's dynamic, then it can be handled when request hits the route.
     serveStreamingMetadata: true,
-    doNotThrowOnEmptyStaticShell,
+    allowEmptyStaticShell,
     experimental: {
       ...input.renderOpts.experimental,
       isRoutePPREnabled,

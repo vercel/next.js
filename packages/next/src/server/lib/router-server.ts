@@ -667,8 +667,13 @@ export async function initialize(opts: {
 
   // this must come after initialize of render server since it's
   // using initialized methods
-  routerServerGlobal[RouterServerContextSymbol] = {
-    dir: opts.dir,
+  if (!routerServerGlobal[RouterServerContextSymbol]) {
+    routerServerGlobal[RouterServerContextSymbol] = {}
+  }
+  const relativeProjectDir = path.relative(process.cwd(), opts.dir)
+
+  routerServerGlobal[RouterServerContextSymbol][relativeProjectDir] = {
+    nextConfig: config,
     hostname: handlers.server.hostname,
     revalidate: handlers.server.revalidate.bind(handlers.server),
   }
