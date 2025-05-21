@@ -153,6 +153,60 @@ Layouts do not rerender on navigation, so they cannot access search params which
 
 To access updated query parameters, you can use the Page[`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) prop, or read them inside a Client Component using the [`useSearchParams`](/docs/app/api-reference/functions/use-search-params) hook. Since Client Components re-render on navigation, they have access to the latest query parameters.
 
+```tsx filename="app/ui/search.tsx" switcher
+'use client'
+
+import { useSearchParams } from 'next/navigation'
+
+export default function Search() {
+  const searchParams = useSearchParams()
+
+  const search = searchParams.get('search')
+
+  return '...'
+}
+```
+
+```jsx filename="app/ui/search.js" switcher
+'use client'
+
+import { useSearchParams } from 'next/navigation'
+
+export default function Search() {
+  const searchParams = useSearchParams()
+
+  const search = searchParams.get('search')
+
+  return '...'
+}
+```
+
+```tsx filename="app/shop/layout.tsx" switcher
+import Search from '@/app/ui/search'
+
+export default function Layout({ children }) {
+  return (
+    <>
+      <Search />
+      {children}
+    </>
+  )
+}
+```
+
+```jsx filename="app/shop/layout.js" switcher
+import Search from '@/app/ui/search'
+
+export default function Layout({ children }) {
+  return (
+    <>
+      <Search />
+      {children}
+    </>
+  )
+}
+```
+
 ### Pathname
 
 Layouts do not re-render on navigation, so they do not access pathname which would otherwise become stale.
