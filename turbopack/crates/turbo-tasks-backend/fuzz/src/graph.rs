@@ -68,6 +68,7 @@ fn actual_operation(data: Vec<TaskSpec>) {
     let tt = TurboTasks::new(turbo_tasks_backend::TurboTasksBackend::new(
         turbo_tasks_backend::BackendOptions {
             storage_mode: None,
+            small_preallocation: true,
             ..Default::default()
         },
         turbo_tasks_backend::noop_backing_storage(),

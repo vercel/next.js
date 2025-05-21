@@ -137,6 +137,9 @@ pub struct BackendOptions {
 
     /// Enables the backing storage.
     pub storage_mode: Option<StorageMode>,
+
+    /// Avoid big preallocations for faster startup. Should only be used for testing purposes.
+    pub small_preallocation: bool,
 }
 
 impl Default for BackendOptions {
@@ -146,6 +149,7 @@ impl Default for BackendOptions {
             children_tracking: true,
             active_tracking: true,
             storage_mode: Some(StorageMode::ReadWrite),
+            small_preallocation: false,
         }
     }
 }
@@ -223,6 +227,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         if !options.dependency_tracking {
             options.active_tracking = false;
         }
+        let small_preallocation = options.small_preallocation;
         Self {
             options,
             start_time: Instant::now(),
@@ -242,7 +247,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             persisted_task_cache_log: need_log.then(|| Sharded::new(shard_amount)),
             task_cache: BiMap::new(),
             transient_tasks: FxDashMap::default(),
-            storage: Storage::new(),
+            storage: Storage::new(small_preallocation),
             in_progress_operations: AtomicUsize::new(0),
             snapshot_request: Mutex::new(SnapshotRequest::new()),
             operations_suspended: Condvar::new(),
