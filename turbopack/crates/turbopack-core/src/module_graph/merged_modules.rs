@@ -404,15 +404,17 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 |parent_info, node, _| {
                     let module = node.module;
 
-                    if let Some((parent, r)) = parent_info {
-                        let same_bitmap = module_merged_groups.get(&parent.module).unwrap()
-                            == module_merged_groups.get(&module).unwrap();
-
-                        if !same_bitmap || matches!(r.export, ExportUsage::All) {
-                            // A reference from another group or a namespace import, this module
-                            // needs to be exposed.
-                            exposed_modules.insert(module);
-                        }
+                    if parent_info.is_none_or(|(parent, r)| {
+                        (module_merged_groups.get(&parent.module).unwrap()
+                            != module_merged_groups.get(&module).unwrap())
+                            || matches!(r.export, ExportUsage::All)
+                    }) {
+                        // This module needs to be exposed:
+                        // - referenced from another group or
+                        // - a namespace import or an entry module or
+                        // - an entry module (TODO assume it will be required, but currently we
+                        // don't know if that is actually true),
+                        exposed_modules.insert(module);
                     }
                 },
             )
