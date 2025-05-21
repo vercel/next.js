@@ -434,6 +434,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
             ..Default::default()
         },
     )
+    .module_merging(true)
     .build();
 
     let jest_entry_source = FileSource::new(jest_entry_path);

@@ -97,6 +97,11 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
+    pub fn module_merging(mut self, enable_module_merging: bool) -> Self {
+        self.chunking_context.enable_module_merging = enable_module_merging;
+        self
+    }
+
     pub fn asset_base_path(mut self, asset_base_path: Option<RcStr>) -> Self {
         self.chunking_context.asset_base_path = asset_base_path;
         self
@@ -202,6 +207,8 @@ pub struct BrowserChunkingContext {
     enable_hot_module_replacement: bool,
     /// Enable tracing for this chunking
     enable_tracing: bool,
+    /// Enable module merging
+    enable_module_merging: bool,
     /// The environment chunks will be evaluated in.
     environment: ResolvedVc<Environment>,
     /// The kind of runtime to include in the output.
@@ -248,6 +255,7 @@ impl BrowserChunkingContext {
                 asset_base_path: None,
                 enable_hot_module_replacement: false,
                 enable_tracing: false,
+                enable_module_merging: false,
                 environment,
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
@@ -511,6 +519,11 @@ impl ChunkingContext for BrowserChunkingContext {
     #[turbo_tasks::function]
     fn is_tracing_enabled(&self) -> Vc<bool> {
         Vc::cell(self.enable_tracing)
+    }
+
+    #[turbo_tasks::function]
+    fn is_module_merging_enabled(&self) -> Vc<bool> {
+        Vc::cell(self.enable_module_merging)
     }
 
     #[turbo_tasks::function]
