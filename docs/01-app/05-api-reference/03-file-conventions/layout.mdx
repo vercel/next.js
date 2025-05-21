@@ -211,8 +211,79 @@ export default function Layout({ children }) {
 
 Layouts do not re-render on navigation, so they do not access pathname which would otherwise become stale.
 
-To access the current pathname, you can read it inside a Client Component using the [`usePathname`](https://nextjs.org/docs/app/api-reference/functions/use-pathname) hook. Since Client Components rerender (but are not refetched) during navigation, they have access to the latest pathname.
-thout affecting performance.
+To access the current pathname, you can read it inside a Client Component using the [`usePathname`](https://nextjs.org/docs/app/api-reference/functions/use-pathname) hook. Since Client Components re-render during navigation, they have access to the latest pathname.
+
+```tsx filename="app/ui/breadcrumbs.tsx" switcher
+'use client'
+
+import { usePathname } from 'next/navigation'
+
+// Simplified breadcrumbs logic
+export default function Breadcrumbs() {
+  const pathname = usePathname()
+  const segments = pathname.split('/')
+
+  return (
+    <nav>
+      {segments.map((segment, index) => (
+        <span key={index}>
+          {' > '}
+          {segment}
+        </span>
+      ))}
+    </nav>
+  )
+}
+```
+
+```jsx filename="app/ui/breadcrumbs.js" switcher
+'use client'
+
+import { usePathname } from 'next/navigation'
+
+// Simplified breadcrumbs logic
+export default function Breadcrumbs() {
+  const pathname = usePathname()
+  const segments = pathname.split('/')
+
+  return (
+    <nav>
+      {segments.map((segment, index) => (
+        <span key={index}>
+          {' > '}
+          {segment}
+        </span>
+      ))}
+    </nav>
+  )
+}
+```
+
+```tsx filename="app/docs/layout.tsx" switcher
+import { Breadcrumbs } from '@/app/ui/Breadcrumbs'
+
+export default function Layout({ children }) {
+  return (
+    <>
+      <Breadcrumbs />
+      <main>{children}</main>
+    </>
+  )
+}
+```
+
+```jsx filename="app/docs/layout.js" switcher
+import { Breadcrumbs } from '@/app/ui/Breadcrumbs'
+
+export default function Layout({ children }) {
+  return (
+    <>
+      <Breadcrumbs />
+      <main>{children}</main>
+    </>
+  )
+}
+```
 
 ### Fetching Data
 
