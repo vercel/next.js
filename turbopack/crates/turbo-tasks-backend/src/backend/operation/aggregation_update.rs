@@ -9,7 +9,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use anyhow::{Context, Result, bail};
+use anyhow::Result;
 use indexmap::map::Entry;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize, Serializer, ser::SerializeSeq};
@@ -155,6 +155,7 @@ pub enum AggregationUpdateJob {
     InnerOfUppersLostFollower {
         upper_ids: TaskIdVec,
         lost_follower_id: TaskId,
+        retry: u16,
     },
     /// Notifies multiple upper tasks that one of its inner tasks has lost followers.
     InnerOfUppersLostFollowers(Box<InnerOfUppersLostFollowersJob>),
@@ -162,6 +163,7 @@ pub enum AggregationUpdateJob {
     InnerOfUpperLostFollowers {
         upper_id: TaskId,
         lost_follower_ids: TaskIdVec,
+        retry: u16,
     },
     /// Notifies an upper task about changed data from an inner task.
     AggregatedDataUpdate(Box<AggregatedDataUpdateJob>),
@@ -835,7 +837,7 @@ impl AggregationUpdateQueue {
                             } else {
                                 take(upper_ids)
                             };
-                            self.inner_of_uppers_lost_follower(ctx, lost_follower_id, upper_ids);
+                            self.inner_of_uppers_lost_follower(ctx, lost_follower_id, upper_ids, 0);
                         }
                     } else if let Some(upper_id) = upper_ids.pop() {
                         let lost_follower_ids = if !upper_ids.is_empty() {
@@ -847,20 +849,22 @@ impl AggregationUpdateQueue {
                         } else {
                             take(lost_follower_ids)
                         };
-                        self.inner_of_upper_lost_followers(ctx, lost_follower_ids, upper_id);
+                        self.inner_of_upper_lost_followers(ctx, lost_follower_ids, upper_id, 0);
                     }
                 }
                 AggregationUpdateJob::InnerOfUppersLostFollower {
                     upper_ids,
                     lost_follower_id,
+                    retry,
                 } => {
-                    self.inner_of_uppers_lost_follower(ctx, lost_follower_id, upper_ids);
+                    self.inner_of_uppers_lost_follower(ctx, lost_follower_id, upper_ids, retry);
                 }
                 AggregationUpdateJob::InnerOfUpperLostFollowers {
                     upper_id,
                     lost_follower_ids,
+                    retry,
                 } => {
-                    self.inner_of_upper_lost_followers(ctx, lost_follower_ids, upper_id);
+                    self.inner_of_upper_lost_followers(ctx, lost_follower_ids, upper_id, retry);
                 }
                 AggregationUpdateJob::AggregatedDataUpdate(box AggregatedDataUpdateJob {
                     upper_ids,
@@ -1084,6 +1088,7 @@ impl AggregationUpdateQueue {
                         self.push(AggregationUpdateJob::InnerOfUppersLostFollower {
                             upper_ids,
                             lost_follower_id: task_id,
+                            retry: 0,
                         });
                     }
 
@@ -1277,11 +1282,12 @@ impl AggregationUpdateQueue {
         ctx: &mut impl ExecuteContext,
         lost_follower_id: TaskId,
         mut upper_ids: TaskIdVec,
+        mut retry: u16,
     ) {
         #[cfg(feature = "trace_aggregation_update")]
         let _span = trace_span!("lost follower (n uppers)", uppers = upper_ids.len()).entered();
 
-        retry_loop(|| {
+        let result = retry_loop(|| {
             let mut follower = ctx.task(
                 lost_follower_id,
                 // For performance reasons this should stay `Meta` and not `All`
@@ -1407,6 +1413,7 @@ impl AggregationUpdateQueue {
                         self.push(AggregationUpdateJob::InnerOfUppersLostFollower {
                             upper_ids,
                             lost_follower_id,
+                            retry: 0,
                         });
                     }
                 }
@@ -1416,15 +1423,22 @@ impl AggregationUpdateQueue {
                 return ControlFlow::Break(());
             }
             ControlFlow::Continue(())
-        })
-        .with_context(|| {
-            format!(
-                "inner_of_uppers_lost_follower is not able to remove follower {:?} from {:?} as \
-                 they don't exist as upper or follower edges",
-                lost_follower_id, upper_ids
-            )
-        })
-        .unwrap();
+        });
+        if result.is_err() {
+            retry += 1;
+            if retry > MAX_RETRIES {
+                panic!(
+                    "inner_of_uppers_lost_follower is not able to remove follower {:?} from {:?} \
+                     as they don't exist as upper or follower edges",
+                    lost_follower_id, upper_ids
+                );
+            }
+            self.push(AggregationUpdateJob::InnerOfUppersLostFollower {
+                upper_ids,
+                lost_follower_id,
+                retry,
+            });
+        }
     }
 
     fn inner_of_upper_lost_followers(
@@ -1432,6 +1446,7 @@ impl AggregationUpdateQueue {
         ctx: &mut impl ExecuteContext,
         mut lost_follower_ids: TaskIdVec,
         upper_id: TaskId,
+        mut retry: u16,
     ) {
         #[cfg(feature = "trace_aggregation_update")]
         let _span = trace_span!(
@@ -1440,7 +1455,7 @@ impl AggregationUpdateQueue {
         )
         .entered();
 
-        retry_loop(|| {
+        let result = retry_loop(|| {
             swap_retain(&mut lost_follower_ids, |&mut lost_follower_id| {
                 let mut follower = ctx.task(
                     lost_follower_id,
@@ -1497,6 +1512,7 @@ impl AggregationUpdateQueue {
                         self.push(AggregationUpdateJob::InnerOfUpperLostFollowers {
                             upper_id,
                             lost_follower_ids: followers,
+                            retry: 0,
                         });
                     }
                 } else {
@@ -1557,6 +1573,7 @@ impl AggregationUpdateQueue {
                         self.push(AggregationUpdateJob::InnerOfUppersLostFollower {
                             upper_ids,
                             lost_follower_id,
+                            retry: 0,
                         });
                     }
                 }
@@ -1566,15 +1583,22 @@ impl AggregationUpdateQueue {
                 return ControlFlow::Break(());
             }
             ControlFlow::Continue(())
-        })
-        .with_context(|| {
-            format!(
-                "inner_of_upper_lost_followers is not able to remove followers {:?} from {:?} as \
-                 they don't exist as upper or follower edges",
-                lost_follower_ids, upper_id
-            )
-        })
-        .unwrap();
+        });
+        if result.is_err() {
+            retry += 1;
+            if retry > MAX_RETRIES {
+                panic!(
+                    "inner_of_upper_lost_followers is not able to remove followers {:?} from {:?} \
+                     as they don't exist as upper or follower edges",
+                    lost_follower_ids, upper_id
+                )
+            }
+            self.push(AggregationUpdateJob::InnerOfUpperLostFollowers {
+                upper_id,
+                lost_follower_ids,
+                retry,
+            });
+        }
     }
 
     fn inner_of_uppers_has_new_follower(
@@ -2429,7 +2453,26 @@ impl Operation for AggregationUpdateQueue {
     }
 }
 
-fn retry_loop(mut f: impl FnMut() -> ControlFlow<()>) -> Result<()> {
+struct RetryTimeout;
+
+const MAX_YIELD_DURATION: Duration = Duration::from_millis(1);
+const MAX_RETRIES: u16 = 10000;
+
+/// Retry the passed function for a few milliseconds, while yielding to other threads.
+/// Returns an error if the function was not ablue to complete and the timeout was reached.
+///
+/// Each graph modification will only lock one or two tasks at a time, but updates usually also
+/// require follow-up updates to connected tasks. So an update will "slowly" propagate through the
+/// graph. This can lead to the race condition when one update adds something and another update
+/// removes the same thing. The "add" update might not be fully propagated through the graph yet and
+/// the "remove" update can overtake the "add" update. When this happens the "remove" update is
+/// unable to remove the things it wants to remove (because they have not been added by the "add"
+/// update yet). So we will retry (with this method) removals until the thing is there. So this is
+/// basically a busy loop that waits for the "add" update to complete. If the busy loop is not
+/// sucessful, the update is added to the end of the queue again. This is important as the "add"
+/// update might even be in the curreent thread and in the same queue. If that's the case yielding
+/// won't help and the update need to be requeued.
+fn retry_loop(mut f: impl FnMut() -> ControlFlow<()>) -> Result<(), RetryTimeout> {
     let mut time: Option<Instant> = None;
     loop {
         match f() {
@@ -2438,8 +2481,8 @@ fn retry_loop(mut f: impl FnMut() -> ControlFlow<()>) -> Result<()> {
         }
         yield_now();
         if let Some(t) = time {
-            if t.elapsed() > Duration::from_secs(60) {
-                bail!("Retry loop timed out, probably due to an graph invariant violation");
+            if t.elapsed() > MAX_YIELD_DURATION {
+                return Err(RetryTimeout);
             }
         } else {
             time = Some(Instant::now());
