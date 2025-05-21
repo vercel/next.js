@@ -54,7 +54,7 @@ impl Visit for Finder {
     fn visit_fn_expr(&mut self, node: &FnExpr) {
         let old = self.is_interested;
 
-        self.is_interested = node.ident.as_ref().is_some_and(|ident| {
+        self.is_interested |= node.ident.as_ref().is_some_and(|ident| {
             ident.sym.starts_with("use") || ident.sym.starts_with(|c: char| c.is_ascii_uppercase())
         });
 
