@@ -165,7 +165,12 @@ describe('should handle unresolved files gracefully', () => {
             content.includes('p{') || content.includes('p,') ? 2 : 1
 
           expect(content.match(/\(\/vercel\.svg/g).length).toBe(howMany)
-          expect(content.match(/\(\/_next\/static\/media/g).length).toBe(1)
+          if (process.env.IS_TURBOPACK_TEST) {
+            // With Turbopack these are combined and the path is relative.
+            expect(content.match(/\(\.\.\/media/g).length).toBe(howMany)
+          } else {
+            expect(content.match(/\(\/_next\/static\/media/g).length).toBe(1)
+          }
           expect(content.match(/\(https:\/\//g).length).toBe(howMany)
         }
       })
