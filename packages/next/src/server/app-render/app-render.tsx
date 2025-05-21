@@ -99,7 +99,10 @@ import { makeGetServerInsertedHTML } from './make-get-server-inserted-html'
 import { walkTreeWithFlightRouterState } from './walk-tree-with-flight-router-state'
 import { createComponentTree, getRootParams } from './create-component-tree'
 import { getAssetQueryString } from './get-asset-query-string'
-import { setReferenceManifestsSingleton } from './encryption-utils'
+import {
+  getServerModuleMap,
+  setReferenceManifestsSingleton,
+} from './encryption-utils'
 import {
   DynamicState,
   type PostponedState,
@@ -3872,7 +3875,7 @@ async function collectSegmentData(
     moduleMap: isEdgeRuntime
       ? clientReferenceManifest.edgeRscModuleMapping
       : clientReferenceManifest.rscModuleMapping,
-    serverModuleMap: null,
+    serverModuleMap: getServerModuleMap(),
   }
 
   const staleTime = prerenderStore.stale

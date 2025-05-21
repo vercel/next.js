@@ -199,9 +199,7 @@ async function PrefetchTreeData({
     buildId,
     seedData,
     fallbackRouteParams,
-    fullPageDataBuffer,
     clientModules,
-    serverConsumerManifest,
     ROOT_SEGMENT_KEY,
     segmentTasks
   )
@@ -229,9 +227,7 @@ function collectSegmentDataImpl(
   buildId: string,
   seedData: CacheNodeSeedData | null,
   fallbackRouteParams: FallbackRouteParams | null,
-  fullPageDataBuffer: Buffer,
   clientModules: ManifestNode,
-  serverConsumerManifest: any,
   key: string,
   segmentTasks: Array<Promise<[string, Buffer]>>
 ): TreePrefetch {
@@ -262,9 +258,7 @@ function collectSegmentDataImpl(
       buildId,
       childSeedData,
       fallbackRouteParams,
-      fullPageDataBuffer,
       clientModules,
-      serverConsumerManifest,
       childKey,
       segmentTasks
     )
