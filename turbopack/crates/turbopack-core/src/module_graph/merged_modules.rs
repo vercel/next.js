@@ -57,7 +57,7 @@ impl MergedModuleInfo {
 ///   treated as one.
 /// - if a merged module has an incoming edge not contained in the group, it has to expose its
 ///   exports into the module cache.
-pub async fn compute_merged_modules(module_graph: &ModuleGraph) -> Result<Vc<MergedModuleInfo>> {
+pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<MergedModuleInfo>> {
     let span_outer = tracing::info_span!(
         "compute merged modules",
         module_count = tracing::field::Empty,
@@ -68,6 +68,8 @@ pub async fn compute_merged_modules(module_graph: &ModuleGraph) -> Result<Vc<Mer
 
     let span = span_outer.clone();
     async move {
+        let module_graph = module_graph.await?;
+
         let graphs = module_graph.graphs.iter().try_join().await?;
         let module_count = graphs.iter().map(|g| g.graph.node_count()).sum::<usize>();
         span.record("module_count", module_count);
@@ -87,9 +89,6 @@ pub async fn compute_merged_modules(module_graph: &ModuleGraph) -> Result<Vc<Mer
         // Entries that started a new merge group for some deopt reason
         let mut entry_modules =
             FxHashSet::with_capacity_and_hasher(module_count, Default::default());
-        // Modules that have a reference to a module that is not in the same group (i.e. the
-        // quasi-leafs of the merged subgraph)
-        let mut modules_with_externals_references = FxHashSet::default();
 
         let mut next_index = 0u32;
 
@@ -172,10 +171,6 @@ pub async fn compute_merged_modules(module_graph: &ModuleGraph) -> Result<Vc<Mer
                             let idx = next_index;
                             next_index += 1;
 
-                            if let Some(parent_module) = parent_module {
-                                modules_with_externals_references.insert(parent_module);
-                            }
-
                             match module_merged_groups.entry(module) {
                                 Entry::Occupied(mut entry) => {
                                     let current = entry.get_mut();
@@ -231,14 +226,18 @@ pub async fn compute_merged_modules(module_graph: &ModuleGraph) -> Result<Vc<Mer
             RoaringBitmapWrapper,
             FxIndexSet<ResolvedVc<Box<dyn MergeableModule>>>,
         > = FxIndexMap::with_capacity_and_hasher(module_merged_groups.len(), Default::default());
+        // Modules that are referenced from outside the group, so their exports need to be exposed.
+        let mut exposed_modules: FxHashSet<ResolvedVc<Box<dyn Module>>> =
+            FxHashSet::with_capacity_and_hasher(module_merged_groups.len(), Default::default());
 
         module_graph
             .traverse_edges_from_entries_topological(
                 entries,
                 &mut (),
                 |_, _, _| Ok(GraphTraversalAction::Continue),
-                |_, node, _| {
+                |parent_info, node, _| {
                     let module = node.module;
+
                     if let Some(mergeable_module) =
                         ResolvedVc::try_downcast::<Box<dyn MergeableModule>>(module)
                     {
@@ -249,6 +248,14 @@ pub async fn compute_merged_modules(module_graph: &ModuleGraph) -> Result<Vc<Mer
                             .entry(bitmap.clone())
                             .or_default()
                             .insert(mergeable_module);
+                    }
+
+                    if parent_info.is_none_or(|(parent, _)| {
+                        module_merged_groups.get(&parent.module).unwrap()
+                            != module_merged_groups.get(&module).unwrap()
+                    }) {
+                        // A reference from another group, this module needs to be exposed.
+                        exposed_modules.insert(module);
                     }
                 },
             )
@@ -279,7 +286,10 @@ pub async fn compute_merged_modules(module_graph: &ModuleGraph) -> Result<Vc<Mer
                 let mut i = 0;
                 while i < list.len() - 1 {
                     let first = list[i];
-                    let modules = list[i..].iter().map(|m| **m).collect::<Vec<_>>();
+                    let modules = list[i..]
+                        .iter()
+                        .map(|&m| (m, exposed_modules.contains(&ResolvedVc::upcast(m))))
+                        .collect::<Vec<_>>();
                     match *first.merge(MergeableModules::interned(modules)).await? {
                         MergeableModuleResult::Merged {
                             merged_module,
