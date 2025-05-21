@@ -1,15 +1,22 @@
 name: Trigger Release (New)
 
 on:
+  # Run every day at 23:15 UTC
+  # TODO: Disabled cron for now, but uncomment
+  # once replaced the old release workflow.
+  # schedule:
+  #   - cron: '15 23 * * *'
+  # Run manually
   workflow_dispatch:
     inputs:
       releaseType:
         description: Release Type
         required: true
         type: choice
+        # Cron job will run canary release
+        default: canary
         options:
-          # TODO: Follow up enable the case.
-          # - canary
+          - canary
           - stable
           # TODO: Follow up enable the case.
           # - release-candidate
@@ -25,6 +32,10 @@ env:
   NAPI_CLI_VERSION: 2.14.7
   TURBO_VERSION: 2.3.3
   NODE_LTS_VERSION: 20
+
+permissions:
+  # To create PR
+  pull-requests: write
 
 jobs:
   start:

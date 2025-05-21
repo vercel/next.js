@@ -27,6 +27,10 @@ import { formatUrl } from '../shared/lib/router/utils/format-url'
 import type { ServerFields } from './lib/router-utils/setup-dev-bundler'
 import type { ServerInitResult } from './lib/render-server'
 import { AsyncCallbackSet } from './lib/async-callback-set'
+import {
+  RouterServerContextSymbol,
+  routerServerGlobal,
+} from './lib/router-utils/router-server-context'
 
 let ServerImpl: typeof NextNodeServer
 
@@ -246,7 +250,6 @@ export class NextServer implements NextWrapperServer {
           path.join(dir, config.distDir, SERVER_FILES_MANIFEST)
         ).config
 
-        // @ts-expect-error internal field
         config.experimental.isExperimentalCompile =
           serializedConfig.experimental.isExperimentalCompile
       } catch (_) {
@@ -423,6 +426,22 @@ class NextCustomServer implements NextWrapperServer {
 
   setAssetPrefix(assetPrefix: string): void {
     this.server.setAssetPrefix(assetPrefix)
+
+    // update the router-server nextConfig instance as
+    // this is the source of truth for "handler" in serverful
+    const relativeProjectDir = path.relative(
+      process.cwd(),
+      this.options.dir || ''
+    )
+
+    if (
+      routerServerGlobal[RouterServerContextSymbol]?.[relativeProjectDir]
+        ?.nextConfig
+    ) {
+      routerServerGlobal[RouterServerContextSymbol][
+        relativeProjectDir
+      ].nextConfig.assetPrefix = assetPrefix
+    }
   }
 
   getUpgradeHandler(): UpgradeHandler {
