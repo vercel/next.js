@@ -9305,11 +9305,10 @@
   },
   "test/integration/app-dir-export/test/dynamic-missing-gsp-prod.test.ts": {
     "passed": [
-      "app dir - with output export - dynamic missing gsp prod production mode should error when dynamic route is missing generateStaticParams"
-    ],
-    "failed": [
+      "app dir - with output export - dynamic missing gsp prod production mode should error when dynamic route is missing generateStaticParams",
       "app dir - with output export - dynamic missing gsp prod production mode should error when client component has generateStaticParams"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
