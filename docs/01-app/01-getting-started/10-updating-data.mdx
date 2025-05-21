@@ -15,22 +15,15 @@ You can update data in Next.js using React's [Server Functions](https://react.de
 
 ## Server Functions
 
-A Server Function is an asynchronous function that is executed on the server.
+A Server Function is an asynchronous function that is executed on the server. Server Functions are inherently asynchronous because they are invoked by the client using a network request. When invoked as part of an `action`, they are also called **Server Actions**.
 
-Server Functions invoked as part of an `action` are Server Actions.
-
-By convention, an `action` is an asynchronous function passed to `startTransition`.
-
-Server Functions are automatically wrapped with `startTransition` when:
+By convention, an `action` is an asynchronous function passed to `startTransition`. Server Functions are automatically wrapped with `startTransition` when:
 
 - Passed to a `<form>` using the `action` prop,
 - Passed to a `<button>` using the `formAction` prop
 - Passed to `useActionState`
 
-> **Good to know**: As of September 2024, the React team started to use the term, Server Functions. Initially these were called Server Actions. For the purpose of this document, when used to mutate server side data, we use the term Server Action.
-
-Server Functions are inherently asynchronous because they are invoked by the client using a network request.
-
+> **Good to know**: As of September 2024, the React team started to use the term, Server Functions. Initially these were called Server Actions. For the purposes of this document, when used to mutate server-side data, we use the term Server Action.
 ## Creating Server Functions
 
 A Server Function can be defined by using the [`use server`](https://react.dev/reference/rsc/use-server) directive. You can place the directive at the top of an **asynchronous** function to mark the function as a Server Function, or at the top of a separate file to mark all exports of that file.
