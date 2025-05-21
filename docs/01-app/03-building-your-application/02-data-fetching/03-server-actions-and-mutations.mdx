@@ -80,6 +80,8 @@ export function Button() {
 }
 ```
 
+> **Good to know**: The React documentation, considers the `create` function to be Server Function. [Learn more here](/app/getting-started/updating-data#server-functions).
+
 ### Passing actions as props
 
 You can also pass a Server Action to a Client Component as a prop:
@@ -671,20 +673,20 @@ You can use the React [`useEffect`](https://react.dev/reference/react/useEffect)
 'use client'
 
 import { incrementViews } from './actions'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useTransition } from 'react'
 
 export default function ViewCount({ initialViews }: { initialViews: number }) {
   const [views, setViews] = useState(initialViews)
+  const [isPending, startTransition] = useTransition()
 
   useEffect(() => {
-    const updateViews = async () => {
+    starTransition(async () => {
       const updatedViews = await incrementViews()
       setViews(updatedViews)
-    }
-
-    updateViews()
+    })
   }, [])
 
+  // You can use `isPending` to give users feedback
   return <p>Total Views: {views}</p>
 }
 ```
@@ -693,20 +695,20 @@ export default function ViewCount({ initialViews }: { initialViews: number }) {
 'use client'
 
 import { incrementViews } from './actions'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useTransition } from 'react'
 
-export default function ViewCount({ initialViews }: { initialViews: number }) {
+export default function ViewCount({ initialViews }) {
   const [views, setViews] = useState(initialViews)
+  const [isPending, startTransition] = useTransition()
 
   useEffect(() => {
-    const updateViews = async () => {
+    starTransition(async () => {
       const updatedViews = await incrementViews()
       setViews(updatedViews)
-    }
-
-    updateViews()
+    })
   }, [])
 
+  // You can use `isPending` to give users feedback
   return <p>Total Views: {views}</p>
 }
 ```
