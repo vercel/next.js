@@ -1917,41 +1917,90 @@
       sourceMap,
       line,
       col,
+      enclosingLine,
+      enclosingCol,
       environmentName
     ) {
       name || (name = "<anonymous>");
       var encodedName = JSON.stringify(name);
-      1 >= line
-        ? ((line = encodedName.length + 7),
-          (col =
+      1 > enclosingLine ? (enclosingLine = 0) : enclosingLine--;
+      1 > enclosingCol ? (enclosingCol = 0) : enclosingCol--;
+      1 > line ? (line = 0) : line--;
+      1 > col ? (col = 0) : col--;
+      if (
+        line < enclosingLine ||
+        (line === enclosingLine && col < enclosingCol)
+      )
+        enclosingCol = enclosingLine = 0;
+      1 > line
+        ? ((line = encodedName.length + 3),
+          (enclosingCol -= line),
+          0 > enclosingCol && (enclosingCol = 0),
+          (col = col - enclosingCol - line - 3),
+          0 > col && (col = 0),
+          (encodedName =
             "({" +
             encodedName +
-            ":_=>" +
-            " ".repeat(col < line ? 0 : col - line) +
-            "_()})\n/* This module was rendered by a Server Component. Turn on Source Maps to see the server source. */"))
-        : (col =
-            "/* This module was rendered by a Server Component. Turn on Source Maps to see the server source. */" +
-            "\n".repeat(line - 2) +
-            "({" +
-            encodedName +
-            ":_=>\n" +
-            " ".repeat(1 > col ? 0 : col - 1) +
-            "_()})");
+            ":" +
+            " ".repeat(enclosingCol) +
+            "_=>" +
+            " ".repeat(col) +
+            "_()})"))
+        : 1 > enclosingLine
+          ? ((enclosingCol -= encodedName.length + 3),
+            0 > enclosingCol && (enclosingCol = 0),
+            (encodedName =
+              "({" +
+              encodedName +
+              ":" +
+              " ".repeat(enclosingCol) +
+              "_=>" +
+              "\n".repeat(line - enclosingLine) +
+              " ".repeat(col) +
+              "_()})"))
+          : enclosingLine === line
+            ? ((col = col - enclosingCol - 3),
+              0 > col && (col = 0),
+              (encodedName =
+                "\n".repeat(enclosingLine - 1) +
+                "({" +
+                encodedName +
+                ":\n" +
+                " ".repeat(enclosingCol) +
+                "_=>" +
+                " ".repeat(col) +
+                "_()})"))
+            : (encodedName =
+                "\n".repeat(enclosingLine - 1) +
+                "({" +
+                encodedName +
+                ":\n" +
+                " ".repeat(enclosingCol) +
+                "_=>" +
+                "\n".repeat(line - enclosingLine) +
+                " ".repeat(col) +
+                "_()})");
+      encodedName =
+        1 > enclosingLine
+          ? encodedName +
+            "\n/* This module was rendered by a Server Component. Turn on Source Maps to see the server source. */"
+          : "/* This module was rendered by a Server Component. Turn on Source Maps to see the server source. */" +
+            encodedName;
       filename.startsWith("/") && (filename = "file://" + filename);
       sourceMap
-        ? ((col +=
+        ? ((encodedName +=
             "\n//# sourceURL=rsc://React/" +
             encodeURIComponent(environmentName) +
             "/" +
             encodeURI(filename) +
             "?" +
             fakeFunctionIdx++),
-          (col += "\n//# sourceMappingURL=" + sourceMap))
-        : (col = filename
-            ? col + ("\n//# sourceURL=" + encodeURI(filename))
-            : col + "\n//# sourceURL=<anonymous>");
+          (encodedName += "\n//# sourceMappingURL=" + sourceMap))
+        : (encodedName = filename
+            ? encodedName + ("\n//# sourceURL=" + encodeURI(filename))
+            : encodedName + "\n//# sourceURL=<anonymous>");
       try {
-        var fn = (0, eval)(col)[name];
+        var fn = (0, eval)(encodedName)[name];
       } catch (x) {
         fn = function (_) {
           return _();
@@ -1967,8 +2016,10 @@
         if (void 0 === fn) {
           fn = frame[0];
           var filename = frame[1],
-            line = frame[2];
-          frame = frame[3];
+            line = frame[2],
+            col = frame[3],
+            enclosingLine = frame[4];
+          frame = frame[5];
           var findSourceMapURL = response._debugFindSourceMapURL;
           findSourceMapURL = findSourceMapURL
             ? findSourceMapURL(filename, environmentName)
@@ -1978,6 +2029,8 @@
             filename,
             findSourceMapURL,
             line,
+            col,
+            enclosingLine,
             frame,
             environmentName
           );
@@ -2693,10 +2746,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.2.0-canary-197d6a04-20250424",
+      version: "19.2.0-canary-3820740a-20250509",
       rendererPackageName: "react-server-dom-webpack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.2.0-canary-197d6a04-20250424",
+      reconcilerVersion: "19.2.0-canary-3820740a-20250509",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }
