@@ -127,6 +127,26 @@ By restricting layouts from directly accessing the raw request object, Next.js c
 
 To access the request object, you can use [`headers`](/docs/app/api-reference/functions/headers) and [`cookies`](/docs/app/api-reference/functions/cookies) APIs in [Server Components](/docs/app/getting-started/server-and-client-components) and Functions.
 
+```tsx filename="app/shop/layout.tsx" switcher
+import { cookies } from 'next/headers'
+
+export default async function Layout({ children }) {
+  const cookieStore = await cookies()
+  const theme = cookieStore.get('theme')
+  return '...'
+}
+```
+
+```jsx filename="app/shop/layout.js" switcher
+import { cookies } from 'next/headers'
+
+export default async function Layout({ children }) {
+  const cookieStore = await cookies()
+  const theme = cookieStore.get('theme')
+  return '...'
+}
+```
+
 ### Query params
 
 Layouts do not rerender on navigation, so they cannot access search params which would otherwise become stale.
