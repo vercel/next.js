@@ -57,6 +57,7 @@
       this.refs = emptyObject;
       this.updater = updater || ReactNoopUpdateQueue;
     }
+    function noop() {}
     function testStringCoercion(value) {
       return "" + value;
     }
@@ -286,7 +287,6 @@
         ? (checkKeyStringCoercion(element.key), escape("" + element.key))
         : index.toString(36);
     }
-    function noop$1() {}
     function resolveThenable(thenable) {
       switch (thenable.status) {
         case "fulfilled":
@@ -296,7 +296,7 @@
         default:
           switch (
             ("string" === typeof thenable.status
-              ? thenable.then(noop$1, noop$1)
+              ? thenable.then(noop, noop)
               : ((thenable.status = "pending"),
                 thenable.then(
                   function (fulfilledValue) {
@@ -501,7 +501,6 @@
     function releaseAsyncTransition() {
       ReactSharedInternals.asyncTransitions--;
     }
-    function noop() {}
     function enqueueTask(task) {
       if (null === enqueueTaskImpl)
         try {
@@ -1242,7 +1241,7 @@
     exports.useTransition = function () {
       return resolveDispatcher().useTransition();
     };
-    exports.version = "19.2.0-canary-197d6a04-20250424";
+    exports.version = "19.2.0-canary-23884812-20250520";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

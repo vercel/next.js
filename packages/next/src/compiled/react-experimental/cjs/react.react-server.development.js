@@ -11,6 +11,7 @@
 "use strict";
 "production" !== process.env.NODE_ENV &&
   (function () {
+    function noop() {}
     function getIteratorFn(maybeIterable) {
       if (null === maybeIterable || "object" !== typeof maybeIterable)
         return null;
@@ -250,7 +251,6 @@
         ? (checkKeyStringCoercion(element.key), escape("" + element.key))
         : index.toString(36);
     }
-    function noop$1() {}
     function resolveThenable(thenable) {
       switch (thenable.status) {
         case "fulfilled":
@@ -260,7 +260,7 @@
         default:
           switch (
             ("string" === typeof thenable.status
-              ? thenable.then(noop$1, noop$1)
+              ? thenable.then(noop, noop)
               : ((thenable.status = "pending"),
                 thenable.then(
                   function (fulfilledValue) {
@@ -471,7 +471,6 @@
     function releaseAsyncTransition() {
       ReactSharedInternals.asyncTransitions--;
     }
-    function noop() {}
     function cleanup(entryValue) {
       var entry = TaintRegistryValues.get(entryValue);
       void 0 !== entry &&
@@ -992,5 +991,5 @@
     exports.useMemo = function (create, deps) {
       return resolveDispatcher().useMemo(create, deps);
     };
-    exports.version = "19.2.0-experimental-197d6a04-20250424";
+    exports.version = "19.2.0-experimental-23884812-20250520";
   })();
