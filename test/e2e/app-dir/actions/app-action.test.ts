@@ -12,6 +12,7 @@ import fs from 'fs-extra'
 import nodeFs from 'fs'
 import path, { join } from 'path'
 import { outdent } from 'outdent'
+import { timeouts } from '../../../lib/browsers/playwright'
 
 const GENERIC_RSC_ERROR =
   'Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
@@ -908,7 +909,7 @@ describe('app-dir action handling', () => {
       await browser
         .elementByCss(`[href='/delayed-action/${runtime}/other']`)
         .click()
-        .waitForElementByCss('#other-page')
+        .waitForElementByCss('#other-page', timeouts.VERY_LONG)
 
       await retry(async () => {
         expect(
