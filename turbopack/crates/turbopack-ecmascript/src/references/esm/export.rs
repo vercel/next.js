@@ -679,6 +679,7 @@ impl EsmExports {
 
         Ok(CodeGeneration::new(
             vec![],
+            vec![],
             [dynamic_stmt
                 .map(|stmt| CodeGenerationHoistedStmt::new("__turbopack_dynamic__".into(), stmt))]
             .into_iter()

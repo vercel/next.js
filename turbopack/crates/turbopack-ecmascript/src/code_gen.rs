@@ -242,11 +242,18 @@ macro_rules! create_visitor {
             }
         }
 
-        (
-            $ast_path,
-            Box::new(Box::new(Visitor {
-                $name: move |$arg: &mut swc_core::ecma::ast::$ty| $b,
-            })) as Box<dyn $crate::code_gen::VisitorFactory>,
-        )
+        {
+            #[cfg(debug_assertions)]
+            if $ast_path.is_empty() {
+                unreachable!("if the path is empty, the visitor should be a root visitor");
+            }
+
+            (
+                $ast_path,
+                Box::new(Box::new(Visitor {
+                    $name: move |$arg: &mut swc_core::ecma::ast::$ty| $b,
+                })) as Box<dyn $crate::code_gen::VisitorFactory>,
+            )
+        }
     }};
 }
