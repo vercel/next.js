@@ -87,6 +87,17 @@ function PageSegmentTreeLayerPresentation({
       ? staticPathsInfo.staticPaths
       : []
 
+  const resolvedStaticPaths =
+    staticPaths.length > 5
+      ? staticPaths
+          .slice(0, 5)
+          .concat([
+            `+${staticPaths.length - 5} more path${
+              staticPaths.length - 5 === 1 ? '' : 's'
+            }`,
+          ])
+      : staticPaths
+
   return (
     <div className="segment-explorer-item">
       {!fileName || level === 0 ? null : (
@@ -104,7 +115,7 @@ function PageSegmentTreeLayerPresentation({
               {pagePathPrefix === '' ? '' : `${pagePathPrefix}/`}
               <span className="segment-explorer-filename-path">{fileName}</span>
               <div>
-                {staticPaths.map((path) => (
+                {resolvedStaticPaths.map((path) => (
                   <div key={path}>{path}</div>
                 ))}
               </div>
