@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use swc_core::ecma::{
-    ast::Stmt,
+    ast::{Pass, Stmt},
     visit::{AstParentKind, VisitMut},
 };
 use turbo_rcstr::RcStr;
@@ -35,6 +35,7 @@ use crate::references::{
 #[derive(Default)]
 pub struct CodeGeneration {
     /// ast nodes matching the span will be visitor by the visitor
+    pub root_visitors: Vec<Box<dyn PassFactory>>,
     pub visitors: Vec<(Vec<AstParentKind>, Box<dyn VisitorFactory>)>,
     pub hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
     pub early_hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
@@ -48,18 +49,34 @@ impl CodeGeneration {
     }
 
     pub fn new(
+        root_visitors: Vec<Box<dyn PassFactory>>,
         visitors: Vec<(Vec<AstParentKind>, Box<dyn VisitorFactory>)>,
         hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
         early_hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
     ) -> Self {
         CodeGeneration {
+            root_visitors,
             visitors,
             hoisted_stmts,
             early_hoisted_stmts,
         }
     }
 
+    pub fn root_visitors(root_visitors: Vec<Box<dyn PassFactory>>) -> Self {
+        CodeGeneration {
+            root_visitors,
+            ..Default::default()
+        }
+    }
+
     pub fn visitors(visitors: Vec<(Vec<AstParentKind>, Box<dyn VisitorFactory>)>) -> Self {
+        #[cfg(debug_assertions)]
+        for (path, _) in visitors.iter() {
+            if path.is_empty() {
+                unreachable!("if the path is empty, the visitor should be a root visitor");
+            }
+        }
+
         CodeGeneration {
             visitors,
             ..Default::default()
@@ -95,6 +112,10 @@ impl CodeGenerationHoistedStmt {
 
 pub trait VisitorFactory: Send + Sync {
     fn create<'a>(&'a self) -> Box<dyn VisitMut + Send + Sync + 'a>;
+}
+
+pub trait PassFactory: Send + Sync {
+    fn create<'a>(&'a self) -> Box<dyn Pass + Send + Sync + 'a>;
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
