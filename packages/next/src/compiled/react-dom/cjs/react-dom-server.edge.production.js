@@ -2679,22 +2679,9 @@ function preloadLateStyles(styleQueue) {
   styleQueue.sheets.forEach(preloadLateStyle, this);
   styleQueue.sheets.clear();
 }
-var blockingRenderChunkStart = stringToPrecomputedChunk(
-    '<link rel="expect" href="#'
-  ),
-  blockingRenderChunkEnd = stringToPrecomputedChunk('" blocking="render"/>'),
-  completedShellIdAttributeStart = stringToPrecomputedChunk(' id="');
-function writeCompletedShellIdAttribute(destination, resumableState) {
-  0 === (resumableState.instructions & 32) &&
-    ((resumableState.instructions |= 32),
-    (resumableState = "\u00ab" + resumableState.idPrefix + "R\u00bb"),
-    writeChunk(destination, completedShellIdAttributeStart),
-    writeChunk(
-      destination,
-      stringToChunk(escapeTextForBrowser(resumableState))
-    ),
-    writeChunk(destination, attributeEnd));
-}
+stringToPrecomputedChunk('<link rel="expect" href="#');
+stringToPrecomputedChunk('" blocking="render"/>');
+var completedShellIdAttributeStart = stringToPrecomputedChunk(' id="');
 function pushCompletedShellIdAttribute(target, resumableState) {
   0 === (resumableState.instructions & 32) &&
     ((resumableState.instructions |= 32),
@@ -6118,8 +6105,7 @@ function flushCompletedQueues(request, destination) {
         var completedPreambleSegments = request.completedPreambleSegments;
         if (null === completedPreambleSegments) return;
         flushedByteSize = request.byteSize;
-        var resumableState = request.resumableState,
-          renderState = request.renderState,
+        var renderState = request.renderState,
           preamble = renderState.preamble,
           htmlChunks = preamble.htmlChunks,
           headChunks = preamble.headChunks,
@@ -6160,23 +6146,17 @@ function flushCompletedQueues(request, destination) {
         renderState.scripts.clear();
         renderState.bulkPreloads.forEach(flushResource, destination);
         renderState.bulkPreloads.clear();
-        if (htmlChunks || headChunks) {
-          var shellId = "\u00ab" + resumableState.idPrefix + "R\u00bb";
-          writeChunk(destination, blockingRenderChunkStart);
-          writeChunk(destination, stringToChunk(escapeTextForBrowser(shellId)));
-          writeChunk(destination, blockingRenderChunkEnd);
-        }
         var hoistableChunks = renderState.hoistableChunks;
         for (i$jscomp$0 = 0; i$jscomp$0 < hoistableChunks.length; i$jscomp$0++)
           writeChunk(destination, hoistableChunks[i$jscomp$0]);
         for (
-          resumableState = hoistableChunks.length = 0;
-          resumableState < completedPreambleSegments.length;
-          resumableState++
+          renderState = hoistableChunks.length = 0;
+          renderState < completedPreambleSegments.length;
+          renderState++
         ) {
-          var segments = completedPreambleSegments[resumableState];
-          for (renderState = 0; renderState < segments.length; renderState++)
-            flushSegment(request, destination, segments[renderState], null);
+          var segments = completedPreambleSegments[renderState];
+          for (preamble = 0; preamble < segments.length; preamble++)
+            flushSegment(request, destination, segments[preamble], null);
         }
         var preamble$jscomp$0 = request.renderState.preamble,
           headChunks$jscomp$0 = preamble$jscomp$0.headChunks;
@@ -6192,28 +6172,34 @@ function flushCompletedQueues(request, destination) {
             writeChunk(destination, bodyChunks[completedPreambleSegments]);
         flushSegment(request, destination, completedRootSegment, null);
         request.completedRootSegment = null;
-        var resumableState$jscomp$0 = request.resumableState,
-          renderState$jscomp$0 = request.renderState;
-        (0 === request.allPendingTasks &&
-          0 === request.clientRenderedBoundaries.length &&
-          0 === request.completedBoundaries.length &&
-          (null === request.trackedPostpones ||
-            (0 === request.trackedPostpones.rootNodes.length &&
-              null === request.trackedPostpones.rootSlots))) ||
-          0 !== (resumableState$jscomp$0.instructions & 64) ||
-          ((resumableState$jscomp$0.instructions |= 64),
-          writeChunk(destination, renderState$jscomp$0.startInlineScript),
-          writeCompletedShellIdAttribute(destination, resumableState$jscomp$0),
-          writeChunk(destination, endOfStartTag),
-          writeChunk(destination, shellTimeRuntimeScript),
-          writeChunkAndReturn(destination, endInlineScript));
-        var preamble$jscomp$1 = renderState$jscomp$0.preamble;
-        (preamble$jscomp$1.htmlChunks || preamble$jscomp$1.headChunks) &&
-          0 === (resumableState$jscomp$0.instructions & 32) &&
-          (writeChunk(destination, startChunkForTag("template")),
-          writeCompletedShellIdAttribute(destination, resumableState$jscomp$0),
-          writeChunk(destination, endOfStartTag),
-          writeChunk(destination, endChunkForTag("template")));
+        var renderState$jscomp$0 = request.renderState;
+        if (
+          0 !== request.allPendingTasks ||
+          0 !== request.clientRenderedBoundaries.length ||
+          0 !== request.completedBoundaries.length ||
+          (null !== request.trackedPostpones &&
+            (0 !== request.trackedPostpones.rootNodes.length ||
+              null !== request.trackedPostpones.rootSlots))
+        ) {
+          var resumableState = request.resumableState;
+          if (0 === (resumableState.instructions & 64)) {
+            resumableState.instructions |= 64;
+            writeChunk(destination, renderState$jscomp$0.startInlineScript);
+            if (0 === (resumableState.instructions & 32)) {
+              resumableState.instructions |= 32;
+              var shellId = "\u00ab" + resumableState.idPrefix + "R\u00bb";
+              writeChunk(destination, completedShellIdAttributeStart);
+              writeChunk(
+                destination,
+                stringToChunk(escapeTextForBrowser(shellId))
+              );
+              writeChunk(destination, attributeEnd);
+            }
+            writeChunk(destination, endOfStartTag);
+            writeChunk(destination, shellTimeRuntimeScript);
+            writeChunkAndReturn(destination, endInlineScript);
+          }
+        }
         writeBootstrap(destination, renderState$jscomp$0);
       }
       var renderState$jscomp$1 = request.renderState;
@@ -6252,7 +6238,7 @@ function flushCompletedQueues(request, destination) {
       for (i = 0; i < clientRenderedBoundaries.length; i++) {
         var boundary = clientRenderedBoundaries[i];
         renderState$jscomp$1 = destination;
-        var resumableState$jscomp$1 = request.resumableState,
+        var resumableState$jscomp$0 = request.resumableState,
           renderState$jscomp$2 = request.renderState,
           id = boundary.rootSegmentID,
           errorDigest = boundary.errorDigest;
@@ -6261,8 +6247,8 @@ function flushCompletedQueues(request, destination) {
           renderState$jscomp$2.startInlineScript
         );
         writeChunk(renderState$jscomp$1, endOfStartTag);
-        0 === (resumableState$jscomp$1.instructions & 4)
-          ? ((resumableState$jscomp$1.instructions |= 4),
+        0 === (resumableState$jscomp$0.instructions & 4)
+          ? ((resumableState$jscomp$0.instructions |= 4),
             writeChunk(renderState$jscomp$1, clientRenderScript1Full))
           : writeChunk(renderState$jscomp$1, clientRenderScript1Partial);
         writeChunk(renderState$jscomp$1, renderState$jscomp$2.boundaryPrefix);
@@ -6446,11 +6432,11 @@ function abort(request, reason) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.2.0-canary-3820740a-20250509" !== isomorphicReactPackageVersion)
+  if ("19.2.0-canary-b94603b9-20250513" !== isomorphicReactPackageVersion)
     throw Error(
       'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
         (isomorphicReactPackageVersion +
-          "\n  - react-dom:  19.2.0-canary-3820740a-20250509\nLearn more: https://react.dev/warnings/version-mismatch")
+          "\n  - react-dom:  19.2.0-canary-b94603b9-20250513\nLearn more: https://react.dev/warnings/version-mismatch")
     );
 }
 ensureCorrectIsomorphicReactVersion();
@@ -6596,4 +6582,4 @@ exports.renderToReadableStream = function (children, options) {
     startWork(request);
   });
 };
-exports.version = "19.2.0-canary-3820740a-20250509";
+exports.version = "19.2.0-canary-b94603b9-20250513";
