@@ -222,4 +222,27 @@ mod tests {
             false,
         );
     }
+
+    #[test]
+    fn export_default_arrow_function() {
+        assert_required(
+            "
+            export default () => <div>Hello</div>;
+            ",
+            true,
+        );
+    }
+
+    #[test]
+    fn not_required_arrow_function() {
+        assert_required(
+            "
+            export default () => {
+                const a = 1;
+                console.log(a);
+            };
+            ",
+            false,
+        );
+    }
 }
