@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('segment cache (incremental opt in)', () => {
+// Backport Note: This test is skipped as it's only currently usable in the experimental release channel.
+describe.skip('segment cache (incremental opt in)', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
