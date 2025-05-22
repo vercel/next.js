@@ -1,5 +1,5 @@
 use swc_core::ecma::{
-    ast::{Callee, Expr, FnDecl, FnExpr, Pat, Program, ReturnStmt, Stmt, VarDeclarator},
+    ast::{Callee, Expr, FnDecl, FnExpr, Pat, Program, Stmt, VarDeclarator},
     visit::{Visit, VisitWith},
 };
 
@@ -75,19 +75,6 @@ impl Visit for Finder {
         self.is_interested = old;
     }
 
-    fn visit_return_stmt(&mut self, node: &ReturnStmt) {
-        if self.is_interested {
-            if let Some(Expr::JSXElement(..) | Expr::JSXEmpty(..) | Expr::JSXFragment(..)) =
-                node.arg.as_deref()
-            {
-                self.found = true;
-                return;
-            }
-        }
-
-        node.visit_children_with(self);
-    }
-
     fn visit_stmt(&mut self, node: &Stmt) {
         if self.found {
             return;
@@ -108,5 +95,80 @@ impl Visit for Finder {
         node.visit_children_with(self);
 
         self.is_interested = old;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use swc_core::{common::FileName, ecma::parser::parse_file_as_program};
+    use testing::run_test2;
+
+    use super::*;
+
+    fn assert_required(code: &str, required: bool) {
+        run_test2(false, |cm, _| {
+            let fm = cm.new_source_file(FileName::Custom("test.tsx".into()).into(), code.into());
+
+            let program = parse_file_as_program(
+                &fm,
+                Default::default(),
+                Default::default(),
+                Default::default(),
+                &mut vec![],
+            )
+            .unwrap();
+
+            assert_eq!(is_required(&program), required);
+
+            Ok(())
+        })
+        .unwrap();
+    }
+
+    #[test]
+    fn lazy_return() {
+        assert_required(
+            "
+            function Foo() {
+                const a = <div>Hello</div>;
+
+                return a
+            }
+            ",
+            true,
+        );
+
+        assert_required(
+            "
+            function Foo() {
+            ",
+            false,
+        );
+    }
+
+    #[test]
+    fn return_jsx() {
+        assert_required(
+            "
+            function Foo() {
+                return <div>Hello</div>;
+            }
+            ",
+            true,
+        );
+    }
+
+    #[test]
+    fn use_hooks() {
+        assert_required(
+            "
+            function Foo(props) {
+                const [a, b] = useState(0);
+
+                return {props.children};
+            }
+            ",
+            true,
+        );
     }
 }
