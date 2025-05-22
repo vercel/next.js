@@ -56,6 +56,8 @@ pub const TURBOPACK_LOAD: &TurbopackRuntimeFunctionShortcut =
     &TurbopackRuntimeFunctionShortcut::new("__turbopack_context__.l", "l");
 pub const TURBOPACK_LOAD_BY_URL: &TurbopackRuntimeFunctionShortcut =
     &TurbopackRuntimeFunctionShortcut::new("__turbopack_context__.L", "L");
+pub const TURBOPACK_LOAD_ENTRY: &TurbopackRuntimeFunctionShortcut =
+    &TurbopackRuntimeFunctionShortcut::new("__turbopack_context__.o", "o");
 pub const TURBOPACK_DYNAMIC: &TurbopackRuntimeFunctionShortcut =
     &TurbopackRuntimeFunctionShortcut::new("__turbopack_context__.j", "j");
 pub const TURBOPACK_RESOLVE_ABSOLUTE_PATH: &TurbopackRuntimeFunctionShortcut =
@@ -81,7 +83,7 @@ pub const TURBOPACK_REQUIRE_REAL: &TurbopackRuntimeFunctionShortcut =
 
 /// Adding an entry to this list will automatically ensure that `__turbopack_XXX__` can be called
 /// from user code (by inserting a replacement into free_var_references)
-pub const TUBROPACK_RUNTIME_FUNCTION_SHORTCUTS: [(&str, &TurbopackRuntimeFunctionShortcut); 21] = [
+pub const TUBROPACK_RUNTIME_FUNCTION_SHORTCUTS: [(&str, &TurbopackRuntimeFunctionShortcut); 22] = [
     ("__turbopack_require__", TURBOPACK_REQUIRE),
     ("__turbopack_module_context__", TURBOPACK_MODULE_CONTEXT),
     ("__turbopack_import__", TURBOPACK_IMPORT),
@@ -92,6 +94,7 @@ pub const TUBROPACK_RUNTIME_FUNCTION_SHORTCUTS: [(&str, &TurbopackRuntimeFunctio
     ("__turbopack_modules__", TURBOPACK_MODULES),
     ("__turbopack_load__", TURBOPACK_LOAD),
     ("__turbopack_load_by_url__", TURBOPACK_LOAD_BY_URL),
+    ("__turbopack_load_entry__", TURBOPACK_LOAD_ENTRY),
     ("__turbopack_dynamic__", TURBOPACK_DYNAMIC),
     (
         "__turbopack_resolve_absolute_path__",

@@ -56,7 +56,7 @@ interface TurbopackNodeBuildContext extends TurbopackBaseContext<Module> {
 type ModuleFactory = (
   this: Module['exports'],
   context: TurbopackNodeBuildContext
-) => undefined
+) => unknown
 
 const url = require('url') as typeof import('url')
 const fs = require('fs/promises') as typeof import('fs/promises')
@@ -84,6 +84,57 @@ function createResolvePathFromModule(
   }
 }
 
+// Load, execute and return the exports of a given file
+async function loadFileAsync(chunkPath: ChunkPath): Promise<any> {
+  const resolved = path.resolve(RUNTIME_ROOT, chunkPath)
+  const contents = await fs.readFile(resolved, 'utf-8')
+  const localRequire = (id: string) => {
+    let resolvedId = require.resolve(id, { paths: [path.dirname(resolved)] })
+    return require(resolvedId)
+  }
+  const module = {
+    exports: {},
+  }
+  // TODO: Use vm.runInThisContext once our minimal supported Node.js version includes https://github.com/nodejs/node/pull/52153
+  // eslint-disable-next-line no-eval -- Can't use vm.runInThisContext due to https://github.com/nodejs/node/issues/52102
+  ;(0, eval)(
+    '(function(module, exports, require, __dirname, __filename) {' +
+      contents +
+      '\n})' +
+      '\n//# sourceURL=' +
+      url.pathToFileURL(resolved)
+  )(module, module.exports, localRequire, path.dirname(resolved), resolved)
+
+  return module.exports
+}
+
+// Loads an entry chunk (which exports a module, not a registry)
+async function loadEntryAsync(source: SourceInfo, chunkPath: ChunkPath) {
+  if (!isJs(chunkPath)) {
+    // We only support loading JS chunks in Node.js.
+    // This branch can be hit when trying to load a CSS chunk.
+    return
+  }
+
+  if (loadedChunks.has(chunkPath)) {
+    return
+  }
+
+  try {
+    return loadFileAsync(chunkPath)
+  } catch (e) {
+    let errorMessage = `Failed to load chunk ${chunkPath}`
+
+    if (source) {
+      errorMessage += ` from ${stringifySourceInfo(source)}`
+    }
+
+    throw new Error(errorMessage, {
+      cause: e,
+    })
+  }
+}
+
 function loadChunk(chunkData: ChunkData, source?: SourceInfo): void {
   if (typeof chunkData === 'string') {
     return loadChunkPath(chunkData, source)
@@ -94,6 +145,7 @@ function loadChunk(chunkData: ChunkData, source?: SourceInfo): void {
 
 const loadedChunks = new Set<ChunkPath>()
 
+// Load a chunk (which exports an object with the module factories)
 function loadChunkPath(chunkPath: ChunkPath, source?: SourceInfo): void {
   if (!isJs(chunkPath)) {
     // We only support loading JS chunks in Node.js.
@@ -128,6 +180,7 @@ function loadChunkPath(chunkPath: ChunkPath, source?: SourceInfo): void {
   }
 }
 
+// Load a chunk (which exports an object with the module factories)
 async function loadChunkAsync(
   source: SourceInfo,
   chunkData: ChunkData
@@ -143,36 +196,26 @@ async function loadChunkAsync(
     return
   }
 
-  const resolved = path.resolve(RUNTIME_ROOT, chunkPath)
-
   try {
-    const contents = await fs.readFile(resolved, 'utf-8')
-
-    const localRequire = (id: string) => {
-      let resolvedId = require.resolve(id, { paths: [path.dirname(resolved)] })
-      return require(resolvedId)
-    }
-    const module = {
-      exports: {},
-    }
-    // TODO: Use vm.runInThisContext once our minimal supported Node.js version includes https://github.com/nodejs/node/pull/52153
-    // eslint-disable-next-line no-eval -- Can't use vm.runInThisContext due to https://github.com/nodejs/node/issues/52102
-    ;(0, eval)(
-      '(function(module, exports, require, __dirname, __filename) {' +
-        contents +
-        '\n})' +
-        '\n//# sourceURL=' +
-        url.pathToFileURL(resolved)
-    )(module, module.exports, localRequire, path.dirname(resolved), resolved)
-
-    const chunkModules: ModuleFactories = module.exports
+    const chunkModules: ModuleFactories = await loadFileAsync(chunkPath)
     for (const [moduleId, moduleFactory] of Object.entries(chunkModules)) {
+      console.log(2, chunkPath, moduleId, '--', moduleFactory)
+      if (typeof moduleFactory !== 'function') {
+        console.trace(3, chunkPath, moduleFactories)
+      }
+      if (
+        typeof moduleFactory === 'function' &&
+        moduleFactory.name !== moduleId
+      ) {
+        console.trace('id mismatch', chunkPath, moduleId, '--', moduleFactory)
+      }
       if (!moduleFactories[moduleId]) {
         moduleFactories[moduleId] = moduleFactory
       }
     }
     loadedChunks.add(chunkPath)
   } catch (e) {
+    console.trace(3, e, chunkPath, moduleFactories)
     let errorMessage = `Failed to load chunk ${chunkPath}`
 
     if (source) {
@@ -277,8 +320,21 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
       m: module,
       c: moduleCache,
       M: moduleFactories,
-      l: loadChunkAsync.bind(null, { type: SourceType.Parent, parentId: id }),
-      L: loadChunkAsyncByUrl.bind(null, {
+      l: (d) => {
+        console.trace('load', d)
+        return loadChunkAsync.bind(null, {
+          type: SourceType.Parent,
+          parentId: id,
+        })(d)
+      },
+      L: (url) => {
+        console.trace('url', url)
+        return loadChunkAsyncByUrl.bind(null, {
+          type: SourceType.Parent,
+          parentId: id,
+        })(url)
+      },
+      o: loadEntryAsync.bind(null, {
         type: SourceType.Parent,
         parentId: id,
       }),

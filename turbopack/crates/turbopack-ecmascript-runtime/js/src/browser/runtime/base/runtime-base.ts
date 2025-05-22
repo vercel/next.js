@@ -224,6 +224,10 @@ async function loadChunkByUrl(source: SourceInfo, chunkUrl: ChunkUrl) {
   }
 }
 
+async function loadEntry() {
+  throw new Error("Entry chunks don't exist in the browser")
+}
+
 async function loadChunkPath(
   source: SourceInfo,
   chunkPath: ChunkPath

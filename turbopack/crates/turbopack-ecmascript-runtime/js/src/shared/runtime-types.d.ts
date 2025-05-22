@@ -13,6 +13,7 @@ type ChunkListScript = CurrentScript & { readonly brand: unique symbol }
 type ChunkPath = string & { readonly brand: unique symbol }
 type ChunkScript = CurrentScript & { readonly brand: unique symbol }
 type ChunkUrl = string & { readonly brand: unique symbol }
+// TODO this should actually be `string | number`
 type ModuleId = string
 
 interface Exports {
@@ -43,6 +44,7 @@ type DynamicExport = (object: Record<string, any>) => void
 
 type LoadChunk = (chunkPath: ChunkPath) => Promise<any> | undefined
 type LoadChunkByUrl = (chunkUrl: ChunkUrl) => Promise<any> | undefined
+type LoadEntry = (chunkUrl: ChunkPath) => Promise<any> | undefined
 type LoadWebAssembly = (
   wasmChunkPath: ChunkPath,
   edgeModule: () => WebAssembly.Module,
@@ -54,7 +56,7 @@ type LoadWebAssemblyModule = (
 ) => WebAssembly.Module
 
 type ModuleCache<M> = Record<ModuleId, M>
-type ModuleFactories = Record<ModuleId, unknown>
+type ModuleFactories = Record<ModuleId, Function>
 
 type RelativeURL = (inputUrl: string) => void
 type ResolvePathFromModule = (moduleId: string) => string
@@ -105,6 +107,7 @@ interface TurbopackBaseContext<M> {
   M: ModuleFactories
   l: LoadChunk
   L: LoadChunkByUrl
+  o: LoadEntry
   w: LoadWebAssembly
   u: LoadWebAssemblyModule
   P: ResolveAbsolutePath
