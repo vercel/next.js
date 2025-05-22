@@ -431,3 +431,5 @@ webbrowser = "0.8.7"
 
 [patch.crates-io]
 mdxjs = { git = "https://github.com/kdy1/mdxjs-rs", branch = "swc-core-26" }
+# Use unreleased version of sourcemap, in the name of performance
+sourcemap = { git = "https://github.com/getsentry/rust-sourcemap", branch = "master" }
