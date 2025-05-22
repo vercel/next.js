@@ -3095,11 +3095,6 @@ export default abstract class Server<
       // is disabled.
       res.statusCode = 204
 
-      res.setHeader(
-        'Cache-Control',
-        'private, no-cache, no-store, max-age=0, must-revalidate'
-      )
-
       if (isRoutePPREnabled) {
         // Set a header to indicate that PPR is enabled for this route. This
         // lets the client distinguish between a regular cache miss and a cache
@@ -3112,7 +3107,7 @@ export default abstract class Server<
       return {
         type: 'rsc',
         body: RenderResult.fromStatic(''),
-        revalidate: cacheEntry?.revalidate,
+        revalidate: 0,
       }
     }
 
