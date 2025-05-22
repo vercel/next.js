@@ -217,3 +217,23 @@ export async function updateUser(id: string) {
 You can reuse the same tag in multiple functions to revalidate them all at once.
 
 See the [`revalidateTag` API reference](/docs/app/api-reference/functions/revalidateTag) to learn more.
+
+### `revalidatePath`
+
+`revalidatePath` is used to revalidate a route and following an event. To use it, call it in a [Route Handler](/docs/app/api-reference/file-conventions/route) or Server Action:
+
+```tsx filename="app/lib/actions.ts" highlight={1} switcher
+import { revalidatePath } from 'next/cache'
+
+export async function updateUser(id: string) {
+  // Mutate data
+  revalidatePath('/profile')
+```
+
+```jsx filename="app/lib/actions.js" highlight={1} switcher
+import { revalidatePath } from 'next/cache'
+
+export async function updateUser(id) {
+  // Mutate data
+  revalidatePath('/profile')
+```
