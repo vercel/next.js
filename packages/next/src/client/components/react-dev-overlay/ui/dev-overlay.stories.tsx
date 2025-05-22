@@ -34,6 +34,12 @@ const state: OverlayState = {
       isDisabled: false,
       disabledUntil: 0,
     },
+    staticPathsInfo: {
+      page: '',
+      pathname: '',
+      staticPaths: [],
+      isPageIncludedInStaticPaths: false,
+    },
   },
   errors: [
     {

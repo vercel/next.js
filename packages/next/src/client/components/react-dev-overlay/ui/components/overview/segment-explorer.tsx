@@ -79,6 +79,12 @@ function PageSegmentTreeLayerPresentation({
   const nodeName = node.value?.type
   const pagePathPrefix = segments.slice(0, -1).join('/')
 
+  const staticPathsInfo = window.__NEXT_DEVTOOLS_CLIENT_STATE?.staticPathsInfo
+  const staticPaths =
+    staticPathsInfo && staticPathsInfo.pathname === `/${pagePathPrefix}`
+      ? staticPathsInfo.staticPaths
+      : []
+
   return (
     <div className="segment-explorer-item">
       {!fileName || level === 0 ? null : (
@@ -95,6 +101,11 @@ function PageSegmentTreeLayerPresentation({
               </span>
               {pagePathPrefix === '' ? '' : `${pagePathPrefix}/`}
               <span className="segment-explorer-filename-path">{fileName}</span>
+              <div>
+                {staticPaths.map((path) => (
+                  <div key={path}>{path}</div>
+                ))}
+              </div>
             </div>
           </div>
         </div>

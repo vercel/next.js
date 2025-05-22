@@ -8,6 +8,12 @@ export type DevToolsServerState = {
   }
   versionInfo: VersionInfo
   debugInfo: DebugInfo
+  staticPathsInfo: {
+    page: string
+    pathname: string
+    staticPaths: string[]
+    isPageIncludedInStaticPaths: boolean
+  }
 }
 
 export const devToolsServerState: DevToolsServerState = {
@@ -21,5 +27,11 @@ export const devToolsServerState: DevToolsServerState = {
   },
   debugInfo: {
     devtoolsFrontendUrl: undefined,
+  },
+  staticPathsInfo: {
+    page: '',
+    pathname: '',
+    staticPaths: [],
+    isPageIncludedInStaticPaths: false,
   },
 }

@@ -613,6 +613,12 @@ export default function HotReload({
     appIsrManifestRef,
   ])
 
+  // Using __NEXT_DEVTOOLS_CLIENT_STATE as we already have it.
+  window.__NEXT_DEVTOOLS_CLIENT_STATE = {
+    ...window.__NEXT_DEVTOOLS_CLIENT_STATE,
+    staticPathsInfo: state.devToolsClientState.staticPathsInfo,
+  }
+
   return (
     <AppDevOverlay state={state} globalError={globalError}>
       {children}
