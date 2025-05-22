@@ -463,6 +463,122 @@ export default async function Layout({ children }) {
 
 ## Examples
 
+### Metadata
+
+You can modify the `<head>` HTML elements such as `title` and `meta` using the [`metadata` object](/docs/app/api-reference/functions/generate-metadata#the-metadata-object) or [`generateMetadata` function](/docs/app/api-reference/functions/generate-metadata#generatemetadata-function).
+
+```tsx filename="app/layout.tsx" switcher
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Next.js',
+}
+
+export default function Layout({ children }: { children: React.ReactNode }) {
+  return '...'
+}
+```
+
+```jsx filename="app/layout.js" switcher
+export const metadata = {
+  title: 'Next.js',
+}
+
+export default function Layout({ children }) {
+  return '...'
+}
+```
+
+> **Good to know**: You should **not** manually add `<head>` tags such as `<title>` and `<meta>` to root layouts. Instead, use the [Metadata APIs](/docs/app/api-reference/functions/generate-metadata) which automatically handles advanced requirements such as streaming and de-duplicating `<head>` elements.
+
+### Active Nav Links
+
+You can use the [`usePathname`](/docs/app/api-reference/functions/use-pathname) hook to determine if a nav link is active.
+
+Since `usePathname` is a client hook, you need to extract the nav links into a Client Component, which can be imported into your layout:
+
+```tsx filename="app/ui/nav-links.tsx" switcher
+'use client'
+
+import { usePathname } from 'next/navigation'
+import Link from 'next/link'
+
+export function NavLinks() {
+  const pathname = usePathname()
+
+  return (
+    <nav>
+      <Link className={`link ${pathname === '/' ? 'active' : ''}`} href="/">
+        Home
+      </Link>
+
+      <Link
+        className={`link ${pathname === '/about' ? 'active' : ''}`}
+        href="/about"
+      >
+        About
+      </Link>
+    </nav>
+  )
+}
+```
+
+```jsx filename="app/ui/nav-links.js" switcher
+'use client'
+
+import { usePathname } from 'next/navigation'
+import Link from 'next/link'
+
+export function Links() {
+  const pathname = usePathname()
+
+  return (
+    <nav>
+      <Link className={`link ${pathname === '/' ? 'active' : ''}`} href="/">
+        Home
+      </Link>
+
+      <Link
+        className={`link ${pathname === '/about' ? 'active' : ''}`}
+        href="/about"
+      >
+        About
+      </Link>
+    </nav>
+  )
+}
+```
+
+```tsx filename="app/layout.tsx" switcher
+import { NavLinks } from '@/app/ui/nav-links'
+
+export default function Layout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body>
+        <NavLinks />
+        <main>{children}</main>
+      </body>
+    </html>
+  )
+}
+```
+
+```jsx filename="app/layout.js" switcher
+import { NavLinks } from '@/app/ui/nav-links'
+
+export default function Layout({ children }) {
+  return (
+    <html lang="en">
+      <body>
+        <NavLinks />
+        <main>{children}</main>
+      </body>
+    </html>
+  )
+}
+```
+
 ### Displaying content based on `params`
 
 Using [dynamic route segments](/docs/app/building-your-application/routing/dynamic-routes), you can display or fetch specific content based on the `params` prop.
