@@ -256,6 +256,8 @@ export function createPatchedFetcher(
           workUnitStore &&
           (workUnitStore.type === 'cache' ||
             workUnitStore.type === 'prerender' ||
+            // TODO: stop accumulating tags in client prerender
+            workUnitStore.type === 'prerender-client' ||
             workUnitStore.type === 'prerender-ppr' ||
             workUnitStore.type === 'prerender-legacy')
             ? workUnitStore
@@ -405,7 +407,11 @@ export function createPatchedFetcher(
         if (
           hasNoExplicitCacheConfig &&
           workUnitStore !== undefined &&
-          workUnitStore.type === 'prerender'
+          (workUnitStore.type === 'prerender' ||
+            // While we don't want to do caching in the client scope
+            // we know the fetch will be dynamic for dynamicIO so we
+            // may as well avoid the call here
+            workUnitStore.type === 'prerender-client')
         ) {
           // If we have no cache config, and we're in Dynamic I/O prerendering, it'll be a dynamic call.
           // We don't have to issue that dynamic call.
@@ -500,22 +506,28 @@ export function createPatchedFetcher(
           // If we were setting the revalidate value to 0, we should try to
           // postpone instead first.
           if (finalRevalidate === 0) {
-            if (workUnitStore && workUnitStore.type === 'prerender') {
-              if (cacheSignal) {
-                cacheSignal.endRead()
-                cacheSignal = null
+            if (workUnitStore) {
+              switch (workUnitStore.type) {
+                case 'prerender':
+                case 'prerender-client':
+                  if (cacheSignal) {
+                    cacheSignal.endRead()
+                    cacheSignal = null
+                  }
+                  return makeHangingPromise<Response>(
+                    workUnitStore.renderSignal,
+                    'fetch()'
+                  )
+                default:
+                // fallthrough
               }
-              return makeHangingPromise<Response>(
-                workUnitStore.renderSignal,
-                'fetch()'
-              )
-            } else {
-              markCurrentScopeAsDynamic(
-                workStore,
-                workUnitStore,
-                `revalidate: 0 fetch ${input} ${workStore.route}`
-              )
             }
+
+            markCurrentScopeAsDynamic(
+              workStore,
+              workUnitStore,
+              `revalidate: 0 fetch ${input} ${workStore.route}`
+            )
           }
 
           // We only want to set the revalidate store's revalidate time if it
@@ -633,7 +645,11 @@ export function createPatchedFetcher(
                     ? CACHE_ONE_YEAR
                     : finalRevalidate
 
-                if (workUnitStore && workUnitStore.type === 'prerender') {
+                if (
+                  workUnitStore &&
+                  (workUnitStore.type === 'prerender' ||
+                    workUnitStore.type === 'prerender-client')
+                ) {
                   // We are prerendering at build time or revalidate time with dynamicIO so we need to
                   // buffer the response so we can guarantee it can be read in a microtask
                   const bodyBuffer = await res.arrayBuffer()
@@ -780,7 +796,11 @@ export function createPatchedFetcher(
               // We sometimes use the cache to dedupe fetches that do not specify a cache configuration
               // In these cases we want to make sure we still exclude them from prerenders if dynamicIO is on
               // so we introduce an artificial Task boundary here.
-              if (workUnitStore && workUnitStore.type === 'prerender') {
+              if (
+                workUnitStore &&
+                (workUnitStore.type === 'prerender' ||
+                  workUnitStore.type === 'prerender-client')
+              ) {
                 await waitAtLeastOneReactRenderTask()
               }
             }
@@ -863,22 +883,27 @@ export function createPatchedFetcher(
 
           if (cache === 'no-store') {
             // If enabled, we should bail out of static generation.
-            if (workUnitStore && workUnitStore.type === 'prerender') {
-              if (cacheSignal) {
-                cacheSignal.endRead()
-                cacheSignal = null
+            if (workUnitStore) {
+              switch (workUnitStore.type) {
+                case 'prerender':
+                case 'prerender-client':
+                  if (cacheSignal) {
+                    cacheSignal.endRead()
+                    cacheSignal = null
+                  }
+                  return makeHangingPromise<Response>(
+                    workUnitStore.renderSignal,
+                    'fetch()'
+                  )
+                default:
+                // fallthrough
               }
-              return makeHangingPromise<Response>(
-                workUnitStore.renderSignal,
-                'fetch()'
-              )
-            } else {
-              markCurrentScopeAsDynamic(
-                workStore,
-                workUnitStore,
-                `no-store fetch ${input} ${workStore.route}`
-              )
             }
+            markCurrentScopeAsDynamic(
+              workStore,
+              workUnitStore,
+              `no-store fetch ${input} ${workStore.route}`
+            )
           }
 
           const hasNextConfig = 'next' in init
@@ -890,18 +915,23 @@ export function createPatchedFetcher(
           ) {
             if (next.revalidate === 0) {
               // If enabled, we should bail out of static generation.
-              if (workUnitStore && workUnitStore.type === 'prerender') {
-                return makeHangingPromise<Response>(
-                  workUnitStore.renderSignal,
-                  'fetch()'
-                )
-              } else {
-                markCurrentScopeAsDynamic(
-                  workStore,
-                  workUnitStore,
-                  `revalidate: 0 fetch ${input} ${workStore.route}`
-                )
+              if (workUnitStore) {
+                switch (workUnitStore.type) {
+                  case 'prerender':
+                  case 'prerender-client':
+                    return makeHangingPromise<Response>(
+                      workUnitStore.renderSignal,
+                      'fetch()'
+                    )
+                  default:
+                  // fallthrough
+                }
               }
+              markCurrentScopeAsDynamic(
+                workStore,
+                workUnitStore,
+                `revalidate: 0 fetch ${input} ${workStore.route}`
+              )
             }
 
             if (!workStore.forceStatic || next.revalidate !== 0) {
