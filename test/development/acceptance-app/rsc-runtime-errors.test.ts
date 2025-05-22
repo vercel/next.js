@@ -23,9 +23,9 @@ describe('Error overlay - RSC runtime errors', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
-       "description": "TypeError: useState only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component",
+       "description": "useState only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component",
        "environmentLabel": "Server",
-       "label": "Runtime Error",
+       "label": "Runtime TypeError",
        "source": "app/server/page.js (3:16) @ Page
      > 3 |   callClientApi()
          |                ^",
@@ -55,7 +55,7 @@ describe('Error overlay - RSC runtime errors', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error: \`cookies\` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context",
+         "description": "\`cookies\` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "app/client/page.js (4:15) @ Page
@@ -69,7 +69,7 @@ describe('Error overlay - RSC runtime errors', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error: \`cookies\` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context",
+         "description": "\`cookies\` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "app/client/page.js (4:16) @ Page
@@ -97,9 +97,9 @@ describe('Error overlay - RSC runtime errors', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
-       "description": "ReferenceError: alert is not defined",
+       "description": "alert is not defined",
        "environmentLabel": "Server",
-       "label": "Runtime Error",
+       "label": "Runtime ReferenceError",
        "source": "app/server/page.js (2:16) @ Page
      > 2 |   return <div>{alert('warn')}</div>
          |                ^",

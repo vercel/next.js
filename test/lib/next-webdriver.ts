@@ -1,9 +1,12 @@
 import { getFullUrl, waitFor } from 'next-test-utils'
 import os from 'os'
-import { BrowserInterface } from './browsers/base'
+import { Playwright } from './browsers/playwright'
+import { Page } from 'playwright'
+
+export type { Playwright }
 
 if (!process.env.TEST_FILE_PATH) {
-  process.env.TEST_FILE_PATH = module.parent.filename
+  process.env.TEST_FILE_PATH = module.parent!.filename
 }
 
 let deviceIP: string
@@ -15,7 +18,7 @@ if (isBrowserStack) {
   for (const key of Object.keys(nets)) {
     let done = false
 
-    for (const item of nets[key]) {
+    for (const item of nets[key]!) {
       if (item.family === 'IPv4' && !item.internal) {
         deviceIP = item.address
         done = true
@@ -59,7 +62,7 @@ export interface WebdriverOptions {
    * @param page
    * @returns
    */
-  beforePageLoad?: (page: any) => void
+  beforePageLoad?: (page: Page) => void
   /**
    * browser locale
    */
@@ -92,9 +95,7 @@ export default async function webdriver(
   appPortOrUrl: string | number,
   url: string,
   options?: WebdriverOptions
-): Promise<BrowserInterface> {
-  let CurrentInterface: new () => BrowserInterface
-
+): Promise<Playwright> {
   const defaultOptions = {
     waitHydration: true,
     retryWaitHydration: false,
@@ -116,16 +117,15 @@ export default async function webdriver(
   } = options
 
   const { Playwright, quit } = await import('./browsers/playwright')
-  CurrentInterface = Playwright
   browserQuit = quit
 
-  const browser = new CurrentInterface()
+  const browser = new Playwright()
   const browserName = process.env.BROWSER_NAME || 'chrome'
   await browser.setup(
     browserName,
-    locale,
+    locale!,
     !disableJavaScript,
-    ignoreHTTPSErrors,
+    Boolean(ignoreHTTPSErrors),
     // allow headless to be overwritten for a particular test
     typeof headless !== 'undefined' ? headless : !!process.env.HEADLESS,
     userAgent
@@ -155,33 +155,33 @@ export default async function webdriver(
     console.log(`\n> Waiting hydration for ${fullUrl}\n`)
 
     const checkHydrated = async () => {
-      await browser.evalAsync(function () {
-        var callback = arguments[arguments.length - 1]
-
-        // if it's not a Next.js app return
-        if (
-          !document.documentElement.innerHTML.includes('__NEXT_DATA__') &&
-          // @ts-ignore next exists on window if it's a Next.js page.
-          typeof ((window as any).next && (window as any).next.version) ===
-            'undefined'
-        ) {
-          console.log('Not a next.js page, resolving hydrate check')
-          callback()
-        }
-
-        // TODO: should we also ensure router.isReady is true
-        // by default before resolving?
-        if ((window as any).__NEXT_HYDRATED) {
-          console.log('Next.js page already hydrated')
-          callback()
-        } else {
-          var timeout = setTimeout(callback, 10 * 1000)
-          ;(window as any).__NEXT_HYDRATED_CB = function () {
-            clearTimeout(timeout)
-            console.log('Next.js hydrate callback fired')
+      await browser.eval(() => {
+        return new Promise<void>((callback) => {
+          // if it's not a Next.js app return
+          if (
+            !document.documentElement.innerHTML.includes('__NEXT_DATA__') &&
+            // @ts-ignore next exists on window if it's a Next.js page.
+            typeof ((window as any).next && (window as any).next.version) ===
+              'undefined'
+          ) {
+            console.log('Not a next.js page, resolving hydrate check')
             callback()
           }
-        }
+
+          // TODO: should we also ensure router.isReady is true
+          // by default before resolving?
+          if ((window as any).__NEXT_HYDRATED) {
+            console.log('Next.js page already hydrated')
+            callback()
+          } else {
+            let timeout = setTimeout(callback, 10 * 1000)
+            ;(window as any).__NEXT_HYDRATED_CB = function () {
+              clearTimeout(timeout)
+              console.log('Next.js hydrate callback fired')
+              callback()
+            }
+          }
+        })
       })
     }
 
@@ -209,5 +209,3 @@ export default async function webdriver(
   }
   return browser
 }
-
-export { BrowserInterface }

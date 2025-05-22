@@ -11,7 +11,7 @@ import {
   getRedboxTotalErrorCount,
   openRedbox,
 } from './next-test-utils'
-import type { BrowserInterface } from './browsers/base'
+import type { Playwright } from 'next-webdriver'
 import { NextInstance } from 'e2e-utils'
 
 declare global {
@@ -37,7 +37,10 @@ declare global {
        *
        * @param inlineSnapshot - The snapshot to compare against.
        */
-      toDisplayRedbox(inlineSnapshot?: string): Promise<void>
+      toDisplayRedbox(
+        inlineSnapshot?: string,
+        opts?: ErrorSnapshotOptions
+      ): Promise<void>
 
       /**
        * Inline snapshot matcher for a Redbox that's collapsed by default.
@@ -57,27 +60,35 @@ declare global {
        *
        * @param inlineSnapshot - The snapshot to compare against.
        */
-      toDisplayCollapsedRedbox(inlineSnapshot?: string): Promise<void>
+      toDisplayCollapsedRedbox(
+        inlineSnapshot?: string,
+        opts?: ErrorSnapshotOptions
+      ): Promise<void>
     }
   }
 }
 
+interface ErrorSnapshotOptions {
+  label?: boolean
+}
+
 interface ErrorSnapshot {
-  environmentLabel: string
-  label: string
-  description: string
+  environmentLabel: string | null
+  label: string | null
+  description: string | null
   componentStack?: string
-  source: string
-  stack: string[]
+  source: string | null
+  stack: string[] | null
 }
 
 async function createErrorSnapshot(
-  browser: BrowserInterface,
-  next: NextInstance | null
+  browser: Playwright,
+  next: NextInstance | null,
+  { label: includeLabel = true }: ErrorSnapshotOptions = {}
 ): Promise<ErrorSnapshot> {
   const [label, environmentLabel, description, source, stack, componentStack] =
     await Promise.all([
-      getRedboxLabel(browser),
+      includeLabel ? getRedboxLabel(browser) : null,
       getRedboxEnvironmentLabel(browser),
       getRedboxDescription(browser),
       getRedboxSource(browser),
@@ -134,18 +145,35 @@ async function createErrorSnapshot(
         '<FIXME-project-root>'
       )
     }
+
+    // This is the processed path the nextjs file from node_modules,
+    // likely not being processed properly and it's not deterministic among tests.
+    // e.g. it could be a encoded url of loader path:
+    // ../packages/next/dist/build/webpack/loaders/next-app-loader/index.js...
+    const sourceLines = focusedSource.split('\n')
+    if (
+      sourceLines[0].startsWith('./node_modules/.pnpm/next@file+') ||
+      sourceLines[0].startsWith('./node_modules/.pnpm/file+') ||
+      // e.g. "next-app-loader?<SEARCH PARAMS>" (in rspack, the loader doesn't seem to be prefixed with node_modules)
+      /^next-[a-zA-Z0-9\-_]+?-loader\?/.test(sourceLines[0])
+    ) {
+      focusedSource =
+        `<FIXME-nextjs-internal-source>` +
+        '\n' +
+        sourceLines.slice(1).join('\n')
+    }
   }
 
   const snapshot: ErrorSnapshot = {
     environmentLabel,
-    label,
+    label: label ?? '<FIXME-excluded-label>',
     description:
       description !== null && next !== null
         ? description.replace(next.testDir, '<FIXME-project-root>')
         : description,
     source: focusedSource,
     stack:
-      next !== null
+      next !== null && stack !== null
         ? stack.map((stackframe) => {
             return stackframe.replace(next.testDir, '<FIXME-project-root>')
           })
@@ -164,14 +192,15 @@ async function createErrorSnapshot(
 type RedboxSnapshot = ErrorSnapshot | ErrorSnapshot[]
 
 async function createRedboxSnapshot(
-  browser: BrowserInterface,
-  next: NextInstance | null
+  browser: Playwright,
+  next: NextInstance | null,
+  opts?: ErrorSnapshotOptions
 ): Promise<RedboxSnapshot> {
   const errorTally = await getRedboxTotalErrorCount(browser)
   const errorSnapshots: ErrorSnapshot[] = []
 
   for (let errorIndex = 0; errorIndex < errorTally; errorIndex++) {
-    const errorSnapshot = await createErrorSnapshot(browser, next)
+    const errorSnapshot = await createErrorSnapshot(browser, next, opts)
     errorSnapshots.push(errorSnapshot)
 
     if (errorIndex < errorTally - 1) {
@@ -196,13 +225,12 @@ async function createRedboxSnapshot(
 expect.extend({
   async toDisplayRedbox(
     this: MatcherContext,
-    browserOrContext:
-      | BrowserInterface
-      | { browser: BrowserInterface; next: NextInstance },
-    expectedRedboxSnapshot?: string
+    browserOrContext: Playwright | { browser: Playwright; next: NextInstance },
+    expectedRedboxSnapshot?: string,
+    opts?: ErrorSnapshotOptions
   ) {
-    let browser: BrowserInterface
-    let next: NextInstance
+    let browser: Playwright
+    let next: NextInstance | null
     if ('browser' in browserOrContext && 'next' in browserOrContext) {
       browser = browserOrContext.browser
       next = browserOrContext.next
@@ -235,7 +263,7 @@ expect.extend({
       }
     }
 
-    const redbox = await createRedboxSnapshot(browser, next)
+    const redbox = await createRedboxSnapshot(browser, next, opts)
 
     // argument length is relevant.
     // Jest will update absent snapshots but fail if you specify a snapshot even if undefined.
@@ -247,12 +275,11 @@ expect.extend({
   },
   async toDisplayCollapsedRedbox(
     this: MatcherContext,
-    browserOrContext:
-      | BrowserInterface
-      | { browser: BrowserInterface; next: NextInstance },
-    expectedRedboxSnapshot?: string
+    browserOrContext: Playwright | { browser: Playwright; next: NextInstance },
+    expectedRedboxSnapshot?: string,
+    opts?: ErrorSnapshotOptions
   ) {
-    let browser: BrowserInterface
+    let browser: Playwright
     let next: NextInstance | null
     if ('browser' in browserOrContext && 'next' in browserOrContext) {
       browser = browserOrContext.browser
@@ -293,7 +320,7 @@ expect.extend({
       }
     }
 
-    const redbox = await createRedboxSnapshot(browser, next)
+    const redbox = await createRedboxSnapshot(browser, next, opts)
 
     // argument length is relevant.
     // Jest will update absent snapshots but fail if you specify a snapshot even if undefined.

@@ -1,7 +1,10 @@
 import * as Bus from './bus'
 import { parseStack } from '../utils/parse-stack'
 import { parseComponentStack } from '../utils/parse-component-stack'
-import { storeHydrationErrorStateFromConsoleArgs } from '../../errors/hydration-error-info'
+import {
+  attachHydrationErrorState,
+  storeHydrationErrorStateFromConsoleArgs,
+} from './hydration-error-state'
 import {
   ACTION_BEFORE_REFRESH,
   ACTION_BUILD_ERROR,
@@ -14,7 +17,6 @@ import {
   ACTION_VERSION_INFO,
 } from '../shared'
 import type { VersionInfo } from '../../../../server/dev/parse-version-info'
-import { attachHydrationErrorState } from '../../errors/attach-hydration-error-state'
 import { getComponentStack, getOwnerStack } from '../../errors/stitched-error'
 import type { DevIndicatorServerState } from '../../../../server/dev/dev-indicator-server-state'
 
@@ -53,9 +55,10 @@ function handleError(error: unknown) {
 let origConsoleError = console.error
 function nextJsHandleConsoleError(...args: any[]) {
   // See https://github.com/facebook/react/blob/d50323eb845c5fde0d720cae888bf35dedd05506/packages/react-reconciler/src/ReactFiberErrorLogger.js#L78
-  const error = process.env.NODE_ENV !== 'production' ? args[1] : args[0]
+  const maybeError = process.env.NODE_ENV !== 'production' ? args[1] : args[0]
   storeHydrationErrorStateFromConsoleArgs(...args)
-  handleError(error)
+  // TODO: Surfaces non-errors logged via `console.error`.
+  handleError(maybeError)
   origConsoleError.apply(window.console, args)
 }
 

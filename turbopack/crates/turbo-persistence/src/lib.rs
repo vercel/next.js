@@ -1,6 +1,7 @@
 #![feature(once_cell_try)]
 #![feature(new_zeroed_alloc)]
 #![feature(get_mut_unchecked)]
+#![feature(sync_unsafe_cell)]
 
 mod arc_slice;
 mod collector;
@@ -17,8 +18,10 @@ mod write_batch;
 
 #[cfg(test)]
 mod tests;
+mod value_buf;
 
 pub use arc_slice::ArcSlice;
 pub use db::TurboPersistence;
-pub use key::{QueryKey, StoreKey};
+pub use key::{KeyBase, QueryKey, StoreKey};
+pub use value_buf::ValueBuffer;
 pub use write_batch::WriteBatch;

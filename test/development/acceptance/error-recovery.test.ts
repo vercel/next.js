@@ -80,7 +80,7 @@ describe('pages/ error recovery', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error:   x Unexpected eof",
+         "description": "  x Unexpected eof",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
@@ -159,7 +159,7 @@ describe('pages/ error recovery', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
-       "description": "Error: oops",
+       "description": "oops",
        "environmentLabel": null,
        "label": "Runtime Error",
        "source": "index.js (7:11) @ Index.useCallback[increment]
@@ -252,7 +252,7 @@ describe('pages/ error recovery', () => {
       await expect(browser).toDisplayRedbox(`
        [
          {
-           "description": "Error: oops",
+           "description": "oops",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": "child.js (3:9) @ Child
@@ -266,7 +266,7 @@ describe('pages/ error recovery', () => {
            ],
          },
          {
-           "description": "Error: oops",
+           "description": "oops",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": "child.js (3:9) @ Child
@@ -284,7 +284,7 @@ describe('pages/ error recovery', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error: oops",
+         "description": "oops",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "child.js (3:9) @ Child
@@ -400,7 +400,7 @@ describe('pages/ error recovery', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error:   x Expected '{', got 'return'",
+         "description": "  x Expected '{', got 'return'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
@@ -486,7 +486,7 @@ describe('pages/ error recovery', () => {
     } else {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "description": "Error:   x Expected '{', got 'throw'",
+         "description": "  x Expected '{', got 'throw'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
@@ -540,7 +540,7 @@ describe('pages/ error recovery', () => {
       await expect(browser).toDisplayRedbox(`
        [
          {
-           "description": "Error: nooo",
+           "description": "nooo",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": "index.js (5:11) @ ClassDefault.render
@@ -554,7 +554,7 @@ describe('pages/ error recovery', () => {
            ],
          },
          {
-           "description": "Error: nooo",
+           "description": "nooo",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": "index.js (5:11) @ ClassDefault.render
@@ -573,7 +573,7 @@ describe('pages/ error recovery', () => {
       if (process.env.NEXT_RSPACK) {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "Error: nooo",
+           "description": "nooo",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": "index.js (5:11) @ ClassDefault.render
@@ -587,7 +587,7 @@ describe('pages/ error recovery', () => {
       } else {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "Error: nooo",
+           "description": "nooo",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": "index.js (5:11) @ ClassDefault.render
@@ -656,9 +656,9 @@ describe('pages/ error recovery', () => {
       await expect(browser).toDisplayRedbox(`
        [
          {
-           "description": "ReferenceError: React is not defined",
+           "description": "React is not defined",
            "environmentLabel": null,
-           "label": "Runtime Error",
+           "label": "Runtime ReferenceError",
            "source": "Foo.js (3:3) @ Foo
        > 3 |   return React.createElement('h1', null, 'Foo');
            |   ^",
@@ -670,9 +670,9 @@ describe('pages/ error recovery', () => {
            ],
          },
          {
-           "description": "ReferenceError: React is not defined",
+           "description": "React is not defined",
            "environmentLabel": null,
-           "label": "Runtime Error",
+           "label": "Runtime ReferenceError",
            "source": "Foo.js (3:3) @ Foo
        > 3 |   return React.createElement('h1', null, 'Foo');
            |   ^",
@@ -688,9 +688,9 @@ describe('pages/ error recovery', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "ReferenceError: React is not defined",
+         "description": "React is not defined",
          "environmentLabel": null,
-         "label": "Runtime Error",
+         "label": "Runtime ReferenceError",
          "source": "Foo.js (3:3) @ Foo
        > 3 |   return React.createElement('h1', null, 'Foo');
            |   ^",
@@ -755,7 +755,7 @@ describe('pages/ error recovery', () => {
     if (process.env.NEXT_RSPACK) {
       await expect(browser).toDisplayRedbox(`
             {
-              "description": "Error: no 1",
+              "description": "no 1",
               "environmentLabel": null,
               "label": "Runtime Error",
               "source": "index.js (5:9) @ <unknown>
@@ -769,7 +769,7 @@ describe('pages/ error recovery', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error: no 1",
+         "description": "no 1",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "index.js (5:9) @ eval
@@ -841,7 +841,7 @@ describe('pages/ error recovery', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error:   x Expected '}', got '<eof>'",
+         "description": "  x Expected '}', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
@@ -909,7 +909,7 @@ describe('pages/ error recovery', () => {
     } else {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "description": "Error:   x Expected '}', got '<eof>'",
+         "description": "  x Expected '}', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js

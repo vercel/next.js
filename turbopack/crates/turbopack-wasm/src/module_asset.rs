@@ -1,12 +1,12 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{fxindexmap, ResolvedVc, Value, Vc};
+use turbo_tasks::{ResolvedVc, Value, Vc, fxindexmap};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        chunk_group::references_to_output_assets, AsyncModuleInfo, ChunkItem, ChunkType,
-        ChunkableModule, ChunkingContext,
+        AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext,
+        chunk_group::references_to_output_assets,
     },
     context::AssetContext,
     ident::AssetIdent,

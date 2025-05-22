@@ -18,17 +18,13 @@ export function setOwnerStack(error: Error, stack: string | null) {
   ownerStacks.set(error, stack)
 }
 
-export function getReactStitchedError(err: unknown): Error {
-  const newError = isError(err)
-    ? err
-    : // TODO: stringify thrown value
-      new Error('Thrown value was ignored. This is a bug in Next.js.')
+export function coerceError(value: unknown): Error {
+  return isError(value) ? value : new Error('' + value)
+}
 
+export function setOwnerStackIfAvailable(error: Error): void {
   // React 18 and prod does not have `captureOwnerStack`
   if ('captureOwnerStack' in React) {
-    // TODO: Hoist these to callsites to ensure we set the correct Owner Stack.
-    setOwnerStack(newError, React.captureOwnerStack())
+    setOwnerStack(error, React.captureOwnerStack())
   }
-
-  return newError
 }

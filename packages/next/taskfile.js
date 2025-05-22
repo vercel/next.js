@@ -8,6 +8,7 @@ const fs = require('fs/promises')
 const resolveFrom = require('resolve-from')
 const execa = require('execa')
 const process = require('process')
+const recast = require('recast')
 
 export async function next__polyfill_nomodule(task, opts) {
   await task
@@ -90,6 +91,19 @@ export async function ncc_node_html_parser(task, opts) {
       target: 'es5',
     })
     .target('src/compiled/node-html-parser')
+}
+
+// eslint-disable-next-line camelcase
+externals['busboy'] = 'next/dist/compiled/busboy'
+export async function ncc_busboy(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('busboy')))
+    .ncc({
+      packageName: 'busboy',
+      externals,
+      target: 'es5',
+    })
+    .target('src/compiled/busboy')
 }
 
 // eslint-disable-next-line camelcase
@@ -1620,11 +1634,11 @@ export async function copy_vendor_react(task_) {
             filepath
           )
         ) {
-          newSource = replaceSetTimeout({
-            code: newSource,
-            file: filepath,
-            insertBefore: /\n\s*exports\.version =/,
+          const ast = parseFile(newSource, {
+            sourceFileName: filepath,
           })
+          replaceSetTimeoutInAst(ast, filepath)
+          newSource = recast.print(ast).code
         }
 
         file.data = newSource
@@ -1634,11 +1648,10 @@ export async function copy_vendor_react(task_) {
       })
       .target(`src/compiled/react-dom${packageSuffix}/cjs`)
 
-    function replaceSetTimeout({
-      code,
-      file,
-      insertBefore: insertBeforePattern,
-    }) {
+    function replaceSetTimeoutInAst(
+      /** @type {recast.types.namedTypes.File} */ ast,
+      /** @type {string} */ filepath
+    ) {
       // FIXME: we need this hack until we can use the Node build of 'react-dom/server'
       //
       // We're currently using the Edge builds of 'react-dom/server' and 'react-server-dom-{webpack,turbopack}' everywhere.
@@ -1652,41 +1665,166 @@ export async function copy_vendor_react(task_) {
       //   setTimeout(() => ..., 0)
       // into this:
       //   setImmediate(() => ...)
-      //
-      // ReactDOM only ever calls `setTimeout` with `0` (and no further arguments),
-      // so we can just naively replace `setTimeout` with `setImmediate`.
-      // Technically the `0` will then be passed to the callback as an argument,
-      // but the callbacks will always ignore it anyway.
 
-      // NOTE: we have to replace these before inserting the definition of `setTimeoutOrImmediate`,
-      // otherwise we'd break it!
-      code = code.replaceAll(`setTimeout`, `setTimeoutOrImmediate`)
+      recast.types.namedTypes.File.assert(ast)
+      const definitionStr = outdent`
+        // This is a patch added by Next.js
+        const setTimeoutOrImmediate =
+          typeof globalThis["set" + "Immediate"] === "function" &&
+          // edge runtime sandbox defines a stub for setImmediate
+          // (see 'addStub' in packages/next/src/server/web/sandbox/context.ts)
+          // but it's made non-enumerable, so we can detect it
+          globalThis.propertyIsEnumerable("setImmediate")
+            ? globalThis["set" + "Immediate"]
+            : (callback, ...args) => setTimeout(callback, 0, ...args);
 
-      const insertionPoint = code.search(insertBeforePattern)
-      if (insertionPoint === -1) {
+      `
+      const getDefinitionStmt = () => {
+        const fileAst = /** @type {recast.types.namedTypes.File} */ (
+          recast.parse(definitionStr)
+        )
+        return fileAst.program.body[0]
+      }
+
+      let needsDefinition = false
+      recast.visit(ast, {
+        visitCallExpression(path) {
+          const { callee, arguments: args } = path.node
+
+          if (callee.type === 'Identifier' && callee.name === 'setTimeout') {
+            const durationArg = args.length >= 2 ? args[1] : undefined
+            if (
+              // `setTimeout(fn)`
+              !durationArg ||
+              // `setTimeout(fn, 0, ...)`
+              (durationArg.type === 'Literal' && durationArg.value === 0) ||
+              // `setTimeout(fn, undefined, ...)`
+              (durationArg.type === 'Identifier' &&
+                durationArg.name === 'undefined')
+            ) {
+              needsDefinition = true
+              // setTimeout(fn, 0, ...) ->
+              // setTimeoutOrImmediate(fn, ...)
+              callee.name = 'setTimeoutOrImmediate'
+              path.node.arguments = [args[0], ...args.slice(2)]
+            }
+          }
+          this.traverse(path)
+        },
+      })
+
+      if (!needsDefinition) {
+        return
+      }
+
+      let didInsertDefinition = false
+      recast.visit(ast, {
+        visitAssignmentExpression(path) {
+          // we should only insert the definition of `setTimeoutOrImmediate` once.
+          if (didInsertDefinition) {
+            return false
+          }
+
+          // Find the first `exports.NAME = ...` assignment
+          const { left: target } = path.node
+          if (
+            target.type === 'MemberExpression' &&
+            target.object.type === 'Identifier' &&
+            target.object.name === 'exports' &&
+            // we don't care about which export is being assigned.
+            target.property.type === 'Identifier'
+          ) {
+            didInsertDefinition = true
+            // We expect `exports` assignments to happen:
+            // - at the top level for prod builds of react
+            // - inside an IIFE for dev builds of react
+            // In either case, we now need find an ancestor node we can insert the definition into.
+            const blocklikeAncestor = findBlocklikeAncestor(
+              /** @type {recast.types.NodePath} */ (path)
+            )
+            if (!blocklikeAncestor) {
+              throw new Error('Could not find a block to insert definition')
+            }
+            blocklikeAncestor.insertAt(0, getDefinitionStmt())
+          }
+
+          // we don't care about any assignment expressions that might happen in the RHS,
+          // React doesn't do that
+          return false
+        },
+      })
+      if (!didInsertDefinition) {
         throw new Error(
-          `Cannot find insertion point for setTimeoutOrImmediate in ${file}`
+          `Failed to find an insertion point for \`setTimeout\` replacement in '${filepath}'`
         )
       }
 
-      const toInsert =
-        '\n\n' +
-        outdent`
-          // This is a patch added by Next.js
-          const setTimeoutOrImmediate =
-            typeof globalThis['set' + 'Immediate'] === 'function' &&
-            // edge runtime sandbox defines a stub for setImmediate
-            // (see 'addStub' in packages/next/src/server/web/sandbox/context.ts)
-            // but it's made non-enumerable, so we can detect it
-            globalThis.propertyIsEnumerable('setImmediate')
-              ? globalThis['set' + 'Immediate']
-              : setTimeout;
-        ` +
-        '\n'
+      function findBlocklikeAncestor(
+        /** @type {recast.types.NodePath} */ path
+      ) {
+        /** @type {recast.types.NodePath | null} */
+        let current = path
+        while (current) {
+          if (
+            recast.types.namedTypes.BlockStatement.check(current.node) ||
+            recast.types.namedTypes.Program.check(current.node)
+          ) {
+            break
+          } else {
+            current = current.parentPath
+          }
+        }
+        return current
+      }
+    }
 
-      return (
-        code.slice(0, insertionPoint) + toInsert + code.slice(insertionPoint)
-      )
+    function replaceIdentifiersInAst(
+      /** @type {recast.types.namedTypes.File} */ ast,
+      /** @type {Map<string, ExpressionKind>} */ replacements
+    ) {
+      recast.types.namedTypes.File.assert(ast)
+      recast.visit(ast, {
+        visitIdentifier(path) {
+          const replacement = replacements.get(path.node.name)
+          if (replacement !== undefined) {
+            path.replace(replacement)
+          }
+          this.traverse(path)
+        },
+      })
+    }
+
+    function parseFile(
+      /** @type {string} */ code,
+      /** @type {recast.Options} */ opts
+    ) {
+      /** @type {recast.types.namedTypes.File} */
+      const file = recast.parse(code, {
+        parser: {
+          parse(source, options) {
+            return require('recast/parsers/acorn').parse(source, {
+              ...options,
+              // allow `import()` in `react-server-dom-{webpack,turbopack}-client.node.unbundled.development.js`
+              ecmaVersion: 'latest',
+              sourceType: 'script',
+            })
+          },
+        },
+        ...opts,
+      })
+      return file
+    }
+
+    /** @typedef {ReturnType<typeof parseExpression>} ExpressionKind */
+
+    function parseExpression(/** @type {string} */ exprCode) {
+      /** @type {recast.types.namedTypes.File} */
+      const ast = recast.parse(`(${exprCode});`)
+      const statement =
+        /** @type {recast.types.namedTypes.ExpressionStatement} */ (
+          ast.program.body[0]
+        )
+      return statement.expression
     }
 
     // Remove unused files
@@ -1740,19 +1878,22 @@ export async function copy_vendor_react(task_) {
           (file.base.startsWith('react-server-dom-webpack-server') &&
             !file.base.startsWith('react-server-dom-webpack-server.browser'))
         ) {
+          const filepath = file.dir + '/' + file.base
           const source = file.data.toString()
-          let newSource = source.replace(
-            /__webpack_require__/g,
-            'globalThis.__next_require__'
+          const ast = parseFile(source, { sourceFileName: filepath })
+          replaceIdentifiersInAst(
+            ast,
+            new Map([
+              [
+                '__webpack_require__',
+                parseExpression('globalThis.__next_require__'),
+              ],
+            ])
           )
           if (file.base.startsWith('react-server-dom-webpack-server.edge')) {
-            newSource = replaceSetTimeout({
-              code: newSource,
-              file: file.base,
-              insertBefore: /\n\s*exports\.renderToReadableStream =/,
-            })
+            replaceSetTimeoutInAst(ast, filepath)
           }
-          file.data = newSource
+          file.data = recast.print(ast).code
         } else if (file.base === 'package.json') {
           file.data = overridePackageName(file.data)
         }
@@ -1790,31 +1931,46 @@ export async function copy_vendor_react(task_) {
 
         if (file.base.startsWith('react-server-dom-turbopack-client.browser')) {
           const source = file.data.toString()
-          let newSource = source.replace(
-            /__turbopack_load__/g,
-            '__turbopack_load_by_url__'
+          const filepath = file.dir + '/' + file.base
+          const ast = parseFile(source, { sourceFileName: filepath })
+          replaceIdentifiersInAst(
+            ast,
+            new Map([
+              [
+                '__turbopack_load__',
+                parseExpression('__turbopack_load_by_url__'),
+              ],
+            ])
           )
-
-          file.data = newSource
+          file.data = recast.print(ast).code
         } else if (
           file.base.startsWith('react-server-dom-turbopack-client') ||
           (file.base.startsWith('react-server-dom-turbopack-server') &&
             !file.base.startsWith('react-server-dom-turbopack-server.browser'))
         ) {
           const source = file.data.toString()
-          let newSource = source
-            .replace(/__turbopack_load__/g, 'globalThis.__next_chunk_load__')
-            .replace(/__turbopack_require__/g, 'globalThis.__next_require__')
+          const filepath = file.dir + '/' + file.base
+          const ast = parseFile(source, { sourceFileName: filepath })
+
+          replaceIdentifiersInAst(
+            ast,
+            new Map([
+              [
+                '__turbopack_load__',
+                parseExpression('globalThis.__next_chunk_load__'),
+              ],
+              [
+                '__turbopack_require__',
+                parseExpression('globalThis.__next_require__'),
+              ],
+            ])
+          )
 
           if (file.base.startsWith('react-server-dom-turbopack-server.edge')) {
-            newSource = replaceSetTimeout({
-              code: newSource,
-              file: file.base,
-              insertBefore: /\n\s*exports\.renderToReadableStream =/,
-            })
+            replaceSetTimeoutInAst(ast, filepath)
           }
 
-          file.data = newSource
+          file.data = recast.print(ast).code
         } else if (file.base === 'package.json') {
           file.data = overridePackageName(file.data)
         }
@@ -2234,14 +2390,6 @@ export async function ncc_https_proxy_agent(task, opts) {
     .target('src/compiled/https-proxy-agent')
 }
 
-externals['@typescript/vfs'] = 'next/dist/compiled/@typescript/vfs'
-export async function ncc_typescript_vfs(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('@typescript/vfs')))
-    .ncc({ packageName: '@typescript/vfs', externals })
-    .target('src/compiled/@typescript/vfs')
-}
-
 export async function precompile(task, opts) {
   await task.parallel(
     ['browser_polyfills', 'copy_ncced', 'copy_styled_jsx_assets'],
@@ -2389,7 +2537,6 @@ export async function ncc(task, opts) {
         'ncc_opentelemetry_api',
         'ncc_http_proxy_agent',
         'ncc_https_proxy_agent',
-        'ncc_typescript_vfs',
         'ncc_mini_css_extract_plugin',
       ],
       opts
@@ -2411,6 +2558,7 @@ export async function ncc(task, opts) {
       'ncc_edge_runtime_primitives',
       'ncc_edge_runtime_ponyfill',
       'ncc_edge_runtime',
+      'ncc_busboy',
       'ncc_mswjs_interceptors',
       'ncc_rsc_poison_packages',
     ],

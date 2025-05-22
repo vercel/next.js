@@ -1,3 +1,12 @@
+// This is a patch added by Next.js
+const setTimeoutOrImmediate =
+  typeof globalThis["set" + "Immediate"] === "function" &&
+  // edge runtime sandbox defines a stub for setImmediate
+  // (see 'addStub' in packages/next/src/server/web/sandbox/context.ts)
+  // but it's made non-enumerable, so we can detect it
+  globalThis.propertyIsEnumerable("setImmediate")
+    ? globalThis["set" + "Immediate"]
+    : (callback, ...args) => setTimeout(callback, 0, ...args);
 /**
  * @license React
  * react-dom-server.edge.production.js
@@ -2446,11 +2455,11 @@ var completeSegmentScript1Full = stringToPrecomputedChunk(
 stringToPrecomputedChunk('<template data-rsi="" data-sid="');
 stringToPrecomputedChunk('" data-pid="');
 var completeBoundaryScript1Full = stringToPrecomputedChunk(
-    '$RC=function(b,c,e){c=document.getElementById(c);c.parentNode.removeChild(c);var a=document.getElementById(b);if(a){b=a.previousSibling;if(e)b.data="$!",a.setAttribute("data-dgst",e);else{e=b.parentNode;a=b.nextSibling;var f=0;do{if(a&&8===a.nodeType){var d=a.data;if("/$"===d)if(0===f)break;else f--;else"$"!==d&&"$?"!==d&&"$!"!==d||f++}d=a.nextSibling;e.removeChild(a);a=d}while(a);for(;c.firstChild;)e.insertBefore(c.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}};$RC("'
+    '$RC=function(b,d,e){d=document.getElementById(d);d.parentNode.removeChild(d);var a=document.getElementById(b);if(a){b=a.previousSibling;if(e)b.data="$!",a.setAttribute("data-dgst",e);else{e=b.parentNode;a=b.nextSibling;var f=0;do{if(a&&8===a.nodeType){var c=a.data;if("/$"===c||"/&"===c)if(0===f)break;else f--;else"$"!==c&&"$?"!==c&&"$!"!==c&&"&"!==c||f++}c=a.nextSibling;e.removeChild(a);a=c}while(a);for(;d.firstChild;)e.insertBefore(d.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}};$RC("'
   ),
   completeBoundaryScript1Partial = stringToPrecomputedChunk('$RC("'),
   completeBoundaryWithStylesScript1FullBoth = stringToPrecomputedChunk(
-    '$RC=function(b,c,e){c=document.getElementById(c);c.parentNode.removeChild(c);var a=document.getElementById(b);if(a){b=a.previousSibling;if(e)b.data="$!",a.setAttribute("data-dgst",e);else{e=b.parentNode;a=b.nextSibling;var f=0;do{if(a&&8===a.nodeType){var d=a.data;if("/$"===d)if(0===f)break;else f--;else"$"!==d&&"$?"!==d&&"$!"!==d||f++}d=a.nextSibling;e.removeChild(a);a=d}while(a);for(;c.firstChild;)e.insertBefore(c.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}};$RM=new Map;\n$RR=function(t,u,y){function v(n){this._p=null;n()}for(var w=$RC,p=$RM,q=new Map,r=document,g,b,h=r.querySelectorAll("link[data-precedence],style[data-precedence]"),x=[],k=0;b=h[k++];)"not all"===b.getAttribute("media")?x.push(b):("LINK"===b.tagName&&p.set(b.getAttribute("href"),b),q.set(b.dataset.precedence,g=b));b=0;h=[];var l,a;for(k=!0;;){if(k){var e=y[b++];if(!e){k=!1;b=0;continue}var c=!1,m=0;var d=e[m++];if(a=p.get(d)){var f=a._p;c=!0}else{a=r.createElement("link");a.href=\nd;a.rel="stylesheet";for(a.dataset.precedence=l=e[m++];f=e[m++];)a.setAttribute(f,e[m++]);f=a._p=new Promise(function(n,z){a.onload=v.bind(a,n);a.onerror=v.bind(a,z)});p.set(d,a)}d=a.getAttribute("media");!f||d&&!matchMedia(d).matches||h.push(f);if(c)continue}else{a=x[b++];if(!a)break;l=a.getAttribute("data-precedence");a.removeAttribute("media")}c=q.get(l)||g;c===g&&(g=a);q.set(l,a);c?c.parentNode.insertBefore(a,c.nextSibling):(c=r.head,c.insertBefore(a,c.firstChild))}Promise.all(h).then(w.bind(null,\nt,u,""),w.bind(null,t,u,"Resource failed to load"))};$RR("'
+    '$RC=function(b,d,e){d=document.getElementById(d);d.parentNode.removeChild(d);var a=document.getElementById(b);if(a){b=a.previousSibling;if(e)b.data="$!",a.setAttribute("data-dgst",e);else{e=b.parentNode;a=b.nextSibling;var f=0;do{if(a&&8===a.nodeType){var c=a.data;if("/$"===c||"/&"===c)if(0===f)break;else f--;else"$"!==c&&"$?"!==c&&"$!"!==c&&"&"!==c||f++}c=a.nextSibling;e.removeChild(a);a=c}while(a);for(;d.firstChild;)e.insertBefore(d.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}};$RM=new Map;\n$RR=function(t,u,y){function v(n){this._p=null;n()}for(var w=$RC,p=$RM,q=new Map,r=document,g,b,h=r.querySelectorAll("link[data-precedence],style[data-precedence]"),x=[],k=0;b=h[k++];)"not all"===b.getAttribute("media")?x.push(b):("LINK"===b.tagName&&p.set(b.getAttribute("href"),b),q.set(b.dataset.precedence,g=b));b=0;h=[];var l,a;for(k=!0;;){if(k){var e=y[b++];if(!e){k=!1;b=0;continue}var c=!1,m=0;var d=e[m++];if(a=p.get(d)){var f=a._p;c=!0}else{a=r.createElement("link");a.href=\nd;a.rel="stylesheet";for(a.dataset.precedence=l=e[m++];f=e[m++];)a.setAttribute(f,e[m++]);f=a._p=new Promise(function(n,z){a.onload=v.bind(a,n);a.onerror=v.bind(a,z)});p.set(d,a)}d=a.getAttribute("media");!f||d&&!matchMedia(d).matches||h.push(f);if(c)continue}else{a=x[b++];if(!a)break;l=a.getAttribute("data-precedence");a.removeAttribute("media")}c=q.get(l)||g;c===g&&(g=a);q.set(l,a);c?c.parentNode.insertBefore(a,c.nextSibling):(c=r.head,c.insertBefore(a,c.firstChild))}Promise.all(h).then(w.bind(null,\nt,u,""),w.bind(null,t,u,"Resource failed to load"))};$RR("'
   ),
   completeBoundaryWithStylesScript1FullPartial = stringToPrecomputedChunk(
     '$RM=new Map;\n$RR=function(t,u,y){function v(n){this._p=null;n()}for(var w=$RC,p=$RM,q=new Map,r=document,g,b,h=r.querySelectorAll("link[data-precedence],style[data-precedence]"),x=[],k=0;b=h[k++];)"not all"===b.getAttribute("media")?x.push(b):("LINK"===b.tagName&&p.set(b.getAttribute("href"),b),q.set(b.dataset.precedence,g=b));b=0;h=[];var l,a;for(k=!0;;){if(k){var e=y[b++];if(!e){k=!1;b=0;continue}var c=!1,m=0;var d=e[m++];if(a=p.get(d)){var f=a._p;c=!0}else{a=r.createElement("link");a.href=\nd;a.rel="stylesheet";for(a.dataset.precedence=l=e[m++];f=e[m++];)a.setAttribute(f,e[m++]);f=a._p=new Promise(function(n,z){a.onload=v.bind(a,n);a.onerror=v.bind(a,z)});p.set(d,a)}d=a.getAttribute("media");!f||d&&!matchMedia(d).matches||h.push(f);if(c)continue}else{a=x[b++];if(!a)break;l=a.getAttribute("data-precedence");a.removeAttribute("media")}c=q.get(l)||g;c===g&&(g=a);q.set(l,a);c?c.parentNode.insertBefore(a,c.nextSibling):(c=r.head,c.insertBefore(a,c.firstChild))}Promise.all(h).then(w.bind(null,\nt,u,""),w.bind(null,t,u,"Resource failed to load"))};$RR("'
@@ -4078,7 +4087,7 @@ function pingTask(request, task) {
         })
       : setTimeoutOrImmediate(function () {
           return performWork(request);
-        }, 0));
+        }));
 }
 function createSuspenseBoundary(
   request,
@@ -4545,13 +4554,13 @@ function renderElement(request, task, keyPath, type, props, ref) {
             (task.keyPath = keyPath),
             renderNode(request, task, props.children, -1),
             (task.keyPath = type))
-          : (type.chunks.push(startActivityBoundary),
+          : "hidden" !== props.mode &&
+            (type.chunks.push(startActivityBoundary),
             (type.lastPushedText = !1),
-            "hidden" !== props.mode &&
-              ((newProps = task.keyPath),
-              (task.keyPath = keyPath),
-              renderNode(request, task, props.children, -1),
-              (task.keyPath = newProps)),
+            (newProps = task.keyPath),
+            (task.keyPath = keyPath),
+            renderNode(request, task, props.children, -1),
+            (task.keyPath = newProps),
             type.chunks.push(endActivityBoundary),
             (type.lastPushedText = !1));
         return;
@@ -6262,7 +6271,7 @@ function startWork(request) {
             request
           )
         : enqueueEarlyPreloadsAfterInitialWork(request));
-  }, 0);
+  });
 }
 function enqueueEarlyPreloadsAfterInitialWork(request) {
   safelyEmitEarlyPreloads(request, 0 === request.pendingRootTasks);
@@ -6277,7 +6286,7 @@ function enqueueFlush(request) {
       destination
         ? flushCompletedQueues(request, destination)
         : (request.flushScheduled = !1);
-    }, 0));
+    }));
 }
 function startFlowing(request, destination) {
   if (13 === request.status)
@@ -6318,11 +6327,11 @@ function abort(request, reason) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.2.0-canary-1d6c8168-20250411" !== isomorphicReactPackageVersion)
+  if ("19.2.0-canary-197d6a04-20250424" !== isomorphicReactPackageVersion)
     throw Error(
       'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
         (isomorphicReactPackageVersion +
-          "\n  - react-dom:  19.2.0-canary-1d6c8168-20250411\nLearn more: https://react.dev/warnings/version-mismatch")
+          "\n  - react-dom:  19.2.0-canary-197d6a04-20250424\nLearn more: https://react.dev/warnings/version-mismatch")
     );
 }
 ensureCorrectIsomorphicReactVersion();
@@ -6468,15 +6477,4 @@ exports.renderToReadableStream = function (children, options) {
     startWork(request);
   });
 };
-
-// This is a patch added by Next.js
-const setTimeoutOrImmediate =
-  typeof globalThis['set' + 'Immediate'] === 'function' &&
-  // edge runtime sandbox defines a stub for setImmediate
-  // (see 'addStub' in packages/next/src/server/web/sandbox/context.ts)
-  // but it's made non-enumerable, so we can detect it
-  globalThis.propertyIsEnumerable('setImmediate')
-    ? globalThis['set' + 'Immediate']
-    : setTimeout;
-
-exports.version = "19.2.0-canary-1d6c8168-20250411";
+exports.version = "19.2.0-canary-197d6a04-20250424";

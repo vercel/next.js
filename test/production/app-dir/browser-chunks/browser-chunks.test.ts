@@ -1,4 +1,3 @@
-/* eslint-disable jest/no-standalone-expect */
 import { nextTestSetup } from 'e2e-utils'
 import { SourceMapPayload } from 'module'
 

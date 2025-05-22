@@ -16,8 +16,8 @@ use turbopack_core::{
     chunk::{Chunk, ChunkItem, ChunkItems, ChunkingContext, ModuleIds},
     ident::AssetIdent,
     introspect::{
-        module::IntrospectableModule, utils::children_from_output_assets, Introspectable,
-        IntrospectableChildren,
+        Introspectable, IntrospectableChildren, module::IntrospectableModule,
+        utils::children_from_output_assets,
     },
     output::{OutputAsset, OutputAssets},
     server_fs::ServerFileSystem,
@@ -29,7 +29,7 @@ pub use self::{
         EcmascriptChunkItemOrBatchWithAsyncInfo,
     },
     chunk_type::EcmascriptChunkType,
-    code_and_ids::{batch_group_code_and_ids, item_code_and_ids, BatchGroupCodeAndIds, CodeAndIds},
+    code_and_ids::{BatchGroupCodeAndIds, CodeAndIds, batch_group_code_and_ids, item_code_and_ids},
     content::EcmascriptChunkContent,
     data::EcmascriptChunkData,
     item::{

@@ -86,7 +86,7 @@ describe('app-dir - capture-console-error-owner-stack', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "description": "Error: page error",
+       "description": "page error",
        "environmentLabel": null,
        "label": "Console Error",
        "source": "app/ssr-error-instance/page.js (4:17) @ Page
@@ -104,7 +104,7 @@ describe('app-dir - capture-console-error-owner-stack', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "description": "Error: boom",
+         "description": "boom",
          "environmentLabel": "Server",
          "label": "Console Error",
          "source": "app/rsc/page.js (2:17) @ Page

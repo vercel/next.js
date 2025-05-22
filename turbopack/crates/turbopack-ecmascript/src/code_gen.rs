@@ -5,12 +5,13 @@ use swc_core::ecma::{
     visit::{AstParentKind, VisitMut},
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, Vc};
+use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
 use turbopack_core::{
     chunk::ChunkingContext, module_graph::ModuleGraph, reference::ModuleReference,
 };
 
 use crate::references::{
+    AstPath,
     amd::AmdDefineWithDependenciesCodeGen,
     cjs::{
         CjsRequireAssetReferenceCodeGen, CjsRequireCacheAccess,
@@ -20,15 +21,15 @@ use crate::references::{
     constant_value::ConstantValueCodeGen,
     dynamic_expression::DynamicExpression,
     esm::{
+        EsmBinding, EsmModuleItem, ImportMetaBinding, ImportMetaRef,
         dynamic::EsmAsyncAssetReferenceCodeGen, module_id::EsmModuleIdAssetReferenceCodeGen,
-        url::UrlAssetReferenceCodeGen, EsmBinding, EsmModuleItem, ImportMetaBinding, ImportMetaRef,
+        url::UrlAssetReferenceCodeGen,
     },
     ident::IdentReplacement,
     member::MemberReplacement,
     require_context::RequireContextAssetReferenceCodeGen,
     unreachable::Unreachable,
     worker::WorkerAssetReferenceCodeGen,
-    AstPath,
 };
 
 #[derive(Default)]
@@ -152,6 +153,14 @@ impl CodeGen {
 
 #[turbo_tasks::value(transparent)]
 pub struct CodeGens(Vec<CodeGen>);
+
+#[turbo_tasks::value_impl]
+impl CodeGens {
+    #[turbo_tasks::function]
+    pub fn empty() -> Vc<Self> {
+        Vc::cell(Vec::new())
+    }
+}
 
 pub trait IntoCodeGenReference {
     fn into_code_gen_reference(

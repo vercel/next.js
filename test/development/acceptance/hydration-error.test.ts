@@ -85,19 +85,14 @@ describe('Error overlay for hydration errors in Pages router', () => {
        -       "client"",
            "description": "Text content did not match. Server: "server" Client: "client"",
            "environmentLabel": null,
-           "label": "Runtime Error",
+           "label": "Recoverable Error",
            "source": null,
            "stack": [],
          },
          {
-           "componentStack": "<Mismatch>
-           <div>
-             <main>
-       +       "server"
-       -       "client"",
-           "description": "Text content did not match. Server: "server" Client: "client"",
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
-           "label": "Runtime Error",
+           "label": "Recoverable Error",
            "source": null,
            "stack": [],
          },
@@ -122,7 +117,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
                  ...",
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
-         "label": "Runtime Error",
+         "label": "Recoverable Error",
          "source": "index.js (5:9) @ Mismatch
        > 5 |         <main className="child">{isClient ? "client" : "server"}</main>
            |         ^",
@@ -196,17 +191,14 @@ describe('Error overlay for hydration errors in Pages router', () => {
        >     <main>",
            "description": "Expected server HTML to contain a matching <main> in <div>.",
            "environmentLabel": null,
-           "label": "Runtime Error",
+           "label": "Recoverable Error",
            "source": null,
            "stack": [],
          },
          {
-           "componentStack": "<Mismatch>
-       >   <div>
-       >     <main>",
-           "description": "Expected server HTML to contain a matching <main> in <div>.",
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
-           "label": "Runtime Error",
+           "label": "Recoverable Error",
            "source": null,
            "stack": [],
          },
@@ -229,7 +221,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
                  ...",
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
-         "label": "Runtime Error",
+         "label": "Recoverable Error",
          "source": "index.js (5:20) @ Mismatch
        > 5 |       {isClient && <main className="only" />}
            |                    ^",
@@ -290,18 +282,14 @@ describe('Error overlay for hydration errors in Pages router', () => {
        >       "second"",
            "description": "Expected server HTML to contain a matching text node for "second" in <div>.",
            "environmentLabel": null,
-           "label": "Runtime Error",
+           "label": "Recoverable Error",
            "source": null,
            "stack": [],
          },
          {
-           "componentStack": "<Mismatch>
-           <div>
-       >     <div>
-       >       "second"",
-           "description": "Expected server HTML to contain a matching text node for "second" in <div>.",
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
-           "label": "Runtime Error",
+           "label": "Recoverable Error",
            "source": null,
            "stack": [],
          },
@@ -327,7 +315,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
                  ...",
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
-         "label": "Runtime Error",
+         "label": "Recoverable Error",
          "source": "index.js (4:5) @ Mismatch
        > 4 |     <div className="parent">
            |     ^",
@@ -369,16 +357,14 @@ describe('Error overlay for hydration errors in Pages router', () => {
        >   <div>",
            "description": "Did not expect server HTML to contain a <main> in <div>.",
            "environmentLabel": null,
-           "label": "Runtime Error",
+           "label": "Recoverable Error",
            "source": null,
            "stack": [],
          },
          {
-           "componentStack": "<Mismatch>
-       >   <div>",
-           "description": "Did not expect server HTML to contain a <main> in <div>.",
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
-           "label": "Runtime Error",
+           "label": "Recoverable Error",
            "source": null,
            "stack": [],
          },
@@ -402,7 +388,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
                  ...",
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
-         "label": "Runtime Error",
+         "label": "Recoverable Error",
          "source": "index.js (4:5) @ Mismatch
        > 4 |     <div className="parent">
            |     ^",
@@ -442,18 +428,14 @@ describe('Error overlay for hydration errors in Pages router', () => {
        >       "only"",
            "description": "Did not expect server HTML to contain the text node "only" in <div>.",
            "environmentLabel": null,
-           "label": "Runtime Error",
+           "label": "Recoverable Error",
            "source": null,
            "stack": [],
          },
          {
-           "componentStack": "<Mismatch>
-           <div>
-       >     <div>
-       >       "only"",
-           "description": "Did not expect server HTML to contain the text node "only" in <div>.",
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
-           "label": "Runtime Error",
+           "label": "Recoverable Error",
            "source": null,
            "stack": [],
          },
@@ -477,7 +459,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
                  ...",
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
-         "label": "Runtime Error",
+         "label": "Recoverable Error",
          "source": "index.js (3:10) @ Mismatch
        > 3 |   return <div className="parent">{!isClient && "only"}</div>;
            |          ^",
@@ -538,16 +520,14 @@ describe('Error overlay for hydration errors in Pages router', () => {
        >   <table>",
            "description": "Expected server HTML to contain a matching <table> in <div>.",
            "environmentLabel": null,
-           "label": "Runtime Error",
+           "label": "Recoverable Error",
            "source": null,
            "stack": [],
          },
          {
-           "componentStack": "<Page>
-       >   <table>",
-           "description": "Expected server HTML to contain a matching <table> in <div>.",
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
-           "label": "Runtime Error",
+           "label": "Recoverable Error",
            "source": null,
            "stack": [],
          },
@@ -556,22 +536,23 @@ describe('Error overlay for hydration errors in Pages router', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "componentStack": "<Root callbacks={[...]}>
-           <Head>
-           <AppContainer>
-             <Container fn={function fn}>
-               <PagesDevOverlay>
-                 <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
-                   <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
-                     <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
-                       <Page>
-       +                 <table>
-       -                 test
-                     ...
-                 ...",
-         "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
+         "componentStack": "...
+           <Container fn={function fn}>
+             <PagesDevOverlay>
+               <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
+                 <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
+                   <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
+                     <Page>
+                       <table>
+                         <tbody>
+                           <tr>
+       >                     test
+                   ...
+               ...",
+         "description": "In HTML, text nodes cannot be a child of <tr>.
+       This will cause a hydration error.",
          "environmentLabel": null,
-         "label": "Runtime Error",
+         "label": "Recoverable Error",
          "source": "index.js (3:5) @ Page
        > 3 |     <table>
            |     ^",
@@ -626,16 +607,14 @@ describe('Error overlay for hydration errors in Pages router', () => {
        >   <table>",
            "description": "Expected server HTML to contain a matching <table> in <div>.",
            "environmentLabel": null,
-           "label": "Runtime Error",
+           "label": "Recoverable Error",
            "source": null,
            "stack": [],
          },
          {
-           "componentStack": "<Page>
-       >   <table>",
-           "description": "Expected server HTML to contain a matching <table> in <div>.",
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
-           "label": "Runtime Error",
+           "label": "Recoverable Error",
            "source": null,
            "stack": [],
          },
@@ -653,13 +632,15 @@ describe('Error overlay for hydration errors in Pages router', () => {
                    <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                      <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                        <Page>
-       +                 <table>
-       -                 {" 123"}
+       >                 <table>
+       >                   {" 123"}
+                           ...
                      ...
                  ...",
-         "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
+         "description": "In HTML, text nodes cannot be a child of <table>.
+       This will cause a hydration error.",
          "environmentLabel": null,
-         "label": "Runtime Error",
+         "label": "Recoverable Error",
          "source": "index.js (3:5) @ Page
        > 3 |     <table>
            |     ^",
@@ -723,18 +704,14 @@ describe('Error overlay for hydration errors in Pages router', () => {
        >       <main>",
            "description": "Expected server HTML to contain a matching <main> in <div>.",
            "environmentLabel": null,
-           "label": "Runtime Error",
+           "label": "Recoverable Error",
            "source": null,
            "stack": [],
          },
          {
-           "componentStack": "<Mismatch>
-       >   <div>
-             <Suspense>
-       >       <main>",
-           "description": "Expected server HTML to contain a matching <main> in <div>.",
+           "description": "There was an error while hydrating this Suspense boundary. Switched to client rendering.",
            "environmentLabel": null,
-           "label": "Runtime Error",
+           "label": "Recoverable Error",
            "source": null,
            "stack": [],
          },
@@ -759,7 +736,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
              ...",
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
-         "label": "Runtime Error",
+         "label": "Recoverable Error",
          "source": "index.js (8:22) @ Mismatch
        >  8 |         {isClient && <main className="second" />}
             |                      ^",
@@ -848,17 +825,14 @@ describe('Error overlay for hydration errors in Pages router', () => {
        >     <p>",
            "description": "Expected server HTML to contain a matching <p> in <p>.",
            "environmentLabel": null,
-           "label": "Runtime Error",
+           "label": "Recoverable Error",
            "source": null,
            "stack": [],
          },
          {
-           "componentStack": "<Page>
-       >   <p>
-       >     <p>",
-           "description": "Expected server HTML to contain a matching <p> in <p>.",
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
-           "label": "Runtime Error",
+           "label": "Recoverable Error",
            "source": null,
            "stack": [],
          },
@@ -883,7 +857,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
          "description": "In HTML, <p> cannot be a descendant of <p>.
        This will cause a hydration error.",
          "environmentLabel": null,
-         "label": "Runtime Error",
+         "label": "Recoverable Error",
          "source": "index.js (4:7) @ Page
        > 4 |       <p>Nested p tags</p>
            |       ^",
@@ -947,19 +921,14 @@ describe('Error overlay for hydration errors in Pages router', () => {
        >         <div>",
            "description": "Expected server HTML to contain a matching <div> in <p>.",
            "environmentLabel": null,
-           "label": "Runtime Error",
+           "label": "Recoverable Error",
            "source": null,
            "stack": [],
          },
          {
-           "componentStack": "<Page>
-           <div>
-             <div>
-       >       <p>
-       >         <div>",
-           "description": "Expected server HTML to contain a matching <div> in <p>.",
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
-           "label": "Runtime Error",
+           "label": "Recoverable Error",
            "source": null,
            "stack": [],
          },
@@ -984,7 +953,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
          "description": "In HTML, <div> cannot be a descendant of <p>.
        This will cause a hydration error.",
          "environmentLabel": null,
-         "label": "Runtime Error",
+         "label": "Recoverable Error",
          "source": "index.js (6:11) @ Page
        > 6 |           <div>Nested div under p tag</div>
            |           ^",
@@ -1036,17 +1005,14 @@ describe('Error overlay for hydration errors in Pages router', () => {
        >     <tr>",
            "description": "Expected server HTML to contain a matching <tr> in <div>.",
            "environmentLabel": null,
-           "label": "Runtime Error",
+           "label": "Recoverable Error",
            "source": null,
            "stack": [],
          },
          {
-           "componentStack": "<Page>
-       >   <div>
-       >     <tr>",
-           "description": "Expected server HTML to contain a matching <tr> in <div>.",
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
-           "label": "Runtime Error",
+           "label": "Recoverable Error",
            "source": null,
            "stack": [],
          },
@@ -1071,7 +1037,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
          "description": "In HTML, <tr> cannot be a child of <div>.
        This will cause a hydration error.",
          "environmentLabel": null,
-         "label": "Runtime Error",
+         "label": "Recoverable Error",
          "source": "index.js (2:15) @ Page
        > 2 |   return <div><tr></tr></div>
            |               ^",
@@ -1133,21 +1099,14 @@ describe('Error overlay for hydration errors in Pages router', () => {
        >             <p>",
            "description": "Expected server HTML to contain a matching <p> in <span>.",
            "environmentLabel": null,
-           "label": "Runtime Error",
+           "label": "Recoverable Error",
            "source": null,
            "stack": [],
          },
          {
-           "componentStack": "<Page>
-           <p>
-             <span>
-               <span>
-                 <span>
-       >           <span>
-       >             <p>",
-           "description": "Expected server HTML to contain a matching <p> in <span>.",
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
-           "label": "Runtime Error",
+           "label": "Recoverable Error",
            "source": null,
            "stack": [],
          },
@@ -1176,7 +1135,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
          "description": "In HTML, <p> cannot be a descendant of <p>.
        This will cause a hydration error.",
          "environmentLabel": null,
-         "label": "Runtime Error",
+         "label": "Recoverable Error",
          "source": "index.js (3:32) @ Page
        > 3 |     <p><span><span><span><span><p>hello world</p></span></span></span></span></p>
            |                                ^",

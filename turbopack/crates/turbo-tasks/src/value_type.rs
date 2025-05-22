@@ -1,5 +1,5 @@
 use std::{
-    any::{type_name, Any},
+    any::{Any, type_name},
     borrow::Cow,
     fmt::{
         Debug, Display, Formatter, {self},
@@ -13,13 +13,13 @@ use serde::{Deserialize, Serialize};
 use tracing::Span;
 
 use crate::{
+    RawVc, VcValueType,
     id::{FunctionId, TraitTypeId},
     magic_any::{AnyDeserializeSeed, MagicAny, MagicAnyDeserializeSeed, MagicAnySerializeSeed},
     registry::{register_trait_type, register_value_type},
     task::shared_reference::TypedSharedReference,
     trace::TraceRawVcs,
     vc::VcCellMode,
-    RawVc, VcValueType,
 };
 
 type MagicSerializationFn = fn(&dyn MagicAny) -> &dyn erased_serde::Serialize;

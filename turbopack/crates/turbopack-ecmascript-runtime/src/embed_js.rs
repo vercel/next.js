@@ -1,6 +1,6 @@
 use turbo_rcstr::RcStr;
 use turbo_tasks::Vc;
-use turbo_tasks_fs::{embed_directory, FileContent, FileSystem, FileSystemPath};
+use turbo_tasks_fs::{FileContent, FileSystem, FileSystemPath, embed_directory};
 use turbopack_core::{code_builder::Code, context::AssetContext};
 use turbopack_ecmascript::StaticEcmascriptCode;
 

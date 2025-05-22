@@ -54,7 +54,7 @@ describe('middleware - development errors', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "Error: boom",
+           "description": "boom",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": "middleware.js (3:15) @
@@ -69,7 +69,7 @@ describe('middleware - development errors', () => {
       } else {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "Error: boom",
+           "description": "boom",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": "middleware.js (3:15) @ default
@@ -202,9 +202,9 @@ describe('middleware - development errors', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "ReferenceError: test is not defined",
+           "description": "test is not defined",
            "environmentLabel": null,
-           "label": "Runtime Error",
+           "label": "Runtime ReferenceError",
            "source": "middleware.js (4:9) @ eval
          > 4 |         eval('test')
              |         ^",
@@ -218,9 +218,9 @@ describe('middleware - development errors', () => {
       } else {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "ReferenceError: test is not defined",
+           "description": "test is not defined",
            "environmentLabel": null,
-           "label": "Runtime Error",
+           "label": "Runtime ReferenceError",
            "source": "middleware.js (4:9) @ eval
          > 4 |         eval('test')
              |         ^",
@@ -285,7 +285,7 @@ describe('middleware - development errors', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "Error: booooom!",
+           "description": "booooom!",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": "middleware.js (3:13) @ [project]/middleware.js [middleware-edge] (ecmascript)
@@ -299,7 +299,7 @@ describe('middleware - development errors', () => {
       } else {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "Error: booooom!",
+           "description": "booooom!",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": "middleware.js (3:13) @ eval
@@ -439,7 +439,7 @@ describe('middleware - development errors', () => {
       } else {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "Error:   x Expected '{', got '}'",
+           "description": "  x Expected '{', got '}'",
            "environmentLabel": null,
            "label": "Build Error",
            "source": "./middleware.js
@@ -505,7 +505,7 @@ describe('middleware - development errors', () => {
       } else {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "Error:   x Expected '{', got '}'",
+           "description": "  x Expected '{', got '}'",
            "environmentLabel": null,
            "label": "Build Error",
            "source": "./middleware.js

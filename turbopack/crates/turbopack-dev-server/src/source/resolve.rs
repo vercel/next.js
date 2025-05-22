@@ -5,20 +5,20 @@ use std::{
 
 use anyhow::Result;
 use hyper::{
-    header::{HeaderName as HyperHeaderName, HeaderValue as HyperHeaderValue},
     Uri,
+    header::{HeaderName as HyperHeaderName, HeaderValue as HyperHeaderValue},
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{OperationVc, ResolvedVc, TransientInstance, Value, Vc};
 
 use super::{
+    ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataVary,
+    GetContentSourceContent, GetContentSourceContents, HeaderList, ProxyResult, RewriteType,
+    StaticContent,
     headers::{HeaderValue, Headers},
     query::Query,
     request::SourceRequest,
     route_tree::RouteTree,
-    ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataVary,
-    GetContentSourceContent, GetContentSourceContents, HeaderList, ProxyResult, RewriteType,
-    StaticContent,
 };
 
 /// The result of [`resolve_source_request`]. Similar to a

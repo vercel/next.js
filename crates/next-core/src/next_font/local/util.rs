@@ -5,7 +5,7 @@ use turbo_tasks::Vc;
 use super::options::NextFontLocalOptions;
 use crate::next_font::{
     font_fallback::{FontFallback, FontFallbacks},
-    util::{get_scoped_font_family, FontFamilyType},
+    util::{FontFamilyType, get_scoped_font_family},
 };
 
 /// Returns a string to be used as the `font-family` property in css.
@@ -14,11 +14,13 @@ pub(super) async fn build_font_family_string(
     options: Vc<NextFontLocalOptions>,
     font_fallbacks: Vc<FontFallbacks>,
 ) -> Result<Vc<RcStr>> {
-    let mut font_families = vec![format!(
-        "'{}'",
-        *get_scoped_font_family(FontFamilyType::WebFont.cell(), options.font_family(),).await?
-    )
-    .into()];
+    let mut font_families = vec![
+        format!(
+            "'{}'",
+            *get_scoped_font_family(FontFamilyType::WebFont.cell(), options.font_family(),).await?
+        )
+        .into(),
+    ];
 
     for font_fallback in &*font_fallbacks.await? {
         match &*font_fallback.await? {

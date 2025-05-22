@@ -2,9 +2,10 @@ pub mod svg;
 
 use std::{io::Cursor, str::FromStr};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use base64::{display::Base64Display, engine::general_purpose::STANDARD};
 use image::{
+    DynamicImage, GenericImageView, ImageEncoder, ImageFormat,
     codecs::{
         bmp::BmpEncoder,
         ico::IcoEncoder,
@@ -12,12 +13,11 @@ use image::{
         png::{CompressionType, PngEncoder},
     },
     imageops::FilterType,
-    DynamicImage, GenericImageView, ImageEncoder, ImageFormat,
 };
 use mime::Mime;
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, DisplayFromStr};
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, Vc};
+use serde_with::{DisplayFromStr, serde_as};
+use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     error::PrettyPrintError,

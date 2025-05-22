@@ -4,14 +4,14 @@ use std::{
     iter::once,
     ops::{ControlFlow, Deref, DerefMut},
     sync::{
-        atomic::{AtomicU32, Ordering},
         Arc,
+        atomic::{AtomicU32, Ordering},
     },
     time::Instant,
 };
 
 use parking_lot::{Mutex, MutexGuard};
-use rand::{rngs::SmallRng, Rng, SeedableRng};
+use rand::{Rng, SeedableRng, rngs::SmallRng};
 use ref_cast::RefCast;
 use rstest::*;
 use rustc_hash::FxHashSet;
@@ -19,10 +19,10 @@ use turbo_tasks::FxIndexSet;
 
 use self::aggregation_data::prepare_aggregation_data;
 use super::{
-    aggregation_data, handle_new_edge, lost_edge::handle_lost_edges, AggregationContext,
-    AggregationNode, AggregationNodeGuard, RootQuery,
+    AggregationContext, AggregationNode, AggregationNodeGuard, RootQuery, aggregation_data,
+    handle_new_edge, lost_edge::handle_lost_edges,
 };
-use crate::aggregation::{query_root_info, PreparedOperation, StackVec};
+use crate::aggregation::{PreparedOperation, StackVec, query_root_info};
 
 fn find_root(mut node: NodeRef) -> NodeRef {
     loop {
@@ -86,11 +86,8 @@ fn check_invariants(ctx: &NodeAggregationContext<'_>, node_ids: impl IntoIterato
                         || aggregation_number == u32::MAX;
                     if !condition {
                         let msg = format!(
-                            "follower #{} {} -> #{} {}",
-                            node_value,
-                            aggregation_number,
-                            follower_value,
-                            follower_aggregation_number
+                            "follower #{node_value} {aggregation_number} -> #{follower_value} \
+                             {follower_aggregation_number}"
                         );
                         print(ctx, &find_root(node_id.clone()), true);
                         panic!("{msg}");
@@ -120,8 +117,8 @@ fn check_invariants(ctx: &NodeAggregationContext<'_>, node_ids: impl IntoIterato
                             upper.guard.value
                         };
                         let msg = format!(
-                            "follower #{} -> #{} is not connected to upper #{}",
-                            node_value, follower_value, upper_value,
+                            "follower #{node_value} -> #{follower_value} is not connected to \
+                             upper #{upper_value}",
                         );
                         print(ctx, &find_root(node_id.clone()), true);
                         panic!("{msg}");
@@ -193,10 +190,7 @@ fn print_graph<C: AggregationContext>(
         drop(node);
 
         if show_internal {
-            println!(
-                "\"{}\" [label=\"{}\\n{}\", style=filled, fillcolor=\"{}\"];",
-                name, name, n, color
-            );
+            println!("\"{name}\" [label=\"{name}\\n{n}\", style=filled, fillcolor=\"{color}\"];");
         } else {
             println!(
                 "\"{}\" [label=\"{}\\n{}\\n{}U {}F\", style=filled, fillcolor=\"{}\"];",
@@ -211,7 +205,7 @@ fn print_graph<C: AggregationContext>(
 
         for child_id in children {
             let child_name = name_fn(&child_id);
-            println!("\"{}\" -> \"{}\";", name, child_name);
+            println!("\"{name}\" -> \"{child_name}\";");
             if visited.insert(child_id.clone()) {
                 queue.push(child_id);
             }
@@ -219,20 +213,14 @@ fn print_graph<C: AggregationContext>(
         if show_internal {
             for upper_id in uppers {
                 let upper_name = name_fn(&upper_id);
-                println!(
-                    "\"{}\" -> \"{}\" [style=dashed, color=green];",
-                    name, upper_name
-                );
+                println!("\"{name}\" -> \"{upper_name}\" [style=dashed, color=green];");
                 if visited.insert(upper_id.clone()) {
                     queue.push(upper_id);
                 }
             }
             for follower_id in followers {
                 let follower_name = name_fn(&follower_id);
-                println!(
-                    "\"{}\" -> \"{}\" [style=dashed, color=red];",
-                    name, follower_name
-                );
+                println!("\"{name}\" -> \"{follower_name}\" [style=dashed, color=red];");
                 if visited.insert(follower_id.clone()) {
                     queue.push(follower_id);
                 }
@@ -805,7 +793,7 @@ fn performance(
             let n = guard.aggregation_node.aggregation_number();
             let f = guard.aggregation_node.followers().map_or(0, |f| f.len());
             let u = guard.aggregation_node.uppers().len();
-            print!(" -> {} [{}U {}F]", n, u, f);
+            print!(" -> {n} [{u}U {f}F]");
             if guard.children.is_empty() {
                 break;
             }
@@ -868,7 +856,7 @@ fn performance(
         node.add_child_unchecked(&ctx, inner_node.clone());
     }
     let root_duration = start.elapsed();
-    println!("Root: {:?}", root_duration);
+    println!("Root: {root_duration:?}");
 
     // Add another child
     let start = Instant::now();
@@ -877,7 +865,7 @@ fn performance(
         inner_node.add_child_unchecked(&ctx, node.clone());
     }
     let child_duration = start.elapsed();
-    println!("Child: {:?}", child_duration);
+    println!("Child: {child_duration:?}");
 
     print_aggregation_numbers(inner_node.clone());
 
@@ -922,7 +910,7 @@ fn many_children() {
         inner_node.add_child_unchecked(&ctx, node.clone());
     }
     let children_duration = start.elapsed();
-    println!("Children: {:?}", children_duration);
+    println!("Children: {children_duration:?}");
     for j in 0.. {
         let start = Instant::now();
         for i in 0..CHILDREN {
@@ -931,7 +919,7 @@ fn many_children() {
             inner_node.add_child_unchecked(&ctx, node.clone());
         }
         let dur = start.elapsed();
-        println!("Children: {:?}", dur);
+        println!("Children: {dur:?}");
         let is_slow = dur > children_duration * 2;
         if j > 10 && !is_slow {
             break;
@@ -1004,7 +992,7 @@ fn fuzzy_new() {
     for size in [10, 50, 100, 200, 1000] {
         for _ in 0..100 {
             let seed = rand::random();
-            println!("Seed {} Size {}", seed, size);
+            println!("Seed {seed} Size {size}");
             fuzzy(seed, size);
         }
     }
@@ -1035,14 +1023,14 @@ fn fuzzy(#[case] seed: u32, #[case] count: u32) {
     let mut edges = FxIndexSet::default();
 
     for _ in 0..1000 {
-        match r.gen_range(0..=2) {
+        match r.random_range(0..=2) {
             0 | 1 => {
                 // if x == 47 {
                 //     print_all(&ctx, nodes.iter().cloned().map(NodeRef), true);
                 // }
                 // add edge
-                let parent = r.gen_range(0..nodes.len() - 1);
-                let child = r.gen_range(parent + 1..nodes.len());
+                let parent = r.random_range(0..nodes.len() - 1);
+                let child = r.random_range(parent + 1..nodes.len());
                 // println!("add edge {} -> {}", parent, child);
                 if edges.insert((parent, child)) {
                     nodes[parent].add_child(&ctx, nodes[child].clone());
@@ -1053,7 +1041,7 @@ fn fuzzy(#[case] seed: u32, #[case] count: u32) {
                 if edges.is_empty() {
                     continue;
                 }
-                let i = r.gen_range(0..edges.len());
+                let i = r.random_range(0..edges.len());
                 let (parent, child) = edges.swap_remove_index(i).unwrap();
                 // println!("remove edge {} -> {}", parent, child);
                 nodes[parent].remove_child(&ctx, &nodes[child]);

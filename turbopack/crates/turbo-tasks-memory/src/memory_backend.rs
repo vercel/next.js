@@ -1,32 +1,32 @@
 use std::{
-    borrow::{Borrow, Cow},
+    borrow::Borrow,
     future::Future,
     hash::{BuildHasher, BuildHasherDefault, Hash},
     num::NonZeroU32,
     pin::Pin,
     sync::{
-        atomic::{AtomicBool, AtomicUsize, Ordering},
         Arc,
+        atomic::{AtomicBool, AtomicUsize, Ordering},
     },
     time::Duration,
 };
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use auto_hash_map::AutoMap;
-use dashmap::{mapref::entry::Entry, DashMap};
+use dashmap::{DashMap, mapref::entry::Entry};
 use rustc_hash::FxHasher;
 use tracing::trace_span;
 use turbo_prehash::{BuildHasherExt, PassThroughHash, PreHashed};
 use turbo_tasks::{
+    CellId, FunctionId, RawVc, ReadCellOptions, ReadConsistency, TRANSIENT_TASK_BIT, TaskId,
+    TaskIdSet, TraitTypeId, TurboTasksBackendApi, Unused, ValueTypeId,
     backend::{
         Backend, BackendJobId, CachedTaskType, CellContent, TaskCollectiblesMap, TaskExecutionSpec,
-        TransientTaskType, TypedCellContent,
+        TransientTaskType, TurboTasksExecutionError, TypedCellContent,
     },
     event::EventListener,
     task_statistics::TaskStatisticsApi,
     util::{IdFactoryWithReuse, NoMoveVec},
-    CellId, FunctionId, RawVc, ReadCellOptions, ReadConsistency, TaskId, TaskIdSet, TraitTypeId,
-    TurboTasksBackendApi, Unused, ValueTypeId, TRANSIENT_TASK_BIT,
 };
 
 use crate::{
@@ -79,7 +79,7 @@ impl MemoryBackend {
             persistent_tasks: NoMoveVec::new(),
             transient_tasks: NoMoveVec::new(),
             backend_jobs: NoMoveVec::new(),
-            backend_job_id_factory: IdFactoryWithReuse::new(1, u32::MAX as u64),
+            backend_job_id_factory: IdFactoryWithReuse::new(BackendJobId::MIN, BackendJobId::MAX),
             task_cache: DashMap::with_hasher_and_shard_amount(Default::default(), shard_amount),
             transient_task_cache: DashMap::with_hasher_and_shard_amount(
                 Default::default(),
@@ -415,12 +415,12 @@ impl Backend for MemoryBackend {
     fn task_execution_result(
         &self,
         task_id: TaskId,
-        result: Result<Result<RawVc>, Option<Cow<'static, str>>>,
+        result: Result<RawVc, Arc<TurboTasksExecutionError>>,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) {
         self.with_task(task_id, |task| {
             #[cfg(debug_assertions)]
-            if let Ok(Ok(RawVc::TaskOutput(result))) = result.as_ref() {
+            if let Ok(RawVc::TaskOutput(result)) = result.as_ref() {
                 if *result == task_id {
                     panic!("Task {} returned itself as output", task.get_description());
                 }
@@ -527,7 +527,7 @@ impl Backend for MemoryBackend {
                 match task.read_cell(
                     index,
                     self.gc_queue.as_ref(),
-                    move || format!("reading {} {} from {}", task_id, index, reader),
+                    move || format!("reading {task_id} {index} from {reader}"),
                     Some(reader),
                     self,
                     turbo_tasks,
@@ -564,7 +564,7 @@ impl Backend for MemoryBackend {
             match task.read_cell(
                 index,
                 self.gc_queue.as_ref(),
-                move || format!("reading {} {} untracked", task_id, index),
+                move || format!("reading {task_id} {index} untracked"),
                 None,
                 self,
                 turbo_tasks,

@@ -5,12 +5,11 @@ use std::{
     ops::Deref,
 };
 
-use serde::{de::Visitor, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::Visitor};
 
 use crate::{
-    registry,
+    TaskPersistence, registry,
     trace::{TraceRawVcs, TraceRawVcsContext},
-    TaskPersistence,
 };
 
 macro_rules! define_id {
@@ -29,6 +28,9 @@ macro_rules! define_id {
         }
 
         impl $name {
+            pub const MIN: Self = Self { id: NonZero::<$primitive>::MIN };
+            pub const MAX: Self = Self { id: NonZero::<$primitive>::MAX };
+
             /// Constructs a wrapper type from the numeric identifier.
             ///
             /// # Safety
@@ -36,6 +38,15 @@ macro_rules! define_id {
             /// The passed `id` must not be zero.
             pub const unsafe fn new_unchecked(id: $primitive) -> Self {
                 Self { id: unsafe { NonZero::<$primitive>::new_unchecked(id) } }
+            }
+
+            /// Allows `const` conversion to a [`NonZeroU64`], useful with
+            /// [`crate::id_factory::IdFactory::new_const`].
+            pub const fn to_non_zero_u64(self) -> NonZeroU64 {
+                const {
+                    assert!(<$primitive>::BITS <= u64::BITS);
+                }
+                unsafe { NonZeroU64::new_unchecked(self.id.get() as u64) }
             }
         }
 
@@ -53,29 +64,50 @@ macro_rules! define_id {
             }
         }
 
-        /// Converts a numeric identifier to the wrapper type.
-        ///
-        /// Panics if the given id value is zero.
-        impl From<$primitive> for $name {
-            fn from(id: $primitive) -> Self {
+        define_id!(@impl_try_from_primitive_conversion $name $primitive);
+
+        impl From<NonZero<$primitive>> for $name {
+            fn from(id: NonZero::<$primitive>) -> Self {
                 Self {
-                    id: NonZero::<$primitive>::new(id)
-                        .expect("Ids can only be created from non zero values")
+                    id,
                 }
             }
         }
 
-        /// Converts a numeric identifier to the wrapper type.
+        impl From<$name> for NonZeroU64 {
+            fn from(id: $name) -> Self {
+                id.to_non_zero_u64()
+            }
+        }
+
+        impl TraceRawVcs for $name {
+            fn trace_raw_vcs(&self, _trace_context: &mut TraceRawVcsContext) {}
+        }
+    };
+    (
+        @impl_try_from_primitive_conversion $name:ident u64
+    ) => {
+        // we get a `TryFrom` blanket impl for free via the `From` impl
+    };
+    (
+        @impl_try_from_primitive_conversion $name:ident $primitive:ty
+    ) => {
+        impl TryFrom<$primitive> for $name {
+            type Error = TryFromIntError;
+
+            fn try_from(id: $primitive) -> Result<Self, Self::Error> {
+                Ok(Self {
+                    id: NonZero::try_from(id)?
+                })
+            }
+        }
+
         impl TryFrom<NonZeroU64> for $name {
             type Error = TryFromIntError;
 
             fn try_from(id: NonZeroU64) -> Result<Self, Self::Error> {
                 Ok(Self { id: NonZero::try_from(id)? })
             }
-        }
-
-        impl TraceRawVcs for $name {
-            fn trace_raw_vcs(&self, _trace_context: &mut TraceRawVcsContext) {}
         }
     };
 }
@@ -91,6 +123,13 @@ define_id!(
     derive(Debug, Serialize, Deserialize),
     serde(transparent),
     doc = "Represents the nth `local` function call inside a task.",
+);
+define_id!(
+    ExecutionId: u16,
+    derive(Debug, Serialize, Deserialize),
+    serde(transparent),
+    doc = "An identifier for a specific task execution. Used to assert that local `Vc`s don't \
+        leak. This value may overflow and re-use old values.",
 );
 
 impl Debug for TaskId {

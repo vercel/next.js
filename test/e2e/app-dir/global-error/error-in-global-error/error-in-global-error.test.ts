@@ -15,7 +15,7 @@ describe('app dir - global-error - error-in-global-error', () => {
       await assertHasRedbox(browser)
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error: error in page",
+         "description": "error in page",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "app/page.js (7:11) @ Page.useEffect
@@ -41,7 +41,7 @@ describe('app dir - global-error - error-in-global-error', () => {
       await expect(browser).toDisplayRedbox(`
        [
          {
-           "description": "Error: error in global error",
+           "description": "error in global error",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": "app/global-error.js (10:11) @ InnerGlobalError
@@ -53,7 +53,7 @@ describe('app dir - global-error - error-in-global-error', () => {
            ],
          },
          {
-           "description": "Error: error in page",
+           "description": "error in page",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": "app/page.js (7:11) @ Page.useEffect

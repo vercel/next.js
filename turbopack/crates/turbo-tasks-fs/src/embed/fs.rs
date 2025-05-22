@@ -1,8 +1,8 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use auto_hash_map::AutoMap;
 use include_dir::{Dir, DirEntry};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{Completion, ValueToString, Vc};
+use turbo_tasks::{ValueToString, Vc};
 
 use crate::{
     File, FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent, RawDirectoryContent,
@@ -67,11 +67,6 @@ impl FileSystem for EmbeddedFileSystem {
         }
 
         Ok(RawDirectoryContent::new(converted_entries))
-    }
-
-    #[turbo_tasks::function]
-    fn track(&self, _path: Vc<FileSystemPath>) -> Vc<Completion> {
-        Completion::immutable()
     }
 
     #[turbo_tasks::function]

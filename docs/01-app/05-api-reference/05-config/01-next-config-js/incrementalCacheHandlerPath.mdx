@@ -4,10 +4,6 @@ nav_title: cacheHandler
 description: Configure the Next.js cache used for storing and revalidating data to use any external service like Redis, Memcached, or others.
 ---
 
-Caching and revalidating pages (with Incremental Static Regeneration) use the same shared cache. When [deploying to Vercel](https://vercel.com/docs/incremental-static-regeneration?utm_source=next-site&utm_medium=docs&utm_campaign=next-website), the ISR cache is automatically persisted to durable storage.
-
-When self-hosting, the ISR cache is stored to the filesystem (on disk) on your Next.js server. This works automatically when self-hosting using both the Pages and App Router.
-
 You can configure the Next.js cache location if you want to persist cached pages and data to durable storage, or share the cache across multiple containers or instances of your Next.js application.
 
 ```js filename="next.config.js"
@@ -17,11 +13,11 @@ module.exports = {
 }
 ```
 
-View an example of a [custom cache handler](/docs/app/building-your-application/deploying#configuring-caching) and learn more about implementation.
+View an example of a [custom cache handler](/docs/app/guides/self-hosting#configuring-caching) and learn more about the implementation.
 
 ## API Reference
 
-The cache handler can implement the following methods: `get`, `set`, and `revalidateTag`.
+The cache handler can implement the following methods: `get`, `set`, `revalidateTag`, and `resetRequestCache`.
 
 ### `get()`
 
@@ -47,11 +43,28 @@ Returns `Promise<void>`.
 | --------- | ---------------------- | ----------------------------- |
 | `tag`     | `string` or `string[]` | The cache tags to revalidate. |
 
-Returns `Promise<void>`. Learn more about [revalidating data](/docs/app/building-your-application/data-fetching/incremental-static-regeneration) or the [`revalidateTag()`](/docs/app/api-reference/functions/revalidateTag) function.
+Returns `Promise<void>`. Learn more about [revalidating data](/docs/app/guides/incremental-static-regeneration) or the [`revalidateTag()`](/docs/app/api-reference/functions/revalidateTag) function.
+
+### `resetRequestCache()`
+
+This method resets the temporary in-memory cache for a single request before the next request.
+
+Returns `void`.
 
 **Good to know:**
 
 - `revalidatePath` is a convenience layer on top of cache tags. Calling `revalidatePath` will call your `revalidateTag` function, which you can then choose if you want to tag cache keys based on the path.
+
+## Platform Support
+
+| Deployment Option                                                   | Supported         |
+| ------------------------------------------------------------------- | ----------------- |
+| [Node.js server](/docs/app/getting-started/deploying#nodejs-server) | Yes               |
+| [Docker container](/docs/app/getting-started/deploying#docker)      | Yes               |
+| [Static export](/docs/app/getting-started/deploying#static-export)  | No                |
+| [Adapters](/docs/app/getting-started/deploying#adapters)            | Platform-specific |
+
+Learn how to [configure ISR](/docs/app/guides/self-hosting#caching-and-isr) when self-hosting Next.js.
 
 ## Version History
 

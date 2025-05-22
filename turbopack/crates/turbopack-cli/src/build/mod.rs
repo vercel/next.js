@@ -1,41 +1,41 @@
 use std::{
     env::current_dir,
     mem::forget,
-    path::{PathBuf, MAIN_SEPARATOR},
+    path::{MAIN_SEPARATOR, PathBuf},
     sync::Arc,
 };
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use rustc_hash::FxHashSet;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    apply_effects, ReadConsistency, ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks,
-    Value, Vc,
+    ReadConsistency, ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks, Value, Vc,
+    apply_effects,
 };
 use turbo_tasks_backend::{
-    noop_backing_storage, BackendOptions, NoopBackingStorage, TurboTasksBackend,
+    BackendOptions, NoopBackingStorage, TurboTasksBackend, noop_backing_storage,
 };
 use turbo_tasks_fs::FileSystem;
 use turbopack::{
     css::chunk::CssChunkType, ecmascript::chunk::EcmascriptChunkType,
     global_module_ids::get_global_module_id_strategy,
 };
-use turbopack_browser::{BrowserChunkingContext, ContentHashing};
+use turbopack_browser::{BrowserChunkingContext, ContentHashing, CurrentChunkMethod};
 use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkingConfig, ChunkingContext, EvaluatableAsset,
-        EvaluatableAssets, MangleType, MinifyType, SourceMapsType,
+        ChunkingConfig, ChunkingContext, EvaluatableAsset, EvaluatableAssets, MangleType,
+        MinifyType, SourceMapsType, availability_info::AvailabilityInfo,
     },
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     ident::AssetIdent,
-    issue::{handle_issues, IssueReporter, IssueSeverity},
+    issue::{IssueReporter, IssueSeverity, handle_issues},
     module::Module,
     module_graph::{
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
         ModuleGraph,
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
     },
     output::{OutputAsset, OutputAssets},
     reference::all_assets_from_entries,
@@ -52,9 +52,9 @@ use turbopack_nodejs::NodeJsChunkingContext;
 
 use crate::{
     arguments::{BuildArguments, Target},
-    contexts::{get_client_asset_context, get_client_compile_time_info, NodeEnv},
+    contexts::{NodeEnv, get_client_asset_context, get_client_compile_time_info},
     util::{
-        normalize_dirs, normalize_entries, output_fs, project_fs, EntryRequest, NormalizedDirs,
+        EntryRequest, NormalizedDirs, normalize_dirs, normalize_entries, output_fs, project_fs,
     },
 };
 
@@ -303,8 +303,10 @@ async fn build_internal(
     .instrument(tracing::info_span!("resolve entries"))
     .await?;
 
-    let module_graph =
-        ModuleGraph::from_modules(Vc::cell(vec![ChunkGroupEntry::Entry(entries.clone())]));
+    let module_graph = ModuleGraph::from_modules(
+        Vc::cell(vec![ChunkGroupEntry::Entry(entries.clone())]),
+        false,
+    );
     let module_id_strategy = ResolvedVc::upcast(
         get_global_module_id_strategy(module_graph)
             .to_resolved()
@@ -335,6 +337,7 @@ async fn build_internal(
             )
             .source_maps(source_maps_type)
             .module_id_strategy(module_id_strategy)
+            .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
             .minify_type(minify_type);
 
             match *node_env.await? {

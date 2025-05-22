@@ -7,8 +7,8 @@ use tokio_stream::wrappers::ReceiverStream;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::{TraceRawVcs, TraceRawVcsContext},
     IntoTraitRef, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TransientInstance, Vc,
+    trace::{TraceRawVcs, TraceRawVcsContext},
 };
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::{
@@ -24,7 +24,7 @@ use turbopack_core::{
     },
 };
 
-use crate::source::{resolve::ResolveSourceRequestResult, ProxyResult};
+use crate::source::{ProxyResult, resolve::ResolveSourceRequestResult};
 
 struct TypedGetContentFn<C> {
     capture: C,
@@ -401,12 +401,12 @@ impl Issue for FatalStreamIssue {
 #[cfg(test)]
 pub mod test {
     use std::sync::{
-        atomic::{AtomicI32, Ordering},
         Arc,
+        atomic::{AtomicI32, Ordering},
     };
 
     use turbo_tasks::TurboTasks;
-    use turbo_tasks_backend::{noop_backing_storage, BackendOptions, TurboTasksBackend};
+    use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
     use super::*;
 

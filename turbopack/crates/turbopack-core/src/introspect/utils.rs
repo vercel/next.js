@@ -4,7 +4,7 @@ use turbo_tasks::{FxIndexSet, ResolvedVc, Vc};
 use turbo_tasks_fs::FileContent;
 
 use super::{
-    module::IntrospectableModule, output_asset::IntrospectableOutputAsset, IntrospectableChildren,
+    IntrospectableChildren, module::IntrospectableModule, output_asset::IntrospectableOutputAsset,
 };
 use crate::{
     asset::AssetContent,
@@ -81,10 +81,7 @@ pub async fn children_from_module_references(
         {
             match &*chunkable.chunking_type().await? {
                 None => {}
-                Some(ChunkingType::Parallel) => key = parallel_reference_ty(),
-                Some(ChunkingType::ParallelInheritAsync) => {
-                    key = parallel_inherit_async_reference_ty()
-                }
+                Some(ChunkingType::Parallel { .. }) => key = parallel_reference_ty(),
                 Some(ChunkingType::Async) => key = async_reference_ty(),
                 Some(ChunkingType::Isolated { .. }) => key = isolated_reference_ty(),
                 Some(ChunkingType::Shared { .. }) => key = shared_reference_ty(),

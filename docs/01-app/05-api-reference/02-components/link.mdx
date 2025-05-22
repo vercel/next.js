@@ -336,7 +336,7 @@ Prefetching happens when a `<Link />` component enters the user's viewport (init
 The following values can be passed to the `prefetch` prop:
 
 - **`true` (default)**: The full route and its data will be prefetched.
-- `false`: Prefetching will not happen when entering the viewport, but will happen on hover. If you want to completely remove fetching on hover as well, consider using an `<a>` tag or [incrementally adopting](/docs/app/building-your-application/upgrading/app-router-migration) the App Router, which enables disabling prefetching on hover too.
+- `false`: Prefetching will not happen when entering the viewport, but will happen on hover. If you want to completely remove fetching on hover as well, consider using an `<a>` tag or [incrementally adopting](/docs/app/guides/migrating/app-router-migration) the App Router, which enables disabling prefetching on hover too.
 
 ```tsx filename="pages/index.tsx" switcher
 import Link from 'next/link'
@@ -364,7 +364,9 @@ export default function Home() {
 
 ### `legacyBehavior`
 
-An `<a>` element is no longer required as a child of `<Link>`. Add the `legacyBehavior` prop to use the legacy behavior or remove the `<a>` to upgrade. A [codemod is available](/docs/app/building-your-application/upgrading/codemods#new-link) to automatically upgrade your code.
+> **Warning**: The `legacyBehavior` prop will be removed in Next.js v16. To adopt the new `<Link>` behavior, remove any `<a>` tags used as children of `<Link>`. A [codemod is available](/docs/app/guides/upgrading/codemods#new-link) to help you automatically upgrade your codebase.
+
+Since version 13, an `<a>` element is no longer required as a child of the `<Link>` component. If you still need the old behavior for compatibility reasons, you can add the `legacyBehavior` prop.
 
 > **Good to know**: when `legacyBehavior` is not set to `true`, all [`anchor`](https://developer.mozilla.org/docs/Web/HTML/Element/a) tag properties can be passed to `next/link` as well such as, `className`, `onClick`, etc.
 
@@ -1510,10 +1512,10 @@ When a user tries to navigate away using `CustomLink` while the form has unsaved
 
 ## Version history
 
-| Version   | Changes                                                                                                                                                                                         |
-| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `v15.3.0` | Add `onNavigate` API                                                                                                                                                                            |
-| `v13.0.0` | No longer requires a child `<a>` tag. A [codemod](/docs/app/building-your-application/upgrading/codemods#remove-a-tags-from-link-components) is provided to automatically update your codebase. |
-| `v10.0.0` | `href` props pointing to a dynamic route are automatically resolved and no longer require an `as` prop.                                                                                         |
-| `v8.0.0`  | Improved prefetching performance.                                                                                                                                                               |
-| `v1.0.0`  | `next/link` introduced.                                                                                                                                                                         |
+| Version   | Changes                                                                                                                                                                      |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v15.3.0` | Add `onNavigate` API                                                                                                                                                         |
+| `v13.0.0` | No longer requires a child `<a>` tag. A [codemod](/docs/app/guides/upgrading/codemods#remove-a-tags-from-link-components) is provided to automatically update your codebase. |
+| `v10.0.0` | `href` props pointing to a dynamic route are automatically resolved and no longer require an `as` prop.                                                                      |
+| `v8.0.0`  | Improved prefetching performance.                                                                                                                                            |
+| `v1.0.0`  | `next/link` introduced.                                                                                                                                                      |

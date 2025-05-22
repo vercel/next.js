@@ -2,7 +2,7 @@ use std::{
     env::{self, current_dir},
     fmt::{Display, Write},
     fs::read_dir,
-    path::{PathBuf, MAIN_SEPARATOR as PATH_SEP},
+    path::{MAIN_SEPARATOR as PATH_SEP, PathBuf},
     sync::Arc,
 };
 
@@ -11,14 +11,14 @@ use glob::glob;
 use quote::ToTokens;
 use rustc_hash::{FxHashMap, FxHashSet};
 use syn::{
-    parse_quote, Attribute, Ident, Item, ItemEnum, ItemFn, ItemImpl, ItemMacro, ItemMod,
-    ItemStruct, ItemTrait, TraitItem, TraitItemMethod,
+    Attribute, Ident, Item, ItemEnum, ItemFn, ItemImpl, ItemMacro, ItemMod, ItemStruct, ItemTrait,
+    TraitItem, TraitItemFn, parse_quote,
 };
 use turbo_tasks_macros_shared::{
-    get_impl_function_ident, get_native_function_ident, get_path_ident,
-    get_register_trait_methods_ident, get_register_value_type_ident,
+    GenericTypeInput, PrimitiveInput, get_impl_function_ident, get_native_function_ident,
+    get_path_ident, get_register_trait_methods_ident, get_register_value_type_ident,
     get_trait_default_impl_function_ident, get_trait_impl_function_ident, get_trait_type_ident,
-    get_type_ident, GenericTypeInput, PrimitiveInput,
+    get_type_ident,
 };
 
 pub fn generate_register() {
@@ -137,7 +137,7 @@ pub fn generate_register() {
                         ctx.process_item(&item).unwrap();
                     }
                 }
-                Err(err) => println!("{}", err),
+                Err(err) => println!("{err}"),
             }
         }
 
@@ -286,7 +286,7 @@ impl RegisterContext<'_> {
             }
 
             for item in &impl_item.items {
-                if let syn::ImplItem::Method(method_item) = item {
+                if let syn::ImplItem::Fn(method_item) = item {
                     // TODO: if method_item.attrs.iter().any(|a|
                     // is_attribute(a,
                     // "function")) {
@@ -371,7 +371,7 @@ impl RegisterContext<'_> {
             let trait_ident = &trait_item.ident;
 
             for item in &trait_item.items {
-                if let TraitItem::Method(TraitItemMethod {
+                if let TraitItem::Fn(TraitItemFn {
                     default: Some(_),
                     sig,
                     ..
@@ -461,8 +461,7 @@ impl RegisterContext<'_> {
 
         assert!(
             self.values.insert(key, value).is_none(),
-            "{} is declared more than once",
-            ident
+            "{ident} is declared more than once"
         );
     }
 
@@ -583,7 +582,7 @@ fn has_turbo_attribute(attrs: &[Attribute], name: &str) -> bool {
 }
 
 fn is_turbo_attribute(attr: &Attribute, name: &str) -> bool {
-    let path = &attr.path;
+    let path = attr.path();
     if path.leading_colon.is_some() {
         return false;
     }
@@ -598,7 +597,7 @@ fn is_turbo_attribute(attr: &Attribute, name: &str) -> bool {
 }
 
 fn is_cfg_attribute(attr: &Attribute) -> bool {
-    attr.path
+    attr.path()
         .get_ident()
         .is_some_and(|ident| ident == "cfg" || ident == "cfg_attr")
 }

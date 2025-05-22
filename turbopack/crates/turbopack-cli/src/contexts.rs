@@ -5,12 +5,12 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack::{
+    ModuleAssetContext,
     ecmascript::TreeShakingMode,
     module_options::{
         EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext, ModuleRule,
         ModuleRuleEffect, RuleCondition, TypescriptTransformOptions,
     },
-    ModuleAssetContext,
 };
 use turbopack_browser::react_refresh::assert_can_resolve_react_refresh;
 use turbopack_core::{

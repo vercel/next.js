@@ -14,20 +14,20 @@ pub mod module_options;
 pub mod transition;
 pub(crate) mod unsupported_sass;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use css::{CssModuleAsset, ModuleCssAsset};
 use ecmascript::{
-    chunk::EcmascriptChunkPlaceable,
-    references::{follow_reexports, FollowExportsResult},
-    side_effect_optimization::facade::module::EcmascriptModuleFacadeModule,
     EcmascriptModuleAsset, EcmascriptModuleAssetType, TreeShakingMode,
+    chunk::EcmascriptChunkPlaceable,
+    references::{FollowExportsResult, follow_reexports},
+    side_effect_optimization::facade::module::EcmascriptModuleFacadeModule,
 };
-use graph::{aggregate, AggregatedGraph, AggregatedGraphNodeContent};
+use graph::{AggregatedGraph, AggregatedGraphNodeContent, aggregate};
 use module_options::{ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, ModuleType};
-use tracing::{field::Empty, Instrument};
+use tracing::{Instrument, field::Empty};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
-use turbo_tasks_fs::{glob::Glob, FileSystemPath};
+use turbo_tasks::{FxIndexSet, ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 pub use turbopack_core::condition;
 use turbopack_core::{
     asset::Asset,
@@ -35,7 +35,7 @@ use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     context::{AssetContext, ProcessResult},
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
-    issue::{module::ModuleIssue, IssueExt, StyledString},
+    issue::{IssueExt, StyledString, module::ModuleIssue},
     module::Module,
     output::OutputAsset,
     raw_module::RawModule,
@@ -45,16 +45,15 @@ use turbopack_core::{
         InnerAssets, ReferenceType,
     },
     resolve::{
-        options::ResolveOptions, origin::PlainResolveOrigin, parse::Request, resolve,
         ExternalTraced, ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem,
-        ResolveResult, ResolveResultItem,
+        ResolveResult, ResolveResultItem, options::ResolveOptions, origin::PlainResolveOrigin,
+        parse::Request, resolve,
     },
     source::Source,
 };
 pub use turbopack_css as css;
 pub use turbopack_ecmascript as ecmascript;
 use turbopack_ecmascript::{
-    parse::ParseResult,
     references::external_module::{CachedExternalModule, CachedExternalType},
     tree_shake::asset::EcmascriptModulePartAsset,
 };
@@ -140,10 +139,7 @@ async fn apply_module_type(
                 ResolvedVc::upcast(builder.build().to_resolved().await?)
             } else {
                 let module = builder.build().resolve().await?;
-                if matches!(
-                    &part,
-                    Some(ModulePart::Evaluation | ModulePart::InternalEvaluation(..))
-                ) {
+                if matches!(&part, Some(ModulePart::Evaluation)) {
                     // Skip the evaluation part if the module is marked as side effect free.
                     let side_effect_free_packages = module_asset_context
                         .side_effect_free_packages()
@@ -167,14 +163,12 @@ async fn apply_module_type(
                         ))
                     }
                     Some(TreeShakingMode::ReexportsOnly) => {
-                        let parsed = module.parse();
                         if let Some(part) = part {
                             match part {
                                 ModulePart::Evaluation => {
                                     if *module.get_exports().needs_facade().await? {
                                         Vc::upcast(EcmascriptModuleFacadeModule::new(
                                             Vc::upcast(module),
-                                            parsed,
                                             part,
                                         ))
                                     } else {
@@ -192,20 +186,17 @@ async fn apply_module_type(
                                             Vc::upcast(
                                                 EcmascriptModuleFacadeModule::new(
                                                     Vc::upcast(module),
-                                                    parsed,
                                                     ModulePart::exports(),
                                                 )
                                                 .resolve()
                                                 .await?,
                                             ),
-                                            parsed,
                                             part,
                                             side_effect_free_packages,
                                         )
                                     } else {
                                         apply_reexport_tree_shaking(
                                             Vc::upcast(module.resolve().await?),
-                                            parsed,
                                             part,
                                             side_effect_free_packages,
                                         )
@@ -220,7 +211,6 @@ async fn apply_module_type(
                         } else if *module.get_exports().needs_facade().await? {
                             Vc::upcast(EcmascriptModuleFacadeModule::new(
                                 Vc::upcast(module),
-                                parsed,
                                 ModulePart::facade(),
                             ))
                         } else {
@@ -283,7 +273,6 @@ async fn apply_module_type(
 #[turbo_tasks::function]
 async fn apply_reexport_tree_shaking(
     module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
-    parsed: Vc<ParseResult>,
     part: ModulePart,
     side_effect_free_packages: Vc<Glob>,
 ) -> Result<Vc<Box<dyn Module>>> {
@@ -299,14 +288,12 @@ async fn apply_reexport_tree_shaking(
             } else {
                 Vc::upcast(EcmascriptModuleFacadeModule::new(
                     **final_module,
-                    parsed,
                     ModulePart::renamed_export(new_export.clone(), export.clone()),
                 ))
             }
         } else {
             Vc::upcast(EcmascriptModuleFacadeModule::new(
                 **final_module,
-                parsed,
                 ModulePart::renamed_namespace(export.clone()),
             ))
         };
@@ -681,6 +668,9 @@ async fn externals_tracing_module_context(ty: ExternalType) -> Result<Vc<ModuleA
     Ok(ModuleAssetContext::new_without_replace_externals(
         Default::default(),
         CompileTimeInfo::builder(env).cell().await?,
+        // Keep these options more or less in sync with
+        // turbopack/crates/turbopack/tests/node-file-trace.rs to ensure that the NFT unit tests
+        // are actually representative of what Turbopack does.
         ModuleOptionsContext {
             ecmascript: EcmascriptOptionsContext {
                 source_maps: SourceMapsType::None,
@@ -809,6 +799,27 @@ impl AssetContext for ModuleAssetContext {
                                     let externals_context = externals_tracing_module_context(ty);
                                     let root_origin = tracing_root.join("_".into());
 
+                                    // Normalize reference type, there is no such thing as a
+                                    // `ReferenceType::EcmaScriptModules(ImportPart(Evaluation))`
+                                    // for externals (and otherwise, this causes duplicate
+                                    // CachedExternalModules for both `ImportPart(Evaluation)` and
+                                    // `ImportPart(Export("CacheProvider"))`)
+                                    let reference_type = Value::new(match &*reference_type {
+                                        ReferenceType::EcmaScriptModules(_) => {
+                                            ReferenceType::EcmaScriptModules(Default::default())
+                                        }
+                                        ReferenceType::CommonJs(_) => {
+                                            ReferenceType::CommonJs(Default::default())
+                                        }
+                                        ReferenceType::Css(_) => {
+                                            ReferenceType::Css(Default::default())
+                                        }
+                                        ReferenceType::Url(_) => {
+                                            ReferenceType::Url(Default::default())
+                                        }
+                                        _ => ReferenceType::Undefined,
+                                    });
+
                                     let external_result = externals_context
                                         .resolve_asset(
                                             root_origin,
@@ -829,9 +840,11 @@ impl AssetContext for ModuleAssetContext {
                                             external_result
                                                 .primary_modules_raw_iter()
                                                 .map(|rvc| *rvc),
-                                        );
+                                        )
+                                        .collect::<FxIndexSet<_>>();
 
                                     modules
+                                        .into_iter()
                                         .map(|s| {
                                             Vc::upcast::<Box<dyn ModuleReference>>(
                                                 TracedModuleReference::new(s),
@@ -917,7 +930,7 @@ impl AssetContext for ModuleAssetContext {
         let mut globs = Vec::with_capacity(pkgs.len());
 
         for pkg in pkgs {
-            globs.push(Glob::new(format!("**/node_modules/{{{}}}/**", pkg).into()));
+            globs.push(Glob::new(format!("**/node_modules/{{{pkg}}}/**").into()));
         }
 
         Ok(Glob::alternatives(globs))

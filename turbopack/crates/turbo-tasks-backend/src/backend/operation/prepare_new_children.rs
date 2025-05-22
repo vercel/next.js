@@ -6,7 +6,7 @@ use turbo_tasks::TaskId;
 use crate::backend::{
     get,
     operation::{
-        is_aggregating_node, is_root_node, AggregationUpdateJob, AggregationUpdateQueue, TaskGuard,
+        AggregationUpdateJob, AggregationUpdateQueue, TaskGuard, is_aggregating_node, is_root_node,
     },
 };
 

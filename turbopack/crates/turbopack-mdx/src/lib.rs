@@ -3,10 +3,10 @@
 #![feature(arbitrary_self_types_pointers)]
 
 use anyhow::Result;
-use mdxjs::{compile, MdxParseOptions, Options};
+use mdxjs::{MdxParseOptions, Options, compile};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueDefault, Vc};
-use turbo_tasks_fs::{rope::Rope, File, FileContent, FileSystemPath};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath, rope::Rope};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     ident::AssetIdent,

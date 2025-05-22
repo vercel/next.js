@@ -39,6 +39,10 @@ export interface Binding {
       transformStyleAttr(transformAttrOptions: any): Promise<any>
     }
   }
+
+  reactCompiler: {
+    isReactCompilerRequired(filename: string): Promise<boolean>
+  }
 }
 
 export type StyledString =
@@ -178,6 +182,13 @@ export type UpdateMessage =
       value: UpdateInfo
     }
 
+export type CompilationEvent = {
+  typeName: string
+  message: string
+  severity: string
+  eventData: any
+}
+
 export interface UpdateInfo {
   duration: number
   tasks: number
@@ -211,6 +222,10 @@ export interface Project {
   updateInfoSubscribe(
     aggregationMs: number
   ): AsyncIterableIterator<TurbopackResult<UpdateMessage>>
+
+  compilationEventsSubscribe(): AsyncIterableIterator<
+    TurbopackResult<CompilationEvent>
+  >
 
   shutdown(): Promise<void>
 

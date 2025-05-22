@@ -13,26 +13,29 @@ use swc_core::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TryFlatJoinIterExt,
-    ValueToString, Vc,
+    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, ValueToString, Vc,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
     chunk::ChunkingContext,
     ident::AssetIdent,
-    issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, StyledString},
+    issue::{IssueExt, IssueSeverity, StyledString, analyze::AnalyzeIssue},
     module::Module,
     module_graph::ModuleGraph,
     reference::ModuleReference,
+    resolve::ModulePart,
 };
 
 use super::base::ReferencedAsset;
 use crate::{
+    EcmascriptModuleAsset,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
     magic_identifier,
     parse::ParseResult,
     runtime_functions::{TURBOPACK_DYNAMIC, TURBOPACK_ESM},
+    tree_shake::asset::EcmascriptModulePartAsset,
 };
 
 #[derive(Clone, Hash, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
@@ -177,9 +180,9 @@ pub async fn follow_reexports(
 
         // Try to find the export in the star exports
         if !exports_ref.star_exports.is_empty() && &*export_name != "default" {
-            let result = get_all_export_names(*module).await?;
-            if let Some(m) = result.esm_exports.get(&export_name) {
-                module = *m;
+            let result = find_export_from_reexports(*module, export_name.clone()).await?;
+            if let Some(m) = result.esm_export {
+                module = m;
                 continue;
             }
             return match &result.dynamic_exporting_modules[..] {
@@ -267,6 +270,48 @@ async fn handle_declared_export(
         export_name: Some(export_name),
         ty: FoundExportType::Unknown,
     }))
+}
+
+#[turbo_tasks::value]
+struct FindExportFromReexportsResult {
+    esm_export: Option<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
+    dynamic_exporting_modules: Vec<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
+}
+
+#[turbo_tasks::function]
+async fn find_export_from_reexports(
+    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    export_name: RcStr,
+) -> Result<Vc<FindExportFromReexportsResult>> {
+    if let Some(module) =
+        Vc::try_resolve_downcast_type::<EcmascriptModulePartAsset>(*module).await?
+    {
+        if matches!(module.await?.part, ModulePart::Exports) {
+            let module_part = EcmascriptModulePartAsset::select_part(
+                *module.await?.full_module,
+                ModulePart::export(export_name.clone()),
+            );
+
+            // If we apply this logic to EcmascriptModuleAsset, we will resolve everything in the
+            // target module.
+            if (Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module_part).await?)
+                .is_none()
+            {
+                return Ok(find_export_from_reexports(
+                    Vc::upcast(module_part),
+                    export_name,
+                ));
+            }
+        }
+    }
+
+    let all_export_names = get_all_export_names(*module).await?;
+    let esm_export = all_export_names.esm_exports.get(&export_name).copied();
+    Ok(FindExportFromReexportsResult {
+        esm_export,
+        dynamic_exporting_modules: all_export_names.dynamic_exporting_modules.clone(),
+    }
+    .cell())
 }
 
 #[turbo_tasks::value]
@@ -495,13 +540,13 @@ impl EsmExports {
         self: Vc<Self>,
         _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-        parsed: Vc<ParseResult>,
+        parsed: Option<Vc<ParseResult>>,
     ) -> Result<CodeGeneration> {
         let expanded = self.expand_exports().await?;
-        let parsed = parsed.await?;
-        let eval_context = match &*parsed {
-            ParseResult::Ok { eval_context, .. } => Some(eval_context),
-            _ => None,
+        let parsed = if let Some(parsed) = parsed {
+            Some(parsed.await?)
+        } else {
+            None
         };
 
         let mut dynamic_exports = Vec::<Box<Expr>>::new();
@@ -529,9 +574,14 @@ impl EsmExports {
                     } else {
                         Cow::Borrowed(name.as_str())
                     };
-                    let ctxt = eval_context
-                        .and_then(|eval_context| {
-                            eval_context.imports.exports.get(name).map(|id| id.1)
+                    let ctxt = parsed
+                        .as_ref()
+                        .and_then(|parsed| {
+                            if let ParseResult::Ok { eval_context, .. } = &**parsed {
+                                eval_context.imports.exports.get(name).map(|id| id.1)
+                            } else {
+                                None
+                            }
                         })
                         .unwrap_or_default();
 
@@ -630,7 +680,6 @@ impl EsmExports {
         Ok(CodeGeneration::new(
             vec![],
             [dynamic_stmt
-                .clone()
                 .map(|stmt| CodeGenerationHoistedStmt::new("__turbopack_dynamic__".into(), stmt))]
             .into_iter()
             .flatten()
@@ -639,7 +688,7 @@ impl EsmExports {
                 "__turbopack_esm__".into(),
                 quote!("$turbopack_esm($getters);" as Stmt,
                     turbopack_esm: Expr = TURBOPACK_ESM.into(),
-                    getters: Expr = getters.clone()
+                    getters: Expr = getters
                 ),
             )],
         ))

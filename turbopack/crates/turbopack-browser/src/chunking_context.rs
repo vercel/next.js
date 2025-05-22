@@ -1,27 +1,27 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Upcast, Value,
-    ValueToString, Vc,
+    NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Upcast, Value, ValueToString, Vc,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_fs::FileSystemPath;
-use turbo_tasks_hash::{hash_xxh3_hash64, DeterministicHash};
+use turbo_tasks_hash::{DeterministicHash, hash_xxh3_hash64};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        availability_info::AvailabilityInfo,
-        chunk_group::{make_chunk_group, MakeChunkGroupResult},
-        module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
         Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule, ChunkingConfig,
         ChunkingConfigs, ChunkingContext, EntryChunkGroupResult, EvaluatableAsset,
         EvaluatableAssets, MinifyType, ModuleId, SourceMapsType,
+        availability_info::AvailabilityInfo,
+        chunk_group::{MakeChunkGroupResult, make_chunk_group},
+        module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
     },
     environment::Environment,
     ident::AssetIdent,
     module::Module,
-    module_graph::{chunk_group_info::ChunkGroup, ModuleGraph},
+    module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
     output::{OutputAsset, OutputAssets},
 };
 use turbopack_ecmascript::{

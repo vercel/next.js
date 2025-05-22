@@ -6,7 +6,7 @@ use swc_core::{
         visit::AstParentKind,
     },
 };
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue};
+use turbo_tasks::{NonLocalValue, trace::TraceRawVcs};
 use turbopack_core::{chunk::ModuleId, resolve::pattern::Pattern};
 
 use crate::analyzer::{
@@ -184,7 +184,9 @@ pub fn module_value_to_well_known_object(module_value: &ModuleValue) -> Option<J
         }
         "node:os" | "os" => JsValue::WellKnownObject(WellKnownObjectKind::OsModule),
         "node:process" | "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
-        "@mapbox/node-pre-gyp" => JsValue::WellKnownObject(WellKnownObjectKind::NodePreGyp),
+        "node-pre-gyp" | "@mapbox/node-pre-gyp" => {
+            JsValue::WellKnownObject(WellKnownObjectKind::NodePreGyp)
+        }
         "node-gyp-build" => JsValue::WellKnownFunction(WellKnownFunctionKind::NodeGypBuild),
         "node:bindings" | "bindings" => {
             JsValue::WellKnownFunction(WellKnownFunctionKind::NodeBindings)

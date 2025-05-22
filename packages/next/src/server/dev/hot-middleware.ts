@@ -172,10 +172,10 @@ export class WebpackHotMiddleware {
   }
 
   onEdgeServerDone = (statsResult: webpack.Stats) => {
+    if (this.closed) return
     if (!isMiddlewareStats(statsResult)) {
       this.onServerInvalid()
       this.onServerDone(statsResult)
-      return
     }
 
     if (statsResult.hasErrors()) {

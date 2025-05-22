@@ -23,11 +23,10 @@ import {
   PathParamsContext,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { dispatchAppRouterAction, useActionQueue } from './use-action-queue'
-import {
-  default as DefaultGlobalError,
-  ErrorBoundary,
+import { ErrorBoundary } from './error-boundary'
+import DefaultGlobalError, {
   type GlobalErrorComponent,
-} from './error-boundary'
+} from '../../client/components/global-error'
 import { isBot } from '../../shared/lib/router/utils/is-bot'
 import { addBasePath } from '../add-base-path'
 import { AppRouterAnnouncer } from './app-router-announcer'
@@ -47,6 +46,7 @@ import {
 import { getRedirectTypeFromError, getURLFromRedirectError } from './redirect'
 import { isRedirectError, RedirectType } from './redirect-error'
 import { pingVisibleLinks } from './links'
+import GracefulDegradeBoundary from './errors/graceful-degrade-boundary'
 
 const globalMutable: {
   pendingMpaPath?: string
@@ -516,7 +516,9 @@ function Router({
   } else {
     // If gracefully degrading is applied in production,
     // leave the app as it is rather than caught by GlobalError boundary.
-    if (!gracefullyDegrade) {
+    if (gracefullyDegrade) {
+      content = <GracefulDegradeBoundary>{content}</GracefulDegradeBoundary>
+    } else {
       content = (
         <ErrorBoundary
           errorComponent={globalError[0]}

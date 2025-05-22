@@ -1,5 +1,5 @@
 use std::{
-    cmp::{max, Reverse},
+    cmp::{Reverse, max},
     collections::VecDeque,
     fmt::Debug,
     mem::take,
@@ -11,10 +11,10 @@ use std::{
 use concurrent_queue::ConcurrentQueue;
 use dashmap::DashSet;
 use parking_lot::Mutex;
-use tracing::field::{debug, Empty};
+use tracing::field::{Empty, debug};
 use turbo_tasks::{TaskId, TurboTasksBackendApi};
 
-use crate::{task::GcResult, MemoryBackend};
+use crate::{MemoryBackend, task::GcResult};
 
 /// The priority of a task for garbage collection.
 /// Any action will shrink the internal memory structures of the task in a
@@ -174,7 +174,7 @@ impl GcQueue {
             self.incoming_tasks_count
                 .fetch_sub(TASKS_PER_NEW_GENERATION, Ordering::Release);
             // We are selected to move TASKS_PER_NEW_GENERATION tasks into a generation
-            let gen = unsafe {
+            let generation = unsafe {
                 // SAFETY: We are sure that the generation is not 0, since we start at 1.
                 NonZeroU32::new_unchecked(self.generation.fetch_add(1, Ordering::Relaxed))
             };
@@ -191,11 +191,10 @@ impl GcQueue {
                     }
                 }
             }
-            self.generations.lock().push_front(OldGeneration {
-                tasks,
-                generation: gen,
-            });
-            gen
+            self.generations
+                .lock()
+                .push_front(OldGeneration { tasks, generation });
+            generation
         } else {
             self.generation()
         }
@@ -251,8 +250,8 @@ impl GcQueue {
         for (i, task) in tasks.iter().enumerate() {
             backend.with_task(*task, |task| {
                 if let Some(state) = task.gc_state() {
-                    if let Some(gen) = state.generation {
-                        if gen <= generation {
+                    if let Some(task_generation) = state.generation {
+                        if task_generation <= generation {
                             indices.push((Reverse(state.priority), i as u32));
                         }
                     }

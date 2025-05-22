@@ -33,10 +33,10 @@ describe('server-side dev errors', () => {
     app = await launchApp(appDir, appPort, {
       onStderr(msg) {
         stderr += msg
-        // All tests cause runtime errors which may lead to this message which
+        // All tests cause Runtime ReferenceErrors which may lead to this message which
         // is not relevant to this test.
         stderr = stderr.replace(
-          ' ⚠ Fast Refresh had to perform a full reload due to a runtime error.',
+          ' ⚠ Fast Refresh had to perform a full reload due to a Runtime ReferenceError.',
           ''
         )
       },
@@ -46,6 +46,15 @@ describe('server-side dev errors', () => {
     })
   })
   afterAll(() => killApp(app))
+
+  // TODO: update to ensure this frame is ignored properly by default
+  function stripInternalHandler(output) {
+    return output
+      .replace(/.*at async handler .*next-route-loader.*/, '')
+      .split(/\n/)
+      .filter((item) => !!item.trim())
+      .join('\n')
+  }
 
   it('should show server-side error for gsp page correctly', async () => {
     const content = await fs.readFile(gspPage, 'utf8')
@@ -64,58 +73,32 @@ describe('server-side dev errors', () => {
         )
       })
 
-      const stderrOutput = stripAnsi(stderr.slice(stderrIdx)).trim()
-      if (isTurbopack) {
-        expect(stderrOutput).toContain(
-          ' ⨯ ReferenceError: missingVar is not defined' +
-            '\n    at getStaticProps (../../test/integration/server-side-dev-errors/pages/gsp.js:6:2)' +
-            // Next.js internal frame. Feel free to adjust.
-            // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
-            '\n    at <unknown>'
-        )
-      } else {
-        expect(stderrOutput).toStartWith(
-          '⨯ ReferenceError: missingVar is not defined' +
-            '\n    at getStaticProps (../../test/integration/server-side-dev-errors/pages/gsp.js:6:2)' +
-            // Next.js internal frame. Feel free to adjust.
-            // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
-            '\n    at <unknown>'
-        )
-      }
-      expect(stderr).toContain(
-        '\n  5 | export async function getStaticProps() {' +
-          '\n> 6 |   missingVar;return {'
+      const stderrOutput = stripInternalHandler(
+        stripAnsi(stderr.slice(stderrIdx)).trim()
       )
 
-      if (isTurbopack) {
-        await expect(browser).toDisplayRedbox(`
-         {
-           "description": "ReferenceError: missingVar is not defined",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "pages/gsp.js (6:3) @ getStaticProps
-         > 6 |   missingVar;return {
-             |   ^",
-           "stack": [
-             "getStaticProps pages/gsp.js (6:3)",
-           ],
-         }
-        `)
-      } else {
-        await expect(browser).toDisplayRedbox(`
-         {
-           "description": "ReferenceError: missingVar is not defined",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "pages/gsp.js (6:3) @ getStaticProps
-         > 6 |   missingVar;return {
-             |   ^",
-           "stack": [
-             "getStaticProps pages/gsp.js (6:3)",
-           ],
-         }
-        `)
-      }
+      expect(stderrOutput).toStartWith(
+        '⨯ ReferenceError: missingVar is not defined' +
+          '\n    at getStaticProps (../../test/integration/server-side-dev-errors/pages/gsp.js:6:2)' +
+          '\n  4 |' +
+          '\n  5 | export async function getStaticProps() {' +
+          '\n> 6 |   missingVar;return {' +
+          '\n    |  ^'
+      )
+
+      await expect(browser).toDisplayRedbox(`
+        {
+          "description": "missingVar is not defined",
+          "environmentLabel": null,
+          "label": "Runtime ReferenceError",
+          "source": "pages/gsp.js (6:3) @ getStaticProps
+        > 6 |   missingVar;return {
+            |   ^",
+          "stack": [
+            "getStaticProps pages/gsp.js (6:3)",
+          ],
+        }
+      `)
 
       await fs.writeFile(gspPage, content, { flush: true })
       await assertNoRedbox(browser)
@@ -141,58 +124,31 @@ describe('server-side dev errors', () => {
         )
       })
 
-      const stderrOutput = stripAnsi(stderr.slice(stderrIdx)).trim()
-      if (isTurbopack) {
-        expect(stderrOutput).toContain(
-          ' ⨯ ReferenceError: missingVar is not defined' +
-            '\n    at getServerSideProps (../../test/integration/server-side-dev-errors/pages/gssp.js:6:2)' +
-            // Next.js internal frame. Feel free to adjust.
-            // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
-            '\n    at <unknown>'
-        )
-      } else {
-        expect(stderrOutput).toStartWith(
-          '⨯ ReferenceError: missingVar is not defined' +
-            '\n    at getServerSideProps (../../test/integration/server-side-dev-errors/pages/gssp.js:6:2)' +
-            // Next.js internal frame. Feel free to adjust.
-            // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
-            '\n    at <unknown>'
-        )
-      }
-      expect(stderrOutput).toContain(
-        '\n  5 | export async function getServerSideProps() {' +
-          '\n> 6 |   missingVar;return {'
+      const stderrOutput = stripInternalHandler(
+        stripAnsi(stderr.slice(stderrIdx)).trim()
+      )
+      expect(stderrOutput).toStartWith(
+        '⨯ ReferenceError: missingVar is not defined' +
+          '\n    at getServerSideProps (../../test/integration/server-side-dev-errors/pages/gssp.js:6:2)' +
+          '\n  4 |' +
+          '\n  5 | export async function getServerSideProps() {' +
+          '\n> 6 |   missingVar;return {' +
+          '\n    |  ^'
       )
 
-      if (isTurbopack) {
-        await expect(browser).toDisplayRedbox(`
-         {
-           "description": "ReferenceError: missingVar is not defined",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "pages/gssp.js (6:3) @ getServerSideProps
-         > 6 |   missingVar;return {
-             |   ^",
-           "stack": [
-             "getServerSideProps pages/gssp.js (6:3)",
-           ],
-         }
-        `)
-      } else {
-        await expect(browser).toDisplayRedbox(`
-         {
-           "description": "ReferenceError: missingVar is not defined",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "pages/gssp.js (6:3) @ getServerSideProps
-         > 6 |   missingVar;return {
-             |   ^",
-           "stack": [
-             "getServerSideProps pages/gssp.js (6:3)",
-           ],
-         }
-        `)
-      }
+      await expect(browser).toDisplayRedbox(`
+        {
+          "description": "missingVar is not defined",
+          "environmentLabel": null,
+          "label": "Runtime ReferenceError",
+          "source": "pages/gssp.js (6:3) @ getServerSideProps
+        > 6 |   missingVar;return {
+            |   ^",
+          "stack": [
+            "getServerSideProps pages/gssp.js (6:3)",
+          ],
+        }
+      `)
 
       await fs.writeFile(gsspPage, content)
       await assertNoRedbox(browser)
@@ -218,58 +174,31 @@ describe('server-side dev errors', () => {
         )
       })
 
-      const stderrOutput = stripAnsi(stderr.slice(stderrIdx)).trim()
-      if (isTurbopack) {
-        expect(stderrOutput).toContain(
-          ' ⨯ ReferenceError: missingVar is not defined' +
-            '\n    at getServerSideProps (../../test/integration/server-side-dev-errors/pages/blog/[slug].js:6:2)' +
-            // Next.js internal frame. Feel free to adjust.
-            // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
-            '\n    at <unknown>'
-        )
-      } else {
-        expect(stderrOutput).toStartWith(
-          '⨯ ReferenceError: missingVar is not defined' +
-            '\n    at getServerSideProps (../../test/integration/server-side-dev-errors/pages/blog/[slug].js:6:2)' +
-            // Next.js internal frame. Feel free to adjust.
-            // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
-            '\n    at <unknown>'
-        )
-      }
-      expect(stderrOutput).toContain(
-        '\n  5 | export async function getServerSideProps() {' +
-          '\n> 6 |   missingVar;return {'
+      const stderrOutput = stripInternalHandler(
+        stripAnsi(stderr.slice(stderrIdx)).trim()
+      )
+      expect(stderrOutput).toStartWith(
+        '⨯ ReferenceError: missingVar is not defined' +
+          '\n    at getServerSideProps (../../test/integration/server-side-dev-errors/pages/blog/[slug].js:6:2)' +
+          '\n  4 |' +
+          '\n  5 | export async function getServerSideProps() {' +
+          '\n> 6 |   missingVar;return {' +
+          '\n    |  ^'
       )
 
-      if (isTurbopack) {
-        await expect(browser).toDisplayRedbox(`
-         {
-           "description": "ReferenceError: missingVar is not defined",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "pages/blog/[slug].js (6:3) @ getServerSideProps
-         > 6 |   missingVar;return {
-             |   ^",
-           "stack": [
-             "getServerSideProps pages/blog/[slug].js (6:3)",
-           ],
-         }
-        `)
-      } else {
-        await expect(browser).toDisplayRedbox(`
-         {
-           "description": "ReferenceError: missingVar is not defined",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "pages/blog/[slug].js (6:3) @ getServerSideProps
-         > 6 |   missingVar;return {
-             |   ^",
-           "stack": [
-             "getServerSideProps pages/blog/[slug].js (6:3)",
-           ],
-         }
-        `)
-      }
+      await expect(browser).toDisplayRedbox(`
+        {
+          "description": "missingVar is not defined",
+          "environmentLabel": null,
+          "label": "Runtime ReferenceError",
+          "source": "pages/blog/[slug].js (6:3) @ getServerSideProps
+        > 6 |   missingVar;return {
+            |   ^",
+          "stack": [
+            "getServerSideProps pages/blog/[slug].js (6:3)",
+          ],
+        }
+      `)
 
       await fs.writeFile(dynamicGsspPage, content)
     } finally {
@@ -296,88 +225,56 @@ describe('server-side dev errors', () => {
 
       const stderrOutput = stripAnsi(stderr.slice(stderrIdx)).trim()
       if (isTurbopack) {
-        expect(stderrOutput).toContain(
-          ' ⨯ ReferenceError: missingVar is not defined' +
+        expect(stderrOutput).toStartWith(
+          '⨯ ReferenceError: missingVar is not defined' +
             '\n    at handler (../../test/integration/server-side-dev-errors/pages/api/hello.js:2:2)' +
-            // Next.js internal frame. Feel free to adjust.
-            // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
-            '\n    at async'
+            '\n  1 | export default function handler(req, res) {' +
+            "\n> 2 |   missingVar;res.status(200).json({ hello: 'world' })" +
+            '\n    |  ^'
         )
       } else {
         expect(stderrOutput).toStartWith(
           '⨯ ReferenceError: missingVar is not defined' +
             '\n    at handler (../../test/integration/server-side-dev-errors/pages/api/hello.js:2:2)' +
-            // Next.js internal frame. Feel free to adjust.
-            // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
-            '\n    at async'
+            // TODO(veil): Why not ignore-listed?
+            '\n    at '
+        )
+        expect(stderrOutput).toContain(
+          '\n  1 | export default function handler(req, res) {' +
+            "\n> 2 |   missingVar;res.status(200).json({ hello: 'world' })" +
+            '\n    |  ^'
         )
       }
-      expect(stderrOutput).toContain(
-        '\n  1 | export default function handler(req, res) {' +
-          "\n> 2 |   missingVar;res.status(200).json({ hello: 'world' })"
-      )
 
-      if (isTurbopack) {
-        await expect(browser).toDisplayRedbox(`
-         {
-           "description": "ReferenceError: missingVar is not defined",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "pages/api/hello.js (2:3) @ handler
-         > 2 |   missingVar;res.status(200).json({ hello: 'world' })
-             |   ^",
-           "stack": [
-             "handler pages/api/hello.js (2:3)",
-           ],
-         }
-        `)
-      } else {
-        await expect(browser).toDisplayRedbox(`
-         {
-           "description": "ReferenceError: missingVar is not defined",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "pages/api/hello.js (2:3) @ handler
-         > 2 |   missingVar;res.status(200).json({ hello: 'world' })
-             |   ^",
-           "stack": [
-             "handler pages/api/hello.js (2:3)",
-           ],
-         }
-        `)
-      }
+      await expect(browser).toDisplayRedbox(`
+        {
+          "description": "missingVar is not defined",
+          "environmentLabel": null,
+          "label": "Runtime ReferenceError",
+          "source": "pages/api/hello.js (2:3) @ handler
+        > 2 |   missingVar;res.status(200).json({ hello: 'world' })
+            |   ^",
+          "stack": [
+            "handler pages/api/hello.js (2:3)",
+          ],
+        }
+      `)
 
       await fs.writeFile(apiPage, content)
 
-      if (isTurbopack) {
-        await expect(browser).toDisplayRedbox(`
-         {
-           "description": "ReferenceError: missingVar is not defined",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "pages/api/hello.js (2:3) @ handler
-         > 2 |   missingVar;res.status(200).json({ hello: 'world' })
-             |   ^",
-           "stack": [
-             "handler pages/api/hello.js (2:3)",
-           ],
-         }
-        `)
-      } else {
-        await expect(browser).toDisplayRedbox(`
-         {
-           "description": "ReferenceError: missingVar is not defined",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "pages/api/hello.js (2:3) @ handler
-         > 2 |   missingVar;res.status(200).json({ hello: 'world' })
-             |   ^",
-           "stack": [
-             "handler pages/api/hello.js (2:3)",
-           ],
-         }
-        `)
-      }
+      await expect(browser).toDisplayRedbox(`
+        {
+          "description": "missingVar is not defined",
+          "environmentLabel": null,
+          "label": "Runtime ReferenceError",
+          "source": "pages/api/hello.js (2:3) @ handler
+        > 2 |   missingVar;res.status(200).json({ hello: 'world' })
+            |   ^",
+          "stack": [
+            "handler pages/api/hello.js (2:3)",
+          ],
+        }
+      `)
     } finally {
       await fs.writeFile(apiPage, content)
     }
@@ -401,91 +298,57 @@ describe('server-side dev errors', () => {
       })
 
       const stderrOutput = stripAnsi(stderr.slice(stderrIdx)).trim()
-      // FIXME(veil): error repeated
       if (isTurbopack) {
-        expect(stderrOutput).toContain(
-          ' ⨯ ReferenceError: missingVar is not defined' +
+        expect(stderrOutput).toStartWith(
+          '⨯ ReferenceError: missingVar is not defined' +
             '\n    at handler (../../test/integration/server-side-dev-errors/pages/api/blog/[slug].js:2:2)' +
-            // Next.js internal frame. Feel free to adjust.
-            // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
-            '\n    at'
+            '\n  1 | export default function handler(req, res) {' +
+            '\n> 2 |   missingVar;res.status(200).json({ slug: req.query.slug })' +
+            '\n    |  ^'
         )
       } else {
-        expect(stderrOutput).toContain(
-          ' ⨯ ReferenceError: missingVar is not defined' +
+        expect(stderrOutput).toStartWith(
+          '⨯ ReferenceError: missingVar is not defined' +
             '\n    at handler (../../test/integration/server-side-dev-errors/pages/api/blog/[slug].js:2:2)' +
-            // Next.js internal frame. Feel free to adjust.
-            // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
+            // TODO(veil): Why not ignore-listed?
             '\n    at'
+        )
+        expect(stderrOutput).toContain(
+          '\n  1 | export default function handler(req, res) {' +
+            '\n> 2 |   missingVar;res.status(200).json({ slug: req.query.slug })' +
+            '\n    |  ^'
         )
       }
 
-      expect(stderrOutput).toContain(
-        '\n  1 | export default function handler(req, res) {' +
-          '\n> 2 |   missingVar;res.status(200).json({ slug: req.query.slug })'
-      )
-
-      if (isTurbopack) {
-        await expect(browser).toDisplayRedbox(`
-         {
-           "description": "ReferenceError: missingVar is not defined",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "pages/api/blog/[slug].js (2:3) @ handler
-         > 2 |   missingVar;res.status(200).json({ slug: req.query.slug })
-             |   ^",
-           "stack": [
-             "handler pages/api/blog/[slug].js (2:3)",
-           ],
-         }
-        `)
-      } else {
-        await expect(browser).toDisplayRedbox(`
-         {
-           "description": "ReferenceError: missingVar is not defined",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "pages/api/blog/[slug].js (2:3) @ handler
-         > 2 |   missingVar;res.status(200).json({ slug: req.query.slug })
-             |   ^",
-           "stack": [
-             "handler pages/api/blog/[slug].js (2:3)",
-           ],
-         }
-        `)
-      }
+      await expect(browser).toDisplayRedbox(`
+        {
+          "description": "missingVar is not defined",
+          "environmentLabel": null,
+          "label": "Runtime ReferenceError",
+          "source": "pages/api/blog/[slug].js (2:3) @ handler
+        > 2 |   missingVar;res.status(200).json({ slug: req.query.slug })
+            |   ^",
+          "stack": [
+            "handler pages/api/blog/[slug].js (2:3)",
+          ],
+        }
+      `)
 
       await fs.writeFile(dynamicApiPage, content)
 
-      if (isTurbopack) {
-        await expect(browser).toDisplayRedbox(`
-         {
-           "description": "ReferenceError: missingVar is not defined",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "pages/api/blog/[slug].js (2:3) @ handler
-         > 2 |   missingVar;res.status(200).json({ slug: req.query.slug })
-             |   ^",
-           "stack": [
-             "handler pages/api/blog/[slug].js (2:3)",
-           ],
-         }
-        `)
-      } else {
-        await expect(browser).toDisplayRedbox(`
-         {
-           "description": "ReferenceError: missingVar is not defined",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "pages/api/blog/[slug].js (2:3) @ handler
-         > 2 |   missingVar;res.status(200).json({ slug: req.query.slug })
-             |   ^",
-           "stack": [
-             "handler pages/api/blog/[slug].js (2:3)",
-           ],
-         }
-        `)
-      }
+      await expect(browser).toDisplayRedbox(`
+        {
+          "description": "missingVar is not defined",
+          "environmentLabel": null,
+          "label": "Runtime ReferenceError",
+          "source": "pages/api/blog/[slug].js (2:3) @ handler
+        > 2 |   missingVar;res.status(200).json({ slug: req.query.slug })
+            |   ^",
+          "stack": [
+            "handler pages/api/blog/[slug].js (2:3)",
+          ],
+        }
+      `)
     } finally {
       await fs.writeFile(dynamicApiPage, content)
     }
@@ -501,7 +364,7 @@ describe('server-side dev errors', () => {
 
     const stderrOutput = stripAnsi(stderr.slice(stderrIdx))
       .replace(
-        '⚠ Fast Refresh had to perform a full reload due to a runtime error.',
+        '⚠ Fast Refresh had to perform a full reload due to a Runtime ReferenceError.',
         ''
       )
       .trim()
@@ -580,7 +443,7 @@ describe('server-side dev errors', () => {
 
     const stderrOutput = stripAnsi(stderr.slice(stderrIdx))
       .replace(
-        '⚠ Fast Refresh had to perform a full reload due to a runtime error.',
+        '⚠ Fast Refresh had to perform a full reload due to a Runtime ReferenceError.',
         ''
       )
       .trim()
@@ -658,7 +521,7 @@ describe('server-side dev errors', () => {
 
     const stderrOutput = stripAnsi(stderr.slice(stderrIdx))
       .replace(
-        '⚠ Fast Refresh had to perform a full reload due to a runtime error.',
+        '⚠ Fast Refresh had to perform a full reload due to a Runtime ReferenceError.',
         ''
       )
       .trim()
@@ -736,7 +599,7 @@ describe('server-side dev errors', () => {
 
     const stderrOutput = stripAnsi(stderr.slice(stderrIdx))
       .replace(
-        '⚠ Fast Refresh had to perform a full reload due to a runtime error.',
+        '⚠ Fast Refresh had to perform a full reload due to a Runtime ReferenceError.',
         ''
       )
       .trim()

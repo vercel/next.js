@@ -7,8 +7,8 @@ const worlds = 'World+World+World'
 
 export default function Index() {
   return (
-    <div>
+    <p>
       Hello {World1}+{World2}+{World3}+{worlds}
-    </div>
+    </p>
   )
 }

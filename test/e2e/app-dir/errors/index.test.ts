@@ -176,7 +176,7 @@ describe('app-dir - errors', () => {
       if (isNextDev) {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "Error: this is a test",
+           "description": "this is a test",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": "app/global-error-boundary/client/page.js (8:11) @ Page
@@ -215,7 +215,7 @@ describe('app-dir - errors', () => {
       if (isNextDev) {
         await expect(browser).toDisplayRedbox(`
           {
-            "description": "Error: custom server error",
+            "description": "custom server error",
             "environmentLabel": "Server",
             "label": "Runtime Error",
             "source": "app/global-error-boundary/server/page.js (2:9) @ Page

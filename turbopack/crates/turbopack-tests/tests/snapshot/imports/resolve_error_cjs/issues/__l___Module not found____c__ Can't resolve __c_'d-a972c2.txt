@@ -1,10 +1,10 @@
 error - [resolve] [project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/resolve_error_cjs/input/index.js  /turbopack/crates/turbopack-tests/tests/snapshot/imports/resolve_error_cjs/input/index.js:1:12  Module not found: Can't resolve 'does-not-exist/path'
   
          +             v----------------------------v
-       1 + const dne = require("does-not-exist/path");
+       1 + const dne = require('does-not-exist/path')
          +             ^----------------------------^
        2 | 
-       3 | console.log(dne);
+       3 | console.log(dne)
        4 | 
   
   

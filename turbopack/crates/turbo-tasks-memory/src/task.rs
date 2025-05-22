@@ -1,12 +1,11 @@
 use std::{
-    borrow::Cow,
     fmt::{self, Debug, Display, Formatter},
     future::Future,
     hash::{BuildHasherDefault, Hash},
     mem::{replace, take},
     num::NonZeroU32,
     pin::Pin,
-    sync::{atomic::AtomicU32, Arc},
+    sync::{Arc, atomic::AtomicU32},
     time::Duration,
 };
 
@@ -19,22 +18,26 @@ use smallvec::SmallVec;
 use tracing::Span;
 use turbo_prehash::PreHashed;
 use turbo_tasks::{
-    backend::{CachedTaskType, CellContent, TaskCollectiblesMap, TaskExecutionSpec},
+    CellId, Invalidator, RawVc, ReadConsistency, TaskId, TaskIdSet, TraitTypeId,
+    TurboTasksBackendApi, TurboTasksBackendApiExt, ValueTypeId,
+    backend::{
+        CachedTaskType, CellContent, TaskCollectiblesMap, TaskExecutionSpec,
+        TurboTasksExecutionError,
+    },
     event::{Event, EventListener},
-    get_invalidator, registry, CellId, Invalidator, RawVc, ReadConsistency, TaskId, TaskIdSet,
-    TraitTypeId, TurboTasksBackendApi, TurboTasksBackendApiExt, ValueTypeId,
+    get_invalidator, registry,
 };
 
 use crate::{
+    MemoryBackend,
     aggregation::{
-        aggregation_data, handle_new_edge, query_root_info, AggregationDataGuard, PreparedOperation,
+        AggregationDataGuard, PreparedOperation, aggregation_data, handle_new_edge, query_root_info,
     },
     cell::{Cell, ReadContentError},
     edges_set::{TaskEdge, TaskEdgesList, TaskEdgesSet},
     gc::{GcQueue, GcTaskState},
     output::Output,
     task::aggregation::{TaskAggregationContext, TaskChange},
-    MemoryBackend,
 };
 
 pub type NativeTaskFuture = Pin<Box<dyn Future<Output = Result<RawVc>> + Send>>;
@@ -616,8 +619,8 @@ impl Task {
 
     fn format_description(ty: &TaskTypeForDescription, id: TaskId) -> String {
         match ty {
-            TaskTypeForDescription::Root => format!("[{}] root", id),
-            TaskTypeForDescription::Once => format!("[{}] once", id),
+            TaskTypeForDescription::Root => format!("[{id}] root"),
+            TaskTypeForDescription::Once => format!("[{id}] once"),
             TaskTypeForDescription::Persistent(ty) => format!("[{id}] {ty}"),
         }
     }
@@ -625,12 +628,12 @@ impl Task {
     fn get_event_description_static(
         id: TaskId,
         ty: &TaskType,
-    ) -> impl Fn() -> String + Send + Sync + Clone {
+    ) -> impl Fn() -> String + Send + Sync + Clone + 'static {
         let ty = TaskTypeForDescription::from(ty);
         move || Self::format_description(&ty, id)
     }
 
-    fn get_event_description(&self) -> impl Fn() -> String + Send + Sync + Clone {
+    fn get_event_description(&self) -> impl Fn() -> String + Send + Sync + Clone + 'static {
         Self::get_event_description_static(self.id, &self.ty)
     }
 
@@ -737,10 +740,7 @@ impl Task {
                 }
                 Dirty { .. } => {
                     let state_type = Task::state_string(&state);
-                    panic!(
-                        "{:?} execution started in unexpected state {}",
-                        self, state_type
-                    )
+                    panic!("{self:?} execution started in unexpected state {state_type}")
                 }
             };
             self.make_execution_future()
@@ -839,7 +839,7 @@ impl Task {
 
     pub(crate) fn execution_result(
         &self,
-        result: Result<Result<RawVc>, Option<Cow<'static, str>>>,
+        result: Result<RawVc, Arc<TurboTasksExecutionError>>,
         backend: &MemoryBackend,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) {
@@ -851,7 +851,7 @@ impl Task {
                 // TODO maybe this should be controlled by a heuristic
             }
             InProgress(..) => match result {
-                Ok(Ok(result)) => {
+                Ok(result) => {
                     if state.output != result {
                         if backend.print_task_invalidation && state.output.content.is_some() {
                             println!(
@@ -867,13 +867,17 @@ impl Task {
                         state.output.link(result, turbo_tasks)
                     }
                 }
-                Ok(Err(mut err)) => {
-                    if let Some(name) = self.get_function_name() {
-                        err = err.context(format!("Execution of {} failed", name));
-                    }
+                Err(err) => {
+                    let err = anyhow::Error::new(err).context(
+                        if let Some(name) = self.get_function_name() {
+                            format!("Execution of {name} failed")
+                        } else {
+                            "Execution failed".to_string()
+                        },
+                    );
+
                     state.output.error(err, turbo_tasks)
                 }
-                Err(message) => state.output.panic(message, turbo_tasks),
             },
 
             Dirty { .. } | Scheduled { .. } | Done { .. } => {
