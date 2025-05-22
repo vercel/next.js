@@ -237,8 +237,10 @@ export function trackDynamicDataInDynamicRender(
       // forbidden inside a cache scope.
       return
     }
+    // TODO: it makes no sense to have these work unit store types during a dev render.
     if (
       workUnitStore.type === 'prerender' ||
+      workUnitStore.type === 'prerender-client' ||
       workUnitStore.type === 'prerender-legacy'
     ) {
       workUnitStore.revalidate = 0
@@ -578,7 +580,7 @@ export function useDynamicRouteParams(expression: string) {
     const workUnitStore = workUnitAsyncStorage.getStore()
     if (workUnitStore) {
       // We're prerendering with dynamicIO or PPR or both
-      if (workUnitStore.type === 'prerender') {
+      if (workUnitStore.type === 'prerender-client') {
         // We are in a prerender with dynamicIO semantics
         // We are going to hang here and never resolve. This will cause the currently
         // rendering component to effectively be a dynamic hole

@@ -1132,7 +1132,7 @@ function createDynamicIOError(route: string) {
   )
 }
 
-export function trackDynamic(
+function trackDynamic(
   store: WorkStore,
   workUnitStore: undefined | WorkUnitStore,
   expression: string
