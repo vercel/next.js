@@ -1154,7 +1154,8 @@
             nameIdx: 0
           };
     }
-    function getSuspenseFallbackFormatContext(parentContext) {
+    function getSuspenseFallbackFormatContext(resumableState, parentContext) {
+      parentContext.tagScope & 32 && (resumableState.instructions |= 128);
       return createFormatContext(
         parentContext.insertionMode,
         parentContext.selectedValue,
@@ -1162,7 +1163,7 @@
         getSuspenseViewTransition(parentContext.viewTransition)
       );
     }
-    function getSuspenseContentFormatContext(parentContext) {
+    function getSuspenseContentFormatContext(resumableState, parentContext) {
       return createFormatContext(
         parentContext.insertionMode,
         parentContext.selectedValue,
@@ -5604,8 +5605,10 @@
               var _prevKeyPath = task.keyPath,
                 _prevContext = task.formatContext;
               task.keyPath = keyPath;
-              task.formatContext =
-                getSuspenseContentFormatContext(_prevContext);
+              task.formatContext = getSuspenseContentFormatContext(
+                request.resumableState,
+                _prevContext
+              );
               var _content = props.children;
               try {
                 renderNode(request, task, _content, -1);
@@ -5678,8 +5681,10 @@
                 task.blockedSegment = boundarySegment;
                 task.blockedPreamble = newBoundary.fallbackPreamble;
                 task.keyPath = fallbackKeyPath;
-                task.formatContext =
-                  getSuspenseFallbackFormatContext(prevContext$jscomp$0);
+                task.formatContext = getSuspenseFallbackFormatContext(
+                  request.resumableState,
+                  prevContext$jscomp$0
+                );
                 boundarySegment.status = 6;
                 try {
                   renderNode(request, task, fallback, -1),
@@ -5710,7 +5715,10 @@
                   newBoundary.contentState,
                   task.abortSet,
                   keyPath,
-                  getSuspenseContentFormatContext(task.formatContext),
+                  getSuspenseContentFormatContext(
+                    request.resumableState,
+                    task.formatContext
+                  ),
                   task.context,
                   task.treeContext,
                   task.componentStack,
@@ -5725,8 +5733,10 @@
                 task.hoistableState = newBoundary.contentState;
                 task.blockedSegment = contentRootSegment;
                 task.keyPath = keyPath;
-                task.formatContext =
-                  getSuspenseContentFormatContext(prevContext$jscomp$0);
+                task.formatContext = getSuspenseContentFormatContext(
+                  request.resumableState,
+                  prevContext$jscomp$0
+                );
                 contentRootSegment.status = 6;
                 try {
                   if (
@@ -5788,7 +5798,10 @@
                   newBoundary.fallbackState,
                   fallbackAbortSet,
                   [keyPath[0], "Suspense Fallback", keyPath[2]],
-                  getSuspenseFallbackFormatContext(task.formatContext),
+                  getSuspenseFallbackFormatContext(
+                    request.resumableState,
+                    task.formatContext
+                  ),
                   task.context,
                   task.treeContext,
                   task.componentStack,
@@ -6052,7 +6065,10 @@
               task.blockedBoundary = props;
               task.hoistableState = props.contentState;
               task.keyPath = keyPath;
-              task.formatContext = getSuspenseContentFormatContext(prevContext);
+              task.formatContext = getSuspenseContentFormatContext(
+                request.resumableState,
+                prevContext
+              );
               task.replay = { nodes: type, slots: ref, pendingTasks: 1 };
               try {
                 renderNode(request, task, content, -1);
@@ -6098,7 +6114,10 @@
                 props.fallbackState,
                 fallbackAbortSet,
                 [keyPath[0], "Suspense Fallback", keyPath[2]],
-                getSuspenseFallbackFormatContext(task.formatContext),
+                getSuspenseFallbackFormatContext(
+                  request.resumableState,
+                  task.formatContext
+                ),
                 task.context,
                 task.treeContext,
                 task.componentStack,
@@ -6864,6 +6883,7 @@
       }
     }
     function finishedTask(request, boundary, segment) {
+      request.allPendingTasks--;
       if (null === boundary) {
         if (null !== segment && segment.parentFlushed) {
           if (null !== request.completedRootSegment)
@@ -6903,7 +6923,6 @@
                 1 === boundary.completedSegments.length &&
                   boundary.parentFlushed &&
                   request.partialBoundaries.push(boundary)));
-      request.allPendingTasks--;
       0 === request.allPendingTasks && completeAll(request);
     }
     function performWork(request$jscomp$2) {
@@ -7408,11 +7427,11 @@
                 completeBoundaryWithStylesScript1FullPartial
               ))
             : writeChunk(destination, completeBoundaryWithStylesScript1Partial))
-        : (completedSegments.instructions & SentCompleteBoundaryFunction) ===
-            NothingSent
-          ? ((completedSegments.instructions |= SentCompleteBoundaryFunction),
-            writeChunk(destination, completeBoundaryScript1Full))
-          : writeChunk(destination, completeBoundaryScript1Partial);
+        : ((completedSegments.instructions & SentCompleteBoundaryFunction) ===
+            NothingSent &&
+            ((completedSegments.instructions |= SentCompleteBoundaryFunction),
+            writeChunk(destination, completeBoundaryScriptFunctionOnly)),
+          writeChunk(destination, completeBoundaryScript1Partial));
       completedSegments = stringToChunk(i.toString(16));
       writeChunk(destination, request.boundaryPrefix);
       writeChunk(destination, completedSegments);
@@ -7892,11 +7911,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.2.0-canary-4a45ba92-20250515" !== isomorphicReactPackageVersion)
+      if ("19.2.0-canary-462d08f9-20250517" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.2.0-canary-4a45ba92-20250515\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.2.0-canary-462d08f9-20250517\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react"),
@@ -9129,12 +9148,12 @@
     stringToPrecomputedChunk('<template data-rsi="" data-sid="');
     stringToPrecomputedChunk('" data-pid="');
     var completeBoundaryScriptFunctionOnly = stringToPrecomputedChunk(
-        '$RB=[];$RC=function(d,c){function m(){$RT=performance.now();var f=$RB;$RB=[];for(var e=0;e<f.length;e+=2){var a=f[e],l=f[e+1],g=a.parentNode;if(g){var h=a.previousSibling,k=0;do{if(a&&8===a.nodeType){var b=a.data;if("/$"===b||"/&"===b)if(0===k)break;else k--;else"$"!==b&&"$?"!==b&&"$~"!==b&&"$!"!==b&&"&"!==b||k++}b=a.nextSibling;g.removeChild(a);a=b}while(a);for(;l.firstChild;)g.insertBefore(l.firstChild,a);h.data="$";h._reactRetry&&h._reactRetry()}}}if(c=document.getElementById(c))if(c.parentNode.removeChild(c),d=\ndocument.getElementById(d))d.previousSibling.data="$~",$RB.push(d,c),2===$RB.length&&setTimeout(m,("number"!==typeof $RT?0:$RT)+300-performance.now())};'
-      ),
-      completeBoundaryScript1Full = stringToPrecomputedChunk(
-        '$RB=[];$RC=function(d,c){function m(){$RT=performance.now();var f=$RB;$RB=[];for(var e=0;e<f.length;e+=2){var a=f[e],l=f[e+1],g=a.parentNode;if(g){var h=a.previousSibling,k=0;do{if(a&&8===a.nodeType){var b=a.data;if("/$"===b||"/&"===b)if(0===k)break;else k--;else"$"!==b&&"$?"!==b&&"$~"!==b&&"$!"!==b&&"&"!==b||k++}b=a.nextSibling;g.removeChild(a);a=b}while(a);for(;l.firstChild;)g.insertBefore(l.firstChild,a);h.data="$";h._reactRetry&&h._reactRetry()}}}if(c=document.getElementById(c))if(c.parentNode.removeChild(c),d=\ndocument.getElementById(d))d.previousSibling.data="$~",$RB.push(d,c),2===$RB.length&&setTimeout(m,("number"!==typeof $RT?0:$RT)+300-performance.now())};$RC("'
-      ),
-      completeBoundaryScript1Partial = stringToPrecomputedChunk('$RC("'),
+      '$RB=[];$RV=function(){$RT=performance.now();var d=$RB;$RB=[];for(var a=0;a<d.length;a+=2){var b=d[a],h=d[a+1],e=b.parentNode;if(e){var f=b.previousSibling,g=0;do{if(b&&8===b.nodeType){var c=b.data;if("/$"===c||"/&"===c)if(0===g)break;else g--;else"$"!==c&&"$?"!==c&&"$~"!==c&&"$!"!==c&&"&"!==c||g++}c=b.nextSibling;e.removeChild(b);b=c}while(b);for(;h.firstChild;)e.insertBefore(h.firstChild,b);f.data="$";f._reactRetry&&f._reactRetry()}}};$RC=function(d,a){if(a=document.getElementById(a))if(a.parentNode.removeChild(a),d=document.getElementById(d))d.previousSibling.data="$~",$RB.push(d,a),2===$RB.length&&setTimeout($RV,("number"!==typeof $RT?0:$RT)+300-performance.now())};'
+    );
+    stringToPrecomputedChunk(
+      "$RV=function(a){try{var b=document.__reactViewTransition;if(b){b.finished.then($RV,$RV);return}if(window._useVT){var c=document.__reactViewTransition=document.startViewTransition({update:a,types:[]});c.finished.finally(function(){document.__reactViewTransition===c&&(document.__reactViewTransition=null)});return}}catch(d){}a()}.bind(null,$RV);"
+    );
+    var completeBoundaryScript1Partial = stringToPrecomputedChunk('$RC("'),
       completeBoundaryWithStylesScript1FullPartial = stringToPrecomputedChunk(
         '$RM=new Map;$RR=function(n,w,p){function u(q){this._p=null;q()}for(var r=new Map,t=document,h,b,e=t.querySelectorAll("link[data-precedence],style[data-precedence]"),v=[],k=0;b=e[k++];)"not all"===b.getAttribute("media")?v.push(b):("LINK"===b.tagName&&$RM.set(b.getAttribute("href"),b),r.set(b.dataset.precedence,h=b));e=0;b=[];var l,a;for(k=!0;;){if(k){var f=p[e++];if(!f){k=!1;e=0;continue}var c=!1,m=0;var d=f[m++];if(a=$RM.get(d)){var g=a._p;c=!0}else{a=t.createElement("link");a.href=d;a.rel=\n"stylesheet";for(a.dataset.precedence=l=f[m++];g=f[m++];)a.setAttribute(g,f[m++]);g=a._p=new Promise(function(q,x){a.onload=u.bind(a,q);a.onerror=u.bind(a,x)});$RM.set(d,a)}d=a.getAttribute("media");!g||d&&!matchMedia(d).matches||b.push(g);if(c)continue}else{a=v[e++];if(!a)break;l=a.getAttribute("data-precedence");a.removeAttribute("media")}c=r.get(l)||h;c===h&&(h=a);r.set(l,a);c?c.parentNode.insertBefore(a,c.nextSibling):(c=t.head,c.insertBefore(a,c.firstChild))}if(p=document.getElementById(n))p.previousSibling.data=\n"$~";Promise.all(b).then($RC.bind(null,n,w),$RX.bind(null,n,"CSS failed to load"))};$RR("'
       ),
@@ -9582,5 +9601,5 @@
         startWork(request);
       });
     };
-    exports.version = "19.2.0-canary-4a45ba92-20250515";
+    exports.version = "19.2.0-canary-462d08f9-20250517";
   })();
