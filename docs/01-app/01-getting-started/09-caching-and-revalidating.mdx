@@ -20,3 +20,39 @@ Next.js provides a few APIs to handle caching and revalidation. This guide will 
 - [`unstable_cache`](#with-unstable-cache)
 - [`revalidatePath`](#revalidatepath)
 - [`revalidateTag`](#revalidatetag)
+
+### With `fetch`
+
+By default, [`fetch`](/docs/app/api-reference/functions/fetch) requests are not cached. You can cache individual requests by setting the `cache` option to `'force-cache'`.
+
+```tsx filename="app/page.tsx" switcher
+export default async function Page() {
+  const data = await fetch('https://...', { cache: 'force-cache' })
+}
+```
+
+```jsx filename="app/page.jsx" switcher
+export default async function Page() {
+  const data = await fetch('https://...', { cache: 'force-cache' })
+}
+```
+
+> **Good to know**: Although `fetch` requests are not cached by default, Next.js will [prerender](/docs/app/getting-started/partial-prerendering#static-rendering) routes that have `fetch` requests and cache the HTML. If you want to guarantee a route is [dynamic](/docs/app/getting-started/partial-prerendering#dynamic-rendering), use the [`connection` API](/docs/app/api-reference/functions/connection).
+
+To revalidate the data returned by a `fetch` request, you can use the `next.revalidate` option.
+
+```tsx filename="app/page.tsx" switcher
+export default async function Page() {
+  const data = await fetch('https://...', { next: { revalidate: 3600 } })
+}
+```
+
+```jsx filename="app/page.jsx" switcher
+export default async function Page() {
+  const data = await fetch('https://...', { next: { revalidate: 3600 } })
+}
+```
+
+This will revalidate the data after a specified amount of seconds.
+
+See the [`fetch` API reference](/docs/app/api-reference/functions/fetch) to learn more.
