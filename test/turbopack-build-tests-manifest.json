@@ -7773,12 +7773,12 @@
     "runtimeError": false
   },
   "test/e2e/next-font/with-font-declarations-file.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "next/font/google with-font-declarations-file preload correct files at /inter",
       "next/font/google with-font-declarations-file preload correct files at /local-font",
       "next/font/google with-font-declarations-file preload correct files at /roboto"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
