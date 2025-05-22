@@ -3095,15 +3095,13 @@ export default abstract class Server<
       // is disabled.
       res.statusCode = 204
 
-      if (isRoutePPREnabled) {
-        // Set a header to indicate that PPR is enabled for this route. This
-        // lets the client distinguish between a regular cache miss and a cache
-        // miss due to PPR being disabled.
-        // NOTE: Theoretically, when PPR is enabled, there should *never* be
-        // a cache miss because we should generate a fallback route. So this
-        // is mostly defensive.
-        res.setHeader(NEXT_DID_POSTPONE_HEADER, '1')
-      }
+      // Set a header to indicate that PPR is enabled for this route. This
+      // lets the client distinguish between a regular cache miss and a cache
+      // miss due to PPR being disabled.
+      // NOTE: Theoretically, when PPR is enabled, there should *never* be
+      // a cache miss because we should generate a fallback route. So this
+      // is mostly defensive.
+      res.setHeader(NEXT_DID_POSTPONE_HEADER, '1')
       return {
         type: 'rsc',
         body: RenderResult.fromStatic(''),
