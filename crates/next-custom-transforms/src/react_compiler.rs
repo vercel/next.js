@@ -100,7 +100,10 @@ impl Visit for Finder {
 
 #[cfg(test)]
 mod tests {
-    use swc_core::{common::FileName, ecma::parser::parse_file_as_program};
+    use swc_core::{
+        common::FileName,
+        ecma::parser::{EsSyntax, parse_file_as_program},
+    };
     use testing::run_test2;
 
     use super::*;
@@ -111,7 +114,10 @@ mod tests {
 
             let program = parse_file_as_program(
                 &fm,
-                Default::default(),
+                swc_core::ecma::parser::Syntax::Es(EsSyntax {
+                    jsx: true,
+                    ..Default::default()
+                }),
                 Default::default(),
                 Default::default(),
                 &mut vec![],
