@@ -94,15 +94,24 @@ describe('Non-Standard NODE_ENV', () => {
         })
         expect(staticFiles.length).toBeGreaterThan(0)
 
+        let foundProductionValue = false
+        let foundOtherValue = false
         for (const file of staticFiles) {
           const content = await fs.readFile(
             join(appDir, '.next/static', file),
             'utf8'
           )
-          if (content.match(/cannot find module(?! for page)/i)) {
-            throw new Error(`${file} contains module not found error`)
+
+          if (content.includes('Hello Production')) {
+            foundProductionValue = true
+          }
+          if (content.includes('Hello Other')) {
+            foundOtherValue = true
           }
         }
+
+        expect(foundProductionValue).toBeTrue()
+        expect(foundOtherValue).toBeFalse()
       })
 
       it('should show the warning with NODE_ENV set to development with next build', async () => {

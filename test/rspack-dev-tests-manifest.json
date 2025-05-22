@@ -2099,11 +2099,10 @@
     "runtimeError": false
   },
   "test/development/acceptance/ReactRefreshLogBox-app-doc.test.ts": {
-    "passed": [
-      "ReactRefreshLogBox _app _document empty _app shows logbox",
-      "ReactRefreshLogBox _app _document empty _document shows logbox"
-    ],
+    "passed": [],
     "failed": [
+      "ReactRefreshLogBox _app _document empty _app shows logbox",
+      "ReactRefreshLogBox _app _document empty _document shows logbox",
       "ReactRefreshLogBox _app _document _app syntax error shows logbox",
       "ReactRefreshLogBox _app _document _document syntax error shows logbox"
     ],
@@ -3763,10 +3762,7 @@
       "Client Navigation rendering Rendering via HTTP allows to import .json files",
       "Client Navigation rendering Rendering via HTTP asPath",
       "Client Navigation rendering Rendering via HTTP default Content-Type",
-      "Client Navigation rendering Rendering via HTTP default export is not a React Component",
       "Client Navigation rendering Rendering via HTTP getInitialProps circular structure",
-      "Client Navigation rendering Rendering via HTTP getInitialProps resolves to null",
-      "Client Navigation rendering Rendering via HTTP getInitialProps should be class method",
       "Client Navigation rendering Rendering via HTTP renders a link component",
       "Client Navigation rendering Rendering via HTTP renders a stateless component",
       "Client Navigation rendering Rendering via HTTP renders properties populated asynchronously",
@@ -3789,6 +3785,9 @@
       "Client Navigation rendering Rendering via HTTP with the HOC based router should navigate as expected"
     ],
     "failed": [
+      "Client Navigation rendering Rendering via HTTP default export is not a React Component",
+      "Client Navigation rendering Rendering via HTTP getInitialProps should be class method",
+      "Client Navigation rendering Rendering via HTTP getInitialProps resolves to null",
       "Client Navigation rendering Rendering via HTTP error-in-the-global-scope",
       "Client Navigation rendering Rendering via HTTP error-inside-page"
     ],

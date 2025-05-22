@@ -603,7 +603,7 @@ jobs:
 
       # New release process
       - name: Publish to NPM
-        id: publish-packages
+        id: changesets
         if: ${{ env.__NEW_RELEASE == 'true' }}
         uses: changesets/action@v1
         with:
@@ -621,8 +621,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload npm log artifact
+        if: steps.changesets.outputs.published == 'true'
         uses: actions/upload-artifact@v4
-        if: always()
         with:
           name: npm-publish-logs
           path: /home/runner/.npm/_logs/*

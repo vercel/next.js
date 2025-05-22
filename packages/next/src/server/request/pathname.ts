@@ -10,6 +10,7 @@ import {
   type PrerenderStore,
 } from '../app-render/work-unit-async-storage.external'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 export function createServerPathnameForMetadata(
   underlyingPathname: string,
@@ -19,6 +20,7 @@ export function createServerPathnameForMetadata(
   if (workUnitStore) {
     switch (workUnitStore.type) {
       case 'prerender':
+      case 'prerender-client':
       case 'prerender-ppr':
       case 'prerender-legacy': {
         return createPrerenderPathname(
@@ -46,6 +48,10 @@ function createPrerenderPathname(
         return makeHangingPromise<string>(
           prerenderStore.renderSignal,
           '`pathname`'
+        )
+      case 'prerender-client':
+        throw new InvariantError(
+          'createPrerenderPathname was called inside a client component scope.'
         )
       case 'prerender-ppr':
         return makeErroringPathname(workStore, prerenderStore.dynamicTracking)
