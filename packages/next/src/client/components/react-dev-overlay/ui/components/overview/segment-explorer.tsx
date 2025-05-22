@@ -81,7 +81,9 @@ function PageSegmentTreeLayerPresentation({
 
   const staticPathsInfo = window.__NEXT_DEVTOOLS_CLIENT_STATE?.staticPathsInfo
   const staticPaths =
-    staticPathsInfo && staticPathsInfo.pathname === `/${pagePathPrefix}`
+    staticPathsInfo &&
+    nodeName === 'page' &&
+    staticPathsInfo.pathname === `/${pagePathPrefix}`
       ? staticPathsInfo.staticPaths
       : []
 
