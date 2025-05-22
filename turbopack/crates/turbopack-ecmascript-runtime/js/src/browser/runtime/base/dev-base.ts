@@ -223,7 +223,6 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
           M: moduleFactories,
           l: loadChunk.bind(null, sourceInfo),
           L: loadChunkByUrl.bind(null, sourceInfo),
-          o: loadEntry,
           w: loadWebAssembly.bind(null, sourceInfo),
           u: loadWebAssemblyModule.bind(null, sourceInfo),
           P: resolveAbsolutePath,
