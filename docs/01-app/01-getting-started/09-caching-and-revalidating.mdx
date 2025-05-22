@@ -1,0 +1,22 @@
+---
+title: How to cache and revalidate data
+nav_title: Caching and Revalidating
+description: Learn how to cache and revalidate data in your application.
+related:
+  title: API Reference
+  description: Learn more about the features mentioned in this page by reading the API Reference.
+  links:
+    - app/api-reference/functions/fetch
+    - app/api-reference/functions/unstable_cache
+    - app/api-reference/functions/revalidatePath
+    - app/api-reference/functions/revalidateTag
+---
+
+Caching is a technique for storing the result of data fetching and other computations so that future requests for the same data can be served faster, without doing the work again. While revalidation allows you to update cache entries without having to rebuild your entire application.
+
+Next.js provides a few APIs to handle caching and revalidation. This guide will walk you through when and how to use them.
+
+- [`fetch`](#with-fetch)
+- [`unstable_cache`](#with-unstable-cache)
+- [`revalidatePath`](#revalidatepath)
+- [`revalidateTag`](#revalidatetag)
