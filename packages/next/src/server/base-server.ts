@@ -3105,7 +3105,7 @@ export default abstract class Server<
       return {
         type: 'rsc',
         body: RenderResult.fromStatic(''),
-        revalidate: 0,
+        revalidate: cacheEntry?.revalidate,
       }
     }
 
