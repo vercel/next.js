@@ -2960,7 +2960,7 @@ export default abstract class Server<
             headers,
             rscData: metadata.flightData,
             postponed: metadata.postponed,
-            status: res.statusCode,
+            status: metadata.statusCode,
             segmentData: metadata.segmentData,
           } satisfies CachedAppPageValue,
           cacheControl,
