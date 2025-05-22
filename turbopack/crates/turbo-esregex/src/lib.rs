@@ -87,7 +87,7 @@ impl EsRegex {
                 'u' => applied_flags.push('u'),
                 // sticky search: not relevant for the regex itself
                 'y' => {}
-                _ => bail!("unsupported flag `{}` in regex", flag),
+                _ => bail!("unsupported flag `{flag}` in regex: `{pattern}` with flags: `{flags}`"),
             }
         }
 
