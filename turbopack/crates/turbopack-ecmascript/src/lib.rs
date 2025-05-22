@@ -1172,9 +1172,13 @@ fn process_content_with_code_gens(
         for CodeGenerationHoistedStmt { key, stmt } in code_gen.early_hoisted_stmts.drain(..) {
             early_hoisted_stmts.insert(key.clone(), stmt);
         }
+        for visitor in &code_gen.root_visitors {
+            root_visitors.push(visitor.create());
+        }
+
         for (path, visitor) in &code_gen.visitors {
             if path.is_empty() {
-                root_visitors.push(&**visitor);
+                unreachable!("if the path is empty, the visitor should be a root visitor");
             } else {
                 visitors.push((path, &**visitor));
             }
@@ -1188,8 +1192,8 @@ fn process_content_with_code_gens(
                 &mut Default::default(),
             );
         }
-        for visitor in root_visitors {
-            program.visit_mut_with(&mut visitor.create());
+        for pass in root_visitors {
+            program.mutate(pass);
         }
         program.visit_mut_with(
             &mut swc_core::ecma::transforms::base::hygiene::hygiene_with_config(
