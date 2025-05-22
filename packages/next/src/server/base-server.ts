@@ -3054,7 +3054,11 @@ export default abstract class Server<
       }
     )
 
-    if (isPrefetchRSCRequest && typeof segmentPrefetchHeader === 'string') {
+    if (
+      isRoutePPREnabled &&
+      isPrefetchRSCRequest &&
+      typeof segmentPrefetchHeader === 'string'
+    ) {
       // This is a prefetch request issued by the client Segment Cache. These
       // should never reach the application layer (lambda). We should either
       // respond from the cache (HIT) or respond with 204 No Content (MISS).
@@ -3090,6 +3094,12 @@ export default abstract class Server<
       // segment), we should *always* respond with a tree, even if PPR
       // is disabled.
       res.statusCode = 204
+
+      res.setHeader(
+        'Cache-Control',
+        'private, no-cache, no-store, max-age=0, must-revalidate'
+      )
+
       if (isRoutePPREnabled) {
         // Set a header to indicate that PPR is enabled for this route. This
         // lets the client distinguish between a regular cache miss and a cache
