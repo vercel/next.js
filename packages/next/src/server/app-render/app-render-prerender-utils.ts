@@ -1,5 +1,4 @@
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { isPrerenderInterruptedError } from './dynamic-rendering'
 
 /**
  * This is a utility function to make scheduling sequential tasks that run back to back easier.
@@ -28,95 +27,6 @@ export function prerenderAndAbortInSequentialTasks<R>(
         abort()
         resolve(pendingResult)
       })
-    })
-  }
-}
-
-export function prerenderServerWithPhases(
-  signal: AbortSignal,
-  render: () => ReadableStream<Uint8Array>,
-  finalPhase: () => void
-): Promise<ServerPrerenderStreamResult>
-export function prerenderServerWithPhases(
-  signal: AbortSignal,
-  render: () => ReadableStream<Uint8Array>,
-  secondPhase: () => void,
-  finalPhase: () => void
-): Promise<ServerPrerenderStreamResult>
-export function prerenderServerWithPhases(
-  signal: AbortSignal,
-  render: () => ReadableStream<Uint8Array>,
-  secondPhase: () => void,
-  thirdPhase: () => void,
-  ...remainingPhases: Array<() => void>
-): Promise<ServerPrerenderStreamResult>
-export function prerenderServerWithPhases(
-  signal: AbortSignal,
-  render: () => ReadableStream<Uint8Array>,
-  ...remainingPhases: Array<() => void>
-): Promise<ServerPrerenderStreamResult> {
-  if (process.env.NEXT_RUNTIME === 'edge') {
-    throw new InvariantError(
-      '`prerenderAndAbortInSequentialTasks` should not be called in edge runtime.'
-    )
-  } else {
-    return new Promise((resolve, reject) => {
-      let result: ServerPrerenderStreamResult
-
-      signal.addEventListener(
-        'abort',
-        () => {
-          if (isPrerenderInterruptedError(signal.reason)) {
-            result.markInterrupted()
-          } else {
-            result.markComplete()
-          }
-        },
-        {
-          once: true,
-        }
-      )
-
-      setImmediate(() => {
-        try {
-          result = new ServerPrerenderStreamResult(render())
-        } catch (err) {
-          reject(err)
-        }
-      })
-
-      function runFinalTask(this: () => void) {
-        try {
-          if (result) {
-            result.markComplete()
-            this()
-          }
-          resolve(result)
-        } catch (err) {
-          reject(err)
-        }
-      }
-
-      function runNextTask(this: () => void) {
-        try {
-          if (result) {
-            result.markPhase()
-            this()
-          }
-        } catch (err) {
-          reject(err)
-        }
-      }
-
-      let i = 0
-      for (; i < remainingPhases.length - 1; i++) {
-        const phase = remainingPhases[i]
-        setImmediate(runNextTask.bind(phase))
-      }
-      if (remainingPhases[i]) {
-        const finalPhase = remainingPhases[i]
-        setImmediate(runFinalTask.bind(finalPhase))
-      }
     })
   }
 }
@@ -280,71 +190,6 @@ class PhasedStream<T> extends ReadableStream<T> {
         'PhasedStream expected no more phases to release but some were found.'
       )
     }
-  }
-}
-
-export function prerenderClientWithPhases<T>(
-  render: () => Promise<T>,
-  finalPhase: () => void
-): Promise<T>
-export function prerenderClientWithPhases<T>(
-  render: () => Promise<T>,
-  secondPhase: () => void,
-  finalPhase: () => void
-): Promise<T>
-export function prerenderClientWithPhases<T>(
-  render: () => Promise<T>,
-  secondPhase: () => void,
-  thirdPhase: () => void,
-  ...remainingPhases: Array<() => void>
-): Promise<T>
-export function prerenderClientWithPhases<T>(
-  render: () => Promise<T>,
-  ...remainingPhases: Array<() => void>
-): Promise<T> {
-  if (process.env.NEXT_RUNTIME === 'edge') {
-    throw new InvariantError(
-      '`prerenderAndAbortInSequentialTasks` should not be called in edge runtime.'
-    )
-  } else {
-    return new Promise((resolve, reject) => {
-      let pendingResult: Promise<T>
-      setImmediate(() => {
-        try {
-          pendingResult = render()
-          pendingResult.catch((err) => reject(err))
-        } catch (err) {
-          reject(err)
-        }
-      })
-
-      function runFinalTask(this: () => void) {
-        try {
-          this()
-          resolve(pendingResult)
-        } catch (err) {
-          reject(err)
-        }
-      }
-
-      function runNextTask(this: () => void) {
-        try {
-          this()
-        } catch (err) {
-          reject(err)
-        }
-      }
-
-      let i = 0
-      for (; i < remainingPhases.length - 1; i++) {
-        const phase = remainingPhases[i]
-        setImmediate(runNextTask.bind(phase))
-      }
-      if (remainingPhases[i]) {
-        const finalPhase = remainingPhases[i]
-        setImmediate(runFinalTask.bind(finalPhase))
-      }
-    })
   }
 }
 

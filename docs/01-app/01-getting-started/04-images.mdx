@@ -125,7 +125,7 @@ Since Next.js does not have access to remote files during the build process, you
 To safely allow images from remote servers, you need to define a list of supported URL patterns in [`next.config.js`](/docs/app/api-reference/config/next-config-js). Be as specific as possible to prevent malicious usage. For example, the following configuration will only allow images from a specific AWS S3 bucket:
 
 ```ts filename="next.config.ts" switcher
-import { NextConfig } from 'next'
+import type { NextConfig } from 'next'
 
 const config: NextConfig = {
   images: {
