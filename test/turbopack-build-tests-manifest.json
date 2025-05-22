@@ -11639,10 +11639,10 @@
     "runtimeError": false
   },
   "test/integration/error-load-fail/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Failing to load _error production mode handles failing to load _error correctly"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
