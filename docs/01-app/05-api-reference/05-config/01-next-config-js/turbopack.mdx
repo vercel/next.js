@@ -49,7 +49,7 @@ The following options are available for the `turbo` configuration:
 
 ### Supported loaders
 
-The following loaders have been tested to work with Turbopack's webpack loader implementation:
+The following loaders have been tested to work with Turbopack's webpack loader implementation, but many other webpack loaders should work as well even if not listed here:
 
 - [`babel-loader`](https://www.npmjs.com/package/babel-loader)
 - [`@svgr/webpack`](https://www.npmjs.com/package/@svgr/webpack)
@@ -58,6 +58,7 @@ The following loaders have been tested to work with Turbopack's webpack loader i
 - [`string-replace-loader`](https://www.npmjs.com/package/string-replace-loader)
 - [`raw-loader`](https://www.npmjs.com/package/raw-loader)
 - [`sass-loader`](https://www.npmjs.com/package/sass-loader)
+- [`graphql-tag/loader`](https://www.npmjs.com/package/graphql-tag)
 
 ## Examples
 
@@ -102,6 +103,30 @@ module.exports = {
     rules: {
       '*.svg': {
         loaders: ['@svgr/webpack'],
+        as: '*.js',
+      },
+    },
+  },
+}
+```
+
+For loaders that require configuration options, you can use an object format instead of a string:
+
+```js filename="next.config.js"
+module.exports = {
+  turbopack: {
+    rules: {
+      '*.svg': {
+        loaders: [
+          {
+            loader: '@svgr/webpack',
+            options: {
+              svgo: true,
+              titleProp: true,
+              descProp: true,
+            },
+          },
+        ],
         as: '*.js',
       },
     },
