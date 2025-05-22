@@ -171,7 +171,7 @@ mod tests {
             function Foo(props) {
                 const [a, b] = useState(0);
 
-                return {props.children};
+                return props.children;
             }
             ",
             true,
