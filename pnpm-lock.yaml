@@ -67,6 +67,9 @@ importers:
       '@babel/preset-react':
         specifier: 7.26.3
         version: 7.26.3(@babel/core@7.26.10)
+      '@changesets/changelog-github':
+        specifier: 0.5.1
+        version: 0.5.1(encoding@0.1.13)
       '@changesets/cli':
         specifier: 2.29.3
         version: 2.29.3
@@ -827,7 +830,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 15.4.0-canary.35
+        specifier: 15.4.0-canary.47
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.10.3
@@ -891,7 +894,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 15.4.0-canary.35
+        specifier: 15.4.0-canary.47
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.15
@@ -1010,19 +1013,19 @@ importers:
         specifier: 1.2.0
         version: 1.2.0
       '@next/font':
-        specifier: 15.4.0-canary.35
+        specifier: 15.4.0-canary.47
         version: link:../font
       '@next/polyfill-module':
-        specifier: 15.4.0-canary.35
+        specifier: 15.4.0-canary.47
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 15.4.0-canary.35
+        specifier: 15.4.0-canary.47
         version: link:../next-polyfill-nomodule
       '@next/react-refresh-utils':
-        specifier: 15.4.0-canary.35
+        specifier: 15.4.0-canary.47
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 15.4.0-canary.35
+        specifier: 15.4.0-canary.47
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1713,7 +1716,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 15.4.0-canary.35
+        specifier: 15.4.0-canary.47
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -2724,6 +2727,9 @@ packages:
   '@changesets/changelog-git@0.2.1':
     resolution: {integrity: sha512-x/xEleCFLH28c3bQeQIyeZf8lFXyDFVn1SgcBiR2Tw/r4IAWlk1fzxCEZ6NxQAjF2Nwtczoen3OA2qR+UawQ8Q==}
 
+  '@changesets/changelog-github@0.5.1':
+    resolution: {integrity: sha512-BVuHtF+hrhUScSoHnJwTELB4/INQxVFc+P/Qdt20BLiBFIHFJDDUaGsZw+8fQeJTRP5hJZrzpt3oZWh0G19rAQ==}
+
   '@changesets/cli@2.29.3':
     resolution: {integrity: sha512-TNhKr6Loc7I0CSD9LpAyVNSxWBHElXVmmvQYIZQvaMan5jddmL7geo3+08Wi7ImgHFVNB0Nhju/LzXqlrkoOxg==}
     hasBin: true
@@ -2736,6 +2742,9 @@ packages:
 
   '@changesets/get-dependents-graph@2.1.3':
     resolution: {integrity: sha512-gphr+v0mv2I3Oxt19VdWRRUxq3sseyUpX9DaHpTUmLj92Y10AGy+XOtV+kbM6L/fDcpx7/ISDFK6T8A/P3lOdQ==}
+
+  '@changesets/get-github-info@0.6.0':
+    resolution: {integrity: sha512-v/TSnFVXI8vzX9/w3DU2Ol+UlTZcu3m0kXTjTT4KlAdwSvwutcByYwyYn9hwerPWfPkT2JfpoX0KgvCEi8Q/SA==}
 
   '@changesets/get-release-plan@4.0.11':
     resolution: {integrity: sha512-4DZpsewsc/1m5TArVg5h1c0U94am+cJBnu3izAM3yYIZr8+zZwa3AXYdEyCNURzjx0wWr80u/TWoxshbwdZXOA==}
@@ -7903,6 +7912,9 @@ packages:
     resolution: {integrity: sha512-t/Ygsytq+R995EJ5PZlD4Cu56sWa8InXySaViRzw9apusqsOO2bQP+SbYzAhR0pFKoB+43lYy8rWban9JSuXnA==}
     engines: {node: '>= 0.4'}
 
+  dataloader@1.4.0:
+    resolution: {integrity: sha512-68s5jYdlvasItOJnCuI2Q9s4q98g0pCyL3HrcKJu8KNugUl8ahgmZYg38ysLTgQjjXX3H8CJLkAvWrclWfcalw==}
+
   dateformat@3.0.3:
     resolution: {integrity: sha512-jyCETtSl3VMZMWeRo7iY1FL19ges1t55hMo5yaam4Jrsm5EPL89UQkoQRyiI+Yf4k8r2ZpdngkV8hr1lIdjb3Q==}
 
@@ -8358,6 +8370,10 @@ packages:
   dotenv@16.3.1:
     resolution: {integrity: sha512-IPzF4w4/Rd94bA9imS68tZBaYyBWSCE47V1RGuMrB94iyTOIEwRmVL2x/4An+6mETpLrKJ5hQkB8W4kFAadeIQ==}
     engines: {node: '>=12'}
+
+  dotenv@8.6.0:
+    resolution: {integrity: sha512-IrPdXQsk2BbzvCBGBOTmmSH5SodmqZNt4ERAZDmW4CT+tL8VtvinqywuANaFu4bOMWki16nqf0e4oC0QIaDr/g==}
+    engines: {node: '>=10'}
 
   downsample-lttb@0.0.1:
     resolution: {integrity: sha512-Olebo5gyh44OAXTd2BKdcbN5VaZOIKFzoeo9JUFwxDlGt6Sd8fUo6SKaLcafy8aP2UrsKmWDpsscsFEghMjeZA==}
@@ -13799,7 +13815,6 @@ packages:
     engines: {node: '>=0.6.0', teleport: '>=0.2.0'}
     deprecated: |-
       You or someone you depend on is using Q, the JavaScript Promise library that gave JavaScript developers strong feelings about promises. They can almost certainly migrate to the native JavaScript promise now. Thank you literally everyone for joining me in this bet against the odds. Be excellent to each other.
-
       (For a CapTP with native promises, see @endo/eventual-send and @endo/captp)
 
   qs@6.11.0:
@@ -17875,6 +17890,14 @@ snapshots:
     dependencies:
       '@changesets/types': 6.1.0
 
+  '@changesets/changelog-github@0.5.1(encoding@0.1.13)':
+    dependencies:
+      '@changesets/get-github-info': 0.6.0(encoding@0.1.13)
+      '@changesets/types': 6.1.0
+      dotenv: 8.6.0
+    transitivePeerDependencies:
+      - encoding
+
   '@changesets/cli@2.29.3':
     dependencies:
       '@changesets/apply-release-plan': 7.0.12
@@ -17926,6 +17949,13 @@ snapshots:
       '@manypkg/get-packages': 1.1.3
       picocolors: 1.1.1
       semver: 7.6.3
+
+  '@changesets/get-github-info@0.6.0(encoding@0.1.13)':
+    dependencies:
+      dataloader: 1.4.0
+      node-fetch: 2.6.7(encoding@0.1.13)
+    transitivePeerDependencies:
+      - encoding
 
   '@changesets/get-release-plan@4.0.11':
     dependencies:
@@ -24174,6 +24204,8 @@ snapshots:
       es-errors: 1.3.0
       is-data-view: 1.0.1
 
+  dataloader@1.4.0: {}
+
   dateformat@3.0.3: {}
 
   dayjs@1.11.11: {}
@@ -24609,6 +24641,8 @@ snapshots:
   dotenv@10.0.0: {}
 
   dotenv@16.3.1: {}
+
+  dotenv@8.6.0: {}
 
   downsample-lttb@0.0.1: {}
 

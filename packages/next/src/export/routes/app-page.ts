@@ -30,58 +30,6 @@ import type { RequestLifecycleOpts } from '../../server/base-server'
 import type { AppSharedContext } from '../../server/app-render/app-render'
 import type { MultiFileWriter } from '../../lib/multi-file-writer'
 
-export async function prospectiveRenderAppPage(
-  req: MockedRequest,
-  res: MockedResponse,
-  page: string,
-  pathname: string,
-  query: NextParsedUrlQuery,
-  fallbackRouteParams: FallbackRouteParams | null,
-  partialRenderOpts: Omit<RenderOpts, keyof RequestLifecycleOpts>,
-  sharedContext: AppSharedContext
-): Promise<undefined> {
-  const afterRunner = new AfterRunner()
-
-  // If the page is `/_not-found`, then we should update the page to be `/404`.
-  // UNDERSCORE_NOT_FOUND_ROUTE value used here, however we don't want to import it here as it causes constants to be inlined which we don't want here.
-  if (page === '/_not-found/page') {
-    pathname = '/404'
-  }
-
-  try {
-    await lazyRenderAppPage(
-      new NodeNextRequest(req),
-      new NodeNextResponse(res),
-      pathname,
-      query,
-      fallbackRouteParams,
-      {
-        ...partialRenderOpts,
-        waitUntil: afterRunner.context.waitUntil,
-        onClose: afterRunner.context.onClose,
-        onAfterTaskError: afterRunner.context.onTaskError,
-      },
-      undefined,
-      false,
-      sharedContext
-    )
-
-    // TODO(after): if we abort a prerender because of an error in an after-callback
-    // we should probably communicate that better (and not log the error twice)
-    await afterRunner.executeAfter()
-  } catch (err) {
-    if (!isDynamicUsageError(err)) {
-      throw err
-    }
-
-    // We should fail rendering if a client side rendering bailout
-    // occurred at the page level.
-    if (isBailoutToCSRError(err)) {
-      throw err
-    }
-  }
-}
-
 /**
  * Renders & exports a page associated with the /app directory
  */

@@ -86,7 +86,7 @@ The behavior of [`next/script`](/docs/app/api-reference/components/script) has b
 
 - Move any `beforeInteractive` scripts you previously included in `_document.js` to the root layout file (`app/layout.tsx`).
 - The experimental `worker` strategy does not yet work in `app` and scripts denoted with this strategy will either have to be removed or modified to use a different strategy (e.g. `lazyOnload`).
-- `onLoad`, `onReady`, and `onError` handlers will not work in Server Components so make sure to move them to a [Client Component](/docs/app/building-your-application/rendering/server-components) or remove them altogether.
+- `onLoad`, `onReady`, and `onError` handlers will not work in Server Components so make sure to move them to a [Client Component](/docs/app/getting-started/server-and-client-components) or remove them altogether.
 
 ### Font Optimization
 
@@ -188,7 +188,7 @@ export const metadata = {
 
 If you have an existing `_app` or `_document` file, you can copy the contents (e.g. global styles) to the root layout (`app/layout.tsx`). Styles in `app/layout.tsx` will _not_ apply to `pages/*`. You should keep `_app`/`_document` while migrating to prevent your `pages/*` routes from breaking. Once fully migrated, you can then safely delete them.
 
-If you are using any React Context providers, they will need to be moved to a [Client Component](/docs/app/building-your-application/rendering/client-components).
+If you are using any React Context providers, they will need to be moved to a [Client Component](/docs/app/getting-started/server-and-client-components).
 
 #### Migrating the `getLayout()` pattern to Layouts (Optional)
 
@@ -232,7 +232,7 @@ Page.getLayout = function getLayout(page) {
   }
   ```
 
-- Move the contents of `DashboardLayout` into a new [Client Component](/docs/app/building-your-application/rendering/client-components) to retain `pages` directory behavior.
+- Move the contents of `DashboardLayout` into a new [Client Component](/docs/app/getting-started/server-and-client-components) to retain `pages` directory behavior.
 
   ```jsx filename="app/dashboard/DashboardLayout.js"
   'use client' // this directive should be at top of the file, before any imports.
@@ -325,7 +325,7 @@ export default function Page() {
 
 ### Step 4: Migrating Pages
 
-- Pages in the [`app` directory](/docs/app/building-your-application/routing) are [Server Components](/docs/app/building-your-application/rendering/server-components) by default. This is different from the `pages` directory where pages are [Client Components](/docs/app/building-your-application/rendering/client-components).
+- Pages in the [`app` directory](/docs/app/building-your-application/routing) are [Server Components](/docs/app/getting-started/server-and-client-components) by default. This is different from the `pages` directory where pages are [Client Components](/docs/app/getting-started/server-and-client-components).
 - [Data fetching](/docs/app/building-your-application/data-fetching) has changed in `app`. `getServerSideProps`, `getStaticProps` and `getInitialProps` have been replaced with a simpler API.
 - The `app` directory uses nested folders to define routes and a special `page.js` file to make a route segment publicly accessible.
 - | `pages` Directory | `app` Directory       | Route          |
@@ -344,7 +344,7 @@ We recommend breaking down the migration of a page into two main steps:
 **Step 1: Create a new Client Component**
 
 - Create a new separate file inside the `app` directory (i.e. `app/home-page.tsx` or similar) that exports a Client Component. To define Client Components, add the `'use client'` directive to the top of the file (before any imports).
-  - Similar to the Pages Router, there is an [optimization step](/docs/app/building-your-application/rendering/client-components#full-page-load) to prerender Client Components to static HTML on the initial page load.
+  - Similar to the Pages Router, there is an [optimization step](/docs/app/getting-started/server-and-client-components#on-the-client-first-load) to prerender Client Components to static HTML on the initial page load.
 - Move the default exported page component from `pages/index.js` to `app/home-page.tsx`.
 
 ```tsx filename="app/home-page.tsx" switcher
@@ -470,10 +470,10 @@ export default function ExampleClientComponent() {
 In addition, the new `useRouter` hook has the following changes:
 
 - `isFallback` has been removed because `fallback` has [been replaced](#replacing-fallback).
-- The `locale`, `locales`, `defaultLocales`, `domainLocales` values have been removed because built-in i18n Next.js features are no longer necessary in the `app` directory. [Learn more about i18n](/docs/app/building-your-application/routing/internationalization).
+- The `locale`, `locales`, `defaultLocales`, `domainLocales` values have been removed because built-in i18n Next.js features are no longer necessary in the `app` directory. [Learn more about i18n](/docs/app/guides/internationalization).
 - `basePath` has been removed. The alternative will not be part of `useRouter`. It has not yet been implemented.
 - `asPath` has been removed because the concept of `as` has been removed from the new router.
-- `isReady` has been removed because it is no longer necessary. During [static rendering](/docs/app/building-your-application/rendering/server-components#static-rendering-default), any component that uses the [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) hook will skip the prerendering step and instead be rendered on the client at runtime.
+- `isReady` has been removed because it is no longer necessary. During [static rendering](/docs/app/getting-started/partial-prerendering#static-rendering), any component that uses the [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) hook will skip the prerendering step and instead be rendered on the client at runtime.
 - `route` has been removed. `usePathname` or `useSelectedLayoutSegments()` provide an alternative.
 
 [View the `useRouter()` API reference](/docs/app/api-reference/functions/use-router).
@@ -554,7 +554,7 @@ export default function Dashboard({ projects }) {
 }
 ```
 
-In the App Router, we can colocate our data fetching inside our React components using [Server Components](/docs/app/building-your-application/rendering/server-components). This allows us to send less JavaScript to the client, while maintaining the rendered HTML from the server.
+In the App Router, we can colocate our data fetching inside our React components using [Server Components](/docs/app/getting-started/server-and-client-components). This allows us to send less JavaScript to the client, while maintaining the rendered HTML from the server.
 
 By setting the `cache` option to `no-store`, we can indicate that the fetched data should [never be cached](/docs/app/building-your-application/data-fetching/fetching). This is similar to `getServerSideProps` in the `pages` directory.
 
@@ -629,8 +629,8 @@ export default function Page(props) {
 
 The `app` directory exposes new read-only functions to retrieve request data:
 
-- [`headers`](/docs/app/api-reference/functions/headers): Based on the Web Headers API, and can be used inside [Server Components](/docs/app/building-your-application/rendering/server-components) to retrieve request headers.
-- [`cookies`](/docs/app/api-reference/functions/cookies): Based on the Web Cookies API, and can be used inside [Server Components](/docs/app/building-your-application/rendering/server-components) to retrieve cookies.
+- [`headers`](/docs/app/api-reference/functions/headers): Based on the Web Headers API, and can be used inside [Server Components](/docs/app/getting-started/server-and-client-components) to retrieve request headers.
+- [`cookies`](/docs/app/api-reference/functions/cookies): Based on the Web Cookies API, and can be used inside [Server Components](/docs/app/getting-started/server-and-client-components) to retrieve cookies.
 
 ```tsx filename="app/page.tsx" switcher
 // `app` directory
@@ -876,7 +876,7 @@ export async function GET(request: Request) {}
 export async function GET(request) {}
 ```
 
-> **Good to know**: If you previously used API routes to call an external API from the client, you can now use [Server Components](/docs/app/building-your-application/rendering/server-components) instead to securely fetch data. Learn more about [data fetching](/docs/app/building-your-application/data-fetching/fetching).
+> **Good to know**: If you previously used API routes to call an external API from the client, you can now use [Server Components](/docs/app/getting-started/server-and-client-components) instead to securely fetch data. Learn more about [data fetching](/docs/app/building-your-application/data-fetching/fetching).
 
 #### Single-Page Applications
 

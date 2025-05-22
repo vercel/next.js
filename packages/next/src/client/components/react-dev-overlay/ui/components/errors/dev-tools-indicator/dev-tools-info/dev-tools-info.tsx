@@ -9,9 +9,10 @@ export interface DevToolsInfoPropsCore {
 }
 
 export interface DevToolsInfoProps extends DevToolsInfoPropsCore {
-  title: string
+  title: React.ReactNode
   children: React.ReactNode
   learnMoreLink?: string
+  closeButton?: boolean
 }
 
 export function DevToolsInfo({
@@ -20,6 +21,7 @@ export function DevToolsInfo({
   learnMoreLink,
   isOpen,
   triggerRef,
+  closeButton = true,
   close,
   ...props
 }: DevToolsInfoProps) {
@@ -55,25 +57,29 @@ export function DevToolsInfo({
       <div className="dev-tools-info-container">
         <h1 className="dev-tools-info-title">{title}</h1>
         {children}
-        <div className="dev-tools-info-button-container">
-          <button
-            ref={closeButtonRef}
-            className="dev-tools-info-close-button"
-            onClick={close}
-          >
-            Close
-          </button>
-          {learnMoreLink && (
-            <a
-              className="dev-tools-info-learn-more-button"
-              href={learnMoreLink}
-              target="_blank"
-              rel="noreferrer noopener"
-            >
-              Learn More
-            </a>
-          )}
-        </div>
+        {(closeButton || learnMoreLink) && (
+          <div className="dev-tools-info-button-container">
+            {closeButton ? (
+              <button
+                ref={closeButtonRef}
+                className="dev-tools-info-close-button"
+                onClick={close}
+              >
+                Close
+              </button>
+            ) : null}
+            {learnMoreLink && (
+              <a
+                className="dev-tools-info-learn-more-button"
+                href={learnMoreLink}
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                Learn More
+              </a>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -112,6 +118,7 @@ export const DEV_TOOLS_INFO_STYLES = `
 
   .dev-tools-info-container {
     padding: 12px;
+    width: 100%;
   }
 
   .dev-tools-info-title {

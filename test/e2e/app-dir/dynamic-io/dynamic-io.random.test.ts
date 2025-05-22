@@ -1,7 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
 
-const WITH_PPR = !!process.env.__NEXT_EXPERIMENTAL_PPR
-
 describe('dynamic-io', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
@@ -33,11 +31,8 @@ describe('dynamic-io', () => {
     if (isNextDev) {
       expect($('#layout').text()).toBe('at runtime')
       expect($('#page').text()).toBe('at runtime')
-    } else if (WITH_PPR) {
-      expect($('#layout').text()).toBe('at buildtime')
-      expect($('#page').text()).toBe('at runtime')
     } else {
-      expect($('#layout').text()).toBe('at runtime')
+      expect($('#layout').text()).toBe('at buildtime')
       expect($('#page').text()).toBe('at runtime')
     }
   })

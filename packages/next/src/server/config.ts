@@ -143,9 +143,9 @@ function warnCustomizedOption(
 
 function assignDefaults(
   dir: string,
-  userConfig: { [key: string]: any },
+  userConfig: NextConfig & { configFileName: string },
   silent: boolean
-) {
+): NextConfigComplete {
   const configFileName = userConfig.configFileName
   if (typeof userConfig.exportTrailingSlash !== 'undefined') {
     if (!silent) {
@@ -213,9 +213,15 @@ function assignDefaults(
         })
       }
 
-      if (!!value && value.constructor === Object) {
+      const defaultValue = (defaultConfig as Record<string, unknown>)[key]
+
+      if (
+        !!value &&
+        value.constructor === Object &&
+        typeof defaultValue === 'object'
+      ) {
         currentConfig[key] = {
-          ...defaultConfig[key],
+          ...defaultValue,
           ...Object.keys(value).reduce<any>((c, k) => {
             const v = value[k]
             if (v !== undefined && v !== null) {
@@ -231,7 +237,7 @@ function assignDefaults(
       return currentConfig
     },
     {}
-  )
+  ) as NextConfig & { configFileName: string }
 
   // TODO: remove these once we've made PPR default
   // If this was defaulted to true, it implies that the configuration was
@@ -532,7 +538,7 @@ function assignDefaults(
   if (
     hasWarnedBuildActivityPosition &&
     result.devIndicators !== false &&
-    result.devIndicators?.buildActivityPosition &&
+    'buildActivityPosition' in result.devIndicators &&
     result.devIndicators.buildActivityPosition !== result.devIndicators.position
   ) {
     Log.warnOnce(
@@ -963,7 +969,11 @@ function assignDefaults(
           reason: 'key must only use characters a-z and -',
         })
       } else {
-        const handlerPath = result.experimental.cacheHandlers[key]
+        const handlerPath = (
+          result.experimental.cacheHandlers as {
+            [handlerName: string]: string | undefined
+          }
+        )[key]
 
         if (handlerPath && !existsSync(handlerPath)) {
           invalidHandlerItems.push({
@@ -1095,7 +1105,21 @@ function assignDefaults(
     result.experimental.useCache = result.experimental.dynamicIO
   }
 
-  return result
+  // If dynamicIO is enabled, we also enable PPR.
+  if (result.experimental.dynamicIO) {
+    if (
+      userConfig.experimental?.ppr === false ||
+      userConfig.experimental?.ppr === 'incremental'
+    ) {
+      throw new Error(
+        `\`experimental.ppr\` can not be \`${JSON.stringify(userConfig.experimental?.ppr)}\` when \`experimental.dynamicIO\` is \`true\`. PPR is implicitly enabled when Dynamic IO is enabled.`
+      )
+    }
+
+    result.experimental.ppr = true
+  }
+
+  return result as NextConfigComplete
 }
 
 async function applyModifyConfig(
@@ -1401,10 +1425,9 @@ export default async function loadConfig(
   // reactRoot can be updated correctly even with no next.config.js
   const completeConfig = assignDefaults(
     dir,
-    defaultConfig,
+    { ...defaultConfig, configFileName },
     silent
   ) as NextConfigComplete
-  completeConfig.configFileName = configFileName
   setHttpClientAndAgentOptions(completeConfig)
   return await applyModifyConfig(completeConfig, phase, silent)
 }
@@ -1438,7 +1461,7 @@ export function getConfiguredExperimentalFeatures(
 
       if (
         name in defaultConfig.experimental &&
-        value !== defaultConfig.experimental[name]
+        value !== (defaultConfig.experimental as Record<string, unknown>)[name]
       ) {
         configuredExperimentalFeatures.push(
           typeof value === 'boolean'

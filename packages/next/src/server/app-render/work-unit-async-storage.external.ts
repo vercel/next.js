@@ -79,7 +79,10 @@ export interface RequestStore extends CommonWorkUnitStore {
  * to fill all caches.
  */
 export interface PrerenderStoreModern extends CommonWorkUnitStore {
-  type: 'prerender'
+  // In the future the prerender-client variant will get it's own type.
+  // prerender represents the RSC scope of the prerender.
+  // prerender-client represents the HTML scope of the prerender.
+  type: 'prerender' | 'prerender-client'
 
   /**
    * This signal is aborted when the React render is complete. (i.e. it is the same signal passed to react)
@@ -163,6 +166,11 @@ export interface CommonCacheStore
    * from which implicit tags could be inherited.
    */
   readonly implicitTags: ImplicitTags | undefined
+  /**
+   * Draft mode is only available if the outer work unit store is a request
+   * store and draft mode is enabled.
+   */
+  readonly draftMode: DraftModeProvider | undefined
 }
 
 export interface UseCacheStore extends CommonCacheStore {
@@ -179,21 +187,20 @@ export interface UseCacheStore extends CommonCacheStore {
   readonly isHmrRefresh: boolean
   readonly serverComponentsHmrCache: ServerComponentsHmrCache | undefined
   readonly forceRevalidate: boolean
-  // Draft mode is only available if the outer work unit store is a request
-  // store and draft mode is enabled.
-  readonly draftMode: DraftModeProvider | undefined
 }
 
 export interface UnstableCacheStore extends CommonCacheStore {
   type: 'unstable-cache'
-  // Draft mode is only available if the outer work unit store is a request
-  // store and draft mode is enabled.
-  readonly draftMode: DraftModeProvider | undefined
 }
 
 /**
- * The Cache store is for tracking information inside a "use cache" or unstable_cache context.
- * Inside this context we should never expose any request or page specific information.
+ * The Cache store is for tracking information inside a "use cache" or
+ * unstable_cache context. A cache store shadows an outer request store (if
+ * present) as a work unit, so that we never accidentally expose any request or
+ * page specific information to cache functions, unless it's explicitly desired.
+ * For those exceptions, the data is copied over from the request store to the
+ * cache store, instead of generally making the request store available to cache
+ * functions.
  */
 export type CacheStore = UseCacheStore | UnstableCacheStore
 
@@ -217,6 +224,7 @@ export function getExpectedRequestStore(
       return workUnitStore
 
     case 'prerender':
+    case 'prerender-client':
     case 'prerender-ppr':
     case 'prerender-legacy':
       // This should not happen because we should have checked it already.
@@ -251,6 +259,8 @@ export function getPrerenderResumeDataCache(
 ): PrerenderResumeDataCache | null {
   if (
     workUnitStore.type === 'prerender' ||
+    // TODO eliminate fetch caching in client scope and stop exposing this data cache during SSR
+    workUnitStore.type === 'prerender-client' ||
     workUnitStore.type === 'prerender-ppr'
   ) {
     return workUnitStore.prerenderResumeDataCache

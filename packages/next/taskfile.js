@@ -1935,7 +1935,12 @@ export async function copy_vendor_react(task_) {
           const ast = parseFile(source, { sourceFileName: filepath })
           replaceIdentifiersInAst(
             ast,
-            new Map([['__turbopack_load__', '__turbopack_load_by_url__']])
+            new Map([
+              [
+                '__turbopack_load__',
+                parseExpression('__turbopack_load_by_url__'),
+              ],
+            ])
           )
           file.data = recast.print(ast).code
         } else if (

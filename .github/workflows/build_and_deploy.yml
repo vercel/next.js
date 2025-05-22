@@ -19,6 +19,10 @@ env:
   #
   # See https://doc.rust-lang.org/rustc/platform-support/apple-darwin.html#os-version for more details
   MACOSX_DEPLOYMENT_TARGET: 11.0
+  # This will become "true" if the latest commit is
+  # "Version Packages" or "Version Pacakges (canary)"
+  # set from scripts/check-is-release.js
+  __NEW_RELEASE: 'false'
 
 jobs:
   deploy-target:
@@ -44,7 +48,12 @@ jobs:
         # 'staging' for canary branch since that will eventually be published i.e. become the production build.
         id: deploy-target
         run: |
-          if [[ $(node ./scripts/check-is-release.js 2> /dev/null || :) = v* ]];
+          # TODO: Remove the new release check once the new release workflow is fully replaced.
+          RELEASE_CHECK=$(node ./scripts/check-is-release.js 2> /dev/null || :)
+          if [[ $RELEASE_CHECK =~ ^Version\ Packages(\ \(canary\))?$ ]];
+          then
+            echo "__NEW_RELEASE=true" >> $GITHUB_ENV
+          elif [[ $RELEASE_CHECK = v* ]];
           then
             echo "value=production" >> $GITHUB_OUTPUT
           elif [ '${{ github.ref }}' == 'refs/heads/canary' ]
@@ -586,13 +595,34 @@ jobs:
       - run: npm i -g npm@10.4.0 # need latest version for provenance (pinning to avoid bugs)
       - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
       - run: ./scripts/publish-native.js
+      # Legacy release process
       - run: ./scripts/publish-release.js
+        if: ${{ env.__NEW_RELEASE == 'false' }}
         env:
           RELEASE_BOT_GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
 
+      # New release process
+      - name: Publish to NPM
+        id: changesets
+        if: ${{ env.__NEW_RELEASE == 'true' }}
+        uses: changesets/action@v1
+        with:
+          publish: pnpm ci:publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
+          RELEASE_TYPE: ${{ github.event.inputs.releaseType }}
+
+      # Add label to verify the PR is created from this workflow.
+      - name: Add label to PR
+        if: steps.changesets.outputs.pullRequestNumber
+        run: 'gh pr edit ${{ steps.changesets.outputs.pullRequestNumber }} --add-label "created-by: CI"'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Upload npm log artifact
+        if: steps.changesets.outputs.published == 'true'
         uses: actions/upload-artifact@v4
-        if: always()
         with:
           name: npm-publish-logs
           path: /home/runner/.npm/_logs/*

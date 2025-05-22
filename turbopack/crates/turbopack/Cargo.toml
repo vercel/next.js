@@ -54,6 +54,7 @@ rstest_reuse = "0.5.0"
 tokio = { workspace = true }
 turbo-tasks-malloc = { workspace = true, default-features = false }
 turbo-tasks-memory = { workspace = true }
+turbo-tasks-backend = { workspace = true }
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }

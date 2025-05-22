@@ -3261,7 +3261,7 @@ fn program_to_data_url(
         }
     }
 
-    let map = cm.build_source_map_with_config(
+    let map = cm.build_source_map(
         &mappings,
         None,
         InlineSourcesContentConfig {

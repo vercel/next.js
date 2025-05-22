@@ -116,7 +116,7 @@ pub fn generate_js_source_map(
         None
     };
 
-    let map = files_map.build_source_map_with_config(
+    let map = files_map.build_source_map(
         &mappings,
         None,
         InlineSourcesContentConfig {

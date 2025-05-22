@@ -137,11 +137,19 @@ The experimental `serverComponentsHmrCache` option allows you to cache `fetch` r
 
 ### Detailed fetch logging
 
-Use this command to see more detailed information about what's happening during development:
+Use the `logging.fetches` option in your `next.config.js` file, to see more detailed information about what's happening during development:
 
-```bash
-next dev --verbose
+```js
+module.exports = {
+  logging: {
+    fetches: {
+      fullUrl: true,
+    },
+  },
+}
 ```
+
+[Learn more about fetch logging](/docs/app/api-reference/config/next-config-js/logging).
 
 ## Turbopack tracing
 
