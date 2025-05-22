@@ -9509,6 +9509,7 @@ dependencies = [
  "regex",
  "regress",
  "serde",
+ "serde_json",
  "turbo-tasks",
  "turbo-tasks-build",
 ]
