@@ -34,9 +34,6 @@ rustflags = [
   "target-feature=+crt-static"
 ]
 
-[target.'cfg(target_os = "macos")']
-linker = "rust-lld"
-
 [target.'cfg(all(target_os = "linux", target_env = "gnu"))']
 rustflags = [
   "--cfg",

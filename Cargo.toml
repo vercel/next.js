@@ -297,21 +297,21 @@ turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
 # SWC crates
-swc_core = { version = "23.1.0", features = [
+swc_core = { version = "26.0.1", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
 ] }
-testing = { version = "10.0.0" }
+testing = { version = "12.0.0" }
 
 # Keep consistent with preset_env_base through swc_core
 browserslist-rs = { version = "0.18.0" }
 miette = { version = "5.10.0", features = ["fancy"] }
 mdxjs = "1.0.1"
-modularize_imports = { version = "0.83.1" }
-styled_components = { version = "0.111.0" }
-styled_jsx = { version = "0.87.0" }
-swc_emotion = { version = "0.87.0" }
-swc_relay = { version = "0.57.0" }
+modularize_imports = { version = "0.86.0" }
+styled_components = { version = "0.114.0" }
+styled_jsx = { version = "0.90.1" }
+swc_emotion = { version = "0.90.0" }
+swc_relay = { version = "0.60.0" }
 
 # General Deps
 chromiumoxide = { version = "0.5.4", features = [
@@ -407,7 +407,7 @@ smallvec = { version = "1.13.1", features = [
   "union",
   "const_new",
 ] }
-sourcemap = "9.0.0"
+sourcemap = "9.2.1"
 strsim = "0.11.1"
 shrink-to-fit = "0.2.10"
 swc-rustc-hash = { package = "rustc-hash", version = "1.1.0" } # used with swc
@@ -430,9 +430,4 @@ vergen-gitcl = { git = "https://github.com/bgw/vergen.git", branch = "bgw/no-opt
 webbrowser = "0.8.7"
 
 [patch.crates-io]
-# Remove this once https://github.com/wasmerio/wasmer/pull/5333 is merged and released
-wasmer = { git = "https://github.com/kdy1/wasmer", branch = "build-deps" }
-wasmer-cache = { git = "https://github.com/kdy1/wasmer", branch = "build-deps" }
-wasmer-compiler-cranelift = { git = "https://github.com/kdy1/wasmer", branch = "build-deps" }
-wasmer-wasix = { git = "https://github.com/kdy1/wasmer", branch = "build-deps" }
-
+mdxjs = { git = "https://github.com/kdy1/mdxjs-rs", branch = "swc-core-26" }

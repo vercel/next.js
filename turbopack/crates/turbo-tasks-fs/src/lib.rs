@@ -11,6 +11,7 @@
 pub mod attach;
 pub mod embed;
 pub mod glob;
+mod globset;
 pub mod invalidation;
 mod invalidator_map;
 pub mod json;
@@ -46,14 +47,13 @@ use invalidator_map::InvalidatorMap;
 use jsonc_parser::{ParseOptions, parse_to_serde_value};
 use mime::Mime;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
-pub use read_glob::ReadGlobResult;
-use read_glob::{read_glob, track_glob};
+use read_glob::track_glob;
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::{
     fs,
-    io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
+    io::{AsyncBufReadExt, AsyncReadExt, BufReader},
     sync::{RwLock, RwLockReadGuard},
 };
 use tracing::Instrument;
@@ -758,7 +758,7 @@ impl FileSystem for DiskFileSystem {
             }
 
             match &*content {
-                FileContent::Content(file) => {
+                FileContent::Content(..) => {
                     let create_directory = compare == FileComparison::Create;
                     if create_directory {
                         if let Some(parent) = full_path.parent() {
@@ -771,34 +771,38 @@ impl FileSystem for DiskFileSystem {
                             })?;
                         }
                     }
+
                     let full_path_to_write = full_path.clone();
-                    retry_future(move || {
-                        let full_path = full_path_to_write.clone();
-                        async move {
-                            let mut f = fs::File::create(&full_path).await?;
-                            tokio::io::copy(&mut file.read(), &mut f).await?;
+                    let content = content.clone();
+                    retry_blocking(&full_path_to_write, move |full_path| {
+                        use std::io::Write;
+
+                        let mut f = std::fs::File::create(full_path)?;
+                        let FileContent::Content(file) = &*content else {
+                            unreachable!()
+                        };
+                        std::io::copy(&mut file.read(), &mut f)?;
+                        #[cfg(target_family = "unix")]
+                        f.set_permissions(file.meta.permissions.into())?;
+                        f.flush()?;
+                        #[cfg(feature = "write_version")]
+                        {
+                            let mut full_path = full_path.into_owned();
+                            let hash = hash_xxh3_hash64(file);
+                            let ext = full_path.extension();
+                            let ext = if let Some(ext) = ext {
+                                format!("{:016x}.{}", hash, ext.to_string_lossy())
+                            } else {
+                                format!("{:016x}", hash)
+                            };
+                            full_path.set_extension(ext);
+                            let mut f = std::fs::File::create(&full_path)?;
+                            std::io::copy(&mut file.read(), &mut f)?;
                             #[cfg(target_family = "unix")]
-                            f.set_permissions(file.meta.permissions.into()).await?;
-                            f.flush().await?;
-                            #[cfg(feature = "write_version")]
-                            {
-                                let mut full_path = full_path.into_owned();
-                                let hash = hash_xxh3_hash64(file);
-                                let ext = full_path.extension();
-                                let ext = if let Some(ext) = ext {
-                                    format!("{:016x}.{}", hash, ext.to_string_lossy())
-                                } else {
-                                    format!("{:016x}", hash)
-                                };
-                                full_path.set_extension(ext);
-                                let mut f = fs::File::create(&full_path).await?;
-                                tokio::io::copy(&mut file.read(), &mut f).await?;
-                                #[cfg(target_family = "unix")]
-                                f.set_permissions(file.meta.permissions.into()).await?;
-                                f.flush().await?;
-                            }
-                            Ok::<(), io::Error>(())
+                            f.set_permissions(file.meta.permissions.into())?;
+                            f.flush()?;
                         }
+                        Ok::<(), io::Error>(())
                     })
                     .concurrency_limited(&inner.semaphore)
                     .instrument(tracing::info_span!(
@@ -1261,15 +1265,6 @@ impl FileSystemPath {
             }
         }
         Ok(FileSystemPathOption::none())
-    }
-
-    #[turbo_tasks::function]
-    pub fn read_glob(
-        self: Vc<Self>,
-        glob: Vc<Glob>,
-        include_dot_files: bool,
-    ) -> Vc<ReadGlobResult> {
-        read_glob(self, glob, include_dot_files)
     }
 
     // Tracks all files and directories matching the glob

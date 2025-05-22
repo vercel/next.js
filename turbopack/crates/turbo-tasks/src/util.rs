@@ -23,11 +23,11 @@ pub use super::{
 /// A error struct that is backed by an Arc to allow cloning errors
 #[derive(Debug, Clone)]
 pub struct SharedError {
-    inner: Arc<Error>,
+    inner: Arc<anyhow::Error>,
 }
 
 impl SharedError {
-    pub fn new(err: Error) -> Self {
+    pub fn new(err: anyhow::Error) -> Self {
         Self {
             inner: Arc::new(err),
         }

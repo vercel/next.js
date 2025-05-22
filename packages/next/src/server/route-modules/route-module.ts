@@ -1,13 +1,24 @@
-import type { IncomingMessage } from 'node:http'
+import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { InstrumentationOnRequestError } from '../instrumentation/types'
 import type { ParsedUrlQuery } from 'node:querystring'
 import type { UrlWithParsedQuery } from 'node:url'
-import type { PrerenderManifest } from '../../build'
+import type {
+  PrerenderManifest,
+  RequiredServerFilesManifest,
+} from '../../build'
 import type { DevRoutesManifest } from '../lib/router-utils/setup-dev-bundler'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 
-import { PRERENDER_MANIFEST, ROUTES_MANIFEST } from '../../shared/lib/constants'
+import {
+  BUILD_ID_FILE,
+  BUILD_MANIFEST,
+  NEXT_FONT_MANIFEST,
+  PRERENDER_MANIFEST,
+  REACT_LOADABLE_MANIFEST,
+  ROUTES_MANIFEST,
+  SERVER_FILES_MANIFEST,
+} from '../../shared/lib/constants'
 import { parseReqUrl } from '../../lib/url'
 import {
   normalizeLocalePath,
@@ -15,13 +26,18 @@ import {
 } from '../../shared/lib/i18n/normalize-locale-path'
 import { isDynamicRoute } from '../../shared/lib/router/utils'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
-import {
-  RouterServerContextSymbol,
-  routerServerGlobal,
-} from '../lib/router-utils/router-server-context'
 import { getServerUtils } from '../server-utils'
 import { detectDomainLocale } from '../../shared/lib/i18n/detect-domain-locale'
 import { getHostname } from '../../shared/lib/get-hostname'
+import { checkIsOnDemandRevalidate } from '../api-utils'
+import type { PreviewData } from '../../types'
+import type { BuildManifest } from '../get-page-files'
+import type { ReactLoadableManifest } from '../load-components'
+import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
+import { normalizeDataPath } from '../../shared/lib/page-path/normalize-data-path'
+import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
+import { addRequestMeta, getRequestMeta } from '../request-meta'
+import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
 
 /**
  * RouteModuleOptions is the options that are passed to the route module, other
@@ -35,6 +51,7 @@ export interface RouteModuleOptions<
   readonly definition: Readonly<D>
   readonly userland: Readonly<U>
   readonly distDir: string
+  readonly projectDir: string
 }
 
 /**
@@ -77,107 +94,205 @@ export abstract class RouteModule<
   public distDir: string
   public projectDir: string
 
-  constructor({ userland, definition, distDir }: RouteModuleOptions<D, U>) {
+  constructor({
+    userland,
+    definition,
+    distDir,
+    projectDir,
+  }: RouteModuleOptions<D, U>) {
     this.userland = userland
     this.definition = definition
     this.isDev = process.env.NODE_ENV === 'development'
     this.distDir = distDir
-
-    if (process.env.NEXT_RUNTIME === 'edge') {
-      this.projectDir = ''
-    } else {
-      this.projectDir =
-        routerServerGlobal[RouterServerContextSymbol]?.dir || process.cwd()
-    }
+    this.projectDir = projectDir
   }
 
   public async instrumentationOnRequestError(
+    req: IncomingMessage,
     ...args: Parameters<InstrumentationOnRequestError>
   ) {
     // this is only handled here for node, for edge it
     // is handled in the adapter/loader instead
     if (process.env.NEXT_RUNTIME !== 'edge') {
+      const { join } = require('node:path')
+      const projectDir =
+        getRequestMeta(req, 'projectDir') ||
+        join(process.cwd(), this.projectDir)
+
       const { instrumentationOnRequestError } = await import(
         '../lib/router-utils/instrumentation-globals.external'
       )
 
-      return instrumentationOnRequestError(
-        this.projectDir,
-        this.distDir,
-        ...args
-      )
+      return instrumentationOnRequestError(projectDir, this.distDir, ...args)
     }
+  }
+
+  private async loadManifests(projectDir: string, srcPage: string) {
+    if (process.env.NEXT_RUNTIME !== 'edge') {
+      const { loadManifestFromRelativePath } = await import(
+        '../load-manifest.external'
+      )
+      const normalizedPagePath = normalizePagePath(srcPage)
+
+      const [
+        routesManifest,
+        prerenderManifest,
+        buildManifest,
+        reactLoadableManifest,
+        nextFontManifest,
+        serverFilesManifest,
+        buildId,
+      ] = await Promise.all([
+        loadManifestFromRelativePath<DevRoutesManifest>({
+          projectDir,
+          distDir: this.distDir,
+          manifest: ROUTES_MANIFEST,
+        }),
+        loadManifestFromRelativePath<PrerenderManifest>({
+          projectDir,
+          distDir: this.distDir,
+          manifest: PRERENDER_MANIFEST,
+        }),
+        loadManifestFromRelativePath<BuildManifest>({
+          projectDir,
+          distDir: this.distDir,
+          manifest: BUILD_MANIFEST,
+        }),
+        loadManifestFromRelativePath<ReactLoadableManifest>({
+          projectDir,
+          distDir: this.distDir,
+          manifest: process.env.TURBOPACK
+            ? `server/pages${normalizedPagePath}/${REACT_LOADABLE_MANIFEST}`
+            : REACT_LOADABLE_MANIFEST,
+          handleMissing: true,
+        }),
+        loadManifestFromRelativePath<NextFontManifest>({
+          projectDir,
+          distDir: this.distDir,
+          manifest: `server/${NEXT_FONT_MANIFEST}.json`,
+        }),
+        this.isDev
+          ? ({} as any)
+          : loadManifestFromRelativePath<RequiredServerFilesManifest>({
+              projectDir,
+              distDir: this.distDir,
+              manifest: SERVER_FILES_MANIFEST,
+            }),
+        this.isDev
+          ? 'development'
+          : loadManifestFromRelativePath<any>({
+              projectDir,
+              distDir: this.distDir,
+              manifest: BUILD_ID_FILE,
+              skipParse: true,
+            }),
+      ])
+
+      return {
+        buildId,
+        buildManifest,
+        routesManifest,
+        nextFontManifest,
+        prerenderManifest,
+        serverFilesManifest,
+        reactLoadableManifest,
+      }
+    }
+    throw new Error('Invariant: loadManifests called for edge runtime')
   }
 
   public async prepare(
     req: IncomingMessage,
-    srcPage: string
+    res: ServerResponse,
+    {
+      srcPage,
+      multiZoneDraftMode,
+    }: {
+      srcPage: string
+      multiZoneDraftMode?: boolean
+    }
   ): Promise<
     | {
+        buildId: string
+        locale?: string
+        locales?: readonly string[]
+        defaultLocale?: string
         query: ParsedUrlQuery
-        params: ParsedUrlQuery
+        originalQuery: ParsedUrlQuery
+        originalPathname: string
+        params?: ParsedUrlQuery
         parsedUrl: UrlWithParsedQuery
+        previewData: PreviewData
+        isDraftMode: boolean
+        isNextDataRequest: boolean
+        buildManifest: DeepReadonly<BuildManifest>
+        nextFontManifest: DeepReadonly<NextFontManifest>
+        serverFilesManifest: DeepReadonly<RequiredServerFilesManifest>
+        reactLoadableManifest: DeepReadonly<ReactLoadableManifest>
         routesManifest: DeepReadonly<DevRoutesManifest>
         prerenderManifest: DeepReadonly<PrerenderManifest>
+        isOnDemandRevalidate: boolean
+        revalidateOnlyGenerated: boolean
       }
     | undefined
   > {
     // "prepare" is only needed for node runtime currently
     // if we want to share the normalizing logic here
-    // we ill need to allow passing in the i18n and similar info
+    // we will need to allow passing in the i18n and similar info
     if (process.env.NEXT_RUNTIME !== 'edge') {
-      const { loadManifestFromRelativePath } = await import(
-        '../load-manifest.external'
-      )
+      const { join } = require('node:path')
+      const projectDir =
+        getRequestMeta(req, 'projectDir') ||
+        join(process.cwd(), this.projectDir)
+
       const { ensureInstrumentationRegistered } = await import(
         '../lib/router-utils/instrumentation-globals.external'
       )
+      // ensure instrumentation is registered and pass
+      // onRequestError below
+      ensureInstrumentationRegistered(projectDir, this.distDir)
 
-      const [routesManifest, prerenderManifest] = await Promise.all([
-        loadManifestFromRelativePath<DevRoutesManifest>(
-          this.projectDir,
-          this.distDir,
-          ROUTES_MANIFEST
-        ),
-        loadManifestFromRelativePath<PrerenderManifest>(
-          this.projectDir,
-          this.distDir,
-          PRERENDER_MANIFEST
-        ),
-        // ensure instrumentation is registered and pass
-        // onRequestError below
-        ensureInstrumentationRegistered(this.projectDir, this.distDir),
-      ])
-      // We need to parse dynamic route params
-      // and do URL normalization here.
-      // TODO: move this into server-utils for re-use
+      const manifests = await this.loadManifests(projectDir, srcPage)
+      const { routesManifest, prerenderManifest } = manifests
       const { basePath, i18n, rewrites } = routesManifest
 
       if (basePath) {
         req.url = removePathPrefix(req.url || '/', basePath)
       }
 
-      let localeResult: PathLocale | undefined
-
-      if (i18n) {
-        const urlParts = (req.url || '/').split('?')
-        localeResult = normalizeLocalePath(urlParts[0] || '/', i18n.locales)
-
-        if (localeResult.detectedLocale) {
-          req.url = `${localeResult.pathname}${
-            urlParts[1] ? `?${urlParts[1]}` : ''
-          }`
-        }
-      }
-
       const parsedUrl = parseReqUrl(req.url || '/')
-
       // if we couldn't parse the URL we can't continue
       if (!parsedUrl) {
         return
       }
+      let isNextDataRequest = false
 
+      if (pathHasPrefix(parsedUrl.pathname || '/', '/_next/data')) {
+        isNextDataRequest = true
+        parsedUrl.pathname = normalizeDataPath(parsedUrl.pathname || '/')
+      }
+      let originalPathname = parsedUrl.pathname || '/'
+      const originalQuery = { ...parsedUrl.query }
       const pageIsDynamic = isDynamicRoute(srcPage)
+
+      let localeResult: PathLocale | undefined
+      let detectedLocale: string | undefined
+
+      if (i18n) {
+        localeResult = normalizeLocalePath(
+          parsedUrl.pathname || '/',
+          i18n.locales
+        )
+
+        if (localeResult.detectedLocale) {
+          req.url = `${localeResult.pathname}${parsedUrl.search}`
+          originalPathname = localeResult.pathname
+
+          if (!detectedLocale) {
+            detectedLocale = localeResult.detectedLocale
+          }
+        }
+      }
 
       const serverUtils = getServerUtils({
         page: srcPage,
@@ -192,52 +307,135 @@ export abstract class RouteModule<
       const domainLocale = detectDomainLocale(
         i18n?.domains,
         getHostname(parsedUrl, req.headers),
-        localeResult?.detectedLocale
+        detectedLocale
       )
+      addRequestMeta(req, 'isLocaleDomain', Boolean(domainLocale))
 
       const defaultLocale = domainLocale?.defaultLocale || i18n?.defaultLocale
 
       // Ensure parsedUrl.pathname includes locale before processing
       // rewrites or they won't match correctly.
-      if (defaultLocale && !localeResult?.detectedLocale) {
+      if (defaultLocale && !detectedLocale) {
         parsedUrl.pathname = `/${defaultLocale}${parsedUrl.pathname}`
       }
+      const locale =
+        getRequestMeta(req, 'locale') || detectedLocale || defaultLocale
 
       const rewriteParamKeys = Object.keys(
         serverUtils.handleRewrites(req, parsedUrl)
       )
-      serverUtils.normalizeCdnUrl(req, [
-        ...rewriteParamKeys,
-        ...Object.keys(serverUtils.defaultRouteRegex?.groups || {}),
-      ])
 
-      const params: Record<string, undefined | string | string[]> =
-        serverUtils.dynamicRouteMatcher
-          ? serverUtils.dynamicRouteMatcher(
-              localeResult?.pathname || parsedUrl.pathname || ''
-            ) || {}
-          : {}
-
-      const query = {
-        ...parsedUrl.query,
-        ...params,
+      // after processing rewrites we want to remove locale
+      // from parsedUrl pathname
+      if (i18n) {
+        parsedUrl.pathname = normalizeLocalePath(
+          parsedUrl.pathname || '/',
+          i18n.locales
+        ).pathname
       }
-      serverUtils.normalizeQueryParams(query)
+
+      let params: Record<string, undefined | string | string[]> | undefined =
+        getRequestMeta(req, 'params')
+
+      // attempt parsing from pathname
+      if (!params && serverUtils.dynamicRouteMatcher) {
+        const paramsResult = serverUtils.dynamicRouteMatcher(
+          normalizeDataPath(localeResult?.pathname || parsedUrl.pathname || '/')
+        )
+        if (paramsResult) {
+          params = paramsResult
+        }
+      }
+
+      // Local "next start" expects the routing parsed query values
+      // to not be present in the URL although when deployed proxies
+      // will add query values from resolving the routes to pass to function.
+
+      // TODO: do we want to change expectations for "next start"
+      // to include these query values in the URL which affects asPath
+      // but would match deployed behavior, e.g. a rewrite from middleware
+      // that adds a query param would be in asPath as query but locally
+      // it won't be in the asPath but still available in the query object
+      const query = getRequestMeta(req, 'query') || {
+        ...parsedUrl.query,
+      }
+
+      const routeParamKeys = new Set<string>()
+      const combinedParamKeys = [...rewriteParamKeys, ...routeParamKeys]
+
+      serverUtils.normalizeCdnUrl(req, combinedParamKeys)
+      serverUtils.normalizeQueryParams(query, routeParamKeys)
+      serverUtils.filterInternalQuery(originalQuery, combinedParamKeys)
 
       if (pageIsDynamic) {
         const result = serverUtils.normalizeDynamicRouteParams(query, true)
 
+        req.url = serverUtils.interpolateDynamicPath(
+          req.url || '/',
+          params || query
+        )
+        parsedUrl.pathname = serverUtils.interpolateDynamicPath(
+          parsedUrl.pathname || '/',
+          params || query
+        )
+        originalPathname = serverUtils.interpolateDynamicPath(
+          originalPathname,
+          params || query
+        )
+
+        // try pulling from query if valid
         if (result.hasValidParams) {
-          Object.assign(query, result.params)
+          params = Object.assign({}, result.params, params)
+
+          // If we pulled from query remove it so it's
+          // only in params
+          for (const key in params) {
+            delete query[key]
+          }
         }
       }
 
+      // Remove any normalized params from the query if they
+      // weren't present as non-prefixed query key e.g.
+      // ?search=1&nxtPsearch=hello we don't delete search
+      for (const key of routeParamKeys) {
+        if (!(key in originalQuery)) {
+          delete query[key]
+        }
+      }
+
+      const { isOnDemandRevalidate, revalidateOnlyGenerated } =
+        checkIsOnDemandRevalidate(req, prerenderManifest.preview)
+
+      let isDraftMode = false
+      let previewData: PreviewData
+
+      const { tryGetPreviewData } =
+        require('../api-utils/node/try-get-preview-data') as typeof import('../api-utils/node/try-get-preview-data')
+
+      previewData = tryGetPreviewData(
+        req,
+        res,
+        prerenderManifest.preview,
+        Boolean(multiZoneDraftMode)
+      )
+      isDraftMode = previewData !== false
+
       return {
         query,
+        originalQuery,
+        originalPathname,
         params,
         parsedUrl,
-        routesManifest,
-        prerenderManifest,
+        locale,
+        isNextDataRequest,
+        locales: i18n?.locales,
+        defaultLocale,
+        isDraftMode,
+        previewData,
+        isOnDemandRevalidate,
+        revalidateOnlyGenerated,
+        ...manifests,
       }
     }
   }

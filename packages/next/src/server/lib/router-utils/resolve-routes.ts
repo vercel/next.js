@@ -189,8 +189,19 @@ export function getResolveRoutes(
         parsedUrl.pathname || '',
         config.basePath
       )
+      let normalizedPath = parsedUrl.pathname || '/'
+
+      if (config.basePath && pathHasPrefix(normalizedPath, config.basePath)) {
+        normalizedPath = removePathPrefix(normalizedPath, config.basePath)
+      } else if (
+        config.assetPrefix &&
+        pathHasPrefix(normalizedPath, config.assetPrefix)
+      ) {
+        normalizedPath = removePathPrefix(normalizedPath, config.assetPrefix)
+      }
+
       initialLocaleResult = normalizeLocalePath(
-        removePathPrefix(parsedUrl.pathname || '/', config.basePath),
+        normalizedPath,
         config.i18n.locales
       )
 

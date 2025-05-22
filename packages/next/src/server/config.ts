@@ -4,13 +4,19 @@ import { pathToFileURL } from 'url'
 import findUp from 'next/dist/compiled/find-up'
 import * as Log from '../build/output/log'
 import * as ciEnvironment from '../server/ci-info'
-import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
+import {
+  CONFIG_FILES,
+  PHASE_DEVELOPMENT_SERVER,
+  PHASE_PRODUCTION_BUILD,
+  PHASE_PRODUCTION_SERVER,
+} from '../shared/lib/constants'
 import { defaultConfig, normalizeConfig } from './config-shared'
 import type {
   ExperimentalConfig,
   NextConfigComplete,
   NextConfig,
   TurbopackLoaderItem,
+  NextAdapter,
 } from './config-shared'
 
 import { loadWebpackHook } from './config-utils'
@@ -31,6 +37,7 @@ import { normalizeZodErrors } from '../shared/lib/zod'
 import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
 import { findDir } from '../lib/find-pages-dir'
 import { CanaryOnlyError, isStableBuild } from '../shared/lib/canary-only'
+import { interopDefault } from '../lib/interop-default'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
@@ -136,9 +143,9 @@ function warnCustomizedOption(
 
 function assignDefaults(
   dir: string,
-  userConfig: { [key: string]: any },
+  userConfig: NextConfig & { configFileName: string },
   silent: boolean
-) {
+): NextConfigComplete {
   const configFileName = userConfig.configFileName
   if (typeof userConfig.exportTrailingSlash !== 'undefined') {
     if (!silent) {
@@ -206,9 +213,15 @@ function assignDefaults(
         })
       }
 
-      if (!!value && value.constructor === Object) {
+      const defaultValue = (defaultConfig as Record<string, unknown>)[key]
+
+      if (
+        !!value &&
+        value.constructor === Object &&
+        typeof defaultValue === 'object'
+      ) {
         currentConfig[key] = {
-          ...defaultConfig[key],
+          ...defaultValue,
           ...Object.keys(value).reduce<any>((c, k) => {
             const v = value[k]
             if (v !== undefined && v !== null) {
@@ -224,7 +237,7 @@ function assignDefaults(
       return currentConfig
     },
     {}
-  )
+  ) as NextConfig & { configFileName: string }
 
   // TODO: remove these once we've made PPR default
   // If this was defaulted to true, it implies that the configuration was
@@ -525,7 +538,7 @@ function assignDefaults(
   if (
     hasWarnedBuildActivityPosition &&
     result.devIndicators !== false &&
-    result.devIndicators?.buildActivityPosition &&
+    'buildActivityPosition' in result.devIndicators &&
     result.devIndicators.buildActivityPosition !== result.devIndicators.position
   ) {
     Log.warnOnce(
@@ -956,7 +969,11 @@ function assignDefaults(
           reason: 'key must only use characters a-z and -',
         })
       } else {
-        const handlerPath = result.experimental.cacheHandlers[key]
+        const handlerPath = (
+          result.experimental.cacheHandlers as {
+            [handlerName: string]: string | undefined
+          }
+        )[key]
 
         if (handlerPath && !existsSync(handlerPath)) {
           invalidHandlerItems.push({
@@ -1088,7 +1105,48 @@ function assignDefaults(
     result.experimental.useCache = result.experimental.dynamicIO
   }
 
-  return result
+  // If dynamicIO is enabled, we also enable PPR.
+  if (result.experimental.dynamicIO) {
+    if (
+      userConfig.experimental?.ppr === false ||
+      userConfig.experimental?.ppr === 'incremental'
+    ) {
+      throw new Error(
+        `\`experimental.ppr\` can not be \`${JSON.stringify(userConfig.experimental?.ppr)}\` when \`experimental.dynamicIO\` is \`true\`. PPR is implicitly enabled when Dynamic IO is enabled.`
+      )
+    }
+
+    result.experimental.ppr = true
+  }
+
+  return result as NextConfigComplete
+}
+
+async function applyModifyConfig(
+  config: NextConfigComplete,
+  phase: string,
+  silent: boolean
+): Promise<NextConfigComplete> {
+  if (
+    // TODO: should this be called for server start as
+    // adapters shouldn't be relying on "next start"
+    [PHASE_PRODUCTION_BUILD, PHASE_PRODUCTION_SERVER].includes(phase) &&
+    config.experimental?.adapterPath
+  ) {
+    const adapterMod = interopDefault(
+      await import(
+        pathToFileURL(require.resolve(config.experimental.adapterPath)).href
+      )
+    ) as NextAdapter
+
+    if (typeof adapterMod.modifyConfig === 'function') {
+      if (!silent) {
+        Log.info(`Applying modifyConfig from ${adapterMod.name}`)
+      }
+      config = await adapterMod.modifyConfig(config)
+    }
+  }
+  return config
 }
 
 export default async function loadConfig(
@@ -1121,6 +1179,8 @@ export default async function loadConfig(
   }
 
   if (process.env.__NEXT_PRIVATE_STANDALONE_CONFIG) {
+    // we don't apply assignDefaults or modifyConfig here as it
+    // has already been applied
     return JSON.parse(process.env.__NEXT_PRIVATE_STANDALONE_CONFIG)
   }
 
@@ -1137,15 +1197,19 @@ export default async function loadConfig(
   let configFileName = 'next.config.js'
 
   if (customConfig) {
-    return assignDefaults(
-      dir,
-      {
-        configOrigin: 'server',
-        configFileName,
-        ...customConfig,
-      },
+    return await applyModifyConfig(
+      assignDefaults(
+        dir,
+        {
+          configOrigin: 'server',
+          configFileName,
+          ...customConfig,
+        },
+        silent
+      ) as NextConfigComplete,
+      phase,
       silent
-    ) as NextConfigComplete
+    )
   }
 
   const path = await findUp(CONFIG_FILES, { cwd: dir })
@@ -1334,7 +1398,7 @@ export default async function loadConfig(
       },
       silent
     ) as NextConfigComplete
-    return completeConfig
+    return await applyModifyConfig(completeConfig, phase, silent)
   } else {
     const configBaseName = basename(CONFIG_FILES[0], extname(CONFIG_FILES[0]))
     const unsupportedConfig = findUp.sync(
@@ -1361,12 +1425,11 @@ export default async function loadConfig(
   // reactRoot can be updated correctly even with no next.config.js
   const completeConfig = assignDefaults(
     dir,
-    defaultConfig,
+    { ...defaultConfig, configFileName },
     silent
   ) as NextConfigComplete
-  completeConfig.configFileName = configFileName
   setHttpClientAndAgentOptions(completeConfig)
-  return completeConfig
+  return await applyModifyConfig(completeConfig, phase, silent)
 }
 
 export type ConfiguredExperimentalFeature =
@@ -1398,7 +1461,7 @@ export function getConfiguredExperimentalFeatures(
 
       if (
         name in defaultConfig.experimental &&
-        value !== defaultConfig.experimental[name]
+        value !== (defaultConfig.experimental as Record<string, unknown>)[name]
       ) {
         configuredExperimentalFeatures.push(
           typeof value === 'boolean'

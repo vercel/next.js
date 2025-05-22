@@ -1,8 +1,8 @@
-use std::{borrow::Cow, mem::take};
+use std::{mem::take, sync::Arc};
 
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{RawVc, TaskId, util::SharedError};
+use turbo_tasks::{RawVc, TaskId, backend::TurboTasksExecutionError, util::SharedError};
 
 #[cfg(feature = "trace_task_dirty")]
 use crate::backend::operation::invalidate::TaskDirtyCause;
@@ -44,7 +44,7 @@ pub enum UpdateOutputOperation {
 impl UpdateOutputOperation {
     pub fn run(
         task_id: TaskId,
-        output: Result<Result<RawVc>, Option<Cow<'static, str>>>,
+        output: Result<RawVc, Arc<TurboTasksExecutionError>>,
         mut ctx: impl ExecuteContext,
     ) {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
@@ -69,7 +69,7 @@ impl UpdateOutputOperation {
         let old_error = task.remove(&CachedDataItemKey::Error {});
         let current_output = get!(task, Output);
         let output_value = match output {
-            Ok(Ok(RawVc::TaskOutput(output_task_id))) => {
+            Ok(RawVc::TaskOutput(output_task_id)) => {
                 if let Some(OutputValue::Output(current_task_id)) = current_output {
                     if *current_task_id == output_task_id {
                         return;
@@ -77,7 +77,7 @@ impl UpdateOutputOperation {
                 }
                 OutputValue::Output(output_task_id)
             }
-            Ok(Ok(RawVc::TaskCell(output_task_id, cell))) => {
+            Ok(RawVc::TaskCell(output_task_id, cell)) => {
                 if let Some(OutputValue::Cell(CellRef {
                     task: current_task_id,
                     cell: current_cell,
@@ -92,27 +92,17 @@ impl UpdateOutputOperation {
                     cell,
                 })
             }
-            Ok(Ok(RawVc::LocalOutput(..))) => {
+            Ok(RawVc::LocalOutput(..)) => {
                 panic!("Non-local tasks must not return a local Vc");
             }
-            Ok(Err(err)) => {
+            Err(err) => {
                 task.insert(CachedDataItem::Error {
-                    value: SharedError::new(err.context(format!(
+                    value: SharedError::new(anyhow::Error::new(err).context(format!(
                         "Execution of {} failed",
                         ctx.get_task_description(task_id)
                     ))),
                 });
                 OutputValue::Error
-            }
-            Err(panic) => {
-                task.insert(CachedDataItem::Error {
-                    value: SharedError::new(anyhow!(
-                        "Panic in {}: {:?}",
-                        ctx.get_task_description(task_id),
-                        panic
-                    )),
-                });
-                OutputValue::Panic
             }
         };
         let old_content = task.insert(CachedDataItem::Output {

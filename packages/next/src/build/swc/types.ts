@@ -182,6 +182,13 @@ export type UpdateMessage =
       value: UpdateInfo
     }
 
+export type CompilationEvent = {
+  typeName: string
+  message: string
+  severity: string
+  eventData: any
+}
+
 export interface UpdateInfo {
   duration: number
   tasks: number
@@ -215,6 +222,10 @@ export interface Project {
   updateInfoSubscribe(
     aggregationMs: number
   ): AsyncIterableIterator<TurbopackResult<UpdateMessage>>
+
+  compilationEventsSubscribe(): AsyncIterableIterator<
+    TurbopackResult<CompilationEvent>
+  >
 
   shutdown(): Promise<void>
 

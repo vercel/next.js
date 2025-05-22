@@ -31,7 +31,6 @@ import {
   EVENT_BUILD_FEATURE_USAGE,
   eventCliSession,
 } from '../../../telemetry/events'
-import { getDefineEnv } from '../../../build/webpack/plugins/define-env-plugin'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import {
   getStaticInfoIncludingLayouts,
@@ -83,6 +82,7 @@ import {
   ModuleBuildError,
   TurbopackInternalError,
 } from '../../../shared/lib/turbopack/utils'
+import { getDefineEnv } from '../../../build/define-env'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -666,6 +666,7 @@ async function startWatcher(opts: SetupOpts) {
               hasRewrites,
               // TODO: Implement
               middlewareMatchers: undefined,
+              projectPath: opts.dir,
             }),
           })
         }
@@ -738,9 +739,9 @@ async function startWatcher(opts: SetupOpts) {
                   hasRewrites,
                   isClient,
                   isEdgeServer,
-                  isNodeOrEdgeCompilation: isNodeServer || isEdgeServer,
                   isNodeServer,
                   middlewareMatchers: undefined,
+                  projectPath: opts.dir,
                 })
 
                 Object.keys(plugin.definitions).forEach((key) => {

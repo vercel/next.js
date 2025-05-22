@@ -12,6 +12,12 @@ import { trackPendingImport } from './track-module-loading.external'
 export function trackDynamicImport<TExports extends Record<string, any>>(
   modulePromise: Promise<TExports>
 ): Promise<TExports> {
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    throw new InvariantError(
+      "Dynamic imports should not be instrumented in the edge runtime, because `dynamicIO` doesn't support it"
+    )
+  }
+
   if (!isThenable(modulePromise)) {
     // We're expecting `import()` to always return a promise. If it's not, something's very wrong.
     throw new InvariantError(

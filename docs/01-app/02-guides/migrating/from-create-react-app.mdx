@@ -39,7 +39,7 @@ Depending on your needs, Next.js allows you to choose your data fetching strateg
 
 ### Middleware
 
-[Next.js Middleware](/docs/app/building-your-application/routing/middleware) allows you to run code on the server before a request is completed. For instance, you can avoid a flash of unauthenticated content by redirecting a user to a login page in the middleware for authenticated-only pages. You can also use it for features like A/B testing, experimentation, and [internationalization](/docs/app/building-your-application/routing/internationalization).
+[Next.js Middleware](/docs/app/building-your-application/routing/middleware) allows you to run code on the server before a request is completed. For instance, you can avoid a flash of unauthenticated content by redirecting a user to a login page in the middleware for authenticated-only pages. You can also use it for features like A/B testing, experimentation, and [internationalization](/docs/app/guides/internationalization).
 
 ### Built-in Optimizations
 
@@ -78,7 +78,7 @@ export default nextConfig
 
 ### Step 3: Create the Root Layout
 
-A Next.js [App Router](/docs/app) application must include a [root layout](/docs/app/building-your-application/routing/layouts-and-templates#root-layout-required) file, which is a [React Server Component](/docs/app/building-your-application/rendering/server-components) that will wrap all your pages.
+A Next.js [App Router](/docs/app) application must include a [root layout](/docs/app/building-your-application/routing/layouts-and-templates#root-layout-required) file, which is a [React Server Component](/docs/app/getting-started/server-and-client-components) that will wrap all your pages.
 
 The closest equivalent of the root layout file in a CRA application is `public/index.html`, which includes your `<html>`, `<head>`, and `<body>` tags.
 
@@ -339,11 +339,11 @@ export default function Page() {
 }
 ```
 
-This tells Next.js to generate a single route for the empty slug (`/`), effectively mapping **all** routes to the same page. This page is a [Server Component](/docs/app/building-your-application/rendering/server-components), prerendered into static HTML.
+This tells Next.js to generate a single route for the empty slug (`/`), effectively mapping **all** routes to the same page. This page is a [Server Component](/docs/app/getting-started/server-and-client-components), prerendered into static HTML.
 
 ### Step 7: Add a Client-Only Entrypoint
 
-Next, we’ll embed your CRA’s root App component inside a [Client Component](/docs/app/building-your-application/rendering/client-components) so that all logic remains client-side. If this is your first time using Next.js, it's worth knowing that clients components (by default) are still prerendered on the server. You can think about them as having the additional capability of running client-side JavaScript.
+Next, we’ll embed your CRA’s root App component inside a [Client Component](/docs/app/getting-started/server-and-client-components) so that all logic remains client-side. If this is your first time using Next.js, it's worth knowing that clients components (by default) are still prerendered on the server. You can think about them as having the additional capability of running client-side JavaScript.
 
 Create a `client.tsx` (or `client.js`) in `app/[[...slug]]/`:
 
@@ -572,7 +572,7 @@ If everything worked, you now have a functioning Next.js application running as 
 - **Migrate from React Router** to the [Next.js App Router](/docs/app/building-your-application/routing) for:
   - Automatic code splitting
   - [Streaming server rendering](/docs/app/building-your-application/routing/loading-ui-and-streaming)
-  - [React Server Components](/docs/app/building-your-application/rendering/server-components)
+  - [React Server Components](/docs/app/getting-started/server-and-client-components)
 - **Optimize images** with the [`<Image>` component](/docs/app/api-reference/components/image)
 - **Optimize fonts** with [`next/font`](/docs/app/api-reference/components/font)
 - **Optimize third-party scripts** with the [`<Script>` component](/docs/app/guides/scripts)

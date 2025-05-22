@@ -124,7 +124,7 @@ Runtime type-checking will still ensure you don't accidentally pass a function t
 - Behind the scenes, actions use the `POST` method, and only this HTTP method can invoke them.
 - The arguments and return value of Server Actions must be serializable by React. See the React docs for a list of [serializable arguments and values](https://react.dev/reference/react/use-server#serializable-parameters-and-return-values).
 - Server Actions are functions. This means they can be reused anywhere in your application.
-- Server Actions inherit the [runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes) from the page or layout they are used on.
+- Server Actions inherit the runtime from the page or layout they are used on.
 - Server Actions inherit the [Route Segment Config](/docs/app/api-reference/file-conventions/route-segment-config) from the page or layout they are used on, including fields like `maxDuration`.
 
 ## Examples
@@ -973,7 +973,7 @@ Closures are useful when you need to capture a _snapshot_ of data (e.g. `publish
 
 However, for this to happen, the captured variables are sent to the client and back to the server when the action is invoked. To prevent sensitive data from being exposed to the client, Next.js automatically encrypts the closed-over variables. A new private key is generated for each action every time a Next.js application is built. This means actions can only be invoked for a specific build.
 
-> **Good to know:** We don't recommend relying on encryption alone to prevent sensitive values from being exposed on the client. Instead, you should use the [React taint APIs](/docs/app/building-your-application/data-fetching/fetching#preventing-sensitive-data-from-being-exposed-to-the-client) to proactively prevent specific data from being sent to the client.
+> **Good to know:** We don't recommend relying on encryption alone to prevent sensitive values from being exposed on the client. Instead, you should use the [React taint APIs](/docs/app/api-reference/config/next-config-js/taint) to proactively prevent specific data from being sent to the client.
 
 ### Overwriting encryption keys (advanced)
 

@@ -57,7 +57,6 @@ pub enum OutputValue {
     Cell(CellRef),
     Output(TaskId),
     Error,
-    Panic,
 }
 impl OutputValue {
     fn is_transient(&self) -> bool {
@@ -65,7 +64,6 @@ impl OutputValue {
             OutputValue::Cell(cell) => cell.task.is_transient(),
             OutputValue::Output(task) => task.is_transient(),
             OutputValue::Error => false,
-            OutputValue::Panic => false,
         }
     }
 }

@@ -19,12 +19,9 @@ async fn test_transient_emit_from_persistent() {
         anyhow::Ok(())
     })
     .await;
-    assert!(
-        result
-            .unwrap_err()
-            .to_string()
-            .contains(&EXPECTED_MSG.escape_debug().to_string())
-    );
+
+    let message = format!("{:#}", result.unwrap_err());
+    assert!(message.contains(&EXPECTED_MSG.to_string()));
 }
 
 #[turbo_tasks::function(operation)]

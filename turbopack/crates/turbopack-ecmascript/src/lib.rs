@@ -1123,6 +1123,8 @@ async fn emit_content(content: CodeGenResult) -> Result<Vc<EcmascriptModuleConte
         };
 
         emitter.emit_program(&program)?;
+        // Drop the AST eagerly so we don't keep it in memory while generating source maps
+        drop(program);
     }
 
     let source_map = if generate_source_map {
@@ -1131,9 +1133,15 @@ async fn emit_content(content: CodeGenResult) -> Result<Vc<EcmascriptModuleConte
                 source_map.clone(),
                 mappings,
                 original_source_map.generate_source_map().await?.as_ref(),
+                true,
             )?)
         } else {
-            Some(generate_js_source_map(source_map.clone(), mappings, None)?)
+            Some(generate_js_source_map(
+                source_map.clone(),
+                mappings,
+                None,
+                true,
+            )?)
         }
     } else {
         None
