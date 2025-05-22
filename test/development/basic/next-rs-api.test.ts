@@ -641,7 +641,7 @@ describe('next.rs api', () => {
     let currentContent = await next.readFile(file)
     let nextContent = pagesIndexCode('hello world2')
 
-    const count = process.env.CI ? 300 : 1000
+    const count = process.env.NEXT_TEST_CI ? 300 : 1000
     for (let i = 0; i < count; i++) {
       await next.patchFile(file, nextContent)
       const content = currentContent

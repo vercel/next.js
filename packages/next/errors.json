@@ -690,5 +690,7 @@
   "689": "The \\`compiler.defineServer\\` option is configured to replace the \\`%s\\` variable. This variable is either part of a Next.js built-in or is already configured.",
   "690": "Invariant: loadManifests called for edge runtime",
   "691": "Accessed fallback \\`params\\` during prerendering.",
-  "692": "Expected clientReferenceManifest to be defined."
+  "692": "Expected clientReferenceManifest to be defined.",
+  "693": "%s must not be used within a client component. Next.js should be preventing %s from being included in client components statically, but did not in this case.",
+  "694": "createPrerenderPathname was called inside a client component scope."
 }
