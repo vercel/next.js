@@ -152,3 +152,68 @@ const getCachedUser = unstable_cache(
 ```
 
 See the [`unstable_cache` API reference](/docs/app/api-reference/functions/unstable_cache) to learn more.
+
+### `revalidateTag`
+
+`revalidateTag` is used to revalidate a cache entries based on a tag and following an event. To use it with `fetch`, start by tagging the function with the `next.tags` option:
+
+```tsx filename="app/lib/data.ts" highlight={3-5} switcher
+export async function getUserById(id: string) {
+  const data = await fetch(`https://...`, {
+    next: {
+      tags: ['user'],
+    },
+  })
+}
+```
+
+```jsx filename="app/lib/data.js" highlight={3-5} switcher
+export async function getUserById(id) {
+  const data = await fetch(`https://...`, {
+    next: {
+      tags: ['user'],
+    },
+  })
+}
+```
+
+Alternatively, you can mark an `unstable_cache` function with the `tags` option:
+
+```tsx filename="app/lib/data.ts" highlight={6-8} switcher
+export const getUserById = unstable_cache(
+  async (id: string) => {
+    return db.query.users.findFirst({ where: eq(users.id, id) })
+  },
+  ['user'], // Needed if variables are not passed as parameters
+  {
+    tags: ['user'],
+  }
+)
+```
+
+```jsx filename="app/lib/data.js" highlight={6-8} switcher
+export const getUserById = unstable_cache(
+  async (id) => {
+    return db.query.users.findFirst({ where: eq(users.id, id) })
+  },
+  ['user'], // Needed if variables are not passed as parameters
+  {
+    tags: ['user'],
+  }
+)
+```
+
+Then, call `revalidateTag` in a [Route Handler](/docs/app/api-reference/file-conventions/route) or Server Action:
+
+```tsx filename="app/lib/actions.ts" highlight={1} switcher
+import { revalidateTag } from 'next/cache'
+
+export async function updateUser(id: string) {
+  // Mutate data
+  revalidateTag('user')
+}
+```
+
+You can reuse the same tag in multiple functions to revalidate them all at once.
+
+See the [`revalidateTag` API reference](/docs/app/api-reference/functions/revalidateTag) to learn more.
