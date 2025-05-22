@@ -40,9 +40,35 @@ module.exports = {
 
 > **Good to know**: Prior to Next.js version 13.4.4, `experimental.turbo.rules` was named `experimental.turbo.loaders` and only accepted file extensions like `.mdx` instead of `*.mdx`.
 
+### Configuring webpack loaders
+
+You can pass loader names as strings for simple cases, but to pass options to a loader, you can use an object format:
+
+```js filename="next.config.js"
+module.exports = {
+  turbopack: {
+    rules: {
+      '*.svg': {
+        loaders: [
+          {
+            loader: '@svgr/webpack',
+            options: {
+              svgo: true,
+              titleProp: true,
+              descProp: true,
+            },
+          },
+        ],
+        as: '*.js',
+      },
+    },
+  },
+}
+```
+
 ### Supported loaders
 
-The following loaders have been tested to work with Turbopack's webpack loader implementation:
+The following loaders have been tested to work with Turbopack's webpack loader implementation, but many other webpack loaders should work as well even if not listed here:
 
 - [`babel-loader`](https://www.npmjs.com/package/babel-loader)
 - [`@svgr/webpack`](https://www.npmjs.com/package/@svgr/webpack)
@@ -51,6 +77,7 @@ The following loaders have been tested to work with Turbopack's webpack loader i
 - [`string-replace-loader`](https://www.npmjs.com/package/string-replace-loader)
 - [`raw-loader`](https://www.npmjs.com/package/raw-loader)
 - [`sass-loader`](https://www.npmjs.com/package/sass-loader)
+- [`graphql-tag/loader`](https://www.npmjs.com/package/graphql-tag)
 
 ## Resolve aliases
 
