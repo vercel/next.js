@@ -26,6 +26,7 @@ pub static TRACING_OVERVIEW_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
         "turbopack_static=info",
         "turbopack_swc_utils=info",
         "turbopack_wasm=info",
+        "turbo_persistence=info",
     ]
 });
 pub static TRACING_TURBOPACK_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {

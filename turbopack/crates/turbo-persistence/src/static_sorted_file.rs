@@ -159,6 +159,8 @@ impl StaticSortedFile {
     /// Reads and parses the header of this file if it hasn't been read yet.
     fn header(&self) -> Result<&Header> {
         self.header.get_or_try_init(|| {
+            let _span =
+                tracing::info_span!("header", sequence_number = self.sequence_number).entered();
             let mut file = &*self.mmap;
             let magic = file.read_u32::<BE>()?;
             if magic != 0x53535401 {
@@ -254,6 +256,9 @@ impl StaticSortedFile {
             let aqmf = match aqmf_cache.get_value_or_guard(&self.sequence_number, None) {
                 GuardResult::Value(aqmf) => aqmf,
                 GuardResult::Guard(guard) => {
+                    let _span =
+                        tracing::info_span!("aqmf cached", sequence_number = self.sequence_number)
+                            .entered();
                     let aqmf = &self.mmap[header.aqmf.start..header.aqmf.end];
                     let aqmf: Arc<qfilter::Filter> = Arc::new(pot::from_slice(aqmf)?);
                     let _ = guard.insert(aqmf.clone());
@@ -266,6 +271,9 @@ impl StaticSortedFile {
             }
         } else {
             let aqmf = self.aqmf.get_or_try_init(|| {
+                let _span =
+                    tracing::info_span!("aqmf init", sequence_number = self.sequence_number)
+                        .entered();
                 let aqmf = &self.mmap[header.aqmf.start..header.aqmf.end];
                 anyhow::Ok(pot::from_slice(aqmf)?)
             })?;

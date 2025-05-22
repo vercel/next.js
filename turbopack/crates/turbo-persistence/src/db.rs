@@ -905,6 +905,7 @@ impl TurboPersistence {
     /// Get a value from the database. Returns None if the key is not found. The returned value
     /// might hold onto a block of the database and it should not be hold long-term.
     pub fn get<K: QueryKey>(&self, family: usize, key: &K) -> Result<Option<ArcSlice<u8>>> {
+        let _span = tracing::info_span!("get", family).entered();
         let hash = hash_key(key);
         let inner = self.inner.read();
         for sst in inner.static_sorted_files.iter().rev() {
