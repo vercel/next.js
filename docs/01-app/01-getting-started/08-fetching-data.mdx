@@ -177,7 +177,7 @@ export default function Posts({ posts }) {
 }
 ```
 
-In the example above, you need to wrap the `<Posts />` component in a [`<Suspense>` boundary](https://react.dev/reference/react/Suspense). This means the fallback will be shown while the promise is being resolved. Learn more about [streaming](#streaming).
+In the example above, the `<Posts>` component is wrapped in a [`<Suspense>` boundary](https://react.dev/reference/react/Suspense). This means the fallback will be shown while the promise is being resolved. Learn more about [streaming](#streaming).
 
 #### Community libraries
 
@@ -238,7 +238,7 @@ export default function BlogPage() {
 
 > **Warning:** The content below assumes the [`dynamicIO` config option](/docs/app/api-reference/config/next-config-js/dynamicIO) is enabled in your application. The flag was introduced in Next.js 15 canary.
 
-When using `async/await` in Server Components, Next.js will opt into **dynamic rendering**. This means the data will be fetched and rendered on the server for every user request. If there are any slow data requests, the whole route will be blocked from rendering.
+When using `async/await` in Server Components, Next.js will opt into [dynamic rendering](/docs/app/getting-started/partial-prerendering#dynamic-rendering). This means the data will be fetched and rendered on the server for every user request. If there are any slow data requests, the whole route will be blocked from rendering.
 
 To improve the initial load time and user experience, you can use streaming to break up the page's HTML into smaller chunks and progressively send those chunks from the server to the client.
 
@@ -252,8 +252,8 @@ To improve the initial load time and user experience, you can use streaming to b
 
 There are two ways you can implement streaming in your application:
 
-1. With the [`loading.js` file](#with-loadingjs)
-2. With React's [`<Suspense>` component](#with-suspense)
+1. Wrapping a page with a [`loading.js` file](#with-loadingjs)
+2. Wrapping a component with [`<Suspense>`](#with-suspense)
 
 ### With `loading.js`
 

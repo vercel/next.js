@@ -52,7 +52,7 @@ A component becomes dynamic if it uses the following APIs:
 - [`unstable_noStore`](/docs/app/api-reference/functions/unstable_noStore)
 - [`fetch`](/docs/app/api-reference/functions/fetch) with `{ cache: 'no-store' }`
 
-In Partial Prerendering, using the APIs throws a special React error that informs Next.js the component cannot be statically rendered, causing a build error. You can use [Suspense](#suspense) to defer rendering until runtime.
+In Partial Prerendering, using these APIs throws a special React error that informs Next.js the component cannot be statically rendered, causing a build error. You can use a [Suspense](#suspense) boundary to wrap your component to defer rendering until runtime.
 
 ### Suspense
 
