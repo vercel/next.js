@@ -1288,7 +1288,7 @@ async function renderToHTMLOrFlightImpl(
   }
 
   const metadata: AppPageRenderResultMetadata = {
-    statusCode: res.statusCode,
+    statusCode: isNotFoundPath ? 404 : undefined,
   }
 
   const appUsingSizeAdjustment = !!nextFontManifest?.appUsingSizeAdjust
@@ -1571,6 +1571,7 @@ async function renderToHTMLOrFlightImpl(
         requestStore,
         serverActions,
         ctx,
+        metadata,
       })
 
       if (actionRequestResult) {
@@ -1585,7 +1586,8 @@ async function renderToHTMLOrFlightImpl(
             ctx,
             notFoundLoaderTree,
             formState,
-            postponedState
+            postponedState,
+            metadata
           )
 
           return new RenderResult(stream, { metadata })
@@ -1611,7 +1613,8 @@ async function renderToHTMLOrFlightImpl(
       ctx,
       loaderTree,
       formState,
-      postponedState
+      postponedState,
+      metadata
     )
 
     if (workStore.invalidDynamicUsageError) {
@@ -1746,7 +1749,8 @@ async function renderToStream(
   ctx: AppRenderContext,
   tree: LoaderTree,
   formState: any,
-  postponedState: PostponedState | null
+  postponedState: PostponedState | null,
+  metadata: AppPageRenderResultMetadata
 ): Promise<ReadableStream<Uint8Array>> {
   const { assetPrefix, nonce, pagePath, renderOpts } = ctx
 
@@ -2096,10 +2100,12 @@ async function renderToStream(
 
     if (isHTTPAccessFallbackError(err)) {
       res.statusCode = getAccessFallbackHTTPStatus(err)
+      metadata.statusCode = res.statusCode
       errorType = getAccessFallbackErrorTypeByStatus(res.statusCode)
     } else if (isRedirectError(err)) {
       errorType = 'redirect'
       res.statusCode = getRedirectStatusCodeFromError(err)
+      metadata.statusCode = res.statusCode
 
       const redirectUrl = addPathPrefix(getURLFromRedirectError(err), basePath)
 
@@ -2113,6 +2119,7 @@ async function renderToStream(
       setHeader('location', redirectUrl)
     } else if (!shouldBailoutToCSR) {
       res.statusCode = 500
+      metadata.statusCode = res.statusCode
     }
 
     const [errorPreinitScripts, errorBootstrapScript] = getRequiredScripts(
