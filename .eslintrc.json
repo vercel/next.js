@@ -48,7 +48,7 @@
         "jest/no-export": "off",
         "jest/no-standalone-expect": [
           "error",
-          { "additionalTestBlockFunctions": ["retry"] }
+          { "additionalTestBlockFunctions": ["retry", "itCI", "itHeaded"] }
         ]
       }
     },
