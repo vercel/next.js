@@ -1287,7 +1287,9 @@ async function renderToHTMLOrFlightImpl(
     })
   }
 
-  const metadata: AppPageRenderResultMetadata = {}
+  const metadata: AppPageRenderResultMetadata = {
+    statusCode: res.statusCode,
+  }
 
   const appUsingSizeAdjustment = !!nextFontManifest?.appUsingSizeAdjust
 
@@ -1575,6 +1577,7 @@ async function renderToHTMLOrFlightImpl(
         if (actionRequestResult.type === 'not-found') {
           const notFoundLoaderTree = createNotFoundLoaderTree(loaderTree)
           res.statusCode = 404
+          metadata.statusCode = 404
           const stream = await renderToStreamWithTracing(
             requestStore,
             req,
@@ -3726,16 +3729,19 @@ async function prerenderToStream(
 
     if (isHTTPAccessFallbackError(err)) {
       res.statusCode = getAccessFallbackHTTPStatus(err)
+      metadata.statusCode = res.statusCode
       errorType = getAccessFallbackErrorTypeByStatus(res.statusCode)
     } else if (isRedirectError(err)) {
       errorType = 'redirect'
       res.statusCode = getRedirectStatusCodeFromError(err)
+      metadata.statusCode = res.statusCode
 
       const redirectUrl = addPathPrefix(getURLFromRedirectError(err), basePath)
 
       setHeader('location', redirectUrl)
     } else if (!shouldBailoutToCSR) {
       res.statusCode = 500
+      metadata.statusCode = res.statusCode
     }
 
     const [errorPreinitScripts, errorBootstrapScript] = getRequiredScripts(
