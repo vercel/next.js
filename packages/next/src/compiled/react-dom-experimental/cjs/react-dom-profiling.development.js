@@ -12094,9 +12094,9 @@
           return workInProgress.child;
         case 30:
           var pendingProps = workInProgress.pendingProps;
-          null != pendingProps.name &&
-            "auto" !== pendingProps.name &&
-            (workInProgress.flags |= null === current ? 18882560 : 18874368);
+          null != pendingProps.name && "auto" !== pendingProps.name
+            ? (workInProgress.flags |= null === current ? 18882560 : 18874368)
+            : isHydrating && pushMaterializedTreeId(workInProgress);
           if (void 0 !== pendingProps.className) {
             var example =
               "string" === typeof pendingProps.className
@@ -15126,13 +15126,13 @@
               safelyDetachRef(current, current.return));
           flags & 64 &&
             offscreenSubtreeIsHidden &&
-            ((flags = finishedWork.updateQueue),
-            null !== flags &&
-              ((current = flags.callbacks),
-              null !== current &&
-                ((root = flags.shared.hiddenCallbacks),
-                (flags.shared.hiddenCallbacks =
-                  null === root ? current : root.concat(current)))));
+            ((current = finishedWork.updateQueue),
+            null !== current &&
+              ((flags = current.callbacks),
+              null !== flags &&
+                ((root = current.shared.hiddenCallbacks),
+                (current.shared.hiddenCallbacks =
+                  null === root ? flags : root.concat(flags)))));
           break;
         case 26:
           var hoistableRoot = currentHoistableRoot;
@@ -15151,10 +15151,10 @@
               if (null === flags)
                 if (null === finishedWork.stateNode) {
                   a: {
-                    flags = finishedWork.type;
-                    current = finishedWork.memoizedProps;
+                    current = finishedWork.type;
+                    flags = finishedWork.memoizedProps;
                     root = hoistableRoot.ownerDocument || hoistableRoot;
-                    b: switch (flags) {
+                    b: switch (current) {
                       case "title":
                         lanes = root.getElementsByTagName("title")[0];
                         if (
@@ -15164,15 +15164,15 @@
                           lanes.namespaceURI === SVG_NAMESPACE ||
                           lanes.hasAttribute("itemprop")
                         )
-                          (lanes = root.createElement(flags)),
+                          (lanes = root.createElement(current)),
                             root.head.insertBefore(
                               lanes,
                               root.querySelector("head > title")
                             );
-                        setInitialProperties(lanes, flags, current);
+                        setInitialProperties(lanes, current, flags);
                         lanes[internalInstanceKey] = finishedWork;
                         markNodeAsHoistable(lanes);
-                        flags = lanes;
+                        current = lanes;
                         break a;
                       case "link":
                         if (
@@ -15180,31 +15180,29 @@
                             "link",
                             "href",
                             root
-                          ).get(flags + (current.href || "")))
+                          ).get(current + (flags.href || "")))
                         )
                           for (var i = 0; i < hoistableRoot.length; i++)
                             if (
                               ((lanes = hoistableRoot[i]),
                               lanes.getAttribute("href") ===
-                                (null == current.href || "" === current.href
+                                (null == flags.href || "" === flags.href
                                   ? null
-                                  : current.href) &&
+                                  : flags.href) &&
                                 lanes.getAttribute("rel") ===
-                                  (null == current.rel ? null : current.rel) &&
+                                  (null == flags.rel ? null : flags.rel) &&
                                 lanes.getAttribute("title") ===
-                                  (null == current.title
-                                    ? null
-                                    : current.title) &&
+                                  (null == flags.title ? null : flags.title) &&
                                 lanes.getAttribute("crossorigin") ===
-                                  (null == current.crossOrigin
+                                  (null == flags.crossOrigin
                                     ? null
-                                    : current.crossOrigin))
+                                    : flags.crossOrigin))
                             ) {
                               hoistableRoot.splice(i, 1);
                               break b;
                             }
-                        lanes = root.createElement(flags);
-                        setInitialProperties(lanes, flags, current);
+                        lanes = root.createElement(current);
+                        setInitialProperties(lanes, current, flags);
                         root.head.appendChild(lanes);
                         break;
                       case "meta":
@@ -15213,55 +15211,53 @@
                             "meta",
                             "content",
                             root
-                          ).get(flags + (current.content || "")))
+                          ).get(current + (flags.content || "")))
                         )
                           for (i = 0; i < hoistableRoot.length; i++)
                             if (
                               ((lanes = hoistableRoot[i]),
                               checkAttributeStringCoercion(
-                                current.content,
+                                flags.content,
                                 "content"
                               ),
                               lanes.getAttribute("content") ===
-                                (null == current.content
+                                (null == flags.content
                                   ? null
-                                  : "" + current.content) &&
+                                  : "" + flags.content) &&
                                 lanes.getAttribute("name") ===
-                                  (null == current.name
-                                    ? null
-                                    : current.name) &&
+                                  (null == flags.name ? null : flags.name) &&
                                 lanes.getAttribute("property") ===
-                                  (null == current.property
+                                  (null == flags.property
                                     ? null
-                                    : current.property) &&
+                                    : flags.property) &&
                                 lanes.getAttribute("http-equiv") ===
-                                  (null == current.httpEquiv
+                                  (null == flags.httpEquiv
                                     ? null
-                                    : current.httpEquiv) &&
+                                    : flags.httpEquiv) &&
                                 lanes.getAttribute("charset") ===
-                                  (null == current.charSet
+                                  (null == flags.charSet
                                     ? null
-                                    : current.charSet))
+                                    : flags.charSet))
                             ) {
                               hoistableRoot.splice(i, 1);
                               break b;
                             }
-                        lanes = root.createElement(flags);
-                        setInitialProperties(lanes, flags, current);
+                        lanes = root.createElement(current);
+                        setInitialProperties(lanes, current, flags);
                         root.head.appendChild(lanes);
                         break;
                       default:
                         throw Error(
                           'getNodesForType encountered a type it did not expect: "' +
-                            flags +
+                            current +
                             '". This is a bug in React.'
                         );
                     }
                     lanes[internalInstanceKey] = finishedWork;
                     markNodeAsHoistable(lanes);
-                    flags = lanes;
+                    current = lanes;
                   }
-                  finishedWork.stateNode = flags;
+                  finishedWork.stateNode = current;
                 } else
                   mountHoistable(
                     hoistableRoot,
@@ -15404,32 +15400,34 @@
             (needsIsomorphicIndicator = !1));
           break;
         case 4:
-          flags = pushMutationContext();
-          current = currentHoistableRoot;
+          current = pushMutationContext();
+          flags = currentHoistableRoot;
           currentHoistableRoot = getHoistableRoot(
             finishedWork.stateNode.containerInfo
           );
           recursivelyTraverseMutationEffects(root, finishedWork, lanes);
           commitReconciliationEffects(finishedWork);
-          currentHoistableRoot = current;
-          viewTransitionMutationContext && (rootViewTransitionAffected = !0);
-          popMutationContext(flags);
+          currentHoistableRoot = flags;
+          viewTransitionMutationContext &&
+            inUpdateViewTransition &&
+            (rootViewTransitionAffected = !0);
+          popMutationContext(current);
           break;
         case 12:
-          flags = pushNestedEffectDurations();
+          current = pushNestedEffectDurations();
           recursivelyTraverseMutationEffects(root, finishedWork, lanes);
           commitReconciliationEffects(finishedWork);
           finishedWork.stateNode.effectDuration +=
-            bubbleNestedEffectDurations(flags);
+            bubbleNestedEffectDurations(current);
           break;
         case 31:
           recursivelyTraverseMutationEffects(root, finishedWork, lanes);
           commitReconciliationEffects(finishedWork);
           flags & 4 &&
-            ((flags = finishedWork.updateQueue),
-            null !== flags &&
+            ((current = finishedWork.updateQueue),
+            null !== current &&
               ((finishedWork.updateQueue = null),
-              attachSuspenseRetryListeners(finishedWork, flags)));
+              attachSuspenseRetryListeners(finishedWork, current)));
           break;
         case 13:
           recursivelyTraverseMutationEffects(root, finishedWork, lanes);
@@ -15439,10 +15437,10 @@
               (null !== current && null !== current.memoizedState) &&
             (globalMostRecentFallbackTime = now$1());
           flags & 4 &&
-            ((flags = finishedWork.updateQueue),
-            null !== flags &&
+            ((current = finishedWork.updateQueue),
+            null !== current &&
               ((finishedWork.updateQueue = null),
-              attachSuspenseRetryListeners(finishedWork, flags)));
+              attachSuspenseRetryListeners(finishedWork, current)));
           break;
         case 22:
           hoistableRoot = null !== finishedWork.memoizedState;
@@ -15574,21 +15572,21 @@
               root = root.sibling;
             }
           flags & 4 &&
-            ((flags = finishedWork.updateQueue),
-            null !== flags &&
-              ((current = flags.retryQueue),
-              null !== current &&
-                ((flags.retryQueue = null),
-                attachSuspenseRetryListeners(finishedWork, current))));
+            ((current = finishedWork.updateQueue),
+            null !== current &&
+              ((flags = current.retryQueue),
+              null !== flags &&
+                ((current.retryQueue = null),
+                attachSuspenseRetryListeners(finishedWork, flags))));
           break;
         case 19:
           recursivelyTraverseMutationEffects(root, finishedWork, lanes);
           commitReconciliationEffects(finishedWork);
           flags & 4 &&
-            ((flags = finishedWork.updateQueue),
-            null !== flags &&
+            ((current = finishedWork.updateQueue),
+            null !== current &&
               ((finishedWork.updateQueue = null),
-              attachSuspenseRetryListeners(finishedWork, flags)));
+              attachSuspenseRetryListeners(finishedWork, current)));
           break;
         case 30:
           flags & 512 &&
@@ -15596,12 +15594,20 @@
               null === current ||
               safelyDetachRef(current, current.return));
           flags = pushMutationContext();
+          hoistableRoot = inUpdateViewTransition;
+          i = (lanes & 335544064) === lanes;
+          instance = finishedWork.memoizedProps;
+          inUpdateViewTransition =
+            i &&
+            "none" !==
+              getViewTransitionClassName(instance.default, instance.update);
           recursivelyTraverseMutationEffects(root, finishedWork, lanes);
           commitReconciliationEffects(finishedWork);
-          (lanes & 335544064) === lanes &&
+          i &&
             null !== current &&
             viewTransitionMutationContext &&
             (finishedWork.flags |= 4);
+          inUpdateViewTransition = hoistableRoot;
           popMutationContext(flags);
           break;
         case 21:
@@ -19155,7 +19161,7 @@
           try {
             inProgressLanes = lanes;
             inProgressRoot = root;
-            rootViewTransitionAffected = !1;
+            inUpdateViewTransition = rootViewTransitionAffected = !1;
             resetComponentEffectTimers();
             commitMutationEffectsOnFiber(finishedWork, root, lanes);
             inProgressRoot = inProgressLanes = null;
@@ -22930,6 +22936,12 @@
           case "checked":
             break;
           case "selected":
+            break;
+          case "vt-name":
+          case "vt-update":
+          case "vt-enter":
+          case "vt-exit":
+          case "vt-share":
             break;
           default:
             extraAttributes.add(attributes[i].name);
@@ -29681,6 +29693,7 @@
       inProgressLanes = null,
       inProgressRoot = null,
       viewTransitionContextChanged$1 = !1,
+      inUpdateViewTransition = !1,
       rootViewTransitionAffected = !1,
       hostParent = null,
       hostParentIsContainer = !1,
@@ -30618,11 +30631,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.2.0-experimental-d85f86cf-20250514" !== isomorphicReactPackageVersion)
+      if ("19.2.0-experimental-4a45ba92-20250515" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.2.0-experimental-d85f86cf-20250514\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.2.0-experimental-4a45ba92-20250515\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -30659,10 +30672,10 @@
       !(function () {
         var internals = {
           bundleType: 1,
-          version: "19.2.0-experimental-d85f86cf-20250514",
+          version: "19.2.0-experimental-4a45ba92-20250515",
           rendererPackageName: "react-dom",
           currentDispatcherRef: ReactSharedInternals,
-          reconcilerVersion: "19.2.0-experimental-d85f86cf-20250514"
+          reconcilerVersion: "19.2.0-experimental-4a45ba92-20250515"
         };
         internals.overrideHookState = overrideHookState;
         internals.overrideHookStateDeletePath = overrideHookStateDeletePath;
@@ -31138,7 +31151,7 @@
     exports.useFormStatus = function () {
       return resolveDispatcher().useHostTransitionStatus();
     };
-    exports.version = "19.2.0-experimental-d85f86cf-20250514";
+    exports.version = "19.2.0-experimental-4a45ba92-20250515";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
