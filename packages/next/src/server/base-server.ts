@@ -3421,10 +3421,11 @@ export default abstract class Server<
       // don't bother to respond with 404, because these requests are only
       // issued as part of a prefetch.
       res.statusCode = 204
+
       return {
         type: 'rsc',
         body: RenderResult.fromStatic(''),
-        cacheControl: cacheEntry?.cacheControl,
+        cacheControl: { revalidate: 0, expire: undefined },
       }
     }
 
