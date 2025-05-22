@@ -23,8 +23,6 @@ By convention, an `action` is an asynchronous function passed to `startTransitio
 - Passed to a `<button>` using the `formAction` prop
 - Passed to `useActionState`
 
-> **Good to know**: As of September 2024, the React team started to use the term, Server Functions. Initially these were called Server Actions. For the purposes of this document, when used to mutate server-side data, we use the term Server Action.
-
 ## Creating Server Functions
 
 A Server Function can be defined by using the [`use server`](https://react.dev/reference/rsc/use-server) directive. You can place the directive at the top of an **asynchronous** function to mark the function as a Server Function, or at the top of a separate file to mark all exports of that file.
