@@ -2147,15 +2147,6 @@ function preloadLateStyles(styleQueue) {
   styleQueue.sheets.forEach(preloadLateStyle, this);
   styleQueue.sheets.clear();
 }
-function writeCompletedShellIdAttribute(destination, resumableState) {
-  0 === (resumableState.instructions & 32) &&
-    ((resumableState.instructions |= 32),
-    (resumableState = "\u00ab" + resumableState.idPrefix + "R\u00bb"),
-    destination.push(' id="'),
-    (resumableState = escapeTextForBrowser(resumableState)),
-    destination.push(resumableState),
-    destination.push('"'));
-}
 function pushCompletedShellIdAttribute(target, resumableState) {
   0 === (resumableState.instructions & 32) &&
     ((resumableState.instructions |= 32),
@@ -2685,17 +2676,17 @@ function createRenderState(resumableState, generateStaticMarkup) {
       "\x3c/script>"
     ));
   bootstrapScriptContent = idPrefix + "P:";
-  var JSCompiler_object_inline_segmentPrefix_1628 = idPrefix + "S:";
+  var JSCompiler_object_inline_segmentPrefix_1598 = idPrefix + "S:";
   idPrefix += "B:";
-  var JSCompiler_object_inline_preamble_1631 = createPreambleState(),
-    JSCompiler_object_inline_preconnects_1641 = new Set(),
-    JSCompiler_object_inline_fontPreloads_1642 = new Set(),
-    JSCompiler_object_inline_highImagePreloads_1643 = new Set(),
-    JSCompiler_object_inline_styles_1644 = new Map(),
-    JSCompiler_object_inline_bootstrapScripts_1645 = new Set(),
-    JSCompiler_object_inline_scripts_1646 = new Set(),
-    JSCompiler_object_inline_bulkPreloads_1647 = new Set(),
-    JSCompiler_object_inline_preloads_1648 = {
+  var JSCompiler_object_inline_preamble_1601 = createPreambleState(),
+    JSCompiler_object_inline_preconnects_1611 = new Set(),
+    JSCompiler_object_inline_fontPreloads_1612 = new Set(),
+    JSCompiler_object_inline_highImagePreloads_1613 = new Set(),
+    JSCompiler_object_inline_styles_1614 = new Map(),
+    JSCompiler_object_inline_bootstrapScripts_1615 = new Set(),
+    JSCompiler_object_inline_scripts_1616 = new Set(),
+    JSCompiler_object_inline_bulkPreloads_1617 = new Set(),
+    JSCompiler_object_inline_preloads_1618 = {
       images: new Map(),
       stylesheets: new Map(),
       scripts: new Map(),
@@ -2732,7 +2723,7 @@ function createRenderState(resumableState, generateStaticMarkup) {
       scriptConfig.moduleScriptResources[href] = null;
       scriptConfig = [];
       pushLinkImpl(scriptConfig, props);
-      JSCompiler_object_inline_bootstrapScripts_1645.add(scriptConfig);
+      JSCompiler_object_inline_bootstrapScripts_1615.add(scriptConfig);
       bootstrapChunks.push('<script src="', escapeTextForBrowser(src), '"');
       "string" === typeof integrity &&
         bootstrapChunks.push(
@@ -2779,7 +2770,7 @@ function createRenderState(resumableState, generateStaticMarkup) {
         (props.moduleScriptResources[scriptConfig] = null),
         (props = []),
         pushLinkImpl(props, integrity),
-        JSCompiler_object_inline_bootstrapScripts_1645.add(props),
+        JSCompiler_object_inline_bootstrapScripts_1615.add(props),
         bootstrapChunks.push(
           '<script type="module" src="',
           escapeTextForBrowser(i),
@@ -2801,10 +2792,10 @@ function createRenderState(resumableState, generateStaticMarkup) {
         bootstrapChunks.push(' async="">\x3c/script>');
   return {
     placeholderPrefix: bootstrapScriptContent,
-    segmentPrefix: JSCompiler_object_inline_segmentPrefix_1628,
+    segmentPrefix: JSCompiler_object_inline_segmentPrefix_1598,
     boundaryPrefix: idPrefix,
     startInlineScript: "<script",
-    preamble: JSCompiler_object_inline_preamble_1631,
+    preamble: JSCompiler_object_inline_preamble_1601,
     externalRuntimeScript: null,
     bootstrapChunks: bootstrapChunks,
     importMapChunks: [],
@@ -2820,14 +2811,14 @@ function createRenderState(resumableState, generateStaticMarkup) {
     charsetChunks: [],
     viewportChunks: [],
     hoistableChunks: [],
-    preconnects: JSCompiler_object_inline_preconnects_1641,
-    fontPreloads: JSCompiler_object_inline_fontPreloads_1642,
-    highImagePreloads: JSCompiler_object_inline_highImagePreloads_1643,
-    styles: JSCompiler_object_inline_styles_1644,
-    bootstrapScripts: JSCompiler_object_inline_bootstrapScripts_1645,
-    scripts: JSCompiler_object_inline_scripts_1646,
-    bulkPreloads: JSCompiler_object_inline_bulkPreloads_1647,
-    preloads: JSCompiler_object_inline_preloads_1648,
+    preconnects: JSCompiler_object_inline_preconnects_1611,
+    fontPreloads: JSCompiler_object_inline_fontPreloads_1612,
+    highImagePreloads: JSCompiler_object_inline_highImagePreloads_1613,
+    styles: JSCompiler_object_inline_styles_1614,
+    bootstrapScripts: JSCompiler_object_inline_bootstrapScripts_1615,
+    scripts: JSCompiler_object_inline_scripts_1616,
+    bulkPreloads: JSCompiler_object_inline_bulkPreloads_1617,
+    preloads: JSCompiler_object_inline_preloads_1618,
     stylesToHoist: !1,
     generateStaticMarkup: generateStaticMarkup
   };
@@ -5695,8 +5686,7 @@ function flushCompletedQueues(request, destination) {
         var completedPreambleSegments = request.completedPreambleSegments;
         if (null === completedPreambleSegments) return;
         flushedByteSize = request.byteSize;
-        var resumableState = request.resumableState,
-          renderState = request.renderState,
+        var renderState = request.renderState,
           preamble = renderState.preamble,
           htmlChunks = preamble.htmlChunks,
           headChunks = preamble.headChunks,
@@ -5739,30 +5729,23 @@ function flushCompletedQueues(request, destination) {
         renderState.scripts.clear();
         renderState.bulkPreloads.forEach(flushResource, destination);
         renderState.bulkPreloads.clear();
-        if (htmlChunks || headChunks) {
-          var shellId = "\u00ab" + resumableState.idPrefix + "R\u00bb";
-          destination.push('<link rel="expect" href="#');
-          var chunk$jscomp$0 = escapeTextForBrowser(shellId);
-          destination.push(chunk$jscomp$0);
-          destination.push('" blocking="render"/>');
-        }
         var hoistableChunks = renderState.hoistableChunks;
         for (i$jscomp$0 = 0; i$jscomp$0 < hoistableChunks.length; i$jscomp$0++)
           destination.push(hoistableChunks[i$jscomp$0]);
         for (
-          resumableState = hoistableChunks.length = 0;
-          resumableState < completedPreambleSegments.length;
-          resumableState++
+          renderState = hoistableChunks.length = 0;
+          renderState < completedPreambleSegments.length;
+          renderState++
         ) {
-          var segments = completedPreambleSegments[resumableState];
-          for (renderState = 0; renderState < segments.length; renderState++)
-            flushSegment(request, destination, segments[renderState], null);
+          var segments = completedPreambleSegments[renderState];
+          for (preamble = 0; preamble < segments.length; preamble++)
+            flushSegment(request, destination, segments[preamble], null);
         }
         var preamble$jscomp$0 = request.renderState.preamble,
           headChunks$jscomp$0 = preamble$jscomp$0.headChunks;
         if (preamble$jscomp$0.htmlChunks || headChunks$jscomp$0) {
-          var chunk$jscomp$1 = endChunkForTag("head");
-          destination.push(chunk$jscomp$1);
+          var chunk$jscomp$0 = endChunkForTag("head");
+          destination.push(chunk$jscomp$0);
         }
         var bodyChunks = preamble$jscomp$0.bodyChunks;
         if (bodyChunks)
@@ -5774,34 +5757,33 @@ function flushCompletedQueues(request, destination) {
             destination.push(bodyChunks[completedPreambleSegments]);
         flushSegment(request, destination, completedRootSegment, null);
         request.completedRootSegment = null;
-        var resumableState$jscomp$0 = request.resumableState,
-          renderState$jscomp$0 = request.renderState;
-        (0 === request.allPendingTasks &&
-          0 === request.clientRenderedBoundaries.length &&
-          0 === request.completedBoundaries.length &&
-          (null === request.trackedPostpones ||
-            (0 === request.trackedPostpones.rootNodes.length &&
-              null === request.trackedPostpones.rootSlots))) ||
-          0 !== (resumableState$jscomp$0.instructions & 64) ||
-          ((resumableState$jscomp$0.instructions |= 64),
-          destination.push(renderState$jscomp$0.startInlineScript),
-          writeCompletedShellIdAttribute(destination, resumableState$jscomp$0),
-          destination.push(">"),
-          destination.push(
-            "requestAnimationFrame(function(){$RT=performance.now()});"
-          ),
-          destination.push("\x3c/script>"));
-        var preamble$jscomp$1 = renderState$jscomp$0.preamble;
+        var renderState$jscomp$0 = request.renderState;
         if (
-          (preamble$jscomp$1.htmlChunks || preamble$jscomp$1.headChunks) &&
-          0 === (resumableState$jscomp$0.instructions & 32)
+          0 !== request.allPendingTasks ||
+          0 !== request.clientRenderedBoundaries.length ||
+          0 !== request.completedBoundaries.length ||
+          (null !== request.trackedPostpones &&
+            (0 !== request.trackedPostpones.rootNodes.length ||
+              null !== request.trackedPostpones.rootSlots))
         ) {
-          var chunk$jscomp$2 = startChunkForTag("template");
-          destination.push(chunk$jscomp$2);
-          writeCompletedShellIdAttribute(destination, resumableState$jscomp$0);
-          destination.push(">");
-          var chunk$jscomp$3 = endChunkForTag("template");
-          destination.push(chunk$jscomp$3);
+          var resumableState = request.resumableState;
+          if (0 === (resumableState.instructions & 64)) {
+            resumableState.instructions |= 64;
+            destination.push(renderState$jscomp$0.startInlineScript);
+            if (0 === (resumableState.instructions & 32)) {
+              resumableState.instructions |= 32;
+              var shellId = "\u00ab" + resumableState.idPrefix + "R\u00bb";
+              destination.push(' id="');
+              var chunk$jscomp$1 = escapeTextForBrowser(shellId);
+              destination.push(chunk$jscomp$1);
+              destination.push('"');
+            }
+            destination.push(">");
+            destination.push(
+              "requestAnimationFrame(function(){$RT=performance.now()});"
+            );
+            destination.push("\x3c/script>");
+          }
         }
         writeBootstrap(destination, renderState$jscomp$0);
       }
@@ -5841,28 +5823,28 @@ function flushCompletedQueues(request, destination) {
       for (i = 0; i < clientRenderedBoundaries.length; i++) {
         var boundary = clientRenderedBoundaries[i];
         renderState$jscomp$1 = destination;
-        var resumableState$jscomp$1 = request.resumableState,
+        var resumableState$jscomp$0 = request.resumableState,
           renderState$jscomp$2 = request.renderState,
           id = boundary.rootSegmentID,
           errorDigest = boundary.errorDigest;
         renderState$jscomp$1.push(renderState$jscomp$2.startInlineScript);
         renderState$jscomp$1.push(">");
-        0 === (resumableState$jscomp$1.instructions & 4)
-          ? ((resumableState$jscomp$1.instructions |= 4),
+        0 === (resumableState$jscomp$0.instructions & 4)
+          ? ((resumableState$jscomp$0.instructions |= 4),
             renderState$jscomp$1.push(
               '$RX=function(b,c,d,e,f){var a=document.getElementById(b);a&&(b=a.previousSibling,b.data="$!",a=a.dataset,c&&(a.dgst=c),d&&(a.msg=d),e&&(a.stck=e),f&&(a.cstck=f),b._reactRetry&&b._reactRetry())};;$RX("'
             ))
           : renderState$jscomp$1.push('$RX("');
         renderState$jscomp$1.push(renderState$jscomp$2.boundaryPrefix);
-        var chunk$jscomp$4 = id.toString(16);
-        renderState$jscomp$1.push(chunk$jscomp$4);
+        var chunk$jscomp$2 = id.toString(16);
+        renderState$jscomp$1.push(chunk$jscomp$2);
         renderState$jscomp$1.push('"');
         if (errorDigest) {
           renderState$jscomp$1.push(",");
-          var chunk$jscomp$5 = escapeJSStringsForInstructionScripts(
+          var chunk$jscomp$3 = escapeJSStringsForInstructionScripts(
             errorDigest || ""
           );
-          renderState$jscomp$1.push(chunk$jscomp$5);
+          renderState$jscomp$1.push(chunk$jscomp$3);
         }
         var JSCompiler_inline_result =
           renderState$jscomp$1.push(")\x3c/script>");
@@ -6067,4 +6049,4 @@ exports.renderToString = function (children, options) {
     'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToPipeableStream" which supports Suspense on the server'
   );
 };
-exports.version = "19.2.0-canary-3820740a-20250509";
+exports.version = "19.2.0-canary-b94603b9-20250513";
