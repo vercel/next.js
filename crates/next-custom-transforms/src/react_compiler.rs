@@ -171,4 +171,55 @@ mod tests {
             true,
         );
     }
+
+    #[test]
+    fn arrow_function() {
+        assert_required(
+            "
+            const Foo = () => <div>Hello</div>;
+            ",
+            true,
+        );
+
+        assert_required(
+            "
+            const Foo = () => {
+                return <div>Hello</div>;
+            };
+            ",
+            true,
+        );
+    }
+
+    #[test]
+    fn export_const_arrow_function() {
+        assert_required(
+            "
+            export const Foo = () => <div>Hello</div>;
+            ",
+            true,
+        );
+
+        assert_required(
+            "
+            export const Foo = () => {
+                return <div>Hello</div>;
+            };
+            ",
+            true,
+        );
+    }
+
+    #[test]
+    fn normal_arrow_function() {
+        assert_required(
+            "
+            const Foo = () => {
+                const a = 1;
+                console.log(a);
+            };
+            ",
+            false,
+        );
+    }
 }
