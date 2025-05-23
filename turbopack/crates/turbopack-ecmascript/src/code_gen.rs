@@ -111,12 +111,14 @@ impl CodeGenerationHoistedStmt {
 }
 
 pub trait VisitorFactory: Send + Sync {
-    fn create<'a>(&'a self) -> Box<dyn VisitMut + Send + Sync + 'a>;
+    fn create<'a>(&'a self) -> Box<dyn AstModifier + 'a>;
 }
 
 pub trait PassFactory: Send + Sync {
     fn create<'a>(&'a self) -> Box<dyn Pass + Send + Sync + 'a>;
 }
+
+pub trait AstModifier: Send + Sync {}
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 pub enum CodeGen {
@@ -229,12 +231,12 @@ macro_rules! create_visitor {
         impl<T: Fn(&mut swc_core::ecma::ast::$ty) + Send + Sync> $crate::code_gen::VisitorFactory
             for Box<Visitor<T>>
         {
-            fn create<'a>(&'a self) -> Box<dyn swc_core::ecma::visit::VisitMut + Send + Sync + 'a> {
+            fn create<'a>(&'a self) -> Box<dyn $crate::code_gen::AstModifier + 'a> {
                 Box::new(&**self)
             }
         }
 
-        impl<'a, T: Fn(&mut swc_core::ecma::ast::$ty) + Send + Sync> swc_core::ecma::visit::VisitMut
+        impl<'a, T: Fn(&mut swc_core::ecma::ast::$ty) + Send + Sync> $crate::code_gen::AstModifier
             for &'a Visitor<T>
         {
             fn $name(&mut self, $arg: &mut swc_core::ecma::ast::$ty) {
