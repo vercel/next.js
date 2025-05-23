@@ -43,7 +43,7 @@ impl TryFrom<RegexForm> for EsRegex {
     type Error = anyhow::Error;
 
     fn try_from(value: RegexForm) -> std::result::Result<Self, Self::Error> {
-        EsRegex::new(&value.pattern, &value.pattern)
+        EsRegex::new(&value.pattern, &value.flags)
     }
 }
 
@@ -87,7 +87,7 @@ impl EsRegex {
                 'u' => applied_flags.push('u'),
                 // sticky search: not relevant for the regex itself
                 'y' => {}
-                _ => bail!("unsupported flag `{}` in regex", flag),
+                _ => bail!("unsupported flag `{flag}` in regex: `{pattern}` with flags: `{flags}`"),
             }
         }
 
@@ -128,6 +128,14 @@ impl EsRegex {
 #[cfg(test)]
 mod tests {
     use super::{EsRegex, EsRegexImpl};
+
+    #[test]
+    fn round_trip_serialize() {
+        let regex = EsRegex::new("[a-z]", "i").unwrap();
+        let serialized = serde_json::to_string(&regex).unwrap();
+        let parsed = serde_json::from_str::<EsRegex>(&serialized).unwrap();
+        assert_eq!(regex, parsed);
+    }
 
     #[test]
     fn es_regex_matches_simple() {

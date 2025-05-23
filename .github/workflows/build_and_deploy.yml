@@ -20,7 +20,7 @@ env:
   # See https://doc.rust-lang.org/rustc/platform-support/apple-darwin.html#os-version for more details
   MACOSX_DEPLOYMENT_TARGET: 11.0
   # This will become "true" if the latest commit is
-  # "Version Packages" or "Version Pacakges (canary)"
+  # "Version Packages" or "Version Pacakges \((canary|rc)\)"
   # set from scripts/check-is-release.js
   __NEW_RELEASE: 'false'
 
@@ -50,7 +50,7 @@ jobs:
         run: |
           # TODO: Remove the new release check once the new release workflow is fully replaced.
           RELEASE_CHECK=$(node ./scripts/check-is-release.js 2> /dev/null || :)
-          if [[ $RELEASE_CHECK =~ ^Version\ Packages(\ \(canary\))?$ ]];
+          if [[ $RELEASE_CHECK =~ ^Version\ Packages(\ \((canary|rc)\))?$ ]];
           then
             echo "__NEW_RELEASE=true" >> $GITHUB_ENV
           elif [[ $RELEASE_CHECK = v* ]];
