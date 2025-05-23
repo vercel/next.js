@@ -1,11 +1,10 @@
 import type { VersionInfo } from './parse-version-info'
+import type { DebugInfo } from '../../client/components/react-dev-overlay/types'
 
 export type DevToolsServerState = {
   devIndicator: { disabledUntil: number }
   versionInfo: VersionInfo
-  debugInfo: {
-    devtoolsFrontendUrl: string
-  }
+  debugInfo: DebugInfo
 }
 
 export const devToolsServerState: DevToolsServerState = {
@@ -15,6 +14,6 @@ export const devToolsServerState: DevToolsServerState = {
     staleness: 'unknown',
   },
   debugInfo: {
-    devtoolsFrontendUrl: '',
+    devtoolsFrontendUrl: undefined,
   },
 }

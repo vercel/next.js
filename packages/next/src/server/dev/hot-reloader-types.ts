@@ -57,9 +57,9 @@ export interface SyncAction {
   warnings: ReadonlyArray<CompilationError>
   updatedModules?: ReadonlyArray<string>
   devTools: {
-    debug?: DebugInfo
-    devIndicator: DevToolsServerState['devIndicator']
+    debugInfo: DebugInfo
     versionInfo: VersionInfo
+    devIndicator: DevToolsServerState['devIndicator']
   }
 }
 interface BuiltAction {

@@ -854,7 +854,7 @@ export async function createHotReloaderTurbopack(
             devTools: {
               devIndicator: devToolsServerState.devIndicator,
               versionInfo,
-              debug: {
+              debugInfo: {
                 devtoolsFrontendUrl,
               },
             },

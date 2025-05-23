@@ -217,7 +217,7 @@ export class WebpackHotMiddleware {
         ],
         devTools: {
           versionInfo: this.versionInfo,
-          debug: {
+          debugInfo: {
             devtoolsFrontendUrl: this.devtoolsFrontendUrl,
           },
           devIndicator: devToolsServerState.devIndicator,
