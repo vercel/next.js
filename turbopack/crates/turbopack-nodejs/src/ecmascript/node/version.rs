@@ -17,13 +17,11 @@ pub(super) struct EcmascriptBuildNodeChunkVersion {
 impl EcmascriptBuildNodeChunkVersion {
     #[turbo_tasks::function]
     pub async fn new(
-        output_root: Vc<FileSystemPath>,
-        chunk_path: Vc<FileSystemPath>,
+        output_root: FileSystemPath,
+        chunk_path: FileSystemPath,
         content: Vc<EcmascriptChunkContent>,
         minify_type: MinifyType,
     ) -> Result<Vc<Self>> {
-        let output_root = output_root.await?;
-        let chunk_path = chunk_path.await?;
         let chunk_path = if let Some(path) = output_root.get_path_to(&chunk_path) {
             path
         } else {

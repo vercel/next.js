@@ -19,32 +19,32 @@ impl ServerFileSystem {
 #[turbo_tasks::value_impl]
 impl FileSystem for ServerFileSystem {
     #[turbo_tasks::function]
-    fn read(&self, _fs_path: Vc<FileSystemPath>) -> Result<Vc<FileContent>> {
+    fn read(&self, _fs_path: FileSystemPath) -> Result<Vc<FileContent>> {
         bail!("Reading is not possible from the marker filesystem for the server")
     }
 
     #[turbo_tasks::function]
-    fn read_link(&self, _fs_path: Vc<FileSystemPath>) -> Result<Vc<LinkContent>> {
+    fn read_link(&self, _fs_path: FileSystemPath) -> Result<Vc<LinkContent>> {
         bail!("Reading is not possible from the marker filesystem for the server")
     }
 
     #[turbo_tasks::function]
-    fn raw_read_dir(&self, _fs_path: Vc<FileSystemPath>) -> Result<Vc<RawDirectoryContent>> {
+    fn raw_read_dir(&self, _fs_path: FileSystemPath) -> Result<Vc<RawDirectoryContent>> {
         bail!("Reading is not possible from the marker filesystem for the server")
     }
 
     #[turbo_tasks::function]
-    fn write(&self, _fs_path: Vc<FileSystemPath>, _content: Vc<FileContent>) -> Result<Vc<()>> {
+    fn write(&self, _fs_path: FileSystemPath, _content: Vc<FileContent>) -> Result<Vc<()>> {
         bail!("Writing is not possible to the marker filesystem for the server")
     }
 
     #[turbo_tasks::function]
-    fn write_link(&self, _fs_path: Vc<FileSystemPath>, _target: Vc<LinkContent>) -> Result<Vc<()>> {
+    fn write_link(&self, _fs_path: FileSystemPath, _target: Vc<LinkContent>) -> Result<Vc<()>> {
         bail!("Writing is not possible to the marker filesystem for the server")
     }
 
     #[turbo_tasks::function]
-    fn metadata(&self, _fs_path: Vc<FileSystemPath>) -> Result<Vc<FileMeta>> {
+    fn metadata(&self, _fs_path: FileSystemPath) -> Result<Vc<FileMeta>> {
         bail!("Reading is not possible from the marker filesystem for the server")
     }
 }

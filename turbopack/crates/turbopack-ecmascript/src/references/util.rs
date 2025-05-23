@@ -1,7 +1,7 @@
 use anyhow::Result;
 use swc_core::{ecma::ast::Expr, quote};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::Vc;
 use turbo_tasks_fs::{FileSystemPath, rope::Rope};
 use turbopack_core::{
     resolve::parse::Request,
@@ -47,7 +47,7 @@ pub async fn request_to_string(request: Vc<Request>) -> Result<Vc<RcStr>> {
 #[derive(Debug, Clone)]
 pub struct InlineSourceMap {
     /// The file path of the module containing the sourcemap data URL
-    pub origin_path: ResolvedVc<FileSystemPath>,
+    pub origin_path: FileSystemPath,
     /// The Base64 encoded JSON sourcemap string
     pub source_map: RcStr,
 }
@@ -57,7 +57,8 @@ impl GenerateSourceMap for InlineSourceMap {
     #[turbo_tasks::function]
     pub async fn generate_source_map(&self) -> Result<Vc<OptionStringifiedSourceMap>> {
         let source_map = maybe_decode_data_url(&self.source_map);
-        let source_map = resolve_source_map_sources(source_map.as_ref(), *self.origin_path).await?;
+        let source_map =
+            resolve_source_map_sources(source_map.as_ref(), self.origin_path.clone()).await?;
         Ok(Vc::cell(source_map))
     }
 }

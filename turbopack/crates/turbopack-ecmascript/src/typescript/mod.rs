@@ -54,9 +54,13 @@ impl Module for TsConfigModuleAsset {
         let configs = read_tsconfigs(
             self.source.content().file_content(),
             self.source,
-            apply_cjs_specific_options(self.origin.resolve_options(Value::new(
-                ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
-            ))),
+            apply_cjs_specific_options(
+                self.origin
+                    .resolve_options(Value::new(ReferenceType::CommonJs(
+                        CommonJsReferenceSubType::Undefined,
+                    )))
+                    .await?,
+            ),
         )
         .await?;
         references.extend(
@@ -135,12 +139,10 @@ impl Module for TsConfigModuleAsset {
                 types
             } else {
                 let mut all_types = Vec::new();
-                let mut current = self.source.ident().path().parent().resolve().await?;
+                let mut current = self.source.ident().path().await?.parent();
                 loop {
-                    if let DirectoryContent::Entries(entries) = &*current
-                        .join("node_modules/@types".into())
-                        .read_dir()
-                        .await?
+                    if let DirectoryContent::Entries(entries) =
+                        &*current.join("node_modules/@types")?.read_dir().await?
                     {
                         all_types.extend(entries.iter().filter_map(|(name, _)| {
                             if name.starts_with('.') {
@@ -150,7 +152,7 @@ impl Module for TsConfigModuleAsset {
                             }
                         }));
                     }
-                    let parent = current.parent().resolve().await?;
+                    let parent = current.parent();
                     if parent == current {
                         break;
                     }

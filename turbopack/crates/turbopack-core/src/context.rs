@@ -68,14 +68,14 @@ pub trait AssetContext {
     /// Gets the resolve options for a given path.
     fn resolve_options(
         self: Vc<Self>,
-        origin_path: Vc<FileSystemPath>,
+        origin_path: FileSystemPath,
         reference_type: Value<ReferenceType>,
     ) -> Vc<ResolveOptions>;
 
     /// Resolves an request to an [ModuleResolveResult].
     fn resolve_asset(
         self: Vc<Self>,
-        origin_path: Vc<FileSystemPath>,
+        origin_path: FileSystemPath,
         request: Vc<Request>,
         resolve_options: Vc<ResolveOptions>,
         reference_type: Value<ReferenceType>,

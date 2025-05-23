@@ -257,54 +257,42 @@ async fn source(
     browserslist_query: RcStr,
 ) -> Result<Vc<Box<dyn ContentSource>>> {
     let project_relative = project_dir.strip_prefix(&*root_dir).unwrap();
-    let project_relative: RcStr = project_relative
+    let project_relative = project_relative
         .strip_prefix(MAIN_SEPARATOR)
         .unwrap_or(project_relative)
-        .replace(MAIN_SEPARATOR, "/")
-        .into();
+        .replace(MAIN_SEPARATOR, "/");
 
     let output_fs = output_fs(project_dir);
     let fs: Vc<Box<dyn FileSystem>> = project_fs(root_dir);
-    let root_path = fs.root().to_resolved().await?;
-    let project_path = root_path.join(project_relative).to_resolved().await?;
+    let root_path = (*fs.root().await?).clone();
+    let project_path = root_path.join(&project_relative)?;
 
-    let env = load_env(*root_path);
-    let build_output_root = output_fs
-        .root()
-        .join(".turbopack/build".into())
-        .to_resolved()
-        .await?;
+    let env = load_env(root_path.clone().cell());
+    let build_output_root = output_fs.root().await?.join(".turbopack/build")?;
 
     let build_output_root_to_root_path = project_path
-        .join(".turbopack/build".into())
-        .await?
-        .get_relative_path_to(&*root_path.await?)
+        .join(".turbopack/build")?
+        .get_relative_path_to(&root_path)
         .context("Project path is in root path")?;
     let build_output_root_to_root_path = ResolvedVc::cell(build_output_root_to_root_path);
 
     let build_chunking_context = NodeJsChunkingContext::builder(
-        root_path,
-        build_output_root,
+        root_path.clone(),
+        build_output_root.clone(),
         build_output_root_to_root_path,
-        build_output_root,
-        build_output_root
-            .join("chunks".into())
-            .to_resolved()
-            .await?,
-        build_output_root
-            .join("assets".into())
-            .to_resolved()
-            .await?,
+        build_output_root.clone(),
+        build_output_root.join("chunks")?,
+        build_output_root.join("assets")?,
         node_build_environment().to_resolved().await?,
         RuntimeType::Development,
     )
     .build();
 
     let execution_context =
-        ExecutionContext::new(*root_path, Vc::upcast(build_chunking_context), env);
+        ExecutionContext::new(root_path.clone(), Vc::upcast(build_chunking_context), env);
 
     let server_fs = Vc::upcast::<Box<dyn FileSystem>>(ServerFileSystem::new());
-    let server_root = server_fs.root();
+    let server_root = (*server_fs.root().await?).clone();
     let entry_requests = entry_requests
         .iter()
         .map(|r| match r {
@@ -324,7 +312,7 @@ async fn source(
         .collect();
 
     let web_source: ResolvedVc<Box<dyn ContentSource>> = create_web_entry_source(
-        *root_path,
+        root_path.clone(),
         execution_context,
         entry_requests,
         server_root,
@@ -338,7 +326,7 @@ async fn source(
     .to_resolved()
     .await?;
     let static_source = ResolvedVc::upcast(
-        StaticAssetsContentSource::new(Default::default(), project_path.join("public".into()))
+        StaticAssetsContentSource::new(Default::default(), project_path.join("public")?)
             .to_resolved()
             .await?,
     );

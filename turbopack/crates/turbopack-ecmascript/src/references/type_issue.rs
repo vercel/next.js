@@ -1,4 +1,4 @@
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString};
 
@@ -6,7 +6,7 @@ use crate::SpecifiedModuleType;
 
 #[turbo_tasks::value(shared)]
 pub struct SpecifiedModuleTypeIssue {
-    pub path: ResolvedVc<FileSystemPath>,
+    pub path: FileSystemPath,
     pub specified_type: SpecifiedModuleType,
 }
 
@@ -14,7 +14,7 @@ pub struct SpecifiedModuleTypeIssue {
 impl Issue for SpecifiedModuleTypeIssue {
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        *self.path
+        self.path.clone().cell()
     }
 
     #[turbo_tasks::function]

@@ -31,30 +31,33 @@ pub struct ServerPaths(Vec<ServerPath>);
 #[turbo_tasks::function]
 pub async fn all_server_paths(
     assets: Vc<OutputAssets>,
-    node_root: Vc<FileSystemPath>,
+    node_root: FileSystemPath,
 ) -> Result<Vc<ServerPaths>> {
     let span = tracing::info_span!("all_server_paths");
     async move {
         let all_assets = all_assets_from_entries(assets).await?;
-        let node_root = &node_root.await?;
         Ok(Vc::cell(
             all_assets
                 .iter()
-                .map(|&asset| async move {
-                    Ok(
-                        if let Some(path) = node_root.get_path_to(&*asset.path().await?) {
-                            let content_hash = match *asset.content().await? {
-                                AssetContent::File(file) => *file.hash().await?,
-                                AssetContent::Redirect { .. } => 0,
-                            };
-                            Some(ServerPath {
-                                path: path.to_string(),
-                                content_hash,
-                            })
-                        } else {
-                            None
-                        },
-                    )
+                .map(|&asset| {
+                    let node_root = node_root.clone();
+
+                    async move {
+                        Ok(
+                            if let Some(path) = node_root.get_path_to(&*asset.path().await?) {
+                                let content_hash = match *asset.content().await? {
+                                    AssetContent::File(file) => *file.hash().await?,
+                                    AssetContent::Redirect { .. } => 0,
+                                };
+                                Some(ServerPath {
+                                    path: path.to_string(),
+                                    content_hash,
+                                })
+                            } else {
+                                None
+                            },
+                        )
+                    }
                 })
                 .try_flat_join()
                 .await?,
@@ -69,13 +72,12 @@ pub async fn all_server_paths(
 #[turbo_tasks::function]
 pub async fn all_paths_in_root(
     assets: Vc<OutputAssets>,
-    root: Vc<FileSystemPath>,
+    root: FileSystemPath,
 ) -> Result<Vc<Vec<RcStr>>> {
     let all_assets = &*all_assets_from_entries(assets).await?;
-    let root = &*root.await?;
 
     Ok(Vc::cell(
-        get_paths_from_root(root, all_assets, |_| true).await?,
+        get_paths_from_root(&root, all_assets, |_| true).await?,
     ))
 }
 

@@ -205,7 +205,7 @@ trait IssueProcessingPath {
 
 #[turbo_tasks::value]
 pub struct IssueProcessingPathItem {
-    pub file_path: Option<ResolvedVc<FileSystemPath>>,
+    pub file_path: Option<FileSystemPath>,
     pub description: ResolvedVc<RcStr>,
 }
 
@@ -213,11 +213,9 @@ pub struct IssueProcessingPathItem {
 impl ValueToString for IssueProcessingPathItem {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<Vc<RcStr>> {
-        if let Some(context) = self.file_path {
+        if let Some(context) = &self.file_path {
             let description_str = self.description.await?;
-            Ok(Vc::cell(
-                format!("{} ({})", context.to_string().await?, description_str).into(),
-            ))
+            Ok(Vc::cell(format!("{context} ({description_str})").into()))
         } else {
             Ok(*self.description)
         }
@@ -229,11 +227,7 @@ impl IssueProcessingPathItem {
     #[turbo_tasks::function]
     pub async fn into_plain(&self) -> Result<Vc<PlainIssueProcessingPathItem>> {
         Ok(PlainIssueProcessingPathItem {
-            file_path: if let Some(context) = self.file_path {
-                Some(context.to_string().await?)
-            } else {
-                None
-            },
+            file_path: self.file_path.as_ref().map(|context| context.path.clone()),
             description: self.description.await?,
         }
         .cell())
@@ -820,7 +814,7 @@ pub struct PlainIssueProcessingPath(Option<Vec<ReadRef<PlainIssueProcessingPathI
 #[turbo_tasks::value(serialization = "none")]
 #[derive(Clone, Debug, DeterministicHash, PartialOrd, Ord)]
 pub struct PlainIssueProcessingPathItem {
-    pub file_path: Option<ReadRef<RcStr>>,
+    pub file_path: Option<RcStr>,
     pub description: ReadRef<RcStr>,
 }
 
@@ -853,7 +847,7 @@ where
     #[allow(unused_variables, reason = "behind feature flag")]
     async fn attach_file_path(
         self,
-        file_path: impl Into<Option<Vc<FileSystemPath>>> + Send,
+        file_path: impl Into<Option<FileSystemPath>> + Send,
         description: impl Into<String> + Send,
     ) -> Result<Self>;
 
@@ -862,7 +856,7 @@ where
 
     async fn issue_file_path(
         self,
-        file_path: impl Into<Option<Vc<FileSystemPath>>> + Send,
+        file_path: impl Into<Option<FileSystemPath>> + Send,
         description: impl Into<String> + Send,
     ) -> Result<Self>;
     async fn issue_description(self, description: impl Into<String> + Send) -> Result<Self>;
@@ -886,7 +880,7 @@ where
     #[allow(unused_variables, reason = "behind feature flag")]
     async fn attach_file_path(
         self,
-        file_path: impl Into<Option<Vc<FileSystemPath>>> + Send,
+        file_path: impl Into<Option<FileSystemPath>> + Send,
         description: impl Into<String> + Send,
     ) -> Result<Self> {
         #[cfg(feature = "issue_path")]
@@ -897,10 +891,7 @@ where
                     ItemIssueProcessingPath::resolved_cell(ItemIssueProcessingPath(
                         Some(IssueProcessingPathItem::resolved_cell(
                             IssueProcessingPathItem {
-                                file_path: match file_path.into() {
-                                    Some(path) => Some(path.to_resolved().await?),
-                                    None => None,
-                                },
+                                file_path: file_path.into(),
                                 description: ResolvedVc::cell(RcStr::from(description.into())),
                             },
                         )),
@@ -919,7 +910,7 @@ where
 
     async fn issue_file_path(
         self,
-        file_path: impl Into<Option<Vc<FileSystemPath>>> + Send,
+        file_path: impl Into<Option<FileSystemPath>> + Send,
         description: impl Into<String> + Send,
     ) -> Result<Self> {
         #[cfg(feature = "issue_path")]
@@ -930,10 +921,7 @@ where
                     ItemIssueProcessingPath::resolved_cell(ItemIssueProcessingPath(
                         Some(IssueProcessingPathItem::resolved_cell(
                             IssueProcessingPathItem {
-                                file_path: match file_path.into() {
-                                    Some(path) => Some(path.to_resolved().await?),
-                                    None => None,
-                                },
+                                file_path: file_path.into(),
                                 description: ResolvedVc::cell(RcStr::from(description.into())),
                             },
                         )),

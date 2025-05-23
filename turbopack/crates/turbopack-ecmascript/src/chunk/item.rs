@@ -26,7 +26,7 @@ pub struct EcmascriptChunkItemContent {
     pub inner_code: Rope,
     pub source_map: Option<Rope>,
     pub options: EcmascriptChunkItemOptions,
-    pub rewrite_source_path: Option<ResolvedVc<FileSystemPath>>,
+    pub rewrite_source_path: Option<FileSystemPath>,
     pub placeholder_for_future_extensions: (),
 }
 
@@ -50,7 +50,7 @@ impl EcmascriptChunkItemContent {
 
         Ok(EcmascriptChunkItemContent {
             rewrite_source_path: if *chunking_context.should_use_file_source_map_uris().await? {
-                Some(chunking_context.root_path().to_resolved().await?)
+                Some((*chunking_context.root_path().await?).clone())
             } else {
                 None
             },
@@ -127,8 +127,8 @@ impl EcmascriptChunkItemContent {
             code += "{\n";
         }
 
-        let source_map = if let Some(rewrite_source_path) = self.rewrite_source_path {
-            fileify_source_map(self.source_map.as_ref(), *rewrite_source_path).await?
+        let source_map = if let Some(rewrite_source_path) = self.rewrite_source_path.clone() {
+            fileify_source_map(self.source_map.as_ref(), rewrite_source_path).await?
         } else {
             self.source_map.clone()
         };
@@ -270,7 +270,7 @@ async fn module_factory_with_code_generation_issue(
                 let js_error_message = serde_json::to_string(&error_message)?;
                 CodeGenerationIssue {
                     severity: IssueSeverity::Error.resolved_cell(),
-                    path: chunk_item.asset_ident().path().to_resolved().await?,
+                    path: (*chunk_item.asset_ident().path().await?).clone(),
                     title: StyledString::Text("Code generation for chunk item errored".into())
                         .resolved_cell(),
                     message: StyledString::Text(error_message).resolved_cell(),

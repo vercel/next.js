@@ -4,24 +4,24 @@
 //! their size and eliminating duplicates between them.
 
 use anyhow::Result;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{TryJoinIterExt, Vc};
 use turbo_tasks_fs::{FileSystemPath, FileSystemPathOption};
 
 use crate::chunk::containment_tree::{ContainmentTree, ContainmentTreeKey};
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
-struct FileSystemPathKey(ResolvedVc<FileSystemPath>);
+struct FileSystemPathKey(FileSystemPath);
 
 impl FileSystemPathKey {
-    async fn new(path: Vc<FileSystemPath>) -> Result<Self> {
-        Ok(Self(path.to_resolved().await?))
+    fn new(path: FileSystemPath) -> Self {
+        Self(path)
     }
 }
 
 #[async_trait::async_trait]
 impl ContainmentTreeKey for FileSystemPathKey {
     async fn parent(&self) -> Result<Self> {
-        Ok(FileSystemPathKey::new(self.0.parent()).await?)
+        Ok(FileSystemPathKey::new(self.0.parent()))
     }
 }
 
@@ -44,11 +44,9 @@ where
                     let common_parent = get_common_parent(chunk.clone()).await?;
 
                     Ok((
-                        if let Some(common_parent) = &*common_parent {
-                            Some(FileSystemPathKey::new(**common_parent).await?)
-                        } else {
-                            None
-                        },
+                        (*common_parent)
+                            .as_ref()
+                            .map(|common_parent| FileSystemPathKey::new(common_parent.clone())),
                         chunk.clone(),
                     ))
                 }

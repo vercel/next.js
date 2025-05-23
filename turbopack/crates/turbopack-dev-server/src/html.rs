@@ -35,7 +35,7 @@ pub struct DevHtmlEntry {
 #[turbo_tasks::value(shared)]
 #[derive(Clone)]
 pub struct DevHtmlAsset {
-    path: ResolvedVc<FileSystemPath>,
+    path: FileSystemPath,
     entries: Vec<DevHtmlEntry>,
     body: Option<RcStr>,
 }
@@ -49,7 +49,7 @@ fn dev_html_chunk_reference_description() -> Vc<RcStr> {
 impl OutputAsset for DevHtmlAsset {
     #[turbo_tasks::function]
     fn path(&self) -> Vc<FileSystemPath> {
-        *self.path
+        self.path.clone().cell()
     }
 
     #[turbo_tasks::function]
@@ -73,7 +73,7 @@ impl Asset for DevHtmlAsset {
 
 impl DevHtmlAsset {
     /// Create a new dev HTML asset.
-    pub fn new(path: ResolvedVc<FileSystemPath>, entries: Vec<DevHtmlEntry>) -> Vc<Self> {
+    pub fn new(path: FileSystemPath, entries: Vec<DevHtmlEntry>) -> Vc<Self> {
         DevHtmlAsset {
             path,
             entries,
@@ -84,7 +84,7 @@ impl DevHtmlAsset {
 
     /// Create a new dev HTML asset.
     pub fn new_with_body(
-        path: ResolvedVc<FileSystemPath>,
+        path: FileSystemPath,
         entries: Vec<DevHtmlEntry>,
         body: RcStr,
     ) -> Vc<Self> {
@@ -100,7 +100,7 @@ impl DevHtmlAsset {
 #[turbo_tasks::value_impl]
 impl DevHtmlAsset {
     #[turbo_tasks::function]
-    pub async fn with_path(self: Vc<Self>, path: ResolvedVc<FileSystemPath>) -> Result<Vc<Self>> {
+    pub async fn with_path(self: Vc<Self>, path: FileSystemPath) -> Result<Vc<Self>> {
         let mut html: DevHtmlAsset = self.owned().await?;
         html.path = path;
         Ok(html.cell())
@@ -119,7 +119,7 @@ impl DevHtmlAsset {
     #[turbo_tasks::function]
     async fn html_content(self: Vc<Self>) -> Result<Vc<DevHtmlAssetContent>> {
         let this = self.await?;
-        let context_path = this.path.parent().await?;
+        let context_path = this.path.parent();
         let mut chunk_paths = vec![];
         for chunk in &*self.chunks().await? {
             let chunk_path = &*chunk.path().await?;

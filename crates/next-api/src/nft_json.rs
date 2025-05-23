@@ -64,7 +64,9 @@ impl OutputAsset for NftJsonAsset {
         Ok(path
             .fs
             .root()
-            .join(format!("{}.nft.json", path.path).into()))
+            .await?
+            .join(&format!("{}.nft.json", path.path))?
+            .cell())
     }
 }
 
@@ -114,12 +116,12 @@ impl Asset for NftJsonAsset {
         let client_root = this.project.client_fs().root();
         let client_root_ref = client_root.await?;
 
-        let ident_folder = self.path().parent().await?;
+        let ident_folder = self.path().await?.parent();
         let ident_folder_in_project_fs = this
             .project
             .project_path()
-            .join(ident_folder.path.clone())
-            .await?;
+            .await?
+            .join(&ident_folder.path)?;
 
         let chunk = this.chunk;
         let entries = this

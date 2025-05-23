@@ -16,7 +16,7 @@ use turbopack_ecmascript::utils::StringifyJs;
 pub fn route_bootstrap(
     asset: Vc<Box<dyn Module>>,
     asset_context: Vc<Box<dyn AssetContext>>,
-    base_path: Vc<FileSystemPath>,
+    base_path: FileSystemPath,
     bootstrap_asset: Vc<Box<dyn Source>>,
     config: Vc<BootstrapConfig>,
 ) -> Vc<Box<dyn EvaluatableAsset>> {
@@ -45,17 +45,17 @@ impl BootstrapConfig {
 pub async fn bootstrap(
     asset: ResolvedVc<Box<dyn Module>>,
     asset_context: Vc<Box<dyn AssetContext>>,
-    base_path: Vc<FileSystemPath>,
+    base_path: FileSystemPath,
     bootstrap_asset: Vc<Box<dyn Source>>,
     inner_assets: Vc<InnerAssets>,
     config: Vc<BootstrapConfig>,
 ) -> Result<Vc<Box<dyn EvaluatableAsset>>> {
     let path = asset.ident().path().await?;
-    let Some(path) = base_path.await?.get_path_to(&path) else {
+    let Some(path) = base_path.get_path_to(&path) else {
         bail!(
             "asset {} is not in base path {}",
             asset.ident().to_string().await?,
-            base_path.to_string().await?
+            base_path.value_to_string().await?
         );
     };
     let path = if let Some((name, ext)) = path.rsplit_once('.') {
@@ -73,7 +73,12 @@ pub async fn bootstrap(
     let config_asset = asset_context
         .process(
             Vc::upcast(VirtualSource::new(
-                asset.ident().path().join("bootstrap-config.ts".into()),
+                asset
+                    .ident()
+                    .path()
+                    .await?
+                    .join("bootstrap-config.ts")?
+                    .cell(),
                 AssetContent::file(
                     File::from(
                         config

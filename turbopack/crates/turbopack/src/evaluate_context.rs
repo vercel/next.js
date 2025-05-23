@@ -45,12 +45,7 @@ pub async fn node_evaluate_asset_context(
         "@vercel/turbopack-node/",
         ImportMapping::PrimaryAlternative(
             "./*".into(),
-            Some(
-                turbopack_node::embed_js::embed_fs()
-                    .root()
-                    .to_resolved()
-                    .await?,
-            ),
+            Some((*turbopack_node::embed_js::embed_fs().root().await?).clone()),
         )
         .resolved_cell(),
     );
@@ -65,13 +60,7 @@ pub async fn node_evaluate_asset_context(
     // base context used for node_modules (and context for app code will be derived
     // from this)
     let resolve_options_context = ResolveOptionsContext {
-        enable_node_modules: Some(
-            execution_context
-                .project_path()
-                .root()
-                .to_resolved()
-                .await?,
-        ),
+        enable_node_modules: Some((*execution_context.project_path().await?.root().await?).clone()),
         enable_node_externals: true,
         enable_node_native_modules: true,
         custom_conditions: vec![node_env.clone(), "node".into()],

@@ -8,7 +8,7 @@ use swc_core::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, ValueDefault, ValueToString, Vc,
+    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, ValueDefault, Vc,
     trace::TraceRawVcs, util::WrapFuture,
 };
 use turbo_tasks_fs::{
@@ -52,18 +52,18 @@ pub enum PathType {
 /// Converts a filename within the server root into a next pathname.
 #[turbo_tasks::function]
 pub async fn pathname_for_path(
-    server_root: Vc<FileSystemPath>,
-    server_path: Vc<FileSystemPath>,
+    server_root: FileSystemPath,
+    server_path: FileSystemPath,
     path_ty: PathType,
 ) -> Result<Vc<RcStr>> {
-    let server_path_value = &*server_path.await?;
-    let path = if let Some(path) = server_root.await?.get_path_to(server_path_value) {
+    let server_path_value = server_path.clone();
+    let path = if let Some(path) = server_root.clone().get_path_to(&server_path_value) {
         path
     } else {
         bail!(
             "server_path ({}) is not in server_root ({})",
-            server_path.to_string().await?,
-            server_root.to_string().await?
+            server_path.value_to_string().await?,
+            server_root.value_to_string().await?
         )
     };
     let path = match (path_ty, path) {
@@ -98,15 +98,12 @@ pub fn get_asset_path_from_pathname(pathname: &str, ext: &str) -> String {
 #[turbo_tasks::function]
 pub async fn get_transpiled_packages(
     next_config: Vc<NextConfig>,
-    project_path: ResolvedVc<FileSystemPath>,
+    project_path: FileSystemPath,
 ) -> Result<Vc<Vec<RcStr>>> {
     let mut transpile_packages: Vec<RcStr> = next_config.transpile_packages().owned().await?;
 
-    let default_transpiled_packages: Vec<RcStr> = load_next_js_templateon(
-        project_path,
-        "dist/lib/default-transpiled-packages.json".into(),
-    )
-    .await?;
+    let default_transpiled_packages: Vec<RcStr> =
+        load_next_js_templateon(project_path, "dist/lib/default-transpiled-packages.json").await?;
 
     transpile_packages.extend(default_transpiled_packages.iter().cloned());
 
@@ -115,19 +112,18 @@ pub async fn get_transpiled_packages(
 
 pub async fn foreign_code_context_condition(
     next_config: Vc<NextConfig>,
-    project_path: ResolvedVc<FileSystemPath>,
+    project_path: FileSystemPath,
 ) -> Result<ContextCondition> {
-    let transpiled_packages = get_transpiled_packages(next_config, *project_path).await?;
+    let transpiled_packages = get_transpiled_packages(next_config, project_path.clone()).await?;
 
     // The next template files are allowed to import the user's code via import
     // mapping, and imports must use the project-level [ResolveOptions] instead
     // of the `node_modules` specific resolve options (the template files are
     // technically node module files).
     let not_next_template_dir = ContextCondition::not(ContextCondition::InPath(
-        get_next_package(*project_path)
-            .join(NEXT_TEMPLATE_PATH.into())
-            .to_resolved()
-            .await?,
+        get_next_package(project_path.clone())
+            .await?
+            .join(NEXT_TEMPLATE_PATH)?,
     ));
 
     let result = ContextCondition::all(vec![
@@ -151,19 +147,9 @@ pub async fn foreign_code_context_condition(
 // subject to Next.js's configuration even if it's embedded assets.
 pub async fn internal_assets_conditions() -> Result<ContextCondition> {
     Ok(ContextCondition::any(vec![
-        ContextCondition::InPath(next_js_fs().root().to_resolved().await?),
-        ContextCondition::InPath(
-            turbopack_ecmascript_runtime::embed_fs()
-                .root()
-                .to_resolved()
-                .await?,
-        ),
-        ContextCondition::InPath(
-            turbopack_node::embed_js::embed_fs()
-                .root()
-                .to_resolved()
-                .await?,
-        ),
+        ContextCondition::InPath((*next_js_fs().root().await?).clone()),
+        ContextCondition::InPath((*turbopack_ecmascript_runtime::embed_fs().root().await?).clone()),
+        ContextCondition::InPath((*turbopack_node::embed_js::embed_fs().root().await?).clone()),
     ]))
 }
 
@@ -678,21 +664,21 @@ async fn parse_config_from_js_value(
 /// sure there are none left over.
 pub async fn load_next_js_template(
     path: &str,
-    project_path: Vc<FileSystemPath>,
+    project_path: FileSystemPath,
     replacements: FxIndexMap<&'static str, RcStr>,
     injections: FxIndexMap<&'static str, RcStr>,
     imports: FxIndexMap<&'static str, Option<RcStr>>,
 ) -> Result<Vc<Box<dyn Source>>> {
-    let path = virtual_next_js_template_path(project_path, path.to_string());
+    let path = virtual_next_js_template_path(project_path.clone(), path.to_string()).await?;
 
     let content = &*file_content_rope(path.read()).await?;
     let content = content.to_str()?.into_owned();
 
     let parent_path = path.parent();
-    let parent_path_value = &*parent_path.await?;
+    let parent_path_value = parent_path.clone();
 
-    let package_root = get_next_package(project_path).parent();
-    let package_root_value = &*package_root.await?;
+    let package_root = get_next_package(project_path).await?.parent();
+    let package_root_value = package_root.clone();
 
     /// See [regex::Regex::replace_all].
     fn replace_all<E>(
@@ -926,7 +912,7 @@ pub async fn load_next_js_template(
 
     let file = File::from(content);
 
-    let source = VirtualSource::new(path, AssetContent::file(file.into()));
+    let source = VirtualSource::new(path.cell(), AssetContent::file(file.into()));
 
     Ok(Vc::upcast(source))
 }
@@ -942,24 +928,29 @@ pub async fn file_content_rope(content: Vc<FileContent>) -> Result<Vc<Rope>> {
     Ok(file.content().to_owned().cell())
 }
 
-pub fn virtual_next_js_template_path(
-    project_path: Vc<FileSystemPath>,
+pub async fn virtual_next_js_template_path(
+    project_path: FileSystemPath,
     file: String,
-) -> Vc<FileSystemPath> {
+) -> Result<FileSystemPath> {
     debug_assert!(!file.contains('/'));
-    get_next_package(project_path).join(format!("{NEXT_TEMPLATE_PATH}/{file}").into())
+    get_next_package(project_path)
+        .await?
+        .join(&format!("{NEXT_TEMPLATE_PATH}/{file}"))
 }
 
 pub async fn load_next_js_templateon<T: DeserializeOwned>(
-    project_path: ResolvedVc<FileSystemPath>,
-    path: RcStr,
+    project_path: FileSystemPath,
+    path: &str,
 ) -> Result<T> {
-    let file_path = get_next_package(*project_path).join(path.clone());
+    let file_path = get_next_package(project_path.clone()).await?.join(path)?;
 
     let content = &*file_path.read().await?;
 
     let FileContent::Content(file) = content else {
-        bail!("Expected file content at {}", file_path.to_string().await?);
+        bail!(
+            "Expected file content at {}",
+            file_path.value_to_string().await?
+        );
     };
 
     let result: T = parse_json_rope_with_source_context(file.content())?;

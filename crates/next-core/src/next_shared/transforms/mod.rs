@@ -33,7 +33,7 @@ pub use next_lint::get_next_lint_transform_rule;
 pub use next_strip_page_exports::get_next_pages_transforms_rule;
 pub use next_track_dynamic_imports::get_next_track_dynamic_imports_transform_rule;
 pub use server_actions::get_server_actions_transform_rule;
-use turbo_tasks::{ReadRef, ResolvedVc, Value};
+use turbo_tasks::{ResolvedVc, Value};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect, ModuleType, RuleCondition};
 use turbopack_core::reference_type::{ReferenceType, UrlReferenceSubType};
@@ -121,7 +121,7 @@ pub(crate) fn module_rule_match_js_no_url(enable_mdx_rs: bool) -> RuleCondition 
 
 pub(crate) fn module_rule_match_pages_page_file(
     enable_mdx_rs: bool,
-    pages_directory: ReadRef<FileSystemPath>,
+    pages_directory: FileSystemPath,
 ) -> RuleCondition {
     let conditions = match_js_extension(enable_mdx_rs);
 

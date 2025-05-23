@@ -4,7 +4,6 @@ use anyhow::Result;
 use once_cell::sync::Lazy;
 use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
-use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::next_app::{AppPage, PageSegment, PageType};
@@ -83,12 +82,12 @@ fn match_metadata_file<'a>(
     })
 }
 
-pub(crate) async fn get_content_type(path: Vc<FileSystemPath>) -> Result<String> {
-    let stem = &*path.file_stem().await?;
-    let ext = &*path.extension().await?;
+pub(crate) async fn get_content_type(path: FileSystemPath) -> Result<String> {
+    let stem = path.file_stem();
+    let ext = path.extension();
 
-    let name = stem.as_deref().unwrap_or_default();
-    let mut ext = ext.as_str();
+    let name = stem.unwrap_or_default();
+    let mut ext = &*ext;
     if ext == "jpg" {
         ext = "jpeg"
     }

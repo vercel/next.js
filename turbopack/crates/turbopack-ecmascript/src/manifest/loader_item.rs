@@ -67,9 +67,12 @@ impl ManifestLoaderChunkItem {
     }
 
     #[turbo_tasks::function]
-    pub fn chunks_data(&self) -> Vc<ChunksData> {
+    pub async fn chunks_data(&self) -> Result<Vc<ChunksData>> {
         let chunks = self.manifest.manifest_chunks();
-        ChunkData::from_assets(self.chunking_context.output_root(), chunks)
+        Ok(ChunkData::from_assets(
+            (*self.chunking_context.output_root().await?).clone(),
+            chunks,
+        ))
     }
 
     #[turbo_tasks::function]

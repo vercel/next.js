@@ -35,10 +35,10 @@ pub struct BuildManifest {
 impl BuildManifest {
     pub async fn build_output(
         self,
-        output_path: Vc<FileSystemPath>,
-        client_relative_path: Vc<FileSystemPath>,
+        output_path: FileSystemPath,
+        client_relative_path: FileSystemPath,
     ) -> Result<Vc<Box<dyn OutputAsset>>> {
-        let client_relative_path_ref = &*client_relative_path.await?;
+        let client_relative_path_ref = client_relative_path.clone();
 
         #[derive(Serialize, Default, Debug)]
         #[serde(rename_all = "camelCase")]
@@ -55,23 +55,34 @@ impl BuildManifest {
         let pages: Vec<(RcStr, Vec<RcStr>)> = self
             .pages
             .iter()
-            .map(|(k, chunks)| async move {
-                Ok((
-                    k.clone(),
-                    chunks
-                        .await?
-                        .iter()
-                        .copied()
-                        .map(|chunk| async move {
-                            let chunk_path = chunk.path().await?;
-                            Ok(client_relative_path_ref
-                                .get_path_to(&chunk_path)
-                                .context("client chunk entry path must be inside the client root")?
-                                .into())
-                        })
-                        .try_join()
-                        .await?,
-                ))
+            .map(|(k, chunks)| {
+                let client_relative_path_ref = client_relative_path_ref.clone();
+
+                async move {
+                    Ok((
+                        k.clone(),
+                        chunks
+                            .await?
+                            .iter()
+                            .copied()
+                            .map(|chunk| {
+                                let client_relative_path_ref = client_relative_path_ref.clone();
+
+                                async move {
+                                    let chunk_path = chunk.path().await?;
+                                    Ok(client_relative_path_ref
+                                        .get_path_to(&chunk_path)
+                                        .context(
+                                            "client chunk entry path must be inside the client \
+                                             root",
+                                        )?
+                                        .into())
+                                }
+                            })
+                            .try_join()
+                            .await?,
+                    ))
+                }
             })
             .try_join()
             .await?;
@@ -80,12 +91,16 @@ impl BuildManifest {
             .polyfill_files
             .iter()
             .copied()
-            .map(|chunk| async move {
-                let chunk_path = chunk.path().await?;
-                Ok(client_relative_path_ref
-                    .get_path_to(&chunk_path)
-                    .context("failed to resolve client-relative path to polyfill")?
-                    .into())
+            .map(|chunk| {
+                let client_relative_path_ref = client_relative_path_ref.clone();
+
+                async move {
+                    let chunk_path = chunk.path().await?;
+                    Ok(client_relative_path_ref
+                        .get_path_to(&chunk_path)
+                        .context("failed to resolve client-relative path to polyfill")?
+                        .into())
+                }
             })
             .try_join()
             .await?;
@@ -94,12 +109,16 @@ impl BuildManifest {
             .root_main_files
             .iter()
             .copied()
-            .map(|chunk| async move {
-                let chunk_path = chunk.path().await?;
-                Ok(client_relative_path_ref
-                    .get_path_to(&chunk_path)
-                    .context("failed to resolve client-relative path to root_main_file")?
-                    .into())
+            .map(|chunk| {
+                let client_relative_path_ref = client_relative_path_ref.clone();
+
+                async move {
+                    let chunk_path = chunk.path().await?;
+                    Ok(client_relative_path_ref
+                        .get_path_to(&chunk_path)
+                        .context("failed to resolve client-relative path to root_main_file")?
+                        .into())
+                }
             })
             .try_join()
             .await?;
@@ -421,10 +440,10 @@ pub struct AppBuildManifest {
 impl AppBuildManifest {
     pub async fn build_output(
         self,
-        output_path: Vc<FileSystemPath>,
-        client_relative_path: Vc<FileSystemPath>,
+        output_path: FileSystemPath,
+        client_relative_path: FileSystemPath,
     ) -> Result<Vc<Box<dyn OutputAsset>>> {
-        let client_relative_path_ref = &*client_relative_path.await?;
+        let client_relative_path_ref = client_relative_path.clone();
 
         #[derive(Serialize)]
         #[serde(rename_all = "camelCase")]
@@ -435,23 +454,34 @@ impl AppBuildManifest {
         let pages: Vec<(RcStr, Vec<RcStr>)> = self
             .pages
             .iter()
-            .map(|(k, chunks)| async move {
-                Ok((
-                    k.clone(),
-                    chunks
-                        .await?
-                        .iter()
-                        .copied()
-                        .map(|chunk| async move {
-                            let chunk_path = chunk.path().await?;
-                            Ok(client_relative_path_ref
-                                .get_path_to(&chunk_path)
-                                .context("client chunk entry path must be inside the client root")?
-                                .into())
-                        })
-                        .try_join()
-                        .await?,
-                ))
+            .map(|(k, chunks)| {
+                let client_relative_path_ref = client_relative_path_ref.clone();
+
+                async move {
+                    Ok((
+                        k.clone(),
+                        chunks
+                            .await?
+                            .iter()
+                            .copied()
+                            .map(|chunk| {
+                                let client_relative_path_ref = client_relative_path_ref.clone();
+
+                                async move {
+                                    let chunk_path = chunk.path().await?;
+                                    Ok(client_relative_path_ref
+                                        .get_path_to(&chunk_path)
+                                        .context(
+                                            "client chunk entry path must be inside the client \
+                                             root",
+                                        )?
+                                        .into())
+                                }
+                            })
+                            .try_join()
+                            .await?,
+                    ))
+                }
             })
             .try_join()
             .await?;

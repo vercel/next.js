@@ -55,7 +55,13 @@ where
     }
 
     for (chunk_item, chunks) in chunk_items {
-        let size = *chunk_item.content_ident().path().read().len().await?;
+        let size = *chunk_item
+            .content_ident()
+            .path()
+            .await?
+            .read()
+            .len()
+            .await?;
         let path = chunk_item.asset_ident().path().await?.path.clone();
         modules.push(WebpackStatsModule {
             name: path.clone(),

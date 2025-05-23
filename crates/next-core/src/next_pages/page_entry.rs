@@ -34,7 +34,7 @@ pub struct PageSsrEntryModule {
 pub async fn create_page_ssr_entry_module(
     pathname: Vc<RcStr>,
     reference_type: Value<ReferenceType>,
-    project_root: Vc<FileSystemPath>,
+    project_root: FileSystemPath,
     ssr_module_context: Vc<Box<dyn AssetContext>>,
     source: Vc<Box<dyn Source>>,
     next_original_name: Vc<RcStr>,
@@ -88,7 +88,7 @@ pub async fn create_page_ssr_entry_module(
     // Load the file from the next.js codebase.
     let mut source = load_next_js_template(
         template_file,
-        project_root,
+        project_root.clone(),
         replacements,
         FxIndexMap::default(),
         FxIndexMap::default(),
@@ -159,7 +159,7 @@ pub async fn create_page_ssr_entry_module(
         if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page) {
             ssr_module = wrap_edge_page(
                 ssr_module_context,
-                project_root,
+                project_root.clone(),
                 ssr_module,
                 definition_page.clone(),
                 definition_pathname.clone(),
@@ -170,7 +170,7 @@ pub async fn create_page_ssr_entry_module(
         } else {
             ssr_module = wrap_edge_entry(
                 ssr_module_context,
-                project_root,
+                project_root.clone(),
                 ssr_module,
                 definition_pathname.clone(),
             );
@@ -186,19 +186,19 @@ pub async fn create_page_ssr_entry_module(
 }
 
 #[turbo_tasks::function]
-fn process_global_item(
+async fn process_global_item(
     item: Vc<PagesStructureItem>,
     reference_type: Value<ReferenceType>,
     module_context: Vc<Box<dyn AssetContext>>,
-) -> Vc<Box<dyn Module>> {
-    let source = Vc::upcast(FileSource::new(item.file_path()));
-    module_context.process(source, reference_type).module()
+) -> Result<Vc<Box<dyn Module>>> {
+    let source = Vc::upcast(FileSource::new((*item.file_path().await?).clone()));
+    Ok(module_context.process(source, reference_type).module())
 }
 
 #[turbo_tasks::function]
 async fn wrap_edge_page(
     asset_context: Vc<Box<dyn AssetContext>>,
-    project_root: Vc<FileSystemPath>,
+    project_root: FileSystemPath,
     entry: ResolvedVc<Box<dyn Module>>,
     page: RcStr,
     pathname: RcStr,
@@ -228,7 +228,7 @@ async fn wrap_edge_page(
 
     let source = load_next_js_template(
         "edge-ssr.js",
-        project_root,
+        project_root.clone(),
         fxindexmap! {
             "VAR_USERLAND" => INNER.into(),
             "VAR_PAGE" => pathname.clone(),

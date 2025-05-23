@@ -37,7 +37,7 @@ pub async fn emitted_assets_to_virtual_sources(
         .map(|(file, (content, _source_map))| {
             // TODO handle SourceMap
             VirtualSource::new(
-                ServerFileSystem::new().root().join(file),
+                ServerFileSystem::new().root().join_vc(file),
                 AssetContent::File(FileContent::Content(File::from(content)).resolved_cell())
                     .cell(),
             )

@@ -413,14 +413,14 @@ fn node_file_trace<B: Backend + 'static>(
                     package_root.clone(),
                     vec![],
                 ));
-                let input_dir = workspace_fs.root().to_resolved().await?;
-                let input = input_dir.join(format!("tests/{input_string}").into());
+                let input_dir = (*workspace_fs.root().to_resolved().await?.await?).clone();
+                let input = input_dir.join(&format!("tests/{input_string}"))?;
 
                 #[cfg(not(feature = "bench_against_node_nft"))]
-                let original_output = exec_node(package_root, input);
+                let original_output = exec_node(package_root, input.clone());
 
                 let output_fs = DiskFileSystem::new("output".into(), directory.clone(), vec![]);
-                let output_dir = output_fs.root().to_resolved().await?;
+                let output_dir = (*output_fs.root().to_resolved().await?.await?).clone();
 
                 let source = FileSource::new(input);
                 let module_asset_context = ModuleAssetContext::new(
@@ -447,7 +447,7 @@ fn node_file_trace<B: Backend + 'static>(
                     .cell(),
                     ResolveOptionsContext {
                         enable_node_native_modules: true,
-                        enable_node_modules: Some(input_dir),
+                        enable_node_modules: Some(input_dir.clone()),
                         custom_conditions: vec!["node".into()],
                         ..Default::default()
                     }
@@ -457,12 +457,13 @@ fn node_file_trace<B: Backend + 'static>(
                 let module = module_asset_context
                     .process(Vc::upcast(source), Value::new(ReferenceType::Undefined))
                     .module();
-                let rebased = RebasedAsset::new(Vc::upcast(module), *input_dir, *output_dir)
-                    .to_resolved()
-                    .await?;
+                let rebased =
+                    RebasedAsset::new(Vc::upcast(module), input_dir.clone(), output_dir.clone())
+                        .to_resolved()
+                        .await?;
 
                 #[cfg(not(feature = "bench_against_node_nft"))]
-                let output_path = rebased.path();
+                let output_path = (*rebased.path().await?).clone();
 
                 print_graph(ResolvedVc::upcast(rebased)).await?;
 
@@ -593,14 +594,14 @@ impl Display for CommandOutput {
 }
 
 #[turbo_tasks::function]
-async fn exec_node(directory: RcStr, path: Vc<FileSystemPath>) -> Result<Vc<CommandOutput>> {
+async fn exec_node(directory: RcStr, path: FileSystemPath) -> Result<Vc<CommandOutput>> {
     let mut cmd = Command::new("node");
 
-    let p = path.await?;
+    let p = path.clone();
     let f = Path::new(&directory).join(&p.path);
     let dir = f.parent().unwrap();
     println!("[CWD]: {}", dir.display());
-    let label = path.to_string().await?;
+    let label = path.value_to_string().await?;
 
     if p.path.contains("mdx") {
         cmd.arg("--experimental-loader=@mdx-js/node-loader")

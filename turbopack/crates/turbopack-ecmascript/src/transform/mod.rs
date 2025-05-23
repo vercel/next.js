@@ -116,7 +116,7 @@ pub struct TransformContext<'a> {
     pub file_name_str: &'a str,
     pub file_name_hash: u128,
     pub query_str: RcStr,
-    pub file_path: ResolvedVc<FileSystemPath>,
+    pub file_path: FileSystemPath,
 }
 
 impl EcmascriptInputTransform {
@@ -293,7 +293,7 @@ pub fn remove_shebang(program: &mut Program) {
 
 #[turbo_tasks::value(shared)]
 pub struct UnsupportedServerActionIssue {
-    pub file_path: ResolvedVc<FileSystemPath>,
+    pub file_path: FileSystemPath,
 }
 
 #[turbo_tasks::value_impl]
@@ -313,7 +313,7 @@ impl Issue for UnsupportedServerActionIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        *self.file_path
+        self.file_path.clone().cell()
     }
 
     #[turbo_tasks::function]

@@ -86,7 +86,7 @@ pub async fn get_next_server_transforms_rules(
     if !foreign_code {
         rules.push(get_next_page_static_info_assert_rule(
             mdx_rs,
-            Some(context_ty),
+            Some(context_ty.clone()),
             None,
         ));
     }
@@ -95,12 +95,12 @@ pub async fn get_next_server_transforms_rules(
     let cache_kinds = next_config.cache_kinds().to_resolved().await?;
     let mut is_app_dir = false;
 
-    let is_server_components = match context_ty {
+    let is_server_components = match &context_ty {
         ServerContextType::Pages { pages_dir } | ServerContextType::PagesApi { pages_dir } => {
             if !foreign_code {
                 rules.push(get_next_disallow_export_all_in_page_rule(
                     mdx_rs,
-                    pages_dir.await?,
+                    pages_dir.clone(),
                 ));
             }
             false
@@ -109,7 +109,7 @@ pub async fn get_next_server_transforms_rules(
             if !foreign_code {
                 rules.push(
                     get_next_pages_transforms_rule(
-                        *pages_dir,
+                        pages_dir.clone(),
                         ExportFilter::StripDefaultExport,
                         mdx_rs,
                     )
@@ -117,7 +117,7 @@ pub async fn get_next_server_transforms_rules(
                 );
                 rules.push(get_next_disallow_export_all_in_page_rule(
                     mdx_rs,
-                    pages_dir.await?,
+                    pages_dir.clone(),
                 ));
             }
             false
