@@ -102,7 +102,7 @@ impl Visit for Finder {
 mod tests {
     use swc_core::{
         common::FileName,
-        ecma::parser::{EsSyntax, parse_file_as_program},
+        ecma::parser::{parse_file_as_program, EsSyntax},
     };
     use testing::run_test2;
 
