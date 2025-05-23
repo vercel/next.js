@@ -12,11 +12,11 @@ use anyhow::Result;
 use sha2::{Digest, Sha256};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ReadConsistency, TurboTasks, UpdateInfo, Vc, util::FormatDuration};
+use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, DiskFileSystem, FileContent, FileSystem, FileSystemPath,
     register,
 };
-use turbo_tasks_memory::MemoryBackend;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -26,7 +26,10 @@ async fn main() -> Result<()> {
         "/register_example_hash_directory.rs"
     ));
 
-    let tt = TurboTasks::new(MemoryBackend::default());
+    let tt = TurboTasks::new(TurboTasksBackend::new(
+        BackendOptions::default(),
+        noop_backing_storage(),
+    ));
     let start = Instant::now();
 
     let task = tt.spawn_root_task(|| {

@@ -12,7 +12,7 @@ tokio = { workspace = true }
 trybuild = { version = "1.0.104" }
 turbo-tasks = { workspace = true }
 turbo-tasks-testing = { workspace = true }
-turbo-tasks-memory = { workspace = true }
+turbo-tasks-backend = { workspace = true }
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }
