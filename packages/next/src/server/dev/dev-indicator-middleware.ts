@@ -27,6 +27,7 @@ export function getDisableDevIndicatorMiddleware() {
         return middlewareResponse.methodNotAllowed(res)
       }
 
+      devToolsServerState.devIndicator.isDisabled = true
       devToolsServerState.devIndicator.disabledUntil =
         Date.now() + COOLDOWN_TIME_MS
 

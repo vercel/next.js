@@ -840,7 +840,14 @@ export async function createHotReloaderTurbopack(
         }
 
         if (devToolsServerState.devIndicator.disabledUntil < Date.now()) {
+          devToolsServerState.devIndicator.isDisabled = false
           devToolsServerState.devIndicator.disabledUntil = 0
+        }
+
+        // __NEXT_DEV_INDICATOR is set to false when devIndicator is
+        // explicitly marked as false.
+        if (process.env.__NEXT_DEV_INDICATOR?.toString() === 'false') {
+          devToolsServerState.devIndicator.isDisabled = true
         }
 
         ;(async function () {
