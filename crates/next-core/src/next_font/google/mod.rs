@@ -20,7 +20,7 @@ use turbopack_core::{
     asset::AssetContent,
     context::AssetContext,
     ident::AssetIdent,
-    issue::{IssueExt, IssueSeverity},
+    issue::{IssueExt, IssueSeverity, StyledString},
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
         ResolveResult,
@@ -48,7 +48,8 @@ use super::{
     },
 };
 use crate::{
-    embed_js::next_js_file_path, next_app::metadata::split_extension, util::load_next_js_templateon,
+    embed_js::next_js_file_path, mode::NextMode, next_app::metadata::split_extension,
+    next_font::issue::NextFontIssue, util::load_next_js_templateon,
 };
 
 pub mod font_fallback;
@@ -179,6 +180,7 @@ impl ImportMappingReplacement for NextFontGoogleReplacer {
 pub struct NextFontGoogleCssModuleReplacer {
     project_path: ResolvedVc<FileSystemPath>,
     execution_context: ResolvedVc<ExecutionContext>,
+    next_mode: ResolvedVc<NextMode>,
 }
 
 #[turbo_tasks::value_impl]
@@ -187,10 +189,12 @@ impl NextFontGoogleCssModuleReplacer {
     pub fn new(
         project_path: ResolvedVc<FileSystemPath>,
         execution_context: ResolvedVc<ExecutionContext>,
+        next_mode: ResolvedVc<NextMode>,
     ) -> Vc<Self> {
         Self::cell(NextFontGoogleCssModuleReplacer {
             project_path,
             execution_context,
+            next_mode,
         })
     }
 
@@ -215,6 +219,7 @@ impl NextFontGoogleCssModuleReplacer {
         // requests to Google Fonts.
         let env = Vc::upcast::<Box<dyn ProcessEnv>>(CommandLineProcessEnv::new());
         let mocked_responses_path = &*env.read("NEXT_FONT_GOOGLE_MOCKED_RESPONSES".into()).await?;
+
         let stylesheet_str = mocked_responses_path
             .as_ref()
             .map_or_else(
@@ -224,7 +229,6 @@ impl NextFontGoogleCssModuleReplacer {
             .await?;
 
         let font_fallback = get_font_fallback(*self.project_path, options);
-
         let stylesheet = match stylesheet_str {
             Some(s) => Some(
                 update_google_stylesheet(
@@ -237,10 +241,57 @@ impl NextFontGoogleCssModuleReplacer {
                 .await?,
             ),
             None => {
-                println!(
-                    "Failed to download `{}` from Google Fonts. Using fallback font instead.",
-                    options.await?.font_family
-                );
+                match *self.next_mode.await? {
+                    // If we're in production mode, we want to fail the build to ensure proper font
+                    // rendering.
+                    NextMode::Build => {
+                        NextFontIssue {
+                            path: css_virtual_path.to_resolved().await?,
+                            title: StyledString::Line(vec![
+                                StyledString::Code("next/font:".into()),
+                                StyledString::Text(" error:".into()),
+                            ])
+                            .resolved_cell(),
+                            description: StyledString::Text(
+                                format!(
+                                    "Failed to fetch `{}` from Google Fonts.",
+                                    options.await?.font_family
+                                )
+                                .into(),
+                            )
+                            .resolved_cell(),
+                            severity: IssueSeverity::Error.resolved_cell(),
+                        }
+                        .resolved_cell()
+                        .emit();
+                    }
+                    // Inform the user of the failure to retreive the stylesheet / font, but don't
+                    // propagate this error. We don't want e.g. offline connections to prevent page
+                    // renders during development.
+                    NextMode::Development => {
+                        NextFontIssue {
+                            path: css_virtual_path.to_resolved().await?,
+                            title: StyledString::Line(vec![
+                                StyledString::Code("next/font:".into()),
+                                StyledString::Text(" warning:".into()),
+                            ])
+                            .resolved_cell(),
+                            description: StyledString::Text(
+                                format!(
+                                    "Failed to download `{}` from Google Fonts. Using fallback \
+                                     font instead.",
+                                    options.await?.font_family
+                                )
+                                .into(),
+                            )
+                            .resolved_cell(),
+                            severity: IssueSeverity::Warning.resolved_cell(),
+                        }
+                        .resolved_cell()
+                        .emit();
+                    }
+                }
+
                 None
             }
         };
@@ -610,16 +661,9 @@ async fn fetch_from_google_fonts(
     )
     .await?;
 
-    Ok(match &*result {
+    Ok(match *result {
         Ok(r) => Some(*r.await?.body),
         Err(err) => {
-            // Inform the user of the failure to retreive the stylesheet / font, but don't
-            // propagate this error. We don't want e.g. offline connections to prevent page
-            // renders during development. During production builds, however, this error
-            // should propagate.
-            //
-            // TODO(WEB-283): Use fallback in dev in this case
-            // TODO(WEB-293): Fail production builds (not dev) in this case
             err.to_issue(IssueSeverity::Warning.into(), virtual_path)
                 .to_resolved()
                 .await?

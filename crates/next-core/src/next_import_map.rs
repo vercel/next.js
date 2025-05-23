@@ -93,6 +93,7 @@ pub async fn get_next_client_import_map(
     project_path: ResolvedVc<FileSystemPath>,
     ty: Value<ClientContextType>,
     next_config: Vc<NextConfig>,
+    next_mode: Vc<NextMode>,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
@@ -102,6 +103,7 @@ pub async fn get_next_client_import_map(
         project_path,
         execution_context,
         next_config,
+        next_mode,
         false,
     )
     .await?;
@@ -289,6 +291,7 @@ pub async fn get_next_server_import_map(
     project_path: ResolvedVc<FileSystemPath>,
     ty: Value<ServerContextType>,
     next_config: Vc<NextConfig>,
+    next_mode: Vc<NextMode>,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
@@ -298,6 +301,7 @@ pub async fn get_next_server_import_map(
         project_path,
         execution_context,
         next_config,
+        next_mode,
         false,
     )
     .await?;
@@ -384,6 +388,7 @@ pub async fn get_next_edge_import_map(
     project_path: ResolvedVc<FileSystemPath>,
     ty: Value<ServerContextType>,
     next_config: Vc<NextConfig>,
+    next_mode: Vc<NextMode>,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
@@ -435,6 +440,7 @@ pub async fn get_next_edge_import_map(
         project_path,
         execution_context,
         next_config,
+        next_mode,
         true,
     )
     .await?;
@@ -845,6 +851,7 @@ async fn insert_next_shared_aliases(
     project_path: ResolvedVc<FileSystemPath>,
     execution_context: Vc<ExecutionContext>,
     next_config: Vc<NextConfig>,
+    next_mode: Vc<NextMode>,
     is_runtime_edge: bool,
 ) -> Result<()> {
     let package_root = next_js_fs().root().to_resolved().await?;
@@ -892,7 +899,7 @@ async fn insert_next_shared_aliases(
     import_map.insert_alias(
         AliasPattern::exact("@vercel/turbopack-next/internal/font/google/cssmodule.module.css"),
         ImportMapping::Dynamic(ResolvedVc::upcast(
-            NextFontGoogleCssModuleReplacer::new(*project_path, execution_context)
+            NextFontGoogleCssModuleReplacer::new(*project_path, execution_context, next_mode)
                 .to_resolved()
                 .await?,
         ))
