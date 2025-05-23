@@ -43,7 +43,7 @@ import { useUntrackedPathname } from '../../navigation-untracked'
 import { getComponentStack, getOwnerStack } from '../../errors/stitched-error'
 import { handleDevBuildIndicatorHmrEvents } from '../../../dev/dev-build-indicator/internal/handle-dev-build-indicator-hmr-events'
 import type { GlobalErrorComponent } from '../../global-error'
-import type { DevIndicatorServerState } from '../../../../server/dev/dev-indicator-server-state'
+import type { DevToolsServerState } from '../../../../server/dev/dev-tools-server-state'
 import reportHmrLatency from '../utils/report-hmr-latency'
 import { TurbopackHmr } from '../utils/turbopack-hot-reloader-common'
 import { NEXT_HMR_REFRESH_HASH_COOKIE } from '../../app-router-headers'
@@ -56,7 +56,7 @@ export interface Dispatcher {
   onBeforeRefresh(): void
   onRefresh(): void
   onStaticIndicator(status: boolean): void
-  onDevIndicator(devIndicator: DevIndicatorServerState): void
+  onDevIndicator(devIndicator: DevToolsServerState['devIndicator']): void
 }
 
 let mostRecentCompilationHash: any = null
