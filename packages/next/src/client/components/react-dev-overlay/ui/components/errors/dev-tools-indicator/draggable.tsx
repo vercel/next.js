@@ -30,9 +30,11 @@ export function Draggable({
   onDragStart?: () => void
   hideDevTools: () => void
 }) {
+  const ghostRef = useRef<HTMLDivElement>(null)
   const hideRegionRef = useRef<HTMLDivElement>(null)
   const { ref, animate, ...drag } = useDrag({
     hideRegionRef,
+    ghostRef,
     threshold: 5,
     onDragStart,
     onSnapToCorner,
@@ -157,7 +159,23 @@ export function Draggable({
           <IconCross />
         </div>
       </div>
+
       <div ref={ref} {...drag} style={{ touchAction: 'none' }}>
+        {children}
+      </div>
+
+      <div
+        ref={ghostRef}
+        {...drag}
+        style={{
+          pointerEvents: 'none',
+          position: 'absolute',
+          inset: 0,
+          outline: '2px solid blue',
+          opacity: 0.25,
+          borderRadius: 9999,
+        }}
+      >
         {children}
       </div>
     </>
@@ -185,6 +203,7 @@ export function useDrag({
   onHide,
   threshold,
   hideRegionRef,
+  ghostRef,
 }: UseDragOptions) {
   const ref = useRef<HTMLDivElement | null>(null)
   const state = useRef<'idle' | 'press' | 'drag' | 'drag-end'>('idle')
@@ -193,6 +212,7 @@ export function useDrag({
 
   const origin = useRef<Point>({ x: 0, y: 0 })
   const translation = useRef<Point>({ x: 0, y: 0 })
+  const rawTranslation = useRef<Point>({ x: 0, y: 0 })
   const lastTimestamp = useRef(0)
   const velocities = useRef<Velocity[]>([])
 
@@ -211,11 +231,13 @@ export function useDrag({
       if (e.propertyName === 'translate') {
         onTransitionEnd?.()
         el?.style.removeProperty('transition')
+        ghostRef.current?.style.removeProperty('transition')
         el?.removeEventListener('transitionend', listener)
         animating.current = false
       }
     }
 
+    animating.current = true
     el.style.setProperty('transition', config)
     el.addEventListener('transitionend', listener)
   }
@@ -271,8 +293,13 @@ export function useDrag({
     const dy = currentPosition.y - origin.current.y
     origin.current = currentPosition
 
-    const intersecting = areIntersecting(ref.current, hideRegion, 20)
-    const damping = intersecting ? 0.1 : 1
+    const intersecting = areIntersecting(ghostRef.current, hideRegion, 20)
+    const damping = intersecting ? 0.25 : 1
+
+    rawTranslation.current = {
+      x: rawTranslation.current.x + dx,
+      y: rawTranslation.current.y + dy,
+    }
 
     const newTranslation = {
       x: translation.current.x + dx * damping,
@@ -281,7 +308,6 @@ export function useDrag({
 
     if (intersecting && !snapped.current) {
       snapped.current = true
-      animating.current = true
       hideRegion.style.setProperty('--width', `${ref.current?.offsetWidth}px`)
 
       const hideRegionTranslation = getHideRegionTranslation()
@@ -289,20 +315,28 @@ export function useDrag({
       newTranslation.x += hideRegionTranslation.x
       newTranslation.y += hideRegionTranslation.y
 
-      set(newTranslation)
       transition('translate 400ms var(--timing-bounce) 25ms')
+      set(newTranslation)
     }
 
     if (!intersecting && snapped.current) {
-      // transition()
-      // animating.current = true
+      console.log('Unsnap', rawTranslation.current)
       snapped.current = false
       hideRegion.style.removeProperty('--width')
+      transition('translate 200ms var(--timing-bounce)')
+      // set(rawTranslation.current)
     }
 
     if (!animating.current) {
+      console.log('Set', newTranslation)
       set(newTranslation)
     }
+
+    if (!snapped.current) {
+      set(rawTranslation.current)
+    }
+
+    ghostRef.current.style.translate = `${rawTranslation.current.x}px ${rawTranslation.current.y}px`
 
     // Keep a history of recent positions for velocity calculation
     // Only store points that are at least 10ms apart to avoid too many samples
@@ -348,6 +382,7 @@ export function useDrag({
     }
     ref.current?.releasePointerCapture(e.pointerId)
     snapped.current = false
+    rawTranslation.current = { x: 0, y: 0 }
   }
 
   function getHideRegionTranslation() {
