@@ -172,7 +172,7 @@ export function Draggable({
           position: 'absolute',
           inset: 0,
           outline: '2px solid blue',
-          opacity: 0.25,
+          opacity: 0.1,
           borderRadius: 9999,
         }}
       >
@@ -296,6 +296,11 @@ export function useDrag({
     const intersecting = areIntersecting(ghostRef.current, hideRegion, 20)
     const damping = intersecting ? 0.25 : 1
 
+    // what the hell is this?
+    // well its the translation of the ghost el
+    // and why we need it because we want to use the
+    // non dampened coordinates to determine if we are intersecting or not
+    // otherwise it will take you a lot of movement to "unsnap" from the X region
     rawTranslation.current = {
       x: rawTranslation.current.x + dx,
       y: rawTranslation.current.y + dy,
