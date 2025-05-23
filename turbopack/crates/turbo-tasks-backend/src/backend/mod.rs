@@ -220,9 +220,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         Self {
             options,
             start_time: Instant::now(),
-            session_id: backing_storage.next_session_id(),
+            session_id: backing_storage
+                .next_session_id()
+                .expect("Failed get session id"),
             persisted_task_id_factory: IdFactoryWithReuse::new(
-                backing_storage.next_free_task_id(),
+                backing_storage
+                    .next_free_task_id()
+                    .expect("Failed to get task id"),
                 TaskId::try_from(TRANSIENT_TASK_BIT - 1).unwrap(),
             ),
             transient_task_id_factory: IdFactoryWithReuse::new(
@@ -780,6 +784,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             if let Some(task_type) = unsafe {
                 self.backing_storage
                     .reverse_lookup_task_cache(None, task_id)
+                    .expect("Failed to lookup task type")
             } {
                 let _ = self.task_cache.try_insert(task_type.clone(), task_id);
                 return Some(task_type);
@@ -969,7 +974,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             // Continue all uncompleted operations
             // They can't be interrupted by a snapshot since the snapshotting job has not been
             // scheduled yet.
-            let uncompleted_operations = self.backing_storage.uncompleted_operations();
+            let uncompleted_operations = self
+                .backing_storage
+                .uncompleted_operations()
+                .expect("Failed to get uncompleted operations");
             if !uncompleted_operations.is_empty() {
                 let mut ctx = self.execute_context(turbo_tasks);
                 for op in uncompleted_operations {
@@ -1057,6 +1065,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             if let Some(task_id) = unsafe {
                 self.backing_storage
                     .forward_lookup_task_cache(tx.as_ref(), &task_type)
+                    .expect("Failed to lookup task id")
             } {
                 let _ = self.task_cache.try_insert(Arc::new(task_type), task_id);
                 task_id
