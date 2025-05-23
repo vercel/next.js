@@ -3,7 +3,7 @@ name = "turbo-tasks-backend"
 version = "0.1.0"
 description = "TBD"
 license = "MIT"
-edition = "2021"
+edition = "2024"
 autobenches = false
 
 [lib]
@@ -15,6 +15,7 @@ workspace = true
 [features]
 default = []
 verify_serialization = []
+verify_aggregation_graph = []
 trace_aggregation_update = []
 trace_find_and_schedule = []
 trace_task_completion = []

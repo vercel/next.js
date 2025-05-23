@@ -8,12 +8,12 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use crossterm::style::{StyledContent, Stylize};
 use owo_colors::{OwoColorize as _, Style};
 use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_tasks::{RawVc, ReadRef, TransientInstance, TransientValue, TryJoinIterExt, Vc};
-use turbo_tasks_fs::{source_context::get_source_context, FileLinesContent};
+use turbo_tasks_fs::{FileLinesContent, source_context::get_source_context};
 use turbopack_core::issue::{
     CapturedIssues, Issue, IssueReporter, IssueSeverity, PlainIssue, PlainIssueProcessingPathItem,
     PlainIssueSource, StyledString,
@@ -102,7 +102,7 @@ fn format_optional_path(
             if let Some(context) = context {
                 let option_context = Some(context.clone());
                 if last_context == option_context {
-                    writeln!(formatted_issue, " at {}", description)?;
+                    writeln!(formatted_issue, " at {description}")?;
                 } else {
                     writeln!(
                         formatted_issue,
@@ -113,7 +113,7 @@ fn format_optional_path(
                     last_context = option_context;
                 }
             } else {
-                writeln!(formatted_issue, " at {}", description)?;
+                writeln!(formatted_issue, " at {description}")?;
                 last_context = None;
             }
         }
@@ -167,7 +167,7 @@ pub fn format_issue(
             writeln!(styled_issue, "\ndocumentation: {documentation_link}").unwrap();
         }
         if let Some(path) = path {
-            writeln!(styled_issue, "{}", path).unwrap();
+            writeln!(styled_issue, "{path}").unwrap();
         }
     }
 
@@ -590,7 +590,7 @@ fn style_issue_source(plain_issue: &PlainIssue, context_path: &str) -> String {
                 start.column,
                 formatted_title
             ),
-            None => format!("{}  {}", context_path, formatted_title),
+            None => format!("{context_path}  {formatted_title}"),
         };
         styled_issue.push('\n');
         format_source_content(source, &mut styled_issue);

@@ -3,8 +3,8 @@ use std::{
     fs,
     path::PathBuf,
     sync::{
-        atomic::{AtomicBool, Ordering},
         Arc,
+        atomic::{AtomicBool, Ordering},
     },
 };
 
@@ -281,7 +281,7 @@ fn write_dep_tree(
             ident.name,
             ident.path,
             ident.range.start.line,
-            tags.iter().map(|t| format!("\"{}\"", t)).join(",")
+            tags.iter().map(|t| format!("\"{t}\"")).join(",")
         );
         node_ids.insert(ident, counter);
     }
@@ -297,6 +297,6 @@ fn write_dep_tree(
         let src_id = *node_ids.get(src).unwrap();
         let dst_id = *node_ids.get(dest).unwrap();
 
-        _ = writeln!(file, "CREATE (n_{})-[:{}]->(n_{})", src_id, style, dst_id,);
+        _ = writeln!(file, "CREATE (n_{src_id})-[:{style}]->(n_{dst_id})",);
     }
 }

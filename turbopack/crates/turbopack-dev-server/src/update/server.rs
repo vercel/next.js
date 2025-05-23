@@ -5,15 +5,15 @@ use std::{
 };
 
 use anyhow::{Context as _, Error, Result};
-use futures::{prelude::*, ready, stream::FusedStream, SinkExt};
-use hyper::{upgrade::Upgraded, HeaderMap, Uri};
-use hyper_tungstenite::{tungstenite::Message, HyperWebsocket, WebSocketStream};
+use futures::{SinkExt, prelude::*, ready, stream::FusedStream};
+use hyper::{HeaderMap, Uri, upgrade::Upgraded};
+use hyper_tungstenite::{HyperWebsocket, WebSocketStream, tungstenite::Message};
 use pin_project_lite::pin_project;
 use tokio::select;
 use tokio_stream::StreamMap;
-use tracing::{instrument, Level};
+use tracing::{Level, instrument};
 use turbo_tasks::{
-    trace::TraceRawVcs, NonLocalValue, OperationVc, ReadRef, TransientInstance, TurboTasksApi, Vc,
+    NonLocalValue, OperationVc, ReadRef, TransientInstance, TurboTasksApi, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::json::parse_json_with_source_context;
 use turbopack_core::{error::PrettyPrintError, issue::IssueReporter, version::Update};
@@ -22,13 +22,13 @@ use turbopack_ecmascript_hmr_protocol::{
 };
 
 use crate::{
+    SourceProvider,
     source::{
-        request::SourceRequest,
-        resolve::{resolve_source_request, ResolveSourceRequestResult},
         Body,
+        request::SourceRequest,
+        resolve::{ResolveSourceRequestResult, resolve_source_request},
     },
     update::stream::{GetContentFn, UpdateStream, UpdateStreamItem},
-    SourceProvider,
 };
 
 /// A server that listens for updates and sends them to connected clients.
@@ -54,7 +54,7 @@ where
     pub fn run(self, tt: &dyn TurboTasksApi, ws: HyperWebsocket) {
         tt.run_once_process(Box::pin(async move {
             if let Err(err) = self.run_internal(ws).await {
-                println!("[UpdateServer]: error {:#}", err);
+                println!("[UpdateServer]: error {err:#}");
             }
             Ok(())
         }));

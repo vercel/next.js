@@ -66,11 +66,18 @@ pub trait SerialWriteBatch<'a>: BaseWriteBatch<'a> {
         value: WriteBuffer<'_>,
     ) -> Result<()>;
     fn delete(&mut self, key_space: KeySpace, key: WriteBuffer<'_>) -> Result<()>;
+    fn flush(&mut self, key_space: KeySpace) -> Result<()>;
 }
 
 pub trait ConcurrentWriteBatch<'a>: BaseWriteBatch<'a> + Sync + Send {
     fn put(&self, key_space: KeySpace, key: WriteBuffer<'_>, value: WriteBuffer<'_>) -> Result<()>;
     fn delete(&self, key_space: KeySpace, key: WriteBuffer<'_>) -> Result<()>;
+    /// Flushes a key space of the write batch, reducing the amount of buffered memory used.
+    /// Does not commit any data persistently.
+    ///
+    /// Safety: Caller must ensure that no concurrent put or delete operation is happening on the
+    /// flushed key space.
+    unsafe fn flush(&self, key_space: KeySpace) -> Result<()>;
 }
 
 pub enum WriteBatch<'a, S, C>
@@ -164,6 +171,16 @@ where
             WriteBatch::Concurrent(c, _) => c.delete(key_space, key),
         }
     }
+
+    fn flush(&mut self, key_space: KeySpace) -> Result<()> {
+        match self {
+            WriteBatch::Serial(s) => s.flush(key_space),
+            WriteBatch::Concurrent(c, _) => {
+                // Safety: the &mut self ensures that no concurrent operation is happening
+                unsafe { c.flush(key_space) }
+            }
+        }
+    }
 }
 
 pub enum WriteBatchRef<'r, 'a, S, C>
@@ -241,6 +258,16 @@ where
             WriteBatchRef::Concurrent(c, _) => c.delete(key_space, key),
         }
     }
+
+    fn flush(&mut self, key_space: KeySpace) -> Result<()> {
+        match self {
+            WriteBatchRef::Serial(s) => s.flush(key_space),
+            WriteBatchRef::Concurrent(c, _) => {
+                // Safety: the &mut self ensures that no concurrent operation is happening
+                unsafe { c.flush(key_space) }
+            }
+        }
+    }
 }
 
 pub struct UnimplementedWriteBatch;
@@ -275,6 +302,9 @@ impl SerialWriteBatch<'_> for UnimplementedWriteBatch {
     fn delete(&mut self, _key_space: KeySpace, _key: WriteBuffer<'_>) -> Result<()> {
         todo!()
     }
+    fn flush(&mut self, _key_space: KeySpace) -> Result<()> {
+        todo!()
+    }
 }
 
 impl ConcurrentWriteBatch<'_> for UnimplementedWriteBatch {
@@ -287,6 +317,9 @@ impl ConcurrentWriteBatch<'_> for UnimplementedWriteBatch {
         todo!()
     }
     fn delete(&self, _key_space: KeySpace, _key: WriteBuffer<'_>) -> Result<()> {
+        todo!()
+    }
+    unsafe fn flush(&self, _key_space: KeySpace) -> Result<()> {
         todo!()
     }
 }

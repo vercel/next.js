@@ -436,6 +436,20 @@
     "flakey": [],
     "runtimeError": false
   },
+  "packages/next/src/build/static-paths/app.test.ts": {
+    "passed": [
+      "assignErrorIfEmpty should assign throwOnEmptyStaticShell false for a static route",
+      "assignErrorIfEmpty should assign throwOnEmptyStaticShell to the prerendered routes",
+      "assignErrorIfEmpty should handle more complex routes",
+      "filterUniqueParams should filter out duplicate parameters",
+      "filterUniqueParams should handle more complex routes",
+      "filterUniqueRootParamsCombinations should return only the root parameters"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "packages/next/src/build/webpack/loaders/metadata/resolve-route-data.test.ts": {
     "passed": [
       "resolveRouteData resolveRobots should error with ts when specify both wildcard userAgent and specific userAgent",
@@ -513,7 +527,10 @@
     "runtimeError": false
   },
   "packages/next/src/client/components/react-dev-overlay/ui/components/code-frame/parse-code-frame.test.ts": {
-    "passed": ["parse line numbers parse line numbers from code frame"],
+    "passed": [
+      "parse line numbers parse line numbers from code frame",
+      "parse line numbers parse line numbers when a token contains both break and spaces"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -1033,7 +1050,9 @@
       "loadConfig canary-only features errors when using persistentCaching if not in canary",
       "loadConfig canary-only features should not print a stack trace when throwing an error",
       "loadConfig nextConfig.images defaults should assign a `images.remotePatterns` when using assetPrefix",
-      "loadConfig nextConfig.images defaults should not assign a duplicate `images.remotePatterns` value when using assetPrefix"
+      "loadConfig nextConfig.images defaults should not assign a duplicate `images.remotePatterns` value when using assetPrefix",
+      "loadConfig with a canary version errors when dynamicIO is enabled but PPR is disabled",
+      "loadConfig with a canary version errors when dynamicIO is enabled but PPR set to \"incremental\""
     ],
     "failed": [],
     "pending": [],
@@ -1076,6 +1095,16 @@
       "create-env-definitions should allow empty env",
       "create-env-definitions should create env definitions",
       "create-env-definitions should dedupe env definitions in order of priority"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/server/lib/fix-mojibake.test.ts": {
+    "passed": [
+      "Mojibake handling should fix invalid encoding",
+      "Mojibake handling should maintain value when encoding is correct $1"
     ],
     "failed": [],
     "pending": [],
@@ -1148,6 +1177,7 @@
   },
   "packages/next/src/server/lib/router-utils/build-prefetch-segment-data-route.test.ts": {
     "passed": [
+      "buildInversePrefetchSegmentDataRoute should build an inverted prefetch segment data route",
       "buildPrefetchSegmentDataRoute should build a prefetch segment data route"
     ],
     "failed": [],
@@ -1915,7 +1945,9 @@
   "test/development/acceptance-app/hydration-error.test.ts": {
     "passed": [
       "Error overlay for hydration errors in App router includes a React docs link when hydration error does occur",
-      "Error overlay for hydration errors in App router should not show a hydration error when using `useId` in a client component",
+      "Error overlay for hydration errors in App router should not show a hydration error when using `useId` in a client component"
+    ],
+    "failed": [
       "Error overlay for hydration errors in App router should only show one hydration error when bad nesting happened - div > tr",
       "Error overlay for hydration errors in App router should only show one hydration error when bad nesting happened - div under p",
       "Error overlay for hydration errors in App router should only show one hydration error when bad nesting happened - p under p",
@@ -1931,7 +1963,6 @@
       "Error overlay for hydration errors in App router should show error if script is directly placed under html instead of body",
       "Error overlay for hydration errors in App router should show the highlighted bad nesting html snippet when bad nesting happened"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1986,11 +2017,10 @@
       "Error overlay - RSC build errors should throw an error when error file is a server component",
       "Error overlay - RSC build errors should throw an error when error file is a server component with empty error file",
       "Error overlay - RSC build errors should throw an error when getServerSideProps is used",
+      "Error overlay - RSC build errors should throw an error when metadata export is used in client components",
       "Error overlay - RSC build errors should throw an error when metadata exports are used together in server components"
     ],
-    "failed": [
-      "Error overlay - RSC build errors should throw an error when metadata export is used in client components"
-    ],
+    "failed": [],
     "pending": [
       "Error overlay - RSC build errors should throw an error when getStaticProps is used"
     ],
@@ -2070,12 +2100,12 @@
   },
   "test/development/acceptance/ReactRefreshLogBox-app-doc.test.ts": {
     "passed": [
-      "ReactRefreshLogBox _app _document empty _app shows logbox",
-      "ReactRefreshLogBox _app _document empty _document shows logbox"
-    ],
-    "failed": [
       "ReactRefreshLogBox _app _document _app syntax error shows logbox",
       "ReactRefreshLogBox _app _document _document syntax error shows logbox"
+    ],
+    "failed": [
+      "ReactRefreshLogBox _app _document empty _app shows logbox",
+      "ReactRefreshLogBox _app _document empty _document shows logbox"
     ],
     "pending": [],
     "flakey": [],
@@ -2387,11 +2417,10 @@
   },
   "test/development/app-dir/edge-errors-hmr/index.test.ts": {
     "passed": [
+      "develop - app-dir - edge errros hmr should recover from build errors when client component error",
       "develop - app-dir - edge errros hmr should recover from build errors when server component error"
     ],
-    "failed": [
-      "develop - app-dir - edge errros hmr should recover from build errors when client component error"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2475,6 +2504,16 @@
     ],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/app-dir/hmr-symlink/hmr-symlink.test.ts": {
+    "passed": [
+      "HMR symlinks tracks updates to symlinked target",
+      "HMR symlinks tracks updates to the symlink"
+    ],
+    "failed": [],
+    "pending": ["HMR symlinks tracks updates to the middle of a symlink chain"],
     "flakey": [],
     "runtimeError": false
   },
@@ -2652,11 +2691,10 @@
       "react-dom/server in React Server environment explicit react-dom/server.node usage in library code",
       "react-dom/server in React Server environment implicit react-dom/server.edge usage in app code",
       "react-dom/server in React Server environment implicit react-dom/server.edge usage in library code",
+      "react-dom/server in React Server environment implicit react-dom/server.node usage in app code",
       "react-dom/server in React Server environment implicit react-dom/server.node usage in library code"
     ],
-    "failed": [
-      "react-dom/server in React Server environment implicit react-dom/server.node usage in app code"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2688,6 +2726,16 @@
     "passed": [
       "typed-env should have env types from next config",
       "typed-env should rewrite env types if .env is modified"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/app-dir/use-cache-errors/use-cache-errors.test.ts": {
+    "passed": [
+      "use-cache-errors should not show a false-positive compiler error about a misplaced \"use cache\" directive",
+      "use-cache-errors should show a runtime error when calling the incorrectly used cache function"
     ],
     "failed": [],
     "pending": [],
@@ -2731,7 +2779,8 @@
     "passed": [
       "asset-prefix rewrites rewrites that do not start with assetPrefix should still work",
       "asset-prefix rewrites should respect rewrites that start with assetPrefix",
-      "asset-prefix should load the app properly without reloading"
+      "asset-prefix should load the app properly without reloading",
+      "asset-prefix should navigate to another page without hard navigating"
     ],
     "failed": [],
     "pending": [],
@@ -2808,145 +2857,244 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/basic/hmr/basic.test.ts": {
+  "test/development/basic/hmr/basic-no-base-path-no-asset-prefix.test.ts": {
     "passed": [
-      "basic HMR, nextConfig: { basePath: '', assetPrefix: '' } should have correct compile timing after fixing error",
-      "basic HMR, nextConfig: { basePath: '', assetPrefix: '' } should have correct router.isReady for auto-export page",
-      "basic HMR, nextConfig: { basePath: '', assetPrefix: '' } should have correct router.isReady for getStaticProps page",
-      "basic HMR, nextConfig: { basePath: '', assetPrefix: '' } should reload the page when the server restarts",
-      "basic HMR, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should have correct compile timing after fixing error",
-      "basic HMR, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should have correct router.isReady for auto-export page",
-      "basic HMR, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should have correct router.isReady for getStaticProps page",
-      "basic HMR, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should reload the page when the server restarts",
-      "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '' } should have correct compile timing after fixing error",
-      "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '' } should have correct router.isReady for auto-export page",
-      "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '' } should have correct router.isReady for getStaticProps page",
-      "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '' } should reload the page when the server restarts",
-      "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should have correct compile timing after fixing error",
-      "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should have correct router.isReady for auto-export page",
-      "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should have correct router.isReady for getStaticProps page",
-      "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should reload the page when the server restarts"
+      "HMR - basic, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should have correct compile timing after fixing error",
+      "HMR - basic, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should have correct router.isReady for auto-export page",
+      "HMR - basic, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should have correct router.isReady for getStaticProps page",
+      "HMR - basic, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should reload the page when the server restarts"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/basic/hmr/error-recovery.test.ts": {
+  "test/development/basic/hmr/basic-no-base-path-yes-asset-prefix.test.ts": {
     "passed": [
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should have client HMR events in trace file",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover after a bad return from the render function",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover after an error reported via SSR",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover after exporting an invalid page",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover after undefined exported as default",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover after webpack parse error in an imported file",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover from 404 after a page has been added",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover from 404 after a page has been added with dynamic segments",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover from errors in getInitialProps in client",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should show the error on all pages",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should have client HMR events in trace file",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover after a bad return from the render function",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover after an error reported via SSR",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover after exporting an invalid page",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover after undefined exported as default",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover after webpack parse error in an imported file",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover from 404 after a page has been added",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover from 404 after a page has been added with dynamic segments",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover from errors in getInitialProps in client",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should show the error on all pages",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should have client HMR events in trace file",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover after a bad return from the render function",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover after an error reported via SSR",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover after exporting an invalid page",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover after undefined exported as default",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover after webpack parse error in an imported file",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover from 404 after a page has been added",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover from 404 after a page has been added with dynamic segments",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover from errors in getInitialProps in client",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should show the error on all pages",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should have client HMR events in trace file",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover after a bad return from the render function",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover after an error reported via SSR",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover after exporting an invalid page",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover after undefined exported as default",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover after webpack parse error in an imported file",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover from 404 after a page has been added",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover from 404 after a page has been added with dynamic segments",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover from errors in getInitialProps in client",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should show the error on all pages"
+      "HMR - basic, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should have correct compile timing after fixing error",
+      "HMR - basic, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should have correct router.isReady for auto-export page",
+      "HMR - basic, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should have correct router.isReady for getStaticProps page",
+      "HMR - basic, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should reload the page when the server restarts"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/basic/hmr/basic-yes-base-path-no-asset-prefix.test.ts": {
+    "passed": [
+      "HMR - basic, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should have correct compile timing after fixing error",
+      "HMR - basic, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should have correct router.isReady for auto-export page",
+      "HMR - basic, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should have correct router.isReady for getStaticProps page",
+      "HMR - basic, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should reload the page when the server restarts"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/basic/hmr/basic-yes-base-path-yes-asset-prefix.test.ts": {
+    "passed": [
+      "HMR - basic, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should have correct compile timing after fixing error",
+      "HMR - basic, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should have correct router.isReady for auto-export page",
+      "HMR - basic, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should have correct router.isReady for getStaticProps page",
+      "HMR - basic, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should reload the page when the server restarts"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/basic/hmr/error-recovery-no-base-path-no-asset-prefix.test.ts": {
+    "passed": [
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should have client HMR events in trace file",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover after a bad return from the render function",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover after an error reported via SSR",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover after exporting an invalid page",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover after undefined exported as default",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover after webpack parse error in an imported file",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover from 404 after a page has been added",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover from 404 after a page has been added with dynamic segments",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover from errors in getInitialProps in client",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should show the error on all pages"
     ],
     "failed": [
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should detect runtime errors on the module scope",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should detect syntax errors and recover",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should not continously poll a custom error page",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover after loader parse error in an imported file",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover from errors in the render function",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should detect runtime errors on the module scope",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should detect syntax errors and recover",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should not continously poll a custom error page",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover after loader parse error in an imported file",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover from errors in the render function",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should detect runtime errors on the module scope",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should detect syntax errors and recover",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should not continously poll a custom error page",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover after loader parse error in an imported file",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover from errors in the render function",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should detect runtime errors on the module scope",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should detect syntax errors and recover",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should not continously poll a custom error page",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover after loader parse error in an imported file",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover from errors in the render function"
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should detect runtime errors on the module scope",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should detect syntax errors and recover",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should not continously poll a custom error page",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover after loader parse error in an imported file",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover from errors in the render function"
     ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/basic/hmr/full-reload.test.ts": {
+  "test/development/basic/hmr/error-recovery-no-base-path-yes-asset-prefix.test.ts": {
     "passed": [
-      "HMR - Full Reload, nextConfig: { basePath: '', assetPrefix: '' } should warn about full reload in cli output - anonymous page function",
-      "HMR - Full Reload, nextConfig: { basePath: '', assetPrefix: '' } should warn about full reload in cli output - runtime-error",
-      "HMR - Full Reload, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should warn about full reload in cli output - anonymous page function",
-      "HMR - Full Reload, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should warn about full reload in cli output - runtime-error",
-      "HMR - Full Reload, nextConfig: { basePath: '/docs', assetPrefix: '' } should warn about full reload in cli output - anonymous page function",
-      "HMR - Full Reload, nextConfig: { basePath: '/docs', assetPrefix: '' } should warn about full reload in cli output - runtime-error",
-      "HMR - Full Reload, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should warn about full reload in cli output - anonymous page function",
-      "HMR - Full Reload, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should warn about full reload in cli output - runtime-error"
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should have client HMR events in trace file",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover after a bad return from the render function",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover after an error reported via SSR",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover after exporting an invalid page",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover after undefined exported as default",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover after webpack parse error in an imported file",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover from 404 after a page has been added",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover from 404 after a page has been added with dynamic segments",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover from errors in getInitialProps in client",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should show the error on all pages"
+    ],
+    "failed": [
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should detect runtime errors on the module scope",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should detect syntax errors and recover",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should not continously poll a custom error page",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover after loader parse error in an imported file",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover from errors in the render function"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/basic/hmr/error-recovery-yes-base-path-no-asset-prefix.test.ts": {
+    "passed": [
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should have client HMR events in trace file",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover after a bad return from the render function",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover after an error reported via SSR",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover after exporting an invalid page",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover after undefined exported as default",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover after webpack parse error in an imported file",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover from 404 after a page has been added",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover from 404 after a page has been added with dynamic segments",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover from errors in getInitialProps in client",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should show the error on all pages"
+    ],
+    "failed": [
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should detect runtime errors on the module scope",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should detect syntax errors and recover",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should not continously poll a custom error page",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover after loader parse error in an imported file",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover from errors in the render function"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/basic/hmr/error-recovery-yes-base-path-yes-asset-prefix.test.ts": {
+    "passed": [
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should have client HMR events in trace file",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover after a bad return from the render function",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover after an error reported via SSR",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover after exporting an invalid page",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover after undefined exported as default",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover after webpack parse error in an imported file",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover from 404 after a page has been added",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover from 404 after a page has been added with dynamic segments",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover from errors in getInitialProps in client",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should show the error on all pages"
+    ],
+    "failed": [
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should detect runtime errors on the module scope",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should detect syntax errors and recover",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should not continously poll a custom error page",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover after loader parse error in an imported file",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover from errors in the render function"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/basic/hmr/full-reload-no-base-path-no-asset-prefix.test.ts": {
+    "passed": [
+      "HMR - Full Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should warn about full reload in cli output - anonymous page function",
+      "HMR - Full Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should warn about full reload in cli output - runtime-error"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/basic/hmr/hot-module-reload.test.ts": {
+  "test/development/basic/hmr/full-reload-no-base-path-yes-asset-prefix.test.ts": {
     "passed": [
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '' } delete a page and add it back should load the page properly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '' } editing a page should detect the changes and display it",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '' } editing a page should not full reload when nonlatin characters are used",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '' } editing a page should not reload unrelated pages",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '' } editing a page should update styles correctly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '' } editing a page should update styles in a dynamic component correctly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '' } editing a page should update styles in a stateful component correctly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } delete a page and add it back should load the page properly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } editing a page should detect the changes and display it",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } editing a page should not full reload when nonlatin characters are used",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } editing a page should not reload unrelated pages",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } editing a page should update styles correctly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } editing a page should update styles in a dynamic component correctly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } editing a page should update styles in a stateful component correctly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '' } delete a page and add it back should load the page properly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '' } editing a page should detect the changes and display it",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '' } editing a page should not full reload when nonlatin characters are used",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '' } editing a page should not reload unrelated pages",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '' } editing a page should update styles correctly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '' } editing a page should update styles in a dynamic component correctly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '' } editing a page should update styles in a stateful component correctly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } delete a page and add it back should load the page properly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } editing a page should detect the changes and display it",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } editing a page should not full reload when nonlatin characters are used",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } editing a page should not reload unrelated pages",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } editing a page should update styles correctly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } editing a page should update styles in a dynamic component correctly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } editing a page should update styles in a stateful component correctly"
+      "HMR - Full Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should warn about full reload in cli output - anonymous page function",
+      "HMR - Full Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should warn about full reload in cli output - runtime-error"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/basic/hmr/full-reload-yes-base-path-no-asset-prefix.test.ts": {
+    "passed": [
+      "HMR - Full Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should warn about full reload in cli output - anonymous page function",
+      "HMR - Full Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should warn about full reload in cli output - runtime-error"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/basic/hmr/full-reload-yes-base-path-yes-asset-prefix.test.ts": {
+    "passed": [
+      "HMR - Full Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should warn about full reload in cli output - anonymous page function",
+      "HMR - Full Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should warn about full reload in cli output - runtime-error"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/basic/hmr/hot-module-reload-no-base-path-no-asset-prefix.test.ts": {
+    "passed": [
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} delete a page and add it back should load the page properly",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} editing a page should detect the changes and display it",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} editing a page should not full reload when nonlatin characters are used",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} editing a page should not reload unrelated pages",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} editing a page should update styles correctly",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} editing a page should update styles in a dynamic component correctly",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} editing a page should update styles in a stateful component correctly"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/basic/hmr/hot-module-reload-no-base-path-yes-asset-prefix.test.ts": {
+    "passed": [
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} delete a page and add it back should load the page properly",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} editing a page should detect the changes and display it",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} editing a page should not full reload when nonlatin characters are used",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} editing a page should not reload unrelated pages",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} editing a page should update styles correctly",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} editing a page should update styles in a dynamic component correctly",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} editing a page should update styles in a stateful component correctly"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/basic/hmr/hot-module-reload-yes-base-path-no-asset-prefix.test.ts": {
+    "passed": [
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} delete a page and add it back should load the page properly",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} editing a page should detect the changes and display it",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} editing a page should not full reload when nonlatin characters are used",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} editing a page should not reload unrelated pages",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} editing a page should update styles correctly",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} editing a page should update styles in a dynamic component correctly",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} editing a page should update styles in a stateful component correctly"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/basic/hmr/hot-module-reload-yes-base-path-yes-asset-prefix.test.ts": {
+    "passed": [
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} delete a page and add it back should load the page properly",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} editing a page should detect the changes and display it",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} editing a page should not full reload when nonlatin characters are used",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} editing a page should not reload unrelated pages",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} editing a page should update styles correctly",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} editing a page should update styles in a dynamic component correctly",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} editing a page should update styles in a stateful component correctly"
     ],
     "failed": [],
     "pending": [],
@@ -3148,11 +3296,10 @@
       "node builtins should support node.js builtins",
       "node builtins should support node.js builtins in server component",
       "node builtins should support node.js builtins prefixed by node:",
-      "node builtins should support node.js builtins prefixed by node: in server component"
-    ],
-    "failed": [
+      "node builtins should support node.js builtins prefixed by node: in server component",
       "node builtins should throw when unsupported builtins are used in middleware"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3276,7 +3423,9 @@
   },
   "test/development/experimental-https-server/https-server.generated-key.test.ts": {
     "passed": [
-      "experimental-https-server (generated certificate) only runs on CI as it requires administrator privileges"
+      "experimental-https-server (generated certificate) should successfully load the app in app dir",
+      "experimental-https-server (generated certificate) should successfully load the app in pages dir",
+      "experimental-https-server (generated certificate) should successfully reuse generated certificates"
     ],
     "failed": [],
     "pending": [],
@@ -3418,96 +3567,65 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/pages-dir/client-navigation/index.test.ts": {
+  "test/development/pages-dir/client-navigation/anchor-in-link.test.ts": {
     "passed": [
-      "Client Navigation foreign history manipulation should ignore foreign history state with missing properties",
-      "Client Navigation foreign history manipulation should ignore history state with an invalid url",
-      "Client Navigation foreign history manipulation should ignore history state without options",
-      "Client Navigation resets scroll at the correct time should intentionally not reset scroll before the new page runs its lifecycles (Router#push)",
-      "Client Navigation resets scroll at the correct time should reset scroll before the new page runs its lifecycles (<Link />)",
-      "Client Navigation resets scroll at the correct time should reset scroll before the new page runs its lifecycles (Router#push)",
-      "Client Navigation should emit routeChangeError on hash change cancel",
-      "Client Navigation should handle boolean async prop in next/script client-side: false",
-      "Client Navigation should handle boolean async prop in next/script client-side: true",
-      "Client Navigation should handle undefined prop in head client-side",
-      "Client Navigation should navigate to paths relative to the current page",
-      "Client Navigation should not error on module.exports + polyfills",
-      "Client Navigation should not reload when visiting /_error directly",
-      "Client Navigation should only execute async and defer scripts with next/script once",
-      "Client Navigation should scroll to top when the scroll option is set to true",
-      "Client Navigation should work on nested /index/index.js",
-      "Client Navigation with 404 pages should 404 on not existent page",
-      "Client Navigation with 404 pages should 404 on wrong casing",
-      "Client Navigation with 404 pages should 404 on wrong casing of url dynamic param",
-      "Client Navigation with 404 pages should get url dynamic param",
-      "Client Navigation with 404 pages should not 404 for <page>/",
-      "Client Navigation with 404 pages should should not contain a page script in a 404 page",
-      "Client Navigation with <Link/> should call mouse handlers with an absolute url",
-      "Client Navigation with <Link/> should error when calling onClick without event",
-      "Client Navigation with <Link/> should navigate an absolute local url",
-      "Client Navigation with <Link/> should navigate an absolute local url with as",
-      "Client Navigation with <Link/> should navigate an absolute url",
-      "Client Navigation with <Link/> should navigate back after reload",
-      "Client Navigation with <Link/> should navigate forwards after reload",
-      "Client Navigation with <Link/> should navigate the page",
-      "Client Navigation with <Link/> should navigate via the client side",
-      "Client Navigation with <Link/> should not throw error when one number type child is provided",
       "Client Navigation with <a/> tag inside the <Link /> should navigate the page",
       "Client Navigation with <a/> tag inside the <Link /> should not navigate if the <a/> tag has a target",
       "Client Navigation with <a/> tag inside the <Link /> should not navigate if the click-event is modified",
       "Client Navigation with <a/> tag inside the <Link /> should not reload when link in svg is clicked",
-      "Client Navigation with URL objects should handle undefined in router.push",
-      "Client Navigation with URL objects should work with \"Router.push\"",
-      "Client Navigation with URL objects should work with <Link/>",
-      "Client Navigation with URL objects should work with the \"replace\" prop",
-      "Client Navigation with asPath inside getInitialProps should show the correct asPath with a Link with as prop",
-      "Client Navigation with asPath inside getInitialProps should show the correct asPath with a Link without the as prop",
-      "Client Navigation with asPath with next/link should detect asPath query changes correctly",
-      "Client Navigation with asPath with next/link should use pushState with same href and different asPath",
-      "Client Navigation with asPath with next/router should navigate an absolute local url on push",
-      "Client Navigation with asPath with next/router should navigate an absolute local url on replace",
-      "Client Navigation with asPath with next/router should navigate an absolute url on push",
-      "Client Navigation with asPath with next/router should navigate an absolute url on replace",
-      "Client Navigation with asPath with next/router should show the correct asPath",
-      "Client Navigation with different types of urls should not work with /index page",
-      "Client Navigation with different types of urls should work with / page",
-      "Client Navigation with different types of urls should work with dir/ page",
-      "Client Navigation with different types of urls should work with normal page",
-      "Client Navigation with empty getInitialProps() should render a redbox",
-      "Client Navigation with getInitialProp redirect should redirect the page via client side",
-      "Client Navigation with getInitialProp redirect should redirect the page when loading",
-      "Client Navigation with hash changes check hydration mis-match should not have hydration mis-match for hash link",
-      "Client Navigation with hash changes when hash change via A tag should not run getInitialProps",
-      "Client Navigation with hash changes when hash change via Link Should update asPath",
-      "Client Navigation with hash changes when hash change via Link should not run getInitialProps",
-      "Client Navigation with hash changes when hash change via Link should not scroll to hash when scroll={false} is set",
-      "Client Navigation with hash changes when hash change via Link should scroll to the specified CJK position to a new page",
-      "Client Navigation with hash changes when hash change via Link should scroll to the specified position on the same page",
-      "Client Navigation with hash changes when hash change via Link should scroll to the specified position on the same page with a name property",
-      "Client Navigation with hash changes when hash change via Link should scroll to the specified position to a new page",
-      "Client Navigation with hash changes when hash get removed should not run getInitialProps",
-      "Client Navigation with hash changes when hash get removed should not run getInitialProps when removing via back",
-      "Client Navigation with hash changes when hash set to empty should not run getInitialProps",
-      "Client Navigation with hash changes with state when passing state via hash change should increment the history state counter",
-      "Client Navigation with hash changes with state when passing state via hash change should increment the shallow history state counter",
-      "Client Navigation with onClick action should always replace the state and perform additional action",
-      "Client Navigation with onClick action should not reload if default was prevented",
-      "Client Navigation with onClick action should reload the page and perform additional action",
-      "Client Navigation with querystring relative urls router.replace with shallow=true shall not throw route cancelled errors",
-      "Client Navigation with querystring relative urls should work with Link",
-      "Client Navigation with querystring relative urls should work with router.push",
-      "Client Navigation with querystring relative urls should work with router.replace",
-      "Client Navigation with shallow routing should handle the back button and should not run getInitialProps",
-      "Client Navigation with shallow routing should keep the scroll position on shallow routing",
-      "Client Navigation with shallow routing should run getInitialProps always when rending the page to the screen",
-      "Client Navigation with shallow routing should update the url without running getInitialProps",
-      "Client Navigation with the HOC based router should navigate as expected",
-      "Client Navigation with the current url should always replace the state",
-      "Client Navigation with the current url should reload the page",
-      "Client Navigation with the same page but different querystring should navigate the page",
-      "Client Navigation with the same page but different querystring should remove querystring",
       "Client Navigation with unexpected <a/> nested tag should not redirect if passHref prop is not defined in Link",
-      "Client Navigation with unexpected <a/> nested tag should redirect if passHref prop is defined in Link",
+      "Client Navigation with unexpected <a/> nested tag should redirect if passHref prop is defined in Link"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/pages-dir/client-navigation/as-path.test.ts": {
+    "passed": [
+      "Client navigation with asPath inside getInitialProps should show the correct asPath with a Link with as prop",
+      "Client navigation with asPath inside getInitialProps should show the correct asPath with a Link without the as prop",
+      "Client navigation with asPath with next/link should detect asPath query changes correctly",
+      "Client navigation with asPath with next/link should use pushState with same href and different asPath",
+      "Client navigation with asPath with next/router should navigate an absolute local url on push",
+      "Client navigation with asPath with next/router should navigate an absolute local url on replace",
+      "Client navigation with asPath with next/router should navigate an absolute url on push",
+      "Client navigation with asPath with next/router should navigate an absolute url on replace",
+      "Client navigation with asPath with next/router should show the correct asPath"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/pages-dir/client-navigation/error-pages.test.ts": {
+    "passed": [
+      "Client navigation on error pages should not reload when visiting /_error directly",
+      "Client navigation on error pages with 404 pages should 404 on not existent page",
+      "Client navigation on error pages with 404 pages should 404 on wrong casing",
+      "Client navigation on error pages with 404 pages should 404 on wrong casing of url dynamic param",
+      "Client navigation on error pages with 404 pages should get url dynamic param",
+      "Client navigation on error pages with 404 pages should not 404 for <page>/",
+      "Client navigation on error pages with 404 pages should should not contain a page script in a 404 page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/pages-dir/client-navigation/foreign-history-manipulation.test.ts": {
+    "passed": [
+      "Client navigation with foreign history manipulation should ignore foreign history state with missing properties",
+      "Client navigation with foreign history manipulation should ignore history state with an invalid url",
+      "Client navigation with foreign history manipulation should ignore history state without options"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/pages-dir/client-navigation/head.test.ts": {
+    "passed": [
       "updating <Head /> with strictNextHead=false while client routing should handle boolean async prop in next/head client-side: false",
       "updating <Head /> with strictNextHead=false while client routing should handle boolean async prop in next/head client-side: true",
       "updating <Head /> with strictNextHead=false while client routing should not warn when application/ld+json scripts are in head",
@@ -3527,6 +3645,36 @@
       "updating <Head /> with strictNextHead=true while client routing should warn when scripts are in head",
       "updating <Head /> with strictNextHead=true while client routing should warn when stylesheets or scripts are in head"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/pages-dir/client-navigation/index.test.ts": {
+    "passed": [
+      "Client Navigation should emit routeChangeError on hash change cancel",
+      "Client Navigation should handle boolean async prop in next/script client-side: false",
+      "Client Navigation should handle boolean async prop in next/script client-side: true",
+      "Client Navigation should handle undefined prop in head client-side",
+      "Client Navigation should navigate to paths relative to the current page",
+      "Client Navigation should not error on module.exports + polyfills",
+      "Client Navigation should only execute async and defer scripts with next/script once",
+      "Client Navigation should work on nested /index/index.js",
+      "Client Navigation with URL objects should handle undefined in router.push",
+      "Client Navigation with URL objects should work with \"Router.push\"",
+      "Client Navigation with URL objects should work with <Link/>",
+      "Client Navigation with URL objects should work with the \"replace\" prop",
+      "Client Navigation with different types of urls should not work with /index page",
+      "Client Navigation with different types of urls should work with / page",
+      "Client Navigation with different types of urls should work with dir/ page",
+      "Client Navigation with different types of urls should work with normal page",
+      "Client Navigation with empty getInitialProps() should render a redbox",
+      "Client Navigation with getInitialProp redirect should redirect the page via client side",
+      "Client Navigation with getInitialProp redirect should redirect the page when loading",
+      "Client Navigation with the HOC based router should navigate as expected",
+      "Client Navigation with the current url should always replace the state",
+      "Client Navigation with the current url should reload the page"
+    ],
     "failed": [
       "Client Navigation runtime errors should show redbox when a client side error is thrown inside a component",
       "Client Navigation runtime errors should show redbox when a client side error is thrown outside a component"
@@ -3535,7 +3683,50 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/pages-dir/client-navigation/rendering.test.ts": {
+  "test/development/pages-dir/client-navigation/link.test.ts": {
+    "passed": [
+      "Client Navigation with <Link/> should call mouse handlers with an absolute url",
+      "Client Navigation with <Link/> should error when calling onClick without event",
+      "Client Navigation with <Link/> should navigate an absolute local url",
+      "Client Navigation with <Link/> should navigate an absolute local url with as",
+      "Client Navigation with <Link/> should navigate an absolute url",
+      "Client Navigation with <Link/> should navigate back after reload",
+      "Client Navigation with <Link/> should navigate forwards after reload",
+      "Client Navigation with <Link/> should navigate the page",
+      "Client Navigation with <Link/> should navigate via the client side",
+      "Client Navigation with <Link/> should not throw error when one number type child is provided"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/pages-dir/client-navigation/on-click.test.ts": {
+    "passed": [
+      "Client navigation with onClick action should always replace the state and perform additional action",
+      "Client navigation with onClick action should not reload if default was prevented",
+      "Client navigation with onClick action should reload the page and perform additional action"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/pages-dir/client-navigation/querystring.test.ts": {
+    "passed": [
+      "Client navigation querystring with querystring relative urls router.replace with shallow=true shall not throw route cancelled errors",
+      "Client navigation querystring with querystring relative urls should work with Link",
+      "Client navigation querystring with querystring relative urls should work with router.push",
+      "Client navigation querystring with querystring relative urls should work with router.replace",
+      "Client navigation querystring with the same page but different querystring should navigate the page",
+      "Client navigation querystring with the same page but different querystring should remove querystring"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/pages-dir/client-navigation/rendering-head.test.ts": {
     "passed": [
       "Client Navigation rendering <Head /> with strictNextHead=false header helper avoids dedupe of meta tags with the same name if they use unique keys",
       "Client Navigation rendering <Head /> with strictNextHead=false header helper avoids dedupe of specific tags",
@@ -3558,7 +3749,15 @@
       "Client Navigation rendering <Head /> with strictNextHead=true header renders default charset",
       "Client Navigation rendering <Head /> with strictNextHead=true header renders default viewport",
       "Client Navigation rendering <Head /> with strictNextHead=true should handle undefined prop in head server-side",
-      "Client Navigation rendering <Head /> with strictNextHead=true should place charset element at the top of <head>",
+      "Client Navigation rendering <Head /> with strictNextHead=true should place charset element at the top of <head>"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/pages-dir/client-navigation/rendering.test.ts": {
+    "passed": [
       "Client Navigation rendering Rendering via HTTP 404 should 404 on not existent page",
       "Client Navigation rendering Rendering via HTTP 404 should 404 on wrong casing",
       "Client Navigation rendering Rendering via HTTP 404 should not 404 for <page>/",
@@ -3566,10 +3765,7 @@
       "Client Navigation rendering Rendering via HTTP allows to import .json files",
       "Client Navigation rendering Rendering via HTTP asPath",
       "Client Navigation rendering Rendering via HTTP default Content-Type",
-      "Client Navigation rendering Rendering via HTTP default export is not a React Component",
       "Client Navigation rendering Rendering via HTTP getInitialProps circular structure",
-      "Client Navigation rendering Rendering via HTTP getInitialProps resolves to null",
-      "Client Navigation rendering Rendering via HTTP getInitialProps should be class method",
       "Client Navigation rendering Rendering via HTTP renders a link component",
       "Client Navigation rendering Rendering via HTTP renders a stateless component",
       "Client Navigation rendering Rendering via HTTP renders properties populated asynchronously",
@@ -3592,9 +3788,58 @@
       "Client Navigation rendering Rendering via HTTP with the HOC based router should navigate as expected"
     ],
     "failed": [
+      "Client Navigation rendering Rendering via HTTP default export is not a React Component",
       "Client Navigation rendering Rendering via HTTP error-in-the-global-scope",
-      "Client Navigation rendering Rendering via HTTP error-inside-page"
+      "Client Navigation rendering Rendering via HTTP error-inside-page",
+      "Client Navigation rendering Rendering via HTTP getInitialProps resolves to null",
+      "Client Navigation rendering Rendering via HTTP getInitialProps should be class method"
     ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/pages-dir/client-navigation/scroll.test.ts": {
+    "passed": [
+      "Client navigation scroll resets scroll at the correct time should intentionally not reset scroll before the new page runs its lifecycles (Router#push)",
+      "Client navigation scroll resets scroll at the correct time should reset scroll before the new page runs its lifecycles (<Link />)",
+      "Client navigation scroll resets scroll at the correct time should reset scroll before the new page runs its lifecycles (Router#push)",
+      "Client navigation scroll should scroll to top when the scroll option is set to true"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/pages-dir/client-navigation/shallow-routing.test.ts": {
+    "passed": [
+      "Client navigation with shallow routing should handle the back button and should not run getInitialProps",
+      "Client navigation with shallow routing should keep the scroll position on shallow routing",
+      "Client navigation with shallow routing should run getInitialProps always when rending the page to the screen",
+      "Client navigation with shallow routing should update the url without running getInitialProps"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/pages-dir/client-navigation/url-hash.test.ts": {
+    "passed": [
+      "Client navigation with URL hash when hash changes check hydration mis-match should not have hydration mis-match for hash link",
+      "Client navigation with URL hash when hash changes when hash change via A tag should not run getInitialProps",
+      "Client navigation with URL hash when hash changes when hash change via Link Should update asPath",
+      "Client navigation with URL hash when hash changes when hash change via Link should not run getInitialProps",
+      "Client navigation with URL hash when hash changes when hash change via Link should not scroll to hash when scroll={false} is set",
+      "Client navigation with URL hash when hash changes when hash change via Link should scroll to the specified CJK position to a new page",
+      "Client navigation with URL hash when hash changes when hash change via Link should scroll to the specified position on the same page",
+      "Client navigation with URL hash when hash changes when hash change via Link should scroll to the specified position on the same page with a name property",
+      "Client navigation with URL hash when hash changes when hash change via Link should scroll to the specified position to a new page",
+      "Client navigation with URL hash when hash changes when hash get removed should not run getInitialProps",
+      "Client navigation with URL hash when hash changes when hash get removed should not run getInitialProps when removing via back",
+      "Client navigation with URL hash when hash changes when hash set to empty should not run getInitialProps",
+      "Client navigation with URL hash when hash changes with state when passing state via hash change should increment the history state counter",
+      "Client navigation with URL hash when hash changes with state when passing state via hash change should increment the shallow history state counter"
+    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3678,6 +3923,36 @@
     "passed": [
       "typescript-auto-install should detect TypeScript being added and auto setup",
       "typescript-auto-install should work"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/typescript-plugin/client-boundary/client-boundary.test.ts": {
+    "passed": [
+      "typescript-plugin - client-boundary should have diagnostics for non-serializable props",
+      "typescript-plugin - client-boundary should not have diagnostics for non-serializable action props",
+      "typescript-plugin - client-boundary should not have diagnostics for serializable props"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/typescript-plugin/index.test.ts": {
+    "passed": ["typescript-plugin should be able to get the language service"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/typescript-plugin/metadata/warn-no-type.test.ts": {
+    "passed": [
+      "typescript-plugin - metadata - warn-no-type should have diagnostics for generateMetadata with no type",
+      "typescript-plugin - metadata - warn-no-type should have diagnostics for metadata with no type",
+      "typescript-plugin - metadata - warn-no-type should not have diagnostics for generateMetadata with type",
+      "typescript-plugin - metadata - warn-no-type should not have diagnostics for metadata with type"
     ],
     "failed": [],
     "pending": [],
@@ -3786,6 +4061,18 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/actions/app-action-form-state-node-middleware.test.ts": {
+    "passed": [
+      "app-dir action useActionState should send the action to the provided permalink with form state when JS disabled",
+      "app-dir action useActionState should support hydrating the app from progressively enhanced form request",
+      "app-dir action useActionState should support submitting form state with JS",
+      "app-dir action useActionState should support submitting form state without JS"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/actions/app-action-form-state.test.ts": {
     "passed": [
       "app-dir action useActionState should send the action to the provided permalink with form state when JS disabled",
@@ -3798,28 +4085,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/actions/app-action-progressive-enhancement.test.ts": {
-    "passed": [
-      "app-dir action progressive enhancement should support actions from client without JS",
-      "app-dir action progressive enhancement should support formData and redirect without JS",
-      "app-dir action progressive enhancement should support headers and cookies without JS (runtime: edge)",
-      "app-dir action progressive enhancement should support headers and cookies without JS (runtime: node)"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/actions/app-action-size-limit-invalid.test.ts": {
-    "passed": [
-      "app-dir action size limit invalid config skip test for development mode"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/actions/app-action.test.ts": {
+  "test/e2e/app-dir/actions/app-action-node-middleware.test.ts": {
     "passed": [
       "app-dir action handling \"use server\" export values should error when exporting non async functions at build time",
       "app-dir action handling Edge SSR should allow cookie and header async storages",
@@ -3827,6 +4093,7 @@
       "app-dir action handling Edge SSR should handle calls to redirect() with a absolute URL in a single pass",
       "app-dir action handling Edge SSR should handle calls to redirect() with a relative URL in a single pass",
       "app-dir action handling Edge SSR should handle calls to redirect() with external URLs",
+      "app-dir action handling Edge SSR should handle unicode search params",
       "app-dir action handling Edge SSR should return error response for hoc auth wrappers in edge runtime",
       "app-dir action handling HMR should support updating the action",
       "app-dir action handling caching disabled by default should not override force-cache in server action",
@@ -3902,9 +4169,137 @@
       "app-dir action handling should trigger an error boundary for action responses with an invalid content-type",
       "app-dir action handling should work with interception routes"
     ],
-    "failed": [
-      "app-dir action handling Edge SSR should handle unicode search params"
+    "failed": [],
+    "pending": [
+      "app-dir action handling fetch actions should handle unstable_expireTag + redirect",
+      "app-dir action handling server actions render client components client component imported action should support importing client components from actions"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/actions/app-action-progressive-enhancement.test.ts": {
+    "passed": [
+      "app-dir action progressive enhancement should support actions from client without JS",
+      "app-dir action progressive enhancement should support formData and redirect without JS",
+      "app-dir action progressive enhancement should support headers and cookies without JS (runtime: edge)",
+      "app-dir action progressive enhancement should support headers and cookies without JS (runtime: node)"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/actions/app-action-size-limit-invalid-node-middleware.test.ts": {
+    "passed": [
+      "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit for multipart fetch actions should error for requests that exceed the size limit",
+      "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit for multipart fetch actions should not error for requests that are at the size limit",
+      "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit for multipart fetch actions should not error for requests that stay below the size limit",
+      "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit for plaintext fetch actions should error for requests that exceed the size limit",
+      "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit for plaintext fetch actions should not error for requests that stay below the size limit"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/actions/app-action-size-limit-invalid.test.ts": {
+    "passed": [
+      "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit for multipart fetch actions should error for requests that exceed the size limit",
+      "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit for multipart fetch actions should not error for requests that are at the size limit",
+      "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit for multipart fetch actions should not error for requests that stay below the size limit",
+      "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit for plaintext fetch actions should error for requests that exceed the size limit",
+      "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit for plaintext fetch actions should not error for requests that stay below the size limit"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/actions/app-action.test.ts": {
+    "passed": [
+      "app-dir action handling \"use server\" export values should error when exporting non async functions at build time",
+      "app-dir action handling Edge SSR should allow cookie and header async storages",
+      "app-dir action handling Edge SSR should handle basic actions correctly",
+      "app-dir action handling Edge SSR should handle calls to redirect() with a absolute URL in a single pass",
+      "app-dir action handling Edge SSR should handle calls to redirect() with a relative URL in a single pass",
+      "app-dir action handling Edge SSR should handle calls to redirect() with external URLs",
+      "app-dir action handling Edge SSR should handle unicode search params",
+      "app-dir action handling Edge SSR should return error response for hoc auth wrappers in edge runtime",
+      "app-dir action handling HMR should support updating the action",
+      "app-dir action handling caching disabled by default should not override force-cache in server action",
+      "app-dir action handling caching disabled by default should not override revalidate in server action",
+      "app-dir action handling caching disabled by default should use no-store as default for server action",
+      "app-dir action handling encryption should be able to resolve other server actions and client components",
+      "app-dir action handling encryption should send encrypted values from the closed over closure",
+      "app-dir action handling fetch actions should handle a fetch action initiated from a static page",
+      "app-dir action handling fetch actions should handle calls to redirect() with a absolute URL in a single pass",
+      "app-dir action handling fetch actions should handle calls to redirect() with a relative URL in a single pass",
+      "app-dir action handling fetch actions should handle calls to redirect() with external URLs",
+      "app-dir action handling fetch actions should handle redirects to routes that provide an invalid RSC response",
+      "app-dir action handling fetch actions should handle unstable_expirePath",
+      "app-dir action handling fetch actions should handle unstable_expireTag",
+      "app-dir action handling fetch actions should invalidate client cache on other routes when cookies.set is called",
+      "app-dir action handling fetch actions should invalidate client cache when path is revalidated",
+      "app-dir action handling fetch actions should invalidate client cache when tag is revalidated",
+      "app-dir action handling fetch actions should revalidate when cookies.set is called",
+      "app-dir action handling fetch actions should revalidate when cookies.set is called in a client action",
+      "app-dir action handling fetch actions should store revalidation data in the prefetch cache",
+      "app-dir action handling redirects displays searchParams correctly when redirecting with SearchParams",
+      "app-dir action handling redirects merges cookies correctly when redirecting",
+      "app-dir action handling redirects redirects properly when server action handler redirects with a 307 status code",
+      "app-dir action handling redirects redirects properly when server action handler redirects with a 308 status code",
+      "app-dir action handling redirects redirects properly when server action handler uses `permanentRedirect`",
+      "app-dir action handling redirects redirects properly when server action handler uses `redirect`",
+      "app-dir action handling redirects should not forward next-action header to a redirected RSC request",
+      "app-dir action handling request body decoding should correctly decode multi-byte characters in the request body (edge)",
+      "app-dir action handling request body decoding should correctly decode multi-byte characters in the request body (node)",
+      "app-dir action handling server actions render client components server component imported action should support importing client components from actions",
+      "app-dir action handling should 404 when POSTing an invalid server action",
+      "app-dir action handling should be possible to catch network errors",
+      "app-dir action handling should be possible to catch regular errors",
+      "app-dir action handling should bundle external libraries if they are on the action layer",
+      "app-dir action handling should forward action request to a worker that contains the action handler (edge)",
+      "app-dir action handling should forward action request to a worker that contains the action handler (node)",
+      "app-dir action handling should handle action correctly with middleware rewrite",
+      "app-dir action handling should handle actions executed in quick succession",
+      "app-dir action handling should handle basic actions correctly",
+      "app-dir action handling should invalidate the client router cache if the redirect action triggers a revalidation",
+      "app-dir action handling should keep action instances identical",
+      "app-dir action handling should log a warning when a server action is not found but an id is provided",
+      "app-dir action handling should not block navigation events while a server action is in flight",
+      "app-dir action handling should not block router.back() while a server action is in flight",
+      "app-dir action handling should not error when a forwarded action triggers a redirect (edge)",
+      "app-dir action handling should not error when a forwarded action triggers a redirect (node)",
+      "app-dir action handling should not log errors for non-action form POSTs",
+      "app-dir action handling should only submit action once when resubmitting an action after navigation",
+      "app-dir action handling should propagate errors from a `text/plain` response to an error boundary",
+      "app-dir action handling should push new route when redirecting",
+      "app-dir action handling should replace current route when redirecting with type set to replace",
+      "app-dir action handling should report errors with bad inputs correctly",
+      "app-dir action handling should reset the form state when the action redirects to a page that contains the same form",
+      "app-dir action handling should reset the form state when the action redirects to itself",
+      "app-dir action handling should support .bind",
+      "app-dir action handling should support chained .bind",
+      "app-dir action handling should support formData and redirect",
+      "app-dir action handling should support headers and cookies",
+      "app-dir action handling should support headers in client imported actions",
+      "app-dir action handling should support hoc auth wrappers",
+      "app-dir action handling should support importing actions in client components",
+      "app-dir action handling should support importing the same action module instance in both server and action layers",
+      "app-dir action handling should support next/dynamic with ssr: false",
+      "app-dir action handling should support next/dynamic with ssr: false (edge)",
+      "app-dir action handling should support notFound",
+      "app-dir action handling should support notFound (javascript disabled)",
+      "app-dir action handling should support setting cookies in route handlers with the correct overrides",
+      "app-dir action handling should support setting cookies when redirecting (no javascript)",
+      "app-dir action handling should support setting cookies when redirecting (with javascript)",
+      "app-dir action handling should support uploading files",
+      "app-dir action handling should trigger a refresh for a server action that also dispatches a navigation event",
+      "app-dir action handling should trigger a refresh for a server action that gets discarded due to a navigation",
+      "app-dir action handling should trigger an error boundary for action responses with an invalid content-type",
+      "app-dir action handling should work with interception routes"
+    ],
+    "failed": [],
     "pending": [
       "app-dir action handling fetch actions should handle unstable_expireTag + redirect",
       "app-dir action handling server actions render client components client component imported action should support importing client components from actions"
@@ -4135,6 +4530,13 @@
       "app-dir - esm js extension should be able to use nextjs api in pages router",
       "app-dir - esm js extension should support next/og image"
     ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/app-esm-js/standalone.test.ts": {
+    "passed": ["should skip for non-next start"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -4762,6 +5164,8 @@
       "app dir - basic next/script should insert preload tags for beforeInteractive and afterInteractive scripts",
       "app dir - basic next/script should load stylesheets for next/scripts",
       "app dir - basic next/script should pass `nonce`",
+      "app dir - basic next/script should pass manual `nonce`",
+      "app dir - basic next/script should pass manual `nonce` pages",
       "app dir - basic next/script should pass nonce when using next/font",
       "app dir - basic next/script should pass on extra props for beforeInteractive scripts with a src prop",
       "app dir - basic next/script should pass on extra props for beforeInteractive scripts without a src prop",
@@ -4776,7 +5180,6 @@
       "app dir - basic searchParams prop server component should have the correct search params on middleware rewrite",
       "app dir - basic searchParams prop server component should have the correct search params on rewrite",
       "app dir - basic server components Loading should render loading.js in browser for slow layout",
-      "app dir - basic server components Loading should render loading.js in browser for slow layout and page",
       "app dir - basic server components Loading should render loading.js in browser for slow page",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout and page",
@@ -4824,6 +5227,7 @@
       "app dir - basic should serve from public",
       "app dir - basic should serve nested parent",
       "app dir - basic should serve page as a segment name correctly",
+      "app dir - basic should serve polyfills for browsers that do not support modules",
       "app dir - basic should use new root layout when provided",
       "app dir - basic should use text/x-component for flight",
       "app dir - basic should use text/x-component for flight with edge runtime",
@@ -4832,7 +5236,7 @@
     ],
     "failed": [
       "app dir - basic <Link /> should navigate to pages dynamic route from pages page if it overlaps with an app page",
-      "app dir - basic should serve polyfills for browsers that do not support modules"
+      "app dir - basic server components Loading should render loading.js in browser for slow layout and page"
     ],
     "pending": [
       "app dir - basic HMR should HMR correctly when changing the component type",
@@ -5041,6 +5445,18 @@
     ],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/css-modules-data-urls/css-modules-data-urls.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "css-modules-data-urls should apply client class name from data url correctly",
+      "css-modules-data-urls should apply client styles from data url correctly",
+      "css-modules-data-urls should apply rsc class name from data url correctly",
+      "css-modules-data-urls should apply rsc styles from data url correctly"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -5363,24 +5779,25 @@
   },
   "test/e2e/app-dir/dynamic-data/dynamic-data.test.ts": {
     "passed": [
-      "dynamic-data inside cache scope displays redbox when accessing dynamic data inside a cache scope",
       "dynamic-data should render empty objects for dynamic APIs when rendering with force-static",
       "dynamic-data should render the dynamic apis dynamically when used in a top-level scope",
       "dynamic-data should render the dynamic apis dynamically when used in a top-level scope with force dynamic",
-      "dynamic-data should track searchParams access as dynamic when the Page is a client component",
+      "dynamic-data should track searchParams access as dynamic when the Page is a client component"
+    ],
+    "failed": [
+      "dynamic-data inside cache scope displays redbox when accessing dynamic data inside a cache scope",
       "dynamic-data with dynamic = \"error\" displays redbox when `dynamic = \"error\"` and dynamic data is read in dev"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/dynamic-href/dynamic-href.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "dynamic-href should error when using dynamic href in app dir",
       "dynamic-href should error when using dynamic href.pathname in app dir"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5408,6 +5825,30 @@
   "test/e2e/app-dir/dynamic-interception-route-revalidate/dynamic-interception-route-revalidate.test.ts": {
     "passed": [
       "dynamic-interception-route-revalidate should refresh the dynamic intercepted route when the interception route is revalidated"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/dynamic-io-dynamic-imports/dynamic-io-dynamic-imports.test.ts": {
+    "passed": [
+      "async imports in dynamicIO - external packages does not instrument import() in external packages",
+      "async imports in dynamicIO are not instrumented in edge edge route handler",
+      "async imports in dynamicIO are not instrumented in edge middleware",
+      "async imports in dynamicIO inside a GET route handler import of a sync module",
+      "async imports in dynamicIO inside a GET route handler import of module with top-level-await",
+      "async imports in dynamicIO inside a client component import of a sync module",
+      "async imports in dynamicIO inside a client component import of module with top-level-await",
+      "async imports in dynamicIO inside a server component dynamic import in node_modules in a CJS package import of a sync module",
+      "async imports in dynamicIO inside a server component dynamic import in node_modules in an ESM package import of a sync module",
+      "async imports in dynamicIO inside a server component dynamic import in node_modules in an ESM package import of module with top-level-await",
+      "async imports in dynamicIO inside a server component import of a sync module",
+      "async imports in dynamicIO inside a server component import of module with top-level-await",
+      "async imports in dynamicIO outside of render client import of a sync module",
+      "async imports in dynamicIO outside of render client import of module with top-level-await",
+      "async imports in dynamicIO outside of render server import of a sync module",
+      "async imports in dynamicIO outside of render server import of module with top-level-await"
     ],
     "failed": [],
     "pending": [],
@@ -5443,15 +5884,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.prospective-fallback.test.ts": {
-    "passed": [
-      "Dynamic IO Prospective Fallback should not error when visiting the page"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.sync-dynamic.test.ts": {
     "passed": [
       "Dynamic IO Errors - With Minification Sync Dynamic - With Fallback - client searchParams does not run in dev",
@@ -5476,6 +5908,7 @@
     "passed": [
       "Dynamic IO Errors - With Minification Dynamic Boundary does not run in dev",
       "Dynamic IO Errors - With Minification Dynamic Metadata - Dynamic Route does not run in dev",
+      "Dynamic IO Errors - With Minification Dynamic Metadata - Error Route does not run in dev",
       "Dynamic IO Errors - With Minification Dynamic Metadata - Static Route With Suspense does not run in dev",
       "Dynamic IO Errors - With Minification Dynamic Metadata - Static Route does not run in dev",
       "Dynamic IO Errors - With Minification Dynamic Root does not run in dev",
@@ -5484,6 +5917,7 @@
       "Dynamic IO Errors - With Minification Static Route does not run in dev",
       "Dynamic IO Errors - Without Minification Dynamic Boundary does not run in dev",
       "Dynamic IO Errors - Without Minification Dynamic Metadata - Dynamic Route does not run in dev",
+      "Dynamic IO Errors - Without Minification Dynamic Metadata - Error Route does not run in dev",
       "Dynamic IO Errors - Without Minification Dynamic Metadata - Static Route With Suspense does not run in dev",
       "Dynamic IO Errors - Without Minification Dynamic Metadata - Static Route does not run in dev",
       "Dynamic IO Errors - Without Minification Dynamic Root does not run in dev",
@@ -5517,7 +5951,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/dynamic-io/dynamic-io.connection.test.ts": {
-    "passed": ["dynamic-io should produce dynamic pages when using connection"],
+    "passed": [
+      "dynamic-io should be able to pass connection as a promise to another component and trigger an intermediate Suspense boundary",
+      "dynamic-io should partially prerender pages that use connection"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -5527,7 +5964,9 @@
     "passed": [
       "dynamic-io should be able to access cookie properties asynchronously",
       "dynamic-io should be able to access cookie properties synchronously",
-      "dynamic-io should produce dynamic pages when using async or sync cookies"
+      "dynamic-io should be able to pass cookies as a promise to another component and trigger an intermediate Suspense boundary",
+      "dynamic-io should partially prerender pages that use async cookies",
+      "dynamic-io should partially prerender pages that use sync cookies"
     ],
     "failed": [],
     "pending": [],
@@ -5562,7 +6001,9 @@
     "passed": [
       "dynamic-io should be able to access headers properties asynchronously",
       "dynamic-io should be able to access headers properties synchronously",
-      "dynamic-io should produce dynamic pages when using async or sync headers"
+      "dynamic-io should be able to pass headers as a promise to another component and trigger an intermediate Suspense boundary",
+      "dynamic-io should partially prerender pages that use async headers",
+      "dynamic-io should partially prerender pages that use sync headers"
     ],
     "failed": [],
     "pending": [],
@@ -5600,28 +6041,20 @@
     "passed": [
       "dynamic-io Async Params should fully prerender pages that check individual param keys after `use`ing params in a client component",
       "dynamic-io Async Params should fully prerender pages that check individual param keys after awaiting params in a server component",
-      "dynamic-io Async Params should prerender pages that `use` params in a client component when prebuilt",
-      "dynamic-io Async Params should prerender pages that await params in a server component when prebuilt",
-      "dynamic-io Async Params should prerender pages that spread `use`ed params in a client component when prebuilt",
-      "dynamic-io Async Params should prerender pages that spread awaited params in a server component when prebuilt",
-      "dynamic-io Async Params should render pages that `use` params in a client component when not prebuilt",
-      "dynamic-io Async Params should render pages that await params in a server component when not prebuilt",
-      "dynamic-io Async Params should render pages that spread `use`ed params in a client component when not prebuilt",
-      "dynamic-io Async Params should render pages that spread awaited params in a server component when not prebuilt",
+      "dynamic-io Async Params should partially prerender pages that await params in a server components",
+      "dynamic-io Async Params should partially prerender pages that spread `use`ed params in a client component",
+      "dynamic-io Async Params should partially prerender pages that spread awaited params in a server component",
+      "dynamic-io Async Params should partially prerender pages that use params in a client components",
       "dynamic-io Param Shadowing should correctly allow param names like then, value, and status when `use`ing params in a client component",
       "dynamic-io Param Shadowing should correctly allow param names like then, value, and status when awaiting params in a server component",
       "dynamic-io Param Shadowing should not allow param names like then and status when accessing params directly in a client component",
       "dynamic-io Param Shadowing should not allow param names like then and status when accessing params directly in a server component",
       "dynamic-io Synchronous Params access should fully prerender pages that check individual param keys directly on the params prop in a client component",
       "dynamic-io Synchronous Params access should fully prerender pages that check individual param keys directly on the params prop in a server component",
-      "dynamic-io Synchronous Params access should prerender pages that access params synchronously in a client component when prebuilt",
-      "dynamic-io Synchronous Params access should prerender pages that access params synchronously in a server component when prebuilt",
-      "dynamic-io Synchronous Params access should prerender pages that spread params without `use`ing first in a client component when not prebuilt",
-      "dynamic-io Synchronous Params access should prerender pages that spread params without `use`ing first in a client component when prebuilt",
-      "dynamic-io Synchronous Params access should prerender pages that spread params without awaiting first in a server component when not prebuilt",
-      "dynamic-io Synchronous Params access should prerender pages that spread params without awaiting first in a server component when prebuilt",
-      "dynamic-io Synchronous Params access should render pages that access params synchronously in a client component when not prebuilt",
-      "dynamic-io Synchronous Params access should render pages that access params synchronously in a server component when not prebuilt"
+      "dynamic-io Synchronous Params access should partially prerender pages that access params synchronously in a client components",
+      "dynamic-io Synchronous Params access should partially prerender pages that access params synchronously in a server components",
+      "dynamic-io Synchronous Params access should partially prerender pages that spread params without `use`ing them first in a client component",
+      "dynamic-io Synchronous Params access should partially prerender pages that spread params without awaiting first in a server component"
     ],
     "failed": [],
     "pending": [],
@@ -5659,15 +6092,15 @@
   },
   "test/e2e/app-dir/dynamic-io/dynamic-io.search.test.ts": {
     "passed": [
-      "dynamic-io should not prerender a page that accesses a searchParam property synchronously in a client component",
-      "dynamic-io should not prerender a page that accesses a searchParam property synchronously in a server component",
-      "dynamic-io should not prerender a page that checks for the existence of a searchParam property synchronously in a client component",
-      "dynamic-io should not prerender a page that checks for the existence of a searchParam property synchronously in a server component",
-      "dynamic-io should not prerender a page that spreads ...searchParam synchronously in a client component",
-      "dynamic-io should not prerender a page that spreads ...searchParam synchronously in a server component",
-      "dynamic-io should not prerender pages that `use` searchParams in a client component",
-      "dynamic-io should not prerender pages that `use` searchParams in a server component",
-      "dynamic-io should not prerender pages that await searchParams in a server component"
+      "dynamic-io should partially prerender pages that `use` searchParams in a client component",
+      "dynamic-io should partially prerender pages that `use` searchParams in a server component",
+      "dynamic-io should partially prerender pages that access a searchParam property synchronously in a client component",
+      "dynamic-io should partially prerender pages that access a searchParam property synchronously in a server component",
+      "dynamic-io should partially prerender pages that await searchParams in a server component",
+      "dynamic-io should partially prerender pages that checks for the existence of a searchParam property synchronously in a client component",
+      "dynamic-io should partially prerender pages that checks for the existence of a searchParam property synchronously in a server component",
+      "dynamic-io should partially prerender pages that spreads ...searchParam synchronously in a client component",
+      "dynamic-io should partially prerender pages that spreads ...searchParam synchronously in a server component"
     ],
     "failed": [],
     "pending": [],
@@ -5692,20 +6125,16 @@
       "dynamic-io does not prerender pages with parallel routes that resolve in a task",
       "dynamic-io does not prerender pages with parallel routes that uses a dynamic API",
       "dynamic-io should fully prerender pages that use `unstable_noStore()`",
-      "dynamic-io should have static indicator on not-found route",
-      "dynamic-io should have static indicator on static route",
       "dynamic-io should not have route specific errors",
-      "dynamic-io should not have static indicator on dynamic IO route",
-      "dynamic-io should not have static indicator on dynamic method route",
       "dynamic-io should not log not-found errors",
-      "dynamic-io should not prerender pages that do any uncached IO",
-      "dynamic-io should not prerender pages that do any uncached IO (use cache)",
-      "dynamic-io should not prerender pages that take longer than a single task to render",
-      "dynamic-io should not prerender pages that use `cookies()`",
-      "dynamic-io should not prerender pages that use `headers()`",
-      "dynamic-io should not prerender pages that use `searchParams` in Client Components",
-      "dynamic-io should not prerender pages that use `searchParams` in Server Components",
-      "dynamic-io should not prerender pages that use at least one fetch without cache",
+      "dynamic-io should partially prerender pages that do any uncached IO",
+      "dynamic-io should partially prerender pages that do any uncached IO (use cache)",
+      "dynamic-io should partially prerender pages that take longer than a task to render",
+      "dynamic-io should partially prerender pages that use `cookies()`",
+      "dynamic-io should partially prerender pages that use `headers()`",
+      "dynamic-io should partially prerender pages that use `searchParams` in Client Components",
+      "dynamic-io should partially prerender pages that use `searchParams` in Server Components",
+      "dynamic-io should partially prerender pages that use at least one fetch without cache",
       "dynamic-io should prerender fully static pages",
       "dynamic-io should prerender pages that cached the whole page",
       "dynamic-io should prerender pages that only use cached (\"use cache\") IO",
@@ -5827,6 +6256,21 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/empty-fallback-shells/empty-fallback-shells.test.ts": {
+    "passed": [
+      "empty-fallback-shells with cached IO and the page not wrapped in Suspense and params.then/catch/finally passed to a cached function does not resume a postponed fallback shell",
+      "empty-fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in a cached non-page function does not resume a postponed fallback shell",
+      "empty-fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in the cached page does not resume a postponed fallback shell",
+      "empty-fallback-shells with cached IO and the page wrapped in Suspense and params.then/catch/finally passed to a cached function resumes a postponed fallback shell",
+      "empty-fallback-shells with cached IO and the page wrapped in Suspense and the params accessed in cached non-page function resumes a postponed fallback shell",
+      "empty-fallback-shells with cached IO and the page wrapped in Suspense and the params accessed in the cached page resumes a postponed fallback shell",
+      "empty-fallback-shells without IO should start and not postpone the response"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/error-boundary-navigation/index.test.ts": {
     "passed": [
       "app dir - not found navigation should allow navigating to a non-existent page",
@@ -5865,16 +6309,17 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/error-on-next-codemod-comment/error-on-next-codemod-comment.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "app-dir - error-on-next-codemod-comment should disappear the error when you replace with bypass comment",
+      "app-dir - error-on-next-codemod-comment should error with inline comment as well"
+    ],
+    "failed": [
       "app-dir - error-on-next-codemod-comment should disappear the error when you rre the codemod comment",
-      "app-dir - error-on-next-codemod-comment should error with inline comment as well",
       "app-dir - error-on-next-codemod-comment should error with swc if you have codemod comments left"
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/app-dir/errors/index.test.ts": {
     "passed": [
@@ -5951,14 +6396,15 @@
   },
   "test/e2e/app-dir/global-error/basic/index.test.ts": {
     "passed": [
-      "app dir - global-error should catch metadata error in error boundary if presented",
+      "app dir - global-error should catch metadata error in error boundary if presented"
+    ],
+    "failed": [
       "app dir - global-error should catch metadata error in global-error if no error boundary is presented",
       "app dir - global-error should catch the client error thrown in the nested routes",
       "app dir - global-error should render global error for error in client components during SSR",
       "app dir - global-error should render global error for error in server components",
       "app dir - global-error should trigger error component when an error happens during rendering"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5985,10 +6431,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/global-error/layout-error/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "app dir - global error - layout error should render global error for error in server components"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5996,6 +6442,56 @@
   "test/e2e/app-dir/global-error/with-style-import/index.test.ts": {
     "passed": [
       "app dir - global error - with style import should render global error with correct styles"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/global-not-found/basic/global-not-found-basic.test.ts": {
+    "passed": [
+      "global-not-found - basic should render global-not-found for 404",
+      "global-not-found - basic should render not-found boundary when calling notFound() in a page",
+      "global-not-found - basic should ssr global-not-found for 404"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/global-not-found/both-present/both-present.test.ts": {
+    "passed": [
+      "global-not-found - both-present should render global-not-found for 404 routes",
+      "global-not-found - both-present should render not-found boundary when calling notFound() in a page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/global-not-found/metadata/metadata.test.ts": {
+    "passed": [
+      "global-not-found - metadata should render metadata of global-not-found for 404"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/global-not-found/no-root-layout/no-root-layout.test.ts": {
+    "passed": [
+      "global-not-found - no-root-layout should render global-not-found for 404",
+      "global-not-found - no-root-layout should ssr global-not-found for 404"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/global-not-found/not-present/not-present.test.ts": {
+    "passed": [
+      "global-not-found - not-present should render custom not-found.js boundary when global-not-found is not defined but enabled",
+      "global-not-found - not-present should render default 404 when global-not-found is not defined but enabled"
     ],
     "failed": [],
     "pending": [],
@@ -6097,6 +6593,13 @@
       "app dir - imports we can import all components from .ts",
       "app dir - imports we can import all components from .tsx"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/instrumentation-order/instrumentation-order.test.ts": {
+    "passed": ["instrumentation-order should work using cheerio"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -6453,6 +6956,7 @@
   },
   "test/e2e/app-dir/metadata-streaming-parallel-routes/metadata-streaming-parallel-routes.test.ts": {
     "passed": [
+      "app-dir - metadata-streaming should change metadata when navigating between two pages under a slot when children is not rendered",
       "app-dir - metadata-streaming should only insert metadata once for parallel routes when slots match",
       "app-dir - metadata-streaming should only insert metadata once for parallel routes when there is a missing slot",
       "app-dir - metadata-streaming should still render metadata if children is not rendered in parallel routes layout"
@@ -6517,6 +7021,13 @@
     "passed": [
       "app dir - metadata dynamic routes suspense should render metadata in head even root layout is wrapped with Suspense"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/metadata-svg-icon/metadata-svg-icon.test.ts": {
+    "passed": ["metadata-svg-icon should have sizes=any for .svg icon"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -6658,6 +7169,13 @@
       "modularizeImports should work",
       "modularizeImports should work with MDX"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/monaco-editor/monaco-editor.test.ts": {
+    "passed": ["monaco-editor should load monaco-editor"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -6953,6 +7471,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/next-config-ts/tsconfig-extends/index.test.ts": {
+    "passed": [
+      "next-config-ts-tsconfig-extends should support tsconfig extends"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/next-config-ts/type-error/index.test.ts": {
     "passed": [
       "next-config-ts-type-error should throw with type error on build"
@@ -7009,64 +7536,12 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/next-form/basepath/next-form-basepath.test.ts": {
-    "passed": [
-      "app dir - form - with basepath should add basePath to `action`",
-      "app dir - form - with basepath should not add basePath to a submitter's formAction"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/next-form/default/next-form-prefetch.test.ts": {
+  "test/e2e/app-dir/next-image/next-image-https.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
-      "app dir - form prefetching should not prefetch when prefetch is set to false`",
-      "app dir - form prefetching should prefetch a loading state for the form's target"
+      "app dir - next-image (with https) loads images without any errors"
     ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/next-form/default/next-form.test.ts": {
-    "passed": [
-      "app dir - form does not navigate if preventDefault is called in onSubmit",
-      "app dir - form does not push a new history entry if `replace` is passed",
-      "app dir - form functions passed to action runs client action",
-      "app dir - form functions passed to action runs server action",
-      "app dir - form functions passed to action runs server action (closure)",
-      "app dir - form functions passed to formAction runs client action from submitter and doesn't warn about unsupported attributes",
-      "app dir - form functions passed to formAction runs server action (closure) from submitter and doesn't warn about unsupported attributes",
-      "app dir - form functions passed to formAction runs server action from submitter and doesn't warn about unsupported attributes",
-      "app dir - form should soft-navigate on submit and show the prefetched loading state",
-      "app dir - form should soft-navigate to the formAction url of the submitter",
-      "app dir - form unsupported attributes on submitter should warn if submitter sets \"formEncType\" to an unsupported value and fall back to default submit behavior",
-      "app dir - form unsupported attributes on submitter should warn if submitter sets \"formMethod\" to an unsupported value and fall back to default submit behavior",
-      "app dir - form unsupported attributes on submitter should warn if submitter sets \"formTarget\" to an unsupported value and fall back to default submit behavior",
-      "app dir - form url-encodes file inputs, but warns about them",
-      "pages dir - form does not navigate if preventDefault is called in onSubmit",
-      "pages dir - form does not push a new history entry if `replace` is passed",
-      "pages dir - form functions passed to action runs client action",
-      "pages dir - form functions passed to formAction runs client action from submitter and doesn't warn about unsupported attributes",
-      "pages dir - form should soft-navigate on submit",
-      "pages dir - form should soft-navigate to the formAction url of the submitter",
-      "pages dir - form unsupported attributes on submitter should warn if submitter sets \"formEncType\" to an unsupported value and fall back to default submit behavior",
-      "pages dir - form unsupported attributes on submitter should warn if submitter sets \"formMethod\" to an unsupported value and fall back to default submit behavior",
-      "pages dir - form unsupported attributes on submitter should warn if submitter sets \"formTarget\" to an unsupported value and fall back to default submit behavior",
-      "pages dir - form url-encodes file inputs, but warns about them"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/next-image/next-image-https.test.ts": {
-    "passed": [
-      "app dir - next-image (with https) only runs on CI as it requires administrator privileges"
-    ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -7311,6 +7786,15 @@
   "test/e2e/app-dir/parallel-routes-and-interception-from-root/parallel-routes-and-interception-from-root.test.ts": {
     "passed": [
       "parallel-routes-and-interception-from-root should interpolate [locale] in \"/[locale]/example/(...)[locale]/intercepted\""
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/parallel-routes-and-interception-nested-dynamic-routes/parallel-routes-and-interception-nested-dynamic-routes.test.ts": {
+    "passed": [
+      "parallel-routes-and-interception-nested-dynamic-routes should intercept the route for nested dynamic routes"
     ],
     "failed": [],
     "pending": [],
@@ -7849,6 +8333,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/require-context/require-context.test.ts": {
+    "passed": [
+      "require-context should get correct require context when using regex filtering"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/resolve-extensions/resolve-extensions.test.ts": {
     "passed": [
       "turbo-resolve-extensions should SSR",
@@ -7953,7 +8446,9 @@
       "redirects and rewrites navigation using link should redirect from next.config.js correctly with empty query params",
       "redirects and rewrites navigation using link should redirect using catchall from next.config.js correctly",
       "redirects and rewrites navigation using link should rewrite from middleware correctly",
-      "redirects and rewrites navigation using link should rewrite from next.config.js correctly"
+      "redirects and rewrites navigation using link should rewrite from next.config.js correctly",
+      "redirects and rewrites redirects to exotic url schemes preserving slashes",
+      "redirects and rewrites redirects to exotic url schemes without adding unwanted slashes"
     ],
     "failed": [],
     "pending": [],
@@ -8054,6 +8549,7 @@
       "app dir - rsc basics client references with TLA (node) should support TLA in sync client reference imports",
       "app dir - rsc basics next internal shared context should not error if just load next/navigation module in pages/api",
       "app dir - rsc basics next internal shared context should not error if just load next/router module in app page",
+      "app dir - rsc basics should be able to call legacy react-dom/server APIs in client components",
       "app dir - rsc basics should be able to navigate between rsc routes",
       "app dir - rsc basics should correctly render component returning null",
       "app dir - rsc basics should correctly render component returning undefined",
@@ -8086,9 +8582,7 @@
       "app dir - rsc basics should track client components in dynamic imports",
       "app dir - rsc basics should use canary react for app"
     ],
-    "failed": [
-      "app dir - rsc basics should be able to call legacy react-dom/server APIs in client components"
-    ],
+    "failed": [],
     "pending": [
       "app dir - rsc basics should support partial hydration with inlined server data in browser"
     ],
@@ -8576,6 +9070,22 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/segment-cache/conflicting-routes/conflicting-routes.test.ts": {
+    "passed": ["conflicting routes prefetching is disabled"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/segment-cache/deployment-skew/deployment-skew.test.ts": {
+    "passed": [
+      "segment cache (deployment skew) should not run during dev or deploy test runs"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/segment-cache/dynamic-on-hover/dynamic-on-hover.test.ts": {
     "passed": ["dynamic on hover prefetching is disabled"],
     "failed": [],
@@ -8610,6 +9120,13 @@
   },
   "test/e2e/app-dir/segment-cache/mpa-navigations/mpa-navigations.test.ts": {
     "passed": ["segment cache (MPA navigations) ppr is disabled"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/segment-cache/prefetch-auto/prefetch-auto.test.ts": {
+    "passed": ["<Link prefetch=\"auto\"> disabled in development / deployment"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -8869,13 +9386,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/turbopack-loader-resource-query/turbopack-loader-resource-query.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": ["turbopack-loader-resource-query should pass query to loader"],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/turbopack-reports/turbopack-reports.test.ts": {
     "passed": ["turbopack-reports should render page importing sqlite3"],
     "failed": [],
@@ -8980,7 +9490,8 @@
       "use-cache-hanging-inputs when a \"use cache\" function is closing over an uncached promise should show an error toast after a timeout",
       "use-cache-hanging-inputs when an uncached promise is used inside of \"use cache\" should show an error toast after a timeout",
       "use-cache-hanging-inputs when an uncached promise is used inside of a nested \"use cache\" should show an error toast after a timeout",
-      "use-cache-hanging-inputs when searchParams are used inside of \"use cache\" should show an error toast after a timeout"
+      "use-cache-hanging-inputs when searchParams are used inside of \"use cache\" should show an error toast after a timeout",
+      "use-cache-hanging-inputs when searchParams are used inside of \"use cache\", wrapped in try/catch should show an error toast after a timeout"
     ],
     "pending": [],
     "flakey": [],
@@ -9017,10 +9528,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/use-cache-segment-configs/use-cache-segment-configs.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "use-cache-segment-configs it should error when using segment configs that aren't supported by useCache"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9050,9 +9561,10 @@
   },
   "test/e2e/app-dir/use-cache-without-experimental-flag/use-cache-without-experimental-flag.test.ts": {
     "passed": [
-      "use-cache-without-experimental-flag should recover from the build error if useCache flag is set"
+      "use-cache-without-experimental-flag should recover from the build error if useCache flag is set",
+      "use-cache-without-experimental-flag should show a build error"
     ],
-    "failed": ["use-cache-without-experimental-flag should show a build error"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9074,7 +9586,8 @@
       "use-cache should dedupe with react cache inside \"use cache\"",
       "use-cache should error when cookies/headers/draftMode is used inside \"use cache\"",
       "use-cache should not have unhandled rejection of Request data promises when use cache is enabled without dynamicIO",
-      "use-cache should not read nor write cached data when draft mode is enabled",
+      "use-cache should not read nor write cached data when draft mode is enabled js disabled",
+      "use-cache should not read nor write cached data when draft mode is enabled js enabled",
       "use-cache should not use stale caches in server actions that have revalidated",
       "use-cache should override fetch with cookies/auth in use cache properly",
       "use-cache should override fetch with no-store in use cache properly",
@@ -9085,6 +9598,8 @@
       "use-cache should revalidate caches nested in unstable_cache",
       "use-cache should update after unstable_expireTag correctly",
       "use-cache should use revalidate config in fetch",
+      "use-cache usage in node_modules should cache results when using a directive with a handler",
+      "use-cache usage in node_modules should cache results when using a directive without a handler",
       "use-cache works with \"use cache\" in method props",
       "use-cache works with \"use cache\" in static class methods",
       "use-cache works with useActionState if previousState parameter is not used in \"use cache\" function"
@@ -9143,9 +9658,35 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/webpack-loader-conditions/webpack-loader-conditions.test.ts": {
+  "test/e2e/app-dir/webpack-loader-binary/webpack-loader-binary.test.ts": {
     "passed": [
-      "webpack-loader-conditions should only run the test in turbopack"
+      "webpack-loader-ts-transform should allow passing binary assets to and from a Webpack loader"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/webpack-loader-conditions/webpack-loader-conditions.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "webpack-loader-conditions should render correctly on client side",
+      "webpack-loader-conditions should render correctly on server site"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/webpack-loader-resource-query/turbopack-loader-resource-query.test.ts": {
+    "passed": ["webpack-loader-resource-query should pass query to loader"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/webpack-loader-set-environment-variable/webpack-loader-set-environment-variable.test.ts": {
+    "passed": [
+      "webpack-loader-set-environment-variable loader that sets an environment variable should work"
     ],
     "failed": [],
     "pending": [],
@@ -9266,23 +9807,9 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/basepath/basepath-trailing-slash.test.ts": {
-    "passed": [
-      "basePath + trailingSlash should allow URL query strings on index without refresh",
-      "basePath + trailingSlash should allow URL query strings without refresh",
-      "basePath + trailingSlash should correctly replace state when same asPath but different url"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/basepath/basepath.test.ts": {
     "passed": [
       "basePath should 404 for public file without basePath",
-      "basePath should 404 when manually adding basePath with <Link>",
-      "basePath should 404 when manually adding basePath with router.push",
-      "basePath should 404 when manually adding basePath with router.replace",
       "basePath should add header with basePath by default",
       "basePath should add header without basePath when set to false",
       "basePath should allow URL query strings on index without refresh",
@@ -9290,17 +9817,6 @@
       "basePath should correctly replace state when same asPath but different url",
       "basePath should fetch data for getServerSideProps without reloading",
       "basePath should fetch data for getStaticProps without reloading",
-      "basePath should handle 404 urls that start with basePath",
-      "basePath should handle query/hash correctly during query updating ## $search",
-      "basePath should handle query/hash correctly during query updating ##? $search",
-      "basePath should handle query/hash correctly during query updating ##hello $search",
-      "basePath should handle query/hash correctly during query updating ##hello? $search",
-      "basePath should handle query/hash correctly during query updating #? $search",
-      "basePath should handle query/hash correctly during query updating #a ?hello",
-      "basePath should handle query/hash correctly during query updating #a ?hello=",
-      "basePath should handle query/hash correctly during query updating #a ?hello=world",
-      "basePath should handle query/hash correctly during query updating #hello? $search",
-      "basePath should handle query/hash correctly during query updating #hello?world $search",
       "basePath should have basePath field on Router",
       "basePath should have correct href for a link",
       "basePath should have correct href for a link to /",
@@ -9310,44 +9826,103 @@
       "basePath should navigate an absolute local url without basePath",
       "basePath should navigate an absolute url",
       "basePath should navigate back correctly to a dynamic route",
-      "basePath should navigate to /404 correctly client-side",
-      "basePath should navigate to /_error correctly client-side",
       "basePath should navigate to external site and back",
       "basePath should navigate to index page with getStaticProps",
       "basePath should navigate to the page without refresh",
       "basePath should not add header with basePath when set to false",
       "basePath should not add header without basePath without disabling",
-      "basePath should not redirect with basePath when set to false",
-      "basePath should not redirect without basePath without disabling",
-      "basePath should not rewrite with basePath when set to false",
-      "basePath should not rewrite without basePath without disabling",
-      "basePath should not update URL for a 404",
       "basePath should redirect trailing slash correctly",
       "basePath should redirect trailing slash on root correctly",
-      "basePath should redirect with basePath by default",
-      "basePath should redirect without basePath when set to false",
       "basePath should respect basePath in amphtml link rel",
-      "basePath should rewrite with basePath by default",
-      "basePath should rewrite without basePath when set to false",
       "basePath should serve public file with basePath correctly",
       "basePath should show 404 for page not under the /docs prefix",
       "basePath should show the hello page under the /docs prefix",
       "basePath should show the other-page page under the /docs prefix",
       "basePath should update dynamic params after mount correctly",
-      "basePath should use urls with basepath in router events",
-      "basePath should use urls with basepath in router events for cancelled routes",
-      "basePath should use urls with basepath in router events for failed route change",
-      "basePath should use urls with basepath in router events for hash changes",
       "basePath should work with catch-all page",
-      "basePath should work with hash links",
       "basePath should work with nested folder with same name as basePath",
       "basePath should work with normal dynamic page"
     ],
     "failed": [],
     "pending": [
-      "basePath should navigate back to a non-basepath 404 that starts with basepath",
       "basePath should navigate to nested index page with getStaticProps"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/basepath/error-pages.test.ts": {
+    "passed": [
+      "basePath client-side navigation should navigate to /404 correctly client-side",
+      "basePath client-side navigation should navigate to /_error correctly client-side",
+      "basePath manually added basePath in application logic should 404 when manually adding basePath with <Link>",
+      "basePath manually added basePath in application logic should 404 when manually adding basePath with router.push",
+      "basePath manually added basePath in application logic should 404 when manually adding basePath with router.replace",
+      "basePath should handle 404 urls that start with basePath",
+      "basePath should not update URL for a 404",
+      "basePath should show 404 for page not under the /docs prefix"
+    ],
+    "failed": [],
+    "pending": [
+      "basePath should navigate back to a non-basepath 404 that starts with basepath"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/basepath/query-hash.test.ts": {
+    "passed": [
+      "basePath query/hash handling is correct during query updating ## $search",
+      "basePath query/hash handling is correct during query updating ##? $search",
+      "basePath query/hash handling is correct during query updating ##hello $search",
+      "basePath query/hash handling is correct during query updating ##hello? $search",
+      "basePath query/hash handling is correct during query updating #? $search",
+      "basePath query/hash handling is correct during query updating #a ?hello",
+      "basePath query/hash handling is correct during query updating #a ?hello=",
+      "basePath query/hash handling is correct during query updating #a ?hello=world",
+      "basePath query/hash handling is correct during query updating #hello? $search",
+      "basePath query/hash handling is correct during query updating #hello?world $search",
+      "basePath query/hash handling should work with hash links"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/basepath/redirect-and-rewrite.test.ts": {
+    "passed": [
+      "basePath should not redirect with basePath when set to false",
+      "basePath should not redirect without basePath without disabling",
+      "basePath should not rewrite with basePath when set to false",
+      "basePath should not rewrite without basePath without disabling",
+      "basePath should redirect with basePath by default",
+      "basePath should redirect without basePath when set to false",
+      "basePath should rewrite with basePath by default",
+      "basePath should rewrite without basePath when set to false"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/basepath/router-events.test.ts": {
+    "passed": [
+      "basePath should use urls with basepath in router events",
+      "basePath should use urls with basepath in router events for cancelled routes",
+      "basePath should use urls with basepath in router events for failed route change",
+      "basePath should use urls with basepath in router events for hash changes"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/basepath/trailing-slash.test.ts": {
+    "passed": [
+      "basePath + trailingSlash should allow URL query strings on index without refresh",
+      "basePath + trailingSlash should allow URL query strings without refresh",
+      "basePath + trailingSlash should correctly replace state when same asPath but different url"
+    ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -9431,6 +10006,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/config-turbopack/index.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "config-turbopack when webpack is configured and config.experimental.turbo is set does not warn",
+      "config-turbopack when webpack is configured and config.turbopack is set does not warn",
+      "config-turbopack when webpack is configured but Turbopack is not warns"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/conflicting-app-page-error/index.test.ts": {
     "passed": [
       "Conflict between app file and pages file should error again when there is new conflict",
@@ -9456,8 +10042,14 @@
   },
   "test/e2e/define/define.test.ts": {
     "passed": [
-      "compiler.define should render the magic variable on client side",
-      "compiler.define should render the magic variable on server side"
+      "compiler.define compiler.define should render the magic expression on client side",
+      "compiler.define compiler.define should render the magic expression on server side",
+      "compiler.define compiler.define should render the magic variable on client side",
+      "compiler.define compiler.define should render the magic variable on server side",
+      "compiler.define compiler.defineServer should not render the inlined expression on client side",
+      "compiler.define compiler.defineServer should not render the inlined variable on client side",
+      "compiler.define compiler.defineServer should render the inlined expression on server side",
+      "compiler.define compiler.defineServer should render the inlined variable on server side"
     ],
     "failed": [],
     "pending": [],
@@ -9648,10 +10240,10 @@
     "runtimeError": false
   },
   "test/e2e/fetch-failures-have-good-stack-traces-in-edge-runtime/fetch-failures-have-good-stack-traces-in-edge-runtime.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "fetch failures have good stack traces in edge runtime when awaiting `fetch` using an unknown domain, stack traces are preserved"
     ],
-    "failed": [],
     "pending": [
       "fetch failures have good stack traces in edge runtime when returning `fetch` using an unknown domain, stack traces are preserved"
     ],
@@ -9751,20 +10343,8 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/i18n-data-fetching-redirect/index.test.ts": {
+  "test/e2e/i18n-data-fetching-redirect/redirect-from-context.test.ts": {
     "passed": [
-      "i18n-data-fetching-redirect Redirect to another locale gsp-blocking-redirect en -> sv",
-      "i18n-data-fetching-redirect Redirect to another locale gsp-blocking-redirect sv -> en",
-      "i18n-data-fetching-redirect Redirect to another locale gsp-fallback-redirect en -> sv",
-      "i18n-data-fetching-redirect Redirect to another locale gsp-fallback-redirect sv -> en",
-      "i18n-data-fetching-redirect Redirect to another locale gssp-redirect en -> sv",
-      "i18n-data-fetching-redirect Redirect to another locale gssp-redirect sv -> en",
-      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-blocking-redirect en -> sv",
-      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-blocking-redirect sv -> en",
-      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-fallback-redirect en -> sv",
-      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-fallback-redirect sv -> en",
-      "i18n-data-fetching-redirect Redirect to another locale next/link gssp-redirect en -> sv",
-      "i18n-data-fetching-redirect Redirect to another locale next/link gssp-redirect sv -> en",
       "i18n-data-fetching-redirect Redirect to locale from context gsp-blocking-redirect en",
       "i18n-data-fetching-redirect Redirect to locale from context gsp-blocking-redirect sv",
       "i18n-data-fetching-redirect Redirect to locale from context gsp-fallback-redirect en",
@@ -9777,6 +10357,26 @@
       "i18n-data-fetching-redirect Redirect to locale from context next/link gsp-fallback-redirect sv",
       "i18n-data-fetching-redirect Redirect to locale from context next/link gssp-redirect en",
       "i18n-data-fetching-redirect Redirect to locale from context next/link gssp-redirect sv"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/i18n-data-fetching-redirect/redirect.test.ts": {
+    "passed": [
+      "i18n-data-fetching-redirect Redirect to another locale gsp-blocking-redirect en -> sv",
+      "i18n-data-fetching-redirect Redirect to another locale gsp-blocking-redirect sv -> en",
+      "i18n-data-fetching-redirect Redirect to another locale gsp-fallback-redirect en -> sv",
+      "i18n-data-fetching-redirect Redirect to another locale gsp-fallback-redirect sv -> en",
+      "i18n-data-fetching-redirect Redirect to another locale gssp-redirect en -> sv",
+      "i18n-data-fetching-redirect Redirect to another locale gssp-redirect sv -> en",
+      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-blocking-redirect en -> sv",
+      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-blocking-redirect sv -> en",
+      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-fallback-redirect en -> sv",
+      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-fallback-redirect sv -> en",
+      "i18n-data-fetching-redirect Redirect to another locale next/link gssp-redirect en -> sv",
+      "i18n-data-fetching-redirect Redirect to another locale next/link gssp-redirect sv -> en"
     ],
     "failed": [],
     "pending": [],
@@ -10607,6 +11207,33 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/middleware-static-files/index.test.ts": {
+    "passed": [
+      "Middleware Runtime should match middleware correctly for /another%2ffile.svg",
+      "Middleware Runtime should match middleware correctly for /another%2fhello",
+      "Middleware Runtime should match middleware correctly for /another/file.svg",
+      "Middleware Runtime should match middleware correctly for /another/hello",
+      "Middleware Runtime should match middleware correctly for /dynamic%2f/first",
+      "Middleware Runtime should match middleware correctly for /dynamic/first",
+      "Middleware Runtime should match middleware correctly for /file.svg",
+      "Middleware Runtime should match middleware correctly for /glob%2ffile.svg",
+      "Middleware Runtime should match middleware correctly for /glob%2fhello",
+      "Middleware Runtime should match middleware correctly for /glob/file.svg",
+      "Middleware Runtime should match middleware correctly for /glob/hello",
+      "Middleware Runtime should match middleware correctly for /pages-another%2fhello",
+      "Middleware Runtime should match middleware correctly for /pages-another/hello",
+      "Middleware Runtime should match middleware correctly for /pages-dynamic%2f/first",
+      "Middleware Runtime should match middleware correctly for /pages-dynamic/first",
+      "Middleware Runtime should match middleware correctly for /pages-glob%2fhello",
+      "Middleware Runtime should match middleware correctly for /pages-glob/hello",
+      "Middleware Runtime should match middleware correctly for /vercel copy.svg",
+      "Middleware Runtime should match middleware correctly for /vercel%20copy.svg"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/middleware-trailing-slash/test/index.test.ts": {
     "passed": [
       "Middleware Runtime trailing slash allows shallow linking with middleware",
@@ -10811,6 +11438,66 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/next-form/basepath/next-form-basepath.test.ts": {
+    "passed": [
+      "app dir - form - with basepath should add basePath to `action`",
+      "app dir - form - with basepath should not add basePath to a submitter's formAction"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/next-form/default/app-dir.test.ts": {
+    "passed": [
+      "next-form - app dir does not navigate if preventDefault is called in onSubmit",
+      "next-form - app dir does not push a new history entry if `replace` is passed",
+      "next-form - app dir functions passed to action runs client action",
+      "next-form - app dir functions passed to action runs server action",
+      "next-form - app dir functions passed to action runs server action (closure)",
+      "next-form - app dir functions passed to formAction runs client action from submitter and doesn't warn about unsupported attributes",
+      "next-form - app dir functions passed to formAction runs server action (closure) from submitter and doesn't warn about unsupported attributes",
+      "next-form - app dir functions passed to formAction runs server action from submitter and doesn't warn about unsupported attributes",
+      "next-form - app dir should soft-navigate on submit and show the prefetched loading state",
+      "next-form - app dir should soft-navigate to the formAction url of the submitter",
+      "next-form - app dir unsupported attributes on submitter should warn if submitter sets \"formEncType\" to an unsupported value and fall back to default submit behavior",
+      "next-form - app dir unsupported attributes on submitter should warn if submitter sets \"formMethod\" to an unsupported value and fall back to default submit behavior",
+      "next-form - app dir unsupported attributes on submitter should warn if submitter sets \"formTarget\" to an unsupported value and fall back to default submit behavior",
+      "next-form - app dir url-encodes file inputs, but warns about them"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/next-form/default/next-form-prefetch.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "app dir - form prefetching should not prefetch when prefetch is set to false`",
+      "app dir - form prefetching should prefetch a loading state for the form's target"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/next-form/default/pages-dir.test.ts": {
+    "passed": [
+      "next-form - pages dir does not navigate if preventDefault is called in onSubmit",
+      "next-form - pages dir does not push a new history entry if `replace` is passed",
+      "next-form - pages dir functions passed to action runs client action",
+      "next-form - pages dir functions passed to formAction runs client action from submitter and doesn't warn about unsupported attributes",
+      "next-form - pages dir should soft-navigate on submit",
+      "next-form - pages dir should soft-navigate to the formAction url of the submitter",
+      "next-form - pages dir unsupported attributes on submitter should warn if submitter sets \"formEncType\" to an unsupported value and fall back to default submit behavior",
+      "next-form - pages dir unsupported attributes on submitter should warn if submitter sets \"formMethod\" to an unsupported value and fall back to default submit behavior",
+      "next-form - pages dir unsupported attributes on submitter should warn if submitter sets \"formTarget\" to an unsupported value and fall back to default submit behavior",
+      "next-form - pages dir url-encodes file inputs, but warns about them"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/next-head/index.test.ts": {
     "passed": [
       "next/head should have correct head tags after hydration",
@@ -10833,10 +11520,21 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/next-image-svgo-webpack/svgo-webpack.test.ts": {
+    "passed": [
+      "svgo-webpack loader should render an SVG that is transformed by @svgr/webpack into a React component (app router)",
+      "svgo-webpack loader should render an SVG that is transformed by @svgr/webpack into a React component (pages router)"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/next-link-errors/next-link-errors.test.ts": {
     "passed": [],
     "failed": [
       "next-link errors on invalid href",
+      "next-link invalid `prefetch` causes runtime error (dev-only)",
       "next-link multiple children",
       "next-link no children"
     ],
@@ -11084,7 +11782,11 @@
     "runtimeError": false
   },
   "test/e2e/persistent-caching/persistent-caching.test.ts": {
-    "passed": ["persistent-caching should allow to change files while stopped"],
+    "passed": [
+      "persistent-caching should allow to change files while stopped (run 1)",
+      "persistent-caching should allow to change files while stopped (run 2)",
+      "persistent-caching should allow to change files while stopped (run 3)"
+    ],
     "failed": ["persistent-caching should persistent cache loaders"],
     "pending": [],
     "flakey": [],
@@ -11325,7 +12027,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/socket-io/index.test.js": {
+  "test/e2e/socket-io/index.test.ts": {
     "passed": [
       "socket-io should support socket.io without falling back to polling"
     ],
@@ -11480,6 +12182,112 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/trailing-slashes/basepath.test.ts": {
+    "passed": [
+      "Trailing slashes in development mode, with basepath, trailingSlash: true /docs should redirect to /docs/",
+      "Trailing slashes in development mode, with basepath, trailingSlash: true /docs/about should redirect to /docs/about/",
+      "Trailing slashes in development mode, with basepath, trailingSlash: true /docs/catch-all/hello.world/ should redirect to /docs/catch-all/hello.world",
+      "Trailing slashes in development mode, with basepath, trailingSlash: true /docs/catch-all/hello/world should redirect to /docs/catch-all/hello/world/",
+      "Trailing slashes in development mode, with basepath, trailingSlash: true /docs/linker?href=/ should have href /docs/",
+      "Trailing slashes in development mode, with basepath, trailingSlash: true /docs/linker?href=/ should navigate to /docs/",
+      "Trailing slashes in development mode, with basepath, trailingSlash: true /docs/linker?href=/ should push route to /docs/",
+      "Trailing slashes in development mode, with basepath, trailingSlash: true /docs/linker?href=/about should have href /docs/about/",
+      "Trailing slashes in development mode, with basepath, trailingSlash: true /docs/linker?href=/about should navigate to /docs/about/",
+      "Trailing slashes in development mode, with basepath, trailingSlash: true /docs/linker?href=/about should push route to /docs/about/"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/trailing-slashes/with-trailing-slash.test.ts": {
+    "passed": [
+      "Trailing slashes with trailingSlash: true / should client side render /index.js, with router path /",
+      "Trailing slashes with trailingSlash: true / should resolve to /index.js, with router path /",
+      "Trailing slashes with trailingSlash: true /about should redirect to /about/",
+      "Trailing slashes with trailingSlash: true /about/ should client side render /about.js, with router path /about",
+      "Trailing slashes with trailingSlash: true /about/ should resolve to /about.js, with router path /about",
+      "Trailing slashes with trailingSlash: true /about/?hello=world should client side render /about.js, with router path /about",
+      "Trailing slashes with trailingSlash: true /about/?hello=world should resolve to /about.js, with router path /about",
+      "Trailing slashes with trailingSlash: true /catch-all/hello.world/ should redirect to /catch-all/hello.world",
+      "Trailing slashes with trailingSlash: true /catch-all/hello/world should redirect to /catch-all/hello/world/",
+      "Trailing slashes with trailingSlash: true /catch-all/hello/world/ should client side render /catch-all/[...slug].js, with router path /catch-all/[...slug]",
+      "Trailing slashes with trailingSlash: true /catch-all/hello/world/ should resolve to /catch-all/[...slug].js, with router path /catch-all/[...slug]",
+      "Trailing slashes with trailingSlash: true /external-linker?href=https://nextjs.org should have href https://nextjs.org",
+      "Trailing slashes with trailingSlash: true /external-linker?href=https://nextjs.org/ should have href https://nextjs.org/",
+      "Trailing slashes with trailingSlash: true /linker?href=/ should have href /",
+      "Trailing slashes with trailingSlash: true /linker?href=/ should navigate to /",
+      "Trailing slashes with trailingSlash: true /linker?href=/ should push route to /",
+      "Trailing slashes with trailingSlash: true /linker?href=/about should have href /about/",
+      "Trailing slashes with trailingSlash: true /linker?href=/about should navigate to /about/",
+      "Trailing slashes with trailingSlash: true /linker?href=/about should push route to /about/",
+      "Trailing slashes with trailingSlash: true /linker?href=/about/ should have href /about/",
+      "Trailing slashes with trailingSlash: true /linker?href=/about/ should navigate to /about/",
+      "Trailing slashes with trailingSlash: true /linker?href=/about/ should push route to /about/",
+      "Trailing slashes with trailingSlash: true /linker?href=/about/?hello=world should have href /about/?hello=world",
+      "Trailing slashes with trailingSlash: true /linker?href=/about/?hello=world should navigate to /about/?hello=world",
+      "Trailing slashes with trailingSlash: true /linker?href=/about/?hello=world should push route to /about/?hello=world",
+      "Trailing slashes with trailingSlash: true /linker?href=/about?hello=world should have href /about/?hello=world",
+      "Trailing slashes with trailingSlash: true /linker?href=/about?hello=world should navigate to /about/?hello=world",
+      "Trailing slashes with trailingSlash: true /linker?href=/about?hello=world should push route to /about/?hello=world",
+      "Trailing slashes with trailingSlash: true /linker?href=/catch-all/hello.world/ should have href /catch-all/hello.world",
+      "Trailing slashes with trailingSlash: true /linker?href=/catch-all/hello.world/ should navigate to /catch-all/hello.world",
+      "Trailing slashes with trailingSlash: true /linker?href=/catch-all/hello.world/ should push route to /catch-all/hello.world",
+      "Trailing slashes with trailingSlash: true /linker?href=/catch-all/hello/ should have href /catch-all/hello/",
+      "Trailing slashes with trailingSlash: true /linker?href=/catch-all/hello/ should navigate to /catch-all/hello/",
+      "Trailing slashes with trailingSlash: true /linker?href=/catch-all/hello/ should push route to /catch-all/hello/"
+    ],
+    "failed": [],
+    "pending": [
+      "Trailing slashes with trailingSlash: true should have a trailing redirect in the routesmanifest"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/trailing-slashes/without-trailing-slash.test.ts": {
+    "passed": [
+      "Trailing slashes with trailingSlash: false / should client side render /index.js, with router path /",
+      "Trailing slashes with trailingSlash: false / should resolve to /index.js, with router path /",
+      "Trailing slashes with trailingSlash: false /about should client side render /about.js, with router path /about",
+      "Trailing slashes with trailingSlash: false /about should resolve to /about.js, with router path /about",
+      "Trailing slashes with trailingSlash: false /about/ should redirect to /about",
+      "Trailing slashes with trailingSlash: false /about?hello=world should client side render /about.js, with router path /about",
+      "Trailing slashes with trailingSlash: false /about?hello=world should resolve to /about.js, with router path /about",
+      "Trailing slashes with trailingSlash: false /catch-all/hello.world/ should redirect to /catch-all/hello.world",
+      "Trailing slashes with trailingSlash: false /catch-all/hello/world should client side render /catch-all/[...slug].js, with router path /catch-all/[...slug]",
+      "Trailing slashes with trailingSlash: false /catch-all/hello/world should resolve to /catch-all/[...slug].js, with router path /catch-all/[...slug]",
+      "Trailing slashes with trailingSlash: false /catch-all/hello/world/ should redirect to /catch-all/hello/world",
+      "Trailing slashes with trailingSlash: false /external-linker?href=https://nextjs.org should have href https://nextjs.org",
+      "Trailing slashes with trailingSlash: false /external-linker?href=https://nextjs.org/ should have href https://nextjs.org/",
+      "Trailing slashes with trailingSlash: false /linker?href=/ should have href /",
+      "Trailing slashes with trailingSlash: false /linker?href=/ should navigate to /",
+      "Trailing slashes with trailingSlash: false /linker?href=/ should push route to /",
+      "Trailing slashes with trailingSlash: false /linker?href=/about should have href /about",
+      "Trailing slashes with trailingSlash: false /linker?href=/about should navigate to /about",
+      "Trailing slashes with trailingSlash: false /linker?href=/about should push route to /about",
+      "Trailing slashes with trailingSlash: false /linker?href=/about/ should have href /about",
+      "Trailing slashes with trailingSlash: false /linker?href=/about/ should navigate to /about",
+      "Trailing slashes with trailingSlash: false /linker?href=/about/ should push route to /about",
+      "Trailing slashes with trailingSlash: false /linker?href=/about/?hello=world should have href /about?hello=world",
+      "Trailing slashes with trailingSlash: false /linker?href=/about/?hello=world should navigate to /about?hello=world",
+      "Trailing slashes with trailingSlash: false /linker?href=/about/?hello=world should push route to /about?hello=world",
+      "Trailing slashes with trailingSlash: false /linker?href=/about?hello=world should have href /about?hello=world",
+      "Trailing slashes with trailingSlash: false /linker?href=/about?hello=world should navigate to /about?hello=world",
+      "Trailing slashes with trailingSlash: false /linker?href=/about?hello=world should push route to /about?hello=world",
+      "Trailing slashes with trailingSlash: false /linker?href=/catch-all/hello.world/ should have href /catch-all/hello.world",
+      "Trailing slashes with trailingSlash: false /linker?href=/catch-all/hello.world/ should navigate to /catch-all/hello.world",
+      "Trailing slashes with trailingSlash: false /linker?href=/catch-all/hello.world/ should push route to /catch-all/hello.world",
+      "Trailing slashes with trailingSlash: false /linker?href=/catch-all/hello/ should have href /catch-all/hello",
+      "Trailing slashes with trailingSlash: false /linker?href=/catch-all/hello/ should navigate to /catch-all/hello",
+      "Trailing slashes with trailingSlash: false /linker?href=/catch-all/hello/ should push route to /catch-all/hello"
+    ],
+    "failed": [],
+    "pending": [
+      "Trailing slashes with trailingSlash: false should have a redirect in the routesmanifest"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/trailingslash-with-rewrite/index.test.ts": {
     "passed": [
       "trailingSlash:true with rewrites and getStaticProps should work"
@@ -11628,29 +12436,36 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/worker-react-refresh/worker-react-refresh.test.tsx": {
+    "passed": ["worker-react-refresh does not cause any runtime errors"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/yarn-pnp/test/mdx-pages.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "yarn PnP should compile and serve the index page correctly mdx-pages"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/yarn-pnp/test/with-eslint.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "yarn PnP should compile and serve the index page correctly with-eslint"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/yarn-pnp/test/with-sass.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "yarn PnP should compile and serve the index page correctly with-sass"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -12198,7 +13013,7 @@
     ],
     "failed": [],
     "pending": [
-      "Root components import order production mode _app chunks should be attached to de dom before page chunks",
+      "Root components import order production mode Skipped in Turbopack _app chunks should be attached to de dom before page chunks",
       "Root components import order production mode root components should be imported in this order _document > _app > page in order to respect side effects"
     ],
     "flakey": [],
@@ -12484,6 +13299,8 @@
       "CLI Usage dev -p reserved",
       "CLI Usage dev Allow retry if default port is already in use",
       "CLI Usage dev NODE_OPTIONS='--inspect'",
+      "CLI Usage dev NODE_OPTIONS='--require=file with spaces to --require.js'",
+      "CLI Usage dev NODE_OPTIONS='--require=file with spaces to-require-with-node-require-option.js'",
       "CLI Usage dev PORT=0",
       "CLI Usage dev custom directory",
       "CLI Usage dev invalid directory",
@@ -12496,6 +13313,8 @@
       "CLI Usage export run export command",
       "CLI Usage info --help",
       "CLI Usage info -h",
+      "CLI Usage info should print output",
+      "CLI Usage info should print output with next.config.mjs",
       "CLI Usage no command --help",
       "CLI Usage no command --version",
       "CLI Usage no command -h",
@@ -12503,12 +13322,7 @@
       "CLI Usage no command detects command typos",
       "CLI Usage no command invalid directory"
     ],
-    "failed": [
-      "CLI Usage dev NODE_OPTIONS='--require=file with spaces to --require.js'",
-      "CLI Usage dev NODE_OPTIONS='--require=file with spaces to-require-with-node-require-option.js'",
-      "CLI Usage info should print output",
-      "CLI Usage info should print output with next.config.mjs"
-    ],
+    "failed": [],
     "pending": [
       "CLI Usage production mode build --help",
       "CLI Usage production mode build -h",
@@ -12639,8 +13453,10 @@
       "config-output-export should error with getStaticPaths and fallback true",
       "config-output-export should error with getStaticProps and revalidate 10 seconds (ISR)",
       "config-output-export should error with middleware function",
+      "config-output-export should work with getStaticPaths and fallback false",
       "config-output-export should work with getStaticProps and revalidate false",
       "config-output-export should work with getStaticProps and without revalidate",
+      "config-output-export should work with static homepage",
       "config-output-export when hasNextSupport = false should error with \"headers\" config",
       "config-output-export when hasNextSupport = false should error with \"redirects\" config",
       "config-output-export when hasNextSupport = false should error with \"rewrites\" config",
@@ -12648,10 +13464,7 @@
       "config-output-export when hasNextSupport = true should error with \"redirects\" config",
       "config-output-export when hasNextSupport = true should error with \"rewrites\" config"
     ],
-    "failed": [
-      "config-output-export should work with getStaticPaths and fallback false",
-      "config-output-export should work with static homepage"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -12822,22 +13635,20 @@
     "runtimeError": false
   },
   "test/integration/create-next-app/templates/app-api.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "create-next-app --api (Headless App) should create JavaScript project with --js flag",
       "create-next-app --api (Headless App) should create TypeScript project with --ts flag",
-      "create-next-app --api (Headless App) should create project inside \"src\" directory with --src-dir flag",
+      "create-next-app --api (Headless App) should create project inside \"src\" directory with --src-dir flag"
+    ],
+    "failed": [],
+    "pending": [
       "create-next-app --api (Headless App) should enable turbopack dev with --turbopack flag"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/create-next-app/templates/app.test.ts": {
     "passed": [
-      "create-next-app --app (App Router) should enable turbopack dev with --turbopack flag"
-    ],
-    "failed": [
       "create-next-app --app (App Router) should create JavaScript project with --js flag",
       "create-next-app --app (App Router) should create TailwindCSS project with --tailwind flag",
       "create-next-app --app (App Router) should create TypeScript project with --ts flag",
@@ -12845,13 +13656,15 @@
       "create-next-app --app (App Router) should create an empty project with --empty flag",
       "create-next-app --app (App Router) should create project inside \"src\" directory with --src-dir flag"
     ],
-    "pending": [],
+    "failed": [],
+    "pending": [
+      "create-next-app --app (App Router) should enable turbopack dev with --turbopack flag"
+    ],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/create-next-app/templates/matrix.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "CNA options matrix - app --app --no-turbopack --js --import-alias=@/* --eslint --no-src-dir --no-tailwind",
       "CNA options matrix - app --app --no-turbopack --js --import-alias=@/* --eslint --no-src-dir --tailwind",
       "CNA options matrix - app --app --no-turbopack --js --import-alias=@/* --eslint --src-dir --no-tailwind",
@@ -12901,15 +13714,13 @@
       "CNA options matrix - pages --no-app --no-turbopack --ts --no-import-alias --eslint --src-dir --no-tailwind",
       "CNA options matrix - pages --no-app --no-turbopack --ts --no-import-alias --eslint --src-dir --tailwind"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/create-next-app/templates/pages.test.ts": {
     "passed": [
-      "create-next-app --no-app (Pages Router) should enable turbopack dev with --turbopack flag"
-    ],
-    "failed": [
       "create-next-app --no-app (Pages Router) should create JavaScript project with --js flag",
       "create-next-app --no-app (Pages Router) should create TailwindCSS project with --tailwind flag",
       "create-next-app --no-app (Pages Router) should create TypeScript project with --ts flag",
@@ -12917,7 +13728,10 @@
       "create-next-app --no-app (Pages Router) should create an empty project with --empty flag",
       "create-next-app --no-app (Pages Router) should create project inside \"src\" directory with --src-dir flag"
     ],
-    "pending": [],
+    "failed": [],
+    "pending": [
+      "create-next-app --no-app (Pages Router) should enable turbopack dev with --turbopack flag"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -14196,19 +15010,18 @@
   },
   "test/integration/edge-runtime-module-errors/test/index.test.js": {
     "passed": [
+      "Edge runtime code with imports Edge API dynamically importing node.js module development mode throws unsupported module error in dev at runtime and highlights the faulty line",
+      "Edge runtime code with imports Edge API dynamically importing node.js module in a lib development mode throws unsupported module error in dev at runtime and highlights the faulty line",
       "Edge runtime code with imports Edge API importing vanilla 3rd party module does not throw in dev at runtime",
       "Edge runtime code with imports Edge API statically importing 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
       "Edge runtime code with imports Edge API using Buffer polyfill does not throw in dev at runtime",
+      "Edge runtime code with imports Middleware dynamically importing node.js module development mode throws unsupported module error in dev at runtime and highlights the faulty line",
+      "Edge runtime code with imports Middleware dynamically importing node.js module in a lib development mode throws unsupported module error in dev at runtime and highlights the faulty line",
       "Edge runtime code with imports Middleware importing vanilla 3rd party module does not throw in dev at runtime",
       "Edge runtime code with imports Middleware statically importing 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
       "Edge runtime code with imports Middleware using Buffer polyfill does not throw in dev at runtime"
     ],
-    "failed": [
-      "Edge runtime code with imports Edge API dynamically importing node.js module development mode throws unsupported module error in dev at runtime and highlights the faulty line",
-      "Edge runtime code with imports Edge API dynamically importing node.js module in a lib development mode throws unsupported module error in dev at runtime and highlights the faulty line",
-      "Edge runtime code with imports Middleware dynamically importing node.js module development mode throws unsupported module error in dev at runtime and highlights the faulty line",
-      "Edge runtime code with imports Middleware dynamically importing node.js module in a lib development mode throws unsupported module error in dev at runtime and highlights the faulty line"
-    ],
+    "failed": [],
     "pending": [
       "Edge runtime code with imports Edge API dynamically importing node.js module in a lib production mode throws unsupported module error in production at runtime and prints error on logs",
       "Edge runtime code with imports Edge API dynamically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs",
@@ -14229,14 +15042,13 @@
       "Edge runtime code with imports Edge API dynamically importing 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
       "Edge runtime code with imports Edge API importing unused 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
       "Edge runtime code with imports Edge API importing unused node.js module does not throw in dev at runtime",
+      "Edge runtime code with imports Edge API statically importing node.js module throws unsupported module error in dev at runtime and highlights the faulty line",
       "Edge runtime code with imports Middleware dynamically importing 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
       "Edge runtime code with imports Middleware importing unused 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
-      "Edge runtime code with imports Middleware importing unused node.js module does not throw in dev at runtime"
-    ],
-    "failed": [
-      "Edge runtime code with imports Edge API statically importing node.js module throws unsupported module error in dev at runtime and highlights the faulty line",
+      "Edge runtime code with imports Middleware importing unused node.js module does not throw in dev at runtime",
       "Edge runtime code with imports Middleware statically importing node.js module throws unsupported module error in dev at runtime and highlights the faulty line"
     ],
+    "failed": [],
     "pending": [
       "Edge runtime code with imports Edge API dynamically importing 3rd party module production mode does not build and reports module not found error",
       "Edge runtime code with imports Edge API importing unused 3rd party module production mode does not build and reports module not found error",
@@ -14441,10 +15253,10 @@
     "runtimeError": false
   },
   "test/integration/error-plugin-stack-overflow/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Reports stack trace when webpack plugin stack overflows shows details in next build"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -18733,16 +19545,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/next-image-svgo-webpack/svgo-webpack.test.ts": {
-    "passed": [
-      "svgo-webpack loader should render an SVG that is transformed by @svgr/webpack into a React component (pages router)",
-      "svgo-webpack loader should render an SVG that is transformed by @svgr/webpack into a React component (app router)"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/next-image-legacy/trailing-slash/test/index.test.ts": {
     "passed": [
       "Image Component Trailing Slash Tests development mode should include trailing slash when trailingSlash is set on config file during next dev"
@@ -19321,17 +20123,6 @@
     "failed": [],
     "pending": [
       "react-virtualized wrapping next/image production mode should not cancel requests for images"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/next-image-new/svgo-webpack/test/index.test.ts": {
-    "passed": [
-      "svgo-webpack with Image Component development mode should print error when invalid Image usage"
-    ],
-    "failed": [],
-    "pending": [
-      "svgo-webpack with Image Component production mode should not fail to build invalid usage of the Image component"
     ],
     "flakey": [],
     "runtimeError": false
@@ -20654,173 +21445,6 @@
       "Trailing Slash Rewrite Proxying production mode should resolve a dynamic page correctly",
       "Trailing Slash Rewrite Proxying production mode should resolve index page correctly",
       "Trailing Slash Rewrite Proxying production mode should resolve products page correctly"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/trailing-slashes/test/index.test.js": {
-    "passed": [
-      "Trailing slashes development mode, trailingSlash: false / should client side render /index.js, with router path /",
-      "Trailing slashes development mode, trailingSlash: false / should resolve to /index.js, with router path /",
-      "Trailing slashes development mode, trailingSlash: false /about should client side render /about.js, with router path /about",
-      "Trailing slashes development mode, trailingSlash: false /about should resolve to /about.js, with router path /about",
-      "Trailing slashes development mode, trailingSlash: false /about/ should redirect to /about",
-      "Trailing slashes development mode, trailingSlash: false /about?hello=world should client side render /about.js, with router path /about",
-      "Trailing slashes development mode, trailingSlash: false /about?hello=world should resolve to /about.js, with router path /about",
-      "Trailing slashes development mode, trailingSlash: false /catch-all/hello.world/ should redirect to /catch-all/hello.world",
-      "Trailing slashes development mode, trailingSlash: false /catch-all/hello/world should client side render /catch-all/[...slug].js, with router path /catch-all/[...slug]",
-      "Trailing slashes development mode, trailingSlash: false /catch-all/hello/world should resolve to /catch-all/[...slug].js, with router path /catch-all/[...slug]",
-      "Trailing slashes development mode, trailingSlash: false /catch-all/hello/world/ should redirect to /catch-all/hello/world",
-      "Trailing slashes development mode, trailingSlash: false /external-linker?href=https://nextjs.org should have href https://nextjs.org",
-      "Trailing slashes development mode, trailingSlash: false /external-linker?href=https://nextjs.org/ should have href https://nextjs.org/",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/ should have href /",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/ should navigate to /",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/ should push route to /",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/about should have href /about",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/about should navigate to /about",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/about should push route to /about",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/about/ should have href /about",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/about/ should navigate to /about",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/about/ should push route to /about",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/about/?hello=world should have href /about?hello=world",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/about/?hello=world should navigate to /about?hello=world",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/about/?hello=world should push route to /about?hello=world",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/about?hello=world should have href /about?hello=world",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/about?hello=world should navigate to /about?hello=world",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/about?hello=world should push route to /about?hello=world",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/catch-all/hello.world/ should have href /catch-all/hello.world",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/catch-all/hello.world/ should navigate to /catch-all/hello.world",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/catch-all/hello.world/ should push route to /catch-all/hello.world",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/catch-all/hello/ should have href /catch-all/hello",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/catch-all/hello/ should navigate to /catch-all/hello",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/catch-all/hello/ should push route to /catch-all/hello",
-      "Trailing slashes development mode, trailingSlash: true / should client side render /index.js, with router path /",
-      "Trailing slashes development mode, trailingSlash: true / should resolve to /index.js, with router path /",
-      "Trailing slashes development mode, trailingSlash: true /about should redirect to /about/",
-      "Trailing slashes development mode, trailingSlash: true /about/ should client side render /about.js, with router path /about",
-      "Trailing slashes development mode, trailingSlash: true /about/ should resolve to /about.js, with router path /about",
-      "Trailing slashes development mode, trailingSlash: true /about/?hello=world should client side render /about.js, with router path /about",
-      "Trailing slashes development mode, trailingSlash: true /about/?hello=world should resolve to /about.js, with router path /about",
-      "Trailing slashes development mode, trailingSlash: true /catch-all/hello.world/ should redirect to /catch-all/hello.world",
-      "Trailing slashes development mode, trailingSlash: true /catch-all/hello/world should redirect to /catch-all/hello/world/",
-      "Trailing slashes development mode, trailingSlash: true /catch-all/hello/world/ should client side render /catch-all/[...slug].js, with router path /catch-all/[...slug]",
-      "Trailing slashes development mode, trailingSlash: true /catch-all/hello/world/ should resolve to /catch-all/[...slug].js, with router path /catch-all/[...slug]",
-      "Trailing slashes development mode, trailingSlash: true /external-linker?href=https://nextjs.org should have href https://nextjs.org",
-      "Trailing slashes development mode, trailingSlash: true /external-linker?href=https://nextjs.org/ should have href https://nextjs.org/",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/ should have href /",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/ should navigate to /",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/ should push route to /",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/about should have href /about/",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/about should navigate to /about/",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/about should push route to /about/",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/about/ should have href /about/",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/about/ should navigate to /about/",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/about/ should push route to /about/",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/about/?hello=world should have href /about/?hello=world",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/about/?hello=world should navigate to /about/?hello=world",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/about/?hello=world should push route to /about/?hello=world",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/about?hello=world should have href /about/?hello=world",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/about?hello=world should navigate to /about/?hello=world",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/about?hello=world should push route to /about/?hello=world",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/catch-all/hello.world/ should have href /catch-all/hello.world",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/catch-all/hello.world/ should navigate to /catch-all/hello.world",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/catch-all/hello.world/ should push route to /catch-all/hello.world",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/catch-all/hello/ should have href /catch-all/hello/",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/catch-all/hello/ should navigate to /catch-all/hello/",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/catch-all/hello/ should push route to /catch-all/hello/",
-      "Trailing slashes development mode, with basepath, trailingSlash: true /docs should redirect to /docs/",
-      "Trailing slashes development mode, with basepath, trailingSlash: true /docs/about should redirect to /docs/about/",
-      "Trailing slashes development mode, with basepath, trailingSlash: true /docs/catch-all/hello.world/ should redirect to /docs/catch-all/hello.world",
-      "Trailing slashes development mode, with basepath, trailingSlash: true /docs/catch-all/hello/world should redirect to /docs/catch-all/hello/world/",
-      "Trailing slashes development mode, with basepath, trailingSlash: true /docs/linker?href=/ should have href /docs/",
-      "Trailing slashes development mode, with basepath, trailingSlash: true /docs/linker?href=/ should navigate to /docs/",
-      "Trailing slashes development mode, with basepath, trailingSlash: true /docs/linker?href=/ should push route to /docs/",
-      "Trailing slashes development mode, with basepath, trailingSlash: true /docs/linker?href=/about should have href /docs/about/",
-      "Trailing slashes development mode, with basepath, trailingSlash: true /docs/linker?href=/about should navigate to /docs/about/",
-      "Trailing slashes development mode, with basepath, trailingSlash: true /docs/linker?href=/about should push route to /docs/about/"
-    ],
-    "failed": [],
-    "pending": [
-      "Trailing slashes production mode, trailingSlash: false / should client side render /index.js, with router path /",
-      "Trailing slashes production mode, trailingSlash: false / should resolve to /index.js, with router path /",
-      "Trailing slashes production mode, trailingSlash: false /about should client side render /about.js, with router path /about",
-      "Trailing slashes production mode, trailingSlash: false /about should resolve to /about.js, with router path /about",
-      "Trailing slashes production mode, trailingSlash: false /about/ should redirect to /about",
-      "Trailing slashes production mode, trailingSlash: false /about?hello=world should client side render /about.js, with router path /about",
-      "Trailing slashes production mode, trailingSlash: false /about?hello=world should resolve to /about.js, with router path /about",
-      "Trailing slashes production mode, trailingSlash: false /catch-all/hello.world/ should redirect to /catch-all/hello.world",
-      "Trailing slashes production mode, trailingSlash: false /catch-all/hello/world should client side render /catch-all/[...slug].js, with router path /catch-all/[...slug]",
-      "Trailing slashes production mode, trailingSlash: false /catch-all/hello/world should resolve to /catch-all/[...slug].js, with router path /catch-all/[...slug]",
-      "Trailing slashes production mode, trailingSlash: false /catch-all/hello/world/ should redirect to /catch-all/hello/world",
-      "Trailing slashes production mode, trailingSlash: false /external-linker?href=https://nextjs.org should have href https://nextjs.org",
-      "Trailing slashes production mode, trailingSlash: false /external-linker?href=https://nextjs.org/ should have href https://nextjs.org/",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/ should have href /",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/ should navigate to /",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/ should push route to /",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/about should have href /about",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/about should navigate to /about",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/about should push route to /about",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/about/ should have href /about",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/about/ should navigate to /about",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/about/ should push route to /about",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/about/?hello=world should have href /about?hello=world",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/about/?hello=world should navigate to /about?hello=world",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/about/?hello=world should push route to /about?hello=world",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/about?hello=world should have href /about?hello=world",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/about?hello=world should navigate to /about?hello=world",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/about?hello=world should push route to /about?hello=world",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/catch-all/hello.world/ should have href /catch-all/hello.world",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/catch-all/hello.world/ should navigate to /catch-all/hello.world",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/catch-all/hello.world/ should push route to /catch-all/hello.world",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/catch-all/hello/ should have href /catch-all/hello",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/catch-all/hello/ should navigate to /catch-all/hello",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/catch-all/hello/ should push route to /catch-all/hello",
-      "Trailing slashes production mode, trailingSlash: false should have a redirect in the routesmanifest",
-      "Trailing slashes production mode, trailingSlash: true / should client side render /index.js, with router path /",
-      "Trailing slashes production mode, trailingSlash: true / should resolve to /index.js, with router path /",
-      "Trailing slashes production mode, trailingSlash: true /about should redirect to /about/",
-      "Trailing slashes production mode, trailingSlash: true /about/ should client side render /about.js, with router path /about",
-      "Trailing slashes production mode, trailingSlash: true /about/ should resolve to /about.js, with router path /about",
-      "Trailing slashes production mode, trailingSlash: true /about/?hello=world should client side render /about.js, with router path /about",
-      "Trailing slashes production mode, trailingSlash: true /about/?hello=world should resolve to /about.js, with router path /about",
-      "Trailing slashes production mode, trailingSlash: true /catch-all/hello.world/ should redirect to /catch-all/hello.world",
-      "Trailing slashes production mode, trailingSlash: true /catch-all/hello/world should redirect to /catch-all/hello/world/",
-      "Trailing slashes production mode, trailingSlash: true /catch-all/hello/world/ should client side render /catch-all/[...slug].js, with router path /catch-all/[...slug]",
-      "Trailing slashes production mode, trailingSlash: true /catch-all/hello/world/ should resolve to /catch-all/[...slug].js, with router path /catch-all/[...slug]",
-      "Trailing slashes production mode, trailingSlash: true /external-linker?href=https://nextjs.org should have href https://nextjs.org",
-      "Trailing slashes production mode, trailingSlash: true /external-linker?href=https://nextjs.org/ should have href https://nextjs.org/",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/ should have href /",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/ should navigate to /",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/ should push route to /",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/about should have href /about/",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/about should navigate to /about/",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/about should push route to /about/",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/about/ should have href /about/",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/about/ should navigate to /about/",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/about/ should push route to /about/",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/about/?hello=world should have href /about/?hello=world",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/about/?hello=world should navigate to /about/?hello=world",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/about/?hello=world should push route to /about/?hello=world",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/about?hello=world should have href /about/?hello=world",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/about?hello=world should navigate to /about/?hello=world",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/about?hello=world should push route to /about/?hello=world",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/catch-all/hello.world/ should have href /catch-all/hello.world",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/catch-all/hello.world/ should navigate to /catch-all/hello.world",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/catch-all/hello.world/ should push route to /catch-all/hello.world",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/catch-all/hello/ should have href /catch-all/hello/",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/catch-all/hello/ should navigate to /catch-all/hello/",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/catch-all/hello/ should push route to /catch-all/hello/",
-      "Trailing slashes production mode, trailingSlash: true should have a trailing redirect in the routesmanifest",
-      "Trailing slashes production mode, with basepath, trailingSlash: true /docs should redirect to /docs/",
-      "Trailing slashes production mode, with basepath, trailingSlash: true /docs/about should redirect to /docs/about/",
-      "Trailing slashes production mode, with basepath, trailingSlash: true /docs/catch-all/hello.world/ should redirect to /docs/catch-all/hello.world",
-      "Trailing slashes production mode, with basepath, trailingSlash: true /docs/catch-all/hello/world should redirect to /docs/catch-all/hello/world/",
-      "Trailing slashes production mode, with basepath, trailingSlash: true /docs/linker?href=/ should have href /docs/",
-      "Trailing slashes production mode, with basepath, trailingSlash: true /docs/linker?href=/ should navigate to /docs/",
-      "Trailing slashes production mode, with basepath, trailingSlash: true /docs/linker?href=/ should push route to /docs/",
-      "Trailing slashes production mode, with basepath, trailingSlash: true /docs/linker?href=/about should have href /docs/about/",
-      "Trailing slashes production mode, with basepath, trailingSlash: true /docs/linker?href=/about should navigate to /docs/about/",
-      "Trailing slashes production mode, with basepath, trailingSlash: true /docs/linker?href=/about should push route to /docs/about/"
     ],
     "flakey": [],
     "runtimeError": false

@@ -1,6 +1,6 @@
 use std::{io::Write, iter::once};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use indoc::writedoc;
 use once_cell::sync::Lazy;
 use turbo_rcstr::RcStr;

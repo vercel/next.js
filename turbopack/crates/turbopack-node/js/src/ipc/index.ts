@@ -11,13 +11,13 @@ export type StructuredError = {
   cause: StructuredError | undefined
 }
 
-export function structuredError(e: Error): StructuredError {
+export function structuredError(e: unknown): StructuredError {
   e = getProperError(e)
 
   return {
     name: e.name,
     message: e.message,
-    stack: typeof e.stack === 'string' ? parseStackTrace(e.stack!) : [],
+    stack: typeof e.stack === 'string' ? parseStackTrace(e.stack) : [],
     cause: e.cause ? structuredError(getProperError(e.cause)) : undefined,
   }
 }
@@ -34,7 +34,7 @@ type State =
 export type Ipc<TIncoming, TOutgoing> = {
   recv(): Promise<TIncoming>
   send(message: TOutgoing): Promise<void>
-  sendError(error: Error): Promise<never>
+  sendError(error: Error | string): Promise<never>
   sendReady(): Promise<void>
 }
 
@@ -121,7 +121,7 @@ function createIpc<TIncoming, TOutgoing>(
 
   // TODO(lukesandberg): some of the messages being sent are very large and contain lots
   //  of redundant information.  Consider adding gzip compression to our stream.
-  function doSend(message: any): Promise<void> {
+  function doSend(message: string): Promise<void> {
     return new Promise((resolve, reject) => {
       // Reserve 4 bytes for our length prefix, we will over-write after encoding.
       const packet = Buffer.from('0000' + message, 'utf8')

@@ -747,14 +747,12 @@ function instantiateModule(id, source) {
                 L: loadChunkByUrl.bind(null, sourceInfo),
                 w: loadWebAssembly.bind(null, sourceInfo),
                 u: loadWebAssemblyModule.bind(null, sourceInfo),
-                g: globalThis,
                 P: resolveAbsolutePath,
                 U: relativeURL,
                 k: refresh,
                 R: createResolvePathFromModule(r),
                 b: getDevWorkerBlobURL,
-                z: requireStub,
-                d: typeof module.id === 'string' ? module.id.replace(/(^|\/)\/+$/, '') : module.id
+                z: requireStub
             }));
         });
     } catch (error) {

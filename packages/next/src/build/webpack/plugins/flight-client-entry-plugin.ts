@@ -400,6 +400,20 @@ export class FlightClientEntryPlugin {
             absolutePagePath: entryRequest,
           })
         }
+
+        if (
+          name === `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}` &&
+          bundlePath === 'app/global-not-found'
+        ) {
+          clientEntriesToInject.push({
+            compiler,
+            compilation,
+            entryName: name,
+            clientComponentImports,
+            bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
+            absolutePagePath: entryRequest,
+          })
+        }
       }
 
       // Make sure CSS imports are deduplicated before injecting the client entry

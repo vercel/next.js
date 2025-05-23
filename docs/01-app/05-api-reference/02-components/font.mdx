@@ -6,11 +6,80 @@ description: Optimizing loading web fonts with the built-in `next/font` loaders.
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
-This API reference will help you understand how to use [`next/font/google`](/docs/app/building-your-application/optimizing/fonts#google-fonts) and [`next/font/local`](/docs/app/building-your-application/optimizing/fonts#local-fonts). For features and usage, please see the [Optimizing Fonts](/docs/app/building-your-application/optimizing/fonts) page.
+[`next/font`](/docs/app/api-reference/components/font) automatically optimizes your fonts (including custom fonts) and removes external network requests for improved privacy and performance.
 
-### Font Function Arguments
+It includes **built-in automatic self-hosting** for any font file. This means you can optimally load web fonts with no [layout shift](https://web.dev/articles/cls).
 
-For usage, review [Google Fonts](/docs/app/building-your-application/optimizing/fonts#google-fonts) and [Local Fonts](/docs/app/building-your-application/optimizing/fonts#local-fonts).
+You can also conveniently use all [Google Fonts](https://fonts.google.com/). CSS and font files are downloaded at build time and self-hosted with the rest of your static assets. **No requests are sent to Google by the browser.**
+
+<AppOnly>
+
+```tsx filename="app/layout.tsx" switcher
+import { Inter } from 'next/font/google'
+
+// If loading a variable font, you don't need to specify the font weight
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+})
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="en" className={inter.className}>
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+```jsx filename="app/layout.js" switcher
+import { Inter } from 'next/font/google'
+
+// If loading a variable font, you don't need to specify the font weight
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+})
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en" className={inter.className}>
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+</AppOnly>
+
+<PagesOnly>
+
+To use the font in all your pages, add it to [`_app.js` file](/docs/pages/building-your-application/routing/custom-app) under `/pages` as shown below:
+
+```jsx filename="pages/_app.js"
+import { Inter } from 'next/font/google'
+
+// If loading a variable font, you don't need to specify the font weight
+const inter = Inter({ subsets: ['latin'] })
+
+export default function MyApp({ Component, pageProps }) {
+  return (
+    <main className={inter.className}>
+      <Component {...pageProps} />
+    </main>
+  )
+}
+```
+
+</PagesOnly>
+
+> **🎥 Watch:** Learn more about using `next/font` → [YouTube (6 minutes)](https://www.youtube.com/watch?v=L8_98i_bMMA).
+
+## Reference
 
 | Key                                         | `font/google`       | `font/local`        | Type                       | Required          |
 | ------------------------------------------- | ------------------- | ------------------- | -------------------------- | ----------------- |
@@ -76,7 +145,7 @@ Examples:
 
 ### `subsets`
 
-The font [`subsets`](https://fonts.google.com/knowledge/glossary/subsetting) defined by an array of string values with the names of each subset you would like to be [preloaded](/docs/app/building-your-application/optimizing/fonts#specifying-a-subset). Fonts specified via `subsets` will have a link preload tag injected into the head when the [`preload`](#preload) option is true, which is the default.
+The font [`subsets`](https://fonts.google.com/knowledge/glossary/subsetting) defined by an array of string values with the names of each subset you would like to be [preloaded](/docs/app/api-reference/components/font#specifying-a-subset). Fonts specified via `subsets` will have a link preload tag injected into the head when the [`preload`](#preload) option is true, which is the default.
 
 Used in `next/font/google`
 
@@ -114,7 +183,7 @@ Examples:
 
 ### `preload`
 
-A boolean value that specifies whether the font should be [preloaded](/docs/app/building-your-application/optimizing/fonts#preloading) or not. The default is `true`.
+A boolean value that specifies whether the font should be [preloaded](/docs/app/api-reference/components/font#preloading) or not. The default is `true`.
 
 Used in `next/font/google` and `next/font/local`
 
@@ -174,7 +243,635 @@ Examples:
 
 - `declarations: [{ prop: 'ascent-override', value: '90%' }]`
 
-## Applying Styles
+## Examples
+
+## Google Fonts
+
+To use a Google font, import it from `next/font/google` as a function. We recommend using [variable fonts](https://fonts.google.com/variablefonts) for the best performance and flexibility.
+
+<AppOnly>
+
+```tsx filename="app/layout.tsx" switcher
+import { Inter } from 'next/font/google'
+
+// If loading a variable font, you don't need to specify the font weight
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+})
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="en" className={inter.className}>
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+```jsx filename="app/layout.js" switcher
+import { Inter } from 'next/font/google'
+
+// If loading a variable font, you don't need to specify the font weight
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+})
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en" className={inter.className}>
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+If you can't use a variable font, you will **need to specify a weight**:
+
+```tsx filename="app/layout.tsx" switcher
+import { Roboto } from 'next/font/google'
+
+const roboto = Roboto({
+  weight: '400',
+  subsets: ['latin'],
+  display: 'swap',
+})
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="en" className={roboto.className}>
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+```jsx filename="app/layout.js" switcher
+import { Roboto } from 'next/font/google'
+
+const roboto = Roboto({
+  weight: '400',
+  subsets: ['latin'],
+  display: 'swap',
+})
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en" className={roboto.className}>
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+</AppOnly>
+
+<PagesOnly>
+
+To use the font in all your pages, add it to [`_app.js` file](/docs/pages/building-your-application/routing/custom-app) under `/pages` as shown below:
+
+```jsx filename="pages/_app.js"
+import { Inter } from 'next/font/google'
+
+// If loading a variable font, you don't need to specify the font weight
+const inter = Inter({ subsets: ['latin'] })
+
+export default function MyApp({ Component, pageProps }) {
+  return (
+    <main className={inter.className}>
+      <Component {...pageProps} />
+    </main>
+  )
+}
+```
+
+If you can't use a variable font, you will **need to specify a weight**:
+
+```jsx filename="pages/_app.js"
+import { Roboto } from 'next/font/google'
+
+const roboto = Roboto({
+  weight: '400',
+  subsets: ['latin'],
+})
+
+export default function MyApp({ Component, pageProps }) {
+  return (
+    <main className={roboto.className}>
+      <Component {...pageProps} />
+    </main>
+  )
+}
+```
+
+</PagesOnly>
+
+You can specify multiple weights and/or styles by using an array:
+
+```jsx filename="app/layout.js"
+const roboto = Roboto({
+  weight: ['400', '700'],
+  style: ['normal', 'italic'],
+  subsets: ['latin'],
+  display: 'swap',
+})
+```
+
+> **Good to know**: Use an underscore (\_) for font names with multiple words. E.g. `Roboto Mono` should be imported as `Roboto_Mono`.
+
+<PagesOnly>
+
+### Apply the font in `<head>`
+
+You can also use the font without a wrapper and `className` by injecting it inside the `<head>` as follows:
+
+```jsx filename="pages/_app.js"
+import { Inter } from 'next/font/google'
+
+const inter = Inter({ subsets: ['latin'] })
+
+export default function MyApp({ Component, pageProps }) {
+  return (
+    <>
+      <style jsx global>{`
+        html {
+          font-family: ${inter.style.fontFamily};
+        }
+      `}</style>
+      <Component {...pageProps} />
+    </>
+  )
+}
+```
+
+### Single page usage
+
+To use the font on a single page, add it to the specific page as shown below:
+
+```jsx filename="pages/index.js"
+import { Inter } from 'next/font/google'
+
+const inter = Inter({ subsets: ['latin'] })
+
+export default function Home() {
+  return (
+    <div className={inter.className}>
+      <p>Hello World</p>
+    </div>
+  )
+}
+```
+
+</PagesOnly>
+
+### Specifying a subset
+
+Google Fonts are automatically [subset](https://fonts.google.com/knowledge/glossary/subsetting). This reduces the size of the font file and improves performance. You'll need to define which of these subsets you want to preload. Failing to specify any subsets while [`preload`](/docs/app/api-reference/components/font#preload) is `true` will result in a warning.
+
+This can be done by adding it to the function call:
+
+<AppOnly>
+
+```tsx filename="app/layout.tsx" switcher
+const inter = Inter({ subsets: ['latin'] })
+```
+
+```jsx filename="app/layout.js" switcher
+const inter = Inter({ subsets: ['latin'] })
+```
+
+</AppOnly>
+
+<PagesOnly>
+
+```jsx filename="pages/_app.js"
+const inter = Inter({ subsets: ['latin'] })
+```
+
+</PagesOnly>
+
+View the [Font API Reference](/docs/app/api-reference/components/font) for more information.
+
+## Using Multiple Fonts
+
+You can import and use multiple fonts in your application. There are two approaches you can take.
+
+The first approach is to create a utility function that exports a font, imports it, and applies its `className` where needed. This ensures the font is preloaded only when it's rendered:
+
+```ts filename="app/fonts.ts" switcher
+import { Inter, Roboto_Mono } from 'next/font/google'
+
+export const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+})
+
+export const roboto_mono = Roboto_Mono({
+  subsets: ['latin'],
+  display: 'swap',
+})
+```
+
+```js filename="app/fonts.js" switcher
+import { Inter, Roboto_Mono } from 'next/font/google'
+
+export const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+})
+
+export const roboto_mono = Roboto_Mono({
+  subsets: ['latin'],
+  display: 'swap',
+})
+```
+
+<AppOnly>
+
+```tsx filename="app/layout.tsx" switcher
+import { inter } from './fonts'
+
+export default function Layout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en" className={inter.className}>
+      <body>
+        <div>{children}</div>
+      </body>
+    </html>
+  )
+}
+```
+
+```jsx filename="app/layout.js" switcher
+import { inter } from './fonts'
+
+export default function Layout({ children }) {
+  return (
+    <html lang="en" className={inter.className}>
+      <body>
+        <div>{children}</div>
+      </body>
+    </html>
+  )
+}
+```
+
+```tsx filename="app/page.tsx" switcher
+import { roboto_mono } from './fonts'
+
+export default function Page() {
+  return (
+    <>
+      <h1 className={roboto_mono.className}>My page</h1>
+    </>
+  )
+}
+```
+
+```jsx filename="app/page.js" switcher
+import { roboto_mono } from './fonts'
+
+export default function Page() {
+  return (
+    <>
+      <h1 className={roboto_mono.className}>My page</h1>
+    </>
+  )
+}
+```
+
+</AppOnly>
+
+In the example above, `Inter` will be applied globally, and `Roboto Mono` can be imported and applied as needed.
+
+Alternatively, you can create a [CSS variable](/docs/app/api-reference/components/font#variable) and use it with your preferred CSS solution:
+
+<AppOnly>
+
+```tsx filename="app/layout.tsx" switcher
+import { Inter, Roboto_Mono } from 'next/font/google'
+import styles from './global.css'
+
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+})
+
+const roboto_mono = Roboto_Mono({
+  subsets: ['latin'],
+  variable: '--font-roboto-mono',
+  display: 'swap',
+})
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="en" className={`${inter.variable} ${roboto_mono.variable}`}>
+      <body>
+        <h1>My App</h1>
+        <div>{children}</div>
+      </body>
+    </html>
+  )
+}
+```
+
+```jsx filename="app/layout.js" switcher
+import { Inter, Roboto_Mono } from 'next/font/google'
+
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+})
+
+const roboto_mono = Roboto_Mono({
+  subsets: ['latin'],
+  variable: '--font-roboto-mono',
+  display: 'swap',
+})
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en" className={`${inter.variable} ${roboto_mono.variable}`}>
+      <body>
+        <h1>My App</h1>
+        <div>{children}</div>
+      </body>
+    </html>
+  )
+}
+```
+
+</AppOnly>
+
+```css filename="app/global.css"
+html {
+  font-family: var(--font-inter);
+}
+
+h1 {
+  font-family: var(--font-roboto-mono);
+}
+```
+
+In the example above, `Inter` will be applied globally, and any `<h1>` tags will be styled with `Roboto Mono`.
+
+> **Recommendation**: Use multiple fonts conservatively since each new font is an additional resource the client has to download.
+
+### Local Fonts
+
+Import `next/font/local` and specify the `src` of your local font file. We recommend using [variable fonts](https://fonts.google.com/variablefonts) for the best performance and flexibility.
+
+<AppOnly>
+
+```tsx filename="app/layout.tsx" switcher
+import localFont from 'next/font/local'
+
+// Font files can be colocated inside of `app`
+const myFont = localFont({
+  src: './my-font.woff2',
+  display: 'swap',
+})
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="en" className={myFont.className}>
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+```jsx filename="app/layout.js" switcher
+import localFont from 'next/font/local'
+
+// Font files can be colocated inside of `app`
+const myFont = localFont({
+  src: './my-font.woff2',
+  display: 'swap',
+})
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en" className={myFont.className}>
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+</AppOnly>
+
+<PagesOnly>
+
+```jsx filename="pages/_app.js"
+import localFont from 'next/font/local'
+
+// Font files can be colocated inside of `pages`
+const myFont = localFont({ src: './my-font.woff2' })
+
+export default function MyApp({ Component, pageProps }) {
+  return (
+    <main className={myFont.className}>
+      <Component {...pageProps} />
+    </main>
+  )
+}
+```
+
+</PagesOnly>
+
+If you want to use multiple files for a single font family, `src` can be an array:
+
+```js
+const roboto = localFont({
+  src: [
+    {
+      path: './Roboto-Regular.woff2',
+      weight: '400',
+      style: 'normal',
+    },
+    {
+      path: './Roboto-Italic.woff2',
+      weight: '400',
+      style: 'italic',
+    },
+    {
+      path: './Roboto-Bold.woff2',
+      weight: '700',
+      style: 'normal',
+    },
+    {
+      path: './Roboto-BoldItalic.woff2',
+      weight: '700',
+      style: 'italic',
+    },
+  ],
+})
+```
+
+View the [Font API Reference](/docs/app/api-reference/components/font) for more information.
+
+### With Tailwind CSS
+
+`next/font` integrates seamlessly with [Tailwind CSS](https://tailwindcss.com/) using [CSS variables](/docs/app/api-reference/components/font#css-variables).
+
+In the example below, we use the `Inter` and `Roboto_Mono` fonts from `next/font/google` (you can use any Google Font or Local Font). Use the `variable` option to define a CSS variable name, such as `inter` and `roboto_mono` for these fonts, respectively. Then, apply `inter.variable` and `roboto_mono.variable` to include the CSS variables in your HTML document.
+
+> **Good to know**: You can add these variables to the `<html>` or `<body>` tag, depending on your preference, styling needs or project requirements.
+
+<AppOnly>
+
+```tsx filename="app/layout.tsx" switcher
+import { Inter, Roboto_Mono } from 'next/font/google'
+
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-inter',
+})
+
+const roboto_mono = Roboto_Mono({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-roboto-mono',
+})
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html
+      lang="en"
+      className={`${inter.variable} ${roboto_mono.variable} antialiased`}
+    >
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+```jsx filename="app/layout.js" switcher
+import { Inter, Roboto_Mono } from 'next/font/google'
+
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-inter',
+})
+
+const roboto_mono = Roboto_Mono({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-roboto-mono',
+})
+
+export default function RootLayout({ children }) {
+  return (
+    <html
+      lang="en"
+      className={`${inter.variable} ${roboto_mono.variable} antialiased`}
+    >
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+</AppOnly>
+
+<PagesOnly>
+
+```jsx filename="pages/_app.js"
+import { Inter } from 'next/font/google'
+
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+})
+
+const roboto_mono = Roboto_Mono({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-roboto-mono',
+})
+
+export default function MyApp({ Component, pageProps }) {
+  return (
+    <main className={`${inter.variable} ${roboto_mono.variable} font-sans`}>
+      <Component {...pageProps} />
+    </main>
+  )
+}
+```
+
+</PagesOnly>
+
+Finally, add the CSS variable to your [Tailwind CSS config](/docs/app/guides/tailwind-css#configuring-tailwind):
+
+### Tailwind CSS v4
+
+As of [Tailwind v4](https://tailwindcss.com/blog/tailwindcss-v4), there is zero configuration required by default. If you do need to configure Tailwind, you can follow the [official documentation](https://tailwindcss.com/blog/tailwindcss-v4#css-first-configuration) for configuring the global CSS file.
+
+```js filename="global.css"
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-roboto-mono);
+}
+```
+
+### Tailwind CSS v3
+
+```js filename="tailwind.config.js"
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: [
+    './pages/**/*.{js,ts,jsx,tsx}',
+    './components/**/*.{js,ts,jsx,tsx}',
+    './app/**/*.{js,ts,jsx,tsx}',
+  ],
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['var(--font-inter)'],
+        mono: ['var(--font-roboto-mono)'],
+      },
+    },
+  },
+  plugins: [],
+}
+```
+
+You can now use the `font-sans` and `font-mono` utility classes to apply the font to your elements.
+
+```
+<p class="font-sans ...">The quick brown fox ...</p>
+<p class="font-mono ...">The quick brown fox ...</p>
+```
+
+### Applying Styles
 
 You can apply the font styles in three ways:
 
@@ -182,7 +879,7 @@ You can apply the font styles in three ways:
 - [`style`](#style-1)
 - [CSS Variables](#css-variables)
 
-### `className`
+#### `className`
 
 Returns a read-only CSS `className` for the loaded font to be passed to an HTML element.
 
@@ -190,7 +887,7 @@ Returns a read-only CSS `className` for the loaded font to be passed to an HTML 
 <p className={inter.className}>Hello, Next.js!</p>
 ```
 
-### `style`
+#### `style`
 
 Returns a read-only CSS `style` object for the loaded font to be passed to an HTML element, including `style.fontFamily` to access the font family name and fallback fonts.
 
@@ -198,7 +895,7 @@ Returns a read-only CSS `style` object for the loaded font to be passed to an HT
 <p style={inter.style}>Hello World</p>
 ```
 
-### CSS Variables
+#### CSS Variables
 
 If you would like to set your styles in an external style sheet and specify additional options there, use the CSS variable method.
 
@@ -248,7 +945,7 @@ Define the `text` selector class in the `component.module.css` CSS file as follo
 
 In the example above, the text `Hello World` is styled using the `Inter` font and the generated font fallback with `font-weight: 200` and `font-style: italic`.
 
-## Using a font definitions file
+### Using a font definitions file
 
 Every time you call the `localFont` or Google font function, that font will be hosted as one instance in your application. Therefore, if you need to use the same font in multiple places, you should load it in one place and import the related font object where you need it. This is done using a font definitions file.
 
@@ -345,6 +1042,27 @@ import { greatVibes, sourceCodePro400 } from '@/fonts'
 ```jsx filename="app/about/page.js" switcher
 import { greatVibes, sourceCodePro400 } from '@/fonts'
 ```
+
+### Preloading
+
+<AppOnly>
+
+When a font function is called on a page of your site, it is not globally available and preloaded on all routes. Rather, the font is only preloaded on the related routes based on the type of file where it is used:
+
+- If it's a [unique page](/docs/app/api-reference/file-conventions/page), it is preloaded on the unique route for that page.
+- If it's a [layout](/docs/app/building-your-application/routing/layouts-and-templates#layouts), it is preloaded on all the routes wrapped by the layout.
+- If it's the [root layout](/docs/app/building-your-application/routing/layouts-and-templates#root-layout-required), it is preloaded on all routes.
+
+</AppOnly>
+
+<PagesOnly>
+
+When a font function is called on a page of your site, it is not globally available and preloaded on all routes. Rather, the font is only preloaded on the related route/s based on the type of file where it is used:
+
+- if it's a [unique page](/docs/pages/building-your-application/routing/pages-and-layouts), it is preloaded on the unique route for that page
+- if it's in the [custom App](/docs/pages/building-your-application/routing/custom-app), it is preloaded on all the routes of the site under `/pages`
+
+</PagesOnly>
 
 ## Version Changes
 

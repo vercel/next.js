@@ -3,18 +3,18 @@ use mime_guess::mime::TEXT_HTML_UTF_8;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Value, Vc,
+    NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Value, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{File, FileSystemPath};
-use turbo_tasks_hash::{encode_hex, Xxh3Hash64Hasher};
+use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_hex};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext, ChunkingContextExt,
-        EvaluatableAssets,
+        ChunkableModule, ChunkingContext, ChunkingContextExt, EvaluatableAssets,
+        availability_info::AvailabilityInfo,
     },
     module::Module,
-    module_graph::{chunk_group_info::ChunkGroup, ModuleGraph},
+    module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
     output::{OutputAsset, OutputAssets},
     version::{Version, VersionedContent},
 };
@@ -208,11 +208,10 @@ impl DevHtmlAssetContent {
 
         for relative_path in &*self.chunk_paths {
             if relative_path.ends_with(".js") {
-                scripts.push(format!("<script src=\"{}\"></script>", relative_path));
+                scripts.push(format!("<script src=\"{relative_path}\"></script>"));
             } else if relative_path.ends_with(".css") {
                 stylesheets.push(format!(
-                    "<link data-turbopack rel=\"stylesheet\" href=\"{}\">",
-                    relative_path
+                    "<link data-turbopack rel=\"stylesheet\" href=\"{relative_path}\">"
                 ));
             } else {
                 anyhow::bail!("chunk with unknown asset type: {}", relative_path)

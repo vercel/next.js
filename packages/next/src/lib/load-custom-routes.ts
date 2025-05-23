@@ -719,6 +719,18 @@ export default async function loadCustomRoutes(
     )
   }
 
+  if (config.experimental?.useSkewCookie && config.deploymentId) {
+    headers.unshift({
+      source: '/:path*',
+      headers: [
+        {
+          key: 'Set-Cookie',
+          value: `__vdpl=${config.deploymentId}; Path=/; HttpOnly`,
+        },
+      ],
+    })
+  }
+
   if (!config.skipTrailingSlashRedirect) {
     if (config.trailingSlash) {
       redirects.unshift(

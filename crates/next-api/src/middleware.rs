@@ -1,13 +1,13 @@
 use std::future::IntoFuture;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use next_core::{
     all_assets_from_entries,
     middleware::get_middleware_module,
     next_edge::entry::wrap_edge_entry,
     next_manifests::{EdgeFunctionDefinition, MiddlewareMatcher, MiddlewaresManifestV2, Regions},
-    next_server::{get_server_runtime_entries, ServerContextType},
-    util::{parse_config_from_source, MiddlewareMatcherKind, NextRuntime},
+    next_server::{ServerContextType, get_server_runtime_entries},
+    util::{MiddlewareMatcherKind, NextRuntime, parse_config_from_source},
 };
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
@@ -16,14 +16,14 @@ use turbo_tasks_fs::{self, File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt,
-        EntryChunkGroupResult,
+        ChunkingContext, ChunkingContextExt, EntryChunkGroupResult,
+        availability_info::AvailabilityInfo,
     },
     context::AssetContext,
     module::Module,
     module_graph::{
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
         GraphEntries,
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
     },
     output::{OutputAsset, OutputAssets},
     reference_type::{EntryReferenceSubType, ReferenceType},

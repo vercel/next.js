@@ -4,14 +4,14 @@ use turbo_tasks::TaskId;
 
 use crate::{
     backend::{
+        TaskDataCategory,
         operation::{
+            ExecuteContext, Operation, TaskGuard,
             aggregation_update::{
                 AggregatedDataUpdate, AggregationUpdateJob, AggregationUpdateQueue,
             },
-            ExecuteContext, Operation, TaskGuard,
         },
         storage::{get, get_mut},
-        TaskDataCategory,
     },
     data::{
         CachedDataItem, CachedDataItemKey, CachedDataItemValue, DirtyState, InProgressState,

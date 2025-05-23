@@ -12,7 +12,7 @@ pub use module_rule::*;
 pub use rule_condition::*;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{glob::Glob, FileSystemPath};
+use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 use turbopack_core::{
     chunk::SourceMapsType,
     reference_type::{CssReferenceSubType, ReferenceType, UrlReferenceSubType},
@@ -36,10 +36,7 @@ async fn package_import_map_from_import_mapping(
     package_mapping: ResolvedVc<ImportMapping>,
 ) -> Vc<ImportMap> {
     let mut import_map = ImportMap::default();
-    import_map.insert_exact_alias(
-        format!("@vercel/turbopack/{}", package_name),
-        package_mapping,
-    );
+    import_map.insert_exact_alias(format!("@vercel/turbopack/{package_name}"), package_mapping);
     import_map.cell()
 }
 
@@ -50,7 +47,7 @@ async fn package_import_map_from_context(
 ) -> Vc<ImportMap> {
     let mut import_map = ImportMap::default();
     import_map.insert_exact_alias(
-        format!("@vercel/turbopack/{}", package_name),
+        format!("@vercel/turbopack/{package_name}"),
         ImportMapping::PrimaryAlternative(package_name, Some(context_path)).resolved_cell(),
     );
     import_map.cell()

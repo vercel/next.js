@@ -1,6 +1,6 @@
 use std::sync::{Arc, RwLock};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use lightningcss::{
     css_modules::{CssModuleExport, CssModuleExports, Pattern, Segment},
     stylesheet::{ParserOptions, PrinterOptions, StyleSheet, ToCssResult},
@@ -15,8 +15,9 @@ use swc_core::base::sourcemap::SourceMapBuilder;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{rope::Rope, FileContent, FileSystemPath};
+use turbo_tasks_fs::{FileContent, FileSystemPath, rope::Rope};
 use turbopack_core::{
+    SOURCE_URL_PROTOCOL,
     asset::{Asset, AssetContent},
     chunk::{ChunkingContext, MinifyType},
     issue::{
@@ -27,18 +28,17 @@ use turbopack_core::{
     reference_type::ImportContext,
     resolve::origin::ResolveOrigin,
     source::Source,
-    source_map::{utils::add_default_ignore_list, OptionStringifiedSourceMap},
+    source_map::{OptionStringifiedSourceMap, utils::add_default_ignore_list},
     source_pos::SourcePos,
-    SOURCE_URL_PROTOCOL,
 };
 
 use crate::{
+    CssModuleAssetType,
     lifetime_util::stylesheet_into_static,
     references::{
         analyze_references,
-        url::{replace_url_references, resolve_url_reference, UrlAssetReference},
+        url::{UrlAssetReference, replace_url_references, resolve_url_reference},
     },
-    CssModuleAssetType,
 };
 
 #[derive(Debug)]

@@ -3,33 +3,35 @@ use std::{
     collections::HashSet,
     fs::{self, File, OpenOptions, ReadDir},
     io::{BufWriter, Write},
-    mem::{swap, transmute, MaybeUninit},
+    mem::{MaybeUninit, swap, transmute},
     path::{Path, PathBuf},
     sync::{
-        atomic::{AtomicBool, AtomicU32, Ordering},
         Arc,
+        atomic::{AtomicBool, AtomicU32, Ordering},
     },
 };
 
-use anyhow::{bail, Context, Result};
-use byteorder::{ReadBytesExt, WriteBytesExt, BE};
+use anyhow::{Context, Result, bail};
+use byteorder::{BE, ReadBytesExt, WriteBytesExt};
 use jiff::Timestamp;
 use lzzzz::lz4::decompress;
 use memmap2::Mmap;
 use parking_lot::{Mutex, RwLock};
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
+use tracing::Span;
 
 use crate::{
+    QueryKey,
     arc_slice::ArcSlice,
     compaction::selector::{
-        get_compaction_jobs, total_coverage, CompactConfig, Compactable, CompactionJobs,
+        CompactConfig, Compactable, CompactionJobs, get_compaction_jobs, total_coverage,
     },
     constants::{
         AQMF_AVG_SIZE, AQMF_CACHE_SIZE, DATA_THRESHOLD_PER_COMPACTED_FILE, KEY_BLOCK_AVG_SIZE,
         KEY_BLOCK_CACHE_SIZE, MAX_ENTRIES_PER_COMPACTED_FILE, VALUE_BLOCK_AVG_SIZE,
         VALUE_BLOCK_CACHE_SIZE,
     },
-    key::{hash_key, StoreKey},
+    key::{StoreKey, hash_key},
     lookup_entry::LookupEntry,
     merge_iter::MergeIter,
     static_sorted_file::{
@@ -37,7 +39,6 @@ use crate::{
     },
     static_sorted_file_builder::StaticSortedFileBuilder,
     write_batch::{FinishResult, WriteBatch},
-    QueryKey,
 };
 
 #[cfg(feature = "stats")]
@@ -257,8 +258,8 @@ impl TurboPersistence {
                             while !content.is_empty() {
                                 let seq = content.read_u32::<BE>()?;
                                 deleted_files.insert(seq);
-                                let sst_file = self.path.join(format!("{:08}.sst", seq));
-                                let blob_file = self.path.join(format!("{:08}.blob", seq));
+                                let sst_file = self.path.join(format!("{seq:08}.sst"));
+                                let blob_file = self.path.join(format!("{seq:08}.blob"));
                                 for path in [sst_file, blob_file] {
                                     if fs::exists(&path)? {
                                         fs::remove_file(path)?;
@@ -335,14 +336,14 @@ impl TurboPersistence {
 
     /// Opens a single SST file. This memory maps the file, but doesn't read it yet.
     fn open_sst(&self, seq: u32) -> Result<StaticSortedFile> {
-        let path = self.path.join(format!("{:08}.sst", seq));
+        let path = self.path.join(format!("{seq:08}.sst"));
         StaticSortedFile::open(seq, path)
-            .with_context(|| format!("Unable to open sst file {:08}.sst", seq))
+            .with_context(|| format!("Unable to open sst file {seq:08}.sst"))
     }
 
     /// Reads and decompresses a blob file. This is not backed by any cache.
     fn read_blob(&self, seq: u32) -> Result<ArcSlice<u8>> {
-        let path = self.path.join(format!("{:08}.blob", seq));
+        let path = self.path.join(format!("{seq:08}.blob"));
         let mmap = unsafe { Mmap::map(&File::open(&path)?)? };
         #[cfg(unix)]
         mmap.advise(memmap2::Advice::Sequential)?;
@@ -487,7 +488,7 @@ impl TurboPersistence {
             for seq in removed_ssts.iter() {
                 buf.write_u32::<BE>(*seq)?;
             }
-            let mut file = File::create(self.path.join(format!("{:08}.del", seq)))?;
+            let mut file = File::create(self.path.join(format!("{seq:08}.del")))?;
             file.write_all(&buf)?;
             file.sync_all()?;
         }
@@ -506,9 +507,9 @@ impl TurboPersistence {
 
         {
             let mut log = self.open_log()?;
-            writeln!(log, "Time {}", time)?;
+            writeln!(log, "Time {time}")?;
             let span = time.until(Timestamp::now())?;
-            writeln!(log, "Commit {seq:08} {:#}", span)?;
+            writeln!(log, "Commit {seq:08} {span:#}")?;
             for (index, family, min, max, size) in new_sst_info.iter() {
                 writeln!(
                     log,
@@ -521,10 +522,10 @@ impl TurboPersistence {
                 )?;
             }
             for (seq, _) in new_blob_files.iter() {
-                writeln!(log, "{:08} BLOB", seq)?;
+                writeln!(log, "{seq:08} BLOB")?;
             }
             for index in indicies_to_delete.iter() {
-                writeln!(log, "{:08} DELETED", index)?;
+                writeln!(log, "{index:08} DELETED")?;
             }
         }
 
@@ -548,6 +549,7 @@ impl TurboPersistence {
         max_merge_sequence: usize,
         max_merge_size: usize,
     ) -> Result<()> {
+        let _span = tracing::info_span!("compact database").entered();
         if self
             .active_write_operation
             .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
@@ -653,11 +655,13 @@ impl TurboPersistence {
         let path = &self.path;
 
         let log_mutex = Mutex::new(());
+        let span = Span::current();
         let result = sst_by_family
             .into_par_iter()
             .with_min_len(1)
             .enumerate()
             .map(|(family, ssts_with_ranges)| {
+                let _span = span.clone().entered();
                 let coverage = total_coverage(&ssts_with_ranges, (0, u64::MAX));
                 if coverage <= max_coverage {
                     return Ok((Vec::new(), Vec::new()));
@@ -710,10 +714,12 @@ impl TurboPersistence {
                     .collect::<Vec<_>>();
 
                 // Merge SST files
+                let span = tracing::trace_span!("merge files");
                 let merge_result = merge_jobs
                     .into_par_iter()
                     .with_min_len(1)
                     .map(|indicies| {
+                        let _span = span.clone().entered();
                         fn create_sst_file(
                             family: u32,
                             entries: &[LookupEntry],
@@ -722,13 +728,14 @@ impl TurboPersistence {
                             path: &Path,
                             seq: u32,
                         ) -> Result<(u32, File)> {
+                            let _span = tracing::trace_span!("write merged sst file").entered();
                             let builder = StaticSortedFileBuilder::new(
                                 family,
                                 entries,
                                 total_key_size,
                                 total_value_size,
                             )?;
-                            Ok((seq, builder.write(&path.join(format!("{:08}.sst", seq)))?))
+                            Ok((seq, builder.write(&path.join(format!("{seq:08}.sst")))?))
                         }
 
                         let mut new_sst_files = Vec::new();
@@ -865,14 +872,16 @@ impl TurboPersistence {
                     .collect::<Vec<_>>();
 
                 // Move SST files
+                let span = tracing::trace_span!("move files");
                 let mut new_sst_files = move_jobs
                     .into_par_iter()
                     .with_min_len(1)
                     .map(|(index, seq)| {
+                        let _span = span.clone().entered();
                         let index = ssts_with_ranges[index].index;
                         let sst = &static_sorted_files[index];
                         let src_path = self.path.join(format!("{:08}.sst", sst.sequence_number()));
-                        let dst_path = self.path.join(format!("{:08}.sst", seq));
+                        let dst_path = self.path.join(format!("{seq:08}.sst"));
                         if fs::hard_link(&src_path, &dst_path).is_err() {
                             fs::copy(src_path, &dst_path)?;
                         }

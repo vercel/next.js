@@ -62,7 +62,7 @@ impl Module for WorkerLoaderModule {
 impl Asset for WorkerLoaderModule {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
-        todo!()
+        panic!("content() should not be called");
     }
 }
 

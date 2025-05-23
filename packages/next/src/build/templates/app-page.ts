@@ -48,4 +48,6 @@ export const routeModule = new AppPageRouteModule({
   userland: {
     loaderTree: tree,
   },
+  distDir: process.env.__NEXT_RELATIVE_DIST_DIR || '',
+  projectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
 })

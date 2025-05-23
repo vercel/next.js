@@ -2,7 +2,7 @@ use std::{hash::Hash, mem::take};
 
 use turbo_tasks::FxIndexSet;
 
-use super::{balance_edge, AggregationContext};
+use super::{AggregationContext, balance_edge};
 
 /// Enqueued edges that need to be balanced. Deduplicates edges and keeps track
 /// of aggregation numbers read during balancing.

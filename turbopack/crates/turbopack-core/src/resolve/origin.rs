@@ -5,7 +5,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Upcast, Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
-use super::{options::ResolveOptions, parse::Request, ModuleResolveResult};
+use super::{ModuleResolveResult, options::ResolveOptions, parse::Request};
 use crate::{context::AssetContext, module::OptionModule, reference_type::ReferenceType};
 
 /// A location where resolving can occur from. It carries some meta information

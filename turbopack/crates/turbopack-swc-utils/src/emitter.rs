@@ -3,14 +3,14 @@ use std::{mem::take, sync::Arc};
 use anyhow::Result;
 use parking_lot::Mutex;
 use swc_core::common::{
+    SourceMap,
     errors::{DiagnosticBuilder, DiagnosticId, Emitter, Level},
     source_map::SmallPos,
-    SourceMap,
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
-    issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, IssueSource, StyledString},
+    issue::{IssueExt, IssueSeverity, IssueSource, StyledString, analyze::AnalyzeIssue},
     source::Source,
 };
 

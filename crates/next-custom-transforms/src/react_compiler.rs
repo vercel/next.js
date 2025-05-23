@@ -1,5 +1,5 @@
 use swc_core::ecma::{
-    ast::{Callee, Expr, FnDecl, FnExpr, Program, ReturnStmt},
+    ast::{Callee, Expr, FnDecl, FnExpr, Pat, Program, ReturnStmt, Stmt, VarDeclarator},
     visit::{Visit, VisitWith},
 };
 
@@ -34,6 +34,25 @@ impl Visit for Finder {
         node.visit_children_with(self);
     }
 
+    fn visit_expr(&mut self, node: &Expr) {
+        if self.found {
+            return;
+        }
+        if matches!(
+            node,
+            Expr::JSXMember(..)
+                | Expr::JSXNamespacedName(..)
+                | Expr::JSXEmpty(..)
+                | Expr::JSXElement(..)
+                | Expr::JSXFragment(..)
+        ) {
+            self.found = true;
+            return;
+        }
+
+        node.visit_children_with(self);
+    }
+
     fn visit_fn_decl(&mut self, node: &FnDecl) {
         let old = self.is_interested;
         self.is_interested = node.ident.sym.starts_with("use")
@@ -47,7 +66,7 @@ impl Visit for Finder {
     fn visit_fn_expr(&mut self, node: &FnExpr) {
         let old = self.is_interested;
 
-        self.is_interested = node.ident.as_ref().is_some_and(|ident| {
+        self.is_interested |= node.ident.as_ref().is_some_and(|ident| {
             ident.sym.starts_with("use") || ident.sym.starts_with(|c: char| c.is_ascii_uppercase())
         });
 
@@ -67,5 +86,27 @@ impl Visit for Finder {
         }
 
         node.visit_children_with(self);
+    }
+
+    fn visit_stmt(&mut self, node: &Stmt) {
+        if self.found {
+            return;
+        }
+        node.visit_children_with(self);
+    }
+
+    fn visit_var_declarator(&mut self, node: &VarDeclarator) {
+        let old = self.is_interested;
+
+        if let Pat::Ident(ident) = &node.name {
+            self.is_interested = ident.sym.starts_with("use")
+                || ident.sym.starts_with(|c: char| c.is_ascii_uppercase());
+        } else {
+            self.is_interested = false;
+        }
+
+        node.visit_children_with(self);
+
+        self.is_interested = old;
     }
 }

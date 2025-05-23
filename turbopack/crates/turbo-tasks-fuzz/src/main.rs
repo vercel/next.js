@@ -12,8 +12,8 @@ use rand::{Rng, RngCore, SeedableRng};
 use rustc_hash::FxHashSet;
 use tokio::time::sleep;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc, TransientInstance, Vc};
-use turbo_tasks_backend::{noop_backing_storage, BackendOptions, TurboTasksBackend};
+use turbo_tasks::{NonLocalValue, ResolvedVc, TransientInstance, Vc, trace::TraceRawVcs};
+use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
 
 /// A collection of fuzzers for `turbo-tasks`. These are not test cases as they're slow and (in many

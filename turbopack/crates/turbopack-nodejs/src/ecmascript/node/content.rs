@@ -1,7 +1,7 @@
 use anyhow::Result;
 use indoc::writedoc;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{rope::RopeBuilder, File};
+use turbo_tasks_fs::{File, rope::RopeBuilder};
 use turbopack_core::{
     asset::AssetContent,
     chunk::{ChunkingContext, MinifyType},

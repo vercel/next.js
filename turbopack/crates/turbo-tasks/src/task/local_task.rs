@@ -1,14 +1,14 @@
 use std::{borrow::Cow, fmt, fmt::Write, sync::Arc};
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 
 use crate::{
+    FunctionId, MagicAny, OutputContent, RawVc, TaskPersistence, TraitTypeId, TurboTasksBackendApi,
+    ValueTypeId,
     backend::{Backend, TaskExecutionSpec, TypedCellContent},
     event::Event,
     registry,
     trait_helpers::{get_trait_method, has_trait, traits},
-    FunctionId, MagicAny, OutputContent, RawVc, TaskPersistence, TraitTypeId, TurboTasksBackendApi,
-    ValueTypeId,
 };
 
 /// A potentially in-flight local task stored in `CurrentGlobalTaskState::local_tasks`.
@@ -186,7 +186,7 @@ impl LocalTaskType {
             Err(name) => {
                 if !has_trait(value_type, trait_type) {
                     let traits = traits(value_type).iter().fold(String::new(), |mut out, t| {
-                        let _ = write!(out, " {}", t);
+                        let _ = write!(out, " {t}");
                         out
                     });
                     Err(anyhow!(

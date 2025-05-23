@@ -90,6 +90,10 @@ impl SerialWriteBatch<'_> for NoopWriteBatch {
     fn delete(&mut self, _key_space: KeySpace, _key: WriteBuffer<'_>) -> Result<()> {
         Ok(())
     }
+
+    fn flush(&mut self, _key_space: KeySpace) -> Result<()> {
+        Ok(())
+    }
 }
 
 impl ConcurrentWriteBatch<'_> for NoopWriteBatch {
@@ -103,6 +107,10 @@ impl ConcurrentWriteBatch<'_> for NoopWriteBatch {
     }
 
     fn delete(&self, _key_space: KeySpace, _key: WriteBuffer<'_>) -> Result<()> {
+        Ok(())
+    }
+
+    unsafe fn flush(&self, _key_space: KeySpace) -> Result<()> {
         Ok(())
     }
 }

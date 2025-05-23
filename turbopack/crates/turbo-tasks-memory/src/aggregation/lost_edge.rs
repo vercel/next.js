@@ -1,9 +1,9 @@
 use std::hash::Hash;
 
 use super::{
+    AggregationContext, AggregationNode, PreparedInternalOperation, PreparedOperation, StackVec,
     balance_queue::BalanceQueue, in_progress::start_in_progress_count,
-    notify_lost_follower::PreparedNotifyLostFollower, AggregationContext, AggregationNode,
-    PreparedInternalOperation, PreparedOperation, StackVec,
+    notify_lost_follower::PreparedNotifyLostFollower,
 };
 
 impl<I: Clone + Eq + Hash, D> AggregationNode<I, D> {

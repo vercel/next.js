@@ -1,7 +1,7 @@
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use strsim::jaro;
 use swc_core::{
-    common::{BytePos, Span, DUMMY_SP},
+    common::{BytePos, DUMMY_SP, Span},
     ecma::ast::{Decl, Expr, ExprStmt, Ident, Stmt},
     quote,
 };
@@ -22,24 +22,24 @@ use turbopack_core::{
     reference::ModuleReference,
     reference_type::{EcmaScriptModulesReferenceSubType, ImportWithType},
     resolve::{
+        ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem, RequestKey,
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
-        ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem, RequestKey,
     },
 };
 use turbopack_resolve::ecmascript::esm_resolve;
 
 use super::export::{all_known_export_names, is_export_missing};
 use crate::{
+    TreeShakingMode,
     analyzer::imports::ImportAnnotations,
     chunk::EcmascriptChunkPlaceable,
     code_gen::CodeGeneration,
     magic_identifier,
     references::util::{request_to_string, throw_module_not_found_expr},
     runtime_functions::{TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE, TURBOPACK_IMPORT},
-    tree_shake::{asset::EcmascriptModulePartAsset, TURBOPACK_PART_IMPORT_SOURCE},
+    tree_shake::{TURBOPACK_PART_IMPORT_SOURCE, asset::EcmascriptModulePartAsset},
     utils::module_id_to_lit,
-    TreeShakingMode,
 };
 
 #[turbo_tasks::value]
@@ -71,7 +71,7 @@ impl ReferencedAsset {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<String> {
         let id = asset.chunk_item_id(Vc::upcast(chunking_context)).await?;
-        Ok(magic_identifier::mangle(&format!("imported module {}", id)))
+        Ok(magic_identifier::mangle(&format!("imported module {id}")))
     }
 }
 
@@ -273,12 +273,18 @@ impl ChunkableModuleReference for EsmAssetReference {
         Ok(Vc::cell(
             if let Some(chunking_type) = self.annotations.chunking_type() {
                 match chunking_type {
-                    "parallel" => Some(ChunkingType::ParallelInheritAsync),
+                    "parallel" => Some(ChunkingType::Parallel {
+                        inherit_async: true,
+                        hoisted: true,
+                    }),
                     "none" => None,
                     _ => return Err(anyhow!("unknown chunking_type: {}", chunking_type)),
                 }
             } else {
-                Some(ChunkingType::ParallelInheritAsync)
+                Some(ChunkingType::Parallel {
+                    inherit_async: true,
+                    hoisted: true,
+                })
             },
         ))
     }

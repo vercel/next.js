@@ -27,9 +27,9 @@ impl Display for PrettyPrintError<'_> {
                             header
                         });
                 match i {
-                    0 => write!(f, "{}", header)?,
-                    1 => write!(f, "\n\nCaused by:\n- {}", header)?,
-                    _ => write!(f, "\n- {}", header)?,
+                    0 => write!(f, "{header}")?,
+                    1 => write!(f, "\n\nCaused by:\n- {header}")?,
+                    _ => write!(f, "\n- {header}")?,
                 }
                 i += 1;
             } else {
@@ -54,10 +54,10 @@ impl Display for WithDash<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         let mut lines = self.0.lines();
         if let Some(line) = lines.next() {
-            write!(f, "- {}", line)?;
+            write!(f, "- {line}")?;
         }
         for line in lines {
-            write!(f, "\n  {}", line)?;
+            write!(f, "\n  {line}")?;
         }
         Ok(())
     }

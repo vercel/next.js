@@ -1,7 +1,7 @@
 use std::{
     path::PathBuf,
     sync::Arc,
-    thread::{spawn, JoinHandle},
+    thread::{JoinHandle, spawn},
 };
 
 use anyhow::Result;
@@ -13,8 +13,8 @@ use crate::database::{
     write_batch::{BaseWriteBatch, ConcurrentWriteBatch, WriteBatch, WriteBuffer},
 };
 
-const COMPACT_MAX_COVERAGE: f32 = 10.0;
-const COMPACT_MAX_MERGE_SEQUENCE: usize = 16;
+const COMPACT_MAX_COVERAGE: f32 = 20.0;
+const COMPACT_MAX_MERGE_SEQUENCE: usize = 64;
 const COMPACT_MAX_MERGE_SIZE: usize = 512 * 1024 * 1024; // 512 MiB
 
 pub struct TurboKeyValueDatabase {
@@ -159,6 +159,10 @@ impl<'a> ConcurrentWriteBatch<'a> for TurboWriteBatch<'a> {
 
     fn delete(&self, key_space: KeySpace, key: WriteBuffer<'_>) -> Result<()> {
         self.batch.delete(key_space as u32, key.into_static())
+    }
+
+    unsafe fn flush(&self, key_space: KeySpace) -> Result<()> {
+        unsafe { self.batch.flush(key_space as u32) }
     }
 }
 

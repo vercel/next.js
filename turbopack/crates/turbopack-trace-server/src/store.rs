@@ -2,7 +2,7 @@ use std::{
     cmp::{max, min},
     env,
     num::NonZeroUsize,
-    sync::{atomic::AtomicU64, OnceLock},
+    sync::{OnceLock, atomic::AtomicU64},
 };
 
 use rustc_hash::FxHashSet;

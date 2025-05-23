@@ -590,8 +590,6 @@ function instantiateModule(id, source) {
         error: undefined,
         loaded: false,
         id,
-        parents,
-        children: [],
         namespaceObject: undefined
     };
     moduleCache[id] = module1;
@@ -624,13 +622,11 @@ function instantiateModule(id, source) {
             }),
             w: loadWebAssembly,
             u: loadWebAssemblyModule,
-            g: globalThis,
             P: resolveAbsolutePath,
             U: relativeURL,
             R: createResolvePathFromModule(r),
             b: getWorkerBlobURL,
-            z: requireStub,
-            __dirname: typeof module1.id === 'string' ? module1.id.replace(/(^|\/)\/+$/, '') : module1.id
+            z: requireStub
         });
     } catch (error) {
         module1.error = error;
@@ -648,13 +644,7 @@ function instantiateModule(id, source) {
  */ // @ts-ignore
 function getOrInstantiateModuleFromParent(id, sourceModule) {
     const module1 = moduleCache[id];
-    if (sourceModule.children.indexOf(id) === -1) {
-        sourceModule.children.push(id);
-    }
     if (module1) {
-        if (module1.parents.indexOf(sourceModule.id) === -1) {
-            module1.parents.push(sourceModule.id);
-        }
         return module1;
     }
     return instantiateModule(id, {

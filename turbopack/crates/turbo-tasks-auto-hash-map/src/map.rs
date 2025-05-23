@@ -8,10 +8,11 @@ use std::{
 use hashbrown::hash_map::HashMap;
 use rustc_hash::FxHasher;
 use serde::{
+    Deserialize, Deserializer, Serialize, Serializer,
     de::{MapAccess, Visitor},
     ser::SerializeMap,
-    Deserialize, Deserializer, Serialize, Serializer,
 };
+use shrink_to_fit::ShrinkToFit;
 use smallvec::SmallVec;
 
 use crate::{MAX_LIST_SIZE, MIN_HASH_SIZE};
@@ -287,10 +288,9 @@ impl<K: Eq + Hash, V, H: BuildHasher, const I: usize> AutoMap<K, V, H, I> {
         Q: Hash + Eq + ?Sized,
     {
         match self {
-            AutoMap::List(list) => {
-                list.iter()
-                    .find_map(|(k, v)| if *k.borrow() == *key { Some(v) } else { None })
-            }
+            AutoMap::List(list) => list
+                .iter()
+                .find_map(|(k, v)| if *k.borrow() == *key { Some(v) } else { None }),
             AutoMap::Map(map) => map.get(key),
         }
     }
@@ -298,10 +298,9 @@ impl<K: Eq + Hash, V, H: BuildHasher, const I: usize> AutoMap<K, V, H, I> {
     /// see [HashMap::get_mut](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.get_mut)
     pub fn get_mut(&mut self, key: &K) -> Option<&mut V> {
         match self {
-            AutoMap::List(list) => {
-                list.iter_mut()
-                    .find_map(|(k, v)| if *k == *key { Some(v) } else { None })
-            }
+            AutoMap::List(list) => list
+                .iter_mut()
+                .find_map(|(k, v)| if *k == *key { Some(v) } else { None }),
             AutoMap::Map(map) => map.get_mut(key),
         }
     }
@@ -902,6 +901,25 @@ where
     }
 }
 
+impl<K, V, H, const I: usize> ShrinkToFit for AutoMap<K, V, H, I>
+where
+    K: Eq + Hash,
+    V: Eq,
+    H: BuildHasher + Default,
+{
+    fn shrink_to_fit(&mut self) {
+        if self.len() < MIN_HASH_SIZE {
+            self.convert_to_list();
+        }
+
+        match self {
+            AutoMap::List(list) => list.shrink_to_fit(),
+            AutoMap::Map(map) => {
+                hashbrown::HashMap::shrink_to_fit(map);
+            }
+        }
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;

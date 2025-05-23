@@ -1,11 +1,11 @@
 use std::{borrow::Borrow, cmp::max, sync::Arc};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use serde::Serialize;
 use smallvec::SmallVec;
 use tracing::Span;
-use turbo_tasks::{backend::CachedTaskType, turbo_tasks_scope, SessionId, TaskId};
+use turbo_tasks::{SessionId, TaskId, backend::CachedTaskType, turbo_tasks_scope};
 
 use crate::{
     backend::{AnyOperation, TaskDataCategory},
@@ -180,10 +180,19 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
 
         // Start organizing the updates in parallel
         match &mut batch {
-            WriteBatch::Concurrent(ref batch, _) => {
+            &mut WriteBatch::Concurrent(ref batch, _) => {
                 {
                     let _span = tracing::trace_span!("update task data").entered();
                     process_task_data(snapshots, Some(batch))?;
+                    let span = tracing::trace_span!("flush task data").entered();
+                    [KeySpace::TaskMeta, KeySpace::TaskData]
+                        .into_par_iter()
+                        .try_for_each(|key_space| {
+                            let _span = span.clone().entered();
+                            // Safety: We already finished all processing of the task data and task
+                            // meta
+                            unsafe { batch.flush(key_space) }
+                        })?;
                 }
 
                 let mut next_task_id = get_next_free_task_id::<
@@ -201,6 +210,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
                         .into_par_iter()
                         .with_max_len(1)
                         .map(|updates| {
+                            let _span = _span.clone().entered();
                             let mut max_task_id = 0;
 
                             let mut task_type_bytes = Vec::new();
@@ -500,6 +510,7 @@ where
             )
             .with_context(|| anyhow!("Unable to write operations"))?;
     }
+    batch.flush(KeySpace::Infra)?;
     Ok(())
 }
 

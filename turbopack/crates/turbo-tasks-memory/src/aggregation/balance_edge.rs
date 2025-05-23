@@ -1,6 +1,7 @@
 use std::cmp::Ordering;
 
 use super::{
+    AggregationContext, AggregationNode, PreparedInternalOperation, PreparedOperation, StackVec,
     balance_queue::BalanceQueue,
     in_progress::{is_in_progress, start_in_progress_all, start_in_progress_count},
     increase::IncreaseReason,
@@ -8,7 +9,6 @@ use super::{
     notify_lost_follower::notify_lost_follower,
     notify_new_follower::notify_new_follower,
     util::{get_aggregated_add_change, get_aggregated_remove_change, get_followers_or_children},
-    AggregationContext, AggregationNode, PreparedInternalOperation, PreparedOperation, StackVec,
 };
 
 // Migrate followers to uppers or uppers to followers depending on the

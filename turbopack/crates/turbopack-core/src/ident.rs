@@ -6,7 +6,7 @@ use regex::Regex;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64, DeterministicHash, Xxh3Hash64Hasher};
+use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher, encode_hex, hash_xxh3_hash64};
 
 use crate::resolve::ModulePart;
 
@@ -59,7 +59,7 @@ impl ValueToString for AssetIdent {
 
         let query = self.query.await?;
         if !query.is_empty() {
-            write!(s, "{}", &*query)?;
+            write!(s, "?{}", &*query)?;
         }
 
         if let Some(fragment) = &self.fragment {
@@ -76,7 +76,7 @@ impl ValueToString for AssetIdent {
 
                 let key_str = key.await?;
                 let asset_str = asset.to_string().await?;
-                write!(s, " {} => {:?}", key_str, asset_str)?;
+                write!(s, " {key_str} => {asset_str:?}")?;
             }
 
             s.push_str(" }");
@@ -101,7 +101,7 @@ impl ValueToString for AssetIdent {
         }
 
         if let Some(content_type) = &self.content_type {
-            write!(s, " <{}>", content_type)?;
+            write!(s, " <{content_type}>")?;
         }
 
         if !self.parts.is_empty() {
@@ -109,7 +109,7 @@ impl ValueToString for AssetIdent {
                 if !matches!(part, ModulePart::Facade) {
                     // facade is not included in ident as switching between facade and non-facade
                     // shouldn't change the ident
-                    write!(s, " <{}>", part)?;
+                    write!(s, " <{part}>")?;
                 }
             }
         }
@@ -327,7 +327,7 @@ impl AssetIdent {
         if has_hash {
             let hash = encode_hex(hasher.finish());
             let truncated_hash = &hash[..8];
-            write!(name, "_{}", truncated_hash)?;
+            write!(name, "_{truncated_hash}")?;
         }
 
         // Location in "path" where hashed and named parts are split.

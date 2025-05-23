@@ -14,20 +14,20 @@ pub mod module_options;
 pub mod transition;
 pub(crate) mod unsupported_sass;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use css::{CssModuleAsset, ModuleCssAsset};
 use ecmascript::{
-    chunk::EcmascriptChunkPlaceable,
-    references::{follow_reexports, FollowExportsResult},
-    side_effect_optimization::facade::module::EcmascriptModuleFacadeModule,
     EcmascriptModuleAsset, EcmascriptModuleAssetType, TreeShakingMode,
+    chunk::EcmascriptChunkPlaceable,
+    references::{FollowExportsResult, follow_reexports},
+    side_effect_optimization::facade::module::EcmascriptModuleFacadeModule,
 };
-use graph::{aggregate, AggregatedGraph, AggregatedGraphNodeContent};
+use graph::{AggregatedGraph, AggregatedGraphNodeContent, aggregate};
 use module_options::{ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, ModuleType};
-use tracing::{field::Empty, Instrument};
+use tracing::{Instrument, field::Empty};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexSet, ResolvedVc, Value, ValueToString, Vc};
-use turbo_tasks_fs::{glob::Glob, FileSystemPath};
+use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 pub use turbopack_core::condition;
 use turbopack_core::{
     asset::Asset,
@@ -35,7 +35,7 @@ use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     context::{AssetContext, ProcessResult},
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
-    issue::{module::ModuleIssue, IssueExt, StyledString},
+    issue::{IssueExt, StyledString, module::ModuleIssue},
     module::Module,
     output::OutputAsset,
     raw_module::RawModule,
@@ -45,9 +45,9 @@ use turbopack_core::{
         InnerAssets, ReferenceType,
     },
     resolve::{
-        options::ResolveOptions, origin::PlainResolveOrigin, parse::Request, resolve,
         ExternalTraced, ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem,
-        ResolveResult, ResolveResultItem,
+        ResolveResult, ResolveResultItem, options::ResolveOptions, origin::PlainResolveOrigin,
+        parse::Request, resolve,
     },
     source::Source,
 };
@@ -930,7 +930,7 @@ impl AssetContext for ModuleAssetContext {
         let mut globs = Vec::with_capacity(pkgs.len());
 
         for pkg in pkgs {
-            globs.push(Glob::new(format!("**/node_modules/{{{}}}/**", pkg).into()));
+            globs.push(Glob::new(format!("**/node_modules/{{{pkg}}}/**").into()));
         }
 
         Ok(Glob::alternatives(globs))

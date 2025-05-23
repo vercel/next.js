@@ -337,6 +337,7 @@ declare module 'react-server-dom-webpack/client.edge' {
 }
 
 declare module 'VAR_MODULE_GLOBAL_ERROR'
+declare module 'VAR_MODULE_GLOBAL_NOT_FOUND'
 declare module 'VAR_USERLAND'
 declare module 'VAR_MODULE_DOCUMENT'
 declare module 'VAR_MODULE_APP'

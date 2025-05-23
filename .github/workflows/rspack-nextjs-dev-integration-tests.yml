@@ -22,6 +22,4 @@ jobs:
       integration_groups: 16
       e2e_timeout_minutes: 90
       integration_timeout_minutes: 90
-      # We tend to timeout with 2 retries
-      num_retries: 0
     secrets: inherit

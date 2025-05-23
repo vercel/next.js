@@ -1,4 +1,4 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Upcast, Value, ValueToString, Vc};
@@ -6,17 +6,17 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        availability_info::AvailabilityInfo,
-        chunk_group::{make_chunk_group, MakeChunkGroupResult},
-        module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
         Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule, ChunkingConfig,
         ChunkingConfigs, ChunkingContext, EntryChunkGroupResult, EvaluatableAssets, MinifyType,
         ModuleId, SourceMapsType,
+        availability_info::AvailabilityInfo,
+        chunk_group::{MakeChunkGroupResult, make_chunk_group},
+        module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
     },
     environment::Environment,
     ident::AssetIdent,
     module::Module,
-    module_graph::{chunk_group_info::ChunkGroup, ModuleGraph},
+    module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
     output::{OutputAsset, OutputAssets},
 };
 use turbopack_ecmascript::{

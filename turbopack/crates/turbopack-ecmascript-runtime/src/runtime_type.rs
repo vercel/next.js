@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue};
+use turbo_tasks::{NonLocalValue, trace::TraceRawVcs};
 
 #[derive(
     Serialize, Deserialize, Debug, Clone, Copy, Hash, PartialEq, Eq, TraceRawVcs, NonLocalValue,

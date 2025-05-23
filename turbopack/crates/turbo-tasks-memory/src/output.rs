@@ -1,8 +1,8 @@
-use std::{borrow::Cow, fmt::Debug, mem::take};
+use std::{fmt::Debug, mem::take};
 
-use anyhow::{anyhow, Error, Result};
+use anyhow::{Error, Result, anyhow};
 use turbo_tasks::{
-    util::SharedError, OutputContent, RawVc, TaskId, TaskIdSet, TurboTasksBackendApi,
+    OutputContent, RawVc, TaskId, TaskIdSet, TurboTasksBackendApi, util::SharedError,
 };
 
 use crate::MemoryBackend;
@@ -45,18 +45,6 @@ impl Output {
 
     pub fn error(&mut self, error: Error, turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>) {
         self.content = Some(OutputContent::Error(SharedError::new(error)));
-        // notify
-        if !self.dependent_tasks.is_empty() {
-            turbo_tasks.schedule_notify_tasks_set(&take(&mut self.dependent_tasks));
-        }
-    }
-
-    pub fn panic(
-        &mut self,
-        message: Option<Cow<'static, str>>,
-        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
-    ) {
-        self.content = Some(OutputContent::Panic(message.map(Box::new)));
         // notify
         if !self.dependent_tasks.is_empty() {
             turbo_tasks.schedule_notify_tasks_set(&take(&mut self.dependent_tasks));

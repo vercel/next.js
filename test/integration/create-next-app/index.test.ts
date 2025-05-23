@@ -39,6 +39,7 @@ describe('create-next-app', () => {
           '--no-tailwind',
           '--no-src-dir',
           '--no-import-alias',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
         nextTgzFilename,
         {
@@ -80,6 +81,7 @@ describe('create-next-app', () => {
           '--no-tailwind',
           '--no-src-dir',
           '--no-import-alias',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
         nextTgzFilename,
         {
@@ -111,6 +113,7 @@ describe('create-next-app', () => {
           '--no-src-dir',
           '--no-import-alias',
           '--skip-install',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
         nextTgzFilename,
         {

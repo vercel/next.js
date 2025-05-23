@@ -6,14 +6,13 @@ use serde::{Deserialize, Serialize};
 use tracing::Span;
 
 use crate::{
-    self as turbo_tasks,
+    self as turbo_tasks, RawVc, TaskInput, TaskPersistence,
     magic_any::{MagicAny, MagicAnyDeserializeSeed, MagicAnySerializeSeed},
     registry::register_function,
     task::{
-        function::{IntoTaskFnWithThis, NativeTaskFuture},
         IntoTaskFn, TaskFn,
+        function::{IntoTaskFnWithThis, NativeTaskFuture},
     },
-    RawVc, TaskInput, TaskPersistence,
 };
 
 type ResolveFuture<'a> = Pin<Box<dyn Future<Output = Result<Box<dyn MagicAny>>> + Send + 'a>>;

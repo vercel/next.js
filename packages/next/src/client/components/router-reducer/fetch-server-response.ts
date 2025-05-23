@@ -187,9 +187,13 @@ export async function fetchServerResponse(
     const contentType = res.headers.get('content-type') || ''
     const interception = !!res.headers.get('vary')?.includes(NEXT_URL)
     const postponed = !!res.headers.get(NEXT_DID_POSTPONE_HEADER)
-    const staleTimeHeader = res.headers.get(NEXT_ROUTER_STALE_TIME_HEADER)
+    const staleTimeHeaderSeconds = res.headers.get(
+      NEXT_ROUTER_STALE_TIME_HEADER
+    )
     const staleTime =
-      staleTimeHeader !== null ? parseInt(staleTimeHeader, 10) : -1
+      staleTimeHeaderSeconds !== null
+        ? parseInt(staleTimeHeaderSeconds, 10) * 1000
+        : -1
     let isFlightResponse = contentType.startsWith(RSC_CONTENT_TYPE_HEADER)
 
     if (process.env.NODE_ENV === 'production') {

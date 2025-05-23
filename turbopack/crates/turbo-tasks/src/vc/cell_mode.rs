@@ -1,7 +1,7 @@
 use std::{any::type_name, marker::PhantomData};
 
 use super::{read::VcRead, traits::VcValueType};
-use crate::{manager::find_cell_by_type, task::shared_reference::TypedSharedReference, RawVc, Vc};
+use crate::{RawVc, Vc, manager::find_cell_by_type, task::shared_reference::TypedSharedReference};
 
 type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
 type VcReadRepr<T> = <<T as VcValueType>::Read as VcRead<T>>::Repr;
@@ -81,7 +81,7 @@ where
 
 fn debug_assert_repr<T: VcValueType>(content: &TypedSharedReference) {
     debug_assert!(
-        (*content.1 .0).is::<VcReadRepr<T>>(),
+        (*content.1.0).is::<VcReadRepr<T>>(),
         "SharedReference for type {} must use representation type {}",
         type_name::<T>(),
         type_name::<VcReadRepr<T>>(),

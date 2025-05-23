@@ -18,8 +18,8 @@ use turbo_tasks::{KeyValuePair, SessionId, TaskId, TurboTasksBackendApi};
 
 use crate::{
     backend::{
-        storage::{SpecificTaskDataCategory, StorageWriteGuard},
         OperationGuard, TaskDataCategory, TransientTask, TurboTasksBackend, TurboTasksBackendInner,
+        storage::{SpecificTaskDataCategory, StorageWriteGuard},
     },
     backing_storage::BackingStorage,
     data::{
@@ -451,7 +451,7 @@ impl<B: BackingStorage> Debug for TaskGuardImpl<'_, B> {
             d.field("task_type", &task_type);
         };
         for (key, value) in self.task.iter_all() {
-            d.field(&format!("{:?}", key), &value);
+            d.field(&format!("{key:?}"), &value);
         }
         d.finish()
     }
@@ -645,8 +645,8 @@ impl_operation!(AggregationUpdate aggregation_update::AggregationUpdateQueue);
 pub use self::invalidate::TaskDirtyCause;
 pub use self::{
     aggregation_update::{
-        get_aggregation_number, get_uppers, is_aggregating_node, is_root_node,
-        AggregatedDataUpdate, AggregationUpdateJob,
+        AggregatedDataUpdate, AggregationUpdateJob, get_aggregation_number, get_uppers,
+        is_aggregating_node, is_root_node,
     },
     cleanup_old_edges::OutdatedEdge,
     connect_children::connect_children,

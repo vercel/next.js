@@ -39,11 +39,11 @@ Depending on your needs, Next.js allows you to choose your data fetching strateg
 
 ### Middleware
 
-[Next.js Middleware](/docs/app/building-your-application/routing/middleware) allows you to run code on the server before a request is completed. For instance, you can avoid a flash of unauthenticated content by redirecting a user to a login page in the middleware for authenticated-only pages. You can also use it for features like A/B testing, experimentation, and [internationalization](/docs/app/building-your-application/routing/internationalization).
+[Next.js Middleware](/docs/app/building-your-application/routing/middleware) allows you to run code on the server before a request is completed. For instance, you can avoid a flash of unauthenticated content by redirecting a user to a login page in the middleware for authenticated-only pages. You can also use it for features like A/B testing, experimentation, and [internationalization](/docs/app/guides/internationalization).
 
 ### Built-in Optimizations
 
-[Images](/docs/app/building-your-application/optimizing/images), [fonts](/docs/app/building-your-application/optimizing/fonts), and [third-party scripts](/docs/app/guides/scripts) often have a large impact on an application’s performance. Next.js includes specialized components and APIs that automatically optimize them for you.
+[Images](/docs/app/api-reference/components/image), [fonts](/docs/app/api-reference/components/font), and [third-party scripts](/docs/app/guides/scripts) often have a large impact on an application’s performance. Next.js includes specialized components and APIs that automatically optimize them for you.
 
 ## Migration Steps
 
@@ -78,7 +78,7 @@ export default nextConfig
 
 ### Step 3: Create the Root Layout
 
-A Next.js [App Router](/docs/app) application must include a [root layout](/docs/app/building-your-application/routing/layouts-and-templates#root-layout-required) file, which is a [React Server Component](/docs/app/building-your-application/rendering/server-components) that will wrap all your pages.
+A Next.js [App Router](/docs/app) application must include a [root layout](/docs/app/building-your-application/routing/layouts-and-templates#root-layout-required) file, which is a [React Server Component](/docs/app/getting-started/server-and-client-components) that will wrap all your pages.
 
 The closest equivalent of the root layout file in a CRA application is `public/index.html`, which includes your `<html>`, `<head>`, and `<body>` tags.
 
@@ -145,7 +145,7 @@ export default function RootLayout({ children }) {
 }
 ```
 
-> **Good to know**: Next.js ignores CRA’s `public/manifest.json`, additional iconography, and [testing configuration](/docs/app/guides/testing) by default. If you need these, Next.js has support with its [Metadata API](/docs/app/building-your-application/optimizing/metadata) and [Testing](/docs/app/guides/testing) setup.
+> **Good to know**: Next.js ignores CRA’s `public/manifest.json`, additional iconography, and [testing configuration](/docs/app/guides/testing) by default. If you need these, Next.js has support with its [Metadata API](/docs/app/getting-started/metadata-and-og-images) and [Testing](/docs/app/guides/testing) setup.
 
 ### Step 4: Metadata
 
@@ -189,7 +189,7 @@ export default function RootLayout({ children }) {
 }
 ```
 
-Any [metadata files](/docs/app/building-your-application/optimizing/metadata#file-based-metadata) such as `favicon.ico`, `icon.png`, `robots.txt` are automatically added to the application `<head>` tag as long as you have them placed into the top level of the `app` directory. After moving [all supported files](/docs/app/building-your-application/optimizing/metadata#file-based-metadata) into the `app` directory you can safely delete their `<link>` tags:
+Any [metadata files](/docs/app/getting-started/metadata-and-og-images#file-based-metadata) such as `favicon.ico`, `icon.png`, `robots.txt` are automatically added to the application `<head>` tag as long as you have them placed into the top level of the `app` directory. After moving [all supported files](/docs/app/getting-started/metadata-and-og-images#file-based-metadata) into the `app` directory you can safely delete their `<link>` tags:
 
 ```tsx filename="app/layout.tsx" switcher
 export default function RootLayout({
@@ -227,7 +227,7 @@ export default function RootLayout({ children }) {
 }
 ```
 
-Finally, Next.js can manage your last `<head>` tags with the [Metadata API](/docs/app/building-your-application/optimizing/metadata). Move your final metadata info into an exported [`metadata` object](/docs/app/api-reference/functions/generate-metadata#metadata-object):
+Finally, Next.js can manage your last `<head>` tags with the [Metadata API](/docs/app/getting-started/metadata-and-og-images). Move your final metadata info into an exported [`metadata` object](/docs/app/api-reference/functions/generate-metadata#metadata-object):
 
 ```tsx filename="app/layout.tsx" switcher
 import type { Metadata } from 'next'
@@ -269,11 +269,11 @@ export default function RootLayout({ children }) {
 }
 ```
 
-With the above changes, you shifted from declaring everything in your `index.html` to using Next.js' convention-based approach built into the framework ([Metadata API](/docs/app/building-your-application/optimizing/metadata)). This approach enables you to more easily improve your SEO and web shareability of your pages.
+With the above changes, you shifted from declaring everything in your `index.html` to using Next.js' convention-based approach built into the framework ([Metadata API](/docs/app/getting-started/metadata-and-og-images)). This approach enables you to more easily improve your SEO and web shareability of your pages.
 
 ### Step 5: Styles
 
-Like CRA, Next.js supports [CSS Modules](/docs/app/building-your-application/styling/css#css-modules) out of the box. It also supports [global CSS imports](/docs/app/building-your-application/styling/css#global-styles).
+Like CRA, Next.js supports [CSS Modules](/docs/app/getting-started/css#css-modules) out of the box. It also supports [global CSS imports](/docs/app/getting-started/css#global-css).
 
 If you have a global CSS file, import it into your `app/layout.tsx`:
 
@@ -300,7 +300,7 @@ export default function RootLayout({
 }
 ```
 
-If you’re using Tailwind CSS, see our [installation docs](/docs/app/building-your-application/styling/tailwind-css).
+If you’re using Tailwind CSS, see our [installation docs](/docs/app/guides/tailwind-css).
 
 ### Step 6: Create the Entrypoint Page
 
@@ -339,11 +339,11 @@ export default function Page() {
 }
 ```
 
-This tells Next.js to generate a single route for the empty slug (`/`), effectively mapping **all** routes to the same page. This page is a [Server Component](/docs/app/building-your-application/rendering/server-components), prerendered into static HTML.
+This tells Next.js to generate a single route for the empty slug (`/`), effectively mapping **all** routes to the same page. This page is a [Server Component](/docs/app/getting-started/server-and-client-components), prerendered into static HTML.
 
 ### Step 7: Add a Client-Only Entrypoint
 
-Next, we’ll embed your CRA’s root App component inside a [Client Component](/docs/app/building-your-application/rendering/client-components) so that all logic remains client-side. If this is your first time using Next.js, it's worth knowing that clients components (by default) are still prerendered on the server. You can think about them as having the additional capability of running client-side JavaScript.
+Next, we’ll embed your CRA’s root App component inside a [Client Component](/docs/app/getting-started/server-and-client-components) so that all logic remains client-side. If this is your first time using Next.js, it's worth knowing that clients components (by default) are still prerendered on the server. You can think about them as having the additional capability of running client-side JavaScript.
 
 Create a `client.tsx` (or `client.js`) in `app/[[...slug]]/`:
 
@@ -414,9 +414,9 @@ export default function App() {
 
 With Next.js, static image imports return an object. The object can then be used directly with the Next.js [`<Image>` component](/docs/app/api-reference/components/image), or you can use the object's `src` property with your existing `<img>` tag.
 
-The `<Image>` component has the added benefits of [automatic image optimization](/docs/app/building-your-application/optimizing/images). The `<Image>` component automatically sets the `width` and `height` attributes of the resulting `<img>` based on the image's dimensions. This prevents layout shifts when the image loads. However, this can cause issues if your app contains images with only one of their dimensions being styled without the other styled to `auto`. When not styled to `auto`, the dimension will default to the `<img>` dimension attribute's value, which can cause the image to appear distorted.
+The `<Image>` component has the added benefits of [automatic image optimization](/docs/app/api-reference/components/image). The `<Image>` component automatically sets the `width` and `height` attributes of the resulting `<img>` based on the image's dimensions. This prevents layout shifts when the image loads. However, this can cause issues if your app contains images with only one of their dimensions being styled without the other styled to `auto`. When not styled to `auto`, the dimension will default to the `<img>` dimension attribute's value, which can cause the image to appear distorted.
 
-Keeping the `<img>` tag will reduce the amount of changes in your application and prevent the above issues. You can then optionally later migrate to the `<Image>` component to take advantage of optimizing images by [configuring a loader](/docs/app/building-your-application/optimizing/images#loaders), or moving to the default Next.js server which has automatic image optimization.
+Keeping the `<img>` tag will reduce the amount of changes in your application and prevent the above issues. You can then optionally later migrate to the `<Image>` component to take advantage of optimizing images by [configuring a loader](/docs/app/api-reference/components/image#loader), or moving to the default Next.js server which has automatic image optimization.
 
 **Convert absolute import paths for images imported from `/public` into relative imports:**
 
@@ -572,9 +572,9 @@ If everything worked, you now have a functioning Next.js application running as 
 - **Migrate from React Router** to the [Next.js App Router](/docs/app/building-your-application/routing) for:
   - Automatic code splitting
   - [Streaming server rendering](/docs/app/building-your-application/routing/loading-ui-and-streaming)
-  - [React Server Components](/docs/app/building-your-application/rendering/server-components)
-- **Optimize images** with the [`<Image>` component](/docs/app/building-your-application/optimizing/images)
-- **Optimize fonts** with [`next/font`](/docs/app/building-your-application/optimizing/fonts)
+  - [React Server Components](/docs/app/getting-started/server-and-client-components)
+- **Optimize images** with the [`<Image>` component](/docs/app/api-reference/components/image)
+- **Optimize fonts** with [`next/font`](/docs/app/api-reference/components/font)
 - **Optimize third-party scripts** with the [`<Script>` component](/docs/app/guides/scripts)
 - **Enable ESLint** with Next.js recommended rules by running `npx next lint` and configuring it to match your project’s needs
 
