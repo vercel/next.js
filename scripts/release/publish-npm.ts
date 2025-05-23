@@ -2,7 +2,7 @@ import execa from 'execa'
 import semver from 'semver'
 import { existsSync } from 'fs'
 import { join } from 'path'
-import { readdir } from 'fs/promises'
+import { readdir, readFile } from 'fs/promises'
 
 async function fetchTagsFromRegistry(packageName: string) {
   const res = await fetch(
@@ -24,7 +24,7 @@ async function getTag({
   const preConfigPath = join(process.cwd(), '.changeset', 'pre.json')
 
   if (existsSync(preConfigPath)) {
-    const { tag, mode } = require(preConfigPath)
+    const { tag, mode } = JSON.parse(await readFile(preConfigPath, 'utf-8'))
     if (mode === 'pre') {
       if (!version.includes('-')) {
         throw new Error(
@@ -59,8 +59,11 @@ async function publishNpm() {
       continue
     }
 
-    const pkgJson = require(
-      join(process.cwd(), 'packages', packageDir.name, 'package.json')
+    const pkgJson = JSON.parse(
+      await readFile(
+        join(process.cwd(), 'packages', packageDir.name, 'package.json'),
+        'utf-8'
+      )
     )
 
     if (pkgJson.private) {
@@ -71,6 +74,9 @@ async function publishNpm() {
     // If the current version is already published in the
     // registry, skip the process.
     if (semver.eq(pkgJson.version, tags.latest)) {
+      console.log(
+        `Skipping ${pkgJson.name}@${pkgJson.version} because it is already published.`
+      )
       continue
     }
 
