@@ -111,7 +111,11 @@ export function ErrorOverlayLayout({
   }
 
   return (
-    <ErrorOverlayOverlay fixed={isBuildError} {...animationProps}>
+    <ErrorOverlayOverlay
+      fixed={isBuildError}
+      {...animationProps}
+      onClose={onClose}
+    >
       <div
         data-nextjs-dialog-root
         onTransitionEnd={onTransitionEnd}
