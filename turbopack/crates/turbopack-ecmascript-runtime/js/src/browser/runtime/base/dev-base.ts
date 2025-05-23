@@ -262,11 +262,9 @@ function runModuleExecutionHooks(
       cleanupReactRefreshIntercept()
     }
   } else {
-    // In a web worker, we don't install the react refresh hooks so bind dummy functions.
-    if (typeof importScripts !== 'function') {
-      // But if we aren't in a web worker, emit a warning.  Something is wrong.
-      console.warn(`React refresh support is not enabled.  HMR will not work.`)
-    }
+    // If the react refresh hooks are not installed we need to bind dummy functions.
+    // This is expected when running in a Web Worker.  It is also common in some of
+    // our test environments.
     executeModule({
       register: (type, id) => {},
       signature: () => (type) => {},
