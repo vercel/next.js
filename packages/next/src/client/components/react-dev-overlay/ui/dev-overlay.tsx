@@ -36,7 +36,7 @@ export function DevOverlay({
           const isBuildError = state.buildError !== null
           return (
             <>
-              {state.showIndicator && (
+              {state.devToolsClientState.devIndicator.showIndicator && (
                 <DevToolsIndicator
                   scale={scale}
                   setScale={setScale}

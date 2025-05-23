@@ -22,8 +22,18 @@ const state: OverlayState = {
   nextId: 0,
   routerType: 'app',
   buildError: null,
-  disableDevIndicator: false,
-  showIndicator: true,
+  devToolsClientState: {
+    versionInfo: {
+      installed: '15.2.0',
+      staleness: 'fresh',
+    },
+    debugInfo: { devtoolsFrontendUrl: undefined },
+    devIndicator: {
+      staticIndicator: true,
+      showIndicator: true,
+      disableDevIndicator: false,
+    },
+  },
   errors: [
     {
       id: 1,
@@ -75,12 +85,6 @@ const state: OverlayState = {
   ],
   refreshState: { type: 'idle' },
   notFound: false,
-  staticIndicator: false,
-  debugInfo: { devtoolsFrontendUrl: undefined },
-  versionInfo: {
-    installed: '15.2.0',
-    staleness: 'fresh',
-  },
 }
 
 export const Default: Story = {

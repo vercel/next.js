@@ -50,12 +50,16 @@ const state: OverlayState = {
   buildError: null,
   errors: [],
   refreshState: { type: 'idle' },
-  disableDevIndicator: false,
-  showIndicator: true,
-  versionInfo: mockVersionInfo,
   notFound: false,
-  staticIndicator: true,
-  debugInfo: { devtoolsFrontendUrl: undefined },
+  devToolsClientState: {
+    versionInfo: mockVersionInfo,
+    debugInfo: { devtoolsFrontendUrl: undefined },
+    devIndicator: {
+      staticIndicator: true,
+      showIndicator: true,
+      disableDevIndicator: false,
+    },
+  },
 }
 
 export const StaticRoute: Story = {
@@ -71,7 +75,13 @@ export const DynamicRoute: Story = {
     errorCount: 0,
     state: {
       ...state,
-      staticIndicator: false,
+      devToolsClientState: {
+        ...state.devToolsClientState,
+        devIndicator: {
+          ...state.devToolsClientState.devIndicator,
+          staticIndicator: false,
+        },
+      },
     },
     setIsErrorOverlayOpen: () => {},
   },

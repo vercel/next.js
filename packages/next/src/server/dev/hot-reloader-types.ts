@@ -26,6 +26,7 @@ export const enum HMR_ACTIONS_SENT_TO_BROWSER {
   TURBOPACK_CONNECTED = 'turbopack-connected',
   ISR_MANIFEST = 'isrManifest',
   DEV_INDICATOR = 'devIndicator',
+  DEV_TOOLS = 'devTools',
 }
 
 interface ServerErrorAction {
@@ -54,10 +55,12 @@ export interface SyncAction {
   hash: string
   errors: ReadonlyArray<CompilationError>
   warnings: ReadonlyArray<CompilationError>
-  versionInfo: VersionInfo
   updatedModules?: ReadonlyArray<string>
-  debug?: DebugInfo
-  devIndicator: DevToolsServerState['devIndicator']
+  devTools: {
+    debug?: DebugInfo
+    devIndicator: DevToolsServerState['devIndicator']
+    versionInfo: VersionInfo
+  }
 }
 interface BuiltAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT
@@ -124,6 +127,11 @@ export interface DevIndicatorAction {
   devIndicator: DevToolsServerState
 }
 
+export interface DevToolsAction {
+  action: HMR_ACTIONS_SENT_TO_BROWSER.DEV_TOOLS
+  devTools: DevToolsServerState
+}
+
 export type HMR_ACTION_TYPES =
   | TurbopackMessageAction
   | TurbopackConnectedAction
@@ -141,6 +149,7 @@ export type HMR_ACTION_TYPES =
   | ServerErrorAction
   | AppIsrManifestAction
   | DevIndicatorAction
+  | DevToolsAction
 
 export type TurbopackMsgToBrowser =
   | { type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE; data: any }

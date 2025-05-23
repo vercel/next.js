@@ -215,11 +215,13 @@ export class WebpackHotMiddleware {
           ...(stats.warnings || []),
           ...(middlewareStats.warnings || []),
         ],
-        versionInfo: this.versionInfo,
-        debug: {
-          devtoolsFrontendUrl: this.devtoolsFrontendUrl,
+        devTools: {
+          versionInfo: this.versionInfo,
+          debug: {
+            devtoolsFrontendUrl: this.devtoolsFrontendUrl,
+          },
+          devIndicator: devToolsServerState.devIndicator,
         },
-        devIndicator: devToolsServerState.devIndicator,
       })
     }
   }

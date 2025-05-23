@@ -851,11 +851,13 @@ export async function createHotReloaderTurbopack(
             errors,
             warnings: [],
             hash: '',
-            versionInfo,
-            debug: {
-              devtoolsFrontendUrl,
+            devTools: {
+              devIndicator: devToolsServerState.devIndicator,
+              versionInfo,
+              debug: {
+                devtoolsFrontendUrl,
+              },
             },
-            devIndicator: devToolsServerState.devIndicator,
           }
 
           sendToClient(client, sync)
