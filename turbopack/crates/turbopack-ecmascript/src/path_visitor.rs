@@ -4,11 +4,11 @@ use swc_core::{
     common::pass::AstKindPath,
     ecma::{
         ast::*,
-        visit::{AstParentKind, VisitMut, VisitMutAstPath, VisitMutWith, VisitMutWithAstPath},
+        visit::{AstParentKind, VisitMutAstPath, VisitMutWithAstPath},
     },
 };
 
-use crate::code_gen::VisitorFactory;
+use crate::code_gen::{ModifiableAst, VisitorFactory};
 
 pub type AstPath = Vec<AstParentKind>;
 
@@ -79,8 +79,7 @@ impl<'a> ApplyVisitors<'a, '_> {
     #[inline(never)]
     fn visit_if_required<N>(&mut self, n: &mut N, ast_path: &mut AstKindPath<AstParentKind>)
     where
-        N: for<'aa> VisitMutWith<dyn VisitMut + Send + Sync + 'aa>
-            + for<'aa, 'bb> VisitMutWithAstPath<ApplyVisitors<'aa, 'bb>>,
+        N: ModifiableAst + for<'aa, 'bb> VisitMutWithAstPath<ApplyVisitors<'aa, 'bb>>,
     {
         let mut index = self.index;
         let mut current_visitors = self.visitors.as_ref();
@@ -110,7 +109,7 @@ impl<'a> ApplyVisitors<'a, '_> {
                         );
                     }
                     for (_, visitor) in visitors[..nested_visitors_start].iter() {
-                        n.visit_mut_with(&mut visitor.create());
+                        n.modify(&*visitor.create());
                     }
                     return;
                 } else {
@@ -168,12 +167,13 @@ mod tests {
             codegen::{Emitter, text_writer::JsWriter},
             parser::parse_file_as_module,
             transforms::base::resolver,
-            visit::{AstParentKind, VisitMut, VisitMutWith, VisitMutWithAstPath, fields::*},
+            visit::{AstParentKind, VisitMutWith, VisitMutWithAstPath, fields::*},
         },
         testing::run_test,
     };
 
     use super::{ApplyVisitors, VisitorFactory};
+    use crate::code_gen::AstModifier;
 
     fn parse(fm: &SourceFile) -> Module {
         let mut m = parse_file_as_module(
@@ -199,13 +199,13 @@ mod tests {
     }
 
     impl VisitorFactory for Box<StrReplacer<'_>> {
-        fn create<'a>(&'a self) -> Box<dyn VisitMut + Send + Sync + 'a> {
+        fn create<'a>(&'a self) -> Box<dyn AstModifier + 'a> {
             Box::new(&**self)
         }
     }
 
-    impl VisitMut for &'_ StrReplacer<'_> {
-        fn visit_mut_str(&mut self, s: &mut Str) {
+    impl AstModifier for &'_ StrReplacer<'_> {
+        fn visit_mut_str(&self, s: &mut Str) {
             s.value = s.value.replace(self.from, self.to).into();
             s.raw = None;
         }

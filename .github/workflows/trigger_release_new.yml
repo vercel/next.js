@@ -18,8 +18,7 @@ on:
         options:
           - canary
           - stable
-          # TODO: Follow up enable the case.
-          # - release-candidate
+          - release-candidate
 
       force:
         description: Forced Release
