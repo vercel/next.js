@@ -272,14 +272,16 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             FxIndexSet<ListOccurence>,
         > = FxIndexMap::default();
 
-        // A map of all references inside of merged groups, if both modules have the same bitmap
-        // (and thus are in the same group, unless they are further split up below).
-        // These are only the references relevant for execution (ignoring cycles)
+        // A map of all references betwee modules with the same bitmap. These are all references,
+        // including reexecution edges and cycles. Used to expose additional modules if the
+        // bitmap-groups are split up further.
         #[allow(clippy::type_complexity)]
         let mut intra_group_references: FxIndexMap<
             ResolvedVc<Box<dyn Module>>,
             FxIndexSet<ResolvedVc<Box<dyn Module>>>,
         > = FxIndexMap::default();
+        // A map of all references betwee modules with the same bitmap. These are only the
+        // references relevant for execution (ignoring cycles), to find the entries of a group.
         #[allow(clippy::type_complexity)]
         let mut intra_group_references_rev: FxIndexMap<
             ResolvedVc<Box<dyn Module>>,
@@ -355,10 +357,6 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                                 == module_merged_groups.get(&module).unwrap();
 
                             if same_bitmap {
-                                intra_group_references
-                                    .entry(parent.module)
-                                    .or_default()
-                                    .insert(module);
                                 intra_group_references_rev
                                     .entry(module)
                                     .or_default()
@@ -392,10 +390,11 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             .sort_by_cached_key(|_, b| b.iter().map(|o| o.entry).min().map(|v| -(v as i64)));
 
         // Modules that are referenced from outside the group, so their exports need to be exposed.
+        // Initially these are set based on the bitmaps (and namespace imports), but more modules
+        // might need to be exposed if the lists are split up further below.
         let mut exposed_modules: FxHashSet<ResolvedVc<Box<dyn Module>>> =
             FxHashSet::with_capacity_and_hasher(module_merged_groups.len(), Default::default());
-        // These have to be exposed, but we might need to expose more modules if the lists are split
-        // up further below.
+
         module_graph
             .traverse_edges_from_entries_topological(
                 entries,
@@ -403,6 +402,18 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 |_, _, _| Ok(GraphTraversalAction::Continue),
                 |parent_info, node, _| {
                     let module = node.module;
+
+                    if let Some((parent, _)) = parent_info {
+                        let same_bitmap = module_merged_groups.get(&parent.module).unwrap()
+                            == module_merged_groups.get(&module).unwrap();
+
+                        if same_bitmap {
+                            intra_group_references
+                                .entry(parent.module)
+                                .or_default()
+                                .insert(module);
+                        }
+                    }
 
                     if parent_info.is_none_or(|(parent, r)| {
                         (module_merged_groups.get(&parent.module).unwrap()
@@ -412,8 +423,8 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                         // This module needs to be exposed:
                         // - referenced from another group or
                         // - a namespace import or an entry module or
-                        // - an entry module (TODO assume it will be required, but currently we
-                        // don't know if that is actually true),
+                        // - an entry module (TODO assume it will be required for Node/Edge, but not
+                        // necessarily needed for browser),
                         exposed_modules.insert(module);
                     }
                 },
@@ -421,7 +432,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             .await?;
 
         // println!(
-        //     "lists {:#?}",
+        //     "pre-split lists {:#?}",
         //     lists
         //         .iter()
         //         .map(|m| m.iter().map(|m| m.ident().to_string()).try_join())
@@ -526,8 +537,8 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 list.truncate(common_occurrence.entry);
                 let before_list = &*list;
 
-                // For all references that exist from "after" to "common"/"before" and from "common"
-                // to "before", mark the referenced modules as exposed.
+                // For all previously merged references that exist from "after" to "common"/"before"
+                // and from "common" to "before", mark the referenced modules as exposed.
                 for m in &common_list {
                     let m = ResolvedVc::upcast(*m);
                     if let Some(refs) = intra_group_references.get(&m) {
