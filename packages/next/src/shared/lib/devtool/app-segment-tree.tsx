@@ -3,6 +3,7 @@
 import { type ReactNode, useEffect, useSyncExternalStore } from 'react'
 import type { OverlayState } from '../../../client/components/react-dev-overlay/shared'
 import { createTrie, type Trie } from './trie'
+import type { ResolvedMetadata } from '../../../types'
 
 export type SegmentNode = {
   type: string
@@ -12,6 +13,7 @@ export type SegmentNode = {
 type DevtoolClientState = {
   tree?: Trie<SegmentNode>
   staticPathsInfo?: OverlayState['devToolsClientState']['staticPathsInfo']
+  resolvedMetadata?: ResolvedMetadata
 }
 
 const DEFAULT_CLIENT_STATE =

@@ -1,4 +1,5 @@
 import type { VersionInfo } from './parse-version-info'
+import type { ResolvedMetadata } from '../../types'
 import type { DebugInfo } from '../../client/components/react-dev-overlay/types'
 
 export type DevToolsServerState = {
@@ -14,6 +15,7 @@ export type DevToolsServerState = {
     staticPaths: string[]
     isPageIncludedInStaticPaths: boolean
   }
+  resolvedMetadata: ResolvedMetadata
 }
 
 export const devToolsServerState: DevToolsServerState = {
@@ -34,4 +36,8 @@ export const devToolsServerState: DevToolsServerState = {
     staticPaths: [],
     isPageIncludedInStaticPaths: false,
   },
+  // ResolvedMetadata expects items to be null by default,
+  // but is not strictly necessary for a default value so
+  // used `as ResolvedMetadata`.
+  resolvedMetadata: {} as ResolvedMetadata,
 }

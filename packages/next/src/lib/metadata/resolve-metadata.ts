@@ -1082,12 +1082,16 @@ export async function resolveMetadata(
     getDynamicParamFromSegment,
     workStore
   )
-  return accumulateMetadata(
+  const resolvedMetadata = await accumulateMetadata(
     workStore.route,
     metadataItems,
     pathname,
     metadataContext
   )
+
+  console.log({ resolvedMetadata })
+
+  return resolvedMetadata
 }
 
 // Exposed API for viewport component, that directly resolve the loader tree and related context as resolved viewport.
