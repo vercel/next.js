@@ -9,13 +9,11 @@ import {
   ACTION_BEFORE_REFRESH,
   ACTION_BUILD_ERROR,
   ACTION_BUILD_OK,
-  ACTION_DEBUG_INFO,
-  ACTION_DEV_INDICATOR,
+  ACTION_DEV_TOOLS,
   ACTION_REFRESH,
   ACTION_STATIC_INDICATOR,
   ACTION_UNHANDLED_ERROR,
   ACTION_UNHANDLED_REJECTION,
-  ACTION_VERSION_INFO,
   REACT_REFRESH_FULL_RELOAD,
   reportInvalidHmrMessage,
   useErrorOverlayReducer,
@@ -31,14 +29,12 @@ import {
   useWebsocketPing,
 } from '../utils/use-websocket'
 import { parseComponentStack } from '../utils/parse-component-stack'
-import type { VersionInfo } from '../../../../server/dev/parse-version-info'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../../server/dev/hot-reloader-types'
 import type {
   HMR_ACTION_TYPES,
   TurbopackMsgToBrowser,
 } from '../../../../server/dev/hot-reloader-types'
 import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from '../shared'
-import type { DebugInfo } from '../types'
 import { useUntrackedPathname } from '../../navigation-untracked'
 import { getComponentStack, getOwnerStack } from '../../errors/stitched-error'
 import { handleDevBuildIndicatorHmrEvents } from '../../../dev/dev-build-indicator/internal/handle-dev-build-indicator-hmr-events'
@@ -51,12 +47,10 @@ import { NEXT_HMR_REFRESH_HASH_COOKIE } from '../../app-router-headers'
 export interface Dispatcher {
   onBuildOk(): void
   onBuildError(message: string): void
-  onVersionInfo(versionInfo: VersionInfo): void
-  onDebugInfo(debugInfo: DebugInfo): void
   onBeforeRefresh(): void
   onRefresh(): void
   onStaticIndicator(status: boolean): void
-  onDevIndicator(devIndicator: DevToolsServerState['devIndicator']): void
+  onDevTools(devTools: DevToolsServerState): void
 }
 
 let mostRecentCompilationHash: any = null
@@ -316,9 +310,9 @@ function processMessage(
       const { errors, warnings } = obj
 
       // Is undefined when it's a 'built' event
-      if ('versionInfo' in obj) dispatcher.onVersionInfo(obj.versionInfo)
-      if ('debug' in obj && obj.debug) dispatcher.onDebugInfo(obj.debug)
-      if ('devIndicator' in obj) dispatcher.onDevIndicator(obj.devIndicator)
+      if ('devTools' in obj) {
+        dispatcher.onDevTools(obj.devTools)
+      }
 
       const hasErrors = Boolean(errors && errors.length)
       // Compilation with errors (e.g. syntax error or missing modules).
@@ -496,20 +490,11 @@ export default function HotReload({
       onRefresh() {
         dispatch({ type: ACTION_REFRESH })
       },
-      onVersionInfo(versionInfo) {
-        dispatch({ type: ACTION_VERSION_INFO, versionInfo })
-      },
       onStaticIndicator(status: boolean) {
         dispatch({ type: ACTION_STATIC_INDICATOR, staticIndicator: status })
       },
-      onDebugInfo(debugInfo) {
-        dispatch({ type: ACTION_DEBUG_INFO, debugInfo })
-      },
-      onDevIndicator(devIndicator) {
-        dispatch({
-          type: ACTION_DEV_INDICATOR,
-          devIndicator,
-        })
+      onDevTools(devTools: DevToolsServerState) {
+        dispatch({ type: ACTION_DEV_TOOLS, devTools })
       },
     }
   }, [dispatch])

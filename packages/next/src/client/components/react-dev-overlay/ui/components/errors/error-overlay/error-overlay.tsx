@@ -1,4 +1,4 @@
-import type { OverlayState } from '../../../../shared'
+import type { DevToolsClientState, OverlayState } from '../../../../shared'
 
 import { Suspense } from 'react'
 import { BuildError } from '../../../container/build-error'
@@ -12,7 +12,7 @@ export interface ErrorBaseProps {
   rendered: boolean
   transitionDurationMs: number
   isTurbopack: boolean
-  versionInfo: OverlayState['versionInfo']
+  versionInfo: DevToolsClientState['versionInfo']
   errorCount: number
 }
 
@@ -40,7 +40,7 @@ export function ErrorOverlay({
     rendered,
     transitionDurationMs,
     isTurbopack,
-    versionInfo: state.versionInfo,
+    versionInfo: state.devToolsClientState.versionInfo,
     errorCount,
   }
 
@@ -71,7 +71,7 @@ export function ErrorOverlay({
   return (
     <Errors
       {...commonProps}
-      debugInfo={state.debugInfo}
+      debugInfo={state.devToolsClientState.debugInfo}
       runtimeErrors={runtimeErrors}
       onClose={() => {
         setIsErrorOverlayOpen(false)

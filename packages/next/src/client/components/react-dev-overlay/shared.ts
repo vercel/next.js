@@ -15,17 +15,23 @@ type FastRefreshState =
   /** The refresh process has been triggered, but the new code has not been executed yet. */
   | { type: 'pending'; errors: SupportedErrorEvent[] }
 
+export type DevToolsClientState = {
+  versionInfo: VersionInfo
+  debugInfo: DebugInfo
+  devIndicator: {
+    staticIndicator: boolean
+    showIndicator: boolean
+    disableDevIndicator: boolean
+  }
+}
+
 export interface OverlayState {
   nextId: number
   buildError: string | null
   errors: SupportedErrorEvent[]
   refreshState: FastRefreshState
-  versionInfo: VersionInfo
   notFound: boolean
-  staticIndicator: boolean
-  showIndicator: boolean
-  disableDevIndicator: boolean
-  debugInfo: DebugInfo
+  devToolsClientState: DevToolsClientState
   routerType: 'pages' | 'app'
 }
 
@@ -34,11 +40,9 @@ export const ACTION_BUILD_OK = 'build-ok'
 export const ACTION_BUILD_ERROR = 'build-error'
 export const ACTION_BEFORE_REFRESH = 'before-fast-refresh'
 export const ACTION_REFRESH = 'fast-refresh'
-export const ACTION_VERSION_INFO = 'version-info'
 export const ACTION_UNHANDLED_ERROR = 'unhandled-error'
 export const ACTION_UNHANDLED_REJECTION = 'unhandled-rejection'
-export const ACTION_DEBUG_INFO = 'debug-info'
-export const ACTION_DEV_INDICATOR = 'dev-indicator'
+export const ACTION_DEV_TOOLS = 'dev-tools'
 
 export const STORAGE_KEY_THEME = '__nextjs-dev-tools-theme'
 export const STORAGE_KEY_POSITION = '__nextjs-dev-tools-position'
@@ -75,19 +79,9 @@ export interface UnhandledRejectionAction {
   frames: StackFrame[]
 }
 
-export interface DebugInfoAction {
-  type: typeof ACTION_DEBUG_INFO
-  debugInfo: any
-}
-
-interface VersionInfoAction {
-  type: typeof ACTION_VERSION_INFO
-  versionInfo: VersionInfo
-}
-
-interface DevIndicatorAction {
-  type: typeof ACTION_DEV_INDICATOR
-  devIndicator: DevToolsServerState['devIndicator']
+interface DevToolsAction {
+  type: typeof ACTION_DEV_TOOLS
+  devTools: DevToolsServerState
 }
 
 export type BusEvent =
@@ -97,10 +91,8 @@ export type BusEvent =
   | FastRefreshAction
   | UnhandledErrorAction
   | UnhandledRejectionAction
-  | VersionInfoAction
   | StaticIndicatorAction
-  | DebugInfoAction
-  | DevIndicatorAction
+  | DevToolsAction
 
 const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX =
   // 1st group: v8
@@ -141,17 +133,21 @@ export const INITIAL_OVERLAY_STATE: Omit<OverlayState, 'routerType'> = {
   buildError: null,
   errors: [],
   notFound: false,
-  staticIndicator: false,
-  /* 
+  refreshState: { type: 'idle' },
+  devToolsClientState: {
+    versionInfo: { installed: '0.0.0', staleness: 'unknown' },
+    debugInfo: { devtoolsFrontendUrl: undefined },
+    devIndicator: {
+      staticIndicator: false,
+      disableDevIndicator: false,
+      /* 
     This is set to `true` when we can reliably know
     whether the indicator is in disabled state or not.  
     Otherwise the surface would flicker because the disabled flag loads from the config.
   */
-  showIndicator: false,
-  disableDevIndicator: false,
-  refreshState: { type: 'idle' },
-  versionInfo: { installed: '0.0.0', staleness: 'unknown' },
-  debugInfo: { devtoolsFrontendUrl: undefined },
+      showIndicator: false,
+    },
+  },
 }
 
 function getInitialState(
@@ -166,11 +162,17 @@ function getInitialState(
 export function useErrorOverlayReducer(routerType: 'pages' | 'app') {
   return useReducer((state: OverlayState, action: BusEvent): OverlayState => {
     switch (action.type) {
-      case ACTION_DEBUG_INFO: {
-        return { ...state, debugInfo: action.debugInfo }
-      }
       case ACTION_STATIC_INDICATOR: {
-        return { ...state, staticIndicator: action.staticIndicator }
+        return {
+          ...state,
+          devToolsClientState: {
+            ...state.devToolsClientState,
+            devIndicator: {
+              ...state.devToolsClientState.devIndicator,
+              staticIndicator: action.staticIndicator,
+            },
+          },
+        }
       }
       case ACTION_BUILD_OK: {
         return { ...state, buildError: null }
@@ -228,15 +230,21 @@ export function useErrorOverlayReducer(routerType: 'pages' | 'app') {
             return state
         }
       }
-      case ACTION_VERSION_INFO: {
-        return { ...state, versionInfo: action.versionInfo }
-      }
-      case ACTION_DEV_INDICATOR: {
+      case ACTION_DEV_TOOLS: {
         return {
           ...state,
-          showIndicator: true,
-          disableDevIndicator:
-            shouldDisableDevIndicator || !!action.devIndicator.disabledUntil,
+          devToolsClientState: {
+            ...state.devToolsClientState,
+            versionInfo: action.devTools.versionInfo,
+            debugInfo: action.devTools.debugInfo,
+            devIndicator: {
+              ...state.devToolsClientState.devIndicator,
+              showIndicator: true,
+              disableDevIndicator:
+                shouldDisableDevIndicator ||
+                !!action.devTools.devIndicator.disabledUntil,
+            },
+          },
         }
       }
       default: {

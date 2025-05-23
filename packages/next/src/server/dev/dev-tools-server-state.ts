@@ -1,5 +1,19 @@
-export type DevToolsServerState = typeof devToolsServerState
+import type { VersionInfo } from './parse-version-info'
+import type { DebugInfo } from '../../client/components/react-dev-overlay/types'
 
-export const devToolsServerState = {
+export type DevToolsServerState = {
+  devIndicator: { disabledUntil: number }
+  versionInfo: VersionInfo
+  debugInfo: DebugInfo
+}
+
+export const devToolsServerState: DevToolsServerState = {
   devIndicator: { disabledUntil: 0 },
+  versionInfo: {
+    installed: '0.0.0',
+    staleness: 'unknown',
+  },
+  debugInfo: {
+    devtoolsFrontendUrl: undefined,
+  },
 }

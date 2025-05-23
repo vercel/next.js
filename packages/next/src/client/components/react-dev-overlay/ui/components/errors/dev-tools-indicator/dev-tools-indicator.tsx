@@ -48,9 +48,9 @@ export function DevToolsIndicator({
   return (
     <DevToolsPopover
       routerType={state.routerType}
-      semver={state.versionInfo.installed}
+      semver={state.devToolsClientState.versionInfo.installed}
       issueCount={errorCount}
-      isStaticRoute={state.staticIndicator}
+      isStaticRoute={state.devToolsClientState.devIndicator.staticIndicator}
       hide={() => {
         setIsDevToolsIndicatorVisible(false)
         fetch('/__nextjs_disable_dev_indicator', {
@@ -59,7 +59,10 @@ export function DevToolsIndicator({
       }}
       setIsErrorOverlayOpen={setIsErrorOverlayOpen}
       isTurbopack={!!process.env.TURBOPACK}
-      disabled={state.disableDevIndicator || !isDevToolsIndicatorVisible}
+      disabled={
+        state.devToolsClientState.devIndicator.disableDevIndicator ||
+        !isDevToolsIndicatorVisible
+      }
       isBuildError={isBuildError}
       {...props}
     />

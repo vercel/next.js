@@ -9,14 +9,12 @@ import {
   ACTION_BEFORE_REFRESH,
   ACTION_BUILD_ERROR,
   ACTION_BUILD_OK,
-  ACTION_DEV_INDICATOR,
+  ACTION_DEV_TOOLS,
   ACTION_REFRESH,
   ACTION_STATIC_INDICATOR,
   ACTION_UNHANDLED_ERROR,
   ACTION_UNHANDLED_REJECTION,
-  ACTION_VERSION_INFO,
 } from '../shared'
-import type { VersionInfo } from '../../../../server/dev/parse-version-info'
 import { getComponentStack, getOwnerStack } from '../../errors/stitched-error'
 import type { DevToolsServerState } from '../../../../server/dev/dev-tools-server-state'
 
@@ -118,18 +116,12 @@ export function onBeforeRefresh() {
   Bus.emit({ type: ACTION_BEFORE_REFRESH })
 }
 
-export function onVersionInfo(versionInfo: VersionInfo) {
-  Bus.emit({ type: ACTION_VERSION_INFO, versionInfo })
-}
-
 export function onStaticIndicator(isStatic: boolean) {
   Bus.emit({ type: ACTION_STATIC_INDICATOR, staticIndicator: isStatic })
 }
 
-export function onDevIndicator(
-  devIndicator: DevToolsServerState['devIndicator']
-) {
-  Bus.emit({ type: ACTION_DEV_INDICATOR, devIndicator })
+export function onDevTools(devTools: DevToolsServerState) {
+  Bus.emit({ type: ACTION_DEV_TOOLS, devTools })
 }
 
 export { getErrorByType } from '../utils/get-error-by-type'
