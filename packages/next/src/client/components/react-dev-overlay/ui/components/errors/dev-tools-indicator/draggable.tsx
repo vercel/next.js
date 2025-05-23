@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, type CSSProperties } from 'react'
 import { IconCross } from '../../../icons/icon-cross'
 
 interface Point {
@@ -147,7 +147,12 @@ export function Draggable({
         <div
           ref={hideRegionRef}
           className="dev-tools-indicator-hide-region-icon"
-          style={{ width: size, height: size }}
+          style={
+            {
+              width: `var(--width, ${size}px)`,
+              height: size,
+            } as CSSProperties
+          }
         >
           <IconCross />
         </div>
@@ -224,7 +229,7 @@ export function useDrag({
     set(corner.translation)
   }
 
-  function onClick(e: React.MouseEvent) {
+  function onClick(e: MouseEvent) {
     if (state.current === 'drag-end') {
       e.preventDefault()
       e.stopPropagation()
@@ -235,9 +240,12 @@ export function useDrag({
   function onPointerDown(e: React.PointerEvent) {
     origin.current = { x: e.clientX, y: e.clientY }
     state.current = 'press'
+    window.addEventListener('pointermove', onPointerMove)
+    window.addEventListener('pointerup', onPointerUp)
+    ref.current?.addEventListener('click', onClick)
   }
 
-  function onPointerMove(e: React.PointerEvent) {
+  function onPointerMove(e: PointerEvent) {
     if (state.current === 'press') {
       ref.current?.setPointerCapture(e.pointerId)
       const dx = e.clientX - origin.current.x
@@ -274,7 +282,7 @@ export function useDrag({
     if (intersecting && !snapped.current) {
       snapped.current = true
       animating.current = true
-      hideRegion.style.setProperty('width', `${ref.current?.offsetWidth}px`)
+      hideRegion.style.setProperty('--width', `${ref.current?.offsetWidth}px`)
 
       const hideRegionTranslation = getHideRegionTranslation()
       // Center the trigger over the hide region
@@ -289,6 +297,7 @@ export function useDrag({
       // transition()
       // animating.current = true
       snapped.current = false
+      hideRegion.style.removeProperty('--width')
     }
 
     if (!animating.current) {
@@ -310,8 +319,10 @@ export function useDrag({
     onDrag?.(translation.current)
   }
 
-  function onPointerUp(e: React.PointerEvent) {
+  function onPointerUp(e: PointerEvent) {
     state.current = state.current === 'drag' ? 'drag-end' : 'idle'
+    window.removeEventListener('pointermove', onPointerMove)
+    window.removeEventListener('pointerup', onPointerUp)
     const velocity = calculateVelocity(velocities.current)
     velocities.current = []
 
@@ -360,10 +371,7 @@ export function useDrag({
 
   return {
     ref,
-    onClick,
     onPointerDown,
-    onPointerMove,
-    onPointerUp,
     animate,
   }
 }
