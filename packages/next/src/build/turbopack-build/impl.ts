@@ -102,7 +102,7 @@ export async function turbopackBuild(): Promise<{
             Log.info(event.message)
             break
           case 'WARNING':
-            console.warn(event.message)
+            Log.warn(event.message)
             break
           case 'ERROR':
             Log.error(event.message)

@@ -220,3 +220,31 @@ impl CompilationEvent for DiagnosticEvent {
         serde_json::to_string(self).unwrap()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_timing_event_string_formatting() {
+        let tests = vec![
+            (Duration::from_nanos(1588), "0ms"),
+            (Duration::from_nanos(1022616), "1ms"),
+            (Duration::from_millis(100), "100ms"),
+            (Duration::from_millis(1000), "1000ms"),
+            (Duration::from_millis(10000), "10.0s"),
+            (Duration::from_millis(20381), "20.4s"),
+            (Duration::from_secs(60), "60s"),
+            (Duration::from_secs(100), "100s"),
+            (Duration::from_secs(125), "2.1min"),
+        ];
+
+        for (duration, expected) in tests {
+            let event = TimingEvent::new("Compiled successfully".to_string(), duration);
+            assert_eq!(
+                event.message(),
+                format!("Compiled successfully in {expected}")
+            );
+        }
+    }
+}
