@@ -251,20 +251,6 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
     )
   }
 
-  let parents: ModuleId[]
-  switch (source.type) {
-    case SourceType.Runtime:
-      parents = []
-      break
-    case SourceType.Parent:
-      // No need to add this module as a child of the parent module here, this
-      // has already been taken care of in `getOrInstantiateModuleFromParent`.
-      parents = [source.parentId]
-      break
-    default:
-      invariant(source, (source) => `Unknown source type: ${source?.type}`)
-  }
-
   const module: Module = {
     exports: {},
     error: undefined,
