@@ -1,8 +1,11 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use swc_core::ecma::{
-    ast::{Pass, Stmt},
-    visit::{AstParentKind, VisitMut},
+    ast::{
+        BlockStmt, CallExpr, Expr, Lit, MemberExpr, ModuleDecl, ModuleItem, Pass, Pat, Prop,
+        SimpleAssignTarget, Stmt, Str, SwitchCase,
+    },
+    visit::AstParentKind,
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
@@ -118,7 +121,55 @@ pub trait PassFactory: Send + Sync {
     fn create<'a>(&'a self) -> Box<dyn Pass + Send + Sync + 'a>;
 }
 
-pub trait AstModifier: Send + Sync {}
+macro_rules! method {
+    ($name:ident, $T:ty) => {
+        fn $name(&self, _node: &mut $T) {}
+    };
+}
+
+pub trait AstModifier: Send + Sync {
+    method!(visit_mut_prop, Prop);
+    method!(visit_mut_simple_assign_target, SimpleAssignTarget);
+    method!(visit_mut_expr, Expr);
+    method!(visit_mut_member_expr, MemberExpr);
+    method!(visit_mut_pat, Pat);
+    method!(visit_mut_stmt, Stmt);
+    method!(visit_mut_module_decl, ModuleDecl);
+    method!(visit_mut_module_item, ModuleItem);
+    method!(visit_mut_call_expr, CallExpr);
+    method!(visit_mut_lit, Lit);
+    method!(visit_mut_str, Str);
+    method!(visit_mut_block_stmt, BlockStmt);
+    method!(visit_mut_switch_case, SwitchCase);
+}
+
+pub trait ModifiableAst {
+    fn modify(&mut self, modifier: &dyn AstModifier);
+}
+
+macro_rules! impl_modify {
+    ($visit_mut_name:ident, $T:ty) => {
+        impl ModifiableAst for $T {
+            fn modify(&mut self, modifier: &dyn AstModifier) {
+                modifier.$visit_mut_name(self)
+            }
+        }
+    };
+}
+
+impl_modify!(visit_mut_prop, Prop);
+impl_modify!(visit_mut_simple_assign_target, SimpleAssignTarget);
+impl_modify!(visit_mut_expr, Expr);
+impl_modify!(visit_mut_member_expr, MemberExpr);
+impl_modify!(visit_mut_pat, Pat);
+impl_modify!(visit_mut_stmt, Stmt);
+impl_modify!(visit_mut_module_decl, ModuleDecl);
+impl_modify!(visit_mut_module_item, ModuleItem);
+impl_modify!(visit_mut_call_expr, CallExpr);
+impl_modify!(visit_mut_lit, Lit);
+impl_modify!(visit_mut_str, Str);
+impl_modify!(visit_mut_block_stmt, BlockStmt);
+impl_modify!(visit_mut_switch_case, SwitchCase);
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 pub enum CodeGen {
@@ -239,7 +290,7 @@ macro_rules! create_visitor {
         impl<'a, T: Fn(&mut swc_core::ecma::ast::$ty) + Send + Sync> $crate::code_gen::AstModifier
             for &'a Visitor<T>
         {
-            fn $name(&mut self, $arg: &mut swc_core::ecma::ast::$ty) {
+            fn $name(&self, $arg: &mut swc_core::ecma::ast::$ty) {
                 (self.$name)($arg);
             }
         }
