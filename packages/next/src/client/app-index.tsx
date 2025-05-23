@@ -29,6 +29,11 @@ import { isBot } from '../shared/lib/router/utils/is-bot'
 
 /// <reference types="react-dom/experimental" />
 
+function onDefaultTransitionIndicator() {
+  // TODO: Compose default with user-configureable (e.g. nprogress)
+  // TODO: Use React's default even if user config isn't set up. Requires resolution of https://issues.chromium.org/u/1/issues/419746417
+}
+
 const appElement: HTMLElement | Document = document
 
 const encoder = new TextEncoder()
@@ -208,6 +213,8 @@ function Root({ children }: React.PropsWithChildren<{}>) {
 }
 
 const reactRootOptions: ReactDOMClient.RootOptions = {
+  // @ts-expect-error: Should pass on `@types/react` bump.
+  onDefaultTransitionIndicator,
   onRecoverableError,
   onCaughtError,
   onUncaughtError,
