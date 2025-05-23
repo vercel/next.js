@@ -280,6 +280,11 @@ export interface RenderOptsPartial {
    * next config experimental.devtoolSegmentExplorer
    */
   devtoolSegmentExplorer?: boolean
+
+  /**
+   * next config experimental.devtoolMetadataViewer
+   */
+  devtoolMetadataViewer?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType<AppPageModule> &

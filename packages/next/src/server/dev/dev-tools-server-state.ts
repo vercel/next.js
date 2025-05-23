@@ -1,4 +1,5 @@
 import type { VersionInfo } from './parse-version-info'
+import type { ResolvedMetadata } from '../../types'
 import type { DebugInfo } from '../../client/components/react-dev-overlay/types'
 
 export type DevToolsServerState = {
@@ -14,24 +15,9 @@ export type DevToolsServerState = {
     staticPaths: string[]
     isPageIncludedInStaticPaths: boolean
   }
+  resolvedMetadata: ResolvedMetadata
 }
 
-export const devToolsServerState: DevToolsServerState = {
-  devIndicator: {
-    isDisabled: false,
-    disabledUntil: 0,
-  },
-  versionInfo: {
-    installed: '0.0.0',
-    staleness: 'unknown',
-  },
-  debugInfo: {
-    devtoolsFrontendUrl: undefined,
-  },
-  staticPathsInfo: {
-    page: '',
-    pathname: '',
-    staticPaths: [],
-    isPageIncludedInStaticPaths: false,
-  },
+declare global {
+  var devToolsServerState: DevToolsServerState
 }

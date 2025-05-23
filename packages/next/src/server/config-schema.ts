@@ -499,6 +499,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           .optional(),
         globalNotFound: z.boolean().optional(),
         devtoolSegmentExplorer: z.boolean().optional(),
+        devtoolMetadataViewer: z.boolean().optional(),
       })
       .optional(),
     exportPathMap: z

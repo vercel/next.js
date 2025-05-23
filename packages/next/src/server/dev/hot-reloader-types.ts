@@ -8,6 +8,7 @@ import type { Project, Update as TurbopackUpdate } from '../../build/swc/types'
 import type { VersionInfo } from './parse-version-info'
 import type { DebugInfo } from '../../client/components/react-dev-overlay/types'
 import type { DevToolsServerState } from './dev-tools-server-state'
+import type { ResolvedMetadata } from '../../lib/metadata/types/metadata-interface'
 
 export const enum HMR_ACTIONS_SENT_TO_BROWSER {
   ADDED_PAGE = 'addedPage',
@@ -61,6 +62,7 @@ export interface SyncAction {
     versionInfo: VersionInfo
     devIndicator: DevToolsServerState['devIndicator']
     staticPathsInfo: DevToolsServerState['staticPathsInfo']
+    resolvedMetadata: ResolvedMetadata
   }
 }
 interface BuiltAction {

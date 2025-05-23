@@ -27,7 +27,6 @@ import { isMiddlewareFilename } from '../../build/utils'
 import type { VersionInfo } from './parse-version-info'
 import type { HMR_ACTION_TYPES } from './hot-reloader-types'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
-import { devToolsServerState } from './dev-tools-server-state'
 
 function isMiddlewareStats(stats: webpack.Stats) {
   for (const key of stats.compilation.entrypoints.keys()) {
@@ -203,16 +202,23 @@ export class WebpackHotMiddleware {
       const stats = statsToJson(syncStats)
       const middlewareStats = statsToJson(this.middlewareLatestStats?.stats)
 
-      if (devToolsServerState.devIndicator.disabledUntil < Date.now()) {
-        devToolsServerState.devIndicator.isDisabled = false
-        devToolsServerState.devIndicator.disabledUntil = 0
+      if (
+        globalThis.devToolsServerState.devIndicator.disabledUntil < Date.now()
+      ) {
+        globalThis.devToolsServerState.devIndicator.isDisabled = false
+        globalThis.devToolsServerState.devIndicator.disabledUntil = 0
       }
 
       // __NEXT_DEV_INDICATOR is set to false when devIndicator is
       // explicitly marked as false.
       if (process.env.__NEXT_DEV_INDICATOR?.toString() === 'false') {
-        devToolsServerState.devIndicator.isDisabled = true
+        globalThis.devToolsServerState.devIndicator.isDisabled = true
       }
+
+      console.log(
+        'syncing resolvedMetadata from webpack',
+        globalThis.devToolsServerState.resolvedMetadata
+      )
 
       this.publish({
         action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC,
@@ -227,8 +233,9 @@ export class WebpackHotMiddleware {
           debugInfo: {
             devtoolsFrontendUrl: this.devtoolsFrontendUrl,
           },
-          devIndicator: devToolsServerState.devIndicator,
-          staticPathsInfo: devToolsServerState.staticPathsInfo,
+          devIndicator: globalThis.devToolsServerState.devIndicator,
+          staticPathsInfo: globalThis.devToolsServerState.staticPathsInfo,
+          resolvedMetadata: globalThis.devToolsServerState.resolvedMetadata,
         },
       })
     }

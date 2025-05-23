@@ -83,6 +83,7 @@ import {
   TurbopackInternalError,
 } from '../../../shared/lib/turbopack/utils'
 import { getDefineEnv } from '../../../build/define-env'
+import type { ResolvedMetadata } from '../../../types'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -1048,6 +1049,30 @@ export async function setupDevBundler(opts: SetupOpts) {
       invocationCount: isPersistentCachingEnabled(opts.nextConfig) ? 1 : 0,
     },
   })
+
+  globalThis.devToolsServerState = {
+    devIndicator: {
+      isDisabled: false,
+      disabledUntil: 0,
+    },
+    versionInfo: {
+      installed: '0.0.0',
+      staleness: 'unknown',
+    },
+    debugInfo: {
+      devtoolsFrontendUrl: undefined,
+    },
+    staticPathsInfo: {
+      page: '',
+      pathname: '',
+      staticPaths: [],
+      isPageIncludedInStaticPaths: false,
+    },
+    // ResolvedMetadata expects items to be null by default,
+    // but is not strictly necessary for a default value so
+    // used `as ResolvedMetadata`.
+    resolvedMetadata: {} as ResolvedMetadata,
+  }
 
   return result
 }

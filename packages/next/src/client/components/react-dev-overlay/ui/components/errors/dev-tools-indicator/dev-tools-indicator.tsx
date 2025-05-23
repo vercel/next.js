@@ -23,6 +23,7 @@ import {
   type DevToolsScale,
 } from './dev-tools-info/preferences'
 import { Draggable } from './draggable'
+import { MetadataViewer } from '../../overview/metadata-viewer'
 
 // TODO: add E2E tests to cover different scenarios
 
@@ -49,6 +50,7 @@ export function DevToolsIndicator({
   window.__NEXT_DEVTOOLS_CLIENT_STATE = {
     ...window.__NEXT_DEVTOOLS_CLIENT_STATE,
     staticPathsInfo: state.devToolsClientState.staticPathsInfo,
+    resolvedMetadata: state.devToolsClientState.resolvedMetadata,
   }
 
   return (
@@ -91,6 +93,7 @@ const OVERLAYS = {
   Route: 'route',
   Preferences: 'preferences',
   SegmentExplorer: 'segment-explorer',
+  MetadataViewer: 'metadata-viewer',
 } as const
 
 export type Overlays = (typeof OVERLAYS)[keyof typeof OVERLAYS]
@@ -135,6 +138,9 @@ function DevToolsPopover({
   const isRouteInfoOpen = open === OVERLAYS.Route
   const isPreferencesOpen = open === OVERLAYS.Preferences
   const isSegmentExplorerOpen = open === OVERLAYS.SegmentExplorer
+  const isMetadataViewerOpen = open === OVERLAYS.MetadataViewer
+
+  console.log({ open })
 
   const { mounted: menuMounted, rendered: menuRendered } = useDelayedRender(
     isMenuOpen,
@@ -264,6 +270,8 @@ function DevToolsPopover({
   const [vertical, horizontal] = position.split('-', 2)
   const popover = { [vertical]: 'calc(100% + 8px)', [horizontal]: 0 }
 
+  console.log(process.env.__NEXT_DEVTOOL_METADATA_VIEWER)
+
   return (
     <Toast
       data-nextjs-toast
@@ -305,7 +313,6 @@ function DevToolsPopover({
           scale={scale}
         />
       </Draggable>
-
       {/* Route Info */}
       <RouteInfo
         isOpen={isRouteInfoOpen}
@@ -315,7 +322,6 @@ function DevToolsPopover({
         routerType={routerType}
         routeType={isStaticRoute ? 'Static' : 'Dynamic'}
       />
-
       {/* Turbopack Info */}
       <TurbopackInfo
         isOpen={isTurbopackInfoOpen}
@@ -323,7 +329,6 @@ function DevToolsPopover({
         triggerRef={triggerRef}
         style={popover}
       />
-
       {/* Preferences */}
       <UserPreferences
         isOpen={isPreferencesOpen}
@@ -336,7 +341,6 @@ function DevToolsPopover({
         scale={scale}
         setScale={setScale}
       />
-
       {/* Page Segment Explorer */}
       {process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER ? (
         <SegmentsExplorer
@@ -346,7 +350,15 @@ function DevToolsPopover({
           style={popover}
         />
       ) : null}
-
+      {/* Page Metadata Viewer */}
+      {process.env.__NEXT_DEVTOOL_METADATA_VIEWER ? (
+        <MetadataViewer
+          isOpen={isMetadataViewerOpen}
+          close={openRootMenu}
+          triggerRef={triggerRef}
+          style={popover}
+        />
+      ) : null}
       {/* Dropdown Menu */}
       {menuMounted && (
         <div
@@ -419,6 +431,15 @@ function DevToolsPopover({
                   value={<ChevronRight />}
                   onClick={() => setOpen(OVERLAYS.SegmentExplorer)}
                   index={isTurbopack ? 3 : 4}
+                />
+              ) : null}
+              {process.env.__NEXT_DEVTOOL_METADATA_VIEWER ? (
+                <MenuItem
+                  data-rendered-files
+                  label="Metadata Viewer"
+                  value={<ChevronRight />}
+                  onClick={() => setOpen(OVERLAYS.MetadataViewer)}
+                  index={isTurbopack ? 4 : 5}
                 />
               ) : null}
             </div>

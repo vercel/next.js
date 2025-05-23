@@ -702,6 +702,11 @@ export interface ExperimentalConfig {
    * Enable segment viewer for the app directory in dev tool.
    */
   devtoolSegmentExplorer?: boolean
+
+  /**
+   * Enable metadata viewer for the app directory in dev tool.
+   */
+  devtoolMetadataViewer?: boolean
 }
 
 export type ExportPathMap = {
@@ -1399,6 +1404,7 @@ export const defaultConfig = {
     slowModuleDetection: undefined,
     globalNotFound: false,
     devtoolSegmentExplorer: false,
+    devtoolMetadataViewer: false,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,

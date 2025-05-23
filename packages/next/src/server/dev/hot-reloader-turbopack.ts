@@ -95,7 +95,6 @@ import {
   type TopLevelIssuesMap,
 } from '../../shared/lib/turbopack/utils'
 import { getDevOverlayFontMiddleware } from '../../client/components/react-dev-overlay/font/get-dev-overlay-font-middleware'
-import { devToolsServerState } from './dev-tools-server-state'
 import { getDisableDevIndicatorMiddleware } from './dev-indicator-middleware'
 import { getRestartDevServerMiddleware } from '../../client/components/react-dev-overlay/server/restart-dev-server-middleware'
 // import { getSupportedBrowsers } from '../../build/utils'
@@ -839,15 +838,17 @@ export async function createHotReloaderTurbopack(
           }
         }
 
-        if (devToolsServerState.devIndicator.disabledUntil < Date.now()) {
-          devToolsServerState.devIndicator.isDisabled = false
-          devToolsServerState.devIndicator.disabledUntil = 0
+        if (
+          globalThis.devToolsServerState.devIndicator.disabledUntil < Date.now()
+        ) {
+          globalThis.devToolsServerState.devIndicator.isDisabled = false
+          globalThis.devToolsServerState.devIndicator.disabledUntil = 0
         }
 
         // __NEXT_DEV_INDICATOR is set to false when devIndicator is
         // explicitly marked as false.
         if (process.env.__NEXT_DEV_INDICATOR?.toString() === 'false') {
-          devToolsServerState.devIndicator.isDisabled = true
+          globalThis.devToolsServerState.devIndicator.isDisabled = true
         }
 
         ;(async function () {
@@ -859,12 +860,13 @@ export async function createHotReloaderTurbopack(
             warnings: [],
             hash: '',
             devTools: {
-              devIndicator: devToolsServerState.devIndicator,
+              devIndicator: globalThis.devToolsServerState.devIndicator,
               versionInfo,
               debugInfo: {
                 devtoolsFrontendUrl,
               },
-              staticPathsInfo: devToolsServerState.staticPathsInfo,
+              staticPathsInfo: globalThis.devToolsServerState.staticPathsInfo,
+              resolvedMetadata: globalThis.devToolsServerState.resolvedMetadata,
             },
           }
 
