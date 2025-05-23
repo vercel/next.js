@@ -1,10 +1,8 @@
 import { useReducer } from 'react'
 
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
-import type { VersionInfo } from '../../../server/dev/parse-version-info'
 import type { SupportedErrorEvent } from './ui/container/runtime-error/render-error'
 import type { ComponentStackFrame } from './utils/parse-component-stack'
-import type { DebugInfo } from './types'
 import type { DevToolsServerState } from '../../../server/dev/dev-tools-server-state'
 import type { HMR_ACTION_TYPES } from '../../../server/dev/hot-reloader-types'
 import { getOwnerStack } from '../errors/stitched-error'
@@ -15,13 +13,10 @@ type FastRefreshState =
   /** The refresh process has been triggered, but the new code has not been executed yet. */
   | { type: 'pending'; errors: SupportedErrorEvent[] }
 
-export type DevToolsClientState = {
-  versionInfo: VersionInfo
-  debugInfo: DebugInfo
-  devIndicator: {
+export type DevToolsClientState = DevToolsServerState & {
+  devIndicator: DevToolsServerState['devIndicator'] & {
     staticIndicator: boolean
-    showIndicator: boolean
-    disableDevIndicator: boolean
+    isReady: boolean
   }
 }
 
@@ -125,9 +120,6 @@ function pushErrorFilterDuplicates(
   return pendingErrors
 }
 
-const shouldDisableDevIndicator =
-  process.env.__NEXT_DEV_INDICATOR?.toString() === 'false'
-
 export const INITIAL_OVERLAY_STATE: Omit<OverlayState, 'routerType'> = {
   nextId: 1,
   buildError: null,
@@ -139,13 +131,12 @@ export const INITIAL_OVERLAY_STATE: Omit<OverlayState, 'routerType'> = {
     debugInfo: { devtoolsFrontendUrl: undefined },
     devIndicator: {
       staticIndicator: false,
-      disableDevIndicator: false,
-      /* 
-    This is set to `true` when we can reliably know
-    whether the indicator is in disabled state or not.  
-    Otherwise the surface would flicker because the disabled flag loads from the config.
-  */
-      showIndicator: false,
+      isDisabled: false,
+      disabledUntil: 0,
+      // Since the disabled state is passed from the server, delay the
+      // render until we receive the exact disabled value. Otherwise,
+      // the indicator would flicker when it should be disabled.
+      isReady: false,
     },
   },
 }
@@ -162,18 +153,6 @@ function getInitialState(
 export function useErrorOverlayReducer(routerType: 'pages' | 'app') {
   return useReducer((state: OverlayState, action: BusEvent): OverlayState => {
     switch (action.type) {
-      case ACTION_STATIC_INDICATOR: {
-        return {
-          ...state,
-          devToolsClientState: {
-            ...state.devToolsClientState,
-            devIndicator: {
-              ...state.devToolsClientState.devIndicator,
-              staticIndicator: action.staticIndicator,
-            },
-          },
-        }
-      }
       case ACTION_BUILD_OK: {
         return { ...state, buildError: null }
       }
@@ -230,19 +209,32 @@ export function useErrorOverlayReducer(routerType: 'pages' | 'app') {
             return state
         }
       }
-      case ACTION_DEV_TOOLS: {
+      case ACTION_STATIC_INDICATOR: {
         return {
           ...state,
           devToolsClientState: {
             ...state.devToolsClientState,
-            versionInfo: action.devTools.versionInfo,
-            debugInfo: action.devTools.debugInfo,
             devIndicator: {
               ...state.devToolsClientState.devIndicator,
-              showIndicator: true,
-              disableDevIndicator:
-                shouldDisableDevIndicator ||
-                !!action.devTools.devIndicator.disabledUntil,
+              staticIndicator: action.staticIndicator,
+            },
+          },
+        }
+      }
+      case ACTION_DEV_TOOLS: {
+        return {
+          ...state,
+          devToolsClientState: {
+            ...action.devTools,
+            devIndicator: {
+              ...action.devTools.devIndicator,
+              // Since the disabled state is passed from the server, delay the
+              // render until we receive the exact disabled value. Otherwise,
+              // the indicator would flicker when it should be disabled.
+              isReady: true,
+              // This is handled by ACTION_STATIC_INDICATOR action.
+              staticIndicator:
+                state.devToolsClientState.devIndicator.staticIndicator,
             },
           },
         }

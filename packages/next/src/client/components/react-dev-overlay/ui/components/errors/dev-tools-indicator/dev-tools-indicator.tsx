@@ -60,7 +60,7 @@ export function DevToolsIndicator({
       setIsErrorOverlayOpen={setIsErrorOverlayOpen}
       isTurbopack={!!process.env.TURBOPACK}
       disabled={
-        state.devToolsClientState.devIndicator.disableDevIndicator ||
+        state.devToolsClientState.devIndicator.isDisabled ||
         !isDevToolsIndicatorVisible
       }
       isBuildError={isBuildError}
