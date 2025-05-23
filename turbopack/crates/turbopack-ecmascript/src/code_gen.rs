@@ -39,7 +39,7 @@ use crate::references::{
 pub struct CodeGeneration {
     /// ast nodes matching the span will be visitor by the visitor
     pub root_visitors: Vec<Box<dyn PassFactory>>,
-    pub visitors: Vec<(Vec<AstParentKind>, Box<dyn VisitorFactory>)>,
+    pub visitors: Vec<(Vec<AstParentKind>, Box<dyn AstModifier>)>,
     pub hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
     pub early_hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
 }
@@ -53,7 +53,7 @@ impl CodeGeneration {
 
     pub fn new(
         root_visitors: Vec<Box<dyn PassFactory>>,
-        visitors: Vec<(Vec<AstParentKind>, Box<dyn VisitorFactory>)>,
+        visitors: Vec<(Vec<AstParentKind>, Box<dyn AstModifier>)>,
         hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
         early_hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
     ) -> Self {
@@ -72,7 +72,7 @@ impl CodeGeneration {
         }
     }
 
-    pub fn visitors(visitors: Vec<(Vec<AstParentKind>, Box<dyn VisitorFactory>)>) -> Self {
+    pub fn visitors(visitors: Vec<(Vec<AstParentKind>, Box<dyn AstModifier>)>) -> Self {
         #[cfg(debug_assertions)]
         for (path, _) in visitors.iter() {
             if path.is_empty() {
@@ -111,10 +111,6 @@ impl CodeGenerationHoistedStmt {
     pub fn new(key: RcStr, stmt: Stmt) -> Self {
         CodeGenerationHoistedStmt { key, stmt }
     }
-}
-
-pub trait VisitorFactory: Send + Sync {
-    fn create<'a>(&'a self) -> Box<dyn AstModifier + 'a>;
 }
 
 pub trait PassFactory: Send + Sync {
@@ -279,16 +275,8 @@ macro_rules! create_visitor {
             $name: T,
         }
 
-        impl<T: Fn(&mut swc_core::ecma::ast::$ty) + Send + Sync> $crate::code_gen::VisitorFactory
-            for Box<Visitor<T>>
-        {
-            fn create<'a>(&'a self) -> Box<dyn $crate::code_gen::AstModifier + 'a> {
-                Box::new(&**self)
-            }
-        }
-
-        impl<'a, T: Fn(&mut swc_core::ecma::ast::$ty) + Send + Sync> $crate::code_gen::AstModifier
-            for &'a Visitor<T>
+        impl<T: Fn(&mut swc_core::ecma::ast::$ty) + Send + Sync> $crate::code_gen::AstModifier
+            for Visitor<T>
         {
             fn $name(&self, $arg: &mut swc_core::ecma::ast::$ty) {
                 (self.$name)($arg);
@@ -303,9 +291,9 @@ macro_rules! create_visitor {
 
             (
                 $ast_path,
-                Box::new(Box::new(Visitor {
+                Box::new(Visitor {
                     $name: move |$arg: &mut swc_core::ecma::ast::$ty| $b,
-                })) as Box<dyn $crate::code_gen::VisitorFactory>,
+                }) as Box<dyn $crate::code_gen::AstModifier>,
             )
         }
     }};
