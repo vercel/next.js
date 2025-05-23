@@ -694,6 +694,15 @@ jobs:
           VERCEL_API_TOKEN: ${{ secrets.VERCEL_API_TOKEN }}
           DEPLOY_ENVIRONMENT: production
 
+  buildPassed:
+    needs: ['deploy-target', 'build', 'build-wasm', 'build-native']
+    if: always()
+    name: thank you, build
+    runs-on: ubuntu-latest
+    steps:
+      - run: exit 1
+        if: ${{ always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) }}
+
   releaseStats:
     name: Release Stats
     runs-on:
