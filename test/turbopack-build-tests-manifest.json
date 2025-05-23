@@ -772,13 +772,14 @@
       "app dir - prefetching should not need to prefetch the layout if the prefetch is initiated at the same segment",
       "app dir - prefetching should not prefetch for a bot user agent",
       "app dir - prefetching should not re-render error component when triggering a prefetch action",
-      "app dir - prefetching should not suppress prefetches after navigating back",
       "app dir - prefetching should not unintentionally modify the requested prefetch by escaping the uri encoded query params",
       "app dir - prefetching should only prefetch the loading state and not the component tree when prefetching at the same segment",
       "app dir - prefetching should show layout eagerly when prefetched with loading one level down"
     ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "app dir - prefetching should not suppress prefetches after navigating back"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -3658,11 +3659,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/next-image/next-image-https.test.ts": {
-    "passed": [
-      "app dir - next-image (with https) only runs on CI as it requires administrator privileges"
-    ],
+    "passed": [],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "app dir - next-image (with https) loads images without any errors"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -5393,6 +5394,7 @@
   },
   "test/e2e/app-dir/segment-cache/basic/segment-cache-basic.test.ts": {
     "passed": [
+      "segment cache (basic tests) does not throw an error when navigating to a page with a server action",
       "segment cache (basic tests) navigate before any data has loaded into the prefetch cache",
       "segment cache (basic tests) navigate to page with lazily-generated (not at build time) static param",
       "segment cache (basic tests) navigate with prefetched data",
@@ -5424,6 +5426,16 @@
       "conflicting routes /fr/vercel/~/monitoring matches the right route",
       "conflicting routes handles conflict between App Router and Pages Router routes",
       "conflicting routes matches the right route when the original route has no dynamic params, is dynamic, and PPR is disabled"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/segment-cache/deployment-skew/deployment-skew.test.ts": {
+    "passed": [
+      "segment cache (deployment skew) does not crash when prefetching a dynamic, non-PPR page on a different deployment",
+      "segment cache (deployment skew) does not crash when prefetching a static page on a different deployment"
     ],
     "failed": [],
     "pending": [],
@@ -18716,11 +18728,11 @@
     "runtimeError": false
   },
   "test/production/bfcache-routing/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
       "bfcache-routing should not suspend indefinitely when page is restored from bfcache after an mpa navigation"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
