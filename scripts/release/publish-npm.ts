@@ -43,7 +43,7 @@ async function getTag({
   // If the current version is less than the latest,
   // it means this is a backport release. Since NPM
   // sets the 'latest' tag by default during publishing,
-  // when users install next@latest, they might get the
+  // when users install `next@latest`, they might get the
   // backported version instead of the actual "latest"
   // version. Hence, we explicitly set the tag as
   // 'stable' for backports.
