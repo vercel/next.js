@@ -235,6 +235,8 @@ export function useErrorOverlayReducer(routerType: 'pages' | 'app') {
           ...state,
           devToolsClientState: {
             ...state.devToolsClientState,
+            versionInfo: action.devTools.versionInfo,
+            debugInfo: action.devTools.debugInfo,
             devIndicator: {
               ...state.devToolsClientState.devIndicator,
               showIndicator: true,
