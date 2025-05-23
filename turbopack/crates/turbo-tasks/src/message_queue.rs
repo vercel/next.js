@@ -15,7 +15,7 @@ const MAX_QUEUE_SIZE: usize = 256;
 type ArcMx<T> = Arc<Mutex<T>>;
 type CompilationEventChannel = mpsc::Sender<Arc<dyn CompilationEvent>>;
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 enum EventChannelType {
     Global,
     Type(String),
