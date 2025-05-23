@@ -177,6 +177,7 @@ import { InvariantError } from '../shared/lib/invariant-error'
 import { decodeQueryPathParameter } from './lib/decode-query-path-parameter'
 import { getCacheHandlers } from './use-cache/handlers'
 import { fixMojibake } from './lib/fix-mojibake'
+import { devToolsServerState } from './dev/dev-tools-server-state'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -3059,6 +3060,15 @@ export default abstract class Server<
 
       const isPageIncludedInStaticPaths =
         staticPathKey && staticPaths?.includes(staticPathKey)
+
+      if (isPageIncludedInStaticPaths) {
+        devToolsServerState.staticPathsInfo = {
+          page: components.page,
+          pathname,
+          staticPaths: staticPaths ?? [],
+          isPageIncludedInStaticPaths: !!isPageIncludedInStaticPaths,
+        }
+      }
 
       // When experimental compile is used, no pages have been prerendered,
       // so they should all be blocking.

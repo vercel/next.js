@@ -228,6 +228,7 @@ export class WebpackHotMiddleware {
             devtoolsFrontendUrl: this.devtoolsFrontendUrl,
           },
           devIndicator: devToolsServerState.devIndicator,
+          staticPathsInfo: devToolsServerState.staticPathsInfo,
         },
       })
     }

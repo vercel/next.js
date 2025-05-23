@@ -45,6 +45,12 @@ export function DevToolsIndicator({
   const [isDevToolsIndicatorVisible, setIsDevToolsIndicatorVisible] =
     useState(true)
 
+  // Using __NEXT_DEVTOOLS_CLIENT_STATE to avoid prop drilling.
+  window.__NEXT_DEVTOOLS_CLIENT_STATE = {
+    ...window.__NEXT_DEVTOOLS_CLIENT_STATE,
+    staticPathsInfo: state.devToolsClientState.staticPathsInfo,
+  }
+
   return (
     <DevToolsPopover
       routerType={state.routerType}

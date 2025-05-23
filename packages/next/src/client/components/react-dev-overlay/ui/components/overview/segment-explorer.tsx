@@ -79,6 +79,14 @@ function PageSegmentTreeLayerPresentation({
   const nodeName = node.value?.type
   const pagePathPrefix = segments.slice(0, -1).join('/')
 
+  const staticPathsInfo = window.__NEXT_DEVTOOLS_CLIENT_STATE?.staticPathsInfo
+  const staticPaths =
+    staticPathsInfo &&
+    nodeName === 'page' &&
+    staticPathsInfo.pathname === `/${pagePathPrefix}`
+      ? staticPathsInfo.staticPaths
+      : []
+
   return (
     <div className="segment-explorer-item">
       {!fileName || level === 0 ? null : (
@@ -95,6 +103,11 @@ function PageSegmentTreeLayerPresentation({
               </span>
               {pagePathPrefix === '' ? '' : `${pagePathPrefix}/`}
               <span className="segment-explorer-filename-path">{fileName}</span>
+              <div>
+                {staticPaths.map((path) => (
+                  <div key={path}>{path}</div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -160,6 +173,28 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
     overflow-y: auto;
     padding: 0 12px;
     font-size: var(--size-14);
+    max-height: 500px;
+
+    &::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+      border-radius: 0 0 1rem 1rem;
+      margin-bottom: 1rem;
+    }
+
+    &::-webkit-scrollbar-button {
+      display: none;
+    }
+
+    &::-webkit-scrollbar-track {
+      border-radius: 0 0 1rem 1rem;
+      background-color: var(--color-background-100);
+    }
+
+    &::-webkit-scrollbar-thumb {
+      border-radius: 1rem;
+      background-color: var(--color-gray-500);
+    }
   }
 
   .segment-explorer-item-row {

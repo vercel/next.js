@@ -60,6 +60,7 @@ export interface SyncAction {
     debugInfo: DebugInfo
     versionInfo: VersionInfo
     devIndicator: DevToolsServerState['devIndicator']
+    staticPathsInfo: DevToolsServerState['staticPathsInfo']
   }
 }
 interface BuiltAction {

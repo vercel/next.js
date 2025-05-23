@@ -18,6 +18,7 @@ export type DevToolsClientState = DevToolsServerState & {
     staticIndicator: boolean
     isReady: boolean
   }
+  staticPathsInfo: DevToolsServerState['staticPathsInfo']
 }
 
 export interface OverlayState {
@@ -129,6 +130,12 @@ export const INITIAL_OVERLAY_STATE: Omit<OverlayState, 'routerType'> = {
   devToolsClientState: {
     versionInfo: { installed: '0.0.0', staleness: 'unknown' },
     debugInfo: { devtoolsFrontendUrl: undefined },
+    staticPathsInfo: {
+      page: '',
+      pathname: '',
+      staticPaths: [],
+      isPageIncludedInStaticPaths: false,
+    },
     devIndicator: {
       staticIndicator: false,
       isDisabled: false,

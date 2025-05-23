@@ -864,6 +864,7 @@ export async function createHotReloaderTurbopack(
               debugInfo: {
                 devtoolsFrontendUrl,
               },
+              staticPathsInfo: devToolsServerState.staticPathsInfo,
             },
           }
 
