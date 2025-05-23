@@ -177,7 +177,6 @@ import { InvariantError } from '../shared/lib/invariant-error'
 import { decodeQueryPathParameter } from './lib/decode-query-path-parameter'
 import { getCacheHandlers } from './use-cache/handlers'
 import { fixMojibake } from './lib/fix-mojibake'
-import { devToolsServerState } from './dev/dev-tools-server-state'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -3062,7 +3061,7 @@ export default abstract class Server<
         staticPathKey && staticPaths?.includes(staticPathKey)
 
       if (isPageIncludedInStaticPaths) {
-        devToolsServerState.staticPathsInfo = {
+        globalThis.devToolsServerState.staticPathsInfo = {
           page: components.page,
           pathname,
           staticPaths: staticPaths ?? [],

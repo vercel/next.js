@@ -18,26 +18,6 @@ export type DevToolsServerState = {
   resolvedMetadata: ResolvedMetadata
 }
 
-export const devToolsServerState: DevToolsServerState = {
-  devIndicator: {
-    isDisabled: false,
-    disabledUntil: 0,
-  },
-  versionInfo: {
-    installed: '0.0.0',
-    staleness: 'unknown',
-  },
-  debugInfo: {
-    devtoolsFrontendUrl: undefined,
-  },
-  staticPathsInfo: {
-    page: '',
-    pathname: '',
-    staticPaths: [],
-    isPageIncludedInStaticPaths: false,
-  },
-  // ResolvedMetadata expects items to be null by default,
-  // but is not strictly necessary for a default value so
-  // used `as ResolvedMetadata`.
-  resolvedMetadata: {} as ResolvedMetadata,
+declare global {
+  var devToolsServerState: DevToolsServerState
 }
