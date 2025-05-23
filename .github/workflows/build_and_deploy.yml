@@ -618,7 +618,7 @@ jobs:
         if: steps.changesets.outputs.pullRequestNumber
         run: 'gh pr edit ${{ steps.changesets.outputs.pullRequestNumber }} --add-label "created-by: CI"'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Send a Slack notification of the publish status
         run: pnpm tsx scripts/release/slack.ts
