@@ -5,6 +5,7 @@ import type { SupportedErrorEvent } from './ui/container/runtime-error/render-er
 import type { ComponentStackFrame } from './utils/parse-component-stack'
 import type { DevToolsServerState } from '../../../server/dev/dev-tools-server-state'
 import type { HMR_ACTION_TYPES } from '../../../server/dev/hot-reloader-types'
+import type { ResolvedMetadata } from '../../../types'
 import { getOwnerStack } from '../errors/stitched-error'
 
 type FastRefreshState =
@@ -136,6 +137,7 @@ export const INITIAL_OVERLAY_STATE: Omit<OverlayState, 'routerType'> = {
       staticPaths: [],
       isPageIncludedInStaticPaths: false,
     },
+    resolvedMetadata: {} as ResolvedMetadata,
     devIndicator: {
       staticIndicator: false,
       isDisabled: false,
@@ -229,6 +231,7 @@ export function useErrorOverlayReducer(routerType: 'pages' | 'app') {
         }
       }
       case ACTION_DEV_TOOLS: {
+        console.log('ACTION_DEV_TOOLS', action.devTools)
         return {
           ...state,
           devToolsClientState: {

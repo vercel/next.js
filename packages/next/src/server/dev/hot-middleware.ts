@@ -214,6 +214,11 @@ export class WebpackHotMiddleware {
         devToolsServerState.devIndicator.isDisabled = true
       }
 
+      console.log(
+        'syncing resolvedMetadata from webpack',
+        devToolsServerState.resolvedMetadata
+      )
+
       this.publish({
         action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC,
         hash: stats.hash!,
@@ -229,6 +234,7 @@ export class WebpackHotMiddleware {
           },
           devIndicator: devToolsServerState.devIndicator,
           staticPathsInfo: devToolsServerState.staticPathsInfo,
+          resolvedMetadata: devToolsServerState.resolvedMetadata,
         },
       })
     }

@@ -56,6 +56,7 @@ import { ResolveMetadataSpan } from '../../server/lib/trace/constants'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import * as Log from '../../build/output/log'
 import { createServerParamsForMetadata } from '../../server/request/params'
+import { devToolsServerState } from '../../server/dev/dev-tools-server-state'
 
 type StaticIcons = Pick<ResolvedIcons, 'icon' | 'apple'>
 
@@ -1089,7 +1090,15 @@ export async function resolveMetadata(
     metadataContext
   )
 
-  console.log({ resolvedMetadata })
+  if (!errorConvention && workStore.page.endsWith('/page')) {
+    console.log({ resolvedMetadata, workStore, errorConvention })
+    devToolsServerState.resolvedMetadata = resolvedMetadata
+
+    console.log(
+      'current resolvedMetadata',
+      devToolsServerState.resolvedMetadata
+    )
+  }
 
   return resolvedMetadata
 }

@@ -850,6 +850,10 @@ export async function createHotReloaderTurbopack(
           devToolsServerState.devIndicator.isDisabled = true
         }
 
+        console.log(
+          'syncing resolvedMetadata from turbopack',
+          devToolsServerState.resolvedMetadata
+        )
         ;(async function () {
           const versionInfo = await versionInfoPromise
 
@@ -865,6 +869,7 @@ export async function createHotReloaderTurbopack(
                 devtoolsFrontendUrl,
               },
               staticPathsInfo: devToolsServerState.staticPathsInfo,
+              resolvedMetadata: devToolsServerState.resolvedMetadata,
             },
           }
 
