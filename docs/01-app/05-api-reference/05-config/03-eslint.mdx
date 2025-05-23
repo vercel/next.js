@@ -184,13 +184,21 @@ ESLint also contains code formatting rules, which can conflict with your existin
 
 First, install the dependency:
 
-<PackageInstallOptions
-  packageId="eslint-config-prettier"
-  npmOverride="npm install --save--dev"
-  pnpmOverride="pnpm add --save-dev"
-  bunOverride="bun add --dev"
-  yarnOverride="yarn add --dev"
-/>
+```bash filename="Terminal" tabbed
+npm install --save-dev eslint-config-prettier
+```
+
+```bash filename="Terminal" tabbed
+yarn add --dev eslint-config-prettier
+```
+
+```bash filename="Terminal" tabbed
+pnpm add --save-dev eslint-config-prettier
+```
+
+```bash filename="Terminal" tabbed
+bun add --dev eslint-config-prettier
+```
 
 Then, add `prettier` to your existing ESLint config:
 
