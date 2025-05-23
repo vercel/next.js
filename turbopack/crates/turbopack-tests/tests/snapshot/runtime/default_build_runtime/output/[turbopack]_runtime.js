@@ -13,6 +13,22 @@ const toStringTag = typeof Symbol !== 'undefined' && Symbol.toStringTag;
 function defineProp(obj, name, options) {
     if (!hasOwnProperty.call(obj, name)) Object.defineProperty(obj, name, options);
 }
+function getOverwrittenModule(moduleCache, id) {
+    let module = moduleCache[id];
+    if (!module) {
+        // This is invoked when a module is merged into another module, thus it wasn't invoced via
+        // instantiateModule and the cache entry wasn't created yet.
+        module = {
+            exports: {},
+            error: undefined,
+            loaded: false,
+            id,
+            namespaceObject: undefined
+        };
+        moduleCache[id] = module;
+    }
+    return module;
+}
 /**
  * Adds the getters to the exports object.
  */ function esm(exports, getters) {
@@ -41,7 +57,11 @@ function defineProp(obj, name, options) {
 }
 /**
  * Makes the module an ESM with exports
- */ function esmExport(module, exports, getters) {
+ */ function esmExport(module, exports, moduleCache, getters, id) {
+    if (id != null) {
+        module = getOverwrittenModule(moduleCache, id);
+        exports = module.exports;
+    }
     module.namespaceObject = module.exports;
     esm(exports, getters);
 }
@@ -74,16 +94,26 @@ function ensureDynamicExports(module, exports) {
 }
 /**
  * Dynamically exports properties from an object
- */ function dynamicExport(module, exports, object) {
+ */ function dynamicExport(module, exports, moduleCache, object, id) {
+    if (id != null) {
+        module = getOverwrittenModule(moduleCache, id);
+        exports = module.exports;
+    }
     ensureDynamicExports(module, exports);
     if (typeof object === 'object' && object !== null) {
         module[REEXPORTED_OBJECTS].push(object);
     }
 }
-function exportValue(module, value) {
+function exportValue(module, moduleCache, value, id) {
+    if (id != null) {
+        module = getOverwrittenModule(moduleCache, id);
+    }
     module.exports = value;
 }
-function exportNamespace(module, namespace) {
+function exportNamespace(module, moduleCache, namespace, id) {
+    if (id != null) {
+        module = getOverwrittenModule(moduleCache, id);
+    }
     module.exports = module.namespaceObject = namespace;
 }
 function createGetter(obj, key) {
@@ -480,7 +510,15 @@ function loadChunkPath(chunkPath, source) {
         const chunkModules = require(resolved);
         for (const [moduleId, moduleFactory] of Object.entries(chunkModules)){
             if (!moduleFactories[moduleId]) {
-                moduleFactories[moduleId] = moduleFactory;
+                if (Array.isArray(moduleFactory)) {
+                    let [moduleFactoryFn, otherIds] = moduleFactory;
+                    moduleFactories[moduleId] = moduleFactoryFn;
+                    for (const otherModuleId of otherIds){
+                        moduleFactories[otherModuleId] = moduleFactoryFn;
+                    }
+                } else {
+                    moduleFactories[moduleId] = moduleFactory;
+                }
             }
         }
         loadedChunks.add(chunkPath);
@@ -522,7 +560,15 @@ async function loadChunkAsync(source, chunkData) {
         const chunkModules = module1.exports;
         for (const [moduleId, moduleFactory] of Object.entries(chunkModules)){
             if (!moduleFactories[moduleId]) {
-                moduleFactories[moduleId] = moduleFactory;
+                if (Array.isArray(moduleFactory)) {
+                    let [moduleFactoryFn, otherIds] = moduleFactory;
+                    moduleFactories[moduleId] = moduleFactoryFn;
+                    for (const otherModuleId of otherIds){
+                        moduleFactories[otherModuleId] = moduleFactoryFn;
+                    }
+                } else {
+                    moduleFactories[moduleId] = moduleFactory;
+                }
             }
         }
         loadedChunks.add(chunkPath);
@@ -570,21 +616,6 @@ function instantiateModule(id, source) {
         }
         throw new Error(`Module ${id} was instantiated ${instantiationReason}, but the module factory is not available. It might have been deleted in an HMR update.`);
     }
-    let parents;
-    switch(source.type){
-        case 0:
-            parents = [];
-            break;
-        case 1:
-            // No need to add this module as a child of the parent module here, this
-            // has already been taken care of in `getOrInstantiateModuleFromParent`.
-            parents = [
-                source.parentId
-            ];
-            break;
-        default:
-            invariant(source, (source)=>`Unknown source type: ${source?.type}`);
-    }
     const module1 = {
         exports: {},
         error: undefined,
@@ -605,10 +636,10 @@ function instantiateModule(id, source) {
             y: externalImport,
             f: moduleContext,
             i: esmImport.bind(null, module1),
-            s: esmExport.bind(null, module1, module1.exports),
-            j: dynamicExport.bind(null, module1, module1.exports),
-            v: exportValue.bind(null, module1),
-            n: exportNamespace.bind(null, module1),
+            s: esmExport.bind(null, module1, module1.exports, moduleCache),
+            j: dynamicExport.bind(null, module1, module1.exports, moduleCache),
+            v: exportValue.bind(null, module1, moduleCache),
+            n: exportNamespace.bind(null, module1, moduleCache),
             m: module1,
             c: moduleCache,
             M: moduleFactories,

@@ -24,6 +24,22 @@ const toStringTag = typeof Symbol !== 'undefined' && Symbol.toStringTag;
 function defineProp(obj, name, options) {
     if (!hasOwnProperty.call(obj, name)) Object.defineProperty(obj, name, options);
 }
+function getOverwrittenModule(moduleCache, id) {
+    let module = moduleCache[id];
+    if (!module) {
+        // This is invoked when a module is merged into another module, thus it wasn't invoced via
+        // instantiateModule and the cache entry wasn't created yet.
+        module = {
+            exports: {},
+            error: undefined,
+            loaded: false,
+            id,
+            namespaceObject: undefined
+        };
+        moduleCache[id] = module;
+    }
+    return module;
+}
 /**
  * Adds the getters to the exports object.
  */ function esm(exports, getters) {
@@ -52,7 +68,11 @@ function defineProp(obj, name, options) {
 }
 /**
  * Makes the module an ESM with exports
- */ function esmExport(module, exports, getters) {
+ */ function esmExport(module, exports, moduleCache, getters, id) {
+    if (id != null) {
+        module = getOverwrittenModule(moduleCache, id);
+        exports = module.exports;
+    }
     module.namespaceObject = module.exports;
     esm(exports, getters);
 }
@@ -85,16 +105,26 @@ function ensureDynamicExports(module, exports) {
 }
 /**
  * Dynamically exports properties from an object
- */ function dynamicExport(module, exports, object) {
+ */ function dynamicExport(module, exports, moduleCache, object, id) {
+    if (id != null) {
+        module = getOverwrittenModule(moduleCache, id);
+        exports = module.exports;
+    }
     ensureDynamicExports(module, exports);
     if (typeof object === 'object' && object !== null) {
         module[REEXPORTED_OBJECTS].push(object);
     }
 }
-function exportValue(module, value) {
+function exportValue(module, moduleCache, value, id) {
+    if (id != null) {
+        module = getOverwrittenModule(moduleCache, id);
+    }
     module.exports = value;
 }
-function exportNamespace(module, namespace) {
+function exportNamespace(module, moduleCache, namespace, id) {
+    if (id != null) {
+        module = getOverwrittenModule(moduleCache, id);
+    }
     module.exports = module.namespaceObject = namespace;
 }
 function createGetter(obj, key) {
@@ -575,7 +605,15 @@ function registerChunk([chunkScript, chunkModules, runtimeParams]) {
     const chunkPath = getPathFromScript(chunkScript);
     for (const [moduleId, moduleFactory] of Object.entries(chunkModules)){
         if (!moduleFactories[moduleId]) {
-            moduleFactories[moduleId] = moduleFactory;
+            if (Array.isArray(moduleFactory)) {
+                let [moduleFactoryFn, otherIds] = moduleFactory;
+                moduleFactories[moduleId] = moduleFactoryFn;
+                for (const otherModuleId of otherIds){
+                    moduleFactories[otherModuleId] = moduleFactoryFn;
+                }
+            } else {
+                moduleFactories[moduleId] = moduleFactory;
+            }
         }
         addModuleToChunk(moduleId, chunkPath);
     }
@@ -731,10 +769,10 @@ function instantiateModule(id, source) {
                 t: runtimeRequire,
                 f: moduleContext,
                 i: esmImport.bind(null, module),
-                s: esmExport.bind(null, module, module.exports),
-                j: dynamicExport.bind(null, module, module.exports),
-                v: exportValue.bind(null, module),
-                n: exportNamespace.bind(null, module),
+                s: esmExport.bind(null, module, module.exports, devModuleCache),
+                j: dynamicExport.bind(null, module, module.exports, devModuleCache),
+                v: exportValue.bind(null, module, devModuleCache),
+                n: exportNamespace.bind(null, module, devModuleCache),
                 m: module,
                 c: devModuleCache,
                 M: moduleFactories,
