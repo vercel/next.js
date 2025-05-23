@@ -15,11 +15,9 @@ async function fetchTagsFromRegistry(packageName: string) {
 async function getTag({
   name,
   version,
-  latest,
 }: {
   name: string
   version: string
-  latest: string
 }): Promise<string> {
   const preConfigPath = join(process.cwd(), '.changeset', 'pre.json')
 
@@ -83,7 +81,6 @@ async function publishNpm() {
     const tag = await getTag({
       name: pkgJson.name,
       version: pkgJson.version,
-      latest: tags.latest,
     })
 
     await execa('pnpm', ['publish', '--tag', tag], {
