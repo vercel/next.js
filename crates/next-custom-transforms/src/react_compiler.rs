@@ -1,5 +1,8 @@
 use swc_core::ecma::{
-    ast::{Callee, Expr, FnDecl, FnExpr, Pat, Program, Stmt, VarDeclarator},
+    ast::{
+        Callee, ExportDefaultDecl, ExportDefaultExpr, Expr, FnDecl, FnExpr, Pat, Program, Stmt,
+        VarDeclarator,
+    },
     visit::{Visit, VisitWith},
 };
 
@@ -34,18 +37,40 @@ impl Visit for Finder {
         node.visit_children_with(self);
     }
 
+    fn visit_export_default_decl(&mut self, node: &ExportDefaultDecl) {
+        let old = self.is_interested;
+
+        self.is_interested = true;
+
+        node.visit_children_with(self);
+
+        self.is_interested = old;
+    }
+
+    fn visit_export_default_expr(&mut self, node: &ExportDefaultExpr) {
+        let old = self.is_interested;
+
+        self.is_interested = true;
+
+        node.visit_children_with(self);
+
+        self.is_interested = old;
+    }
+
     fn visit_expr(&mut self, node: &Expr) {
         if self.found {
             return;
         }
-        if matches!(
-            node,
-            Expr::JSXMember(..)
-                | Expr::JSXNamespacedName(..)
-                | Expr::JSXEmpty(..)
-                | Expr::JSXElement(..)
-                | Expr::JSXFragment(..)
-        ) {
+        if self.is_interested
+            && matches!(
+                node,
+                Expr::JSXMember(..)
+                    | Expr::JSXNamespacedName(..)
+                    | Expr::JSXEmpty(..)
+                    | Expr::JSXElement(..)
+                    | Expr::JSXFragment(..)
+            )
+        {
             self.found = true;
             return;
         }
@@ -55,6 +80,7 @@ impl Visit for Finder {
 
     fn visit_fn_decl(&mut self, node: &FnDecl) {
         let old = self.is_interested;
+
         self.is_interested = node.ident.sym.starts_with("use")
             || node.ident.sym.starts_with(|c: char| c.is_ascii_uppercase());
 
@@ -102,7 +128,7 @@ impl Visit for Finder {
 mod tests {
     use swc_core::{
         common::FileName,
-        ecma::parser::{parse_file_as_program, EsSyntax},
+        ecma::parser::{EsSyntax, parse_file_as_program},
     };
     use testing::run_test2;
 
