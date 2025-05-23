@@ -1,8 +1,11 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use swc_core::ecma::{
-    ast::Stmt,
-    visit::{AstParentKind, VisitMut},
+    ast::{
+        BlockStmt, CallExpr, Expr, Lit, MemberExpr, ModuleDecl, ModuleItem, Pass, Pat, Prop,
+        SimpleAssignTarget, Stmt, Str, SwitchCase,
+    },
+    visit::AstParentKind,
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
@@ -35,6 +38,7 @@ use crate::references::{
 #[derive(Default)]
 pub struct CodeGeneration {
     /// ast nodes matching the span will be visitor by the visitor
+    pub root_visitors: Vec<Box<dyn PassFactory>>,
     pub visitors: Vec<(Vec<AstParentKind>, Box<dyn VisitorFactory>)>,
     pub hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
     pub early_hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
@@ -48,18 +52,34 @@ impl CodeGeneration {
     }
 
     pub fn new(
+        root_visitors: Vec<Box<dyn PassFactory>>,
         visitors: Vec<(Vec<AstParentKind>, Box<dyn VisitorFactory>)>,
         hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
         early_hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
     ) -> Self {
         CodeGeneration {
+            root_visitors,
             visitors,
             hoisted_stmts,
             early_hoisted_stmts,
         }
     }
 
+    pub fn root_visitors(root_visitors: Vec<Box<dyn PassFactory>>) -> Self {
+        CodeGeneration {
+            root_visitors,
+            ..Default::default()
+        }
+    }
+
     pub fn visitors(visitors: Vec<(Vec<AstParentKind>, Box<dyn VisitorFactory>)>) -> Self {
+        #[cfg(debug_assertions)]
+        for (path, _) in visitors.iter() {
+            if path.is_empty() {
+                unreachable!("if the path is empty, the visitor should be a root visitor");
+            }
+        }
+
         CodeGeneration {
             visitors,
             ..Default::default()
@@ -94,8 +114,62 @@ impl CodeGenerationHoistedStmt {
 }
 
 pub trait VisitorFactory: Send + Sync {
-    fn create<'a>(&'a self) -> Box<dyn VisitMut + Send + Sync + 'a>;
+    fn create<'a>(&'a self) -> Box<dyn AstModifier + 'a>;
 }
+
+pub trait PassFactory: Send + Sync {
+    fn create<'a>(&'a self) -> Box<dyn Pass + Send + Sync + 'a>;
+}
+
+macro_rules! method {
+    ($name:ident, $T:ty) => {
+        fn $name(&self, _node: &mut $T) {}
+    };
+}
+
+pub trait AstModifier: Send + Sync {
+    method!(visit_mut_prop, Prop);
+    method!(visit_mut_simple_assign_target, SimpleAssignTarget);
+    method!(visit_mut_expr, Expr);
+    method!(visit_mut_member_expr, MemberExpr);
+    method!(visit_mut_pat, Pat);
+    method!(visit_mut_stmt, Stmt);
+    method!(visit_mut_module_decl, ModuleDecl);
+    method!(visit_mut_module_item, ModuleItem);
+    method!(visit_mut_call_expr, CallExpr);
+    method!(visit_mut_lit, Lit);
+    method!(visit_mut_str, Str);
+    method!(visit_mut_block_stmt, BlockStmt);
+    method!(visit_mut_switch_case, SwitchCase);
+}
+
+pub trait ModifiableAst {
+    fn modify(&mut self, modifier: &dyn AstModifier);
+}
+
+macro_rules! impl_modify {
+    ($visit_mut_name:ident, $T:ty) => {
+        impl ModifiableAst for $T {
+            fn modify(&mut self, modifier: &dyn AstModifier) {
+                modifier.$visit_mut_name(self)
+            }
+        }
+    };
+}
+
+impl_modify!(visit_mut_prop, Prop);
+impl_modify!(visit_mut_simple_assign_target, SimpleAssignTarget);
+impl_modify!(visit_mut_expr, Expr);
+impl_modify!(visit_mut_member_expr, MemberExpr);
+impl_modify!(visit_mut_pat, Pat);
+impl_modify!(visit_mut_stmt, Stmt);
+impl_modify!(visit_mut_module_decl, ModuleDecl);
+impl_modify!(visit_mut_module_item, ModuleItem);
+impl_modify!(visit_mut_call_expr, CallExpr);
+impl_modify!(visit_mut_lit, Lit);
+impl_modify!(visit_mut_str, Str);
+impl_modify!(visit_mut_block_stmt, BlockStmt);
+impl_modify!(visit_mut_switch_case, SwitchCase);
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 pub enum CodeGen {
@@ -208,24 +282,31 @@ macro_rules! create_visitor {
         impl<T: Fn(&mut swc_core::ecma::ast::$ty) + Send + Sync> $crate::code_gen::VisitorFactory
             for Box<Visitor<T>>
         {
-            fn create<'a>(&'a self) -> Box<dyn swc_core::ecma::visit::VisitMut + Send + Sync + 'a> {
+            fn create<'a>(&'a self) -> Box<dyn $crate::code_gen::AstModifier + 'a> {
                 Box::new(&**self)
             }
         }
 
-        impl<'a, T: Fn(&mut swc_core::ecma::ast::$ty) + Send + Sync> swc_core::ecma::visit::VisitMut
+        impl<'a, T: Fn(&mut swc_core::ecma::ast::$ty) + Send + Sync> $crate::code_gen::AstModifier
             for &'a Visitor<T>
         {
-            fn $name(&mut self, $arg: &mut swc_core::ecma::ast::$ty) {
+            fn $name(&self, $arg: &mut swc_core::ecma::ast::$ty) {
                 (self.$name)($arg);
             }
         }
 
-        (
-            $ast_path,
-            Box::new(Box::new(Visitor {
-                $name: move |$arg: &mut swc_core::ecma::ast::$ty| $b,
-            })) as Box<dyn $crate::code_gen::VisitorFactory>,
-        )
+        {
+            #[cfg(debug_assertions)]
+            if $ast_path.is_empty() {
+                unreachable!("if the path is empty, the visitor should be a root visitor");
+            }
+
+            (
+                $ast_path,
+                Box::new(Box::new(Visitor {
+                    $name: move |$arg: &mut swc_core::ecma::ast::$ty| $b,
+                })) as Box<dyn $crate::code_gen::VisitorFactory>,
+            )
+        }
     }};
 }
