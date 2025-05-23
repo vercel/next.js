@@ -56,8 +56,9 @@ const state: OverlayState = {
     debugInfo: { devtoolsFrontendUrl: undefined },
     devIndicator: {
       staticIndicator: true,
-      showIndicator: true,
-      disableDevIndicator: false,
+      isReady: true,
+      isDisabled: false,
+      disabledUntil: 0,
     },
   },
 }
