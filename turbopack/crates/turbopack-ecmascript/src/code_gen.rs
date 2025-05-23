@@ -2,7 +2,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use swc_core::ecma::{
     ast::{
-        BlockStmt, CallExpr, Expr, Lit, MemberExpr, ModuleDecl, ModuleItem, Pass, Pat, Prop,
+        BlockStmt, CallExpr, Expr, Lit, MemberExpr, ModuleDecl, ModuleItem, Pat, Program, Prop,
         SimpleAssignTarget, Stmt, Str, SwitchCase,
     },
     visit::AstParentKind,
@@ -38,7 +38,6 @@ use crate::references::{
 #[derive(Default)]
 pub struct CodeGeneration {
     /// ast nodes matching the span will be visitor by the visitor
-    pub root_visitors: Vec<Box<dyn PassFactory>>,
     pub visitors: Vec<(Vec<AstParentKind>, Box<dyn AstModifier>)>,
     pub hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
     pub early_hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
@@ -52,34 +51,18 @@ impl CodeGeneration {
     }
 
     pub fn new(
-        root_visitors: Vec<Box<dyn PassFactory>>,
         visitors: Vec<(Vec<AstParentKind>, Box<dyn AstModifier>)>,
         hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
         early_hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
     ) -> Self {
         CodeGeneration {
-            root_visitors,
             visitors,
             hoisted_stmts,
             early_hoisted_stmts,
         }
     }
 
-    pub fn root_visitors(root_visitors: Vec<Box<dyn PassFactory>>) -> Self {
-        CodeGeneration {
-            root_visitors,
-            ..Default::default()
-        }
-    }
-
     pub fn visitors(visitors: Vec<(Vec<AstParentKind>, Box<dyn AstModifier>)>) -> Self {
-        #[cfg(debug_assertions)]
-        for (path, _) in visitors.iter() {
-            if path.is_empty() {
-                unreachable!("if the path is empty, the visitor should be a root visitor");
-            }
-        }
-
         CodeGeneration {
             visitors,
             ..Default::default()
@@ -113,10 +96,6 @@ impl CodeGenerationHoistedStmt {
     }
 }
 
-pub trait PassFactory: Send + Sync {
-    fn create<'a>(&'a self) -> Box<dyn Pass + Send + Sync + 'a>;
-}
-
 macro_rules! method {
     ($name:ident, $T:ty) => {
         fn $name(&self, _node: &mut $T) {}
@@ -137,6 +116,7 @@ pub trait AstModifier: Send + Sync {
     method!(visit_mut_str, Str);
     method!(visit_mut_block_stmt, BlockStmt);
     method!(visit_mut_switch_case, SwitchCase);
+    method!(visit_mut_program, Program);
 }
 
 pub trait ModifiableAst {
@@ -166,6 +146,7 @@ impl_modify!(visit_mut_lit, Lit);
 impl_modify!(visit_mut_str, Str);
 impl_modify!(visit_mut_block_stmt, BlockStmt);
 impl_modify!(visit_mut_switch_case, SwitchCase);
+impl_modify!(visit_mut_program, Program);
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 pub enum CodeGen {
