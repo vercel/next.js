@@ -60,7 +60,8 @@ pub trait KeyValueDatabase {
     /// during [`KeyValueDatabase::shutdown`].
     ///
     /// This is a best-effort optimization hint, and the database may choose to ignore this and
-    /// continue file writes.
+    /// continue file writes. This happens after the database is invalidated, so it is valid for
+    /// this to leave the database in a half-updated and corrupted state.
     fn prevent_writes(&self) {
         // this is an optional performance hint to the database
     }

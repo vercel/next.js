@@ -25,13 +25,16 @@ export function getRestartDevServerMiddleware({
       return next()
     }
 
-    if (searchParams.has('invalidatePersistentCache')) {
+    const invalidatePersistentCache = searchParams.has(
+      'invalidatePersistentCache'
+    )
+    if (invalidatePersistentCache) {
       await turbopackProject?.invalidatePersistentCache()
     }
 
     telemetry.record({
       eventName: EVENT_DEV_OVERLAY_RESTART_SERVER,
-      payload: {},
+      payload: { invalidatePersistentCache },
     })
 
     // TODO: Use flushDetached

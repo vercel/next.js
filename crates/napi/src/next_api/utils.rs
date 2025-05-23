@@ -153,7 +153,9 @@ impl NextTurboTasks {
     pub fn invalidate_persistent_cache(&self) -> Result<()> {
         match self {
             NextTurboTasks::Memory(_) => {}
-            NextTurboTasks::PersistentCaching(turbo_tasks) => turbo_tasks.backend().invalidate()?,
+            NextTurboTasks::PersistentCaching(turbo_tasks) => {
+                turbo_tasks.backend().invalidate_storage()?
+            }
         }
         Ok(())
     }

@@ -24,7 +24,7 @@ pub struct TurboKeyValueDatabase {
 
 impl TurboKeyValueDatabase {
     pub fn new(versioned_path: PathBuf) -> Result<Self> {
-        let db = Arc::new(TurboPersistence::open(versioned_path.to_path_buf())?);
+        let db = Arc::new(TurboPersistence::open(versioned_path)?);
         let mut this = Self {
             db: db.clone(),
             compact_join_handle: Mutex::new(None),

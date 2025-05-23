@@ -8,11 +8,13 @@ use tracing::Span;
 use turbo_tasks::{SessionId, TaskId, backend::CachedTaskType, turbo_tasks_scope};
 
 use crate::{
+    GitVersionInfo,
     backend::{AnyOperation, TaskDataCategory},
     backing_storage::BackingStorage,
     data::CachedDataItem,
     database::{
-        db_invalidation::invalidate_db,
+        db_invalidation::{check_db_invalidation_and_cleanup, invalidate_db},
+        db_versioning::handle_db_versioning,
         key_value_database::{KeySpace, KeyValueDatabase},
         write_batch::{
             BaseWriteBatch, ConcurrentWriteBatch, SerialWriteBatch, WriteBatch, WriteBatchRef,
@@ -89,11 +91,25 @@ pub struct KeyValueDatabaseBackingStorage<T: KeyValueDatabase> {
 }
 
 impl<T: KeyValueDatabase> KeyValueDatabaseBackingStorage<T> {
-    pub fn new(database: T, base_path: Option<PathBuf>) -> Self {
+    pub fn new_in_memory(database: T) -> Self {
         Self {
             database,
-            base_path,
+            base_path: None,
         }
+    }
+
+    pub fn open_versioned_on_disk(
+        base_path: PathBuf,
+        version_info: &GitVersionInfo,
+        is_ci: bool,
+        database: impl FnOnce(PathBuf) -> Result<T>,
+    ) -> Result<Self> {
+        check_db_invalidation_and_cleanup(&base_path)?;
+        let versioned_path = handle_db_versioning(&base_path, version_info, is_ci)?;
+        Ok(Self {
+            database: (database)(versioned_path)?,
+            base_path: Some(base_path),
+        })
     }
 
     fn with_tx<R>(

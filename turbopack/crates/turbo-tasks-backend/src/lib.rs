@@ -14,11 +14,8 @@ mod utils;
 use std::path::Path;
 
 use anyhow::Result;
-use database::db_invalidation::check_db_invalidation_and_cleanup;
 
-use crate::database::{
-    db_versioning::handle_db_versioning, noop_kv::NoopKvDb, turbo::TurboKeyValueDatabase,
-};
+use crate::database::{noop_kv::NoopKvDb, turbo::TurboKeyValueDatabase};
 pub use crate::{
     backend::{BackendOptions, StorageMode, TurboTasksBackend},
     database::db_versioning::GitVersionInfo,
@@ -48,18 +45,19 @@ pub fn lmdb_backing_storage(
         startup_cache::StartupCacheLayer,
     };
 
-    check_db_invalidation_and_cleanup(base_path)?;
-    let versioned_path = handle_db_versioning(base_path, version_info, is_ci)?;
-    let fresh_db = is_fresh(&versioned_path);
-    let database = crate::database::lmdb::LmbdKeyValueDatabase::new(&versioned_path)?;
-    let database = FreshDbOptimization::new(database, fresh_db);
-    let database =
-        StartupCacheLayer::new(database, versioned_path.join("startup.cache"), fresh_db)?;
-    let database = ReadTransactionCache::new(database);
-    Ok(KeyValueDatabaseBackingStorage::new(
-        database,
-        Some(base_path.to_owned()),
-    ))
+    KeyValueDatabaseBackingStorage::open_versioned_on_disk(
+        base_path.to_owned(),
+        version_info,
+        is_ci,
+        |versioned_path| {
+            let fresh_db = is_fresh(&versioned_path);
+            let database = crate::database::lmdb::LmbdKeyValueDatabase::new(&versioned_path)?;
+            let database = FreshDbOptimization::new(database, fresh_db);
+            let database =
+                StartupCacheLayer::new(database, versioned_path.join("startup.cache"), fresh_db)?;
+            Ok(ReadTransactionCache::new(database))
+        },
+    )
 }
 
 pub type TurboBackingStorage = KeyValueDatabaseBackingStorage<TurboKeyValueDatabase>;
@@ -69,19 +67,18 @@ pub fn turbo_backing_storage(
     version_info: &GitVersionInfo,
     is_ci: bool,
 ) -> Result<TurboBackingStorage> {
-    check_db_invalidation_and_cleanup(base_path)?;
-    let versioned_path = handle_db_versioning(base_path, version_info, is_ci)?;
-    let database = TurboKeyValueDatabase::new(versioned_path)?;
-    Ok(KeyValueDatabaseBackingStorage::new(
-        database,
-        Some(base_path.to_owned()),
-    ))
+    KeyValueDatabaseBackingStorage::open_versioned_on_disk(
+        base_path.to_owned(),
+        version_info,
+        is_ci,
+        TurboKeyValueDatabase::new,
+    )
 }
 
 pub type NoopBackingStorage = KeyValueDatabaseBackingStorage<NoopKvDb>;
 
 pub fn noop_backing_storage() -> NoopBackingStorage {
-    KeyValueDatabaseBackingStorage::new(NoopKvDb, None)
+    KeyValueDatabaseBackingStorage::new_in_memory(NoopKvDb)
 }
 
 #[cfg(feature = "lmdb")]
