@@ -644,16 +644,6 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
     justify-content: center;
     bottom: 32px;
     pointer-events: none;
-
-    &:has(*[data-show="true"]) {
-      .dev-tools-indicator-hide-region-backdrop {
-        opacity: 0.8;
-      }
-      .dev-tools-indicator-hide-region-icon {
-        opacity: 1;
-        color: #FFF;
-      }
-    }
   }
 
   .dev-tools-indicator-hide-region-icon {
@@ -668,11 +658,20 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
     position: absolute;
     bottom: 0;
     opacity: 0;
-    color: transparent;
-    transition: width 200ms var(--timing-swift), opacity 150ms ease;
+    filter: blur(2px);
+    transition: width 200ms var(--timing-swift), opacity 150ms ease, filter 150ms ease;
     box-shadow: 0 0 0 1px #171717,
       inset 0 0 0 1px hsla(0, 0%, 100%, 0.14),
       0px 16px 32px -8px rgba(0, 0, 0, 0.24);
+
+    &[data-show="true"] {
+      opacity: 1;
+      filter: blur(0px);
+
+      ~ .dev-tools-indicator-hide-region-backdrop {
+        opacity: 0.8;
+      }
+    }
 
     svg {
       transform: translateZ(0);

@@ -56,8 +56,8 @@ export function Draggable({
   function onHide() {
     const animation = ref.current?.animate(
       [
-        { opacity: 1, filter: 'blur(0px)' },
-        { opacity: 0, filter: 'blur(2px)' },
+        { scale: 1, opacity: 1, filter: 'blur(0px)' },
+        { scale: 0.6, opacity: 0, filter: 'blur(2px)' },
       ],
       {
         duration: 150,
@@ -282,7 +282,7 @@ export function useDrag({
       newTranslation.y += hideRegionTranslation.y
 
       set(newTranslation)
-      transition('translate 250ms var(--timing-bounce)')
+      transition('translate 400ms var(--timing-bounce) 25ms')
     }
 
     if (!intersecting && snapped.current) {
