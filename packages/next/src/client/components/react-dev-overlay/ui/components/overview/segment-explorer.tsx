@@ -87,17 +87,6 @@ function PageSegmentTreeLayerPresentation({
       ? staticPathsInfo.staticPaths
       : []
 
-  const resolvedStaticPaths =
-    staticPaths.length > 5
-      ? staticPaths
-          .slice(0, 5)
-          .concat([
-            `+${staticPaths.length - 5} more path${
-              staticPaths.length - 5 === 1 ? '' : 's'
-            }`,
-          ])
-      : staticPaths
-
   return (
     <div className="segment-explorer-item">
       {!fileName || level === 0 ? null : (
@@ -115,7 +104,7 @@ function PageSegmentTreeLayerPresentation({
               {pagePathPrefix === '' ? '' : `${pagePathPrefix}/`}
               <span className="segment-explorer-filename-path">{fileName}</span>
               <div>
-                {resolvedStaticPaths.map((path) => (
+                {staticPaths.map((path) => (
                   <div key={path}>{path}</div>
                 ))}
               </div>
@@ -184,6 +173,28 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
     overflow-y: auto;
     padding: 0 12px;
     font-size: var(--size-14);
+    max-height: 500px;
+
+    &::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+      border-radius: 0 0 1rem 1rem;
+      margin-bottom: 1rem;
+    }
+
+    &::-webkit-scrollbar-button {
+      display: none;
+    }
+
+    &::-webkit-scrollbar-track {
+      border-radius: 0 0 1rem 1rem;
+      background-color: var(--color-background-100);
+    }
+
+    &::-webkit-scrollbar-thumb {
+      border-radius: 1rem;
+      background-color: var(--color-gray-500);
+    }
   }
 
   .segment-explorer-item-row {
