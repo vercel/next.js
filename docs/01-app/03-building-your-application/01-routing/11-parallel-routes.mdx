@@ -403,6 +403,25 @@ export function Modal({ children }) {
 }
 ```
 
+> **Important:**  
+> While a `default.tsx` (or `default.js`) file returning `null` is needed for unmatched slots on initial load or page refresh, it **does not** handle closing/unmounting the modal during client-side navigation (such as when clicking links or using router.push).
+>
+> To ensure that your modal or intercepted slot content is removed when navigating away (including to catch-all or dynamic routes), you should also add a `page.tsx` (or `[...catchAll]/page.tsx`) that returns `null` in the same slot:
+>
+> ```tsx filename="app/@auth/page.tsx"
+> export default function Page() {
+>   return null
+> }
+> ```
+>
+> ```tsx filename="app/@auth/[...catchAll]/page.tsx"
+> export default function CatchAll() {
+>   return null
+> }
+> ```
+>
+> This ensures that Next.js will unmount the modal on navigation, not just on refresh which is a common pitfall when working with parallel and intercepted routes.
+
 When using the `Link` component to navigate away from a page that shouldn't render the `@auth` slot anymore, we need to make sure the parallel route matches to a component that returns `null`. For example, when navigating back to the root page, we create a `@auth/page.tsx` component:
 
 ```tsx filename="app/ui/modal.tsx" switcher
