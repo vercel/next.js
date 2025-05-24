@@ -1341,6 +1341,8 @@
       "app dir - basic should pass props from getServerSideProps in root layout",
       "app dir - basic should provide query for getStaticProps page correctly",
       "app dir - basic should return normalized dynamic route params for catch-all edge page",
+      "app dir - basic should return the `vary` header from edge runtime",
+      "app dir - basic should return the `vary` header from pages for flight requests",
       "app dir - basic should run generate command correctly",
       "app dir - basic should serve /index as separate page",
       "app dir - basic should serve dynamic parameter",
@@ -1462,6 +1464,8 @@
       "app dir - basic should not share edge workers",
       "app dir - basic should pass props from getServerSideProps in root layout",
       "app dir - basic should return normalized dynamic route params for catch-all edge page",
+      "app dir - basic should return the `vary` header from edge runtime",
+      "app dir - basic should return the `vary` header from pages for flight requests",
       "app dir - basic should serve /index as separate page",
       "app dir - basic should serve dynamic parameter",
       "app dir - basic should serve dynamic route from pages",
@@ -8944,9 +8948,9 @@
   },
   "test/e2e/vary-header/test/index.test.ts": {
     "passed": [
-      "Vary Header Tests should preserve custom vary header",
+      "Vary Header Tests should preserve custom vary header and append RSC headers in app route handlers",
       "Vary Header Tests should preserve custom vary header in API routes",
-      "Vary Header Tests should preserve middleware vary header"
+      "Vary Header Tests should preserve middleware vary header in combination with route handlers"
     ],
     "failed": [],
     "pending": [],
@@ -18116,18 +18120,17 @@
   "test/integration/typescript-paths/test/index.test.js": {
     "passed": [
       "typescript paths default behavior should alias components",
+      "typescript paths default behavior should not resolve to .d.ts files",
       "typescript paths default behavior should resolve a single matching alias",
       "typescript paths default behavior should resolve the first item in the array first",
       "typescript paths default behavior should resolve the second item in as a fallback",
       "typescript paths without baseurl default behavior should alias components",
+      "typescript paths without baseurl default behavior should not resolve to .d.ts files",
       "typescript paths without baseurl default behavior should resolve a single matching alias",
       "typescript paths without baseurl default behavior should resolve the first item in the array first",
       "typescript paths without baseurl default behavior should resolve the second item in as a fallback"
     ],
-    "failed": [
-      "typescript paths default behavior should not resolve to .d.ts files",
-      "typescript paths without baseurl default behavior should not resolve to .d.ts files"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -18135,13 +18138,12 @@
   "test/integration/typescript-workspaces-paths/packages/www/test/index.test.js": {
     "passed": [
       "TypeScript Features default behavior should alias components",
+      "TypeScript Features default behavior should not resolve to .d.ts files",
       "TypeScript Features default behavior should resolve a single matching alias",
       "TypeScript Features default behavior should resolve the first item in the array first",
       "TypeScript Features default behavior should resolve the second item in as a fallback"
     ],
-    "failed": [
-      "TypeScript Features default behavior should not resolve to .d.ts files"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
