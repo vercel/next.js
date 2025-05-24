@@ -57,7 +57,7 @@ const cwd = process.cwd()
       }
     }
   } catch (error) {
-    console.log(error)
+    console.log('Failed to fetch Next.js dist tags from the NPM registry.')
     throw error
   }
 
