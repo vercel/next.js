@@ -81,6 +81,7 @@ jobs:
       # we build a dev binary for use in CI so skip downloading
       # canary next-swc binaries in the monorepo
       NEXT_SKIP_NATIVE_POSTINSTALL: 1
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
     steps:
       - name: Setup node
         uses: actions/setup-node@v4
@@ -113,12 +114,16 @@ jobs:
 
       - run: pnpm run build
 
-      - uses: actions/cache@v4
-        timeout-minutes: 5
-        id: cache-build
-        with:
-          path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt}}
+      - run: npm i -g npm@10.4.0 # need latest version for provenance (pinning to avoid bugs)
+      - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+      - run: npm dist-tag add create-next-app@15.3.2 latest
+      - run: npm dist-tag add next@15.3.2 latest
+      - run: npm dist-tag add @next/codemod@15.3.2 latest
+      - run: npm dist-tag add @next/eslint-plugin-next@15.3.2 latest
+      - run: npm dist-tag add @next/plugin-storybook@15.3.2 latest
+      - run: npm dist-tag add @next/polyfill-module@15.3.2 latest
+      - run: npm dist-tag add @next/polyfill-nomodule@15.3.2 latest
+      - run: npm dist-tag add @next/react-refresh-utils@15.3.2 latest
 
   # Build binaries for publishing
   build-native:
