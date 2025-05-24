@@ -3,6 +3,7 @@
 
 const path = require('path')
 const execa = require('execa')
+const semver = require('semver')
 const { Sema } = require('async-sema')
 const { execSync } = require('child_process')
 const fs = require('fs')
@@ -32,6 +33,34 @@ const cwd = process.cwd()
     }
     throw err
   }
+
+  let tag = isCanary ? 'canary' : isReleaseCandidate ? 'rc' : 'latest'
+
+  try {
+    if (!isCanary && !isReleaseCandidate) {
+      const version = JSON.parse(
+        await fs.promises.readFile(path.join(cwd, 'lerna.json'), 'utf-8')
+      ).version
+
+      const res = await fetch(
+        `https://registry.npmjs.org/-/package/next/dist-tags`
+      )
+      const tags = await res.json()
+
+      if (semver.lt(version, tags.latest)) {
+        // If the current version is less than the latest, it means this
+        // is a backport release. Since NPM sets the 'latest' tag by default
+        // during publishing, when users install `next@latest`, they might
+        // get the backported version instead of the actual "latest" version.
+        // Therefore, we explicitly set the tag as 'stable' for backports.
+        tag = 'stable'
+      }
+    }
+  } catch (error) {
+    console.log('Failed to fetch Next.js dist tags from the NPM registry.')
+    throw error
+  }
+
   console.log(
     `Publishing ${isCanary ? 'canary' : isReleaseCandidate ? 'rc' : 'stable'}`
   )
@@ -57,11 +86,7 @@ const cwd = process.cwd()
           '--access',
           'public',
           '--ignore-scripts',
-          ...(isCanary
-            ? ['--tag', 'canary']
-            : isReleaseCandidate
-              ? ['--tag', 'rc']
-              : []),
+          ['--tag', tag],
         ],
         { stdio: 'pipe' }
       )
