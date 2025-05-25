@@ -149,4 +149,4 @@ exports.preloadModule = function (href, options) {
       });
     } else Internals.d.m(href);
 };
-exports.version = "19.2.0-canary-c4676e72-20250520";
+exports.version = "19.2.0-canary-23884812-20250520";
