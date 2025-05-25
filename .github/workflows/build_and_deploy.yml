@@ -51,11 +51,11 @@ jobs:
         run: |
           # TODO: Remove the new release check once the new release workflow is fully replaced.
           RELEASE_CHECK=$(node ./scripts/check-is-release.js 2> /dev/null || :)
-          if [[ $RELEASE_CHECK = "new-release" ]];
+          if [[ $RELEASE_CHECK == 'new-release' ]];
           then
             echo "__NEW_RELEASE=true" >> $GITHUB_ENV
             echo "value=production" >> $GITHUB_OUTPUT
-          elif [[ $RELEASE_CHECK = v* ]];
+          elif [[ $RELEASE_CHECK == v* ]];
           then
             echo "value=production" >> $GITHUB_OUTPUT
           elif [ '${{ github.ref }}' == 'refs/heads/canary' ]
