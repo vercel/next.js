@@ -3713,6 +3713,10 @@
     function hoistStylesheetDependency(stylesheet) {
       this.stylesheets.add(stylesheet);
     }
+    function hoistHoistables(parentState, childState) {
+      childState.styles.forEach(hoistStyleQueueDependency, parentState);
+      childState.stylesheets.forEach(hoistStylesheetDependency, parentState);
+    }
     function getComponentNameFromType(type) {
       if (null == type) return null;
       if ("function" === typeof type)
@@ -4696,11 +4700,14 @@
       };
       null !== row &&
         (row.pendingTasks++,
-        (row = row.boundaries),
-        null !== row &&
+        (contentPreamble = row.boundaries),
+        null !== contentPreamble &&
           (request.allPendingTasks++,
           fallbackAbortableTasks.pendingTasks++,
-          row.push(fallbackAbortableTasks)));
+          contentPreamble.push(fallbackAbortableTasks)),
+        (request = row.inheritedHoistables),
+        null !== request &&
+          hoistHoistables(fallbackAbortableTasks.contentState, request));
       return fallbackAbortableTasks;
     }
     function createRenderTask(
@@ -4979,20 +4986,70 @@
         : ((request.status = 13), (request.fatalError = error));
     }
     function finishSuspenseListRow(request, row) {
-      for (row = row.next; null !== row; ) {
-        var unblockedBoundaries = row.boundaries;
+      unblockSuspenseListRow(request, row.next, row.hoistables);
+    }
+    function unblockSuspenseListRow(
+      request,
+      unblockedRow,
+      inheritedHoistables
+    ) {
+      for (; null !== unblockedRow; ) {
+        null !== inheritedHoistables &&
+          (hoistHoistables(unblockedRow.hoistables, inheritedHoistables),
+          (unblockedRow.inheritedHoistables = inheritedHoistables));
+        var unblockedBoundaries = unblockedRow.boundaries;
         if (null !== unblockedBoundaries) {
-          row.boundaries = null;
-          for (var i = 0; i < unblockedBoundaries.length; i++)
-            finishedTask(request, unblockedBoundaries[i], null, null);
+          unblockedRow.boundaries = null;
+          for (var i = 0; i < unblockedBoundaries.length; i++) {
+            var unblockedBoundary = unblockedBoundaries[i];
+            null !== inheritedHoistables &&
+              hoistHoistables(
+                unblockedBoundary.contentState,
+                inheritedHoistables
+              );
+            finishedTask(request, unblockedBoundary, null, null);
+          }
         }
-        row.pendingTasks--;
-        if (0 < row.pendingTasks) break;
-        row = row.next;
+        unblockedRow.pendingTasks--;
+        if (0 < unblockedRow.pendingTasks) break;
+        inheritedHoistables = unblockedRow.hoistables;
+        unblockedRow = unblockedRow.next;
+      }
+    }
+    function tryToResolveTogetherRow(request, togetherRow) {
+      var boundaries = togetherRow.boundaries;
+      if (
+        null !== boundaries &&
+        togetherRow.pendingTasks === boundaries.length
+      ) {
+        for (
+          var allCompleteAndInlinable = !0, i = 0;
+          i < boundaries.length;
+          i++
+        ) {
+          var rowBoundary = boundaries[i];
+          if (
+            1 !== rowBoundary.pendingTasks ||
+            rowBoundary.parentFlushed ||
+            500 < rowBoundary.byteSize
+          ) {
+            allCompleteAndInlinable = !1;
+            break;
+          }
+        }
+        allCompleteAndInlinable &&
+          unblockSuspenseListRow(request, togetherRow, togetherRow.hoistables);
       }
     }
     function createSuspenseListRow(previousRow) {
-      var newRow = { pendingTasks: 1, boundaries: null, next: null };
+      var newRow = {
+        pendingTasks: 1,
+        boundaries: null,
+        hoistables: createHoistableState(),
+        inheritedHoistables: null,
+        together: !1,
+        next: null
+      };
       null !== previousRow &&
         0 < previousRow.pendingTasks &&
         (newRow.pendingTasks++,
@@ -5001,28 +5058,25 @@
       return newRow;
     }
     function renderSuspenseListRows(request, task, keyPath, rows, revealOrder) {
-      keyPath = task.keyPath;
-      var previousComponentStack = task.componentStack;
+      var prevKeyPath = task.keyPath,
+        prevTreeContext = task.treeContext,
+        prevRow = task.row,
+        previousComponentStack = task.componentStack;
       var previousDebugTask = task.debugTask;
       pushServerComponentStack(task, task.node.props.children._debugInfo);
-      var prevTreeContext = task.treeContext,
-        prevRow = task.row,
-        totalChildren = rows.length,
-        previousSuspenseListRow = null;
+      task.keyPath = keyPath;
+      keyPath = rows.length;
+      var previousSuspenseListRow = null;
       if (null !== task.replay) {
         var resumeSlots = task.replay.slots;
         if (null !== resumeSlots && "object" === typeof resumeSlots)
-          for (var n = 0; n < totalChildren; n++) {
-            var i = "backwards" !== revealOrder ? n : totalChildren - 1 - n,
+          for (var n = 0; n < keyPath; n++) {
+            var i = "backwards" !== revealOrder ? n : keyPath - 1 - n,
               node = rows[i];
             task.row = previousSuspenseListRow = createSuspenseListRow(
               previousSuspenseListRow
             );
-            task.treeContext = pushTreeContext(
-              prevTreeContext,
-              totalChildren,
-              i
-            );
+            task.treeContext = pushTreeContext(prevTreeContext, keyPath, i);
             var resumeSegmentID = resumeSlots[i];
             "number" === typeof resumeSegmentID
               ? (resumeNode(request, task, resumeSegmentID, node, i),
@@ -5032,32 +5086,28 @@
               finishSuspenseListRow(request, previousSuspenseListRow);
           }
         else
-          for (resumeSlots = 0; resumeSlots < totalChildren; resumeSlots++)
+          for (resumeSlots = 0; resumeSlots < keyPath; resumeSlots++)
             (n =
               "backwards" !== revealOrder
                 ? resumeSlots
-                : totalChildren - 1 - resumeSlots),
+                : keyPath - 1 - resumeSlots),
               (i = rows[n]),
               warnForMissingKey(request, task, i),
               (task.row = previousSuspenseListRow =
                 createSuspenseListRow(previousSuspenseListRow)),
-              (task.treeContext = pushTreeContext(
-                prevTreeContext,
-                totalChildren,
-                n
-              )),
+              (task.treeContext = pushTreeContext(prevTreeContext, keyPath, n)),
               renderNode(request, task, i, n),
               0 === --previousSuspenseListRow.pendingTasks &&
                 finishSuspenseListRow(request, previousSuspenseListRow);
       } else if ("backwards" !== revealOrder)
-        for (revealOrder = 0; revealOrder < totalChildren; revealOrder++)
+        for (revealOrder = 0; revealOrder < keyPath; revealOrder++)
           (resumeSlots = rows[revealOrder]),
             warnForMissingKey(request, task, resumeSlots),
             (task.row = previousSuspenseListRow =
               createSuspenseListRow(previousSuspenseListRow)),
             (task.treeContext = pushTreeContext(
               prevTreeContext,
-              totalChildren,
+              keyPath,
               revealOrder
             )),
             renderNode(request, task, resumeSlots, revealOrder),
@@ -5067,12 +5117,12 @@
         revealOrder = task.blockedSegment;
         resumeSlots = revealOrder.children.length;
         n = revealOrder.chunks.length;
-        for (i = totalChildren - 1; 0 <= i; i--) {
+        for (i = keyPath - 1; 0 <= i; i--) {
           node = rows[i];
           task.row = previousSuspenseListRow = createSuspenseListRow(
             previousSuspenseListRow
           );
-          task.treeContext = pushTreeContext(prevTreeContext, totalChildren, i);
+          task.treeContext = pushTreeContext(prevTreeContext, keyPath, i);
           resumeSegmentID = createPendingSegment(
             request,
             n,
@@ -5109,7 +5159,7 @@
         (prevRow.pendingTasks++, (previousSuspenseListRow.next = prevRow));
       task.treeContext = prevTreeContext;
       task.row = prevRow;
-      task.keyPath = keyPath;
+      task.keyPath = prevKeyPath;
       task.componentStack = previousComponentStack;
       task.debugTask = previousDebugTask;
     }
@@ -5654,7 +5704,7 @@
           );
           segment.lastPushedText = !1;
           var _prevContext2 = task.formatContext,
-            _prevKeyPath2 = task.keyPath;
+            _prevKeyPath3 = task.keyPath;
           task.keyPath = keyPath;
           if (
             (task.formatContext = getChildFormatContext(
@@ -5695,7 +5745,7 @@
             request.pingedTasks.push(preambleTask);
           } else renderNode(request, task, _children, -1);
           task.formatContext = _prevContext2;
-          task.keyPath = _prevKeyPath2;
+          task.keyPath = _prevKeyPath3;
           a: {
             var target = segment.chunks,
               resumableState = request.resumableState;
@@ -5761,10 +5811,10 @@
             } else if ("hidden" !== props.mode) {
               segment$jscomp$0.chunks.push(startActivityBoundary);
               segment$jscomp$0.lastPushedText = !1;
-              var _prevKeyPath3 = task.keyPath;
+              var _prevKeyPath4 = task.keyPath;
               task.keyPath = keyPath;
               renderNode(request, task, props.children, -1);
-              task.keyPath = _prevKeyPath3;
+              task.keyPath = _prevKeyPath4;
               segment$jscomp$0.chunks.push(endActivityBoundary);
               segment$jscomp$0.lastPushedText = !1;
             }
@@ -5812,10 +5862,27 @@
                   }
                 }
               }
-              var prevKeyPath$jscomp$3 = task.keyPath;
-              task.keyPath = keyPath;
-              renderNodeDestructive(request, task, children$jscomp$0, -1);
-              task.keyPath = prevKeyPath$jscomp$3;
+              if ("together" === revealOrder) {
+                var _prevKeyPath2 = task.keyPath,
+                  prevRow = task.row,
+                  newRow = (task.row = createSuspenseListRow(null));
+                newRow.boundaries = [];
+                newRow.together = !0;
+                task.keyPath = keyPath;
+                renderNodeDestructive(request, task, children$jscomp$0, -1);
+                0 === --newRow.pendingTasks &&
+                  finishSuspenseListRow(request, newRow);
+                task.keyPath = _prevKeyPath2;
+                task.row = prevRow;
+                null !== prevRow &&
+                  0 < newRow.pendingTasks &&
+                  (prevRow.pendingTasks++, (newRow.next = prevRow));
+              } else {
+                var prevKeyPath$jscomp$3 = task.keyPath;
+                task.keyPath = keyPath;
+                renderNodeDestructive(request, task, children$jscomp$0, -1);
+                task.keyPath = prevKeyPath$jscomp$3;
+              }
             }
             return;
           case REACT_VIEW_TRANSITION_TYPE:
@@ -5845,7 +5912,7 @@
             } else {
               var prevKeyPath$jscomp$4 = task.keyPath,
                 prevContext$jscomp$0 = task.formatContext,
-                prevRow = task.row,
+                prevRow$jscomp$0 = task.row,
                 parentBoundary = task.blockedBoundary,
                 parentPreamble = task.blockedPreamble,
                 parentHoistableState = task.hoistableState,
@@ -5980,18 +6047,24 @@
                     finishedSegment(request, newBoundary, contentRootSegment),
                     queueCompletedSegment(newBoundary, contentRootSegment),
                     0 === newBoundary.pendingTasks &&
-                      newBoundary.status === PENDING &&
-                      ((newBoundary.status = COMPLETED),
-                      !(500 < newBoundary.byteSize)))
+                      newBoundary.status === PENDING)
                   ) {
-                    null !== prevRow &&
-                      0 === --prevRow.pendingTasks &&
-                      finishSuspenseListRow(request, prevRow);
-                    0 === request.pendingRootTasks &&
-                      task.blockedPreamble &&
-                      preparePreamble(request);
-                    break a;
-                  }
+                    if (
+                      ((newBoundary.status = COMPLETED),
+                      !(500 < newBoundary.byteSize))
+                    ) {
+                      null !== prevRow$jscomp$0 &&
+                        0 === --prevRow$jscomp$0.pendingTasks &&
+                        finishSuspenseListRow(request, prevRow$jscomp$0);
+                      0 === request.pendingRootTasks &&
+                        task.blockedPreamble &&
+                        preparePreamble(request);
+                      break a;
+                    }
+                  } else
+                    null !== prevRow$jscomp$0 &&
+                      prevRow$jscomp$0.together &&
+                      tryToResolveTogetherRow(request, prevRow$jscomp$0);
                 } catch (thrownValue$2) {
                   newBoundary.status = CLIENT_RENDERED;
                   if (12 === request.status) {
@@ -6021,7 +6094,7 @@
                     (task.blockedSegment = parentSegment),
                     (task.keyPath = prevKeyPath$jscomp$4),
                     (task.formatContext = prevContext$jscomp$0),
-                    (task.row = prevRow);
+                    (task.row = prevRow$jscomp$0);
                 }
                 var suspendedFallbackTask = createRenderTask(
                   request,
@@ -6981,10 +7054,6 @@
         if (6 === segment.status) return;
         segment.status = ABORTED;
       }
-      segment = task.row;
-      null !== segment &&
-        0 === --segment.pendingTasks &&
-        finishSuspenseListRow(request, segment);
       segment = getThrownInfo(task.componentStack);
       if (null === boundary) {
         if (13 !== request.status && request.status !== CLOSED) {
@@ -6995,36 +7064,49 @@
             return;
           }
           boundary.pendingTasks--;
-          0 === boundary.pendingTasks &&
-            0 < boundary.nodes.length &&
-            ((task = logRecoverableError(request, error, segment, null)),
+          if (0 === boundary.pendingTasks && 0 < boundary.nodes.length) {
+            var errorDigest = logRecoverableError(
+              request,
+              error,
+              segment,
+              null
+            );
             abortRemainingReplayNodes(
               request,
               null,
               boundary.nodes,
               boundary.slots,
               error,
-              task,
+              errorDigest,
               segment,
               !0
-            ));
+            );
+          }
           request.pendingRootTasks--;
           0 === request.pendingRootTasks && completeShell(request);
         }
       } else
-        boundary.pendingTasks--,
-          boundary.status !== CLIENT_RENDERED &&
-            ((boundary.status = CLIENT_RENDERED),
-            (task = logRecoverableError(request, error, segment, null)),
-            (boundary.status = CLIENT_RENDERED),
-            encodeErrorForBoundary(boundary, task, error, segment, !0),
-            untrackBoundary(request, boundary),
-            boundary.parentFlushed &&
-              request.clientRenderedBoundaries.push(boundary)),
+        boundary.status !== CLIENT_RENDERED &&
+          ((boundary.status = CLIENT_RENDERED),
+          (errorDigest = logRecoverableError(request, error, segment, null)),
+          (boundary.status = CLIENT_RENDERED),
+          encodeErrorForBoundary(boundary, errorDigest, error, segment, !0),
+          untrackBoundary(request, boundary),
+          boundary.parentFlushed &&
+            request.clientRenderedBoundaries.push(boundary)),
+          boundary.pendingTasks--,
+          (segment = boundary.row),
+          null !== segment &&
+            0 === --segment.pendingTasks &&
+            finishSuspenseListRow(request, segment),
           boundary.fallbackAbortableTasks.forEach(function (fallbackTask) {
             return abortTask(fallbackTask, request, error);
           }),
           boundary.fallbackAbortableTasks.clear();
+      task = task.row;
+      null !== task &&
+        0 === --task.pendingTasks &&
+        finishSuspenseListRow(request, task);
       request.allPendingTasks--;
       0 === request.allPendingTasks && completeAll(request);
     }
@@ -7138,8 +7220,9 @@
     }
     function finishedTask(request, boundary, row, segment) {
       null !== row &&
-        0 === --row.pendingTasks &&
-        finishSuspenseListRow(request, row);
+        (0 === --row.pendingTasks
+          ? finishSuspenseListRow(request, row)
+          : row.together && tryToResolveTogetherRow(request, row));
       request.allPendingTasks--;
       if (null === boundary) {
         if (null !== segment && segment.parentFlushed) {
@@ -7163,13 +7246,15 @@
                 boundary.parentFlushed &&
                   request.completedBoundaries.push(boundary),
                 boundary.status === COMPLETED &&
-                  (500 < boundary.byteSize ||
+                  ((row = boundary.row),
+                  null !== row &&
+                    hoistHoistables(row.hoistables, boundary.contentState),
+                  500 < boundary.byteSize ||
                     (boundary.fallbackAbortableTasks.forEach(
                       abortTaskSoft,
                       request
                     ),
                     boundary.fallbackAbortableTasks.clear(),
-                    (row = boundary.row),
                     null !== row &&
                       0 === --row.pendingTasks &&
                       finishSuspenseListRow(request, row)),
@@ -7177,13 +7262,17 @@
                     null === request.trackedPostpones &&
                     null !== boundary.contentPreamble &&
                     preparePreamble(request)))
-              : null !== segment &&
-                segment.parentFlushed &&
-                segment.status === COMPLETED &&
-                (queueCompletedSegment(boundary, segment),
-                1 === boundary.completedSegments.length &&
-                  boundary.parentFlushed &&
-                  request.partialBoundaries.push(boundary)));
+              : (null !== segment &&
+                  segment.parentFlushed &&
+                  segment.status === COMPLETED &&
+                  (queueCompletedSegment(boundary, segment),
+                  1 === boundary.completedSegments.length &&
+                    boundary.parentFlushed &&
+                    request.partialBoundaries.push(boundary)),
+                (boundary = boundary.row),
+                null !== boundary &&
+                  boundary.together &&
+                  tryToResolveTogetherRow(request, boundary)));
       0 === request.allPendingTasks && completeAll(request);
     }
     function performWork(request$jscomp$2) {
@@ -7365,32 +7454,37 @@
                     errorInfo$jscomp$1,
                     debugTask
                   );
-                  null === boundary$jscomp$0
-                    ? fatalError(
-                        request,
-                        x$jscomp$0,
-                        errorInfo$jscomp$1,
-                        debugTask
-                      )
-                    : (boundary$jscomp$0.pendingTasks--,
-                      boundary$jscomp$0.status !== CLIENT_RENDERED &&
-                        ((boundary$jscomp$0.status = CLIENT_RENDERED),
-                        encodeErrorForBoundary(
-                          boundary$jscomp$0,
-                          prevTaskInDEV,
-                          x$jscomp$0,
-                          errorInfo$jscomp$1,
-                          !1
-                        ),
-                        untrackBoundary(request, boundary$jscomp$0),
-                        boundary$jscomp$0.parentFlushed &&
-                          request.clientRenderedBoundaries.push(
-                            boundary$jscomp$0
-                          ),
-                        0 === request.pendingRootTasks &&
-                          null === request.trackedPostpones &&
-                          null !== boundary$jscomp$0.contentPreamble &&
-                          preparePreamble(request)));
+                  if (null === boundary$jscomp$0)
+                    fatalError(
+                      request,
+                      x$jscomp$0,
+                      errorInfo$jscomp$1,
+                      debugTask
+                    );
+                  else if (
+                    (boundary$jscomp$0.pendingTasks--,
+                    boundary$jscomp$0.status !== CLIENT_RENDERED)
+                  ) {
+                    boundary$jscomp$0.status = CLIENT_RENDERED;
+                    encodeErrorForBoundary(
+                      boundary$jscomp$0,
+                      prevTaskInDEV,
+                      x$jscomp$0,
+                      errorInfo$jscomp$1,
+                      !1
+                    );
+                    untrackBoundary(request, boundary$jscomp$0);
+                    var boundaryRow = boundary$jscomp$0.row;
+                    null !== boundaryRow &&
+                      0 === --boundaryRow.pendingTasks &&
+                      finishSuspenseListRow(request, boundaryRow);
+                    boundary$jscomp$0.parentFlushed &&
+                      request.clientRenderedBoundaries.push(boundary$jscomp$0);
+                    0 === request.pendingRootTasks &&
+                      null === request.trackedPostpones &&
+                      null !== boundary$jscomp$0.contentPreamble &&
+                      preparePreamble(request);
+                  }
                   0 === request.allPendingTasks && completeAll(request);
                 }
               } finally {
@@ -7602,12 +7696,7 @@
             boundary.rootSegmentID
           ),
           hoistableState &&
-            ((boundary = boundary.fallbackState),
-            boundary.styles.forEach(hoistStyleQueueDependency, hoistableState),
-            boundary.stylesheets.forEach(
-              hoistStylesheetDependency,
-              hoistableState
-            )),
+            hoistHoistables(hoistableState, boundary.fallbackState),
           flushSubtree(request, destination, segment, hoistableState);
       else if (
         500 < boundary.byteSize &&
@@ -7624,12 +7713,7 @@
       else {
         flushedByteSize += boundary.byteSize;
         hoistableState &&
-          ((segment = boundary.contentState),
-          segment.styles.forEach(hoistStyleQueueDependency, hoistableState),
-          segment.stylesheets.forEach(
-            hoistStylesheetDependency,
-            hoistableState
-          ));
+          hoistHoistables(hoistableState, boundary.contentState);
         segment = boundary.row;
         null !== segment &&
           500 < boundary.byteSize &&
@@ -8081,6 +8165,17 @@
                   break a;
                 }
               completedSegments.splice(0, JSCompiler_inline_result);
+              var row = boundary$jscomp$0.row;
+              null !== row &&
+                row.together &&
+                1 === boundary$jscomp$0.pendingTasks &&
+                (1 === row.pendingTasks
+                  ? unblockSuspenseListRow(
+                      clientRenderedBoundaries,
+                      row,
+                      row.hoistables
+                    )
+                  : row.pendingTasks--);
               JSCompiler_inline_result$jscomp$0 = writeHoistablesForBoundary(
                 boundary,
                 boundary$jscomp$0.contentState,
@@ -8206,11 +8301,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.2.0-canary-c4676e72-20250520" !== isomorphicReactPackageVersion)
+      if ("19.2.0-canary-23884812-20250520" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.2.0-canary-c4676e72-20250520\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.2.0-canary-23884812-20250520\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react"),
@@ -9893,5 +9988,5 @@
         startWork(request);
       });
     };
-    exports.version = "19.2.0-canary-c4676e72-20250520";
+    exports.version = "19.2.0-canary-23884812-20250520";
   })();
