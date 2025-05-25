@@ -13,6 +13,9 @@
     // PR management / Reviewing
     "github.vscode-pull-request-github",
 
+    // CI
+    "github.vscode-github-actions",
+
     // Showing todo comments
     "gruntfuggly.todo-tree",
 
