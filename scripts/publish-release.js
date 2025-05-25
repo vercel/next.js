@@ -52,8 +52,8 @@ const cwd = process.cwd()
         // is a backport release. Since NPM sets the 'latest' tag by default
         // during publishing, when users install `next@latest`, they might
         // get the backported version instead of the actual "latest" version.
-        // Therefore, we explicitly set the tag as 'stable' for backports.
-        tag = 'stable'
+        // Therefore, we explicitly set the tag as 'backport' for backports.
+        tag = 'backport'
       }
     }
   } catch (error) {
@@ -61,9 +61,7 @@ const cwd = process.cwd()
     throw error
   }
 
-  console.log(
-    `Publishing ${isCanary ? 'canary' : isReleaseCandidate ? 'rc' : 'stable'}`
-  )
+  console.log(`Publishing as "${tag}" dist tag...`)
 
   if (!process.env.NPM_TOKEN) {
     console.log('No NPM_TOKEN, exiting...')
