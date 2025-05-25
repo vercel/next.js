@@ -111,3 +111,5 @@ jobs:
         uses: changesets/action@v1
         with:
           version: pnpm ci:version
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
