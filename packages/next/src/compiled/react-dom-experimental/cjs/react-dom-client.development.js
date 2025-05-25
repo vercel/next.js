@@ -13513,11 +13513,16 @@
       }
     }
     function commitNewChildToFragmentInstances(fiber, parentFragmentInstances) {
-      for (var i = 0; i < parentFragmentInstances.length; i++)
-        commitNewChildToFragmentInstance(
-          fiber.stateNode,
-          parentFragmentInstances[i]
-        );
+      if (
+        5 === fiber.tag &&
+        null === fiber.alternate &&
+        null !== parentFragmentInstances
+      )
+        for (var i = 0; i < parentFragmentInstances.length; i++)
+          commitNewChildToFragmentInstance(
+            fiber.stateNode,
+            parentFragmentInstances[i]
+          );
     }
     function commitFragmentInstanceDeletionEffects(fiber) {
       for (var parent = fiber.return; null !== parent; ) {
@@ -13577,39 +13582,36 @@
       parentFragmentInstances
     ) {
       var tag = node.tag;
-      if (5 === tag || 6 === tag) {
-        var stateNode = node.stateNode;
-        before
-          ? (warnForReactChildrenConflict(parent),
-            (parent =
-              9 === parent.nodeType
-                ? parent.body
-                : "HTML" === parent.nodeName
-                  ? parent.ownerDocument.body
-                  : parent),
-            supportsMoveBefore && null !== stateNode.parentNode
-              ? parent.moveBefore(stateNode, before)
-              : parent.insertBefore(stateNode, before))
-          : (warnForReactChildrenConflict(parent),
-            (before =
-              9 === parent.nodeType
-                ? parent.body
-                : "HTML" === parent.nodeName
-                  ? parent.ownerDocument.body
-                  : parent),
-            supportsMoveBefore && null !== stateNode.parentNode
-              ? before.moveBefore(stateNode, null)
-              : before.appendChild(stateNode),
-            (stateNode = parent._reactRootContainer),
-            (null !== stateNode && void 0 !== stateNode) ||
-              null !== before.onclick ||
-              (before.onclick = noop$1));
-        5 === tag &&
-          null === node.alternate &&
-          null !== parentFragmentInstances &&
-          commitNewChildToFragmentInstances(node, parentFragmentInstances);
-        viewTransitionMutationContext = !0;
-      } else if (
+      if (5 === tag || 6 === tag)
+        (tag = node.stateNode),
+          before
+            ? (warnForReactChildrenConflict(parent),
+              (parent =
+                9 === parent.nodeType
+                  ? parent.body
+                  : "HTML" === parent.nodeName
+                    ? parent.ownerDocument.body
+                    : parent),
+              supportsMoveBefore && null !== tag.parentNode
+                ? parent.moveBefore(tag, before)
+                : parent.insertBefore(tag, before))
+            : (warnForReactChildrenConflict(parent),
+              (before =
+                9 === parent.nodeType
+                  ? parent.body
+                  : "HTML" === parent.nodeName
+                    ? parent.ownerDocument.body
+                    : parent),
+              supportsMoveBefore && null !== tag.parentNode
+                ? before.moveBefore(tag, null)
+                : before.appendChild(tag),
+              (tag = parent._reactRootContainer),
+              (null !== tag && void 0 !== tag) ||
+                null !== before.onclick ||
+                (before.onclick = noop$1)),
+          commitNewChildToFragmentInstances(node, parentFragmentInstances),
+          (viewTransitionMutationContext = !0);
+      else if (
         4 !== tag &&
         (27 === tag &&
           isSingletonScope(node.type) &&
@@ -13643,19 +13645,16 @@
       parentFragmentInstances
     ) {
       var tag = node.tag;
-      if (5 === tag || 6 === tag) {
-        var stateNode = node.stateNode;
-        before
-          ? supportsMoveBefore && null !== stateNode.parentNode
-            ? parent.moveBefore(stateNode, before)
-            : parent.insertBefore(stateNode, before)
-          : appendChild(parent, stateNode);
-        5 === tag &&
-          null === node.alternate &&
-          null !== parentFragmentInstances &&
-          commitNewChildToFragmentInstances(node, parentFragmentInstances);
-        viewTransitionMutationContext = !0;
-      } else if (
+      if (5 === tag || 6 === tag)
+        (tag = node.stateNode),
+          before
+            ? supportsMoveBefore && null !== tag.parentNode
+              ? parent.moveBefore(tag, before)
+              : parent.insertBefore(tag, before)
+            : appendChild(parent, tag),
+          commitNewChildToFragmentInstances(node, parentFragmentInstances),
+          (viewTransitionMutationContext = !0);
+      else if (
         4 !== tag &&
         (27 === tag && isSingletonScope(node.type) && (parent = node.stateNode),
         (node = node.child),
@@ -15712,7 +15711,8 @@
       else
         switch (finishedWork.tag) {
           case 3:
-            viewTransitionContextChanged$1 = !1;
+            rootViewTransitionNameCanceled = viewTransitionContextChanged$1 =
+              !1;
             pushViewTransitionCancelableScope();
             recursivelyTraverseAfterMutationEffects(root, finishedWork);
             if (
@@ -15728,6 +15728,7 @@
                     finishedWork[i + 2]
                   );
               cancelRootViewTransitionName(root.containerInfo);
+              rootViewTransitionNameCanceled = !0;
             }
             viewTransitionCancelableChildren = null;
             break;
@@ -16175,6 +16176,7 @@
           );
           inHydratedSubtree = wasInHydratedSubtree;
           isViewTransitionEligible &&
+            rootViewTransitionNameCanceled &&
             restoreRootViewTransitionName(finishedRoot.containerInfo);
           flags & 2048 &&
             ((committedLanes = null),
@@ -24681,12 +24683,12 @@
       }
       return -1;
     }
-    function commitNewChildToFragmentInstance(childElement, fragmentInstance) {
+    function commitNewChildToFragmentInstance(childInstance, fragmentInstance) {
       var eventListeners = fragmentInstance._eventListeners;
       if (null !== eventListeners)
         for (var i = 0; i < eventListeners.length; i++) {
           var _eventListeners$i2 = eventListeners[i];
-          childElement.addEventListener(
+          childInstance.addEventListener(
             _eventListeners$i2.type,
             _eventListeners$i2.listener,
             _eventListeners$i2.optionsOrUseCapture
@@ -24694,7 +24696,7 @@
         }
       null !== fragmentInstance._observers &&
         fragmentInstance._observers.forEach(function (observer) {
-          observer.observe(childElement);
+          observer.observe(childInstance);
         });
     }
     function clearContainerSparingly(container) {
@@ -29680,6 +29682,7 @@
       viewTransitionContextChanged$1 = !1,
       inUpdateViewTransition = !1,
       rootViewTransitionAffected = !1,
+      rootViewTransitionNameCanceled = !1,
       hostParent = null,
       hostParentIsContainer = !1,
       currentHoistableRoot = null,
@@ -30616,11 +30619,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.2.0-experimental-23884812-20250520" !== isomorphicReactPackageVersion)
+      if ("19.2.0-experimental-8ce15b0f-20250522" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.2.0-experimental-23884812-20250520\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.2.0-experimental-8ce15b0f-20250522\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -30657,10 +30660,10 @@
       !(function () {
         var internals = {
           bundleType: 1,
-          version: "19.2.0-experimental-23884812-20250520",
+          version: "19.2.0-experimental-8ce15b0f-20250522",
           rendererPackageName: "react-dom",
           currentDispatcherRef: ReactSharedInternals,
-          reconcilerVersion: "19.2.0-experimental-23884812-20250520"
+          reconcilerVersion: "19.2.0-experimental-8ce15b0f-20250522"
         };
         internals.overrideHookState = overrideHookState;
         internals.overrideHookStateDeletePath = overrideHookStateDeletePath;
@@ -30806,7 +30809,7 @@
       listenToAllSupportedEvents(container);
       return new ReactDOMHydrationRoot(initialChildren);
     };
-    exports.version = "19.2.0-experimental-23884812-20250520";
+    exports.version = "19.2.0-experimental-8ce15b0f-20250522";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
