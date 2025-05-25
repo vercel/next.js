@@ -537,8 +537,8 @@ function getSuspenseViewTransition(parentViewTransition) {
     ? null
     : {
         update: parentViewTransition.update,
-        enter: null,
-        exit: null,
+        enter: "none",
+        exit: "none",
         share: parentViewTransition.update,
         name: parentViewTransition.autoName,
         autoName: parentViewTransition.autoName,
@@ -5225,15 +5225,15 @@ function renderNode(request, task, node, childIndex) {
       chunkLength = segment.chunks.length;
     try {
       return renderNodeDestructive(request, task, node, childIndex);
-    } catch (thrownValue$59) {
+    } catch (thrownValue$60) {
       if (
         (resetHooksState(),
         (segment.children.length = childrenLength),
         (segment.chunks.length = chunkLength),
         (node =
-          thrownValue$59 === SuspenseException
+          thrownValue$60 === SuspenseException
             ? getSuspendedThenable()
-            : thrownValue$59),
+            : thrownValue$60),
         "object" === typeof node && null !== node)
       ) {
         if ("function" === typeof node.then) {
@@ -5487,62 +5487,120 @@ function finishedSegment(request, boundary, segment) {
       : (boundary.byteSize += segmentByteSize);
   }
 }
-function finishedTask(request, boundary, row, segment) {
+function finishedTask(request$jscomp$0, boundary, row, segment) {
   null !== row &&
     (0 === --row.pendingTasks
-      ? finishSuspenseListRow(request, row)
-      : row.together && tryToResolveTogetherRow(request, row));
-  request.allPendingTasks--;
+      ? finishSuspenseListRow(request$jscomp$0, row)
+      : row.together && tryToResolveTogetherRow(request$jscomp$0, row));
+  request$jscomp$0.allPendingTasks--;
   if (null === boundary) {
     if (null !== segment && segment.parentFlushed) {
-      if (null !== request.completedRootSegment)
+      if (null !== request$jscomp$0.completedRootSegment)
         throw Error(
           "There can only be one root segment. This is a bug in React."
         );
-      request.completedRootSegment = segment;
+      request$jscomp$0.completedRootSegment = segment;
     }
-    request.pendingRootTasks--;
-    0 === request.pendingRootTasks && completeShell(request);
-  } else
-    boundary.pendingTasks--,
-      4 !== boundary.status &&
-        (0 === boundary.pendingTasks
-          ? (0 === boundary.status && (boundary.status = 1),
-            null !== segment &&
-              segment.parentFlushed &&
-              1 === segment.status &&
-              queueCompletedSegment(boundary, segment),
-            boundary.parentFlushed &&
-              request.completedBoundaries.push(boundary),
-            1 === boundary.status &&
-              ((row = boundary.row),
-              null !== row &&
-                hoistHoistables(row.hoistables, boundary.contentState),
-              500 < boundary.byteSize ||
-                (boundary.fallbackAbortableTasks.forEach(
-                  abortTaskSoft,
-                  request
-                ),
-                boundary.fallbackAbortableTasks.clear(),
-                null !== row &&
-                  0 === --row.pendingTasks &&
-                  finishSuspenseListRow(request, row)),
-              0 === request.pendingRootTasks &&
-                null === request.trackedPostpones &&
-                null !== boundary.contentPreamble &&
-                preparePreamble(request)))
-          : (null !== segment &&
-              segment.parentFlushed &&
-              1 === segment.status &&
-              (queueCompletedSegment(boundary, segment),
-              1 === boundary.completedSegments.length &&
-                boundary.parentFlushed &&
-                request.partialBoundaries.push(boundary)),
-            (boundary = boundary.row),
-            null !== boundary &&
-              boundary.together &&
-              tryToResolveTogetherRow(request, boundary)));
-  0 === request.allPendingTasks && completeAll(request);
+    request$jscomp$0.pendingRootTasks--;
+    0 === request$jscomp$0.pendingRootTasks && completeShell(request$jscomp$0);
+  } else if ((boundary.pendingTasks--, 4 !== boundary.status))
+    if (0 === boundary.pendingTasks)
+      if (
+        (0 === boundary.status && (boundary.status = 1),
+        null !== segment &&
+          segment.parentFlushed &&
+          1 === segment.status &&
+          queueCompletedSegment(boundary, segment),
+        boundary.parentFlushed &&
+          request$jscomp$0.completedBoundaries.push(boundary),
+        1 === boundary.status)
+      )
+        (row = boundary.row),
+          null !== row &&
+            hoistHoistables(row.hoistables, boundary.contentState),
+          500 < boundary.byteSize ||
+            (boundary.fallbackAbortableTasks.forEach(
+              abortTaskSoft,
+              request$jscomp$0
+            ),
+            boundary.fallbackAbortableTasks.clear(),
+            null !== row &&
+              0 === --row.pendingTasks &&
+              finishSuspenseListRow(request$jscomp$0, row)),
+          0 === request$jscomp$0.pendingRootTasks &&
+            null === request$jscomp$0.trackedPostpones &&
+            null !== boundary.contentPreamble &&
+            preparePreamble(request$jscomp$0);
+      else {
+        if (
+          5 === boundary.status &&
+          ((boundary = boundary.row), null !== boundary)
+        ) {
+          if (null !== request$jscomp$0.trackedPostpones) {
+            row = request$jscomp$0.trackedPostpones;
+            var postponedRow = boundary.next;
+            if (
+              null !== postponedRow &&
+              ((segment = postponedRow.boundaries), null !== segment)
+            )
+              for (
+                postponedRow.boundaries = null, postponedRow = 0;
+                postponedRow < segment.length;
+                postponedRow++
+              ) {
+                var postponedBoundary = segment[postponedRow];
+                var request = request$jscomp$0,
+                  trackedPostpones = row;
+                postponedBoundary.status = 5;
+                postponedBoundary.rootSegmentID = request.nextSegmentId++;
+                request = postponedBoundary.trackedContentKeyPath;
+                if (null === request)
+                  throw Error(
+                    "It should not be possible to postpone at the root. This is a bug in React."
+                  );
+                var fallbackReplayNode = postponedBoundary.trackedFallbackNode,
+                  children = [],
+                  boundaryNode = trackedPostpones.workingMap.get(request);
+                void 0 === boundaryNode
+                  ? ((fallbackReplayNode = [
+                      request[1],
+                      request[2],
+                      children,
+                      null,
+                      fallbackReplayNode,
+                      postponedBoundary.rootSegmentID
+                    ]),
+                    trackedPostpones.workingMap.set(
+                      request,
+                      fallbackReplayNode
+                    ),
+                    addToReplayParent(
+                      fallbackReplayNode,
+                      request[0],
+                      trackedPostpones
+                    ))
+                  : ((boundaryNode[4] = fallbackReplayNode),
+                    (boundaryNode[5] = postponedBoundary.rootSegmentID));
+                finishedTask(request$jscomp$0, postponedBoundary, null, null);
+              }
+          }
+          0 === --boundary.pendingTasks &&
+            finishSuspenseListRow(request$jscomp$0, boundary);
+        }
+      }
+    else
+      null !== segment &&
+        segment.parentFlushed &&
+        1 === segment.status &&
+        (queueCompletedSegment(boundary, segment),
+        1 === boundary.completedSegments.length &&
+          boundary.parentFlushed &&
+          request$jscomp$0.partialBoundaries.push(boundary)),
+        (boundary = boundary.row),
+        null !== boundary &&
+          boundary.together &&
+          tryToResolveTogetherRow(request$jscomp$0, boundary);
+  0 === request$jscomp$0.allPendingTasks && completeAll(request$jscomp$0);
 }
 function performWork(request$jscomp$2) {
   if (14 !== request$jscomp$2.status && 13 !== request$jscomp$2.status) {
@@ -5972,7 +6030,7 @@ function flushCompletedBoundary(request, destination, boundary) {
         ((completedSegments.instructions |= 2),
         writeChunk(
           destination,
-          '$RB=[];$RV=function(){$RT=performance.now();var d=$RB;$RB=[];for(var a=0;a<d.length;a+=2){var b=d[a],h=d[a+1],e=b.parentNode;if(e){var f=b.previousSibling,g=0;do{if(b&&8===b.nodeType){var c=b.data;if("/$"===c||"/&"===c)if(0===g)break;else g--;else"$"!==c&&"$?"!==c&&"$~"!==c&&"$!"!==c&&"&"!==c||g++}c=b.nextSibling;e.removeChild(b);b=c}while(b);for(;h.firstChild;)e.insertBefore(h.firstChild,b);f.data="$";f._reactRetry&&f._reactRetry()}}};$RC=function(d,a){if(a=document.getElementById(a))if(a.parentNode.removeChild(a),d=document.getElementById(d))d.previousSibling.data="$~",$RB.push(d,a),2===$RB.length&&setTimeout($RV,("number"!==typeof $RT?0:$RT)+300-performance.now())};'
+          '$RB=[];$RV=function(c){$RT=performance.now();for(var a=0;a<c.length;a+=2){var b=c[a],h=c[a+1],e=b.parentNode;if(e){var f=b.previousSibling,g=0;do{if(b&&8===b.nodeType){var d=b.data;if("/$"===d||"/&"===d)if(0===g)break;else g--;else"$"!==d&&"$?"!==d&&"$~"!==d&&"$!"!==d&&"&"!==d||g++}d=b.nextSibling;e.removeChild(b);b=d}while(b);for(;h.firstChild;)e.insertBefore(h.firstChild,b);f.data="$";f._reactRetry&&f._reactRetry()}}c.length=0};$RC=function(c,a){if(a=document.getElementById(a))if(a.parentNode.removeChild(a),c=document.getElementById(c))c.previousSibling.data="$~",$RB.push(c,a),2===$RB.length&&setTimeout($RV.bind(null,$RB),("number"!==typeof $RT?0:$RT)+300-performance.now())};'
         )),
       0 === (completedSegments.instructions & 8)
         ? ((completedSegments.instructions |= 8),
@@ -5985,7 +6043,7 @@ function flushCompletedBoundary(request, destination, boundary) {
         ((completedSegments.instructions |= 2),
         writeChunk(
           destination,
-          '$RB=[];$RV=function(){$RT=performance.now();var d=$RB;$RB=[];for(var a=0;a<d.length;a+=2){var b=d[a],h=d[a+1],e=b.parentNode;if(e){var f=b.previousSibling,g=0;do{if(b&&8===b.nodeType){var c=b.data;if("/$"===c||"/&"===c)if(0===g)break;else g--;else"$"!==c&&"$?"!==c&&"$~"!==c&&"$!"!==c&&"&"!==c||g++}c=b.nextSibling;e.removeChild(b);b=c}while(b);for(;h.firstChild;)e.insertBefore(h.firstChild,b);f.data="$";f._reactRetry&&f._reactRetry()}}};$RC=function(d,a){if(a=document.getElementById(a))if(a.parentNode.removeChild(a),d=document.getElementById(d))d.previousSibling.data="$~",$RB.push(d,a),2===$RB.length&&setTimeout($RV,("number"!==typeof $RT?0:$RT)+300-performance.now())};'
+          '$RB=[];$RV=function(c){$RT=performance.now();for(var a=0;a<c.length;a+=2){var b=c[a],h=c[a+1],e=b.parentNode;if(e){var f=b.previousSibling,g=0;do{if(b&&8===b.nodeType){var d=b.data;if("/$"===d||"/&"===d)if(0===g)break;else g--;else"$"!==d&&"$?"!==d&&"$~"!==d&&"$!"!==d&&"&"!==d||g++}d=b.nextSibling;e.removeChild(b);b=d}while(b);for(;h.firstChild;)e.insertBefore(h.firstChild,b);f.data="$";f._reactRetry&&f._reactRetry()}}c.length=0};$RC=function(c,a){if(a=document.getElementById(a))if(a.parentNode.removeChild(a),c=document.getElementById(c))c.previousSibling.data="$~",$RB.push(c,a),2===$RB.length&&setTimeout($RV.bind(null,$RB),("number"!==typeof $RT?0:$RT)+300-performance.now())};'
         )),
       writeChunk(destination, '$RC("'));
   completedSegments = i.toString(16);
@@ -6231,12 +6289,12 @@ function flushCompletedQueues(request, destination) {
       completedBoundaries.splice(0, i);
       var partialBoundaries = request.partialBoundaries;
       for (i = 0; i < partialBoundaries.length; i++) {
-        var boundary$64 = partialBoundaries[i];
+        var boundary$66 = partialBoundaries[i];
         a: {
           clientRenderedBoundaries = request;
           boundary = destination;
-          flushedByteSize = boundary$64.byteSize;
-          var completedSegments = boundary$64.completedSegments;
+          flushedByteSize = boundary$66.byteSize;
+          var completedSegments = boundary$66.completedSegments;
           for (
             JSCompiler_inline_result = 0;
             JSCompiler_inline_result < completedSegments.length;
@@ -6246,7 +6304,7 @@ function flushCompletedQueues(request, destination) {
               !flushPartiallyCompletedSegment(
                 clientRenderedBoundaries,
                 boundary,
-                boundary$64,
+                boundary$66,
                 completedSegments[JSCompiler_inline_result]
               )
             ) {
@@ -6256,10 +6314,10 @@ function flushCompletedQueues(request, destination) {
               break a;
             }
           completedSegments.splice(0, JSCompiler_inline_result);
-          var row = boundary$64.row;
+          var row = boundary$66.row;
           null !== row &&
             row.together &&
-            1 === boundary$64.pendingTasks &&
+            1 === boundary$66.pendingTasks &&
             (1 === row.pendingTasks
               ? unblockSuspenseListRow(
                   clientRenderedBoundaries,
@@ -6269,7 +6327,7 @@ function flushCompletedQueues(request, destination) {
               : row.pendingTasks--);
           JSCompiler_inline_result$jscomp$0 = writeHoistablesForBoundary(
             boundary,
-            boundary$64.contentState,
+            boundary$66.contentState,
             clientRenderedBoundaries.renderState
           );
         }
@@ -6350,19 +6408,31 @@ function abort(request, reason) {
     }
     null !== request.destination &&
       flushCompletedQueues(request, request.destination);
-  } catch (error$66) {
-    logRecoverableError(request, error$66, {}), fatalError(request, error$66);
+  } catch (error$68) {
+    logRecoverableError(request, error$68, {}), fatalError(request, error$68);
   }
 }
-var isomorphicReactPackageVersion$jscomp$inline_801 = React.version;
+function addToReplayParent(node, parentKeyPath, trackedPostpones) {
+  if (null === parentKeyPath) trackedPostpones.rootNodes.push(node);
+  else {
+    var workingMap = trackedPostpones.workingMap,
+      parentNode = workingMap.get(parentKeyPath);
+    void 0 === parentNode &&
+      ((parentNode = [parentKeyPath[1], parentKeyPath[2], [], null]),
+      workingMap.set(parentKeyPath, parentNode),
+      addToReplayParent(parentNode, parentKeyPath[0], trackedPostpones));
+    parentNode[2].push(node);
+  }
+}
+var isomorphicReactPackageVersion$jscomp$inline_810 = React.version;
 if (
-  "19.2.0-canary-23884812-20250520" !==
-  isomorphicReactPackageVersion$jscomp$inline_801
+  "19.2.0-canary-8ce15b0f-20250522" !==
+  isomorphicReactPackageVersion$jscomp$inline_810
 )
   throw Error(
     'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
-      (isomorphicReactPackageVersion$jscomp$inline_801 +
-        "\n  - react-dom:  19.2.0-canary-23884812-20250520\nLearn more: https://react.dev/warnings/version-mismatch")
+      (isomorphicReactPackageVersion$jscomp$inline_810 +
+        "\n  - react-dom:  19.2.0-canary-8ce15b0f-20250522\nLearn more: https://react.dev/warnings/version-mismatch")
   );
 exports.renderToReadableStream = function (children, options) {
   return new Promise(function (resolve, reject) {
@@ -6453,4 +6523,4 @@ exports.renderToReadableStream = function (children, options) {
     startWork(request);
   });
 };
-exports.version = "19.2.0-canary-23884812-20250520";
+exports.version = "19.2.0-canary-8ce15b0f-20250522";
