@@ -112,5 +112,5 @@ jobs:
         with:
           version: pnpm ci:version
         env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
           RELEASE_TYPE: ${{ github.event.inputs.releaseType }}
+          GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
