@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
-if [[ $(node ./scripts/check-is-release.js 2> /dev/null || :) = v* ]];
+RELEASE_CHECK=$(node ./scripts/check-is-release.js 2> /dev/null || :)
+if [[ $RELEASE_CHECK = "new-release" || $RELEASE_CHECK = "legacy-release" ]];
   then
     echo "Publish occurred, running release stats..."
   else
