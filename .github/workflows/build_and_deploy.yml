@@ -614,6 +614,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
+          DRY_RUN: ${{ github.ref == 'refs/heads/release/dry-run' }}
 
       - name: Send a Slack notification of the publish status
         # TODO: Change to IS_RELEASE condition when new release becomes stable.
