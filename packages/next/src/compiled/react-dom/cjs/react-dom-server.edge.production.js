@@ -62,8 +62,15 @@ var React = require("next/dist/compiled/react"),
   REACT_LEGACY_HIDDEN_TYPE = Symbol.for("react.legacy_hidden"),
   REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"),
   REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
-  MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
-  isArrayImpl = Array.isArray;
+  MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
+function getIteratorFn(maybeIterable) {
+  if (null === maybeIterable || "object" !== typeof maybeIterable) return null;
+  maybeIterable =
+    (MAYBE_ITERATOR_SYMBOL && maybeIterable[MAYBE_ITERATOR_SYMBOL]) ||
+    maybeIterable["@@iterator"];
+  return "function" === typeof maybeIterable ? maybeIterable : null;
+}
+var isArrayImpl = Array.isArray;
 function murmurhash3_32_gc(key, seed) {
   var remainder = key.length & 3;
   var bytes = key.length - remainder;
@@ -4127,6 +4134,7 @@ function createRequest(
     rootFormatContext,
     null,
     emptyTreeContext,
+    null,
     null
   );
   pushComponentStack(children);
@@ -4190,15 +4198,17 @@ function pingTask(request, task) {
 }
 function createSuspenseBoundary(
   request,
+  row,
   fallbackAbortableTasks,
   contentPreamble,
   fallbackPreamble
 ) {
-  return {
+  fallbackAbortableTasks = {
     status: 0,
     rootSegmentID: -1,
     parentFlushed: !1,
     pendingTasks: 0,
+    row: row,
     completedSegments: [],
     byteSize: 0,
     fallbackAbortableTasks: fallbackAbortableTasks,
@@ -4210,6 +4220,14 @@ function createSuspenseBoundary(
     trackedContentKeyPath: null,
     trackedFallbackNode: null
   };
+  null !== row &&
+    (row.pendingTasks++,
+    (row = row.boundaries),
+    null !== row &&
+      (request.allPendingTasks++,
+      fallbackAbortableTasks.pendingTasks++,
+      row.push(fallbackAbortableTasks)));
+  return fallbackAbortableTasks;
 }
 function createRenderTask(
   request,
@@ -4225,12 +4243,14 @@ function createRenderTask(
   formatContext,
   context,
   treeContext,
+  row,
   componentStack
 ) {
   request.allPendingTasks++;
   null === blockedBoundary
     ? request.pendingRootTasks++
     : blockedBoundary.pendingTasks++;
+  null !== row && row.pendingTasks++;
   var task = {
     replay: null,
     node: node,
@@ -4247,6 +4267,7 @@ function createRenderTask(
     formatContext: formatContext,
     context: context,
     treeContext: treeContext,
+    row: row,
     componentStack: componentStack,
     thenableState: thenableState
   };
@@ -4266,12 +4287,14 @@ function createReplayTask(
   formatContext,
   context,
   treeContext,
+  row,
   componentStack
 ) {
   request.allPendingTasks++;
   null === blockedBoundary
     ? request.pendingRootTasks++
     : blockedBoundary.pendingTasks++;
+  null !== row && row.pendingTasks++;
   replay.pendingTasks++;
   var task = {
     replay: replay,
@@ -4289,6 +4312,7 @@ function createReplayTask(
     formatContext: formatContext,
     context: context,
     treeContext: treeContext,
+    row: row,
     componentStack: componentStack,
     thenableState: thenableState
   };
@@ -4366,6 +4390,129 @@ function fatalError(request, error) {
     ? ((request.status = 14), closeWithError(request.destination, error))
     : ((request.status = 13), (request.fatalError = error));
 }
+function finishSuspenseListRow(request, row) {
+  for (row = row.next; null !== row; ) {
+    var unblockedBoundaries = row.boundaries;
+    if (null !== unblockedBoundaries) {
+      row.boundaries = null;
+      for (var i = 0; i < unblockedBoundaries.length; i++)
+        finishedTask(request, unblockedBoundaries[i], null, null);
+    }
+    row.pendingTasks--;
+    if (0 < row.pendingTasks) break;
+    row = row.next;
+  }
+}
+function createSuspenseListRow(previousRow) {
+  var newRow = { pendingTasks: 1, boundaries: null, next: null };
+  null !== previousRow &&
+    0 < previousRow.pendingTasks &&
+    (newRow.pendingTasks++,
+    (newRow.boundaries = []),
+    (previousRow.next = newRow));
+  return newRow;
+}
+function renderSuspenseListRows(request, task, keyPath, rows, revealOrder) {
+  keyPath = task.keyPath;
+  var prevTreeContext = task.treeContext,
+    prevRow = task.row,
+    totalChildren = rows.length,
+    previousSuspenseListRow = null;
+  if (null !== task.replay) {
+    var resumeSlots = task.replay.slots;
+    if (null !== resumeSlots && "object" === typeof resumeSlots)
+      for (var n = 0; n < totalChildren; n++) {
+        var i = "backwards" !== revealOrder ? n : totalChildren - 1 - n,
+          node = rows[i];
+        task.row = previousSuspenseListRow = createSuspenseListRow(
+          previousSuspenseListRow
+        );
+        task.treeContext = pushTreeContext(prevTreeContext, totalChildren, i);
+        var resumeSegmentID = resumeSlots[i];
+        "number" === typeof resumeSegmentID
+          ? (resumeNode(request, task, resumeSegmentID, node, i),
+            delete resumeSlots[i])
+          : renderNode(request, task, node, i);
+        0 === --previousSuspenseListRow.pendingTasks &&
+          finishSuspenseListRow(request, previousSuspenseListRow);
+      }
+    else
+      for (resumeSlots = 0; resumeSlots < totalChildren; resumeSlots++)
+        (n =
+          "backwards" !== revealOrder
+            ? resumeSlots
+            : totalChildren - 1 - resumeSlots),
+          (i = rows[n]),
+          (task.row = previousSuspenseListRow =
+            createSuspenseListRow(previousSuspenseListRow)),
+          (task.treeContext = pushTreeContext(
+            prevTreeContext,
+            totalChildren,
+            n
+          )),
+          renderNode(request, task, i, n),
+          0 === --previousSuspenseListRow.pendingTasks &&
+            finishSuspenseListRow(request, previousSuspenseListRow);
+  } else if ("backwards" !== revealOrder)
+    for (revealOrder = 0; revealOrder < totalChildren; revealOrder++)
+      (resumeSlots = rows[revealOrder]),
+        (task.row = previousSuspenseListRow =
+          createSuspenseListRow(previousSuspenseListRow)),
+        (task.treeContext = pushTreeContext(
+          prevTreeContext,
+          totalChildren,
+          revealOrder
+        )),
+        renderNode(request, task, resumeSlots, revealOrder),
+        0 === --previousSuspenseListRow.pendingTasks &&
+          finishSuspenseListRow(request, previousSuspenseListRow);
+  else {
+    revealOrder = task.blockedSegment;
+    resumeSlots = revealOrder.children.length;
+    n = revealOrder.chunks.length;
+    for (i = totalChildren - 1; 0 <= i; i--) {
+      node = rows[i];
+      task.row = previousSuspenseListRow = createSuspenseListRow(
+        previousSuspenseListRow
+      );
+      task.treeContext = pushTreeContext(prevTreeContext, totalChildren, i);
+      resumeSegmentID = createPendingSegment(
+        request,
+        n,
+        null,
+        task.formatContext,
+        0 === i ? revealOrder.lastPushedText : !0,
+        !0
+      );
+      revealOrder.children.splice(resumeSlots, 0, resumeSegmentID);
+      task.blockedSegment = resumeSegmentID;
+      try {
+        renderNode(request, task, node, i),
+          resumeSegmentID.lastPushedText &&
+            resumeSegmentID.textEmbedded &&
+            resumeSegmentID.chunks.push(textSeparator),
+          (resumeSegmentID.status = 1),
+          finishedSegment(request, task.blockedBoundary, resumeSegmentID),
+          0 === --previousSuspenseListRow.pendingTasks &&
+            finishSuspenseListRow(request, previousSuspenseListRow);
+      } catch (thrownValue) {
+        throw (
+          ((resumeSegmentID.status = 12 === request.status ? 3 : 4),
+          thrownValue)
+        );
+      }
+    }
+    task.blockedSegment = revealOrder;
+    revealOrder.lastPushedText = !1;
+  }
+  null !== prevRow &&
+    null !== previousSuspenseListRow &&
+    0 < previousSuspenseListRow.pendingTasks &&
+    (prevRow.pendingTasks++, (previousSuspenseListRow.next = prevRow));
+  task.treeContext = prevTreeContext;
+  task.row = prevRow;
+  task.keyPath = keyPath;
+}
 function renderWithHooks(request, task, keyPath, Component, props, secondArg) {
   var prevThenableState = task.thenableState;
   task.thenableState = null;
@@ -4433,9 +4580,9 @@ function renderElement(request, task, keyPath, type, props, ref) {
       var defaultProps = type.defaultProps;
       if (defaultProps) {
         newProps === props && (newProps = assign({}, newProps, props));
-        for (var propName$34 in defaultProps)
-          void 0 === newProps[propName$34] &&
-            (newProps[propName$34] = defaultProps[propName$34]);
+        for (var propName$42 in defaultProps)
+          void 0 === newProps[propName$42] &&
+            (newProps[propName$42] = defaultProps[propName$42]);
       }
       props = newProps;
       newProps = emptyContextObject;
@@ -4495,16 +4642,16 @@ function renderElement(request, task, keyPath, type, props, ref) {
             defaultProps = ref ? type[0] : newProps.state;
             initialState = !0;
             for (ref = ref ? 1 : 0; ref < type.length; ref++)
-              (propName$34 = type[ref]),
-                (propName$34 =
-                  "function" === typeof propName$34
-                    ? propName$34.call(newProps, defaultProps, props, void 0)
-                    : propName$34),
-                null != propName$34 &&
+              (propName$42 = type[ref]),
+                (propName$42 =
+                  "function" === typeof propName$42
+                    ? propName$42.call(newProps, defaultProps, props, void 0)
+                    : propName$42),
+                null != propName$42 &&
                   (initialState
                     ? ((initialState = !1),
-                      (defaultProps = assign({}, defaultProps, propName$34)))
-                    : assign(defaultProps, propName$34));
+                      (defaultProps = assign({}, defaultProps, propName$42)))
+                    : assign(defaultProps, propName$42));
             newProps.state = defaultProps;
           }
         else defaultProps.queue = null;
@@ -4579,6 +4726,7 @@ function renderElement(request, task, keyPath, type, props, ref) {
             task.formatContext,
             task.context,
             task.treeContext,
+            task.row,
             task.componentStack
           )),
           pushComponentStack(keyPath),
@@ -4658,10 +4806,30 @@ function renderElement(request, task, keyPath, type, props, ref) {
             (type.lastPushedText = !1));
         return;
       case REACT_SUSPENSE_LIST_TYPE:
-        type = task.keyPath;
-        task.keyPath = keyPath;
-        renderNodeDestructive(request, task, props.children, -1);
-        task.keyPath = type;
+        a: {
+          type = props.children;
+          props = props.revealOrder;
+          if ("forwards" === props || "backwards" === props) {
+            if (isArrayImpl(type)) {
+              renderSuspenseListRows(request, task, keyPath, type, props);
+              break a;
+            }
+            if ((newProps = getIteratorFn(type)))
+              if ((newProps = newProps.call(type))) {
+                defaultProps = newProps.next();
+                if (!defaultProps.done) {
+                  do defaultProps = newProps.next();
+                  while (!defaultProps.done);
+                  renderSuspenseListRows(request, task, keyPath, type, props);
+                }
+                break a;
+              }
+          }
+          props = task.keyPath;
+          task.keyPath = keyPath;
+          renderNodeDestructive(request, task, type, -1);
+          task.keyPath = props;
+        }
         return;
       case REACT_VIEW_TRANSITION_TYPE:
       case REACT_SCOPE_TYPE:
@@ -4670,21 +4838,26 @@ function renderElement(request, task, keyPath, type, props, ref) {
         a: if (null !== task.replay) {
           type = task.keyPath;
           newProps = task.formatContext;
+          defaultProps = task.row;
           task.keyPath = keyPath;
           task.formatContext = getSuspenseContentFormatContext(
             request.resumableState,
             newProps
           );
+          task.row = null;
           keyPath = props.children;
           try {
             renderNode(request, task, keyPath, -1);
           } finally {
-            (task.keyPath = type), (task.formatContext = newProps);
+            (task.keyPath = type),
+              (task.formatContext = newProps),
+              (task.row = defaultProps);
           }
         } else {
           type = task.keyPath;
           ref = task.formatContext;
-          propName$34 = task.blockedBoundary;
+          var prevRow = task.row;
+          propName$42 = task.blockedBoundary;
           propName = task.blockedPreamble;
           var parentHoistableState = task.hoistableState,
             parentSegment = task.blockedSegment,
@@ -4695,11 +4868,18 @@ function renderElement(request, task, keyPath, type, props, ref) {
             2 > task.formatContext.insertionMode
               ? createSuspenseBoundary(
                   request,
+                  task.row,
                   fallbackAbortSet,
                   createPreambleState(),
                   createPreambleState()
                 )
-              : createSuspenseBoundary(request, fallbackAbortSet, null, null);
+              : createSuspenseBoundary(
+                  request,
+                  task.row,
+                  fallbackAbortSet,
+                  null,
+                  null
+                );
           null !== request.trackedPostpones &&
             (newBoundary.trackedContentKeyPath = keyPath);
           var boundarySegment = createPendingSegment(
@@ -4740,7 +4920,7 @@ function renderElement(request, task, keyPath, type, props, ref) {
                   boundarySegment.textEmbedded &&
                   boundarySegment.chunks.push(textSeparator),
                 (boundarySegment.status = 1),
-                finishedSegment(request, propName$34, boundarySegment);
+                finishedSegment(request, propName$42, boundarySegment);
             } catch (thrownValue) {
               throw (
                 ((boundarySegment.status = 12 === request.status ? 3 : 4),
@@ -4769,6 +4949,7 @@ function renderElement(request, task, keyPath, type, props, ref) {
               ),
               task.context,
               task.treeContext,
+              null,
               task.componentStack
             );
             pushComponentStack(task);
@@ -4783,6 +4964,7 @@ function renderElement(request, task, keyPath, type, props, ref) {
               request.resumableState,
               ref
             );
+            task.row = null;
             contentRootSegment.status = 6;
             try {
               if (
@@ -4797,18 +4979,21 @@ function renderElement(request, task, keyPath, type, props, ref) {
                   0 === newBoundary.status &&
                   ((newBoundary.status = 1), !(500 < newBoundary.byteSize)))
               ) {
+                null !== prevRow &&
+                  0 === --prevRow.pendingTasks &&
+                  finishSuspenseListRow(request, prevRow);
                 0 === request.pendingRootTasks &&
                   task.blockedPreamble &&
                   preparePreamble(request);
                 break a;
               }
-            } catch (thrownValue$29) {
+            } catch (thrownValue$30) {
               (newBoundary.status = 4),
                 12 === request.status
                   ? ((contentRootSegment.status = 3),
                     (newProps = request.fatalError))
                   : ((contentRootSegment.status = 4),
-                    (newProps = thrownValue$29)),
+                    (newProps = thrownValue$30)),
                 (defaultProps = getThrownInfo(task.componentStack)),
                 (initialState = logRecoverableError(
                   request,
@@ -4818,19 +5003,20 @@ function renderElement(request, task, keyPath, type, props, ref) {
                 (newBoundary.errorDigest = initialState),
                 untrackBoundary(request, newBoundary);
             } finally {
-              (task.blockedBoundary = propName$34),
+              (task.blockedBoundary = propName$42),
                 (task.blockedPreamble = propName),
                 (task.hoistableState = parentHoistableState),
                 (task.blockedSegment = parentSegment),
                 (task.keyPath = type),
-                (task.formatContext = ref);
+                (task.formatContext = ref),
+                (task.row = prevRow);
             }
             task = createRenderTask(
               request,
               null,
               fallback,
               -1,
-              propName$34,
+              propName$42,
               boundarySegment,
               newBoundary.fallbackPreamble,
               newBoundary.fallbackState,
@@ -4842,6 +5028,7 @@ function renderElement(request, task, keyPath, type, props, ref) {
               ),
               task.context,
               task.treeContext,
+              task.row,
               task.componentStack
             );
             pushComponentStack(task);
@@ -5061,6 +5248,7 @@ function retryNode(request, task) {
                         null === node$jscomp$0[4] ? null : node$jscomp$0[4][3];
                       var prevKeyPath = task.keyPath,
                         prevContext = task.formatContext,
+                        prevRow = task.row,
                         previousReplaySet = task.replay,
                         parentBoundary = task.blockedBoundary,
                         parentHoistableState = task.hoistableState,
@@ -5071,12 +5259,14 @@ function retryNode(request, task) {
                         2 > task.formatContext.insertionMode
                           ? createSuspenseBoundary(
                               request,
+                              task.row,
                               fallbackAbortSet,
                               createPreambleState(),
                               createPreambleState()
                             )
                           : createSuspenseBoundary(
                               request,
+                              task.row,
                               fallbackAbortSet,
                               null,
                               null
@@ -5090,6 +5280,7 @@ function retryNode(request, task) {
                         request.resumableState,
                         prevContext
                       );
+                      task.row = null;
                       task.replay = {
                         nodes: ref,
                         slots: name,
@@ -5126,9 +5317,10 @@ function retryNode(request, task) {
                           (task.hoistableState = parentHoistableState),
                           (task.replay = previousReplaySet),
                           (task.keyPath = prevKeyPath),
-                          (task.formatContext = prevContext);
+                          (task.formatContext = prevContext),
+                          (task.row = prevRow);
                       }
-                      task = createReplayTask(
+                      childNodes = createReplayTask(
                         request,
                         null,
                         {
@@ -5148,10 +5340,11 @@ function retryNode(request, task) {
                         ),
                         task.context,
                         task.treeContext,
+                        task.row,
                         task.componentStack
                       );
-                      pushComponentStack(task);
-                      request.pingedTasks.push(task);
+                      pushComponentStack(childNodes);
+                      request.pingedTasks.push(childNodes);
                     }
                   }
                   childIndex.splice(node, 1);
@@ -5176,22 +5369,17 @@ function retryNode(request, task) {
         renderChildrenArray(request, task, node, childIndex);
         return;
       }
-      null === node || "object" !== typeof node
-        ? (childNodes = null)
-        : ((childNodes =
-            (MAYBE_ITERATOR_SYMBOL && node[MAYBE_ITERATOR_SYMBOL]) ||
-            node["@@iterator"]),
-          (childNodes = "function" === typeof childNodes ? childNodes : null));
-      if (childNodes && (childNodes = childNodes.call(node))) {
-        node = childNodes.next();
-        if (!node.done) {
-          props = [];
-          do props.push(node.value), (node = childNodes.next());
-          while (!node.done);
-          renderChildrenArray(request, task, props, childIndex);
+      if ((childNodes = getIteratorFn(node)))
+        if ((childNodes = childNodes.call(node))) {
+          node = childNodes.next();
+          if (!node.done) {
+            props = [];
+            do props.push(node.value), (node = childNodes.next());
+            while (!node.done);
+            renderChildrenArray(request, task, props, childIndex);
+          }
+          return;
         }
-        return;
-      }
       if ("function" === typeof node.then)
         return (
           (task.thenableState = null),
@@ -5334,6 +5522,7 @@ function spawnNewSuspendedReplayTask(request, task, thenableState) {
     task.formatContext,
     task.context,
     task.treeContext,
+    task.row,
     task.componentStack
   );
 }
@@ -5363,6 +5552,7 @@ function spawnNewSuspendedRenderTask(request, task, thenableState) {
     task.formatContext,
     task.context,
     task.treeContext,
+    task.row,
     task.componentStack
   );
 }
@@ -5416,15 +5606,15 @@ function renderNode(request, task, node, childIndex) {
       chunkLength = segment.chunks.length;
     try {
       return renderNodeDestructive(request, task, node, childIndex);
-    } catch (thrownValue$51) {
+    } catch (thrownValue$58) {
       if (
         (resetHooksState(),
         (segment.children.length = childrenLength),
         (segment.chunks.length = chunkLength),
         (node =
-          thrownValue$51 === SuspenseException
+          thrownValue$58 === SuspenseException
             ? getSuspendedThenable()
-            : thrownValue$51),
+            : thrownValue$58),
         "object" === typeof node && null !== node)
       ) {
         if ("function" === typeof node.then) {
@@ -5462,9 +5652,10 @@ function renderNode(request, task, node, childIndex) {
   throw node;
 }
 function abortTaskSoft(task) {
-  var boundary = task.blockedBoundary;
-  task = task.blockedSegment;
-  null !== task && ((task.status = 3), finishedTask(this, boundary, task));
+  var boundary = task.blockedBoundary,
+    segment = task.blockedSegment;
+  null !== segment &&
+    ((segment.status = 3), finishedTask(this, boundary, task.row, segment));
 }
 function abortRemainingReplayNodes(
   request$jscomp$0,
@@ -5491,6 +5682,7 @@ function abortRemainingReplayNodes(
         errorDigest = errorDigest$jscomp$0,
         resumedBoundary = createSuspenseBoundary(
           request,
+          null,
           new Set(),
           null,
           null
@@ -5524,6 +5716,10 @@ function abortTask(task, request, error) {
     if (6 === segment.status) return;
     segment.status = 3;
   }
+  segment = task.row;
+  null !== segment &&
+    0 === --segment.pendingTasks &&
+    finishSuspenseListRow(request, segment);
   segment = getThrownInfo(task.componentStack);
   if (null === boundary) {
     if (13 !== request.status && 14 !== request.status) {
@@ -5668,7 +5864,10 @@ function finishedSegment(request, boundary, segment) {
       : (boundary.byteSize += segmentByteSize);
   }
 }
-function finishedTask(request, boundary, segment) {
+function finishedTask(request, boundary, row, segment) {
+  null !== row &&
+    0 === --row.pendingTasks &&
+    finishSuspenseListRow(request, row);
   request.allPendingTasks--;
   if (null === boundary) {
     if (null !== segment && segment.parentFlushed) {
@@ -5697,7 +5896,11 @@ function finishedTask(request, boundary, segment) {
                   abortTaskSoft,
                   request
                 ),
-                boundary.fallbackAbortableTasks.clear()),
+                boundary.fallbackAbortableTasks.clear(),
+                (row = boundary.row),
+                null !== row &&
+                  0 === --row.pendingTasks &&
+                  finishSuspenseListRow(request, row)),
               0 === request.pendingRootTasks &&
                 null === request.trackedPostpones &&
                 null !== boundary.contentPreamble &&
@@ -5752,7 +5955,12 @@ function performWork(request$jscomp$2) {
                 );
               task.replay.pendingTasks--;
               task.abortSet.delete(task);
-              finishedTask(request$jscomp$0, task.blockedBoundary, null);
+              finishedTask(
+                request$jscomp$0,
+                task.blockedBoundary,
+                task.row,
+                null
+              );
             } catch (thrownValue) {
               resetHooksState();
               var x =
@@ -5820,7 +6028,12 @@ function performWork(request$jscomp$2) {
               task.abortSet.delete(task),
               (request$jscomp$1.status = 1),
               finishedSegment(request, task.blockedBoundary, request$jscomp$1),
-              finishedTask(request, task.blockedBoundary, request$jscomp$1);
+              finishedTask(
+                request,
+                task.blockedBoundary,
+                task.row,
+                request$jscomp$1
+              );
           } catch (thrownValue) {
             resetHooksState();
             request$jscomp$1.children.length = childrenLength;
@@ -5844,7 +6057,12 @@ function performWork(request$jscomp$2) {
               var errorInfo$jscomp$0 = getThrownInfo(task.componentStack);
               task.abortSet.delete(task);
               request$jscomp$1.status = 4;
-              var boundary$jscomp$0 = task.blockedBoundary;
+              var boundary$jscomp$0 = task.blockedBoundary,
+                row = task.row;
+              null !== row &&
+                0 === --row.pendingTasks &&
+                finishSuspenseListRow(request, row);
+              request.allPendingTasks--;
               request$jscomp$0 = logRecoverableError(
                 request,
                 x$jscomp$0,
@@ -5863,7 +6081,6 @@ function performWork(request$jscomp$2) {
                       null === request.trackedPostpones &&
                       null !== boundary$jscomp$0.contentPreamble &&
                       preparePreamble(request)));
-              request.allPendingTasks--;
               0 === request.allPendingTasks && completeAll(request);
             }
           } finally {
@@ -6009,20 +6226,24 @@ function flushSegment(request, destination, segment, hoistableState) {
   if (null === boundary)
     return flushSubtree(request, destination, segment, hoistableState);
   boundary.parentFlushed = !0;
-  if (4 === boundary.status)
-    (boundary = boundary.errorDigest),
-      writeChunkAndReturn(destination, startClientRenderedSuspenseBoundary),
-      writeChunk(destination, clientRenderedSuspenseBoundaryError1),
-      boundary &&
-        (writeChunk(destination, clientRenderedSuspenseBoundaryError1A),
-        writeChunk(destination, stringToChunk(escapeTextForBrowser(boundary))),
-        writeChunk(
-          destination,
-          clientRenderedSuspenseBoundaryErrorAttrInterstitial
-        )),
-      writeChunkAndReturn(destination, clientRenderedSuspenseBoundaryError2),
-      flushSubtree(request, destination, segment, hoistableState);
-  else if (1 !== boundary.status)
+  if (4 === boundary.status) {
+    var row = boundary.row;
+    null !== row &&
+      0 === --row.pendingTasks &&
+      finishSuspenseListRow(request, row);
+    boundary = boundary.errorDigest;
+    writeChunkAndReturn(destination, startClientRenderedSuspenseBoundary);
+    writeChunk(destination, clientRenderedSuspenseBoundaryError1);
+    boundary &&
+      (writeChunk(destination, clientRenderedSuspenseBoundaryError1A),
+      writeChunk(destination, stringToChunk(escapeTextForBrowser(boundary))),
+      writeChunk(
+        destination,
+        clientRenderedSuspenseBoundaryErrorAttrInterstitial
+      ));
+    writeChunkAndReturn(destination, clientRenderedSuspenseBoundaryError2);
+    flushSubtree(request, destination, segment, hoistableState);
+  } else if (1 !== boundary.status)
     0 === boundary.status && (boundary.rootSegmentID = request.nextSegmentId++),
       0 < boundary.completedSegments.length &&
         request.partialBoundaries.push(boundary),
@@ -6057,6 +6278,11 @@ function flushSegment(request, destination, segment, hoistableState) {
       ((segment = boundary.contentState),
       segment.styles.forEach(hoistStyleQueueDependency, hoistableState),
       segment.stylesheets.forEach(hoistStylesheetDependency, hoistableState));
+    segment = boundary.row;
+    null !== segment &&
+      500 < boundary.byteSize &&
+      0 === --segment.pendingTasks &&
+      finishSuspenseListRow(request, segment);
     writeChunkAndReturn(destination, startCompletedSuspenseBoundary);
     segment = boundary.completedSegments;
     if (1 !== segment.length)
@@ -6091,6 +6317,11 @@ function flushCompletedBoundary(request, destination, boundary) {
       completedSegments[i]
     );
   completedSegments.length = 0;
+  completedSegments = boundary.row;
+  null !== completedSegments &&
+    500 < boundary.byteSize &&
+    0 === --completedSegments.pendingTasks &&
+    finishSuspenseListRow(request, completedSegments);
   writeHoistablesForBoundary(
     destination,
     boundary.contentState,
@@ -6368,12 +6599,12 @@ function flushCompletedQueues(request, destination) {
       writtenBytes = 0;
       var partialBoundaries = request.partialBoundaries;
       for (i = 0; i < partialBoundaries.length; i++) {
-        var boundary$54 = partialBoundaries[i];
+        var boundary$62 = partialBoundaries[i];
         a: {
           clientRenderedBoundaries = request;
           boundary = destination;
-          flushedByteSize = boundary$54.byteSize;
-          var completedSegments = boundary$54.completedSegments;
+          flushedByteSize = boundary$62.byteSize;
+          var completedSegments = boundary$62.completedSegments;
           for (
             JSCompiler_inline_result = 0;
             JSCompiler_inline_result < completedSegments.length;
@@ -6383,7 +6614,7 @@ function flushCompletedQueues(request, destination) {
               !flushPartiallyCompletedSegment(
                 clientRenderedBoundaries,
                 boundary,
-                boundary$54,
+                boundary$62,
                 completedSegments[JSCompiler_inline_result]
               )
             ) {
@@ -6395,7 +6626,7 @@ function flushCompletedQueues(request, destination) {
           completedSegments.splice(0, JSCompiler_inline_result);
           JSCompiler_inline_result$jscomp$0 = writeHoistablesForBoundary(
             boundary,
-            boundary$54.contentState,
+            boundary$62.contentState,
             clientRenderedBoundaries.renderState
           );
         }
@@ -6501,17 +6732,17 @@ function abort(request, reason) {
     }
     null !== request.destination &&
       flushCompletedQueues(request, request.destination);
-  } catch (error$56) {
-    logRecoverableError(request, error$56, {}), fatalError(request, error$56);
+  } catch (error$64) {
+    logRecoverableError(request, error$64, {}), fatalError(request, error$64);
   }
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.2.0-canary-462d08f9-20250517" !== isomorphicReactPackageVersion)
+  if ("19.2.0-canary-c4676e72-20250520" !== isomorphicReactPackageVersion)
     throw Error(
       'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
         (isomorphicReactPackageVersion +
-          "\n  - react-dom:  19.2.0-canary-462d08f9-20250517\nLearn more: https://react.dev/warnings/version-mismatch")
+          "\n  - react-dom:  19.2.0-canary-c4676e72-20250520\nLearn more: https://react.dev/warnings/version-mismatch")
     );
 }
 ensureCorrectIsomorphicReactVersion();
@@ -6657,4 +6888,4 @@ exports.renderToReadableStream = function (children, options) {
     startWork(request);
   });
 };
-exports.version = "19.2.0-canary-462d08f9-20250517";
+exports.version = "19.2.0-canary-c4676e72-20250520";
