@@ -1,5 +1,4 @@
 import * as React from 'react'
-import { useOnClickOutside } from '../../hooks/use-on-click-outside'
 
 export type DialogProps = {
   children?: React.ReactNode
@@ -9,14 +8,6 @@ export type DialogProps = {
   onClose?: () => void
   dialogResizerRef?: React.RefObject<HTMLDivElement | null>
 } & React.HTMLAttributes<HTMLDivElement>
-
-const CSS_SELECTORS_TO_EXCLUDE_ON_CLICK_OUTSIDE = [
-  '[data-next-mark]',
-  '[data-issues-open]',
-  '#nextjs-dev-tools-menu',
-  '[data-nextjs-error-overlay-nav]',
-  '[data-info-popover]',
-]
 
 const Dialog: React.FC<DialogProps> = function Dialog({
   children,
@@ -32,15 +23,6 @@ const Dialog: React.FC<DialogProps> = function Dialog({
     typeof document !== 'undefined' && document.hasFocus()
       ? 'dialog'
       : undefined
-  )
-
-  useOnClickOutside(
-    dialogRef.current,
-    CSS_SELECTORS_TO_EXCLUDE_ON_CLICK_OUTSIDE,
-    (e) => {
-      e.preventDefault()
-      return onClose?.()
-    }
   )
 
   React.useEffect(() => {

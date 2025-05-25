@@ -97,7 +97,7 @@ function DevToolsPopover({
   isBuildError,
   hide,
   setIsErrorOverlayOpen,
-  scale,
+  scale = 1,
   setScale,
 }: {
   routerType: 'pages' | 'app'
@@ -254,6 +254,7 @@ function DevToolsPopover({
 
   const [vertical, horizontal] = position.split('-', 2)
   const popover = { [vertical]: 'calc(100% + 8px)', [horizontal]: 0 }
+  const size = 36 / scale
 
   return (
     <Toast
@@ -271,12 +272,14 @@ function DevToolsPopover({
     >
       <Draggable
         padding={INDICATOR_PADDING}
+        size={size}
         onDragStart={() => setOpen(null)}
         position={position}
         setPosition={(p) => {
           localStorage.setItem(STORAGE_KEY_POSITION, p)
           setPosition(p)
         }}
+        hideDevTools={handleHideDevtools}
       >
         {/* Trigger */}
         <NextLogo
@@ -293,7 +296,7 @@ function DevToolsPopover({
           isDevBuilding={useIsDevBuilding()}
           isDevRendering={useIsDevRendering()}
           isBuildError={isBuildError}
-          scale={scale}
+          size={size}
         />
       </Draggable>
 
@@ -651,5 +654,60 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
     > * {
       pointer-events: none;
     }
+  }
+
+  .dev-tools-indicator-hide-region {
+    -webkit-font-smoothing: antialiased;
+    position: fixed;
+    transform: translateX(-50%);
+    left: 50%;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    bottom: 32px;
+    pointer-events: none;
+  }
+
+  .dev-tools-indicator-hide-region-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #323232;
+    border-radius: 128px;
+    font-size: 14px;
+    color: #FFF;
+    font-weight: 500;
+    position: absolute;
+    bottom: 0;
+    opacity: 0;
+    filter: blur(2px);
+    transition: width 200ms var(--timing-swift), opacity 150ms ease, filter 150ms ease;
+    box-shadow: 0 0 0 1px #171717,
+      inset 0 0 0 1px hsla(0, 0%, 100%, 0.14),
+      0px 16px 32px -8px rgba(0, 0, 0, 0.24);
+
+    &[data-show="true"] {
+      opacity: 1;
+      filter: blur(0px);
+
+      ~ .dev-tools-indicator-hide-region-backdrop {
+        opacity: 0.8;
+      }
+    }
+
+    svg {
+      transform: translateZ(0);
+    }
+  }
+
+  .dev-tools-indicator-hide-region-backdrop {
+    width: 100%;
+    height: 200px;
+    opacity: 0;
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    mask-image: linear-gradient(to top, #000 25%, transparent);
+    transition: opacity 200ms ease;
+    inset: 0;
   }
 `

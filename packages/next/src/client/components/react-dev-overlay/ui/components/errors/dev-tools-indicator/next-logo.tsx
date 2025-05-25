@@ -11,7 +11,7 @@ interface Props extends React.ComponentProps<'button'> {
   isBuildError: boolean
   onTriggerClick: () => void
   toggleErrorOverlay: () => void
-  scale: DevToolsScale
+  size?: number
 }
 
 const SHORT_DURATION_MS = 150
@@ -25,13 +25,11 @@ export const NextLogo = forwardRef(function NextLogo(
     isBuildError,
     onTriggerClick,
     toggleErrorOverlay,
-    scale = 1,
+    size,
     ...props
   }: Props,
   propRef: React.Ref<HTMLButtonElement>
 ) {
-  const SIZE = 36 / scale
-
   const hasError = issueCount > 0
   const [isErrorExpanded, setIsErrorExpanded] = useState(hasError)
   const [dismissed, setDismissed] = useState(false)
@@ -56,7 +54,7 @@ export const NextLogo = forwardRef(function NextLogo(
       data-next-badge-root
       style={
         {
-          '--size': `${SIZE}px`,
+          '--size': `${size}px`,
           '--duration-short': `${SHORT_DURATION_MS}ms`,
           // if the indicator is disabled, hide the badge
           // also allow the "disabled" state be dismissed, as long as there are no build errors
@@ -99,7 +97,7 @@ export const NextLogo = forwardRef(function NextLogo(
             display: flex;
             align-items: center;
             position: relative;
-            background: rgba(0, 0, 0, 0.8);
+            background: #323232;
             box-shadow:
               0 0 0 1px var(--color-outer-border),
               inset 0 0 0 1px var(--color-inner-border),
