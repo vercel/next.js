@@ -86,7 +86,8 @@ const cwd = process.cwd()
           '--access',
           'public',
           '--ignore-scripts',
-          ['--tag', tag],
+          '--tag',
+          tag,
         ],
         { stdio: 'pipe' }
       )
