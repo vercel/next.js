@@ -981,11 +981,17 @@
     function createPreambleState() {
       return { htmlChunks: null, headChunks: null, bodyChunks: null };
     }
-    function createFormatContext(insertionMode, selectedValue, tagScope) {
+    function createFormatContext(
+      insertionMode,
+      selectedValue,
+      tagScope,
+      viewTransition
+    ) {
       return {
         insertionMode: insertionMode,
         selectedValue: selectedValue,
-        tagScope: tagScope
+        tagScope: tagScope,
+        viewTransition: viewTransition
       };
     }
     function createRootFormatContext(namespaceURI) {
@@ -996,67 +1002,62 @@
             ? MATHML_MODE
             : ROOT_HTML_MODE,
         null,
-        0
+        0,
+        null
       );
     }
     function getChildFormatContext(parentContext, type, props) {
+      var subtreeScope = parentContext.tagScope & -25;
       switch (type) {
         case "noscript":
-          return createFormatContext(
-            HTML_MODE,
-            null,
-            parentContext.tagScope | 1
-          );
+          return createFormatContext(HTML_MODE, null, subtreeScope | 1, null);
         case "select":
           return createFormatContext(
             HTML_MODE,
             null != props.value ? props.value : props.defaultValue,
-            parentContext.tagScope
+            subtreeScope,
+            null
           );
         case "svg":
-          return createFormatContext(SVG_MODE, null, parentContext.tagScope);
+          return createFormatContext(SVG_MODE, null, subtreeScope, null);
         case "picture":
-          return createFormatContext(
-            HTML_MODE,
-            null,
-            parentContext.tagScope | 2
-          );
+          return createFormatContext(HTML_MODE, null, subtreeScope | 2, null);
         case "math":
-          return createFormatContext(MATHML_MODE, null, parentContext.tagScope);
+          return createFormatContext(MATHML_MODE, null, subtreeScope, null);
         case "foreignObject":
-          return createFormatContext(HTML_MODE, null, parentContext.tagScope);
+          return createFormatContext(HTML_MODE, null, subtreeScope, null);
         case "table":
-          return createFormatContext(
-            HTML_TABLE_MODE,
-            null,
-            parentContext.tagScope
-          );
+          return createFormatContext(HTML_TABLE_MODE, null, subtreeScope, null);
         case "thead":
         case "tbody":
         case "tfoot":
           return createFormatContext(
             HTML_TABLE_BODY_MODE,
             null,
-            parentContext.tagScope
+            subtreeScope,
+            null
           );
         case "colgroup":
           return createFormatContext(
             HTML_COLGROUP_MODE,
             null,
-            parentContext.tagScope
+            subtreeScope,
+            null
           );
         case "tr":
           return createFormatContext(
             HTML_TABLE_ROW_MODE,
             null,
-            parentContext.tagScope
+            subtreeScope,
+            null
           );
         case "head":
           if (parentContext.insertionMode < HTML_MODE)
             return createFormatContext(
               HTML_HEAD_MODE,
               null,
-              parentContext.tagScope
+              subtreeScope,
+              null
             );
           break;
         case "html":
@@ -1064,13 +1065,50 @@
             return createFormatContext(
               HTML_HTML_MODE,
               null,
-              parentContext.tagScope
+              subtreeScope,
+              null
             );
       }
       return parentContext.insertionMode >= HTML_TABLE_MODE ||
         parentContext.insertionMode < HTML_MODE
-        ? createFormatContext(HTML_MODE, null, parentContext.tagScope)
-        : parentContext;
+        ? createFormatContext(HTML_MODE, null, subtreeScope, null)
+        : parentContext.tagScope !== subtreeScope
+          ? createFormatContext(
+              parentContext.insertionMode,
+              parentContext.selectedValue,
+              subtreeScope,
+              null
+            )
+          : parentContext;
+    }
+    function getSuspenseViewTransition(parentViewTransition) {
+      return null === parentViewTransition
+        ? null
+        : {
+            update: parentViewTransition.update,
+            enter: null,
+            exit: null,
+            share: parentViewTransition.update,
+            name: parentViewTransition.autoName,
+            autoName: parentViewTransition.autoName,
+            nameIdx: 0
+          };
+    }
+    function getSuspenseFallbackFormatContext(parentContext) {
+      return createFormatContext(
+        parentContext.insertionMode,
+        parentContext.selectedValue,
+        parentContext.tagScope | 12,
+        getSuspenseViewTransition(parentContext.viewTransition)
+      );
+    }
+    function getSuspenseContentFormatContext(parentContext) {
+      return createFormatContext(
+        parentContext.insertionMode,
+        parentContext.selectedValue,
+        parentContext.tagScope | 16,
+        getSuspenseViewTransition(parentContext.viewTransition)
+      );
     }
     function pushTextInstance(target, text, renderState, textEmbedded) {
       if ("" === text) return textEmbedded;
@@ -1785,8 +1823,7 @@
       preambleState,
       hoistableState,
       formatContext,
-      textEmbedded,
-      isFallback
+      textEmbedded
     ) {
       validateProperties$2(type, props);
       ("input" !== type && "textarea" !== type && "select" !== type) ||
@@ -2407,8 +2444,8 @@
           } else JSCompiler_inline_result$jscomp$3 = children$jscomp$5;
           return JSCompiler_inline_result$jscomp$3;
         case "title":
-          var insertionMode = formatContext.insertionMode,
-            noscriptTagInScope = !!(formatContext.tagScope & 1);
+          var noscriptTagInScope = formatContext.tagScope & 1,
+            isFallback = formatContext.tagScope & 4;
           if (hasOwnProperty.call(props, "children")) {
             var children$jscomp$6 = props.children,
               child = Array.isArray(children$jscomp$6)
@@ -2437,7 +2474,7 @@
                       ));
           }
           if (
-            insertionMode === SVG_MODE ||
+            formatContext.insertionMode === SVG_MODE ||
             noscriptTagInScope ||
             null != props.itemProp
           )
@@ -2452,12 +2489,14 @@
                 (JSCompiler_inline_result$jscomp$4 = void 0));
           return JSCompiler_inline_result$jscomp$4;
         case "link":
-          var rel = props.rel,
+          var noscriptTagInScope$jscomp$0 = formatContext.tagScope & 1,
+            isFallback$jscomp$0 = formatContext.tagScope & 4,
+            rel = props.rel,
             href = props.href,
             precedence = props.precedence;
           if (
             formatContext.insertionMode === SVG_MODE ||
-            formatContext.tagScope & 1 ||
+            noscriptTagInScope$jscomp$0 ||
             null != props.itemProp ||
             "string" !== typeof rel ||
             "string" !== typeof href ||
@@ -2558,12 +2597,13 @@
                   props
                 ))
               : (textEmbedded && target$jscomp$0.push(textSeparator),
-                (JSCompiler_inline_result$jscomp$5 = isFallback
+                (JSCompiler_inline_result$jscomp$5 = isFallback$jscomp$0
                   ? null
                   : pushLinkImpl(renderState.hoistableChunks, props)));
           return JSCompiler_inline_result$jscomp$5;
         case "script":
-          var asyncProp = props.async;
+          var noscriptTagInScope$jscomp$1 = formatContext.tagScope & 1,
+            asyncProp = props.async;
           if (
             "string" !== typeof props.src ||
             !props.src ||
@@ -2573,7 +2613,7 @@
             props.onLoad ||
             props.onError ||
             formatContext.insertionMode === SVG_MODE ||
-            formatContext.tagScope & 1 ||
+            noscriptTagInScope$jscomp$1 ||
             null != props.itemProp
           )
             var JSCompiler_inline_result$jscomp$6 = pushScriptImpl(
@@ -2611,8 +2651,7 @@
           }
           return JSCompiler_inline_result$jscomp$6;
         case "style":
-          var insertionMode$jscomp$0 = formatContext.insertionMode,
-            noscriptTagInScope$jscomp$0 = !!(formatContext.tagScope & 1);
+          var noscriptTagInScope$jscomp$2 = formatContext.tagScope & 1;
           if (hasOwnProperty.call(props, "children")) {
             var children$jscomp$7 = props.children,
               child$jscomp$0 = Array.isArray(children$jscomp$7)
@@ -2635,8 +2674,8 @@
           var precedence$jscomp$0 = props.precedence,
             href$jscomp$0 = props.href;
           if (
-            insertionMode$jscomp$0 === SVG_MODE ||
-            noscriptTagInScope$jscomp$0 ||
+            formatContext.insertionMode === SVG_MODE ||
+            noscriptTagInScope$jscomp$2 ||
             null != props.itemProp ||
             "string" !== typeof precedence$jscomp$0 ||
             "string" !== typeof href$jscomp$0 ||
@@ -2752,9 +2791,11 @@
           }
           return JSCompiler_inline_result$jscomp$7;
         case "meta":
+          var noscriptTagInScope$jscomp$3 = formatContext.tagScope & 1,
+            isFallback$jscomp$1 = formatContext.tagScope & 4;
           if (
             formatContext.insertionMode === SVG_MODE ||
-            formatContext.tagScope & 1 ||
+            noscriptTagInScope$jscomp$3 ||
             null != props.itemProp
           )
             var JSCompiler_inline_result$jscomp$8 = pushSelfClosing(
@@ -2764,7 +2805,7 @@
             );
           else
             textEmbedded && target$jscomp$0.push(textSeparator),
-              (JSCompiler_inline_result$jscomp$8 = isFallback
+              (JSCompiler_inline_result$jscomp$8 = isFallback$jscomp$1
                 ? null
                 : "string" === typeof props.charSet
                   ? pushSelfClosing(renderState.charsetChunks, props, "meta")
@@ -2827,17 +2868,18 @@
             target$jscomp$0.push(leadingNewline);
           return children$jscomp$10;
         case "img":
-          var src = props.src,
+          var pictureOrNoScriptTagInScope = formatContext.tagScope & 3,
+            src = props.src,
             srcSet = props.srcSet;
           if (
             !(
               "lazy" === props.loading ||
               (!src && !srcSet) ||
               ("string" !== typeof src && null != src) ||
-              ("string" !== typeof srcSet && null != srcSet)
+              ("string" !== typeof srcSet && null != srcSet) ||
+              "low" === props.fetchPriority ||
+              pictureOrNoScriptTagInScope
             ) &&
-            "low" !== props.fetchPriority &&
-            !1 === !!(formatContext.tagScope & 3) &&
             ("string" !== typeof src ||
               ":" !== src[4] ||
               ("d" !== src[0] && "D" !== src[0]) ||
@@ -4448,7 +4490,6 @@
         null,
         emptyTreeContext,
         null,
-        !1,
         emptyContextObject,
         null
       );
@@ -4548,7 +4589,6 @@
       context,
       treeContext,
       componentStack,
-      isFallback,
       legacyContext,
       debugTask
     ) {
@@ -4573,8 +4613,7 @@
         context: context,
         treeContext: treeContext,
         componentStack: componentStack,
-        thenableState: thenableState,
-        isFallback: isFallback
+        thenableState: thenableState
       };
       task.debugTask = debugTask;
       abortSet.add(task);
@@ -4594,7 +4633,6 @@
       context,
       treeContext,
       componentStack,
-      isFallback,
       legacyContext,
       debugTask
     ) {
@@ -4620,8 +4658,7 @@
         context: context,
         treeContext: treeContext,
         componentStack: componentStack,
-        thenableState: thenableState,
-        isFallback: isFallback
+        thenableState: thenableState
       };
       task.debugTask = debugTask;
       abortSet.add(task);
@@ -5342,16 +5379,15 @@
             task.blockedPreamble,
             task.hoistableState,
             task.formatContext,
-            segment.lastPushedText,
-            task.isFallback
+            segment.lastPushedText
           );
           segment.lastPushedText = !1;
-          var _prevContext = task.formatContext,
+          var _prevContext2 = task.formatContext,
             _prevKeyPath2 = task.keyPath;
           task.keyPath = keyPath;
           if (
             (task.formatContext = getChildFormatContext(
-              _prevContext,
+              _prevContext2,
               type,
               props
             )).insertionMode === HTML_HEAD_MODE
@@ -5380,14 +5416,13 @@
               task.context,
               task.treeContext,
               task.componentStack,
-              task.isFallback,
               emptyContextObject,
               task.debugTask
             );
             pushComponentStack(preambleTask);
             request.pingedTasks.push(preambleTask);
           } else renderNode(request, task, _children, -1);
-          task.formatContext = _prevContext;
+          task.formatContext = _prevContext2;
           task.keyPath = _prevKeyPath2;
           a: {
             var target = segment.chunks,
@@ -5413,19 +5448,19 @@
               case "wbr":
                 break a;
               case "body":
-                if (_prevContext.insertionMode <= HTML_HTML_MODE) {
+                if (_prevContext2.insertionMode <= HTML_HTML_MODE) {
                   resumableState.hasBody = !0;
                   break a;
                 }
                 break;
               case "html":
-                if (_prevContext.insertionMode === ROOT_HTML_MODE) {
+                if (_prevContext2.insertionMode === ROOT_HTML_MODE) {
                   resumableState.hasHtml = !0;
                   break a;
                 }
                 break;
               case "head":
-                if (_prevContext.insertionMode <= HTML_HTML_MODE) break a;
+                if (_prevContext2.insertionMode <= HTML_HTML_MODE) break a;
             }
             target.push(endChunkForTag(type));
           }
@@ -5475,16 +5510,21 @@
             );
           case REACT_SUSPENSE_TYPE:
             a: if (null !== task.replay) {
-              var _prevKeyPath = task.keyPath;
+              var _prevKeyPath = task.keyPath,
+                _prevContext = task.formatContext;
               task.keyPath = keyPath;
+              task.formatContext =
+                getSuspenseContentFormatContext(_prevContext);
               var _content = props.children;
               try {
                 renderNode(request, task, _content, -1);
               } finally {
-                task.keyPath = _prevKeyPath;
+                (task.keyPath = _prevKeyPath),
+                  (task.formatContext = _prevContext);
               }
             } else {
               var prevKeyPath$jscomp$3 = task.keyPath,
+                prevContext$jscomp$0 = task.formatContext,
                 parentBoundary = task.blockedBoundary,
                 parentPreamble = task.blockedPreamble,
                 parentHoistableState = task.hoistableState,
@@ -5547,6 +5587,8 @@
                 task.blockedSegment = boundarySegment;
                 task.blockedPreamble = newBoundary.fallbackPreamble;
                 task.keyPath = fallbackKeyPath;
+                task.formatContext =
+                  getSuspenseFallbackFormatContext(prevContext$jscomp$0);
                 boundarySegment.status = 6;
                 try {
                   renderNode(request, task, fallback, -1),
@@ -5563,7 +5605,8 @@
                 } finally {
                   (task.blockedSegment = parentSegment),
                     (task.blockedPreamble = parentPreamble),
-                    (task.keyPath = prevKeyPath$jscomp$3);
+                    (task.keyPath = prevKeyPath$jscomp$3),
+                    (task.formatContext = prevContext$jscomp$0);
                 }
                 var suspendedPrimaryTask = createRenderTask(
                   request,
@@ -5576,11 +5619,10 @@
                   newBoundary.contentState,
                   task.abortSet,
                   keyPath,
-                  task.formatContext,
+                  getSuspenseContentFormatContext(task.formatContext),
                   task.context,
                   task.treeContext,
                   task.componentStack,
-                  task.isFallback,
                   emptyContextObject,
                   task.debugTask
                 );
@@ -5592,6 +5634,8 @@
                 task.hoistableState = newBoundary.contentState;
                 task.blockedSegment = contentRootSegment;
                 task.keyPath = keyPath;
+                task.formatContext =
+                  getSuspenseContentFormatContext(prevContext$jscomp$0);
                 contentRootSegment.status = 6;
                 try {
                   if (
@@ -5639,7 +5683,8 @@
                     (task.blockedPreamble = parentPreamble),
                     (task.hoistableState = parentHoistableState),
                     (task.blockedSegment = parentSegment),
-                    (task.keyPath = prevKeyPath$jscomp$3);
+                    (task.keyPath = prevKeyPath$jscomp$3),
+                    (task.formatContext = prevContext$jscomp$0);
                 }
                 var suspendedFallbackTask = createRenderTask(
                   request,
@@ -5652,11 +5697,10 @@
                   newBoundary.fallbackState,
                   fallbackAbortSet,
                   [keyPath[0], "Suspense Fallback", keyPath[2]],
-                  task.formatContext,
+                  getSuspenseFallbackFormatContext(task.formatContext),
                   task.context,
                   task.treeContext,
                   task.componentStack,
-                  !0,
                   emptyContextObject,
                   task.debugTask
                 );
@@ -5837,9 +5881,9 @@
                   ">. The tree doesn't match so React will fallback to client rendering."
               );
             var childNodes = node[2];
-            node = node[3];
-            name = task.node;
-            task.replay = { nodes: childNodes, slots: node, pendingTasks: 1 };
+            name = node[3];
+            keyOrIndex = task.node;
+            task.replay = { nodes: childNodes, slots: name, pendingTasks: 1 };
             try {
               renderElement(request, task, keyPath, type, props, ref);
               if (
@@ -5856,21 +5900,21 @@
                 null !== x &&
                 (x === SuspenseException || "function" === typeof x.then)
               )
-                throw (task.node === name && (task.replay = replay), x);
+                throw (task.node === keyOrIndex && (task.replay = replay), x);
               task.replay.pendingTasks--;
               type = getThrownInfo(task.componentStack);
               props = request;
               request = task.blockedBoundary;
               keyPath = x;
-              ref = node;
-              node = logRecoverableError(props, keyPath, type, task.debugTask);
+              ref = name;
+              name = logRecoverableError(props, keyPath, type, task.debugTask);
               abortRemainingReplayNodes(
                 props,
                 request,
                 childNodes,
                 ref,
                 keyPath,
-                node,
+                name,
                 type,
                 !1
               );
@@ -5885,12 +5929,13 @@
               );
             a: {
               replay = void 0;
-              type = node[5];
-              ref = node[2];
-              name = node[3];
+              name = node[5];
+              type = node[2];
+              ref = node[3];
               keyOrIndex = null === node[4] ? [] : node[4][2];
               node = null === node[4] ? null : node[4][3];
               var prevKeyPath = task.keyPath,
+                prevContext = task.formatContext,
                 previousReplaySet = task.replay,
                 parentBoundary = task.blockedBoundary,
                 parentHoistableState = task.hoistableState,
@@ -5912,11 +5957,12 @@
                       null
                     );
               props.parentFlushed = !0;
-              props.rootSegmentID = type;
+              props.rootSegmentID = name;
               task.blockedBoundary = props;
               task.hoistableState = props.contentState;
               task.keyPath = keyPath;
-              task.replay = { nodes: ref, slots: name, pendingTasks: 1 };
+              task.formatContext = getSuspenseContentFormatContext(prevContext);
+              task.replay = { nodes: type, slots: ref, pendingTasks: 1 };
               try {
                 renderNode(request, task, content, -1);
                 if (
@@ -5948,7 +5994,8 @@
                 (task.blockedBoundary = parentBoundary),
                   (task.hoistableState = parentHoistableState),
                   (task.replay = previousReplaySet),
-                  (task.keyPath = prevKeyPath);
+                  (task.keyPath = prevKeyPath),
+                  (task.formatContext = prevContext);
               }
               props = createReplayTask(
                 request,
@@ -5960,11 +6007,10 @@
                 props.fallbackState,
                 fallbackAbortSet,
                 [keyPath[0], "Suspense Fallback", keyPath[2]],
-                task.formatContext,
+                getSuspenseFallbackFormatContext(task.formatContext),
                 task.context,
                 task.treeContext,
                 task.componentStack,
-                !0,
                 emptyContextObject,
                 task.debugTask
               );
@@ -6349,7 +6395,6 @@
         task.context,
         task.treeContext,
         task.componentStack,
-        task.isFallback,
         emptyContextObject,
         task.debugTask
       );
@@ -6381,7 +6426,6 @@
         task.context,
         task.treeContext,
         task.componentStack,
-        task.isFallback,
         emptyContextObject,
         task.debugTask
       );
@@ -7743,11 +7787,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.2.0-canary-d85f86cf-20250514" !== isomorphicReactPackageVersion)
+      if ("19.2.0-canary-4a45ba92-20250515" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.2.0-canary-d85f86cf-20250514\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.2.0-canary-4a45ba92-20250515\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     function createDrainHandler(destination, request) {
@@ -9428,5 +9472,5 @@
         }
       };
     };
-    exports.version = "19.2.0-canary-d85f86cf-20250514";
+    exports.version = "19.2.0-canary-4a45ba92-20250515";
   })();
