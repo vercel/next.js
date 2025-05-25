@@ -591,6 +591,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "packages/next/src/client/components/react-dev-overlay/utils/launch-editor.test.ts": {
+    "passed": ["applescript string escaping should escape strings correctly"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "packages/next/src/client/components/react-dev-overlay/utils/webpack-module-path.test.ts": {
     "passed": [
       "webpack-module-path formatFrameSourceFile should return the original file path",
@@ -5195,6 +5202,8 @@
       "app dir - basic should not share edge workers",
       "app dir - basic should pass props from getServerSideProps in root layout",
       "app dir - basic should return normalized dynamic route params for catch-all edge page",
+      "app dir - basic should return the `vary` header from edge runtime",
+      "app dir - basic should return the `vary` header from pages for flight requests",
       "app dir - basic should serve /index as separate page",
       "app dir - basic should serve dynamic parameter",
       "app dir - basic should serve dynamic route from pages",
@@ -12267,9 +12276,9 @@
   },
   "test/e2e/vary-header/test/index.test.ts": {
     "passed": [
-      "Vary Header Tests should preserve custom vary header",
+      "Vary Header Tests should preserve custom vary header and append RSC headers in app route handlers",
       "Vary Header Tests should preserve custom vary header in API routes",
-      "Vary Header Tests should preserve middleware vary header"
+      "Vary Header Tests should preserve middleware vary header in combination with route handlers"
     ],
     "failed": [],
     "pending": [],
