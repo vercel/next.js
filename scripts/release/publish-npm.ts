@@ -48,7 +48,8 @@ async function publishNpm() {
     throw new Error('NPM_TOKEN is not set')
   }
 
-  const packageDirs = await readdir(join(process.cwd(), 'packages'), {
+  const packagesDir = join(process.cwd(), 'packages')
+  const packageDirs = await readdir(packagesDir, {
     withFileTypes: true,
   })
 
@@ -83,9 +84,13 @@ async function publishNpm() {
       version: pkgJson.version,
     })
 
-    await execa('pnpm', ['publish', '--tag', tag], {
-      stdio: 'inherit',
-    })
+    const packagePath = join(packagesDir, packageDir.name)
+    const args = ['publish', packagePath, '--tag', tag]
+
+    console.log(
+      `Running command: "pnpm ${args.join(' ')}" for ${pkgJson.name}@${pkgJson.version}`
+    )
+    await execa('pnpm', args, { stdio: 'inherit' })
   }
 }
 
