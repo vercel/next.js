@@ -612,13 +612,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
 
-      # Add label to verify the PR is created from this workflow.
-      - name: Add label to PR
-        if: steps.changesets.outputs.pullRequestNumber
-        run: 'gh pr edit ${{ steps.changesets.outputs.pullRequestNumber }} --add-label "created-by: CI"'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Send a Slack notification of the publish status
         run: pnpm tsx scripts/release/slack.ts
         env:
