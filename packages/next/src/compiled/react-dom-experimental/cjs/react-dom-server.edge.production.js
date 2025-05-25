@@ -737,8 +737,8 @@ function getSuspenseViewTransition(parentViewTransition) {
     ? null
     : {
         update: parentViewTransition.update,
-        enter: null,
-        exit: null,
+        enter: "none",
+        exit: "none",
         share: parentViewTransition.update,
         name: parentViewTransition.autoName,
         autoName: parentViewTransition.autoName,
@@ -787,11 +787,11 @@ function pushViewTransitionAttributes(target, formatContext) {
       ),
       formatContext.nameIdx++),
     pushStringAttribute(target, "vt-update", formatContext.update),
-    null !== formatContext.enter &&
+    "none" !== formatContext.enter &&
       pushStringAttribute(target, "vt-enter", formatContext.enter),
-    null !== formatContext.exit &&
+    "none" !== formatContext.exit &&
       pushStringAttribute(target, "vt-exit", formatContext.exit),
-    null !== formatContext.share &&
+    "none" !== formatContext.share &&
       pushStringAttribute(target, "vt-share", formatContext.share));
 }
 var styleNameCache = new Map(),
@@ -2693,11 +2693,11 @@ var completeSegmentScript1Full = stringToPrecomputedChunk(
   ),
   completeSegmentData2 = stringToPrecomputedChunk('" data-pid="'),
   completeBoundaryScriptFunctionOnly = stringToPrecomputedChunk(
-    '$RB=[];$RV=function(){$RT=performance.now();var d=$RB;$RB=[];for(var a=0;a<d.length;a+=2){var b=d[a],h=d[a+1],e=b.parentNode;if(e){var f=b.previousSibling,g=0;do{if(b&&8===b.nodeType){var c=b.data;if("/$"===c||"/&"===c)if(0===g)break;else g--;else"$"!==c&&"$?"!==c&&"$~"!==c&&"$!"!==c&&"&"!==c||g++}c=b.nextSibling;e.removeChild(b);b=c}while(b);for(;h.firstChild;)e.insertBefore(h.firstChild,b);f.data="$";f._reactRetry&&f._reactRetry()}}};$RC=function(d,a){if(a=document.getElementById(a))if(a.parentNode.removeChild(a),d=document.getElementById(d))d.previousSibling.data="$~",$RB.push(d,a),2===$RB.length&&setTimeout($RV,("number"!==typeof $RT?0:$RT)+300-performance.now())};'
+    '$RB=[];$RV=function(c){$RT=performance.now();for(var a=0;a<c.length;a+=2){var b=c[a],h=c[a+1],e=b.parentNode;if(e){var f=b.previousSibling,g=0;do{if(b&&8===b.nodeType){var d=b.data;if("/$"===d||"/&"===d)if(0===g)break;else g--;else"$"!==d&&"$?"!==d&&"$~"!==d&&"$!"!==d&&"&"!==d||g++}d=b.nextSibling;e.removeChild(b);b=d}while(b);for(;h.firstChild;)e.insertBefore(h.firstChild,b);f.data="$";f._reactRetry&&f._reactRetry()}}c.length=0};$RC=function(c,a){if(a=document.getElementById(a))if(a.parentNode.removeChild(a),c=document.getElementById(c))c.previousSibling.data="$~",$RB.push(c,a),2===$RB.length&&setTimeout($RV.bind(null,$RB),("number"!==typeof $RT?0:$RT)+300-performance.now())};'
   ),
   completeBoundaryUpgradeToViewTransitionsInstruction =
     stringToPrecomputedChunk(
-      "$RV=function(a){try{var b=document.__reactViewTransition;if(b){b.finished.then($RV,$RV);return}if(window._useVT){var c=document.__reactViewTransition=document.startViewTransition({update:a,types:[]});c.finished.finally(function(){document.__reactViewTransition===c&&(document.__reactViewTransition=null)});return}}catch(d){}a()}.bind(null,$RV);"
+      '$RV=function(w,f){function h(b,d){var k=b.getAttribute(d);k&&(d=b.style,l.push(b,d.viewTransitionName,d.viewTransitionClass),"auto"!==k&&(d.viewTransitionClass=k),(b=b.getAttribute("vt-name"))||(b="\\u00abT"+F++ +"\\u00bb"),d.viewTransitionName=b,x=!0)}var x=!1,F=0,l=[];try{var e=document.__reactViewTransition;if(e){e.finished.finally($RV.bind(null,f));return}var m=new Map;for(e=1;e<f.length;e+=2)for(var g=f[e].querySelectorAll("[vt-share]"),c=0;c<g.length;c++){var a=g[c];m.set(a.getAttribute("vt-name"),a)}for(g=0;g<f.length;g+=2){var y=f[g],t=y.parentNode;if(t){var r=t.getBoundingClientRect();if(r.left||r.top||r.width||r.height){a=y;for(e=0;a;){if(8===a.nodeType){var p=a.data;if("/$"===p)if(0===e)break;else e--;else"$"!==p&&"$?"!==p&&"$~"!==p&&"$!"!==p||e++}else if(1===a.nodeType){c=a;var z=c.getAttribute("vt-name"),u=m.get(z);h(c,u?"vt-share":"vt-exit");u&&(h(u,"vt-share"),m.set(z,null));var A=c.querySelectorAll("[vt-share]");for(c=0;c<A.length;c++){var B=A[c],C=B.getAttribute("vt-name"),D=m.get(C);\nD&&(h(B,"vt-share"),h(D,"vt-share"),m.set(C,null))}}a=a.nextSibling}for(var q=f[g+1].firstElementChild;q;)null!==m.get(q.getAttribute("vt-name"))&&h(q,"vt-enter"),q=q.nextElementSibling;a=t;do for(var n=a.firstElementChild;n;){var E=n.getAttribute("vt-update");E&&"none"!==E&&!l.includes(n)&&h(n,"vt-update");n=n.nextElementSibling}while((a=a.parentNode)&&1===a.nodeType&&"none"!==a.getAttribute("vt-update"))}}}if(x){var v=document.__reactViewTransition=document.startViewTransition({update:w.bind(null,\nf),types:[]});v.ready.finally(function(){for(var b=l.length-3;0<=b;b-=3){var d=l[b],k=d.style;k.viewTransitionName=l[b+1];k.viewTransitionClass=l[b+1];""===d.getAttribute("style")&&d.removeAttribute("style")}});v.finished.finally(function(){document.__reactViewTransition===v&&(document.__reactViewTransition=null)});$RB=[];return}}catch(b){}w(f)}.bind(null,$RV);'
     ),
   completeBoundaryScript1Partial = stringToPrecomputedChunk('$RC("'),
   completeBoundaryWithStylesScript1FullPartial = stringToPrecomputedChunk(
@@ -5435,19 +5435,17 @@ function renderElement(request, task, keyPath, type, props, ref) {
           null !== parentViewTransition
             ? ((name = parentViewTransition.name),
               (share = parentViewTransition.share))
-            : ((name = "auto"), (share = null));
+            : ((name = "auto"), (share = "none"));
         } else
-          "none" === share
-            ? (share = null)
-            : (null == share && (share = "auto"),
-              prevContext$jscomp$0.tagScope & 4 &&
-                (resumableState$jscomp$1.instructions |= 128));
+          null == share && (share = "auto"),
+            prevContext$jscomp$0.tagScope & 4 &&
+              (resumableState$jscomp$1.instructions |= 128);
         prevContext$jscomp$0.tagScope & 8
           ? (resumableState$jscomp$1.instructions |= 128)
-          : (exit = null);
+          : (exit = "none");
         prevContext$jscomp$0.tagScope & 16
           ? (resumableState$jscomp$1.instructions |= 128)
-          : (enter = null);
+          : (enter = "none");
         var viewTransition = {
             update: update,
             enter: enter,
@@ -6186,6 +6184,35 @@ function renderChildrenArray(request, task, children, childIndex) {
   task.treeContext = replay;
   task.keyPath = prevKeyPath;
 }
+function trackPostponedBoundary(request, trackedPostpones, boundary) {
+  boundary.status = 5;
+  boundary.rootSegmentID = request.nextSegmentId++;
+  request = boundary.trackedContentKeyPath;
+  if (null === request)
+    throw Error(
+      "It should not be possible to postpone at the root. This is a bug in React."
+    );
+  var fallbackReplayNode = boundary.trackedFallbackNode,
+    children = [],
+    boundaryNode = trackedPostpones.workingMap.get(request);
+  if (void 0 === boundaryNode)
+    return (
+      (boundary = [
+        request[1],
+        request[2],
+        children,
+        null,
+        fallbackReplayNode,
+        boundary.rootSegmentID
+      ]),
+      trackedPostpones.workingMap.set(request, boundary),
+      addToReplayParent(boundary, request[0], trackedPostpones),
+      boundary
+    );
+  boundaryNode[4] = fallbackReplayNode;
+  boundaryNode[5] = boundary.rootSegmentID;
+  return boundaryNode;
+}
 function trackPostpone(request, trackedPostpones, task, segment) {
   segment.status = 5;
   var keyPath = task.keyPath,
@@ -6197,51 +6224,22 @@ function trackPostpone(request, trackedPostpones, task, segment) {
         (request.completedRootSegment.status = 5);
   else {
     if (null !== boundary && 0 === boundary.status) {
-      boundary.status = 5;
-      boundary.rootSegmentID = request.nextSegmentId++;
-      var boundaryKeyPath = boundary.trackedContentKeyPath;
-      if (null === boundaryKeyPath)
-        throw Error(
-          "It should not be possible to postpone at the root. This is a bug in React."
-        );
-      var fallbackReplayNode = boundary.trackedFallbackNode,
-        children = [];
-      if (boundaryKeyPath === keyPath && -1 === task.childIndex) {
+      var boundaryNode = trackPostponedBoundary(
+        request,
+        trackedPostpones,
+        boundary
+      );
+      if (
+        boundary.trackedContentKeyPath === keyPath &&
+        -1 === task.childIndex
+      ) {
         -1 === segment.id &&
           (segment.id = segment.parentFlushed
             ? boundary.rootSegmentID
             : request.nextSegmentId++);
-        segment = [
-          boundaryKeyPath[1],
-          boundaryKeyPath[2],
-          children,
-          segment.id,
-          fallbackReplayNode,
-          boundary.rootSegmentID
-        ];
-        trackedPostpones.workingMap.set(boundaryKeyPath, segment);
-        addToReplayParent(segment, boundaryKeyPath[0], trackedPostpones);
+        boundaryNode[3] = segment.id;
         return;
       }
-      var boundaryNode$58 = trackedPostpones.workingMap.get(boundaryKeyPath);
-      void 0 === boundaryNode$58
-        ? ((boundaryNode$58 = [
-            boundaryKeyPath[1],
-            boundaryKeyPath[2],
-            children,
-            null,
-            fallbackReplayNode,
-            boundary.rootSegmentID
-          ]),
-          trackedPostpones.workingMap.set(boundaryKeyPath, boundaryNode$58),
-          addToReplayParent(
-            boundaryNode$58,
-            boundaryKeyPath[0],
-            trackedPostpones
-          ))
-        : ((boundaryKeyPath = boundaryNode$58),
-          (boundaryKeyPath[4] = fallbackReplayNode),
-          (boundaryKeyPath[5] = boundary.rootSegmentID));
     }
     -1 === segment.id &&
       (segment.id =
@@ -6268,15 +6266,15 @@ function trackPostpone(request, trackedPostpones, task, segment) {
         }
       else if (
         ((boundary = trackedPostpones.workingMap),
-        (boundaryKeyPath = boundary.get(keyPath)),
-        void 0 === boundaryKeyPath)
+        (boundaryNode = boundary.get(keyPath)),
+        void 0 === boundaryNode)
       )
         (request = {}),
-          (boundaryKeyPath = [keyPath[1], keyPath[2], [], request]),
-          boundary.set(keyPath, boundaryKeyPath),
-          addToReplayParent(boundaryKeyPath, keyPath[0], trackedPostpones);
-      else if (((request = boundaryKeyPath[3]), null === request))
-        request = boundaryKeyPath[3] = {};
+          (boundaryNode = [keyPath[1], keyPath[2], [], request]),
+          boundary.set(keyPath, boundaryNode),
+          addToReplayParent(boundaryNode, keyPath[0], trackedPostpones);
+      else if (((request = boundaryNode[3]), null === request))
+        request = boundaryNode[3] = {};
       else if ("number" === typeof request)
         throw Error(
           "It should not be possible to postpone both at the root of an element as well as a slot below. This is a bug in React."
@@ -6778,45 +6776,68 @@ function finishedTask(request, boundary, row, segment) {
     }
     request.pendingRootTasks--;
     0 === request.pendingRootTasks && completeShell(request);
-  } else
-    boundary.pendingTasks--,
-      4 !== boundary.status &&
-        (0 === boundary.pendingTasks
-          ? (0 === boundary.status && (boundary.status = 1),
-            null !== segment &&
-              segment.parentFlushed &&
-              1 === segment.status &&
-              queueCompletedSegment(boundary, segment),
-            boundary.parentFlushed &&
-              request.completedBoundaries.push(boundary),
-            1 === boundary.status &&
-              ((row = boundary.row),
-              null !== row &&
-                hoistHoistables(row.hoistables, boundary.contentState),
-              500 < boundary.byteSize ||
-                (boundary.fallbackAbortableTasks.forEach(
-                  abortTaskSoft,
-                  request
-                ),
-                boundary.fallbackAbortableTasks.clear(),
-                null !== row &&
-                  0 === --row.pendingTasks &&
-                  finishSuspenseListRow(request, row)),
-              0 === request.pendingRootTasks &&
-                null === request.trackedPostpones &&
-                null !== boundary.contentPreamble &&
-                preparePreamble(request)))
-          : (null !== segment &&
-              segment.parentFlushed &&
-              1 === segment.status &&
-              (queueCompletedSegment(boundary, segment),
-              1 === boundary.completedSegments.length &&
-                boundary.parentFlushed &&
-                request.partialBoundaries.push(boundary)),
-            (boundary = boundary.row),
-            null !== boundary &&
-              boundary.together &&
-              tryToResolveTogetherRow(request, boundary)));
+  } else if ((boundary.pendingTasks--, 4 !== boundary.status))
+    if (0 === boundary.pendingTasks)
+      if (
+        (0 === boundary.status && (boundary.status = 1),
+        null !== segment &&
+          segment.parentFlushed &&
+          1 === segment.status &&
+          queueCompletedSegment(boundary, segment),
+        boundary.parentFlushed && request.completedBoundaries.push(boundary),
+        1 === boundary.status)
+      )
+        (row = boundary.row),
+          null !== row &&
+            hoistHoistables(row.hoistables, boundary.contentState),
+          500 < boundary.byteSize ||
+            (boundary.fallbackAbortableTasks.forEach(abortTaskSoft, request),
+            boundary.fallbackAbortableTasks.clear(),
+            null !== row &&
+              0 === --row.pendingTasks &&
+              finishSuspenseListRow(request, row)),
+          0 === request.pendingRootTasks &&
+            null === request.trackedPostpones &&
+            null !== boundary.contentPreamble &&
+            preparePreamble(request);
+      else {
+        if (
+          5 === boundary.status &&
+          ((boundary = boundary.row), null !== boundary)
+        ) {
+          if (null !== request.trackedPostpones) {
+            row = request.trackedPostpones;
+            var postponedRow = boundary.next;
+            if (
+              null !== postponedRow &&
+              ((segment = postponedRow.boundaries), null !== segment)
+            )
+              for (
+                postponedRow.boundaries = null, postponedRow = 0;
+                postponedRow < segment.length;
+                postponedRow++
+              ) {
+                var postponedBoundary = segment[postponedRow];
+                trackPostponedBoundary(request, row, postponedBoundary);
+                finishedTask(request, postponedBoundary, null, null);
+              }
+          }
+          0 === --boundary.pendingTasks &&
+            finishSuspenseListRow(request, boundary);
+        }
+      }
+    else
+      null !== segment &&
+        segment.parentFlushed &&
+        1 === segment.status &&
+        (queueCompletedSegment(boundary, segment),
+        1 === boundary.completedSegments.length &&
+          boundary.parentFlushed &&
+          request.partialBoundaries.push(boundary)),
+        (boundary = boundary.row),
+        null !== boundary &&
+          boundary.together &&
+          tryToResolveTogetherRow(request, boundary);
   0 === request.allPendingTasks && completeAll(request);
 }
 function performWork(request$jscomp$1) {
@@ -6978,13 +6999,13 @@ function performWork(request$jscomp$1) {
                       null !== request.trackedPostpones &&
                       x$jscomp$0.$$typeof === REACT_POSTPONE_TYPE
                     ) {
-                      var trackedPostpones$78 = request.trackedPostpones;
+                      var trackedPostpones$79 = request.trackedPostpones;
                       task.abortSet.delete(task);
                       var postponeInfo = getThrownInfo(task.componentStack);
                       logPostpone(request, x$jscomp$0.message, postponeInfo);
                       trackPostpone(
                         request,
-                        trackedPostpones$78,
+                        trackedPostpones$79,
                         task,
                         segment$jscomp$0
                       );
@@ -7600,12 +7621,12 @@ function flushCompletedQueues(request, destination) {
       writtenBytes = 0;
       var partialBoundaries = request.partialBoundaries;
       for (i = 0; i < partialBoundaries.length; i++) {
-        var boundary$82 = partialBoundaries[i];
+        var boundary$83 = partialBoundaries[i];
         a: {
           clientRenderedBoundaries = request;
           boundary = destination;
-          flushedByteSize = boundary$82.byteSize;
-          var completedSegments = boundary$82.completedSegments;
+          flushedByteSize = boundary$83.byteSize;
+          var completedSegments = boundary$83.completedSegments;
           for (
             JSCompiler_inline_result = 0;
             JSCompiler_inline_result < completedSegments.length;
@@ -7615,7 +7636,7 @@ function flushCompletedQueues(request, destination) {
               !flushPartiallyCompletedSegment(
                 clientRenderedBoundaries,
                 boundary,
-                boundary$82,
+                boundary$83,
                 completedSegments[JSCompiler_inline_result]
               )
             ) {
@@ -7625,10 +7646,10 @@ function flushCompletedQueues(request, destination) {
               break a;
             }
           completedSegments.splice(0, JSCompiler_inline_result);
-          var row = boundary$82.row;
+          var row = boundary$83.row;
           null !== row &&
             row.together &&
-            1 === boundary$82.pendingTasks &&
+            1 === boundary$83.pendingTasks &&
             (1 === row.pendingTasks
               ? unblockSuspenseListRow(
                   clientRenderedBoundaries,
@@ -7638,7 +7659,7 @@ function flushCompletedQueues(request, destination) {
               : row.pendingTasks--);
           JSCompiler_inline_result$jscomp$0 = writeHoistablesForBoundary(
             boundary,
-            boundary$82.contentState,
+            boundary$83.contentState,
             clientRenderedBoundaries.renderState
           );
         }
@@ -7745,8 +7766,8 @@ function abort(request, reason) {
     }
     null !== request.destination &&
       flushCompletedQueues(request, request.destination);
-  } catch (error$84) {
-    logRecoverableError(request, error$84, {}), fatalError(request, error$84);
+  } catch (error$85) {
+    logRecoverableError(request, error$85, {}), fatalError(request, error$85);
   }
 }
 function addToReplayParent(node, parentKeyPath, trackedPostpones) {
@@ -7807,11 +7828,11 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.2.0-experimental-23884812-20250520" !== isomorphicReactPackageVersion)
+  if ("19.2.0-experimental-8ce15b0f-20250522" !== isomorphicReactPackageVersion)
     throw Error(
       'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
         (isomorphicReactPackageVersion +
-          "\n  - react-dom:  19.2.0-experimental-23884812-20250520\nLearn more: https://react.dev/warnings/version-mismatch")
+          "\n  - react-dom:  19.2.0-experimental-8ce15b0f-20250522\nLearn more: https://react.dev/warnings/version-mismatch")
     );
 }
 ensureCorrectIsomorphicReactVersion();
@@ -8065,4 +8086,4 @@ exports.resumeAndPrerender = function (children, postponedState, options) {
     startWork(request);
   });
 };
-exports.version = "19.2.0-experimental-23884812-20250520";
+exports.version = "19.2.0-experimental-8ce15b0f-20250522";
