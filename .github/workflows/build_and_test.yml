@@ -40,7 +40,7 @@ jobs:
         id: is-release
         run: |
           RELEASE_CHECK=$(node ./scripts/check-is-release.js 2> /dev/null || :)
-          if [[ $RELEASE_CHECK = "new-release" || $RELEASE_CHECK = "legacy-release" ]];
+          if [[ $RELEASE_CHECK = "new-release" || $RELEASE_CHECK = v* ]];
             then
               echo "IS_RELEASE=true" >> $GITHUB_OUTPUT
             else

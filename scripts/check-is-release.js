@@ -16,7 +16,7 @@ const checkIsRelease = async () => {
   const newPublishMsgRegex = /^Version Packages( \((canary|rc)\))?( \(#\d+\))?$/
 
   if (publishMsgRegex.test(versionString)) {
-    console.log('legacy-release')
+    console.log(versionString)
     process.exit(0)
   } else if (newPublishMsgRegex.test(commitMsg)) {
     console.log('new-release')

@@ -55,7 +55,7 @@ jobs:
           then
             echo "__NEW_RELEASE=true" >> $GITHUB_ENV
             echo "value=production" >> $GITHUB_OUTPUT
-          elif [[ $RELEASE_CHECK = "legacy-release" ]];
+          elif [[ $RELEASE_CHECK = v* ]];
           then
             echo "value=production" >> $GITHUB_OUTPUT
           elif [ '${{ github.ref }}' == 'refs/heads/canary' ]
