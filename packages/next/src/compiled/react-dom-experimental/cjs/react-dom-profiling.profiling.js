@@ -7898,35 +7898,36 @@ function updateSuspenseListComponent(current, workInProgress, renderLanes) {
   var nextProps = workInProgress.pendingProps,
     revealOrder = nextProps.revealOrder,
     tailMode = nextProps.tail;
-  reconcileChildren(current, workInProgress, nextProps.children, renderLanes);
-  nextProps = suspenseStackCursor.current;
-  if (0 !== (nextProps & 2))
-    (nextProps = (nextProps & 1) | 2), (workInProgress.flags |= 128);
-  else {
-    if (null !== current && 0 !== (current.flags & 128))
-      a: for (current = workInProgress.child; null !== current; ) {
-        if (13 === current.tag)
-          null !== current.memoizedState &&
-            scheduleSuspenseWorkOnFiber(current, renderLanes, workInProgress);
-        else if (19 === current.tag)
+  nextProps = nextProps.children;
+  var suspenseContext = suspenseStackCursor.current,
+    shouldForceFallback = 0 !== (suspenseContext & 2);
+  shouldForceFallback
+    ? ((suspenseContext = (suspenseContext & 1) | 2),
+      (workInProgress.flags |= 128))
+    : (suspenseContext &= 1);
+  push(suspenseStackCursor, suspenseContext);
+  reconcileChildren(current, workInProgress, nextProps, renderLanes);
+  if (!shouldForceFallback && null !== current && 0 !== (current.flags & 128))
+    a: for (current = workInProgress.child; null !== current; ) {
+      if (13 === current.tag)
+        null !== current.memoizedState &&
           scheduleSuspenseWorkOnFiber(current, renderLanes, workInProgress);
-        else if (null !== current.child) {
-          current.child.return = current;
-          current = current.child;
-          continue;
-        }
-        if (current === workInProgress) break a;
-        for (; null === current.sibling; ) {
-          if (null === current.return || current.return === workInProgress)
-            break a;
-          current = current.return;
-        }
-        current.sibling.return = current.return;
-        current = current.sibling;
+      else if (19 === current.tag)
+        scheduleSuspenseWorkOnFiber(current, renderLanes, workInProgress);
+      else if (null !== current.child) {
+        current.child.return = current;
+        current = current.child;
+        continue;
       }
-    nextProps &= 1;
-  }
-  push(suspenseStackCursor, nextProps);
+      if (current === workInProgress) break a;
+      for (; null === current.sibling; ) {
+        if (null === current.return || current.return === workInProgress)
+          break a;
+        current = current.return;
+      }
+      current.sibling.return = current.return;
+      current = current.sibling;
+    }
   switch (revealOrder) {
     case "forwards":
       renderLanes = workInProgress.child;
@@ -20802,14 +20803,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_2400 = React.version;
 if (
-  "19.2.0-experimental-462d08f9-20250517" !==
+  "19.2.0-experimental-c4676e72-20250520" !==
   isomorphicReactPackageVersion$jscomp$inline_2400
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_2400,
-      "19.2.0-experimental-462d08f9-20250517"
+      "19.2.0-experimental-c4676e72-20250520"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -20831,10 +20832,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 };
 var internals$jscomp$inline_3062 = {
   bundleType: 0,
-  version: "19.2.0-experimental-462d08f9-20250517",
+  version: "19.2.0-experimental-c4676e72-20250520",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.2.0-experimental-462d08f9-20250517"
+  reconcilerVersion: "19.2.0-experimental-c4676e72-20250520"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
   var hook$jscomp$inline_3063 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -21101,7 +21102,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.2.0-experimental-462d08f9-20250517";
+exports.version = "19.2.0-experimental-c4676e72-20250520";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
