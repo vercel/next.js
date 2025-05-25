@@ -27,6 +27,7 @@
     "test/**/*.util.ts",
     "test/e2e/app-dir/use-cache-custom-handler/*.js",
     "test/lib/**/*.ts",
+    "scripts/*.js",
     "turbo/**/*.ts"
   ]
 }
