@@ -29,5 +29,6 @@
     "test/lib/**/*.ts",
     "scripts/*.js",
     "turbo/**/*.ts"
-  ]
+  ],
+  "exclude": ["scripts/minimal-server.js"]
 }
