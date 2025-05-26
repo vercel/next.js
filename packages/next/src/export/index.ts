@@ -624,22 +624,19 @@ async function exportAppImpl(
 
   for (const exportPaths of exportPathsByPage.values()) {
     if (renderOpts.experimental.dynamicIO) {
-      const withFallbackRouteParams: ExportPathEntry[] = []
-      const withoutFallbackRouteParams: ExportPathEntry[] = []
+      const allowEmptyStaticShellExportPaths: ExportPathEntry[] = []
+      const otherExportPaths: ExportPathEntry[] = []
 
       for (const exportPath of exportPaths) {
-        if (
-          exportPath._fallbackRouteParams &&
-          exportPath._fallbackRouteParams.length > 0
-        ) {
-          withFallbackRouteParams.push(exportPath)
+        if (exportPath._allowEmptyStaticShell) {
+          allowEmptyStaticShellExportPaths.push(exportPath)
         } else {
-          withoutFallbackRouteParams.push(exportPath)
+          otherExportPaths.push(exportPath)
         }
       }
 
-      initialPhaseExportPaths.push(...withoutFallbackRouteParams)
-      finalPhaseExportPaths.push(...withFallbackRouteParams)
+      initialPhaseExportPaths.push(...otherExportPaths)
+      finalPhaseExportPaths.push(...allowEmptyStaticShellExportPaths)
     } else {
       initialPhaseExportPaths.push(...exportPaths)
     }
