@@ -692,5 +692,8 @@
   "691": "Accessed fallback \\`params\\` during prerendering.",
   "692": "Expected clientReferenceManifest to be defined.",
   "693": "%s must not be used within a client component. Next.js should be preventing %s from being included in client components statically, but did not in this case.",
-  "694": "createPrerenderPathname was called inside a client component scope."
+  "694": "createPrerenderPathname was called inside a client component scope.",
+  "695": "expected a result to be returned",
+  "696": "expected a page to be returned for a dynamic RSC request, got %snull",
+  "697": "expected a page response, got %s"
 }

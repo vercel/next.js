@@ -3636,12 +3636,12 @@ export default abstract class Server<
       })
         .then(async (result) => {
           if (!result) {
-            throw new Error('Invariant: expected a result to be returned')
+            throw new InvariantError('expected a result to be returned')
           }
 
           if (result.value?.kind !== CachedRouteKind.APP_PAGE) {
-            throw new Error(
-              `Invariant: expected a page response, got ${result.value?.kind}`
+            throw new InvariantError(
+              `expected a page response, got ${result.value?.kind}`
             )
           }
 
