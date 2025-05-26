@@ -107,10 +107,10 @@ impl<T: KeyValueDatabase> KeyValueDatabaseBackingStorage<T> {
 
 fn get_infra_u32(database: &impl KeyValueDatabase, key: u32) -> Result<Option<u32>> {
     let tx = database.begin_read_transaction()?;
-    Ok(database
+    database
         .get(&tx, KeySpace::Infra, IntKey::new(key).as_ref())?
         .map(as_u32)
-        .transpose()?)
+        .transpose()
 }
 
 impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
