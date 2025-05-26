@@ -767,6 +767,7 @@ fn directory_tree_to_entrypoints(
 #[turbo_tasks::value]
 struct DuplicateParallelRouteIssue {
     app_dir: ResolvedVc<FileSystemPath>,
+    previously_inserted_page: AppPage,
     page: AppPage,
 }
 
@@ -783,11 +784,18 @@ impl Issue for DuplicateParallelRouteIssue {
     }
 
     #[turbo_tasks::function]
-    fn title(self: Vc<Self>) -> Vc<StyledString> {
-        StyledString::Text(
-            "You cannot have two parallel pages that resolve to the same path.".into(),
+    async fn title(self: Vc<Self>) -> Result<Vc<StyledString>> {
+        let this = self.await?;
+        Ok(StyledString::Text(
+            format!(
+                "You cannot have two parallel pages that resolve to the same path. Please check \
+                 {} and {}.",
+                this.previously_inserted_page.to_string(),
+                this.page.to_string()
+            )
+            .into(),
         )
-        .cell()
+        .cell())
     }
 }
 
@@ -826,6 +834,7 @@ async fn check_duplicate(
             if prev != page_path {
                 DuplicateParallelRouteIssue {
                     app_dir: app_dir.to_resolved().await?,
+                    previously_inserted_page: prev.clone(),
                     page: loader_tree.page.clone(),
                 }
                 .resolved_cell()
