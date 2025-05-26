@@ -611,7 +611,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
-          RELEASE_TYPE: ${{ github.event.inputs.releaseType }}
 
       # Add label to verify the PR is created from this workflow.
       - name: Add label to PR
