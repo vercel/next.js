@@ -15,9 +15,11 @@ async function fetchTagsFromRegistry(packageName: string) {
 async function getTag({
   name,
   version,
+  latest,
 }: {
   name: string
   version: string
+  latest: string
 }): Promise<string> {
   const preConfigPath = join(process.cwd(), '.changeset', 'pre.json')
 
@@ -38,6 +40,17 @@ async function getTag({
     throw new Error(
       `The changeset is not in pre mode, but the version of "${name}@${version}" is prerelease. It is likely a bug from versioning the packages.`
     )
+  }
+
+  // If the current version is less than the latest,
+  // it means this is a backport release. Since NPM
+  // sets the 'latest' tag by default during publishing,
+  // when users install `next@latest`, they might get the
+  // backported version instead of the actual "latest"
+  // version. Hence, we explicitly set the tag as
+  // 'stable' for backports.
+  if (semver.lt(version, latest)) {
+    return 'stable'
   }
 
   return 'latest'
@@ -82,6 +95,7 @@ async function publishNpm() {
     const tag = await getTag({
       name: pkgJson.name,
       version: pkgJson.version,
+      latest: tags.latest,
     })
 
     const packagePath = join(packagesDir, packageDir.name)
