@@ -8,7 +8,7 @@ description: Learn how to add JSON-LD to your Next.js application to describe yo
 
 Our current recommendation for JSON-LD is to render structured data as a `<script>` tag in your `layout.js` or `page.js` components.
 
-Because this snippet uses `dangerouslySetInnerHTML`, and `JSON.stringify`, to scrub `HTML` tags from the `JSON-LD` payload, the character `<`, is replaced with its unicode equivalent, `\u003c`.
+Because this snippet uses `dangerouslySetInnerHTML`, and `JSON.stringify`, to prevent XSS injections, `HTML` tags are scrubbed from the `JSON-LD` payload, by replacing the character `<` with its unicode equivalent, `\u003c`.
 
 Review your organization's recommended approach to sanitize potentially dangerous strings. Alternatively use community maintained alternatives for `JSON.stringify` such as, [serialize-javascript](https://www.npmjs.com/package/serialize-javascript).
 
