@@ -2465,7 +2465,11 @@ export default abstract class Server<
       !opts.supportsDynamicResponse &&
       !isPossibleServerAction &&
       !minimalPostponed &&
-      !isDynamicRSCRequest
+      // If this route is PPR enabled, we want to get the cached response
+      // because we need the postponed state to render the dynamic RSC response.
+      // If this route is not PPR enabled, we can just get the dynamic response
+      // which will happen when the `ssgCacheKey` is not set.
+      (isRoutePPREnabled || !isDynamicRSCRequest)
     ) {
       ssgCacheKey = `${locale ? `/${locale}` : ''}${
         (pathname === '/' || resolvedUrlPathname === '/') && locale
@@ -2525,6 +2529,12 @@ export default abstract class Server<
        * The unknown route params for this render.
        */
       fallbackRouteParams: FallbackRouteParams | null
+
+      /**
+       * Whether this render supports dynamic response. When `undefined` it will
+       * be determined based on the route configuration.
+       */
+      supportsDynamicResponse: true | undefined
     }
     type Renderer = (
       context: RendererContext
@@ -2534,22 +2544,16 @@ export default abstract class Server<
       postponed,
       pagesFallback = false,
       fallbackRouteParams,
-    }) => {
-      // In development, we always want to generate dynamic HTML.
-      let supportsDynamicResponse: boolean =
-        // If we're in development, we always support dynamic HTML, unless it's
-        // a data request, in which case we only produce static HTML.
-        (!isNextDataRequest && opts.dev === true) ||
+      // If we're in development, we always support dynamic HTML, unless it's
+      // a data request, in which case we only produce static HTML.
+      supportsDynamicResponse = (!isNextDataRequest && opts.dev === true) ||
         // If this is not SSG or does not have static paths, then it supports
         // dynamic HTML.
         (!isSSG && !hasGetStaticPaths) ||
-        // If this request has provided postponed data, it supports dynamic
-        // HTML.
-        typeof postponed === 'string' ||
-        // If this is a dynamic RSC request, then this render supports dynamic
-        // HTML (it's dynamic).
-        isDynamicRSCRequest
-
+        // If this request has provided postponed data, it supports a dynamic
+        // response.
+        typeof postponed === 'string',
+    }) => {
       const origQuery = parseUrl(req.url || '', true).query
 
       // clear any dynamic route params so they aren't in
@@ -3055,6 +3059,7 @@ export default abstract class Server<
                 // aren't a app path.
                 pagesFallback: true,
                 fallbackRouteParams: null,
+                supportsDynamicResponse: undefined,
               })
             },
             {
@@ -3090,6 +3095,7 @@ export default abstract class Server<
                   isProduction || isDebugFallbackShell
                     ? getFallbackRouteParams(pathname)
                     : null,
+                supportsDynamicResponse: undefined,
               }),
             {
               routeKind: RouteKind.APP_PAGE,
@@ -3153,6 +3159,7 @@ export default abstract class Server<
         postponed,
         pagesFallback: undefined,
         fallbackRouteParams,
+        supportsDynamicResponse: undefined,
       })
     }
 
@@ -3519,12 +3526,10 @@ export default abstract class Server<
       // generate both HTML and payloads in the same request so continue to just
       // return the generated payload
       if (isRSCRequest && !isPreviewMode) {
-        // If this is a dynamic RSC request, then stream the response.
+        // If this is a dynamic RSC request, then stream the response. This
+        // would only be the case when the `html` actually contains the dynamic
+        // RSC response rather than the actual HTML data.
         if (typeof cachedData.rscData === 'undefined') {
-          if (cachedData.postponed) {
-            throw new Error('Invariant: Expected postponed to be undefined')
-          }
-
           return {
             type: 'rsc',
             body: cachedData.html,
@@ -3533,9 +3538,36 @@ export default abstract class Server<
             // distinguishing between `force-static` and pages that have no
             // postponed state.
             // TODO: distinguish `force-static` from pages with no postponed state (static)
-            cacheControl: isDynamicRSCRequest
-              ? { revalidate: 0, expire: undefined }
-              : cacheEntry.cacheControl,
+            cacheControl: { revalidate: 0, expire: undefined },
+          }
+        }
+        // If the route is PPR enabled and this is a dynamic RSC request, then
+        // we need to run the render again with the provided postponed state
+        // (if any) as it will use that state for it's embedded resume data
+        // cache.
+        else if (isDynamicRSCRequest && isRoutePPREnabled) {
+          const data = await doRender({
+            postponed: cachedData.postponed,
+            pagesFallback: undefined,
+            fallbackRouteParams: null,
+            // We want to stream the dynamic RSC response to the client.
+            supportsDynamicResponse: true,
+          })
+          if (data?.value?.kind !== CachedRouteKind.APP_PAGE) {
+            throw new InvariantError(
+              `expected a page to be returned for a dynamic RSC request, got ${data?.value?.kind ?? 'null'}`
+            )
+          }
+
+          return {
+            type: 'rsc',
+            body: data.value.html,
+            // Dynamic RSC responses cannot be cached, even if they're
+            // configured with `force-static` because we have no way of
+            // distinguishing between `force-static` and pages that have no
+            // postponed state.
+            // TODO: distinguish `force-static` from pages with no postponed state (static)
+            cacheControl: { revalidate: 0, expire: undefined },
           }
         }
 
@@ -3600,6 +3632,7 @@ export default abstract class Server<
         // This is a resume render, not a fallback render, so we don't need to
         // set this.
         fallbackRouteParams: null,
+        supportsDynamicResponse: true,
       })
         .then(async (result) => {
           if (!result) {
