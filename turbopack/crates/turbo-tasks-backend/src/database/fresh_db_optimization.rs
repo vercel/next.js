@@ -1,5 +1,4 @@
 use std::{
-    borrow::Cow,
     fs,
     path::Path,
     sync::atomic::{AtomicBool, Ordering},
@@ -9,7 +8,9 @@ use anyhow::Result;
 
 use crate::database::{
     key_value_database::{KeySpace, KeyValueDatabase},
-    write_batch::{BaseWriteBatch, ConcurrentWriteBatch, SerialWriteBatch, WriteBatch},
+    write_batch::{
+        BaseWriteBatch, ConcurrentWriteBatch, SerialWriteBatch, WriteBatch, WriteBuffer,
+    },
 };
 
 pub fn is_fresh(path: &Path) -> bool {
@@ -124,11 +125,16 @@ impl<'a, B: BaseWriteBatch<'a>> BaseWriteBatch<'a> for FreshDbOptimizationWriteB
 }
 
 impl<'a, B: SerialWriteBatch<'a>> SerialWriteBatch<'a> for FreshDbOptimizationWriteBatch<'a, B> {
-    fn put(&mut self, key_space: KeySpace, key: Cow<[u8]>, value: Cow<[u8]>) -> Result<()> {
+    fn put(
+        &mut self,
+        key_space: KeySpace,
+        key: WriteBuffer<'_>,
+        value: WriteBuffer<'_>,
+    ) -> Result<()> {
         self.write_batch.put(key_space, key, value)
     }
 
-    fn delete(&mut self, key_space: KeySpace, key: Cow<[u8]>) -> Result<()> {
+    fn delete(&mut self, key_space: KeySpace, key: WriteBuffer<'_>) -> Result<()> {
         self.write_batch.delete(key_space, key)
     }
 }
@@ -136,11 +142,11 @@ impl<'a, B: SerialWriteBatch<'a>> SerialWriteBatch<'a> for FreshDbOptimizationWr
 impl<'a, B: ConcurrentWriteBatch<'a>> ConcurrentWriteBatch<'a>
     for FreshDbOptimizationWriteBatch<'a, B>
 {
-    fn put(&self, key_space: KeySpace, key: Cow<[u8]>, value: Cow<[u8]>) -> Result<()> {
+    fn put(&self, key_space: KeySpace, key: WriteBuffer<'_>, value: WriteBuffer<'_>) -> Result<()> {
         self.write_batch.put(key_space, key, value)
     }
 
-    fn delete(&self, key_space: KeySpace, key: Cow<[u8]>) -> Result<()> {
+    fn delete(&self, key_space: KeySpace, key: WriteBuffer<'_>) -> Result<()> {
         self.write_batch.delete(key_space, key)
     }
 }

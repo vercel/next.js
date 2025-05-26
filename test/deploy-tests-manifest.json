@@ -51,13 +51,12 @@
       "test/e2e/app-dir/i18n-hybrid/i18n-hybrid.test.js",
       "test/e2e/app-dir/metadata/metadata.test.ts",
       "test/e2e/app-dir/rsc-basic/rsc-basic.test.ts",
-      "test/e2e/basepath.test.ts",
+      "test/e2e/basepath/basepath.test.ts",
       "test/e2e/postcss-config-cjs/index.test.ts",
-      "test/e2e/socket-io/index.test.js",
+      "test/e2e/socket-io/index.test.ts",
       "test/e2e/middleware-matcher/index.test.ts",
       "test/e2e/next-script/index.test.ts",
-      "test/production/standalone-mode/**/*",
-      "test/e2e/app-dir/next-after-app-deploy/index.test.ts"
+      "test/production/standalone-mode/**/*"
     ]
   }
 }

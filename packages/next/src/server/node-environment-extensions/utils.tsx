@@ -11,33 +11,41 @@ type ApiType = 'time' | 'random' | 'crypto'
 export function io(expression: string, type: ApiType) {
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (workUnitStore) {
-    if (workUnitStore.type === 'prerender') {
-      const workStore = workAsyncStorage.getStore()
-      if (workStore) {
-        let message: string
-        switch (type) {
-          case 'time':
-            message = `Route "${workStore.route}" used ${expression} instead of using \`performance\` or without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time`
-            break
-          case 'random':
-            message = `Route "${workStore.route}" used ${expression} outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random`
-            break
-          case 'crypto':
-            message = `Route "${workStore.route}" used ${expression} outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-crypto`
-            break
-          default:
-            throw new InvariantError(
-              'Unknown expression type in abortOnSynchronousPlatformIOAccess.'
-            )
-        }
-        const errorWithStack = new Error(message)
+    if (
+      workUnitStore.type === 'prerender' ||
+      workUnitStore.type === 'prerender-client'
+    ) {
+      const prerenderSignal = workUnitStore.controller.signal
+      if (prerenderSignal.aborted === false) {
+        // If the prerender signal is already aborted we don't need to construct any stacks
+        // because something else actually terminated the prerender.
+        const workStore = workAsyncStorage.getStore()
+        if (workStore) {
+          let message: string
+          switch (type) {
+            case 'time':
+              message = `Route "${workStore.route}" used ${expression} instead of using \`performance\` or without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time`
+              break
+            case 'random':
+              message = `Route "${workStore.route}" used ${expression} outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random`
+              break
+            case 'crypto':
+              message = `Route "${workStore.route}" used ${expression} outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-crypto`
+              break
+            default:
+              throw new InvariantError(
+                'Unknown expression type in abortOnSynchronousPlatformIOAccess.'
+              )
+          }
+          const errorWithStack = new Error(message)
 
-        abortOnSynchronousPlatformIOAccess(
-          workStore.route,
-          expression,
-          errorWithStack,
-          workUnitStore
-        )
+          abortOnSynchronousPlatformIOAccess(
+            workStore.route,
+            expression,
+            errorWithStack,
+            workUnitStore
+          )
+        }
       }
     } else if (
       workUnitStore.type === 'request' &&

@@ -1,3 +1,4 @@
+import { draftMode } from 'next/headers'
 import { unstable_expireTag, unstable_cache } from 'next/cache'
 import { RevalidateButton } from '../revalidate-button'
 
@@ -13,6 +14,7 @@ export default async function Page() {
     async () => {
       return {
         random: Math.random(),
+        draftModeEnabled: (await draftMode()).isEnabled,
       }
     },
     ['random-value'],
@@ -25,6 +27,9 @@ export default async function Page() {
     <div>
       <p>random: {Math.random()}</p>
       <p id="cached-data">cachedData: {cachedData.random}</p>
+      <p id="draft-mode-enabled">
+        draft mode enabled: {cachedData.draftModeEnabled.toString()}
+      </p>
       <RevalidateButton onClick={revalidate} />
     </div>
   )

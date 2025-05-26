@@ -1,12 +1,12 @@
 use std::{fmt::Write, sync::Arc};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use indoc::formatdoc;
 use lightningcss::css_modules::CssModuleReference;
 use swc_core::common::{BytePos, FileName, LineCol, SourceMap};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ResolvedVc, Value, ValueToString, Vc};
-use turbo_tasks_fs::{rope::Rope, FileSystemPath};
+use turbo_tasks_fs::{FileSystemPath, rope::Rope};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt},
@@ -19,7 +19,6 @@ use turbopack_core::{
     reference_type::{CssReferenceSubType, ReferenceType},
     resolve::{origin::ResolveOrigin, parse::Request},
     source::Source,
-    source_map::OptionStringifiedSourceMap,
 };
 use turbopack_ecmascript::{
     chunk::{
@@ -404,13 +403,10 @@ impl EcmascriptChunkItem for ModuleChunkItem {
             // We generate a minimal map for runtime code so that the filename is
             // displayed in dev tools.
             source_map: if source_map {
-                Some(
-                    generate_minimal_source_map(
-                        self.module.ident().to_string().await?.to_string(),
-                        code,
-                    )
-                    .await?,
-                )
+                Some(generate_minimal_source_map(
+                    self.module.ident().to_string().await?.to_string(),
+                    code,
+                )?)
             } else {
                 None
             },
@@ -420,7 +416,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
     }
 }
 
-async fn generate_minimal_source_map(filename: String, source: String) -> Result<Rope> {
+fn generate_minimal_source_map(filename: String, source: String) -> Result<Rope> {
     let mut mappings = vec![];
     // Start from 1 because 0 is reserved for dummy spans in SWC.
     let mut pos = 1;
@@ -436,12 +432,7 @@ async fn generate_minimal_source_map(filename: String, source: String) -> Result
     }
     let sm: Arc<SourceMap> = Default::default();
     sm.new_source_file(FileName::Custom(filename).into(), source);
-    let map = generate_js_source_map(
-        sm,
-        mappings,
-        OptionStringifiedSourceMap::none().to_resolved().await?,
-    )
-    .await?;
+    let map = generate_js_source_map(sm, mappings, None, true)?;
     Ok(map)
 }
 

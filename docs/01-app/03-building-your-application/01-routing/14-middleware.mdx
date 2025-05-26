@@ -11,21 +11,16 @@ Middleware runs before cached content and routes are matched. See [Matching Path
 
 ## Use Cases
 
-Integrating Middleware into your application can lead to significant improvements in performance, security, and user experience. Some common scenarios where Middleware is particularly effective include:
+Some common scenarios where Middleware is effective include:
 
-- Authentication and Authorization: Ensure user identity and check session cookies before granting access to specific pages or API routes.
-- Server-Side Redirects: Redirect users at the server level based on certain conditions (e.g., locale, user role).
-- Path Rewriting: Support A/B testing, feature rollouts, or legacy paths by dynamically rewriting paths to API routes or pages based on request properties.
-- Bot Detection: Protect your resources by detecting and blocking bot traffic.
-- Logging and Analytics: Capture and analyze request data for insights before processing by the page or API.
-- Feature Flagging: Enable or disable features dynamically for seamless feature rollouts or testing.
+- Quick redirects after reading parts of the incoming request
+- Rewriting to different pages based on A/B tests or experiments
+- Modifying headers for all pages or a subset of pages
 
-Recognizing situations where middleware may not be the optimal approach is just as crucial. Here are some scenarios to be mindful of:
+Middleware is _not_ a good fit for:
 
-- Complex Data Fetching and Manipulation: Middleware is not designed for direct data fetching or manipulation, this should be done within Route Handlers or server-side utilities instead.
-- Heavy Computational Tasks: Middleware should be lightweight and respond quickly or it can cause delays in page load. Heavy computational tasks or long-running processes should be done within dedicated Route Handlers.
-- Extensive Session Management: While Middleware can manage basic session tasks, extensive session management should be managed by dedicated authentication services or within Route Handlers.
-- Direct Database Operations: Performing direct database operations within Middleware is not recommended. Database interactions should be done within Route Handlers or server-side utilities.
+- Slow data fetching
+- Session management
 
 ## Convention
 
@@ -603,12 +598,62 @@ expect(getRewrittenUrl(response)).toEqual('https://other-domain.com/docs')
 
 ## Runtime
 
-Middleware currently only supports APIs compatible with the [Edge runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes). APIs exclusive to Node.js are [unsupported](/docs/app/api-reference/edge#unsupported-apis).
+Middleware defaults to using the Edge runtime. As of v15.2 (canary), we have experimental support for using the Node.js runtime. To enable, add the flag to your `next.config` file:
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    nodeMiddleware: true,
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+const nextConfig = {
+  experimental: {
+    nodeMiddleware: true,
+  },
+}
+
+export default nextConfig
+```
+
+Then in your middleware file, set the runtime to `nodejs` in the `config` object:
+
+```js highlight={2} filename="middleware.js" switcher
+export const config = {
+  runtime: 'nodejs',
+}
+```
+
+```ts highlight={2} filename="middleware.ts" switcher
+export const config = {
+  runtime: 'nodejs',
+}
+```
+
+> **Note**: This feature is not yet recommended for production use. Therefore, Next.js will throw an error unless you are using the next@canary release instead of the stable release.
+
+## Platform Support
+
+| Deployment Option                                                   | Supported         |
+| ------------------------------------------------------------------- | ----------------- |
+| [Node.js server](/docs/app/getting-started/deploying#nodejs-server) | Yes               |
+| [Docker container](/docs/app/getting-started/deploying#docker)      | Yes               |
+| [Static export](/docs/app/getting-started/deploying#static-export)  | No                |
+| [Adapters](/docs/app/getting-started/deploying#adapters)            | Platform-specific |
+
+Learn how to [configure Middleware](/docs/app/guides/self-hosting#middleware) when self-hosting Next.js.
 
 ## Version History
 
 | Version   | Changes                                                                                       |
 | --------- | --------------------------------------------------------------------------------------------- |
+| `v15.2.0` | Middleware can now use the Node.js runtime (experimental)                                     |
 | `v13.1.0` | Advanced Middleware flags added                                                               |
 | `v13.0.0` | Middleware can modify request headers, response headers, and send responses                   |
 | `v12.2.0` | Middleware is stable, please see the [upgrade guide](/docs/messages/middleware-upgrade-guide) |

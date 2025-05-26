@@ -136,7 +136,7 @@ class HTTPAccessFallbackErrorBoundary extends React.Component<
           <meta name="robots" content="noindex" />
           {process.env.NODE_ENV === 'development' && (
             <meta
-              name="next-error"
+              name="boundary-next-error"
               content={getAccessFallbackErrorTypeByStatus(triggeredStatus)}
             />
           )}

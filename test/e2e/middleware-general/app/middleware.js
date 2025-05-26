@@ -1,5 +1,6 @@
 /* global globalThis */
 import { NextRequest, NextResponse, URLPattern } from 'next/server'
+import { getSomeData } from './lib/some-data'
 import magicValue from 'shared-package'
 
 export const config = {
@@ -38,6 +39,8 @@ const params = (url) => {
 }
 
 export async function middleware(request) {
+  getSomeData()
+
   const url = request.nextUrl
 
   if (request.headers.get('x-prerender-revalidate')) {

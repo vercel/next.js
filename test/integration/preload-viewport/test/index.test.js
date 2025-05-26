@@ -390,7 +390,7 @@ describe('Prefetching Links in viewport', () => {
       })
 
       // Turbopack handling of chunks is different, by default it does not include a script tag for the page itself.
-      ;(process.env.TURBOPACK ? it.skip : it)(
+      ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
         'should not prefetch already loaded scripts',
         async () => {
           const browser = await webdriver(appPort, '/')

@@ -135,9 +135,9 @@ impl TaggedValue {
         // All except the lowest byte, which is first in little-endian, last in
         // big-endian.
         if cfg!(target_endian = "little") {
-            data = data.offset(1);
+            data = unsafe { data.offset(1) };
         }
         let len = std::mem::size_of::<TaggedValue>() - 1;
-        slice::from_raw_parts_mut(data, len)
+        unsafe { slice::from_raw_parts_mut(data, len) }
     }
 }

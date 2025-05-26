@@ -279,7 +279,7 @@ function buildWebpackError({
 
 function isInMiddlewareLayer(parser: webpack.javascript.JavascriptParser) {
   const layer = parser.state.module?.layer
-  return layer === WEBPACK_LAYERS.middleware || layer === WEBPACK_LAYERS.api
+  return layer === WEBPACK_LAYERS.middleware || layer === WEBPACK_LAYERS.apiEdge
 }
 
 function isNodeJsModule(moduleName: string) {
@@ -781,7 +781,7 @@ export default class MiddlewarePlugin {
   }
 
   public apply(compiler: webpack.Compiler) {
-    compiler.hooks.compilation.tap(NAME, (compilation, params) => {
+    compiler.hooks.thisCompilation.tap(NAME, (compilation, params) => {
       const { hooks } = params.normalModuleFactory
       /**
        * This is the static code analysis phase.
@@ -868,7 +868,7 @@ export async function handleWebpackExternalForEdgeRuntime({
 }) {
   if (
     (contextInfo.issuerLayer === WEBPACK_LAYERS.middleware ||
-      contextInfo.issuerLayer === WEBPACK_LAYERS.api) &&
+      contextInfo.issuerLayer === WEBPACK_LAYERS.apiEdge) &&
     isNodeJsModule(request) &&
     !supportedEdgePolyfills.has(request)
   ) {

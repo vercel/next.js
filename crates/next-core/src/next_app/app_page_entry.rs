@@ -2,8 +2,8 @@ use std::io::Write;
 
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{fxindexmap, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
-use turbo_tasks_fs::{self, rope::RopeBuilder, File, FileSystemPath};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc, fxindexmap};
+use turbo_tasks_fs::{self, File, FileSystemPath, rope::RopeBuilder};
 use turbopack::ModuleAssetContext;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -27,14 +27,14 @@ use crate::{
     next_edge::entry::wrap_edge_entry,
     next_server_component::NextServerComponentTransition,
     parse_segment_config_from_loader_tree,
-    util::{file_content_rope, load_next_js_template, NextRuntime},
+    util::{NextRuntime, file_content_rope, load_next_js_template},
 };
 
 /// Computes the entry for a Next.js app page.
 #[turbo_tasks::function]
 pub async fn get_app_page_entry(
-    nodejs_context: Vc<ModuleAssetContext>,
-    edge_context: Vc<ModuleAssetContext>,
+    nodejs_context: ResolvedVc<ModuleAssetContext>,
+    edge_context: ResolvedVc<ModuleAssetContext>,
     loader_tree: Vc<AppPageLoaderTree>,
     page: AppPage,
     project_root: Vc<FileSystemPath>,
@@ -48,7 +48,8 @@ pub async fn get_app_page_entry(
         nodejs_context
     };
 
-    let server_component_transition = Vc::upcast(NextServerComponentTransition::new());
+    let server_component_transition =
+        ResolvedVc::upcast(NextServerComponentTransition::new().to_resolved().await?);
 
     let base_path = next_config.await?.base_path.clone();
     let loader_tree = AppPageLoaderTreeModule::build(
@@ -87,7 +88,7 @@ pub async fn get_app_page_entry(
             "VAR_MODULE_GLOBAL_ERROR" => if inner_assets.contains_key(GLOBAL_ERROR) {
                 GLOBAL_ERROR.into()
              } else {
-                "next/dist/client/components/error-boundary".into()
+                "next/dist/client/components/global-error".into()
             },
         },
         fxindexmap! {
@@ -110,7 +111,7 @@ pub async fn get_app_page_entry(
     let source = VirtualSource::new_with_ident(
         source
             .ident()
-            .with_query(Vc::cell(format!("?{}", query).into())),
+            .with_query(Vc::cell(format!("?{query}").into())),
         AssetContent::file(file.into()),
     );
 
@@ -123,7 +124,7 @@ pub async fn get_app_page_entry(
 
     if is_edge {
         rsc_entry = wrap_edge_page(
-            Vc::upcast(module_asset_context),
+            *ResolvedVc::upcast(module_asset_context),
             project_root,
             rsc_entry,
             page,

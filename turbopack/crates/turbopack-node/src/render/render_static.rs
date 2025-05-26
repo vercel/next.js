@@ -1,21 +1,22 @@
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use async_stream::try_stream as generator;
 use futures::{
-    channel::mpsc::{unbounded, UnboundedSender},
-    pin_mut, SinkExt, StreamExt, TryStreamExt,
+    SinkExt, StreamExt, TryStreamExt,
+    channel::mpsc::{UnboundedSender, unbounded},
+    pin_mut,
 };
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    duration_span, mark_finished, prevent_gc, util::SharedError, RawVc, ResolvedVc, TaskInput,
-    ValueToString, Vc,
+    RawVc, ResolvedVc, TaskInput, ValueToString, Vc, duration_span, mark_finished, prevent_gc,
+    trace::TraceRawVcs, util::SharedError,
 };
 use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkingContext, EvaluatableAssets},
+    chunk::{ChunkingContext, EvaluatableAsset, EvaluatableAssets},
     error::PrettyPrintError,
     issue::{IssueExt, StyledString},
     module::Module,
@@ -26,11 +27,11 @@ use turbopack_dev_server::{
 };
 
 use super::{
-    issue::RenderingIssue, RenderData, RenderStaticIncomingMessage, RenderStaticOutgoingMessage,
+    RenderData, RenderStaticIncomingMessage, RenderStaticOutgoingMessage, issue::RenderingIssue,
 };
 use crate::{
-    get_intermediate_asset, get_renderer_pool_operation, pool::NodeJsOperation,
-    render::error_page::error_html_body, source_map::trace_stack, ResponseHeaders,
+    ResponseHeaders, get_intermediate_asset, get_renderer_pool_operation, pool::NodeJsOperation,
+    render::error_page::error_html_body, source_map::trace_stack,
 };
 
 #[derive(Clone, Debug)]
@@ -77,7 +78,7 @@ pub async fn render_static_operation(
     cwd: ResolvedVc<FileSystemPath>,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
     path: ResolvedVc<FileSystemPath>,
-    module: ResolvedVc<Box<dyn Module>>,
+    module: ResolvedVc<Box<dyn EvaluatableAsset>>,
     runtime_entries: ResolvedVc<EvaluatableAssets>,
     fallback_page: ResolvedVc<DevHtmlAsset>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
@@ -154,7 +155,7 @@ async fn static_error(
         .replace('<', "&lt;");
 
     if let Some(status) = status {
-        message.push_str(&format!("\n\nStatus: {}", status));
+        message.push_str(&format!("\n\nStatus: {status}"));
     }
 
     let mut body = "<script id=\"__NEXT_DATA__\" type=\"application/json\">{ \"props\": {} \
@@ -199,12 +200,12 @@ struct RenderStreamSender {
 #[turbo_tasks::value(transparent)]
 struct RenderStream(#[turbo_tasks(trace_ignore)] Stream<RenderItemResult>);
 
-#[derive(Clone, Debug, TaskInput, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[derive(Clone, Debug, TaskInput, PartialEq, Eq, Hash, Deserialize, Serialize, TraceRawVcs)]
 struct RenderStreamOptions {
     cwd: ResolvedVc<FileSystemPath>,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
     path: ResolvedVc<FileSystemPath>,
-    module: ResolvedVc<Box<dyn Module>>,
+    module: ResolvedVc<Box<dyn EvaluatableAsset>>,
     runtime_entries: ResolvedVc<EvaluatableAssets>,
     fallback_page: ResolvedVc<DevHtmlAsset>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,

@@ -1,36 +1,86 @@
-use anyhow::{bail, Result};
+use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{
+    FxIndexSet, NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat,
+    trace::TraceRawVcs,
+};
 use turbo_tasks_fs::{File, FileSystemPath};
 
 use crate::{
     asset::{Asset, AssetContent},
+    chunk::ChunkingContext,
+    ident::AssetIdent,
     introspect::{Introspectable, IntrospectableChildren},
     output::OutputAsset,
     source_map::{GenerateSourceMap, SourceMap},
 };
 
+#[derive(PartialEq, Eq, Serialize, Deserialize, NonLocalValue, TraceRawVcs, ValueDebugFormat)]
+enum PathType {
+    Fixed {
+        path: ResolvedVc<FileSystemPath>,
+    },
+    FromIdent {
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+        ident_for_path: ResolvedVc<AssetIdent>,
+    },
+}
+
 /// Represents the source map of an ecmascript asset.
 #[turbo_tasks::value]
 pub struct SourceMapAsset {
-    asset: ResolvedVc<Box<dyn OutputAsset>>,
+    path_ty: PathType,
+    generate_source_map: ResolvedVc<Box<dyn GenerateSourceMap>>,
 }
 
 #[turbo_tasks::value_impl]
 impl SourceMapAsset {
     #[turbo_tasks::function]
-    pub fn new(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Vc<Self> {
-        SourceMapAsset { asset }.cell()
+    pub fn new(
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+        ident_for_path: ResolvedVc<AssetIdent>,
+        generate_source_map: ResolvedVc<Box<dyn GenerateSourceMap>>,
+    ) -> Vc<Self> {
+        SourceMapAsset {
+            path_ty: PathType::FromIdent {
+                chunking_context,
+                ident_for_path,
+            },
+            generate_source_map,
+        }
+        .cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn new_fixed(
+        path: ResolvedVc<FileSystemPath>,
+        generate_source_map: ResolvedVc<Box<dyn GenerateSourceMap>>,
+    ) -> Vc<Self> {
+        SourceMapAsset {
+            path_ty: PathType::Fixed { path },
+            generate_source_map,
+        }
+        .cell()
     }
 }
 
 #[turbo_tasks::value_impl]
 impl OutputAsset for SourceMapAsset {
     #[turbo_tasks::function]
-    fn path(&self) -> Vc<FileSystemPath> {
+    async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         // NOTE(alexkirsz) We used to include the asset's version id in the path,
         // but this caused `all_assets_map` to be recomputed on every change.
-        self.asset.path().append(".map".into())
+        let this = self.await?;
+        Ok(match this.path_ty {
+            PathType::FromIdent {
+                chunking_context,
+                ident_for_path,
+            } => chunking_context
+                .chunk_path(Some(Vc::upcast(self)), *ident_for_path, ".js".into())
+                .append(".map".into()),
+            PathType::Fixed { path } => path.append(".map".into()),
+        })
     }
 }
 
@@ -38,12 +88,7 @@ impl OutputAsset for SourceMapAsset {
 impl Asset for SourceMapAsset {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
-        let Some(generate_source_map) =
-            ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(self.asset)
-        else {
-            bail!("asset does not support generating source maps")
-        };
-        if let Some(sm) = &*generate_source_map.generate_source_map().await? {
+        if let Some(sm) = &*self.generate_source_map.generate_source_map().await? {
             Ok(AssetContent::file(File::from(sm.clone()).into()))
         } else {
             Ok(AssetContent::file(
@@ -83,7 +128,9 @@ impl Introspectable for SourceMapAsset {
     #[turbo_tasks::function]
     async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
         let mut children = FxIndexSet::default();
-        if let Some(asset) = ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.asset) {
+        if let Some(asset) =
+            ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.generate_source_map)
+        {
             children.insert((ResolvedVc::cell("asset".into()), asset));
         }
         Ok(Vc::cell(children))

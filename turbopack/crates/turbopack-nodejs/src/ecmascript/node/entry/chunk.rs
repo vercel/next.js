@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use indoc::writedoc;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
@@ -148,6 +148,12 @@ impl EcmascriptBuildNodeEntryChunk {
     fn runtime_chunk(&self) -> Vc<EcmascriptBuildNodeRuntimeChunk> {
         EcmascriptBuildNodeRuntimeChunk::new(*self.chunking_context)
     }
+
+    #[turbo_tasks::function]
+    async fn source_map(self: Vc<Self>) -> Result<Vc<SourceMapAsset>> {
+        let this = self.await?;
+        Ok(SourceMapAsset::new_fixed(*this.path, Vc::upcast(self)))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -187,9 +193,7 @@ impl OutputAsset for EcmascriptBuildNodeEntryChunk {
             .reference_chunk_source_maps(Vc::upcast(self))
             .await?
         {
-            references.push(ResolvedVc::upcast(
-                SourceMapAsset::new(Vc::upcast(self)).to_resolved().await?,
-            ))
+            references.push(ResolvedVc::upcast(self.source_map().to_resolved().await?))
         }
 
         let other_chunks = this.other_chunks.await?;

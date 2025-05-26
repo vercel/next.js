@@ -53,7 +53,7 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
         true
       )
 
-      if (!isStaticMetadataRoute(page) && isEntryMetadataRouteFile) {
+      if (isEntryMetadataRouteFile && !isStaticMetadataRoute(page)) {
         // Matching dynamic metadata routes.
         // Add 2 possibilities for both single and multiple routes:
         {

@@ -1,3 +1,5 @@
+import { Client } from 'components'
+
 export async function Component(a) {
   const b = 1
 

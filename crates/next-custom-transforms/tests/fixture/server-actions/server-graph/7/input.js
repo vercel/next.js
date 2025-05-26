@@ -1,3 +1,4 @@
+import { Button } from 'components'
 import deleteFromDb from 'db'
 
 export function Item1(product, foo, bar) {
@@ -7,7 +8,10 @@ export function Item1(product, foo, bar) {
       product.id,
       product?.foo,
       product.bar.baz,
-      product[(foo, bar)]
+      product[
+        // @ts-expect-error: deliberate useless comma
+        (foo, bar)
+      ]
     )
   }
   return <Button action={a}>Delete</Button>
@@ -20,7 +24,10 @@ export function Item2(product, foo, bar) {
       product.id,
       product?.foo,
       product.bar.baz,
-      product[(foo, bar)]
+      product[
+        // @ts-expect-error: deliberate useless comma
+        (foo, bar)
+      ]
     )
   }
   return <Button action={deleteItem2}>Delete</Button>
@@ -33,7 +40,10 @@ export function Item3(product, foo, bar) {
       product.id,
       product?.foo,
       product.bar.baz,
-      product[(foo, bar)]
+      product[
+        // @ts-expect-error: deliberate useless comma
+        (foo, bar)
+      ]
     )
   }
   return <Button action={deleteItem3}>Delete</Button>
@@ -46,7 +56,10 @@ export function Item4(product, foo, bar) {
       product.id,
       product?.foo,
       product.bar.baz,
-      product[(foo, bar)]
+      product[
+        // @ts-expect-error: deliberate useless comma
+        (foo, bar)
+      ]
     )
   }
   return <Button action={deleteItem4}>Delete</Button>

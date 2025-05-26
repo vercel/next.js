@@ -1,8 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { assertNoRedbox, assertNoConsoleErrors } from 'next-test-utils'
 
-const isNewOverlay = process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY !== 'false'
-
 describe('app-dir - capture-console-error-owner-stack', () => {
   const { next } = nextTestSetup({
     files: __dirname,
@@ -14,7 +12,6 @@ describe('app-dir - capture-console-error-owner-stack', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "count": 1,
        "description": "trigger an console <error>",
        "environmentLabel": null,
        "label": "Console Error",
@@ -35,7 +32,6 @@ describe('app-dir - capture-console-error-owner-stack', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "count": 1,
        "description": "trigger an console.error in render",
        "environmentLabel": null,
        "label": "Console Error",
@@ -54,7 +50,6 @@ describe('app-dir - capture-console-error-owner-stack', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "count": 1,
        "description": "trigger an console.error in render",
        "environmentLabel": null,
        "label": "Console Error",
@@ -73,7 +68,6 @@ describe('app-dir - capture-console-error-owner-stack', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "count": 1,
        "description": "ssr console error:client",
        "environmentLabel": null,
        "label": "Console Error",
@@ -92,8 +86,7 @@ describe('app-dir - capture-console-error-owner-stack', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "count": 1,
-       "description": "Error: page error",
+       "description": "page error",
        "environmentLabel": null,
        "label": "Console Error",
        "source": "app/ssr-error-instance/page.js (4:17) @ Page
@@ -109,11 +102,9 @@ describe('app-dir - capture-console-error-owner-stack', () => {
   it('should be able to capture rsc logged error', async () => {
     const browser = await next.browser('/rsc')
 
-    if (isNewOverlay) {
-      await expect(browser).toDisplayCollapsedRedbox(`
+    await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "count": 1,
-         "description": "Error: boom",
+         "description": "boom",
          "environmentLabel": "Server",
          "label": "Console Error",
          "source": "app/rsc/page.js (2:17) @ Page
@@ -126,24 +117,6 @@ describe('app-dir - capture-console-error-owner-stack', () => {
          ],
        }
       `)
-    } else {
-      await expect(browser).toDisplayCollapsedRedbox(`
-       {
-         "count": 1,
-         "description": "[ Server ] Error: boom",
-         "environmentLabel": null,
-         "label": "Console Error",
-         "source": "app/rsc/page.js (2:17) @ Page
-       > 2 |   console.error(new Error('boom'))
-           |                 ^",
-         "stack": [
-           "Page app/rsc/page.js (2:17)",
-           "JSON.parse <anonymous> (0:0)",
-           "Page <anonymous> (0:0)",
-         ],
-       }
-      `)
-    }
   })
 
   it('should display the error message in error event when event.error is not present', async () => {

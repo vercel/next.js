@@ -23,8 +23,10 @@ import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-b
 import {
   describeStringPropertyAccess,
   describeHasCheckingStringProperty,
-  throwWithStaticGenerationBailoutErrorWithDynamicError,
   wellKnownProperties,
+} from '../../shared/lib/utils/reflect-utils'
+import {
+  throwWithStaticGenerationBailoutErrorWithDynamicError,
   throwForSearchParamsAccessInUseCache,
 } from './utils'
 import { scheduleImmediate } from '../../lib/scheduler'
@@ -67,6 +69,7 @@ export function createSearchParamsFromClient(
   if (workUnitStore) {
     switch (workUnitStore.type) {
       case 'prerender':
+      case 'prerender-client':
       case 'prerender-ppr':
       case 'prerender-legacy':
         return createPrerenderSearchParams(workStore, workUnitStore)
@@ -89,6 +92,7 @@ export function createServerSearchParamsForServerPage(
   if (workUnitStore) {
     switch (workUnitStore.type) {
       case 'prerender':
+      case 'prerender-client':
       case 'prerender-ppr':
       case 'prerender-legacy':
         return createPrerenderSearchParams(workStore, workUnitStore)
@@ -109,7 +113,11 @@ export function createPrerenderSearchParamsForClientPage(
   }
 
   const prerenderStore = workUnitAsyncStorage.getStore()
-  if (prerenderStore && prerenderStore.type === 'prerender') {
+  if (
+    prerenderStore &&
+    (prerenderStore.type === 'prerender' ||
+      prerenderStore.type === 'prerender-client')
+  ) {
     // dynamicIO Prerender
     // We're prerendering in a mode that aborts (dynamicIO) and should stall
     // the promise to ensure the RSC side is considered dynamic
@@ -131,15 +139,17 @@ function createPrerenderSearchParams(
     return Promise.resolve({})
   }
 
-  if (prerenderStore.type === 'prerender') {
-    // We are in a dynamicIO (PPR or otherwise) prerender
-    return makeAbortingExoticSearchParams(workStore.route, prerenderStore)
+  switch (prerenderStore.type) {
+    case 'prerender':
+    case 'prerender-client':
+      // We are in a dynamicIO (PPR or otherwise) prerender
+      return makeAbortingExoticSearchParams(workStore.route, prerenderStore)
+    default:
+      // The remaining cases are prerender-ppr and prerender-legacy
+      // We are in a legacy static generation and need to interrupt the prerender
+      // when search params are accessed.
+      return makeErroringExoticSearchParams(workStore, prerenderStore)
   }
-
-  // The remaining cases are prerender-ppr and prerender-legacy
-  // We are in a legacy static generation and need to interrupt the prerender
-  // when search params are accessed.
-  return makeErroringExoticSearchParams(workStore, prerenderStore)
 }
 
 function createRenderSearchParams(
@@ -447,7 +457,7 @@ export function makeErroringExoticSearchParamsForUseCache(
   const promise = Promise.resolve({})
 
   const proxiedPromise = new Proxy(promise, {
-    get(target, prop, receiver) {
+    get: function get(target, prop, receiver) {
       if (Object.hasOwn(promise, prop)) {
         // The promise has this property directly. we must return it. We know it
         // isn't a dynamic access because it can only be something that was
@@ -460,12 +470,12 @@ export function makeErroringExoticSearchParamsForUseCache(
         typeof prop === 'string' &&
         (prop === 'then' || !wellKnownProperties.has(prop))
       ) {
-        throwForSearchParamsAccessInUseCache(workStore.route)
+        throwForSearchParamsAccessInUseCache(workStore, get)
       }
 
       return ReflectAdapter.get(target, prop, receiver)
     },
-    has(target, prop) {
+    has: function has(target, prop) {
       // We don't expect key checking to be used except for testing the existence of
       // searchParams so we make all has tests throw an error. this means that `promise.then`
       // can resolve to the then function on the Promise prototype but 'then' in promise will assume
@@ -474,13 +484,13 @@ export function makeErroringExoticSearchParamsForUseCache(
         typeof prop === 'string' &&
         (prop === 'then' || !wellKnownProperties.has(prop))
       ) {
-        throwForSearchParamsAccessInUseCache(workStore.route)
+        throwForSearchParamsAccessInUseCache(workStore, has)
       }
 
       return ReflectAdapter.has(target, prop)
     },
-    ownKeys() {
-      throwForSearchParamsAccessInUseCache(workStore.route)
+    ownKeys: function ownKeys() {
+      throwForSearchParamsAccessInUseCache(workStore, ownKeys)
     },
   })
 

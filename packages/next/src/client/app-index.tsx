@@ -19,15 +19,13 @@ import { findSourceMapURL } from './app-find-source-map-url'
 import {
   type AppRouterActionQueue,
   createMutableActionQueue,
-} from '../shared/lib/router/action-queue'
+} from './components/app-router-instance'
 import AppRouter from './components/app-router'
 import type { InitialRSCPayload } from '../server/app-render/types'
 import { createInitialRouterState } from './components/router-reducer/create-initial-router-state'
 import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runtime'
 import { setAppBuildId } from './app-build-id'
-import { shouldRenderRootLevelErrorOverlay } from './lib/is-error-thrown-while-rendering-rsc'
-import { handleClientError } from './components/errors/use-error-handler'
-import { isNextRouterError } from './components/is-next-router-error'
+import { isBot } from '../shared/lib/router/utils/is-bot'
 
 /// <reference types="react-dom/experimental" />
 
@@ -162,43 +160,17 @@ const initialServerResponse = createFromReadableStream<InitialRSCPayload>(
   { callServer, findSourceMapURL }
 )
 
-// React overrides `.then` and doesn't return a new promise chain,
-// so we wrap the action queue in a promise to ensure that its value
-// is defined when the promise resolves.
-// https://github.com/facebook/react/blob/163365a07872337e04826c4f501565d43dbd2fd4/packages/react-client/src/ReactFlightClient.js#L189-L190
-const pendingActionQueue: Promise<AppRouterActionQueue> = new Promise(
-  (resolve, reject) => {
-    initialServerResponse.then(
-      (initialRSCPayload) => {
-        // setAppBuildId should be called only once, during JS initialization
-        // and before any components have hydrated.
-        setAppBuildId(initialRSCPayload.b)
-
-        resolve(
-          createMutableActionQueue(
-            createInitialRouterState({
-              initialFlightData: initialRSCPayload.f,
-              initialCanonicalUrlParts: initialRSCPayload.c,
-              initialParallelRoutes: new Map(),
-              location: window.location,
-              couldBeIntercepted: initialRSCPayload.i,
-              postponed: initialRSCPayload.s,
-              prerendered: initialRSCPayload.S,
-            })
-          )
-        )
-      },
-      (err: Error) => reject(err)
-    )
-  }
-)
-
-function ServerRoot(): React.ReactNode {
+function ServerRoot({
+  pendingActionQueue,
+}: {
+  pendingActionQueue: Promise<AppRouterActionQueue>
+}): React.ReactNode {
   const initialRSCPayload = use(initialServerResponse)
   const actionQueue = use<AppRouterActionQueue>(pendingActionQueue)
 
   const router = (
     <AppRouter
+      gracefullyDegrade={isBot(window.navigator.userAgent)}
       actionQueue={actionQueue}
       globalErrorComponentAndStyles={initialRSCPayload.G}
       assetPrefix={initialRSCPayload.p}
@@ -227,50 +199,79 @@ function Root({ children }: React.PropsWithChildren<{}>) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     React.useEffect(() => {
       window.__NEXT_HYDRATED = true
+      window.__NEXT_HYDRATED_AT = performance.now()
       window.__NEXT_HYDRATED_CB?.()
     }, [])
-  }
-
-  if (process.env.NODE_ENV !== 'production') {
-    const ssrError = devQueueSsrError()
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    React.useEffect(() => {
-      if (ssrError) {
-        handleClientError(ssrError, [])
-      }
-    }, [ssrError])
   }
 
   return children
 }
 
-const reactRootOptions = {
+const reactRootOptions: ReactDOMClient.RootOptions = {
   onRecoverableError,
   onCaughtError,
   onUncaughtError,
-} satisfies ReactDOMClient.RootOptions
+}
 
-export function hydrate() {
+export type ClientInstrumentationHooks = {
+  onRouterTransitionStart?: (
+    url: string,
+    navigationType: 'push' | 'replace' | 'traverse'
+  ) => void
+}
+
+export function hydrate(
+  instrumentationHooks: ClientInstrumentationHooks | null
+) {
+  // React overrides `.then` and doesn't return a new promise chain,
+  // so we wrap the action queue in a promise to ensure that its value
+  // is defined when the promise resolves.
+  // https://github.com/facebook/react/blob/163365a07872337e04826c4f501565d43dbd2fd4/packages/react-client/src/ReactFlightClient.js#L189-L190
+  const pendingActionQueue: Promise<AppRouterActionQueue> = new Promise(
+    (resolve, reject) => {
+      initialServerResponse.then(
+        (initialRSCPayload) => {
+          // setAppBuildId should be called only once, during JS initialization
+          // and before any components have hydrated.
+          setAppBuildId(initialRSCPayload.b)
+
+          const initialTimestamp = Date.now()
+
+          resolve(
+            createMutableActionQueue(
+              createInitialRouterState({
+                navigatedAt: initialTimestamp,
+                initialFlightData: initialRSCPayload.f,
+                initialCanonicalUrlParts: initialRSCPayload.c,
+                initialParallelRoutes: new Map(),
+                location: window.location,
+                couldBeIntercepted: initialRSCPayload.i,
+                postponed: initialRSCPayload.s,
+                prerendered: initialRSCPayload.S,
+              }),
+              instrumentationHooks
+            )
+          )
+        },
+        (err: Error) => reject(err)
+      )
+    }
+  )
+
   const reactEl = (
     <StrictModeIfEnabled>
       <HeadManagerContext.Provider value={{ appDir: true }}>
         <Root>
-          <ServerRoot />
+          <ServerRoot pendingActionQueue={pendingActionQueue} />
         </Root>
       </HeadManagerContext.Provider>
     </StrictModeIfEnabled>
   )
 
-  if (
-    document.documentElement.id === '__next_error__' ||
-    !!window.__next_root_layout_missing_tags?.length
-  ) {
+  if (document.documentElement.id === '__next_error__') {
     let element = reactEl
     // Server rendering failed, fall back to client-side rendering
-    if (
-      process.env.NODE_ENV !== 'production' &&
-      shouldRenderRootLevelErrorOverlay()
-    ) {
+    if (process.env.NODE_ENV !== 'production') {
       const { createRootLevelDevOverlayElement } =
         require('./components/react-dev-overlay/app/client-entry') as typeof import('./components/react-dev-overlay/app/client-entry')
 
@@ -293,28 +294,5 @@ export function hydrate() {
     const { linkGc } =
       require('./app-link-gc') as typeof import('./app-link-gc')
     linkGc()
-  }
-}
-
-function devQueueSsrError(): Error | undefined {
-  const ssrErrorTemplateTag = document.querySelector(
-    'template[data-next-error-message]'
-  )
-  if (ssrErrorTemplateTag) {
-    const message: string = ssrErrorTemplateTag.getAttribute(
-      'data-next-error-message'
-    )!
-    const stack = ssrErrorTemplateTag.getAttribute('data-next-error-stack')
-    const digest = ssrErrorTemplateTag.getAttribute('data-next-error-digest')
-    const error = new Error(message)
-    if (digest) {
-      ;(error as any).digest = digest
-    }
-    // Skip Next.js SSR'd internal errors that which will be handled by the error boundaries.
-    if (isNextRouterError(error)) {
-      return
-    }
-    error.stack = stack || ''
-    return error
   }
 }

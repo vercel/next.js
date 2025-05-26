@@ -1,7 +1,7 @@
 use anyhow::Result;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{OptionVcExt, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath, FileSystemPathOption,
 };
@@ -45,17 +45,22 @@ impl PagesStructureItem {
     }
 
     #[turbo_tasks::function]
-    pub async fn project_path(&self) -> Result<Vc<FileSystemPath>> {
+    pub async fn file_path(&self) -> Result<Vc<FileSystemPath>> {
+        // Check if the file path + extension exists in the filesystem, if so use that. If not fall
+        // back to the base path.
         for ext in self.extensions.await?.into_iter() {
-            let project_path = self.base_path.append(format!(".{ext}").into());
-            let ty = *project_path.get_type().await?;
+            let file_path: Vc<FileSystemPath> = self.base_path.append(format!(".{ext}").into());
+            let ty = *file_path.get_type().await?;
             if matches!(ty, FileSystemEntryType::File | FileSystemEntryType::Symlink) {
-                return Ok(project_path);
+                return Ok(file_path);
             }
         }
         if let Some(fallback_path) = self.fallback_path {
             Ok(*fallback_path)
         } else {
+            // If the file path that was passed in already has an extension, for example
+            // `pages/index.js` it won't match the extensions list above because it already had an
+            // extension and for example `.js.js` obviously won't match
             Ok(*self.base_path)
         }
     }
@@ -68,26 +73,9 @@ pub struct PagesStructure {
     pub app: ResolvedVc<PagesStructureItem>,
     pub document: ResolvedVc<PagesStructureItem>,
     pub error: ResolvedVc<PagesStructureItem>,
+    pub error_500: Option<ResolvedVc<PagesStructureItem>>,
     pub api: Option<ResolvedVc<PagesDirectoryStructure>>,
     pub pages: Option<ResolvedVc<PagesDirectoryStructure>>,
-}
-
-#[turbo_tasks::value_impl]
-impl PagesStructure {
-    #[turbo_tasks::function]
-    pub fn app(&self) -> Vc<PagesStructureItem> {
-        *self.app
-    }
-
-    #[turbo_tasks::function]
-    pub fn document(&self) -> Vc<PagesStructureItem> {
-        *self.document
-    }
-
-    #[turbo_tasks::function]
-    pub fn error(&self) -> Vc<PagesStructureItem> {
-        *self.error
-    }
 }
 
 #[turbo_tasks::value]
@@ -157,6 +145,7 @@ async fn get_pages_structure_for_root_directory(
     let page_extensions_raw = &*page_extensions.await?;
 
     let mut api_directory = None;
+    let mut error_500_item = None;
 
     let project_path = project_path.await?;
     let pages_directory = if let Some(project_path) = &*project_path {
@@ -179,6 +168,23 @@ async fn get_pages_structure_for_root_directory(
                         let base_path = project_path.join(basename.into());
                         match basename {
                             "_app" | "_document" | "_error" => {}
+                            "500" => {
+                                let item_next_router_path =
+                                    next_router_path_for_basename(next_router_path, basename);
+                                let item_original_path = next_router_path.join(basename.into());
+                                let item = PagesStructureItem::new(
+                                    base_path,
+                                    page_extensions,
+                                    None,
+                                    item_next_router_path,
+                                    item_original_path,
+                                );
+
+                                error_500_item = Some(item);
+
+                                items.push((basename, item));
+                            }
+
                             basename => {
                                 let item_next_router_path =
                                     next_router_path_for_basename(next_router_path, basename);
@@ -294,6 +300,7 @@ async fn get_pages_structure_for_root_directory(
         app: app_item.to_resolved().await?,
         document: document_item.to_resolved().await?,
         error: error_item.to_resolved().await?,
+        error_500: error_500_item.to_resolved().await?,
         api: api_directory,
         pages: pages_directory,
     }

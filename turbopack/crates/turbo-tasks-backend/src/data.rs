@@ -3,10 +3,10 @@ use std::cmp::Ordering;
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
+    CellId, KeyValuePair, SessionId, TaskId, TraitTypeId, TypedSharedReference, ValueTypeId,
     event::{Event, EventListener},
     registry,
     util::SharedError,
-    CellId, KeyValuePair, SessionId, TaskId, TraitTypeId, TypedSharedReference, ValueTypeId,
 };
 
 use crate::{
@@ -57,7 +57,6 @@ pub enum OutputValue {
     Cell(CellRef),
     Output(TaskId),
     Error,
-    Panic,
 }
 impl OutputValue {
     fn is_transient(&self) -> bool {
@@ -65,7 +64,6 @@ impl OutputValue {
             OutputValue::Cell(cell) => cell.task.is_transient(),
             OutputValue::Output(task) => task.is_transient(),
             OutputValue::Error => false,
-            OutputValue::Panic => false,
         }
     }
 }
@@ -95,9 +93,7 @@ impl ActivenessState {
             active_counter: 0,
             root_ty: None,
             active_until_clean: false,
-            all_clean_event: Event::new(move || {
-                format!("ActivenessState::all_clean_event {:?}", id)
-            }),
+            all_clean_event: Event::new(move || format!("ActivenessState::all_clean_event {id:?}")),
         }
     }
 
@@ -309,7 +305,13 @@ pub struct InProgressStateInner {
     #[allow(dead_code)]
     pub once_task: bool,
     pub session_dependent: bool,
+    /// Early marking as completed. This is set before the output is available and will ignore full
+    /// task completion of the task for strongly consistent reads.
     pub marked_as_completed: bool,
+    /// Task execution has completed and the output is available.
+    pub done: bool,
+    /// Event that is triggered when the task output is available (completed flag set).
+    /// This is used to wait for completion when reading the task output before it's available.
     pub done_event: Event,
     /// Children that should be connected to the task and have their active_count decremented
     /// once the task completes.
@@ -320,6 +322,7 @@ pub struct InProgressStateInner {
 pub enum InProgressState {
     Scheduled { done_event: Event },
     InProgress(Box<InProgressStateInner>),
+    Canceled,
 }
 
 transient_traits!(InProgressState);
@@ -338,9 +341,7 @@ impl Eq for InProgressCellState {}
 impl InProgressCellState {
     pub fn new(task_id: TaskId, cell: CellId) -> Self {
         InProgressCellState {
-            event: Event::new(move || {
-                format!("InProgressCellState::event ({} {:?})", task_id, cell)
-            }),
+            event: Event::new(move || format!("InProgressCellState::event ({task_id} {cell:?})")),
         }
     }
 }
@@ -420,11 +421,11 @@ pub enum CachedDataItem {
     },
     Follower {
         task: TaskId,
-        value: i32,
+        value: u32,
     },
     Upper {
         task: TaskId,
-        value: i32,
+        value: u32,
     },
 
     // Aggregated Data
@@ -550,26 +551,26 @@ impl CachedDataItem {
 
     pub fn category(&self) -> TaskDataCategory {
         match self {
-            Self::Collectible { .. }
-            | Self::Child { .. }
-            | Self::CellData { .. }
+            Self::CellData { .. }
             | Self::CellTypeMaxIndex { .. }
             | Self::OutputDependency { .. }
             | Self::CellDependency { .. }
             | Self::CollectiblesDependency { .. }
             | Self::OutputDependent { .. }
-            | Self::CellDependent { .. }
-            | Self::CollectiblesDependent { .. } => TaskDataCategory::Data,
+            | Self::CellDependent { .. } => TaskDataCategory::Data,
 
-            Self::Output { .. }
+            Self::Collectible { .. }
+            | Self::Output { .. }
             | Self::AggregationNumber { .. }
             | Self::Dirty { .. }
             | Self::Follower { .. }
+            | Self::Child { .. }
             | Self::Upper { .. }
             | Self::AggregatedDirtyContainer { .. }
             | Self::AggregatedCollectible { .. }
             | Self::AggregatedDirtyContainerCount { .. }
-            | Self::Stateful { .. } => TaskDataCategory::Meta,
+            | Self::Stateful { .. }
+            | Self::CollectiblesDependent { .. } => TaskDataCategory::Meta,
 
             Self::OutdatedCollectible { .. }
             | Self::OutdatedOutputDependency { .. }
@@ -580,6 +581,10 @@ impl CachedDataItem {
             | Self::Error { .. }
             | Self::Activeness { .. } => TaskDataCategory::All,
         }
+    }
+
+    pub fn is_optional(&self) -> bool {
+        matches!(self, CachedDataItem::CellData { .. })
     }
 }
 
@@ -620,10 +625,6 @@ impl CachedDataItemKey {
         }
     }
 
-    pub fn is_optional(&self) -> bool {
-        matches!(self, CachedDataItemKey::CellData { .. })
-    }
-
     pub fn category(&self) -> TaskDataCategory {
         self.ty().category()
     }
@@ -632,26 +633,26 @@ impl CachedDataItemKey {
 impl CachedDataItemType {
     pub fn category(&self) -> TaskDataCategory {
         match self {
-            Self::Collectible { .. }
-            | Self::Child { .. }
-            | Self::CellData { .. }
+            Self::CellData { .. }
             | Self::CellTypeMaxIndex { .. }
             | Self::OutputDependency { .. }
             | Self::CellDependency { .. }
             | Self::CollectiblesDependency { .. }
             | Self::OutputDependent { .. }
-            | Self::CellDependent { .. }
-            | Self::CollectiblesDependent { .. } => TaskDataCategory::Data,
+            | Self::CellDependent { .. } => TaskDataCategory::Data,
 
-            Self::Output { .. }
+            Self::Collectible { .. }
+            | Self::Output { .. }
             | Self::AggregationNumber { .. }
             | Self::Dirty { .. }
             | Self::Follower { .. }
+            | Self::Child { .. }
             | Self::Upper { .. }
             | Self::AggregatedDirtyContainer { .. }
             | Self::AggregatedCollectible { .. }
             | Self::AggregatedDirtyContainerCount { .. }
-            | Self::Stateful { .. } => TaskDataCategory::Meta,
+            | Self::Stateful { .. }
+            | Self::CollectiblesDependent { .. } => TaskDataCategory::Meta,
 
             Self::OutdatedCollectible { .. }
             | Self::OutdatedOutputDependency { .. }
@@ -661,6 +662,39 @@ impl CachedDataItemType {
             | Self::InProgress { .. }
             | Self::Error { .. }
             | Self::Activeness { .. } => TaskDataCategory::All,
+        }
+    }
+
+    pub fn is_persistent(&self) -> bool {
+        match self {
+            Self::Output
+            | Self::Collectible
+            | Self::Dirty
+            | Self::Child
+            | Self::CellData
+            | Self::CellTypeMaxIndex
+            | Self::OutputDependency
+            | Self::CellDependency
+            | Self::CollectiblesDependency
+            | Self::OutputDependent
+            | Self::CellDependent
+            | Self::CollectiblesDependent
+            | Self::AggregationNumber
+            | Self::Follower
+            | Self::Upper
+            | Self::AggregatedDirtyContainer
+            | Self::AggregatedCollectible
+            | Self::AggregatedDirtyContainerCount
+            | Self::Stateful => true,
+
+            Self::Activeness
+            | Self::InProgress
+            | Self::InProgressCell
+            | Self::OutdatedCollectible
+            | Self::OutdatedOutputDependency
+            | Self::OutdatedCellDependency
+            | Self::OutdatedCollectiblesDependency
+            | Self::Error => false,
         }
     }
 }
@@ -674,30 +708,16 @@ pub mod allow_mut_access {
     pub const Activeness: () = ();
 }
 
-impl CachedDataItemValue {
+impl CachedDataItemValueRef<'_> {
     pub fn is_persistent(&self) -> bool {
         match self {
-            CachedDataItemValue::Output { value } => !value.is_transient(),
-            CachedDataItemValue::CellData { value } => {
+            CachedDataItemValueRef::Output { value } => !value.is_transient(),
+            CachedDataItemValueRef::CellData { value } => {
                 registry::get_value_type(value.0).is_serializable()
             }
             _ => true,
         }
     }
-}
-
-#[derive(Debug)]
-pub enum CachedDataUpdate {
-    /// Sets the current task id.
-    Task { task: TaskId },
-    /// An item was added. There was no old value.
-    New { item: CachedDataItem },
-    /// An item was removed.
-    Removed { old_item: CachedDataItem },
-    /// An item was replaced. This is step 1 and tells about the key and the old value
-    Replace1 { old_item: CachedDataItem },
-    /// An item was replaced. This is step 2 and tells about the new value.
-    Replace2 { value: CachedDataItemValue },
 }
 
 #[cfg(test)]
@@ -709,6 +729,5 @@ mod tests {
         assert_eq!(std::mem::size_of::<super::CachedDataItemKey>(), 20);
         assert_eq!(std::mem::size_of::<super::CachedDataItemValue>(), 32);
         assert_eq!(std::mem::size_of::<super::CachedDataItemStorage>(), 48);
-        assert_eq!(std::mem::size_of::<super::CachedDataUpdate>(), 48);
     }
 }

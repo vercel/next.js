@@ -1,4 +1,4 @@
-import { isMetadataRoute } from './is-metadata-route'
+import { isMetadataPage } from './is-metadata-route'
 import path from '../../shared/lib/isomorphic/path'
 import { interpolateDynamicPath } from '../../server/server-utils'
 import { getNamedRouteRegex } from '../../shared/lib/router/utils/route-regex'
@@ -83,7 +83,7 @@ export function fillMetadataSegment(
  * @returns
  */
 export function normalizeMetadataRoute(page: string) {
-  if (!isMetadataRoute(page)) {
+  if (!isMetadataPage(page)) {
     return page
   }
   let route = page

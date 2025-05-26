@@ -1,4 +1,3 @@
-import { assertHasRedbox, getRedboxDescription } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
 describe('app dir - global error - layout error', () => {
@@ -15,15 +14,19 @@ describe('app dir - global error - layout error', () => {
     const browser = await next.browser('/')
 
     if (isNextDev) {
-      await assertHasRedbox(browser)
-      const description = await getRedboxDescription(browser)
-      if (process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true') {
-        expect(description).toMatchInlineSnapshot(`"Error: layout error"`)
-      } else {
-        expect(description).toMatchInlineSnapshot(
-          `"[ Server ] Error: layout error"`
-        )
-      }
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "layout error",
+         "environmentLabel": "Server",
+         "label": "Runtime Error",
+         "source": "app/layout.js (2:9) @ layout
+       > 2 |   throw new Error('layout error')
+           |         ^",
+         "stack": [
+           "layout app/layout.js (2:9)",
+         ],
+       }
+      `)
     }
 
     expect(await browser.elementByCss('h1').text()).toBe('Global Error')

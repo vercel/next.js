@@ -1,6 +1,7 @@
 pub mod availability_info;
 pub mod available_modules;
 pub mod chunk_group;
+pub(crate) mod chunk_item_batch;
 pub mod chunking;
 pub(crate) mod chunking_context;
 pub(crate) mod containment_tree;
@@ -16,22 +17,33 @@ use auto_hash_map::AutoSet;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput,
-    Upcast, ValueToString, Vc,
+    FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, Upcast, ValueToString, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbo_tasks_hash::DeterministicHash;
 
 pub use self::{
+    chunk_item_batch::{
+        ChunkItemBatchGroup, ChunkItemBatchWithAsyncModuleInfo,
+        ChunkItemOrBatchWithAsyncModuleInfo, batch_info,
+    },
     chunking_context::{
         ChunkGroupResult, ChunkGroupType, ChunkingConfig, ChunkingConfigs, ChunkingContext,
-        ChunkingContextExt, EntryChunkGroupResult, MinifyType, SourceMapsType,
+        ChunkingContextExt, EntryChunkGroupResult, MangleType, MinifyType, SourceMapsType,
     },
     data::{ChunkData, ChunkDataOption, ChunksData},
     evaluate::{EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets},
 };
 use crate::{
-    asset::Asset, ident::AssetIdent, module::Module, module_graph::ModuleGraph,
-    output::OutputAssets, reference::ModuleReference,
+    asset::Asset,
+    ident::AssetIdent,
+    module::Module,
+    module_graph::{
+        ModuleGraph,
+        module_batch::{ChunkableModuleOrBatch, ModuleBatchGroup},
+    },
+    output::OutputAssets,
+    reference::ModuleReference,
 };
 
 /// A module id, which can be a number or string
@@ -46,8 +58,8 @@ pub enum ModuleId {
 impl Display for ModuleId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ModuleId::Number(i) => write!(f, "{}", i),
-            ModuleId::String(s) => write!(f, "{}", s),
+            ModuleId::Number(i) => write!(f, "{i}"),
+            ModuleId::String(s) => write!(f, "{s}"),
         }
     }
 }
@@ -150,7 +162,6 @@ pub trait OutputChunk: Asset {
 /// group
 #[derive(
     Debug,
-    Default,
     Clone,
     Hash,
     TraceRawVcs,
@@ -162,13 +173,15 @@ pub trait OutputChunk: Asset {
     NonLocalValue,
 )]
 pub enum ChunkingType {
-    /// Module is placed in the same chunk group and is loaded in parallel. It
-    /// doesn't become an async module when the referenced module is async.
-    #[default]
-    Parallel,
-    /// Module is placed in the same chunk group and is loaded in parallel. It
-    /// becomes an async module when the referenced module is async.
-    ParallelInheritAsync,
+    /// The referenced module is placed in the same chunk group and is loaded in parallel.
+    Parallel {
+        /// Whether the parent module becomes an async module when the referenced module is async.
+        /// This should happen for e.g. ESM imports, but not for CommonJS requires.
+        inherit_async: bool,
+        /// Whether the referenced module is executed always immediately before the parent module
+        /// (corresponding to ESM import semantics).
+        hoisted: bool,
+    },
     /// An async loader is placed into the referencing chunk and loads the
     /// separate chunk group in which the module is placed.
     Async,
@@ -179,8 +192,69 @@ pub enum ChunkingType {
         _ty: ChunkGroupType,
         merge_tag: Option<RcStr>,
     },
+    /// Create a new chunk group in a separate context, merging references with the same tag into a
+    /// single chunk group. It provides available modules to the current chunk group. It's assumed
+    /// to be loaded before the current chunk group.
+    Shared {
+        inherit_async: bool,
+        merge_tag: Option<RcStr>,
+    },
     // Module not placed in chunk group, but its references are still followed.
     Traced,
+}
+
+impl ChunkingType {
+    pub fn is_inherit_async(&self) -> bool {
+        matches!(
+            self,
+            ChunkingType::Parallel {
+                inherit_async: true,
+                ..
+            } | ChunkingType::Shared {
+                inherit_async: true,
+                ..
+            }
+        )
+    }
+
+    pub fn is_parallel(&self) -> bool {
+        matches!(self, ChunkingType::Parallel { .. })
+    }
+
+    pub fn is_merged(&self) -> bool {
+        matches!(
+            self,
+            ChunkingType::Isolated {
+                merge_tag: Some(_),
+                ..
+            } | ChunkingType::Shared {
+                merge_tag: Some(_),
+                ..
+            }
+        )
+    }
+
+    pub fn without_inherit_async(&self) -> Self {
+        match self {
+            ChunkingType::Parallel { hoisted, .. } => ChunkingType::Parallel {
+                hoisted: *hoisted,
+                inherit_async: false,
+            },
+            ChunkingType::Async => ChunkingType::Async,
+            ChunkingType::Isolated { _ty, merge_tag } => ChunkingType::Isolated {
+                _ty: *_ty,
+                merge_tag: merge_tag.clone(),
+            },
+            ChunkingType::Shared {
+                inherit_async: _,
+                merge_tag,
+            } => ChunkingType::Shared {
+                inherit_async: false,
+                merge_tag: merge_tag.clone(),
+            },
+            ChunkingType::Traced => ChunkingType::Traced,
+        }
+    }
 }
 
 #[turbo_tasks::value(transparent)]
@@ -195,13 +269,17 @@ pub struct ChunkingTypeOption(Option<ChunkingType>);
 #[turbo_tasks::value_trait]
 pub trait ChunkableModuleReference: ModuleReference + ValueToString {
     fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::default()))
+        Vc::cell(Some(ChunkingType::Parallel {
+            inherit_async: false,
+            hoisted: false,
+        }))
     }
 }
 
 #[derive(Default)]
 pub struct ChunkGroupContent {
-    pub chunkable_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
+    pub chunkable_items: FxIndexSet<ChunkableModuleOrBatch>,
+    pub batch_groups: FxIndexSet<ResolvedVc<ModuleBatchGroup>>,
     pub async_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
     pub traced_modules: FxIndexSet<ResolvedVc<Box<dyn Module>>>,
 }
@@ -237,13 +315,14 @@ pub trait ChunkItem {
 #[turbo_tasks::value_trait]
 pub trait ChunkType: ValueToString {
     /// Whether the source (reference) order of items needs to be retained during chunking.
-    fn must_keep_item_order(self: Vc<Self>) -> Vc<bool>;
+    fn is_style(self: Vc<Self>) -> Vc<bool>;
 
     /// Create a new chunk for the given chunk items
     fn chunk(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-        chunk_items: Vec<ChunkItemWithAsyncModuleInfo>,
+        chunk_items: Vec<ChunkItemOrBatchWithAsyncModuleInfo>,
+        batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
         referenced_output_assets: Vc<OutputAssets>,
     ) -> Vc<Box<dyn Chunk>>;
 
@@ -284,7 +363,6 @@ impl AsyncModuleInfo {
 #[derive(
     Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, TaskInput, NonLocalValue,
 )]
-// #[turbo_tasks::value]
 pub struct ChunkItemWithAsyncModuleInfo {
     pub chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
     pub module: Option<ResolvedVc<Box<dyn ChunkableModule>>>,
@@ -344,6 +422,8 @@ mod tests {
         assert_eq!(round_chunk_item_size(6), 6);
         assert_eq!(round_chunk_item_size(7), 6);
         assert_eq!(round_chunk_item_size(8), 8);
+        assert_eq!(round_chunk_item_size(49000), 32_768);
+        assert_eq!(round_chunk_item_size(50000), 49_152);
 
         assert_eq!(changes_in_range(0..1000), 19);
         assert_eq!(changes_in_range(1000..2000), 2);

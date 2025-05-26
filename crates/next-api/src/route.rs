@@ -2,12 +2,15 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, FxIndexMap, NonLocalValue,
-    OperationVc, ResolvedVc, Vc,
+    Completion, FxIndexMap, NonLocalValue, OperationVc, ResolvedVc, Vc, debug::ValueDebugFormat,
+    trace::TraceRawVcs,
 };
-use turbopack_core::{module::Modules, module_graph::ModuleGraph, output::OutputAssets};
+use turbopack_core::{
+    module_graph::{GraphEntries, ModuleGraph},
+    output::OutputAssets,
+};
 
-use crate::{paths::ServerPath, project::Project};
+use crate::{operation::OptionEndpoint, paths::ServerPath, project::Project};
 
 #[derive(
     TraceRawVcs,
@@ -51,11 +54,11 @@ pub trait Endpoint {
     fn server_changed(self: Vc<Self>) -> Vc<Completion>;
     fn client_changed(self: Vc<Self>) -> Vc<Completion>;
     /// The entry modules for the modules graph.
-    fn root_modules(self: Vc<Self>) -> Vc<Modules>;
+    fn entries(self: Vc<Self>) -> Vc<GraphEntries>;
     /// Additional entry modules for the module graph.
     /// This may read the module graph and return additional modules.
-    fn additional_root_modules(self: Vc<Self>, _graph: Vc<ModuleGraph>) -> Vc<Modules> {
-        Modules::empty()
+    fn additional_entries(self: Vc<Self>, _graph: Vc<ModuleGraph>) -> Vc<GraphEntries> {
+        GraphEntries::empty()
     }
 }
 
@@ -94,17 +97,36 @@ async fn endpoint_output_assets_operation(
 }
 
 #[turbo_tasks::function(operation)]
-pub fn endpoint_write_to_disk_operation(
-    endpoint: OperationVc<Box<dyn Endpoint>>,
-) -> Vc<EndpointOutputPaths> {
-    endpoint_write_to_disk(endpoint.connect())
+pub async fn endpoint_write_to_disk_operation(
+    endpoint: OperationVc<OptionEndpoint>,
+) -> Result<Vc<EndpointOutputPaths>> {
+    Ok(if let Some(endpoint) = *endpoint.connect().await? {
+        endpoint_write_to_disk(*endpoint)
+    } else {
+        EndpointOutputPaths::NotFound.cell()
+    })
 }
 
 #[turbo_tasks::function(operation)]
-pub fn endpoint_server_changed_operation(
-    endpoint: OperationVc<Box<dyn Endpoint>>,
-) -> Vc<Completion> {
-    endpoint.connect().server_changed()
+pub async fn endpoint_server_changed_operation(
+    endpoint: OperationVc<OptionEndpoint>,
+) -> Result<Vc<Completion>> {
+    Ok(if let Some(endpoint) = *endpoint.connect().await? {
+        endpoint.server_changed()
+    } else {
+        Completion::new()
+    })
+}
+
+#[turbo_tasks::function(operation)]
+pub async fn endpoint_client_changed_operation(
+    endpoint: OperationVc<OptionEndpoint>,
+) -> Result<Vc<Completion>> {
+    Ok(if let Some(endpoint) = *endpoint.connect().await? {
+        endpoint.client_changed()
+    } else {
+        Completion::new()
+    })
 }
 
 #[turbo_tasks::value(shared)]
@@ -128,6 +150,7 @@ pub enum EndpointOutputPaths {
         server_paths: Vec<ServerPath>,
         client_paths: Vec<RcStr>,
     },
+    NotFound,
 }
 
 /// The routes as map from pathname to route. (pathname includes the leading

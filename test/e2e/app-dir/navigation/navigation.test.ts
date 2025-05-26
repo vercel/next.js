@@ -1,6 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry, waitFor } from 'next-test-utils'
-import type { Request, Response } from 'playwright'
 
 describe('app dir - navigation', () => {
   const { next, isNextDev, isNextStart, isNextDeploy } = nextTestSetup({
@@ -44,7 +43,7 @@ describe('app dir - navigation', () => {
 
       const browser = await next.browser('/search-params?name=名', {
         beforePageLoad(page) {
-          page.on('response', async (res: Response) => {
+          page.on('response', async (res) => {
             requests.push({
               pathname: new URL(res.url()).pathname,
               ok: res.ok(),
@@ -497,7 +496,7 @@ describe('app dir - navigation', () => {
 
           const browser = await next.browser(path, {
             beforePageLoad(page) {
-              page.on('request', async (req: Request) => {
+              page.on('request', async (req) => {
                 requestedPathnames.push(new URL(req.url()).pathname)
               })
             },
@@ -871,7 +870,9 @@ describe('app dir - navigation', () => {
       const scrollPosition = await browser.eval('window.pageYOffset')
 
       await browser.elementByCss("[href='/scroll-restoration/other']").click()
-      await browser.elementById('back-button').click()
+      await retry(async () => {
+        await browser.elementById('back-button').click()
+      })
 
       const newScrollPosition = await browser.eval('window.pageYOffset')
 
@@ -891,7 +892,7 @@ describe('app dir - navigation', () => {
         .elementByCss("[href='/metadata-await-promise/nested']")
         .click()
 
-      await waitFor(resolveMetadataDuration)
+      await waitFor(resolveMetadataDuration + 500)
 
       expect(await browser.elementById('page-content').text()).toBe('Content')
       expect(await browser.elementByCss('title').text()).toBe('Async Title')
@@ -912,16 +913,9 @@ describe('app dir - navigation', () => {
       if (!isNextDev) {
         expect(
           await browser
-            .waitForElementByCss(
-              '#loading',
-              // Give it some time to commit
-              100
-            )
+            .waitForElementByCss('title', resolveMetadataDuration + 500)
             .text()
-        ).toEqual('Loading')
-        expect(await browser.elementByCss('title').text()).toBe('Async Title')
-
-        await waitFor(resolveMetadataDuration + 500)
+        ).toBe('Async Title')
       }
 
       expect(await browser.elementById('page-content').text()).toBe('Content')
@@ -1018,4 +1012,65 @@ describe('app dir - navigation', () => {
       })
     })
   }
+
+  describe('useRouter identity between navigations', () => {
+    it('should preserve identity when navigating to the same page', async () => {
+      const browser = await next.browser('/use-router/same-page')
+
+      expect(await browser.elementByCss('#count-from-server').text()).toBe('0')
+      expect(
+        await browser.elementByCss('#count-from-client-state').text()
+      ).toBe('0')
+      expect(await browser.elementByCss('#router-change-count').text()).toBe(
+        '0'
+      )
+
+      for (let i = 1; i <= 3; i++) {
+        await browser.elementByCss('#trigger-push').click()
+        await retry(async () => {
+          expect(await browser.elementByCss('#count-from-server').text()).toBe(
+            `${i}`
+          )
+          // the client state is independent from the count we keep in the queryparam.
+          // we expect it to stay mounted and thus keep its own count.
+          // if it was getting unmounted, then its count of router changes would always stay at 0.
+          expect(
+            await browser.elementByCss('#count-from-client-state').text()
+          ).toBe(`${i}`)
+          expect(
+            await browser.elementByCss('#router-change-count').text()
+          ).toBe('0')
+        })
+      }
+    })
+
+    it('should preserve identity when navigating between different pages', async () => {
+      const browser = await next.browser('/use-router/shared-layout/one')
+
+      expect(await browser.elementByCss('h1').text()).toBe('One')
+      expect(
+        await browser.elementByCss('#count-from-client-state').text()
+      ).toBe('0')
+      expect(await browser.elementByCss('#router-change-count').text()).toBe(
+        '0'
+      )
+
+      for (let i = 1; i <= 3; i++) {
+        await browser.elementByCss('#trigger-push').click()
+        await retry(async () => {
+          expect(await browser.elementByCss('h1').text()).toBe(
+            i % 2 === 0 ? 'One' : 'Two'
+          )
+          // we expect the client part to stay mounted and thus keep its own count.
+          // if it was getting unmounted, then its count of router changes would always be 0.
+          expect(
+            await browser.elementByCss('#count-from-client-state').text()
+          ).toBe(`${i}`)
+          expect(
+            await browser.elementByCss('#router-change-count').text()
+          ).toBe('0')
+        })
+      }
+    })
+  })
 })

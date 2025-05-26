@@ -5,13 +5,13 @@ use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath};
 use turbopack_core::{
     asset::Asset,
     file_source::FileSource,
-    introspect::{source::IntrospectableSource, Introspectable, IntrospectableChildren},
+    introspect::{Introspectable, IntrospectableChildren, source::IntrospectableSource},
     version::VersionedContentExt,
 };
 
 use super::{
-    route_tree::{BaseSegment, RouteTree, RouteTrees, RouteType},
     ContentSource, ContentSourceContent, ContentSourceData, GetContentSourceContent,
+    route_tree::{BaseSegment, RouteTree, RouteTrees, RouteType},
 };
 
 #[turbo_tasks::value(shared)]
@@ -140,8 +140,9 @@ impl Introspectable for StaticAssetsContentSource {
                             .to_resolved()
                             .await?,
                         ),
-                        DirectoryEntry::Other(_) => todo!("what's DirectoryContent::Other?"),
-                        DirectoryEntry::Error => todo!(),
+                        DirectoryEntry::Other(_) | DirectoryEntry::Error => {
+                            todo!("unsupported DirectoryContent variant: {entry:?}")
+                        }
                     };
                     Ok((ResolvedVc::cell(name.clone()), child))
                 }

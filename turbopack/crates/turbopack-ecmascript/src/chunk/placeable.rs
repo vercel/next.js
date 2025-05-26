@@ -1,13 +1,13 @@
 use anyhow::Result;
 use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, Vc};
-use turbo_tasks_fs::{glob::Glob, FileJsonContent, FileSystemPath};
+use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob};
 use turbopack_core::{
     asset::Asset,
     chunk::ChunkableModule,
     error::PrettyPrintError,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     module::Module,
-    resolve::{find_context_file, package_json, FindContextFileResult},
+    resolve::{FindContextFileResult, find_context_file, package_json},
 };
 
 use crate::references::{
@@ -50,7 +50,9 @@ async fn side_effects_from_package_json(
                     .filter_map(|side_effect| {
                         if let Some(side_effect) = side_effect.as_str() {
                             if side_effect.contains('/') {
-                                Some(Glob::new(side_effect.into()))
+                                Some(Glob::new(
+                                    side_effect.strip_prefix("./").unwrap_or(side_effect).into(),
+                                ))
                             } else {
                                 Some(Glob::new(format!("**/{side_effect}").into()))
                             }
@@ -61,8 +63,7 @@ async fn side_effects_from_package_json(
                                     StyledString::Text(
                                         format!(
                                             "Each element in sideEffects must be a string, but \
-                                             found {:?}",
-                                            side_effect
+                                             found {side_effect:?}"
                                         )
                                         .into(),
                                     )
@@ -108,8 +109,8 @@ async fn side_effects_from_package_json(
                     description: Some(
                         StyledString::Text(
                             format!(
-                                "sideEffects must be a boolean or an array, but found {:?}",
-                                side_effects
+                                "sideEffects must be a boolean or an array, but found \
+                                 {side_effects:?}"
                             )
                             .into(),
                         )
@@ -163,7 +164,7 @@ pub async fn is_marked_as_side_effect_free(
     path: Vc<FileSystemPath>,
     side_effect_free_packages: Vc<Glob>,
 ) -> Result<Vc<bool>> {
-    if side_effect_free_packages.await?.execute(&path.await?.path) {
+    if side_effect_free_packages.await?.matches(&path.await?.path) {
         return Ok(Vc::cell(true));
     }
 
@@ -179,7 +180,8 @@ pub async fn is_marked_as_side_effect_free(
                     .await?
                     .get_relative_path_to(&*path.await?)
                 {
-                    return Ok(Vc::cell(!glob.await?.execute(&rel_path)));
+                    let rel_path = rel_path.strip_prefix("./").unwrap_or(&rel_path);
+                    return Ok(Vc::cell(!glob.await?.matches(rel_path)));
                 }
             }
         }

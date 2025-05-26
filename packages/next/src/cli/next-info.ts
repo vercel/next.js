@@ -8,7 +8,7 @@ import { PHASE_INFO } from '../shared/lib/constants'
 import loadConfig from '../server/config'
 import { getRegistry } from '../lib/helpers/get-registry'
 import { parseVersionInfo } from '../server/dev/parse-version-info'
-import { getStaleness } from '../client/components/react-dev-overlay/internal/components/VersionStalenessInfo/VersionStalenessInfo'
+import { getStaleness } from '../client/components/react-dev-overlay/ui/components/version-staleness-info/version-staleness-info'
 import { warn } from '../build/output/log'
 
 export type NextInfoOptions = {
@@ -133,6 +133,17 @@ async function printInfo() {
   }
 
   const cpuCores = os.cpus().length
+  let relevantPackages = `  next: ${installedRelease}${stalenessWithTitle}
+  eslint-config-next: ${getPackageVersion('eslint-config-next')}
+  react: ${getPackageVersion('react')}
+  react-dom: ${getPackageVersion('react-dom')}
+  typescript: ${getPackageVersion('typescript')}`
+
+  if (process.env.NEXT_RSPACK) {
+    relevantPackages += `
+  next-rspack: ${getPackageVersion('next-rspack')}`
+  }
+
   console.log(`
 Operating System:
   Platform: ${os.platform()}
@@ -146,11 +157,7 @@ Binaries:
   Yarn: ${getBinaryVersion('yarn')}
   pnpm: ${getBinaryVersion('pnpm')}
 Relevant Packages:
-  next: ${installedRelease}${stalenessWithTitle}
-  eslint-config-next: ${getPackageVersion('eslint-config-next')}
-  react: ${getPackageVersion('react')}
-  react-dom: ${getPackageVersion('react-dom')}
-  typescript: ${getPackageVersion('typescript')}
+${relevantPackages}
 Next.js Config:
   output: ${nextConfig.output}`)
 

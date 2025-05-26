@@ -82,6 +82,7 @@ export async function collectBuildTraces({
   hasSsrAmpPages,
   buildTraceContext,
   outputFileTracingRoot,
+  isTurbopack,
 }: {
   dir: string
   distDir: string
@@ -93,6 +94,7 @@ export async function collectBuildTraces({
   nextBuildSpan?: Span
   config: NextConfigComplete
   buildTraceContext?: BuildTraceContext
+  isTurbopack: boolean
 }) {
   const startTime = Date.now()
   debug('starting build traces')
@@ -201,7 +203,7 @@ export async function collectBuildTraces({
       const sharedIgnores = [
         '**/next/dist/compiled/next-server/**/*.dev.js',
         ...(isStandalone ? [] : ['**/next/dist/compiled/jest-worker/**/*']),
-        '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
+        '**/next/dist/compiled/webpack/*',
         '**/node_modules/webpack5/**/*',
         '**/next/dist/server/lib/route-resolver*',
         'next/dist/compiled/semver/semver/**/*.js',
@@ -276,6 +278,11 @@ export async function collectBuildTraces({
           require.resolve('next/dist/compiled/jest-worker/threadChild'),
           serverTracedFiles
         )
+      }
+
+      if (isTurbopack) {
+        addToTracedFiles(distDir, './package.json', serverTracedFiles)
+        addToTracedFiles(distDir, './package.json', minimalServerTracedFiles)
       }
 
       {

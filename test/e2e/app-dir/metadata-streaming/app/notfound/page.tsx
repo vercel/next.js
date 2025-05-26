@@ -2,12 +2,12 @@ import { connection } from 'next/server'
 import { notFound } from 'next/navigation'
 
 export default function Page() {
-  return <p>notfound page</p>
+  return <p>boundary notfound page</p>
 }
 
 export async function generateMetadata() {
   await connection()
-  await new Promise((resolve) => setTimeout(resolve, 2 * 1000))
+  await new Promise((resolve) => setTimeout(resolve, 500))
   notFound()
 }
 

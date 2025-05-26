@@ -121,6 +121,19 @@ describe('app-dir - metadata-streaming', () => {
       expect(await browser.elementByCss('p').text()).toBe('index page')
     })
 
+    it('should trigger custom not-found in the boundary', async () => {
+      const browser = await next.browser('/notfound/boundary')
+
+      expect(await browser.elementByCss('h1').text()).toBe('Custom Not Found')
+    })
+
+    it('should not duplicate metadata with navigation API', async () => {
+      const browser = await next.browser('/notfound/boundary')
+
+      const titleTags = await browser.elementsByCss('title')
+      expect(titleTags.length).toBe(1)
+    })
+
     it('should render blocking 404 response status when html limited bots access notFound', async () => {
       const { status } = await next.fetch('/notfound', {
         headers: {
@@ -138,6 +151,34 @@ describe('app-dir - metadata-streaming', () => {
         redirect: 'manual',
       })
       expect(status).toBe(307)
+    })
+  })
+
+  describe('static', () => {
+    it('should render static metadata in the head', async () => {
+      const $ = await next.render$('/static/full')
+      expect($('title').length).toBe(1)
+      expect($('head title').text()).toBe('static page')
+    })
+
+    it('should determine dynamic metadata in build and render in the body', async () => {
+      const $ = await next.render$('/static/partial')
+      expect($('title').length).toBe(1)
+      expect($('body title').text()).toBe('partial static page')
+    })
+
+    it('should still render dynamic metadata in the head for html bots', async () => {
+      const $ = await next.render$(
+        '/static/partial',
+        {},
+        {
+          headers: {
+            'user-agent': 'Twitterbot',
+          },
+        }
+      )
+      expect($('title').length).toBe(1)
+      expect($('head title').text()).toBe('partial static page')
     })
   })
 })

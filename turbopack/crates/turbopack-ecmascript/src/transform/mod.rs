@@ -4,15 +4,15 @@ use anyhow::Result;
 use async_trait::async_trait;
 use rustc_hash::FxHashMap;
 use swc_core::{
-    atoms::{atom, Atom},
+    atoms::{Atom, atom},
     base::SwcComments,
-    common::{comments::Comments, util::take::Take, Mark, SourceMap},
+    common::{Mark, SourceMap, comments::Comments, util::take::Take},
     ecma::{
         ast::{Module, ModuleItem, Program, Script},
         preset_env::{self, Targets},
         transforms::{
-            base::{assumptions::Assumptions, feature::FeatureFlag, helpers::inject_helpers},
-            optimization::inline_globals2,
+            base::{assumptions::Assumptions, helpers::inject_helpers},
+            optimization::inline_globals,
             react::react,
         },
     },
@@ -29,7 +29,6 @@ use turbopack_core::{
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Debug, Clone, Hash)]
 pub enum EcmascriptInputTransform {
-    CommonJs,
     Plugin(ResolvedVc<TransformPlugin>),
     PresetEnv(ResolvedVc<Environment>),
     React {
@@ -116,6 +115,7 @@ pub struct TransformContext<'a> {
     pub file_path_str: &'a str,
     pub file_name_str: &'a str,
     pub file_name_hash: u128,
+    pub query_str: RcStr,
     pub file_path: ResolvedVc<FileSystemPath>,
 }
 
@@ -133,7 +133,8 @@ impl EcmascriptInputTransform {
                 let mut typeofs: FxHashMap<Atom, Atom> = Default::default();
                 typeofs.insert(Atom::from("window"), Atom::from(&**window_value));
 
-                program.mutate(inline_globals2(
+                program.mutate(inline_globals(
+                    unresolved_mark,
                     Default::default(),
                     Default::default(),
                     Default::default(),
@@ -155,7 +156,7 @@ impl EcmascriptInputTransform {
                             return Err(anyhow::anyhow!(
                                 "Invalid value for swc.jsc.transform.react.runtime: {}",
                                 runtime
-                            ))
+                            ));
                         }
                     }
                 } else {
@@ -208,29 +209,15 @@ impl EcmascriptInputTransform {
                     }
                 }
             }
-            EcmascriptInputTransform::CommonJs => {
-                // Explicit type annotation to ensure that we don't duplicate transforms in the
-                // final binary
-                program.mutate(swc_core::ecma::transforms::module::common_js(
-                    swc_core::ecma::transforms::module::path::Resolver::Default,
-                    unresolved_mark,
-                    swc_core::ecma::transforms::module::util::Config {
-                        allow_top_level_this: true,
-                        import_interop: Some(
-                            swc_core::ecma::transforms::module::util::ImportInterop::Swc,
-                        ),
-                        ..Default::default()
-                    },
-                    swc_core::ecma::transforms::base::feature::FeatureFlag::all(),
-                ));
-            }
             EcmascriptInputTransform::PresetEnv(env) => {
                 let versions = env.runtime_versions().await?;
-                let config = swc_core::ecma::preset_env::Config {
-                    targets: Some(Targets::Versions(*versions)),
-                    mode: None, // Don't insert core-js polyfills
-                    ..Default::default()
-                };
+                let config = swc_core::ecma::preset_env::EnvConfig::from(
+                    swc_core::ecma::preset_env::Config {
+                        targets: Some(Targets::Versions(*versions)),
+                        mode: None, // Don't insert core-js polyfills
+                        ..Default::default()
+                    },
+                );
 
                 let module_program = std::mem::replace(program, Program::Module(Module::dummy()));
 
@@ -252,12 +239,11 @@ impl EcmascriptInputTransform {
                 // Explicit type annotation to ensure that we don't duplicate transforms in the
                 // final binary
                 *program = module_program.apply((
-                    preset_env::preset_env::<&'_ dyn Comments>(
+                    preset_env::transform_from_env::<&'_ dyn Comments>(
                         top_level_mark,
                         Some(&comments),
                         config,
                         Assumptions::default(),
-                        &mut FeatureFlag::empty(),
                     ),
                     inject_helpers(unresolved_mark),
                 ));
@@ -277,7 +263,7 @@ impl EcmascriptInputTransform {
                 // TODO(WEB-1213)
                 use_define_for_class_fields: _use_define_for_class_fields,
             } => {
-                use swc_core::ecma::transforms::proposal::decorators::{decorators, Config};
+                use swc_core::ecma::transforms::proposal::decorators::{Config, decorators};
                 let config = Config {
                     legacy: *is_legacy,
                     emit_metadata: *emit_decorators_metadata,

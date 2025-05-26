@@ -1,7 +1,8 @@
 use std::{io::Write, iter::once};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use indoc::writedoc;
+use once_cell::sync::Lazy;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::File;
@@ -178,7 +179,7 @@ impl EcmascriptClientReferenceModule {
 
 #[turbo_tasks::function]
 fn client_reference_modifier() -> Vc<RcStr> {
-    Vc::cell("client reference/proxy".into())
+    Vc::cell("client reference proxy".into())
 }
 
 #[turbo_tasks::function]
@@ -191,11 +192,17 @@ fn ecmascript_client_reference_ssr_ref_modifier() -> Vc<RcStr> {
     Vc::cell("ecmascript client reference to ssr".into())
 }
 
+pub static ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG_CLIENT: Lazy<RcStr> =
+    Lazy::new(|| "client".into());
+pub static ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG_SSR: Lazy<RcStr> = Lazy::new(|| "ssr".into());
+
 #[turbo_tasks::value_impl]
 impl Module for EcmascriptClientReferenceModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        self.server_ident.with_modifier(client_reference_modifier())
+        self.server_ident
+            .with_modifier(client_reference_modifier())
+            .with_layer(self.server_asset_context.layer())
     }
 
     #[turbo_tasks::function]
@@ -216,7 +223,7 @@ impl Module for EcmascriptClientReferenceModule {
                 EcmascriptClientReference::new(
                     *ResolvedVc::upcast(*client_module),
                     ChunkGroupType::Evaluated,
-                    Some("client".into()),
+                    Some(ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG_CLIENT.clone()),
                     ecmascript_client_reference_client_ref_modifier(),
                 )
                 .to_resolved()
@@ -226,7 +233,7 @@ impl Module for EcmascriptClientReferenceModule {
                 EcmascriptClientReference::new(
                     *ResolvedVc::upcast(*ssr_module),
                     ChunkGroupType::Entry,
-                    Some("ssr".into()),
+                    Some(ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG_SSR.clone()),
                     ecmascript_client_reference_ssr_ref_modifier(),
                 )
                 .to_resolved()

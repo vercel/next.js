@@ -1,0 +1,70 @@
+name: Benchmark
+
+on:
+  push:
+    branches:
+      - canary
+    paths:
+      - '**/crates/**'
+  pull_request:
+    types: ['labeled']
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CI: 1
+  CARGO_INCREMENTAL: 0
+  # For faster CI
+  RUST_LOG: 'off'
+
+jobs:
+  list-crates:
+    name: List crates to benchmark
+    runs-on:
+      - 'self-hosted'
+      - 'linux'
+      - 'x64'
+      - 'metal'
+    if: ${{ github.event.label.name == 'benchmark' }}
+    outputs:
+      crates: ${{ steps.list-crates.outputs.crates }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: List crates
+        id: list-crates
+        run: echo "crates=$(./scripts/cargo/bench/list-crates-with-bench.sh)" >> $GITHUB_OUTPUT
+
+  benchmark-crate:
+    name: Benchmark ${{ matrix.crate }}
+    runs-on: ubuntu-22.04
+    needs: list-crates
+    # Limit the number of concurrent jobs to 1
+    concurrency:
+      group: ${{ github.workflow }}
+    strategy:
+      matrix:
+        crate: ${{fromJson(needs.list-crates.outputs.crates)}}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+
+      - name: Install cargo-codspeed
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-codspeed@2.8.1
+
+      - name: Build the benchmark target(s)
+        run: cargo codspeed build -p ${{ matrix.crate }}
+
+      - name: Run the benchmarks
+        uses: CodSpeedHQ/action@v3
+        with:
+          run: cargo codspeed run
+          token: ${{ secrets.CODSPEED_TOKEN }}

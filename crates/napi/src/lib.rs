@@ -34,12 +34,8 @@ DEALINGS IN THE SOFTWARE.
 #[macro_use]
 extern crate napi_derive;
 
-use std::{
-    panic::set_hook,
-    sync::{Arc, Once},
-};
+use std::sync::{Arc, Once};
 
-use backtrace::Backtrace;
 use napi::bindgen_prelude::*;
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
@@ -54,15 +50,13 @@ pub mod minify;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod next_api;
 pub mod parse;
+pub mod react_compiler;
 pub mod transform;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod turbo_trace_server;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod turbopack;
 pub mod util;
-
-// Declare build-time information variables generated in build.rs
-shadow_rs::shadow!(build);
 
 #[cfg(not(any(feature = "__internal_dhat-heap", feature = "__internal_dhat-ad-hoc")))]
 #[global_allocator]
@@ -74,18 +68,19 @@ static ALLOC: dhat::Alloc = dhat::Alloc;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[napi::module_init]
-
 fn init() {
+    use std::panic::{set_hook, take_hook};
+
     use tokio::runtime::Builder;
+    use turbo_tasks::handle_panic;
     use turbo_tasks_malloc::TurboMalloc;
 
-    set_hook(Box::new(|panic_info| {
-        util::log_internal_error_and_inform(&format!(
-            "Panic: {}\nBacktrace: {:?}",
-            panic_info,
-            Backtrace::new()
-        ));
+    let prev_hook = take_hook();
+    set_hook(Box::new(move |info| {
+        handle_panic(info);
+        prev_hook(info);
     }));
+
     let rt = Builder::new_multi_thread()
         .enable_all()
         .on_thread_stop(|| {

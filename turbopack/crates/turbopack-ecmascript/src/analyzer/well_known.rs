@@ -6,8 +6,8 @@ use turbopack_core::compile_time_info::CompileTimeInfo;
 use url::Url;
 
 use super::{
-    imports::ImportAnnotations, ConstantValue, JsValue, JsValueUrlKind, ModuleValue,
-    WellKnownFunctionKind, WellKnownObjectKind,
+    ConstantValue, JsValue, JsValueUrlKind, ModuleValue, WellKnownFunctionKind,
+    WellKnownObjectKind, imports::ImportAnnotations,
 };
 use crate::analyzer::RequireContextValue;
 
@@ -57,11 +57,7 @@ pub async fn well_known_function_call(
         WellKnownFunctionKind::PathJoin => path_join(args),
         WellKnownFunctionKind::PathDirname => path_dirname(args),
         WellKnownFunctionKind::PathResolve(cwd) => path_resolve(*cwd, args),
-        WellKnownFunctionKind::Import => JsValue::unknown(
-            JsValue::call(Box::new(JsValue::WellKnownFunction(kind)), args),
-            true,
-            "import() is not supported",
-        ),
+        WellKnownFunctionKind::Import => import(args),
         WellKnownFunctionKind::Require => require(args),
         WellKnownFunctionKind::RequireContextRequire(value) => {
             require_context_require(value, args).await?
@@ -322,6 +318,27 @@ pub fn path_dirname(mut args: Vec<JsValue>) -> JsValue {
     )
 }
 
+/// Resolve the contents of an import call, throwing errors
+/// if we come across any unsupported syntax.
+pub fn import(args: Vec<JsValue>) -> JsValue {
+    match &args[..] {
+        [JsValue::Constant(ConstantValue::Str(v))] => {
+            JsValue::promise(Box::new(JsValue::Module(ModuleValue {
+                module: v.as_atom().into_owned(),
+                annotations: ImportAnnotations::default(),
+            })))
+        }
+        _ => JsValue::unknown(
+            JsValue::call(
+                Box::new(JsValue::WellKnownFunction(WellKnownFunctionKind::Import)),
+                args,
+            ),
+            true,
+            "only a single constant argument is supported",
+        ),
+    }
+}
+
 /// Resolve the contents of a require call, throwing errors
 /// if we come across any unsupported syntax.
 pub fn require(args: Vec<JsValue>) -> JsValue {
@@ -544,7 +561,7 @@ pub fn well_known_function_member(kind: WellKnownFunctionKind, prop: JsValue) ->
             return (
                 JsValue::member(Box::new(JsValue::WellKnownFunction(kind)), Box::new(prop)),
                 false,
-            )
+            );
         }
     };
     (new_value, true)
@@ -581,7 +598,7 @@ pub async fn well_known_object_member(
             return Ok((
                 JsValue::member(Box::new(JsValue::WellKnownObject(kind)), Box::new(prop)),
                 false,
-            ))
+            ));
         }
     };
     Ok((new_value, true))
@@ -638,10 +655,10 @@ pub fn fs_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
                 ));
             }
             (WellKnownObjectKind::FsModule | WellKnownObjectKind::FsModuleDefault, "promises") => {
-                return JsValue::WellKnownObject(WellKnownObjectKind::FsModulePromises)
+                return JsValue::WellKnownObject(WellKnownObjectKind::FsModulePromises);
             }
             (WellKnownObjectKind::FsModule, "default") => {
-                return JsValue::WellKnownObject(WellKnownObjectKind::FsModuleDefault)
+                return JsValue::WellKnownObject(WellKnownObjectKind::FsModuleDefault);
             }
             _ => {}
         }

@@ -6,13 +6,17 @@ export const middlewareResponse = {
     res.statusCode = 204
     res.end('No Content')
   },
+  badRequest(res: ServerResponse) {
+    res.statusCode = 400
+    res.end('Bad Request')
+  },
   notFound(res: ServerResponse) {
     res.statusCode = 404
     res.end('Not Found')
   },
-  badRequest(res: ServerResponse) {
-    res.statusCode = 400
-    res.end('Bad Request')
+  methodNotAllowed(res: ServerResponse) {
+    res.statusCode = 405
+    res.end('Method Not Allowed')
   },
   internalServerError(res: ServerResponse, error?: unknown) {
     res.statusCode = 500

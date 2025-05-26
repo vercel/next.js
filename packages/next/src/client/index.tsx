@@ -55,6 +55,7 @@ declare global {
   interface Window {
     /* test fns */
     __NEXT_HYDRATED?: boolean
+    __NEXT_HYDRATED_AT?: number
     __NEXT_HYDRATED_CB?: () => void
 
     /* prod */
@@ -178,9 +179,10 @@ class Container extends React.Component<{
     if (process.env.NODE_ENV === 'production') {
       return this.props.children
     } else {
-      const ReactDevOverlay: typeof import('./components/react-dev-overlay/pages/client').ReactDevOverlay =
-        require('./components/react-dev-overlay/pages/client').ReactDevOverlay
-      return <ReactDevOverlay>{this.props.children}</ReactDevOverlay>
+      const {
+        PagesDevOverlay,
+      }: typeof import('./components/react-dev-overlay/pages/pages-dev-overlay') = require('./components/react-dev-overlay/pages/pages-dev-overlay')
+      return <PagesDevOverlay>{this.props.children}</PagesDevOverlay>
     }
   }
 }
@@ -611,6 +613,7 @@ function Root({
     // eslint-disable-next-line react-hooks/rules-of-hooks
     React.useEffect(() => {
       window.__NEXT_HYDRATED = true
+      window.__NEXT_HYDRATED_AT = performance.now()
 
       if (window.__NEXT_HYDRATED_CB) {
         window.__NEXT_HYDRATED_CB()

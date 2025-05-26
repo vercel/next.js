@@ -1,3 +1,5 @@
+import execa from 'execa'
+import * as semver from 'semver'
 import {
   command,
   DEFAULT_FILES,
@@ -7,11 +9,9 @@ import {
   useTempDir,
 } from '../utils'
 
-const lockFile = 'bun.lockb'
-const files = [...DEFAULT_FILES, lockFile]
-
 describe('create-next-app with package manager bun', () => {
   let nextTgzFilename: string
+  let files: string[]
 
   beforeAll(async () => {
     if (!process.env.NEXT_TEST_PKG_PATHS) {
@@ -27,6 +27,12 @@ describe('create-next-app with package manager bun', () => {
     await command('bun', ['--version'])
       // install bun if not available
       .catch(() => command('npm', ['i', '-g', 'bun']))
+
+    const bunVersion = (await execa('bun', ['--version'])).stdout.trim()
+    // Some CI runners pre-install Bun.
+    // Locally, we don't pin Bun either.
+    const lockFile = semver.gte(bunVersion, '1.2.0') ? 'bun.lock' : 'bun.lockb'
+    files = [...DEFAULT_FILES, lockFile]
   })
 
   it('should use bun for --use-bun flag', async () => {

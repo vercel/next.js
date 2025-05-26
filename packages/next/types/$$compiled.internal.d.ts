@@ -217,6 +217,8 @@ declare module 'react-server-dom-webpack/server.node' {
   ): Promise<ReactFormState | null>
 }
 declare module 'react-server-dom-webpack/static.edge' {
+  export type TemporaryReferenceSet = WeakMap<any, string>
+
   export function unstable_prerender(
     children: any,
     webpackMap: {
@@ -232,6 +234,7 @@ declare module 'react-server-dom-webpack/static.edge' {
       filterStackFrame?: (url: string, functionName: string) => boolean
       identifierPrefix?: string
       signal?: AbortSignal
+      temporaryReferences?: TemporaryReferenceSet
       onError?: (error: unknown) => void
       onPostpone?: (reason: string) => void
     }
@@ -334,6 +337,7 @@ declare module 'react-server-dom-webpack/client.edge' {
 }
 
 declare module 'VAR_MODULE_GLOBAL_ERROR'
+declare module 'VAR_MODULE_GLOBAL_NOT_FOUND'
 declare module 'VAR_USERLAND'
 declare module 'VAR_MODULE_DOCUMENT'
 declare module 'VAR_MODULE_APP'
@@ -385,6 +389,11 @@ declare module 'next/dist/compiled/p-limit' {
 
 declare module 'next/dist/compiled/p-queue' {
   import m from 'p-queue'
+  export = m
+}
+
+declare module 'next/dist/compiled/busboy' {
+  import m from 'busboy'
   export = m
 }
 
@@ -670,11 +679,6 @@ declare module 'next/dist/compiled/stacktrace-parser' {
 
 declare module 'next/dist/compiled/anser' {
   import * as m from 'anser'
-  export = m
-}
-
-declare module 'next/dist/compiled/platform' {
-  import * as m from 'platform'
   export = m
 }
 

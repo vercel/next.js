@@ -1,4 +1,4 @@
-use crate::{marker_trait::impl_auto_marker_trait, OperationVc, ResolvedVc};
+use crate::{OperationVc, ResolvedVc, marker_trait::impl_auto_marker_trait};
 
 /// Marker trait indicating that a type does not contain any instances of [`Vc`] or references to
 /// [`Vc`]. It may contain [`ResolvedVc`] or [`OperationVc`].

@@ -127,14 +127,52 @@ describe('loadConfig', () => {
         loadConfig('', __dirname, {
           customConfig: {
             experimental: {
-              turbo: {
-                unstablePersistentCaching: true,
-              },
+              turbopackPersistentCaching: true,
             },
           },
         })
       ).rejects.toThrow(
-        /The experimental feature "experimental.turbo.unstablePersistentCaching" can only be enabled when using the latest canary version of Next.js./
+        /The experimental feature "experimental.turbopackPersistentCaching" can only be enabled when using the latest canary version of Next.js./
+      )
+    })
+  })
+
+  describe('with a canary version', () => {
+    beforeAll(() => {
+      process.env.__NEXT_VERSION = '15.4.0-canary.35'
+    })
+
+    afterAll(() => {
+      delete process.env.__NEXT_VERSION
+    })
+
+    it('errors when dynamicIO is enabled but PPR is disabled', async () => {
+      await expect(
+        loadConfig('', __dirname, {
+          customConfig: {
+            experimental: {
+              dynamicIO: true,
+              ppr: false,
+            },
+          },
+        })
+      ).rejects.toThrow(
+        '`experimental.ppr` can not be `false` when `experimental.dynamicIO` is `true`. PPR is implicitly enabled when Dynamic IO is enabled.'
+      )
+    })
+
+    it('errors when dynamicIO is enabled but PPR set to "incremental"', async () => {
+      await expect(
+        loadConfig('', __dirname, {
+          customConfig: {
+            experimental: {
+              dynamicIO: true,
+              ppr: 'incremental',
+            },
+          },
+        })
+      ).rejects.toThrow(
+        '`experimental.ppr` can not be `"incremental"` when `experimental.dynamicIO` is `true`. PPR is implicitly enabled when Dynamic IO is enabled.'
       )
     })
   })

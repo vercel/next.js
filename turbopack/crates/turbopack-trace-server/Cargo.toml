@@ -3,7 +3,7 @@ name = "turbopack-trace-server"
 version = "0.1.0"
 description = "TBD"
 license = "MIT"
-edition = "2021"
+edition = "2024"
 autobenches = false
 
 [[bin]]
@@ -15,6 +15,7 @@ bench = false
 anyhow = { workspace = true, features = ["backtrace"] }
 either = { workspace = true }
 flate2 = { version = "1.0.28" }
+hashbrown = { workspace = true, features = ["raw"] }
 indexmap = { workspace = true, features = ["serde"] }
 itertools = { workspace = true }
 postcard = { workspace = true }

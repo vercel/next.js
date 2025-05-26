@@ -1,4 +1,6 @@
+import ANYTHING from 'anything'
 import f, { f1, f2 } from 'foo'
+import { Button } from 'components'
 
 const f3 = 1
 var f4
@@ -16,7 +18,7 @@ const [
     ...f17
   },
   ...f18
-] = []
+] = ANYTHING
 
 if (true) {
   const g19 = 1
@@ -28,6 +30,7 @@ function x() {
 }
 
 export function y(p, [p1, { p2 }], ...p3) {
+  /** @type {any} */
   const f2 = 1
   const f11 = 1
   const f19 = 1
@@ -66,7 +69,9 @@ export function y(p, [p1, { p2 }], ...p3) {
       p1,
       p2,
       p3,
+      // @ts-expect-error: deliberately undefined variable
       g19,
+      // @ts-expect-error: deliberately undefined variable
       g20,
       globalThis
     )

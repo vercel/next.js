@@ -1,6 +1,7 @@
 use std::fmt::{Debug, Display};
 
 use auto_hash_map::{AutoMap, AutoSet};
+use smallvec::SmallVec;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, FxIndexSet, Vc};
 pub use turbo_tasks_macros::ValueDebugFormat;
@@ -71,7 +72,7 @@ pub trait ValueDebugFormat {
 
 impl ValueDebugFormat for String {
     fn value_debug_format(&self, _depth: usize) -> ValueDebugFormatString {
-        ValueDebugFormatString::Sync(format!("{:#?}", self))
+        ValueDebugFormatString::Sync(format!("{self:#?}"))
     }
 }
 
@@ -95,7 +96,7 @@ where
             return ValueDebugFormatString::Sync(std::any::type_name::<Self>().to_string());
         }
 
-        ValueDebugFormatString::Sync(format!("{:#?}", self))
+        ValueDebugFormatString::Sync(format!("{self:#?}"))
     }
 }
 
@@ -152,7 +153,38 @@ where
                     }
                 }
             }
-            Ok(format!("{:#?}", values_string))
+            Ok(format!("{values_string:#?}"))
+        }))
+    }
+}
+
+impl<T, const N: usize> ValueDebugFormat for SmallVec<[T; N]>
+where
+    T: ValueDebugFormat,
+{
+    fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString {
+        if depth == 0 {
+            return ValueDebugFormatString::Sync(std::any::type_name::<Self>().to_string());
+        }
+
+        let values = self
+            .iter()
+            .map(|value| value.value_debug_format(depth.saturating_sub(1)))
+            .collect::<Vec<_>>();
+
+        ValueDebugFormatString::Async(Box::pin(async move {
+            let mut values_string = vec![];
+            for value in values {
+                match value {
+                    ValueDebugFormatString::Sync(string) => {
+                        values_string.push(PassthroughDebug::new_string(string));
+                    }
+                    ValueDebugFormatString::Async(future) => {
+                        values_string.push(PassthroughDebug::new_string(future.await?));
+                    }
+                }
+            }
+            Ok(format!("{values_string:#?}"))
         }))
     }
 }
@@ -183,7 +215,7 @@ where
                     }
                 }
             }
-            Ok(format!("{:#?}", values_string))
+            Ok(format!("{values_string:#?}"))
         }))
     }
 }
@@ -202,7 +234,7 @@ where
             .iter()
             .map(|(key, value)| {
                 (
-                    format!("{:#?}", key),
+                    format!("{key:#?}"),
                     value.value_debug_format(depth.saturating_sub(1)),
                 )
             })
@@ -220,7 +252,7 @@ where
                     }
                 }
             }
-            Ok(format!("{:#?}", values_string))
+            Ok(format!("{values_string:#?}"))
         }))
     }
 }
@@ -239,7 +271,7 @@ where
             .iter()
             .map(|(key, value)| {
                 (
-                    format!("{:#?}", key),
+                    format!("{key:#?}"),
                     value.value_debug_format(depth.saturating_sub(1)),
                 )
             })
@@ -257,7 +289,7 @@ where
                     }
                 }
             }
-            Ok(format!("{:#?}", values_string))
+            Ok(format!("{values_string:#?}"))
         }))
     }
 }
@@ -285,7 +317,7 @@ where
                 };
                 values_string.insert(PassthroughDebug::new_string(value));
             }
-            Ok(format!("{:#?}", values_string))
+            Ok(format!("{values_string:#?}"))
         }))
     }
 }
@@ -326,7 +358,7 @@ where
                     PassthroughDebug::new_string(value),
                 );
             }
-            Ok(format!("{:#?}", values_string))
+            Ok(format!("{values_string:#?}"))
         }))
     }
 }

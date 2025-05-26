@@ -5,6 +5,9 @@ import {
   CachedRouteKind,
   IncrementalCacheKind,
   type CachedFetchValue,
+  type IncrementalCacheValue,
+  type SetIncrementalFetchCacheContext,
+  type SetIncrementalResponseCacheContext,
 } from '../../response-cache'
 
 import { LRUCache } from '../lru-cache'
@@ -18,7 +21,7 @@ import {
   RSC_SEGMENTS_DIR_SUFFIX,
   RSC_SUFFIX,
 } from '../../../lib/constants'
-import { tagsManifest } from './tags-manifest.external'
+import { isStale, tagsManifest } from './tags-manifest.external'
 import { MultiFileWriter } from '../../../lib/multi-file-writer'
 
 type FileSystemCacheContext = Omit<
@@ -98,20 +101,24 @@ export default class FileSystemCache implements CacheHandler {
     }
 
     for (const tag of tags) {
-      const data = tagsManifest.items[tag] || {}
-      data.revalidatedAt = Date.now()
-      tagsManifest.items[tag] = data
+      if (!tagsManifest.has(tag)) {
+        tagsManifest.set(tag, Date.now())
+      }
     }
   }
 
   public async get(...args: Parameters<CacheHandler['get']>) {
     const [key, ctx] = args
-    const { tags, softTags, kind, isRoutePPREnabled, isFallback } = ctx
+    const { kind } = ctx
 
     let data = memoryCache?.get(key)
 
     if (this.debug) {
-      console.log('get', key, tags, kind, !!data)
+      if (kind === IncrementalCacheKind.FETCH) {
+        console.log('get', key, ctx.tags, kind, !!data)
+      } else {
+        console.log('get', key, kind, !!data)
+      }
     }
 
     // let's check the disk for seed data
@@ -157,6 +164,8 @@ export default class FileSystemCache implements CacheHandler {
         const { mtime } = await this.fs.stat(filePath)
 
         if (kind === IncrementalCacheKind.FETCH) {
+          const { tags, fetchIdx, fetchUrl } = ctx
+
           if (!this.flushToDisk) return null
 
           const lastModified = mtime.getTime()
@@ -177,8 +186,10 @@ export default class FileSystemCache implements CacheHandler {
                 console.log('tags vs storedTags mismatch', tags, storedTags)
               }
               await this.set(key, data.value, {
+                fetchCache: true,
                 tags,
-                isRoutePPREnabled,
+                fetchIdx,
+                fetchUrl,
               })
             }
           }
@@ -226,10 +237,10 @@ export default class FileSystemCache implements CacheHandler {
           }
 
           let rscData: Buffer | undefined
-          if (!isFallback) {
+          if (!ctx.isFallback) {
             rscData = await this.fs.readFile(
               this.getFilePath(
-                `${key}${isRoutePPREnabled ? RSC_PREFETCH_SUFFIX : RSC_SUFFIX}`,
+                `${key}${ctx.isRoutePPREnabled ? RSC_PREFETCH_SUFFIX : RSC_SUFFIX}`,
                 IncrementalCacheKind.APP_PAGE
               )
             )
@@ -251,7 +262,7 @@ export default class FileSystemCache implements CacheHandler {
           let meta: RouteMetadata | undefined
           let pageData: string | object = {}
 
-          if (!isFallback) {
+          if (!ctx.isFallback) {
             pageData = JSON.parse(
               await this.fs.readFile(
                 this.getFilePath(
@@ -299,34 +310,25 @@ export default class FileSystemCache implements CacheHandler {
       }
 
       if (cacheTags?.length) {
-        const isStale = cacheTags.some((tag) => {
-          return (
-            tagsManifest?.items[tag]?.revalidatedAt &&
-            tagsManifest?.items[tag].revalidatedAt >=
-              (data?.lastModified || Date.now())
-          )
-        })
-
         // we trigger a blocking validation if an ISR page
         // had a tag revalidated, if we want to be a background
         // revalidation instead we return data.lastModified = -1
-        if (isStale) {
+        if (isStale(cacheTags, data?.lastModified || Date.now())) {
           return null
         }
       }
     } else if (data?.value?.kind === CachedRouteKind.FETCH) {
-      const combinedTags = [...(tags || []), ...(softTags || [])]
+      const combinedTags =
+        ctx.kind === IncrementalCacheKind.FETCH
+          ? [...(ctx.tags || []), ...(ctx.softTags || [])]
+          : []
 
       const wasRevalidated = combinedTags.some((tag) => {
         if (this.revalidatedTags.includes(tag)) {
           return true
         }
 
-        return (
-          tagsManifest?.items[tag]?.revalidatedAt &&
-          tagsManifest?.items[tag].revalidatedAt >=
-            (data?.lastModified || Date.now())
-        )
+        return isStale([tag], data?.lastModified || Date.now())
       })
       // When revalidate tag is called we don't return
       // stale data so it's updated right away
@@ -338,9 +340,11 @@ export default class FileSystemCache implements CacheHandler {
     return data ?? null
   }
 
-  public async set(...args: Parameters<CacheHandler['set']>) {
-    const [key, data, ctx] = args
-    const { isFallback } = ctx
+  public async set(
+    key: string,
+    data: IncrementalCacheValue | null,
+    ctx: SetIncrementalFetchCacheContext | SetIncrementalResponseCacheContext
+  ) {
     memoryCache?.set(key, {
       value: data,
       lastModified: Date.now(),
@@ -388,7 +392,7 @@ export default class FileSystemCache implements CacheHandler {
       writer.append(htmlPath, data.html)
 
       // Fallbacks don't generate a data file.
-      if (!isFallback) {
+      if (!ctx.fetchCache && !ctx.isFallback) {
         writer.append(
           this.getFilePath(
             `${key}${
@@ -441,7 +445,7 @@ export default class FileSystemCache implements CacheHandler {
         filePath,
         JSON.stringify({
           ...data,
-          tags: ctx.tags,
+          tags: ctx.fetchCache ? ctx.tags : [],
         })
       )
     }

@@ -6,10 +6,7 @@ describe('app-dir - metadata-streaming-customized-rule', () => {
     overrideFiles: {
       'next.config.js': `
         module.exports = {
-          experimental: {
-            streamingMetadata: true,
-            htmlLimitedBots: /Minibot/i,
-          }
+          htmlLimitedBots: /Minibot/i,
         }
       `,
     },

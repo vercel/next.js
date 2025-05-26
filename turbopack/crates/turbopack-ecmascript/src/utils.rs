@@ -6,7 +6,7 @@ use swc_core::{
         visit::AstParentKind,
     },
 };
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue};
+use turbo_tasks::{NonLocalValue, trace::TraceRawVcs};
 use turbopack_core::{chunk::ModuleId, resolve::pattern::Pattern};
 
 use crate::analyzer::{
@@ -114,11 +114,8 @@ where
         impl std::io::Write for DisplayWriter<'_, '_> {
             fn write(&mut self, bytes: &[u8]) -> std::result::Result<usize, std::io::Error> {
                 self.f
-                    .write_str(
-                        std::str::from_utf8(bytes)
-                            .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?,
-                    )
-                    .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+                    .write_str(std::str::from_utf8(bytes).map_err(std::io::Error::other)?)
+                    .map_err(std::io::Error::other)?;
                 Ok(bytes.len())
             }
 
@@ -187,7 +184,9 @@ pub fn module_value_to_well_known_object(module_value: &ModuleValue) -> Option<J
         }
         "node:os" | "os" => JsValue::WellKnownObject(WellKnownObjectKind::OsModule),
         "node:process" | "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
-        "@mapbox/node-pre-gyp" => JsValue::WellKnownObject(WellKnownObjectKind::NodePreGyp),
+        "node-pre-gyp" | "@mapbox/node-pre-gyp" => {
+            JsValue::WellKnownObject(WellKnownObjectKind::NodePreGyp)
+        }
         "node-gyp-build" => JsValue::WellKnownFunction(WellKnownFunctionKind::NodeGypBuild),
         "node:bindings" | "bindings" => {
             JsValue::WellKnownFunction(WellKnownFunctionKind::NodeBindings)

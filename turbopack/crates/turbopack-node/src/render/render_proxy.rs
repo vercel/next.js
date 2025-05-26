@@ -1,21 +1,22 @@
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use async_stream::try_stream as generator;
 use futures::{
-    channel::mpsc::{unbounded, UnboundedSender},
-    pin_mut, SinkExt, StreamExt, TryStreamExt,
+    SinkExt, StreamExt, TryStreamExt,
+    channel::mpsc::{UnboundedSender, unbounded},
+    pin_mut,
 };
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    duration_span, mark_finished, prevent_gc, util::SharedError, RawVc, ResolvedVc, TaskInput,
-    ValueToString, Vc,
+    RawVc, ResolvedVc, TaskInput, ValueToString, Vc, duration_span, mark_finished, prevent_gc,
+    trace::TraceRawVcs, util::SharedError,
 };
 use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::{ChunkingContext, EvaluatableAssets},
+    chunk::{ChunkingContext, EvaluatableAsset, EvaluatableAssets},
     error::PrettyPrintError,
     issue::{IssueExt, StyledString},
     module::Module,
@@ -23,8 +24,8 @@ use turbopack_core::{
 use turbopack_dev_server::source::{Body, ProxyResult};
 
 use super::{
-    issue::RenderingIssue, RenderData, RenderProxyIncomingMessage, RenderProxyOutgoingMessage,
-    ResponseHeaders,
+    RenderData, RenderProxyIncomingMessage, RenderProxyOutgoingMessage, ResponseHeaders,
+    issue::RenderingIssue,
 };
 use crate::{
     get_intermediate_asset, get_renderer_pool_operation, pool::NodeJsOperation,
@@ -37,7 +38,7 @@ pub async fn render_proxy_operation(
     cwd: ResolvedVc<FileSystemPath>,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
     path: ResolvedVc<FileSystemPath>,
-    module: ResolvedVc<Box<dyn Module>>,
+    module: ResolvedVc<Box<dyn EvaluatableAsset>>,
     runtime_entries: ResolvedVc<EvaluatableAssets>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     intermediate_output_path: ResolvedVc<FileSystemPath>,
@@ -149,12 +150,12 @@ struct RenderStreamSender {
 #[turbo_tasks::value(transparent)]
 struct RenderStream(#[turbo_tasks(trace_ignore)] Stream<RenderItemResult>);
 
-#[derive(Clone, Debug, TaskInput, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, TaskInput, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs)]
 struct RenderStreamOptions {
     cwd: ResolvedVc<FileSystemPath>,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
     path: ResolvedVc<FileSystemPath>,
-    module: ResolvedVc<Box<dyn Module>>,
+    module: ResolvedVc<Box<dyn EvaluatableAsset>>,
     runtime_entries: ResolvedVc<EvaluatableAssets>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     intermediate_output_path: ResolvedVc<FileSystemPath>,

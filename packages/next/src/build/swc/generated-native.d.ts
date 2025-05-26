@@ -37,6 +37,7 @@ export interface TransformOutput {
   code: string
   map?: string
   output?: string
+  diagnostics: Array<string>
 }
 export declare function mdxCompile(
   value: string,
@@ -253,6 +254,10 @@ export interface NapiEntrypoints {
   pagesAppEndpoint: ExternalObject<ExternalEndpoint>
   pagesErrorEndpoint: ExternalObject<ExternalEndpoint>
 }
+export declare function projectWriteAllEntrypointsToDisk(
+  project: { __napiType: 'Project' },
+  appDirOnly: boolean
+): Promise<TurbopackResult>
 export declare function projectEntrypointsSubscribe(
   project: { __napiType: 'Project' },
   func: (...args: any[]) => any
@@ -294,6 +299,12 @@ export declare function projectUpdateInfoSubscribe(
   project: { __napiType: 'Project' },
   aggregationMs: number,
   func: (...args: any[]) => any
+): void
+/** Subscribes to all compilation events that are not cached like timing and progress information. */
+export declare function projectCompilationEventsSubscribe(
+  project: { __napiType: 'Project' },
+  func: (...args: any[]) => any,
+  eventTypes?: Array<string> | undefined | null
 ): void
 export interface StackFrame {
   isServer: boolean
@@ -362,6 +373,10 @@ export declare function parse(
   filename?: string | undefined | null,
   signal?: AbortSignal | undefined | null
 ): Promise<string>
+export declare function isReactCompilerRequired(
+  filename: string,
+  signal?: AbortSignal | undefined | null
+): Promise<boolean>
 export declare function transform(
   src: string | Buffer | undefined,
   isModule: boolean,

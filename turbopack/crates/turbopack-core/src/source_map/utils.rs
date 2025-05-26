@@ -7,7 +7,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{ValueToString, Vc};
 use turbo_tasks_fs::{
-    rope::Rope, util::uri_from_file, DiskFileSystem, FileContent, FileSystemPath,
+    DiskFileSystem, FileContent, FileSystemPath, rope::Rope, util::uri_from_file,
 };
 
 use crate::SOURCE_URL_PROTOCOL;
@@ -41,6 +41,8 @@ struct SourceMapSectionItemJson {
     map: SourceMapJson,
 }
 
+// TODO this could be made (much) more efficient by not even de- and serializing other fields
+// (apart from `sources`) and just keep storing them as strings.
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct SourceMapJson {
@@ -84,7 +86,7 @@ pub async fn resolve_source_map_sources(
             .await?
         {
             let path_str = path.to_string().await?;
-            let source = format!("{SOURCE_URL_PROTOCOL}///{}", path_str);
+            let source = format!("{SOURCE_URL_PROTOCOL}///{path_str}");
             *original_source = source;
 
             if original_content.is_none() {
@@ -102,7 +104,7 @@ pub async fn resolve_source_map_sources(
             let source = INVALID_REGEX.replace_all(original_source, |s: &regex::Captures<'_>| {
                 s[0].replace('.', "_")
             });
-            *original_source = format!("{SOURCE_URL_PROTOCOL}///{}/{}", origin_str, source);
+            *original_source = format!("{SOURCE_URL_PROTOCOL}///{origin_str}/{source}");
             if original_content.is_none() {
                 *original_content = Some(format!(
                     "unable to access {original_source} in {origin_str} (it's leaving the \
@@ -137,7 +139,10 @@ pub async fn resolve_source_map_sources(
         return Ok(None);
     };
 
-    let mut map: SourceMapJson = serde_json::from_reader(map.read())?;
+    let Ok(mut map): serde_json::Result<SourceMapJson> = serde_json::from_reader(map.read()) else {
+        // Silently ignore invalid sourcemaps
+        return Ok(None);
+    };
 
     resolve_map(&mut map, origin).await?;
     for section in map.sections.iter_mut().flatten() {
@@ -158,16 +163,17 @@ pub async fn fileify_source_map(
         return Ok(None);
     };
 
+    let Ok(mut map): serde_json::Result<SourceMapJson> = serde_json::from_reader(map.read()) else {
+        // Silently ignore invalid sourcemaps
+        return Ok(None);
+    };
+
     let context_fs = context_path.fs();
     let context_fs = &*Vc::try_resolve_downcast_type::<DiskFileSystem>(context_fs)
         .await?
         .context("Expected the chunking context to have a DiskFileSystem")?
         .await?;
     let prefix = format!("{}///[{}]/", SOURCE_URL_PROTOCOL, context_fs.name());
-
-    // TODO this could be made (much) more efficient by not even de- and serializing other fields
-    // (apart from `sources`) and just keep storing them as strings.
-    let mut map: SourceMapJson = serde_json::from_reader(map.read())?;
 
     let transform_source = async |src: &mut Option<String>| {
         if let Some(src) = src {

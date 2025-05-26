@@ -1,9 +1,9 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use next_core::{
     all_assets_from_entries,
     next_edge::entry::wrap_edge_entry,
     next_manifests::{InstrumentationDefinition, MiddlewaresManifestV2},
-    next_server::{get_server_runtime_entries, ServerContextType},
+    next_server::{ServerContextType, get_server_runtime_entries},
 };
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
@@ -12,17 +12,20 @@ use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt,
-        EntryChunkGroupResult,
+        ChunkingContext, ChunkingContextExt, EntryChunkGroupResult,
+        availability_info::AvailabilityInfo,
     },
     context::AssetContext,
-    module::{Module, Modules},
+    module::Module,
+    module_graph::{
+        GraphEntries,
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+    },
     output::{OutputAsset, OutputAssets},
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
     virtual_output::VirtualOutputAsset,
 };
-use turbopack_ecmascript::chunk::EcmascriptChunkPlaceable;
 
 use crate::{
     nft_json::NftJsonAsset,
@@ -95,23 +98,13 @@ impl InstrumentationEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn entry_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
-        if self.await?.is_edge {
-            Ok(*self.core_modules().await?.edge_entry_module)
-        } else {
-            Ok(*self.core_modules().await?.userland_module)
-        }
-    }
-
-    #[turbo_tasks::function]
     async fn edge_files(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
-
         let module = self.core_modules().await?.edge_entry_module;
 
         let module_graph = this.project.module_graph(*module);
 
-        let mut evaluatable_assets = get_server_runtime_entries(
+        let evaluatable_assets = get_server_runtime_entries(
             Value::new(ServerContextType::Instrumentation {
                 app_dir: this.app_dir,
                 ecmascript_client_reference_transition_name: this
@@ -120,24 +113,16 @@ impl InstrumentationEndpoint {
             this.project.next_mode(),
         )
         .resolve_entries(*this.asset_context)
-        .owned()
-        .await?;
-
-        let Some(module) = ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(module)
-        else {
-            bail!("Entry module must be evaluatable");
-        };
-
-        let Some(evaluatable) = ResolvedVc::try_sidecast(module) else {
-            bail!("Entry module must be evaluatable");
-        };
-        evaluatable_assets.push(evaluatable);
+        .await?
+        .iter()
+        .map(|m| ResolvedVc::upcast(*m))
+        .chain(std::iter::once(module))
+        .collect();
 
         let edge_chunking_context = this.project.edge_chunking_context(false);
-
-        let edge_files = edge_chunking_context.evaluated_chunk_group_assets(
+        let edge_files: Vc<OutputAssets> = edge_chunking_context.evaluated_chunk_group_assets(
             module.ident(),
-            Vc::cell(evaluatable_assets),
+            ChunkGroup::Entry(evaluatable_assets),
             module_graph,
             Value::new(AvailabilityInfo::Root),
         );
@@ -163,7 +148,6 @@ impl InstrumentationEndpoint {
                 this.project
                     .node_root()
                     .join("server/instrumentation.js".into()),
-                *module,
                 get_server_runtime_entries(
                     Value::new(ServerContextType::Instrumentation {
                         app_dir: this.app_dir,
@@ -172,7 +156,8 @@ impl InstrumentationEndpoint {
                     }),
                     this.project.next_mode(),
                 )
-                .resolve_entries(*this.asset_context),
+                .resolve_entries(*this.asset_context)
+                .with_entry(*module),
                 module_graph,
                 OutputAssets::empty(),
                 Value::new(AvailabilityInfo::Root),
@@ -202,7 +187,7 @@ impl InstrumentationEndpoint {
 
             let instrumentation_definition = InstrumentationDefinition {
                 files: file_paths_from_root,
-                wasm: wasm_paths_to_bindings(wasm_paths_from_root),
+                wasm: wasm_paths_to_bindings(wasm_paths_from_root).await?,
                 name: "instrumentation".into(),
                 ..Default::default()
             };
@@ -287,11 +272,14 @@ impl Endpoint for InstrumentationEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn root_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
+    async fn entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
         let core_modules = self.core_modules().await?;
-        Ok(Vc::cell(vec![
-            core_modules.userland_module,
-            core_modules.edge_entry_module,
-        ]))
+        Ok(Vc::cell(vec![ChunkGroupEntry::Entry(
+            if self.await?.is_edge {
+                vec![core_modules.edge_entry_module]
+            } else {
+                vec![core_modules.userland_module]
+            },
+        )]))
     }
 }

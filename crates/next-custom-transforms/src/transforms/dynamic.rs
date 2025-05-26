@@ -306,6 +306,11 @@ impl Fold for NextDynamicPatcher {
                         }
                     }
 
+                    let should_skip_ssr_compile = has_ssr_false
+                        && self.is_server_compiler
+                        && !self.is_react_server_layer
+                        && self.prefer_esm;
+
                     match &self.state {
                         NextDynamicPatcherState::Webpack => {
                             // Only use `require.resolveWebpack` to decouple modules for webpack,
@@ -316,11 +321,7 @@ impl Fold for NextDynamicPatcher {
                             //
                             // Also transforming it to `require.resolveWeak` doesn't work with ESM
                             // imports ( i.e. require.resolveWeak(esm asset)).
-                            if has_ssr_false
-                                && self.is_server_compiler
-                                && !self.is_react_server_layer
-                                && self.prefer_esm
-                            {
+                            if should_skip_ssr_compile {
                                 // if it's server components SSR layer
                                 // Transform 1st argument `expr.args[0]` aka the module loader from:
                                 // dynamic(() => import('./client-mod'), { ssr: false }))`
@@ -368,11 +369,34 @@ impl Fold for NextDynamicPatcher {
                             dynamic_transition_name,
                             ..
                         } => {
-                            // Add `{with:{turbopack-transition: ...}}` to the dynamic import
-                            let mut visitor = DynamicImportTransitionAdder {
-                                transition_name: dynamic_transition_name,
-                            };
-                            expr.args[0].visit_mut_with(&mut visitor);
+                            // When `ssr: false`
+                            // if it's server components SSR layer
+                            // Transform 1st argument `expr.args[0]` aka the module loader from:
+                            // dynamic(() => import('./client-mod'), { ssr: false }))`
+                            // into:
+                            // dynamic(async () => {}, { ssr: false }))`
+                            if should_skip_ssr_compile {
+                                let side_effect_free_loader_arg = Expr::Arrow(ArrowExpr {
+                                    span: DUMMY_SP,
+                                    params: vec![],
+                                    body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
+                                        span: DUMMY_SP,
+                                        stmts: vec![],
+                                        ..Default::default()
+                                    })),
+                                    is_async: true,
+                                    is_generator: false,
+                                    ..Default::default()
+                                });
+
+                                expr.args[0] = side_effect_free_loader_arg.as_arg();
+                            } else {
+                                // Add `{with:{turbopack-transition: ...}}` to the dynamic import
+                                let mut visitor = DynamicImportTransitionAdder {
+                                    transition_name: dynamic_transition_name,
+                                };
+                                expr.args[0].visit_mut_with(&mut visitor);
+                            }
                         }
                     }
 

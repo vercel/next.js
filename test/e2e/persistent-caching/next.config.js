@@ -2,18 +2,18 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
-  experimental: {
-    turbo: {
-      unstablePersistentCaching: true,
-      rules: {
-        'app/page.tsx': {
-          loaders: ['./my-loader.js'],
-        },
-        'pages/pages.tsx': {
-          loaders: ['./my-loader.js'],
-        },
+  turbopack: {
+    rules: {
+      'app/page.tsx': {
+        loaders: ['./my-loader.js'],
+      },
+      'pages/pages.tsx': {
+        loaders: ['./my-loader.js'],
       },
     },
+  },
+  experimental: {
+    turbopackPersistentCaching: true,
   },
   webpack(config) {
     config.module.rules.push({

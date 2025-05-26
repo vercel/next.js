@@ -20,29 +20,37 @@ import { ClientSegmentRoot } from '../../client/components/client-segment'
 import {
   createServerSearchParamsForServerPage,
   createPrerenderSearchParamsForClientPage,
-  createServerSearchParamsForMetadata,
 } from '../request/search-params'
 import {
   createServerParamsForServerSegment,
-  createServerParamsForMetadata,
   createPrerenderParamsForClientSegment,
 } from '../request/params'
 import * as serverHooks from '../../client/components/hooks-server-context'
 import { HTTPAccessFallbackBoundary } from '../../client/components/http-access-fallback/error-boundary'
 import { createMetadataComponents } from '../../lib/metadata/metadata'
 import { patchFetch as _patchFetch } from '../lib/patch-fetch'
-// not being used but needs to be included in the client manifest for /_not-found
+// Not being directly used but should be included in the client manifest for /_not-found
+// * ErrorBoundary -> client/components/error-boundary
+// * GlobalError -> client/components/global-error
 import '../../client/components/error-boundary'
+import '../../client/components/global-error'
 import {
   MetadataBoundary,
   ViewportBoundary,
   OutletBoundary,
-} from '../../lib/metadata/metadata-boundary'
+} from '../../client/components/metadata/metadata-boundary'
 
 import { preloadStyle, preloadFont, preconnect } from './rsc/preloads'
 import { Postpone } from './rsc/postpone'
 import { taintObjectReference } from './rsc/taint'
 export { collectSegmentData } from './collect-segment-data'
+
+let SegmentViewNode: typeof import('../../shared/lib/devtool/app-segment-tree').SegmentViewNode =
+  () => null
+if (process.env.NODE_ENV === 'development') {
+  const appSegmentTree: typeof import('../../shared/lib/devtool/app-segment-tree') = require('../../shared/lib/devtool/app-segment-tree')
+  SegmentViewNode = appSegmentTree.SegmentViewNode
+}
 
 // patchFetch makes use of APIs such as `React.unstable_postpone` which are only available
 // in the experimental channel of React, so export it from here so that it comes from the bundled runtime
@@ -60,10 +68,8 @@ export {
   workUnitAsyncStorage,
   actionAsyncStorage,
   createServerSearchParamsForServerPage,
-  createServerSearchParamsForMetadata,
   createPrerenderSearchParamsForClientPage,
   createServerParamsForServerSegment,
-  createServerParamsForMetadata,
   createPrerenderParamsForClientSegment,
   serverHooks,
   preloadStyle,
@@ -79,4 +85,6 @@ export {
   HTTPAccessFallbackBoundary,
   patchFetch,
   createMetadataComponents,
+  // Development only
+  SegmentViewNode,
 }

@@ -1,6 +1,6 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -9,24 +9,25 @@ use turbopack_core::{
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
-    reference::{ModuleReference, ModuleReferences, SingleModuleReference},
-    resolve::{origin::ResolveOrigin, ModulePart},
+    reference::{ModuleReference, ModuleReferences, SingleChunkableModuleReference},
+    resolve::{ModulePart, origin::ResolveOrigin},
 };
 
 use super::{
-    chunk_item::EcmascriptModulePartChunkItem, get_part_id, part_of_module, split, split_module,
-    PartId, SplitResult,
+    SplitResult, chunk_item::EcmascriptModulePartChunkItem, get_part_id, part_of_module, split,
+    split_module,
 };
 use crate::{
+    AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptModuleAsset,
+    EcmascriptModuleAssetType, EcmascriptModuleContent, EcmascriptModuleContentOptions,
+    EcmascriptParsable,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     parse::ParseResult,
     references::{
-        analyse_ecmascript_module, esm::FoundExportType, follow_reexports, FollowExportsResult,
+        FollowExportsResult, analyse_ecmascript_module, esm::FoundExportType, follow_reexports,
     },
     side_effect_optimization::facade::module::EcmascriptModuleFacadeModule,
-    tree_shake::{side_effect_module::SideEffectsModule, Key},
-    AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptModuleAsset,
-    EcmascriptModuleAssetType, EcmascriptModuleContent, EcmascriptParsable,
+    tree_shake::{Key, side_effect_module::SideEffectsModule},
 };
 
 /// A reference to part of an ES module.
@@ -67,21 +68,51 @@ impl EcmascriptAnalyzable for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     fn module_content_without_analysis(
         &self,
-        generate_source_map: Vc<bool>,
+        generate_source_map: bool,
     ) -> Vc<EcmascriptModuleContent> {
         self.full_module
             .module_content_without_analysis(generate_source_map)
     }
 
     #[turbo_tasks::function]
-    fn module_content(
-        &self,
-        module_graph: Vc<ModuleGraph>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-        async_module_info: Option<Vc<AsyncModuleInfo>>,
-    ) -> Vc<EcmascriptModuleContent> {
-        self.full_module
-            .module_content(module_graph, chunking_context, async_module_info)
+    async fn module_content_options(
+        self: Vc<Self>,
+        module_graph: ResolvedVc<ModuleGraph>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+        async_module_info: Option<ResolvedVc<AsyncModuleInfo>>,
+    ) -> Result<Vc<EcmascriptModuleContentOptions>> {
+        let module = self.await?;
+
+        let split_data = split_module(*module.full_module);
+        let parsed = part_of_module(split_data, module.part.clone())
+            .to_resolved()
+            .await?;
+
+        let analyze = self.analyze();
+        let analyze_ref = analyze.await?;
+
+        let module_type_result = *module.full_module.determine_module_type().await?;
+        let generate_source_map = *chunking_context
+            .reference_module_source_maps(Vc::upcast(self))
+            .await?;
+
+        Ok(EcmascriptModuleContentOptions {
+            parsed,
+            ident: self.ident().to_resolved().await?,
+            specified_module_type: module_type_result.module_type,
+            module_graph,
+            chunking_context,
+            references: analyze.references().to_resolved().await?,
+            esm_references: analyze_ref.esm_references,
+            part_references: vec![],
+            code_generation: analyze_ref.code_generation,
+            async_module: analyze_ref.async_module,
+            generate_source_map,
+            original_source_map: analyze_ref.source_map,
+            exports: analyze_ref.exports,
+            async_module_info,
+        }
+        .cell())
     }
 }
 
@@ -91,119 +122,119 @@ impl EcmascriptModulePartAsset {
     /// of a pointer to the full module and the [ModulePart] pointing the part
     /// of the module.
     #[turbo_tasks::function]
-    pub async fn new(
+    fn new_raw(module: ResolvedVc<EcmascriptModuleAsset>, part: ModulePart) -> Vc<Self> {
+        Self {
+            full_module: module,
+            part,
+        }
+        .cell()
+    }
+
+    #[turbo_tasks::function]
+    pub async fn new_with_resolved_part(
         module: ResolvedVc<EcmascriptModuleAsset>,
         part: ModulePart,
     ) -> Result<Vc<Self>> {
         if matches!(
             part,
-            ModulePart::Internal(..)
-                | ModulePart::InternalEvaluation(..)
-                | ModulePart::Facade
-                | ModulePart::Exports
-                | ModulePart::Evaluation
+            ModulePart::Internal(..) | ModulePart::Facade | ModulePart::Exports
         ) {
-            return Ok(EcmascriptModulePartAsset {
-                full_module: module,
-                part,
-            }
-            .cell());
+            return Ok(Self::new_raw(*module, part));
         }
 
         // This is a workaround to avoid creating duplicate assets for internal parts.
         let split_result = split_module(*module).await?;
         let part_id = get_part_id(&split_result, &part).await?;
 
-        Ok(EcmascriptModulePartAsset {
-            full_module: module,
-            part: ModulePart::internal(part_id),
-        }
-        .cell())
+        Ok(Self::new_raw(*module, ModulePart::internal(part_id)))
     }
 
     #[turbo_tasks::function]
     pub async fn select_part(
         module: Vc<EcmascriptModuleAsset>,
         part: ModulePart,
-    ) -> Result<Vc<Box<dyn Module>>> {
+    ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
         let SplitResult::Ok { entrypoints, .. } = &*split_module(module).await? else {
             return Ok(Vc::upcast(module));
         };
 
-        // We follow reexports here
-        if let ModulePart::Export(export) = part {
-            // If a local binding or reexport with the same name exists, we stop here.
-            // Side effects of the barrel file are preserved.
-            if entrypoints.contains_key(&Key::Export(export.clone())) {
-                return Ok(Vc::upcast(EcmascriptModulePartAsset::new(
-                    module,
-                    ModulePart::Export(export),
-                )));
+        match part {
+            ModulePart::Evaluation => {
+                // We resolve the module evaluation here to prevent duplicate assets.
+                let idx = *entrypoints.get(&Key::ModuleEvaluation).unwrap();
+                return Ok(Vc::upcast(
+                    EcmascriptModulePartAsset::new_with_resolved_part(
+                        module,
+                        ModulePart::internal(idx),
+                    ),
+                ));
             }
 
-            let side_effect_free_packages = module.asset_context().side_effect_free_packages();
-
-            // Exclude local bindings by using exports module part.
-            let source_module = Vc::upcast(module);
-
-            let FollowExportsWithSideEffectsResult {
-                side_effects,
-                result,
-            } = &*follow_reexports_with_side_effects(
-                source_module,
-                export.clone(),
-                side_effect_free_packages,
-            )
-            .await?;
-
-            let FollowExportsResult {
-                module: final_module,
-                export_name: new_export,
-                ..
-            } = &*result.await?;
-
-            let final_module = if let Some(new_export) = new_export {
-                if *new_export == export {
-                    *final_module
+            ModulePart::Export(export) => {
+                if entrypoints.contains_key(&Key::Export(export.clone())) {
+                    return Ok(Vc::upcast(
+                        EcmascriptModulePartAsset::new_with_resolved_part(
+                            module,
+                            ModulePart::Export(export),
+                        ),
+                    ));
+                }
+                let side_effect_free_packages = module.asset_context().side_effect_free_packages();
+                let source_module = Vc::upcast(module);
+                let FollowExportsWithSideEffectsResult {
+                    side_effects,
+                    result,
+                } = &*follow_reexports_with_side_effects(
+                    source_module,
+                    export.clone(),
+                    side_effect_free_packages,
+                )
+                .await?;
+                let FollowExportsResult {
+                    module: final_module,
+                    export_name: new_export,
+                    ..
+                } = &*result.await?;
+                let final_module = if let Some(new_export) = new_export {
+                    if *new_export == export {
+                        *final_module
+                    } else {
+                        ResolvedVc::upcast(
+                            EcmascriptModuleFacadeModule::new(
+                                **final_module,
+                                ModulePart::renamed_export(new_export.clone(), export.clone()),
+                            )
+                            .to_resolved()
+                            .await?,
+                        )
+                    }
                 } else {
                     ResolvedVc::upcast(
                         EcmascriptModuleFacadeModule::new(
                             **final_module,
-                            ModulePart::renamed_export(new_export.clone(), export.clone()),
+                            ModulePart::renamed_namespace(export.clone()),
                         )
                         .to_resolved()
                         .await?,
                     )
+                };
+                if side_effects.is_empty() {
+                    return Ok(*ResolvedVc::upcast(final_module));
                 }
-            } else {
-                ResolvedVc::upcast(
-                    EcmascriptModuleFacadeModule::new(
-                        **final_module,
-                        ModulePart::renamed_namespace(export.clone()),
-                    )
-                    .to_resolved()
-                    .await?,
-                )
-            };
-
-            if side_effects.is_empty() {
-                return Ok(*ResolvedVc::upcast(final_module));
+                let side_effects_module = SideEffectsModule::new(
+                    module,
+                    ModulePart::Export(export),
+                    *final_module,
+                    side_effects.iter().map(|v| **v).collect(),
+                );
+                return Ok(Vc::upcast(side_effects_module));
             }
-
-            let side_effects_module = SideEffectsModule::new(
-                module,
-                ModulePart::Export(export),
-                *final_module,
-                side_effects.iter().map(|v| **v).collect(),
-            );
-
-            return Ok(Vc::upcast(side_effects_module));
+            _ => (),
         }
 
-        Ok(Vc::upcast(EcmascriptModulePartAsset::new(
-            module,
-            part.clone(),
-        )))
+        Ok(Vc::upcast(
+            EcmascriptModulePartAsset::new_with_resolved_part(module, part.clone()),
+        ))
     }
 
     #[turbo_tasks::function]
@@ -290,64 +321,27 @@ impl Module for EcmascriptModulePartAsset {
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
-        let split_data = split_module(*self.full_module).await?;
-
-        let analyze = analyze(*self.full_module, self.part.clone());
-
-        let deps = match &*split_data {
-            SplitResult::Ok { deps, .. } => deps,
-            SplitResult::Failed { .. } => return Ok(analyze.references()),
-        };
-
         let part_dep = |part: ModulePart| -> Vc<Box<dyn ModuleReference>> {
-            Vc::upcast(SingleModuleReference::new(
-                Vc::upcast(EcmascriptModulePartAsset::new(*self.full_module, part)),
-                Vc::cell("ecmascript module part".into()),
+            Vc::upcast(SingleChunkableModuleReference::new(
+                Vc::upcast(EcmascriptModulePartAsset::new_with_resolved_part(
+                    *self.full_module,
+                    part,
+                )),
+                Vc::cell("part reference".into()),
             ))
         };
 
-        let mut references = analyze.references().owned().await?;
-
-        // Facade depends on evaluation and re-exports
-        if self.part == ModulePart::Facade {
+        if let ModulePart::Facade = self.part {
+            // Facade depends on evaluation and re-exports
+            let mut references = vec![];
             references.push(part_dep(ModulePart::evaluation()).to_resolved().await?);
             references.push(part_dep(ModulePart::exports()).to_resolved().await?);
             return Ok(Vc::cell(references));
         }
 
-        let deps = {
-            let part_id = get_part_id(&split_data, &self.part)
-                .await
-                .with_context(|| format!("part {:?} is not found in the module", self.part))?;
+        let analyze = analyze(*self.full_module, self.part.clone());
 
-            match deps.get(&part_id) {
-                Some(v) => &**v,
-                None => &[],
-            }
-        };
-
-        references.extend(
-            deps.iter()
-                .filter_map(|part_id| {
-                    Some(part_dep(match part_id {
-                        // This is an internal part that is not for evaluation, so we don't need to
-                        // force-add it.
-                        PartId::Internal(.., false) => return None,
-                        PartId::Internal(part_id, true) => {
-                            ModulePart::internal_evaluation(*part_id)
-                        }
-                        PartId::Export(name) => ModulePart::export(name.clone()),
-                        _ => unreachable!(
-                            "PartId other than Internal and Export should not be used here"
-                        ),
-                    }))
-                })
-                .map(|v| async move { v.to_resolved().await })
-                .try_join()
-                .await?,
-        );
-
-        Ok(Vc::cell(references))
+        Ok(analyze.references())
     }
 }
 
@@ -425,7 +419,8 @@ async fn only_effects(
     module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
 ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
     if let Some(module) = Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module).await? {
-        let module = EcmascriptModulePartAsset::new(module, ModulePart::evaluation());
+        let module =
+            EcmascriptModulePartAsset::new_with_resolved_part(module, ModulePart::evaluation());
         return Ok(Vc::upcast(module));
     }
 

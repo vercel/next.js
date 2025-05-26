@@ -5,36 +5,36 @@ mod util;
 
 use std::{collections::VecDeque, fs, path::PathBuf};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use dunce::canonicalize;
 use rustc_hash::FxHashSet;
 use serde::Deserialize;
 use serde_json::json;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    apply_effects, ReadConsistency, ReadRef, ResolvedVc, TryJoinIterExt, TurboTasks, Value,
-    ValueToString, Vc,
+    ReadConsistency, ReadRef, ResolvedVc, TryJoinIterExt, TurboTasks, Value, ValueToString, Vc,
+    apply_effects,
 };
-use turbo_tasks_backend::{noop_backing_storage, BackendOptions, TurboTasksBackend};
+use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_env::DotenvProcessEnv;
 use turbo_tasks_fs::{
-    json::parse_json_with_source_context, util::sys_to_unix, DiskFileSystem, FileSystem,
-    FileSystemPath,
+    DiskFileSystem, FileSystem, FileSystemPath, json::parse_json_with_source_context,
+    util::sys_to_unix,
 };
 use turbopack::{
+    ModuleAssetContext,
     ecmascript::{EcmascriptInputTransform, TreeShakingMode},
     module_options::{
         CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext,
         ModuleRule, ModuleRuleEffect, RuleCondition,
     },
-    ModuleAssetContext,
 };
 use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext, ChunkingContextExt,
-        EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets, MinifyType,
+        ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssetExt,
+        EvaluatableAssets, MinifyType, availability_info::AvailabilityInfo,
     },
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
@@ -45,7 +45,10 @@ use turbopack_core::{
     free_var_references,
     issue::{Issue, IssueDescriptionExt},
     module::Module,
-    module_graph::ModuleGraph,
+    module_graph::{
+        ModuleGraph,
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+    },
     output::{OutputAsset, OutputAssets},
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
@@ -195,7 +198,7 @@ async fn run_inner_operation(resource: RcStr) -> Result<()> {
 #[turbo_tasks::function(operation)]
 async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     let test_path = canonicalize(&resource)?;
-    assert!(test_path.exists(), "{} does not exist", resource);
+    assert!(test_path.exists(), "{resource} does not exist");
     assert!(
         test_path.is_dir(),
         "{} is not a directory. Snapshot tests must be directories.",
@@ -391,20 +394,21 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         let evaluatable_assets = runtime_entries
             .unwrap_or_else(EvaluatableAssets::empty)
             .with_entry(Vc::upcast(ecmascript));
-        let all_modules = Vc::cell(
-            evaluatable_assets
-                .await?
-                .iter()
-                .copied()
-                .map(ResolvedVc::upcast)
-                .collect(),
+        let all_modules = evaluatable_assets
+            .await?
+            .iter()
+            .copied()
+            .map(ResolvedVc::upcast)
+            .collect::<Vec<_>>();
+        let module_graph = ModuleGraph::from_modules(
+            Vc::cell(vec![ChunkGroupEntry::Entry(all_modules.clone())]),
+            false,
         );
-        let module_graph = ModuleGraph::from_modules(all_modules);
         // TODO: Load runtime entries from snapshots
         match options.runtime {
             Runtime::Browser => chunking_context.evaluated_chunk_group_assets(
                 entry_module.ident(),
-                evaluatable_assets,
+                ChunkGroup::Entry(all_modules.into_iter().collect()),
                 module_graph,
                 Value::new(AvailabilityInfo::Root),
             ),
@@ -427,7 +431,6 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                                         .into(),
                                 )
                                 .with_extension("entry.js".into()),
-                            entry_module,
                             evaluatable_assets,
                             module_graph,
                             OutputAssets::empty(),
@@ -438,11 +441,6 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 ])
             }
         }
-    } else if let Some(chunkable) =
-        Vc::try_resolve_downcast::<Box<dyn ChunkableModule>>(entry_module).await?
-    {
-        let module_graph = ModuleGraph::from_module(Vc::upcast(chunkable));
-        chunking_context.root_chunk_group_assets(chunkable, module_graph)
     } else {
         // TODO convert into a serve-able asset
         bail!("Entry module is not chunkable, so it can't be used to bootstrap the application")

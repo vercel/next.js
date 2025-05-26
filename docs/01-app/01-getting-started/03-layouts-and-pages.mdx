@@ -100,7 +100,7 @@ In Next.js:
 - **Folders** are used to define the route segments that map to URL segments.
 - **Files** (like `page` and `layout`) are used to create UI that is shown for a segment.
 
-To create nested routes, you can nest folders inside each other. For example, to add a route for `/blog`, create a folder called `blog` in the `app` directory. Then, to make `/blog` publicly accessible, add a `page` file:
+To create nested routes, you can nest folders inside each other. For example, to add a route for `/blog`, create a folder called `blog` in the `app` directory. Then, to make `/blog` publicly accessible, add a `page.tsx` file:
 
 <Image
   alt="File hierarchy showing blog folder and a page.js file"
@@ -111,6 +111,7 @@ To create nested routes, you can nest folders inside each other. For example, to
 />
 
 ```tsx filename="app/blog/page.tsx" switcher
+// Dummy imports
 import { getPosts } from '@/lib/posts'
 import { Post } from '@/ui/post'
 
@@ -128,6 +129,7 @@ export default async function Page() {
 ```
 
 ```jsx filename="app/blog/[slug]/page.js" switcher
+// Dummy imports
 import { getPosts } from '@/lib/posts'
 import { Post } from '@/ui/post'
 
@@ -170,7 +172,7 @@ export default function Page() {
 }
 ```
 
-> **Good to know**: Wrapping a folder name in square brackets (e.g. `[slug]`) creates a special [dynamic route segment](/docs/app/building-your-application/routing/dynamic-routes) used to generate multiple pages from data. This is useful for blog posts, product pages, etc.
+Wrapping a folder name in square brackets (e.g. `[slug]`) creates a [dynamic route segment](/docs/app/building-your-application/routing/dynamic-routes) which is used to generate multiple pages from data. e.g. blog posts, product pages, etc.
 
 ## Nesting layouts
 
@@ -206,7 +208,7 @@ If you were to combine the two layouts above, the root layout (`app/layout.js`) 
 
 ## Linking between pages
 
-You can use the [`<Link>` component](/docs/app/api-reference/components/link) to navigate between routes. `<Link>` is a built-in Next.js component that extends the HTML `<a>` tag to provide prefetching and client-side navigation.
+You can use the [`<Link>` component](/docs/app/api-reference/components/link) to navigate between routes. `<Link>` is a built-in Next.js component that extends the HTML `<a>` tag to provide [prefetching](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching) and [client-side navigation](/docs/app/building-your-application/routing/linking-and-navigating#5-soft-navigation).
 
 For example, to generate a list of blog posts, import `<Link>` from `next/link` and pass a `href` prop to the component:
 

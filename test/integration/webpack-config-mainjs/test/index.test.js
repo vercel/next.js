@@ -6,7 +6,7 @@ import { nextBuild } from 'next-test-utils'
 const appDir = join(__dirname, '../')
 
 // Skip webpack specific test in Turbopack
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'Customized webpack config with main.js',
   () => {
     it('should run correctly with main.js customized', async () => {

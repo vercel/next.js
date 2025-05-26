@@ -301,11 +301,12 @@ export async function createPagesMapping({
         page.endsWith('/page')
       )
       return {
-        // If there's any app pages existed, add a default not-found page.
-        // If there's any custom not-found page existed, it will override the default one.
+        // If there's any app pages existed, add a default /_not-found route as 404.
+        // If there's any custom /_not-found page, it will override the default one.
         ...(hasAppPages && {
-          [UNDERSCORE_NOT_FOUND_ROUTE_ENTRY]:
-            'next/dist/client/components/not-found-error',
+          [UNDERSCORE_NOT_FOUND_ROUTE_ENTRY]: require.resolve(
+            'next/dist/client/components/global-not-found'
+          ),
         }),
         ...pages,
       }
@@ -407,7 +408,10 @@ export function getEdgeServerEntry(opts: {
       ).toString('base64'),
     }
 
-    return `next-middleware-loader?${stringify(loaderParams)}!`
+    return {
+      import: `next-middleware-loader?${stringify(loaderParams)}!`,
+      layer: WEBPACK_LAYERS.middleware,
+    }
   }
 
   if (isAPIRoute(opts.page)) {
@@ -421,7 +425,10 @@ export function getEdgeServerEntry(opts: {
       ).toString('base64'),
     }
 
-    return `next-edge-function-loader?${stringify(loaderParams)}!`
+    return {
+      import: `next-edge-function-loader?${stringify(loaderParams)}!`,
+      layer: WEBPACK_LAYERS.apiEdge,
+    }
   }
 
   const loaderParams: EdgeSSRLoaderQuery = {
@@ -714,6 +721,9 @@ export async function createEntrypoints(
                 : undefined,
               preferredRegion: staticInfo.preferredRegion,
               middlewareConfig: encodeToBase64(staticInfo.middleware || {}),
+              isGlobalNotFoundEnabled: config.experimental.globalNotFound
+                ? true
+                : undefined,
             })
           } else if (isInstrumentation) {
             server[serverBundlePath.replace('src/', '')] =
@@ -793,6 +803,9 @@ export async function createEntrypoints(
                 middlewareConfig: Buffer.from(
                   JSON.stringify(staticInfo.middleware || {})
                 ).toString('base64'),
+                isGlobalNotFoundEnabled: config.experimental.globalNotFound
+                  ? true
+                  : undefined,
               }).import
             }
             edgeServer[serverBundlePath] = getEdgeServerEntry({
@@ -873,7 +886,7 @@ export function finalizeEntrypoint({
   switch (compilerType) {
     case COMPILER_NAMES.server: {
       const layer = isApi
-        ? WEBPACK_LAYERS.api
+        ? WEBPACK_LAYERS.apiNode
         : isInstrumentation
           ? WEBPACK_LAYERS.instrument
           : isServerComponent
@@ -892,7 +905,7 @@ export function finalizeEntrypoint({
     case COMPILER_NAMES.edgeServer: {
       return {
         layer: isApi
-          ? WEBPACK_LAYERS.api
+          ? WEBPACK_LAYERS.apiEdge
           : isMiddlewareFilename(name) || isInstrumentation
             ? WEBPACK_LAYERS.middleware
             : name.startsWith('pages/')

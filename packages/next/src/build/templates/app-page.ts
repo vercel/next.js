@@ -21,8 +21,8 @@ export { tree, pages }
 export { default as GlobalError } from 'VAR_MODULE_GLOBAL_ERROR' with { 'turbopack-transition': 'next-server-utility' }
 
 // These are injected by the loader afterwards.
-declare const __next_app_require__: any
-declare const __next_app_load_chunk__: any
+declare const __next_app_require__: (id: string | number) => unknown
+declare const __next_app_load_chunk__: (id: string | number) => Promise<unknown>
 
 // INJECT:__next_app_require__
 // INJECT:__next_app_load_chunk__
@@ -48,4 +48,6 @@ export const routeModule = new AppPageRouteModule({
   userland: {
     loaderTree: tree,
   },
+  distDir: process.env.__NEXT_RELATIVE_DIST_DIR || '',
+  projectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
 })

@@ -3,7 +3,7 @@ use std::{
     str::FromStr,
 };
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use swc_core::ecma::preset_env::{Version, Versions};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, TaskInput, Value, Vc};

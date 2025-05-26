@@ -1,4 +1,4 @@
-import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { NormalModule, webpack } from 'next/dist/compiled/webpack/webpack'
 import { RSC_MOD_REF_PROXY_ALIAS } from '../../../../lib/constants'
 import {
   BARREL_OPTIMIZATION_PREFIX,
@@ -97,7 +97,7 @@ export default function transformSource(
   if (buildInfo.rsc?.type === RSC_MODULE_TYPES.client) {
     const assumedSourceType = getAssumedSourceType(
       module,
-      (module.parser as javascript.JavascriptParser).sourceType
+      sourceTypeFromModule(module)
     )
 
     const clientRefs = buildInfo.rsc.clientRefs!
@@ -170,4 +170,18 @@ module.exports = createProxy(${stringifiedResourceKey})
     MODULE_PROXY_PATH
   )
   this.callback(null, replacedSource, sourceMap)
+}
+
+function sourceTypeFromModule(module: NormalModule): SourceType {
+  const moduleType = module.type
+  switch (moduleType) {
+    case 'javascript/auto':
+      return 'auto'
+    case 'javascript/dynamic':
+      return 'script'
+    case 'javascript/esm':
+      return 'module'
+    default:
+      throw new Error('Unexpected module type ' + moduleType)
+  }
 }

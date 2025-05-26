@@ -1,9 +1,9 @@
 import isError from '../../../lib/is-error'
 import { isNextRouterError } from '../is-next-router-error'
-import { handleClientError } from '../errors/use-error-handler'
+import { handleConsoleError } from '../errors/use-error-handler'
 import { parseConsoleArgs } from '../../lib/console'
 
-export const originConsoleError = window.console.error
+export const originConsoleError = globalThis.console.error
 
 // Patch console.error to collect information about hydration errors
 export function patchConsoleError() {
@@ -29,12 +29,11 @@ export function patchConsoleError() {
 
     if (!isNextRouterError(maybeError)) {
       if (process.env.NODE_ENV !== 'production') {
-        handleClientError(
+        handleConsoleError(
           // replayed errors have their own complex format string that should be used,
           // but if we pass the error directly, `handleClientError` will ignore it
           maybeError,
-          args,
-          true
+          args
         )
       }
 

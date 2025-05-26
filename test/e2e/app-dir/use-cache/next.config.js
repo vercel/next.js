@@ -9,6 +9,7 @@ const nextConfig = {
       frequent: {
         stale: 19,
         revalidate: 100,
+        expire: 250,
       },
     },
     cacheHandlers: {

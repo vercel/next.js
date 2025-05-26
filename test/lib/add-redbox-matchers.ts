@@ -3,6 +3,7 @@ import { toMatchInlineSnapshot } from 'jest-snapshot'
 import {
   assertHasRedbox,
   getRedboxCallStack,
+  getRedboxComponentStack,
   getRedboxDescription,
   getRedboxEnvironmentLabel,
   getRedboxSource,
@@ -10,7 +11,8 @@ import {
   getRedboxTotalErrorCount,
   openRedbox,
 } from './next-test-utils'
-import type { BrowserInterface } from './browsers/base'
+import type { Playwright } from 'next-webdriver'
+import { NextInstance } from 'e2e-utils'
 
 declare global {
   namespace jest {
@@ -21,52 +23,77 @@ declare global {
        * When a Redbox is hidden at first and requires manual display by clicking the toast,
        * use {@link toDisplayCollapsedRedbox} instead.
        *
+       *
+       * If the project root appears in the snapshot, pass in the `NextInstance`
+       * as well to normalize the snapshot e.g. `await expect({ browser, next }).toDisplayRedbox()`.
+       *
        * Unintented content in the snapshot should be reported to the Next.js DX team.
-       * <FIXME-internal-frame> in the snapshot would be unintended.
+       * `<FIXME-internal-frame>` in the snapshot would be unintended.
+       * `<FIXME-project-root>` in the snapshot would be unintended.
+       * `<FIXME-file-protocol>` in the snapshot would be unintended.
+       * `<FIXME-next-dist-dir>` in the snapshot would be unintended.
        * Any node_modules in the snapshot would be unintended.
        * Differences in the snapshot between Turbopack and Webpack would be unintended.
        *
        * @param inlineSnapshot - The snapshot to compare against.
        */
-      toDisplayRedbox(inlineSnapshot?: string): Promise<void>
+      toDisplayRedbox(
+        inlineSnapshot?: string,
+        opts?: ErrorSnapshotOptions
+      ): Promise<void>
 
       /**
        * Inline snapshot matcher for a Redbox that's collapsed by default.
        * When a Redbox is immediately displayed,
        * use {@link toDisplayRedbox} instead.
        *
+       * If the project root appears in the snapshot, pass in the `NextInstance`
+       * as well to normalize the snapshot e.g. `await expect({ browser, next }).toDisplayCollapsedRedbox()`.
+       *
        * Unintented content in the snapshot should be reported to the Next.js DX team.
-       * <FIXME-internal-frame> in the snapshot would be unintended.
+       * `<FIXME-internal-frame>` in the snapshot would be unintended.
+       * `<FIXME-project-root>` in the snapshot would be unintended.
+       * `<FIXME-file-protocol>` in the snapshot would be unintended.
+       * `<FIXME-next-dist-dir>` in the snapshot would be unintended.
        * Any node_modules in the snapshot would be unintended.
        * Differences in the snapshot between Turbopack and Webpack would be unintended.
        *
        * @param inlineSnapshot - The snapshot to compare against.
        */
-      toDisplayCollapsedRedbox(inlineSnapshot?: string): Promise<void>
+      toDisplayCollapsedRedbox(
+        inlineSnapshot?: string,
+        opts?: ErrorSnapshotOptions
+      ): Promise<void>
     }
   }
 }
 
-interface RedboxSnapshot {
-  environmentLabel: string
-  label: string
-  description: string
-  source: string
-  stack: string[]
-  count: number
+interface ErrorSnapshotOptions {
+  label?: boolean
 }
 
-async function createRedboxSnapshot(
-  browser: BrowserInterface
-): Promise<RedboxSnapshot> {
-  const [label, environmentLabel, description, source, stack, count] =
+interface ErrorSnapshot {
+  environmentLabel: string | null
+  label: string | null
+  description: string | null
+  componentStack?: string
+  source: string | null
+  stack: string[] | null
+}
+
+async function createErrorSnapshot(
+  browser: Playwright,
+  next: NextInstance | null,
+  { label: includeLabel = true }: ErrorSnapshotOptions = {}
+): Promise<ErrorSnapshot> {
+  const [label, environmentLabel, description, source, stack, componentStack] =
     await Promise.all([
-      getRedboxLabel(browser),
+      includeLabel ? getRedboxLabel(browser) : null,
       getRedboxEnvironmentLabel(browser),
       getRedboxDescription(browser),
       getRedboxSource(browser),
       getRedboxCallStack(browser),
-      getRedboxTotalErrorCount(browser),
+      getRedboxComponentStack(browser),
     ])
 
   // We don't need to test the codeframe logic everywhere.
@@ -92,7 +119,7 @@ async function createRedboxSnapshot(
     focusedSource = ''
     const sourceFrameLines = source.split('\n')
     for (let i = 0; i < sourceFrameLines.length; i++) {
-      const sourceFrameLine = sourceFrameLines[i]
+      const sourceFrameLine = sourceFrameLines[i].trimEnd()
       if (sourceFrameLine === '') {
         continue
       }
@@ -109,25 +136,109 @@ async function createRedboxSnapshot(
         focusedSource += '\n' + sourceFrameLine
       }
     }
+
+    focusedSource = focusedSource.trim()
+
+    if (next !== null) {
+      focusedSource = focusedSource.replaceAll(
+        next.testDir,
+        '<FIXME-project-root>'
+      )
+    }
+
+    // This is the processed path the nextjs file from node_modules,
+    // likely not being processed properly and it's not deterministic among tests.
+    // e.g. it could be a encoded url of loader path:
+    // ../packages/next/dist/build/webpack/loaders/next-app-loader/index.js...
+    const sourceLines = focusedSource.split('\n')
+    if (
+      sourceLines[0].startsWith('./node_modules/.pnpm/next@file+') ||
+      sourceLines[0].startsWith('./node_modules/.pnpm/file+') ||
+      // e.g. "next-app-loader?<SEARCH PARAMS>" (in rspack, the loader doesn't seem to be prefixed with node_modules)
+      /^next-[a-zA-Z0-9\-_]+?-loader\?/.test(sourceLines[0])
+    ) {
+      focusedSource =
+        `<FIXME-nextjs-internal-source>` +
+        '\n' +
+        sourceLines.slice(1).join('\n')
+    }
   }
 
-  return {
+  const snapshot: ErrorSnapshot = {
     environmentLabel,
-    label,
-    description,
-    source: focusedSource?.trim(),
-    stack,
-    // TODO(newDevOverlay): Always return `count`. Normalizing currently to avoid assertion forks.
-    count: label === 'Build Error' && count === -1 ? 1 : count,
+    label: label ?? '<FIXME-excluded-label>',
+    description:
+      description !== null && next !== null
+        ? description.replace(next.testDir, '<FIXME-project-root>')
+        : description,
+    source: focusedSource,
+    stack:
+      next !== null && stack !== null
+        ? stack.map((stackframe) => {
+            return stackframe.replace(next.testDir, '<FIXME-project-root>')
+          })
+        : stack,
   }
+
+  // Hydration diffs are only relevant to some specific errors
+  // so we hide them from the snapshots unless they are present.
+  if (componentStack !== null) {
+    snapshot.componentStack = componentStack
+  }
+
+  return snapshot
+}
+
+type RedboxSnapshot = ErrorSnapshot | ErrorSnapshot[]
+
+async function createRedboxSnapshot(
+  browser: Playwright,
+  next: NextInstance | null,
+  opts?: ErrorSnapshotOptions
+): Promise<RedboxSnapshot> {
+  const errorTally = await getRedboxTotalErrorCount(browser)
+  const errorSnapshots: ErrorSnapshot[] = []
+
+  for (let errorIndex = 0; errorIndex < errorTally; errorIndex++) {
+    const errorSnapshot = await createErrorSnapshot(browser, next, opts)
+    errorSnapshots.push(errorSnapshot)
+
+    if (errorIndex < errorTally - 1) {
+      // Go to next error
+      await browser
+        .waitForElementByCss('[data-nextjs-dialog-error-next]')
+        .click()
+      // TODO: Wait for suspended content if the click triggered it.
+      await browser.waitForElementByCss(
+        `[data-nextjs-dialog-error-index="${errorIndex + 1}"]`
+      )
+    }
+  }
+
+  return errorSnapshots.length === 1
+    ? // Most of the Redbox tests will just show a single error.
+      // We optimize display for that case.
+      errorSnapshots[0]
+    : errorSnapshots
 }
 
 expect.extend({
   async toDisplayRedbox(
     this: MatcherContext,
-    browser: BrowserInterface,
-    expectedRedboxSnapshot?: string
+    browserOrContext: Playwright | { browser: Playwright; next: NextInstance },
+    expectedRedboxSnapshot?: string,
+    opts?: ErrorSnapshotOptions
   ) {
+    let browser: Playwright
+    let next: NextInstance | null
+    if ('browser' in browserOrContext && 'next' in browserOrContext) {
+      browser = browserOrContext.browser
+      next = browserOrContext.next
+    } else {
+      browser = browserOrContext
+      next = null
+    }
+
     // Otherwise jest uses the async stack trace which makes it impossible to know the actual callsite of `toMatchSpeechInlineSnapshot`.
     // @ts-expect-error -- Not readonly
     this.error = new Error()
@@ -152,7 +263,7 @@ expect.extend({
       }
     }
 
-    const redbox = await createRedboxSnapshot(browser)
+    const redbox = await createRedboxSnapshot(browser, next, opts)
 
     // argument length is relevant.
     // Jest will update absent snapshots but fail if you specify a snapshot even if undefined.
@@ -164,9 +275,20 @@ expect.extend({
   },
   async toDisplayCollapsedRedbox(
     this: MatcherContext,
-    browser: BrowserInterface,
-    expectedRedboxSnapshot?: string
+    browserOrContext: Playwright | { browser: Playwright; next: NextInstance },
+    expectedRedboxSnapshot?: string,
+    opts?: ErrorSnapshotOptions
   ) {
+    let browser: Playwright
+    let next: NextInstance | null
+    if ('browser' in browserOrContext && 'next' in browserOrContext) {
+      browser = browserOrContext.browser
+      next = browserOrContext.next
+    } else {
+      browser = browserOrContext
+      next = null
+    }
+
     // Otherwise jest uses the async stack trace which makes it impossible to know the actual callsite of `toMatchSpeechInlineSnapshot`.
     // @ts-expect-error -- Not readonly
     this.error = new Error()
@@ -198,7 +320,7 @@ expect.extend({
       }
     }
 
-    const redbox = await createRedboxSnapshot(browser)
+    const redbox = await createRedboxSnapshot(browser, next, opts)
 
     // argument length is relevant.
     // Jest will update absent snapshots but fail if you specify a snapshot even if undefined.

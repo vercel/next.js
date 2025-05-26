@@ -1,7 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
 
-const WITH_PPR = !!process.env.__NEXT_EXPERIMENTAL_PPR
-
 describe('dynamic-io', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
@@ -36,12 +34,8 @@ describe('dynamic-io', () => {
       expect($('#layout').text()).toBe('at runtime')
       expect($('#page').text()).toBe('at runtime')
       expect($('#first').text()).not.toEqual($('#second').text())
-    } else if (WITH_PPR) {
-      expect($('#layout').text()).toBe('at buildtime')
-      expect($('#page').text()).toBe('at runtime')
-      expect($('#first').text()).not.toEqual($('#second').text())
     } else {
-      expect($('#layout').text()).toBe('at runtime')
+      expect($('#layout').text()).toBe('at buildtime')
       expect($('#page').text()).toBe('at runtime')
       expect($('#first').text()).not.toEqual($('#second').text())
     }
@@ -66,12 +60,8 @@ describe('dynamic-io', () => {
       expect($('#layout').text()).toBe('at runtime')
       expect($('#page').text()).toBe('at runtime')
       expect($('#first').text()).not.toEqual($('#second').text())
-    } else if (WITH_PPR) {
-      expect($('#layout').text()).toBe('at buildtime')
-      expect($('#page').text()).toBe('at runtime')
-      expect($('#first').text()).not.toEqual($('#second').text())
     } else {
-      expect($('#layout').text()).toBe('at runtime')
+      expect($('#layout').text()).toBe('at buildtime')
       expect($('#page').text()).toBe('at runtime')
       expect($('#first').text()).not.toEqual($('#second').text())
     }

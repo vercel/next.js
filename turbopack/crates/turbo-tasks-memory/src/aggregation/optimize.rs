@@ -1,9 +1,9 @@
 use tracing::Level;
 
 use super::{
-    balance_queue::BalanceQueue,
-    increase::{increase_aggregation_number_internal, IncreaseReason, LEAF_NUMBER},
     AggregationContext, StackVec,
+    balance_queue::BalanceQueue,
+    increase::{IncreaseReason, LEAF_NUMBER, increase_aggregation_number_internal},
 };
 
 pub const MAX_UPPERS: usize = 512;

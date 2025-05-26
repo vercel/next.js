@@ -1,9 +1,9 @@
 use std::{fmt::Debug, mem::replace};
 
 use turbo_tasks::{
+    TaskId, TaskIdSet, TurboTasksBackendApi,
     backend::CellContent,
     event::{Event, EventListener},
-    TaskId, TaskIdSet, TurboTasksBackendApi,
 };
 
 use crate::MemoryBackend;

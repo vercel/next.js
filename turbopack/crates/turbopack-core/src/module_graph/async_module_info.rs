@@ -3,7 +3,6 @@ use rustc_hash::FxHashSet;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 
 use crate::{
-    chunk::ChunkingType,
     module::{Module, Modules},
     module_graph::{GraphTraversalAction, ModuleGraph, SingleModuleGraph},
 };
@@ -75,7 +74,7 @@ async fn compute_async_module_info_single(
 
     let mut async_modules = self_async_modules;
     graph.traverse_edges_from_entries_topological(
-        graph.entries.iter(),
+        graph.entry_modules(),
         &mut (),
         |_, _, _| Ok(GraphTraversalAction::Continue),
         |parent_info, module, _| {
@@ -86,35 +85,25 @@ async fn compute_async_module_info_single(
             let module = module.module();
             let parent_module = parent_module.module;
 
-            // edges.push((parent_module, module, async_modules.contains(&module)));
-            match chunking_type {
-                ChunkingType::ParallelInheritAsync => {
-                    if async_modules.contains(&module) {
-                        async_modules.insert(parent_module);
-                    }
-                }
-                ChunkingType::Parallel
-                | ChunkingType::Async
-                | ChunkingType::Isolated { .. }
-                | ChunkingType::Traced => {
-                    // Nothing to propagate
-                }
+            if chunking_type.is_inherit_async() && async_modules.contains(&module) {
+                async_modules.insert(parent_module);
             }
         },
     )?;
 
-    petgraph::algo::TarjanScc::new().run(&*graph.graph, |scc| {
-        // Only SCCs with more than one node are cycles
-        if scc.len() > 1
-            && scc
+    graph.traverse_cycles(
+        |ty| ty.is_inherit_async(),
+        |cycle| {
+            if cycle
                 .iter()
-                .any(|idx| async_modules.contains(&graph.graph.node_weight(*idx).unwrap().module()))
-        {
-            for &idx in scc {
-                async_modules.insert(graph.graph.node_weight(idx).unwrap().module());
+                .any(|node| async_modules.contains(&node.module))
+            {
+                for &node in cycle {
+                    async_modules.insert(node.module);
+                }
             }
-        }
-    });
+        },
+    );
 
     Ok(Vc::cell(async_modules))
 }

@@ -1,5 +1,4 @@
 import { nextTestSetup } from 'e2e-utils'
-import type * as Playwright from 'playwright'
 import { createRouterAct } from '../router-act'
 
 describe('segment cache (basic tests)', () => {
@@ -15,7 +14,7 @@ describe('segment cache (basic tests)', () => {
   it('navigate before any data has loaded into the prefetch cache', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/', {
-      beforePageLoad(page: Playwright.Page) {
+      beforePageLoad(page) {
         act = createRouterAct(page)
       },
     })
@@ -58,7 +57,7 @@ describe('segment cache (basic tests)', () => {
   it('navigate with prefetched data', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/', {
-      beforePageLoad(page: Playwright.Page) {
+      beforePageLoad(page) {
         act = createRouterAct(page)
       },
     })
@@ -97,7 +96,7 @@ describe('segment cache (basic tests)', () => {
   it('navigate to page with lazily-generated (not at build time) static param', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/lazily-generated-params', {
-      beforePageLoad(page: Playwright.Page) {
+      beforePageLoad(page) {
         act = createRouterAct(page)
       },
     })
@@ -134,7 +133,7 @@ describe('segment cache (basic tests)', () => {
   it('prefetch interception route', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/interception/feed', {
-      beforePageLoad(page: Playwright.Page) {
+      beforePageLoad(page) {
         act = createRouterAct(page)
       },
     })
@@ -166,7 +165,7 @@ describe('segment cache (basic tests)', () => {
   it('skips dynamic request if prefetched data is fully static', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/fully-static', {
-      beforePageLoad(page: Playwright.Page) {
+      beforePageLoad(page) {
         act = createRouterAct(page)
       },
     })
@@ -197,7 +196,7 @@ describe('segment cache (basic tests)', () => {
   it('skips static layouts during partially static navigation', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/partially-static', {
-      beforePageLoad(page: Playwright.Page) {
+      beforePageLoad(page) {
         act = createRouterAct(page)
       },
     })
@@ -240,5 +239,105 @@ describe('segment cache (basic tests)', () => {
     // The dynamic content has streamed in.
     const dynamicDiv = await browser.elementById('dynamic-page')
     expect(await dynamicDiv.innerHTML()).toBe('Dynamic page')
+  })
+
+  it('refreshes page segments when navigating to the exact same URL as the current location', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/same-page-nav', {
+      beforePageLoad(page) {
+        act = createRouterAct(page)
+      },
+    })
+
+    const linkWithNoHash = await browser.elementByCss(
+      'a[href="/same-page-nav"]'
+    )
+    const linkWithHashA = await browser.elementByCss(
+      'a[href="/same-page-nav#hash-a"]'
+    )
+    const linkWithHashB = await browser.elementByCss(
+      'a[href="/same-page-nav#hash-b"]'
+    )
+
+    async function readRandomNumberFromPage() {
+      const randomNumber = await browser.elementById('random-number')
+      return await randomNumber.textContent()
+    }
+
+    // Navigating to the same URL should refresh the page
+    const randomNumber = await readRandomNumberFromPage()
+    await act(async () => {
+      await linkWithNoHash.click()
+    }, [
+      {
+        includes: 'random-number',
+      },
+      {
+        // Only the page segments should be refreshed, not the layouts.
+        // TODO: We plan to change this in the future.
+        block: 'reject',
+        includes: 'same-page-nav-layout',
+      },
+    ])
+    const randomNumber2 = await readRandomNumberFromPage()
+    expect(randomNumber2).not.toBe(randomNumber)
+
+    // Navigating to a different hash should *not* refresh the page
+    await act(async () => {
+      await linkWithHashA.click()
+    }, 'no-requests')
+    expect(await readRandomNumberFromPage()).toBe(randomNumber2)
+
+    // Navigating to the same hash again should refresh the page
+    await act(
+      async () => {
+        await linkWithHashA.click()
+      },
+      {
+        includes: 'random-number',
+      }
+    )
+    const randomNumber3 = await readRandomNumberFromPage()
+    expect(randomNumber3).not.toBe(randomNumber2)
+
+    // Navigating to a different hash should *not* refresh the page
+    await act(async () => {
+      await linkWithHashB.click()
+    }, 'no-requests')
+    expect(await readRandomNumberFromPage()).toBe(randomNumber3)
+  })
+
+  it('does not throw an error when navigating to a page with a server action', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/with-server-action', {
+      beforePageLoad(page) {
+        act = createRouterAct(page)
+      },
+    })
+
+    // Reveal the link to trigger a prefetch.
+    const reveal = await browser.elementByCss('input[type="checkbox"]')
+    const link = await act(
+      async () => {
+        await reveal.click()
+        return await browser.elementByCss(
+          'a[href="/with-server-action/target-page"]'
+        )
+      },
+      { includes: 'Target' }
+    )
+
+    await act(
+      async () => {
+        await link.click()
+
+        // The page should render immediately because it was prefetched, and it
+        // should not throw an error.
+        const form = await browser.elementById('target-page')
+        expect(await form.innerHTML()).toBe('Target')
+      },
+      // No additional requests were required, because everything was prefetched
+      'no-requests'
+    )
   })
 })

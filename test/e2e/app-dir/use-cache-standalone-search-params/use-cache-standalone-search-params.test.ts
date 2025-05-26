@@ -8,10 +8,10 @@ import {
 import stripAnsi from 'strip-ansi'
 
 const getExpectedErrorMessage = (route: string) =>
-  `Error: Route ${route} used "searchParams" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "searchParams" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
+  `Route ${route} used "searchParams" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "searchParams" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
 
 describe('use-cache-standalone-search-params', () => {
-  const { next, isNextDev, isTurbopack, skipped } = nextTestSetup({
+  const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
     skipStart: process.env.NEXT_TEST_MODE !== 'dev',
@@ -39,37 +39,75 @@ describe('use-cache-standalone-search-params', () => {
         const errorSource = await getRedboxSource(browser)
         const expectedErrorMessage = getExpectedErrorMessage(route)
 
-        if (process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true') {
-          expect(errorDescription).toBe(expectedErrorMessage)
-        } else {
-          expect(errorDescription).toBe(`[ Cache ] ${expectedErrorMessage}`)
-        }
+        expect(errorDescription).toBe(expectedErrorMessage)
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-        if (isTurbopack) {
-          // TODO(veil): Should have a mapped error source.
-          expect(errorSource).toBe(null)
+        expect(errorSource).toMatchInlineSnapshot(`
+         "app/search-params-used/page.tsx (8:17) @ Page
 
-          // TODO(veil): Should be a relative filename.
-          expect(cliOutput).toContain(`${expectedErrorMessage}
-    at Page (file:/`)
-        } else {
-          expect(errorSource).toMatchInlineSnapshot(`
-           "app/search-params-used/page.tsx (8:17) @ Page
+            6 |   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+            7 | }) {
+         >  8 |   const param = (await searchParams).foo
+              |                 ^
+            9 |
+           10 |   return <p>param: {param}</p>
+           11 | }"
+        `)
 
-              6 |   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
-              7 | }) {
-           >  8 |   const param = (await searchParams).foo
-                |                 ^
-              9 |
-             10 |   return <p>param: {param}</p>
-             11 | }"
-          `)
-
-          expect(cliOutput).toContain(`${expectedErrorMessage}
+        expect(cliOutput).toContain(`Error: ${expectedErrorMessage}
     at Page (app/search-params-used/page.tsx:8:17)`)
-        }
+      })
+    })
+
+    describe('when searchParams are caught inside of "use cache"', () => {
+      beforeAll(() => {
+        route = '/search-params-caught'
+      })
+
+      it('should show an error', async () => {
+        const outputIndex = next.cliOutput.length
+        const browser = await next.browser(`${route}?foo=1`)
+
+        await assertHasRedbox(browser)
+
+        const errorDescription = await getRedboxDescription(browser)
+        const errorSource = await getRedboxSource(browser)
+        const expectedErrorMessage = getExpectedErrorMessage(route)
+
+        expect(errorDescription).toBe(expectedErrorMessage)
+
+        const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
+
+        expect(errorSource).toMatchInlineSnapshot(`
+         "app/search-params-caught/page.tsx (11:5) @ Page
+
+            9 |
+           10 |   try {
+         > 11 |     param = (await searchParams).foo
+              |     ^
+           12 |   } catch {}
+           13 |
+           14 |   return <p>param: {param}</p>"
+        `)
+
+        expect(cliOutput).toContain(`Error: ${expectedErrorMessage}
+    at Page (app/search-params-caught/page.tsx:11:4)`)
+      })
+
+      it('should also show an error after the second reload', async () => {
+        // There was an obscure bug that lead to the error not being triggered
+        // anymore starting with the third request. We test this scenario
+        // explicitly to ensure we won't regress.
+        const browser = await next.browser(`${route}?foo=1`)
+        await browser.refresh()
+        await browser.refresh()
+
+        await assertHasRedbox(browser)
+
+        const errorDescription = await getRedboxDescription(browser)
+
+        expect(errorDescription).toBe(getExpectedErrorMessage(route))
       })
     })
 
@@ -95,6 +133,10 @@ describe('use-cache-standalone-search-params', () => {
 
       expect(cliOutput).toInclude(
         getExpectedErrorMessage('/search-params-used')
+      )
+
+      expect(cliOutput).toInclude(
+        getExpectedErrorMessage('/search-params-caught')
       )
 
       expect(cliOutput).not.toInclude(

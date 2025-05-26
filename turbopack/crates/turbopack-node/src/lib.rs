@@ -1,26 +1,25 @@
 #![feature(min_specialization)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
-#![feature(extract_if)]
 
 use std::{iter::once, thread::available_parallelism};
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 pub use node_entry::{NodeEntry, NodeRenderingEntries, NodeRenderingEntry};
 use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    graph::{AdjacencyMap, GraphTraversal},
     FxIndexSet, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    graph::{AdjacencyMap, GraphTraversal},
 };
 use turbo_tasks_env::ProcessEnv;
-use turbo_tasks_fs::{to_sys_path, File, FileSystemPath};
+use turbo_tasks_fs::{File, FileSystemPath, to_sys_path};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     changed::content_changed,
-    chunk::{ChunkingContext, ChunkingContextExt, EvaluatableAssets},
+    chunk::{ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets},
     module::Module,
-    module_graph::ModuleGraph,
+    module_graph::{ModuleGraph, chunk_group_info::ChunkGroupEntry},
     output::{OutputAsset, OutputAssets, OutputAssetsSet},
     source_map::GenerateSourceMap,
     virtual_output::VirtualOutputAsset,
@@ -104,7 +103,7 @@ async fn internal_assets_for_source_mapping(
 /// subgraph
 #[turbo_tasks::function]
 pub async fn external_asset_entrypoints(
-    module: Vc<Box<dyn Module>>,
+    module: Vc<Box<dyn EvaluatableAsset>>,
     runtime_entries: Vc<EvaluatableAssets>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     intermediate_output_path: ResolvedVc<FileSystemPath>,
@@ -166,7 +165,7 @@ async fn separate_assets_operation(
     let mut internal_assets = FxIndexSet::default();
     let mut external_asset_entrypoints = FxIndexSet::default();
 
-    for item in graph.into_reverse_topological() {
+    for item in graph.into_postorder_topological() {
         match item {
             Type::Internal(asset) => {
                 internal_assets.insert(asset);
@@ -250,18 +249,28 @@ pub async fn get_renderer_pool_operation(
 
 /// Converts a module graph into node.js executable assets
 #[turbo_tasks::function]
-pub fn get_intermediate_asset(
+pub async fn get_intermediate_asset(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    main_entry: Vc<Box<dyn Module>>,
+    main_entry: ResolvedVc<Box<dyn EvaluatableAsset>>,
     other_entries: Vc<EvaluatableAssets>,
-) -> Vc<Box<dyn OutputAsset>> {
-    Vc::upcast(chunking_context.root_entry_chunk_group_asset(
-        chunking_context.chunk_path(main_entry.ident(), ".js".into()),
-        main_entry,
-        ModuleGraph::from_module(main_entry),
+) -> Result<Vc<Box<dyn OutputAsset>>> {
+    Ok(Vc::upcast(chunking_context.root_entry_chunk_group_asset(
+        chunking_context.chunk_path(None, main_entry.ident(), ".js".into()),
+        other_entries.with_entry(*main_entry),
+        ModuleGraph::from_modules(
+            Vc::cell(vec![ChunkGroupEntry::Entry(
+                other_entries
+                    .await?
+                    .into_iter()
+                    .copied()
+                    .chain(std::iter::once(main_entry))
+                    .map(ResolvedVc::upcast)
+                    .collect(),
+            )]),
+            false,
+        ),
         OutputAssets::empty(),
-        other_entries,
-    ))
+    )))
 }
 
 #[derive(Clone, Debug)]

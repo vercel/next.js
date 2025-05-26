@@ -32,11 +32,16 @@ describe('app dir - basepath', () => {
     ).toBe(`Page 2`)
   })
 
-  it('should prefix metadata og image with basePath', async () => {
-    const $ = await next.render$('/base/another')
+  it('should prefix segment metadata og image with basePath and pathname', async () => {
+    const $ = await next.render$('/base/metadata')
     const ogImageHref = $('meta[property="og:image"]').attr('content')
+    expect(ogImageHref).toContain('/base/metadata/opengraph-image.png')
+  })
 
-    expect(ogImageHref).toContain('/base/another/opengraph-image.png')
+  it('should prefix manifest with basePath', async () => {
+    const $ = await next.render$('/base/metadata')
+    const manifestHref = $('link[rel="manifest"]').attr('href')
+    expect(manifestHref).toContain('/base/manifest.webmanifest')
   })
 
   it('should prefix redirect() with basePath', async () => {
@@ -105,7 +110,7 @@ describe('app dir - basepath', () => {
 
       const browser = await next.browser(initialPagePath)
 
-      browser.on('request', (req: Request) => {
+      browser.on('request', (req) => {
         const url = req.url()
 
         if (
@@ -116,7 +121,7 @@ describe('app dir - basepath', () => {
         }
       })
 
-      browser.on('response', (res: Response) => {
+      browser.on('response', (res) => {
         const url = res.url()
 
         if (
@@ -158,7 +163,7 @@ describe('app dir - basepath', () => {
 
     const browser = await next.browser(initialPagePath)
 
-    browser.on('request', (req: Request) => {
+    browser.on('request', (req) => {
       const url = req.url()
 
       if (!url.includes('_next')) {
@@ -166,7 +171,7 @@ describe('app dir - basepath', () => {
       }
     })
 
-    browser.on('response', (res: Response) => {
+    browser.on('response', (res) => {
       const url = res.url()
 
       if (!url.includes('_next')) {

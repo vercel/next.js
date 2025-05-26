@@ -2,13 +2,16 @@ import { nextTestSetup } from 'e2e-utils'
 
 const isPPREnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
 
-// PPR tests are covered in test/e2e/app-dir/ppr-metadata-blocking
 ;(isPPREnabled ? describe.skip : describe)(
   'app-dir - metadata-static-generation',
   () => {
-    const { next, isNextStart } = nextTestSetup({
+    const { next, isNextDev, isNextStart } = nextTestSetup({
       files: __dirname,
     })
+
+    // In dev, it suspenses as dynamic rendering so it's inserted into body;
+    // In build, it's resolved as static rendering so it's inserted into head.
+    const rootSelector = isNextDev ? 'body' : 'head'
 
     if (isNextStart) {
       // Precondition for the following tests in build mode.
@@ -28,20 +31,22 @@ const isPPREnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
 
     it('should contain async generated metadata in head for simple static page', async () => {
       const $ = await next.render$('/')
-      expect($('head title').text()).toBe('index page')
-      expect($('head meta[name="description"]').attr('content')).toBe(
-        'index page description'
-      )
+      expect($(`${rootSelector} title`).text()).toBe('index page')
+      expect(
+        $(`${rootSelector} meta[name="description"]`).attr('content')
+      ).toBe('index page description')
     })
 
     it('should contain async generated metadata in head static page with suspenseful content', async () => {
       const $ = await next.render$('/suspenseful/static')
-      expect($('head title').text()).toBe('suspenseful page - static')
+      expect($(`${rootSelector} title`).text()).toBe(
+        'suspenseful page - static'
+      )
     })
 
-    it('should contain async generated metadata in head for dynamic page', async () => {
+    it('should contain async generated metadata in body for dynamic page', async () => {
       const $ = await next.render$('/suspenseful/dynamic')
-      expect($('head title').text()).toBe('suspenseful page - dynamic')
+      expect($('body title').text()).toBe('suspenseful page - dynamic')
     })
   }
 )

@@ -9,11 +9,8 @@ use turbopack_core::{
 
 use super::module::EcmascriptModuleLocalsModule;
 use crate::{
-    chunk::{
-        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
-        EcmascriptChunkType,
-    },
-    EcmascriptModuleContent, EcmascriptModuleContentOptions,
+    EcmascriptAnalyzable,
+    chunk::{EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkType},
 };
 
 /// The chunk item for [EcmascriptModuleLocalsModule].
@@ -39,9 +36,7 @@ impl EcmascriptChunkItem for EcmascriptModuleLocalsChunkItem {
         let module = self.module.await?;
         let chunking_context = self.chunking_context;
         let module_graph = self.module_graph;
-        let exports = self.module.get_exports();
         let original_module = module.module;
-        let parsed = original_module.parse().to_resolved().await?;
 
         let analyze = original_module.analyze();
         let analyze_result = analyze.await?;
@@ -49,25 +44,9 @@ impl EcmascriptChunkItem for EcmascriptModuleLocalsChunkItem {
             .async_module
             .module_options(async_module_info);
 
-        let module_type_result = *original_module.determine_module_type().await?;
-        let generate_source_map =
-            chunking_context.reference_module_source_maps(*ResolvedVc::upcast(self.module));
-
-        let content = EcmascriptModuleContent::new(EcmascriptModuleContentOptions {
-            parsed,
-            ident: self.module.ident(),
-            specified_module_type: module_type_result.module_type,
-            module_graph: *module_graph,
-            chunking_context: *chunking_context,
-            references: analyze.local_references(),
-            esm_references: *analyze_result.esm_local_references,
-            code_generation: *analyze_result.code_generation,
-            async_module: *analyze_result.async_module,
-            generate_source_map,
-            original_source_map: analyze_result.source_map,
-            exports,
-            async_module_info,
-        });
+        let content =
+            self.module
+                .module_content(*module_graph, *chunking_context, async_module_info);
 
         Ok(EcmascriptChunkItemContent::new(
             content,

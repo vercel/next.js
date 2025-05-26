@@ -1,11 +1,12 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use turbo_tasks::{backend::CachedTaskType, SessionId, TaskId};
+use smallvec::SmallVec;
+use turbo_tasks::{SessionId, TaskId, backend::CachedTaskType};
 
 use crate::{
     backend::{AnyOperation, TaskDataCategory},
-    data::{CachedDataItem, CachedDataUpdate},
+    data::CachedDataItem,
     utils::chunked_vec::ChunkedVec,
 };
 
@@ -17,14 +18,24 @@ pub trait BackingStorage: 'static + Send + Sync {
     fn next_free_task_id(&self) -> TaskId;
     fn next_session_id(&self) -> SessionId;
     fn uncompleted_operations(&self) -> Vec<AnyOperation>;
-    fn save_snapshot(
+    #[allow(clippy::ptr_arg)]
+    fn serialize(task: TaskId, data: &Vec<CachedDataItem>) -> Result<SmallVec<[u8; 16]>>;
+    fn save_snapshot<I>(
         &self,
         session_id: SessionId,
         operations: Vec<Arc<AnyOperation>>,
         task_cache_updates: Vec<ChunkedVec<(Arc<CachedTaskType>, TaskId)>>,
-        meta_updates: Vec<ChunkedVec<CachedDataUpdate>>,
-        data_updates: Vec<ChunkedVec<CachedDataUpdate>>,
-    ) -> Result<()>;
+        snapshots: Vec<I>,
+    ) -> Result<()>
+    where
+        I: Iterator<
+                Item = (
+                    TaskId,
+                    Option<SmallVec<[u8; 16]>>,
+                    Option<SmallVec<[u8; 16]>>,
+                ),
+            > + Send
+            + Sync;
     fn start_read_transaction(&self) -> Option<Self::ReadTransaction<'_>>;
     /// # Safety
     ///

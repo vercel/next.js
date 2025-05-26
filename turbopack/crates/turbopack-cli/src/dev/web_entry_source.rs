@@ -1,16 +1,16 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, Vc};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_browser::{react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext};
+use turbopack_browser::{BrowserChunkingContext, react_refresh::assert_can_resolve_react_refresh};
 use turbopack_cli_utils::runtime_entry::{RuntimeEntries, RuntimeEntry};
 use turbopack_core::{
     chunk::{ChunkableModule, ChunkingContext, EvaluatableAsset, SourceMapsType},
     environment::Environment,
     file_source::FileSource,
     module::Module,
-    module_graph::ModuleGraph,
+    module_graph::{ModuleGraph, chunk_group_info::ChunkGroupEntry},
     reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{
         origin::{PlainResolveOrigin, ResolveOriginExt},
@@ -19,15 +19,15 @@ use turbopack_core::{
 };
 use turbopack_dev_server::{
     html::{DevHtmlAsset, DevHtmlEntry},
-    source::{asset_graph::AssetGraphContentSource, ContentSource},
+    source::{ContentSource, asset_graph::AssetGraphContentSource},
 };
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_node::execution_context::ExecutionContext;
 
 use crate::{
     contexts::{
-        get_client_asset_context, get_client_compile_time_info, get_client_resolve_options_context,
-        NodeEnv,
+        NodeEnv, get_client_asset_context, get_client_compile_time_info,
+        get_client_resolve_options_context,
     },
     embed_js::embed_file_path,
 };
@@ -145,19 +145,20 @@ pub async fn create_web_entry_source(
         .try_flat_join()
         .await?;
 
-    let all_modules = Vc::cell(
-        entries
-            .iter()
-            .copied()
-            .chain(
-                runtime_entries
-                    .await?
-                    .iter()
-                    .map(|&entry| ResolvedVc::upcast(entry)),
-            )
-            .collect::<Vec<ResolvedVc<Box<dyn Module>>>>(),
-    );
-    let module_graph = ModuleGraph::from_modules(all_modules).to_resolved().await?;
+    let all_modules = entries
+        .iter()
+        .copied()
+        .chain(
+            runtime_entries
+                .await?
+                .iter()
+                .map(|&entry| ResolvedVc::upcast(entry)),
+        )
+        .collect::<Vec<ResolvedVc<Box<dyn Module>>>>();
+    let module_graph =
+        ModuleGraph::from_modules(Vc::cell(vec![ChunkGroupEntry::Entry(all_modules)]), false)
+            .to_resolved()
+            .await?;
 
     let entries: Vec<_> = entries
         .into_iter()

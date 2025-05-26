@@ -5,13 +5,10 @@ import { outdent } from 'outdent'
 import { getRedboxTotalErrorCount, retry } from 'next-test-utils'
 
 const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
-// TODO(new-dev-overlay): Remove this once old dev overlay fork is removed
-const isNewDevOverlay =
-  process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true'
 // https://github.com/facebook/react/blob/main/packages/react-dom/src/__tests__/ReactDOMHydrationDiff-test.js used as a reference
 
 describe('Error overlay for hydration errors in Pages router', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
   })
@@ -76,56 +73,39 @@ describe('Error overlay for hydration errors in Pages router', () => {
     )
     const { session, browser } = sandbox
 
-    await session.assertHasRedbox()
-    expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 2 : 1)
-
+    // Pages Router uses React version without Owner Stacks hence the empty `stack`
     if (isReact18) {
-      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
-        `"Text content did not match. Server: "server" Client: "client""`
-      )
-    } else {
-      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
-        `"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:"`
-      )
-    }
-
-    if (isReact18) {
-      expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(
-        `null`
-      )
-    } else {
-      expect(await session.getRedboxDescriptionWarning())
-        .toMatchInlineSnapshot(`
-          "- A server/client branch \`if (typeof window !== 'undefined')\`.
-          - Variable input such as \`Date.now()\` or \`Math.random()\` which changes each time it's called.
-          - Date formatting in a user's locale which doesn't match the server.
-          - External changing data without sending a snapshot of it along with the HTML.
-          - Invalid HTML tag nesting.
-
-          It can also happen if the client has a browser extension installed which messes with the HTML before React loaded."
-        `)
-    }
-    expect(await session.getRedboxErrorLink()).toMatchInlineSnapshot(
-      `"See more info here: https://nextjs.org/docs/messages/react-hydration-error"`
-    )
-
-    const pseudoHtml = await session.getRedboxComponentStack()
-
-    if (isReact18) {
-      expect(pseudoHtml).toMatchInlineSnapshot(`
-       "<Mismatch>
+      await expect(browser).toDisplayRedbox(`
+       [
+         {
+           "componentStack": "<Mismatch>
            <div>
              <main>
        +       "server"
-       -       "client""
+       -       "client"",
+           "description": "Text content did not match. Server: "server" Client: "client"",
+           "environmentLabel": null,
+           "label": "Recoverable Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
+           "environmentLabel": null,
+           "label": "Recoverable Error",
+           "source": null,
+           "stack": [],
+         },
+       ]
       `)
     } else {
-      expect(pseudoHtml).toMatchInlineSnapshot(`
-       "...
+      await expect(browser).toDisplayRedbox(`
+       {
+         "componentStack": "...
            <AppContainer>
              <Container fn={function fn}>
-               <ReactDevOverlay>
-                 <DevOverlayErrorBoundary onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
+               <PagesDevOverlay>
+                 <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
                    <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                      <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                        <Mismatch>
@@ -134,9 +114,21 @@ describe('Error overlay for hydration errors in Pages router', () => {
        +                     client
        -                     server
                      ...
-                 ..."
+                 ...",
+         "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
+         "environmentLabel": null,
+         "label": "Recoverable Error",
+         "source": "index.js (5:9) @ Mismatch
+       > 5 |         <main className="child">{isClient ? "client" : "server"}</main>
+           |         ^",
+         "stack": [
+           "main <anonymous> (0:0)",
+           "Mismatch index.js (5:9)",
+         ],
+       }
       `)
     }
+
     await session.patch(
       'index.js',
       outdent`
@@ -174,46 +166,71 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
-    const { session, browser } = sandbox
-    await session.assertHasRedbox()
+    const { browser } = sandbox
+
     await retry(async () => {
-      await expect(await getRedboxTotalErrorCount(browser)).toBe(
-        isReact18 ? 3 : 1
-      )
+      expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 3 : 1)
     })
 
-    const pseudoHtml = await session.getRedboxComponentStack()
     if (isReact18) {
-      expect(pseudoHtml).toMatchInlineSnapshot(`
-       "<Mismatch>
+      await expect(browser).toDisplayRedbox(`
+       [
+         {
+           "componentStack": "<Mismatch>
        >   <div>
-       >     <main>"
+       >     <main>",
+           "description": "Expected server HTML to contain a matching <main> in <div>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "componentStack": "<Mismatch>
+       >   <div>
+       >     <main>",
+           "description": "Expected server HTML to contain a matching <main> in <div>.",
+           "environmentLabel": null,
+           "label": "Recoverable Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
+           "environmentLabel": null,
+           "label": "Recoverable Error",
+           "source": null,
+           "stack": [],
+         },
+       ]
       `)
     } else {
-      expect(pseudoHtml).toMatchInlineSnapshot(`
-       "...
+      await expect(browser).toDisplayRedbox(`
+       {
+         "componentStack": "...
            <AppContainer>
              <Container fn={function fn}>
-               <ReactDevOverlay>
-                 <DevOverlayErrorBoundary onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
+               <PagesDevOverlay>
+                 <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
                    <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                      <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                        <Mismatch>
                          <div className="parent">
        +                   <main className="only">
                      ...
-                 ..."
+                 ...",
+         "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
+         "environmentLabel": null,
+         "label": "Recoverable Error",
+         "source": "index.js (5:20) @ Mismatch
+       > 5 |       {isClient && <main className="only" />}
+           |                    ^",
+         "stack": [
+           "main <anonymous> (0:0)",
+           "Mismatch index.js (5:20)",
+         ],
+       }
       `)
-    }
-
-    if (isReact18) {
-      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
-        `"Expected server HTML to contain a matching <main> in <div>."`
-      )
-    } else {
-      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
-        `"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:"`
-      )
     }
   })
 
@@ -238,29 +255,54 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
-    const { session, browser } = sandbox
-    await session.assertHasRedbox()
+    const { browser } = sandbox
+
     await retry(async () => {
-      await expect(await getRedboxTotalErrorCount(browser)).toBe(
-        isReact18 ? 3 : 1
-      )
+      expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 3 : 1)
     })
 
-    const pseudoHtml = await session.getRedboxComponentStack()
     if (isReact18) {
-      expect(pseudoHtml).toMatchInlineSnapshot(`
-       "<Mismatch>
+      await expect(browser).toDisplayRedbox(`
+       [
+         {
+           "componentStack": "<Mismatch>
            <div>
        >     <div>
-       >       "second""
+       >       "second"",
+           "description": "Expected server HTML to contain a matching text node for "second" in <div>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "componentStack": "<Mismatch>
+           <div>
+       >     <div>
+       >       "second"",
+           "description": "Expected server HTML to contain a matching text node for "second" in <div>.",
+           "environmentLabel": null,
+           "label": "Recoverable Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
+           "environmentLabel": null,
+           "label": "Recoverable Error",
+           "source": null,
+           "stack": [],
+         },
+       ]
       `)
     } else {
-      expect(pseudoHtml).toMatchInlineSnapshot(`
-       "...
+      await expect(browser).toDisplayRedbox(`
+       {
+         "componentStack": "...
            <AppContainer>
              <Container fn={function fn}>
-               <ReactDevOverlay>
-                 <DevOverlayErrorBoundary onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
+               <PagesDevOverlay>
+                 <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
                    <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                      <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                        <Mismatch>
@@ -270,18 +312,19 @@ describe('Error overlay for hydration errors in Pages router', () => {
        -                   <footer className="3">
                            ...
                      ...
-                 ..."
+                 ...",
+         "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
+         "environmentLabel": null,
+         "label": "Recoverable Error",
+         "source": "index.js (4:5) @ Mismatch
+       > 4 |     <div className="parent">
+           |     ^",
+         "stack": [
+           "div <anonymous> (0:0)",
+           "Mismatch index.js (4:5)",
+         ],
+       }
       `)
-    }
-
-    if (isReact18) {
-      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
-        `"Expected server HTML to contain a matching text node for "second" in <div>."`
-      )
-    } else {
-      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
-        `"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:"`
-      )
     }
   })
 
@@ -304,42 +347,57 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
-    const { session, browser } = sandbox
-    await session.assertHasRedbox()
-    expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 2 : 1)
+    const { browser } = sandbox
 
-    const pseudoHtml = await session.getRedboxComponentStack()
     if (isReact18) {
-      expect(pseudoHtml).toMatchInlineSnapshot(`
-       "<Mismatch>
-       >   <div>"
+      await expect(browser).toDisplayRedbox(`
+       [
+         {
+           "componentStack": "<Mismatch>
+       >   <div>",
+           "description": "Did not expect server HTML to contain a <main> in <div>.",
+           "environmentLabel": null,
+           "label": "Recoverable Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
+           "environmentLabel": null,
+           "label": "Recoverable Error",
+           "source": null,
+           "stack": [],
+         },
+       ]
       `)
     } else {
-      expect(pseudoHtml).toMatchInlineSnapshot(`
-       "<Root callbacks={[...]}>
+      await expect(browser).toDisplayRedbox(`
+       {
+         "componentStack": "<Root callbacks={[...]}>
            <Head>
            <AppContainer>
              <Container fn={function fn}>
-               <ReactDevOverlay>
-                 <DevOverlayErrorBoundary onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
+               <PagesDevOverlay>
+                 <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
                    <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                      <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                        <Mismatch>
                          <div className="parent">
        -                   <main className="only">
                      ...
-                 ..."
+                 ...",
+         "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
+         "environmentLabel": null,
+         "label": "Recoverable Error",
+         "source": "index.js (4:5) @ Mismatch
+       > 4 |     <div className="parent">
+           |     ^",
+         "stack": [
+           "div <anonymous> (0:0)",
+           "Mismatch index.js (4:5)",
+         ],
+       }
       `)
-    }
-
-    if (isReact18) {
-      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
-        `"Did not expect server HTML to contain a <main> in <div>."`
-      )
-    } else {
-      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
-        `"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:"`
-      )
     }
   })
 
@@ -358,44 +416,58 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
-    const { session, browser } = sandbox
-    await session.assertHasRedbox()
-    expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 2 : 1)
+    const { browser } = sandbox
 
     if (isReact18) {
-      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
-        `"Did not expect server HTML to contain the text node "only" in <div>."`
-      )
-    } else {
-      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
-        `"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:"`
-      )
-    }
-
-    const pseudoHtml = await session.getRedboxComponentStack()
-
-    if (isReact18) {
-      expect(pseudoHtml).toMatchInlineSnapshot(`
-       "<Mismatch>
+      await expect(browser).toDisplayRedbox(`
+       [
+         {
+           "componentStack": "<Mismatch>
            <div>
        >     <div>
-       >       "only""
+       >       "only"",
+           "description": "Did not expect server HTML to contain the text node "only" in <div>.",
+           "environmentLabel": null,
+           "label": "Recoverable Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
+           "environmentLabel": null,
+           "label": "Recoverable Error",
+           "source": null,
+           "stack": [],
+         },
+       ]
       `)
     } else {
-      expect(pseudoHtml).toMatchInlineSnapshot(`
-       "<Root callbacks={[...]}>
+      await expect(browser).toDisplayRedbox(`
+       {
+         "componentStack": "<Root callbacks={[...]}>
            <Head>
            <AppContainer>
              <Container fn={function fn}>
-               <ReactDevOverlay>
-                 <DevOverlayErrorBoundary onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
+               <PagesDevOverlay>
+                 <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
                    <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                      <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                        <Mismatch>
                          <div className="parent">
        -                   only
                      ...
-                 ..."
+                 ...",
+         "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
+         "environmentLabel": null,
+         "label": "Recoverable Error",
+         "source": "index.js (3:10) @ Mismatch
+       > 3 |   return <div className="parent">{!isClient && "only"}</div>;
+           |          ^",
+         "stack": [
+           "div <anonymous> (0:0)",
+           "Mismatch index.js (3:10)",
+         ],
+       }
       `)
     }
   })
@@ -420,11 +492,10 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
-    const { session, browser } = sandbox
-    await session.assertHasRedbox()
+    const { browser } = sandbox
 
     await retry(async () => {
-      await expect(await getRedboxTotalErrorCount(browser)).toBe(
+      expect(await getRedboxTotalErrorCount(browser)).toBe(
         isReact18
           ? 3
           : // FIXME: Should be 2
@@ -433,37 +504,63 @@ describe('Error overlay for hydration errors in Pages router', () => {
     })
 
     if (isReact18) {
-      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
-        `"Expected server HTML to contain a matching <table> in <div>."`
-      )
-    } else {
-      // FIXME: should show "Expected server HTML to contain a matching <table> in <div>." first
-      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
-        `"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:"`
-      )
-    }
-
-    const pseudoHtml = await session.getRedboxComponentStack()
-    if (isReact18) {
-      expect(pseudoHtml).toMatchInlineSnapshot(`
-       "<Page>
-       >   <table>"
+      await expect(browser).toDisplayRedbox(`
+       [
+         {
+           "componentStack": "<Page>
+       >   <table>",
+           "description": "Expected server HTML to contain a matching <table> in <div>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "componentStack": "<Page>
+       >   <table>",
+           "description": "Expected server HTML to contain a matching <table> in <div>.",
+           "environmentLabel": null,
+           "label": "Recoverable Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
+           "environmentLabel": null,
+           "label": "Recoverable Error",
+           "source": null,
+           "stack": [],
+         },
+       ]
       `)
     } else {
-      expect(pseudoHtml).toMatchInlineSnapshot(`
-       "<Root callbacks={[...]}>
-           <Head>
-           <AppContainer>
-             <Container fn={function fn}>
-               <ReactDevOverlay>
-                 <DevOverlayErrorBoundary onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
-                   <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
-                     <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
-                       <Page>
-       +                 <table>
-       -                 test
-                     ...
-                 ..."
+      await expect(browser).toDisplayRedbox(`
+       {
+         "componentStack": "...
+           <Container fn={function fn}>
+             <PagesDevOverlay>
+               <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
+                 <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
+                   <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
+                     <Page>
+                       <table>
+                         <tbody>
+                           <tr>
+       >                     test
+                   ...
+               ...",
+         "description": "In HTML, text nodes cannot be a child of <tr>.
+       This will cause a hydration error.",
+         "environmentLabel": null,
+         "label": "Recoverable Error",
+         "source": "index.js (3:5) @ Page
+       > 3 |     <table>
+           |     ^",
+         "stack": [
+           "table <anonymous> (0:0)",
+           "Page index.js (3:5)",
+         ],
+       }
       `)
     }
   })
@@ -487,67 +584,72 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
-    const { session, browser } = sandbox
+    const { browser } = sandbox
 
-    // in the new overlay, `assertHasRedbox` is redundant with `hasErrorToast`
-    if (!isNewDevOverlay) {
-      await expect(session.hasErrorToast()).resolves.toBe(false)
-    }
-
-    await session.assertHasRedbox()
+    await retry(async () => {
+      expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 3 : 1)
+    })
 
     if (isReact18) {
-      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
-        `"Expected server HTML to contain a matching <table> in <div>."`
-      )
-
-      const pseudoHtml = await session.getRedboxComponentStack()
-      expect(pseudoHtml).toMatchInlineSnapshot(`
-       "<Page>
-       >   <table>"
+      await expect(browser).toDisplayRedbox(`
+       [
+         {
+           "componentStack": "<Page>
+       >   <table>",
+           "description": "Expected server HTML to contain a matching <table> in <div>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "componentStack": "<Page>
+       >   <table>",
+           "description": "Expected server HTML to contain a matching <table> in <div>.",
+           "environmentLabel": null,
+           "label": "Recoverable Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
+           "environmentLabel": null,
+           "label": "Recoverable Error",
+           "source": null,
+           "stack": [],
+         },
+       ]
       `)
-
-      expect(await getRedboxTotalErrorCount(browser)).toBe(3)
     } else {
-      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
-        `"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:"`
-      )
-
-      const pseudoHtml = await session.getRedboxComponentStack()
-      if (isTurbopack) {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-         "<Root callbacks={[...]}>
-             <Head>
-             <AppContainer>
-               <Container fn={function fn}>
-                 <ReactDevOverlay>
-                   <DevOverlayErrorBoundary onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
-                     <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
-                       <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
-                         <Page>
-         +                 <table>
-         -                 {" 123"}
-                       ...
-                   ..."
-        `)
-      } else {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-         "<Root callbacks={[...]}>
-             <Head>
-             <AppContainer>
-               <Container fn={function fn}>
-                 <ReactDevOverlay>
-                   <DevOverlayErrorBoundary onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
-                     <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
-                       <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
-                         <Page>
-         +                 <table>
-         -                 {" 123"}
-                       ...
-                   ..."
-        `)
-      }
-      expect(await getRedboxTotalErrorCount(browser)).toBe(1)
+      await expect(browser).toDisplayRedbox(`
+       {
+         "componentStack": "<Root callbacks={[...]}>
+           <Head>
+           <AppContainer>
+             <Container fn={function fn}>
+               <PagesDevOverlay>
+                 <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
+                   <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
+                     <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
+                       <Page>
+       >                 <table>
+       >                   {" 123"}
+                           ...
+                     ...
+                 ...",
+         "description": "In HTML, text nodes cannot be a child of <table>.
+       This will cause a hydration error.",
+         "environmentLabel": null,
+         "label": "Recoverable Error",
+         "source": "index.js (3:5) @ Page
+       > 3 |     <table>
+           |     ^",
+         "stack": [
+           "table <anonymous> (0:0)",
+           "Page index.js (3:5)",
+         ],
+       }
+      `)
     }
   })
 
@@ -575,21 +677,52 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
-    const { session } = sandbox
-    await session.assertHasRedbox()
-    const pseudoHtml = await session.getRedboxComponentStack()
+    const { browser } = sandbox
+
+    await retry(async () => {
+      expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 3 : 1)
+    })
+
     if (isReact18) {
-      expect(pseudoHtml).toMatchInlineSnapshot(`
-       "<Mismatch>
+      await expect(browser).toDisplayRedbox(`
+       [
+         {
+           "componentStack": "<Mismatch>
        >   <div>
              <Suspense>
-       >       <main>"
+       >       <main>",
+           "description": "Expected server HTML to contain a matching <main> in <div>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "componentStack": "<Mismatch>
+       >   <div>
+             <Suspense>
+       >       <main>",
+           "description": "Expected server HTML to contain a matching <main> in <div>.",
+           "environmentLabel": null,
+           "label": "Recoverable Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "description": "There was an error while hydrating this Suspense boundary. Switched to client rendering.",
+           "environmentLabel": null,
+           "label": "Recoverable Error",
+           "source": null,
+           "stack": [],
+         },
+       ]
       `)
     } else {
-      expect(pseudoHtml).toMatchInlineSnapshot(`
-       "...
-           <ReactDevOverlay>
-             <DevOverlayErrorBoundary onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
+      await expect(browser).toDisplayRedbox(`
+       {
+         "componentStack": "...
+           <PagesDevOverlay>
+             <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
                <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                  <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                    <Mismatch>
@@ -600,18 +733,19 @@ describe('Error overlay for hydration errors in Pages router', () => {
        -                 <footer className="3">
                          ...
                  ...
-             ..."
+             ...",
+         "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
+         "environmentLabel": null,
+         "label": "Recoverable Error",
+         "source": "index.js (8:22) @ Mismatch
+       >  8 |         {isClient && <main className="second" />}
+            |                      ^",
+         "stack": [
+           "main <anonymous> (0:0)",
+           "Mismatch index.js (8:22)",
+         ],
+       }
       `)
-    }
-
-    if (isReact18) {
-      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
-        `"Expected server HTML to contain a matching <main> in <div>."`
-      )
-    } else {
-      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
-        `"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:"`
-      )
     }
   })
 
@@ -666,48 +800,72 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
-    const { session, browser } = sandbox
-    await session.assertHasRedbox()
+    const { browser } = sandbox
+
     await retry(async () => {
       expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 3 : 1)
     })
 
-    const description = await session.getRedboxDescription()
     if (isReact18) {
-      expect(description).toMatchInlineSnapshot(
-        `"Expected server HTML to contain a matching <p> in <p>."`
-      )
-    } else {
-      expect(description).toMatchInlineSnapshot(`
-        "In HTML, <p> cannot be a descendant of <p>.
-        This will cause a hydration error."
-      `)
-    }
-
-    await session.assertHasRedbox()
-    const pseudoHtml = await session.getRedboxComponentStack()
-
-    if (isReact18) {
-      expect(pseudoHtml).toMatchInlineSnapshot(`
-       "<Page>
+      await expect(browser).toDisplayRedbox(`
+       [
+         {
+           "componentStack": "<Page>
        >   <p>
-       >     <p>"
+       >     <p>",
+           "description": "Expected server HTML to contain a matching <p> in <p>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "componentStack": "<Page>
+       >   <p>
+       >     <p>",
+           "description": "Expected server HTML to contain a matching <p> in <p>.",
+           "environmentLabel": null,
+           "label": "Recoverable Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
+           "environmentLabel": null,
+           "label": "Recoverable Error",
+           "source": null,
+           "stack": [],
+         },
+       ]
       `)
     } else {
-      expect(pseudoHtml).toMatchInlineSnapshot(`
-       "<Root callbacks={[...]}>
+      await expect(browser).toDisplayRedbox(`
+       {
+         "componentStack": "<Root callbacks={[...]}>
            <Head>
            <AppContainer>
              <Container fn={function fn}>
-               <ReactDevOverlay>
-                 <DevOverlayErrorBoundary onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
+               <PagesDevOverlay>
+                 <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
                    <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                      <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                        <Page>
        >                 <p>
        >                   <p>
                      ...
-                 ..."
+                 ...",
+         "description": "In HTML, <p> cannot be a descendant of <p>.
+       This will cause a hydration error.",
+         "environmentLabel": null,
+         "label": "Recoverable Error",
+         "source": "index.js (4:7) @ Page
+       > 4 |       <p>Nested p tags</p>
+           |       ^",
+         "stack": [
+           "p <anonymous> (0:0)",
+           "Page index.js (4:7)",
+         ],
+       }
       `)
     }
   })
@@ -734,40 +892,55 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
-    const { session, browser } = sandbox
-    await session.assertHasRedbox()
+    const { browser } = sandbox
+
     await retry(async () => {
       expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 3 : 1)
     })
 
-    const description = await session.getRedboxDescription()
     if (isReact18) {
-      expect(description).toMatchInlineSnapshot(
-        `"Expected server HTML to contain a matching <div> in <p>."`
-      )
-    } else {
-      expect(description).toMatchInlineSnapshot(`
-        "In HTML, <div> cannot be a descendant of <p>.
-        This will cause a hydration error."
-      `)
-    }
-
-    const pseudoHtml = await session.getRedboxComponentStack()
-
-    if (isReact18) {
-      expect(pseudoHtml).toMatchInlineSnapshot(`
-       "<Page>
+      await expect(browser).toDisplayRedbox(`
+       [
+         {
+           "componentStack": "<Page>
            <div>
              <div>
        >       <p>
-       >         <div>"
+       >         <div>",
+           "description": "Expected server HTML to contain a matching <div> in <p>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "componentStack": "<Page>
+           <div>
+             <div>
+       >       <p>
+       >         <div>",
+           "description": "Expected server HTML to contain a matching <div> in <p>.",
+           "environmentLabel": null,
+           "label": "Recoverable Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
+           "environmentLabel": null,
+           "label": "Recoverable Error",
+           "source": null,
+           "stack": [],
+         },
+       ]
       `)
     } else {
-      expect(pseudoHtml).toMatchInlineSnapshot(`
-       "...
+      await expect(browser).toDisplayRedbox(`
+       {
+         "componentStack": "...
            <Container fn={function fn}>
-             <ReactDevOverlay>
-               <DevOverlayErrorBoundary onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
+             <PagesDevOverlay>
+               <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
                  <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                    <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                      <Page>
@@ -776,7 +949,19 @@ describe('Error overlay for hydration errors in Pages router', () => {
        >                   <p>
        >                     <div>
                    ...
-               ..."
+               ...",
+         "description": "In HTML, <div> cannot be a descendant of <p>.
+       This will cause a hydration error.",
+         "environmentLabel": null,
+         "label": "Recoverable Error",
+         "source": "index.js (6:11) @ Page
+       > 6 |           <div>Nested div under p tag</div>
+           |           ^",
+         "stack": [
+           "div <anonymous> (0:0)",
+           "Page index.js (6:11)",
+         ],
+       }
       `)
     }
   })
@@ -795,47 +980,72 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
-    const { session, browser } = sandbox
-    await session.assertHasRedbox()
+    const { browser } = sandbox
+
     await retry(async () => {
       expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 3 : 1)
     })
 
-    const description = await session.getRedboxDescription()
     if (isReact18) {
-      expect(description).toMatchInlineSnapshot(
-        `"Expected server HTML to contain a matching <tr> in <div>."`
-      )
-    } else {
-      expect(description).toMatchInlineSnapshot(`
-        "In HTML, <tr> cannot be a child of <div>.
-        This will cause a hydration error."
-      `)
-    }
-
-    const pseudoHtml = await session.getRedboxComponentStack()
-
-    if (isReact18) {
-      expect(pseudoHtml).toMatchInlineSnapshot(`
-       "<Page>
+      await expect(browser).toDisplayRedbox(`
+       [
+         {
+           "componentStack": "<Page>
        >   <div>
-       >     <tr>"
+       >     <tr>",
+           "description": "Expected server HTML to contain a matching <tr> in <div>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "componentStack": "<Page>
+       >   <div>
+       >     <tr>",
+           "description": "Expected server HTML to contain a matching <tr> in <div>.",
+           "environmentLabel": null,
+           "label": "Recoverable Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
+           "environmentLabel": null,
+           "label": "Recoverable Error",
+           "source": null,
+           "stack": [],
+         },
+       ]
       `)
     } else {
-      expect(pseudoHtml).toMatchInlineSnapshot(`
-       "<Root callbacks={[...]}>
+      await expect(browser).toDisplayRedbox(`
+       {
+         "componentStack": "<Root callbacks={[...]}>
            <Head>
            <AppContainer>
              <Container fn={function fn}>
-               <ReactDevOverlay>
-                 <DevOverlayErrorBoundary onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
+               <PagesDevOverlay>
+                 <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
                    <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                      <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                        <Page>
        >                 <div>
        >                   <tr>
                      ...
-                 ..."
+                 ...",
+         "description": "In HTML, <tr> cannot be a child of <div>.
+       This will cause a hydration error.",
+         "environmentLabel": null,
+         "label": "Recoverable Error",
+         "source": "index.js (2:15) @ Page
+       > 2 |   return <div><tr></tr></div>
+           |               ^",
+         "stack": [
+           "tr <anonymous> (0:0)",
+           "Page index.js (2:15)",
+         ],
+       }
       `)
     }
   })
@@ -856,44 +1066,61 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
-    const { session, browser } = sandbox
-    await session.assertHasRedbox()
+    const { browser } = sandbox
+
     await retry(async () => {
       expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 3 : 1)
     })
 
-    const description = await session.getRedboxDescription()
     if (isReact18) {
-      expect(description).toMatchInlineSnapshot(
-        `"Expected server HTML to contain a matching <p> in <span>."`
-      )
-    } else {
-      expect(description).toMatchInlineSnapshot(`
-        "In HTML, <p> cannot be a descendant of <p>.
-        This will cause a hydration error."
-      `)
-    }
-
-    const pseudoHtml = await session.getRedboxComponentStack()
-
-    if (isReact18) {
-      expect(pseudoHtml).toMatchInlineSnapshot(`
-       "<Page>
+      await expect(browser).toDisplayRedbox(`
+       [
+         {
+           "componentStack": "<Page>
            <p>
              <span>
                <span>
                  <span>
        >           <span>
-       >             <p>"
+       >             <p>",
+           "description": "Expected server HTML to contain a matching <p> in <span>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "componentStack": "<Page>
+           <p>
+             <span>
+               <span>
+                 <span>
+       >           <span>
+       >             <p>",
+           "description": "Expected server HTML to contain a matching <p> in <span>.",
+           "environmentLabel": null,
+           "label": "Recoverable Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
+           "environmentLabel": null,
+           "label": "Recoverable Error",
+           "source": null,
+           "stack": [],
+         },
+       ]
       `)
     } else {
-      expect(pseudoHtml).toMatchInlineSnapshot(`
-       "<Root callbacks={[...]}>
+      await expect(browser).toDisplayRedbox(`
+       {
+         "componentStack": "<Root callbacks={[...]}>
            <Head>
            <AppContainer>
              <Container fn={function fn}>
-               <ReactDevOverlay>
-                 <DevOverlayErrorBoundary onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
+               <PagesDevOverlay>
+                 <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
                    <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                      <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                        <Page>
@@ -904,7 +1131,19 @@ describe('Error overlay for hydration errors in Pages router', () => {
                                  <span>
        >                           <p>
                      ...
-                 ..."
+                 ...",
+         "description": "In HTML, <p> cannot be a descendant of <p>.
+       This will cause a hydration error.",
+         "environmentLabel": null,
+         "label": "Recoverable Error",
+         "source": "index.js (3:32) @ Page
+       > 3 |     <p><span><span><span><span><p>hello world</p></span></span></span></span></p>
+           |                                ^",
+         "stack": [
+           "p <anonymous> (0:0)",
+           "Page index.js (3:32)",
+         ],
+       }
       `)
     }
   })

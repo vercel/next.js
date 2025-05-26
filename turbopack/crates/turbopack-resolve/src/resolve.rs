@@ -2,12 +2,11 @@ use anyhow::Result;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::resolve::{
-    find_context_file,
+    AliasMap, AliasPattern, ExternalTraced, ExternalType, FindContextFileResult, find_context_file,
     options::{
         ConditionValue, ImportMap, ImportMapping, ResolutionConditions, ResolveInPackage,
         ResolveIntoPackage, ResolveModules, ResolveOptions,
     },
-    AliasMap, AliasPattern, ExternalTraced, ExternalType, FindContextFileResult,
 };
 
 use crate::{
@@ -142,8 +141,6 @@ async fn base_resolve_options(
     }
     let import_map = import_map.resolved_cell();
 
-    let plugins = opt.after_resolve_plugins.clone();
-
     let conditions = {
         let mut conditions: ResolutionConditions = [
             ("import".into(), ConditionValue::Unknown),
@@ -267,7 +264,7 @@ async fn base_resolve_options(
         default_files: vec!["index".into()],
         import_map: Some(import_map),
         resolved_map: opt.resolved_map,
-        plugins,
+        after_resolve_plugins: opt.after_resolve_plugins.clone(),
         before_resolve_plugins: opt.before_resolve_plugins.clone(),
         loose_errors: opt.loose_errors,
         ..Default::default()
@@ -293,12 +290,35 @@ pub async fn resolve_options(
     let resolve_options = base_resolve_options(resolve_path, options_context);
 
     let resolve_options = if options_context_value.enable_typescript {
-        let tsconfig = find_context_file(resolve_path, tsconfig()).await?;
-        match *tsconfig {
-            FindContextFileResult::Found(path, _) => {
-                apply_tsconfig_resolve_options(resolve_options, tsconfig_resolve_options(*path))
+        let find_tsconfig = async || {
+            // Otherwise, attempt to find a tsconfig up the file tree
+            let tsconfig = find_context_file(resolve_path, tsconfig()).await?;
+            anyhow::Ok::<Vc<ResolveOptions>>(match *tsconfig {
+                FindContextFileResult::Found(path, _) => {
+                    apply_tsconfig_resolve_options(resolve_options, tsconfig_resolve_options(*path))
+                }
+                FindContextFileResult::NotFound(_) => resolve_options,
+            })
+        };
+
+        // Use a specified tsconfig path if provided. In Next.js, this is always provided by the
+        // default config, at the very least.
+        if let Some(tsconfig_path) = options_context_value.tsconfig_path {
+            let meta = tsconfig_path.metadata().await;
+            if meta.is_ok() {
+                // If the file exists, use it.
+                apply_tsconfig_resolve_options(
+                    resolve_options,
+                    tsconfig_resolve_options(*tsconfig_path),
+                )
+            } else {
+                // Otherwise, try and find one.
+                // TODO: If the user provides a tsconfig.json explicitly, this should fail
+                // explicitly. Currently implemented this way for parity with webpack.
+                find_tsconfig().await?
             }
-            FindContextFileResult::NotFound(_) => resolve_options,
+        } else {
+            find_tsconfig().await?
         }
     } else {
         resolve_options

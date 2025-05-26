@@ -19,9 +19,12 @@ const getFlightData = (): NormalizedFlightData[] => {
   ]
 }
 
+const navigatedAt = Date.now()
+
 describe('invalidateCacheBelowFlightSegmentPath', () => {
   it('should invalidate cache below flight segment path', () => {
     const cache: CacheNode = {
+      navigatedAt,
       lazyData: null,
       rsc: null,
       prefetchRsc: null,
@@ -31,6 +34,7 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
       parallelRoutes: new Map(),
     }
     const existingCache: CacheNode = {
+      navigatedAt,
       lazyData: null,
       rsc: <>Root layout</>,
       prefetchRsc: null,
@@ -44,6 +48,7 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
             [
               'linking',
               {
+                navigatedAt,
                 lazyData: null,
                 rsc: <>Linking</>,
                 prefetchRsc: null,
@@ -57,6 +62,7 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
                       [
                         '',
                         {
+                          navigatedAt,
                           lazyData: null,
                           rsc: <>Page</>,
                           prefetchRsc: null,
@@ -89,7 +95,12 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
     cache.rsc = existingCache.rsc
     cache.prefetchRsc = existingCache.prefetchRsc
     // Create a copy of the existing cache with the rsc applied.
-    fillCacheWithNewSubTreeData(cache, existingCache, normalizedFlightData)
+    fillCacheWithNewSubTreeData(
+      navigatedAt,
+      cache,
+      existingCache,
+      normalizedFlightData
+    )
 
     // Invalidate the cache below the flight segment path. This should remove the 'about' node.
     invalidateCacheBelowFlightSegmentPath(
@@ -99,6 +110,7 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
     )
 
     const expectedCache: CacheNode = {
+      navigatedAt,
       lazyData: null,
       head: null,
       prefetchHead: null,
@@ -110,6 +122,7 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
             [
               'linking',
               {
+                navigatedAt,
                 lazyData: null,
                 head: null,
                 prefetchHead: null,
@@ -121,6 +134,7 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
                       [
                         '',
                         {
+                          navigatedAt,
                           lazyData: null,
                           loading: null,
                           parallelRoutes: new Map(),

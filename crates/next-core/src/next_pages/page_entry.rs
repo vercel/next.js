@@ -1,10 +1,10 @@
 use std::io::Write;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use serde::Serialize;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{fxindexmap, FxIndexMap, ResolvedVc, Value, Vc};
-use turbo_tasks_fs::{rope::RopeBuilder, File, FileSystemPath};
+use turbo_tasks::{FxIndexMap, ResolvedVc, Value, Vc, fxindexmap};
+use turbo_tasks_fs::{File, FileSystemPath, rope::RopeBuilder};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     context::AssetContext,
@@ -20,8 +20,15 @@ use crate::{
     next_config::NextConfig,
     next_edge::entry::wrap_edge_entry,
     pages_structure::{PagesStructure, PagesStructureItem},
-    util::{file_content_rope, load_next_js_template, NextRuntime},
+    util::{NextRuntime, file_content_rope, load_next_js_template},
 };
+
+#[turbo_tasks::value]
+pub struct PageSsrEntryModule {
+    pub ssr_module: ResolvedVc<Box<dyn Module>>,
+    pub app_module: Option<ResolvedVc<Box<dyn Module>>>,
+    pub document_module: Option<ResolvedVc<Box<dyn Module>>>,
+}
 
 #[turbo_tasks::function]
 pub async fn create_page_ssr_entry_module(
@@ -34,7 +41,7 @@ pub async fn create_page_ssr_entry_module(
     pages_structure: Vc<PagesStructure>,
     runtime: NextRuntime,
     next_config: Vc<NextConfig>,
-) -> Result<Vc<Box<dyn Module>>> {
+) -> Result<Vc<PageSsrEntryModule>> {
     let definition_page = &*next_original_name.await?;
     let definition_pathname = &*pathname.await?;
 
@@ -116,28 +123,30 @@ pub async fn create_page_ssr_entry_module(
         INNER.into() => ssr_module,
     };
 
-    if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page) {
-        inner_assets.insert(
-            INNER_DOCUMENT.into(),
-            process_global_item(
-                pages_structure.document(),
+    let pages_structure_ref = pages_structure.await?;
+
+    let (app_module, document_module) =
+        if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page) {
+            let document_module = process_global_item(
+                *pages_structure_ref.document,
                 Value::new(reference_type.clone()),
                 ssr_module_context,
             )
             .to_resolved()
-            .await?,
-        );
-        inner_assets.insert(
-            INNER_APP.into(),
-            process_global_item(
-                pages_structure.app(),
+            .await?;
+            let app_module = process_global_item(
+                *pages_structure_ref.app,
                 Value::new(reference_type.clone()),
                 ssr_module_context,
             )
             .to_resolved()
-            .await?,
-        );
-    }
+            .await?;
+            inner_assets.insert(INNER_DOCUMENT.into(), document_module);
+            inner_assets.insert(INNER_APP.into(), app_module);
+            (Some(app_module), Some(document_module))
+        } else {
+            (None, None)
+        };
 
     let mut ssr_module = ssr_module_context
         .process(
@@ -168,7 +177,12 @@ pub async fn create_page_ssr_entry_module(
         }
     }
 
-    Ok(ssr_module)
+    Ok(PageSsrEntryModule {
+        ssr_module: ssr_module.to_resolved().await?,
+        app_module,
+        document_module,
+    }
+    .cell())
 }
 
 #[turbo_tasks::function]
@@ -177,7 +191,7 @@ fn process_global_item(
     reference_type: Value<ReferenceType>,
     module_context: Vc<Box<dyn AssetContext>>,
 ) -> Vc<Box<dyn Module>> {
-    let source = Vc::upcast(FileSource::new(item.project_path()));
+    let source = Vc::upcast(FileSource::new(item.file_path()));
     module_context.process(source, reference_type).module()
 }
 
@@ -197,6 +211,7 @@ async fn wrap_edge_page(
     const INNER_DOCUMENT: &str = "INNER_DOCUMENT";
     const INNER_APP: &str = "INNER_APP";
     const INNER_ERROR: &str = "INNER_ERROR";
+    const INNER_ERROR_500: &str = "INNER_500";
 
     let next_config_val = &*next_config.await?;
 
@@ -235,29 +250,40 @@ async fn wrap_edge_page(
         fxindexmap! {
             // TODO
             "incrementalCacheHandler" => None,
-            "userland500Page" => None,
+            "userland500Page" => pages_structure.await?.error_500.map(|_| INNER_ERROR_500.into()),
         },
     )
     .await?;
 
-    let inner_assets = fxindexmap! {
+    let pages_structure_ref = pages_structure.await?;
+
+    let mut inner_assets = fxindexmap! {
         INNER.into() => entry,
         INNER_DOCUMENT.into() => process_global_item(
-            pages_structure.document(),
+            *pages_structure_ref.document,
             reference_type.clone(),
             asset_context,
         ).to_resolved().await?,
         INNER_APP.into() => process_global_item(
-            pages_structure.app(),
+            *pages_structure_ref.app,
             reference_type.clone(),
             asset_context,
         ).to_resolved().await?,
         INNER_ERROR.into() => process_global_item(
-            pages_structure.error(),
+            *pages_structure_ref.error,
             reference_type.clone(),
             asset_context,
         ).to_resolved().await?,
     };
+
+    if let Some(error_500) = pages_structure_ref.error_500 {
+        inner_assets.insert(
+            INNER_ERROR_500.into(),
+            process_global_item(*error_500, reference_type.clone(), asset_context)
+                .to_resolved()
+                .await?,
+        );
+    }
 
     let wrapped = asset_context
         .process(

@@ -18,7 +18,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use difference::Changeset;
 use helpers::print_changeset;
 use lazy_static::lazy_static;
@@ -31,14 +31,14 @@ use serde::{Deserialize, Serialize};
 use tokio::{process::Command, time::timeout};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    apply_effects, backend::Backend, ReadRef, ResolvedVc, TurboTasks, Value, ValueToString, Vc,
+    ReadRef, ResolvedVc, TurboTasks, Value, ValueToString, Vc, apply_effects, backend::Backend,
 };
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
-    emit_with_completion_operation,
+    ModuleAssetContext, emit_with_completion_operation,
     module_options::{CssOptionsContext, EcmascriptOptionsContext, ModuleOptionsContext},
-    register, ModuleAssetContext,
+    register,
 };
 use turbopack_core::{
     compile_time_info::CompileTimeInfo,
@@ -532,7 +532,7 @@ fn node_file_trace<B: Backend + 'static>(
                     }
                 }
                 Err(err) => {
-                    panic!("Execution failed: {:?}", err);
+                    panic!("Execution failed: {err:?}");
                 }
             };
 
@@ -643,7 +643,7 @@ async fn exec_node(directory: RcStr, path: Vc<FileSystemPath>) -> Result<Vc<Comm
         cmd.current_dir(current_dir);
     }
 
-    println!("[CMD]: {:#?}", cmd);
+    println!("[CMD]: {cmd:#?}");
 
     let output = timeout(Duration::from_secs(100), cmd.output())
         .await
@@ -707,10 +707,7 @@ async fn assert_output(
                 String::new()
             } else {
                 let stderr_diff = diff(&expected.stderr, &actual.stderr);
-                format!(
-                    "could not find `{}` in stderr\n{}",
-                    expected_stderr, stderr_diff
-                )
+                format!("could not find `{expected_stderr}` in stderr\n{stderr_diff}")
             }
         } else {
             diff(&expected.stderr, &actual.stderr)

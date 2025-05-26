@@ -3,7 +3,7 @@ name = "next-core"
 version = "0.1.0"
 description = "TBD"
 license = "MIT"
-edition = "2021"
+edition = "2024"
 
 [lib]
 bench = false
@@ -32,14 +32,15 @@ lazy_static = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 rustc-hash = { workspace = true }
-react_remove_properties = "0.31.0"
-remove_console = "0.32.0"
-
+react_remove_properties = "0.40.0"
+remove_console = "0.41.0"
+itertools = { workspace = true }
 auto-hash-map = { workspace = true }
+percent-encoding = "2.3.1"
+serde_path_to_error = { workspace = true }
 
 swc_core = { workspace = true, features = [
   "base",
-  "cached",
   "common_concurrent",
   "ecma_ast",
   "ecma_loader_lru",
@@ -59,6 +60,7 @@ modularize_imports = { workspace = true }
 swc_relay = { workspace = true }
 
 turbo-rcstr = { workspace = true }
+turbo-esregex = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-bytes = { workspace = true }
 turbo-tasks-env = { workspace = true }
