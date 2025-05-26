@@ -71,7 +71,7 @@
     "sync-react": "node ./scripts/sync-react.js",
     "update-google-fonts": "node ./scripts/update-google-fonts.js",
     "patch-next": "node scripts/patch-next.cjs",
-    "unpack-next": "tsx scripts/unpack-next.cjs",
+    "unpack-next": "tsx scripts/unpack-next.ts",
     "swc-build-native": "tsx scripts/build-native.ts",
     "swc-build-wasm": "tsx scripts/build-wasm.cjs",
     "build-turbopack-cli": "cargo build -p turbopack-cli --release",
