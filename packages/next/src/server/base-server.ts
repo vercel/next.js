@@ -1346,19 +1346,24 @@ export default abstract class Server<
               }
             }
 
-            // handle the actual dynamic route name being requested
+            // If the pathname being requested is the same as the source
+            // pathname, and we don't have valid params, we want to use the
+            // default route matches.
             if (
               utils.defaultRouteMatches &&
               normalizedUrlPath === srcPathname &&
-              !paramsResult.hasValidParams &&
-              !utils.normalizeDynamicRouteParams({ ...params }, true)
-                .hasValidParams
+              !paramsResult.hasValidParams
             ) {
               params = utils.defaultRouteMatches
 
-              // Mark that the default route matches were set on the request
-              // during routing.
-              addRequestMeta(req, 'didSetDefaultRouteMatches', true)
+              // If the route matches header is an empty string, we want to
+              // render a fallback shell. This is because we know this came from
+              // a prerender (it has the header) but it's values were filtered
+              // out (because the allowQuery was empty). If it was undefined
+              // then we know that the request is hitting the lambda directly.
+              if (routeMatchesHeader === '') {
+                addRequestMeta(req, 'renderFallbackShell', true)
+              }
             }
 
             if (params) {
@@ -3223,8 +3228,7 @@ export default abstract class Server<
       const fallbackRouteParams =
         isDynamic &&
         isRoutePPREnabled &&
-        (getRequestMeta(req, 'didSetDefaultRouteMatches') ||
-          isDebugFallbackShell)
+        (getRequestMeta(req, 'renderFallbackShell') || isDebugFallbackShell)
           ? getFallbackRouteParams(pathname)
           : null
 

@@ -153,9 +153,9 @@ export interface RequestMeta {
   middlewareInvoke?: boolean
 
   /**
-   * Whether the default route matches were set on the request during routing.
+   * Whether the request should render the fallback shell or not.
    */
-  didSetDefaultRouteMatches?: boolean
+  renderFallbackShell?: boolean
 
   /**
    * Whether the request is for the custom error page.

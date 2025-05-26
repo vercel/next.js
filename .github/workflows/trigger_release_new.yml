@@ -107,9 +107,17 @@ jobs:
       - run: pnpm run build
 
       - name: Create Release Pull Request
-        id: version-packages
+        id: changesets
         uses: changesets/action@v1
         with:
           version: pnpm ci:version
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
+          RELEASE_TYPE: ${{ github.event.inputs.releaseType }}
+
+      # Add label to verify the PR is created from this workflow.
+      - name: Add label to PR
+        if: steps.changesets.outputs.pullRequestNumber
+        run: 'gh pr edit ${{ steps.changesets.outputs.pullRequestNumber }} --add-label "created-by: CI"'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
