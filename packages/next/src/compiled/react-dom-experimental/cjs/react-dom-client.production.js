@@ -9292,29 +9292,23 @@ function insertOrAppendPlacementNodeIntoContainer(
   if (5 === tag || 6 === tag)
     (tag = node.stateNode),
       before
-        ? ((parent =
+        ? (9 === parent.nodeType
+            ? parent.body
+            : "HTML" === parent.nodeName
+              ? parent.ownerDocument.body
+              : parent
+          ).insertBefore(tag, before)
+        : ((before =
             9 === parent.nodeType
               ? parent.body
               : "HTML" === parent.nodeName
                 ? parent.ownerDocument.body
                 : parent),
-          supportsMoveBefore && null !== tag.parentNode
-            ? parent.moveBefore(tag, before)
-            : parent.insertBefore(tag, before))
-        : ((before = parent),
-          (parent =
-            9 === before.nodeType
-              ? before.body
-              : "HTML" === before.nodeName
-                ? before.ownerDocument.body
-                : before),
-          supportsMoveBefore && null !== tag.parentNode
-            ? parent.moveBefore(tag, null)
-            : parent.appendChild(tag),
-          (tag = before._reactRootContainer),
-          (null !== tag && void 0 !== tag) ||
-            null !== parent.onclick ||
-            (parent.onclick = noop$1)),
+          before.appendChild(tag),
+          (parent = parent._reactRootContainer),
+          (null !== parent && void 0 !== parent) ||
+            null !== before.onclick ||
+            (before.onclick = noop$1)),
       commitNewChildToFragmentInstances(node, parentFragmentInstances),
       (viewTransitionMutationContext = !0);
   else if (
@@ -9353,11 +9347,7 @@ function insertOrAppendPlacementNode(
   var tag = node.tag;
   if (5 === tag || 6 === tag)
     (tag = node.stateNode),
-      before
-        ? supportsMoveBefore && null !== tag.parentNode
-          ? parent.moveBefore(tag, before)
-          : parent.insertBefore(tag, before)
-        : appendChild(parent, tag),
+      before ? parent.insertBefore(tag, before) : parent.appendChild(tag),
       commitNewChildToFragmentInstances(node, parentFragmentInstances),
       (viewTransitionMutationContext = !0);
   else if (
@@ -12039,7 +12029,7 @@ function recursivelyInsertNewFiber(
     case 5:
       var instance = finishedWork.stateNode;
       7 !== visitPhase
-        ? (appendChild(hostParentClone, instance),
+        ? (hostParentClone.appendChild(instance),
           (viewTransitionMutationContext = !0),
           recursivelyInsertNew(finishedWork, instance, null, 7))
         : recursivelyInsertNew(finishedWork, instance, null, visitPhase);
@@ -12052,7 +12042,7 @@ function recursivelyInsertNewFiber(
       finishedWork = finishedWork.stateNode;
       if (null === finishedWork) throw Error(formatProdErrorMessage(162));
       7 !== visitPhase &&
-        (appendChild(hostParentClone, finishedWork),
+        (hostParentClone.appendChild(finishedWork),
         (viewTransitionMutationContext = !0));
       break;
     case 4:
@@ -12119,7 +12109,7 @@ function recursivelyInsertClonesFromExistingTree(
               nextPhase
             ))
           : (instance = instance.cloneNode(!0));
-        appendChild(hostParentClone, instance);
+        hostParentClone.appendChild(instance);
         null !== parentViewTransition &&
           (null === parentViewTransition.clones
             ? (parentViewTransition.clones = [instance])
@@ -12132,7 +12122,7 @@ function recursivelyInsertClonesFromExistingTree(
         nextPhase = parentFiber.stateNode;
         if (null === nextPhase) throw Error(formatProdErrorMessage(162));
         nextPhase = nextPhase.cloneNode(!1);
-        appendChild(hostParentClone, nextPhase);
+        hostParentClone.appendChild(nextPhase);
         if (1 === visitPhase || 2 === visitPhase)
           (nextPhase.nodeValue = parentFiber.memoizedProps),
             (viewTransitionMutationContext = !0);
@@ -12247,11 +12237,11 @@ function recursivelyInsertClones(
               nextPhase$187[internalPropsKey] = newProps;
             }
             1 === visitPhase || 2 === visitPhase
-              ? (appendChild(i, clone),
+              ? (i.appendChild(clone),
                 unhideInstance(clone, deletions.memoizedProps),
                 recursivelyInsertClones(deletions, clone, null, 3),
                 (viewTransitionMutationContext = !0))
-              : (appendChild(i, clone),
+              : (i.appendChild(clone),
                 recursivelyInsertClones(deletions, clone, null, visitPhase));
             null !== parentViewTransition &&
               (null === parentViewTransition.clones
@@ -12266,7 +12256,7 @@ function recursivelyInsertClones(
             nextPhase$187 & 4 &&
               ((parentViewTransition.nodeValue = nextPhase.memoizedProps),
               (viewTransitionMutationContext = !0));
-            appendChild(i, parentViewTransition);
+            i.appendChild(parentViewTransition);
             if (1 === visitPhase || 2 === visitPhase)
               (parentViewTransition.nodeValue = deletions.memoizedProps),
                 (viewTransitionMutationContext = !0);
@@ -16356,14 +16346,6 @@ function handleErrorInNextTick(error) {
     throw error;
   });
 }
-var supportsMoveBefore =
-  "undefined" !== typeof window &&
-  "function" === typeof window.Element.prototype.moveBefore;
-function appendChild(parentInstance, child) {
-  supportsMoveBefore && null !== child.parentNode
-    ? parentInstance.moveBefore(child, null)
-    : parentInstance.appendChild(child);
-}
 function isSingletonScope(type) {
   return "head" === type;
 }
@@ -19150,14 +19132,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_2180 = React.version;
 if (
-  "19.2.0-experimental-8ce15b0f-20250522" !==
+  "19.2.0-experimental-c0464aed-20250523" !==
   isomorphicReactPackageVersion$jscomp$inline_2180
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_2180,
-      "19.2.0-experimental-8ce15b0f-20250522"
+      "19.2.0-experimental-c0464aed-20250523"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -19177,24 +19159,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2840 = {
+var internals$jscomp$inline_2865 = {
   bundleType: 0,
-  version: "19.2.0-experimental-8ce15b0f-20250522",
+  version: "19.2.0-experimental-c0464aed-20250523",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.2.0-experimental-8ce15b0f-20250522"
+  reconcilerVersion: "19.2.0-experimental-c0464aed-20250523"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2841 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2866 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2841.isDisabled &&
-    hook$jscomp$inline_2841.supportsFiber
+    !hook$jscomp$inline_2866.isDisabled &&
+    hook$jscomp$inline_2866.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2841.inject(
-        internals$jscomp$inline_2840
+      (rendererID = hook$jscomp$inline_2866.inject(
+        internals$jscomp$inline_2865
       )),
-        (injectedHook = hook$jscomp$inline_2841);
+        (injectedHook = hook$jscomp$inline_2866);
     } catch (err) {}
 }
 exports.createRoot = function (container, options) {
@@ -19289,4 +19271,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.2.0-experimental-8ce15b0f-20250522";
+exports.version = "19.2.0-experimental-c0464aed-20250523";
