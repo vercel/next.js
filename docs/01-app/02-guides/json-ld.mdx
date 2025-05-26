@@ -81,3 +81,11 @@ const jsonLd: WithContext<Product> = {
   description: 'Dynamic at the speed of static.',
 }
 ```
+
+## Security
+
+Because our recommended approach uses `dangerouslySetInnerHTML`, and `JSON.stringify`, you should consider sanitizing the inputs used to create your JSON-LD script.
+
+The snippets we present here, replace the character `<`, with its unicode equivalent, to scrub `HTML` tags from the `JSON-LD` payload.
+
+Review your organization's recommended approach to sanitize, serialize, or escape potentially dangerous strings, or search fo community maintained alternatives to `JSON.stringify` such as, [serialize-javascript](https://www.npmjs.com/package/serialize-javascript).
