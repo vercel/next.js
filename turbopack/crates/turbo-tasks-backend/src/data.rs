@@ -421,11 +421,11 @@ pub enum CachedDataItem {
     },
     Follower {
         task: TaskId,
-        value: i32,
+        value: u32,
     },
     Upper {
         task: TaskId,
-        value: i32,
+        value: u32,
     },
 
     // Aggregated Data
