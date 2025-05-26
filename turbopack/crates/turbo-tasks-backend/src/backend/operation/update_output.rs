@@ -66,7 +66,6 @@ impl UpdateOutputOperation {
             Default::default()
         };
 
-        let old_error = task.remove(&CachedDataItemKey::Error {});
         let current_output = get!(task, Output);
         let output_value = match output {
             Ok(RawVc::TaskOutput(output_task_id)) => {
@@ -96,13 +95,13 @@ impl UpdateOutputOperation {
                 panic!("Non-local tasks must not return a local Vc");
             }
             Err(err) => {
-                task.insert(CachedDataItem::Error {
-                    value: SharedError::new(anyhow::Error::new(err).context(format!(
-                        "Execution of {} failed",
-                        ctx.get_task_description(task_id)
-                    ))),
-                });
-                OutputValue::Error
+                let err = anyhow::Error::new(err);
+                if let Some(OutputValue::Error(old_error)) = current_output {
+                    if old_error.eq_stack(&err) {
+                        return;
+                    }
+                }
+                OutputValue::Error(SharedError::new(err))
             }
         };
         let old_content = task.insert(CachedDataItem::Output {
@@ -129,7 +128,6 @@ impl UpdateOutputOperation {
 
         drop(task);
         drop(old_content);
-        drop(old_error);
 
         UpdateOutputOperation::MakeDependentTasksDirty {
             #[cfg(feature = "trace_task_dirty")]

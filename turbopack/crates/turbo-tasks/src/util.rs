@@ -32,6 +32,27 @@ impl SharedError {
             inner: Arc::new(err),
         }
     }
+
+    pub fn eq_stack(&self, other: &anyhow::Error) -> bool {
+        if self.to_string() != other.to_string() {
+            return false;
+        }
+        let mut source = self.source();
+        let mut other_source = other.source();
+        loop {
+            if source.is_none() && other_source.is_none() {
+                return true;
+            }
+            let (Some(source_err), Some(other_source_err)) = (source, other_source) else {
+                return false;
+            };
+            if source_err.to_string() != other_source_err.to_string() {
+                return false;
+            }
+            source = source_err.source();
+            other_source = other_source_err.source();
+        }
+    }
 }
 
 impl StdError for SharedError {

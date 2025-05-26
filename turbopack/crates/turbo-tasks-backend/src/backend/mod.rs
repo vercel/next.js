@@ -564,36 +564,38 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         if let Some(output) = get!(task, Output) {
             let result = match output {
-                OutputValue::Cell(cell) => Some(Ok(Ok(RawVc::TaskCell(cell.task, cell.cell)))),
-                OutputValue::Output(task) => Some(Ok(Ok(RawVc::TaskOutput(*task)))),
-                OutputValue::Error => get!(task, Error).map(|error| Err(error.clone().into())),
+                OutputValue::Cell(cell) => Ok(Ok(RawVc::TaskCell(cell.task, cell.cell))),
+                OutputValue::Output(task) => Ok(Ok(RawVc::TaskOutput(*task))),
+                OutputValue::Error(error) => {
+                    let err: anyhow::Error = error.clone().into();
+                    Err(err.context(format!(
+                        "Execution of {} failed",
+                        ctx.get_task_description(task_id)
+                    )))
+                }
             };
-            if let Some(result) = result {
-                if self.should_track_dependencies() {
-                    if let Some(reader) = reader {
-                        let _ = task.add(CachedDataItem::OutputDependent {
-                            task: reader,
+            if self.should_track_dependencies() {
+                if let Some(reader) = reader {
+                    let _ = task.add(CachedDataItem::OutputDependent {
+                        task: reader,
+                        value: (),
+                    });
+                    drop(task);
+
+                    let mut reader_task = ctx.task(reader, TaskDataCategory::Data);
+                    if reader_task
+                        .remove(&CachedDataItemKey::OutdatedOutputDependency { target: task_id })
+                        .is_none()
+                    {
+                        let _ = reader_task.add(CachedDataItem::OutputDependency {
+                            target: task_id,
                             value: (),
                         });
-                        drop(task);
-
-                        let mut reader_task = ctx.task(reader, TaskDataCategory::Data);
-                        if reader_task
-                            .remove(&CachedDataItemKey::OutdatedOutputDependency {
-                                target: task_id,
-                            })
-                            .is_none()
-                        {
-                            let _ = reader_task.add(CachedDataItem::OutputDependency {
-                                target: task_id,
-                                value: (),
-                            });
-                        }
                     }
                 }
-
-                return result;
             }
+
+            return result;
         }
 
         let reader_desc = reader.map(|r| self.get_task_desc_fn(r));
