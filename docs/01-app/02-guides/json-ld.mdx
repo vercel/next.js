@@ -9,10 +9,15 @@ description: Learn how to add JSON-LD to your Next.js application to describe yo
 Our current recommendation for JSON-LD is to render structured data as a `<script>` tag in your `layout.js` or `page.js` components. For example:
 
 ```tsx filename="app/products/[id]/page.tsx" switcher
+function escapeJsonForScript(obj: any): string {
+  return JSON.stringify(obj).replace(/</g, '\\u003c').replace(/>/g, '\\u003e')
+}
+
 export default async function Page({ params }) {
   const { id } = await params
   const product = await getProduct(id)
-
+  
+  // Ensure product data is properly sanitized before use
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Product',
@@ -20,13 +25,13 @@ export default async function Page({ params }) {
     image: product.image,
     description: product.description,
   }
-
+  
   return (
     <section>
       {/* Add JSON-LD to your page */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: escapeJsonForScript(jsonLd) }}
       />
       {/* ... */}
     </section>
@@ -35,10 +40,15 @@ export default async function Page({ params }) {
 ```
 
 ```jsx filename="app/products/[id]/page.js" switcher
+function escapeJsonForScript(obj) {
+  return JSON.stringify(obj).replace(/</g, '\\u003c').replace(/>/g, '\\u003e')
+}
+
 export default async function Page({ params }) {
   const { id } = await params
   const product = await getProduct(id)
-
+  
+  // Ensure product data is properly sanitized before use
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Product',
@@ -46,19 +56,21 @@ export default async function Page({ params }) {
     image: product.image,
     description: product.description,
   }
-
+  
   return (
     <section>
       {/* Add JSON-LD to your page */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: escapeJsonForScript(jsonLd) }}
       />
       {/* ... */}
     </section>
   )
 }
 ```
+
+> **Security Note**: When using `dangerouslySetInnerHTML` with JSON-LD, it's important to escape HTML characters to prevent XSS attacks. The `escapeJsonForScript` function above replaces `<` and `>` characters with their Unicode escape sequences to prevent script injection. Always ensure that any user-generated content is properly sanitized before including it in JSON-LD structured data.
 
 You can validate and test your structured data with the [Rich Results Test](https://search.google.com/test/rich-results) for Google or the generic [Schema Markup Validator](https://validator.schema.org/).
 
