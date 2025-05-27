@@ -18,7 +18,7 @@ import {
 } from '../shared'
 import type { VersionInfo } from '../../../../server/dev/parse-version-info'
 import { getComponentStack, getOwnerStack } from '../../errors/stitched-error'
-import type { DevIndicatorServerState } from '../../../../server/dev/dev-indicator-server-state'
+import type { DevToolsServerState } from '../../../../server/dev/dev-tools-server-state'
 
 let isRegistered = false
 
@@ -126,8 +126,10 @@ export function onStaticIndicator(isStatic: boolean) {
   Bus.emit({ type: ACTION_STATIC_INDICATOR, staticIndicator: isStatic })
 }
 
-export function onDevIndicator(devIndicatorsState: DevIndicatorServerState) {
-  Bus.emit({ type: ACTION_DEV_INDICATOR, devIndicator: devIndicatorsState })
+export function onDevIndicator(
+  devIndicator: DevToolsServerState['devIndicator']
+) {
+  Bus.emit({ type: ACTION_DEV_INDICATOR, devIndicator })
 }
 
 export { getErrorByType } from '../utils/get-error-by-type'

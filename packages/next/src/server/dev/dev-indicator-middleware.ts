@@ -1,7 +1,7 @@
 import type { ServerResponse, IncomingMessage } from 'http'
 import { middlewareResponse } from '../../client/components/react-dev-overlay/server/middleware-response'
 import * as Log from '../../build/output/log'
-import { devIndicatorServerState } from './dev-indicator-server-state'
+import { devToolsServerState } from './dev-tools-server-state'
 
 const DISABLE_DEV_INDICATOR_PREFIX = '/__nextjs_disable_dev_indicator'
 
@@ -27,7 +27,8 @@ export function getDisableDevIndicatorMiddleware() {
         return middlewareResponse.methodNotAllowed(res)
       }
 
-      devIndicatorServerState.disabledUntil = Date.now() + COOLDOWN_TIME_MS
+      devToolsServerState.devIndicator.disabledUntil =
+        Date.now() + COOLDOWN_TIME_MS
 
       return middlewareResponse.noContent(res)
     } catch (err) {

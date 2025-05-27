@@ -7,7 +7,7 @@ import type { RouteDefinition } from '../route-definitions/route-definition'
 import type { Project, Update as TurbopackUpdate } from '../../build/swc/types'
 import type { VersionInfo } from './parse-version-info'
 import type { DebugInfo } from '../../client/components/react-dev-overlay/types'
-import type { DevIndicatorServerState } from './dev-indicator-server-state'
+import type { DevToolsServerState } from './dev-tools-server-state'
 
 export const enum HMR_ACTIONS_SENT_TO_BROWSER {
   ADDED_PAGE = 'addedPage',
@@ -57,7 +57,7 @@ export interface SyncAction {
   versionInfo: VersionInfo
   updatedModules?: ReadonlyArray<string>
   debug?: DebugInfo
-  devIndicator: DevIndicatorServerState
+  devIndicator: DevToolsServerState['devIndicator']
 }
 interface BuiltAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT
@@ -121,7 +121,7 @@ export interface AppIsrManifestAction {
 
 export interface DevIndicatorAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.DEV_INDICATOR
-  devIndicator: DevIndicatorServerState
+  devIndicator: DevToolsServerState
 }
 
 export type HMR_ACTION_TYPES =

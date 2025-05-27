@@ -5,7 +5,7 @@ import type { VersionInfo } from '../../../server/dev/parse-version-info'
 import type { SupportedErrorEvent } from './ui/container/runtime-error/render-error'
 import type { ComponentStackFrame } from './utils/parse-component-stack'
 import type { DebugInfo } from './types'
-import type { DevIndicatorServerState } from '../../../server/dev/dev-indicator-server-state'
+import type { DevToolsServerState } from '../../../server/dev/dev-tools-server-state'
 import type { HMR_ACTION_TYPES } from '../../../server/dev/hot-reloader-types'
 import { getOwnerStack } from '../errors/stitched-error'
 
@@ -87,7 +87,7 @@ interface VersionInfoAction {
 
 interface DevIndicatorAction {
   type: typeof ACTION_DEV_INDICATOR
-  devIndicator: DevIndicatorServerState
+  devIndicator: DevToolsServerState['devIndicator']
 }
 
 export type BusEvent =
