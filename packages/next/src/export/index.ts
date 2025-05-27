@@ -451,8 +451,8 @@ async function exportAppImpl(
     }
   }
 
+  const allExportPaths: ExportPathEntry[] = []
   const seenExportPaths = new Set<string>()
-  const exportPathsByPage = new Map<string, ExportPathEntry[]>()
   const fallbackEnabledPages = new Set<string>()
 
   for (const [path, entry] of Object.entries(exportPathMap)) {
@@ -470,13 +470,7 @@ async function exportAppImpl(
       continue
     }
 
-    let exportPathsForPage = exportPathsByPage.get(entry.page)
-
-    if (!exportPathsForPage) {
-      exportPathsByPage.set(entry.page, (exportPathsForPage = []))
-    }
-
-    exportPathsForPage.push({ ...entry, path: normalizedPath })
+    allExportPaths.push({ ...entry, path: normalizedPath })
 
     if (prerenderManifest && !options.buildExport) {
       const prerenderInfo = prerenderManifest.dynamicRoutes[entry.page]
@@ -487,7 +481,7 @@ async function exportAppImpl(
     }
   }
 
-  if (exportPathsByPage.size === 0) {
+  if (allExportPaths.length === 0) {
     return null
   }
 
@@ -619,27 +613,19 @@ async function exportAppImpl(
     ).flat()
   }
 
-  const initialPhaseExportPaths: ExportPathEntry[] = []
+  let initialPhaseExportPaths: ExportPathEntry[] = []
   const finalPhaseExportPaths: ExportPathEntry[] = []
 
-  for (const exportPaths of exportPathsByPage.values()) {
-    if (renderOpts.experimental.dynamicIO) {
-      const allowEmptyStaticShellExportPaths: ExportPathEntry[] = []
-      const otherExportPaths: ExportPathEntry[] = []
-
-      for (const exportPath of exportPaths) {
-        if (exportPath._allowEmptyStaticShell) {
-          allowEmptyStaticShellExportPaths.push(exportPath)
-        } else {
-          otherExportPaths.push(exportPath)
-        }
+  if (renderOpts.experimental.dynamicIO) {
+    for (const exportPath of allExportPaths) {
+      if (exportPath._allowEmptyStaticShell) {
+        finalPhaseExportPaths.push(exportPath)
+      } else {
+        initialPhaseExportPaths.push(exportPath)
       }
-
-      initialPhaseExportPaths.push(...otherExportPaths)
-      finalPhaseExportPaths.push(...allowEmptyStaticShellExportPaths)
-    } else {
-      initialPhaseExportPaths.push(...exportPaths)
     }
+  } else {
+    initialPhaseExportPaths = allExportPaths
   }
 
   const progress = createProgress(
