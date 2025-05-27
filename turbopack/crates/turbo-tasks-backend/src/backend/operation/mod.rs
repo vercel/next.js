@@ -165,10 +165,20 @@ where
         category: TaskDataCategory,
     ) -> Vec<CachedDataItem> {
         // Safety: `transaction` is a valid transaction from `self.backend.backing_storage`.
-        unsafe {
+        let result = unsafe {
             self.backend
                 .backing_storage
                 .lookup_data(self.transaction(), task_id, category)
+        };
+        match result {
+            Ok(data) => data,
+            Err(e) => {
+                let task_name = self.backend.get_task_description(task_id);
+                panic!(
+                    "Failed to restore task data (corrupted database or bug): {:?}",
+                    e.context(format!("{category:?} for {task_name} ({task_id}))"))
+                )
+            }
         }
     }
 }
