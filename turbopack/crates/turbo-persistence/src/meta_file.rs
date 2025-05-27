@@ -133,6 +133,8 @@ pub struct MetaFile {
     family: u32,
     /// The entries of the file.
     entries: Vec<MetaEntry>,
+    /// The obsolete SST files.
+    obsolete_sst_files: Vec<u32>,
     /// The memory mapped file.
     mmap: Mmap,
 }
@@ -154,6 +156,12 @@ impl MetaFile {
             bail!("Invalid magic number or version");
         }
         let family = file.read_u32::<BE>()?;
+        let obsolete_count = file.read_u32::<BE>()?;
+        let mut obsolete_sst_files = Vec::with_capacity(obsolete_count as usize);
+        for _ in 0..obsolete_count {
+            let obsolete_sst = file.read_u32::<BE>()?;
+            obsolete_sst_files.push(obsolete_sst);
+        }
         let count = file.read_u32::<BE>()?;
         let mut entries = Vec::with_capacity(count as usize);
         let mut start_of_aqmf_data_offset = 0;
@@ -188,6 +196,7 @@ impl MetaFile {
             sequence_number,
             family,
             entries,
+            obsolete_sst_files,
             mmap,
         };
         Ok(file)
@@ -214,22 +223,19 @@ impl MetaFile {
         &self.mmap
     }
 
-    pub fn apply_sst_filter(
-        &mut self,
-        mut sst_filter: impl FnMut(u32) -> bool,
-    ) -> ApplySstFilterResult {
+    pub fn retain_entries(&mut self, mut predicate: impl FnMut(u32) -> bool) -> bool {
         let old_len = self.entries.len();
         self.entries
-            .retain(|entry| sst_filter(entry.sst_data.sequence_number));
-        if old_len == self.entries.len() {
-            return ApplySstFilterResult::Unmodified;
-        }
+            .retain(|entry| predicate(entry.sst_data.sequence_number));
+        old_len != self.entries.len()
+    }
 
-        if self.entries.is_empty() {
-            ApplySstFilterResult::Empty
-        } else {
-            ApplySstFilterResult::Reduced
-        }
+    pub fn has_active_entries(&self) -> bool {
+        !self.entries.is_empty()
+    }
+
+    pub fn obsolete_sst_files(&self) -> &[u32] {
+        &self.obsolete_sst_files
     }
 
     pub fn lookup<K: QueryKey>(
@@ -287,11 +293,4 @@ impl MetaFile {
         }
         Ok(miss_result)
     }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ApplySstFilterResult {
-    Unmodified,
-    Reduced,
-    Empty,
 }

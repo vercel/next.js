@@ -18,7 +18,6 @@ use lzzzz::lz4::decompress;
 use memmap2::Mmap;
 use parking_lot::{Mutex, RwLock};
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
-use rustc_hash::FxHashSet;
 use tracing::Span;
 
 use crate::{
@@ -35,10 +34,9 @@ use crate::{
     key::{StoreKey, hash_key},
     lookup_entry::{LookupEntry, LookupValue},
     merge_iter::MergeIter,
-    meta_file::{
-        ApplySstFilterResult, AqmfCache, MetaFile, MetaLookupResult, StaticSortedFileRange,
-    },
+    meta_file::{AqmfCache, MetaFile, MetaLookupResult, StaticSortedFileRange},
     meta_file_builder::MetaFileBuilder,
+    sst_filter::SstFilter,
     static_sorted_file::{BlockCache, SstLookupResult},
     static_sorted_file_builder::{StaticSortedFileBuilder, StaticSortedFileBuilderMetaResult},
     write_batch::{FinishResult, WriteBatch},
@@ -324,13 +322,10 @@ impl TurboPersistence {
             })
             .collect::<Result<Vec<MetaFile>>>()?;
 
-        let mut open_sst_seq_numbers = FxHashSet::default();
-        meta_files.retain_mut(|meta_file| {
-            !matches!(
-                meta_file.apply_sst_filter(|seq| open_sst_seq_numbers.insert(seq)),
-                ApplySstFilterResult::Empty
-            )
-        });
+        let mut sst_filter = SstFilter::new();
+        for meta_file in meta_files.iter_mut() {
+            sst_filter.apply_filter(meta_file);
+        }
 
         let inner = self.inner.get_mut();
         inner.meta_files = meta_files;
@@ -450,7 +445,6 @@ impl TurboPersistence {
 
         new_meta_files.sort_unstable_by_key(|(seq, _)| *seq);
 
-        let mut new_sst_seq_numbers = FxHashSet::default();
         let mut new_meta_files = new_meta_files
             .into_par_iter()
             .with_min_len(1)
@@ -461,9 +455,9 @@ impl TurboPersistence {
             })
             .collect::<Result<Vec<_>>>()?;
 
+        let mut sst_filter = SstFilter::new();
         for meta_file in new_meta_files.iter_mut() {
-            let result = meta_file.apply_sst_filter(|seq| new_sst_seq_numbers.insert(seq));
-            debug_assert_eq!(result, ApplySstFilterResult::Unmodified);
+            sst_filter.apply_filter(meta_file);
         }
 
         for (_, file) in new_sst_files.iter() {
@@ -495,11 +489,12 @@ impl TurboPersistence {
 
         {
             let mut inner = self.inner.write();
-            inner.meta_files.retain_mut(|meta| {
-                if matches!(
-                    meta.apply_sst_filter(|seq| !new_sst_seq_numbers.contains(&seq)),
-                    ApplySstFilterResult::Empty
-                ) {
+            for meta_file in inner.meta_files.iter_mut() {
+                sst_filter.apply_filter(meta_file);
+            }
+            inner.meta_files.append(&mut new_meta_files);
+            inner.meta_files.retain(|meta| {
+                if sst_filter.apply_and_get_remove(meta) {
                     meta_seq_numbers_to_delete.push(meta.sequence_number());
                     false
                 } else {
@@ -513,7 +508,6 @@ impl TurboPersistence {
                 seq += 1;
             }
             inner.current_sequence_number = seq;
-            inner.meta_files.append(&mut new_meta_files);
         }
 
         if has_delete_file {
@@ -955,6 +949,10 @@ impl TurboPersistence {
                     .collect::<Result<Vec<_>>>()?;
 
                 let mut meta_file_builder = meta_file_builder.into_inner();
+
+                for &seq in sst_seq_numbers_to_delete.iter() {
+                    meta_file_builder.add_obsolete_sst_file(seq);
+                }
 
                 // Move SST files
                 let span = tracing::trace_span!("query moved sst files").entered();

@@ -38,6 +38,9 @@ A meta file can contain metadata about multiple SST files. The metadata is store
 - Header
   - 4 bytes magic number and version
   - 4 bytes key family
+  - 4 bytes count of obsolete SST files
+  - foreach obsolete SST file
+    - 4 bytes sequence number of the obsolete SST file
   - 4 bytes count of described SST files
   - foreach described SST file
     - 4 bytes sequence number of the SST file

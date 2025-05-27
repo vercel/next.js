@@ -12,6 +12,8 @@ pub struct MetaFileBuilder {
     family: u32,
     /// Entries in the meta file, tuples of (sequence_number, StaticSortedFileBuilderMetaResult)
     entries: Vec<(u32, StaticSortedFileBuilderMetaResult)>,
+    /// Obsolete SST files, represented by their sequence numbers
+    obsolete_sst_files: Vec<u32>,
 }
 
 impl MetaFileBuilder {
@@ -19,6 +21,7 @@ impl MetaFileBuilder {
         Self {
             family,
             entries: Vec::new(),
+            obsolete_sst_files: Vec::new(),
         }
     }
 
@@ -26,11 +29,21 @@ impl MetaFileBuilder {
         self.entries.push((sequence_number, sst));
     }
 
+    pub fn add_obsolete_sst_file(&mut self, sequence_number: u32) {
+        self.obsolete_sst_files.push(sequence_number);
+    }
+
     #[tracing::instrument(level = "trace", skip_all)]
     pub fn write(&self, file: &Path) -> io::Result<File> {
         let mut file = BufWriter::new(File::create(file)?);
         file.write_u32::<BE>(0x53535401)?; // Magic number
         file.write_u32::<BE>(self.family)?;
+
+        file.write_u32::<BE>(self.obsolete_sst_files.len() as u32)?;
+        for obsolete_sst in &self.obsolete_sst_files {
+            file.write_u32::<BE>(*obsolete_sst)?;
+        }
+
         file.write_u32::<BE>(self.entries.len() as u32)?;
 
         let mut aqmf_offset = 0;

@@ -19,6 +19,7 @@ mod write_batch;
 
 mod meta_file;
 mod meta_file_builder;
+mod sst_filter;
 #[cfg(test)]
 mod tests;
 mod value_buf;
