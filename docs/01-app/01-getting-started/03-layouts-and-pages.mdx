@@ -9,6 +9,7 @@ related:
     - app/api-reference/file-conventions/layout
     - app/api-reference/file-conventions/page
     - app/api-reference/components/link
+    - app/api-reference/file-conventions/dynamic-routes
 ---
 
 Next.js uses **file-system based routing**, meaning you can use folders and files to define routes. This page will guide you through how to create layouts and pages, and link between them.
@@ -172,7 +173,7 @@ export default function Page() {
 }
 ```
 
-Wrapping a folder name in square brackets (e.g. `[slug]`) creates a [dynamic route segment](/docs/app/building-your-application/routing/dynamic-routes) which is used to generate multiple pages from data. e.g. blog posts, product pages, etc.
+Wrapping a folder name in square brackets (e.g. `[slug]`) creates a [dynamic route segment](/docs/app/api-reference/file-conventions/dynamic-routes) which is used to generate multiple pages from data. e.g. blog posts, product pages, etc.
 
 ## Nesting layouts
 
@@ -205,6 +206,46 @@ export default function BlogLayout({ children }) {
 ```
 
 If you were to combine the two layouts above, the root layout (`app/layout.js`) would wrap the blog layout (`app/blog/layout.js`), which would wrap the blog (`app/blog/page.js`) and blog post page (`app/blog/[slug]/page.js`).
+
+## Creating a dynamic segment
+
+[Dynamic segments](/docs/app/api-reference/file-conventions/dynamic-routes) allow you to create routes that are generated from data. For example, instead of manually creating a route for each individual blog post, you can create a dynamic segment to generate the routes based on blog post data.
+
+To create a dynamic segment, wrap the segment (folder) name in square brackets: `[segmentName]`. For example, in the `app/blog/[slug]/page.tsx` route, the `[slug]` is the dynamic segment.
+
+```tsx filename="app/blog/[slug]/page.tsx" switcher
+export default function BlogPostPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
+  const post = await getPost(slug)
+
+  return (
+    <div>
+      <h1>{post.title}</h1>
+      <p>{post.content}</p>
+    </div>
+  )
+}
+```
+
+```jsx filename="app/blog/[slug]/page.js" switcher
+export default function BlogPostPage({ params }) {
+  const { slug } = await params
+  const post = await getPost(slug)
+
+  return (
+    <div>
+      <h1>{post.title}</h1>
+      <p>{post.content}</p>
+    </div>
+  )
+}
+```
+
+Learn more about [Dynamic Segments](/docs/app/api-reference/file-conventions/dynamic-routes).
 
 ## Linking between pages
 
