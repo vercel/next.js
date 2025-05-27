@@ -71,7 +71,8 @@ jobs:
         run: |
           FREEZE_PR=$(gh pr list --label "Freeze: Scheduled Release" --state open --json number --jq '.[0].number // empty')
           if [ ! -z "$FREEZE_PR" ]; then
-            echo "Found existing PR #$FREEZE_PR with 'Freeze: Scheduled Release' label. Skipping scheduled release..."
+            echo "Found existing PR with 'Freeze: Scheduled Release' label. Skipping scheduled release..."
+            echo "PR: https://github.com/${{ github.repository }}/pull/$FREEZE_PR"
             exit 1
           fi
         env:
