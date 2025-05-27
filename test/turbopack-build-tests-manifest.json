@@ -6544,10 +6544,10 @@
     "runtimeError": false
   },
   "test/e2e/edge-pages-support/edge-document.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "edge render - custom _document with edge runtime should render page properly"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
