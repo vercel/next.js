@@ -790,8 +790,7 @@ impl Issue for DuplicateParallelRouteIssue {
             format!(
                 "You cannot have two parallel pages that resolve to the same path. Please check \
                  {} and {}.",
-                this.previously_inserted_page,
-                this.page
+                this.previously_inserted_page, this.page
             )
             .into(),
         )
