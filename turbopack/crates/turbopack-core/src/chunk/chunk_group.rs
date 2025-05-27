@@ -321,6 +321,23 @@ pub async fn chunk_group_content(
 
     if should_merge_modules {
         let merged_modules = module_graph.merged_modules().await?;
+        // let old_items: Vec<ResolvedVc<Box<dyn Module>>> = state
+        //     .chunkable_items
+        //     .iter()
+        //     .map(async |m| {
+        //         Ok(match m {
+        //             ChunkableModuleOrBatch::Module(module) => vec![ResolvedVc::upcast(*module)],
+        //             ChunkableModuleOrBatch::Batch(batch) => batch
+        //                 .await?
+        //                 .modules
+        //                 .iter()
+        //                 .map(|m| ResolvedVc::upcast(*m))
+        //                 .collect(),
+        //             ChunkableModuleOrBatch::None(_) => vec![],
+        //         })
+        //     })
+        //     .try_flat_join()
+        //     .await?;
         state.chunkable_items = state
             .chunkable_items
             .into_iter()
@@ -330,11 +347,24 @@ pub async fn chunk_group_content(
                         return Ok(smallvec![]);
                     }
 
-                    Ok(vec![ChunkableModuleOrBatch::Module(
-                        merged_modules
-                            .should_replace_module(ResolvedVc::upcast(module))
-                            .unwrap_or(module),
-                    )])
+                    let module = if let Some(replacement) =
+                        merged_modules.should_replace_module(ResolvedVc::upcast(module))
+                    {
+                        // debug_assert!(
+                        //     merged_modules
+                        //         .replacements_included
+                        //         .get(&ResolvedVc::upcast(module))
+                        //         .unwrap()
+                        //         .iter()
+                        //         .all(|m| old_items.contains(m)),
+                        //     "Hoisting included too many modules",
+                        // );
+                        replacement
+                    } else {
+                        module
+                    };
+
+                    Ok(smallvec![ChunkableModuleOrBatch::Module(module)])
                 }
                 ChunkableModuleOrBatch::Batch(batch) => {
                     let batch_ref = batch.await?;
@@ -354,11 +384,20 @@ pub async fn chunk_group_content(
                             }
                         })
                         .map(|&module| {
-                            if let Some(module) =
+                            if let Some(replacement) =
                                 merged_modules.should_replace_module(ResolvedVc::upcast(module))
                             {
+                                // debug_assert!(
+                                //     merged_modules
+                                //         .replacements_included
+                                //         .get(&ResolvedVc::upcast(module))
+                                //         .unwrap()
+                                //         .iter()
+                                //         .all(|m| old_items.contains(m)),
+                                //     "Hoisting included too many modules",
+                                // );
                                 modified.store(true, std::sync::atomic::Ordering::Release);
-                                module
+                                replacement
                             } else {
                                 module
                             }

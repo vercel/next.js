@@ -37,6 +37,9 @@ pub struct MergedModuleInfo {
     /// A map of modules to the merged module containing the module plus additional modules.
     #[allow(clippy::type_complexity)]
     pub replacements: FxHashMap<ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn ChunkableModule>>>,
+    // #[allow(clippy::type_complexity)]
+    // pub replacements_included:
+    //     FxHashMap<ResolvedVc<Box<dyn Module>>, Vec<ResolvedVc<Box<dyn Module>>>>,
     /// A map of modules that are already contained as values in replacements.
     pub included: FxHashSet<ResolvedVc<Box<dyn Module>>>,
 }
@@ -728,7 +731,8 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
 
                 let list_len = list.len();
                 Ok(Some((
-                    [(ResolvedVc::upcast::<Box<dyn Module>>(entry), result)],
+                    ResolvedVc::upcast::<Box<dyn Module>>(entry),
+                    result,
                     list.into_iter()
                         .take(list_len - 1)
                         .map(ResolvedVc::upcast)
@@ -812,11 +816,17 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             ResolvedVc<Box<dyn Module>>,
             ResolvedVc<Box<dyn ChunkableModule>>,
         > = Default::default();
+        // #[allow(clippy::type_complexity)]
+        // let mut replacements_included: FxHashMap<
+        //     ResolvedVc<Box<dyn Module>>,
+        //     Vec<ResolvedVc<Box<dyn Module>>>,
+        // > = Default::default();
         let mut included: FxHashSet<ResolvedVc<Box<dyn Module>>> = FxHashSet::default();
 
-        for (replacements_part, included_part) in result.into_iter().flatten() {
-            replacements.extend(replacements_part.into_iter());
-            included.extend(included_part);
+        for (original, replacement, replacement_included) in result.into_iter().flatten() {
+            replacements.insert(original, replacement);
+            // replacements_included.insert(original, replacement_included.clone());
+            included.extend(replacement_included);
         }
 
         span.record("merged_groups", replacements.len());
@@ -844,6 +854,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
 
         Ok(MergedModuleInfo {
             replacements,
+            // replacements_included,
             included,
         }
         .cell())
