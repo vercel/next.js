@@ -1143,6 +1143,11 @@ async fn emit_content(content: CodeGenResult) -> Result<Vc<EcmascriptModuleConte
             Either::Right(comments) => comments,
         };
 
+        let comments = MergedComments {
+            baseline: comments,
+            mutable: extra_comments,
+        };
+
         let mut wr = JsWriter::new(
             source_map.clone(),
             "\n",
