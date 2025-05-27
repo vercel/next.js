@@ -355,6 +355,7 @@ describe('required server files app router', () => {
         'x-matched-path': '/postpone/isr/[slug]',
         // We don't include the `x-now-route-matches` header because we want to
         // test that the fallback route params are correctly set.
+        'x-now-route-matches': '',
       },
     })
 

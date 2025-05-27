@@ -23,7 +23,9 @@ import {
   isRedirectError,
   type RedirectType,
 } from '../../client/components/redirect-error'
-import RenderResult from '../render-result'
+import RenderResult, {
+  type AppPageRenderResultMetadata,
+} from '../render-result'
 import type { WorkStore } from '../app-render/work-async-storage.external'
 import { FlightRenderResult } from './flight-render-result'
 import {
@@ -454,6 +456,7 @@ export async function handleAction({
   requestStore,
   serverActions,
   ctx,
+  metadata,
 }: {
   req: BaseNextRequest
   res: BaseNextResponse
@@ -464,6 +467,7 @@ export async function handleAction({
   requestStore: RequestStore
   serverActions?: ServerActionsConfig
   ctx: AppRenderContext
+  metadata: AppPageRenderResultMetadata
 }): Promise<
   | undefined
   | {
@@ -552,6 +556,7 @@ export async function handleAction({
 
       if (isFetchAction) {
         res.statusCode = 500
+        metadata.statusCode = 500
 
         const promise = Promise.reject(error)
         try {
@@ -950,6 +955,7 @@ export async function handleAction({
       // if it's a fetch action, we'll set the status code for logging/debugging purposes
       // but we won't set a Location header, as the redirect will be handled by the client router
       res.statusCode = RedirectStatusCode.SeeOther
+      metadata.statusCode = RedirectStatusCode.SeeOther
 
       if (isFetchAction) {
         return {
@@ -973,6 +979,7 @@ export async function handleAction({
       }
     } else if (isHTTPAccessFallbackError(err)) {
       res.statusCode = getAccessFallbackHTTPStatus(err)
+      metadata.statusCode = res.statusCode
 
       if (isFetchAction) {
         const promise = Promise.reject(err)
@@ -1004,6 +1011,7 @@ export async function handleAction({
       // so that we can respond with a 413 to requests that break the body size limit
       // (but if we do that, we also need to make sure that whatever handles the non-fetch error path below does the same)
       res.statusCode = 500
+      metadata.statusCode = 500
       const promise = Promise.reject(err)
       try {
         // we need to await the promise to trigger the rejection early
