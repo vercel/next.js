@@ -57,7 +57,7 @@ Layout components should accept and use a `children` prop. During rendering, `ch
 
 #### `params` (optional)
 
-A promise that resolves to an object containing the [dynamic route parameters](/docs/app/building-your-application/routing/dynamic-routes) object from the root segment down to that layout.
+A promise that resolves to an object containing the [dynamic route parameters](/docs/app/api-reference/file-conventions/dynamic-routes) object from the root segment down to that layout.
 
 ```tsx filename="app/dashboard/[team]/layout.tsx" switcher
 export default async function Layout({
@@ -114,7 +114,7 @@ export default function RootLayout({ children }) {
 
 - The root layout **must** define `<html>` and `<body>` tags.
   - You should **not** manually add `<head>` tags such as `<title>` and `<meta>` to root layouts. Instead, you should use the [Metadata API](/docs/app/getting-started/metadata-and-og-images) which automatically handles advanced requirements such as streaming and de-duplicating `<head>` elements.
-- You can use [route groups](/docs/app/building-your-application/routing/route-groups) to create multiple root layouts.
+- You can use [route groups](/docs/app/api-reference/file-conventions/route-groups) to create multiple root layouts.
   - Navigating **across multiple root layouts** will cause a **full page load** (as opposed to a client-side navigation). For example, navigating from `/cart` that uses `app/(shop)/layout.js` to `/blog` that uses `app/(marketing)/layout.js` will cause a full page load. This **only** applies to multiple root layouts.
 
 ## Caveats
@@ -581,7 +581,7 @@ export default function Layout({ children }) {
 
 ### Displaying content based on `params`
 
-Using [dynamic route segments](/docs/app/building-your-application/routing/dynamic-routes), you can display or fetch specific content based on the `params` prop.
+Using [dynamic route segments](/docs/app/api-reference/file-conventions/dynamic-routes), you can display or fetch specific content based on the `params` prop.
 
 ```tsx filename="app/dashboard/layout.tsx" switcher
 export default async function DashboardLayout({

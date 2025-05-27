@@ -275,7 +275,7 @@
   "Alef": {
     "weights": ["400", "700"],
     "styles": ["normal"],
-    "subsets": ["hebrew", "latin", "latin-ext"]
+    "subsets": ["hebrew", "latin"]
   },
   "Alegreya": {
     "weights": ["400", "500", "600", "700", "800", "900", "variable"],
@@ -1630,8 +1630,16 @@
     "subsets": ["latin", "latin-ext"]
   },
   "Baskervville": {
-    "weights": ["400"],
+    "weights": ["400", "500", "600", "700", "variable"],
     "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ],
     "subsets": ["latin", "latin-ext"]
   },
   "Baskervville SC": {
@@ -6141,6 +6149,19 @@
     ],
     "subsets": ["khmer", "latin", "latin-ext"]
   },
+  "Kapakana": {
+    "weights": ["300", "400", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 400,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext"]
+  },
   "Karantina": {
     "weights": ["300", "400", "700"],
     "styles": ["normal"],
@@ -10340,6 +10361,11 @@
       "latin-ext",
       "vietnamese"
     ]
+  },
+  "Noto Serif Dives Akuru": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["dives-akuru", "latin", "latin-ext"]
   },
   "Noto Serif Dogra": {
     "weights": ["400"],
@@ -16234,6 +16260,11 @@
     "weights": ["400"],
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext", "vietnamese"]
+  },
+  "WDXL Lubrifont TC": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["cyrillic", "latin", "latin-ext", "symbols2"]
   },
   "Waiting for the Sunrise": {
     "weights": ["400"],

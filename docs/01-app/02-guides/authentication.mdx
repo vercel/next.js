@@ -672,7 +672,7 @@ export async function createSession(userId) {
 }
 ```
 
-Back in your Server Action, you can invoke the `createSession()` function, and use the [`redirect()`](/docs/app/building-your-application/routing/redirecting) API to redirect the user to the appropriate page:
+Back in your Server Action, you can invoke the `createSession()` function, and use the [`redirect()`](/docs/app/guides/redirecting) API to redirect the user to the appropriate page:
 
 ```ts filename="app/actions/auth.ts" switcher
 import { createSession } from '@/app/lib/session'

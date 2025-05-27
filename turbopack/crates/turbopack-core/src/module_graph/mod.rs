@@ -920,7 +920,7 @@ impl ModuleGraph {
         mut visitor: impl FnMut(
             Option<(&'_ SingleModuleGraphModuleNode, &'_ ChunkingType)>,
             &'_ SingleModuleGraphModuleNode,
-        ) -> GraphTraversalAction,
+        ) -> Result<GraphTraversalAction>,
     ) -> Result<()> {
         let graphs = self.get_graphs().await?;
 
@@ -933,7 +933,7 @@ impl ModuleGraph {
         );
         let mut visited = HashSet::new();
         for entry_node in &queue {
-            visitor(None, get_node!(graphs, entry_node)?);
+            visitor(None, get_node!(graphs, entry_node)?)?;
         }
         while let Some(node) = queue.pop_front() {
             let graph = &graphs[node.graph_idx].graph;
@@ -948,7 +948,7 @@ impl ModuleGraph {
                     };
                     let succ_weight = get_node!(graphs, succ)?;
                     let edge_weight = graph.edge_weight(edge).unwrap();
-                    let action = visitor(Some((node_weight, edge_weight)), succ_weight);
+                    let action = visitor(Some((node_weight, edge_weight)), succ_weight)?;
                     if !visited.contains(&succ) && action == GraphTraversalAction::Continue {
                         queue.push_back(succ);
                     }
@@ -1197,8 +1197,8 @@ impl ModuleGraph {
             Option<(&'_ SingleModuleGraphModuleNode, &'_ ChunkingType)>,
             &'_ SingleModuleGraphModuleNode,
             &mut S,
-        ) -> GraphTraversalAction,
-        priority: impl Fn(&'_ SingleModuleGraphModuleNode, &mut S) -> P,
+        ) -> Result<GraphTraversalAction>,
+        priority: impl Fn(&'_ SingleModuleGraphModuleNode, &mut S) -> Result<P>,
     ) -> Result<usize> {
         let graphs = self.get_graphs().await?;
 
@@ -1237,7 +1237,7 @@ impl ModuleGraph {
                 .await?,
         );
         for entry_node in &queue {
-            visit(None, get_node!(graphs, entry_node.node)?, state);
+            visit(None, get_node!(graphs, entry_node.node)?, state)?;
         }
 
         let mut visit_count = 0usize;
@@ -1256,12 +1256,12 @@ impl ModuleGraph {
                 };
                 let (succ_weight, succ) = get_node_idx!(graphs, succ)?;
                 let edge_weight = graph.edge_weight(edge).unwrap();
-                let action = visit(Some((node_weight, edge_weight)), succ_weight, state);
+                let action = visit(Some((node_weight, edge_weight)), succ_weight, state)?;
 
                 if action == GraphTraversalAction::Continue && queue_set.insert(succ) {
                     queue.push(NodeWithPriority {
                         node: succ,
-                        priority: priority(succ_weight, state),
+                        priority: priority(succ_weight, state)?,
                     });
                 }
             }

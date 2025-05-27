@@ -234,6 +234,37 @@ export default function BlogPage() {
 }
 ```
 
+## Deduplicating requests with `React.cache`
+
+Deduplication is the process of _preventing duplicate requests_ for the same resource during a render pass. It allows you to fetch the same data in different components while preventing multiple network requests to your data source.
+
+If you are using `fetch`, requests can be deduplicated by adding `cache: 'force-cache'`. This means you can safely call the same URL with the same options, and only one request will be made.
+
+If you are _not_ using `fetch`, and instead using an ORM or database directly, you can wrap your data fetch with the [React `cache`](https://react.dev/reference/react/cache) function.
+
+```tsx filename="app/lib/data.ts" switcher
+import { cache } from 'react'
+import { db, posts, eq } from '@/lib/db'
+
+export const getPost = cache(async (id: string) => {
+  const post = await db.query.posts.findFirst({
+    where: eq(posts.id, parseInt(id)),
+  })
+})
+```
+
+```jsx filename="app/lib/data.js" switcher
+import { cache } from 'react'
+import { db, posts, eq } from '@/lib/db'
+import { notFound } from 'next/navigation'
+
+export const getPost = cache(async (id) => {
+  const post = await db.query.posts.findFirst({
+    where: eq(posts.id, parseInt(id)),
+  })
+})
+```
+
 ## Streaming
 
 > **Warning:** The content below assumes the [`dynamicIO` config option](/docs/app/api-reference/config/next-config-js/dynamicIO) is enabled in your application. The flag was introduced in Next.js 15 canary.
