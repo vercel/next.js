@@ -151,7 +151,7 @@ export default async function Layout({ children }) {
 
 Layouts do not rerender on navigation, so they cannot access search params which would otherwise become stale.
 
-To access updated query parameters, you can use the Page[`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) prop, or read them inside a Client Component using the [`useSearchParams`](/docs/app/api-reference/functions/use-search-params) hook. Since Client Components re-render on navigation, they have access to the latest query parameters.
+To access updated query parameters, you can use the Page [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) prop, or read them inside a Client Component using the [`useSearchParams`](/docs/app/api-reference/functions/use-search-params) hook. Since Client Components re-render on navigation, they have access to the latest query parameters.
 
 ```tsx filename="app/ui/search.tsx" switcher
 'use client'
