@@ -86,7 +86,7 @@ export function AppDevOverlay({
     <>
       <AppDevOverlayErrorBoundary
         globalError={globalError}
-        onError={setIsErrorOverlayOpen}
+        onError={openOverlay}
       >
         <ReplaySsrOnlyErrors onBlockingError={openOverlay} />
         {children}
