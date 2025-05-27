@@ -250,7 +250,8 @@ impl Issue for NextSourceConfigParsingIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Unable to parse config export in source file".into()).cell()
+        StyledString::Text("Next.js can't recognize the exported `config` field in route".into())
+            .cell()
     }
 
     #[turbo_tasks::function]

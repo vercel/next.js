@@ -19042,11 +19042,10 @@
   },
   "test/production/exported-runtimes-value-validation/index.test.ts": {
     "passed": [
-      "Exported runtimes value validation fails to build on malformed input"
-    ],
-    "failed": [
+      "Exported runtimes value validation fails to build on malformed input",
       "Exported runtimes value validation warns on unrecognized runtimes value"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
