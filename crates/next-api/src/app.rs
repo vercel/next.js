@@ -1459,7 +1459,6 @@ impl AppEndpoint {
                     entry_name: app_entry.original_name.clone(),
                     client_references,
                     client_references_chunks,
-                    rsc_app_entry_chunks: app_entry_chunks,
                     client_chunking_context,
                     ssr_chunking_context,
                     async_module_info: module_graphs.full.async_module_info().to_resolved().await?,

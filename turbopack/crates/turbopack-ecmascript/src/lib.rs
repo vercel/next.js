@@ -94,7 +94,7 @@ pub use turbopack_resolve::ecmascript as resolve;
 use self::chunk::{EcmascriptChunkItemContent, EcmascriptChunkType, EcmascriptExports};
 use crate::{
     chunk::{EcmascriptChunkPlaceable, placeable::is_marked_as_side_effect_free},
-    code_gen::CodeGens,
+    code_gen::{CodeGens, ModifiableAst},
     parse::generate_js_source_map,
     references::{
         analyse_ecmascript_module, async_module::OptionAsyncModule, esm::base::EsmAssetReferences,
@@ -1172,6 +1172,7 @@ fn process_content_with_code_gens(
         for CodeGenerationHoistedStmt { key, stmt } in code_gen.early_hoisted_stmts.drain(..) {
             early_hoisted_stmts.insert(key.clone(), stmt);
         }
+
         for (path, visitor) in &code_gen.visitors {
             if path.is_empty() {
                 root_visitors.push(&**visitor);
@@ -1188,8 +1189,8 @@ fn process_content_with_code_gens(
                 &mut Default::default(),
             );
         }
-        for visitor in root_visitors {
-            program.visit_mut_with(&mut visitor.create());
+        for pass in root_visitors {
+            program.modify(pass);
         }
         program.visit_mut_with(
             &mut swc_core::ecma::transforms::base::hygiene::hygiene_with_config(

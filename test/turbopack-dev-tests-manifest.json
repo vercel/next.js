@@ -591,6 +591,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "packages/next/src/client/components/react-dev-overlay/utils/launch-editor.test.ts": {
+    "passed": ["applescript string escaping should escape strings correctly"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "packages/next/src/client/components/react-dev-overlay/utils/webpack-module-path.test.ts": {
     "passed": [
       "webpack-module-path formatFrameSourceFile should return the original file path",
@@ -3410,7 +3417,9 @@
   },
   "test/development/experimental-https-server/https-server.generated-key.test.ts": {
     "passed": [
-      "experimental-https-server (generated certificate) only runs on CI as it requires administrator privileges"
+      "experimental-https-server (generated certificate) should successfully load the app in app dir",
+      "experimental-https-server (generated certificate) should successfully load the app in pages dir",
+      "experimental-https-server (generated certificate) should successfully reuse generated certificates"
     ],
     "failed": [],
     "pending": [],
@@ -5193,6 +5202,8 @@
       "app dir - basic should not share edge workers",
       "app dir - basic should pass props from getServerSideProps in root layout",
       "app dir - basic should return normalized dynamic route params for catch-all edge page",
+      "app dir - basic should return the `vary` header from edge runtime",
+      "app dir - basic should return the `vary` header from pages for flight requests",
       "app dir - basic should serve /index as separate page",
       "app dir - basic should serve dynamic parameter",
       "app dir - basic should serve dynamic route from pages",
@@ -7394,11 +7405,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/next-image/next-image-https.test.ts": {
-    "passed": [
-      "app dir - next-image (with https) only runs on CI as it requires administrator privileges"
-    ],
+    "passed": [],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "app dir - next-image (with https) loads images without any errors"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -8926,6 +8937,15 @@
   },
   "test/e2e/app-dir/segment-cache/conflicting-routes/conflicting-routes.test.ts": {
     "passed": ["conflicting routes prefetching is disabled"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/segment-cache/deployment-skew/deployment-skew.test.ts": {
+    "passed": [
+      "segment cache (deployment skew) should not run during dev or deploy test runs"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -12256,9 +12276,9 @@
   },
   "test/e2e/vary-header/test/index.test.ts": {
     "passed": [
-      "Vary Header Tests should preserve custom vary header",
+      "Vary Header Tests should preserve custom vary header and append RSC headers in app route handlers",
       "Vary Header Tests should preserve custom vary header in API routes",
-      "Vary Header Tests should preserve middleware vary header"
+      "Vary Header Tests should preserve middleware vary header in combination with route handlers"
     ],
     "failed": [],
     "pending": [],
