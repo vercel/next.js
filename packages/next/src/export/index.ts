@@ -560,7 +560,8 @@ async function exportAppImpl(
 
   const exportPagesInBatches = async (
     worker: StaticWorker,
-    exportPaths: ExportPathEntry[]
+    exportPaths: ExportPathEntry[],
+    renderResumeDataCachesByPage?: Record<string, string>
   ): Promise<ExportPagesResult> => {
     // Batch filtered pages into smaller batches, and call the export worker on
     // each batch. We've set a default minimum of 25 pages per batch to ensure
@@ -607,6 +608,7 @@ async function exportAppImpl(
             cacheMaxMemorySize: nextConfig.cacheMaxMemorySize,
             fetchCache: true,
             fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
+            renderResumeDataCachesByPage,
           })
         )
       )
@@ -641,7 +643,28 @@ async function exportAppImpl(
   const results = await exportPagesInBatches(worker, initialPhaseExportPaths)
 
   if (finalPhaseExportPaths.length > 0) {
-    results.push(...(await exportPagesInBatches(worker, finalPhaseExportPaths)))
+    const renderResumeDataCachesByPage: Record<string, string> = {}
+
+    for (const { page, result } of results) {
+      if (!result) {
+        continue
+      }
+
+      if ('renderResumeDataCache' in result && result.renderResumeDataCache) {
+        // The last RDC for each page is used. We only need one. It should have
+        // all the entries that the fallback shell also needs. We don't need to
+        // merge them per page.
+        renderResumeDataCachesByPage[page] = result.renderResumeDataCache
+      }
+    }
+
+    const finalPhaseResults = await exportPagesInBatches(
+      worker,
+      finalPhaseExportPaths,
+      renderResumeDataCachesByPage
+    )
+
+    results.push(...finalPhaseResults)
   }
 
   let hadValidationError = false

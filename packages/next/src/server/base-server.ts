@@ -2872,9 +2872,9 @@ export default abstract class Server<
 
               // If the warmup is successful, we should use the resume data
               // cache from the warmup.
-              if (warmup.metadata.devRenderResumeDataCache) {
-                renderOpts.devRenderResumeDataCache =
-                  warmup.metadata.devRenderResumeDataCache
+              if (warmup.metadata.renderResumeDataCache) {
+                renderOpts.renderResumeDataCache =
+                  warmup.metadata.renderResumeDataCache
               }
             }
 
