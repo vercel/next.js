@@ -17,6 +17,7 @@ export default async function buildNative(
     // Without a shell, `pnpm run build-native` returns a 0 exit code on SIGINT?
     shell: true,
     env: {
+      NODE_ENV: process.env.NODE_ENV,
       CARGO_TERM_COLOR: 'always',
       TTY: '1',
     },

@@ -76,8 +76,7 @@ par-core = { workspace = true, features = ["rayon"] }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
-#rstest = { workspace = true }
-turbo-tasks-memory = { workspace = true }
+turbo-tasks-backend = { workspace = true }
 turbo-tasks-testing = { workspace = true }
 
 [build-dependencies]
