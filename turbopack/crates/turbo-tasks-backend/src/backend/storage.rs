@@ -137,7 +137,7 @@ pub struct InnerStorageSnapshot {
     aggregation_number: OptionStorage<AggregationNumber>,
     output_dependent: AutoMapStorage<TaskId, ()>,
     output: OptionStorage<OutputValue>,
-    upper: AutoMapStorage<TaskId, i32>,
+    upper: AutoMapStorage<TaskId, u32>,
     dynamic: DynamicStorage,
     pub meta_modified: bool,
     pub data_modified: bool,
@@ -205,7 +205,7 @@ pub struct InnerStorage {
     aggregation_number: OptionStorage<AggregationNumber>,
     output_dependent: AutoMapStorage<TaskId, ()>,
     output: OptionStorage<OutputValue>,
-    upper: AutoMapStorage<TaskId, i32>,
+    upper: AutoMapStorage<TaskId, u32>,
     dynamic: DynamicStorage,
     state: InnerStorageState,
 }

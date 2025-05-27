@@ -27,6 +27,11 @@
     "test/**/*.util.ts",
     "test/e2e/app-dir/use-cache-custom-handler/*.js",
     "test/lib/**/*.ts",
+    "scripts/*.js",
+    "scripts/*.cjs",
+    "scripts/*.mjs",
+    "scripts/*.ts",
     "turbo/**/*.ts"
-  ]
+  ],
+  "exclude": ["scripts/minimal-server.js"]
 }

@@ -41,6 +41,7 @@ type ApiContext = __ApiPreviewProps & {
   hostname?: string
   multiZoneDraftMode?: boolean
   dev: boolean
+  projectDir: string
 }
 
 function getMaxContentLength(responseLimit?: ResponseLimit) {
@@ -286,7 +287,8 @@ async function revalidate(
   }
 
   const internalRevalidate =
-    routerServerGlobal[RouterServerContextSymbol]?.revalidate
+    routerServerGlobal[RouterServerContextSymbol]?.[context.projectDir]
+      ?.revalidate
 
   try {
     // We use the revalidate in router-server if available.

@@ -10,8 +10,8 @@ use anyhow::Result;
 use tokio::{spawn, time::sleep};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ReadConsistency, TurboTasks, UpdateInfo, Value, Vc, util::FormatDuration};
+use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
-use turbo_tasks_memory::MemoryBackend;
 use turbopack::{emit_with_completion, register};
 use turbopack_core::{
     PROJECT_FILESYSTEM_NAME,
@@ -27,7 +27,10 @@ use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 async fn main() -> Result<()> {
     register();
 
-    let tt = TurboTasks::new(MemoryBackend::default());
+    let tt = TurboTasks::new(TurboTasksBackend::new(
+        BackendOptions::default(),
+        noop_backing_storage(),
+    ));
     let start = Instant::now();
 
     let task = tt.spawn_root_task(|| {

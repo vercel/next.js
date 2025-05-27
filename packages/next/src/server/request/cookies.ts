@@ -23,6 +23,7 @@ import { makeHangingPromise } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { scheduleImmediate } from '../../lib/scheduler'
 import { isRequestAPICallableInsideAfter } from './utils'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 /**
  * In this version of Next.js `cookies()` returns a Promise however you can still reference the properties of the underlying cookies object
@@ -89,32 +90,42 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
     }
 
     if (workUnitStore) {
-      if (workUnitStore.type === 'prerender') {
-        // dynamicIO Prerender
-        // We don't track dynamic access here because access will be tracked when you access
-        // one of the properties of the cookies object.
-        return makeDynamicallyTrackedExoticCookies(
-          workStore.route,
-          workUnitStore
-        )
-      } else if (workUnitStore.type === 'prerender-ppr') {
-        // PPR Prerender (no dynamicIO)
-        // We are prerendering with PPR. We need track dynamic access here eagerly
-        // to keep continuity with how cookies has worked in PPR without dynamicIO.
-        postponeWithTracking(
-          workStore.route,
-          callingExpression,
-          workUnitStore.dynamicTracking
-        )
-      } else if (workUnitStore.type === 'prerender-legacy') {
-        // Legacy Prerender
-        // We track dynamic access here so we don't need to wrap the cookies in
-        // individual property access tracking.
-        throwToInterruptStaticGeneration(
-          callingExpression,
-          workStore,
-          workUnitStore
-        )
+      switch (workUnitStore.type) {
+        case 'prerender':
+          // dynamicIO Prerender
+          // We don't track dynamic access here because access will be tracked when you access
+          // one of the properties of the cookies object.
+          return makeDynamicallyTrackedExoticCookies(
+            workStore.route,
+            workUnitStore
+          )
+        case 'prerender-client':
+          const exportName = '`cookies`'
+          throw new InvariantError(
+            `${exportName} must not be used within a client component. Next.js should be preventing ${exportName} from being included in client components statically, but did not in this case.`
+          )
+        case 'prerender-ppr':
+          // PPR Prerender (no dynamicIO)
+          // We are prerendering with PPR. We need track dynamic access here eagerly
+          // to keep continuity with how cookies has worked in PPR without dynamicIO.
+          postponeWithTracking(
+            workStore.route,
+            callingExpression,
+            workUnitStore.dynamicTracking
+          )
+          break
+        case 'prerender-legacy':
+          // Legacy Prerender
+          // We track dynamic access here so we don't need to wrap the cookies in
+          // individual property access tracking.
+          throwToInterruptStaticGeneration(
+            callingExpression,
+            workStore,
+            workUnitStore
+          )
+          break
+        default:
+        // fallthrough
       }
     }
     // We fall through to the dynamic context below but we still track dynamic access

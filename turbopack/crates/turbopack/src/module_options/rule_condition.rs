@@ -148,9 +148,9 @@ impl RuleCondition {
                     }
                     RuleCondition::ResourcePathGlob { glob, base } => {
                         return Ok(if let Some(rel_path) = base.get_relative_path_to(path) {
-                            glob.execute(&rel_path)
+                            glob.matches(&rel_path)
                         } else {
-                            glob.execute(&path.path)
+                            glob.matches(&path.path)
                         });
                     }
                     RuleCondition::ResourceBasePathGlob(glob) => {
@@ -158,7 +158,7 @@ impl RuleCondition {
                             .path
                             .rsplit_once('/')
                             .map_or(path.path.as_str(), |(_, b)| b);
-                        return Ok(glob.execute(basename));
+                        return Ok(glob.matches(basename));
                     }
                     RuleCondition::ResourcePathRegex(_) => {
                         bail!("ResourcePathRegex not implemented yet");
