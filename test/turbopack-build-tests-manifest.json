@@ -1335,6 +1335,8 @@
       "app dir - basic should pass props from getServerSideProps in root layout",
       "app dir - basic should provide query for getStaticProps page correctly",
       "app dir - basic should return normalized dynamic route params for catch-all edge page",
+      "app dir - basic should return the `vary` header from edge runtime",
+      "app dir - basic should return the `vary` header from pages for flight requests",
       "app dir - basic should run generate command correctly",
       "app dir - basic should serve /index as separate page",
       "app dir - basic should serve dynamic parameter",
@@ -1455,6 +1457,8 @@
       "app dir - basic should not share edge workers",
       "app dir - basic should pass props from getServerSideProps in root layout",
       "app dir - basic should return normalized dynamic route params for catch-all edge page",
+      "app dir - basic should return the `vary` header from edge runtime",
+      "app dir - basic should return the `vary` header from pages for flight requests",
       "app dir - basic should serve /index as separate page",
       "app dir - basic should serve dynamic parameter",
       "app dir - basic should serve dynamic route from pages",
@@ -2412,6 +2416,7 @@
       "empty-fallback-shells should not log a HANGING_PROMISE_REJECTION error",
       "empty-fallback-shells with cached IO and the page not wrapped in Suspense and params.then/catch/finally passed to a cached function does not resume a postponed fallback shell",
       "empty-fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in a cached non-page function does not resume a postponed fallback shell",
+      "empty-fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in the cached page does not render a fallback shell when using a params placeholder",
       "empty-fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in the cached page does not resume a postponed fallback shell",
       "empty-fallback-shells with cached IO and the page wrapped in Suspense and params.then/catch/finally passed to a cached function resumes a postponed fallback shell",
       "empty-fallback-shells with cached IO and the page wrapped in Suspense and the params accessed in cached non-page function resumes a postponed fallback shell",
@@ -8828,9 +8833,9 @@
   },
   "test/e2e/vary-header/test/index.test.ts": {
     "passed": [
-      "Vary Header Tests should preserve custom vary header",
+      "Vary Header Tests should preserve custom vary header and append RSC headers in app route handlers",
       "Vary Header Tests should preserve custom vary header in API routes",
-      "Vary Header Tests should preserve middleware vary header"
+      "Vary Header Tests should preserve middleware vary header in combination with route handlers"
     ],
     "failed": [],
     "pending": [],
@@ -9317,8 +9322,8 @@
   },
   "test/integration/app-dir-export/test/dynamic-missing-gsp-prod.test.ts": {
     "passed": [
-      "app dir - with output export - dynamic missing gsp prod production mode should error when dynamic route is missing generateStaticParams",
-      "app dir - with output export - dynamic missing gsp prod production mode should error when client component has generateStaticParams"
+      "app dir - with output export - dynamic missing gsp prod production mode should error when client component has generateStaticParams",
+      "app dir - with output export - dynamic missing gsp prod production mode should error when dynamic route is missing generateStaticParams"
     ],
     "failed": [],
     "pending": [],
