@@ -153,9 +153,9 @@ export interface RequestMeta {
   middlewareInvoke?: boolean
 
   /**
-   * Whether the default route matches were set on the request during routing.
+   * Whether the request should render the fallback shell or not.
    */
-  didSetDefaultRouteMatches?: boolean
+  renderFallbackShell?: boolean
 
   /**
    * Whether the request is for the custom error page.
@@ -183,6 +183,31 @@ export interface RequestMeta {
    * The default locale that was inferred or explicitly set for the request.
    */
   defaultLocale?: string
+
+  /**
+   * The project dir the server is running in
+   */
+  projectDir?: string
+
+  /**
+   * Whether we are generating the fallback version of the page in dev mode
+   */
+  isIsrFallback?: boolean
+
+  /**
+   * The query after resolving routes
+   */
+  query?: ParsedUrlQuery
+
+  /**
+   * The params after resolving routes
+   */
+  params?: ParsedUrlQuery
+
+  /**
+   * The AMP validator to use in development
+   */
+  ampValidator?: (html: string, pathname: string) => Promise<void>
 }
 
 /**

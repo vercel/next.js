@@ -11,6 +11,7 @@
 pub mod attach;
 pub mod embed;
 pub mod glob;
+mod globset;
 pub mod invalidation;
 mod invalidator_map;
 pub mod json;

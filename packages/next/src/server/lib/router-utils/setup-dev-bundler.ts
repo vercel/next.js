@@ -666,6 +666,7 @@ async function startWatcher(opts: SetupOpts) {
               hasRewrites,
               // TODO: Implement
               middlewareMatchers: undefined,
+              projectPath: opts.dir,
             }),
           })
         }
@@ -738,9 +739,9 @@ async function startWatcher(opts: SetupOpts) {
                   hasRewrites,
                   isClient,
                   isEdgeServer,
-                  isNodeOrEdgeCompilation: isNodeServer || isEdgeServer,
                   isNodeServer,
                   middlewareMatchers: undefined,
+                  projectPath: opts.dir,
                 })
 
                 Object.keys(plugin.definitions).forEach((key) => {

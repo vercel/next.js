@@ -41,7 +41,7 @@ const zExportMap: zod.ZodType<ExportPathMap> = z.record(
     _isAppDir: z.boolean().optional(),
     _isDynamicError: z.boolean().optional(),
     _isRoutePPREnabled: z.boolean().optional(),
-    _doNotThrowOnEmptyStaticShell: z.boolean().optional(),
+    _allowEmptyStaticShell: z.boolean().optional(),
   })
 )
 
@@ -270,6 +270,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           }),
         ]),
         define: z.record(z.string(), z.string()).optional(),
+        defineServer: z.record(z.string(), z.string()).optional(),
         runAfterProductionCompile: z
           .function()
           .returns(z.promise(z.void()))

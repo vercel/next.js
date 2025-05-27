@@ -12,8 +12,9 @@ import type { WebpackLayerName } from '../lib/constants'
 import {
   isWebpackBundledLayer,
   isWebpackClientOnlyLayer,
-  isWebpackDefaultLayer,
   isWebpackServerOnlyLayer,
+  isWebpackDefaultLayer,
+  RSPACK_DEFAULT_LAYERS_REGEX,
 } from './utils'
 import type { CustomRoutes } from '../lib/load-custom-routes.js'
 import {
@@ -132,7 +133,7 @@ const browserNonTranspileModules = [
 const precompileRegex = /[\\/]next[\\/]dist[\\/]compiled[\\/]/
 
 const asyncStoragesRegex =
-  /next[\\/]dist[\\/](esm[\\/])?server[\\/]app-render[\\/](work-async-storage|action-async-storage|work-unit-async-storage)/
+  /next[\\/]dist[\\/](esm[\\/])?server[\\/]app-render[\\/](work-async-storage|action-async-storage|dynamic-access-async-storage|work-unit-async-storage)/
 
 // Support for NODE_PATH
 const nodePathList = (process.env.NODE_PATH || '')
@@ -778,6 +779,8 @@ export default async function getBaseWebpackConfig(
     ].filter(Boolean) as webpack.ResolvePluginInstance[],
     ...((isRspack && jsConfigPath
       ? {
+          // Skip paths that are routed to a .d.ts file
+          restrictions: [/^(?!.*\.d\.ts$).*$/],
           tsConfig: {
             configFile: jsConfigPath,
           },
@@ -1157,9 +1160,25 @@ export default async function getBaseWebpackConfig(
             : (chunk: any) =>
                 !/^(polyfills|main|pages\/_app)$/.test(chunk.name),
 
-          // TODO: investigate these cache groups with rspack
           cacheGroups: isRspack
-            ? {}
+            ? {
+                framework: {
+                  chunks: 'all' as const,
+                  name: 'framework',
+                  layer: RSPACK_DEFAULT_LAYERS_REGEX,
+                  test: /[/]node_modules[/](react|react-dom|next[/]dist[/]compiled[/](react|react-dom)(-experimental)?)[/]/,
+                  priority: 40,
+                  enforce: true,
+                },
+                lib: {
+                  test: /[/]node_modules[/](?!.*\.(css|scss|sass|less|styl)$)/,
+                  name: 'lib',
+                  chunks: 'all',
+                  priority: 30,
+                  minChunks: 1,
+                  reuseExistingChunk: true,
+                },
+              }
             : {
                 framework: frameworkCacheGroup,
                 lib: libCacheGroup,
@@ -1933,11 +1952,11 @@ export default async function getBaseWebpackConfig(
           config,
           dev,
           distDir,
+          projectPath: dir,
           fetchCacheKeyPrefix,
           hasRewrites,
           isClient,
           isEdgeServer,
-          isNodeOrEdgeCompilation,
           isNodeServer,
           middlewareMatchers,
           omitNonDeterministic: isCompileMode,

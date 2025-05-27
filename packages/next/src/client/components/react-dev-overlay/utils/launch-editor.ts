@@ -303,7 +303,22 @@ function printInstructions(fileName: string, errorMessage: string | null) {
   console.log()
 }
 
-function launchEditor(fileName: string, lineNumber: number, colNumber: number) {
+export function escapeApplescriptStringFragment(input: string): string {
+  // The only two special characters in a quoted applescript string are
+  // backslash and double quote. Both are escaped with a preceeding backslash.
+  //
+  // Some whitespace characters (like newlines) can be escaped (as `\n`), but
+  // aren't required to be escaped (so we're not bothering to do that).
+  //
+  // https://developer.apple.com/library/archive/documentation/AppleScript/Conceptual/AppleScriptLangGuide/reference/ASLR_classes.html#//apple_ref/doc/uid/TP40000983-CH1g-BBCIAHJF:~:text=Special%20String%20Characters
+  return input.replaceAll(/[\\"]/g, (original) => `\\${original}`)
+}
+
+export function launchEditor(
+  fileName: string,
+  lineNumber: number,
+  colNumber: number
+) {
   if (!fs.existsSync(fileName)) {
     return
   }
@@ -387,15 +402,12 @@ function launchEditor(fileName: string, lineNumber: number, colNumber: number) {
     })
   } else if (isTerminalEditor(editor)) {
     if (process.platform === 'darwin') {
+      const escapedScript = escapeApplescriptStringFragment(
+        shellQuote.quote([editor, ...args])
+      )
       p = child_process.spawn(
         'osascript',
-        [
-          '-e',
-          `tell application "Terminal" to do script "${shellQuote.quote([
-            editor,
-            ...args,
-          ])}"`,
-        ],
+        ['-e', `tell application "Terminal" to do script "${escapedScript}"`],
         { stdio: 'ignore' }
       )
     } else {
@@ -416,5 +428,3 @@ function launchEditor(fileName: string, lineNumber: number, colNumber: number) {
     })
   }
 }
-
-export { launchEditor }

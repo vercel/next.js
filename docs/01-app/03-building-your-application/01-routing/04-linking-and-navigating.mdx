@@ -142,7 +142,7 @@ export default async function Profile({ params }) {
 > - `redirect` internally throws an error so it should be called outside of `try/catch` blocks.
 > - `redirect` can be called in Client Components during the rendering process but not in event handlers. You can use the [`useRouter` hook](#userouter-hook) instead.
 > - `redirect` also accepts absolute URLs and can be used to redirect to external links.
-> - If you'd like to redirect before the render process, use [`next.config.js`](/docs/app/building-your-application/routing/redirecting#redirects-in-nextconfigjs) or [Middleware](/docs/app/building-your-application/routing/redirecting#nextresponseredirect-in-middleware).
+> - If you'd like to redirect before the render process, use [`next.config.js`](/docs/app/guides/redirecting#redirects-in-nextconfigjs) or [Middleware](/docs/app/guides/redirecting#nextresponseredirect-in-middleware).
 
 See the [`redirect` API reference](/docs/app/api-reference/functions/redirect) for more information.
 

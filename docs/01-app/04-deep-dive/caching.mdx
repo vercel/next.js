@@ -6,7 +6,7 @@ description: An overview of caching mechanisms in Next.js.
 
 Next.js improves your application's performance and reduces costs by caching rendering work and data requests. This page provides an in-depth look at Next.js caching mechanisms, the APIs you can use to configure them, and how they interact with each other.
 
-> **Good to know**: This page helps you understand how Next.js works under the hood but is **not** essential knowledge to be productive with Next.js. Most of Next.js' caching heuristics are determined by your API usage and have defaults for the best performance with zero or minimal configuration. If you instead want to jump to examples, [start here](/docs/app/building-your-application/data-fetching/fetching).
+> **Good to know**: This page helps you understand how Next.js works under the hood but is **not** essential knowledge to be productive with Next.js. Most of Next.js' caching heuristics are determined by your API usage and have defaults for the best performance with zero or minimal configuration. If you instead want to jump to examples, [start here](/docs/app/getting-started/fetching-data).
 
 ## Overview
 
@@ -522,7 +522,7 @@ See the [Route Segment Config](/docs/app/api-reference/file-conventions/route-se
 
 ### `generateStaticParams`
 
-For [dynamic segments](/docs/app/building-your-application/routing/dynamic-routes) (e.g. `app/blog/[slug]/page.js`), paths provided by `generateStaticParams` are cached in the Full Route Cache at build time. At request time, Next.js will also cache paths that weren't known at build time the first time they're visited.
+For [dynamic segments](/docs/app/api-reference/file-conventions/dynamic-routes) (e.g. `app/blog/[slug]/page.js`), paths provided by `generateStaticParams` are cached in the Full Route Cache at build time. At request time, Next.js will also cache paths that weren't known at build time the first time they're visited.
 
 To statically render all paths at build time, supply the full list of paths to `generateStaticParams`:
 
@@ -563,7 +563,7 @@ export async function generateStaticParams() {
 export const dynamic = 'force-static'
 ```
 
-To disable caching at request time, add the `export const dynamicParams = false` option in a route segment. When this config option is used, only paths provided by `generateStaticParams` will be served, and other routes will 404 or match (in the case of [catch-all routes](/docs/app/building-your-application/routing/dynamic-routes#catch-all-segments)).
+To disable caching at request time, add the `export const dynamicParams = false` option in a route segment. When this config option is used, only paths provided by `generateStaticParams` will be served, and other routes will 404 or match (in the case of [catch-all routes](/docs/app/api-reference/file-conventions/dynamic-routes#catch-all-segments)).
 
 ### React `cache` function
 
