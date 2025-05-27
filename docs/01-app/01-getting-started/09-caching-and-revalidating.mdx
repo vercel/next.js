@@ -214,6 +214,15 @@ export async function updateUser(id: string) {
 }
 ```
 
+```jsx filename="app/lib/actions.js" highlight={1} switcher
+import { revalidateTag } from 'next/cache'
+
+export async function updateUser(id) {
+  // Mutate data
+  revalidateTag('user')
+}
+```
+
 You can reuse the same tag in multiple functions to revalidate them all at once.
 
 See the [`revalidateTag` API reference](/docs/app/api-reference/functions/revalidateTag) to learn more.
