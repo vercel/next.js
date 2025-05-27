@@ -737,7 +737,7 @@ export default function Post({ post }) {
 
 In the `app` directory, `getStaticPaths` is replaced with [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params).
 
-[`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) behaves similarly to `getStaticPaths`, but has a simplified API for returning route parameters and can be used inside [layouts](/docs/app/building-your-application/routing/layouts-and-templates). The return shape of `generateStaticParams` is an array of segments instead of an array of nested `param` objects or a string of resolved paths.
+[`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) behaves similarly to `getStaticPaths`, but has a simplified API for returning route parameters and can be used inside [layouts](/docs/app/api-reference/file-conventions/layout). The return shape of `generateStaticParams` is an array of segments instead of an array of nested `param` objects or a string of resolved paths.
 
 ```jsx filename="app/posts/[id]/page.js"
 // `app` directory
