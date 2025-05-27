@@ -1011,6 +1011,12 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             self.fn_decl_ident = old_fn_decl_ident;
         }
 
+        let mut child_names = take(&mut self.names);
+
+        if self.should_track_names {
+            self.names = [old_names, child_names.clone()].concat();
+        }
+
         if let Some(directive) = directive {
             if !f.is_async {
                 emit_error(ServerActionsErrorKind::InlineSyncFunction {
@@ -1026,12 +1032,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             // Don't hoist a function if 1) an error was emitted, or 2) we're in the client layer.
             if has_errors || !self.config.is_react_server_layer {
                 return;
-            }
-
-            let mut child_names = take(&mut self.names);
-
-            if self.should_track_names {
-                self.names = [old_names, child_names.clone()].concat();
             }
 
             if let Directive::UseCache { cache_kind } = directive {
@@ -1181,6 +1181,12 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             self.in_default_export_decl = old_in_default_export_decl;
         }
 
+        let mut child_names = take(&mut self.names);
+
+        if self.should_track_names {
+            self.names = [old_names, child_names.clone()].concat();
+        }
+
         if let Some(directive) = directive {
             if !a.is_async {
                 emit_error(ServerActionsErrorKind::InlineSyncFunction {
@@ -1197,12 +1203,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             // layer.
             if has_errors || !self.config.is_react_server_layer {
                 return;
-            }
-
-            let mut child_names = take(&mut self.names);
-
-            if self.should_track_names {
-                self.names = [old_names, child_names.clone()].concat();
             }
 
             // Collect all the identifiers defined inside the closure and used
