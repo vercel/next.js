@@ -1641,10 +1641,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/conflicting-page-segments/conflicting-page-segments.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "conflicting-page-segments should throw an error when a route groups causes a conflict with a parallel segment"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6544,10 +6544,10 @@
     "runtimeError": false
   },
   "test/e2e/edge-pages-support/edge-document.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "edge render - custom _document with edge runtime should render page properly"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6621,11 +6621,10 @@
   },
   "test/e2e/fetch-failures-have-good-stack-traces-in-edge-runtime/fetch-failures-have-good-stack-traces-in-edge-runtime.test.ts": {
     "passed": [],
-    "failed": [
-      "fetch failures have good stack traces in edge runtime when awaiting `fetch` using an unknown domain, stack traces are preserved"
-    ],
+    "failed": [],
     "pending": [
-      "fetch failures have good stack traces in edge runtime when returning `fetch` using an unknown domain, stack traces are preserved"
+      "fetch failures have good stack traces in edge runtime when returning `fetch` using an unknown domain, stack traces are preserved",
+      "fetch failures have good stack traces in edge runtime when awaiting `fetch` using an unknown domain, stack traces are preserved"
     ],
     "flakey": [],
     "runtimeError": false
@@ -19042,11 +19041,10 @@
   },
   "test/production/exported-runtimes-value-validation/index.test.ts": {
     "passed": [
-      "Exported runtimes value validation fails to build on malformed input"
-    ],
-    "failed": [
+      "Exported runtimes value validation fails to build on malformed input",
       "Exported runtimes value validation warns on unrecognized runtimes value"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
