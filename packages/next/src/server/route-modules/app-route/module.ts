@@ -395,7 +395,9 @@ export class AppRouteRouteModule extends RouteModule<
               expire: INFINITE_CACHE,
               stale: INFINITE_CACHE,
               tags: [...implicitTags.tags],
+              // TODO: Shouldn't we provide an RDC here?
               prerenderResumeDataCache: null,
+              renderResumeDataCache: null,
               hmrRefreshHash: undefined,
             })
 
@@ -483,7 +485,9 @@ export class AppRouteRouteModule extends RouteModule<
             expire: INFINITE_CACHE,
             stale: INFINITE_CACHE,
             tags: [...implicitTags.tags],
+            // TODO: Shouldn't we provide an RDC here?
             prerenderResumeDataCache: null,
+            renderResumeDataCache: null,
             hmrRefreshHash: undefined,
           })
 

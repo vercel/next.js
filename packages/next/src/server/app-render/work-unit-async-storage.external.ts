@@ -116,9 +116,17 @@ export interface PrerenderStoreModern extends CommonWorkUnitStore {
   tags: null | string[]
 
   /**
-   * The resume data cache for this prerender.
+   * A mutable resume data cache for this prerender.
    */
   prerenderResumeDataCache: PrerenderResumeDataCache | null
+
+  /**
+   * An immutable resume data cache for this prerender. This may be provided
+   * instead of the `prerenderResumeDataCache` if the prerender is not supposed
+   * to fill caches, and only read from prefilled caches, e.g. when prerendering
+   * an optional fallback shell.
+   */
+  renderResumeDataCache: RenderResumeDataCache | null
 
   /**
    * The HMR refresh hash is only provided in dev mode. It is needed for the dev
