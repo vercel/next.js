@@ -795,6 +795,7 @@ pub struct ExperimentalConfig {
     turbopack_persistent_caching: Option<bool>,
     turbopack_source_maps: Option<bool>,
     turbopack_tree_shaking: Option<bool>,
+    turbopack_scope_hoisting: Option<bool>,
     // Whether to enable the global-not-found convention
     global_not_found: Option<bool>,
     /// Defaults to false in development mode, true in production mode.
@@ -1586,6 +1587,14 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub async fn turbo_minify(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
         let minify = self.experimental.turbopack_minify;
+        Ok(Vc::cell(
+            minify.unwrap_or(matches!(*mode.await?, NextMode::Build)),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn turbo_scope_hoisting(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
+        let minify = self.experimental.turbopack_scope_hoisting;
         Ok(Vc::cell(
             minify.unwrap_or(matches!(*mode.await?, NextMode::Build)),
         ))
