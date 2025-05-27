@@ -18,7 +18,9 @@ For example, considering a dashboard, you can use parallel routes to simultaneou
   height="942"
 />
 
-## Slots
+## Convention
+
+### Slots
 
 Parallel routes are created using named **slots**. Slots are defined with the `@folder` convention. For example, the following file structure defines two slots: `@analytics` and `@team`:
 
@@ -70,17 +72,6 @@ However, slots are **not** route segments and do not affect the URL structure. F
 >
 > - The `children` prop is an implicit slot that does not need to be mapped to a folder. This means `app/page.js` is equivalent to `app/@children/page.js`.
 
-## Active state and navigation
-
-By default, Next.js keeps track of the active _state_ (or subpage) for each slot. However, the content rendered within a slot will depend on the type of navigation:
-
-- [**Soft Navigation**](/docs/app/building-your-application/routing/linking-and-navigating#5-soft-navigation): During client-side navigation, Next.js will perform a [partial render](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering), changing the subpage within the slot, while maintaining the other slot's active subpages, even if they don't match the current URL.
-- **Hard Navigation**: After a full-page load (browser refresh), Next.js cannot determine the active state for the slots that don't match the current URL. Instead, it will render a [`default.js`](#defaultjs) file for the unmatched slots, or `404` if `default.js` doesn't exist.
-
-> **Good to know**:
->
-> - The `404` for unmatched routes helps ensure that you don't accidentally render a parallel route on a page that it was not intended for.
-
 ### `default.js`
 
 You can define a `default.js` file to render as a fallback for unmatched slots during the initial load or full-page reload.
@@ -101,7 +92,20 @@ On refresh, Next.js will render a `default.js` for `@analytics`. If `default.js`
 
 Additionally, since `children` is an implicit slot, you also need to create a `default.js` file to render a fallback for `children` when Next.js cannot recover the active state of the parent page.
 
-### `useSelectedLayoutSegment(s)`
+## Behavior
+
+By default, Next.js keeps track of the active _state_ (or subpage) for each slot. However, the content rendered within a slot will depend on the type of navigation:
+
+- [**Soft Navigation**](/docs/app/building-your-application/routing/linking-and-navigating#5-soft-navigation): During client-side navigation, Next.js will perform a [partial render](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering), changing the subpage within the slot, while maintaining the other slot's active subpages, even if they don't match the current URL.
+- **Hard Navigation**: After a full-page load (browser refresh), Next.js cannot determine the active state for the slots that don't match the current URL. Instead, it will render a [`default.js`](#defaultjs) file for the unmatched slots, or `404` if `default.js` doesn't exist.
+
+> **Good to know**:
+>
+> - The `404` for unmatched routes helps ensure that you don't accidentally render a parallel route on a page that it was not intended for.
+
+## Examples
+
+### With `useSelectedLayoutSegment(s)`
 
 Both [`useSelectedLayoutSegment`](/docs/app/api-reference/functions/use-selected-layout-segment) and [`useSelectedLayoutSegments`](/docs/app/api-reference/functions/use-selected-layout-segments) accept a `parallelRoutesKey` parameter, which allows you to read the active route segment within a slot.
 
@@ -128,8 +132,6 @@ export default function Layout({ auth }) {
 ```
 
 When a user navigates to `app/@auth/login` (or `/login` in the URL bar), `loginSegment` will be equal to the string `"login"`.
-
-## Examples
 
 ### Conditional Routes
 
@@ -217,7 +219,7 @@ export default function Layout({ children }) {
 
 ### Modals
 
-Parallel Routes can be used together with [Intercepting Routes](/docs/app/building-your-application/routing/intercepting-routes) to create modals that support deep linking. This allows you to solve common challenges when building modals, such as:
+Parallel Routes can be used together with [Intercepting Routes](/docs/app/api-reference/file-conventions/intercepting-routes) to create modals that support deep linking. This allows you to solve common challenges when building modals, such as:
 
 - Making the modal content **shareable through a URL**.
 - **Preserving context** when the page is refreshed, instead of closing the modal.
@@ -304,8 +306,8 @@ export default function Page() {
 
 > **Good to know:**
 >
-> - The convention used to intercept the route, e.g. `(.)`, depends on your file-system structure. See [Intercepting Routes convention](/docs/app/building-your-application/routing/intercepting-routes#convention).
-> - By separating the `<Modal>` functionality from the modal content (`<Login>`), you can ensure any content inside the modal, e.g. [forms](/docs/app/building-your-application/data-fetching/server-actions-and-mutations#forms), are Server Components. See [Interleaving Client and Server Components](/docs/app/getting-started/server-and-client-components#examples#supported-pattern-passing-server-components-to-client-components-as-props) for more information.
+> - The convention used to intercept the route, e.g. `(.)`, depends on your file-system structure. See [Intercepting Routes convention](/docs/app/api-reference/file-conventions/intercepting-routes#convention).
+> - By separating the `<Modal>` functionality from the modal content (`<Login>`), you can ensure any content inside the modal, e.g. [forms](/docs/app/guides/forms), are Server Components. See [Interleaving Client and Server Components](/docs/app/getting-started/server-and-client-components#examples#supported-pattern-passing-server-components-to-client-components-as-props) for more information.
 
 #### Opening the modal
 
@@ -459,7 +461,7 @@ export default function CatchAll() {
 
 > **Good to know:**
 >
-> - We use a catch-all route in our `@auth` slot to close the modal because of the behavior described in [Active state and navigation](#active-state-and-navigation). Since client-side navigations to a route that no longer match the slot will remain visible, we need to match the slot to a route that returns `null` to close the modal.
+> - We use a catch-all route in our `@auth` slot to close the modal because of how parallel routes behave(#behavior). Since client-side navigations to a route that no longer match the slot will remain visible, we need to match the slot to a route that returns `null` to close the modal.
 > - Other examples could include opening a photo modal in a gallery while also having a dedicated `/photo/[id]` page, or opening a shopping cart in a side modal.
 > - [View an example](https://github.com/vercel-labs/nextgram) of modals with Intercepted and Parallel Routes.
 
