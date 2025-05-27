@@ -89,7 +89,7 @@ impl<'de> Deserialize<'de> for RcStr {
             Repr::Id(id) => DE_MAP.with(|map| {
                 let s = map
                     .get(id as usize)
-                    .ok_or_else(|| D::Error::custom(format!("failed to find id: {}", id)))?;
+                    .ok_or_else(|| D::Error::custom(format!("failed to find id: {id}")))?;
                 Ok(s.clone())
             }),
         }
