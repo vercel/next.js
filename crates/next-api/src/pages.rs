@@ -918,7 +918,9 @@ impl PageEndpoint {
                     ssr_module: ssr_module.to_resolved().await?,
                     app_module: None,
                     document_module: None,
-                    runtime: config.runtime,
+                    // /_app and /_document are always rendered for Node.js for this case. For edge
+                    // they're included in the page bundle.
+                    runtime: NextRuntime::NodeJs,
                 }
             } else if config.runtime == NextRuntime::Edge {
                 let modules = create_page_ssr_entry_module(
