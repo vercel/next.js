@@ -15,15 +15,24 @@ const MAX_QUEUE_SIZE: usize = 256;
 type ArcMx<T> = Arc<Mutex<T>>;
 type CompilationEventChannel = mpsc::Sender<Arc<dyn CompilationEvent>>;
 
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+enum EventChannelType {
+    Global,
+    Type(String),
+}
+
 pub struct CompilationEventQueue {
     event_history: ArcMx<VecDeque<Arc<dyn CompilationEvent>>>,
-    subscribers: Arc<DashMap<String, Vec<CompilationEventChannel>>>,
+    subscribers: Arc<DashMap<EventChannelType, Vec<CompilationEventChannel>>>,
 }
 
 impl Default for CompilationEventQueue {
     fn default() -> Self {
         let subscribers = DashMap::new();
-        subscribers.insert("*".to_owned(), Vec::<CompilationEventChannel>::new());
+        subscribers.insert(
+            EventChannelType::Global,
+            Vec::<CompilationEventChannel>::new(),
+        );
 
         Self {
             event_history: Arc::new(Mutex::new(VecDeque::with_capacity(MAX_QUEUE_SIZE))),
@@ -51,7 +60,9 @@ impl CompilationEventQueue {
             history.push_back(message_clone.clone());
 
             // Send to all active receivers of the same message type
-            if let Some(mut type_subscribers) = subscribers.get_mut(message_clone.type_name()) {
+            if let Some(mut type_subscribers) = subscribers.get_mut(&EventChannelType::Type(
+                message_clone.type_name().to_owned(),
+            )) {
                 let mut removal_indices = Vec::new();
                 for (ix, sender) in type_subscribers.iter().enumerate() {
                     if sender.send(message_clone.clone()).await.is_err() {
@@ -65,7 +76,7 @@ impl CompilationEventQueue {
             }
 
             // Send to all global message subscribers
-            let mut all_channel = subscribers.get_mut("*").unwrap();
+            let mut all_channel = subscribers.get_mut(&EventChannelType::Global).unwrap();
             let mut removal_indices = Vec::new();
             for (ix, sender) in all_channel.iter_mut().enumerate() {
                 if sender.send(message_clone.clone()).await.is_err() {
@@ -95,7 +106,9 @@ impl CompilationEventQueue {
             // Store the sender
             if let Some(event_types) = event_types {
                 for event_type in event_types.iter() {
-                    let mut type_subscribers = subscribers.entry(event_type.clone()).or_default();
+                    let mut type_subscribers = subscribers
+                        .entry(EventChannelType::Type(event_type.clone()))
+                        .or_default();
                     type_subscribers.push(tx_clone.clone());
                 }
 
@@ -105,7 +118,8 @@ impl CompilationEventQueue {
                     }
                 }
             } else {
-                let mut global_subscribers = subscribers.entry("*".to_string()).or_default();
+                let mut global_subscribers =
+                    subscribers.entry(EventChannelType::Global).or_default();
                 global_subscribers.push(tx_clone.clone());
 
                 for event in event_history.lock().await.iter() {
