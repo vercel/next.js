@@ -210,7 +210,7 @@ describe('Error overlay for hydration errors in App router', () => {
          "componentStack": "...
            <HotReload assetPrefix="" globalError={[...]}>
              <AppDevOverlay state={{nextId:1, ...}} globalError={[...]}>
-               <AppDevOverlayErrorBoundary globalError={[...]} onError={function bound dispatchSetState}>
+               <AppDevOverlayErrorBoundary globalError={[...]} onError={function}>
                  <ReplaySsrOnlyErrors>
                  <DevRootHTTPAccessFallbackBoundary>
                    <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
@@ -246,7 +246,7 @@ describe('Error overlay for hydration errors in App router', () => {
          "componentStack": "...
            <HotReload assetPrefix="" globalError={[...]}>
              <AppDevOverlay state={{nextId:1, ...}} globalError={[...]}>
-               <AppDevOverlayErrorBoundary globalError={[...]} onError={function bound dispatchSetState}>
+               <AppDevOverlayErrorBoundary globalError={[...]} onError={function}>
                  <ReplaySsrOnlyErrors>
                  <DevRootHTTPAccessFallbackBoundary>
                    <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
@@ -1046,7 +1046,7 @@ describe('Error overlay for hydration errors in App router', () => {
          "componentStack": "...
          <HotReload assetPrefix="" globalError={[...]}>
            <AppDevOverlay state={{nextId:1, ...}} globalError={[...]}>
-             <AppDevOverlayErrorBoundary globalError={[...]} onError={function bound dispatchSetState}>
+             <AppDevOverlayErrorBoundary globalError={[...]} onError={function}>
                <ReplaySsrOnlyErrors>
                <DevRootHTTPAccessFallbackBoundary>
                  <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
