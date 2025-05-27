@@ -76,7 +76,7 @@ In order to install it:
 
 ### Step 3. Enable the web service
 
-By default the web services are not allowed for anonymous users, so the yhave to be enabled.
+By default the web services are not allowed for anonymous users, so they have to be enabled.
 
 Go to /sitefinity/Administration/WebServices and edit the 'Default' web service to allow it to be accessible by 'Everyone'
 

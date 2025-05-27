@@ -1,6 +1,6 @@
 # Next.js + Turbopack
 
-This example allows you to get started with `next dev --turbo` quicky.
+This example allows you to get started with `next dev --turbo` quickly.
 
 ## Deploy your own
 
