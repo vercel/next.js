@@ -1,14 +1,6 @@
 'use client'
 
-export default function ClientComponent({
-  _string,
-  _number,
-  _boolean,
-  _array,
-  _object,
-  _null,
-  _undefined,
-}: {
+export default function ClientComponent(props: {
   _string: string
   _number: number
   _boolean: boolean

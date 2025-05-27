@@ -141,8 +141,6 @@ async fn base_resolve_options(
     }
     let import_map = import_map.resolved_cell();
 
-    let plugins = opt.after_resolve_plugins.clone();
-
     let conditions = {
         let mut conditions: ResolutionConditions = [
             ("import".into(), ConditionValue::Unknown),
@@ -266,7 +264,7 @@ async fn base_resolve_options(
         default_files: vec!["index".into()],
         import_map: Some(import_map),
         resolved_map: opt.resolved_map,
-        plugins,
+        after_resolve_plugins: opt.after_resolve_plugins.clone(),
         before_resolve_plugins: opt.before_resolve_plugins.clone(),
         loose_errors: opt.loose_errors,
         ..Default::default()

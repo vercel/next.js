@@ -119,8 +119,8 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                     request_glob,
                 }) = *exception_glob
                 {
-                    let path_match = path_glob.await?.execute(&raw_fs_path.path);
-                    let request_match = request_glob.await?.execute(&request_str);
+                    let path_match = path_glob.await?.matches(&raw_fs_path.path);
+                    let request_match = request_glob.await?.matches(&request_str);
                     if path_match || request_match {
                         return Ok(ResolveResultOption::none());
                     }
@@ -135,8 +135,8 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                     request_glob,
                 }) = *external_glob
                 {
-                    let path_match = path_glob.await?.execute(&raw_fs_path.path);
-                    let request_match = request_glob.await?.execute(&request_str);
+                    let path_match = path_glob.await?.matches(&raw_fs_path.path);
+                    let request_match = request_glob.await?.matches(&request_str);
 
                     if !path_match && !request_match {
                         return Ok(ResolveResultOption::none());
