@@ -129,15 +129,6 @@ const getOrInstantiateModuleFromParent: GetOrInstantiateModuleFromParent<
   })
 }
 
-function getDevWorkerBlobURL(chunks: ChunkPath[]) {
-  return getWorkerBlobURL(
-    chunks,
-    `// noop fns to prevent runtime errors during initialization
-self.$RefreshReg$ = function() {};
-self.$RefreshSig$ = function() {};`
-  )
-}
-
 // @ts-ignore Defined in `runtime-base.ts`
 function instantiateModule(id: ModuleId, source: SourceInfo): Module {
   const moduleFactory = moduleFactories[id]
@@ -229,7 +220,7 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
           U: relativeURL,
           k: refresh,
           R: createResolvePathFromModule(r),
-          b: getDevWorkerBlobURL,
+          b: getWorkerBlobURL,
           z: requireStub,
         })
       )
@@ -257,22 +248,28 @@ function runModuleExecutionHooks(
   module: Module,
   executeModule: (ctx: RefreshContext) => void
 ) {
-  const cleanupReactRefreshIntercept =
-    typeof globalThis.$RefreshInterceptModuleExecution$ === 'function'
-      ? globalThis.$RefreshInterceptModuleExecution$(module.id)
-      : () => {}
-
-  try {
+  if (typeof globalThis.$RefreshInterceptModuleExecution$ === 'function') {
+    const cleanupReactRefreshIntercept =
+      globalThis.$RefreshInterceptModuleExecution$(module.id)
+    try {
+      executeModule({
+        register: globalThis.$RefreshReg$,
+        signature: globalThis.$RefreshSig$,
+        registerExports: registerExportsAndSetupBoundaryForReactRefresh,
+      })
+    } finally {
+      // Always cleanup the intercept, even if module execution failed.
+      cleanupReactRefreshIntercept()
+    }
+  } else {
+    // If the react refresh hooks are not installed we need to bind dummy functions.
+    // This is expected when running in a Web Worker.  It is also common in some of
+    // our test environments.
     executeModule({
-      register: globalThis.$RefreshReg$,
-      signature: globalThis.$RefreshSig$,
-      registerExports: registerExportsAndSetupBoundaryForReactRefresh,
+      register: (type, id) => {},
+      signature: () => (type) => {},
+      registerExports: (module, helpers) => {},
     })
-  } catch (e) {
-    throw e
-  } finally {
-    // Always cleanup the intercept, even if module execution failed.
-    cleanupReactRefreshIntercept()
   }
 }
 

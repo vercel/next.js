@@ -3,7 +3,7 @@ title: template.js
 description: API Reference for the template.js file.
 ---
 
-Templates are similar to [layouts](/docs/app/api-reference/file-conventions/layout) in that they wrap a child page. However, unlike layouts that persist across routes and maintain state, **templates and their children remount on navigation**.
+A **template** file is similar to a [layout](/docs/app/getting-started/layouts-and-pages#creating-a-layout) in that it wraps a layout or page. Unlike layouts that persist across routes and maintain state, templates are given a unique key, meaning children Client Components reset their state on navigation.
 
 They are useful when you need to:
 
