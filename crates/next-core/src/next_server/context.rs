@@ -996,6 +996,7 @@ pub async fn get_server_chunking_context_with_client_assets(
     turbo_minify: Vc<bool>,
     turbo_source_maps: Vc<bool>,
     no_mangling: Vc<bool>,
+    scope_hoisting: Vc<bool>,
 ) -> Result<Vc<NodeJsChunkingContext>> {
     let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
@@ -1032,28 +1033,29 @@ pub async fn get_server_chunking_context_with_client_assets(
         SourceMapsType::None
     })
     .module_id_strategy(module_id_strategy)
-    .file_tracing(next_mode.is_production())
-    .module_merging(next_mode.is_production());
+    .file_tracing(next_mode.is_production());
 
     if next_mode.is_development() {
         builder = builder.use_file_source_map_uris();
     } else {
-        builder = builder.chunking_config(
-            Vc::<EcmascriptChunkType>::default().to_resolved().await?,
-            ChunkingConfig {
-                min_chunk_size: 20_000,
-                max_chunk_count_per_group: 100,
-                max_merge_chunk_size: 100_000,
-                ..Default::default()
-            },
-        );
-        builder = builder.chunking_config(
-            Vc::<CssChunkType>::default().to_resolved().await?,
-            ChunkingConfig {
-                max_merge_chunk_size: 100_000,
-                ..Default::default()
-            },
-        );
+        builder = builder
+            .chunking_config(
+                Vc::<EcmascriptChunkType>::default().to_resolved().await?,
+                ChunkingConfig {
+                    min_chunk_size: 20_000,
+                    max_chunk_count_per_group: 100,
+                    max_merge_chunk_size: 100_000,
+                    ..Default::default()
+                },
+            )
+            .chunking_config(
+                Vc::<CssChunkType>::default().to_resolved().await?,
+                ChunkingConfig {
+                    max_merge_chunk_size: 100_000,
+                    ..Default::default()
+                },
+            )
+            .module_merging(*scope_hoisting.await?);
     }
 
     Ok(builder.build())
@@ -1070,6 +1072,7 @@ pub async fn get_server_chunking_context(
     turbo_minify: Vc<bool>,
     turbo_source_maps: Vc<bool>,
     no_mangling: Vc<bool>,
+    scope_hoisting: Vc<bool>,
 ) -> Result<Vc<NodeJsChunkingContext>> {
     let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
@@ -1104,28 +1107,29 @@ pub async fn get_server_chunking_context(
         SourceMapsType::None
     })
     .module_id_strategy(module_id_strategy)
-    .file_tracing(next_mode.is_production())
-    .module_merging(next_mode.is_production());
+    .file_tracing(next_mode.is_production());
 
     if next_mode.is_development() {
         builder = builder.use_file_source_map_uris()
     } else {
-        builder = builder.chunking_config(
-            Vc::<EcmascriptChunkType>::default().to_resolved().await?,
-            ChunkingConfig {
-                min_chunk_size: 20_000,
-                max_chunk_count_per_group: 100,
-                max_merge_chunk_size: 100_000,
-                ..Default::default()
-            },
-        );
-        builder = builder.chunking_config(
-            Vc::<CssChunkType>::default().to_resolved().await?,
-            ChunkingConfig {
-                max_merge_chunk_size: 100_000,
-                ..Default::default()
-            },
-        );
+        builder = builder
+            .chunking_config(
+                Vc::<EcmascriptChunkType>::default().to_resolved().await?,
+                ChunkingConfig {
+                    min_chunk_size: 20_000,
+                    max_chunk_count_per_group: 100,
+                    max_merge_chunk_size: 100_000,
+                    ..Default::default()
+                },
+            )
+            .chunking_config(
+                Vc::<CssChunkType>::default().to_resolved().await?,
+                ChunkingConfig {
+                    max_merge_chunk_size: 100_000,
+                    ..Default::default()
+                },
+            )
+            .module_merging(*scope_hoisting.await?);
     }
 
     Ok(builder.build())

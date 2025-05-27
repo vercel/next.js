@@ -225,6 +225,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
     turbo_minify: Vc<bool>,
     turbo_source_maps: Vc<bool>,
     no_mangling: Vc<bool>,
+    scope_hoisting: Vc<bool>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
     let output_root = node_root.join(rcstr!("server/edge")).to_resolved().await?;
     let next_mode = mode.await?;
@@ -273,7 +274,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
                     ..Default::default()
                 },
             )
-            .module_merging(true);
+            .module_merging(*scope_hoisting.await?);
     }
 
     Ok(Vc::upcast(builder.build()))
@@ -290,6 +291,7 @@ pub async fn get_edge_chunking_context(
     turbo_minify: Vc<bool>,
     turbo_source_maps: Vc<bool>,
     no_mangling: Vc<bool>,
+    scope_hoisting: Vc<bool>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
     let output_root = node_root.join(rcstr!("server/edge")).to_resolved().await?;
     let next_mode = mode.await?;
@@ -338,7 +340,7 @@ pub async fn get_edge_chunking_context(
                     ..Default::default()
                 },
             )
-            .module_merging(true);
+            .module_merging(*scope_hoisting.await?);
     }
 
     Ok(Vc::upcast(builder.build()))

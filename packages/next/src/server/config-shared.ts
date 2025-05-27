@@ -418,6 +418,11 @@ export interface ExperimentalConfig {
   turbopackMinify?: boolean
 
   /**
+   * Enable scope hoisting. Defaults to true in build mode and false in dev mode.
+   */
+  turbopackScopeHoisting?: boolean
+
+  /**
    * Enable persistent caching for the turbopack dev server and build.
    */
   turbopackPersistentCaching?: boolean
