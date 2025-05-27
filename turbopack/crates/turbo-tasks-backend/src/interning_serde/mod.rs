@@ -2,8 +2,7 @@
 
 use std::io::Write;
 
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use smallvec::SmallVec;
+use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::FxIndexSet;
 
@@ -93,13 +92,13 @@ where
     Ok(RcStrToLocalId(ser_map))
 }
 
-pub fn from_slice<T>(
+pub fn from_slice<'de, T>(
     config: &pot::Config,
-    bytes: &[u8],
+    bytes: &'de [u8],
     de_map: &LocalIdToRcStr,
 ) -> anyhow::Result<T>
 where
-    T: DeserializeOwned,
+    T: Deserialize<'de>,
 {
     turbo_rcstr::set_de_map(&de_map.0, || Ok(config.deserialize(bytes)?))
 }
