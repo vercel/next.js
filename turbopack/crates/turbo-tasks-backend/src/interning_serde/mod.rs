@@ -2,7 +2,7 @@
 
 use std::io::Write;
 
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use smallvec::SmallVec;
 use turbo_rcstr::RcStr;
 use turbo_tasks::FxIndexSet;
