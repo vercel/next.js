@@ -4,11 +4,11 @@ import { ErrorBoundary } from '../../error-boundary'
 import DefaultGlobalError, {
   type GlobalErrorComponent,
 } from '../../global-error'
+import { dispatcher } from './app-dev-overlay'
 
 type AppDevOverlayErrorBoundaryProps = {
   children: React.ReactNode
   globalError: [GlobalErrorComponent, React.ReactNode]
-  onError: () => void
 }
 
 type AppDevOverlayErrorBoundaryState = {
@@ -53,7 +53,7 @@ export class AppDevOverlayErrorBoundary extends PureComponent<
   }
 
   componentDidCatch() {
-    this.props.onError()
+    dispatcher.openErrorOverlay()
   }
 
   render() {
