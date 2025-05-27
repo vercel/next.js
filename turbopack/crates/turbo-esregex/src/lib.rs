@@ -18,8 +18,8 @@ pub struct EsRegex {
     delegate: EsRegexImpl,
     // Store the original arguments used to construct
     // this regex to support equality and serialization.
-    pattern: String,
-    flags: String,
+    pub pattern: String,
+    pub flags: String,
 }
 
 #[derive(Debug, Clone)]
