@@ -7574,9 +7574,10 @@
       "Middleware Rewrite should rewrite to the external url for incoming data request externally rewritten",
       "Middleware Rewrite should rewrite when not using localhost",
       "Middleware Rewrite should rewrite without hard navigation",
-      "Middleware Rewrite support colons in path"
+      "Middleware Rewrite support colons in path",
+      "Middleware Rewrite should handle catch-all rewrite correctly"
     ],
-    "failed": ["Middleware Rewrite should handle catch-all rewrite correctly"],
+    "failed": [],
     "pending": [
       "Middleware Rewrite includes the locale in rewrites by default"
     ],
