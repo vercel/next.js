@@ -66,6 +66,16 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
 
+      - name: Check for existing Freeze Release PR
+        run: |
+          FREEZE_PR=$(gh pr list --label "Freeze: Release" --state open --json number --jq '.[0].number // empty')
+          if [ ! -z "$FREEZE_PR" ]; then
+            echo 'Found existing PR #$FREEZE_PR with "Freeze: Release" label. Skipping workflow...'
+            exit 1
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
+
       - name: Get commit of the latest tag
         run: echo "LATEST_TAG_COMMIT=$(git rev-list -n 1 $(git describe --tags --abbrev=0))" >> $GITHUB_ENV
 
@@ -115,9 +125,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
           RELEASE_TYPE: ${{ github.event.inputs.releaseType }}
 
-      # Add label to verify the PR is created from this workflow.
+      # Add "created-by: CI" label to verify the PR is created from this workflow.
+      # Add "Freeze: Release" label to freeze the next release process to prevent race condition from cron jobs.
       - name: Add label to PR
         if: steps.changesets.outputs.pullRequestNumber
-        run: 'gh pr edit ${{ steps.changesets.outputs.pullRequestNumber }} --add-label "created-by: CI"'
+        run: |
+          gh pr edit ${{ steps.changesets.outputs.pullRequestNumber }} --add-label "created-by: CI"
+          if [ "${{ github.event.inputs.releaseType }}" != "canary" ]; then
+            gh pr edit ${{ steps.changesets.outputs.pullRequestNumber }} --add-label "Freeze: Release"
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
