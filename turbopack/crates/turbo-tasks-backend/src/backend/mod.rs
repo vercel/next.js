@@ -59,6 +59,7 @@ use crate::{
         CachedDataItemValueRef, CellRef, CollectibleRef, CollectiblesRef, DirtyState,
         InProgressCellState, InProgressState, InProgressStateInner, OutputValue, RootType,
     },
+    interning_serde::RcStrToLocalId,
     utils::{
         bi_map::BiMap, chunked_vec::ChunkedVec, ptr_eq_arc::PtrEqArc, sharded::Sharded, swap_retain,
     },
@@ -910,12 +911,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let task_snapshots = snapshot
             .into_iter()
             .filter_map(|iter| {
+                type SerializedData = (SmallVec<[u8; 16]>, RcStrToLocalId);
+
                 let mut iter = iter
                     .filter_map(
                         |(task_id, meta, data): (
                             _,
-                            Option<Result<SmallVec<_>>>,
-                            Option<Result<SmallVec<_>>>,
+                            Option<Result<SerializedData>>,
+                            Option<Result<SerializedData>>,
                         )| {
                             let meta = match meta {
                                 Some(Ok(meta)) => Some(meta),
@@ -1062,7 +1065,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             .flatten();
         let task_id = {
             // Safety: `tx` is a valid transaction from `self.backend.backing_storage`.
-            if let Some(task_id) = unsafe {
+            if let Some((task_id, _rcstr_map)) = unsafe {
+                // We can ignore rcstr_map because those are all already stored in the database.
                 self.backing_storage
                     .forward_lookup_task_cache(tx.as_ref(), &task_type)
                     .expect("Failed to lookup task id")
