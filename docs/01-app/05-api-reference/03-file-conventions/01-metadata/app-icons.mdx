@@ -177,7 +177,7 @@ The default export function receives the following props:
 
 #### `params` (optional)
 
-An object containing the [dynamic route parameters](/docs/app/building-your-application/routing/dynamic-routes) object from the root segment down to the segment `icon` or `apple-icon` is colocated in.
+An object containing the [dynamic route parameters](/docs/app/api-reference/file-conventions/dynamic-routes) object from the root segment down to the segment `icon` or `apple-icon` is colocated in.
 
 ```tsx filename="app/shop/[slug]/icon.tsx" switcher
 export default function Icon({ params }: { params: { slug: string } }) {
