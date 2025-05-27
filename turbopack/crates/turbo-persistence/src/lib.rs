@@ -2,6 +2,7 @@
 #![feature(new_zeroed_alloc)]
 #![feature(get_mut_unchecked)]
 #![feature(sync_unsafe_cell)]
+#![feature(iter_collect_into)]
 
 mod arc_slice;
 mod collector;
@@ -16,6 +17,8 @@ mod static_sorted_file;
 mod static_sorted_file_builder;
 mod write_batch;
 
+mod meta_file;
+mod meta_file_builder;
 #[cfg(test)]
 mod tests;
 mod value_buf;

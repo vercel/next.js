@@ -9491,6 +9491,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "byteorder",
+ "either",
  "jiff",
  "lzzzz",
  "memmap2 0.9.5",

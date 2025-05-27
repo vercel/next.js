@@ -16,10 +16,12 @@ There is a single `CURRENT` file which stores the latest committed sequence numb
 
 All other files have a sequence number as file name, e. g. `0000123.sst`. All files are immutable once there sequence number is <= the committed sequence number. But they might be deleted when they are superseeded by other committed files.
 
-There are two different file types:
+There are four different file types:
 
 - Static Sorted Table (SST, `*.sst`): These files contain key value pairs.
 - Blob files (`*.blob`): These files contain large values.
+- Delete files (`*.del`): These files contain a list of sequence numbers of files that should be considered as deleted.
+- Meta files (`*.meta`): These files contain metadata about the SST files. They contains the hash range and a AQMF for quick filtering.
 
 Therefore there are there value types:
 
@@ -29,18 +31,30 @@ Therefore there are there value types:
 - Future:
   - MERGE: An application specific update operation that is applied on the old value.
 
-### SST file
+### Meta file
 
-- Headers
+A meta file can contain metadata about multiple SST files. The metadata is stored in a single file to avoid having too many small files.
+
+- Header
   - 4 bytes magic number and version
   - 4 bytes key family
-  - 8 bytes min hash
-  - 8 bytes max hash
-  - 3 bytes AQMF length
-  - 2 bytes key Compression Dictionary length
-  - 2 bytes value Compression Dictionary length
-  - 2 bytes block count
-- serialized AQMF
+  - 4 bytes count of described SST files
+  - foreach described SST file
+    - 4 bytes sequence number of the SST file
+    - 2 bytes key Compression Dictionary length
+    - 2 bytes value Compression Dictionary length
+    - 2 bytes block count
+    - 8 bytes min hash
+    - 8 bytes max hash
+    - 8 bytes SST file size
+    - 4 bytes end of AQMF offset relative to start of all AQMF data
+- foreach described SST file
+  - serialized AQMF
+
+### SST file
+
+The SST file contains only data without any header.
+
 - serialized key Compression Dictionary
 - serialized value Compression Dictionary
 - foreach block
