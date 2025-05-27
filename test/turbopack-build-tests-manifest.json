@@ -1641,10 +1641,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/conflicting-page-segments/conflicting-page-segments.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "conflicting-page-segments should throw an error when a route groups causes a conflict with a parallel segment"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
