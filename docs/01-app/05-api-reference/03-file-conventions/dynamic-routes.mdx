@@ -110,4 +110,4 @@ export async function generateStaticParams() {
 }
 ```
 
-The primary benefit of the `generateStaticParams` function is its smart retrieval of data. If content is fetched within the `generateStaticParams` function using a `fetch` request, the requests are [automatically deduplicated](/docs/app/deep-dive/caching#request-memoization). This means a `fetch` request with the same arguments across multiple `generateStaticParams`, Layouts, and Pages will only be made once, which decreases build times.
+When using `fetch` inside the `generateStaticParams` function, the requests are [automatically deduplicated](/docs/app/deep-dive/caching#request-memoization). This avoids multiple network calls for the same data Layouts, Pages, and other `generateStaticParams` functions, speeding up build time.
