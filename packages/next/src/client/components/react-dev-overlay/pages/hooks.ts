@@ -30,5 +30,6 @@ export const usePagesDevOverlay = () => {
   return {
     state,
     onComponentError,
+    dispatch,
   }
 }

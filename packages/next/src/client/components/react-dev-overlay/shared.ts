@@ -27,7 +27,9 @@ export interface OverlayState {
   disableDevIndicator: boolean
   debugInfo: DebugInfo
   routerType: 'pages' | 'app'
+  isErrorOverlayOpen: boolean
 }
+export type OverlayDispatch = React.Dispatch<BusEvent>
 
 export const ACTION_STATIC_INDICATOR = 'static-indicator'
 export const ACTION_BUILD_OK = 'build-ok'
@@ -39,6 +41,9 @@ export const ACTION_UNHANDLED_ERROR = 'unhandled-error'
 export const ACTION_UNHANDLED_REJECTION = 'unhandled-rejection'
 export const ACTION_DEBUG_INFO = 'debug-info'
 export const ACTION_DEV_INDICATOR = 'dev-indicator'
+export const ACTION_ERROR_OVERLAY_OPEN = 'error-overlay-open'
+export const ACTION_ERROR_OVERLAY_CLOSE = 'error-overlay-close'
+export const ACTION_ERROR_OVERLAY_TOGGLE = 'error-overlay-toggle'
 
 export const STORAGE_KEY_THEME = '__nextjs-dev-tools-theme'
 export const STORAGE_KEY_POSITION = '__nextjs-dev-tools-position'
@@ -90,6 +95,16 @@ interface DevIndicatorAction {
   devIndicator: DevIndicatorServerState
 }
 
+export interface ErrorOverlayOpenAction {
+  type: typeof ACTION_ERROR_OVERLAY_OPEN
+}
+export interface ErrorOverlayCloseAction {
+  type: typeof ACTION_ERROR_OVERLAY_CLOSE
+}
+export interface ErrorOverlayToggleAction {
+  type: typeof ACTION_ERROR_OVERLAY_TOGGLE
+}
+
 export type BusEvent =
   | BuildOkAction
   | BuildErrorAction
@@ -101,6 +116,9 @@ export type BusEvent =
   | StaticIndicatorAction
   | DebugInfoAction
   | DevIndicatorAction
+  | ErrorOverlayOpenAction
+  | ErrorOverlayCloseAction
+  | ErrorOverlayToggleAction
 
 const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX =
   // 1st group: v8
@@ -136,7 +154,10 @@ function pushErrorFilterDuplicates(
 const shouldDisableDevIndicator =
   process.env.__NEXT_DEV_INDICATOR?.toString() === 'false'
 
-export const INITIAL_OVERLAY_STATE: Omit<OverlayState, 'routerType'> = {
+export const INITIAL_OVERLAY_STATE: Omit<
+  OverlayState,
+  'isErrorOverlayOpen' | 'routerType'
+> = {
   nextId: 1,
   buildError: null,
   errors: [],
@@ -159,6 +180,10 @@ function getInitialState(
 ): OverlayState & { routerType: 'pages' | 'app' } {
   return {
     ...INITIAL_OVERLAY_STATE,
+    // Pages Router only listenes to thrown errors which
+    // always open the overlay.
+    // TODO: Should be the same default as App Router once we surface console.error in Pages Router.
+    isErrorOverlayOpen: routerType === 'pages',
     routerType,
   }
 }
@@ -238,6 +263,15 @@ export function useErrorOverlayReducer(routerType: 'pages' | 'app') {
           disableDevIndicator:
             shouldDisableDevIndicator || !!action.devIndicator.disabledUntil,
         }
+      }
+      case ACTION_ERROR_OVERLAY_OPEN: {
+        return { ...state, isErrorOverlayOpen: true }
+      }
+      case ACTION_ERROR_OVERLAY_CLOSE: {
+        return { ...state, isErrorOverlayOpen: false }
+      }
+      case ACTION_ERROR_OVERLAY_TOGGLE: {
+        return { ...state, isErrorOverlayOpen: !state.isErrorOverlayOpen }
       }
       default: {
         return state

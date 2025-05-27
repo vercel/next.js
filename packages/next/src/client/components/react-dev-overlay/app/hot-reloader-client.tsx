@@ -624,7 +624,7 @@ export default function HotReload({
   ])
 
   return (
-    <AppDevOverlay state={state} globalError={globalError}>
+    <AppDevOverlay state={state} dispatch={dispatch} globalError={globalError}>
       {children}
     </AppDevOverlay>
   )
