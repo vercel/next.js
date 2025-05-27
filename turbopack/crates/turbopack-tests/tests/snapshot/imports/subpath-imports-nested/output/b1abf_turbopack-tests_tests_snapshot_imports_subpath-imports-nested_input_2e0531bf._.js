@@ -4,7 +4,7 @@
 "use strict";
 
 __turbopack_context__.s({
-    "default": (()=>__TURBOPACK__default__export__)
+"default": (()=>__TURBOPACK__default__export__)
 });
 const __TURBOPACK__default__export__ = 'foo';
 }),
@@ -12,7 +12,7 @@ const __TURBOPACK__default__export__ = 'foo';
 "use strict";
 
 __turbopack_context__.s({
-    "default": (()=>__TURBOPACK__default__export__)
+"default": (()=>__TURBOPACK__default__export__)
 });
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$subpath$2d$imports$2d$nested$2f$input$2f$foo$2e$js__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/subpath-imports-nested/input/foo.js [test] (ecmascript)");
 ;

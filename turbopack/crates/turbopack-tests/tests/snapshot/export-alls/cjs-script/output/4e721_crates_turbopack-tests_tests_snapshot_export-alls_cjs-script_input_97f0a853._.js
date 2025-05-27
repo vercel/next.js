@@ -5,8 +5,8 @@
 var { m: module, e: exports } = __turbopack_context__;
 {
 module.exports = {
-    foo: 1,
-    bar: 2
+foo: 1,
+bar: 2
 };
 }}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/export-alls/cjs-script/input/mod.js [test] (ecmascript)": ((__turbopack_context__) => {

@@ -1110,16 +1110,19 @@ async fn emit_content(content: CodeGenResult) -> Result<Vc<EcmascriptModuleConte
             Either::Right(comments) => comments,
         };
 
+        let mut wr = JsWriter::new(
+            source_map.clone(),
+            "\n",
+            &mut bytes,
+            generate_source_map.then_some(&mut mappings),
+        );
+        wr.set_indent_str("");
+
         let mut emitter = Emitter {
             cfg: swc_core::ecma::codegen::Config::default(),
             cm: source_map.clone(),
             comments: Some(&comments),
-            wr: JsWriter::new(
-                source_map.clone(),
-                "\n",
-                &mut bytes,
-                generate_source_map.then_some(&mut mappings),
-            ),
+            wr,
         };
 
         emitter.emit_program(&program)?;
