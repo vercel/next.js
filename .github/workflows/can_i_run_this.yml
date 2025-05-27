@@ -1,0 +1,19 @@
+name: Can I run this?
+
+on:
+  workflow_dispatch:
+
+jobs:
+  can_i_run_this:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if I can run this
+        run: echo "Yes, you can run this!"
+      - name: Check token
+        run: gh auth status
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
+      - name: Add label to PR
+        run: 'gh pr edit 79707 --add-label "CI Approved"'
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
