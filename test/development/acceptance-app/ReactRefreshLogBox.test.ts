@@ -1460,11 +1460,14 @@ describe('ReactRefreshLogBox app', () => {
 
       await next.patchFile('index.js', "throw new Error('module error')")
 
-      if (isTurbopack) {
-        // TODO(veil): Turbopack is flaky. Possibly related to https://linear.app/vercel/issue/NDX-920/turbopack-errors-after-hmr-have-no-stacktraces-in-affected-chunks
+      await retry(async () => {
         // Should use `await expect(browser).toDisplayRedbox()`
         await session.assertHasRedbox()
-      } else {
+      })
+
+      // TODO(veil): Turbopack is flaky. Possibly related to https://linear.app/vercel/issue/NDX-920/turbopack-errors-after-hmr-have-no-stacktraces-in-affected-chunks
+
+      if (!isTurbopack) {
         await expect({ browser, next }).toDisplayRedbox(`
          {
            "description": "module error",

@@ -104,6 +104,7 @@ import {
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_DID_POSTPONE_HEADER,
   NEXT_URL,
+  NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_IS_PRERENDER_HEADER,
 } from '../client/components/app-router-headers'
 import type {
@@ -1345,19 +1346,24 @@ export default abstract class Server<
               }
             }
 
-            // handle the actual dynamic route name being requested
+            // If the pathname being requested is the same as the source
+            // pathname, and we don't have valid params, we want to use the
+            // default route matches.
             if (
               utils.defaultRouteMatches &&
               normalizedUrlPath === srcPathname &&
-              !paramsResult.hasValidParams &&
-              !utils.normalizeDynamicRouteParams({ ...params }, true)
-                .hasValidParams
+              !paramsResult.hasValidParams
             ) {
               params = utils.defaultRouteMatches
 
-              // Mark that the default route matches were set on the request
-              // during routing.
-              addRequestMeta(req, 'didSetDefaultRouteMatches', true)
+              // If the route matches header is an empty string, we want to
+              // render a fallback shell. This is because we know this came from
+              // a prerender (it has the header) but it's values were filtered
+              // out (because the allowQuery was empty). If it was undefined
+              // then we know that the request is hitting the lambda directly.
+              if (routeMatchesHeader === '') {
+                addRequestMeta(req, 'renderFallbackShell', true)
+              }
             }
 
             if (params) {
@@ -2020,16 +2026,21 @@ export default abstract class Server<
     isAppPath: boolean,
     resolvedPathname: string
   ): void {
+    const baseVaryHeader = `${RSC_HEADER}, ${NEXT_ROUTER_STATE_TREE_HEADER}, ${NEXT_ROUTER_PREFETCH_HEADER}, ${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}`
+    const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
+
     let addedNextUrlToVary = false
 
     if (isAppPath && this.pathCouldBeIntercepted(resolvedPathname)) {
       // Interception route responses can vary based on the `Next-URL` header.
       // We use the Vary header to signal this behavior to the client to properly cache the response.
-      res.appendHeader('vary', `${NEXT_URL}`)
+      res.appendHeader('vary', `${baseVaryHeader}, ${NEXT_URL}`)
       addedNextUrlToVary = true
+    } else if (isAppPath || isRSCRequest) {
+      // We don't need to include `Next-URL` in the Vary header for non-interception routes since it won't affect the response.
+      // We also set this header for pages to avoid caching issues when navigating between pages and app.
+      res.appendHeader('vary', baseVaryHeader)
     }
-    // For other cases such as App Router requests or RSC requests we don't need to set vary header since we already
-    // have the _rsc query with the unique hash value.
 
     if (!addedNextUrlToVary) {
       // Remove `Next-URL` from the request headers we determined it wasn't necessary to include in the Vary header.
@@ -2960,7 +2971,7 @@ export default abstract class Server<
             headers,
             rscData: metadata.flightData,
             postponed: metadata.postponed,
-            status: res.statusCode,
+            status: metadata.statusCode,
             segmentData: metadata.segmentData,
           } satisfies CachedAppPageValue,
           cacheControl,
@@ -3217,8 +3228,7 @@ export default abstract class Server<
       const fallbackRouteParams =
         isDynamic &&
         isRoutePPREnabled &&
-        (getRequestMeta(req, 'didSetDefaultRouteMatches') ||
-          isDebugFallbackShell)
+        (getRequestMeta(req, 'renderFallbackShell') || isDebugFallbackShell)
           ? getFallbackRouteParams(pathname)
           : null
 
