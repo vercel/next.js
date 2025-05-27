@@ -532,7 +532,7 @@ jobs:
           path: crates/wasm
 
       - name: Create tarballs
-        run: GH_PR_NUMBER=${{ github.event.pull_request && github.event.pull_request.number || '' }} node scripts/create-preview-tarballs.js "${{ github.sha }}" "${{ runner.temp }}/preview-tarballs"
+        run: node scripts/create-preview-tarballs.js "${{ github.sha }}" "${{ runner.temp }}/preview-tarballs"
 
       - name: Upload tarballs
         uses: actions/upload-artifact@v4
