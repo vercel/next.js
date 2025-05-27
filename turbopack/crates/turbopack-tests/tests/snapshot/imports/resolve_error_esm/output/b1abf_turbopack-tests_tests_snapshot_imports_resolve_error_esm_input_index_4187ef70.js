@@ -5,9 +5,9 @@
 
 __turbopack_context__.s({});
 (()=>{
-    const e = new Error("Cannot find module 'does-not-exist/path'");
-    e.code = 'MODULE_NOT_FOUND';
-    throw e;
+const e = new Error("Cannot find module 'does-not-exist/path'");
+e.code = 'MODULE_NOT_FOUND';
+throw e;
 })();
 ;
 console.log(dne);

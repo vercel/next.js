@@ -5,9 +5,9 @@
 
 __turbopack_context__.s({});
 const __TURBOPACK__import$2e$meta__ = {
-    get url () {
-        return `file://${__turbopack_context__.P("turbopack/crates/turbopack-tests/tests/snapshot/import-meta/esm-mutable/input/mod.mjs")}`;
-    }
+get url () {
+return `file://${__turbopack_context__.P("turbopack/crates/turbopack-tests/tests/snapshot/import-meta/esm-mutable/input/mod.mjs")}`;
+}
 };
 __TURBOPACK__import$2e$meta__.foo = 1;
 }),
