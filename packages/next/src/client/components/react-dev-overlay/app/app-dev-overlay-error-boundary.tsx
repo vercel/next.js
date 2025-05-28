@@ -1,10 +1,10 @@
 import { PureComponent } from 'react'
+import { dispatcher } from './app-dev-overlay' with { 'turbopack-transition': 'nextjs-devtools' }
 import { RuntimeErrorHandler } from '../../errors/runtime-error-handler'
 import { ErrorBoundary } from '../../error-boundary'
 import DefaultGlobalError, {
   type GlobalErrorComponent,
 } from '../../global-error'
-import { dispatcher } from './app-dev-overlay'
 
 type AppDevOverlayErrorBoundaryProps = {
   children: React.ReactNode

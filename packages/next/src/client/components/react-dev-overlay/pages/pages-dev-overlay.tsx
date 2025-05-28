@@ -2,6 +2,7 @@ import { PagesDevOverlayErrorBoundary } from './pages-dev-overlay-error-boundary
 import { usePagesDevOverlay } from './hooks'
 import { FontStyles } from '../font/font-styles'
 import { DevOverlay } from '../ui/dev-overlay'
+import { useInsertionEffect } from 'react'
 
 export type ErrorType = 'runtime' | 'build'
 
@@ -13,6 +14,12 @@ interface PagesDevOverlayProps {
 
 export function PagesDevOverlay({ children }: PagesDevOverlayProps) {
   const { state, dispatch } = usePagesDevOverlay()
+
+  // TODO: Remove once Root initializer creates this element
+  useInsertionEffect(() => {
+    const container = document.createElement('nextjs-portal')
+    document.body.appendChild(container)
+  }, [])
 
   return (
     <>

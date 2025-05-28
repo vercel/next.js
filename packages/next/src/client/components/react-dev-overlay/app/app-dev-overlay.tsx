@@ -19,12 +19,11 @@ import {
   ACTION_RENDERING_INDICATOR_SHOW,
 } from '../shared'
 
-import { useInsertionEffect } from 'react'
+import { startTransition, useInsertionEffect } from 'react'
+import { createRoot } from 'react-dom/client'
 import { FontStyles } from '../font/font-styles'
 import type { DebugInfo } from '../types'
 import { DevOverlay } from '../ui/dev-overlay'
-import { getComponentStack, getOwnerStack } from '../../errors/stitched-error'
-import { isRecoverableError } from '../../../react-client-callbacks/on-recoverable-error'
 import type { DevIndicatorServerState } from '../../../../server/dev/dev-indicator-server-state'
 import type { VersionInfo } from '../../../../server/dev/parse-version-info'
 
@@ -144,7 +143,15 @@ function replayQueuedEvents(dispatch: NonNullable<typeof maybeDispatch>) {
   }
 }
 
-export function AppDevOverlay() {
+function AppDevOverlay({
+  getComponentStack,
+  getOwnerStack,
+  isRecoverableError,
+}: {
+  getComponentStack: (error: Error) => string | undefined
+  getOwnerStack: (error: Error) => string | null | undefined
+  isRecoverableError: (error: Error) => boolean
+}) {
   const [state, dispatch] = useErrorOverlayReducer(
     'app',
     getComponentStack,
@@ -155,12 +162,18 @@ export function AppDevOverlay() {
   useInsertionEffect(() => {
     maybeDispatch = dispatch
 
-    replayQueuedEvents(dispatch)
+    // Can't schedule updates from useInsertionEffect, so we need to defer.
+    // Could move this into a passive Effect but we don't want replaying when
+    // we reconnect.
+    const replayTimeout = setTimeout(() => {
+      replayQueuedEvents(dispatch)
+    })
 
     return () => {
       maybeDispatch = null
+      clearTimeout(replayTimeout)
     }
-  })
+  }, [])
 
   return (
     <>
@@ -169,4 +182,45 @@ export function AppDevOverlay() {
       <DevOverlay state={state} dispatch={dispatch} />
     </>
   )
+}
+
+let isMounted = false
+export function renderAppDevOverlay(
+  getComponentStack: (error: Error) => string | undefined,
+  getOwnerStack: (error: Error) => string | null | undefined,
+  isRecoverableError: (error: Error) => boolean
+): void {
+  if (!isMounted) {
+    // script tags are ignored by createRoot
+    const script = document.createElement('script')
+    script.style.display = 'block'
+    // Although the style applied to the shadow host is isolated,
+    // the element that attached the shadow host (i.e. "script")
+    // is still affected by the parent's style (e.g. "body"). This may
+    // occur style conflicts like "display: flex", with other children
+    // elements therefore give the shadow host an absolute position.
+    script.style.position = 'absolute'
+    script.setAttribute('data-nextjs-dev-overlay', 'true')
+
+    const container = document.createElement('nextjs-portal')
+
+    script.appendChild(container)
+    document.body.appendChild(script)
+
+    const root = createRoot(container)
+
+    startTransition(() => {
+      // TODO: Dedicate error boundary or root error callbacks?
+      // At least it won't unmount any user code if it errors.
+      root.render(
+        <AppDevOverlay
+          getComponentStack={getComponentStack}
+          getOwnerStack={getOwnerStack}
+          isRecoverableError={isRecoverableError}
+        />
+      )
+    })
+
+    isMounted = true
+  }
 }

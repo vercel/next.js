@@ -254,6 +254,7 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
     module: {
       rules: [
         { test: /\.m?js$/, loader: `source-map-loader`, enforce: `pre` },
+        // TODO: Empty next-devtools-app layer. The runtime shouldn't use any NDT bridge APIs.
         {
           include: /[\\/]react-server\.node/,
           layer: 'react-server',
