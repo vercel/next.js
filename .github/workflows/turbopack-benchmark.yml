@@ -7,11 +7,13 @@ on:
       - canary
     paths:
       - '**/crates/**'
+      - '**/Cargo.toml'
       - '**/Cargo.lock'
   pull_request:
     types: ['opened', 'reopened', 'synchronize']
     paths:
       - '**/crates/**'
+      - '**/Cargo.toml'
       - '**/Cargo.lock'
 
 concurrency:
