@@ -1456,7 +1456,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     fn task_execution_result(
         &self,
         task_id: TaskId,
-        result: Result<RawVc, Arc<TurboTasksExecutionError>>,
+        result: Result<RawVc, TurboTasksExecutionError>,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
         operation::UpdateOutputOperation::run(task_id, result, self.execute_context(turbo_tasks));
@@ -2566,7 +2566,7 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
     fn task_execution_result(
         &self,
         task_id: TaskId,
-        result: Result<RawVc, Arc<TurboTasksExecutionError>>,
+        result: Result<RawVc, TurboTasksExecutionError>,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) {
         self.0.task_execution_result(task_id, result, turbo_tasks);

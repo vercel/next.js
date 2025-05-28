@@ -4,9 +4,9 @@ use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     CellId, KeyValuePair, SessionId, TaskId, TraitTypeId, TypedSharedReference, ValueTypeId,
+    backend::TurboTasksExecutionError,
     event::{Event, EventListener},
     registry,
-    util::SharedError,
 };
 
 use crate::{
@@ -56,7 +56,7 @@ pub struct CollectiblesRef {
 pub enum OutputValue {
     Cell(CellRef),
     Output(TaskId),
-    Error(SharedError),
+    Error(TurboTasksExecutionError),
 }
 impl OutputValue {
     fn is_transient(&self) -> bool {

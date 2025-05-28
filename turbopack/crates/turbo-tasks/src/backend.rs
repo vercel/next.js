@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     error::Error,
     fmt::{self, Debug, Display},
     future::Future,
@@ -11,7 +12,9 @@ use std::{
 use anyhow::{Result, anyhow};
 use auto_hash_map::AutoMap;
 use rustc_hash::FxHasher;
+use serde::{Deserialize, Serialize};
 use tracing::Span;
+use turbo_rcstr::RcStr;
 
 pub use crate::id::BackendJobId;
 use crate::{
@@ -401,9 +404,9 @@ pub type TaskCollectiblesMap = AutoMap<RawVc, i32, BuildHasherDefault<FxHasher>,
 
 // Structurally and functionally similar to Cow<&'static, str> but explicitly notes the importance
 // of non-static strings potentially containing PII (Personal Identifiable Information).
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum TurboTasksExecutionErrorMessage {
-    PIISafe(&'static str),
+    PIISafe(Cow<'static, str>),
     NonPIISafe(String),
 }
 
@@ -416,16 +419,32 @@ impl Display for TurboTasksExecutionErrorMessage {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TurboTasksError {
     pub message: TurboTasksExecutionErrorMessage,
     pub source: Option<TurboTasksExecutionError>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct TurboTaskContextError {
+    pub task: RcStr,
+    pub source: Option<TurboTasksExecutionError>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum TurboTasksExecutionError {
     Panic(Arc<TurboTasksPanic>),
     Error(Arc<TurboTasksError>),
+    TaskContext(Arc<TurboTaskContextError>),
+}
+
+impl TurboTasksExecutionError {
+    pub fn task_context(&self, task: impl Display) -> Self {
+        TurboTasksExecutionError::TaskContext(Arc::new(TurboTaskContextError {
+            task: RcStr::from(task.to_string()),
+            source: Some(self.clone()),
+        }))
+    }
 }
 
 impl Error for TurboTasksExecutionError {
@@ -434,6 +453,9 @@ impl Error for TurboTasksExecutionError {
             TurboTasksExecutionError::Panic(_panic) => None,
             TurboTasksExecutionError::Error(error) => {
                 error.source.as_ref().map(|s| s as &dyn Error)
+            }
+            TurboTasksExecutionError::TaskContext(context_error) => {
+                context_error.source.as_ref().map(|s| s as &dyn Error)
             }
         }
     }
@@ -445,6 +467,9 @@ impl Display for TurboTasksExecutionError {
             TurboTasksExecutionError::Panic(panic) => write!(f, "{}", &panic),
             TurboTasksExecutionError::Error(error) => {
                 write!(f, "{}", error.message)
+            }
+            TurboTasksExecutionError::TaskContext(context_error) => {
+                write!(f, "Execution of {} failed", context_error.task)
             }
         }
     }
@@ -534,7 +559,7 @@ pub trait Backend: Sync + Send {
     fn task_execution_result(
         &self,
         task_id: TaskId,
-        result: Result<RawVc, Arc<TurboTasksExecutionError>>,
+        result: Result<RawVc, TurboTasksExecutionError>,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     );
 

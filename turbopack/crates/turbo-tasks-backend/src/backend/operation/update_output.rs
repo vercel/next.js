@@ -1,8 +1,8 @@
-use std::{mem::take, sync::Arc};
+use std::mem::take;
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{RawVc, TaskId, backend::TurboTasksExecutionError, util::SharedError};
+use turbo_tasks::{RawVc, TaskId, backend::TurboTasksExecutionError};
 
 #[cfg(feature = "trace_task_dirty")]
 use crate::backend::operation::invalidate::TaskDirtyCause;
@@ -44,7 +44,7 @@ pub enum UpdateOutputOperation {
 impl UpdateOutputOperation {
     pub fn run(
         task_id: TaskId,
-        output: Result<RawVc, Arc<TurboTasksExecutionError>>,
+        output: Result<RawVc, TurboTasksExecutionError>,
         mut ctx: impl ExecuteContext,
     ) {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
@@ -95,13 +95,12 @@ impl UpdateOutputOperation {
                 panic!("Non-local tasks must not return a local Vc");
             }
             Err(err) => {
-                let err = anyhow::Error::new(err);
                 if let Some(OutputValue::Error(old_error)) = current_output {
-                    if old_error.eq_stack(&err) {
+                    if old_error == &err {
                         return;
                     }
                 }
-                OutputValue::Error(SharedError::new(err))
+                OutputValue::Error(err)
             }
         };
         let old_content = task.insert(CachedDataItem::Output {
