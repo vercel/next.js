@@ -3763,18 +3763,17 @@
       "app dir - next/font app dir - next-font import values should have correct values at /",
       "app dir - next/font app dir - next-font import values should have correct values at /client",
       "app dir - next/font app dir - next-font import values should transform code in node_modules",
-      "app dir - next/font app dir - next-font preconnect should not preconnect when css is used but no fonts",
-      "app dir - next/font app dir - next-font preload should preload correctly with client components",
-      "app dir - next/font app dir - next-font preload should preload correctly with layout using fonts",
-      "app dir - next/font app dir - next-font preload should preload correctly with page using fonts"
-    ],
-    "failed": [
       "app dir - next/font app dir - next-font navigation should not have duplicate preload tags on navigation",
       "app dir - next/font app dir - next-font preconnect should add preconnect when preloading is disabled in component",
       "app dir - next/font app dir - next-font preconnect should add preconnect when preloading is disabled in layout",
       "app dir - next/font app dir - next-font preconnect should add preconnect when preloading is disabled in page",
+      "app dir - next/font app dir - next-font preconnect should not preconnect when css is used but no fonts",
+      "app dir - next/font app dir - next-font preload should preload correctly with client components",
+      "app dir - next/font app dir - next-font preload should preload correctly with layout using fonts",
+      "app dir - next/font app dir - next-font preload should preload correctly with page using fonts",
       "app dir - next/font app dir - next-font preload should preload correctly with server components"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -4659,25 +4658,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/ppr-navigations/simple/per-segment-prefetching.test.ts": {
-    "passed": [
-      "per segment prefetching basic route tree prefetch",
-      "per segment prefetching respond with 204 if the segment does not have prefetch data"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/ppr-navigations/simple/simple.test.ts": {
-    "passed": [
-      "ppr-navigations simple can navigate between all the links and back"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/ppr-navigations/stale-prefetch-entry/stale-prefetch-entry.test.ts": {
     "passed": [
       "stale-prefetch-entry works if a prefetched route entry has become stale (too much time has elapsed since it was prefetched)"
@@ -5523,6 +5503,16 @@
       "segment cache (basic tests) refreshes page segments when navigating to the exact same URL as the current location",
       "segment cache (basic tests) skips dynamic request if prefetched data is fully static",
       "segment cache (basic tests) skips static layouts during partially static navigation"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/segment-cache/cdn-cache-busting/cdn-cache-busting.test.ts": {
+    "passed": [
+      "segment cache (CDN cache busting) perform fully prefetched navigation with a CDN that doesn't respect the Vary header",
+      "segment cache (CDN cache busting) prevent cache poisoning attacks by responding with an error if a custom header is sent during a prefetch without a corresponding cache-busting search param"
     ],
     "failed": [],
     "pending": [],
@@ -9935,10 +9925,10 @@
     "runtimeError": false
   },
   "test/integration/config-devtool-dev/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "devtool set in development mode in next config should warn and revert when a devtool is set in development mode"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -17737,13 +17727,14 @@
     "runtimeError": false
   },
   "test/integration/server-side-dev-errors/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "server-side dev errors should show server-side error for api route correctly",
       "server-side dev errors should show server-side error for dynamic api route correctly",
       "server-side dev errors should show server-side error for dynamic gssp page correctly",
       "server-side dev errors should show server-side error for gsp page correctly",
-      "server-side dev errors should show server-side error for gssp page correctly",
+      "server-side dev errors should show server-side error for gssp page correctly"
+    ],
+    "failed": [
       "server-side dev errors should show server-side error for uncaught empty exception correctly",
       "server-side dev errors should show server-side error for uncaught empty rejection correctly",
       "server-side dev errors should show server-side error for uncaught exception correctly",
@@ -19203,11 +19194,11 @@
     "runtimeError": false
   },
   "test/production/generate-middleware-source-maps/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Middleware source maps generates a source map for Edge API",
       "Middleware source maps generates a source map for Middleware"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
