@@ -3182,7 +3182,6 @@ async function prerenderToStream(
         hmrRefreshHash: undefined,
       }
 
-      let clientIsDynamic = false
       let dynamicValidation = createDynamicValidationState()
 
       const prerender = require('react-dom/static.edge')
@@ -3209,8 +3208,6 @@ async function prerenderToStream(
                     isPrerenderInterruptedError(err) ||
                     finalClientController.signal.aborted
                   ) {
-                    clientIsDynamic = true
-
                     const componentStack: string | undefined = (
                       errorInfo as any
                     ).componentStack
@@ -3274,7 +3271,12 @@ async function prerenderToStream(
         fallbackRouteParams
       )
 
-      if (serverIsDynamic || clientIsDynamic) {
+      if (serverIsDynamic) {
+        // Dynamic case
+        // We will always need to perform a "resume" render of some kind when this route is accessed
+        // because the RSC data itself is dynamic. We determine if there are any HTML holes or not
+        // but generally this is a "partial" prerender in that there will be a per-request compute
+        // concatenated to the static shell.
         if (postponed != null) {
           // Dynamic HTML case
           metadata.postponed = await getDynamicHTMLPostponedState(
@@ -3308,6 +3310,8 @@ async function prerenderToStream(
         }
       } else {
         // Static case
+        // We will not perform resumption per request. The result can be served statically to the requestor
+        // and if there was anything dynamic it will be marked as
         if (workStore.forceDynamic) {
           throw new StaticGenBailoutError(
             'Invariant: a Page with `dynamic = "force-dynamic"` did not trigger the dynamic pathway. This is a bug in Next.js'
