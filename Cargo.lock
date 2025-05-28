@@ -9520,7 +9520,10 @@ name = "turbo-rcstr"
 version = "0.1.0"
 dependencies = [
  "criterion",
+ "indexmap 2.7.1",
  "new_debug_unreachable",
+ "rustc-hash 2.1.1",
+ "scoped-tls",
  "serde",
  "shrink-to-fit",
  "triomphe 0.1.12",

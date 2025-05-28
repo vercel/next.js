@@ -14,11 +14,10 @@ mod lookup_entry;
 mod merge_iter;
 mod static_sorted_file;
 mod static_sorted_file_builder;
-mod write_batch;
-
 #[cfg(test)]
 mod tests;
 mod value_buf;
+mod write_batch;
 
 pub use arc_slice::ArcSlice;
 pub use db::TurboPersistence;
