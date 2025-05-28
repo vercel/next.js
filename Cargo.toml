@@ -308,7 +308,7 @@ miette = { version = "5.10.0", features = ["fancy"] }
 mdxjs = "1.0.1"
 modularize_imports = { version = "0.86.0" }
 styled_components = { version = "0.114.0" }
-styled_jsx = { version = "0.90.2" }
+styled_jsx = { version = "0.90.3" }
 swc_emotion = { version = "0.90.0" }
 swc_relay = { version = "0.60.0" }
 
