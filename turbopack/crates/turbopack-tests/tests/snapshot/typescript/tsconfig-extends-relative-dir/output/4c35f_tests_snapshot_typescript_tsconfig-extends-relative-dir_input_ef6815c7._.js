@@ -4,7 +4,7 @@
 "use strict";
 
 __turbopack_context__.s({
-"prop": (()=>prop)
+    "prop": (()=>prop)
 });
 const prop = 1;
 }),
