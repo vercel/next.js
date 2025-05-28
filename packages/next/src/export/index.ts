@@ -655,6 +655,9 @@ async function exportAppImpl(
         // all the entries that the fallback shell also needs. We don't need to
         // merge them per page.
         renderResumeDataCachesByPage[page] = result.renderResumeDataCache
+        // Remove the RDC string from the result so that it can be garbage
+        // collected, when there are more results for the same page.
+        result.renderResumeDataCache = undefined
       }
     }
 
