@@ -30,9 +30,6 @@ jobs:
   benchmark-small:
     name: Benchmark Rust Crates (small)
     runs-on: ubuntu-22.04
-    # Limit the number of concurrent jobs to 1
-    concurrency:
-      group: ${{ github.workflow }}
     steps:
       - uses: actions/checkout@v4
 
