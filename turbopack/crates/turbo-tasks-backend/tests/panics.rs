@@ -32,7 +32,7 @@ async fn test_panics_include_location() {
         panic!("Expected a TurboTasksExecutionError");
     };
 
-    let TurboTasksExecutionError::Panic(panic) = &*panic else {
+    let TurboTasksExecutionError::Panic(panic) = panic else {
         panic!("Expected a TurboTasksExecutionError::Panic");
     };
 
