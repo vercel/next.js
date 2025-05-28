@@ -2,7 +2,6 @@ import React from 'react'
 
 type PagesDevOverlayErrorBoundaryProps = {
   children?: React.ReactNode
-  onError: (error: Error, componentStack: string | null) => void
 }
 type PagesDevOverlayErrorBoundaryState = { error: Error | null }
 
@@ -16,13 +15,7 @@ export class PagesDevOverlayErrorBoundary extends React.PureComponent<
     return { error }
   }
 
-  componentDidCatch(
-    error: Error,
-    // Loosely typed because it depends on the React version and was
-    // accidentally excluded in some versions.
-    errorInfo?: { componentStack?: string | null }
-  ) {
-    this.props.onError(error, errorInfo?.componentStack || null)
+  componentDidCatch(error: Error) {
     this.setState({ error })
   }
 

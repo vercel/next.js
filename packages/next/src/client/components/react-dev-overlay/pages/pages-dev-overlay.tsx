@@ -12,11 +12,11 @@ interface PagesDevOverlayProps {
 }
 
 export function PagesDevOverlay({ children }: PagesDevOverlayProps) {
-  const { state, dispatch, onComponentError } = usePagesDevOverlay()
+  const { state, dispatch } = usePagesDevOverlay()
 
   return (
     <>
-      <PagesDevOverlayErrorBoundary onError={onComponentError}>
+      <PagesDevOverlayErrorBoundary>
         {children ?? null}
       </PagesDevOverlayErrorBoundary>
 
