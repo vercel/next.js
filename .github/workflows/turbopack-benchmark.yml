@@ -1,0 +1,51 @@
+name: Turbopack Benchmark
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - canary
+    paths:
+      - '**/crates/**'
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
+  pull_request:
+    types: ['opened', 'reopened', 'synchronize']
+    paths:
+      - '**/crates/**'
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CI: 1
+  CARGO_INCREMENTAL: 0
+  # For faster CI
+  RUST_LOG: 'off'
+
+jobs:
+  benchmark-small:
+    name: Benchmark Rust Crates (small)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/setup-rust
+
+      - name: Install cargo-codspeed
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-codspeed@2.10.1
+
+      - name: Build the benchmark target(s)
+        run: cargo codspeed build -p turbo-rcstr -p turbopack-ecmascript
+
+      - name: Run the benchmarks
+        uses: CodSpeedHQ/action@v3
+        with:
+          run: cargo codspeed run
+          token: ${{ secrets.CODSPEED_TOKEN }}
