@@ -9,6 +9,7 @@ import type { MiddlewareRoutingItem } from '../base-server'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 import type { RouteMatcherManager } from '../route-matcher-managers/route-matcher-manager'
 import {
+  addRequestMeta,
   getRequestMeta,
   type NextParsedUrlQuery,
   type NextUrlWithParsedQuery,
@@ -542,6 +543,7 @@ export default class DevServer extends Server {
     const span = trace('handle-request', undefined, { url: req.url })
     const result = await span.traceAsyncFn(async () => {
       await this.ready?.promise
+      addRequestMeta(req, 'PagesErrorDebug', this.renderOpts.ErrorDebug)
       return await super.handleRequest(req, res, parsedUrl)
     })
     const memoryUsage = process.memoryUsage()

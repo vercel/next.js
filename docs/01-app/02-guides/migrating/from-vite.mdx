@@ -129,7 +129,7 @@ You can find more information about configuring TypeScript on the
 ### Step 4: Create the Root Layout
 
 A Next.js [App Router](/docs/app) application must include a
-[root layout](/docs/app/building-your-application/routing/layouts-and-templates#root-layout-required)
+[root layout](/docs/app/api-reference/file-conventions/layout#root-layout)
 file, which is a [React Server Component](/docs/app/getting-started/server-and-client-components)
 that will wrap all pages in your application. This file is defined at the top level of the `app`
 directory.
@@ -352,7 +352,7 @@ entrypoint of your application.
 
 Since in this guide we're aiming first to set up our Next.js as an SPA (Single Page Application), you need your page entrypoint to catch all possible routes of your application. For that, create a new `[[...slug]]` directory in your `app` directory.
 
-This directory is what is called an [optional catch-all route segment](/docs/app/building-your-application/routing/dynamic-routes#optional-catch-all-segments). Next.js uses a file-system based router where folders are used to define routes. This special directory will make sure that all routes of your application will be directed to its containing `page.tsx` file.
+This directory is what is called an [optional catch-all route segment](/docs/app/api-reference/file-conventions/dynamic-routes#optional-catch-all-segments). Next.js uses a file-system based router where folders are used to define routes. This special directory will make sure that all routes of your application will be directed to its containing `page.tsx` file.
 
 2. **Create a new `page.tsx` file inside the `app/[[...slug]]` directory with the following content:**
 

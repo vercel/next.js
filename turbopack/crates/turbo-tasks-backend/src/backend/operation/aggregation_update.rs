@@ -1304,10 +1304,6 @@ impl AggregationUpdateQueue {
                         follower_in_upper = true;
                         return None;
                     };
-                    if old < 0 {
-                        follower_in_upper = true;
-                        return Some(old);
-                    }
                     if old == 1 {
                         keep_upper = true;
                         removed_uppers.push(upper_id);
@@ -1382,10 +1378,6 @@ impl AggregationUpdateQueue {
                             inner_in_upper = true;
                             return None;
                         };
-                        if old < 0 {
-                            inner_in_upper = true;
-                            return Some(old);
-                        }
                         if old == 1 {
                             removed_follower = true;
                             return None;
@@ -1409,7 +1401,7 @@ impl AggregationUpdateQueue {
                             task: lost_follower_id,
                         });
                     }
-                    // notify uppers about new follower
+                    // notify uppers about lost follower
                     if !upper_ids.is_empty() {
                         self.push(AggregationUpdateJob::InnerOfUppersLostFollower {
                             upper_ids,
@@ -1471,10 +1463,6 @@ impl AggregationUpdateQueue {
                         follower_in_upper = true;
                         return None;
                     };
-                    if old < 0 {
-                        follower_in_upper = true;
-                        return Some(old);
-                    }
                     if old == 1 {
                         remove_upper = true;
                         return None;
@@ -1543,10 +1531,6 @@ impl AggregationUpdateQueue {
                             inner_in_upper = true;
                             return None;
                         };
-                        if old < 0 {
-                            inner_in_upper = true;
-                            return Some(old);
-                        }
                         if old == 1 {
                             removed_follower = true;
                             return None;
@@ -1570,7 +1554,7 @@ impl AggregationUpdateQueue {
                             task: lost_follower_id,
                         });
                     }
-                    // notify uppers about new follower
+                    // notify uppers about lost follower
                     if !upper_ids.is_empty() {
                         self.push(AggregationUpdateJob::InnerOfUppersLostFollower {
                             upper_ids,
@@ -2461,7 +2445,7 @@ const MAX_YIELD_DURATION: Duration = Duration::from_millis(1);
 const MAX_RETRIES: u16 = 10000;
 
 /// Retry the passed function for a few milliseconds, while yielding to other threads.
-/// Returns an error if the function was not ablue to complete and the timeout was reached.
+/// Returns an error if the function was not able to complete and the timeout was reached.
 ///
 /// Each graph modification will only lock one or two tasks at a time, but updates usually also
 /// require follow-up updates to connected tasks. So an update will "slowly" propagate through the
@@ -2472,7 +2456,7 @@ const MAX_RETRIES: u16 = 10000;
 /// update yet). So we will retry (with this method) removals until the thing is there. So this is
 /// basically a busy loop that waits for the "add" update to complete. If the busy loop is not
 /// sucessful, the update is added to the end of the queue again. This is important as the "add"
-/// update might even be in the curreent thread and in the same queue. If that's the case yielding
+/// update might even be in the current thread and in the same queue. If that's the case yielding
 /// won't help and the update need to be requeued.
 fn retry_loop(mut f: impl FnMut() -> ControlFlow<()>) -> Result<(), RetryTimeout> {
     let mut time: Option<Instant> = None;

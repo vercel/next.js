@@ -31,7 +31,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{
     Completion, Effects, FxIndexSet, OperationVc, ReadRef, ResolvedVc, TransientInstance,
     TryJoinIterExt, UpdateInfo, Vc, get_effects,
-    message_queue::{CompilationEvent, DiagnosticEvent, Severity},
+    message_queue::{CompilationEvent, DiagnosticEvent, Severity, TimingEvent},
 };
 use turbo_tasks_fs::{
     DiskFileSystem, FileContent, FileSystem, FileSystemPath, get_relative_path_to,
@@ -405,8 +405,8 @@ pub async fn project_new(
     )?;
 
     turbo_tasks.send_compilation_event(Arc::new(DiagnosticEvent::new(
-        "Starting the compilation events server...".to_owned(),
-        Severity::Trace,
+        Severity::Info,
+        "Starting the compilation events server ...".to_owned(),
     )));
 
     let stats_path = std::env::var_os("NEXT_TURBOPACK_TASK_STATISTICS");
@@ -850,21 +850,14 @@ pub async fn project_write_all_entrypoints_to_disk(
 
             // Start timing writing the files to disk
             let now = Instant::now();
-            compilation_event_sender.send_compilation_event(Arc::new(DiagnosticEvent::new(
-                "Starting to write all entrypoints to disk...".to_owned(),
-                Severity::Event,
-            )));
 
             // Write the files to disk
             effects.apply().await?;
 
             // Send a compilation event to indicate that the files have been written to disk
-            compilation_event_sender.send_compilation_event(Arc::new(DiagnosticEvent::new(
-                format!(
-                    "Finished writing all entrypoints to disk in {:?}",
-                    now.elapsed()
-                ),
-                Severity::Event,
+            compilation_event_sender.send_compilation_event(Arc::new(TimingEvent::new(
+                "Finished writing all entrypoints to disk".to_owned(),
+                now.elapsed(),
             )));
 
             Ok((entrypoints.clone(), issues.clone(), diagnostics.clone()))

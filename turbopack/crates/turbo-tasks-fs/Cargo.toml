@@ -62,7 +62,6 @@ criterion = { workspace = true, features = ["async_tokio"] }
 rstest = { workspace = true }
 sha2 = "0.10.2"
 tempfile = { workspace = true }
-turbo-tasks-memory = { workspace = true }
 turbo-tasks-testing = { workspace = true }
 turbo-tasks-backend = { workspace = true }
 

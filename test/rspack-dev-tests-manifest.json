@@ -591,6 +591,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "packages/next/src/client/components/react-dev-overlay/utils/launch-editor.test.ts": {
+    "passed": ["applescript string escaping should escape strings correctly"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "packages/next/src/client/components/react-dev-overlay/utils/webpack-module-path.test.ts": {
     "passed": [
       "webpack-module-path formatFrameSourceFile should return the original file path",
@@ -2099,12 +2106,13 @@
     "runtimeError": false
   },
   "test/development/acceptance/ReactRefreshLogBox-app-doc.test.ts": {
-    "passed": [],
-    "failed": [
-      "ReactRefreshLogBox _app _document empty _app shows logbox",
-      "ReactRefreshLogBox _app _document empty _document shows logbox",
+    "passed": [
       "ReactRefreshLogBox _app _document _app syntax error shows logbox",
       "ReactRefreshLogBox _app _document _document syntax error shows logbox"
+    ],
+    "failed": [
+      "ReactRefreshLogBox _app _document empty _app shows logbox",
+      "ReactRefreshLogBox _app _document empty _document shows logbox"
     ],
     "pending": [],
     "flakey": [],
@@ -2757,7 +2765,7 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/development/basic/allowed-dev-origins.test.ts": {
     "passed": [
@@ -3422,7 +3430,9 @@
   },
   "test/development/experimental-https-server/https-server.generated-key.test.ts": {
     "passed": [
-      "experimental-https-server (generated certificate) only runs on CI as it requires administrator privileges"
+      "experimental-https-server (generated certificate) should successfully load the app in app dir",
+      "experimental-https-server (generated certificate) should successfully load the app in pages dir",
+      "experimental-https-server (generated certificate) should successfully reuse generated certificates"
     ],
     "failed": [],
     "pending": [],
@@ -3786,10 +3796,10 @@
     ],
     "failed": [
       "Client Navigation rendering Rendering via HTTP default export is not a React Component",
-      "Client Navigation rendering Rendering via HTTP getInitialProps should be class method",
-      "Client Navigation rendering Rendering via HTTP getInitialProps resolves to null",
       "Client Navigation rendering Rendering via HTTP error-in-the-global-scope",
-      "Client Navigation rendering Rendering via HTTP error-inside-page"
+      "Client Navigation rendering Rendering via HTTP error-inside-page",
+      "Client Navigation rendering Rendering via HTTP getInitialProps resolves to null",
+      "Client Navigation rendering Rendering via HTTP getInitialProps should be class method"
     ],
     "pending": [],
     "flakey": [],
@@ -5177,6 +5187,7 @@
       "app dir - basic searchParams prop server component should have the correct search params on middleware rewrite",
       "app dir - basic searchParams prop server component should have the correct search params on rewrite",
       "app dir - basic server components Loading should render loading.js in browser for slow layout",
+      "app dir - basic server components Loading should render loading.js in browser for slow layout and page",
       "app dir - basic server components Loading should render loading.js in browser for slow page",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout and page",
@@ -5190,7 +5201,6 @@
       "app dir - basic server components client components should have consistent query and params handling",
       "app dir - basic server components dynamic routes should only pass params that apply to the layout",
       "app dir - basic server components middleware should strip internal query parameters from requests to middleware for redirect",
-      "app dir - basic server components middleware should strip internal query parameters from requests to middleware for rewrite",
       "app dir - basic server components next/router should support router.back and router.forward",
       "app dir - basic server components should include client component layout with server component route should include it client-side",
       "app dir - basic server components should include client component layout with server component route should include it server-side",
@@ -5216,6 +5226,8 @@
       "app dir - basic should not share edge workers",
       "app dir - basic should pass props from getServerSideProps in root layout",
       "app dir - basic should return normalized dynamic route params for catch-all edge page",
+      "app dir - basic should return the `vary` header from edge runtime",
+      "app dir - basic should return the `vary` header from pages for flight requests",
       "app dir - basic should serve /index as separate page",
       "app dir - basic should serve dynamic parameter",
       "app dir - basic should serve dynamic route from pages",
@@ -5233,7 +5245,7 @@
     ],
     "failed": [
       "app dir - basic <Link /> should navigate to pages dynamic route from pages page if it overlaps with an app page",
-      "app dir - basic server components Loading should render loading.js in browser for slow layout and page"
+      "app dir - basic server components middleware should strip internal query parameters from requests to middleware for rewrite"
     ],
     "pending": [
       "app dir - basic HMR should HMR correctly when changing the component type",
@@ -5341,10 +5353,9 @@
       "back/forward cache React state is preserved when navigating back to a page with different search params than before ",
       "back/forward cache React state is preserved when navigating back/forward with links",
       "back/forward cache React state is preserved when navigating with back/forward buttons",
-      "back/forward cache bfcache only preserves up to N entries",
       "back/forward cache navigate back and forth repeatedly between the same pages without evicting"
     ],
-    "failed": [],
+    "failed": ["back/forward cache bfcache only preserves up to N entries"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6255,7 +6266,14 @@
   },
   "test/e2e/app-dir/empty-fallback-shells/empty-fallback-shells.test.ts": {
     "passed": [
-      "empty-fallback-shells should start and not postpone the response"
+      "empty-fallback-shells with cached IO and the page not wrapped in Suspense and params.then/catch/finally passed to a cached function does not resume a postponed fallback shell",
+      "empty-fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in a cached non-page function does not resume a postponed fallback shell",
+      "empty-fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in the cached page does not render a fallback shell when using a params placeholder",
+      "empty-fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in the cached page does not resume a postponed fallback shell",
+      "empty-fallback-shells with cached IO and the page wrapped in Suspense and params.then/catch/finally passed to a cached function resumes a postponed fallback shell",
+      "empty-fallback-shells with cached IO and the page wrapped in Suspense and the params accessed in cached non-page function resumes a postponed fallback shell",
+      "empty-fallback-shells with cached IO and the page wrapped in Suspense and the params accessed in the cached page resumes a postponed fallback shell",
+      "empty-fallback-shells without IO should start and not postpone the response"
     ],
     "failed": [],
     "pending": [],
@@ -6310,7 +6328,7 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/app-dir/errors/index.test.ts": {
     "passed": [
@@ -6769,14 +6787,14 @@
       "app-dir - logging with verbose logging for edge runtime should not log _rsc query for client navigation RSC request",
       "app-dir - logging with verbose logging for edge runtime should only log requests in development mode",
       "app-dir - logging with verbose logging for edge runtime should respect request.init.cache when use with fetch input is instance",
-      "app-dir - logging with verbose logging for edge runtime should show cache reason of noStore when use with fetch",
-      "app-dir - logging with verbose logging for edge runtime when logging.fetches.hmrRefreshes is true should log requests for HMR refreshes"
+      "app-dir - logging with verbose logging for edge runtime should show cache reason of noStore when use with fetch"
     ],
     "failed": [
       "app-dir - logging with default logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with fetches default logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with fetches verbose logging should not contain metadata internal segments for dynamic metadata routes",
-      "app-dir - logging with verbose logging for edge runtime should not contain metadata internal segments for dynamic metadata routes"
+      "app-dir - logging with verbose logging for edge runtime should not contain metadata internal segments for dynamic metadata routes",
+      "app-dir - logging with verbose logging for edge runtime when logging.fetches.hmrRefreshes is true should log requests for HMR refreshes"
     ],
     "pending": [],
     "flakey": [],
@@ -7528,11 +7546,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/next-image/next-image-https.test.ts": {
-    "passed": [
-      "app dir - next-image (with https) only runs on CI as it requires administrator privileges"
-    ],
+    "passed": [],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "app dir - next-image (with https) loads images without any errors"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -9068,6 +9086,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/segment-cache/deployment-skew/deployment-skew.test.ts": {
+    "passed": [
+      "segment cache (deployment skew) should not run during dev or deploy test runs"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/segment-cache/dynamic-on-hover/dynamic-on-hover.test.ts": {
     "passed": ["dynamic on hover prefetching is disabled"],
     "failed": [],
@@ -9543,9 +9570,10 @@
   },
   "test/e2e/app-dir/use-cache-without-experimental-flag/use-cache-without-experimental-flag.test.ts": {
     "passed": [
-      "use-cache-without-experimental-flag should recover from the build error if useCache flag is set"
+      "use-cache-without-experimental-flag should recover from the build error if useCache flag is set",
+      "use-cache-without-experimental-flag should show a build error"
     ],
-    "failed": ["use-cache-without-experimental-flag should show a build error"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -12396,9 +12424,9 @@
   },
   "test/e2e/vary-header/test/index.test.ts": {
     "passed": [
-      "Vary Header Tests should preserve custom vary header",
+      "Vary Header Tests should preserve custom vary header and append RSC headers in app route handlers",
       "Vary Header Tests should preserve custom vary header in API routes",
-      "Vary Header Tests should preserve middleware vary header"
+      "Vary Header Tests should preserve middleware vary header in combination with route handlers"
     ],
     "failed": [],
     "pending": [],
@@ -21571,18 +21599,17 @@
   "test/integration/typescript-paths/test/index.test.js": {
     "passed": [
       "typescript paths default behavior should alias components",
+      "typescript paths default behavior should not resolve to .d.ts files",
       "typescript paths default behavior should resolve a single matching alias",
       "typescript paths default behavior should resolve the first item in the array first",
       "typescript paths default behavior should resolve the second item in as a fallback",
       "typescript paths without baseurl default behavior should alias components",
+      "typescript paths without baseurl default behavior should not resolve to .d.ts files",
       "typescript paths without baseurl default behavior should resolve a single matching alias",
       "typescript paths without baseurl default behavior should resolve the first item in the array first",
       "typescript paths without baseurl default behavior should resolve the second item in as a fallback"
     ],
-    "failed": [
-      "typescript paths default behavior should not resolve to .d.ts files",
-      "typescript paths without baseurl default behavior should not resolve to .d.ts files"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -21590,13 +21617,12 @@
   "test/integration/typescript-workspaces-paths/packages/www/test/index.test.js": {
     "passed": [
       "TypeScript Features default behavior should alias components",
+      "TypeScript Features default behavior should not resolve to .d.ts files",
       "TypeScript Features default behavior should resolve a single matching alias",
       "TypeScript Features default behavior should resolve the first item in the array first",
       "TypeScript Features default behavior should resolve the second item in as a fallback"
     ],
-    "failed": [
-      "TypeScript Features default behavior should not resolve to .d.ts files"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false

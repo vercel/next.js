@@ -1,7 +1,11 @@
-import type { OverlayState } from '../shared'
+import {
+  ACTION_ERROR_OVERLAY_OPEN,
+  type OverlayDispatch,
+  type OverlayState,
+} from '../shared'
 import type { GlobalErrorComponent } from '../../global-error'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect } from 'react'
 import { AppDevOverlayErrorBoundary } from './app-dev-overlay-error-boundary'
 import { FontStyles } from '../font/font-styles'
 import { DevOverlay } from '../ui/dev-overlay'
@@ -70,23 +74,24 @@ function ReplaySsrOnlyErrors({
 
 export function AppDevOverlay({
   state,
+  dispatch,
   globalError,
   children,
 }: {
   state: OverlayState
+  dispatch: OverlayDispatch
   globalError: [GlobalErrorComponent, React.ReactNode]
   children: React.ReactNode
 }) {
-  const [isErrorOverlayOpen, setIsErrorOverlayOpen] = useState(false)
   const openOverlay = useCallback(() => {
-    setIsErrorOverlayOpen(true)
-  }, [])
+    dispatch({ type: ACTION_ERROR_OVERLAY_OPEN })
+  }, [dispatch])
 
   return (
     <>
       <AppDevOverlayErrorBoundary
         globalError={globalError}
-        onError={setIsErrorOverlayOpen}
+        onError={openOverlay}
       >
         <ReplaySsrOnlyErrors onBlockingError={openOverlay} />
         {children}
@@ -94,11 +99,7 @@ export function AppDevOverlay({
       <>
         {/* Fonts can only be loaded outside the Shadow DOM. */}
         <FontStyles />
-        <DevOverlay
-          state={state}
-          isErrorOverlayOpen={isErrorOverlayOpen}
-          setIsErrorOverlayOpen={setIsErrorOverlayOpen}
-        />
+        <DevOverlay state={state} dispatch={dispatch} />
       </>
     </>
   )

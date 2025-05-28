@@ -773,13 +773,14 @@
       "app dir - prefetching should not need to prefetch the layout if the prefetch is initiated at the same segment",
       "app dir - prefetching should not prefetch for a bot user agent",
       "app dir - prefetching should not re-render error component when triggering a prefetch action",
-      "app dir - prefetching should not suppress prefetches after navigating back",
       "app dir - prefetching should not unintentionally modify the requested prefetch by escaping the uri encoded query params",
       "app dir - prefetching should only prefetch the loading state and not the component tree when prefetching at the same segment",
       "app dir - prefetching should show layout eagerly when prefetched with loading one level down"
     ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "app dir - prefetching should not suppress prefetches after navigating back"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -1340,6 +1341,8 @@
       "app dir - basic should pass props from getServerSideProps in root layout",
       "app dir - basic should provide query for getStaticProps page correctly",
       "app dir - basic should return normalized dynamic route params for catch-all edge page",
+      "app dir - basic should return the `vary` header from edge runtime",
+      "app dir - basic should return the `vary` header from pages for flight requests",
       "app dir - basic should run generate command correctly",
       "app dir - basic should serve /index as separate page",
       "app dir - basic should serve dynamic parameter",
@@ -1461,6 +1464,8 @@
       "app dir - basic should not share edge workers",
       "app dir - basic should pass props from getServerSideProps in root layout",
       "app dir - basic should return normalized dynamic route params for catch-all edge page",
+      "app dir - basic should return the `vary` header from edge runtime",
+      "app dir - basic should return the `vary` header from pages for flight requests",
       "app dir - basic should serve /index as separate page",
       "app dir - basic should serve dynamic parameter",
       "app dir - basic should serve dynamic route from pages",
@@ -2527,6 +2532,7 @@
       "empty-fallback-shells should not log a HANGING_PROMISE_REJECTION error",
       "empty-fallback-shells with cached IO and the page not wrapped in Suspense and params.then/catch/finally passed to a cached function does not resume a postponed fallback shell",
       "empty-fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in a cached non-page function does not resume a postponed fallback shell",
+      "empty-fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in the cached page does not render a fallback shell when using a params placeholder",
       "empty-fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in the cached page does not resume a postponed fallback shell",
       "empty-fallback-shells with cached IO and the page wrapped in Suspense and params.then/catch/finally passed to a cached function resumes a postponed fallback shell",
       "empty-fallback-shells with cached IO and the page wrapped in Suspense and the params accessed in cached non-page function resumes a postponed fallback shell",
@@ -3774,11 +3780,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/next-image/next-image-https.test.ts": {
-    "passed": [
-      "app dir - next-image (with https) only runs on CI as it requires administrator privileges"
-    ],
+    "passed": [],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "app dir - next-image (with https) loads images without any errors"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -5509,6 +5515,7 @@
   },
   "test/e2e/app-dir/segment-cache/basic/segment-cache-basic.test.ts": {
     "passed": [
+      "segment cache (basic tests) does not throw an error when navigating to a page with a server action",
       "segment cache (basic tests) navigate before any data has loaded into the prefetch cache",
       "segment cache (basic tests) navigate to page with lazily-generated (not at build time) static param",
       "segment cache (basic tests) navigate with prefetched data",
@@ -5540,6 +5547,16 @@
       "conflicting routes /fr/vercel/~/monitoring matches the right route",
       "conflicting routes handles conflict between App Router and Pages Router routes",
       "conflicting routes matches the right route when the original route has no dynamic params, is dynamic, and PPR is disabled"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/segment-cache/deployment-skew/deployment-skew.test.ts": {
+    "passed": [
+      "segment cache (deployment skew) does not crash when prefetching a dynamic, non-PPR page on a different deployment",
+      "segment cache (deployment skew) does not crash when prefetching a static page on a different deployment"
     ],
     "failed": [],
     "pending": [],
@@ -8932,9 +8949,9 @@
   },
   "test/e2e/vary-header/test/index.test.ts": {
     "passed": [
-      "Vary Header Tests should preserve custom vary header",
+      "Vary Header Tests should preserve custom vary header and append RSC headers in app route handlers",
       "Vary Header Tests should preserve custom vary header in API routes",
-      "Vary Header Tests should preserve middleware vary header"
+      "Vary Header Tests should preserve middleware vary header in combination with route handlers"
     ],
     "failed": [],
     "pending": [],
@@ -18104,18 +18121,17 @@
   "test/integration/typescript-paths/test/index.test.js": {
     "passed": [
       "typescript paths default behavior should alias components",
+      "typescript paths default behavior should not resolve to .d.ts files",
       "typescript paths default behavior should resolve a single matching alias",
       "typescript paths default behavior should resolve the first item in the array first",
       "typescript paths default behavior should resolve the second item in as a fallback",
       "typescript paths without baseurl default behavior should alias components",
+      "typescript paths without baseurl default behavior should not resolve to .d.ts files",
       "typescript paths without baseurl default behavior should resolve a single matching alias",
       "typescript paths without baseurl default behavior should resolve the first item in the array first",
       "typescript paths without baseurl default behavior should resolve the second item in as a fallback"
     ],
-    "failed": [
-      "typescript paths default behavior should not resolve to .d.ts files",
-      "typescript paths without baseurl default behavior should not resolve to .d.ts files"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -18123,13 +18139,12 @@
   "test/integration/typescript-workspaces-paths/packages/www/test/index.test.js": {
     "passed": [
       "TypeScript Features default behavior should alias components",
+      "TypeScript Features default behavior should not resolve to .d.ts files",
       "TypeScript Features default behavior should resolve a single matching alias",
       "TypeScript Features default behavior should resolve the first item in the array first",
       "TypeScript Features default behavior should resolve the second item in as a fallback"
     ],
-    "failed": [
-      "TypeScript Features default behavior should not resolve to .d.ts files"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -18847,11 +18862,11 @@
     "runtimeError": false
   },
   "test/production/bfcache-routing/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
       "bfcache-routing should not suspend indefinitely when page is restored from bfcache after an mpa navigation"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },

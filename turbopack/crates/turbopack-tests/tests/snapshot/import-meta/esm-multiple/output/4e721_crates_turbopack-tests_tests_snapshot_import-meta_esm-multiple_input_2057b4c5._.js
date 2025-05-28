@@ -5,15 +5,15 @@
 
 __turbopack_context__.s({});
 const __TURBOPACK__import$2e$meta__ = {
-    get url () {
-        return `file://${__turbopack_context__.P("turbopack/crates/turbopack-tests/tests/snapshot/import-meta/esm-multiple/input/mod.mjs")}`;
-    }
+get url () {
+return `file://${__turbopack_context__.P("turbopack/crates/turbopack-tests/tests/snapshot/import-meta/esm-multiple/input/mod.mjs")}`;
+}
 };
 function foo() {
-    console.log(__TURBOPACK__import$2e$meta__.url);
+console.log(__TURBOPACK__import$2e$meta__.url);
 }
 function bar() {
-    console.log(__TURBOPACK__import$2e$meta__.url);
+console.log(__TURBOPACK__import$2e$meta__.url);
 }
 foo();
 bar();

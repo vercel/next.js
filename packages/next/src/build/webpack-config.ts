@@ -779,6 +779,8 @@ export default async function getBaseWebpackConfig(
     ].filter(Boolean) as webpack.ResolvePluginInstance[],
     ...((isRspack && jsConfigPath
       ? {
+          // Skip paths that are routed to a .d.ts file
+          restrictions: [/^(?!.*\.d\.ts$).*$/],
           tsConfig: {
             configFile: jsConfigPath,
           },

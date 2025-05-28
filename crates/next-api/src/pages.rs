@@ -907,36 +907,39 @@ impl PageEndpoint {
             .module();
 
         let config = parse_config_from_source(ssr_module, NextRuntime::default()).await?;
-        Ok(if config.runtime == NextRuntime::Edge {
-            let modules = create_page_ssr_entry_module(
-                *this.pathname,
-                reference_type,
-                project_root,
-                Vc::upcast(edge_module_context),
-                self.source(),
-                *this.original_name,
-                *this.pages_structure,
-                config.runtime,
-                this.pages_project.project().next_config(),
-            )
-            .await?;
+        let pathname = &**this.pathname.await?;
 
-            InternalSsrChunkModule {
-                ssr_module: modules.ssr_module,
-                app_module: modules.app_module,
-                document_module: modules.document_module,
-                runtime: config.runtime,
-            }
-        } else {
-            let pathname = &**this.pathname.await?;
-
+        Ok(
             // `/_app` and `/_document` never get rendered directly so they don't need to be
-            // wrapped in the route module.
+            // wrapped in the route module, and don't need to be handled as edge runtime as the
+            // rendering for edge is part of the page bundle.
             if pathname == "/_app" || pathname == "/_document" {
                 InternalSsrChunkModule {
                     ssr_module: ssr_module.to_resolved().await?,
                     app_module: None,
                     document_module: None,
+                    // /_app and /_document are always rendered for Node.js for this case. For edge
+                    // they're included in the page bundle.
+                    runtime: NextRuntime::NodeJs,
+                }
+            } else if config.runtime == NextRuntime::Edge {
+                let modules = create_page_ssr_entry_module(
+                    *this.pathname,
+                    reference_type,
+                    project_root,
+                    Vc::upcast(edge_module_context),
+                    self.source(),
+                    *this.original_name,
+                    *this.pages_structure,
+                    config.runtime,
+                    this.pages_project.project().next_config(),
+                )
+                .await?;
+
+                InternalSsrChunkModule {
+                    ssr_module: modules.ssr_module,
+                    app_module: modules.app_module,
+                    document_module: modules.document_module,
                     runtime: config.runtime,
                 }
             } else {
@@ -959,8 +962,8 @@ impl PageEndpoint {
                     runtime: config.runtime,
                 }
             }
-        }
-        .cell())
+            .cell(),
+        )
     }
 
     #[turbo_tasks::function]

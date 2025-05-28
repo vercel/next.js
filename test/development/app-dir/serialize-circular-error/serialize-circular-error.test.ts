@@ -1,5 +1,4 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertNoRedbox } from 'next-test-utils'
 
 describe('serialize-circular-error', () => {
   const { next } = nextTestSetup({
@@ -27,9 +26,16 @@ describe('serialize-circular-error', () => {
   it('should serialize the object from client component in console correctly', async () => {
     const browser = await next.browser('/client')
 
-    // It's not a valid error object, it will display the global-error instead of the error overlay
-    // TODO: handle the error object in the client-side
-    await assertNoRedbox(browser)
+    // TODO: Format arbitrary messages in Redbox
+    await expect(browser).toDisplayRedbox(`
+     {
+       "description": "[object Object]",
+       "environmentLabel": null,
+       "label": "Runtime Error",
+       "source": null,
+       "stack": [],
+     }
+    `)
 
     const bodyText = await browser.elementByCss('body').text()
     expect(bodyText).toContain(

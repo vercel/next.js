@@ -4,7 +4,7 @@
 "use strict";
 
 __turbopack_context__.s({
-    "default": (()=>__TURBOPACK__default__export__)
+"default": (()=>__TURBOPACK__default__export__)
 });
 const __TURBOPACK__default__export__ = 'turbopack';
 }),
