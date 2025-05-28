@@ -280,21 +280,24 @@ export function getPrerenderResumeDataCache(
 export function getRenderResumeDataCache(
   workUnitStore: WorkUnitStore
 ): RenderResumeDataCache | null {
-  if (
-    workUnitStore.type !== 'prerender-legacy' &&
-    workUnitStore.type !== 'cache' &&
-    workUnitStore.type !== 'unstable-cache'
-  ) {
-    if (workUnitStore.type === 'request') {
+  switch (workUnitStore.type) {
+    case 'request':
       return workUnitStore.renderResumeDataCache
-    }
-
-    // We return the mutable resume data cache here as an immutable version of
-    // the cache as it can also be used for reading.
-    return workUnitStore.prerenderResumeDataCache
+    case 'prerender':
+    case 'prerender-client':
+      if (workUnitStore.renderResumeDataCache) {
+        // If we are in a prerender, we might have a render resume data cache
+        // that is used to read from prefilled caches.
+        return workUnitStore.renderResumeDataCache
+      }
+    // fallthrough
+    case 'prerender-ppr':
+      // Otherwise we return the mutable resume data cache here as an immutable
+      // version of the cache as it can also be used for reading.
+      return workUnitStore.prerenderResumeDataCache
+    default:
+      return null
   }
-
-  return null
 }
 
 export function getHmrRefreshHash(
