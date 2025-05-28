@@ -9,13 +9,7 @@ if (process.env.NODE_ENV === 'development') {
   const startTime = performance.now()
   module.exports = require('private-next-instrumentation-client')
   const endTime = performance.now()
-
   const duration = endTime - startTime
-  performance.measure(measureName, {
-    start: startTime,
-    end: endTime,
-    detail: 'Client instrumentation initialization',
-  })
 
   // Using 16ms threshold as it represents one frame (1000ms/60fps)
   // This helps identify if the instrumentation hook initialization

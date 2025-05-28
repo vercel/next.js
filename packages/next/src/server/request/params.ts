@@ -65,6 +65,7 @@ export function createParamsFromClient(
   if (workUnitStore) {
     switch (workUnitStore.type) {
       case 'prerender':
+      case 'prerender-client':
       case 'prerender-ppr':
       case 'prerender-legacy':
         return createPrerenderParams(underlyingParams, workStore, workUnitStore)
@@ -88,6 +89,7 @@ export function createServerParamsForRoute(
   if (workUnitStore) {
     switch (workUnitStore.type) {
       case 'prerender':
+      case 'prerender-client':
       case 'prerender-ppr':
       case 'prerender-legacy':
         return createPrerenderParams(underlyingParams, workStore, workUnitStore)
@@ -106,6 +108,7 @@ export function createServerParamsForServerSegment(
   if (workUnitStore) {
     switch (workUnitStore.type) {
       case 'prerender':
+      case 'prerender-client':
       case 'prerender-ppr':
       case 'prerender-legacy':
         return createPrerenderParams(underlyingParams, workStore, workUnitStore)
@@ -121,7 +124,11 @@ export function createPrerenderParamsForClientSegment(
   workStore: WorkStore
 ): Promise<Params> {
   const prerenderStore = workUnitAsyncStorage.getStore()
-  if (prerenderStore && prerenderStore.type === 'prerender') {
+  if (
+    prerenderStore &&
+    (prerenderStore.type === 'prerender' ||
+      prerenderStore.type === 'prerender-client')
+  ) {
     const fallbackParams = workStore.fallbackRouteParams
     if (fallbackParams) {
       for (let key in underlyingParams) {
@@ -157,24 +164,23 @@ function createPrerenderParams(
 
     if (hasSomeFallbackParams) {
       // params need to be treated as dynamic because we have at least one fallback param
-      if (prerenderStore.type === 'prerender') {
-        // We are in a dynamicIO (PPR or otherwise) prerender
-        return makeAbortingExoticParams(
-          underlyingParams,
-          workStore.route,
-          prerenderStore
-        )
+      switch (prerenderStore.type) {
+        case 'prerender':
+        case 'prerender-client':
+          // We are in a dynamicIO prerender
+          return makeAbortingExoticParams(
+            underlyingParams,
+            workStore.route,
+            prerenderStore
+          )
+        default:
+          return makeErroringExoticParams(
+            underlyingParams,
+            fallbackParams,
+            workStore,
+            prerenderStore
+          )
       }
-      // remaining cases are prerender-ppr and prerender-legacy
-      // We aren't in a dynamicIO prerender but we do have fallback params at this
-      // level so we need to make an erroring exotic params object which will postpone
-      // if you access the fallback params
-      return makeErroringExoticParams(
-        underlyingParams,
-        fallbackParams,
-        workStore,
-        prerenderStore
-      )
     }
   }
 

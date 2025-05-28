@@ -323,6 +323,27 @@ describe('app dir - basic', () => {
     expect(res.headers.get('Content-Type')).toBe('text/x-component')
   })
 
+  it('should return the `vary` header from edge runtime', async () => {
+    const res = await next.fetch('/dashboard')
+    expect(res.headers.get('x-edge-runtime')).toBe('1')
+    expect(res.headers.get('vary')).toBe(
+      'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Router-Segment-Prefetch'
+    )
+  })
+
+  it('should return the `vary` header from pages for flight requests', async () => {
+    const res = await next.fetch('/', {
+      headers: {
+        ['RSC'.toString()]: '1',
+      },
+    })
+    expect(res.headers.get('vary')).toBe(
+      isNextDeploy
+        ? 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Router-Segment-Prefetch'
+        : 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Router-Segment-Prefetch, Accept-Encoding'
+    )
+  })
+
   it('should pass props from getServerSideProps in root layout', async () => {
     const $ = await next.render$('/dashboard')
     expect($('title').first().text()).toBe('hello world')

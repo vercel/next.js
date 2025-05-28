@@ -118,6 +118,23 @@ describe('empty-fallback-shells', () => {
             expect(res.headers.get('x-nextjs-postponed')).not.toBe('1')
           }
         })
+
+        it('does not render a fallback shell when using a params placeholder', async () => {
+          // This should trigger a blocking prerender of the route shell.
+          const res = await next.fetch(
+            '/with-cached-io/without-suspense/params-in-page/[slug]'
+          )
+
+          expect(res.status).toBe(200)
+
+          const html = await res.text()
+
+          // This should render the encoded param in the route shell, and not
+          // interpret the param as a fallback param, and subsequently try to
+          // render the fallback shell instead, which would fail because of the
+          // missing parent suspense boundary.
+          expect(html).toContain('page-%5Bslug%5D')
+        })
       })
 
       describe('and the params accessed in a cached non-page function', () => {

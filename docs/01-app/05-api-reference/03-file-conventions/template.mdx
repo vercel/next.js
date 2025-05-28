@@ -3,19 +3,17 @@ title: template.js
 description: API Reference for the template.js file.
 ---
 
-A **template** file is similar to a [layout](/docs/app/building-your-application/routing/layouts-and-templates#layouts) in that it wraps a layout or page. Unlike layouts that persist across routes and maintain state, templates are given a unique key, meaning children Client Components reset their state on navigation.
+A **template** file is similar to a [layout](/docs/app/getting-started/layouts-and-pages#creating-a-layout) in that it wraps a layout or page. Unlike layouts that persist across routes and maintain state, templates are given a unique key, meaning children Client Components reset their state on navigation.
 
-```tsx filename="app/template.tsx" switcher
-export default function Template({ children }: { children: React.ReactNode }) {
-  return <div>{children}</div>
-}
-```
+They are useful when you need to:
 
-```jsx filename="app/template.jsx" switcher
-export default function Template({ children }) {
-  return <div>{children}</div>
-}
-```
+- Resynchronize `useEffect` on navigation.
+- Reset the state of a child Client Components on navigation. For example, an input field.
+- To change default framework behavior. For example, Suspense boundaries inside layouts only show a fallback on first load, while templates show it on every navigation.
+
+## Convention
+
+A template can be defined by exporting a default React component from a `template.js` file. The component should accept a `children` prop.
 
 <Image
   alt="template.js special file"
@@ -25,16 +23,32 @@ export default function Template({ children }) {
   height="444"
 />
 
-While less common, you might choose to use a template over a layout if you want:
+```tsx filename="app/template.tsx" switcher
+export default function Template({ children }: { children: React.ReactNode }) {
+  return <div>{children}</div>
+}
+```
 
-- Features that rely on `useEffect` (e.g logging page views) and `useState` (e.g a per-page feedback form).
-- To change the default framework behavior. For example, Suspense Boundaries inside layouts only show the fallback the first time the Layout is loaded and not when switching pages. For templates, the fallback is shown on each navigation.
+```jsx filename="app/template.js" switcher
+export default function Template({ children }) {
+  return <div>{children}</div>
+}
+```
+
+In terms of nesting, `template.js` is rendered between a layout and its children. Here's a simplified output:
+
+```jsx filename="Output"
+<Layout>
+  {/* Note that the template is given a unique key. */}
+  <Template key={routeParam}>{children}</Template>
+</Layout>
+```
 
 ## Props
 
 ### `children` (required)
 
-Template accepts a `children` prop. For example:
+Template accepts a `children` prop.
 
 ```jsx filename="Output"
 <Layout>
@@ -43,10 +57,13 @@ Template accepts a `children` prop. For example:
 </Layout>
 ```
 
-> **Good to know**:
->
-> - By default, `template` is a [Server Component](/docs/app/getting-started/server-and-client-components), but can also be used as a [Client Component](/docs/app/getting-started/server-and-client-components) through the `"use client"` directive.
-> - When a user navigates between routes that share a `template`, a new instance of the component is mounted, DOM elements are recreated, state is **not** preserved in Client Components, and effects are re-synchronized.
+## Behavior
+
+- **Server Components**: By default, templates are Server Components.
+- **Remount on navigation**: Templates receive a unique key automatically. Navigating to a new route causes the template and its children to remount.
+- **State reset**: Any Client Component inside the template will reset its state on navigation.
+- **Effect re-run**: Effects like `useEffect` will re-synchronize as the component remounts.
+- **DOM reset**: DOM elements inside the template are fully recreated.
 
 ## Version History
 

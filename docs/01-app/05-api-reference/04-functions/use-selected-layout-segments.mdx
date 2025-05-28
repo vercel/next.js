@@ -46,7 +46,7 @@ export default function ExampleClientComponent() {
 > **Good to know**:
 >
 > - Since `useSelectedLayoutSegments` is a [Client Component](/docs/app/getting-started/server-and-client-components) hook, and Layouts are [Server Components](/docs/app/getting-started/server-and-client-components) by default, `useSelectedLayoutSegments` is usually called via a Client Component that is imported into a Layout.
-> - The returned segments include [Route Groups](/docs/app/building-your-application/routing/route-groups), which you might not want to be included in your UI. You can use the `filter()` array method to remove items that start with a bracket.
+> - The returned segments include [Route Groups](/docs/app/api-reference/file-conventions/route-groups), which you might not want to be included in your UI. You can use the [`filter`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/filter) array method to remove items that start with a bracket.
 
 ## Parameters
 
@@ -54,7 +54,7 @@ export default function ExampleClientComponent() {
 const segments = useSelectedLayoutSegments(parallelRoutesKey?: string)
 ```
 
-`useSelectedLayoutSegments` _optionally_ accepts a [`parallelRoutesKey`](/docs/app/building-your-application/routing/parallel-routes#useselectedlayoutsegments), which allows you to read the active route segment within that slot.
+`useSelectedLayoutSegments` _optionally_ accepts a [`parallelRoutesKey`](/docs/app/api-reference/file-conventions/parallel-routes#with-useselectedlayoutsegments), which allows you to read the active route segment within that slot.
 
 ## Returns
 

@@ -31,6 +31,7 @@ export type AppPageRenderResultMetadata = {
    * The headers to set on the response that were added by the render.
    */
   headers?: OutgoingHttpHeaders
+  statusCode?: number
   fetchTags?: string
   fetchMetrics?: FetchMetrics
 
