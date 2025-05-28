@@ -4,8 +4,14 @@ on:
   push:
     branches:
       - canary
+    paths:
+      - '**/crates/**'
+      - '**/Cargo.lock'
   pull_request:
     types: ['opened', 'reopened', 'synchronize']
+    paths:
+      - '**/crates/**'
+      - '**/Cargo.lock'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.sha }}
