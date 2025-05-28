@@ -2835,9 +2835,11 @@ export async function build(task, opts) {
 }
 
 export async function generate_types(task, opts) {
-  await execa.command('pnpm run types', {
-    stdio: 'inherit',
-  })
+  await execa(
+    'pnpm',
+    ['run', 'types', ...(opts.dev ? ['--watch', '--preserveWatchOutput'] : [])],
+    { stdio: 'inherit' }
+  )
 }
 
 export async function check_error_codes(task, opts) {
