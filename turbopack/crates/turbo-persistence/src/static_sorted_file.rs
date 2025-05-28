@@ -6,6 +6,7 @@ use std::{
     ops::Range,
     path::{Path, PathBuf},
     sync::Arc,
+    usize,
 };
 
 use anyhow::{Context, Result, bail};
@@ -75,17 +76,19 @@ pub struct StaticSortedFileMetaData {
 
 impl StaticSortedFileMetaData {
     pub fn block_offsets_start(&self) -> usize {
-        self.key_compression_dictionary_length as usize
-            + self.value_compression_dictionary_length as usize
+        let k: usize = self.key_compression_dictionary_length.into();
+        let v: usize = self.value_compression_dictionary_length.into();
+        k + v
     }
 
     pub fn blocks_start(&self) -> usize {
-        self.block_offsets_start() + self.block_count as usize * 4
+        let bc: usize = self.block_count.into();
+        self.block_offsets_start() + bc * size_of::<u32>()
     }
 
     pub fn key_compression_dictionary_range(&self) -> Range<usize> {
         let start = 0;
-        let end = self.key_compression_dictionary_length as usize;
+        let end: usize = self.key_compression_dictionary_length.into();
         start..end
     }
 

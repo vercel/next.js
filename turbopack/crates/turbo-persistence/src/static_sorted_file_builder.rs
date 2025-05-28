@@ -72,7 +72,7 @@ pub enum EntryValue<'l> {
 }
 
 #[derive(Debug, Clone)]
-pub struct StaticSortedFileBuilderMetaResult {
+pub struct StaticSortedFileBuilderMeta {
     /// The minimum hash of the keys in the SST file
     pub min_hash: u64,
     /// The maximum hash of the keys in the SST file
@@ -390,7 +390,7 @@ impl StaticSortedFileBuilder {
 
     /// Writes the SST file.
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn write(self, file: &Path) -> io::Result<(StaticSortedFileBuilderMetaResult, File)> {
+    pub fn write(self, file: &Path) -> io::Result<(StaticSortedFileBuilderMeta, File)> {
         let mut file = BufWriter::new(File::create(file)?);
         // Write the key compression dictionary
         file.write_all(&self.key_compression_dictionary)?;
@@ -412,7 +412,7 @@ impl StaticSortedFileBuilder {
             // Compressed block
             file.write_all(&block)?;
         }
-        let meta = StaticSortedFileBuilderMetaResult {
+        let meta = StaticSortedFileBuilderMeta {
             min_hash: self.min_hash,
             max_hash: self.max_hash,
             aqmf: self.aqmf,

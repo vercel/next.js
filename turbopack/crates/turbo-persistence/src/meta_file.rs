@@ -152,8 +152,8 @@ impl MetaFile {
     fn open_internal(db_path: PathBuf, sequence_number: u32, path: &Path) -> Result<Self> {
         let mut file = BufReader::new(File::open(path)?);
         let magic = file.read_u32::<BE>()?;
-        if magic != 0x53535401 {
-            bail!("Invalid magic number or version");
+        if magic != 0xFE4ADA4A {
+            bail!("Invalid magic number");
         }
         let family = file.read_u32::<BE>()?;
         let obsolete_count = file.read_u32::<BE>()?;

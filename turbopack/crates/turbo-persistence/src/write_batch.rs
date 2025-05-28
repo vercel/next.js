@@ -26,7 +26,7 @@ use crate::{
     constants::{MAX_MEDIUM_VALUE_SIZE, THREAD_LOCAL_SIZE_SHIFT},
     key::StoreKey,
     meta_file_builder::MetaFileBuilder,
-    static_sorted_file_builder::{StaticSortedFileBuilder, StaticSortedFileBuilderMetaResult},
+    static_sorted_file_builder::{StaticSortedFileBuilder, StaticSortedFileBuilderMeta},
 };
 
 /// The thread local state of a `WriteBatch`. `FAMILIES` should fit within a `u32`.
@@ -78,7 +78,7 @@ pub struct WriteBatch<K: StoreKey + Send, const FAMILIES: usize> {
     /// Collectors in use. The thread local collectors flush into these when they are full.
     collectors: [Mutex<GlobalCollectorState<K>>; FAMILIES],
     /// Meta file builders for each family.
-    meta_collectors: [Mutex<Vec<(u32, StaticSortedFileBuilderMetaResult)>>; FAMILIES],
+    meta_collectors: [Mutex<Vec<(u32, StaticSortedFileBuilderMeta)>>; FAMILIES],
     /// The list of new SST files that have been created.
     /// Tuple of (sequence number, file).
     new_sst_files: Mutex<Vec<(u32, File)>>,

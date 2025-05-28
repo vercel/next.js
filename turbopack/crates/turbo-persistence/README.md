@@ -36,7 +36,7 @@ Therefore there are there value types:
 A meta file can contain metadata about multiple SST files. The metadata is stored in a single file to avoid having too many small files.
 
 - Header
-  - 4 bytes magic number and version
+  - 4 bytes magic number (0xFE4ADA4A)
   - 4 bytes key family
   - 4 bytes count of obsolete SST files
   - foreach obsolete SST file

@@ -38,7 +38,7 @@ use crate::{
     meta_file_builder::MetaFileBuilder,
     sst_filter::SstFilter,
     static_sorted_file::{BlockCache, SstLookupResult},
-    static_sorted_file_builder::{StaticSortedFileBuilder, StaticSortedFileBuilderMetaResult},
+    static_sorted_file_builder::{StaticSortedFileBuilder, StaticSortedFileBuilderMeta},
     write_batch::{FinishResult, WriteBatch},
 };
 
@@ -136,6 +136,16 @@ struct Inner {
     meta_files: Vec<MetaFile>,
     /// The current sequence number for the database.
     current_sequence_number: u32,
+}
+
+pub struct CommitOptions {
+    new_meta_files: Vec<(u32, File)>,
+    new_sst_files: Vec<(u32, File)>,
+    new_blob_files: Vec<(u32, File)>,
+    sst_seq_numbers_to_delete: Vec<u32>,
+    blob_seq_numbers_to_delete: Vec<u32>,
+    sequence_number: u32,
+    keys_written: u64,
 }
 
 impl TurboPersistence {
@@ -265,7 +275,7 @@ impl TurboPersistence {
                                 let sst_file = self.path.join(format!("{seq:08}.sst"));
                                 let meta_file = self.path.join(format!("{seq:08}.meta"));
                                 let blob_file = self.path.join(format!("{seq:08}.blob"));
-                                for path in [sst_file, blob_file, meta_file] {
+                                for path in [sst_file, meta_file, blob_file] {
                                     if fs::exists(&path)? {
                                         fs::remove_file(path)?;
                                         no_existing_files = false;
@@ -412,15 +422,15 @@ impl TurboPersistence {
             new_blob_files,
             keys_written,
         } = write_batch.finish()?;
-        self.commit(
+        self.commit(CommitOptions {
             new_meta_files,
             new_sst_files,
             new_blob_files,
-            vec![],
-            vec![],
+            sst_seq_numbers_to_delete: vec![],
+            blob_seq_numbers_to_delete: vec![],
             sequence_number,
             keys_written,
-        )?;
+        })?;
         self.active_write_operation.store(false, Ordering::Release);
         self.idle_write_batch.lock().replace((
             TypeId::of::<WriteBatch<K, FAMILIES>>(),
@@ -433,13 +443,15 @@ impl TurboPersistence {
     /// new files.
     fn commit(
         &self,
-        mut new_meta_files: Vec<(u32, File)>,
-        mut new_sst_files: Vec<(u32, File)>,
-        mut new_blob_files: Vec<(u32, File)>,
-        mut sst_seq_numbers_to_delete: Vec<u32>,
-        mut blob_seq_numbers_to_delete: Vec<u32>,
-        mut seq: u32,
-        keys_written: u64,
+        CommitOptions {
+            mut new_meta_files,
+            mut new_sst_files,
+            mut new_blob_files,
+            mut sst_seq_numbers_to_delete,
+            mut blob_seq_numbers_to_delete,
+            sequence_number: mut seq,
+            keys_written,
+        }: CommitOptions,
     ) -> Result<(), anyhow::Error> {
         let time = Timestamp::now();
 
@@ -519,7 +531,7 @@ impl TurboPersistence {
                 (sst_seq_numbers_to_delete.len()
                     + meta_seq_numbers_to_delete.len()
                     + blob_seq_numbers_to_delete.len())
-                    * 4,
+                    * size_of::<u32>(),
             );
             for seq in sst_seq_numbers_to_delete.iter() {
                 buf.write_u32::<BE>(*seq)?;
@@ -644,15 +656,15 @@ impl TurboPersistence {
         }
 
         if !new_meta_files.is_empty() {
-            self.commit(
+            self.commit(CommitOptions {
                 new_meta_files,
                 new_sst_files,
-                Vec::new(),
+                new_blob_files: Vec::new(),
                 sst_seq_numbers_to_delete,
                 blob_seq_numbers_to_delete,
-                *sequence_number.get_mut(),
+                sequence_number: *sequence_number.get_mut(),
                 keys_written,
-            )?;
+            })?;
         }
 
         self.active_write_operation.store(false, Ordering::Release);
@@ -733,6 +745,15 @@ impl TurboPersistence {
 
         let log_mutex = Mutex::new(());
         let span = Span::current();
+
+        struct PartialResultPerFamily {
+            new_meta_file: Option<(u32, File)>,
+            new_sst_files: Vec<(u32, File)>,
+            sst_seq_numbers_to_delete: Vec<u32>,
+            blob_seq_numbers_to_delete: Vec<u32>,
+            keys_written: u64,
+        }
+
         let result = sst_by_family
             .into_par_iter()
             .with_min_len(1)
@@ -742,7 +763,13 @@ impl TurboPersistence {
                 let _span = span.clone().entered();
                 let coverage = total_coverage(&ssts_with_ranges, (0, u64::MAX));
                 if coverage <= max_coverage {
-                    return Ok((None, Vec::new(), Vec::new(), Vec::new(), 0));
+                    return Ok(PartialResultPerFamily {
+                        new_meta_file: None,
+                        new_sst_files: Vec::new(),
+                        sst_seq_numbers_to_delete: Vec::new(),
+                        blob_seq_numbers_to_delete: Vec::new(),
+                        keys_written: 0,
+                    });
                 }
 
                 let CompactionJobs {
@@ -786,6 +813,11 @@ impl TurboPersistence {
 
                 // Merge SST files
                 let span = tracing::trace_span!("merge files");
+                struct PartialMergeResult {
+                    new_sst_files: Vec<(u32, File)>,
+                    blob_seq_numbers_to_delete: Vec<u32>,
+                    keys_written: u64,
+                }
                 let merge_result = merge_jobs
                     .into_par_iter()
                     .with_min_len(1)
@@ -828,7 +860,8 @@ impl TurboPersistence {
 
                         let iter = MergeIter::new(iters.into_iter())?;
 
-                        // TODO figure out how to delete blobs when they are no longer referenced
+                        // TODO figure out how to delete blobs when they are no longer
+                        // referenced
                         let blob_seq_numbers_to_delete: Vec<u32> = Vec::new();
 
                         let mut keys_written = 0;
@@ -944,7 +977,11 @@ impl TurboPersistence {
                                 &meta_file_builder,
                             )?);
                         }
-                        Ok((new_sst_files, blob_seq_numbers_to_delete, keys_written))
+                        Ok(PartialMergeResult {
+                            new_sst_files,
+                            blob_seq_numbers_to_delete,
+                            keys_written,
+                        })
                     })
                     .collect::<Result<Vec<_>>>()?;
 
@@ -962,7 +999,7 @@ impl TurboPersistence {
                     let meta_file = &meta_files[meta_index];
                     let entry = meta_file.entry(index_in_meta);
                     let aqmf = entry.aqmf(meta_file.aqmf_data()).to_vec();
-                    let meta = StaticSortedFileBuilderMetaResult {
+                    let meta = StaticSortedFileBuilderMeta {
                         min_hash: entry.min_hash(),
                         max_hash: entry.max_hash(),
                         aqmf,
@@ -984,38 +1021,58 @@ impl TurboPersistence {
                     meta_file_builder.write(&self.path.join(format!("{seq:08}.meta")))?;
                 drop(span);
 
-                let mut new_sst_files =
-                    Vec::with_capacity(merge_result.iter().map(|(v, _, _)| v.len()).sum());
-                let mut blob_seq_numbers_to_delete =
-                    Vec::with_capacity(merge_result.iter().map(|(_, v, _)| v.len()).sum());
+                let mut new_sst_files = Vec::with_capacity(
+                    merge_result
+                        .iter()
+                        .map(
+                            |PartialMergeResult {
+                                 new_sst_files: v,
+                                 blob_seq_numbers_to_delete: _,
+                                 keys_written: _,
+                             }| v.len(),
+                        )
+                        .sum(),
+                );
+                let mut blob_seq_numbers_to_delete = Vec::with_capacity(
+                    merge_result
+                        .iter()
+                        .map(
+                            |PartialMergeResult {
+                                 new_sst_files: _,
+                                 blob_seq_numbers_to_delete: v,
+                                 keys_written: _,
+                             }| v.len(),
+                        )
+                        .sum(),
+                );
                 let mut keys_written = 0;
-                for (
-                    merged_new_sst_files,
-                    merged_blob_seq_numbers_to_delete,
-                    merged_keys_written,
-                ) in merge_result
+                for PartialMergeResult {
+                    new_sst_files: merged_new_sst_files,
+                    blob_seq_numbers_to_delete: merged_blob_seq_numbers_to_delete,
+                    keys_written: merged_keys_written,
+                } in merge_result
                 {
                     new_sst_files.extend(merged_new_sst_files);
                     blob_seq_numbers_to_delete.extend(merged_blob_seq_numbers_to_delete);
                     keys_written += merged_keys_written;
                 }
-                Ok((
-                    Some((seq, meta_file)),
+                Ok(PartialResultPerFamily {
+                    new_meta_file: Some((seq, meta_file)),
                     new_sst_files,
                     sst_seq_numbers_to_delete,
                     blob_seq_numbers_to_delete,
                     keys_written,
-                ))
+                })
             })
             .collect::<Result<Vec<_>>>()?;
 
-        for (
-            inner_new_meta_file,
-            mut inner_new_sst_files,
-            mut inner_sst_seq_numbers_to_delete,
-            mut inner_blob_seq_numbers_to_delete,
-            inner_keys_written,
-        ) in result
+        for PartialResultPerFamily {
+            new_meta_file: inner_new_meta_file,
+            new_sst_files: mut inner_new_sst_files,
+            sst_seq_numbers_to_delete: mut inner_sst_seq_numbers_to_delete,
+            blob_seq_numbers_to_delete: mut inner_blob_seq_numbers_to_delete,
+            keys_written: inner_keys_written,
+        } in result
         {
             new_meta_files.extend(inner_new_meta_file);
             new_sst_files.append(&mut inner_new_sst_files);

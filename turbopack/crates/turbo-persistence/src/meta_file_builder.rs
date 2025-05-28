@@ -6,12 +6,12 @@ use std::{
 
 use byteorder::{BE, WriteBytesExt};
 
-use crate::static_sorted_file_builder::StaticSortedFileBuilderMetaResult;
+use crate::static_sorted_file_builder::StaticSortedFileBuilderMeta;
 
 pub struct MetaFileBuilder {
     family: u32,
     /// Entries in the meta file, tuples of (sequence_number, StaticSortedFileBuilderMetaResult)
-    entries: Vec<(u32, StaticSortedFileBuilderMetaResult)>,
+    entries: Vec<(u32, StaticSortedFileBuilderMeta)>,
     /// Obsolete SST files, represented by their sequence numbers
     obsolete_sst_files: Vec<u32>,
 }
@@ -25,7 +25,7 @@ impl MetaFileBuilder {
         }
     }
 
-    pub fn add(&mut self, sequence_number: u32, sst: StaticSortedFileBuilderMetaResult) {
+    pub fn add(&mut self, sequence_number: u32, sst: StaticSortedFileBuilderMeta) {
         self.entries.push((sequence_number, sst));
     }
 
@@ -36,7 +36,7 @@ impl MetaFileBuilder {
     #[tracing::instrument(level = "trace", skip_all)]
     pub fn write(&self, file: &Path) -> io::Result<File> {
         let mut file = BufWriter::new(File::create(file)?);
-        file.write_u32::<BE>(0x53535401)?; // Magic number
+        file.write_u32::<BE>(0xFE4ADA4A)?; // Magic number
         file.write_u32::<BE>(self.family)?;
 
         file.write_u32::<BE>(self.obsolete_sst_files.len() as u32)?;
