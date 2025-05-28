@@ -455,7 +455,7 @@ fn persist_changes() -> Result<()> {
     {
         let db = TurboPersistence::open(path.to_path_buf())?;
 
-        db.compact(1.0, 3, usize::MAX)?;
+        db.compact(1.0, 3, u64::MAX)?;
 
         check(&db, 1, 13)?;
         check(&db, 2, 22)?;
