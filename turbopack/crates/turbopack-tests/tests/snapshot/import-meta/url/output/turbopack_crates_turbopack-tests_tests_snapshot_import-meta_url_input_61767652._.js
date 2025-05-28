@@ -8,9 +8,9 @@ __turbopack_context__.v("/static/asset.05254cf2.txt");}),
 
 __turbopack_context__.s({});
 const __TURBOPACK__import$2e$meta__ = {
-get url () {
-return `file://${__turbopack_context__.P("turbopack/crates/turbopack-tests/tests/snapshot/import-meta/url/input/mod.mjs")}`;
-}
+    get url () {
+        return `file://${__turbopack_context__.P("turbopack/crates/turbopack-tests/tests/snapshot/import-meta/url/input/mod.mjs")}`;
+    }
 };
 const assetUrl = new __turbopack_context__.U(__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/import-meta/url/input/asset.txt (static in ecmascript)"));
 console.log(assetUrl);

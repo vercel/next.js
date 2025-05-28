@@ -5,7 +5,7 @@
 var { m: module, e: exports } = __turbopack_context__;
 {
 const env = process.env = {
-...process.env
+    ...process.env
 };
 env["ALLFOOBAR"] = foobarfoobar;
 env["BARFOO"] = barfoo;
