@@ -3,7 +3,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext},
+    chunk::{ChunkableModule, ChunkingContext, availability_info::AvailabilityInfo},
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
@@ -76,7 +76,7 @@ impl Module for AsyncLoaderModule {
 impl Asset for AsyncLoaderModule {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
-        todo!()
+        panic!("content() should not be called");
     }
 }
 

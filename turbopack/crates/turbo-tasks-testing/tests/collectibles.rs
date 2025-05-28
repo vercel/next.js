@@ -9,8 +9,8 @@ use auto_hash_map::AutoSet;
 use rustc_hash::FxHashSet;
 use tokio::time::sleep;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{emit, CollectiblesSource, ResolvedVc, ValueToString, Vc};
-use turbo_tasks_testing::{register, run, Registration};
+use turbo_tasks::{CollectiblesSource, ResolvedVc, ValueToString, Vc, emit};
+use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 

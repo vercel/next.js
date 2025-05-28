@@ -1,19 +1,19 @@
 use std::future::Future;
 
-use anyhow::{bail, Context, Result};
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use anyhow::{Context, Result, bail};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use swc_core::{
     common::GLOBALS,
     ecma::ast::{Expr, Lit, Program},
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, util::WrapFuture, FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc,
-    TaskInput, ValueDefault, ValueToString, Vc,
+    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, ValueDefault, ValueToString, Vc,
+    trace::TraceRawVcs, util::WrapFuture,
 };
 use turbo_tasks_fs::{
-    self, json::parse_json_rope_with_source_context, rope::Rope, util::join_path, File,
-    FileContent, FileSystem, FileSystemPath,
+    self, File, FileContent, FileSystem, FileSystemPath, json::parse_json_rope_with_source_context,
+    rope::Rope, util::join_path,
 };
 use turbopack_core::{
     asset::AssetContent,
@@ -25,10 +25,10 @@ use turbopack_core::{
     virtual_source::VirtualSource,
 };
 use turbopack_ecmascript::{
+    EcmascriptParsable,
     analyzer::{ConstantValue, JsValue, ObjectPart},
     parse::ParseResult,
     utils::StringifyJs,
-    EcmascriptParsable,
 };
 
 use crate::{
@@ -71,7 +71,7 @@ pub async fn pathname_for_path(
         (PathType::Data, "") => "/index".into(),
         // `get_path_to` always strips the leading `/` from the path, so we need to add
         // it back here.
-        (_, path) => format!("/{}", path).into(),
+        (_, path) => format!("/{path}").into(),
     };
 
     Ok(Vc::cell(path))
@@ -84,7 +84,7 @@ pub fn get_asset_prefix_from_pathname(pathname: &str) -> String {
     if pathname == "/" {
         "/index".to_string()
     } else if pathname == "/index" || pathname.starts_with("/index/") {
-        format!("/index{}", pathname)
+        format!("/index{pathname}")
     } else {
         pathname.to_string()
     }
@@ -250,7 +250,8 @@ impl Issue for NextSourceConfigParsingIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Unable to parse config export in source file".into()).cell()
+        StyledString::Text("Next.js can't recognize the exported `config` field in route".into())
+            .cell()
     }
 
     #[turbo_tasks::function]
@@ -773,7 +774,7 @@ pub async fn load_next_js_template(
     // variable is missing, throw an error.
     let mut replaced = FxIndexSet::default();
     for (key, replacement) in &replacements {
-        let full = format!("'{}'", key);
+        let full = format!("'{key}'");
 
         if content.contains(&full) {
             replaced.insert(*key);
@@ -815,12 +816,12 @@ pub async fn load_next_js_template(
     // Replace the injections.
     let mut injected = FxIndexSet::default();
     for (key, injection) in &injections {
-        let full = format!("// INJECT:{}", key);
+        let full = format!("// INJECT:{key}");
 
         if content.contains(&full) {
             // Track all the injections to ensure that we're not missing any.
             injected.insert(*key);
-            content = content.replace(&full, &format!("const {} = {}", key, injection));
+            content = content.replace(&full, &format!("const {key} = {injection}"));
         }
     }
 
@@ -858,9 +859,9 @@ pub async fn load_next_js_template(
     // Replace the optional imports.
     let mut imports_added = FxIndexSet::default();
     for (key, import_path) in &imports {
-        let mut full = format!("// OPTIONAL_IMPORT:{}", key);
+        let mut full = format!("// OPTIONAL_IMPORT:{key}");
         let namespace = if !content.contains(&full) {
-            full = format!("// OPTIONAL_IMPORT:* as {}", key);
+            full = format!("// OPTIONAL_IMPORT:* as {key}");
             if content.contains(&full) {
                 true
             } else {
@@ -884,7 +885,7 @@ pub async fn load_next_js_template(
                 ),
             );
         } else {
-            content = content.replace(&full, &format!("const {} = null", key));
+            content = content.replace(&full, &format!("const {key} = null"));
         }
     }
 

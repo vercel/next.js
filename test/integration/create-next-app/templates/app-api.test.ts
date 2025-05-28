@@ -69,6 +69,7 @@ describe('create-next-app --api (Headless App)', () => {
           '--no-turbopack',
           '--no-src-dir',
           '--no-import-alias',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
         nextTgzFilename,
         {
@@ -101,6 +102,7 @@ describe('create-next-app --api (Headless App)', () => {
           '--no-turbopack',
           '--no-src-dir',
           '--no-import-alias',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
         nextTgzFilename,
         {
@@ -130,6 +132,7 @@ describe('create-next-app --api (Headless App)', () => {
           '--no-turbopack',
           '--src-dir',
           '--no-import-alias',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
         nextTgzFilename,
         {
@@ -152,35 +155,39 @@ describe('create-next-app --api (Headless App)', () => {
       })
     })
   })
+  ;(process.env.NEXT_RSPACK ? it.skip : it)(
+    'should enable turbopack dev with --turbopack flag',
+    async () => {
+      await useTempDir(async (cwd) => {
+        const projectName = 'app-turbo'
+        const { exitCode } = await run(
+          [
+            projectName,
+            '--ts',
+            '--api',
+            '--turbopack',
+            '--no-src-dir',
+            '--no-import-alias',
+          ],
+          nextTgzFilename,
+          {
+            cwd,
+          }
+        )
 
-  it('should enable turbopack dev with --turbopack flag', async () => {
-    await useTempDir(async (cwd) => {
-      const projectName = 'app-turbo'
-      const { exitCode } = await run(
-        [
-          projectName,
-          '--ts',
-          '--api',
-          '--turbopack',
-          '--no-src-dir',
-          '--no-import-alias',
-        ],
-        nextTgzFilename,
-        {
+        // eslint-disable-next-line jest/no-standalone-expect
+        expect(exitCode).toBe(0)
+        const projectRoot = join(cwd, projectName)
+        const pkgJson = require(join(projectRoot, 'package.json'))
+        // eslint-disable-next-line jest/no-standalone-expect
+        expect(pkgJson.scripts.dev).toBe('next dev --turbopack')
+
+        await tryNextDev({
           cwd,
-        }
-      )
-
-      expect(exitCode).toBe(0)
-      const projectRoot = join(cwd, projectName)
-      const pkgJson = require(join(projectRoot, 'package.json'))
-      expect(pkgJson.scripts.dev).toBe('next dev --turbopack')
-
-      await tryNextDev({
-        cwd,
-        isApi: true,
-        projectName,
+          isApi: true,
+          projectName,
+        })
       })
-    })
-  })
+    }
+  )
 })

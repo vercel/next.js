@@ -8,7 +8,7 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use auto_hash_map::AutoSet;
 use futures::{StreamExt, TryStreamExt};
 use parking_lot::Mutex;
@@ -17,14 +17,13 @@ use tokio::task_local;
 use tracing::{Instrument, Span};
 
 use crate::{
-    self as turbo_tasks,
+    self as turbo_tasks, CollectiblesSource, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt,
     debug::ValueDebugFormat,
     emit,
     event::{Event, EventListener},
     manager::turbo_tasks_future_scope,
     trace::TraceRawVcs,
     util::SharedError,
-    CollectiblesSource, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt,
 };
 
 const APPLY_EFFECTS_CONCURRENCY_LIMIT: usize = 1024;
@@ -343,7 +342,7 @@ impl ApplyEffectsContext {
 
 #[cfg(test)]
 mod tests {
-    use crate::{apply_effects, get_effects, CollectiblesSource};
+    use crate::{CollectiblesSource, apply_effects, get_effects};
 
     #[test]
     #[allow(dead_code)]

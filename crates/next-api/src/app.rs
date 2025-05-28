@@ -1,37 +1,37 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use next_core::{
     all_assets_from_entries,
     app_segment_config::NextSegmentConfig,
     app_structure::{
-        get_entrypoints, AppPageLoaderTree, Entrypoint as AppEntrypoint,
-        Entrypoints as AppEntrypoints, FileSystemPathVec, MetadataItem,
+        AppPageLoaderTree, Entrypoint as AppEntrypoint, Entrypoints as AppEntrypoints,
+        FileSystemPathVec, MetadataItem, get_entrypoints,
     },
     get_edge_resolve_options_context, get_next_package,
     next_app::{
-        get_app_client_references_chunks, get_app_client_shared_chunk_group, get_app_page_entry,
-        get_app_route_entry, metadata::route::get_app_metadata_route_entry, AppEntry, AppPage,
+        AppEntry, AppPage, get_app_client_references_chunks, get_app_client_shared_chunk_group,
+        get_app_page_entry, get_app_route_entry, metadata::route::get_app_metadata_route_entry,
     },
     next_client::{
-        get_client_module_options_context, get_client_resolve_options_context,
-        get_client_runtime_entries, ClientContextType, RuntimeEntries,
+        ClientContextType, RuntimeEntries, get_client_module_options_context,
+        get_client_resolve_options_context, get_client_runtime_entries,
     },
     next_client_reference::{
-        find_server_entries, ClientReferenceGraphResult, NextCssClientReferenceTransition,
-        NextEcmascriptClientReferenceTransition, ServerEntries,
+        ClientReferenceGraphResult, NextCssClientReferenceTransition,
+        NextEcmascriptClientReferenceTransition, ServerEntries, find_server_entries,
     },
     next_config::NextConfig,
     next_dynamic::NextDynamicTransition,
     next_edge::route_regex::get_named_middleware_regex,
     next_manifests::{
-        client_reference_manifest::ClientReferenceManifestOptions, AppBuildManifest,
-        AppPathsManifest, BuildManifest, ClientReferenceManifest, EdgeFunctionDefinition,
-        MiddlewareMatcher, MiddlewaresManifestV2, PagesManifest, Regions,
+        AppBuildManifest, AppPathsManifest, BuildManifest, ClientReferenceManifest,
+        EdgeFunctionDefinition, MiddlewareMatcher, MiddlewaresManifestV2, PagesManifest, Regions,
+        client_reference_manifest::ClientReferenceManifestOptions,
     },
     next_server::{
-        get_server_module_options_context, get_server_resolve_options_context,
-        get_server_runtime_entries, ServerContextType,
+        ServerContextType, get_server_module_options_context, get_server_resolve_options_context,
+        get_server_runtime_entries,
     },
-    next_server_utility::{NextServerUtilityTransition, NEXT_SERVER_UTILITY_MERGE_TAG},
+    next_server_utility::{NEXT_SERVER_UTILITY_MERGE_TAG, NextServerUtilityTransition},
     parse_segment_config_from_source,
     util::NextRuntime,
 };
@@ -39,29 +39,29 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    fxindexmap, fxindexset, trace::TraceRawVcs, Completion, FxIndexSet, NonLocalValue, ResolvedVc,
-    TryJoinIterExt, Value, ValueToString, Vc,
+    Completion, FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc,
+    fxindexmap, fxindexset, trace::TraceRawVcs,
 };
 use turbo_tasks_env::{CustomProcessEnv, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack::{
-    module_options::{transition_rule::TransitionRule, ModuleOptionsContext, RuleCondition},
+    ModuleAssetContext,
+    module_options::{ModuleOptionsContext, RuleCondition, transition_rule::TransitionRule},
     resolve_options_context::ResolveOptionsContext,
     transition::{FullContextTransition, Transition, TransitionOptions},
-    ModuleAssetContext,
 };
 use turbopack_core::{
     asset::AssetContent,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkGroupResult, ChunkingContext, ChunkingContextExt,
-        EvaluatableAsset, EvaluatableAssets,
+        ChunkGroupResult, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets,
+        availability_info::AvailabilityInfo,
     },
     file_source::FileSource,
     ident::AssetIdent,
     module::Module,
     module_graph::{
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
         GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
     },
     output::{OutputAsset, OutputAssets},
     raw_output::RawOutput,
@@ -73,7 +73,7 @@ use turbopack_core::{
 use turbopack_ecmascript::resolve::cjs_resolve;
 
 use crate::{
-    dynamic_imports::{collect_next_dynamic_chunks, NextDynamicChunkAvailability},
+    dynamic_imports::{NextDynamicChunkAvailability, collect_next_dynamic_chunks},
     font::create_font_manifest,
     loadable_manifest::create_react_loadable_manifest,
     module_graph::get_reduced_graphs_for_endpoint,
@@ -1459,7 +1459,6 @@ impl AppEndpoint {
                     entry_name: app_entry.original_name.clone(),
                     client_references,
                     client_references_chunks,
-                    rsc_app_entry_chunks: app_entry_chunks,
                     client_chunking_context,
                     ssr_chunking_context,
                     async_module_info: module_graphs.full.async_module_info().to_resolved().await?,
@@ -1975,7 +1974,7 @@ impl Endpoint for AppEndpoint {
         }
         .instrument(span)
         .await
-        .with_context(|| format!("Failed to write app endpoint {}", page_name))
+        .with_context(|| format!("Failed to write app endpoint {page_name}"))
     }
 
     #[turbo_tasks::function]

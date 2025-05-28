@@ -364,7 +364,7 @@ mod tests {
                 swap(&mut warm_keys[i], &mut keys[j]);
             }
         }
-        println!("Number of compactions: {}", number_of_compactions);
+        println!("Number of compactions: {number_of_compactions}");
 
         assert!(containers.len() < 40);
         let coverage = total_coverage(&containers, (0, 10000));

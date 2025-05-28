@@ -6,8 +6,8 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use byteorder::{ByteOrder, WriteBytesExt, BE};
-use lzzzz::lz4::{max_compressed_size, ACC_LEVEL_DEFAULT};
+use byteorder::{BE, ByteOrder, WriteBytesExt};
+use lzzzz::lz4::{ACC_LEVEL_DEFAULT, max_compressed_size};
 
 use crate::static_sorted_file::{
     BLOCK_TYPE_INDEX, BLOCK_TYPE_KEY, KEY_BLOCK_ENTRY_TYPE_BLOB, KEY_BLOCK_ENTRY_TYPE_DELETED,

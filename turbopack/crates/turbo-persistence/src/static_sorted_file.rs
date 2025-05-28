@@ -2,22 +2,22 @@ use std::{
     cmp::Ordering,
     fs::File,
     hash::BuildHasherDefault,
-    mem::{transmute, MaybeUninit},
+    mem::{MaybeUninit, transmute},
     path::PathBuf,
     sync::{Arc, OnceLock},
 };
 
-use anyhow::{bail, Result};
-use byteorder::{ReadBytesExt, BE};
+use anyhow::{Result, bail};
+use byteorder::{BE, ReadBytesExt};
 use lzzzz::lz4::decompress_with_dict;
 use memmap2::Mmap;
 use quick_cache::sync::GuardResult;
 use rustc_hash::FxHasher;
 
 use crate::{
+    QueryKey,
     arc_slice::ArcSlice,
     lookup_entry::{LookupEntry, LookupValue},
-    QueryKey,
 };
 
 /// The block header for an index block.

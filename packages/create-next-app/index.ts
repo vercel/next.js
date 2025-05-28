@@ -53,6 +53,7 @@ const program = new Command(packageJson.name)
   .option('--app', 'Initialize as an App Router project.')
   .option('--src-dir', "Initialize inside a 'src/' directory.")
   .option('--turbopack', 'Enable Turbopack by default for development.')
+  .option('--rspack', 'Using Rspack as the bundler')
   .option(
     '--import-alias <prefix/*>',
     'Specify import alias to use (default "@/*").'
@@ -432,6 +433,7 @@ async function run(): Promise<void> {
       empty: opts.empty,
       api: opts.api,
       turbopack: opts.turbopack,
+      rspack: opts.rspack,
       disableGit: opts.disableGit,
     })
   } catch (reason) {
@@ -464,6 +466,7 @@ async function run(): Promise<void> {
       skipInstall: opts.skipInstall,
       empty: opts.empty,
       turbopack: opts.turbopack,
+      rspack: opts.rspack,
       disableGit: opts.disableGit,
     })
   }

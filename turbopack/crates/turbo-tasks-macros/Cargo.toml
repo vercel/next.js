@@ -3,7 +3,7 @@ name = "turbo-tasks-macros"
 version = "0.1.0"
 description = "TBD"
 license = "MIT"
-edition = "2021"
+edition = "2024"
 
 [lib]
 proc-macro = true

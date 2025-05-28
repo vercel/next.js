@@ -97,11 +97,6 @@ env:
   NEXT_TEST_PREFER_OFFLINE: 1
   NEXT_CI_RUNNER: ${{ inputs.runs_on_labels }}
 
-  # Without this environment variable, rust-lld will fail because some dependencies defaults to newer version of macOS by default.
-  #
-  # See https://doc.rust-lang.org/rustc/platform-support/apple-darwin.html#os-version for more details
-  MACOSX_DEPLOYMENT_TARGET: 11.0
-
 jobs:
   build:
     timeout-minutes: ${{ inputs.timeout_minutes }}

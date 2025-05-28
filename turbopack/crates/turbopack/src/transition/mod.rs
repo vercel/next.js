@@ -12,8 +12,8 @@ use turbopack_core::{
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 use crate::{
-    module_options::{transition_rule::TransitionRule, ModuleOptionsContext},
     ModuleAssetContext,
+    module_options::{ModuleOptionsContext, transition_rule::TransitionRule},
 };
 
 /// Some kind of operation that is executed during reference processing. e. g.

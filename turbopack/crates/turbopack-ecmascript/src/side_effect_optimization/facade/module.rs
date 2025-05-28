@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{glob::Glob, File, FileContent};
+use turbo_tasks_fs::{File, FileContent, glob::Glob};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, EvaluatableAsset},
@@ -15,16 +15,16 @@ use turbopack_core::{
 
 use super::chunk_item::EcmascriptModuleFacadeChunkItem;
 use crate::{
+    AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptModuleContent,
+    EcmascriptModuleContentOptions, SpecifiedModuleType,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::CodeGens,
     parse::ParseResult,
     references::{
         async_module::{AsyncModule, OptionAsyncModule},
-        esm::{base::EsmAssetReferences, EsmExport, EsmExports},
+        esm::{EsmExport, EsmExports, base::EsmAssetReferences},
     },
     side_effect_optimization::reference::EcmascriptModulePartReference,
-    AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptModuleContent,
-    EcmascriptModuleContentOptions, SpecifiedModuleType,
 };
 
 /// A module derived from an original ecmascript module that only contains all

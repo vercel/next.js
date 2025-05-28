@@ -591,6 +591,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "packages/next/src/client/components/react-dev-overlay/utils/launch-editor.test.ts": {
+    "passed": ["applescript string escaping should escape strings correctly"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "packages/next/src/client/components/react-dev-overlay/utils/webpack-module-path.test.ts": {
     "passed": [
       "webpack-module-path formatFrameSourceFile should return the original file path",
@@ -1050,7 +1057,9 @@
       "loadConfig canary-only features errors when using persistentCaching if not in canary",
       "loadConfig canary-only features should not print a stack trace when throwing an error",
       "loadConfig nextConfig.images defaults should assign a `images.remotePatterns` when using assetPrefix",
-      "loadConfig nextConfig.images defaults should not assign a duplicate `images.remotePatterns` value when using assetPrefix"
+      "loadConfig nextConfig.images defaults should not assign a duplicate `images.remotePatterns` value when using assetPrefix",
+      "loadConfig with a canary version errors when dynamicIO is enabled but PPR is disabled",
+      "loadConfig with a canary version errors when dynamicIO is enabled but PPR set to \"incremental\""
     ],
     "failed": [],
     "pending": [],
@@ -1930,9 +1939,10 @@
       "Error recovery app render error not shown right after syntax error",
       "Error recovery app server component can recover from a component error",
       "Error recovery app server component can recover from syntax error",
-      "Error recovery app stuck error"
+      "Error recovery app stuck error",
+      "Error recovery app syntax > runtime error"
     ],
-    "failed": ["Error recovery app syntax > runtime error"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2722,6 +2732,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/use-cache-errors/use-cache-errors.test.ts": {
+    "passed": [
+      "use-cache-errors should not show a false-positive compiler error about a misplaced \"use cache\" directive",
+      "use-cache-errors should show a runtime error when calling the incorrectly used cache function"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-hmr/hmr.test.ts": {
     "passed": [
       "app-dir-hmr filesystem changes can navigate cleanly to a page that requires a change in the Webpack runtime",
@@ -2758,7 +2778,8 @@
     "passed": [
       "asset-prefix rewrites rewrites that do not start with assetPrefix should still work",
       "asset-prefix rewrites should respect rewrites that start with assetPrefix",
-      "asset-prefix should load the app properly without reloading"
+      "asset-prefix should load the app properly without reloading",
+      "asset-prefix should navigate to another page without hard navigating"
     ],
     "failed": [],
     "pending": [],
@@ -2835,137 +2856,236 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/basic/hmr/basic.test.ts": {
+  "test/development/basic/hmr/basic-no-base-path-no-asset-prefix.test.ts": {
     "passed": [
-      "basic HMR, nextConfig: { basePath: '', assetPrefix: '' } should have correct compile timing after fixing error",
-      "basic HMR, nextConfig: { basePath: '', assetPrefix: '' } should have correct router.isReady for auto-export page",
-      "basic HMR, nextConfig: { basePath: '', assetPrefix: '' } should have correct router.isReady for getStaticProps page",
-      "basic HMR, nextConfig: { basePath: '', assetPrefix: '' } should reload the page when the server restarts",
-      "basic HMR, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should have correct compile timing after fixing error",
-      "basic HMR, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should have correct router.isReady for auto-export page",
-      "basic HMR, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should have correct router.isReady for getStaticProps page",
-      "basic HMR, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should reload the page when the server restarts",
-      "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '' } should have correct compile timing after fixing error",
-      "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '' } should have correct router.isReady for auto-export page",
-      "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '' } should have correct router.isReady for getStaticProps page",
-      "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '' } should reload the page when the server restarts",
-      "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should have correct compile timing after fixing error",
-      "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should have correct router.isReady for auto-export page",
-      "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should have correct router.isReady for getStaticProps page",
-      "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should reload the page when the server restarts"
+      "HMR - basic, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should have correct compile timing after fixing error",
+      "HMR - basic, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should have correct router.isReady for auto-export page",
+      "HMR - basic, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should have correct router.isReady for getStaticProps page",
+      "HMR - basic, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should reload the page when the server restarts"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/basic/hmr/error-recovery.test.ts": {
+  "test/development/basic/hmr/basic-no-base-path-yes-asset-prefix.test.ts": {
     "passed": [
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should detect runtime errors on the module scope",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should detect syntax errors and recover",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover after a bad return from the render function",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover after an error reported via SSR",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover after exporting an invalid page",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover after loader parse error in an imported file",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover after undefined exported as default",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover after webpack parse error in an imported file",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover from 404 after a page has been added",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover from 404 after a page has been added with dynamic segments",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover from errors in getInitialProps in client",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover from errors in the render function",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should detect runtime errors on the module scope",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should detect syntax errors and recover",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover after a bad return from the render function",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover after an error reported via SSR",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover after exporting an invalid page",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover after loader parse error in an imported file",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover after undefined exported as default",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover after webpack parse error in an imported file",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover from 404 after a page has been added",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover from 404 after a page has been added with dynamic segments",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover from errors in getInitialProps in client",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover from errors in the render function",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should detect runtime errors on the module scope",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should detect syntax errors and recover",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover after a bad return from the render function",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover after an error reported via SSR",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover after exporting an invalid page",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover after loader parse error in an imported file",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover after undefined exported as default",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover after webpack parse error in an imported file",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover from 404 after a page has been added",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover from 404 after a page has been added with dynamic segments",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover from errors in getInitialProps in client",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover from errors in the render function",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should detect runtime errors on the module scope",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should detect syntax errors and recover",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover after a bad return from the render function",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover after an error reported via SSR",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover after exporting an invalid page",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover after loader parse error in an imported file",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover after undefined exported as default",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover after webpack parse error in an imported file",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover from 404 after a page has been added",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover from 404 after a page has been added with dynamic segments",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover from errors in getInitialProps in client",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover from errors in the render function"
+      "HMR - basic, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should have correct compile timing after fixing error",
+      "HMR - basic, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should have correct router.isReady for auto-export page",
+      "HMR - basic, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should have correct router.isReady for getStaticProps page",
+      "HMR - basic, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should reload the page when the server restarts"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/basic/hmr/basic-yes-base-path-no-asset-prefix.test.ts": {
+    "passed": [
+      "HMR - basic, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should have correct compile timing after fixing error",
+      "HMR - basic, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should have correct router.isReady for auto-export page",
+      "HMR - basic, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should have correct router.isReady for getStaticProps page",
+      "HMR - basic, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should reload the page when the server restarts"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/basic/hmr/basic-yes-base-path-yes-asset-prefix.test.ts": {
+    "passed": [
+      "HMR - basic, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should have correct compile timing after fixing error",
+      "HMR - basic, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should have correct router.isReady for auto-export page",
+      "HMR - basic, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should have correct router.isReady for getStaticProps page",
+      "HMR - basic, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should reload the page when the server restarts"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/basic/hmr/error-recovery-no-base-path-no-asset-prefix.test.ts": {
+    "passed": [
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should detect runtime errors on the module scope",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should detect syntax errors and recover",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover after a bad return from the render function",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover after an error reported via SSR",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover after exporting an invalid page",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover after loader parse error in an imported file",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover after undefined exported as default",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover after webpack parse error in an imported file",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover from 404 after a page has been added",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover from 404 after a page has been added with dynamic segments",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover from errors in getInitialProps in client",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover from errors in the render function"
     ],
     "failed": [],
     "pending": [
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should not continously poll a custom error page",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should not continously poll a custom error page",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should not continously poll a custom error page",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should not continously poll a custom error page"
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should not continously poll a custom error page"
     ],
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/basic/hmr/full-reload.test.ts": {
+  "test/development/basic/hmr/error-recovery-no-base-path-yes-asset-prefix.test.ts": {
     "passed": [
-      "HMR - Full Reload, nextConfig: { basePath: '', assetPrefix: '' } should warn about full reload in cli output - anonymous page function",
-      "HMR - Full Reload, nextConfig: { basePath: '', assetPrefix: '' } should warn about full reload in cli output - runtime-error",
-      "HMR - Full Reload, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should warn about full reload in cli output - anonymous page function",
-      "HMR - Full Reload, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should warn about full reload in cli output - runtime-error",
-      "HMR - Full Reload, nextConfig: { basePath: '/docs', assetPrefix: '' } should warn about full reload in cli output - anonymous page function",
-      "HMR - Full Reload, nextConfig: { basePath: '/docs', assetPrefix: '' } should warn about full reload in cli output - runtime-error",
-      "HMR - Full Reload, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should warn about full reload in cli output - anonymous page function",
-      "HMR - Full Reload, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should warn about full reload in cli output - runtime-error"
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should detect runtime errors on the module scope",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should detect syntax errors and recover",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover after a bad return from the render function",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover after an error reported via SSR",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover after exporting an invalid page",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover after loader parse error in an imported file",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover after undefined exported as default",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover after webpack parse error in an imported file",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover from 404 after a page has been added",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover from 404 after a page has been added with dynamic segments",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover from errors in getInitialProps in client",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover from errors in the render function"
+    ],
+    "failed": [],
+    "pending": [
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should not continously poll a custom error page"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/basic/hmr/error-recovery-yes-base-path-no-asset-prefix.test.ts": {
+    "passed": [
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should detect runtime errors on the module scope",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should detect syntax errors and recover",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover after a bad return from the render function",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover after an error reported via SSR",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover after exporting an invalid page",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover after loader parse error in an imported file",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover after undefined exported as default",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover after webpack parse error in an imported file",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover from 404 after a page has been added",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover from 404 after a page has been added with dynamic segments",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover from errors in getInitialProps in client",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover from errors in the render function"
+    ],
+    "failed": [],
+    "pending": [
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should not continously poll a custom error page"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/basic/hmr/error-recovery-yes-base-path-yes-asset-prefix.test.ts": {
+    "passed": [
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should detect runtime errors on the module scope",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should detect syntax errors and recover",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover after a bad return from the render function",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover after an error reported via SSR",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover after exporting an invalid page",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover after loader parse error in an imported file",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover after undefined exported as default",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover after webpack parse error in an imported file",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover from 404 after a page has been added",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover from 404 after a page has been added with dynamic segments",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover from errors in getInitialProps in client",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover from errors in the render function"
+    ],
+    "failed": [],
+    "pending": [
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should not continously poll a custom error page"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/basic/hmr/full-reload-no-base-path-no-asset-prefix.test.ts": {
+    "passed": [
+      "HMR - Full Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should warn about full reload in cli output - anonymous page function",
+      "HMR - Full Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should warn about full reload in cli output - runtime-error"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/basic/hmr/hot-module-reload.test.ts": {
+  "test/development/basic/hmr/full-reload-no-base-path-yes-asset-prefix.test.ts": {
     "passed": [
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '' } delete a page and add it back should load the page properly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '' } editing a page should detect the changes and display it",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '' } editing a page should not full reload when nonlatin characters are used",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '' } editing a page should not reload unrelated pages",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '' } editing a page should update styles correctly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '' } editing a page should update styles in a dynamic component correctly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '' } editing a page should update styles in a stateful component correctly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } delete a page and add it back should load the page properly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } editing a page should detect the changes and display it",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } editing a page should not full reload when nonlatin characters are used",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } editing a page should not reload unrelated pages",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } editing a page should update styles correctly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } editing a page should update styles in a dynamic component correctly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } editing a page should update styles in a stateful component correctly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '' } delete a page and add it back should load the page properly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '' } editing a page should detect the changes and display it",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '' } editing a page should not full reload when nonlatin characters are used",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '' } editing a page should not reload unrelated pages",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '' } editing a page should update styles correctly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '' } editing a page should update styles in a dynamic component correctly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '' } editing a page should update styles in a stateful component correctly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } delete a page and add it back should load the page properly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } editing a page should detect the changes and display it",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } editing a page should not full reload when nonlatin characters are used",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } editing a page should not reload unrelated pages",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } editing a page should update styles correctly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } editing a page should update styles in a dynamic component correctly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } editing a page should update styles in a stateful component correctly"
+      "HMR - Full Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should warn about full reload in cli output - anonymous page function",
+      "HMR - Full Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should warn about full reload in cli output - runtime-error"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/basic/hmr/full-reload-yes-base-path-no-asset-prefix.test.ts": {
+    "passed": [
+      "HMR - Full Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should warn about full reload in cli output - anonymous page function",
+      "HMR - Full Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should warn about full reload in cli output - runtime-error"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/basic/hmr/full-reload-yes-base-path-yes-asset-prefix.test.ts": {
+    "passed": [
+      "HMR - Full Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should warn about full reload in cli output - anonymous page function",
+      "HMR - Full Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should warn about full reload in cli output - runtime-error"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/basic/hmr/hot-module-reload-no-base-path-no-asset-prefix.test.ts": {
+    "passed": [
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} delete a page and add it back should load the page properly",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} editing a page should detect the changes and display it",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} editing a page should not full reload when nonlatin characters are used",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} editing a page should not reload unrelated pages",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} editing a page should update styles correctly",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} editing a page should update styles in a dynamic component correctly",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} editing a page should update styles in a stateful component correctly"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/basic/hmr/hot-module-reload-no-base-path-yes-asset-prefix.test.ts": {
+    "passed": [
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} delete a page and add it back should load the page properly",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} editing a page should detect the changes and display it",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} editing a page should not full reload when nonlatin characters are used",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} editing a page should not reload unrelated pages",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} editing a page should update styles correctly",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} editing a page should update styles in a dynamic component correctly",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} editing a page should update styles in a stateful component correctly"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/basic/hmr/hot-module-reload-yes-base-path-no-asset-prefix.test.ts": {
+    "passed": [
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} delete a page and add it back should load the page properly",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} editing a page should detect the changes and display it",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} editing a page should not full reload when nonlatin characters are used",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} editing a page should not reload unrelated pages",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} editing a page should update styles correctly",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} editing a page should update styles in a dynamic component correctly",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} editing a page should update styles in a stateful component correctly"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/basic/hmr/hot-module-reload-yes-base-path-yes-asset-prefix.test.ts": {
+    "passed": [
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} delete a page and add it back should load the page properly",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} editing a page should detect the changes and display it",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} editing a page should not full reload when nonlatin characters are used",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} editing a page should not reload unrelated pages",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} editing a page should update styles correctly",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} editing a page should update styles in a dynamic component correctly",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} editing a page should update styles in a stateful component correctly"
     ],
     "failed": [],
     "pending": [],
@@ -3297,7 +3417,9 @@
   },
   "test/development/experimental-https-server/https-server.generated-key.test.ts": {
     "passed": [
-      "experimental-https-server (generated certificate) only runs on CI as it requires administrator privileges"
+      "experimental-https-server (generated certificate) should successfully load the app in app dir",
+      "experimental-https-server (generated certificate) should successfully load the app in pages dir",
+      "experimental-https-server (generated certificate) should successfully reuse generated certificates"
     ],
     "failed": [],
     "pending": [],
@@ -3790,6 +3912,36 @@
     "passed": [
       "typescript-auto-install should detect TypeScript being added and auto setup",
       "typescript-auto-install should work"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/typescript-plugin/client-boundary/client-boundary.test.ts": {
+    "passed": [
+      "typescript-plugin - client-boundary should have diagnostics for non-serializable props",
+      "typescript-plugin - client-boundary should not have diagnostics for non-serializable action props",
+      "typescript-plugin - client-boundary should not have diagnostics for serializable props"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/typescript-plugin/index.test.ts": {
+    "passed": ["typescript-plugin should be able to get the language service"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/typescript-plugin/metadata/warn-no-type.test.ts": {
+    "passed": [
+      "typescript-plugin - metadata - warn-no-type should have diagnostics for generateMetadata with no type",
+      "typescript-plugin - metadata - warn-no-type should have diagnostics for metadata with no type",
+      "typescript-plugin - metadata - warn-no-type should not have diagnostics for generateMetadata with type",
+      "typescript-plugin - metadata - warn-no-type should not have diagnostics for metadata with type"
     ],
     "failed": [],
     "pending": [],
@@ -5050,6 +5202,8 @@
       "app dir - basic should not share edge workers",
       "app dir - basic should pass props from getServerSideProps in root layout",
       "app dir - basic should return normalized dynamic route params for catch-all edge page",
+      "app dir - basic should return the `vary` header from edge runtime",
+      "app dir - basic should return the `vary` header from pages for flight requests",
       "app dir - basic should serve /index as separate page",
       "app dir - basic should serve dynamic parameter",
       "app dir - basic should serve dynamic route from pages",
@@ -5552,6 +5706,8 @@
   "test/e2e/app-dir/dynamic-io-dynamic-imports/dynamic-io-dynamic-imports.test.ts": {
     "passed": [
       "async imports in dynamicIO - external packages does not instrument import() in external packages",
+      "async imports in dynamicIO are not instrumented in edge edge route handler",
+      "async imports in dynamicIO are not instrumented in edge middleware",
       "async imports in dynamicIO inside a GET route handler import of a sync module",
       "async imports in dynamicIO inside a GET route handler import of module with top-level-await",
       "async imports in dynamicIO inside a client component import of a sync module",
@@ -5594,15 +5750,6 @@
     "passed": [
       "Dynamic IO Prospective Render Errors - Debug Build should error on the first visit to each page",
       "Dynamic IO Prospective Render Errors - Standard Build should error on the first visit to each page"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.prospective-fallback.test.ts": {
-    "passed": [
-      "Dynamic IO Prospective Fallback should not error when visiting the page"
     ],
     "failed": [],
     "pending": [],
@@ -5676,7 +5823,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/dynamic-io/dynamic-io.connection.test.ts": {
-    "passed": ["dynamic-io should produce dynamic pages when using connection"],
+    "passed": [
+      "dynamic-io should be able to pass connection as a promise to another component and trigger an intermediate Suspense boundary",
+      "dynamic-io should partially prerender pages that use connection"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -5686,7 +5836,9 @@
     "passed": [
       "dynamic-io should be able to access cookie properties asynchronously",
       "dynamic-io should be able to access cookie properties synchronously",
-      "dynamic-io should produce dynamic pages when using async or sync cookies"
+      "dynamic-io should be able to pass cookies as a promise to another component and trigger an intermediate Suspense boundary",
+      "dynamic-io should partially prerender pages that use async cookies",
+      "dynamic-io should partially prerender pages that use sync cookies"
     ],
     "failed": [],
     "pending": [],
@@ -5721,7 +5873,9 @@
     "passed": [
       "dynamic-io should be able to access headers properties asynchronously",
       "dynamic-io should be able to access headers properties synchronously",
-      "dynamic-io should produce dynamic pages when using async or sync headers"
+      "dynamic-io should be able to pass headers as a promise to another component and trigger an intermediate Suspense boundary",
+      "dynamic-io should partially prerender pages that use async headers",
+      "dynamic-io should partially prerender pages that use sync headers"
     ],
     "failed": [],
     "pending": [],
@@ -5759,28 +5913,20 @@
     "passed": [
       "dynamic-io Async Params should fully prerender pages that check individual param keys after `use`ing params in a client component",
       "dynamic-io Async Params should fully prerender pages that check individual param keys after awaiting params in a server component",
-      "dynamic-io Async Params should prerender pages that `use` params in a client component when prebuilt",
-      "dynamic-io Async Params should prerender pages that await params in a server component when prebuilt",
-      "dynamic-io Async Params should prerender pages that spread `use`ed params in a client component when prebuilt",
-      "dynamic-io Async Params should prerender pages that spread awaited params in a server component when prebuilt",
-      "dynamic-io Async Params should render pages that `use` params in a client component when not prebuilt",
-      "dynamic-io Async Params should render pages that await params in a server component when not prebuilt",
-      "dynamic-io Async Params should render pages that spread `use`ed params in a client component when not prebuilt",
-      "dynamic-io Async Params should render pages that spread awaited params in a server component when not prebuilt",
+      "dynamic-io Async Params should partially prerender pages that await params in a server components",
+      "dynamic-io Async Params should partially prerender pages that spread `use`ed params in a client component",
+      "dynamic-io Async Params should partially prerender pages that spread awaited params in a server component",
+      "dynamic-io Async Params should partially prerender pages that use params in a client components",
       "dynamic-io Param Shadowing should correctly allow param names like then, value, and status when `use`ing params in a client component",
       "dynamic-io Param Shadowing should correctly allow param names like then, value, and status when awaiting params in a server component",
       "dynamic-io Param Shadowing should not allow param names like then and status when accessing params directly in a client component",
       "dynamic-io Param Shadowing should not allow param names like then and status when accessing params directly in a server component",
       "dynamic-io Synchronous Params access should fully prerender pages that check individual param keys directly on the params prop in a client component",
       "dynamic-io Synchronous Params access should fully prerender pages that check individual param keys directly on the params prop in a server component",
-      "dynamic-io Synchronous Params access should prerender pages that access params synchronously in a client component when prebuilt",
-      "dynamic-io Synchronous Params access should prerender pages that access params synchronously in a server component when prebuilt",
-      "dynamic-io Synchronous Params access should prerender pages that spread params without `use`ing first in a client component when not prebuilt",
-      "dynamic-io Synchronous Params access should prerender pages that spread params without `use`ing first in a client component when prebuilt",
-      "dynamic-io Synchronous Params access should prerender pages that spread params without awaiting first in a server component when not prebuilt",
-      "dynamic-io Synchronous Params access should prerender pages that spread params without awaiting first in a server component when prebuilt",
-      "dynamic-io Synchronous Params access should render pages that access params synchronously in a client component when not prebuilt",
-      "dynamic-io Synchronous Params access should render pages that access params synchronously in a server component when not prebuilt"
+      "dynamic-io Synchronous Params access should partially prerender pages that access params synchronously in a client components",
+      "dynamic-io Synchronous Params access should partially prerender pages that access params synchronously in a server components",
+      "dynamic-io Synchronous Params access should partially prerender pages that spread params without `use`ing them first in a client component",
+      "dynamic-io Synchronous Params access should partially prerender pages that spread params without awaiting first in a server component"
     ],
     "failed": [],
     "pending": [],
@@ -5818,15 +5964,15 @@
   },
   "test/e2e/app-dir/dynamic-io/dynamic-io.search.test.ts": {
     "passed": [
-      "dynamic-io should not prerender a page that accesses a searchParam property synchronously in a client component",
-      "dynamic-io should not prerender a page that accesses a searchParam property synchronously in a server component",
-      "dynamic-io should not prerender a page that checks for the existence of a searchParam property synchronously in a client component",
-      "dynamic-io should not prerender a page that checks for the existence of a searchParam property synchronously in a server component",
-      "dynamic-io should not prerender a page that spreads ...searchParam synchronously in a client component",
-      "dynamic-io should not prerender a page that spreads ...searchParam synchronously in a server component",
-      "dynamic-io should not prerender pages that `use` searchParams in a client component",
-      "dynamic-io should not prerender pages that `use` searchParams in a server component",
-      "dynamic-io should not prerender pages that await searchParams in a server component"
+      "dynamic-io should partially prerender pages that `use` searchParams in a client component",
+      "dynamic-io should partially prerender pages that `use` searchParams in a server component",
+      "dynamic-io should partially prerender pages that access a searchParam property synchronously in a client component",
+      "dynamic-io should partially prerender pages that access a searchParam property synchronously in a server component",
+      "dynamic-io should partially prerender pages that await searchParams in a server component",
+      "dynamic-io should partially prerender pages that checks for the existence of a searchParam property synchronously in a client component",
+      "dynamic-io should partially prerender pages that checks for the existence of a searchParam property synchronously in a server component",
+      "dynamic-io should partially prerender pages that spreads ...searchParam synchronously in a client component",
+      "dynamic-io should partially prerender pages that spreads ...searchParam synchronously in a server component"
     ],
     "failed": [],
     "pending": [],
@@ -5851,20 +5997,16 @@
       "dynamic-io does not prerender pages with parallel routes that resolve in a task",
       "dynamic-io does not prerender pages with parallel routes that uses a dynamic API",
       "dynamic-io should fully prerender pages that use `unstable_noStore()`",
-      "dynamic-io should have static indicator on not-found route",
-      "dynamic-io should have static indicator on static route",
       "dynamic-io should not have route specific errors",
-      "dynamic-io should not have static indicator on dynamic IO route",
-      "dynamic-io should not have static indicator on dynamic method route",
       "dynamic-io should not log not-found errors",
-      "dynamic-io should not prerender pages that do any uncached IO",
-      "dynamic-io should not prerender pages that do any uncached IO (use cache)",
-      "dynamic-io should not prerender pages that take longer than a single task to render",
-      "dynamic-io should not prerender pages that use `cookies()`",
-      "dynamic-io should not prerender pages that use `headers()`",
-      "dynamic-io should not prerender pages that use `searchParams` in Client Components",
-      "dynamic-io should not prerender pages that use `searchParams` in Server Components",
-      "dynamic-io should not prerender pages that use at least one fetch without cache",
+      "dynamic-io should partially prerender pages that do any uncached IO",
+      "dynamic-io should partially prerender pages that do any uncached IO (use cache)",
+      "dynamic-io should partially prerender pages that take longer than a task to render",
+      "dynamic-io should partially prerender pages that use `cookies()`",
+      "dynamic-io should partially prerender pages that use `headers()`",
+      "dynamic-io should partially prerender pages that use `searchParams` in Client Components",
+      "dynamic-io should partially prerender pages that use `searchParams` in Server Components",
+      "dynamic-io should partially prerender pages that use at least one fetch without cache",
       "dynamic-io should prerender fully static pages",
       "dynamic-io should prerender pages that cached the whole page",
       "dynamic-io should prerender pages that only use cached (\"use cache\") IO",
@@ -5988,7 +6130,14 @@
   },
   "test/e2e/app-dir/empty-fallback-shells/empty-fallback-shells.test.ts": {
     "passed": [
-      "empty-fallback-shells should start and not postpone the response"
+      "empty-fallback-shells with cached IO and the page not wrapped in Suspense and params.then/catch/finally passed to a cached function does not resume a postponed fallback shell",
+      "empty-fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in a cached non-page function does not resume a postponed fallback shell",
+      "empty-fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in the cached page does not render a fallback shell when using a params placeholder",
+      "empty-fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in the cached page does not resume a postponed fallback shell",
+      "empty-fallback-shells with cached IO and the page wrapped in Suspense and params.then/catch/finally passed to a cached function resumes a postponed fallback shell",
+      "empty-fallback-shells with cached IO and the page wrapped in Suspense and the params accessed in cached non-page function resumes a postponed fallback shell",
+      "empty-fallback-shells with cached IO and the page wrapped in Suspense and the params accessed in the cached page resumes a postponed fallback shell",
+      "empty-fallback-shells without IO should start and not postpone the response"
     ],
     "failed": [],
     "pending": [],
@@ -6895,6 +7044,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/monaco-editor/monaco-editor.test.ts": {
+    "passed": ["monaco-editor should load monaco-editor"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/navigation-layout-suspense/navigation-layout-suspense.test.ts": {
     "passed": [
       "app dir - navigation with Suspense in nested layout resolves data after client navigation to a nested layout with Suspense"
@@ -7185,6 +7341,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/next-config-ts/tsconfig-extends/index.test.ts": {
+    "passed": [
+      "next-config-ts-tsconfig-extends should support tsconfig extends"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/next-config-ts/type-error/index.test.ts": {
     "passed": [
       "next-config-ts-type-error should throw with type error on build"
@@ -7241,11 +7406,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/next-image/next-image-https.test.ts": {
-    "passed": [
-      "app dir - next-image (with https) only runs on CI as it requires administrator privileges"
-    ],
+    "passed": [],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "app dir - next-image (with https) loads images without any errors"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -7488,6 +7653,15 @@
   "test/e2e/app-dir/parallel-routes-and-interception-from-root/parallel-routes-and-interception-from-root.test.ts": {
     "passed": [
       "parallel-routes-and-interception-from-root should interpolate [locale] in \"/[locale]/example/(...)[locale]/intercepted\""
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/parallel-routes-and-interception-nested-dynamic-routes/parallel-routes-and-interception-nested-dynamic-routes.test.ts": {
+    "passed": [
+      "parallel-routes-and-interception-nested-dynamic-routes should intercept the route for nested dynamic routes"
     ],
     "failed": [],
     "pending": [],
@@ -8769,6 +8943,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/segment-cache/deployment-skew/deployment-skew.test.ts": {
+    "passed": [
+      "segment cache (deployment skew) should not run during dev or deploy test runs"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/segment-cache/dynamic-on-hover/dynamic-on-hover.test.ts": {
     "passed": ["dynamic on hover prefetching is disabled"],
     "failed": [],
@@ -9365,6 +9548,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/webpack-loader-set-environment-variable/webpack-loader-set-environment-variable.test.ts": {
+    "passed": [
+      "webpack-loader-set-environment-variable loader that sets an environment variable should work"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/webpack-loader-ts-transform/webpack-loader-ts-transform.test.ts": {
     "passed": [
       "webpack-loader-ts-transform should accept Typescript returned from Webpack loaders"
@@ -9479,23 +9671,9 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/basepath/basepath-trailing-slash.test.ts": {
-    "passed": [
-      "basePath + trailingSlash should allow URL query strings on index without refresh",
-      "basePath + trailingSlash should allow URL query strings without refresh",
-      "basePath + trailingSlash should correctly replace state when same asPath but different url"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/basepath/basepath.test.ts": {
     "passed": [
       "basePath should 404 for public file without basePath",
-      "basePath should 404 when manually adding basePath with <Link>",
-      "basePath should 404 when manually adding basePath with router.push",
-      "basePath should 404 when manually adding basePath with router.replace",
       "basePath should add header with basePath by default",
       "basePath should add header without basePath when set to false",
       "basePath should allow URL query strings on index without refresh",
@@ -9503,17 +9681,6 @@
       "basePath should correctly replace state when same asPath but different url",
       "basePath should fetch data for getServerSideProps without reloading",
       "basePath should fetch data for getStaticProps without reloading",
-      "basePath should handle 404 urls that start with basePath",
-      "basePath should handle query/hash correctly during query updating ## $search",
-      "basePath should handle query/hash correctly during query updating ##? $search",
-      "basePath should handle query/hash correctly during query updating ##hello $search",
-      "basePath should handle query/hash correctly during query updating ##hello? $search",
-      "basePath should handle query/hash correctly during query updating #? $search",
-      "basePath should handle query/hash correctly during query updating #a ?hello",
-      "basePath should handle query/hash correctly during query updating #a ?hello=",
-      "basePath should handle query/hash correctly during query updating #a ?hello=world",
-      "basePath should handle query/hash correctly during query updating #hello? $search",
-      "basePath should handle query/hash correctly during query updating #hello?world $search",
       "basePath should have basePath field on Router",
       "basePath should have correct href for a link",
       "basePath should have correct href for a link to /",
@@ -9523,44 +9690,103 @@
       "basePath should navigate an absolute local url without basePath",
       "basePath should navigate an absolute url",
       "basePath should navigate back correctly to a dynamic route",
-      "basePath should navigate to /404 correctly client-side",
-      "basePath should navigate to /_error correctly client-side",
       "basePath should navigate to external site and back",
       "basePath should navigate to index page with getStaticProps",
       "basePath should navigate to the page without refresh",
       "basePath should not add header with basePath when set to false",
       "basePath should not add header without basePath without disabling",
-      "basePath should not redirect with basePath when set to false",
-      "basePath should not redirect without basePath without disabling",
-      "basePath should not rewrite with basePath when set to false",
-      "basePath should not rewrite without basePath without disabling",
-      "basePath should not update URL for a 404",
       "basePath should redirect trailing slash correctly",
       "basePath should redirect trailing slash on root correctly",
-      "basePath should redirect with basePath by default",
-      "basePath should redirect without basePath when set to false",
       "basePath should respect basePath in amphtml link rel",
-      "basePath should rewrite with basePath by default",
-      "basePath should rewrite without basePath when set to false",
       "basePath should serve public file with basePath correctly",
       "basePath should show 404 for page not under the /docs prefix",
       "basePath should show the hello page under the /docs prefix",
       "basePath should show the other-page page under the /docs prefix",
       "basePath should update dynamic params after mount correctly",
-      "basePath should use urls with basepath in router events",
-      "basePath should use urls with basepath in router events for cancelled routes",
-      "basePath should use urls with basepath in router events for failed route change",
-      "basePath should use urls with basepath in router events for hash changes",
       "basePath should work with catch-all page",
-      "basePath should work with hash links",
       "basePath should work with nested folder with same name as basePath",
       "basePath should work with normal dynamic page"
     ],
     "failed": [],
     "pending": [
-      "basePath should navigate back to a non-basepath 404 that starts with basepath",
       "basePath should navigate to nested index page with getStaticProps"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/basepath/error-pages.test.ts": {
+    "passed": [
+      "basePath client-side navigation should navigate to /404 correctly client-side",
+      "basePath client-side navigation should navigate to /_error correctly client-side",
+      "basePath manually added basePath in application logic should 404 when manually adding basePath with <Link>",
+      "basePath manually added basePath in application logic should 404 when manually adding basePath with router.push",
+      "basePath manually added basePath in application logic should 404 when manually adding basePath with router.replace",
+      "basePath should handle 404 urls that start with basePath",
+      "basePath should not update URL for a 404",
+      "basePath should show 404 for page not under the /docs prefix"
+    ],
+    "failed": [],
+    "pending": [
+      "basePath should navigate back to a non-basepath 404 that starts with basepath"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/basepath/query-hash.test.ts": {
+    "passed": [
+      "basePath query/hash handling is correct during query updating ## $search",
+      "basePath query/hash handling is correct during query updating ##? $search",
+      "basePath query/hash handling is correct during query updating ##hello $search",
+      "basePath query/hash handling is correct during query updating ##hello? $search",
+      "basePath query/hash handling is correct during query updating #? $search",
+      "basePath query/hash handling is correct during query updating #a ?hello",
+      "basePath query/hash handling is correct during query updating #a ?hello=",
+      "basePath query/hash handling is correct during query updating #a ?hello=world",
+      "basePath query/hash handling is correct during query updating #hello? $search",
+      "basePath query/hash handling is correct during query updating #hello?world $search",
+      "basePath query/hash handling should work with hash links"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/basepath/redirect-and-rewrite.test.ts": {
+    "passed": [
+      "basePath should not redirect with basePath when set to false",
+      "basePath should not redirect without basePath without disabling",
+      "basePath should not rewrite with basePath when set to false",
+      "basePath should not rewrite without basePath without disabling",
+      "basePath should redirect with basePath by default",
+      "basePath should redirect without basePath when set to false",
+      "basePath should rewrite with basePath by default",
+      "basePath should rewrite without basePath when set to false"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/basepath/router-events.test.ts": {
+    "passed": [
+      "basePath should use urls with basepath in router events",
+      "basePath should use urls with basepath in router events for cancelled routes",
+      "basePath should use urls with basepath in router events for failed route change",
+      "basePath should use urls with basepath in router events for hash changes"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/basepath/trailing-slash.test.ts": {
+    "passed": [
+      "basePath + trailingSlash should allow URL query strings on index without refresh",
+      "basePath + trailingSlash should allow URL query strings without refresh",
+      "basePath + trailingSlash should correctly replace state when same asPath but different url"
+    ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -9680,8 +9906,14 @@
   },
   "test/e2e/define/define.test.ts": {
     "passed": [
-      "compiler.define should render the magic variable on client side",
-      "compiler.define should render the magic variable on server side"
+      "compiler.define compiler.define should render the magic expression on client side",
+      "compiler.define compiler.define should render the magic expression on server side",
+      "compiler.define compiler.define should render the magic variable on client side",
+      "compiler.define compiler.define should render the magic variable on server side",
+      "compiler.define compiler.defineServer should not render the inlined expression on client side",
+      "compiler.define compiler.defineServer should not render the inlined variable on client side",
+      "compiler.define compiler.defineServer should render the inlined expression on server side",
+      "compiler.define compiler.defineServer should render the inlined variable on server side"
     ],
     "failed": [],
     "pending": [],
@@ -9975,20 +10207,8 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/i18n-data-fetching-redirect/index.test.ts": {
+  "test/e2e/i18n-data-fetching-redirect/redirect-from-context.test.ts": {
     "passed": [
-      "i18n-data-fetching-redirect Redirect to another locale gsp-blocking-redirect en -> sv",
-      "i18n-data-fetching-redirect Redirect to another locale gsp-blocking-redirect sv -> en",
-      "i18n-data-fetching-redirect Redirect to another locale gsp-fallback-redirect en -> sv",
-      "i18n-data-fetching-redirect Redirect to another locale gsp-fallback-redirect sv -> en",
-      "i18n-data-fetching-redirect Redirect to another locale gssp-redirect en -> sv",
-      "i18n-data-fetching-redirect Redirect to another locale gssp-redirect sv -> en",
-      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-blocking-redirect en -> sv",
-      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-blocking-redirect sv -> en",
-      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-fallback-redirect en -> sv",
-      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-fallback-redirect sv -> en",
-      "i18n-data-fetching-redirect Redirect to another locale next/link gssp-redirect en -> sv",
-      "i18n-data-fetching-redirect Redirect to another locale next/link gssp-redirect sv -> en",
       "i18n-data-fetching-redirect Redirect to locale from context gsp-blocking-redirect en",
       "i18n-data-fetching-redirect Redirect to locale from context gsp-blocking-redirect sv",
       "i18n-data-fetching-redirect Redirect to locale from context gsp-fallback-redirect en",
@@ -10001,6 +10221,26 @@
       "i18n-data-fetching-redirect Redirect to locale from context next/link gsp-fallback-redirect sv",
       "i18n-data-fetching-redirect Redirect to locale from context next/link gssp-redirect en",
       "i18n-data-fetching-redirect Redirect to locale from context next/link gssp-redirect sv"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/i18n-data-fetching-redirect/redirect.test.ts": {
+    "passed": [
+      "i18n-data-fetching-redirect Redirect to another locale gsp-blocking-redirect en -> sv",
+      "i18n-data-fetching-redirect Redirect to another locale gsp-blocking-redirect sv -> en",
+      "i18n-data-fetching-redirect Redirect to another locale gsp-fallback-redirect en -> sv",
+      "i18n-data-fetching-redirect Redirect to another locale gsp-fallback-redirect sv -> en",
+      "i18n-data-fetching-redirect Redirect to another locale gssp-redirect en -> sv",
+      "i18n-data-fetching-redirect Redirect to another locale gssp-redirect sv -> en",
+      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-blocking-redirect en -> sv",
+      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-blocking-redirect sv -> en",
+      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-fallback-redirect en -> sv",
+      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-fallback-redirect sv -> en",
+      "i18n-data-fetching-redirect Redirect to another locale next/link gssp-redirect en -> sv",
+      "i18n-data-fetching-redirect Redirect to another locale next/link gssp-redirect sv -> en"
     ],
     "failed": [],
     "pending": [],
@@ -12037,9 +12277,9 @@
   },
   "test/e2e/vary-header/test/index.test.ts": {
     "passed": [
-      "Vary Header Tests should preserve custom vary header",
+      "Vary Header Tests should preserve custom vary header and append RSC headers in app route handlers",
       "Vary Header Tests should preserve custom vary header in API routes",
-      "Vary Header Tests should preserve middleware vary header"
+      "Vary Header Tests should preserve middleware vary header in combination with route handlers"
     ],
     "failed": [],
     "pending": [],
@@ -12631,7 +12871,7 @@
     ],
     "failed": [],
     "pending": [
-      "Root components import order production mode _app chunks should be attached to de dom before page chunks",
+      "Root components import order production mode Skipped in Turbopack _app chunks should be attached to de dom before page chunks",
       "Root components import order production mode root components should be imported in this order _document > _app > page in order to respect side effects",
       "development mode Skipped in Turbopack _app chunks should be attached to de dom before page chunks"
     ],

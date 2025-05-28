@@ -45,6 +45,15 @@ describe('server-side dev errors', () => {
   })
   afterAll(() => killApp(app))
 
+  // TODO: update to ensure this frame is ignored properly by default
+  function stripInternalHandler(output) {
+    return output
+      .replace(/.*at async handler .*next-route-loader.*/, '')
+      .split(/\n/)
+      .filter((item) => !!item.trim())
+      .join('\n')
+  }
+
   it('should show server-side error for gsp page correctly', async () => {
     const content = await fs.readFile(gspPage, 'utf8')
 
@@ -62,7 +71,9 @@ describe('server-side dev errors', () => {
         )
       })
 
-      const stderrOutput = stripAnsi(stderr.slice(stderrIdx)).trim()
+      const stderrOutput = stripInternalHandler(
+        stripAnsi(stderr.slice(stderrIdx)).trim()
+      )
 
       expect(stderrOutput).toStartWith(
         '⨯ ReferenceError: missingVar is not defined' +
@@ -111,7 +122,9 @@ describe('server-side dev errors', () => {
         )
       })
 
-      const stderrOutput = stripAnsi(stderr.slice(stderrIdx)).trim()
+      const stderrOutput = stripInternalHandler(
+        stripAnsi(stderr.slice(stderrIdx)).trim()
+      )
       expect(stderrOutput).toStartWith(
         '⨯ ReferenceError: missingVar is not defined' +
           '\n    at getServerSideProps (../../test/integration/server-side-dev-errors/pages/gssp.js:6:2)' +
@@ -159,7 +172,9 @@ describe('server-side dev errors', () => {
         )
       })
 
-      const stderrOutput = stripAnsi(stderr.slice(stderrIdx)).trim()
+      const stderrOutput = stripInternalHandler(
+        stripAnsi(stderr.slice(stderrIdx)).trim()
+      )
       expect(stderrOutput).toStartWith(
         '⨯ ReferenceError: missingVar is not defined' +
           '\n    at getServerSideProps (../../test/integration/server-side-dev-errors/pages/blog/[slug].js:6:2)' +

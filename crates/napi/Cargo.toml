@@ -1,5 +1,5 @@
 [package]
-edition = "2021"
+edition = "2024"
 name = "next-swc-napi"
 version = "0.0.0"
 publish = false
@@ -79,8 +79,6 @@ dashmap = { workspace = true }
 swc_core = { workspace = true, features = [
     "base_concurrent",
     "base_node",
-    "bundler",
-    "bundler_concurrent",
     "common_concurrent",
     "ecma_ast",
     "ecma_ast_serde",
@@ -105,7 +103,6 @@ lightningcss-napi = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
-turbo-tasks-memory = { workspace = true }
 turbo-tasks-backend = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 next-api = { workspace = true }

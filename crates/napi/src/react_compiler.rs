@@ -3,10 +3,10 @@ use std::{path::PathBuf, sync::Arc};
 use napi::bindgen_prelude::*;
 use next_custom_transforms::react_compiler;
 use swc_core::{
-    common::{SourceMap, GLOBALS},
+    common::{GLOBALS, SourceMap},
     ecma::{
         ast::EsVersion,
-        parser::{parse_file_as_program, Syntax, TsSyntax},
+        parser::{Syntax, TsSyntax, parse_file_as_program},
     },
 };
 

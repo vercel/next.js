@@ -39,7 +39,8 @@ jobs:
       - name: check for release
         id: is-release
         run: |
-          if [[ $(node ./scripts/check-is-release.js 2> /dev/null || :) = v* ]];
+          RELEASE_CHECK=$(node ./scripts/check-is-release.js 2> /dev/null || :)
+          if [[ $RELEASE_CHECK == "new-release" || $RELEASE_CHECK == v* ]];
             then
               echo "IS_RELEASE=true" >> $GITHUB_OUTPUT
             else
@@ -801,7 +802,8 @@ jobs:
 
         NEXT_TEST_MODE=start BROWSER_NAME=safari node run-tests.js \
           test/production/pages-dir/production/test/index.test.ts \
-          test/e2e/basepath/basepath.test.ts
+          test/e2e/basepath/basepath.test.ts \
+          test/e2e/basepath/error-pages.test.ts
 
         BROWSER_NAME=safari DEVICE_NAME='iPhone XR' node run-tests.js \
           test/production/prerender-prefetch/index.test.ts

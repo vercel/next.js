@@ -5,7 +5,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Registry};
+use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
 use turbo_tasks_malloc::TurboMalloc;
 use turbopack_cli::{arguments::Arguments, register};
 use turbopack_trace_utils::{
@@ -14,7 +14,7 @@ use turbopack_trace_utils::{
     raw_trace::RawTraceLayer,
     trace_writer::TraceWriter,
     tracing_presets::{
-        TRACING_OVERVIEW_TARGETS, TRACING_TURBOPACK_TARGETS, TRACING_TURBO_TASKS_TARGETS,
+        TRACING_OVERVIEW_TARGETS, TRACING_TURBO_TASKS_TARGETS, TRACING_TURBOPACK_TARGETS,
     },
 };
 

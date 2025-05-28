@@ -46,6 +46,7 @@ export async function unstable_rootParams(): Promise<Params> {
       )
     }
     case 'prerender':
+    case 'prerender-client':
     case 'prerender-ppr':
     case 'prerender-legacy':
       return createPrerenderRootParams(
@@ -75,31 +76,38 @@ function createPrerenderRootParams(
 
     if (hasSomeFallbackParams) {
       // params need to be treated as dynamic because we have at least one fallback param
-      if (prerenderStore.type === 'prerender') {
-        // We are in a dynamicIO (PPR or otherwise) prerender
-        const cachedParams = CachedParams.get(underlyingParams)
-        if (cachedParams) {
-          return cachedParams
-        }
+      switch (prerenderStore.type) {
+        case 'prerender':
+          // We are in a dynamicIO prerender
+          const cachedParams = CachedParams.get(underlyingParams)
+          if (cachedParams) {
+            return cachedParams
+          }
 
-        const promise = makeHangingPromise<Params>(
-          prerenderStore.renderSignal,
-          '`unstable_rootParams`'
-        )
-        CachedParams.set(underlyingParams, promise)
+          const promise = makeHangingPromise<Params>(
+            prerenderStore.renderSignal,
+            '`unstable_rootParams`'
+          )
+          CachedParams.set(underlyingParams, promise)
 
-        return promise
+          return promise
+        case 'prerender-client':
+          const exportName = '`unstable_rootParams`'
+          throw new InvariantError(
+            `${exportName} must not be used within a client component. Next.js should be preventing ${exportName} from being included in client components statically, but did not in this case.`
+          )
+        default:
+          // remaining cases are prerender-ppr and prerender-legacy
+          // We aren't in a dynamicIO prerender but we do have fallback params at this
+          // level so we need to make an erroring params object which will postpone
+          // if you access the fallback params
+          return makeErroringRootParams(
+            underlyingParams,
+            fallbackParams,
+            workStore,
+            prerenderStore
+          )
       }
-      // remaining cases are prerender-ppr and prerender-legacy
-      // We aren't in a dynamicIO prerender but we do have fallback params at this
-      // level so we need to make an erroring params object which will postpone
-      // if you access the fallback params
-      return makeErroringRootParams(
-        underlyingParams,
-        fallbackParams,
-        workStore,
-        prerenderStore
-      )
     }
   }
 

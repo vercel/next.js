@@ -1,14 +1,14 @@
 use std::collections::BTreeMap;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use indexmap::map::{Entry, OccupiedEntry};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, FxIndexMap, NonLocalValue, ResolvedVc,
-    TaskInput, TryJoinIterExt, ValueDefault, ValueToString, Vc,
+    FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueDefault, ValueToString,
+    Vc, debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath};
 use turbopack_core::issue::{
@@ -17,11 +17,11 @@ use turbopack_core::issue::{
 
 use crate::{
     next_app::{
-        metadata::{
-            match_global_metadata_file, match_local_metadata_file, normalize_metadata_route,
-            GlobalMetadataFileMatch, MetadataFileMatch,
-        },
         AppPage, AppPath, PageSegment, PageType,
+        metadata::{
+            GlobalMetadataFileMatch, MetadataFileMatch, match_global_metadata_file,
+            match_local_metadata_file, normalize_metadata_route,
+        },
     },
     next_import_map::get_next_package,
 };
@@ -375,7 +375,7 @@ async fn get_directory_tree_internal(
                     .map_or(file_name, |(basename, _)| basename);
                 let alt_path = file
                     .parent()
-                    .join(format!("{}.alt.txt", basename).into())
+                    .join(format!("{basename}.alt.txt").into())
                     .to_resolved()
                     .await?;
                 let alt_path = matches!(&*alt_path.get_type().await?, FileSystemEntryType::File)
@@ -568,9 +568,9 @@ fn conflict_issue(
     value_b: &AppPage,
 ) {
     let item_names = if a == b {
-        format!("{}s", a)
+        format!("{a}s")
     } else {
-        format!("{} and {}", a, b)
+        format!("{a} and {b}")
     };
 
     DirectoryTreeIssue {
@@ -767,6 +767,7 @@ fn directory_tree_to_entrypoints(
 #[turbo_tasks::value]
 struct DuplicateParallelRouteIssue {
     app_dir: ResolvedVc<FileSystemPath>,
+    previously_inserted_page: AppPage,
     page: AppPage,
 }
 
@@ -783,11 +784,17 @@ impl Issue for DuplicateParallelRouteIssue {
     }
 
     #[turbo_tasks::function]
-    fn title(self: Vc<Self>) -> Vc<StyledString> {
-        StyledString::Text(
-            "You cannot have two parallel pages that resolve to the same path.".into(),
+    async fn title(self: Vc<Self>) -> Result<Vc<StyledString>> {
+        let this = self.await?;
+        Ok(StyledString::Text(
+            format!(
+                "You cannot have two parallel pages that resolve to the same path. Please check \
+                 {} and {}.",
+                this.previously_inserted_page, this.page
+            )
+            .into(),
         )
-        .cell()
+        .cell())
     }
 }
 
@@ -826,6 +833,7 @@ async fn check_duplicate(
             if prev != page_path {
                 DuplicateParallelRouteIssue {
                     app_dir: app_dir.to_resolved().await?,
+                    previously_inserted_page: prev.clone(),
                     page: loader_tree.page.clone(),
                 }
                 .resolved_cell()
@@ -1038,7 +1046,7 @@ async fn directory_tree_to_loader_tree_internal(
         }
 
         for key in keys_to_replace {
-            let subdir_name: RcStr = format!("@{}", key).into();
+            let subdir_name: RcStr = format!("@{key}").into();
 
             let default = if key == "children" {
                 modules.default

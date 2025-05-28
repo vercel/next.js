@@ -3,7 +3,7 @@ name = "turbo-tasks-fs"
 version = "0.1.0"
 description = "TBD"
 license = "MIT"
-edition = "2021"
+edition = "2024"
 
 [lib]
 bench = false
@@ -41,6 +41,7 @@ mime = { workspace = true }
 notify = { workspace = true }
 parking_lot = { workspace = true }
 rayon = { workspace = true }
+regex = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true, features = ["rc"] }
 serde_bytes = { workspace = true }
@@ -61,7 +62,6 @@ criterion = { workspace = true, features = ["async_tokio"] }
 rstest = { workspace = true }
 sha2 = "0.10.2"
 tempfile = { workspace = true }
-turbo-tasks-memory = { workspace = true }
 turbo-tasks-testing = { workspace = true }
 turbo-tasks-backend = { workspace = true }
 

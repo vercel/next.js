@@ -211,7 +211,7 @@ pub fn hash_key(key: &impl KeyBase) -> u64 {
 mod tests {
     use std::cmp::Ordering;
 
-    use crate::{key::hash_key, QueryKey};
+    use crate::{QueryKey, key::hash_key};
 
     #[test]
     fn tuple() {

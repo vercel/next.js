@@ -36,7 +36,6 @@ dashmap = "6.1.0"
 
 swc_core = { workspace = true, features = [
   "base",
-  "cached",
   "common_concurrent",
   "ecma_ast",
   "ecma_codegen",
@@ -63,8 +62,8 @@ turbopack-ecmascript-plugins = { workspace = true, optional = true }
 turbo-rcstr = { workspace = true }
 urlencoding = { workspace = true }
 
-react_remove_properties = "0.37.0"
-remove_console = "0.38.0"
+react_remove_properties = "0.40.0"
+remove_console = "0.41.0"
 preset_env_base = "3.0.1"
 
 [dev-dependencies]

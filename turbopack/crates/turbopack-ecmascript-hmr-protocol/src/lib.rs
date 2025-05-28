@@ -2,7 +2,7 @@ use std::{collections::BTreeMap, fmt::Display, ops::Deref, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use turbopack_cli_utils::issue::{format_issue, LogOptions};
+use turbopack_cli_utils::issue::{LogOptions, format_issue};
 use turbopack_core::{
     issue::{IssueSeverity, IssueStage, PlainIssue, StyledString},
     source_pos::SourcePos,
@@ -19,7 +19,7 @@ impl Display for ResourceIdentifier {
         write!(f, "{}", self.path)?;
         if let Some(headers) = &self.headers {
             for (key, value) in headers.iter() {
-                write!(f, " [{}: {}]", key, value)?;
+                write!(f, " [{key}: {value}]")?;
             }
         }
         Ok(())

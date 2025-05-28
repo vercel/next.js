@@ -10,24 +10,24 @@ use turbopack_core::{
     module::Module,
     module_graph::ModuleGraph,
     reference::{ModuleReference, ModuleReferences, SingleChunkableModuleReference},
-    resolve::{origin::ResolveOrigin, ModulePart},
+    resolve::{ModulePart, origin::ResolveOrigin},
 };
 
 use super::{
-    chunk_item::EcmascriptModulePartChunkItem, get_part_id, part_of_module, split, split_module,
-    SplitResult,
+    SplitResult, chunk_item::EcmascriptModulePartChunkItem, get_part_id, part_of_module, split,
+    split_module,
 };
 use crate::{
-    chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
-    parse::ParseResult,
-    references::{
-        analyse_ecmascript_module, esm::FoundExportType, follow_reexports, FollowExportsResult,
-    },
-    side_effect_optimization::facade::module::EcmascriptModuleFacadeModule,
-    tree_shake::{side_effect_module::SideEffectsModule, Key},
     AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptModuleAsset,
     EcmascriptModuleAssetType, EcmascriptModuleContent, EcmascriptModuleContentOptions,
     EcmascriptParsable,
+    chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
+    parse::ParseResult,
+    references::{
+        FollowExportsResult, analyse_ecmascript_module, esm::FoundExportType, follow_reexports,
+    },
+    side_effect_optimization::facade::module::EcmascriptModuleFacadeModule,
+    tree_shake::{Key, side_effect_module::SideEffectsModule},
 };
 
 /// A reference to part of an ES module.

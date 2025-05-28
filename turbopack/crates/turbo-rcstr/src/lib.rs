@@ -3,7 +3,7 @@ use std::{
     ffi::OsStr,
     fmt::{Debug, Display},
     hash::{Hash, Hasher},
-    mem::{forget, ManuallyDrop},
+    mem::{ManuallyDrop, forget},
     num::NonZeroU8,
     ops::Deref,
     path::{Path, PathBuf},

@@ -19,7 +19,7 @@ use swc_core::{
 };
 use swc_emotion::ImportMap;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, OperationValue, ValueDefault, Vc};
+use turbo_tasks::{NonLocalValue, OperationValue, ValueDefault, Vc, trace::TraceRawVcs};
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
 #[derive(

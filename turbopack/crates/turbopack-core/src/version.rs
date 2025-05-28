@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, IntoTraitRef, NonLocalValue, OperationValue,
-    ReadRef, ResolvedVc, State, TraitRef, Vc,
+    IntoTraitRef, NonLocalValue, OperationValue, ReadRef, ResolvedVc, State, TraitRef, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileContent, LinkType};
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
@@ -268,8 +268,7 @@ pub struct VersionState {
 impl VersionState {
     #[turbo_tasks::function]
     pub fn get(&self) -> Vc<Box<dyn Version>> {
-        let version = TraitRef::cell(self.version.get().0.clone());
-        version
+        TraitRef::cell(self.version.get().0.clone())
     }
 }
 

@@ -1,13 +1,13 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use futures::future::BoxFuture;
 use next_core::{
-    all_assets_from_entries, create_page_loader_entry_module, get_asset_path_from_pathname,
-    get_edge_resolve_options_context,
+    PageLoaderAsset, all_assets_from_entries, create_page_loader_entry_module,
+    get_asset_path_from_pathname, get_edge_resolve_options_context,
     hmr_entry::HmrEntryModule,
     mode::NextMode,
     next_client::{
-        get_client_module_options_context, get_client_resolve_options_context,
-        get_client_runtime_entries, ClientContextType, RuntimeEntries,
+        ClientContextType, RuntimeEntries, get_client_module_options_context,
+        get_client_resolve_options_context, get_client_runtime_entries,
     },
     next_dynamic::NextDynamicTransition,
     next_edge::route_regex::get_named_middleware_regex,
@@ -17,44 +17,43 @@ use next_core::{
     },
     next_pages::create_page_ssr_entry_module,
     next_server::{
-        get_server_module_options_context, get_server_resolve_options_context,
-        get_server_runtime_entries, ServerContextType,
+        ServerContextType, get_server_module_options_context, get_server_resolve_options_context,
+        get_server_runtime_entries,
     },
     pages_structure::{
-        find_pages_structure, PagesDirectoryStructure, PagesStructure, PagesStructureItem,
+        PagesDirectoryStructure, PagesStructure, PagesStructureItem, find_pages_structure,
     },
-    util::{get_asset_prefix_from_pathname, parse_config_from_source, NextRuntime},
-    PageLoaderAsset,
+    util::{NextRuntime, get_asset_prefix_from_pathname, parse_config_from_source},
 };
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    fxindexmap, fxindexset, trace::TraceRawVcs, Completion, FxIndexMap, NonLocalValue, ResolvedVc,
-    TaskInput, Value, ValueToString, Vc,
+    Completion, FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, Value, ValueToString, Vc,
+    fxindexmap, fxindexset, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{
     self, File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
 };
 use turbopack::{
+    ModuleAssetContext,
     module_options::ModuleOptionsContext,
     resolve_options_context::ResolveOptionsContext,
     transition::{FullContextTransition, Transition, TransitionOptions},
-    ModuleAssetContext,
 };
 use turbopack_core::{
     asset::AssetContent,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkGroupResult, ChunkingContext, ChunkingContextExt,
-        EvaluatableAsset, EvaluatableAssets,
+        ChunkGroupResult, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets,
+        availability_info::AvailabilityInfo,
     },
     context::AssetContext,
     file_source::FileSource,
     ident::AssetIdent,
     module::Module,
     module_graph::{
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
         GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
     },
     output::{OptionOutputAsset, OutputAsset, OutputAssets},
     reference_type::{EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType},
@@ -67,7 +66,7 @@ use turbopack_nodejs::NodeJsChunkingContext;
 
 use crate::{
     dynamic_imports::{
-        collect_next_dynamic_chunks, DynamicImportedChunks, NextDynamicChunkAvailability,
+        DynamicImportedChunks, NextDynamicChunkAvailability, collect_next_dynamic_chunks,
     },
     font::create_font_manifest,
     loadable_manifest::create_react_loadable_manifest,
@@ -908,36 +907,39 @@ impl PageEndpoint {
             .module();
 
         let config = parse_config_from_source(ssr_module, NextRuntime::default()).await?;
-        Ok(if config.runtime == NextRuntime::Edge {
-            let modules = create_page_ssr_entry_module(
-                *this.pathname,
-                reference_type,
-                project_root,
-                Vc::upcast(edge_module_context),
-                self.source(),
-                *this.original_name,
-                *this.pages_structure,
-                config.runtime,
-                this.pages_project.project().next_config(),
-            )
-            .await?;
+        let pathname = &**this.pathname.await?;
 
-            InternalSsrChunkModule {
-                ssr_module: modules.ssr_module,
-                app_module: modules.app_module,
-                document_module: modules.document_module,
-                runtime: config.runtime,
-            }
-        } else {
-            let pathname = &**this.pathname.await?;
-
+        Ok(
             // `/_app` and `/_document` never get rendered directly so they don't need to be
-            // wrapped in the route module.
+            // wrapped in the route module, and don't need to be handled as edge runtime as the
+            // rendering for edge is part of the page bundle.
             if pathname == "/_app" || pathname == "/_document" {
                 InternalSsrChunkModule {
                     ssr_module: ssr_module.to_resolved().await?,
                     app_module: None,
                     document_module: None,
+                    // /_app and /_document are always rendered for Node.js for this case. For edge
+                    // they're included in the page bundle.
+                    runtime: NextRuntime::NodeJs,
+                }
+            } else if config.runtime == NextRuntime::Edge {
+                let modules = create_page_ssr_entry_module(
+                    *this.pathname,
+                    reference_type,
+                    project_root,
+                    Vc::upcast(edge_module_context),
+                    self.source(),
+                    *this.original_name,
+                    *this.pages_structure,
+                    config.runtime,
+                    this.pages_project.project().next_config(),
+                )
+                .await?;
+
+                InternalSsrChunkModule {
+                    ssr_module: modules.ssr_module,
+                    app_module: modules.app_module,
+                    document_module: modules.document_module,
                     runtime: config.runtime,
                 }
             } else {
@@ -960,8 +962,8 @@ impl PageEndpoint {
                     runtime: config.runtime,
                 }
             }
-        }
-        .cell())
+            .cell(),
+        )
     }
 
     #[turbo_tasks::function]

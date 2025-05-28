@@ -3,8 +3,8 @@ use std::ptr::NonNull;
 use triomphe::Arc;
 
 use crate::{
-    tagged_value::{TaggedValue, MAX_INLINE_LEN},
-    RcStr, INLINE_TAG_INIT, LEN_OFFSET, TAG_MASK,
+    INLINE_TAG_INIT, LEN_OFFSET, RcStr, TAG_MASK,
+    tagged_value::{MAX_INLINE_LEN, TaggedValue},
 };
 
 pub unsafe fn cast(ptr: TaggedValue) -> *const String {
@@ -12,13 +12,13 @@ pub unsafe fn cast(ptr: TaggedValue) -> *const String {
 }
 
 pub unsafe fn deref_from<'i>(ptr: TaggedValue) -> &'i String {
-    &*cast(ptr)
+    unsafe { &*cast(ptr) }
 }
 
 /// Caller should call `forget` (or `clone`) on the returned `Arc`
 pub unsafe fn restore_arc(v: TaggedValue) -> Arc<String> {
     let ptr = v.get_ptr() as *const String;
-    Arc::from_raw(ptr)
+    unsafe { Arc::from_raw(ptr) }
 }
 
 /// This can create any kind of [Atom], although this lives in the `dynamic`

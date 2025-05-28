@@ -1,5 +1,11 @@
 import type { CSSProperties, Dispatch, SetStateAction } from 'react'
-import { STORAGE_KEY_POSITION, type OverlayState } from '../../../../shared'
+import {
+  ACTION_ERROR_OVERLAY_OPEN,
+  ACTION_ERROR_OVERLAY_TOGGLE,
+  STORAGE_KEY_POSITION,
+  type OverlayDispatch,
+  type OverlayState,
+} from '../../../../shared'
 
 import { useState, useEffect, useRef, createContext, useContext } from 'react'
 import { Toast } from '../../toast'
@@ -11,6 +17,7 @@ import { TurbopackInfo } from './dev-tools-info/turbopack-info'
 import { RouteInfo } from './dev-tools-info/route-info'
 import GearIcon from '../../../icons/gear-icon'
 import { UserPreferences } from './dev-tools-info/user-preferences'
+import { SegmentsExplorer } from '../../overview/segment-explorer'
 import {
   MENU_CURVE,
   MENU_DURATION_MS,
@@ -29,15 +36,13 @@ export function DevToolsIndicator({
   state,
   errorCount,
   isBuildError,
-  setIsErrorOverlayOpen,
   ...props
 }: {
   state: OverlayState
+  dispatch: OverlayDispatch
   errorCount: number
   isBuildError: boolean
-  setIsErrorOverlayOpen: (
-    isErrorOverlayOpen: boolean | ((prev: boolean) => boolean)
-  ) => void
+
   scale: DevToolsScale
   setScale: (value: DevToolsScale) => void
 }) {
@@ -56,7 +61,6 @@ export function DevToolsIndicator({
           method: 'POST',
         })
       }}
-      setIsErrorOverlayOpen={setIsErrorOverlayOpen}
       isTurbopack={!!process.env.TURBOPACK}
       disabled={state.disableDevIndicator || !isDevToolsIndicatorVisible}
       isBuildError={isBuildError}
@@ -80,6 +84,7 @@ const OVERLAYS = {
   Turbo: 'turbo',
   Route: 'route',
   Preferences: 'preferences',
+  SegmentExplorer: 'segment-explorer',
 } as const
 
 export type Overlays = (typeof OVERLAYS)[keyof typeof OVERLAYS]
@@ -94,7 +99,7 @@ function DevToolsPopover({
   isTurbopack,
   isBuildError,
   hide,
-  setIsErrorOverlayOpen,
+  dispatch,
   scale,
   setScale,
 }: {
@@ -106,9 +111,7 @@ function DevToolsPopover({
   isTurbopack: boolean
   isBuildError: boolean
   hide: () => void
-  setIsErrorOverlayOpen: (
-    isOverlayOpen: boolean | ((prev: boolean) => boolean)
-  ) => void
+  dispatch: OverlayDispatch
   scale: DevToolsScale
   setScale: (value: DevToolsScale) => void
 }) {
@@ -123,6 +126,7 @@ function DevToolsPopover({
   const isTurbopackInfoOpen = open === OVERLAYS.Turbo
   const isRouteInfoOpen = open === OVERLAYS.Route
   const isPreferencesOpen = open === OVERLAYS.Preferences
+  const isSegmentExplorerOpen = open === OVERLAYS.SegmentExplorer
 
   const { mounted: menuMounted, rendered: menuRendered } = useDelayedRender(
     isMenuOpen,
@@ -207,12 +211,12 @@ function DevToolsPopover({
   function openErrorOverlay() {
     setOpen(null)
     if (issueCount > 0) {
-      setIsErrorOverlayOpen(true)
+      dispatch({ type: ACTION_ERROR_OVERLAY_OPEN })
     }
   }
 
   function toggleErrorOverlay() {
-    setIsErrorOverlayOpen((prev) => !prev)
+    dispatch({ type: ACTION_ERROR_OVERLAY_TOGGLE })
   }
 
   function openRootMenu() {
@@ -325,6 +329,16 @@ function DevToolsPopover({
         setScale={setScale}
       />
 
+      {/* Page Segment Explorer */}
+      {process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER ? (
+        <SegmentsExplorer
+          isOpen={isSegmentExplorerOpen}
+          close={openRootMenu}
+          triggerRef={triggerRef}
+          style={popover}
+        />
+      ) : null}
+
       {/* Dropdown Menu */}
       {menuMounted && (
         <div
@@ -390,6 +404,15 @@ function DevToolsPopover({
                 onClick={() => setOpen(OVERLAYS.Preferences)}
                 index={isTurbopack ? 2 : 3}
               />
+              {process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER ? (
+                <MenuItem
+                  data-rendered-files
+                  label="Segment Explorer"
+                  value={<ChevronRight />}
+                  onClick={() => setOpen(OVERLAYS.SegmentExplorer)}
+                  index={isTurbopack ? 3 : 4}
+                />
+              ) : null}
             </div>
           </Context.Provider>
         </div>

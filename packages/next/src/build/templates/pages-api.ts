@@ -1,10 +1,6 @@
 import type { NextApiResponse } from '../../types'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import type { PrerenderManifest } from '..'
-import type { DevRoutesManifest } from '../../server/lib/router-utils/setup-dev-bundler'
-import type { InstrumentationOnRequestError } from '../../server/instrumentation/types'
 
-import { parse } from 'node:url'
 import { sendError } from '../../server/api-utils'
 import { RouteKind } from '../../server/route-kind'
 import type { Span } from '../../server/lib/trace/tracer'
@@ -16,25 +12,7 @@ import { hoist } from './helpers'
 import * as userland from 'VAR_USERLAND'
 import { getTracer, SpanKind } from '../../server/lib/trace/tracer'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
-import {
-  ensureInstrumentationRegistered,
-  instrumentationOnRequestError,
-} from '../../server/lib/router-utils/instrumentation-globals.external'
-import { getUtils } from '../../server/server-utils'
-import { PRERENDER_MANIFEST, ROUTES_MANIFEST } from '../../api/constants'
-import { isDynamicRoute } from '../../shared/lib/router/utils'
-import {
-  RouterServerContextSymbol,
-  routerServerGlobal,
-} from '../../server/lib/router-utils/router-server-context'
-import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
-import {
-  normalizeLocalePath,
-  type PathLocale,
-} from '../../shared/lib/i18n/normalize-locale-path'
-import { loadManifestFromRelativePath } from '../../server/load-manifest.external'
-import { getHostname } from '../../shared/lib/get-hostname'
-import { detectDomainLocale } from '../../shared/lib/i18n/detect-domain-locale'
+import type { InstrumentationOnRequestError } from '../../server/instrumentation/types'
 
 // Re-export the handler (should be the default export).
 export default hoist(userland, 'default')
@@ -53,6 +31,8 @@ const routeModule = new PagesAPIRouteModule({
     filename: '',
   },
   userland,
+  distDir: process.env.__NEXT_RELATIVE_DIST_DIR || '',
+  projectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
 })
 
 export async function handler(
@@ -62,123 +42,41 @@ export async function handler(
     waitUntil?: (prom: Promise<void>) => void
   }
 ): Promise<void> {
-  const projectDir =
-    routerServerGlobal[RouterServerContextSymbol]?.dir || process.cwd()
-  const distDir = process.env.__NEXT_RELATIVE_DIST_DIR || ''
-  const isDev = process.env.NODE_ENV === 'development'
-
-  const [routesManifest, prerenderManifest] = await Promise.all([
-    loadManifestFromRelativePath<DevRoutesManifest>(
-      projectDir,
-      distDir,
-      ROUTES_MANIFEST
-    ),
-    loadManifestFromRelativePath<PrerenderManifest>(
-      projectDir,
-      distDir,
-      PRERENDER_MANIFEST
-    ),
-  ])
   let srcPage = 'VAR_DEFINITION_PAGE'
 
   // turbopack doesn't normalize `/index` in the page name
   // so we need to to process dynamic routes properly
+  // TODO: fix turbopack providing differing value from webpack
   if (process.env.TURBOPACK) {
-    srcPage = srcPage.replace(/\/index$/, '')
+    srcPage = srcPage.replace(/\/index$/, '') || '/'
   }
 
-  // We need to parse dynamic route params
-  // and do URL normalization here.
-  // TODO: move this into server-utils for re-use
-  const { basePath, i18n, rewrites } = routesManifest
+  const prepareResult = await routeModule.prepare(req, res, { srcPage })
 
-  if (basePath) {
-    req.url = removePathPrefix(req.url || '/', basePath)
+  if (!prepareResult) {
+    res.statusCode = 400
+    res.end('Bad Request')
+    ctx.waitUntil?.(Promise.resolve())
+    return
   }
 
-  let localeResult: PathLocale | undefined
-
-  if (i18n) {
-    const urlParts = (req.url || '/').split('?')
-    localeResult = normalizeLocalePath(urlParts[0] || '/', i18n.locales)
-
-    if (localeResult.detectedLocale) {
-      req.url = `${localeResult.pathname}${
-        urlParts[1] ? `?${urlParts[1]}` : ''
-      }`
-    }
-  }
-
-  const parsedUrl = parse(req.url || '/', true)
-  const pageIsDynamic = isDynamicRoute(srcPage)
-
-  const serverUtils = getUtils({
-    page: srcPage,
-    i18n,
-    basePath,
-    rewrites,
-    pageIsDynamic,
-    trailingSlash: process.env.__NEXT_TRAILING_SLASH as any as boolean,
-    caseSensitive: Boolean(routesManifest.caseSensitive),
-  })
-
-  const domainLocale = detectDomainLocale(
-    i18n?.domains,
-    getHostname(parsedUrl, req.headers),
-    localeResult?.detectedLocale
-  )
-
-  const defaultLocale = domainLocale?.defaultLocale || i18n?.defaultLocale
-
-  // Ensure parsedUrl.pathname includes locale before processing
-  // rewrites or they won't match correctly.
-  if (defaultLocale && !localeResult?.detectedLocale) {
-    parsedUrl.pathname = `/${defaultLocale}${parsedUrl.pathname}`
-  }
-
-  const rewriteParamKeys = Object.keys(
-    serverUtils.handleRewrites(req, parsedUrl)
-  )
-  serverUtils.normalizeCdnUrl(req, [
-    ...rewriteParamKeys,
-    ...Object.keys(serverUtils.defaultRouteRegex?.groups || {}),
-  ])
-
-  const params: Record<string, undefined | string | string[]> =
-    serverUtils.dynamicRouteMatcher
-      ? serverUtils.dynamicRouteMatcher(
-          localeResult?.pathname || parsedUrl.pathname || ''
-        ) || {}
-      : {}
-
-  const query = {
-    ...parsedUrl.query,
-    ...params,
-  }
-  serverUtils.normalizeQueryParams(query)
-
-  if (pageIsDynamic) {
-    const result = serverUtils.normalizeDynamicRouteParams(query, true)
-
-    if (result.hasValidParams) {
-      Object.assign(query, result.params)
-    }
-  }
-
-  // ensure instrumentation is registered and pass
-  // onRequestError below
-  await ensureInstrumentationRegistered(projectDir, distDir)
+  const { query, params, prerenderManifest } = prepareResult
 
   try {
     const method = req.method || 'GET'
     const tracer = getTracer()
 
     const activeSpan = tracer.getActiveScopeSpan()
+    const onRequestError =
+      routeModule.instrumentationOnRequestError.bind(routeModule)
 
     const invokeRouteModule = async (span?: Span) =>
       routeModule
         .render(req, res, {
-          query,
+          query: {
+            ...query,
+            ...params,
+          },
           params,
           allowedRevalidateHeaderKeys: process.env
             .__NEXT_ALLOWED_REVALIDATE_HEADERS as any as string[],
@@ -189,11 +87,12 @@ export async function handler(
           // doesn't need to load
           previewProps: prerenderManifest.preview,
           propagateError: false,
-          dev: isDev,
+          dev: routeModule.isDev,
           page: 'VAR_DEFINITION_PAGE',
+          projectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
 
           onError: (...args: Parameters<InstrumentationOnRequestError>) =>
-            instrumentationOnRequestError(projectDir, distDir, ...args),
+            onRequestError(req, ...args),
         })
         .finally(() => {
           if (!span) return
@@ -258,7 +157,7 @@ export async function handler(
     }
   } catch (err) {
     // we re-throw in dev to show the error overlay
-    if (isDev) {
+    if (routeModule.isDev) {
       throw err
     }
     // this is technically an invariant as error handling

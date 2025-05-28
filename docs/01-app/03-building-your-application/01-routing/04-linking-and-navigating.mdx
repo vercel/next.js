@@ -10,8 +10,8 @@ related:
 There are four ways to navigate between routes in Next.js:
 
 - Using the [`<Link>` Component](#link-component)
-- Using the [`useRouter` hook](#userouter-hook) ([Client Components](/docs/app/building-your-application/rendering/client-components))
-- Using the [`redirect` function](#redirect-function) ([Server Components](/docs/app/building-your-application/rendering/server-components))
+- Using the [`useRouter` hook](#userouter-hook) ([Client Components](/docs/app/getting-started/server-and-client-components))
+- Using the [`redirect` function](#redirect-function) ([Server Components](/docs/app/getting-started/server-and-client-components))
 - Using the native [History API](#using-the-native-history-api)
 
 This page will go through how to use each of these options, and dive deeper into how navigation works.
@@ -42,7 +42,7 @@ There are other optional props you can pass to `<Link>`. See the [API reference]
 
 ## `useRouter()` hook
 
-The `useRouter` hook allows you to programmatically change routes from [Client Components](/docs/app/building-your-application/rendering/client-components).
+The `useRouter` hook allows you to programmatically change routes from [Client Components](/docs/app/getting-started/server-and-client-components).
 
 ```tsx filename="app/page.tsx" switcher
 'use client'
@@ -82,7 +82,7 @@ For a full list of `useRouter` methods, see the [API reference](/docs/app/api-re
 
 ## `redirect` function
 
-For [Server Components](/docs/app/building-your-application/rendering/server-components), use the `redirect` function instead.
+For [Server Components](/docs/app/getting-started/server-and-client-components), use the `redirect` function instead.
 
 ```tsx filename="app/team/[id]/page.tsx" switcher
 import { redirect } from 'next/navigation'
@@ -142,7 +142,7 @@ export default async function Profile({ params }) {
 > - `redirect` internally throws an error so it should be called outside of `try/catch` blocks.
 > - `redirect` can be called in Client Components during the rendering process but not in event handlers. You can use the [`useRouter` hook](#userouter-hook) instead.
 > - `redirect` also accepts absolute URLs and can be used to redirect to external links.
-> - If you'd like to redirect before the render process, use [`next.config.js`](/docs/app/building-your-application/routing/redirecting#redirects-in-nextconfigjs) or [Middleware](/docs/app/building-your-application/routing/redirecting#nextresponseredirect-in-middleware).
+> - If you'd like to redirect before the render process, use [`next.config.js`](/docs/app/guides/redirecting#redirects-in-nextconfigjs) or [Middleware](/docs/app/guides/redirecting#nextresponseredirect-in-middleware).
 
 See the [`redirect` API reference](/docs/app/api-reference/functions/redirect) for more information.
 
@@ -260,7 +260,7 @@ The App Router uses a hybrid approach for routing and navigation. On the server,
 
 Code splitting allows you to split your application code into smaller bundles to be downloaded and executed by the browser. This reduces the amount of data transferred and execution time for each request, leading to improved performance.
 
-[Server Components](/docs/app/building-your-application/rendering/server-components) allow your application code to be automatically code-split by route segments. This means only the code needed for the current route is loaded on navigation.
+[Server Components](/docs/app/getting-started/server-and-client-components) allow your application code to be automatically code-split by route segments. This means only the code needed for the current route is loaded on navigation.
 
 ### 2. Prefetching
 

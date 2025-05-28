@@ -4,8 +4,8 @@
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, Completion, ReadRef, TaskInput, Vc};
-use turbo_tasks_testing::{register, run, Registration};
+use turbo_tasks::{Completion, ReadRef, TaskInput, Vc, trace::TraceRawVcs};
+use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 

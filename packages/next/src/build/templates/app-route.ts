@@ -24,6 +24,8 @@ const routeModule = new AppRouteRouteModule({
     filename: 'VAR_DEFINITION_FILENAME',
     bundlePath: 'VAR_DEFINITION_BUNDLE_PATH',
   },
+  distDir: process.env.__NEXT_RELATIVE_DIST_DIR || '',
+  projectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
   resolvedPagePath: 'VAR_RESOLVED_PAGE_PATH',
   nextConfigOutput,
   userland,

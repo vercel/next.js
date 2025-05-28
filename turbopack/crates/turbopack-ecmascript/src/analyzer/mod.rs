@@ -11,7 +11,7 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use graph::VarGraph;
 use num_bigint::BigInt;
 use num_traits::identities::Zero;
@@ -639,7 +639,7 @@ impl Display for JsValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             JsValue::Constant(v) => write!(f, "{v}"),
-            JsValue::Url(url, kind) => write!(f, "{} {}", url, kind),
+            JsValue::Url(url, kind) => write!(f, "{url} {kind}"),
             JsValue::Array { items, mutable, .. } => write!(
                 f,
                 "{}[{}]",
@@ -671,12 +671,12 @@ impl Display for JsValue {
                     .collect::<Vec<_>>()
                     .join(" | ");
                 if let Some(logical_property) = logical_property {
-                    write!(f, "({}){{{}}}", list, logical_property)
+                    write!(f, "({list}){{{logical_property}}}")
                 } else {
-                    write!(f, "({})", list)
+                    write!(f, "({list})")
                 }
             }
-            JsValue::FreeVar(name) => write!(f, "FreeVar({:?})", name),
+            JsValue::FreeVar(name) => write!(f, "FreeVar({name:?})"),
             JsValue::Variable(name) => write!(f, "Variable({}#{:?})", name.0, name.1),
             JsValue::Concat(_, list) => write!(
                 f,
@@ -684,7 +684,7 @@ impl Display for JsValue {
                 list.iter()
                     .map(|v| v
                         .as_str()
-                        .map_or_else(|| format!("${{{}}}", v), |str| str.to_string()))
+                        .map_or_else(|| format!("${{{v}}}"), |str| str.to_string()))
                     .collect::<Vec<_>>()
                     .join("")
             ),
@@ -696,7 +696,7 @@ impl Display for JsValue {
                     .collect::<Vec<_>>()
                     .join(" + ")
             ),
-            JsValue::Not(_, value) => write!(f, "!({})", value),
+            JsValue::Not(_, value) => write!(f, "!({value})"),
             JsValue::Logical(_, op, list) => write!(
                 f,
                 "({})",
@@ -706,7 +706,7 @@ impl Display for JsValue {
                     .join(op.joiner())
             ),
             JsValue::Binary(_, a, op, b) => write!(f, "({}{}{})", a, op.joiner(), b),
-            JsValue::Tenary(_, test, cons, alt) => write!(f, "({} ? {} : {})", test, cons, alt),
+            JsValue::Tenary(_, test, cons, alt) => write!(f, "({test} ? {cons} : {alt})"),
             JsValue::New(_, callee, list) => write!(
                 f,
                 "new {}({})",
@@ -743,26 +743,26 @@ impl Display for JsValue {
                     .collect::<Vec<_>>()
                     .join(", ")
             ),
-            JsValue::Member(_, obj, prop) => write!(f, "{}[{}]", obj, prop),
+            JsValue::Member(_, obj, prop) => write!(f, "{obj}[{prop}]"),
             JsValue::Module(ModuleValue {
                 module: name,
                 annotations,
             }) => {
-                write!(f, "Module({}, {})", name, annotations)
+                write!(f, "Module({name}, {annotations})")
             }
             JsValue::Unknown { .. } => write!(f, "???"),
-            JsValue::WellKnownObject(obj) => write!(f, "WellKnownObject({:?})", obj),
-            JsValue::WellKnownFunction(func) => write!(f, "WellKnownFunction({:?})", func),
+            JsValue::WellKnownObject(obj) => write!(f, "WellKnownObject({obj:?})"),
+            JsValue::WellKnownFunction(func) => write!(f, "WellKnownFunction({func:?})"),
             JsValue::Function(_, func_ident, return_value) => {
-                write!(f, "Function#{}(return = {:?})", func_ident, return_value)
+                write!(f, "Function#{func_ident}(return = {return_value:?})")
             }
             JsValue::Argument(func_ident, index) => {
-                write!(f, "arguments[{}#{}]", index, func_ident)
+                write!(f, "arguments[{index}#{func_ident}]")
             }
-            JsValue::Iterated(_, iterable) => write!(f, "Iterated({})", iterable),
-            JsValue::TypeOf(_, operand) => write!(f, "typeof({})", operand),
-            JsValue::Promise(_, operand) => write!(f, "Promise<{}>", operand),
-            JsValue::Awaited(_, operand) => write!(f, "await({})", operand),
+            JsValue::Iterated(_, iterable) => write!(f, "Iterated({iterable})"),
+            JsValue::TypeOf(_, operand) => write!(f, "typeof({operand})"),
+            JsValue::Promise(_, operand) => write!(f, "Promise<{operand}>"),
+            JsValue::Awaited(_, operand) => write!(f, "await({operand})"),
         }
     }
 }
@@ -1201,8 +1201,7 @@ impl JsValue {
         assert_eq!(
             old,
             self.total_nodes(),
-            "total nodes not up to date {:?}",
-            self
+            "total nodes not up to date {self:?}"
         );
     }
 
@@ -1439,7 +1438,7 @@ impl JsValue {
                     ""
                 )
             ),
-            JsValue::Url(url, kind) => format!("{} {}", url, kind),
+            JsValue::Url(url, kind) => format!("{url} {kind}"),
             JsValue::Alternatives {
                 total_nodes: _,
                 values,
@@ -1458,17 +1457,17 @@ impl JsValue {
                     "| ",
                 );
                 if let Some(logical_property) = logical_property {
-                    format!("({}){{{}}}", list, logical_property)
+                    format!("({list}){{{logical_property}}}")
                 } else {
-                    format!("({})", list)
+                    format!("({list})")
                 }
             }
-            JsValue::FreeVar(name) => format!("FreeVar({})", name),
+            JsValue::FreeVar(name) => format!("FreeVar({name})"),
             JsValue::Variable(name) => {
                 format!("{}", name.0)
             }
             JsValue::Argument(_, index) => {
-                format!("arguments[{}]", index)
+                format!("arguments[{index}]")
             }
             JsValue::Concat(_, list) => format!(
                 "`{}`",
@@ -1654,7 +1653,7 @@ impl JsValue {
                 module: name,
                 annotations,
             }) => {
-                format!("module<{}, {}>", name, annotations)
+                format!("module<{name}, {annotations}>")
             }
             JsValue::Unknown {
                 original_value: inner,
@@ -1678,7 +1677,7 @@ impl JsValue {
                             ""
                         }
                     );
-                    format!("???*{}*", i)
+                    format!("???*{i}*")
                 } else {
                     let i = hints.len();
                     hints.push(String::new());
@@ -1692,7 +1691,7 @@ impl JsValue {
                             ""
                         }
                     );
-                    format!("???*{}*", i)
+                    format!("???*{i}*")
                 }
             }
             JsValue::WellKnownObject(obj) => {
@@ -2236,11 +2235,7 @@ impl JsValue {
                                     | (Null, Null)
                             )
                         };
-                        if same_type {
-                            Some(a == b)
-                        } else {
-                            None
-                        }
+                        if same_type { Some(a == b) } else { None }
                     }
                     (
                         PositiveBinaryOperator::Equal,
@@ -2486,11 +2481,7 @@ impl JsValue {
                     if item.ends_with(str) == Some(true) {
                         Some(true)
                     } else if let Some(s) = item.as_str() {
-                        if str.ends_with(s) {
-                            None
-                        } else {
-                            Some(false)
-                        }
+                        if str.ends_with(s) { None } else { Some(false) }
                     } else {
                         None
                     }
@@ -2540,11 +2531,7 @@ fn all_if_known<T: Copy>(
             _ => {}
         }
     }
-    if unknown {
-        None
-    } else {
-        Some(true)
-    }
+    if unknown { None } else { Some(true) }
 }
 
 /// Evaluates all elements of the list and returns Some(true) if any element is
@@ -2807,11 +2794,7 @@ impl JsValue {
     {
         let (v, modified) = self.visit_each_children_async(visitor).await?;
         let (v, m) = visitor(v).await?;
-        if m {
-            Ok((v, true))
-        } else {
-            Ok((v, modified))
-        }
+        if m { Ok((v, true)) } else { Ok((v, modified)) }
     }
 
     /// Visit all children of the node with an async function.
@@ -2860,11 +2843,7 @@ impl JsValue {
     /// Visit the node and all its children with a function.
     pub fn visit_mut(&mut self, visitor: &mut impl FnMut(&mut JsValue) -> bool) -> bool {
         let modified = self.for_each_children_mut(&mut |value| value.visit_mut(visitor));
-        if visitor(self) {
-            true
-        } else {
-            modified
-        }
+        if visitor(self) { true } else { modified }
     }
 
     /// Visit all children of the node with a function. Only visits nodes where
@@ -2876,11 +2855,7 @@ impl JsValue {
     ) -> bool {
         if condition(self) {
             let modified = self.for_each_children_mut(&mut |value| value.visit_mut(visitor));
-            if visitor(self) {
-                true
-            } else {
-                modified
-            }
+            if visitor(self) { true } else { modified }
         } else {
             false
         }
@@ -3876,14 +3851,15 @@ pub mod test_utils {
     use turbopack_core::{compile_time_info::CompileTimeInfo, error::PrettyPrintError};
 
     use super::{
-        builtin::early_replace_builtin, well_known::replace_well_known, ConstantValue, JsValue,
-        JsValueUrlKind, ModuleValue, WellKnownFunctionKind, WellKnownObjectKind,
+        ConstantValue, JsValue, JsValueUrlKind, ModuleValue, WellKnownFunctionKind,
+        WellKnownObjectKind, builtin::early_replace_builtin, well_known::replace_well_known,
     };
     use crate::{
         analyzer::{
+            RequireContextValue,
             builtin::replace_builtin,
             imports::{ImportAnnotations, ImportAttributes},
-            parse_require_context, RequireContextValue,
+            parse_require_context,
         },
         utils::module_value_to_well_known_object,
     };
@@ -3946,11 +3922,14 @@ pub mod test_utils {
                 box JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
                 ref args,
             ) => {
-                if let [JsValue::Constant(ConstantValue::Str(url)), JsValue::Member(
-                    _,
-                    box JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta),
-                    box JsValue::Constant(ConstantValue::Str(prop)),
-                )] = &args[..]
+                if let [
+                    JsValue::Constant(ConstantValue::Str(url)),
+                    JsValue::Member(
+                        _,
+                        box JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta),
+                        box JsValue::Constant(ConstantValue::Str(prop)),
+                    ),
+                ] = &args[..]
                 {
                     if prop.as_str() == "url" {
                         // TODO avoid clone
@@ -4017,16 +3996,16 @@ mod tests {
     use parking_lot::Mutex;
     use rustc_hash::FxHashMap;
     use swc_core::{
-        common::{comments::SingleThreadedComments, Mark},
+        common::{Mark, comments::SingleThreadedComments},
         ecma::{
             ast::{EsVersion, Id},
             parser::parse_file_as_program,
             transforms::base::resolver,
             visit::VisitMutWith,
         },
-        testing::{fixture, run_test, NormalizedOutput},
+        testing::{NormalizedOutput, fixture, run_test},
     };
-    use turbo_tasks::{util::FormatDuration, ResolvedVc, Value};
+    use turbo_tasks::{ResolvedVc, Value, util::FormatDuration};
     use turbopack_core::{
         compile_time_info::CompileTimeInfo,
         environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion},
@@ -4034,9 +4013,9 @@ mod tests {
     };
 
     use super::{
-        graph::{create_graph, ConditionalKind, Effect, EffectArg, EvalContext, VarGraph},
-        linker::link,
         JsValue,
+        graph::{ConditionalKind, Effect, EffectArg, EvalContext, VarGraph, create_graph},
+        linker::link,
     };
     use crate::analyzer::imports::ImportAttributes;
 

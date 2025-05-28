@@ -112,7 +112,7 @@ export default function Page({ params, searchParams }) {}
 
 - `props` - An object containing the parameters of the current route:
 
-  - `params` - An object containing the [dynamic route parameters](/docs/app/building-your-application/routing/dynamic-routes) object from the root segment down to the segment `generateMetadata` is called from. Examples:
+  - `params` - An object containing the [dynamic route parameters](/docs/app/api-reference/file-conventions/dynamic-routes) object from the root segment down to the segment `generateMetadata` is called from. Examples:
 
     | Route                           | URL         | `params`                  |
     | ------------------------------- | ----------- | ------------------------- |
@@ -1070,7 +1070,7 @@ export const metadata = {
 | `<meta http-equiv="...">`     | Use appropriate HTTP Headers via [`redirect()`](/docs/app/api-reference/functions/redirect), [Middleware](/docs/app/building-your-application/routing/middleware#nextresponse), [Security Headers](/docs/app/api-reference/config/next-config-js/headers) |
 | `<base>`                      | Render the tag in the layout or page itself.                                                                                                                                                                                                              |
 | `<noscript>`                  | Render the tag in the layout or page itself.                                                                                                                                                                                                              |
-| `<style>`                     | Learn more about [styling in Next.js](/docs/app/building-your-application/styling/css).                                                                                                                                                                   |
+| `<style>`                     | Learn more about [styling in Next.js](/docs/app/getting-started/css).                                                                                                                                                                                     |
 | `<script>`                    | Learn more about [using scripts](/docs/app/guides/scripts).                                                                                                                                                                                               |
 | `<link rel="stylesheet" />`   | `import` stylesheets directly in the layout or page itself.                                                                                                                                                                                               |
 | `<link rel="preload />`       | Use [ReactDOM preload method](#link-relpreload)                                                                                                                                                                                                           |
@@ -1152,7 +1152,7 @@ ReactDOM.prefetchDNS(href: string)
 > - These methods are currently only supported in Client Components, which are still Server Side Rendered on initial page load.
 > - Next.js in-built features such as `next/font`, `next/image` and `next/script` automatically handle relevant resource hints.
 
-## Behavior
+## Behavior
 
 ### Default Fields
 
@@ -1182,7 +1182,7 @@ If you need to customize this list, you can define them manually using the `html
 import type { NextConfig } from 'next'
 
 const config: NextConfig = {
-  htmlLimitedBots: 'MySpecialBot|MyAnotherSpecialBot|SimpleCrawler',
+  htmlLimitedBots: /MySpecialBot|MyAnotherSpecialBot|SimpleCrawler/,
 }
 
 export default config
@@ -1190,7 +1190,7 @@ export default config
 
 ```js filename="next.config.js" switcher
 module.exports = {
-  htmlLimitedBots: 'MySpecialBot|MyAnotherSpecialBot|SimpleCrawler',
+  htmlLimitedBots: /MySpecialBot|MyAnotherSpecialBot|SimpleCrawler/,
 }
 ```
 

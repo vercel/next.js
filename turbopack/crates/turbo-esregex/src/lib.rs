@@ -1,6 +1,6 @@
 #![feature(arbitrary_self_types_pointers)]
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 
 pub fn register() {
     turbo_tasks::register();
@@ -18,8 +18,8 @@ pub struct EsRegex {
     delegate: EsRegexImpl,
     // Store the original arguments used to construct
     // this regex to support equality and serialization.
-    pattern: String,
-    flags: String,
+    pub pattern: String,
+    pub flags: String,
 }
 
 #[derive(Debug, Clone)]
@@ -43,7 +43,7 @@ impl TryFrom<RegexForm> for EsRegex {
     type Error = anyhow::Error;
 
     fn try_from(value: RegexForm) -> std::result::Result<Self, Self::Error> {
-        EsRegex::new(&value.pattern, &value.pattern)
+        EsRegex::new(&value.pattern, &value.flags)
     }
 }
 
@@ -87,12 +87,12 @@ impl EsRegex {
                 'u' => applied_flags.push('u'),
                 // sticky search: not relevant for the regex itself
                 'y' => {}
-                _ => bail!("unsupported flag `{}` in regex", flag),
+                _ => bail!("unsupported flag `{flag}` in regex: `{pattern}` with flags: `{flags}`"),
             }
         }
 
         let regex = if !applied_flags.is_empty() {
-            regex::Regex::new(&format!("(?{}){}", applied_flags, pattern))
+            regex::Regex::new(&format!("(?{applied_flags}){pattern}"))
         } else {
             regex::Regex::new(&pattern)
         };
@@ -128,6 +128,14 @@ impl EsRegex {
 #[cfg(test)]
 mod tests {
     use super::{EsRegex, EsRegexImpl};
+
+    #[test]
+    fn round_trip_serialize() {
+        let regex = EsRegex::new("[a-z]", "i").unwrap();
+        let serialized = serde_json::to_string(&regex).unwrap();
+        let parsed = serde_json::from_str::<EsRegex>(&serialized).unwrap();
+        assert_eq!(regex, parsed);
+    }
 
     #[test]
     fn es_regex_matches_simple() {

@@ -13,9 +13,9 @@ use turbopack_core::{
 };
 
 use crate::{
+    EcmascriptModuleAsset,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     tree_shake::chunk_item::SideEffectsModuleChunkItem,
-    EcmascriptModuleAsset,
 };
 
 #[turbo_tasks::value]
@@ -65,7 +65,7 @@ impl Module for SideEffectsModule {
 
         for (i, side_effect) in self.side_effects.iter().enumerate() {
             ident.add_asset(
-                ResolvedVc::cell(RcStr::from(format!("side effect {}", i))),
+                ResolvedVc::cell(RcStr::from(format!("side effect {i}"))),
                 side_effect.ident().to_resolved().await?,
             );
         }

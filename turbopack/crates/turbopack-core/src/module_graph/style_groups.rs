@@ -6,20 +6,19 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput,
-    TryJoinIterExt, ValueToString, Vc,
+    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString,
+    Vc, trace::TraceRawVcs,
 };
 
 use crate::{
     chunk::{
-        chunk_item_batch::attach_async_info_to_chunkable_module, ChunkItem,
-        ChunkItemBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo, ChunkType,
-        ChunkableModule, ChunkingContext,
+        ChunkItem, ChunkItemBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo, ChunkType,
+        ChunkableModule, ChunkingContext, chunk_item_batch::attach_async_info_to_chunkable_module,
     },
     module::{Module, StyleType},
     module_graph::{
-        module_batch::ModuleOrBatch, module_batches::ModuleBatchesGraphEdge, GraphTraversalAction,
-        ModuleGraph,
+        GraphTraversalAction, ModuleGraph, module_batch::ModuleOrBatch,
+        module_batches::ModuleBatchesGraphEdge,
     },
 };
 
@@ -202,16 +201,15 @@ pub async fn compute_style_groups(
 
                 // module is a dependency of dependent when it's included in all chunk groups of
                 // dependent with an index lower than the index of the dependent
-                let is_dependent =
-                    info.chunk_group_indicies.len() >= dependent_info.chunk_group_indicies.len()
-                        && dependent_info.chunk_group_indicies.iter().all(
-                            |(idx, &dependent_pos)| {
-                                info.chunk_group_indicies
-                                    .get(idx)
-                                    .is_some_and(|&module_pos| module_pos < dependent_pos)
-                            },
-                        );
-                is_dependent
+                info.chunk_group_indicies.len() >= dependent_info.chunk_group_indicies.len()
+                    && dependent_info
+                        .chunk_group_indicies
+                        .iter()
+                        .all(|(idx, &dependent_pos)| {
+                            info.chunk_group_indicies
+                                .get(idx)
+                                .is_some_and(|&module_pos| module_pos < dependent_pos)
+                        })
             })
             .collect::<Vec<_>>();
 

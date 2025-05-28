@@ -17,15 +17,15 @@ use auto_hash_map::AutoSet;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput,
-    Upcast, ValueToString, Vc,
+    FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, Upcast, ValueToString, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbo_tasks_hash::DeterministicHash;
 
 pub use self::{
     chunk_item_batch::{
-        batch_info, ChunkItemBatchGroup, ChunkItemBatchWithAsyncModuleInfo,
-        ChunkItemOrBatchWithAsyncModuleInfo,
+        ChunkItemBatchGroup, ChunkItemBatchWithAsyncModuleInfo,
+        ChunkItemOrBatchWithAsyncModuleInfo, batch_info,
     },
     chunking_context::{
         ChunkGroupResult, ChunkGroupType, ChunkingConfig, ChunkingConfigs, ChunkingContext,
@@ -39,8 +39,8 @@ use crate::{
     ident::AssetIdent,
     module::Module,
     module_graph::{
-        module_batch::{ChunkableModuleOrBatch, ModuleBatchGroup},
         ModuleGraph,
+        module_batch::{ChunkableModuleOrBatch, ModuleBatchGroup},
     },
     output::OutputAssets,
     reference::ModuleReference,
@@ -58,8 +58,8 @@ pub enum ModuleId {
 impl Display for ModuleId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ModuleId::Number(i) => write!(f, "{}", i),
-            ModuleId::String(s) => write!(f, "{}", s),
+            ModuleId::Number(i) => write!(f, "{i}"),
+            ModuleId::String(s) => write!(f, "{s}"),
         }
     }
 }

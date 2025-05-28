@@ -39,13 +39,13 @@ There is also an [upgrade CLI](https://tailwindcss.com/docs/upgrade-guide) and [
 
 ## Importing Styles
 
-Add the [Tailwind CSS directives](https://tailwindcss.com/docs/functions-and-directives#directives) that Tailwind will use to inject its generated styles to a [Global Stylesheet](/docs/app/building-your-application/styling/css#global-styles) in your application, for example:
+Add the [Tailwind CSS directives](https://tailwindcss.com/docs/functions-and-directives#directives) that Tailwind will use to inject its generated styles to a [Global Stylesheet](/docs/app/getting-started/css#global-css) in your application, for example:
 
 ```css filename="app/globals.css"
 @import 'tailwindcss';
 ```
 
-Inside the [root layout](/docs/app/building-your-application/routing/layouts-and-templates#root-layout-required) (`app/layout.tsx`), import the `globals.css` stylesheet to apply the styles to every route in your application.
+Inside the [root layout](/docs/app/api-reference/file-conventions/layout#root-layout) (`app/layout.tsx`), import the `globals.css` stylesheet to apply the styles to every route in your application.
 
 ```tsx filename="app/layout.tsx" switcher
 import type { Metadata } from 'next'
@@ -111,7 +111,7 @@ export default function Page() {
 
 ## Importing Styles
 
-Add the [Tailwind CSS directives](https://tailwindcss.com/docs/functions-and-directives#directives) that Tailwind will use to inject its generated styles to a [Global Stylesheet](/docs/pages/building-your-application/styling/css#global-styles) in your application, for example:
+Add the [Tailwind CSS directives](https://tailwindcss.com/docs/functions-and-directives#directives) that Tailwind will use to inject its generated styles to a [Global Stylesheet](/docs/app/getting-started/css#global-css) in your application, for example:
 
 ```css filename="styles/globals.css"
 @import 'tailwindcss';

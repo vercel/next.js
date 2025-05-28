@@ -3,16 +3,16 @@ use std::{
     mem::take,
     path::{Path, PathBuf},
     sync::{
-        mpsc::{channel, Receiver, TryRecvError},
         Arc, Mutex,
+        mpsc::{Receiver, TryRecvError, channel},
     },
     time::Duration,
 };
 
 use anyhow::Result;
 use notify::{
-    event::{MetadataKind, ModifyKind, RenameMode},
     Config, EventKind, PollWatcher, RecommendedWatcher, RecursiveMode, Watcher,
+    event::{MetadataKind, ModifyKind, RenameMode},
 };
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -20,15 +20,15 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    spawn_thread, util::StaticOrArc, FxIndexSet, InvalidationReason, InvalidationReasonKind,
-    Invalidator,
+    FxIndexSet, InvalidationReason, InvalidationReasonKind, Invalidator, spawn_thread,
+    util::StaticOrArc,
 };
 
 use crate::{
-    format_absolute_fs_path,
+    DiskFileSystemInner, format_absolute_fs_path,
     invalidation::{WatchChange, WatchStart},
     invalidator_map::WriteContent,
-    path_to_key, DiskFileSystemInner,
+    path_to_key,
 };
 
 enum DiskWatcherInternal {
@@ -427,8 +427,7 @@ impl DiskWatcher {
                                     // notify or system weirdness.
                                     panic!(
                                         "Rename event does not contain source and destination \
-                                         paths {:#?}",
-                                        paths
+                                         paths {paths:#?}"
                                     );
                                 }
                             }
@@ -455,7 +454,7 @@ impl DiskWatcher {
                     }
                     // Error raised by notify watcher itself
                     Ok(Err(notify::Error { kind, paths })) => {
-                        println!("watch error ({:?}): {:?} ", paths, kind);
+                        println!("watch error ({paths:?}): {kind:?} ");
 
                         if paths.is_empty() {
                             batched_invalidate_path_and_children

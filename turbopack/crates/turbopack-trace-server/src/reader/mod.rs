@@ -272,12 +272,12 @@ impl TraceReader {
                                         read * 1000 / (start.elapsed().as_millis() + 1) as u64
                                     );
                                     if uncompressed != read {
-                                        print!(" ({} MB uncompressed)", uncompressed);
+                                        print!(" ({uncompressed} MB uncompressed)");
                                     }
                                     if stats.is_empty() {
                                         println!();
                                     } else {
-                                        println!(" - {}", stats);
+                                        println!(" - {stats}");
                                     }
                                 }
                             }
@@ -323,7 +323,7 @@ impl TraceReader {
         if let Some((total, start)) = initial_read.take() {
             if let Some(format) = format {
                 let stats = format.stats();
-                println!("{}", stats);
+                println!("{stats}");
             }
             if total > MIN_INITIAL_REPORT_SIZE {
                 println!(

@@ -10,31 +10,31 @@ use std::{
     mem::take,
     pin::Pin,
     sync::{
-        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
         Arc,
+        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
     },
     thread::available_parallelism,
 };
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use auto_hash_map::{AutoMap, AutoSet};
 use indexmap::IndexSet;
 use parking_lot::{Condvar, Mutex};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
-use smallvec::{smallvec, SmallVec};
+use smallvec::{SmallVec, smallvec};
 use tokio::time::{Duration, Instant};
 use turbo_tasks::{
+    CellId, FunctionId, FxDashMap, KeyValuePair, RawVc, ReadCellOptions, ReadConsistency,
+    SessionId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId, TurboTasksBackendApi, ValueTypeId,
     backend::{
         Backend, BackendJobId, CachedTaskType, CellContent, TaskExecutionSpec, TransientTaskRoot,
-        TransientTaskType, TypedCellContent,
+        TransientTaskType, TurboTasksExecutionError, TypedCellContent,
     },
     event::{Event, EventListener},
     registry::{self, get_value_type_global_name},
     task_statistics::TaskStatisticsApi,
     trace::TraceRawVcs,
     util::IdFactoryWithReuse,
-    CellId, FunctionId, FxDashMap, KeyValuePair, RawVc, ReadCellOptions, ReadConsistency,
-    SessionId, TaskId, TraitTypeId, TurboTasksBackendApi, ValueTypeId, TRANSIENT_TASK_BIT,
 };
 
 pub use self::{operation::AnyOperation, storage::TaskDataCategory};
@@ -43,14 +43,14 @@ use crate::backend::operation::TaskDirtyCause;
 use crate::{
     backend::{
         operation::{
-            connect_children, get_aggregation_number, is_root_node, prepare_new_children,
             AggregatedDataUpdate, AggregationUpdateJob, AggregationUpdateQueue,
             CleanupOldEdgesOperation, ConnectChildOperation, ExecuteContext, ExecuteContextImpl,
-            Operation, OutdatedEdge, TaskGuard,
+            Operation, OutdatedEdge, TaskGuard, connect_children, get_aggregation_number,
+            is_root_node, prepare_new_children,
         },
         storage::{
-            get, get_many, get_mut, get_mut_or_insert_with, iter_many, remove,
-            InnerStorageSnapshot, Storage,
+            InnerStorageSnapshot, Storage, get, get_many, get_mut, get_mut_or_insert_with,
+            iter_many, remove,
         },
     },
     backing_storage::BackingStorage,
@@ -189,10 +189,15 @@ struct TurboTasksBackendInner<B: BackingStorage> {
     stopping_event: Event,
     idle_start_event: Event,
     idle_end_event: Event,
+    #[cfg(feature = "verify_aggregation_graph")]
+    is_idle: AtomicBool,
 
     task_statistics: TaskStatisticsApi,
 
     backing_storage: B,
+
+    #[cfg(feature = "verify_aggregation_graph")]
+    root_tasks: Mutex<FxHashSet<TaskId>>,
 }
 
 impl<B: BackingStorage> TurboTasksBackend<B> {
@@ -215,9 +220,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         Self {
             options,
             start_time: Instant::now(),
-            session_id: backing_storage.next_session_id(),
+            session_id: backing_storage
+                .next_session_id()
+                .expect("Failed get session id"),
             persisted_task_id_factory: IdFactoryWithReuse::new(
-                backing_storage.next_free_task_id(),
+                backing_storage
+                    .next_free_task_id()
+                    .expect("Failed to get task id"),
                 TaskId::try_from(TRANSIENT_TASK_BIT - 1).unwrap(),
             ),
             transient_task_id_factory: IdFactoryWithReuse::new(
@@ -237,8 +246,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             stopping_event: Event::new(|| "TurboTasksBackend::stopping_event".to_string()),
             idle_start_event: Event::new(|| "TurboTasksBackend::idle_start_event".to_string()),
             idle_end_event: Event::new(|| "TurboTasksBackend::idle_end_event".to_string()),
+            #[cfg(feature = "verify_aggregation_graph")]
+            is_idle: AtomicBool::new(false),
             task_statistics: TaskStatisticsApi::default(),
             backing_storage,
+            #[cfg(feature = "verify_aggregation_graph")]
+            root_tasks: Default::default(),
         }
     }
 
@@ -265,8 +278,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         'tx: 'e,
     {
         // Safety: `tx` is from `self`.
-        let ctx = unsafe { ExecuteContextImpl::new_with_tx(self, tx, turbo_tasks) };
-        ctx
+        unsafe { ExecuteContextImpl::new_with_tx(self, tx, turbo_tasks) }
     }
 
     fn suspending_requested(&self) -> bool {
@@ -429,14 +441,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             done_event: &Event,
         ) -> EventListener {
             let reader_desc = reader.map(|r| this.get_task_desc_fn(r));
-            let listener = done_event.listen_with_note(move || {
+            done_event.listen_with_note(move || {
                 if let Some(reader_desc) = reader_desc.as_ref() {
                     format!("try_read_task_output from {}", reader_desc())
                 } else {
                     "try_read_task_output (untracked)".to_string()
                 }
-            });
-            listener
+            })
         }
 
         fn check_in_progress<B: BackingStorage>(
@@ -534,10 +545,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     get!(task, Activeness).unwrap()
                 };
                 let listener = root.all_clean_event.listen_with_note(move || {
-                    format!(
-                        "try_read_task_output (strongly consistent) from {:?}",
-                        reader
-                    )
+                    format!("try_read_task_output (strongly consistent) from {reader:?}")
                 });
                 drop(task);
                 if !task_ids_to_schedule.is_empty() {
@@ -558,9 +566,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             let result = match output {
                 OutputValue::Cell(cell) => Some(Ok(Ok(RawVc::TaskCell(cell.task, cell.cell)))),
                 OutputValue::Output(task) => Some(Ok(Ok(RawVc::TaskOutput(*task)))),
-                OutputValue::Error | OutputValue::Panic => {
-                    get!(task, Error).map(|error| Err(error.clone().into()))
-                }
+                OutputValue::Error => get!(task, Error).map(|error| Err(error.clone().into())),
             };
             if let Some(result) = result {
                 if self.should_track_dependencies() {
@@ -778,6 +784,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             if let Some(task_type) = unsafe {
                 self.backing_storage
                     .reverse_lookup_task_cache(None, task_id)
+                    .expect("Failed to lookup task type")
             } {
                 let _ = self.task_cache.try_insert(task_type.clone(), task_id);
                 return Some(task_type);
@@ -954,7 +961,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 persisted_task_cache_log,
                 task_snapshots,
             ) {
-                println!("Persisting failed: {:?}", err);
+                println!("Persisting failed: {err:?}");
                 return None;
             }
         }
@@ -967,7 +974,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             // Continue all uncompleted operations
             // They can't be interrupted by a snapshot since the snapshotting job has not been
             // scheduled yet.
-            let uncompleted_operations = self.backing_storage.uncompleted_operations();
+            let uncompleted_operations = self
+                .backing_storage
+                .uncompleted_operations()
+                .expect("Failed to get uncompleted operations");
             if !uncompleted_operations.is_empty() {
                 let mut ctx = self.execute_context(turbo_tasks);
                 for op in uncompleted_operations {
@@ -987,17 +997,49 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         self.stopping_event.notify(usize::MAX);
     }
 
-    fn stop(&self) {
+    #[allow(unused_variables)]
+    fn stop(&self, turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>) {
+        #[cfg(feature = "verify_aggregation_graph")]
+        {
+            self.is_idle.store(false, Ordering::Release);
+            self.verify_aggregation_graph(turbo_tasks, false);
+        }
         if let Err(err) = self.backing_storage.shutdown() {
-            println!("Shutting down failed: {}", err);
+            println!("Shutting down failed: {err}");
         }
     }
 
-    fn idle_start(&self) {
+    #[allow(unused_variables)]
+    fn idle_start(self: &Arc<Self>, turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>) {
         self.idle_start_event.notify(usize::MAX);
+
+        #[cfg(feature = "verify_aggregation_graph")]
+        {
+            use tokio::select;
+
+            self.is_idle.store(true, Ordering::Release);
+            let this = self.clone();
+            let turbo_tasks = turbo_tasks.pin();
+            tokio::task::spawn(async move {
+                select! {
+                    _ = tokio::time::sleep(Duration::from_secs(5)) => {
+                        // do nothing
+                    }
+                    _ = this.idle_end_event.listen() => {
+                        return;
+                    }
+                }
+                if !this.is_idle.load(Ordering::Relaxed) {
+                    return;
+                }
+                this.verify_aggregation_graph(&*turbo_tasks, true);
+            });
+        }
     }
 
     fn idle_end(&self) {
+        #[cfg(feature = "verify_aggregation_graph")]
+        self.is_idle.store(false, Ordering::Release);
         self.idle_end_event.notify(usize::MAX);
     }
 
@@ -1023,6 +1065,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             if let Some(task_id) = unsafe {
                 self.backing_storage
                     .forward_lookup_task_cache(tx.as_ref(), &task_type)
+                    .expect("Failed to lookup task id")
             } {
                 let _ = self.task_cache.try_insert(Arc::new(task_type), task_id);
                 task_id
@@ -1411,7 +1454,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     fn task_execution_result(
         &self,
         task_id: TaskId,
-        result: Result<Result<RawVc>, Option<Cow<'static, str>>>,
+        result: Result<RawVc, Arc<TurboTasksExecutionError>>,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
         operation::UpdateOutputOperation::run(task_id, result, self.execute_context(turbo_tasks));
@@ -2155,6 +2198,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 RootType::OnceTask => "Once Task".to_string(),
             }));
         }
+        #[cfg(feature = "verify_aggregation_graph")]
+        self.root_tasks.lock().insert(task_id);
         task_id
     }
 
@@ -2163,6 +2208,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         task_id: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
+        #[cfg(feature = "verify_aggregation_graph")]
+        self.root_tasks.lock().remove(&task_id);
+
         let mut ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         let is_dirty = get!(task, Dirty).map_or(false, |dirty| dirty.get(self.session_id));
@@ -2180,6 +2228,179 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             // Technically nobody should be listening to this event, but just in case
             // we notify it anyway
             root_state.all_clean_event.notify(usize::MAX);
+        }
+    }
+
+    #[cfg(feature = "verify_aggregation_graph")]
+    fn verify_aggregation_graph(
+        &self,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
+        idle: bool,
+    ) {
+        if env::var("TURBO_ENGINE_VERIFY_GRAPH").ok().as_deref() == Some("0") {
+            return;
+        }
+        use std::{collections::VecDeque, env, io::stdout};
+
+        use crate::backend::operation::{get_uppers, is_aggregating_node};
+
+        let mut ctx = self.execute_context(turbo_tasks);
+        let root_tasks = self.root_tasks.lock().clone();
+        let len = root_tasks.len();
+
+        for (i, task_id) in root_tasks.into_iter().enumerate() {
+            println!("Verifying graph from root {task_id} {i}/{len}...");
+            let mut queue = VecDeque::new();
+            let mut visited = FxHashSet::default();
+            let mut aggregated_nodes = FxHashSet::default();
+            let mut collectibles = FxHashMap::default();
+            let root_task_id = task_id;
+            visited.insert(task_id);
+            aggregated_nodes.insert(task_id);
+            queue.push_back(task_id);
+            let mut counter = 0;
+            while let Some(task_id) = queue.pop_front() {
+                counter += 1;
+                if counter % 100000 == 0 {
+                    println!(
+                        "queue={}, visited={}, aggregated_nodes={}",
+                        queue.len(),
+                        visited.len(),
+                        aggregated_nodes.len()
+                    );
+                }
+                let task = ctx.task(task_id, TaskDataCategory::All);
+                if idle && !self.is_idle.load(Ordering::Relaxed) {
+                    return;
+                }
+
+                let uppers = get_uppers(&task);
+                if task_id != root_task_id
+                    && !uppers.iter().any(|upper| aggregated_nodes.contains(upper))
+                {
+                    println!(
+                        "Task {} {} doesn't report to any root but is reachable from one (uppers: \
+                         {:?})",
+                        task_id,
+                        ctx.get_task_description(task_id),
+                        uppers
+                    );
+                }
+
+                let aggregated_collectibles: Vec<_> = get_many!(task, AggregatedCollectible { collectible } value if *value > 0 => {collectible});
+                for collectible in aggregated_collectibles {
+                    collectibles
+                        .entry(collectible)
+                        .or_insert_with(|| (false, Vec::new()))
+                        .1
+                        .push(task_id);
+                }
+
+                let own_collectibles: Vec<_> = get_many!(task, Collectible { collectible } value if *value > 0 => {collectible});
+                for collectible in own_collectibles {
+                    if let Some((flag, _)) = collectibles.get_mut(&collectible) {
+                        *flag = true
+                    } else {
+                        println!(
+                            "Task {} has a collectible {:?} that is not in any upper task",
+                            task_id, collectible
+                        );
+                    }
+                }
+
+                let is_dirty = get!(task, Dirty).is_some_and(|dirty| dirty.get(self.session_id));
+                let has_dirty_container = get!(task, AggregatedDirtyContainerCount)
+                    .is_some_and(|count| count.get(self.session_id) > 0);
+                let should_be_in_upper = is_dirty || has_dirty_container;
+
+                let aggregation_number = get_aggregation_number(&task);
+                if is_aggregating_node(aggregation_number) {
+                    aggregated_nodes.insert(task_id);
+                }
+                // println!(
+                //     "{task_id}: {} agg_num = {aggregation_number}, uppers = {:#?}",
+                //     ctx.get_task_description(task_id),
+                //     uppers
+                // );
+
+                for child_id in iter_many!(task, Child { task } => task) {
+                    // println!("{task_id}: child -> {child_id}");
+                    if visited.insert(child_id) {
+                        queue.push_back(child_id);
+                    }
+                }
+                drop(task);
+
+                if should_be_in_upper {
+                    for upper_id in uppers {
+                        let task = ctx.task(task_id, TaskDataCategory::All);
+                        let in_upper = get!(task, AggregatedDirtyContainer { task: task_id })
+                            .is_some_and(|dirty| dirty.get(self.session_id) > 0);
+                        if !in_upper {
+                            println!(
+                                "Task {} is dirty, but is not listed in the upper task {}",
+                                task_id, upper_id
+                            );
+                        }
+                    }
+                }
+            }
+
+            for (collectible, (flag, task_ids)) in collectibles {
+                if !flag {
+                    use std::io::Write;
+                    let mut stdout = stdout().lock();
+                    writeln!(
+                        stdout,
+                        "{:?} that is not emitted in any child task but in these aggregated \
+                         tasks: {:#?}",
+                        collectible,
+                        task_ids
+                            .iter()
+                            .map(|t| format!("{t} {}", ctx.get_task_description(*t)))
+                            .collect::<Vec<_>>()
+                    );
+
+                    let task_id = collectible.cell.task;
+                    let mut queue = {
+                        let task = ctx.task(task_id, TaskDataCategory::All);
+                        get_uppers(&task)
+                    };
+                    let mut visited = FxHashSet::default();
+                    for &upper_id in queue.iter() {
+                        visited.insert(upper_id);
+                        writeln!(stdout, "{task_id:?} -> {upper_id:?}");
+                    }
+                    while let Some(task_id) = queue.pop() {
+                        let desc = ctx.get_task_description(task_id);
+                        let task = ctx.task(task_id, TaskDataCategory::All);
+                        let aggregated_collectible =
+                            get!(task, AggregatedCollectible { collectible })
+                                .copied()
+                                .unwrap_or_default();
+                        let uppers = get_uppers(&task);
+                        drop(task);
+                        writeln!(
+                            stdout,
+                            "upper {task_id} {desc} collectible={aggregated_collectible}"
+                        );
+                        if task_ids.contains(&task_id) {
+                            writeln!(
+                                stdout,
+                                "Task has an upper connection to an aggregated task that doesn't \
+                                 reference it. Upper connection is invalid!"
+                            );
+                        }
+                        for upper_id in uppers {
+                            writeln!(stdout, "{task_id:?} -> {upper_id:?}");
+                            if !visited.contains(&upper_id) {
+                                queue.push(upper_id);
+                            }
+                        }
+                    }
+                }
+            }
+            println!("visited {task_id} {} tasks", visited.len());
         }
     }
 
@@ -2261,12 +2482,12 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         self.0.stopping();
     }
 
-    fn stop(&self, _turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
-        self.0.stop();
+    fn stop(&self, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
+        self.0.stop(turbo_tasks);
     }
 
-    fn idle_start(&self, _turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
-        self.0.idle_start();
+    fn idle_start(&self, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
+        self.0.idle_start(turbo_tasks);
     }
 
     fn idle_end(&self, _turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
@@ -2343,7 +2564,7 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
     fn task_execution_result(
         &self,
         task_id: TaskId,
-        result: Result<Result<RawVc>, Option<Cow<'static, str>>>,
+        result: Result<RawVc, Arc<TurboTasksExecutionError>>,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) {
         self.0.task_execution_result(task_id, result, turbo_tasks);
