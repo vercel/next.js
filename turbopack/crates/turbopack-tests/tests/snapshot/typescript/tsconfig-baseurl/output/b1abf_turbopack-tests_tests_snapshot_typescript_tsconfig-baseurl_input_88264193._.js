@@ -4,7 +4,7 @@
 "use strict";
 
 __turbopack_context__.s({
-"prop": (()=>prop)
+    "prop": (()=>prop)
 });
 const prop = 1;
 }),
@@ -24,7 +24,7 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$
 "use strict";
 
 __turbopack_context__.s({
-"bar": (()=>bar)
+    "bar": (()=>bar)
 });
 const bar = 'bar';
 }),

@@ -5,16 +5,16 @@
 var { m: module, e: exports } = __turbopack_context__;
 {
 if ("TURBOPACK compile-time truthy", 1) {
-console.log('DEFINED_VALUE');
+    console.log('DEFINED_VALUE');
 }
 if ("TURBOPACK compile-time truthy", 1) {
-console.log('DEFINED_VALUE');
+    console.log('DEFINED_VALUE');
 }
 if ("TURBOPACK compile-time value", JSON.parse('{"test":true}')) {
-console.log('A.VERY.LONG.DEFINED.VALUE');
+    console.log('A.VERY.LONG.DEFINED.VALUE');
 }
 if ("TURBOPACK compile-time truthy", 1) {
-console.log('something');
+    console.log('something');
 }
 if ("TURBOPACK compile-time falsy", 0) //TURBOPACK unreachable
 ;
