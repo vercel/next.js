@@ -190,6 +190,7 @@ impl MetaFile {
         let mut options = MmapOptions::new();
         options.offset(offset);
         let mmap = unsafe { options.map(&file)? };
+        #[cfg(unix)]
         mmap.advise(memmap2::Advice::Random)?;
         let file = Self {
             db_path,

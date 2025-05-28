@@ -118,6 +118,8 @@ impl StaticSortedFile {
 
     fn open_internal(path: PathBuf, meta: StaticSortedFileMetaData) -> Result<Self> {
         let mmap = unsafe { Mmap::map(&File::open(&path)?)? };
+        #[cfg(unix)]
+        mmap.advise(memmap2::Advice::Random)?;
         let file = Self { meta, mmap };
         Ok(file)
     }
