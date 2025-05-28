@@ -36,7 +36,7 @@ export default function Page({ params, searchParams }) {
 
 #### `params` (optional)
 
-A promise that resolves to an object containing the [dynamic route parameters](/docs/app/building-your-application/routing/dynamic-routes) from the root segment down to that page.
+A promise that resolves to an object containing the [dynamic route parameters](/docs/app/api-reference/file-conventions/dynamic-routes) from the root segment down to that page.
 
 ```tsx filename="app/shop/[slug]/page.tsx" switcher
 export default async function Page({
@@ -98,7 +98,7 @@ export default async function Page({ searchParams }) {
 
 ### Displaying content based on `params`
 
-Using [dynamic route segments](/docs/app/building-your-application/routing/dynamic-routes), you can display or fetch specific content for the page based on the `params` prop.
+Using [dynamic route segments](/docs/app/api-reference/file-conventions/dynamic-routes), you can display or fetch specific content for the page based on the `params` prop.
 
 ```tsx filename="app/blog/[slug]/page.tsx" switcher
 export default async function Page({

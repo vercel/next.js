@@ -42,7 +42,8 @@ describe('app-dir - server source maps edge runtime', () => {
           '\n}'
       )
     } else {
-      // TODO: Test `next build` with `--enable-source-maps`.
+      // Edge runtime pages are not prerendered during `next build`.
+      // `next start` is not sourcemapped on purpose.
     }
   })
 
@@ -71,7 +72,8 @@ describe('app-dir - server source maps edge runtime', () => {
       )
       expect(cliOutput).toMatch(/digest: '\d+'/)
     } else {
-      // TODO: Test `next build` with `--enable-source-maps`.
+      // Edge runtime pages are not prerendered during `next build`.
+      // `next start` is not sourcemapped on purpose.
     }
   })
 
@@ -99,7 +101,8 @@ describe('app-dir - server source maps edge runtime', () => {
       )
       expect(cliOutput).toMatch(/digest: '\d+'/)
     } else {
-      // TODO: Test `next build` with `--enable-source-maps`.
+      // Edge runtime pages are not prerendered during `next build`.
+      // `next start` is not sourcemapped on purpose.
     }
   })
 })

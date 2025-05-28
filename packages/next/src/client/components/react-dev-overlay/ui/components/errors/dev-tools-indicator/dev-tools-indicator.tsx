@@ -1,5 +1,11 @@
 import type { CSSProperties, Dispatch, SetStateAction } from 'react'
-import { STORAGE_KEY_POSITION, type OverlayState } from '../../../../shared'
+import {
+  ACTION_ERROR_OVERLAY_OPEN,
+  ACTION_ERROR_OVERLAY_TOGGLE,
+  STORAGE_KEY_POSITION,
+  type OverlayDispatch,
+  type OverlayState,
+} from '../../../../shared'
 
 import { useState, useEffect, useRef, createContext, useContext } from 'react'
 import { Toast } from '../../toast'
@@ -30,15 +36,13 @@ export function DevToolsIndicator({
   state,
   errorCount,
   isBuildError,
-  setIsErrorOverlayOpen,
   ...props
 }: {
   state: OverlayState
+  dispatch: OverlayDispatch
   errorCount: number
   isBuildError: boolean
-  setIsErrorOverlayOpen: (
-    isErrorOverlayOpen: boolean | ((prev: boolean) => boolean)
-  ) => void
+
   scale: DevToolsScale
   setScale: (value: DevToolsScale) => void
 }) {
@@ -57,7 +61,6 @@ export function DevToolsIndicator({
           method: 'POST',
         })
       }}
-      setIsErrorOverlayOpen={setIsErrorOverlayOpen}
       isTurbopack={!!process.env.TURBOPACK}
       disabled={state.disableDevIndicator || !isDevToolsIndicatorVisible}
       isBuildError={isBuildError}
@@ -96,7 +99,7 @@ function DevToolsPopover({
   isTurbopack,
   isBuildError,
   hide,
-  setIsErrorOverlayOpen,
+  dispatch,
   scale,
   setScale,
 }: {
@@ -108,9 +111,7 @@ function DevToolsPopover({
   isTurbopack: boolean
   isBuildError: boolean
   hide: () => void
-  setIsErrorOverlayOpen: (
-    isOverlayOpen: boolean | ((prev: boolean) => boolean)
-  ) => void
+  dispatch: OverlayDispatch
   scale: DevToolsScale
   setScale: (value: DevToolsScale) => void
 }) {
@@ -210,12 +211,12 @@ function DevToolsPopover({
   function openErrorOverlay() {
     setOpen(null)
     if (issueCount > 0) {
-      setIsErrorOverlayOpen(true)
+      dispatch({ type: ACTION_ERROR_OVERLAY_OPEN })
     }
   }
 
   function toggleErrorOverlay() {
-    setIsErrorOverlayOpen((prev) => !prev)
+    dispatch({ type: ACTION_ERROR_OVERLAY_TOGGLE })
   }
 
   function openRootMenu() {

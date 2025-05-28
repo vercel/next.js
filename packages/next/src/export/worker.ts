@@ -26,7 +26,7 @@ import { createRequestResponseMocks } from '../server/lib/mock-request'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { hasNextSupport } from '../server/ci-info'
 import { exportAppRoute } from './routes/app-route'
-import { exportAppPage, prospectiveRenderAppPage } from './routes/app-page'
+import { exportAppPage } from './routes/app-page'
 import { exportPagesPage } from './routes/pages'
 import { getParams } from './helpers/get-params'
 import { createIncrementalCache } from './helpers/create-incremental-cache'
@@ -104,13 +104,9 @@ async function exportPageImpl(
     // the renderOpts.
     _isRoutePPREnabled: isRoutePPREnabled,
 
-    // If this is a prospective render, we don't actually want to persist the
-    // result, we just want to use it to error the build if there's a problem.
-    _isProspectiveRender: isProspectiveRender = false,
-
-    // Configure the rendering of the page not to throw if an empty static shell
-    // is generated while rendering using PPR.
-    _doNotThrowOnEmptyStaticShell: doNotThrowOnEmptyStaticShell = false,
+    // Configure the rendering of the page to allow that an empty static shell
+    // is generated while rendering using PPR and Dynamic IO.
+    _allowEmptyStaticShell: allowEmptyStaticShell = false,
 
     // Pull the original query out.
     query: originalQuery = {},
@@ -270,7 +266,7 @@ async function exportPageImpl(
     // If it's static, then it won't affect anything.
     // If it's dynamic, then it can be handled when request hits the route.
     serveStreamingMetadata: true,
-    doNotThrowOnEmptyStaticShell,
+    allowEmptyStaticShell,
     experimental: {
       ...input.renderOpts.experimental,
       isRoutePPREnabled,
@@ -285,21 +281,6 @@ async function exportPageImpl(
   if (isAppDir) {
     const sharedContext: AppSharedContext = {
       buildId: input.buildId,
-    }
-
-    // If this is a prospective render, don't return any metrics or revalidate
-    // timings as we aren't persisting this render (it was only to error).
-    if (isProspectiveRender) {
-      return prospectiveRenderAppPage(
-        req,
-        res,
-        page,
-        pathname,
-        query,
-        fallbackRouteParams,
-        renderOpts,
-        sharedContext
-      )
     }
 
     return exportAppPage(
@@ -373,6 +354,15 @@ export async function exportPages(
     nextConfig,
     options,
   } = input
+
+  if (nextConfig.experimental.enablePrerenderSourceMaps) {
+    try {
+      // Same as `next dev`
+      // Limiting the stack trace to a useful amount of frames is handled by ignore-listing.
+      // TODO: How high can we go without severely impacting CPU/memory?
+      Error.stackTraceLimit = 50
+    } catch {}
+  }
 
   // If the fetch cache was enabled, we need to create an incremental
   // cache instance for this page.

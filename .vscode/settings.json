@@ -59,6 +59,7 @@
     // singleton modules should always use "*.external" instead of "*-instance"
     "packages/next/src/server/app-render/action-async-storage-instance.ts",
     "packages/next/src/server/app-render/after-task-async-storage-instance.ts",
+    "packages/next/src/server/app-render/dynamic-access-async-storage-instance.ts",
     "packages/next/src/server/app-render/work-async-storage-instance.ts",
     "packages/next/src/server/app-render/work-unit-async-storage-instance.ts",
     "packages/next/src/client/components/segment-cache-impl/*"

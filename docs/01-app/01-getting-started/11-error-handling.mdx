@@ -16,7 +16,7 @@ Errors can be divided into two categories: [expected errors](#handling-expected-
 
 ## Handling expected errors
 
-Expected errors are those that can occur during the normal operation of the application, such as those from [server-side form validation](/docs/app/building-your-application/data-fetching/server-actions-and-mutations#server-side-form-validation) or failed requests. These errors should be handled explicitly and returned to the client.
+Expected errors are those that can occur during the normal operation of the application, such as those from [server-side form validation](/docs/app/guides/forms) or failed requests. These errors should be handled explicitly and returned to the client.
 
 ### Server Functions
 
@@ -274,7 +274,7 @@ Errors will bubble up to the nearest parent error boundary. This allows for gran
 
 ### Global errors
 
-While less common, you can handle errors in the root layout using the [`global-error.js`](/docs/app/api-reference/file-conventions/error#global-error) file, located in the root app directory, even when leveraging [internationalization](/docs/app/building-your-application/routing/internationalization). Global error UI must define its own `<html>` and `<body>` tags, since it is replacing the root layout or template when active.
+While less common, you can handle errors in the root layout using the [`global-error.js`](/docs/app/api-reference/file-conventions/error#global-error) file, located in the root app directory, even when leveraging [internationalization](/docs/app/guides/internationalization). Global error UI must define its own `<html>` and `<body>` tags, since it is replacing the root layout or template when active.
 
 ```tsx filename="app/global-error.tsx" switcher
 'use client' // Error boundaries must be Client Components

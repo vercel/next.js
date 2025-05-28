@@ -31,7 +31,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{
     Completion, Effects, FxIndexSet, OperationVc, ReadRef, ResolvedVc, TransientInstance,
     TryJoinIterExt, UpdateInfo, Vc, get_effects,
-    message_queue::{CompilationEvent, DiagnosticEvent, Severity},
+    message_queue::{CompilationEvent, DiagnosticEvent, Severity, TimingEvent},
 };
 use turbo_tasks_fs::{
     DiskFileSystem, FileContent, FileSystem, FileSystemPath, get_relative_path_to,
@@ -405,8 +405,8 @@ pub async fn project_new(
     )?;
 
     turbo_tasks.send_compilation_event(Arc::new(DiagnosticEvent::new(
-        "Starting the compilation events server...".to_owned(),
-        Severity::Trace,
+        Severity::Info,
+        "Starting the compilation events server ...".to_owned(),
     )));
 
     let stats_path = std::env::var_os("NEXT_TURBOPACK_TASK_STATISTICS");
@@ -831,11 +831,14 @@ pub async fn project_write_all_entrypoints_to_disk(
     app_dir_only: bool,
 ) -> napi::Result<TurbopackResult<NapiEntrypoints>> {
     let turbo_tasks = project.turbo_tasks.clone();
+    let compilation_event_sender = turbo_tasks.clone();
+
     let (entrypoints, issues, diags) = turbo_tasks
         .run_once(async move {
             let entrypoints_with_issues_op =
                 get_all_written_entrypoints_with_issues_operation(project.container, app_dir_only);
 
+            // Read and compile the files
             let EntrypointsWithIssues {
                 entrypoints,
                 issues,
@@ -844,7 +847,18 @@ pub async fn project_write_all_entrypoints_to_disk(
             } = &*entrypoints_with_issues_op
                 .read_strongly_consistent()
                 .await?;
+
+            // Start timing writing the files to disk
+            let now = Instant::now();
+
+            // Write the files to disk
             effects.apply().await?;
+
+            // Send a compilation event to indicate that the files have been written to disk
+            compilation_event_sender.send_compilation_event(Arc::new(TimingEvent::new(
+                "Finished writing all entrypoints to disk".to_owned(),
+                now.elapsed(),
+            )));
 
             Ok((entrypoints.clone(), issues.clone(), diagnostics.clone()))
         })

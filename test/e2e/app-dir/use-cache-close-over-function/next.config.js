@@ -4,7 +4,6 @@
 const nextConfig = {
   experimental: {
     dynamicIO: true,
-    ppr: true,
     serverSourceMaps: true,
   },
 }

@@ -1,5 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
+import { computeCacheBustingSearchParam } from '../../../../../packages/next/src/shared/lib/router/utils/cache-busting-search-param'
+
 describe('conflicting routes', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
@@ -9,19 +11,34 @@ describe('conflicting routes', () => {
     return
   }
 
+  // The server will reject prefetch requests that don't set a cache-busting
+  // search param.
+  // TODO: We should try to avoid unit tests that simulate internal client
+  // router requests. There are only a handful of cases that do this currently.
+  // In the meantime, consider moving this into a shared testing utility.
+  async function segmentPrefetch(url: string, segmentPath: string) {
+    const fetchUrl = new URL(url, 'http://localhost')
+    const searchParams = new URLSearchParams(fetchUrl.search)
+    searchParams.set(
+      '_rsc',
+      computeCacheBustingSearchParam('1', segmentPath, undefined, undefined)
+    )
+    fetchUrl.search = searchParams.toString()
+    return await next.fetch(fetchUrl.pathname + fetchUrl.search, {
+      headers: {
+        RSC: '1',
+        'Next-Router-Prefetch': '1',
+        'Next-Router-Segment-Prefetch': segmentPath,
+      },
+    })
+  }
+
   it.each([
     '/en/vercel/~/monitoring',
     '/fr/vercel/~/monitoring',
     '/es/vercel/~/monitoring',
   ])('%s matches the right route', async (path) => {
-    const res = await next.fetch(path, {
-      headers: {
-        RSC: '1',
-        'Next-Router-Prefetch': '1',
-        'Next-Router-Segment-Prefetch': '/_tree',
-      },
-    })
-
+    const res = await segmentPrefetch(path, '/_tree')
     expect(res.status).toBe(200)
 
     if (isNextDeploy) {
@@ -32,14 +49,7 @@ describe('conflicting routes', () => {
   })
 
   it('matches the right route when the original route has no dynamic params, is dynamic, and PPR is disabled', async () => {
-    const res = await next.fetch('/prefetch-tests/dynamic', {
-      headers: {
-        RSC: '1',
-        'Next-Router-Prefetch': '1',
-        'Next-Router-Segment-Prefetch': '/_tree',
-      },
-    })
-
+    const res = await segmentPrefetch('/prefetch-tests/dynamic', '/_tree')
     expect(res.status).toBe(200)
 
     if (isNextDeploy) {
@@ -50,13 +60,7 @@ describe('conflicting routes', () => {
   })
 
   it('handles conflict between App Router and Pages Router routes', async () => {
-    const res = await next.fetch('/new/templates', {
-      headers: {
-        RSC: '1',
-        'Next-Router-Prefetch': '1',
-        'Next-Router-Segment-Prefetch': '/_tree',
-      },
-    })
+    const res = await segmentPrefetch('/new/templates', '/_tree')
 
     // Should match the route defined at pages/new/templates/[[...slug]].js,
     // not the one at app/new/[teamSlug]/page.tsx

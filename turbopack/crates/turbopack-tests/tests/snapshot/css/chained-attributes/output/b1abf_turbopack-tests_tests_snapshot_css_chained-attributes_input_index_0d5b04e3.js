@@ -3,10 +3,9 @@
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/chained-attributes/input/index.js [test] (ecmascript)": ((__turbopack_context__) => {
 "use strict";
 
-{
 __turbopack_context__.s({});
 ;
-}}),
+}),
 }]);
 
 //# sourceMappingURL=b1abf_turbopack-tests_tests_snapshot_css_chained-attributes_input_index_0d5b04e3.js.map

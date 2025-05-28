@@ -25,10 +25,10 @@ describe('app-dir - server source maps', () => {
   if (skipped) return
 
   it('logged errors have a sourcemapped stack with a codeframe', async () => {
-    const outputIndex = next.cliOutput.length
-    await next.render('/rsc-error-log')
-
     if (isNextDev) {
+      const outputIndex = next.cliOutput.length
+      await next.render('/rsc-error-log')
+
       await retry(() => {
         expect(next.cliOutput.slice(outputIndex)).toContain(
           'Error: rsc-error-log'
@@ -48,15 +48,28 @@ describe('app-dir - server source maps', () => {
           '\n'
       )
     } else {
-      // TODO: Test `next build` with `--enable-source-maps`.
+      if (isTurbopack) {
+        // TODO(veil): Sourcemap names
+        // TODO(veil): relative paths
+        expect(normalizeCliOutput(next.cliOutput)).toContain(
+          '(turbopack:///[project]/app/rsc-error-log/page.js:4:16)'
+        )
+        expect(normalizeCliOutput(next.cliOutput)).toContain(
+          '' +
+            "\n> 4 |   const error = new Error('rsc-error-log')" +
+            '\n    |                ^'
+        )
+      } else {
+        // TODO(veil): line/column numbers are flaky in Webpack
+      }
     }
   })
 
   it('logged errors have a sourcemapped `cause`', async () => {
-    const outputIndex = next.cliOutput.length
-    await next.render('/rsc-error-log-cause')
-
     if (isNextDev) {
+      const outputIndex = next.cliOutput.length
+      await next.render('/rsc-error-log-cause')
+
       await retry(() => {
         expect(next.cliOutput.slice(outputIndex)).toContain(
           'Error: rsc-error-log-cause'
@@ -84,15 +97,36 @@ describe('app-dir - server source maps', () => {
           '\n'
       )
     } else {
-      // TODO: Test `next build` with `--enable-source-maps`.
+      if (isTurbopack) {
+        // TODO(veil): Sourcemap names
+        // TODO(veil): relative paths
+        expect(normalizeCliOutput(next.cliOutput)).toContain(
+          '(turbopack:///[project]/app/rsc-error-log-cause/page.js:2:16)'
+        )
+        expect(normalizeCliOutput(next.cliOutput)).toContain(
+          '(turbopack:///[project]/app/rsc-error-log-cause/page.js:7:16)'
+        )
+        expect(normalizeCliOutput(next.cliOutput)).toContain(
+          '' +
+            "\n> 2 |   const error = new Error('rsc-error-log-cause', { cause })" +
+            '\n    |                ^'
+        )
+        expect(normalizeCliOutput(next.cliOutput)).toContain(
+          '' +
+            "\n  >  7 |   const error = new Error('Boom')" +
+            '\n       |                ^'
+        )
+      } else {
+        // TODO(veil): line/column numbers are flaky in Webpack
+      }
     }
   })
 
   it('stack frames are ignore-listed in ssr', async () => {
-    const outputIndex = next.cliOutput.length
-    const browser = await next.browser('/ssr-error-log-ignore-listed')
-
     if (isNextDev) {
+      const outputIndex = next.cliOutput.length
+      const browser = await next.browser('/ssr-error-log-ignore-listed')
+
       await retry(() => {
         expect(next.cliOutput.slice(outputIndex)).toContain(
           'Error: ssr-error-log-ignore-listed'
@@ -189,7 +223,19 @@ describe('app-dir - server source maps', () => {
         `)
       }
     } else {
-      // TODO: Test `next build` with `--enable-source-maps`.
+      if (isTurbopack) {
+        // TODO(veil): Sourcemapping line off
+        // TODO(veil): Sourcemap names
+        // TODO(veil): relative paths
+        expect(normalizeCliOutput(next.cliOutput)).toContain(
+          '(turbopack:///[project]/app/ssr-error-log-ignore-listed/page.js:24:2)'
+        )
+        expect(normalizeCliOutput(next.cliOutput)).toContain(
+          '\n> 24 |   })\n     |  ^'
+        )
+      } else {
+        // TODO(veil): line/column numbers are flaky in Webpack
+      }
     }
   })
 
@@ -242,15 +288,28 @@ describe('app-dir - server source maps', () => {
               '\n'
       )
     } else {
-      // TODO: Test `next build` with `--enable-source-maps`.
+      if (isTurbopack) {
+        // TODO(veil): Sourcemap names
+        // TODO(veil): relative paths
+        expect(normalizeCliOutput(next.cliOutput)).toContain(
+          'at <unknown> (turbopack:///[project]/app/rsc-error-log-ignore-listed/page.js:8:16)'
+        )
+        expect(normalizeCliOutput(next.cliOutput)).toContain(
+          '' +
+            "\n>  8 |   const error = new Error('rsc-error-log-ignore-listed')" +
+            '\n     |                ^'
+        )
+      } else {
+        // TODO(veil): line/column numbers are flaky in Webpack
+      }
     }
   })
 
   it('thrown SSR errors', async () => {
-    const outputIndex = next.cliOutput.length
-    const browser = await next.browser('/ssr-throw')
-
     if (isNextDev) {
+      const outputIndex = next.cliOutput.length
+      const browser = await next.browser('/ssr-throw')
+
       await retry(() => {
         expect(next.cliOutput.slice(outputIndex)).toContain('Error: ssr-throw')
       })
@@ -287,7 +346,7 @@ describe('app-dir - server source maps', () => {
        }
       `)
     } else {
-      // TODO: Test `next build` with `--enable-source-maps`.
+      // SSR errors are not logged because React retries them during hydration.
     }
   })
 
@@ -356,7 +415,23 @@ describe('app-dir - server source maps', () => {
         ).toEqual(3)
       }
     } else {
-      // TODO: test `next start` with `--enable-source-maps`
+      if (isTurbopack) {
+        // Expect the invalid sourcemap warning only once per render.
+        expect(
+          normalizeCliOutput(next.cliOutput).split('Invalid source map.')
+            .length - 1
+        ).toEqual(
+          // >= 20
+          // behavior in Node.js 20+ is intended
+          process.versions.node.startsWith('18') ? 0 : 2
+        )
+      } else {
+        // Webpack is silent about invalid sourcemaps for next build.
+        expect(
+          normalizeCliOutput(next.cliOutput).split('Invalid source map.')
+            .length - 1
+        ).toEqual(0)
+      }
     }
   })
 })
