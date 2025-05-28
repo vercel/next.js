@@ -180,6 +180,8 @@ import { parseLoaderTree } from './parse-loader-tree'
 import {
   createPrerenderResumeDataCache,
   createRenderResumeDataCache,
+  type PrerenderResumeDataCache,
+  type RenderResumeDataCache,
 } from '../resume-data-cache/resume-data-cache'
 import type { MetadataErrorType } from '../../lib/metadata/resolve-metadata'
 import isError from '../../lib/is-error'
@@ -714,6 +716,7 @@ async function warmupDevRender(
     stale: INFINITE_CACHE,
     tags: [],
     prerenderResumeDataCache,
+    renderResumeDataCache: null,
     hmrRefreshHash: req.cookies[NEXT_HMR_REFRESH_HASH_COOKIE],
   }
 
@@ -750,7 +753,7 @@ async function warmupDevRender(
   // lift the warmup pathway outside of renderToHTML... but for now this suffices
   return new FlightRenderResult('', {
     fetchMetrics: workStore.fetchMetrics,
-    devRenderResumeDataCache: createRenderResumeDataCache(
+    renderResumeDataCache: createRenderResumeDataCache(
       prerenderResumeDataCache
     ),
   })
@@ -1501,12 +1504,15 @@ async function renderToHTMLOrFlightImpl(
       }
     }
 
+    if (response.renderResumeDataCache) {
+      metadata.renderResumeDataCache = response.renderResumeDataCache
+    }
+
     return new RenderResult(await streamToString(response.stream), options)
   } else {
     // We're rendering dynamically
     const renderResumeDataCache =
-      renderOpts.devRenderResumeDataCache ??
-      postponedState?.renderResumeDataCache
+      renderOpts.renderResumeDataCache ?? postponedState?.renderResumeDataCache
 
     const rootParams = getRootParams(loaderTree, ctx.getDynamicParamFromSegment)
     const requestStore = createRequestStoreForRender(
@@ -1704,7 +1710,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
 
   if (
     postponedState?.renderResumeDataCache &&
-    renderOpts.devRenderResumeDataCache
+    renderOpts.renderResumeDataCache
   ) {
     throw new InvariantError(
       'postponed state and dev warmup immutable resume data cache should not be provided together'
@@ -2319,6 +2325,7 @@ async function spawnDynamicValidationInDev(
     stale: INFINITE_CACHE,
     tags: [...implicitTags.tags],
     prerenderResumeDataCache,
+    renderResumeDataCache: null,
     hmrRefreshHash,
   }
 
@@ -2425,6 +2432,7 @@ async function spawnDynamicValidationInDev(
       stale: INFINITE_CACHE,
       tags: [...implicitTags.tags],
       prerenderResumeDataCache,
+      renderResumeDataCache: null,
       hmrRefreshHash: undefined,
     }
 
@@ -2510,6 +2518,7 @@ async function spawnDynamicValidationInDev(
     stale: INFINITE_CACHE,
     tags: [...implicitTags.tags],
     prerenderResumeDataCache,
+    renderResumeDataCache: null,
     hmrRefreshHash,
   }
 
@@ -2572,6 +2581,7 @@ async function spawnDynamicValidationInDev(
     stale: INFINITE_CACHE,
     tags: [...implicitTags.tags],
     prerenderResumeDataCache,
+    renderResumeDataCache: null,
     hmrRefreshHash,
   }
 
@@ -2685,6 +2695,7 @@ type PrerenderToStreamResult = {
   collectedExpire: number
   collectedStale: number
   collectedTags: null | string[]
+  renderResumeDataCache?: RenderResumeDataCache
 }
 
 /**
@@ -2879,11 +2890,22 @@ async function prerenderToStream(
       // to cut the render off.
       const cacheSignal = new CacheSignal()
 
-      // The resume data cache here should use a fresh instance as it's
-      // performing a fresh prerender. If we get to implementing the
-      // prerendering of an already prerendered page, we should use the passed
-      // resume data cache instead.
-      const prerenderResumeDataCache = createPrerenderResumeDataCache()
+      let resumeDataCache: RenderResumeDataCache | PrerenderResumeDataCache
+      let renderResumeDataCache: RenderResumeDataCache | null = null
+      let prerenderResumeDataCache: PrerenderResumeDataCache | null = null
+
+      if (renderOpts.renderResumeDataCache) {
+        // If a prefilled immutable render resume data cache is provided, e.g.
+        // when prerendering an optional fallback shell after having prerendered
+        // pages with defined params, we use this instead of a prerender resume
+        // data cache.
+        resumeDataCache = renderResumeDataCache =
+          renderOpts.renderResumeDataCache
+      } else {
+        // Otherwise we create a new mutable prerender resume data cache.
+        resumeDataCache = prerenderResumeDataCache =
+          createPrerenderResumeDataCache()
+      }
 
       const initialServerPrerenderStore: PrerenderStore = (prerenderStore = {
         type: 'prerender',
@@ -2902,6 +2924,7 @@ async function prerenderToStream(
         stale: INFINITE_CACHE,
         tags: [...implicitTags.tags],
         prerenderResumeDataCache,
+        renderResumeDataCache,
         hmrRefreshHash: undefined,
       })
 
@@ -3024,6 +3047,7 @@ async function prerenderToStream(
           stale: INFINITE_CACHE,
           tags: [...implicitTags.tags],
           prerenderResumeDataCache,
+          renderResumeDataCache,
           hmrRefreshHash: undefined,
         }
 
@@ -3109,6 +3133,7 @@ async function prerenderToStream(
         stale: INFINITE_CACHE,
         tags: [...implicitTags.tags],
         prerenderResumeDataCache,
+        renderResumeDataCache,
         hmrRefreshHash: undefined,
       })
 
@@ -3179,6 +3204,7 @@ async function prerenderToStream(
         stale: INFINITE_CACHE,
         tags: [...implicitTags.tags],
         prerenderResumeDataCache,
+        renderResumeDataCache,
         hmrRefreshHash: undefined,
       }
 
@@ -3280,13 +3306,12 @@ async function prerenderToStream(
           metadata.postponed = await getDynamicHTMLPostponedState(
             postponed,
             fallbackRouteParams,
-            prerenderResumeDataCache
+            resumeDataCache
           )
         } else {
           // Dynamic Data case
-          metadata.postponed = await getDynamicDataPostponedState(
-            prerenderResumeDataCache
-          )
+          metadata.postponed =
+            await getDynamicDataPostponedState(resumeDataCache)
         }
         reactServerResult.consume()
         return {
@@ -3305,6 +3330,7 @@ async function prerenderToStream(
           collectedExpire: finalServerPrerenderStore.expire,
           collectedStale: selectStaleTime(finalServerPrerenderStore.stale),
           collectedTags: finalServerPrerenderStore.tags,
+          renderResumeDataCache: createRenderResumeDataCache(resumeDataCache),
         }
       } else {
         // Static case
@@ -3368,6 +3394,7 @@ async function prerenderToStream(
           collectedExpire: finalServerPrerenderStore.expire,
           collectedStale: selectStaleTime(finalServerPrerenderStore.stale),
           collectedTags: finalServerPrerenderStore.tags,
+          renderResumeDataCache: createRenderResumeDataCache(resumeDataCache),
         }
       }
     } else if (experimental.isRoutePPREnabled) {
