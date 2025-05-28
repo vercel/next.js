@@ -5,8 +5,7 @@ use roaring::RoaringBitmap;
 use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, ResolvedVc, SliceMap, TryFlatJoinIterExt, TryJoinIterExt,
-    ValueToString, Vc,
+    FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
 };
 
 use crate::{
@@ -21,17 +20,6 @@ use crate::{
     resolve::ExportUsage,
 };
 
-#[turbo_tasks::value(transparent)]
-pub struct MergedModules(SliceMap<ResolvedVc<Box<dyn Module>>, bool>);
-#[turbo_tasks::value_impl]
-impl MergedModules {
-    #[turbo_tasks::function]
-    pub fn empty() -> Vc<Self> {
-        Vc::cell(Default::default())
-    }
-}
-
-// TODO maybe a smallvec once we know the size distribution?
 #[turbo_tasks::value]
 pub struct MergedModuleInfo {
     /// A map of modules to the merged module containing the module plus additional modules.
