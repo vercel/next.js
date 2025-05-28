@@ -5,7 +5,7 @@ description: Learn about how to configure options for Next.js route segments.
 
 > The options outlined on this page are disabled if the [`dynamicIO`](/docs/app/api-reference/config/next-config-js/dynamicIO) flag is on, and will eventually be deprecated in the future.
 
-The Route Segment options allows you to configure the behavior of a [Page](/docs/app/building-your-application/routing/layouts-and-templates), [Layout](/docs/app/building-your-application/routing/layouts-and-templates), or [Route Handler](/docs/app/building-your-application/routing/route-handlers) by directly exporting the following variables:
+The Route Segment options allows you to configure the behavior of a [Page](/docs/app/api-reference/file-conventions/layout), [Layout](/docs/app/api-reference/file-conventions/layout), or [Route Handler](/docs/app/building-your-application/routing/route-handlers) by directly exporting the following variables:
 
 | Option                                  | Type                                                                                                                      | Default                    |
 | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
@@ -216,7 +216,7 @@ export const maxDuration = 5
 
 ### `generateStaticParams`
 
-The `generateStaticParams` function can be used in combination with [dynamic route segments](/docs/app/building-your-application/routing/dynamic-routes) to define the list of route segment parameters that will be statically generated at build time instead of on-demand at request time.
+The `generateStaticParams` function can be used in combination with [dynamic route segments](/docs/app/api-reference/file-conventions/dynamic-routes) to define the list of route segment parameters that will be statically generated at build time instead of on-demand at request time.
 
 See the [API reference](/docs/app/api-reference/functions/generate-static-params) for more details.
 

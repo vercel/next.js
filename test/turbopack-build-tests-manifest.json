@@ -772,13 +772,14 @@
       "app dir - prefetching should not need to prefetch the layout if the prefetch is initiated at the same segment",
       "app dir - prefetching should not prefetch for a bot user agent",
       "app dir - prefetching should not re-render error component when triggering a prefetch action",
-      "app dir - prefetching should not suppress prefetches after navigating back",
       "app dir - prefetching should not unintentionally modify the requested prefetch by escaping the uri encoded query params",
       "app dir - prefetching should only prefetch the loading state and not the component tree when prefetching at the same segment",
       "app dir - prefetching should show layout eagerly when prefetched with loading one level down"
     ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "app dir - prefetching should not suppress prefetches after navigating back"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -1334,6 +1335,8 @@
       "app dir - basic should pass props from getServerSideProps in root layout",
       "app dir - basic should provide query for getStaticProps page correctly",
       "app dir - basic should return normalized dynamic route params for catch-all edge page",
+      "app dir - basic should return the `vary` header from edge runtime",
+      "app dir - basic should return the `vary` header from pages for flight requests",
       "app dir - basic should run generate command correctly",
       "app dir - basic should serve /index as separate page",
       "app dir - basic should serve dynamic parameter",
@@ -1454,6 +1457,8 @@
       "app dir - basic should not share edge workers",
       "app dir - basic should pass props from getServerSideProps in root layout",
       "app dir - basic should return normalized dynamic route params for catch-all edge page",
+      "app dir - basic should return the `vary` header from edge runtime",
+      "app dir - basic should return the `vary` header from pages for flight requests",
       "app dir - basic should serve /index as separate page",
       "app dir - basic should serve dynamic parameter",
       "app dir - basic should serve dynamic route from pages",
@@ -1636,10 +1641,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/conflicting-page-segments/conflicting-page-segments.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "conflicting-page-segments should throw an error when a route groups causes a conflict with a parallel segment"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2408,7 +2413,15 @@
   },
   "test/e2e/app-dir/empty-fallback-shells/empty-fallback-shells.test.ts": {
     "passed": [
-      "empty-fallback-shells should start and not postpone the response"
+      "empty-fallback-shells should not log a HANGING_PROMISE_REJECTION error",
+      "empty-fallback-shells with cached IO and the page not wrapped in Suspense and params.then/catch/finally passed to a cached function does not resume a postponed fallback shell",
+      "empty-fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in a cached non-page function does not resume a postponed fallback shell",
+      "empty-fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in the cached page does not render a fallback shell when using a params placeholder",
+      "empty-fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in the cached page does not resume a postponed fallback shell",
+      "empty-fallback-shells with cached IO and the page wrapped in Suspense and params.then/catch/finally passed to a cached function resumes a postponed fallback shell",
+      "empty-fallback-shells with cached IO and the page wrapped in Suspense and the params accessed in cached non-page function resumes a postponed fallback shell",
+      "empty-fallback-shells with cached IO and the page wrapped in Suspense and the params accessed in the cached page resumes a postponed fallback shell",
+      "empty-fallback-shells without IO should start and not postpone the response"
     ],
     "failed": [],
     "pending": [],
@@ -3651,11 +3664,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/next-image/next-image-https.test.ts": {
-    "passed": [
-      "app dir - next-image (with https) only runs on CI as it requires administrator privileges"
-    ],
+    "passed": [],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "app dir - next-image (with https) loads images without any errors"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -5386,6 +5399,7 @@
   },
   "test/e2e/app-dir/segment-cache/basic/segment-cache-basic.test.ts": {
     "passed": [
+      "segment cache (basic tests) does not throw an error when navigating to a page with a server action",
       "segment cache (basic tests) navigate before any data has loaded into the prefetch cache",
       "segment cache (basic tests) navigate to page with lazily-generated (not at build time) static param",
       "segment cache (basic tests) navigate with prefetched data",
@@ -5417,6 +5431,16 @@
       "conflicting routes /fr/vercel/~/monitoring matches the right route",
       "conflicting routes handles conflict between App Router and Pages Router routes",
       "conflicting routes matches the right route when the original route has no dynamic params, is dynamic, and PPR is disabled"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/segment-cache/deployment-skew/deployment-skew.test.ts": {
+    "passed": [
+      "segment cache (deployment skew) does not crash when prefetching a dynamic, non-PPR page on a different deployment",
+      "segment cache (deployment skew) does not crash when prefetching a static page on a different deployment"
     ],
     "failed": [],
     "pending": [],
@@ -6520,10 +6544,10 @@
     "runtimeError": false
   },
   "test/e2e/edge-pages-support/edge-document.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "edge render - custom _document with edge runtime should render page properly"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6597,11 +6621,10 @@
   },
   "test/e2e/fetch-failures-have-good-stack-traces-in-edge-runtime/fetch-failures-have-good-stack-traces-in-edge-runtime.test.ts": {
     "passed": [],
-    "failed": [
-      "fetch failures have good stack traces in edge runtime when awaiting `fetch` using an unknown domain, stack traces are preserved"
-    ],
+    "failed": [],
     "pending": [
-      "fetch failures have good stack traces in edge runtime when returning `fetch` using an unknown domain, stack traces are preserved"
+      "fetch failures have good stack traces in edge runtime when returning `fetch` using an unknown domain, stack traces are preserved",
+      "fetch failures have good stack traces in edge runtime when awaiting `fetch` using an unknown domain, stack traces are preserved"
     ],
     "flakey": [],
     "runtimeError": false
@@ -7550,9 +7573,10 @@
       "Middleware Rewrite should rewrite to the external url for incoming data request externally rewritten",
       "Middleware Rewrite should rewrite when not using localhost",
       "Middleware Rewrite should rewrite without hard navigation",
-      "Middleware Rewrite support colons in path"
+      "Middleware Rewrite support colons in path",
+      "Middleware Rewrite should handle catch-all rewrite correctly"
     ],
-    "failed": ["Middleware Rewrite should handle catch-all rewrite correctly"],
+    "failed": [],
     "pending": [
       "Middleware Rewrite includes the locale in rewrites by default"
     ],
@@ -7766,12 +7790,12 @@
     "runtimeError": false
   },
   "test/e2e/next-font/with-font-declarations-file.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "next/font/google with-font-declarations-file preload correct files at /inter",
       "next/font/google with-font-declarations-file preload correct files at /local-font",
       "next/font/google with-font-declarations-file preload correct files at /roboto"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -8809,9 +8833,9 @@
   },
   "test/e2e/vary-header/test/index.test.ts": {
     "passed": [
-      "Vary Header Tests should preserve custom vary header",
+      "Vary Header Tests should preserve custom vary header and append RSC headers in app route handlers",
       "Vary Header Tests should preserve custom vary header in API routes",
-      "Vary Header Tests should preserve middleware vary header"
+      "Vary Header Tests should preserve middleware vary header in combination with route handlers"
     ],
     "failed": [],
     "pending": [],
@@ -9298,11 +9322,10 @@
   },
   "test/integration/app-dir-export/test/dynamic-missing-gsp-prod.test.ts": {
     "passed": [
+      "app dir - with output export - dynamic missing gsp prod production mode should error when client component has generateStaticParams",
       "app dir - with output export - dynamic missing gsp prod production mode should error when dynamic route is missing generateStaticParams"
     ],
-    "failed": [
-      "app dir - with output export - dynamic missing gsp prod production mode should error when client component has generateStaticParams"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10338,11 +10361,10 @@
       "Ordering with Global CSS and Modules (prod) production mode useLightnincsss(false) should have the correct color (css ordering)",
       "Ordering with Global CSS and Modules (prod) production mode useLightnincsss(true) should have compiled successfully",
       "Ordering with Global CSS and Modules (prod) production mode useLightnincsss(true) should have the correct color (css ordering)",
-      "should handle unresolved files gracefully production mode should build correctly"
-    ],
-    "failed": [
+      "should handle unresolved files gracefully production mode should build correctly",
       "should handle unresolved files gracefully production mode should have correct file references in CSS output"
     ],
+    "failed": [],
     "pending": [
       "Basic CSS Modules Ordering useLightnincsss(false) Development Mode should have correct color on index page (on hover)",
       "Basic CSS Modules Ordering useLightnincsss(false) Development Mode should have correct color on index page (on load)",
@@ -11633,10 +11655,10 @@
     "runtimeError": false
   },
   "test/integration/error-load-fail/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Failing to load _error production mode handles failing to load _error correctly"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -15649,8 +15671,8 @@
   },
   "test/integration/next-dynamic/test/index.test.js": {
     "passed": [
-      "next/dynamic production mode should render server value",
-      "next/dynamic production mode should render dynamic server rendered values on client mount"
+      "next/dynamic production mode should render dynamic server rendered values on client mount",
+      "next/dynamic production mode should render server value"
     ],
     "failed": [],
     "pending": [
@@ -16644,13 +16666,13 @@
     "passed": [
       "Non-Standard NODE_ENV production mode should show the warning with NODE_ENV set to development with next build",
       "Non-Standard NODE_ENV production mode should show the warning with NODE_ENV set to development with next start",
+      "Non-Standard NODE_ENV production mode should still DCE NODE_ENV specific code",
       "Non-Standard NODE_ENV should not show the warning with NODE_ENV set to valid value",
       "Non-Standard NODE_ENV should not show the warning with NODE_ENV set to valid value (custom server)",
       "Non-Standard NODE_ENV should not show the warning with no NODE_ENV set",
       "Non-Standard NODE_ENV should show the warning with NODE_ENV set to invalid value",
       "Non-Standard NODE_ENV should show the warning with NODE_ENV set to invalid value (custom server)",
-      "Non-Standard NODE_ENV should show the warning with NODE_ENV set to production with next dev",
-      "Non-Standard NODE_ENV production mode should still DCE NODE_ENV specific code"
+      "Non-Standard NODE_ENV should show the warning with NODE_ENV set to production with next dev"
     ],
     "failed": [],
     "pending": [],
@@ -18711,11 +18733,11 @@
     "runtimeError": false
   },
   "test/production/bfcache-routing/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
       "bfcache-routing should not suspend indefinitely when page is restored from bfcache after an mpa navigation"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -19020,11 +19042,10 @@
   },
   "test/production/exported-runtimes-value-validation/index.test.ts": {
     "passed": [
-      "Exported runtimes value validation fails to build on malformed input"
-    ],
-    "failed": [
+      "Exported runtimes value validation fails to build on malformed input",
       "Exported runtimes value validation warns on unrecognized runtimes value"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false

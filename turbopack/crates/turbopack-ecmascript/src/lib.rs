@@ -50,7 +50,12 @@ pub use references::{AnalyzeEcmascriptModuleResult, TURBOPACK_HELPER};
 use serde::{Deserialize, Serialize};
 pub use static_code::StaticEcmascriptCode;
 use swc_core::{
-    common::{DUMMY_SP, GLOBALS, Globals, Mark, SourceMap, comments::Comments, util::take::Take},
+    base::SwcComments,
+    common::{
+        BytePos, DUMMY_SP, GLOBALS, Globals, Mark, SourceMap,
+        comments::{Comment, Comments},
+        util::take::Take,
+    },
     ecma::{
         ast::{self, Expr, ModuleItem, Program, Script},
         codegen::{Emitter, text_writer::JsWriter},
@@ -94,7 +99,7 @@ pub use turbopack_resolve::ecmascript as resolve;
 use self::chunk::{EcmascriptChunkItemContent, EcmascriptChunkType, EcmascriptExports};
 use crate::{
     chunk::{EcmascriptChunkPlaceable, placeable::is_marked_as_side_effect_free},
-    code_gen::CodeGens,
+    code_gen::{CodeGens, ModifiableAst},
     parse::generate_js_source_map,
     references::{
         analyse_ecmascript_module, async_module::OptionAsyncModule, esm::base::EsmAssetReferences,
@@ -956,6 +961,7 @@ struct CodeGenResult {
     program: Program,
     source_map: Arc<SourceMap>,
     comments: Either<ImmutableComments, Arc<ImmutableComments>>,
+    extra_comments: SwcComments,
     is_esm: bool,
     generate_source_map: bool,
     original_source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
@@ -965,7 +971,7 @@ async fn process_parse_result(
     parsed: ResolvedVc<ParseResult>,
     ident: Vc<AssetIdent>,
     specified_module_type: SpecifiedModuleType,
-    code_gens: Vec<CodeGeneration>,
+    mut code_gens: Vec<CodeGeneration>,
     generate_source_map: bool,
     original_source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
 ) -> Result<CodeGenResult> {
@@ -973,6 +979,11 @@ async fn process_parse_result(
 
     Ok(match &*parsed {
         ParseResult::Ok { .. } => {
+            let extra_comments = SwcComments {
+                leading: Default::default(),
+                trailing: Default::default(),
+            };
+
             // We need a mutable version of the AST. We try to avoid cloning it by unwrapping the
             // ReadRef.
             let mut parsed = ReadRef::try_unwrap(parsed);
@@ -1017,12 +1028,31 @@ async fn process_parse_result(
             let top_level_mark = eval_context.top_level_mark;
             let is_esm = eval_context.is_esm(specified_module_type);
 
-            process_content_with_code_gens(&mut program, globals, Some(top_level_mark), code_gens);
+            process_content_with_code_gens(
+                &mut program,
+                globals,
+                Some(top_level_mark),
+                &mut code_gens,
+            );
+
+            for comments in code_gens.iter_mut().flat_map(|cg| cg.comments.as_mut()) {
+                let leading = Arc::unwrap_or_clone(take(&mut comments.leading));
+                let trailing = Arc::unwrap_or_clone(take(&mut comments.trailing));
+
+                for (pos, v) in leading {
+                    extra_comments.leading.entry(pos).or_default().extend(v);
+                }
+
+                for (pos, v) in trailing {
+                    extra_comments.trailing.entry(pos).or_default().extend(v);
+                }
+            }
 
             CodeGenResult {
                 program,
                 source_map: source_map.clone(),
                 comments,
+                extra_comments,
                 is_esm,
                 generate_source_map,
                 original_source_map,
@@ -1052,6 +1082,7 @@ async fn process_parse_result(
                 }),
                 source_map: Arc::new(SourceMap::default()),
                 comments: Either::Left(Default::default()),
+                extra_comments: Default::default(),
                 is_esm: false,
                 generate_source_map: false,
                 original_source_map: None,
@@ -1076,6 +1107,7 @@ async fn process_parse_result(
                 }),
                 source_map: Arc::new(SourceMap::default()),
                 comments: Either::Left(Default::default()),
+                extra_comments: Default::default(),
                 is_esm: false,
                 generate_source_map: false,
                 original_source_map: None,
@@ -1089,6 +1121,7 @@ async fn emit_content(content: CodeGenResult) -> Result<Vc<EcmascriptModuleConte
         program,
         source_map,
         comments,
+        extra_comments,
         is_esm,
         generate_source_map,
         original_source_map,
@@ -1110,16 +1143,24 @@ async fn emit_content(content: CodeGenResult) -> Result<Vc<EcmascriptModuleConte
             Either::Right(comments) => comments,
         };
 
+        let comments = MergedComments {
+            baseline: comments,
+            mutable: extra_comments,
+        };
+
+        let mut wr = JsWriter::new(
+            source_map.clone(),
+            "\n",
+            &mut bytes,
+            generate_source_map.then_some(&mut mappings),
+        );
+        wr.set_indent_str("");
+
         let mut emitter = Emitter {
             cfg: swc_core::ecma::codegen::Config::default(),
             cm: source_map.clone(),
-            comments: Some(&comments),
-            wr: JsWriter::new(
-                source_map.clone(),
-                "\n",
-                &mut bytes,
-                generate_source_map.then_some(&mut mappings),
-            ),
+            comments: Some(&comments as &dyn Comments),
+            wr,
         };
 
         emitter.emit_program(&program)?;
@@ -1159,19 +1200,20 @@ fn process_content_with_code_gens(
     program: &mut Program,
     globals: &Globals,
     top_level_mark: Option<Mark>,
-    mut code_gens: Vec<CodeGeneration>,
+    code_gens: &mut Vec<CodeGeneration>,
 ) {
     let mut visitors = Vec::new();
     let mut root_visitors = Vec::new();
     let mut early_hoisted_stmts = FxIndexMap::default();
     let mut hoisted_stmts = FxIndexMap::default();
-    for code_gen in &mut code_gens {
+    for code_gen in code_gens {
         for CodeGenerationHoistedStmt { key, stmt } in code_gen.hoisted_stmts.drain(..) {
             hoisted_stmts.entry(key).or_insert(stmt);
         }
         for CodeGenerationHoistedStmt { key, stmt } in code_gen.early_hoisted_stmts.drain(..) {
             early_hoisted_stmts.insert(key.clone(), stmt);
         }
+
         for (path, visitor) in &code_gen.visitors {
             if path.is_empty() {
                 root_visitors.push(&**visitor);
@@ -1188,8 +1230,8 @@ fn process_content_with_code_gens(
                 &mut Default::default(),
             );
         }
-        for visitor in root_visitors {
-            program.visit_mut_with(&mut visitor.create());
+        for pass in root_visitors {
+            program.modify(pass);
         }
         program.visit_mut_with(
             &mut swc_core::ecma::transforms::base::hygiene::hygiene_with_config(
@@ -1225,6 +1267,104 @@ fn process_content_with_code_gens(
             );
         }
     };
+}
+
+struct MergedComments<A, B>
+where
+    A: Comments,
+    B: Comments,
+{
+    baseline: A,
+    mutable: B,
+}
+
+impl<A, B> Comments for MergedComments<A, B>
+where
+    A: Comments,
+    B: Comments,
+{
+    fn add_leading(&self, pos: BytePos, cmt: Comment) {
+        self.mutable.add_leading(pos, cmt);
+    }
+
+    fn add_leading_comments(&self, pos: BytePos, comments: Vec<Comment>) {
+        self.mutable.add_leading_comments(pos, comments);
+    }
+
+    fn has_leading(&self, pos: BytePos) -> bool {
+        self.baseline.has_leading(pos) || self.mutable.has_leading(pos)
+    }
+
+    fn move_leading(&self, from: BytePos, to: BytePos) {
+        self.baseline.move_leading(from, to);
+        self.mutable.move_leading(from, to);
+    }
+
+    fn take_leading(&self, pos: BytePos) -> Option<Vec<Comment>> {
+        let (v1, v2) = (
+            self.baseline.take_leading(pos),
+            self.mutable.take_leading(pos),
+        );
+
+        merge_option_vec(v1, v2)
+    }
+
+    fn get_leading(&self, pos: BytePos) -> Option<Vec<Comment>> {
+        let (v1, v2) = (
+            self.baseline.get_leading(pos),
+            self.mutable.get_leading(pos),
+        );
+
+        merge_option_vec(v1, v2)
+    }
+
+    fn add_trailing(&self, pos: BytePos, cmt: Comment) {
+        self.mutable.add_trailing(pos, cmt);
+    }
+
+    fn add_trailing_comments(&self, pos: BytePos, comments: Vec<Comment>) {
+        self.mutable.add_trailing_comments(pos, comments);
+    }
+
+    fn has_trailing(&self, pos: BytePos) -> bool {
+        self.baseline.has_trailing(pos) || self.mutable.has_trailing(pos)
+    }
+
+    fn move_trailing(&self, from: BytePos, to: BytePos) {
+        self.baseline.move_trailing(from, to);
+        self.mutable.move_trailing(from, to);
+    }
+
+    fn take_trailing(&self, pos: BytePos) -> Option<Vec<Comment>> {
+        let (v1, v2) = (
+            self.baseline.take_trailing(pos),
+            self.mutable.take_trailing(pos),
+        );
+
+        merge_option_vec(v1, v2)
+    }
+
+    fn get_trailing(&self, pos: BytePos) -> Option<Vec<Comment>> {
+        let (v1, v2) = (
+            self.baseline.get_trailing(pos),
+            self.mutable.get_trailing(pos),
+        );
+
+        merge_option_vec(v1, v2)
+    }
+
+    fn add_pure_comment(&self, pos: BytePos) {
+        self.mutable.add_pure_comment(pos);
+    }
+}
+
+fn merge_option_vec<T>(a: Option<Vec<T>>, b: Option<Vec<T>>) -> Option<Vec<T>> {
+    match (a, b) {
+        (Some(a), Some(b)) => Some(a.into_iter().chain(b).collect()),
+        (Some(a), None) => Some(a),
+        (None, Some(b)) => Some(b),
+        (None, None) => None,
+    }
 }
 
 pub fn register() {

@@ -5,8 +5,8 @@
 var { m: module, e: exports } = __turbopack_context__;
 {
 async function main() {
-    const lib = await __turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/dynamic-import/input/lib.js [test] (ecmascript, async loader)")(__turbopack_context__.i);
-    console.log(lib.cat);
+const lib = await __turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/dynamic-import/input/lib.js [test] (ecmascript, async loader)")(__turbopack_context__.i);
+console.log(lib.cat);
 }
 main();
 }}),

@@ -24,15 +24,19 @@ describe('Middleware Rewrite', () => {
 
   function tests() {
     it('should handle catch-all rewrite correctly', async () => {
-      const browser = await next.browser('/', { waitHydration: false })
+      let requests: string[] = []
+
+      const browser = await next.browser('/', {
+        waitHydration: false,
+        beforePageLoad(page) {
+          page.on('request', (request) => {
+            const url = new URL(request.url())
+            requests.push(url.pathname)
+          })
+        },
+      })
 
       if (!(global as any).isNextDev) {
-        let requests = []
-
-        browser.on('request', (req) => {
-          requests.push(new URL(req.url()).pathname)
-        })
-
         browser.elementByCss('#to-article-rewrite').moveTo()
 
         await retry(async () => {
