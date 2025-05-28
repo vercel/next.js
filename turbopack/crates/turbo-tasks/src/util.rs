@@ -32,8 +32,10 @@ impl SharedError {
             inner: Arc::new(err),
         }
     }
+}
 
-    pub fn as_ref(&self) -> &(dyn StdError + 'static) {
+impl AsRef<dyn StdError> for SharedError {
+    fn as_ref(&self) -> &(dyn StdError + 'static) {
         let err: &anyhow::Error = &self.inner;
         err.as_ref()
     }
