@@ -44,6 +44,9 @@ jobs:
       - name: Build the benchmark target(s)
         run: cargo codspeed build -p turbo-rcstr -p turbopack-ecmascript
 
+      - name: Build app build benchmarks
+        run: cargo codspeed build -p turbopack-cli small_apps
+
       - name: Run the benchmarks
         uses: CodSpeedHQ/action@v3
         with:
