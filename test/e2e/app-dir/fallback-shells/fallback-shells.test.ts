@@ -48,6 +48,31 @@ describe('fallback-shells', () => {
             expect(headers['x-nextjs-postponed']).toBe('1')
           }
         })
+
+        it('shares a cached layout between a prerendered route shell and the fallback shell', async () => {
+          // `/foo` was prerendered
+          let $ = await next.render$(
+            '/with-cached-io/with-suspense/params-in-page/foo'
+          )
+
+          const layoutDateRouteShell = $(
+            '[data-testid="layout-buildtime"]'
+          ).text()
+
+          // Sanity check that we've selected the correct element.
+          expect(layoutDateRouteShell).toStartWith('Layout:')
+
+          // `/bar` was not prerendered, so the fallback shell is used
+          $ = await next.render$(
+            '/with-cached-io/with-suspense/params-in-page/bar'
+          )
+
+          const layoutDateFallbackShell = $(
+            '[data-testid="layout-buildtime"]'
+          ).text()
+
+          expect(layoutDateFallbackShell).toBe(layoutDateRouteShell)
+        })
       })
 
       describe('and the params accessed in cached non-page function', () => {
