@@ -312,19 +312,18 @@ pub const fn inline_atom(s: &str) -> Option<RcStr> {
 macro_rules! rcstr {
     ($s:tt) => {{
         const INLINE: core::option::Option<$crate::RcStr> = $crate::inline_atom($s);
-        // this match should be able to be compile time evaluated and inlined.
-        match INLINE {
-            Some(ref rc) => rc.clone(),
-            None => {
-                #[inline(never)]
-                fn get_rcstr() -> $crate::RcStr {
-                    static CACHE: std::sync::LazyLock<$crate::RcStr> =
-                        std::sync::LazyLock::new(|| $crate::RcStr::from($s));
+        // this condition should be able to be compile time evaluated and inlined.
+        if INLINE.is_some() {
+            INLINE.unwrap()
+        } else {
+            #[inline(never)]
+            fn get_rcstr() -> $crate::RcStr {
+                static CACHE: std::sync::LazyLock<$crate::RcStr> =
+                    std::sync::LazyLock::new(|| $crate::RcStr::from($s));
 
-                    (*CACHE).clone()
-                }
-                get_rcstr()
+                (*CACHE).clone()
             }
+            get_rcstr()
         }
     }};
 }
@@ -418,5 +417,18 @@ mod tests {
         assert_eq!(rcstr!("abcdefg"), RcStr::from("abcdefg"));
         assert_eq!(rcstr!("abcdefgh"), RcStr::from("abcdefgh"));
         assert_eq!(rcstr!("abcdefghi"), RcStr::from("abcdefghi"));
+    }
+    #[test]
+    fn test_inline_atom() {
+        // This is a silly test, just asserts that we can evaluate this in a constant context.
+        const STR: RcStr = {
+            let inline = inline_atom("hello");
+            if inline.is_some() {
+                inline.unwrap()
+            } else {
+                unreachable!();
+            }
+        };
+        assert_eq!(STR, RcStr::from("hello"));
     }
 }
