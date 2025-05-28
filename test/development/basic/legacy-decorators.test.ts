@@ -5,17 +5,17 @@ import { NextInstance } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
 describe('Legacy decorators SWC option', () => {
-  describe('with extended config', () => {
+  describe('with extended tsconfig', () => {
     let next: NextInstance
 
     beforeAll(async () => {
       next = await createNext({
         files: {
-          'jsconfig.json': new FileRef(
-            join(__dirname, 'legacy-decorators/jsconfig-extended.json')
+          'tsconfig.json': new FileRef(
+            join(__dirname, 'legacy-decorators/tsconfig-extended.json')
           ),
-          'jsconfig-base.json': new FileRef(
-            join(__dirname, 'legacy-decorators/jsconfig-base.json')
+          'tsconfig-base.json': new FileRef(
+            join(__dirname, 'legacy-decorators/jsconfig.json')
           ),
           pages: new FileRef(join(__dirname, 'legacy-decorators/pages')),
         },
