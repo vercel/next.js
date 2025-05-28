@@ -8077,22 +8077,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/ppr-navigations/simple/per-segment-prefetching.test.ts": {
-    "passed": ["per segment prefetching ppr is disabled"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/ppr-navigations/simple/simple.test.ts": {
-    "passed": [
-      "ppr-navigations simple can navigate between all the links and back"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/ppr-navigations/stale-prefetch-entry/stale-prefetch-entry.test.ts": {
     "passed": ["stale-prefetch-entry should skip dev & deploy"],
     "failed": [],
@@ -8924,6 +8908,15 @@
   },
   "test/e2e/app-dir/segment-cache/basic/segment-cache-basic.test.ts": {
     "passed": ["segment cache (basic tests) ppr is disabled"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/segment-cache/cdn-cache-busting/cdn-cache-busting.test.ts": {
+    "passed": [
+      "segment cache (CDN cache busting) should not run during dev or deploy test runs"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
