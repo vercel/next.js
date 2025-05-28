@@ -49,27 +49,31 @@ describe('fallback-shells', () => {
           }
         })
 
-        it('shares a cached layout between a prerendered route shell and the fallback shell', async () => {
-          // `/foo` was prerendered
-          let $ = await next.render$(
-            '/with-cached-io/with-suspense/params-in-page/foo'
-          )
+        // TODO: Activate for deploy tests once background revalidation for
+        // prerendered pages is not triggered anymore on the first visit.
+        if (!isNextDeploy) {
+          it('shares a cached layout between a prerendered route shell and the fallback shell', async () => {
+            // `/foo` was prerendered
+            let $ = await next.render$(
+              '/with-cached-io/with-suspense/params-in-page/foo'
+            )
 
-          const selector = `[data-testid="layout-${isNextDev ? 'runtime' : 'buildtime'}"]`
-          const layoutDateRouteShell = $(selector).text()
+            const selector = `[data-testid="layout-${isNextDev ? 'runtime' : 'buildtime'}"]`
+            const layoutDateRouteShell = $(selector).text()
 
-          // Sanity check that we've selected the correct element.
-          expect(layoutDateRouteShell).toStartWith('Layout:')
+            // Sanity check that we've selected the correct element.
+            expect(layoutDateRouteShell).toStartWith('Layout:')
 
-          // `/bar` was not prerendered, so the fallback shell is used
-          $ = await next.render$(
-            '/with-cached-io/with-suspense/params-in-page/bar'
-          )
+            // `/bar` was not prerendered, so the fallback shell is used
+            $ = await next.render$(
+              '/with-cached-io/with-suspense/params-in-page/bar'
+            )
 
-          const layoutDateFallbackShell = $(selector).text()
+            const layoutDateFallbackShell = $(selector).text()
 
-          expect(layoutDateFallbackShell).toBe(layoutDateRouteShell)
-        })
+            expect(layoutDateFallbackShell).toBe(layoutDateRouteShell)
+          })
+        }
       })
 
       describe('and the params accessed in cached non-page function', () => {
