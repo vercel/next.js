@@ -6,7 +6,6 @@ use std::{
     ops::Range,
     path::{Path, PathBuf},
     sync::Arc,
-    usize,
 };
 
 use anyhow::{Context, Result, bail};
