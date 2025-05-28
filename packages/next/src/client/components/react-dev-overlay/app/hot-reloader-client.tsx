@@ -6,7 +6,7 @@ import stripAnsi from 'next/dist/compiled/strip-ansi'
 import formatWebpackMessages from '../utils/format-webpack-messages'
 import { useRouter } from '../../navigation'
 import { REACT_REFRESH_FULL_RELOAD, reportInvalidHmrMessage } from '../shared'
-import { AppDevOverlay, dispatcher } from './app-dev-overlay'
+import { dispatcher } from './app-dev-overlay' with { 'turbopack-transition': 'nextjs-devtools' }
 import { ReplaySsrOnlyErrors } from './replay-ssr-only-errors'
 import { AppDevOverlayErrorBoundary } from './app-dev-overlay-error-boundary'
 import { useErrorHandler } from '../../errors/use-error-handler'
@@ -28,8 +28,6 @@ import type { GlobalErrorComponent } from '../../global-error'
 import reportHmrLatency from '../utils/report-hmr-latency'
 import { TurbopackHmr } from '../utils/turbopack-hot-reloader-common'
 import { NEXT_HMR_REFRESH_HASH_COOKIE } from '../../app-router-headers'
-import { getComponentStack, getOwnerStack } from '../../errors/stitched-error'
-import { isRecoverableError } from '../../../react-client-callbacks/on-recoverable-error'
 
 let mostRecentCompilationHash: any = null
 let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
@@ -534,12 +532,9 @@ export default function HotReload({
   ])
 
   return (
-    <>
-      <AppDevOverlay />
-      <AppDevOverlayErrorBoundary globalError={globalError}>
-        <ReplaySsrOnlyErrors onBlockingError={dispatcher.openErrorOverlay} />
-        {children}
-      </AppDevOverlayErrorBoundary>
-    </>
+    <AppDevOverlayErrorBoundary globalError={globalError}>
+      <ReplaySsrOnlyErrors onBlockingError={dispatcher.openErrorOverlay} />
+      {children}
+    </AppDevOverlayErrorBoundary>
   )
 }

@@ -245,22 +245,20 @@ describe('Error overlay for hydration errors in App router', () => {
        {
          "componentStack": "...
            <HotReload assetPrefix="" globalError={[...]}>
-             <AppDevOverlay state={{nextId:1, ...}} dispatch={function bound dispatchReducerAction} globalError={[...]}>
-               <AppDevOverlayErrorBoundary globalError={[...]} onError={function}>
-                 <ReplaySsrOnlyErrors>
-                 <DevRootHTTPAccessFallbackBoundary>
-                   <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
-                     <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<NotAllowedRootHTTPFallbackError>} ...>
-                       <RedirectBoundary>
-                         <RedirectErrorBoundary router={{...}}>
-                           <Head>
-                           <ClientSegmentRoot Component={function Root} slots={{...}} params={{}}>
-                             <Root params={Promise}>
-                               <html
-       -                         className="server-html"
-                               >
-                           ...
-               ...",
+             <AppDevOverlayErrorBoundary globalError={[...]}>
+               <ReplaySsrOnlyErrors>
+               <DevRootHTTPAccessFallbackBoundary>
+                 <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+                   <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+                     <RedirectBoundary>
+                       <RedirectErrorBoundary router={{...}}>
+                         <Head>
+                         <ClientSegmentRoot Component={function Root} slots={{...}} params={{}}>
+                           <Root params={Promise}>
+                             <html
+       -                       className="server-html"
+                             >
+                         ...",
          "description": "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Console Error",
@@ -1044,23 +1042,24 @@ describe('Error overlay for hydration errors in App router', () => {
        },
        {
          "componentStack": "...
-         <HotReload assetPrefix="" globalError={[...]}>
-           <AppDevOverlay state={{nextId:1, ...}} dispatch={function bound dispatchReducerAction} globalError={[...]}>
-             <AppDevOverlayErrorBoundary globalError={[...]} onError={function}>
+         <Router actionQueue={{state:{...}, ...}} assetPrefix="" globalError={[...]} gracefullyDegrade={false}>
+           <HistoryUpdater>
+           <RuntimeStyles>
+           <HotReload assetPrefix="" globalError={[...]}>
+             <AppDevOverlayErrorBoundary globalError={[...]}>
                <ReplaySsrOnlyErrors>
                <DevRootHTTPAccessFallbackBoundary>
                  <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
                    <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<NotAllowedRootHTTPFallbackError>} ...>
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
-                         <Head>${isTurbopack ? '\n                         <script>\n                         <script>' : ''}
+                         <Head>
                          <Layout>
      >                     <html>
                              <body>
                              <Script src="https://ex..." strategy="beforeInte...">
      >                         <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>
-                         ...
-             ...",
+                         ...",
          "description": "In HTML, <script> cannot be a child of <html>.
      This will cause a hydration error.",
          "environmentLabel": null,
