@@ -127,12 +127,12 @@ pub async fn map_next_dynamic(graph: Vc<SingleModuleGraph>) -> Result<Vc<Dynamic
         .map(|node| async move {
             let SingleModuleGraphModuleNode { module } = node;
             let layer = match module.ident().await?.layer {
-                Some(l) => Some((*l.await?).clone()),
+                Some(l) => Some(l.await?),
                 None => None,
             };
             if layer
                 .as_ref()
-                .is_some_and(|layer| &**layer == "app-client" || &**layer == "client")
+                .is_some_and(|layer| **layer == "app-client" || **layer == "client")
             {
                 if let Some(dynamic_entry_module) =
                     ResolvedVc::try_downcast_type::<NextDynamicEntryModule>(*module)
