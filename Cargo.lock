@@ -7277,9 +7277,9 @@ dependencies = [
 
 [[package]]
 name = "styled_jsx"
-version = "0.90.1"
+version = "0.90.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "31031563bf9c2f838bc580081d18cebf61f020a1351fd910e2bef63e1194bdd1"
+checksum = "ad543134d46a26fc674ff59809eac1da01e244067500ce003478f2d2623e0b10"
 dependencies = [
  "anyhow",
  "lightningcss",
@@ -7524,9 +7524,9 @@ dependencies = [
 
 [[package]]
 name = "swc_core"
-version = "26.0.1"
+version = "26.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6ef2bbd0f5f516bb59cfec72708e113049d5932968a761bdfb828f39cf410736"
+checksum = "f255cbd1630703f1dd633a647f2cc3e401bf8bac0af360d309e8a3139af04369"
 dependencies = [
  "binding_macros",
  "swc",
@@ -7717,9 +7717,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_codegen"
-version = "13.0.0"
+version = "13.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f4eba460f872946ce9892fca7878b810fc3f259a5fd0dfca5e6357babdd07bb"
+checksum = "c6f929a62c96d50fc87fb54cf2135ecaec2d343d6df461f82462b8aed12da8cb"
 dependencies = [
  "ascii",
  "compact_str",
@@ -7728,6 +7728,7 @@ dependencies = [
  "once_cell",
  "regex",
  "rustc-hash 2.1.1",
+ "ryu-js",
  "serde",
  "sourcemap",
  "swc_allocator",
@@ -7963,9 +7964,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_lexer"
-version = "14.0.0"
+version = "14.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "602a6a5190cbb4adc134bdf9a525b845912a86039130c2b476ff20123b1aacd5"
+checksum = "152c143650e5be72da03a11ee5a98ac6381716688b15a64e23498fb87b18ee33"
 dependencies = [
  "arrayvec 0.7.4",
  "bitflags 2.9.0",
@@ -8031,9 +8032,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_minifier"
-version = "20.0.0"
+version = "20.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "438b4432fbb66f88260e32981819dcc24b6312da0f154866cfc0c616d0a6fae9"
+checksum = "5c43654113e9a75edf05fbe2c66b5232e149f563c97bef58ff1a896daa288092"
 dependencies = [
  "arrayvec 0.7.4",
  "bitflags 2.9.0",
@@ -8069,9 +8070,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_parser"
-version = "14.0.0"
+version = "14.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bebfd62dc0ffe6b80bedcd049f1c949133de6d524d12d2edbb0b6fb64896cefb"
+checksum = "8b59cd2d4c1989c38eae5cd5888f3a3120ecbe2e53b939e586d340b12de7c1e2"
 dependencies = [
  "arrayvec 0.7.4",
  "bitflags 2.9.0",
@@ -8172,9 +8173,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_base"
-version = "15.0.1"
+version = "15.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2a5edda2a747bd4fb14476d87175eed51064456b1d147e2904b8f4f16e662d6f"
+checksum = "bb01eeec1de9e2cfd089e3afcf3db60df10c812f97a42d953d094eba32e9d26f"
 dependencies = [
  "better_scoped_tls",
  "bitflags 2.9.0",
@@ -8407,9 +8408,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_usage_analyzer"
-version = "16.0.0"
+version = "16.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b1f2dccff9c6cde3f72a86babcc34b1213e0cef8c6e2f1a1da75eca7f5bbe73"
+checksum = "f4061a34574b9431c94c21519948ad4421d7b28479a1a78bb94b878c67d9fac9"
 dependencies = [
  "bitflags 2.9.0",
  "indexmap 2.7.1",
@@ -8425,9 +8426,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_utils"
-version = "15.0.0"
+version = "15.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1764198783b3dda9604ab31cd16e2418b120169b8ac404bb13a4d8031faadf82"
+checksum = "199e2f048c1998d550ebe5296e0876a3e5b2f963d75a925c2208466071edb9d8"
 dependencies = [
  "indexmap 2.7.1",
  "num_cpus",
@@ -8661,9 +8662,9 @@ dependencies = [
 
 [[package]]
 name = "swc_typescript"
-version = "14.0.1"
+version = "14.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df9782bc0379e1bc604c7014cd9471f7bb32a5f4a88d4bcdcd0ac69878d7f3f3"
+checksum = "520693e220391e003179bed5d1c8e183e7673fb67a446eac8ad650493c279619"
 dependencies = [
  "bitflags 2.9.0",
  "petgraph 0.7.1",
