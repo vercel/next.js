@@ -20,7 +20,6 @@ import {
   reportInvalidHmrMessage,
   useErrorOverlayReducer,
 } from '../shared'
-import { parseStack } from '../utils/parse-stack'
 import { AppDevOverlay } from './app-dev-overlay'
 import { useErrorHandler } from '../../errors/use-error-handler'
 import { RuntimeErrorHandler } from '../../errors/runtime-error-handler'
@@ -30,7 +29,6 @@ import {
   useWebsocket,
   useWebsocketPing,
 } from '../utils/use-websocket'
-import { parseComponentStack } from '../utils/parse-component-stack'
 import type { VersionInfo } from '../../../../server/dev/parse-version-info'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../../server/dev/hot-reloader-types'
 import type {
@@ -40,7 +38,6 @@ import type {
 import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from '../shared'
 import type { DebugInfo } from '../types'
 import { useUntrackedPathname } from '../../navigation-untracked'
-import { getComponentStack, getOwnerStack } from '../../errors/stitched-error'
 import { handleDevBuildIndicatorHmrEvents } from '../../../dev/dev-build-indicator/internal/handle-dev-build-indicator-hmr-events'
 import type { GlobalErrorComponent } from '../../global-error'
 import type { DevIndicatorServerState } from '../../../../server/dev/dev-indicator-server-state'
@@ -514,26 +511,15 @@ export default function HotReload({
         })
       },
       onUnhandledError(error) {
-        // Component stack is added to the error in use-error-handler in case there was a hydration error
-        const componentStack = getComponentStack(error)
-        const ownerStack = getOwnerStack(error)
-
         dispatch({
           type: ACTION_UNHANDLED_ERROR,
           reason: error,
-          frames: parseStack((error.stack || '') + (ownerStack || '')),
-          componentStackFrames:
-            typeof componentStack === 'string'
-              ? parseComponentStack(componentStack)
-              : undefined,
         })
       },
       onUnhandledRejection(error) {
-        const ownerStack = getOwnerStack(error)
         dispatch({
           type: ACTION_UNHANDLED_REJECTION,
           reason: error,
-          frames: parseStack((error.stack || '') + (ownerStack || '')),
         })
       },
     }

@@ -1,6 +1,4 @@
 import * as Bus from './bus'
-import { parseStack } from '../utils/parse-stack'
-import { parseComponentStack } from '../utils/parse-component-stack'
 import {
   attachHydrationErrorState,
   storeHydrationErrorStateFromConsoleArgs,
@@ -17,7 +15,6 @@ import {
   ACTION_VERSION_INFO,
 } from '../shared'
 import type { VersionInfo } from '../../../../server/dev/parse-version-info'
-import { getComponentStack, getOwnerStack } from '../../errors/stitched-error'
 import type { DevIndicatorServerState } from '../../../../server/dev/dev-indicator-server-state'
 
 let isRegistered = false
@@ -30,13 +27,6 @@ function handleError(error: unknown) {
 
   attachHydrationErrorState(error)
 
-  const componentStackTrace = getComponentStack(error)
-  const ownerStack = getOwnerStack(error)
-  const componentStackFrames =
-    typeof componentStackTrace === 'string'
-      ? parseComponentStack(componentStackTrace)
-      : undefined
-
   // Skip ModuleBuildError and ModuleNotFoundError, as it will be sent through onBuildError callback.
   // This is to avoid same error as different type showing up on client to cause flashing.
   if (
@@ -46,8 +36,6 @@ function handleError(error: unknown) {
     Bus.emit({
       type: ACTION_UNHANDLED_ERROR,
       reason: error,
-      frames: parseStack((error.stack || '') + (ownerStack || '')),
-      componentStackFrames,
     })
   }
 }
@@ -78,12 +66,9 @@ function onUnhandledRejection(ev: PromiseRejectionEvent) {
     return
   }
 
-  const error = reason
-  const ownerStack = getOwnerStack(error)
   Bus.emit({
     type: ACTION_UNHANDLED_REJECTION,
     reason: reason,
-    frames: parseStack((error.stack || '') + (ownerStack || '')),
   })
 }
 

@@ -1,18 +1,18 @@
-import type {
-  OverlayState,
-  UnhandledErrorAction,
-  UnhandledRejectionAction,
-} from '../../../shared'
+import type { OverlayState } from '../../../shared'
 
 import { useMemo, useState, useEffect } from 'react'
 import {
   getErrorByType,
   type ReadyRuntimeError,
 } from '../../../utils/get-error-by-type'
+import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
+import type { ComponentStackFrame } from '../../../utils/parse-component-stack'
 
 export type SupportedErrorEvent = {
   id: number
-  event: UnhandledErrorAction | UnhandledRejectionAction
+  error: Error
+  frames: StackFrame[]
+  componentStackFrames?: ComponentStackFrame[]
 }
 
 type Props = {
