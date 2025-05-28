@@ -36,10 +36,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/setup-rust
 
       - name: Install cargo-codspeed
         uses: taiki-e/install-action@v2
