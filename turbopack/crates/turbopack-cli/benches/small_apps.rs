@@ -18,17 +18,6 @@ fn list_apps() -> (PathBuf, Vec<PathBuf>) {
         .canonicalize()
         .expect("failed to canonicalize path");
 
-    // Run `pnpm install` in the apps directory
-    let status = Command::new("pnpm")
-        .arg("install")
-        .current_dir(&apps_dir)
-        .status()
-        .expect("failed to run `pnpm install`");
-
-    if !status.success() {
-        panic!("failed to run `pnpm install`");
-    }
-
     let mut apps = Vec::new();
 
     for entry in std::fs::read_dir(&apps_dir).unwrap() {
