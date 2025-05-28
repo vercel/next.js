@@ -55,9 +55,8 @@ describe('fallback-shells', () => {
             '/with-cached-io/with-suspense/params-in-page/foo'
           )
 
-          const layoutDateRouteShell = $(
-            '[data-testid="layout-buildtime"]'
-          ).text()
+          const selector = `[data-testid="layout-${isNextDev ? 'runtime' : 'buildtime'}"]`
+          const layoutDateRouteShell = $(selector).text()
 
           // Sanity check that we've selected the correct element.
           expect(layoutDateRouteShell).toStartWith('Layout:')
@@ -67,9 +66,7 @@ describe('fallback-shells', () => {
             '/with-cached-io/with-suspense/params-in-page/bar'
           )
 
-          const layoutDateFallbackShell = $(
-            '[data-testid="layout-buildtime"]'
-          ).text()
+          const layoutDateFallbackShell = $(selector).text()
 
           expect(layoutDateFallbackShell).toBe(layoutDateRouteShell)
         })
