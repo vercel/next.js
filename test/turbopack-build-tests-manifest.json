@@ -18519,10 +18519,10 @@
     "runtimeError": false
   },
   "test/production/app-dir/metadata-static-route-cache/metadata-static-route-cache.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "app dir - metadata static routes cache should generate different content after replace the static metadata file"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
