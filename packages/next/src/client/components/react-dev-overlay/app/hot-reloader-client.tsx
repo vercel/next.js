@@ -44,6 +44,7 @@ import type { DevIndicatorServerState } from '../../../../server/dev/dev-indicat
 import reportHmrLatency from '../utils/report-hmr-latency'
 import { TurbopackHmr } from '../utils/turbopack-hot-reloader-common'
 import { NEXT_HMR_REFRESH_HASH_COOKIE } from '../../app-router-headers'
+import { getComponentStack, getOwnerStack } from '../../errors/stitched-error'
 
 export interface Dispatcher {
   onBuildOk(): void
@@ -479,7 +480,11 @@ export default function HotReload({
   children: ReactNode
   globalError: [GlobalErrorComponent, React.ReactNode]
 }) {
-  const [state, dispatch] = useErrorOverlayReducer('app')
+  const [state, dispatch] = useErrorOverlayReducer(
+    'app',
+    getComponentStack,
+    getOwnerStack
+  )
 
   const dispatcher = useMemo<Dispatcher>(() => {
     return {
