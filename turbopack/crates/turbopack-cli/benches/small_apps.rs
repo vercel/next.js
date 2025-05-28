@@ -47,7 +47,11 @@ fn bench_small_apps(c: &mut Criterion) {
             let app = app.clone();
 
             b.iter(move || {
-                let rt = tokio::runtime::Runtime::new().unwrap();
+                let rt = tokio::runtime::Builder::new_multi_thread();
+                rt.enable_all().on_thread_stop(|| {
+                    TurboMalloc::thread_stop();
+                });
+                let rt = rt.build().unwrap();
 
                 let apps_dir = apps_dir.clone();
                 let app = app.clone();
