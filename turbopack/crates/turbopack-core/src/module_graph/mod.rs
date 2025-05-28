@@ -52,7 +52,7 @@ pub struct GraphNodeIndex {
     node_idx: NodeIndex,
 }
 impl GraphNodeIndex {
-    #[inline]
+    #[inline(always)]
     fn graph_idx(&self) -> usize {
         self.graph_idx as usize
     }
