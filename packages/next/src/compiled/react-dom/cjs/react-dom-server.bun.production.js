@@ -228,6 +228,7 @@ ReactDOMSharedInternals.d = {
   M: preinitModuleScript
 };
 var PRELOAD_NO_CREDS = [],
+  currentlyFlushingRenderState = null,
   scriptRegex = /(<\/|<)(s)(cript)/gi;
 function scriptReplacer(match, prefix, s, suffix) {
   return "" + prefix + ("s" === s ? "\\u0073" : "\\u0053") + suffix;
@@ -240,19 +241,26 @@ function createRenderState(
   onHeaders,
   maxHeadersLength
 ) {
+  externalRuntimeConfig =
+    "string" === typeof nonce ? nonce : nonce && nonce.script;
   var inlineScriptWithNonce =
-      void 0 === nonce
+      void 0 === externalRuntimeConfig
         ? "<script"
-        : '<script nonce="' + escapeTextForBrowser(nonce) + '"',
-    idPrefix = resumableState.idPrefix;
-  externalRuntimeConfig = [];
-  var bootstrapScriptContent = resumableState.bootstrapScriptContent,
+        : '<script nonce="' + escapeTextForBrowser(externalRuntimeConfig) + '"',
+    nonceStyle = "string" === typeof nonce ? void 0 : nonce && nonce.style,
+    inlineStyleWithNonce =
+      void 0 === nonceStyle
+        ? "<style"
+        : '<style nonce="' + escapeTextForBrowser(nonceStyle) + '"',
+    idPrefix = resumableState.idPrefix,
+    bootstrapChunks = [],
+    bootstrapScriptContent = resumableState.bootstrapScriptContent,
     bootstrapScripts = resumableState.bootstrapScripts,
     bootstrapModules = resumableState.bootstrapModules;
   void 0 !== bootstrapScriptContent &&
-    (externalRuntimeConfig.push(inlineScriptWithNonce),
-    pushCompletedShellIdAttribute(externalRuntimeConfig, resumableState),
-    externalRuntimeConfig.push(
+    (bootstrapChunks.push(inlineScriptWithNonce),
+    pushCompletedShellIdAttribute(bootstrapChunks, resumableState),
+    bootstrapChunks.push(
       ">",
       ("" + bootstrapScriptContent).replace(scriptRegex, scriptReplacer),
       "\x3c/script>"
@@ -278,9 +286,10 @@ function createRenderState(
     segmentPrefix: idPrefix + "S:",
     boundaryPrefix: idPrefix + "B:",
     startInlineScript: inlineScriptWithNonce,
+    startInlineStyle: inlineStyleWithNonce,
     preamble: createPreambleState(),
     externalRuntimeScript: null,
-    bootstrapChunks: externalRuntimeConfig,
+    bootstrapChunks: bootstrapChunks,
     importMapChunks: bootstrapScriptContent,
     onHeaders: onHeaders,
     headers: importMap,
@@ -307,125 +316,119 @@ function createRenderState(
       scripts: new Map(),
       moduleScripts: new Map()
     },
-    nonce: nonce,
+    nonce: { script: externalRuntimeConfig, style: nonceStyle },
     hoistableState: null,
     stylesToHoist: !1
   };
   if (void 0 !== bootstrapScripts)
-    for (importMap = 0; importMap < bootstrapScripts.length; importMap++) {
-      var scriptConfig = bootstrapScripts[importMap];
-      idPrefix = inlineScriptWithNonce = void 0;
-      bootstrapScriptContent = {
-        rel: "preload",
-        as: "script",
-        fetchPriority: "low",
-        nonce: nonce
-      };
-      "string" === typeof scriptConfig
-        ? (bootstrapScriptContent.href = maxHeadersLength = scriptConfig)
-        : ((bootstrapScriptContent.href = maxHeadersLength = scriptConfig.src),
-          (bootstrapScriptContent.integrity = idPrefix =
-            "string" === typeof scriptConfig.integrity
-              ? scriptConfig.integrity
-              : void 0),
-          (bootstrapScriptContent.crossOrigin = inlineScriptWithNonce =
-            "string" === typeof scriptConfig || null == scriptConfig.crossOrigin
-              ? void 0
-              : "use-credentials" === scriptConfig.crossOrigin
-                ? "use-credentials"
-                : ""));
-      scriptConfig = resumableState;
-      var href = maxHeadersLength;
-      scriptConfig.scriptResources[href] = null;
-      scriptConfig.moduleScriptResources[href] = null;
-      scriptConfig = [];
-      pushLinkImpl(scriptConfig, bootstrapScriptContent);
-      onHeaders.bootstrapScripts.add(scriptConfig);
-      externalRuntimeConfig.push(
-        '<script src="',
-        escapeTextForBrowser(maxHeadersLength),
-        '"'
-      );
-      nonce &&
-        externalRuntimeConfig.push(
-          ' nonce="',
-          escapeTextForBrowser(nonce),
-          '"'
-        );
-      "string" === typeof idPrefix &&
-        externalRuntimeConfig.push(
-          ' integrity="',
-          escapeTextForBrowser(idPrefix),
-          '"'
-        );
-      "string" === typeof inlineScriptWithNonce &&
-        externalRuntimeConfig.push(
-          ' crossorigin="',
-          escapeTextForBrowser(inlineScriptWithNonce),
-          '"'
-        );
-      pushCompletedShellIdAttribute(externalRuntimeConfig, resumableState);
-      externalRuntimeConfig.push(' async="">\x3c/script>');
-    }
-  if (void 0 !== bootstrapModules)
-    for (
-      bootstrapScripts = 0;
-      bootstrapScripts < bootstrapModules.length;
-      bootstrapScripts++
-    )
-      (bootstrapScriptContent = bootstrapModules[bootstrapScripts]),
-        (inlineScriptWithNonce = maxHeadersLength = void 0),
-        (idPrefix = {
-          rel: "modulepreload",
+    for (importMap = 0; importMap < bootstrapScripts.length; importMap++)
+      (idPrefix = bootstrapScripts[importMap]),
+        (nonceStyle = inlineScriptWithNonce = void 0),
+        (inlineStyleWithNonce = {
+          rel: "preload",
+          as: "script",
           fetchPriority: "low",
           nonce: nonce
         }),
-        "string" === typeof bootstrapScriptContent
-          ? (idPrefix.href = importMap = bootstrapScriptContent)
-          : ((idPrefix.href = importMap = bootstrapScriptContent.src),
-            (idPrefix.integrity = inlineScriptWithNonce =
-              "string" === typeof bootstrapScriptContent.integrity
-                ? bootstrapScriptContent.integrity
+        "string" === typeof idPrefix
+          ? (inlineStyleWithNonce.href = maxHeadersLength = idPrefix)
+          : ((inlineStyleWithNonce.href = maxHeadersLength = idPrefix.src),
+            (inlineStyleWithNonce.integrity = nonceStyle =
+              "string" === typeof idPrefix.integrity
+                ? idPrefix.integrity
                 : void 0),
-            (idPrefix.crossOrigin = maxHeadersLength =
-              "string" === typeof bootstrapScriptContent ||
-              null == bootstrapScriptContent.crossOrigin
+            (inlineStyleWithNonce.crossOrigin = inlineScriptWithNonce =
+              "string" === typeof idPrefix || null == idPrefix.crossOrigin
                 ? void 0
-                : "use-credentials" === bootstrapScriptContent.crossOrigin
+                : "use-credentials" === idPrefix.crossOrigin
                   ? "use-credentials"
                   : "")),
-        (bootstrapScriptContent = resumableState),
-        (scriptConfig = importMap),
-        (bootstrapScriptContent.scriptResources[scriptConfig] = null),
-        (bootstrapScriptContent.moduleScriptResources[scriptConfig] = null),
-        (bootstrapScriptContent = []),
-        pushLinkImpl(bootstrapScriptContent, idPrefix),
-        onHeaders.bootstrapScripts.add(bootstrapScriptContent),
-        externalRuntimeConfig.push(
-          '<script type="module" src="',
-          escapeTextForBrowser(importMap),
+        (idPrefix = resumableState),
+        (bootstrapScriptContent = maxHeadersLength),
+        (idPrefix.scriptResources[bootstrapScriptContent] = null),
+        (idPrefix.moduleScriptResources[bootstrapScriptContent] = null),
+        (idPrefix = []),
+        pushLinkImpl(idPrefix, inlineStyleWithNonce),
+        onHeaders.bootstrapScripts.add(idPrefix),
+        bootstrapChunks.push(
+          '<script src="',
+          escapeTextForBrowser(maxHeadersLength),
           '"'
         ),
-        nonce &&
-          externalRuntimeConfig.push(
+        externalRuntimeConfig &&
+          bootstrapChunks.push(
             ' nonce="',
-            escapeTextForBrowser(nonce),
+            escapeTextForBrowser(externalRuntimeConfig),
+            '"'
+          ),
+        "string" === typeof nonceStyle &&
+          bootstrapChunks.push(
+            ' integrity="',
+            escapeTextForBrowser(nonceStyle),
             '"'
           ),
         "string" === typeof inlineScriptWithNonce &&
-          externalRuntimeConfig.push(
-            ' integrity="',
+          bootstrapChunks.push(
+            ' crossorigin="',
             escapeTextForBrowser(inlineScriptWithNonce),
             '"'
           ),
+        pushCompletedShellIdAttribute(bootstrapChunks, resumableState),
+        bootstrapChunks.push(' async="">\x3c/script>');
+  if (void 0 !== bootstrapModules)
+    for (nonce = 0; nonce < bootstrapModules.length; nonce++)
+      (nonceStyle = bootstrapModules[nonce]),
+        (maxHeadersLength = importMap = void 0),
+        (inlineScriptWithNonce = {
+          rel: "modulepreload",
+          fetchPriority: "low",
+          nonce: externalRuntimeConfig
+        }),
+        "string" === typeof nonceStyle
+          ? (inlineScriptWithNonce.href = bootstrapScripts = nonceStyle)
+          : ((inlineScriptWithNonce.href = bootstrapScripts = nonceStyle.src),
+            (inlineScriptWithNonce.integrity = maxHeadersLength =
+              "string" === typeof nonceStyle.integrity
+                ? nonceStyle.integrity
+                : void 0),
+            (inlineScriptWithNonce.crossOrigin = importMap =
+              "string" === typeof nonceStyle || null == nonceStyle.crossOrigin
+                ? void 0
+                : "use-credentials" === nonceStyle.crossOrigin
+                  ? "use-credentials"
+                  : "")),
+        (nonceStyle = resumableState),
+        (inlineStyleWithNonce = bootstrapScripts),
+        (nonceStyle.scriptResources[inlineStyleWithNonce] = null),
+        (nonceStyle.moduleScriptResources[inlineStyleWithNonce] = null),
+        (nonceStyle = []),
+        pushLinkImpl(nonceStyle, inlineScriptWithNonce),
+        onHeaders.bootstrapScripts.add(nonceStyle),
+        bootstrapChunks.push(
+          '<script type="module" src="',
+          escapeTextForBrowser(bootstrapScripts),
+          '"'
+        ),
+        externalRuntimeConfig &&
+          bootstrapChunks.push(
+            ' nonce="',
+            escapeTextForBrowser(externalRuntimeConfig),
+            '"'
+          ),
         "string" === typeof maxHeadersLength &&
-          externalRuntimeConfig.push(
-            ' crossorigin="',
+          bootstrapChunks.push(
+            ' integrity="',
             escapeTextForBrowser(maxHeadersLength),
             '"'
           ),
-        pushCompletedShellIdAttribute(externalRuntimeConfig, resumableState),
-        externalRuntimeConfig.push(' async="">\x3c/script>');
+        "string" === typeof importMap &&
+          bootstrapChunks.push(
+            ' crossorigin="',
+            escapeTextForBrowser(importMap),
+            '"'
+          ),
+        pushCompletedShellIdAttribute(bootstrapChunks, resumableState),
+        bootstrapChunks.push(' async="">\x3c/script>');
   return onHeaders;
 }
 function createResumableState(
@@ -1695,7 +1698,8 @@ function pushStartInstance(
     case "style":
       var noscriptTagInScope$jscomp$2 = formatContext.tagScope & 1,
         precedence$jscomp$0 = props.precedence,
-        href$jscomp$0 = props.href;
+        href$jscomp$0 = props.href,
+        nonce = props.nonce;
       if (
         4 === formatContext.insertionMode ||
         noscriptTagInScope$jscomp$2 ||
@@ -1750,46 +1754,47 @@ function pushStartInstance(
             : void 0)
         ) {
           resumableState.styleResources[href$jscomp$0] = null;
-          styleQueue$jscomp$0
-            ? styleQueue$jscomp$0.hrefs.push(
-                escapeTextForBrowser(href$jscomp$0)
-              )
-            : ((styleQueue$jscomp$0 = {
-                precedence: escapeTextForBrowser(precedence$jscomp$0),
-                rules: [],
-                hrefs: [escapeTextForBrowser(href$jscomp$0)],
-                sheets: new Map()
-              }),
-              renderState.styles.set(precedence$jscomp$0, styleQueue$jscomp$0));
-          var target = styleQueue$jscomp$0.rules,
-            children$jscomp$7 = null,
-            innerHTML$jscomp$6 = null,
-            propKey$jscomp$9;
-          for (propKey$jscomp$9 in props)
-            if (hasOwnProperty.call(props, propKey$jscomp$9)) {
-              var propValue$jscomp$9 = props[propKey$jscomp$9];
-              if (null != propValue$jscomp$9)
-                switch (propKey$jscomp$9) {
-                  case "children":
-                    children$jscomp$7 = propValue$jscomp$9;
-                    break;
-                  case "dangerouslySetInnerHTML":
-                    innerHTML$jscomp$6 = propValue$jscomp$9;
-                }
-            }
-          var child$jscomp$0 = Array.isArray(children$jscomp$7)
-            ? 2 > children$jscomp$7.length
-              ? children$jscomp$7[0]
-              : null
-            : children$jscomp$7;
-          "function" !== typeof child$jscomp$0 &&
-            "symbol" !== typeof child$jscomp$0 &&
-            null !== child$jscomp$0 &&
-            void 0 !== child$jscomp$0 &&
-            target.push(
-              ("" + child$jscomp$0).replace(styleRegex, styleReplacer)
-            );
-          pushInnerHTML(target, innerHTML$jscomp$6, children$jscomp$7);
+          styleQueue$jscomp$0 ||
+            ((styleQueue$jscomp$0 = {
+              precedence: escapeTextForBrowser(precedence$jscomp$0),
+              rules: [],
+              hrefs: [],
+              sheets: new Map()
+            }),
+            renderState.styles.set(precedence$jscomp$0, styleQueue$jscomp$0));
+          var nonceStyle = renderState.nonce.style;
+          if (!nonceStyle || nonceStyle === nonce) {
+            styleQueue$jscomp$0.hrefs.push(escapeTextForBrowser(href$jscomp$0));
+            var target = styleQueue$jscomp$0.rules,
+              children$jscomp$7 = null,
+              innerHTML$jscomp$6 = null,
+              propKey$jscomp$9;
+            for (propKey$jscomp$9 in props)
+              if (hasOwnProperty.call(props, propKey$jscomp$9)) {
+                var propValue$jscomp$9 = props[propKey$jscomp$9];
+                if (null != propValue$jscomp$9)
+                  switch (propKey$jscomp$9) {
+                    case "children":
+                      children$jscomp$7 = propValue$jscomp$9;
+                      break;
+                    case "dangerouslySetInnerHTML":
+                      innerHTML$jscomp$6 = propValue$jscomp$9;
+                  }
+              }
+            var child$jscomp$0 = Array.isArray(children$jscomp$7)
+              ? 2 > children$jscomp$7.length
+                ? children$jscomp$7[0]
+                : null
+              : children$jscomp$7;
+            "function" !== typeof child$jscomp$0 &&
+              "symbol" !== typeof child$jscomp$0 &&
+              null !== child$jscomp$0 &&
+              void 0 !== child$jscomp$0 &&
+              target.push(
+                ("" + child$jscomp$0).replace(styleRegex, styleReplacer)
+              );
+            pushInnerHTML(target, innerHTML$jscomp$6, children$jscomp$7);
+          }
         }
         styleQueue$jscomp$0 &&
           hoistableState &&
@@ -2266,7 +2271,8 @@ function flushStyleTagsLateForBoundary(styleQueue) {
     hrefs = styleQueue.hrefs,
     i = 0;
   if (hrefs.length) {
-    writeChunk(this, '<style media="not all" data-precedence="');
+    writeChunk(this, currentlyFlushingRenderState.startInlineStyle);
+    writeChunk(this, ' media="not all" data-precedence="');
     writeChunk(this, styleQueue.precedence);
     for (writeChunk(this, '" data-href="'); i < hrefs.length - 1; i++)
       writeChunk(this, hrefs[i]), writeChunk(this, " ");
@@ -2287,7 +2293,9 @@ function hasStylesToHoist(stylesheet) {
 function writeHoistablesForBoundary(destination, hoistableState, renderState) {
   currentlyRenderingBoundaryHasStylesToHoist = !1;
   destinationHasCapacity = !0;
+  currentlyFlushingRenderState = renderState;
   hoistableState.styles.forEach(flushStyleTagsLateForBoundary, destination);
+  currentlyFlushingRenderState = null;
   hoistableState.stylesheets.forEach(hasStylesToHoist);
   currentlyRenderingBoundaryHasStylesToHoist &&
     (renderState.stylesToHoist = !0);
@@ -2312,7 +2320,8 @@ function flushStylesInPreamble(styleQueue) {
   var rules = styleQueue.rules,
     hrefs = styleQueue.hrefs;
   if (!hasStylesheets || hrefs.length) {
-    writeChunk(this, '<style data-precedence="');
+    writeChunk(this, currentlyFlushingRenderState.startInlineStyle);
+    writeChunk(this, ' data-precedence="');
     writeChunk(this, styleQueue.precedence);
     styleQueue = 0;
     if (hrefs.length) {
@@ -6139,7 +6148,9 @@ function flushCompletedQueues(request, destination) {
         renderState.fontPreloads.clear();
         renderState.highImagePreloads.forEach(flushResource, destination);
         renderState.highImagePreloads.clear();
+        currentlyFlushingRenderState = renderState;
         renderState.styles.forEach(flushStylesInPreamble, destination);
+        currentlyFlushingRenderState = null;
         var importMapChunks = renderState.importMapChunks;
         for (i$jscomp$0 = 0; i$jscomp$0 < importMapChunks.length; i$jscomp$0++)
           writeChunk(destination, importMapChunks[i$jscomp$0]);
@@ -6424,15 +6435,15 @@ function addToReplayParent(node, parentKeyPath, trackedPostpones) {
     parentNode[2].push(node);
   }
 }
-var isomorphicReactPackageVersion$jscomp$inline_810 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_812 = React.version;
 if (
-  "19.2.0-canary-b07717d8-20250528" !==
-  isomorphicReactPackageVersion$jscomp$inline_810
+  "19.2.0-canary-14094f80-20250529" !==
+  isomorphicReactPackageVersion$jscomp$inline_812
 )
   throw Error(
     'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
-      (isomorphicReactPackageVersion$jscomp$inline_810 +
-        "\n  - react-dom:  19.2.0-canary-b07717d8-20250528\nLearn more: https://react.dev/warnings/version-mismatch")
+      (isomorphicReactPackageVersion$jscomp$inline_812 +
+        "\n  - react-dom:  19.2.0-canary-14094f80-20250529\nLearn more: https://react.dev/warnings/version-mismatch")
   );
 exports.renderToReadableStream = function (children, options) {
   return new Promise(function (resolve, reject) {
@@ -6523,4 +6534,4 @@ exports.renderToReadableStream = function (children, options) {
     startWork(request);
   });
 };
-exports.version = "19.2.0-canary-b07717d8-20250528";
+exports.version = "19.2.0-canary-14094f80-20250529";
