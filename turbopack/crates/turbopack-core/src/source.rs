@@ -9,7 +9,7 @@ pub trait Source: Asset {
     /// The identifier of the [Source]. It's expected to be unique and capture
     /// all properties of the [Source].
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent>;
+    fn ident(&self) -> &AssetIdent;
 }
 
 #[turbo_tasks::value(transparent)]

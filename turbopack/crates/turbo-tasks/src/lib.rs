@@ -38,6 +38,7 @@
 #![feature(new_zeroed_alloc)]
 #![feature(never_type)]
 #![feature(downcast_unchecked)]
+#![feature(ptr_metadata)]
 
 pub mod backend;
 mod capture_future;

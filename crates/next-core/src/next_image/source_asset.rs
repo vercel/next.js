@@ -29,20 +29,35 @@ fn blur_options() -> Vc<BlurPlaceholderOptions> {
 
 /// An source asset that transforms an image into javascript code which exports
 /// an object with meta information like width, height and a blur placeholder.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value]
 pub struct StructuredImageFileSource {
-    pub image: ResolvedVc<Box<dyn Source>>,
-    pub blur_placeholder_mode: BlurPlaceholderMode,
+    image: ResolvedVc<Box<dyn Source>>,
+    blur_placeholder_mode: BlurPlaceholderMode,
+    ident: AssetIdent,
+}
+
+impl StructuredImageFileSource {
+    #[turbo_tasks::function]
+    pub fn new(
+        image: ResolvedVc<Box<dyn Source>>,
+        blur_placeholder_mode: BlurPlaceholderMode,
+    ) -> Vc<Self> {
+        Self {
+            image,
+            blur_placeholder_mode,
+            ident: image
+                .ident()
+                .with_modifier(modifier())
+                .rename_as("*.mjs".into()),
+        }
+        .cell()
+    }
 }
 
 #[turbo_tasks::value_impl]
 impl Source for StructuredImageFileSource {
-    #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        self.image
-            .ident()
-            .with_modifier(modifier())
-            .rename_as("*.mjs".into())
+    fn ident(&self) -> &AssetIdent {
+        &self.ident
     }
 }
 

@@ -4,7 +4,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Vc, VcValueTrait,
+    Vc, VcRead, VcValueTrait, VcValueType,
     registry::get_value_type,
     task::shared_reference::TypedSharedReference,
     vc::{ReadVcFuture, VcValueTraitCast, cast::VcCast},
@@ -69,6 +69,17 @@ impl<'de, T> Deserialize<'de> for TraitRef<T> {
             shared_reference: TypedSharedReference::deserialize(deserializer)?,
             _t: PhantomData,
         })
+    }
+}
+
+impl<U> std::ops::Deref for TraitRef<Box<U>>
+where
+    U: VcValueTrait,
+{
+    type Target = U;
+
+    fn deref(&self) -> &Self::Target {
+        todo!()
     }
 }
 
