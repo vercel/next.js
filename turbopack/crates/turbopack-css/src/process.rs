@@ -266,20 +266,11 @@ pub async fn finalize_css(
                 _ => bail!("this case should be filtered out while parsing"),
             };
 
-            /*
-             * Ignore origin_source_map when it's not valid, and then fallback to lightningcss
-             * generated sourcemap in next steps
-             */
-
-            let origin_source_map = origin_source_map.await?.as_ref().and_then(|rope| {
-                rope.to_str().ok().and_then(|cow| {
-                    if cow.is_empty() {
-                        None
-                    } else {
-                        parcel_sourcemap::SourceMap::from_json("", &cow).ok()
-                    }
-                })
-            });
+            let origin_source_map = if let Some(rope) = &*origin_source_map.await? {
+                Some(parcel_sourcemap::SourceMap::from_json("", &rope.to_str()?)?)
+            } else {
+                None
+            };
 
             let (result, srcmap) =
                 stylesheet.to_css(&code, minify_type, true, true, origin_source_map)?;
