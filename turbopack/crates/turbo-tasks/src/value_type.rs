@@ -1,10 +1,9 @@
 use std::{
     any::{Any, type_name},
     borrow::Cow,
-    fmt::{
-        Debug, Display, Formatter, {self},
-    },
+    fmt::{self, Debug, Display, Formatter},
     hash::Hash,
+    ptr::DynMetadata,
     sync::Arc,
 };
 
@@ -39,7 +38,7 @@ pub struct ValueType {
     /// A readable name of the type
     pub name: String,
     /// List of traits available
-    pub traits: AutoMap<TraitTypeId, fn(&dyn Any) -> &dyn T>,
+    pub traits: AutoMap<TraitTypeId, DynMetadata<dyn Any + Send + Sync>>,
     /// List of trait methods available
     pub trait_methods: AutoMap<(TraitTypeId, Cow<'static, str>), FunctionId>,
 
@@ -204,6 +203,12 @@ impl ValueType {
         trait_type: TraitTypeId,
         meta: std::ptr::DynMetadata<T>,
     ) {
+        let meta = unsafe {
+            // Safety: DynMetadata does not store T. (And it can't, because T of DynMetadata is
+            // not Sized)
+            std::mem::transmute::<DynMetadata<T>, DynMetadata<dyn Any + Send + Sync>>(meta)
+        };
+
         self.traits.insert(trait_type, meta);
     }
 
@@ -212,7 +217,7 @@ impl ValueType {
     }
 
     pub fn traits_iter(&self) -> impl Iterator<Item = TraitTypeId> + '_ {
-        self.traits.iter().copied()
+        self.traits.iter().map(|v| *v.0)
     }
 
     pub fn register(&'static self, global_name: &'static str) {
