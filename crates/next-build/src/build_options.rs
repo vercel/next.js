@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use next_core::next_config::Rewrites;
+use turbo_rcstr::RcStr;
 use turbopack_core::issue::IssueSeverity;
 
 #[derive(Clone, Debug)]
@@ -46,7 +47,7 @@ pub struct BuildContext {
 
 #[derive(Debug, Clone)]
 pub struct DefineEnv {
-    pub client: Vec<(String, String)>,
-    pub edge: Vec<(String, String)>,
-    pub nodejs: Vec<(String, String)>,
+    pub client: Vec<(RcStr, RcStr)>,
+    pub edge: Vec<(RcStr, RcStr)>,
+    pub nodejs: Vec<(RcStr, RcStr)>,
 }

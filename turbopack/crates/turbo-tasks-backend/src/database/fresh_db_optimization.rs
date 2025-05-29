@@ -137,6 +137,10 @@ impl<'a, B: SerialWriteBatch<'a>> SerialWriteBatch<'a> for FreshDbOptimizationWr
     fn delete(&mut self, key_space: KeySpace, key: WriteBuffer<'_>) -> Result<()> {
         self.write_batch.delete(key_space, key)
     }
+
+    fn flush(&mut self, key_space: KeySpace) -> Result<()> {
+        self.write_batch.flush(key_space)
+    }
 }
 
 impl<'a, B: ConcurrentWriteBatch<'a>> ConcurrentWriteBatch<'a>
@@ -148,5 +152,9 @@ impl<'a, B: ConcurrentWriteBatch<'a>> ConcurrentWriteBatch<'a>
 
     fn delete(&self, key_space: KeySpace, key: WriteBuffer<'_>) -> Result<()> {
         self.write_batch.delete(key_space, key)
+    }
+
+    unsafe fn flush(&self, key_space: KeySpace) -> Result<()> {
+        unsafe { self.write_batch.flush(key_space) }
     }
 }

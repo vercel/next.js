@@ -189,4 +189,9 @@ impl<'a> SerialWriteBatch<'a> for LmbdWriteBatch<'a> {
         )?;
         Ok(())
     }
+
+    fn flush(&mut self, _key_space: KeySpace) -> Result<()> {
+        // this is an unimplemented optimization, this LMDB implemenation is only used in testing
+        Ok(())
+    }
 }

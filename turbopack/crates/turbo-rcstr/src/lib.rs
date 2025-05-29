@@ -307,6 +307,46 @@ impl ShrinkToFit for RcStr {
     fn shrink_to_fit(&mut self) {}
 }
 
+#[cfg(feature = "napi")]
+mod napi_impl {
+    use napi::{
+        bindgen_prelude::{FromNapiValue, ToNapiValue, TypeName, ValidateNapiValue},
+        sys::{napi_env, napi_value},
+    };
+
+    use super::*;
+
+    impl TypeName for RcStr {
+        fn type_name() -> &'static str {
+            String::type_name()
+        }
+
+        fn value_type() -> napi::ValueType {
+            String::value_type()
+        }
+    }
+
+    impl ToNapiValue for RcStr {
+        unsafe fn to_napi_value(env: napi_env, val: Self) -> napi::Result<napi_value> {
+            unsafe { ToNapiValue::to_napi_value(env, val.as_str()) }
+        }
+    }
+
+    impl FromNapiValue for RcStr {
+        unsafe fn from_napi_value(env: napi_env, napi_val: napi_value) -> napi::Result<Self> {
+            Ok(RcStr::from(unsafe {
+                String::from_napi_value(env, napi_val)
+            }?))
+        }
+    }
+
+    impl ValidateNapiValue for RcStr {
+        unsafe fn validate(env: napi_env, napi_val: napi_value) -> napi::Result<napi_value> {
+            unsafe { String::validate(env, napi_val) }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::mem::ManuallyDrop;

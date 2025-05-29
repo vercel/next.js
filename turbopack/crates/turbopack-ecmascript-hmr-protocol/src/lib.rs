@@ -2,6 +2,7 @@ use std::{collections::BTreeMap, fmt::Display, ops::Deref, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use turbo_rcstr::RcStr;
 use turbopack_cli_utils::issue::{LogOptions, format_issue};
 use turbopack_core::{
     issue::{IssueSeverity, IssueStage, PlainIssue, StyledString},
@@ -10,8 +11,8 @@ use turbopack_core::{
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct ResourceIdentifier {
-    pub path: String,
-    pub headers: Option<BTreeMap<String, String>>,
+    pub path: RcStr,
+    pub headers: Option<BTreeMap<RcStr, RcStr>>,
 }
 
 impl Display for ResourceIdentifier {

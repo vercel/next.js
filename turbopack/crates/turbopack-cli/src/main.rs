@@ -24,16 +24,15 @@ static ALLOC: TurboMalloc = TurboMalloc;
 fn main() {
     let args = Arguments::parse();
 
-    tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .on_thread_stop(|| {
-            TurboMalloc::thread_stop();
-        })
-        .disable_lifo_slot()
-        .build()
-        .unwrap()
-        .block_on(main_inner(args))
-        .unwrap();
+    let mut rt = tokio::runtime::Builder::new_multi_thread();
+    rt.enable_all().on_thread_stop(|| {
+        TurboMalloc::thread_stop();
+    });
+
+    #[cfg(not(codspeed))]
+    rt.disable_lifo_slot();
+
+    rt.build().unwrap().block_on(main_inner(args)).unwrap();
 }
 
 async fn main_inner(args: Arguments) -> Result<()> {

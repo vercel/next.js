@@ -229,5 +229,36 @@ describe('next/font/local loader', () => {
         "
       `)
     })
+
+    test('Custom font-family in declarations', async () => {
+      const { css } = await nextFontLocalFontLoader({
+        functionName: '',
+        data: [
+          {
+            src: './my-font.woff2',
+            declarations: [{ prop: 'font-family', value: 'Custom Font' }],
+          },
+        ],
+        emitFontFile: () => '/_next/static/media/my-font.woff2',
+        resolve: jest.fn(),
+        isDev: false,
+        isServer: true,
+        variableName: 'myFont',
+        loaderContext: {
+          fs: {
+            readFile: (_: string, cb: any) => cb(null, 'fontdata'),
+          },
+        } as any,
+      })
+
+      expect(css).toMatchInlineSnapshot(`
+        "@font-face {
+        font-family: Custom Font;
+        src: url(/_next/static/media/my-font.woff2) format('woff2');
+        font-display: swap;
+        }
+        "
+      `)
+    })
   })
 })

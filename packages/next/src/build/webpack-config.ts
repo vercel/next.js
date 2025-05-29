@@ -2105,11 +2105,17 @@ export default async function getBaseWebpackConfig(
         new NextFontManifestPlugin({
           appDir,
         }),
-      !isRspack &&
-        !dev &&
+      !dev &&
         isClient &&
         config.experimental.cssChunking &&
-        new CssChunkingPlugin(config.experimental.cssChunking === 'strict'),
+        (isRspack
+          ? new (getRspackCore().experiments.CssChunkingPlugin)({
+              strict: config.experimental.cssChunking === 'strict',
+              nextjs: true,
+            })
+          : new CssChunkingPlugin(
+              config.experimental.cssChunking === 'strict'
+            )),
       telemetryPlugin,
       !dev &&
         isNodeServer &&

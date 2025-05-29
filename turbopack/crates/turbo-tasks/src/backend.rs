@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     error::Error,
     fmt::{self, Debug, Display},
     future::Future,
@@ -11,7 +12,9 @@ use std::{
 use anyhow::{Result, anyhow};
 use auto_hash_map::AutoMap;
 use rustc_hash::FxHasher;
+use serde::{Deserialize, Serialize};
 use tracing::Span;
+use turbo_rcstr::RcStr;
 
 pub use crate::id::BackendJobId;
 use crate::{
@@ -400,10 +403,10 @@ impl TryFrom<CellContent> for SharedReference {
 pub type TaskCollectiblesMap = AutoMap<RawVc, i32, BuildHasherDefault<FxHasher>, 1>;
 
 // Structurally and functionally similar to Cow<&'static, str> but explicitly notes the importance
-// of non-static strings potentially containing PII.
-#[derive(Clone, Debug)]
+// of non-static strings potentially containing PII (Personal Identifiable Information).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum TurboTasksExecutionErrorMessage {
-    PIISafe(&'static str),
+    PIISafe(Cow<'static, str>),
     NonPIISafe(String),
 }
 
@@ -416,21 +419,43 @@ impl Display for TurboTasksExecutionErrorMessage {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct TurboTasksError {
+    pub message: TurboTasksExecutionErrorMessage,
+    pub source: Option<TurboTasksExecutionError>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct TurboTaskContextError {
+    pub task: RcStr,
+    pub source: Option<TurboTasksExecutionError>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum TurboTasksExecutionError {
     Panic(Arc<TurboTasksPanic>),
-    Error {
-        message: TurboTasksExecutionErrorMessage,
-        source: Option<Arc<TurboTasksExecutionError>>,
-    },
+    Error(Arc<TurboTasksError>),
+    TaskContext(Arc<TurboTaskContextError>),
+}
+
+impl TurboTasksExecutionError {
+    pub fn task_context(&self, task: impl Display) -> Self {
+        TurboTasksExecutionError::TaskContext(Arc::new(TurboTaskContextError {
+            task: RcStr::from(task.to_string()),
+            source: Some(self.clone()),
+        }))
+    }
 }
 
 impl Error for TurboTasksExecutionError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             TurboTasksExecutionError::Panic(_panic) => None,
-            TurboTasksExecutionError::Error { source, .. } => {
-                source.as_ref().map(|s| s as &dyn Error)
+            TurboTasksExecutionError::Error(error) => {
+                error.source.as_ref().map(|s| s as &dyn Error)
+            }
+            TurboTasksExecutionError::TaskContext(context_error) => {
+                context_error.source.as_ref().map(|s| s as &dyn Error)
             }
         }
     }
@@ -440,36 +465,35 @@ impl Display for TurboTasksExecutionError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             TurboTasksExecutionError::Panic(panic) => write!(f, "{}", &panic),
-            TurboTasksExecutionError::Error { message, .. } => {
-                write!(f, "{message}")
+            TurboTasksExecutionError::Error(error) => {
+                write!(f, "{}", error.message)
+            }
+            TurboTasksExecutionError::TaskContext(context_error) => {
+                write!(f, "Execution of {} failed", context_error.task)
             }
         }
     }
 }
 
+impl<'l> From<&'l (dyn std::error::Error + 'static)> for TurboTasksExecutionError {
+    fn from(err: &'l (dyn std::error::Error + 'static)) -> Self {
+        if let Some(err) = err.downcast_ref::<TurboTasksExecutionError>() {
+            return err.clone();
+        }
+        let message = err.to_string();
+        let source = err.source().map(|source| source.into());
+
+        TurboTasksExecutionError::Error(Arc::new(TurboTasksError {
+            message: TurboTasksExecutionErrorMessage::NonPIISafe(message),
+            source,
+        }))
+    }
+}
+
 impl From<anyhow::Error> for TurboTasksExecutionError {
     fn from(err: anyhow::Error) -> Self {
-        let mut current: &dyn std::error::Error = err.as_ref();
-        let mut message = current.to_string();
-        let mut source_exec_error = None;
-
-        // Flatten non-TurboTasksExecutionErrors in the error chain into a single message.
-        // Once a TurboTasksExecutionError is found, use that as the source.
-        while let Some(current_source) = current.source() {
-            if let Some(turbo_error) =
-                current_source.downcast_ref::<Arc<TurboTasksExecutionError>>()
-            {
-                source_exec_error = Some(turbo_error.clone());
-                break;
-            }
-            message.push_str(&format!("\n{current_source}"));
-            current = current_source;
-        }
-
-        TurboTasksExecutionError::Error {
-            message: TurboTasksExecutionErrorMessage::NonPIISafe(message),
-            source: source_exec_error,
-        }
+        let current: &(dyn std::error::Error + 'static) = err.as_ref();
+        current.into()
     }
 }
 
@@ -535,7 +559,7 @@ pub trait Backend: Sync + Send {
     fn task_execution_result(
         &self,
         task_id: TaskId,
-        result: Result<RawVc, Arc<TurboTasksExecutionError>>,
+        result: Result<RawVc, TurboTasksExecutionError>,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     );
 

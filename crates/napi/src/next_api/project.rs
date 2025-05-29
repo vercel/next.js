@@ -74,23 +74,23 @@ static SOURCE_MAP_PREFIX_PROJECT: Lazy<String> =
 #[napi(object)]
 #[derive(Clone, Debug)]
 pub struct NapiEnvVar {
-    pub name: String,
-    pub value: String,
+    pub name: RcStr,
+    pub value: RcStr,
 }
 
 #[napi(object)]
 pub struct NapiDraftModeOptions {
-    pub preview_mode_id: String,
-    pub preview_mode_encryption_key: String,
-    pub preview_mode_signing_key: String,
+    pub preview_mode_id: RcStr,
+    pub preview_mode_encryption_key: RcStr,
+    pub preview_mode_signing_key: RcStr,
 }
 
 impl From<NapiDraftModeOptions> for DraftModeOptions {
     fn from(val: NapiDraftModeOptions) -> Self {
         DraftModeOptions {
-            preview_mode_id: val.preview_mode_id.into(),
-            preview_mode_encryption_key: val.preview_mode_encryption_key.into(),
-            preview_mode_signing_key: val.preview_mode_signing_key.into(),
+            preview_mode_id: val.preview_mode_id,
+            preview_mode_encryption_key: val.preview_mode_encryption_key,
+            preview_mode_signing_key: val.preview_mode_signing_key,
         }
     }
 }
@@ -109,23 +109,23 @@ pub struct NapiWatchOptions {
 pub struct NapiProjectOptions {
     /// A root path from which all files must be nested under. Trying to access
     /// a file outside this root will fail. Think of this as a chroot.
-    pub root_path: String,
+    pub root_path: RcStr,
 
     /// A path inside the root_path which contains the app/pages directories.
-    pub project_path: String,
+    pub project_path: RcStr,
 
     /// next.config's distDir. Project initialization occurs eariler than
     /// deserializing next.config, so passing it as separate option.
-    pub dist_dir: String,
+    pub dist_dir: RcStr,
 
     /// Filesystem watcher options.
     pub watch: NapiWatchOptions,
 
     /// The contents of next.config.js, serialized to JSON.
-    pub next_config: String,
+    pub next_config: RcStr,
 
     /// The contents of ts/config read by load-jsconfig, serialized to JSON.
-    pub js_config: String,
+    pub js_config: RcStr,
 
     /// A map of environment variables to use when compiling code.
     pub env: Vec<NapiEnvVar>,
@@ -138,16 +138,16 @@ pub struct NapiProjectOptions {
     pub dev: bool,
 
     /// The server actions encryption key.
-    pub encryption_key: String,
+    pub encryption_key: RcStr,
 
     /// The build id.
-    pub build_id: String,
+    pub build_id: RcStr,
 
     /// Options for draft mode.
     pub preview_props: NapiDraftModeOptions,
 
     /// The browserslist query to use for targeting browsers.
-    pub browserslist_query: String,
+    pub browserslist_query: RcStr,
 
     /// When the code is minified, this opts out of the default mangling of
     /// local names for variables, functions etc., which can be useful for
@@ -160,23 +160,23 @@ pub struct NapiProjectOptions {
 pub struct NapiPartialProjectOptions {
     /// A root path from which all files must be nested under. Trying to access
     /// a file outside this root will fail. Think of this as a chroot.
-    pub root_path: Option<String>,
+    pub root_path: Option<RcStr>,
 
     /// A path inside the root_path which contains the app/pages directories.
-    pub project_path: Option<String>,
+    pub project_path: Option<RcStr>,
 
     /// next.config's distDir. Project initialization occurs eariler than
     /// deserializing next.config, so passing it as separate option.
-    pub dist_dir: Option<Option<String>>,
+    pub dist_dir: Option<Option<RcStr>>,
 
     /// Filesystem watcher options.
     pub watch: Option<NapiWatchOptions>,
 
     /// The contents of next.config.js, serialized to JSON.
-    pub next_config: Option<String>,
+    pub next_config: Option<RcStr>,
 
     /// The contents of ts/config read by load-jsconfig, serialized to JSON.
-    pub js_config: Option<String>,
+    pub js_config: Option<RcStr>,
 
     /// A map of environment variables to use when compiling code.
     pub env: Option<Vec<NapiEnvVar>>,
@@ -189,16 +189,16 @@ pub struct NapiPartialProjectOptions {
     pub dev: Option<bool>,
 
     /// The server actions encryption key.
-    pub encryption_key: Option<String>,
+    pub encryption_key: Option<RcStr>,
 
     /// The build id.
-    pub build_id: Option<String>,
+    pub build_id: Option<RcStr>,
 
     /// Options for draft mode.
     pub preview_props: Option<NapiDraftModeOptions>,
 
     /// The browserslist query to use for targeting browsers.
-    pub browserslist_query: Option<String>,
+    pub browserslist_query: Option<RcStr>,
 
     /// When the code is minified, this opts out of the default mangling of
     /// local names for variables, functions etc., which can be useful for
@@ -239,22 +239,22 @@ impl From<NapiWatchOptions> for WatchOptions {
 impl From<NapiProjectOptions> for ProjectOptions {
     fn from(val: NapiProjectOptions) -> Self {
         ProjectOptions {
-            root_path: val.root_path.into(),
-            project_path: val.project_path.into(),
+            root_path: val.root_path,
+            project_path: val.project_path,
             watch: val.watch.into(),
-            next_config: val.next_config.into(),
-            js_config: val.js_config.into(),
+            next_config: val.next_config,
+            js_config: val.js_config,
             env: val
                 .env
                 .into_iter()
-                .map(|var| (var.name.into(), var.value.into()))
+                .map(|var| (var.name, var.value))
                 .collect(),
             define_env: val.define_env.into(),
             dev: val.dev,
-            encryption_key: val.encryption_key.into(),
-            build_id: val.build_id.into(),
+            encryption_key: val.encryption_key,
+            build_id: val.build_id,
             preview_props: val.preview_props.into(),
-            browserslist_query: val.browserslist_query.into(),
+            browserslist_query: val.browserslist_query,
             no_mangling: val.no_mangling,
         }
     }
@@ -263,20 +263,18 @@ impl From<NapiProjectOptions> for ProjectOptions {
 impl From<NapiPartialProjectOptions> for PartialProjectOptions {
     fn from(val: NapiPartialProjectOptions) -> Self {
         PartialProjectOptions {
-            root_path: val.root_path.map(From::from),
-            project_path: val.project_path.map(From::from),
+            root_path: val.root_path,
+            project_path: val.project_path,
             watch: val.watch.map(From::from),
-            next_config: val.next_config.map(From::from),
-            js_config: val.js_config.map(From::from),
-            env: val.env.map(|env| {
-                env.into_iter()
-                    .map(|var| (var.name.into(), var.value.into()))
-                    .collect()
-            }),
+            next_config: val.next_config,
+            js_config: val.js_config,
+            env: val
+                .env
+                .map(|env| env.into_iter().map(|var| (var.name, var.value)).collect()),
             define_env: val.define_env.map(|env| env.into()),
             dev: val.dev,
-            encryption_key: val.encryption_key.map(From::from),
-            build_id: val.build_id.map(From::from),
+            encryption_key: val.encryption_key,
+            build_id: val.build_id,
             preview_props: val.preview_props.map(|props| props.into()),
         }
     }
@@ -288,17 +286,17 @@ impl From<NapiDefineEnv> for DefineEnv {
             client: val
                 .client
                 .into_iter()
-                .map(|var| (var.name.into(), var.value.into()))
+                .map(|var| (var.name, var.value))
                 .collect(),
             edge: val
                 .edge
                 .into_iter()
-                .map(|var| (var.name.into(), var.value.into()))
+                .map(|var| (var.name, var.value))
                 .collect(),
             nodejs: val
                 .nodejs
                 .into_iter()
-                .map(|var| (var.name.into(), var.value.into()))
+                .map(|var| (var.name, var.value))
                 .collect(),
         }
     }
@@ -363,9 +361,8 @@ pub async fn project_new(
         let subscriber = subscriber.with(console_subscriber::spawn());
 
         let subscriber = subscriber.with(FilterLayer::try_new(&trace).unwrap());
-        let dist_dir = options.dist_dir.clone();
 
-        let internal_dir = PathBuf::from(&options.project_path).join(dist_dir);
+        let internal_dir = PathBuf::from(&options.project_path).join(&options.dist_dir);
         std::fs::create_dir_all(&internal_dir)
             .context("Unable to create .next directory")
             .unwrap();
@@ -603,7 +600,7 @@ pub async fn project_shutdown(
 #[derive(Default)]
 pub struct AppPageNapiRoute {
     /// The relative path from project_path to the route file
-    pub original_name: Option<String>,
+    pub original_name: Option<RcStr>,
 
     pub html_endpoint: Option<External<ExternalEndpoint>>,
     pub rsc_endpoint: Option<External<ExternalEndpoint>>,
@@ -615,7 +612,7 @@ pub struct NapiRoute {
     /// The router path
     pub pathname: String,
     /// The relative path from project_path to the route file
-    pub original_name: Option<String>,
+    pub original_name: Option<RcStr>,
 
     /// The type of route, eg a Page or App
     pub r#type: &'static str,
@@ -661,7 +658,7 @@ impl NapiRoute {
                     pages
                         .into_iter()
                         .map(|page_route| AppPageNapiRoute {
-                            original_name: Some(page_route.original_name.into_owned()),
+                            original_name: Some(page_route.original_name),
                             html_endpoint: convert_endpoint(page_route.html_endpoint),
                             rsc_endpoint: convert_endpoint(page_route.rsc_endpoint),
                         })
@@ -674,7 +671,7 @@ impl NapiRoute {
                 endpoint,
             } => NapiRoute {
                 pathname,
-                original_name: Some(original_name.into_owned()),
+                original_name: Some(original_name),
                 r#type: "app-route",
                 endpoint: convert_endpoint(endpoint),
                 ..Default::default()
@@ -1011,7 +1008,7 @@ fn project_hmr_update_operation(
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn project_hmr_events(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
-    identifier: String,
+    identifier: RcStr,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
     let turbo_tasks = project.turbo_tasks.clone();
@@ -1024,7 +1021,7 @@ pub fn project_hmr_events(
             let outer_identifier = identifier.clone();
             let session = session.clone();
             move || {
-                let identifier: RcStr = outer_identifier.clone().into();
+                let identifier: RcStr = outer_identifier.clone();
                 let session = session.clone();
                 async move {
                     let project = project.project().to_resolved().await?;
@@ -1056,7 +1053,7 @@ pub fn project_hmr_events(
                 }
                 .instrument(tracing::info_span!(
                     "HMR subscription",
-                    identifier = outer_identifier
+                    identifier = %outer_identifier
                 ))
             }
         },
@@ -1099,7 +1096,7 @@ pub fn project_hmr_events(
 
 #[napi(object)]
 struct HmrIdentifiers {
-    pub identifiers: Vec<String>,
+    pub identifiers: Vec<RcStr>,
 }
 
 #[turbo_tasks::value(serialization = "none")]
@@ -1165,10 +1162,7 @@ pub fn project_hmr_identifiers_subscribe(
 
             Ok(vec![TurbopackResult {
                 result: HmrIdentifiers {
-                    identifiers: identifiers
-                        .iter()
-                        .map(|ident| ident.to_string())
-                        .collect::<Vec<_>>(),
+                    identifiers: ReadRef::into_owned(identifiers),
                 },
                 issues: issues
                     .iter()
@@ -1190,7 +1184,7 @@ pub enum UpdateMessage {
 
 #[napi(object)]
 struct NapiUpdateMessage {
-    pub update_type: String,
+    pub update_type: &'static str,
     pub value: Option<NapiUpdateInfo>,
 }
 
@@ -1198,11 +1192,11 @@ impl From<UpdateMessage> for NapiUpdateMessage {
     fn from(update_message: UpdateMessage) -> Self {
         match update_message {
             UpdateMessage::Start => NapiUpdateMessage {
-                update_type: "start".to_string(),
+                update_type: "start",
                 value: None,
             },
             UpdateMessage::End(info) => NapiUpdateMessage {
-                update_type: "end".to_string(),
+                update_type: "end",
                 value: Some(info.into()),
             },
         }
@@ -1328,12 +1322,12 @@ pub struct StackFrame {
     pub is_server: bool,
     pub is_internal: Option<bool>,
     pub original_file: Option<String>,
-    pub file: String,
+    pub file: RcStr,
     // 1-indexed, unlike source map tokens
     pub line: Option<u32>,
     // 1-indexed, unlike source map tokens
     pub column: Option<u32>,
-    pub method_name: Option<String>,
+    pub method_name: Option<RcStr>,
 }
 
 #[turbo_tasks::function]
@@ -1420,7 +1414,7 @@ pub async fn project_trace_source(
     let container = project.container;
     let traced_frame = turbo_tasks
         .run_once(async move {
-            let Some(map) = &*get_source_map_operation(container, RcStr::from(frame.file))
+            let Some(map) = &*get_source_map_operation(container, frame.file)
                 .read_strongly_consistent()
                 .await?
             else {
@@ -1461,10 +1455,12 @@ pub async fn project_trace_source(
             {
                 // Client code uses file://
                 (
-                    get_relative_path_to(&current_directory_file_url, &original_file)
-                        // TODO(sokra) remove this to include a ./ here to make it a relative path
-                        .trim_start_matches("./")
-                        .to_string(),
+                    RcStr::from(
+                        get_relative_path_to(&current_directory_file_url, &original_file)
+                            // TODO(sokra) remove this to include a ./ here to make it a relative
+                            // path
+                            .trim_start_matches("./"),
+                    ),
                     Some(source_file.to_string()),
                     false,
                 )
@@ -1474,20 +1470,21 @@ pub async fn project_trace_source(
                 // Server code uses turbopack:///[project]
                 // TODO should this also be file://?
                 (
-                    get_relative_path_to(
-                        &current_directory_file_url,
-                        &format!("{project_root_uri}{source_file}"),
-                    )
-                    // TODO(sokra) remove this to include a ./ here to make it a relative path
-                    .trim_start_matches("./")
-                    .to_string(),
+                    RcStr::from(
+                        get_relative_path_to(
+                            &current_directory_file_url,
+                            &format!("{project_root_uri}{source_file}"),
+                        )
+                        // TODO(sokra) remove this to include a ./ here to make it a relative path
+                        .trim_start_matches("./"),
+                    ),
                     Some(source_file.to_string()),
                     false,
                 )
             } else if let Some(source_file) = original_file.strip_prefix(&*SOURCE_MAP_PREFIX) {
                 // All other code like turbopack:///[turbopack] is internal code
                 // TODO(veil): Should the protocol be preserved?
-                (source_file.to_string(), None, true)
+                (RcStr::from(source_file), None, true)
             } else {
                 bail!(
                     "Original file ({}) outside project ({})",
@@ -1499,7 +1496,7 @@ pub async fn project_trace_source(
             Ok(Some(StackFrame {
                 file,
                 original_file,
-                method_name: name.as_ref().map(ToString::to_string),
+                method_name: name,
                 line,
                 column,
                 is_server: frame.is_server,
@@ -1514,7 +1511,7 @@ pub async fn project_trace_source(
 #[napi]
 pub async fn project_get_source_for_asset(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
-    file_path: String,
+    file_path: RcStr,
 ) -> napi::Result<Option<String>> {
     let turbo_tasks = project.turbo_tasks.clone();
     let source = turbo_tasks
@@ -1525,7 +1522,7 @@ pub async fn project_get_source_for_asset(
                 .project_path()
                 .fs()
                 .root()
-                .join(file_path.clone().into())
+                .join(file_path.clone())
                 .read()
                 .await?;
 
@@ -1544,14 +1541,14 @@ pub async fn project_get_source_for_asset(
 #[napi]
 pub async fn project_get_source_map(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
-    file_path: String,
+    file_path: RcStr,
 ) -> napi::Result<Option<String>> {
     let turbo_tasks = project.turbo_tasks.clone();
     let container = project.container;
 
     let source_map = turbo_tasks
         .run_once(async move {
-            let Some(map) = &*get_source_map_rope_operation(container, RcStr::from(file_path))
+            let Some(map) = &*get_source_map_rope_operation(container, file_path)
                 .read_strongly_consistent()
                 .await?
             else {
@@ -1568,7 +1565,7 @@ pub async fn project_get_source_map(
 #[napi]
 pub fn project_get_source_map_sync(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
-    file_path: String,
+    file_path: RcStr,
 ) -> napi::Result<Option<String>> {
     within_runtime_if_available(|| {
         tokio::runtime::Handle::current().block_on(project_get_source_map(project, file_path))
