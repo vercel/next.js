@@ -1196,9 +1196,10 @@ export default async function getBaseWebpackConfig(
         (isClient ||
           isEdgeServer ||
           (isNodeServer && config.experimental.serverMinification)),
-      minimizer: isRspack
-        ? [
-            new (getRspackCore().SwcJsMinimizerRspackPlugin)({
+      minimizer: [
+        // Minify JavaScript
+        isRspack
+          ? new (getRspackCore().SwcJsMinimizerRspackPlugin)({
               // JS minimizer configuration
               // options should align with crates/napi/src/minify.rs#patch_opts
               minimizerOptions: {
@@ -1213,17 +1214,8 @@ export default async function getBaseWebpackConfig(
                   disableCharFreq: !isClient,
                 },
               },
-            }),
-            new (getRspackCore().LightningCssMinimizerRspackPlugin)({
-              // CSS minimizer configuration
-              minimizerOptions: {
-                targets: supportedBrowsers,
-              },
-            }),
-          ]
-        : [
-            // Minify JavaScript
-            (compiler: webpack.Compiler) => {
+            })
+          : (compiler: webpack.Compiler) => {
               // @ts-ignore No typings yet
               const { MinifyPlugin } =
                 require('./webpack/plugins/minify-webpack-plugin/src/index.js') as typeof import('./webpack/plugins/minify-webpack-plugin/src')
@@ -1232,8 +1224,15 @@ export default async function getBaseWebpackConfig(
                 disableCharFreq: !isClient,
               }).apply(compiler)
             },
-            // Minify CSS
-            (compiler: webpack.Compiler) => {
+        // Minify CSS
+        isRspack && config.experimental.useLightningcss
+          ? new (getRspackCore().LightningCssMinimizerRspackPlugin)({
+              // CSS minimizer configuration
+              minimizerOptions: {
+                targets: supportedBrowsers,
+              },
+            })
+          : (compiler: webpack.Compiler) => {
               const {
                 CssMinimizerPlugin,
               } = require('./webpack/plugins/css-minimizer-plugin')
@@ -1250,7 +1249,7 @@ export default async function getBaseWebpackConfig(
                 },
               }).apply(compiler)
             },
-          ],
+      ],
     },
     context: dir,
     // Kept as function to be backwards compatible
