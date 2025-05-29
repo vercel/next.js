@@ -486,7 +486,7 @@ task_local! {
     static CURRENT_TASK_STATE: Arc<RwLock<CurrentTaskState>>;
 }
 
-const MAX_TASK_COUNT: usize = 1024 * 1024;
+const MAX_TASK_COUNT: usize = 1024;
 
 impl<B: Backend + 'static> TurboTasks<B> {
     // TODO better lifetime management for turbo tasks
