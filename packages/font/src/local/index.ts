@@ -11,9 +11,11 @@ type LocalFont<T extends CssVariable | undefined = undefined> = {
     | string
     | Array<{
         path: string
+        fallbackPaths?: string[]
         weight?: string
         style?: string
       }>
+  fallbackPaths?: string[]
   display?: Display
   weight?: string
   style?: string

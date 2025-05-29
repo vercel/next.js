@@ -32,18 +32,38 @@ const nextFontLocalFontLoader: FontLoader = async ({
     style: defaultStyle,
   } = validateLocalFontFunctionCall(functionName, data[0])
 
+  const resolveFont = async ({ path, ext }: { path: string; ext: string }) => {
+    const resolved = await resolve(path)
+    const fileBuffer = await promisify(loaderContext.fs.readFile)(resolved)
+    const fontUrl = emitFontFile(
+      fileBuffer,
+      ext,
+      preload,
+      typeof adjustFontFallback === 'undefined' || !!adjustFontFallback
+    )
+
+    return { resolved, fileBuffer, fontUrl }
+  }
+
+  const generateFontFaceSrc = async ({
+    path,
+    ext,
+    format,
+  }: {
+    path: string
+    ext: string
+    format: string
+  }) => {
+    const { fontUrl } = await resolveFont({ path, ext })
+
+    return `url(${fontUrl}) format('${format}')`
+  }
+
   // Load all font files and emit them to the .next output directory
   // Also generate a @font-face CSS for each font file
   const fontFiles = await Promise.all(
-    src.map(async ({ path, style, weight, ext, format }) => {
-      const resolved = await resolve(path)
-      const fileBuffer = await promisify(loaderContext.fs.readFile)(resolved)
-      const fontUrl = emitFontFile(
-        fileBuffer,
-        ext,
-        preload,
-        typeof adjustFontFallback === 'undefined' || !!adjustFontFallback
-      )
+    src.map(async ({ path, style, weight, ext, format, fallbackPaths }) => {
+      const { resolved, fileBuffer, fontUrl } = await resolveFont({ path, ext })
 
       // Try to load font metadata from the font file using fontkit.
       // The data is used to calculate the fallback font override values.
@@ -60,7 +80,13 @@ const nextFontLocalFontLoader: FontLoader = async ({
           ? declarations.map(({ prop, value }) => [prop, value])
           : []),
         ['font-family', variableName],
-        ['src', `url(${fontUrl}) format('${format}')`],
+        [
+          'src',
+          [
+            `url(${fontUrl}) format('${format}')`,
+            ...(await Promise.all(fallbackPaths.map(generateFontFaceSrc))),
+          ].join(','),
+        ],
         ['font-display', display],
         ...(weight ?? defaultWeight
           ? [['font-weight', weight ?? defaultWeight]]

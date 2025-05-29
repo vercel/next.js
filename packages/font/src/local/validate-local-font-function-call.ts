@@ -13,6 +13,11 @@ const extToFormat = {
 type FontOptions = {
   src: Array<{
     path: string
+    fallbackPaths: Array<{
+      path: string
+      ext: string
+      format: string
+    }>
     weight?: string
     style?: string
     ext: string
@@ -40,6 +45,7 @@ export function validateLocalFontFunctionCall(
   }
   let {
     src,
+    fallbackPaths,
     display = 'swap',
     weight,
     style,
@@ -63,23 +69,35 @@ export function validateLocalFontFunctionCall(
   }
 
   if (!Array.isArray(src)) {
-    src = [{ path: src, weight, style }]
+    src = [{ path: src, fallbackPaths, weight, style }]
   } else {
     if (src.length === 0) {
       nextFontError('Unexpected empty `src` array.')
     }
   }
 
-  src = src.map((fontFile: any) => {
-    const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFile.path)?.[1]
+  const getExtensionAndFormat = (path: string) => {
+    const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(path)?.[1] as
+      | 'woff'
+      | 'woff2'
+      | 'eot'
+      | 'ttf'
+      | 'otf'
     if (!ext) {
-      nextFontError(`Unexpected file \`${fontFile.path}\``)
+      nextFontError(`Unexpected file \`${path}\``)
     }
 
+    return { ext, format: extToFormat[ext] }
+  }
+
+  src = src.map((fontFile: any) => {
     return {
       ...fontFile,
-      ext,
-      format: extToFormat[ext as 'woff' | 'woff2' | 'eot' | 'ttf' | 'otf'],
+      ...getExtensionAndFormat(fontFile.path),
+      fallbackPaths: fontFile.fallbackPaths?.map((path: string) => ({
+        path,
+        ...getExtensionAndFormat(path),
+      })),
     }
   })
 
