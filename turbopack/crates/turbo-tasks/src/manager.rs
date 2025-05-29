@@ -711,6 +711,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                     };
 
                     async {
+                        let _permit = this.semaphore.acquire().await.unwrap();
                         let (result, duration, memory_usage) = CaptureFuture::new(future).await;
 
                         // wait for all spawned local tasks using `local` to finish
@@ -763,7 +764,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 .unwrap();
         }
         #[cfg(not(feature = "tokio_tracing"))]
-        tokio::task::spawn(future);
+        tokio::spawn(future);
     }
 
     fn schedule_local_task(
@@ -811,6 +812,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 crate::task::local_task::get_local_task_execution_spec(&*this, &ty, persistence);
             let ty = ty.clone();
             async move {
+                let _permit = this.semaphore.acquire().await.unwrap();
                 let (result, _duration, _memory_usage) = CaptureFuture::new(future).await;
 
                 let result = match result {
@@ -854,7 +856,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
             .spawn(future)
             .unwrap();
         #[cfg(not(feature = "tokio_tracing"))]
-        tokio::task::spawn(future);
+        tokio::spawn(future);
 
         RawVc::LocalOutput(execution_id, local_task_id, persistence)
     }
@@ -1117,6 +1119,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                     }
                     let this2 = this.clone();
                     if !this.stopped.load(Ordering::Acquire) {
+                        let _permit = this2.semaphore.acquire().await.unwrap();
                         func(this).await;
                     }
                     if this2
@@ -1145,6 +1148,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
             TURBO_TASKS
                 .scope(this.clone(), async move {
                     if !this.stopped.load(Ordering::Acquire) {
+                        let _permit = this.semaphore.acquire().await.unwrap();
                         func(this.clone()).await;
                     }
                     this.finish_foreground_job();
