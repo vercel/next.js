@@ -50,7 +50,7 @@ fn bench_small_apps(c: &mut Criterion) {
             let app = app.clone();
 
             b.iter(move || {
-                let rt = tokio::runtime::Builder::new_multi_thread();
+                let mut rt = tokio::runtime::Builder::new_multi_thread();
                 rt.enable_all().on_thread_stop(|| {
                     TurboMalloc::thread_stop();
                 });
