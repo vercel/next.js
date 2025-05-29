@@ -4587,6 +4587,7 @@ name = "next-build"
 version = "0.1.0"
 dependencies = [
  "next-core",
+ "turbo-rcstr",
  "turbo-tasks-build",
  "turbopack-core",
 ]
@@ -9558,6 +9559,7 @@ name = "turbo-rcstr"
 version = "0.1.0"
 dependencies = [
  "codspeed-criterion-compat",
+ "napi",
  "new_debug_unreachable",
  "serde",
  "shrink-to-fit",
@@ -10169,6 +10171,7 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
+ "turbo-rcstr",
  "turbopack-cli-utils",
  "turbopack-core",
 ]
