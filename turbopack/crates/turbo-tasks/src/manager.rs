@@ -17,7 +17,12 @@ use anyhow::{Result, anyhow};
 use auto_hash_map::AutoMap;
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
-use tokio::{runtime::Handle, select, sync::mpsc::Receiver, task_local};
+use tokio::{
+    runtime::Handle,
+    select,
+    sync::{Semaphore, mpsc::Receiver},
+    task_local,
+};
 use tokio_util::task::TaskTracker;
 use tracing::{Instrument, Level, Span, info_span, instrument, trace_span};
 use turbo_tasks_malloc::TurboMalloc;
@@ -386,6 +391,8 @@ pub struct TurboTasks<B: Backend + 'static> {
     event_background: Event,
     program_start: Instant,
     compilation_events: CompilationEventQueue,
+
+    semaphore: Semaphore,
 }
 
 /// Information about a non-local task. A non-local task can contain multiple "local" tasks, which
@@ -479,6 +486,8 @@ task_local! {
     static CURRENT_TASK_STATE: Arc<RwLock<CurrentTaskState>>;
 }
 
+const MAX_TASK_COUNT: usize = 1024 * 1024 * 256;
+
 impl<B: Backend + 'static> TurboTasks<B> {
     // TODO better lifetime management for turbo tasks
     // consider using unsafe for the task_local turbo tasks
@@ -512,6 +521,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
             event_background: Event::new(|| "TurboTasks::event_background".to_string()),
             program_start: Instant::now(),
             compilation_events: CompilationEventQueue::default(),
+            semaphore: Semaphore::new(MAX_TASK_COUNT),
         });
         this.backend.startup(&*this);
         this
