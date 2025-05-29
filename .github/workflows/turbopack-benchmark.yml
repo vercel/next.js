@@ -30,8 +30,31 @@ env:
   TURBO_TOKEN: ${{ secrets.HOSTED_TURBO_TOKEN }}
 
 jobs:
-  benchmark-small:
-    name: Benchmark Rust Crates (small)
+  benchmark-tiny:
+    name: Benchmark Rust Crates (tiny)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/setup-rust
+
+      - name: Install cargo-codspeed
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-codspeed@2.10.1
+
+      - name: Build the benchmark target(s)
+        run: cargo codspeed build -p turbo-rcstr -p turbopack-ecmascript
+
+      - name: Run the benchmarks
+        uses: CodSpeedHQ/action@v3
+        with:
+          run: cargo codspeed run
+          token: ${{ secrets.CODSPEED_TOKEN }}
+
+  benchmark-small-apps:
+    name: Benchmark Rust Crates (small apps)
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -49,7 +72,7 @@ jobs:
         with:
           save-if: 'true'
           cache-provider: 'turbo'
-          shared-key: build-turbopack-benchmark-${{ hashFiles('.cargo/config.toml') }}
+          shared-key: build-turbopack-benchmark-small-apps-${{ hashFiles('.cargo/config.toml') }}
 
       - name: Install pnpm dependencies
         working-directory: turbopack/benchmark-apps
@@ -57,9 +80,6 @@ jobs:
           npm i -g corepack@0.31
           corepack enable
           pnpm install --loglevel error
-
-      - name: Build the benchmark target(s)
-        run: cargo codspeed build -p turbo-rcstr -p turbopack-ecmascript
 
       - name: Build app build benchmarks
         run: cargo codspeed build -p turbopack-cli small_apps
