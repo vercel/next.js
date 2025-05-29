@@ -1,4 +1,5 @@
-#[cfg_attr(not(codspeed), allow(unused))]
+#![cfg_attr(not(codspeed), allow(unused))]
+
 use std::{
     path::{Path, PathBuf},
     process::Command,
