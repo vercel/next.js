@@ -1,6 +1,6 @@
 {
   "name": "next-rspack",
-  "version": "15.3.2",
+  "version": "15.3.3",
   "repository": {
     "url": "vercel/next.js",
     "directory": "packages/next-rspack"
