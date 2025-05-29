@@ -606,6 +606,7 @@ jobs:
       # New release process
       - name: Publish to NPM
         id: changesets
+        # TODO: Change to IS_RELEASE condition when new release becomes stable.
         if: ${{ env.__NEW_RELEASE == 'true' }}
         uses: changesets/action@v1
         with:
@@ -615,6 +616,9 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
 
       - name: Send a Slack notification of the publish status
+        # TODO: Change to IS_RELEASE condition when new release becomes stable. We always
+        # want Slack notification if is a release.
+        if: ${{ env.__NEW_RELEASE == 'true' && steps.changesets.outputs.published != '' }}
         run: pnpm tsx scripts/release/slack.ts
         env:
           SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
