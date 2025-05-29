@@ -512,7 +512,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
               Unknown module type
               This module doesn't have an associated type. Use a known file extension, or register a loader for it.
 
-              Read more: https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders"
+              Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders"
             `)
       } else if (process.env.NEXT_RSPACK) {
         expect(trimEndMultiline(await getRedboxSource(browser)))
