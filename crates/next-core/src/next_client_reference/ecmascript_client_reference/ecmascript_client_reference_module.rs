@@ -3,7 +3,7 @@ use std::{io::Write, iter::once};
 use anyhow::{Context, Result, bail};
 use indoc::writedoc;
 use once_cell::sync::Lazy;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
@@ -178,11 +178,6 @@ impl EcmascriptClientReferenceModule {
 }
 
 #[turbo_tasks::function]
-fn client_reference_modifier() -> Vc<RcStr> {
-    Vc::cell("client reference proxy".into())
-}
-
-#[turbo_tasks::function]
 fn ecmascript_client_reference_client_ref_modifier() -> Vc<RcStr> {
     Vc::cell("ecmascript client reference to client".into())
 }
@@ -199,10 +194,11 @@ pub static ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG_SSR: Lazy<RcStr> = Lazy::new(||
 #[turbo_tasks::value_impl]
 impl Module for EcmascriptClientReferenceModule {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        self.server_ident
-            .with_modifier(client_reference_modifier())
-            .with_layer(self.server_asset_context.layer())
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(self
+            .server_ident
+            .with_modifier(rcstr!("client reference proxy"))
+            .with_layer((*self.server_asset_context.layer().await?).clone()))
     }
 
     #[turbo_tasks::function]

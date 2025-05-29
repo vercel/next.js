@@ -22,7 +22,7 @@ pub(crate) struct FontCssProperties {
 /// A hash of the requested querymap derived from how the user invoked
 /// next/font. Used to uniquely identify font requests for generated filenames
 /// and scoped font family names.
-pub(crate) async fn get_request_hash(query: &str) -> Result<u32> {
+pub(crate) fn get_request_hash(query: &str) -> u32 {
     let query = qstring::QString::from(query);
     let mut to_hash = vec![];
     for (k, v) in query {
@@ -30,11 +30,9 @@ pub(crate) async fn get_request_hash(query: &str) -> Result<u32> {
         to_hash.push(v);
     }
 
-    Ok(
-        // Truncate the hash to u32. These hashes are ultimately displayed as 6- or 8-character
-        // hexadecimal values.
-        hash_xxh3_hash64(to_hash) as u32,
-    )
+    // Truncate the hash to u32. These hashes are ultimately displayed as 6- or 8-character
+    // hexadecimal values.
+    hash_xxh3_hash64(to_hash) as u32
 }
 
 #[turbo_tasks::value(shared)]
@@ -82,9 +80,9 @@ struct HasPath {
 
 pub(crate) async fn can_use_next_font(
     project_path: Vc<FileSystemPath>,
-    query: Vc<RcStr>,
+    query: &RcStr,
 ) -> Result<bool> {
-    let query_map = qstring::QString::from(&**query.await?);
+    let query_map = qstring::QString::from(query.as_str());
     let request: HasPath = parse_json_with_source_context(
         query_map
             .to_pairs()

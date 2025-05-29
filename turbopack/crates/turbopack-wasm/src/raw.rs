@@ -1,5 +1,5 @@
 use anyhow::{Result, bail};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -21,11 +21,6 @@ use turbopack_ecmascript::{
 };
 
 use crate::{output_asset::WebAssemblyAsset, source::WebAssemblySource};
-
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("wasm raw".into())
-}
 
 /// Exports the relative path to the WebAssembly file without loading it.
 #[turbo_tasks::value]
@@ -57,11 +52,12 @@ impl RawWebAssemblyModuleAsset {
 #[turbo_tasks::value_impl]
 impl Module for RawWebAssemblyModuleAsset {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        self.source
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(self
+            .source
             .ident()
-            .with_modifier(modifier())
-            .with_layer(self.asset_context.layer())
+            .with_modifier(rcstr!("wasm raw"))
+            .with_layer((*self.asset_context.layer().await?).clone()))
     }
 }
 

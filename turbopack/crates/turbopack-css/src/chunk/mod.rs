@@ -161,7 +161,6 @@ impl CssChunk {
 
         // The included chunk items and the availability info describe the chunk
         // uniquely
-        let chunk_item_key = chunk_item_key().to_resolved().await?;
         for &chunk_item in chunk_items.iter() {
             if let Some((common_path_vc, common_path_ref)) = common_path.as_mut() {
                 let path = chunk_item.asset_ident().path().await?;
@@ -176,11 +175,12 @@ impl CssChunk {
                 }
             }
         }
+        let chunk_item_key = &*chunk_item_key().await?;
         let assets = chunk_items
             .iter()
             .map(|chunk_item| async move {
                 Ok((
-                    chunk_item_key,
+                    chunk_item_key.clone(),
                     chunk_item.content_ident().to_resolved().await?,
                 ))
             })
@@ -193,8 +193,8 @@ impl CssChunk {
             } else {
                 ServerFileSystem::new().root().to_resolved().await?
             },
-            query: ResolvedVc::cell(RcStr::default()),
-            fragment: ResolvedVc::cell(RcStr::default()),
+            query: RcStr::default(),
+            fragment: RcStr::default(),
             assets,
             modifiers: Vec::new(),
             parts: Vec::new(),

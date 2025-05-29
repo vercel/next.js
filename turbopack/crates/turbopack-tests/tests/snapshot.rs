@@ -10,7 +10,7 @@ use dunce::canonicalize;
 use rustc_hash::FxHashSet;
 use serde::Deserialize;
 use serde_json::json;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     ReadConsistency, ReadRef, ResolvedVc, TryJoinIterExt, TurboTasks, Value, ValueToString, Vc,
     apply_effects,
@@ -335,7 +335,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             ..Default::default()
         }
         .cell(),
-        Vc::cell("test".into()),
+        rcstr!("test"),
     ));
 
     let runtime_entries = maybe_load_env(asset_context, *project_path)

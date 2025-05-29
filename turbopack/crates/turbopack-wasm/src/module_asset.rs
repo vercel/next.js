@@ -1,5 +1,5 @@
 use anyhow::{Context, Result, bail};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Value, Vc, fxindexmap};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -33,11 +33,6 @@ use crate::{
     source::WebAssemblySource,
 };
 
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("wasm module".into())
-}
-
 /// Creates a javascript loader which instantiates the WebAssembly source and
 /// re-exports its exports.
 #[turbo_tasks::value]
@@ -70,7 +65,7 @@ impl WebAssemblyModuleAsset {
         let this = self.await?;
         let query = &*this.source.ident().query().await?;
 
-        let loader_source = if query == "?module" {
+        let loader_source = if query == "module" {
             compiling_loader_source(*this.source)
         } else {
             instantiating_loader_source(*this.source)
@@ -126,11 +121,12 @@ impl WebAssemblyModuleAsset {
 #[turbo_tasks::value_impl]
 impl Module for WebAssemblyModuleAsset {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        self.source
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(self
+            .source
             .ident()
-            .with_modifier(modifier())
-            .with_layer(self.asset_context.layer())
+            .with_modifier(rcstr!("wasm module"))
+            .with_layer((*self.asset_context.layer().await?).clone()))
     }
 
     #[turbo_tasks::function]

@@ -1,7 +1,7 @@
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Upcast, Value, ValueToString, Vc,
     trace::TraceRawVcs,
@@ -550,12 +550,11 @@ impl ChunkingContext for BrowserChunkingContext {
                 match input_availability_info {
                     AvailabilityInfo::Root => {}
                     AvailabilityInfo::Untracked => {
-                        ident = ident.with_modifier(Vc::cell("untracked".into()));
+                        ident = ident.with_modifier(rcstr!("untracked"));
                     }
                     AvailabilityInfo::Complete { available_modules } => {
-                        ident = ident.with_modifier(Vc::cell(
-                            available_modules.hash().await?.to_string().into(),
-                        ));
+                        ident =
+                            ident.with_modifier(available_modules.hash().await?.to_string().into());
                     }
                 }
                 assets.push(

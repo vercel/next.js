@@ -10,11 +10,6 @@ use turbopack_core::{
 
 use crate::utils::StringifyJs;
 
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("text content".into())
-}
-
 /// A source asset that exports the string content of an asset as the default
 /// export of a JS module.
 #[turbo_tasks::value]
@@ -34,9 +29,12 @@ impl TextContentFileSource {
 impl Source for TextContentFileSource {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
+        lazy_static::lazy_static! {
+            static ref MODIFIER: RcStr = "text content".into();
+        }
         self.source
             .ident()
-            .with_modifier(modifier())
+            .with_modifier(MODIFIER.clone())
             .rename_as("*.mjs".into())
     }
 }

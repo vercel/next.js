@@ -11,31 +11,31 @@ use super::pattern::Pattern;
 pub enum Request {
     Raw {
         path: Pattern,
-        query: ResolvedVc<RcStr>,
+        query: RcStr,
         force_in_lookup_dir: bool,
-        fragment: ResolvedVc<RcStr>,
+        fragment: RcStr,
     },
     Relative {
         path: Pattern,
-        query: ResolvedVc<RcStr>,
+        query: RcStr,
         force_in_lookup_dir: bool,
-        fragment: ResolvedVc<RcStr>,
+        fragment: RcStr,
     },
     Module {
         module: RcStr,
         path: Pattern,
-        query: ResolvedVc<RcStr>,
-        fragment: ResolvedVc<RcStr>,
+        query: RcStr,
+        fragment: RcStr,
     },
     ServerRelative {
         path: Pattern,
-        query: ResolvedVc<RcStr>,
-        fragment: ResolvedVc<RcStr>,
+        query: RcStr,
+        fragment: RcStr,
     },
     Windows {
         path: Pattern,
-        query: ResolvedVc<RcStr>,
-        fragment: ResolvedVc<RcStr>,
+        query: RcStr,
+        fragment: RcStr,
     },
     Empty,
     PackageInternal {
@@ -44,8 +44,8 @@ pub enum Request {
     Uri {
         protocol: RcStr,
         remainder: RcStr,
-        query: ResolvedVc<RcStr>,
-        fragment: ResolvedVc<RcStr>,
+        query: RcStr,
+        fragment: RcStr,
     },
     DataUri {
         media_type: RcStr,
@@ -160,8 +160,8 @@ impl Request {
             return Ok(Request::Uri {
                 protocol: "//".into(),
                 remainder: remainder.into(),
-                query: ResolvedVc::cell(RcStr::default()),
-                fragment: ResolvedVc::cell(RcStr::default()),
+                query: RcStr::default(),
+                fragment: RcStr::default(),
             });
         }
 
@@ -170,8 +170,8 @@ impl Request {
 
             return Ok(Request::ServerRelative {
                 path,
-                query: ResolvedVc::cell(query),
-                fragment: ResolvedVc::cell(fragment),
+                query,
+                fragment,
             });
         }
 
@@ -187,8 +187,8 @@ impl Request {
             return Ok(Request::Relative {
                 path,
                 force_in_lookup_dir: false,
-                query: ResolvedVc::cell(query),
-                fragment: ResolvedVc::cell(fragment),
+                query,
+                fragment,
             });
         }
 
@@ -197,8 +197,8 @@ impl Request {
 
             return Ok(Request::Windows {
                 path,
-                query: ResolvedVc::cell(query),
-                fragment: ResolvedVc::cell(fragment),
+                query,
+                fragment,
             });
         }
 
@@ -219,8 +219,8 @@ impl Request {
                 return Ok(Request::Uri {
                     protocol: protocol.as_str().into(),
                     remainder: remainder.as_str().into(),
-                    query: ResolvedVc::cell(RcStr::default()),
-                    fragment: ResolvedVc::cell(RcStr::default()),
+                    query: RcStr::default(),
+                    fragment: RcStr::default(),
                 });
             }
         }
@@ -234,8 +234,8 @@ impl Request {
             return Ok(Request::Module {
                 module: module.as_str().into(),
                 path,
-                query: ResolvedVc::cell(query),
-                fragment: ResolvedVc::cell(fragment),
+                query,
+                fragment,
             });
         }
 
@@ -319,30 +319,30 @@ impl Request {
     #[turbo_tasks::function]
     pub async fn raw(
         request: Value<Pattern>,
-        query: Vc<RcStr>,
-        fragment: Vc<RcStr>,
+        query: RcStr,
+        fragment: RcStr,
         force_in_lookup_dir: bool,
     ) -> Result<Vc<Self>> {
         Ok(Self::cell(Request::Raw {
             path: request.into_value(),
             force_in_lookup_dir,
-            query: query.to_resolved().await?,
-            fragment: fragment.to_resolved().await?,
+            query,
+            fragment,
         }))
     }
 
     #[turbo_tasks::function]
     pub async fn relative(
         request: Value<Pattern>,
-        query: Vc<RcStr>,
-        fragment: Vc<RcStr>,
+        query: RcStr,
+        fragment: RcStr,
         force_in_lookup_dir: bool,
     ) -> Result<Vc<Self>> {
         Ok(Self::cell(Request::Relative {
             path: request.into_value(),
             force_in_lookup_dir,
-            query: query.to_resolved().await?,
-            fragment: fragment.to_resolved().await?,
+            query,
+            fragment,
         }))
     }
 
@@ -350,14 +350,14 @@ impl Request {
     pub async fn module(
         module: RcStr,
         path: Value<Pattern>,
-        query: Vc<RcStr>,
-        fragment: Vc<RcStr>,
+        query: RcStr,
+        fragment: RcStr,
     ) -> Result<Vc<Self>> {
         Ok(Self::cell(Request::Module {
             module,
             path: path.into_value(),
-            query: query.to_resolved().await?,
-            fragment: fragment.to_resolved().await?,
+            query,
+            fragment,
         }))
     }
 
@@ -409,7 +409,7 @@ impl Request {
     }
 
     #[turbo_tasks::function]
-    pub async fn with_query(self: Vc<Self>, query: Vc<RcStr>) -> Result<Vc<Self>> {
+    pub async fn with_query(self: Vc<Self>, query: RcStr) -> Result<Vc<Self>> {
         Ok(match &*self.await? {
             Request::Raw {
                 path,
@@ -418,9 +418,9 @@ impl Request {
                 fragment,
             } => Request::Raw {
                 path: path.clone(),
-                query: query.to_resolved().await?,
+                query,
                 force_in_lookup_dir: *force_in_lookup_dir,
-                fragment: *fragment,
+                fragment: fragment.clone(),
             }
             .cell(),
             Request::Relative {
@@ -430,9 +430,9 @@ impl Request {
                 fragment,
             } => Request::Relative {
                 path: path.clone(),
-                query: query.to_resolved().await?,
+                query,
                 force_in_lookup_dir: *force_in_lookup_dir,
-                fragment: *fragment,
+                fragment: fragment.clone(),
             }
             .cell(),
             Request::Module {
@@ -443,8 +443,8 @@ impl Request {
             } => Request::Module {
                 module: module.clone(),
                 path: path.clone(),
-                query: query.to_resolved().await?,
-                fragment: *fragment,
+                query,
+                fragment: fragment.clone(),
             }
             .cell(),
             Request::ServerRelative {
@@ -453,8 +453,8 @@ impl Request {
                 fragment,
             } => Request::ServerRelative {
                 path: path.clone(),
-                query: query.to_resolved().await?,
-                fragment: *fragment,
+                query,
+                fragment: fragment.clone(),
             }
             .cell(),
             Request::Windows {
@@ -463,8 +463,8 @@ impl Request {
                 fragment,
             } => Request::Windows {
                 path: path.clone(),
-                query: query.to_resolved().await?,
-                fragment: *fragment,
+                query,
+                fragment: fragment.clone(),
             }
             .cell(),
             Request::Empty => self,
@@ -477,7 +477,7 @@ impl Request {
                 let requests = requests
                     .iter()
                     .copied()
-                    .map(|req| req.with_query(query))
+                    .map(|req| req.with_query(query.clone()))
                     .map(|v| async move { v.to_resolved().await })
                     .try_join()
                     .await?;
@@ -487,7 +487,7 @@ impl Request {
     }
 
     #[turbo_tasks::function]
-    pub async fn with_fragment(self: Vc<Self>, fragment: Vc<RcStr>) -> Result<Vc<Self>> {
+    pub async fn with_fragment(self: Vc<Self>, fragment: RcStr) -> Result<Vc<Self>> {
         Ok(match &*self.await? {
             Request::Raw {
                 path,
@@ -496,9 +496,9 @@ impl Request {
                 fragment: _,
             } => Request::Raw {
                 path: path.clone(),
-                query: *query,
+                query: query.clone(),
                 force_in_lookup_dir: *force_in_lookup_dir,
-                fragment: fragment.to_resolved().await?,
+                fragment,
             }
             .cell(),
             Request::Relative {
@@ -508,9 +508,9 @@ impl Request {
                 fragment: _,
             } => Request::Relative {
                 path: path.clone(),
-                query: *query,
+                query: query.clone(),
                 force_in_lookup_dir: *force_in_lookup_dir,
-                fragment: fragment.to_resolved().await?,
+                fragment,
             }
             .cell(),
             Request::Module {
@@ -521,8 +521,8 @@ impl Request {
             } => Request::Module {
                 module: module.clone(),
                 path: path.clone(),
-                query: *query,
-                fragment: fragment.to_resolved().await?,
+                query: query.clone(),
+                fragment,
             }
             .cell(),
             Request::ServerRelative {
@@ -531,8 +531,8 @@ impl Request {
                 fragment: _,
             } => Request::ServerRelative {
                 path: path.clone(),
-                query: *query,
-                fragment: fragment.to_resolved().await?,
+                query: query.clone(),
+                fragment,
             }
             .cell(),
             Request::Windows {
@@ -541,8 +541,8 @@ impl Request {
                 fragment: _,
             } => Request::Windows {
                 path: path.clone(),
-                query: *query,
-                fragment: fragment.to_resolved().await?,
+                query: query.clone(),
+                fragment,
             }
             .cell(),
             Request::Empty => self,
@@ -555,7 +555,7 @@ impl Request {
                 let requests = requests
                     .iter()
                     .copied()
-                    .map(|req| req.with_fragment(fragment))
+                    .map(|req| req.with_fragment(fragment.clone()))
                     .map(|v| async move { v.to_resolved().await })
                     .try_join()
                     .await?;
@@ -575,7 +575,12 @@ impl Request {
             } => {
                 let mut pat = Pattern::concat([path.clone(), suffix.into()]);
                 pat.normalize();
-                Self::raw(Value::new(pat), **query, **fragment, *force_in_lookup_dir)
+                Self::raw(
+                    Value::new(pat),
+                    query.clone(),
+                    fragment.clone(),
+                    *force_in_lookup_dir,
+                )
             }
             Request::Relative {
                 path,
@@ -585,7 +590,12 @@ impl Request {
             } => {
                 let mut pat = Pattern::concat([path.clone(), suffix.into()]);
                 pat.normalize();
-                Self::relative(Value::new(pat), **query, **fragment, *force_in_lookup_dir)
+                Self::relative(
+                    Value::new(pat),
+                    query.clone(),
+                    fragment.clone(),
+                    *force_in_lookup_dir,
+                )
             }
             Request::Module {
                 module,
@@ -595,7 +605,12 @@ impl Request {
             } => {
                 let mut pat = Pattern::concat([path.clone(), suffix.into()]);
                 pat.normalize();
-                Self::module(module.clone(), Value::new(pat), **query, **fragment)
+                Self::module(
+                    module.clone(),
+                    Value::new(pat),
+                    query.clone(),
+                    fragment.clone(),
+                )
             }
             Request::ServerRelative {
                 path,
@@ -606,8 +621,8 @@ impl Request {
                 pat.normalize();
                 Self::ServerRelative {
                     path: pat,
-                    query: *query,
-                    fragment: *fragment,
+                    query: query.clone(),
+                    fragment: fragment.clone(),
                 }
                 .cell()
             }
@@ -620,8 +635,8 @@ impl Request {
                 pat.normalize();
                 Self::Windows {
                     path: pat,
-                    query: *query,
-                    fragment: *fragment,
+                    query: query.clone(),
+                    fragment: fragment.clone(),
                 }
                 .cell()
             }
@@ -654,8 +669,8 @@ impl Request {
                 Self::Uri {
                     protocol: protocol.clone(),
                     remainder,
-                    query: *query,
-                    fragment: *fragment,
+                    query: query.clone(),
+                    fragment: fragment.clone(),
                 }
                 .cell()
             }
@@ -678,21 +693,21 @@ impl Request {
 
     #[turbo_tasks::function]
     pub fn query(&self) -> Vc<RcStr> {
-        match self {
-            Request::Raw { query, .. } => **query,
-            Request::Relative { query, .. } => **query,
-            Request::Module { query, .. } => **query,
-            Request::ServerRelative { query, .. } => **query,
-            Request::Windows { query, .. } => **query,
-            Request::Empty => Vc::<RcStr>::default(),
-            Request::PackageInternal { .. } => Vc::<RcStr>::default(),
-            Request::DataUri { .. } => Vc::<RcStr>::default(),
-            Request::Uri { .. } => Vc::<RcStr>::default(),
-            Request::Unknown { .. } => Vc::<RcStr>::default(),
-            Request::Dynamic => Vc::<RcStr>::default(),
+        Vc::cell(match self {
+            Request::Windows { query, .. }
+            | Request::ServerRelative { query, .. }
+            | Request::Module { query, .. }
+            | Request::Relative { query, .. }
+            | Request::Raw { query, .. } => query.clone(),
+            Request::Dynamic
+            | Request::Unknown { .. }
+            | Request::Uri { .. }
+            | Request::DataUri { .. }
+            | Request::PackageInternal { .. }
+            | Request::Empty => RcStr::default(),
             // TODO: is this correct, should we return the first one instead?
-            Request::Alternatives { .. } => Vc::<RcStr>::default(),
-        }
+            Request::Alternatives { .. } => RcStr::default(),
+        })
     }
 
     /// Turns the request into a pattern, similar to [Request::request()] but

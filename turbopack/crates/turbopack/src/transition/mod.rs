@@ -35,8 +35,8 @@ pub trait Transition {
     }
 
     /// Apply modifications to the layer
-    fn process_layer(self: Vc<Self>, layer: Vc<RcStr>) -> Vc<RcStr> {
-        layer
+    fn process_layer(self: Vc<Self>, layer: RcStr) -> Vc<RcStr> {
+        Vc::cell(layer)
     }
 
     /// Apply modifications/wrapping to the module options context
@@ -84,14 +84,16 @@ pub trait Transition {
             self.process_module_options_context(*module_asset_context.module_options_context);
         let resolve_options_context =
             self.process_resolve_options_context(*module_asset_context.resolve_options_context);
-        let layer = self.process_layer(*module_asset_context.layer);
+        let layer = self
+            .process_layer(module_asset_context.layer.clone())
+            .await?;
         let transition_options = self.process_transition_options(*module_asset_context.transitions);
         let module_asset_context = ModuleAssetContext::new(
             transition_options,
             compile_time_info,
             module_options_context,
             resolve_options_context,
-            layer,
+            (*layer).clone(),
         );
         Ok(module_asset_context)
     }

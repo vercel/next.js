@@ -46,8 +46,8 @@ impl NextDynamicTransition {
 #[turbo_tasks::value_impl]
 impl Transition for NextDynamicTransition {
     #[turbo_tasks::function]
-    fn process_layer(self: Vc<Self>, layer: Vc<RcStr>) -> Vc<RcStr> {
-        layer
+    fn process_layer(self: Vc<Self>, layer: RcStr) -> Vc<RcStr> {
+        Vc::cell(layer)
     }
 
     #[turbo_tasks::function]

@@ -104,12 +104,12 @@ impl Chunk for EcmascriptChunk {
             }
         }
 
-        let chunk_item_key = chunk_item_key().to_resolved().await?;
+        let chunk_item_key = &*chunk_item_key().await?;
         let assets = chunk_items
             .iter()
             .map(|&chunk_item| async move {
                 Ok((
-                    chunk_item_key,
+                    chunk_item_key.clone(),
                     chunk_item.content_ident().to_resolved().await?,
                 ))
             })
@@ -122,8 +122,8 @@ impl Chunk for EcmascriptChunk {
             } else {
                 ServerFileSystem::new().root().to_resolved().await?
             },
-            query: ResolvedVc::cell(RcStr::default()),
-            fragment: ResolvedVc::cell(RcStr::default()),
+            query: RcStr::default(),
+            fragment: RcStr::default(),
             assets,
             modifiers: Vec::new(),
             parts: Vec::new(),

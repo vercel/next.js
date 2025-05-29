@@ -57,15 +57,15 @@ impl Module for SideEffectsModule {
         ident.parts.push(self.part.clone());
 
         ident.add_asset(
-            ResolvedVc::cell(RcStr::from("resolved")),
+            RcStr::from("resolved"),
             self.resolved_as.ident().to_resolved().await?,
         );
 
-        ident.add_modifier(ResolvedVc::cell(RcStr::from("side effects")));
+        ident.add_modifier(RcStr::from("side effects"));
 
         for (i, side_effect) in self.side_effects.iter().enumerate() {
             ident.add_asset(
-                ResolvedVc::cell(RcStr::from(format!("side effect {i}"))),
+                RcStr::from(format!("side effect {i}")),
                 side_effect.ident().to_resolved().await?,
             );
         }
