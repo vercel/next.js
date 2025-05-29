@@ -41,6 +41,13 @@ jobs:
         with:
           tool: cargo-codspeed@2.10.1
 
+      - name: Cache on ${{ github.ref_name }}
+        uses: ijjk/rust-cache@turbo-cache-v1.0.8
+        with:
+          save-if: 'true'
+          cache-provider: 'turbo'
+          shared-key: build-turbopack-benchmark-${{ hashFiles('.cargo/config.toml') }}
+
       - name: Install pnpm dependencies
         working-directory: turbopack/benchmark-apps
         run: |
