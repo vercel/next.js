@@ -214,7 +214,7 @@ If you were to combine the two layouts above, the root layout (`app/layout.js`) 
 To create a dynamic segment, wrap the segment (folder) name in square brackets: `[segmentName]`. For example, in the `app/blog/[slug]/page.tsx` route, the `[slug]` is the dynamic segment.
 
 ```tsx filename="app/blog/[slug]/page.tsx" switcher
-export default function BlogPostPage({
+export default async function BlogPostPage({
   params,
 }: {
   params: Promise<{ slug: string }>
