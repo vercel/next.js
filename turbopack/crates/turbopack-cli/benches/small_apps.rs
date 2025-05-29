@@ -33,10 +33,6 @@ fn list_apps() -> (PathBuf, Vec<PathBuf>) {
     (apps_dir, apps)
 }
 
-#[cfg(not(codspeed))]
-fn bench_small_apps(_: &mut Criterion) {}
-
-#[cfg(codspeed)]
 fn bench_small_apps(c: &mut Criterion) {
     use turbo_tasks_malloc::TurboMalloc;
 
