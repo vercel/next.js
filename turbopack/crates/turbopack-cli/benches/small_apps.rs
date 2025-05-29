@@ -36,6 +36,8 @@ fn bench_small_apps(_: &mut Criterion) {}
 
 #[cfg(codspeed)]
 fn bench_small_apps(c: &mut Criterion) {
+    use turbo_tasks_malloc::TurboMalloc;
+
     register();
 
     let (apps_dir, apps) = list_apps();
