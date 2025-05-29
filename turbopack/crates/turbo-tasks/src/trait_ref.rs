@@ -72,12 +72,11 @@ impl<'de, T> Deserialize<'de> for TraitRef<T> {
     }
 }
 
-impl<T, U> std::ops::Deref for TraitRef<T>
+impl<U> std::ops::Deref for TraitRef<Box<U>>
 where
     U: VcValueTrait,
-    T: Box<U>,
 {
-    type Target = T;
+    type Target = U;
 
     fn deref(&self) -> &Self::Target {
         todo!()
