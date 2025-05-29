@@ -90,7 +90,7 @@ fn bench_small_apps(c: &mut Criterion) {
 
 criterion_group!(
   name = benches;
-  config = Criterion::default().sample_size(10);
+  config = Criterion::default().sample_size(30);
   targets = bench_small_apps
 );
 criterion_main!(benches);
