@@ -466,8 +466,11 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
     }
 
     fn invalidate(&self) -> Result<()> {
+        // `base_path` can be `None` for a `NoopKvDb`
         if let Some(base_path) = &self.base_path {
-            // `base_path` can be `None` for a `NoopKvDb`
+            // Invalidate first, as it's a very fast atomic operation. `prevent_writes` is allowed
+            // to be slower (e.g. wait for a lock) and is allowed to corrupt the database with
+            // partial writes.
             invalidate_db(base_path)?;
             self.database.prevent_writes()
         }
