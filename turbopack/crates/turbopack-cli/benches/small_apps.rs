@@ -29,7 +29,7 @@ fn list_apps() -> (PathBuf, Vec<PathBuf>) {
         let path = entry.path();
         if path.is_dir() {
             // Exclude node_modules
-            if path.file_name().unwrap().to_string_lossy() == "node_modules" {
+            if path.file_name().unwrap_or_default() == "node_modules" {
                 continue;
             }
 
