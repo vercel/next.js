@@ -105,11 +105,11 @@ pub async fn get_app_page_entry(
 
     result.concat(source_content);
 
-    let query = RcStr::from(qstring::QString::new(vec![("page", page.to_string())]).to_string());
+    let query = qstring::QString::new(vec![("page", page.to_string())]);
 
     let file = File::from(result.build());
     let source = VirtualSource::new_with_ident(
-        source.ident().with_query(query),
+        source.ident().with_query(RcStr::from(format!("?{query}"))),
         AssetContent::file(file.into()),
     );
 

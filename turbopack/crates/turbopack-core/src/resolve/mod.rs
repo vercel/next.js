@@ -2327,7 +2327,7 @@ async fn resolve_relative_request(
             }
             if !fragment.is_empty() {
                 // If the fragment is not empty, we need to strip it from the matched pattern
-                if let Some(matched_pattern) = matched_pattern.strip_suffix(fragment) {
+                if let Some(matched_pattern) = matched_pattern.strip_suffix(fragment.as_str()) {
                     results.push(
                         resolved(
                             RequestKey::new(matched_pattern.into()),

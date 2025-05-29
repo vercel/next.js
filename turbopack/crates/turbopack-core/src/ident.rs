@@ -34,6 +34,14 @@ pub struct AssetIdent {
 }
 
 impl AssetIdent {
+    pub fn query(&self) -> &RcStr {
+        &self.query
+    }
+
+    pub fn fragment(&self) -> &RcStr {
+        &self.fragment
+    }
+
     pub fn add_modifier(&mut self, modifier: RcStr) {
         self.modifiers.push(modifier);
     }
@@ -119,11 +127,11 @@ impl ValueToString for AssetIdent {
 impl AssetIdent {
     #[turbo_tasks::function]
     pub async fn new(ident: Value<AssetIdent>) -> Result<Vc<Self>> {
-        debug_+assert!(
+        debug_assert!(
             ident.query.is_empty() || ident.query.starts_with("?"),
             "query should be empty or start with a `?`"
         );
-        assert!(
+        debug_assert!(
             ident.fragment.is_empty() || ident.fragment.starts_with("#"),
             "query should be empty or start with a `?`"
         );
@@ -147,10 +155,6 @@ impl AssetIdent {
 
     #[turbo_tasks::function]
     pub fn with_query(&self, query: RcStr) -> Vc<Self> {
-        debug_assert!(
-            !query.starts_with("?"),
-            "query should not start with a `?`. one is added during formatting."
-        );
         let mut this = self.clone();
         this.query = query;
         Self::new(Value::new(this))
@@ -164,7 +168,7 @@ impl AssetIdent {
     }
 
     #[turbo_tasks::function]
-    pub fn with_modifier(&self, modifier: ResolvedVc<RcStr>) -> Vc<Self> {
+    pub fn with_modifier(&self, modifier: RcStr) -> Vc<Self> {
         let mut this = self.clone();
         this.add_modifier(modifier);
         Self::new(Value::new(this))
@@ -208,11 +212,6 @@ impl AssetIdent {
     #[turbo_tasks::function]
     pub fn path(&self) -> Vc<FileSystemPath> {
         *self.path
-    }
-
-    #[turbo_tasks::function]
-    pub fn query(&self) -> Vc<RcStr> {
-        Vc::cell(self.query.clone())
     }
 
     /// Computes a unique output asset name for the given asset identifier.

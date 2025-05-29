@@ -1,5 +1,4 @@
 use anyhow::{Result, bail};
-use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbopack::{ModuleAssetContext, transition::Transition};
 use turbopack_core::{
@@ -35,11 +34,6 @@ impl NextEcmascriptClientReferenceTransition {
 
 #[turbo_tasks::value_impl]
 impl Transition for NextEcmascriptClientReferenceTransition {
-    #[turbo_tasks::function]
-    fn process_layer(self: Vc<Self>, layer: RcStr) -> Vc<RcStr> {
-        Vc::cell(layer)
-    }
-
     #[turbo_tasks::function]
     async fn process(
         self: Vc<Self>,
