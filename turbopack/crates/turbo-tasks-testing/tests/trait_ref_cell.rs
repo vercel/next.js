@@ -79,6 +79,7 @@ impl Counter {
 
 #[turbo_tasks::value_trait]
 trait CounterTrait {
+    #[turbo_tasks::function]
     fn get_value(&self) -> Vc<CounterValue>;
 }
 
@@ -94,6 +95,7 @@ impl CounterTrait for Counter {
 
 #[turbo_tasks::value_trait]
 trait CounterValueTrait {
+    #[turbo_tasks::function]
     fn get_value(&self) -> Vc<CounterValue>;
 }
 

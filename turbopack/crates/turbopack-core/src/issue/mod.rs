@@ -103,27 +103,32 @@ pub enum StyledString {
 pub trait Issue {
     /// Severity allows the user to filter out unimportant issues, with Bug
     /// being the highest priority and Info being the lowest.
+    #[turbo_tasks::function]
     fn severity(self: Vc<Self>) -> Vc<IssueSeverity> {
         IssueSeverity::Error.into()
     }
 
     /// The file path that generated the issue, displayed to the user as message
     /// header.
+    #[turbo_tasks::function]
     fn file_path(self: Vc<Self>) -> Vc<FileSystemPath>;
 
     /// The stage of the compilation process at which the issue occurred. This
     /// is used to sort issues.
+    #[turbo_tasks::function]
     fn stage(self: Vc<Self>) -> Vc<IssueStage>;
 
     /// The issue title should be descriptive of the issue, but should be a
     /// single line. This is displayed to the user directly under the issue
     /// header.
     // TODO add Vc<StyledString>
+    #[turbo_tasks::function]
     fn title(self: Vc<Self>) -> Vc<StyledString>;
 
     /// A more verbose message of the issue, appropriate for providing multiline
     /// information of the issue.
     // TODO add Vc<StyledString>
+    #[turbo_tasks::function]
     fn description(self: Vc<Self>) -> Vc<OptionStyledString> {
         Vc::cell(None)
     }
@@ -131,12 +136,14 @@ pub trait Issue {
     /// Full details of the issue, appropriate for providing debug level
     /// information. Only displayed if the user explicitly asks for detailed
     /// messages (not to be confused with severity).
+    #[turbo_tasks::function]
     fn detail(self: Vc<Self>) -> Vc<OptionStyledString> {
         Vc::cell(None)
     }
 
     /// A link to relevant documentation of the issue. Only displayed in console
     /// if the user explicitly asks for detailed messages.
+    #[turbo_tasks::function]
     fn documentation_link(self: Vc<Self>) -> Vc<RcStr> {
         Vc::<RcStr>::default()
     }
@@ -144,14 +151,17 @@ pub trait Issue {
     /// The source location that caused the issue. Eg, for a parsing error it
     /// should point at the offending character. Displayed to the user alongside
     /// the title/description.
+    #[turbo_tasks::function]
     fn source(self: Vc<Self>) -> Vc<OptionIssueSource> {
         Vc::cell(None)
     }
 
+    #[turbo_tasks::function]
     fn sub_issues(self: Vc<Self>) -> Vc<Issues> {
         Vc::cell(Vec::new())
     }
 
+    #[turbo_tasks::function]
     async fn into_plain(
         self: Vc<Self>,
         processing_path: Vc<OptionIssueProcessingPathItems>,
@@ -197,6 +207,7 @@ pub trait Issue {
 
 #[turbo_tasks::value_trait]
 trait IssueProcessingPath {
+    #[turbo_tasks::function]
     fn shortest_path(
         self: Vc<Self>,
         issue: Vc<Box<dyn Issue>>,
@@ -837,6 +848,7 @@ pub trait IssueReporter {
     ///   determine which issues are new.
     /// * `min_failing_severity` - The minimum Vc<[IssueSeverity]>
     ///  The minimum issue severity level considered to fatally end the program.
+    #[turbo_tasks::function]
     fn report_issues(
         self: Vc<Self>,
         issues: TransientInstance<CapturedIssues>,

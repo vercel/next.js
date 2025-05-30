@@ -222,7 +222,9 @@ async fn wrap_vc(val: Vc<u64>) -> Result<Vc<WrappedU64>> {
 
 #[turbo_tasks::value_trait]
 pub trait Doublable {
+    #[turbo_tasks::function]
     fn double(&self) -> Vc<Self>;
+    #[turbo_tasks::function]
     fn double_vc(self: Vc<Self>) -> Vc<Self>;
 }
 

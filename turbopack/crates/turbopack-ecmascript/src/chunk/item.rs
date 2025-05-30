@@ -213,7 +213,9 @@ impl EcmascriptChunkItemWithAsyncInfo {
 
 #[turbo_tasks::value_trait]
 pub trait EcmascriptChunkItem: ChunkItem {
+    #[turbo_tasks::function]
     fn content(self: Vc<Self>) -> Vc<EcmascriptChunkItemContent>;
+    #[turbo_tasks::function]
     fn content_with_async_module_info(
         self: Vc<Self>,
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
@@ -223,6 +225,7 @@ pub trait EcmascriptChunkItem: ChunkItem {
 
     /// Specifies which availablility information the chunk item needs for code
     /// generation
+    #[turbo_tasks::function]
     fn need_async_module_info(self: Vc<Self>) -> Vc<bool> {
         Vc::cell(false)
     }

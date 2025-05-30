@@ -18,20 +18,24 @@ pub struct OptionStyleType(Option<StyleType>);
 pub trait Module: Asset {
     /// The identifier of the [Module]. It's expected to be unique and capture
     /// all properties of the [Module].
+    #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent>;
 
     /// Other [Module]s or [OutputAsset]s referenced from this [Module].
     // TODO refactor to avoid returning [OutputAsset]s here
+    #[turbo_tasks::function]
     fn references(self: Vc<Self>) -> Vc<ModuleReferences> {
         ModuleReferences::empty()
     }
 
     /// Signifies the module itself is async, e.g. it uses top-level await, is a wasm module, etc.
+    #[turbo_tasks::function]
     fn is_self_async(self: Vc<Self>) -> Vc<bool> {
         Vc::cell(false)
     }
 
     /// The style type of the module.
+    #[turbo_tasks::function]
     fn style_type(self: Vc<Self>) -> Vc<OptionStyleType> {
         Vc::cell(None)
     }
