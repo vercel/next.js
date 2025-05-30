@@ -1578,7 +1578,7 @@ export default async function handler(
 
   // Check if the user has the 'admin' role
   if (session.user.role !== 'admin') {
-    res.status(401).json({
+    res.status(403).json({
       error: 'Unauthorized access: User does not have admin privileges.',
     })
     return
@@ -1603,7 +1603,7 @@ export default async function handler(req, res) {
 
   // Check if the user has the 'admin' role
   if (session.user.role !== 'admin') {
-    res.status(401).json({
+    res.status(403).json({
       error: 'Unauthorized access: User does not have admin privileges.',
     })
     return
