@@ -11,6 +11,7 @@ export type ReadyRuntimeError = {
   error: Error & { environmentName?: string }
   frames: OriginalStackFrame[] | (() => Promise<OriginalStackFrame[]>)
   componentStackFrames?: ComponentStackFrame[]
+  type: 'runtime' | 'console' | 'recoverable'
 }
 
 export const useFrames = (error: ReadyRuntimeError): OriginalStackFrame[] => {
@@ -43,6 +44,7 @@ export async function getErrorByType(
     id: event.id,
     runtime: true,
     error: event.error,
+    type: event.type,
   } as const
 
   if ('use' in React) {
