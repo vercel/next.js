@@ -54,6 +54,7 @@ pub async fn make_chunk_group(
         batch_groups,
         async_modules,
         traced_modules,
+        availability_info,
     } = chunk_group_content(
         module_graph,
         chunk_group_entries.clone(),
@@ -96,11 +97,6 @@ pub async fn make_chunk_group(
             .to_resolved()
         })
         .try_join()
-        .await?;
-
-    // Compute new [AvailabilityInfo]
-    let availability_info = availability_info
-        .with_modules(Vc::cell(chunkable_items))
         .await?;
 
     // Insert async chunk loaders for every referenced async module
@@ -319,6 +315,11 @@ pub async fn chunk_group_content(
         },
     )?;
 
+    // This needs to use the unmerged items
+    let availability_info = availability_info
+        .with_modules(Vc::cell(state.chunkable_items.clone()))
+        .await?;
+
     if should_merge_modules {
         let merged_modules = module_graph.merged_modules().await?;
         // let old_items: Vec<ResolvedVc<Box<dyn Module>>> = state
@@ -417,7 +418,7 @@ pub async fn chunk_group_content(
             .await?
             .into_iter()
             .collect();
-    }
+    };
 
     let mut batch_groups = FxIndexSet::default();
     for &module in &state.chunkable_items {
@@ -431,5 +432,6 @@ pub async fn chunk_group_content(
         batch_groups,
         async_modules: state.async_modules,
         traced_modules: state.traced_modules,
+        availability_info,
     })
 }

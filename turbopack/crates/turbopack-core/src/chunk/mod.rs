@@ -36,6 +36,7 @@ pub use self::{
 };
 use crate::{
     asset::Asset,
+    chunk::availability_info::AvailabilityInfo,
     ident::AssetIdent,
     module::Module,
     module_graph::{
@@ -350,12 +351,12 @@ pub trait ChunkableModuleReference: ModuleReference + ValueToString {
     }
 }
 
-#[derive(Default)]
 pub struct ChunkGroupContent {
     pub chunkable_items: FxIndexSet<ChunkableModuleOrBatch>,
     pub batch_groups: FxIndexSet<ResolvedVc<ModuleBatchGroup>>,
     pub async_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
     pub traced_modules: FxIndexSet<ResolvedVc<Box<dyn Module>>>,
+    pub availability_info: AvailabilityInfo,
 }
 
 #[turbo_tasks::value_trait]
