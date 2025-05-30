@@ -7,8 +7,8 @@ describe('app dir - draft mode', () => {
   })
 
   async function runTests({ basePath = '/' }: { basePath: string }) {
-    let origRandHome = 'unintialized'
-    let origRandWithCookies = 'unintialized'
+    let origRandHome = 'uninitialized'
+    let origRandWithCookies = 'uninitialized'
     let Cookie = ''
 
     it(`should use initial rand when draft mode is disabled on ${basePath}index`, async () => {

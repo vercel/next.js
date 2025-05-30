@@ -76,7 +76,7 @@ describe('app dir - hooks', () => {
   })
 
   describe('useDraftMode', () => {
-    let initialRand = 'unintialized'
+    let initialRand = 'uninitialized'
     it('should use initial rand when draft mode be disabled', async () => {
       const $ = await next.render$('/hooks/use-draft-mode')
       expect($('#draft-mode-val').text()).toBe('DISABLED')
