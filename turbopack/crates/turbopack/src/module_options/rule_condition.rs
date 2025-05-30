@@ -222,7 +222,7 @@ impl RuleCondition {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use turbo_tasks::Vc;
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
     use turbo_tasks_fs::{FileContent, FileSystem, VirtualFileSystem};
@@ -237,144 +237,146 @@ mod tests {
             BackendOptions::default(),
             noop_backing_storage(),
         ));
-        tt.run_once(async {
-            let fs = VirtualFileSystem::new();
-            let virtual_path = fs.root().join("foo.js".into());
-            let virtual_source = Vc::upcast::<Box<dyn Source>>(VirtualSource::new(
-                virtual_path,
-                AssetContent::File(FileContent::NotFound.cell().to_resolved().await?).cell(),
-            ))
+        tt.run_once(async { run_leaves_test().await })
+            .await
+            .unwrap();
+    }
+
+    #[turbo_tasks::function]
+    pub async fn run_leaves_test() -> Result<()> {
+        let fs = VirtualFileSystem::new();
+        let virtual_path = fs.root().join("foo.js".into());
+        let virtual_source = Vc::upcast::<Box<dyn Source>>(VirtualSource::new(
+            virtual_path,
+            AssetContent::File(FileContent::NotFound.cell().to_resolved().await?).cell(),
+        ))
+        .to_resolved()
+        .await?;
+
+        let non_virtual_path = fs.root().join("bar.js".into());
+        let non_virtual_source = Vc::upcast::<Box<dyn Source>>(FileSource::new(non_virtual_path))
             .to_resolved()
             .await?;
 
-            let non_virtual_path = fs.root().join("bar.js".into());
-            let non_virtual_source =
-                Vc::upcast::<Box<dyn Source>>(FileSource::new(non_virtual_path))
-                    .to_resolved()
-                    .await?;
+        {
+            let condition = RuleCondition::ReferenceType(ReferenceType::Runtime);
+            assert!(
+                condition
+                    .matches(
+                        virtual_source,
+                        &*virtual_path.await?,
+                        &ReferenceType::Runtime
+                    )
+                    .await
+                    .unwrap()
+            );
+            assert!(
+                !condition
+                    .matches(
+                        non_virtual_source,
+                        &*non_virtual_path.await?,
+                        &ReferenceType::Css(
+                            turbopack_core::reference_type::CssReferenceSubType::Compose
+                        )
+                    )
+                    .await
+                    .unwrap()
+            );
+        }
 
-            {
-                let condition = RuleCondition::ReferenceType(ReferenceType::Runtime);
-                assert!(
-                    condition
-                        .matches(
-                            virtual_source,
-                            &*virtual_path.await?,
-                            &ReferenceType::Runtime
-                        )
-                        .await
-                        .unwrap()
-                );
-                assert!(
-                    !condition
-                        .matches(
-                            non_virtual_source,
-                            &*non_virtual_path.await?,
-                            &ReferenceType::Css(
-                                turbopack_core::reference_type::CssReferenceSubType::Compose
-                            )
-                        )
-                        .await
-                        .unwrap()
-                );
-            }
-
-            {
-                let condition = RuleCondition::ResourceIsVirtualSource;
-                assert!(
-                    condition
-                        .matches(
-                            virtual_source,
-                            &*virtual_path.await?,
-                            &ReferenceType::Undefined
-                        )
-                        .await
-                        .unwrap()
-                );
-                assert!(
-                    !condition
-                        .matches(
-                            non_virtual_source,
-                            &*non_virtual_path.await?,
-                            &ReferenceType::Undefined
-                        )
-                        .await
-                        .unwrap()
-                );
-            }
-            {
-                let condition = RuleCondition::ResourcePathEquals(virtual_path.await?);
-                assert!(
-                    condition
-                        .matches(
-                            virtual_source,
-                            &*virtual_path.await?,
-                            &ReferenceType::Undefined
-                        )
-                        .await
-                        .unwrap()
-                );
-                assert!(
-                    !condition
-                        .matches(
-                            non_virtual_source,
-                            &*non_virtual_path.await?,
-                            &ReferenceType::Undefined
-                        )
-                        .await
-                        .unwrap()
-                );
-            }
-            {
-                let condition = RuleCondition::ResourcePathHasNoExtension;
-                assert!(
-                    condition
-                        .matches(
-                            virtual_source,
-                            &*fs.root().join("foo".into()).await?,
-                            &ReferenceType::Undefined
-                        )
-                        .await
-                        .unwrap()
-                );
-                assert!(
-                    !condition
-                        .matches(
-                            non_virtual_source,
-                            &*non_virtual_path.await?,
-                            &ReferenceType::Undefined
-                        )
-                        .await
-                        .unwrap()
-                );
-            }
-            {
-                let condition = RuleCondition::ResourcePathEndsWith("foo.js".to_string());
-                assert!(
-                    condition
-                        .matches(
-                            virtual_source,
-                            &*virtual_path.await?,
-                            &ReferenceType::Undefined
-                        )
-                        .await
-                        .unwrap()
-                );
-                assert!(
-                    !condition
-                        .matches(
-                            non_virtual_source,
-                            &*non_virtual_path.await?,
-                            &ReferenceType::Undefined
-                        )
-                        .await
-                        .unwrap()
-                );
-            }
-            anyhow::Ok(())
-        })
-        .await
-        .unwrap();
+        {
+            let condition = RuleCondition::ResourceIsVirtualSource;
+            assert!(
+                condition
+                    .matches(
+                        virtual_source,
+                        &*virtual_path.await?,
+                        &ReferenceType::Undefined
+                    )
+                    .await
+                    .unwrap()
+            );
+            assert!(
+                !condition
+                    .matches(
+                        non_virtual_source,
+                        &*non_virtual_path.await?,
+                        &ReferenceType::Undefined
+                    )
+                    .await
+                    .unwrap()
+            );
+        }
+        {
+            let condition = RuleCondition::ResourcePathEquals(virtual_path.await?);
+            assert!(
+                condition
+                    .matches(
+                        virtual_source,
+                        &*virtual_path.await?,
+                        &ReferenceType::Undefined
+                    )
+                    .await
+                    .unwrap()
+            );
+            assert!(
+                !condition
+                    .matches(
+                        non_virtual_source,
+                        &*non_virtual_path.await?,
+                        &ReferenceType::Undefined
+                    )
+                    .await
+                    .unwrap()
+            );
+        }
+        {
+            let condition = RuleCondition::ResourcePathHasNoExtension;
+            assert!(
+                condition
+                    .matches(
+                        virtual_source,
+                        &*fs.root().join("foo".into()).await?,
+                        &ReferenceType::Undefined
+                    )
+                    .await
+                    .unwrap()
+            );
+            assert!(
+                !condition
+                    .matches(
+                        non_virtual_source,
+                        &*non_virtual_path.await?,
+                        &ReferenceType::Undefined
+                    )
+                    .await
+                    .unwrap()
+            );
+        }
+        {
+            let condition = RuleCondition::ResourcePathEndsWith("foo.js".to_string());
+            assert!(
+                condition
+                    .matches(
+                        virtual_source,
+                        &*virtual_path.await?,
+                        &ReferenceType::Undefined
+                    )
+                    .await
+                    .unwrap()
+            );
+            assert!(
+                !condition
+                    .matches(
+                        non_virtual_source,
+                        &*non_virtual_path.await?,
+                        &ReferenceType::Undefined
+                    )
+                    .await
+                    .unwrap()
+            );
+        }
+        anyhow::Ok(())
     }
 
     #[tokio::test]
@@ -384,141 +386,143 @@ mod tests {
             BackendOptions::default(),
             noop_backing_storage(),
         ));
-        tt.run_once(async {
-            let fs = VirtualFileSystem::new();
-            let virtual_path = fs.root().join("foo.js".into());
-            let virtual_source = Vc::upcast::<Box<dyn Source>>(VirtualSource::new(
-                virtual_path,
-                AssetContent::File(FileContent::NotFound.cell().to_resolved().await?).cell(),
-            ))
+        tt.run_once(async { run_rule_condition_tree_test().await })
+            .await
+            .unwrap();
+    }
+
+    #[turbo_tasks::function]
+    pub async fn run_rule_condition_tree_test() -> Result<()> {
+        let fs = VirtualFileSystem::new();
+        let virtual_path = fs.root().join("foo.js".into());
+        let virtual_source = Vc::upcast::<Box<dyn Source>>(VirtualSource::new(
+            virtual_path,
+            AssetContent::File(FileContent::NotFound.cell().to_resolved().await?).cell(),
+        ))
+        .to_resolved()
+        .await?;
+
+        let non_virtual_path = fs.root().join("bar.js".into());
+        let non_virtual_source = Vc::upcast::<Box<dyn Source>>(FileSource::new(non_virtual_path))
             .to_resolved()
             .await?;
 
-            let non_virtual_path = fs.root().join("bar.js".into());
-            let non_virtual_source =
-                Vc::upcast::<Box<dyn Source>>(FileSource::new(non_virtual_path))
-                    .to_resolved()
-                    .await?;
+        {
+            // not
+            let condition = RuleCondition::not(RuleCondition::ResourceIsVirtualSource);
+            assert!(
+                !condition
+                    .matches(
+                        virtual_source,
+                        &*virtual_path.await?,
+                        &ReferenceType::Undefined
+                    )
+                    .await
+                    .unwrap()
+            );
+            assert!(
+                condition
+                    .matches(
+                        non_virtual_source,
+                        &*non_virtual_path.await?,
+                        &ReferenceType::Undefined
+                    )
+                    .await
+                    .unwrap()
+            );
+        }
+        {
+            // any
+            // Only one of the conditions matches our virtual source
+            let condition = RuleCondition::any(vec![
+                RuleCondition::ResourcePathInDirectory("doesnt/exist".to_string()),
+                RuleCondition::ResourceIsVirtualSource,
+                RuleCondition::ResourcePathHasNoExtension,
+            ]);
+            assert!(
+                condition
+                    .matches(
+                        virtual_source,
+                        &*virtual_path.await?,
+                        &ReferenceType::Undefined
+                    )
+                    .await
+                    .unwrap()
+            );
+            assert!(
+                !condition
+                    .matches(
+                        non_virtual_source,
+                        &*non_virtual_path.await?,
+                        &ReferenceType::Undefined
+                    )
+                    .await
+                    .unwrap()
+            );
+        }
+        {
+            // all
+            // Only one of the conditions matches our virtual source
+            let condition = RuleCondition::all(vec![
+                RuleCondition::ResourcePathEndsWith("foo.js".to_string()),
+                RuleCondition::ResourceIsVirtualSource,
+                RuleCondition::ResourcePathEquals(virtual_path.await?),
+            ]);
+            assert!(
+                condition
+                    .matches(
+                        virtual_source,
+                        &*virtual_path.await?,
+                        &ReferenceType::Undefined
+                    )
+                    .await
+                    .unwrap()
+            );
+            assert!(
+                !condition
+                    .matches(
+                        non_virtual_source,
+                        &*non_virtual_path.await?,
+                        &ReferenceType::Undefined
+                    )
+                    .await
+                    .unwrap()
+            );
+        }
+        {
+            // bigger tree
 
-            {
-                // not
-                let condition = RuleCondition::not(RuleCondition::ResourceIsVirtualSource);
-                assert!(
-                    !condition
-                        .matches(
-                            virtual_source,
-                            &*virtual_path.await?,
-                            &ReferenceType::Undefined
-                        )
-                        .await
-                        .unwrap()
-                );
-                assert!(
-                    condition
-                        .matches(
-                            non_virtual_source,
-                            &*non_virtual_path.await?,
-                            &ReferenceType::Undefined
-                        )
-                        .await
-                        .unwrap()
-                );
-            }
-            {
-                // any
-                // Only one of the conditions matches our virtual source
-                let condition = RuleCondition::any(vec![
-                    RuleCondition::ResourcePathInDirectory("doesnt/exist".to_string()),
-                    RuleCondition::ResourceIsVirtualSource,
-                    RuleCondition::ResourcePathHasNoExtension,
-                ]);
-                assert!(
-                    condition
-                        .matches(
-                            virtual_source,
-                            &*virtual_path.await?,
-                            &ReferenceType::Undefined
-                        )
-                        .await
-                        .unwrap()
-                );
-                assert!(
-                    !condition
-                        .matches(
-                            non_virtual_source,
-                            &*non_virtual_path.await?,
-                            &ReferenceType::Undefined
-                        )
-                        .await
-                        .unwrap()
-                );
-            }
-            {
-                // all
-                // Only one of the conditions matches our virtual source
-                let condition = RuleCondition::all(vec![
+            // Build a simple tree to cover our various composite conditions
+            let condition = RuleCondition::all(vec![
+                RuleCondition::ResourceIsVirtualSource,
+                RuleCondition::ResourcePathEquals(virtual_path.await?),
+                RuleCondition::Not(Box::new(RuleCondition::ResourcePathHasNoExtension)),
+                RuleCondition::Any(vec![
                     RuleCondition::ResourcePathEndsWith("foo.js".to_string()),
-                    RuleCondition::ResourceIsVirtualSource,
-                    RuleCondition::ResourcePathEquals(virtual_path.await?),
-                ]);
-                assert!(
-                    condition
-                        .matches(
-                            virtual_source,
-                            &*virtual_path.await?,
-                            &ReferenceType::Undefined
-                        )
-                        .await
-                        .unwrap()
-                );
-                assert!(
-                    !condition
-                        .matches(
-                            non_virtual_source,
-                            &*non_virtual_path.await?,
-                            &ReferenceType::Undefined
-                        )
-                        .await
-                        .unwrap()
-                );
-            }
-            {
-                // bigger tree
-
-                // Build a simple tree to cover our various composite conditions
-                let condition = RuleCondition::all(vec![
-                    RuleCondition::ResourceIsVirtualSource,
-                    RuleCondition::ResourcePathEquals(virtual_path.await?),
-                    RuleCondition::Not(Box::new(RuleCondition::ResourcePathHasNoExtension)),
-                    RuleCondition::Any(vec![
-                        RuleCondition::ResourcePathEndsWith("foo.js".to_string()),
-                        RuleCondition::ContentTypeEmpty,
-                    ]),
-                ]);
-                assert!(
-                    condition
-                        .matches(
-                            virtual_source,
-                            &*virtual_path.await?,
-                            &ReferenceType::Undefined
-                        )
-                        .await
-                        .unwrap()
-                );
-                assert!(
-                    !condition
-                        .matches(
-                            non_virtual_source,
-                            &*non_virtual_path.await?,
-                            &ReferenceType::Undefined
-                        )
-                        .await
-                        .unwrap()
-                );
-            }
-            anyhow::Ok(())
-        })
-        .await
-        .unwrap();
+                    RuleCondition::ContentTypeEmpty,
+                ]),
+            ]);
+            assert!(
+                condition
+                    .matches(
+                        virtual_source,
+                        &*virtual_path.await?,
+                        &ReferenceType::Undefined
+                    )
+                    .await
+                    .unwrap()
+            );
+            assert!(
+                !condition
+                    .matches(
+                        non_virtual_source,
+                        &*non_virtual_path.await?,
+                        &ReferenceType::Undefined
+                    )
+                    .await
+                    .unwrap()
+            );
+        }
+        anyhow::Ok(())
     }
 }
