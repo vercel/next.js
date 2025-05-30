@@ -111,6 +111,10 @@ jobs:
         uses: changesets/action@v1
         with:
           version: pnpm ci:version
+          # Default commitMode is "git-cli". It uses git commands to commit and push.
+          # However, it creates commit as `github-actions[bot]`. Therefore set "github-api"
+          # to create commits using the RELEASE_BOT_GITHUB_TOKEN token.
+          commitMode: 'github-api'
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
           RELEASE_TYPE: ${{ github.event.inputs.releaseType }}
