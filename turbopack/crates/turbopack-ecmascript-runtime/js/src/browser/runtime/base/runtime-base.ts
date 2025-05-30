@@ -21,6 +21,19 @@ declare var TURBOPACK_NEXT_CHUNK_URLS: ChunkUrl[] | undefined
 declare var CHUNK_BASE_PATH: string
 declare var CHUNK_SUFFIX_PATH: string
 
+function normalizeChunkPath(path: string) {
+  if (path.startsWith("./")) {
+      path = path.substring(2);
+  }
+  if (!path.endsWith("/")) {
+      path = path.concat("/");
+  }
+  return path;
+}
+
+const NORMED_CHUNK_BASE_PATH = normalizeChunkPath(CHUNK_BASE_PATH);
+const NORMED_CHUNK_SUFFIX_PATH = normalizeChunkPath(CHUNK_SUFFIX_PATH);
+
 // Provided by build or dev base
 declare function instantiateModule(id: ModuleId, source: SourceInfo): Module
 
@@ -314,10 +327,10 @@ function instantiateRuntimeModule(
  * Returns the URL relative to the origin where a chunk can be fetched from.
  */
 function getChunkRelativeUrl(chunkPath: ChunkPath | ChunkListPath): ChunkUrl {
-  return `${CHUNK_BASE_PATH}${chunkPath
+  return `${NORMED_CHUNK_BASE_PATH}${chunkPath
     .split('/')
     .map((p) => encodeURIComponent(p))
-    .join('/')}${CHUNK_SUFFIX_PATH}` as ChunkUrl
+    .join('/')}${NORMED_CHUNK_SUFFIX_PATH}` as ChunkUrl
 }
 
 /**
@@ -333,13 +346,16 @@ function getPathFromScript(
   if (typeof chunkScript === 'string') {
     return chunkScript as ChunkPath | ChunkListPath
   }
-  const chunkUrl =
+  let chunkUrl =
     typeof TURBOPACK_NEXT_CHUNK_URLS !== 'undefined'
       ? TURBOPACK_NEXT_CHUNK_URLS.pop()!
       : chunkScript.getAttribute('src')!
+  if (chunkUrl.startsWith("./")) {
+    chunkUrl = chunkUrl.substring(2);
+  }
   const src = decodeURIComponent(chunkUrl.replace(/[?#].*$/, ''))
-  const path = src.startsWith(CHUNK_BASE_PATH)
-    ? src.slice(CHUNK_BASE_PATH.length)
+  const path = src.startsWith(NORMED_CHUNK_BASE_PATH)
+    ? src.slice(NORMED_CHUNK_BASE_PATH.length)
     : src
   return path as ChunkPath | ChunkListPath
 }
