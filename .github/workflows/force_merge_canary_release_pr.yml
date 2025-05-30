@@ -23,4 +23,4 @@ jobs:
         run: gh pr merge --admin --squash "$PR_URL"
         env:
           PR_URL: ${{github.event.pull_request.html_url}}
-          GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          GH_TOKEN: ${{secrets.RELEASE_BOT_GITHUB_TOKEN}}
