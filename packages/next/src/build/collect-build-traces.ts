@@ -506,12 +506,19 @@ export async function collectBuildTraces({
         addToTracedFiles(root, relativeModulePath, minimalServerTracedFiles)
       }
 
+      const serverTracedFilesSorted = Array.from(serverTracedFiles)
+      serverTracedFilesSorted.sort()
+      const minimalServerTracedFilesSorted = Array.from(
+        minimalServerTracedFiles
+      )
+      minimalServerTracedFilesSorted.sort()
+
       await Promise.all([
         fs.writeFile(
           nextServerTraceOutput,
           JSON.stringify({
             version: 1,
-            files: Array.from(serverTracedFiles),
+            files: Array.from(serverTracedFilesSorted),
           } as {
             version: number
             files: string[]
@@ -521,7 +528,7 @@ export async function collectBuildTraces({
           nextMinimalTraceOutput,
           JSON.stringify({
             version: 1,
-            files: Array.from(minimalServerTracedFiles),
+            files: Array.from(minimalServerTracedFilesSorted),
           } as {
             version: number
             files: string[]
