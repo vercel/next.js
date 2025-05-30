@@ -321,7 +321,7 @@ impl Uncommitted {
         }
     }
 
-    /// Converts the current uncommitted bytes into a Bytes, resetting our
+    /// Converts the current uncommitted bytes into a `Cow<'static, [u8]>`, resetting our
     /// representation to None.
     fn finish(&mut self) -> Option<Cow<'static, [u8]>> {
         match mem::take(self) {
