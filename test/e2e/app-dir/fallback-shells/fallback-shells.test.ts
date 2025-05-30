@@ -52,7 +52,29 @@ describe('fallback-shells', () => {
         // TODO: Activate for deploy tests once background revalidation for
         // prerendered pages is not triggered anymore on the first visit.
         if (!isNextDeploy) {
-          it('shares a cached layout between a prerendered route shell and the fallback shell', async () => {
+          it('shares a cached parent layout between a prerendered route shell and the fallback shell', async () => {
+            // `/foo` was prerendered
+            let $ = await next.render$(
+              '/with-cached-io/with-suspense/params-in-page/foo'
+            )
+
+            const selector = `[data-testid="root-layout-${isNextDev ? 'runtime' : 'buildtime'}"]`
+            const layoutDateRouteShell = $(selector).text()
+
+            // Sanity check that we've selected the correct element.
+            expect(layoutDateRouteShell).toStartWith('Root Layout:')
+
+            // `/bar` was not prerendered, so the fallback shell is used
+            $ = await next.render$(
+              '/with-cached-io/with-suspense/params-in-page/bar'
+            )
+
+            const layoutDateFallbackShell = $(selector).text()
+
+            expect(layoutDateFallbackShell).toBe(layoutDateRouteShell)
+          })
+
+          it('shares a cached layout with unused dynamic params between a prerendered route shell and the fallback shell', async () => {
             // `/foo` was prerendered
             let $ = await next.render$(
               '/with-cached-io/with-suspense/params-in-page/foo'
