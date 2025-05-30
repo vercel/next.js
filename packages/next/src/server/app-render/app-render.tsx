@@ -1331,13 +1331,19 @@ async function renderToHTMLOrFlightImpl(
     nonce,
   } = parsedRequestHeaders
 
+  const { isStaticGeneration, fallbackRouteParams } = workStore
+
   /**
    * The metadata items array created in next-app-loader with all relevant information
    * that we need to resolve the final metadata.
    */
   let requestId: string
 
-  if (process.env.NEXT_RUNTIME === 'edge') {
+  if (isStaticGeneration) {
+    requestId = Buffer.from(
+      await crypto.subtle.digest('SHA-1', Buffer.from(req.url))
+    ).toString('hex')
+  } else if (process.env.NEXT_RUNTIME === 'edge') {
     requestId = crypto.randomUUID()
   } else {
     requestId = require('next/dist/compiled/nanoid').nanoid()
@@ -1347,8 +1353,6 @@ async function renderToHTMLOrFlightImpl(
    * Dynamic parameters. E.g. when you visit `/dashboard/vercel` which is rendered by `/dashboard/[slug]` the value will be {"slug": "vercel"}.
    */
   const params = renderOpts.params ?? {}
-
-  const { isStaticGeneration, fallbackRouteParams } = workStore
 
   const getDynamicParamFromSegment = makeGetDynamicParamFromSegment(
     params,
