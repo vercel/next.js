@@ -66,13 +66,20 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
 
-      - name: Check for existing Freeze Scheduled Release PR
+      - name: Check for existing Freeze Scheduled Release PR and skip if exists
         if: ${{ github.event_name == 'schedule' }}
         run: |
-          FREEZE_PR=$(gh pr list --label "Freeze: Scheduled Release" --state open --json number --jq '.[0].number // empty')
-          if [ ! -z "$FREEZE_PR" ]; then
+          # Check if there is an open pull request labeled "Freeze: Scheduled Release"
+          freeze_pr_number=$(gh pr list \
+            --label "Freeze: Scheduled Release" \
+            --state open \
+            --json number \
+            --jq '.[0].number // empty')
+
+          # If there is an open PR with the "Freeze: Scheduled Release" label, skip scheduled release.
+          if [ -n "$freeze_pr_number" ]; then
             echo "Found existing PR with 'Freeze: Scheduled Release' label. Skipping scheduled release..."
-            echo "PR: https://github.com/${{ github.repository }}/pull/$FREEZE_PR"
+            echo "PR: https://github.com/${{ github.repository }}/pull/$freeze_pr_number"
             exit 1
           fi
         env:
