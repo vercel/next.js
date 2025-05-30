@@ -609,7 +609,7 @@ pub async fn compute_module_batches(
                 extracted_shared_items += selected_items;
 
                 // Check if a batch is completely selected. In that case we can replace all other
-                // occurences with a reference to that batch
+                // occurrences with a reference to that batch
                 let exact_match = batches_with_item_index
                     .iter()
                     .find(|&&(batch_idx, item_idx)| {
@@ -617,7 +617,7 @@ pub async fn compute_module_batches(
                             && pre_batches.batches[batch_idx].items.len() == selected_items
                     });
                 if let Some(&(exact_match, _)) = exact_match {
-                    // Replace all other occurences with a reference to the exact match
+                    // Replace all other occurrences with a reference to the exact match
                     for &(batch_index, item_start) in batches_with_item_index.iter() {
                         if batch_index != exact_match {
                             pre_batches.batches[batch_index].items.splice(
@@ -635,7 +635,7 @@ pub async fn compute_module_batches(
                         }
                     }
                 } else {
-                    // Create a new batch of the shared part and replace all occurences with a
+                    // Create a new batch of the shared part and replace all occurrences with a
                     // reference to that batch
                     let first_batch_index = batches_with_item_index[0].0;
                     let first_batch_item_index = batches_with_item_index[0].1;
