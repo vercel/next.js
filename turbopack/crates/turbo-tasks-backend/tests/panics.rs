@@ -1,7 +1,7 @@
 use core::panic;
 use std::{
     panic::{set_hook, take_hook},
-    sync::{Arc, LazyLock},
+    sync::LazyLock,
 };
 
 use anyhow::Result;
@@ -28,11 +28,11 @@ async fn test_panics_include_location() {
     let error = result.unwrap_err();
     let root_cause = error.root_cause();
 
-    let Some(panic) = root_cause.downcast_ref::<Arc<TurboTasksExecutionError>>() else {
+    let Some(panic) = root_cause.downcast_ref::<TurboTasksExecutionError>() else {
         panic!("Expected a TurboTasksExecutionError");
     };
 
-    let TurboTasksExecutionError::Panic(panic) = &**panic else {
+    let TurboTasksExecutionError::Panic(panic) = panic else {
         panic!("Expected a TurboTasksExecutionError::Panic");
     };
 

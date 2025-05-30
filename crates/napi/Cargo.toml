@@ -50,16 +50,7 @@ console-subscriber = { workspace = true, optional = true }
 dhat = { workspace = true, optional = true }
 indexmap = { workspace = true }
 owo-colors = { workspace = true }
-napi = { version = "2", default-features = false, features = [
-    "napi3",
-    "serde-json",
-    "tokio_rt",
-    "error_anyhow",
-    # Lightningcss uses this features
-    "napi4",
-    "napi5",
-    "compat-mode"
-] }
+napi = { workspace = true }
 napi-derive = "2"
 next-custom-transforms = { workspace = true }
 rand = { workspace = true }
@@ -103,7 +94,6 @@ lightningcss-napi = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
-turbo-tasks-memory = { workspace = true }
 turbo-tasks-backend = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 next-api = { workspace = true }

@@ -78,7 +78,7 @@ export default nextConfig
 
 ### Step 3: Create the Root Layout
 
-A Next.js [App Router](/docs/app) application must include a [root layout](/docs/app/building-your-application/routing/layouts-and-templates#root-layout-required) file, which is a [React Server Component](/docs/app/getting-started/server-and-client-components) that will wrap all your pages.
+A Next.js [App Router](/docs/app) application must include a [root layout](/docs/app/api-reference/file-conventions/layout#root-layout) file, which is a [React Server Component](/docs/app/getting-started/server-and-client-components) that will wrap all your pages.
 
 The closest equivalent of the root layout file in a CRA application is `public/index.html`, which includes your `<html>`, `<head>`, and `<body>` tags.
 
@@ -306,7 +306,7 @@ If you’re using Tailwind CSS, see our [installation docs](/docs/app/guides/tai
 
 Create React App uses `src/index.tsx` (or `index.js`) as the entry point. In Next.js (App Router), each folder inside the `app` directory corresponds to a route, and each folder should have a `page.tsx`.
 
-Since we want to keep the app as an SPA for now and intercept **all** routes, we’ll use an [optional catch-all route](/docs/app/building-your-application/routing/dynamic-routes#optional-catch-all-segments).
+Since we want to keep the app as an SPA for now and intercept **all** routes, we’ll use an [optional catch-all route](/docs/app/api-reference/file-conventions/dynamic-routes#optional-catch-all-segments).
 
 1. **Create a `[[...slug]]` directory inside `app`.**
 

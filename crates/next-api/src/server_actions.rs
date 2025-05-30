@@ -435,14 +435,17 @@ pub async fn map_server_actions(graph: Vc<SingleModuleGraph>) -> Result<Vc<AllMo
         .iter_nodes()
         .map(|node| {
             async move {
-                let SingleModuleGraphModuleNode { module, layer, .. } = node;
-
+                let SingleModuleGraphModuleNode { module } = node;
+                let layer = match module.ident().await?.layer {
+                    Some(l) => Some(l.await?),
+                    None => None,
+                };
                 // TODO: compare module contexts instead?
-                let layer = match &layer {
-                    Some(layer) if &**layer == "app-rsc" || &**layer == "app-edge-rsc" => {
+                let layer = match layer {
+                    Some(layer) if *layer == "app-rsc" || *layer == "app-edge-rsc" => {
                         ActionLayer::Rsc
                     }
-                    Some(layer) if &**layer == "app-client" => ActionLayer::ActionBrowser,
+                    Some(layer) if *layer == "app-client" => ActionLayer::ActionBrowser,
                     // TODO really ignore SSR?
                     _ => return Ok(None),
                 };

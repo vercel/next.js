@@ -355,6 +355,15 @@ export async function exportPages(
     options,
   } = input
 
+  if (nextConfig.experimental.enablePrerenderSourceMaps) {
+    try {
+      // Same as `next dev`
+      // Limiting the stack trace to a useful amount of frames is handled by ignore-listing.
+      // TODO: How high can we go without severely impacting CPU/memory?
+      Error.stackTraceLimit = 50
+    } catch {}
+  }
+
   // If the fetch cache was enabled, we need to create an incremental
   // cache instance for this page.
   const incrementalCache = await createIncrementalCache({

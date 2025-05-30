@@ -1223,7 +1223,9 @@ async function renderToHTMLOrFlightImpl(
       const workUnitStore = workUnitAsyncStorage.getStore()
       return !!(
         workUnitStore &&
-        (workUnitStore.type === 'prerender' || workUnitStore.type === 'cache')
+        (workUnitStore.type === 'prerender' ||
+          workUnitStore.type === 'prerender-client' ||
+          workUnitStore.type === 'cache')
       )
     }
 
@@ -1285,7 +1287,9 @@ async function renderToHTMLOrFlightImpl(
     })
   }
 
-  const metadata: AppPageRenderResultMetadata = {}
+  const metadata: AppPageRenderResultMetadata = {
+    statusCode: isNotFoundPath ? 404 : undefined,
+  }
 
   const appUsingSizeAdjustment = !!nextFontManifest?.appUsingSizeAdjust
 
@@ -1327,13 +1331,19 @@ async function renderToHTMLOrFlightImpl(
     nonce,
   } = parsedRequestHeaders
 
+  const { isStaticGeneration, fallbackRouteParams } = workStore
+
   /**
    * The metadata items array created in next-app-loader with all relevant information
    * that we need to resolve the final metadata.
    */
   let requestId: string
 
-  if (process.env.NEXT_RUNTIME === 'edge') {
+  if (isStaticGeneration) {
+    requestId = Buffer.from(
+      await crypto.subtle.digest('SHA-1', Buffer.from(req.url))
+    ).toString('hex')
+  } else if (process.env.NEXT_RUNTIME === 'edge') {
     requestId = crypto.randomUUID()
   } else {
     requestId = require('next/dist/compiled/nanoid').nanoid()
@@ -1343,8 +1353,6 @@ async function renderToHTMLOrFlightImpl(
    * Dynamic parameters. E.g. when you visit `/dashboard/vercel` which is rendered by `/dashboard/[slug]` the value will be {"slug": "vercel"}.
    */
   const params = renderOpts.params ?? {}
-
-  const { isStaticGeneration, fallbackRouteParams } = workStore
 
   const getDynamicParamFromSegment = makeGetDynamicParamFromSegment(
     params,
@@ -1567,12 +1575,14 @@ async function renderToHTMLOrFlightImpl(
         requestStore,
         serverActions,
         ctx,
+        metadata,
       })
 
       if (actionRequestResult) {
         if (actionRequestResult.type === 'not-found') {
           const notFoundLoaderTree = createNotFoundLoaderTree(loaderTree)
           res.statusCode = 404
+          metadata.statusCode = 404
           const stream = await renderToStreamWithTracing(
             requestStore,
             req,
@@ -1580,7 +1590,8 @@ async function renderToHTMLOrFlightImpl(
             ctx,
             notFoundLoaderTree,
             formState,
-            postponedState
+            postponedState,
+            metadata
           )
 
           return new RenderResult(stream, { metadata })
@@ -1606,7 +1617,8 @@ async function renderToHTMLOrFlightImpl(
       ctx,
       loaderTree,
       formState,
-      postponedState
+      postponedState,
+      metadata
     )
 
     if (workStore.invalidDynamicUsageError) {
@@ -1741,7 +1753,8 @@ async function renderToStream(
   ctx: AppRenderContext,
   tree: LoaderTree,
   formState: any,
-  postponedState: PostponedState | null
+  postponedState: PostponedState | null,
+  metadata: AppPageRenderResultMetadata
 ): Promise<ReadableStream<Uint8Array>> {
   const { assetPrefix, nonce, pagePath, renderOpts } = ctx
 
@@ -2091,10 +2104,12 @@ async function renderToStream(
 
     if (isHTTPAccessFallbackError(err)) {
       res.statusCode = getAccessFallbackHTTPStatus(err)
+      metadata.statusCode = res.statusCode
       errorType = getAccessFallbackErrorTypeByStatus(res.statusCode)
     } else if (isRedirectError(err)) {
       errorType = 'redirect'
       res.statusCode = getRedirectStatusCodeFromError(err)
+      metadata.statusCode = res.statusCode
 
       const redirectUrl = addPathPrefix(getURLFromRedirectError(err), basePath)
 
@@ -2108,6 +2123,7 @@ async function renderToStream(
       setHeader('location', redirectUrl)
     } else if (!shouldBailoutToCSR) {
       res.statusCode = 500
+      metadata.statusCode = res.statusCode
     }
 
     const [errorPreinitScripts, errorBootstrapScript] = getRequiredScripts(
@@ -2398,7 +2414,7 @@ async function spawnDynamicValidationInDev(
   if (initialServerResult) {
     const initialClientController = new AbortController()
     const initialClientPrerenderStore: PrerenderStore = {
-      type: 'prerender',
+      type: 'prerender-client',
       phase: 'render',
       rootParams,
       implicitTags,
@@ -2546,7 +2562,7 @@ async function spawnDynamicValidationInDev(
   )
   const finalClientController = new AbortController()
   const finalClientPrerenderStore: PrerenderStore = {
-    type: 'prerender',
+    type: 'prerender-client',
     phase: 'render',
     rootParams,
     implicitTags,
@@ -2997,7 +3013,7 @@ async function prerenderToStream(
       if (initialServerResult) {
         const initialClientController = new AbortController()
         const initialClientPrerenderStore: PrerenderStore = {
-          type: 'prerender',
+          type: 'prerender-client',
           phase: 'render',
           rootParams,
           implicitTags,
@@ -3153,7 +3169,7 @@ async function prerenderToStream(
       )
       const finalClientController = new AbortController()
       const finalClientPrerenderStore: PrerenderStore = {
-        type: 'prerender',
+        type: 'prerender-client',
         phase: 'render',
         rootParams,
         implicitTags,
@@ -3724,16 +3740,19 @@ async function prerenderToStream(
 
     if (isHTTPAccessFallbackError(err)) {
       res.statusCode = getAccessFallbackHTTPStatus(err)
+      metadata.statusCode = res.statusCode
       errorType = getAccessFallbackErrorTypeByStatus(res.statusCode)
     } else if (isRedirectError(err)) {
       errorType = 'redirect'
       res.statusCode = getRedirectStatusCodeFromError(err)
+      metadata.statusCode = res.statusCode
 
       const redirectUrl = addPathPrefix(getURLFromRedirectError(err), basePath)
 
       setHeader('location', redirectUrl)
     } else if (!shouldBailoutToCSR) {
       res.statusCode = 500
+      metadata.statusCode = res.statusCode
     }
 
     const [errorPreinitScripts, errorBootstrapScript] = getRequiredScripts(

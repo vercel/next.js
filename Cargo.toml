@@ -251,7 +251,7 @@ next-custom-transforms = { path = "crates/next-custom-transforms" }
 auto-hash-map = { path = "turbopack/crates/turbo-tasks-auto-hash-map" }
 swc-ast-explorer = { path = "turbopack/crates/turbopack-swc-ast-explorer" }
 turbo-prehash = { path = "turbopack/crates/turbo-prehash" }
-turbo-rcstr = { path = "turbopack/crates/turbo-rcstr" }
+turbo-rcstr = { path = "turbopack/crates/turbo-rcstr", features = ["napi"] }
 turbo-esregex = { path = "turbopack/crates/turbo-esregex" }
 turbo-persistence = { path = "turbopack/crates/turbo-persistence" }
 turbo-tasks-malloc = { path = "turbopack/crates/turbo-tasks-malloc", default-features = false }
@@ -266,7 +266,6 @@ turbo-tasks-hash = { path = "turbopack/crates/turbo-tasks-hash" }
 turbo-tasks-macros = { path = "turbopack/crates/turbo-tasks-macros" }
 turbo-tasks-macros-shared = { path = "turbopack/crates/turbo-tasks-macros-shared" }
 turbo-tasks-macros-tests = { path = "turbopack/crates/turbo-tasks-macros-tests" }
-turbo-tasks-memory = { path = "turbopack/crates/turbo-tasks-memory" }
 turbo-tasks-testing = { path = "turbopack/crates/turbo-tasks-testing" }
 turbopack = { path = "turbopack/crates/turbopack" }
 turbopack-bench = { path = "turbopack/crates/turbopack-bench" }
@@ -297,7 +296,7 @@ turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
 # SWC crates
-swc_core = { version = "26.0.0", features = [
+swc_core = { version = "26.2.2", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
 ] }
@@ -309,7 +308,7 @@ miette = { version = "5.10.0", features = ["fancy"] }
 mdxjs = "1.0.1"
 modularize_imports = { version = "0.86.0" }
 styled_components = { version = "0.114.0" }
-styled_jsx = { version = "0.90.0" }
+styled_jsx = { version = "0.90.3" }
 swc_emotion = { version = "0.90.0" }
 swc_relay = { version = "0.60.0" }
 
@@ -341,7 +340,7 @@ concurrent-queue = "2.5.0"
 console = "0.15.5"
 console-subscriber = "0.4.1"
 const_format = "0.2.30"
-criterion = "0.5.1"
+criterion = { package = "codspeed-criterion-compat", version = "2.10.1" }
 crossbeam-channel = "0.5.8"
 dashmap = "6.1.0"
 data-encoding = "2.3.3"
@@ -371,6 +370,16 @@ lightningcss-napi = { version = "0.4.4", default-features = false, features = [
 ]}
 markdown = "1.0.0-alpha.18"
 mime = "0.3.16"
+napi = { version = "2", default-features = false, features = [
+    "napi3",
+    "serde-json",
+    "tokio_rt",
+    "error_anyhow",
+    # Lightningcss uses this features
+    "napi4",
+    "napi5",
+    "compat-mode"
+] }
 nohash-hasher = "0.2.0"
 notify = "8.0.0"
 once_cell = "1.17.1"
@@ -431,3 +440,5 @@ webbrowser = "0.8.7"
 
 [patch.crates-io]
 mdxjs = { git = "https://github.com/kdy1/mdxjs-rs", branch = "swc-core-26" }
+# Use unreleased version of sourcemap, in the name of performance
+sourcemap = { git = "https://github.com/getsentry/rust-sourcemap", branch = "master" }

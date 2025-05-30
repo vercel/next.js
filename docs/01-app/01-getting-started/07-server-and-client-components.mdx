@@ -7,52 +7,15 @@ related:
   description: Learn more about the APIs mentioned in this page.
   links:
     - app/api-reference/directives/use-client
-    - app/api-reference/file-conventions/route
 ---
 
 By default, layouts and pages are [Server Components](https://react.dev/reference/rsc/server-components), which lets you fetch data and render parts of your UI on the server, optionally cache the result, and stream it to the client. When you need interactivity or browser APIs, you can use [Client Components](https://react.dev/reference/rsc/use-client) to layer in functionality.
 
-This page explains how Server and Client Components work in Next.js, when to use them, and how to compose them together in your application.
-
-## How do Server and Client Components work in Next.js?
-
-### On the server
-
-On the server, Next.js uses React's APIs to orchestrate rendering. The rendering work is split into chunks, by individual route segments ([layouts and pages](/docs/app/getting-started/layouts-and-pages)):
-
-- **Server Components** are rendered into a special data format called the React Server Component Payload (RSC Payload).
-- **Client Components** and the RSC Payload are used to [prerender](/docs/app/getting-started/partial-prerendering#how-does-partial-prerendering-work) HTML.
-
-> **What is the React Server Component Payload (RSC)?**
->
-> The RSC Payload is a compact binary representation of the rendered React Server Components tree. It's used by React on the client to update the browser's DOM. The RSC Payload contains:
->
-> - The rendered result of Server Components
-> - Placeholders for where Client Components should be rendered and references to their JavaScript files
-> - Any props passed from a Server Component to a Client Component
-
-### On the client (first load)
-
-Then, on the client:
-
-1. **HTML** is used to immediately show a fast non-interactive preview of the route to the user.
-2. **RSC Payload** is used to reconcile the Client and Server Component trees.
-3. **JavaScript** is used to hydrate Client Components and make the application interactive.
-
-> **What is hydration?**
->
-> Hydration is React's process for attaching [event handlers](https://react.dev/learn/responding-to-events) to the DOM, to make the static HTML interactive.
-
-### Subsequent Navigations
-
-On subsequent navigations:
-
-- The **RSC Payload** is prefetched and cached for instant navigation.
-- **Client Components** are rendered entirely on the client, without the server-rendered HTML.
+This page explains how Server and Client Components work in Next.js and when to use them, with examples of how to compose them together in your application.
 
 ## When to use Server and Client Components?
 
-The client and server environments have different capabilities. Server and Client components allow you to run logic in each environment, and compose them together in the same application.
+The client and server environments have different capabilities. Server and Client components allow you to run logic in each environment depending on your use case.
 
 Use **Client Components** when you need:
 
@@ -127,6 +90,42 @@ export default function LikeButton({ likes }) {
   // ...
 }
 ```
+
+## How do Server and Client Components work in Next.js?
+
+### On the server
+
+On the server, Next.js uses React's APIs to orchestrate rendering. The rendering work is split into chunks, by individual route segments ([layouts and pages](/docs/app/getting-started/layouts-and-pages)):
+
+- **Server Components** are rendered into a special data format called the React Server Component Payload (RSC Payload).
+- **Client Components** and the RSC Payload are used to [prerender](/docs/app/getting-started/partial-prerendering#how-does-partial-prerendering-work) HTML.
+
+> **What is the React Server Component Payload (RSC)?**
+>
+> The RSC Payload is a compact binary representation of the rendered React Server Components tree. It's used by React on the client to update the browser's DOM. The RSC Payload contains:
+>
+> - The rendered result of Server Components
+> - Placeholders for where Client Components should be rendered and references to their JavaScript files
+> - Any props passed from a Server Component to a Client Component
+
+### On the client (first load)
+
+Then, on the client:
+
+1. **HTML** is used to immediately show a fast non-interactive preview of the route to the user.
+2. **RSC Payload** is used to reconcile the Client and Server Component trees.
+3. **JavaScript** is used to hydrate Client Components and make the application interactive.
+
+> **What is hydration?**
+>
+> Hydration is React's process for attaching [event handlers](https://react.dev/learn/responding-to-events) to the DOM, to make the static HTML interactive.
+
+### Subsequent Navigations
+
+On subsequent navigations:
+
+- The **RSC Payload** is prefetched and cached for instant navigation.
+- **Client Components** are rendered entirely on the client, without the server-rendered HTML.
 
 ## Examples
 
@@ -508,9 +507,19 @@ export default function Page() {
 
 ### Preventing environment poisoning
 
-JavaScript modules can be shared between both Server and Client Components modules. This means it's possible to accidentanlly import server-only code into the client.
+JavaScript modules can be shared between both Server and Client Components modules. This means it's possible to accidentanlly import server-only code into the client. For example, consider the following function:
 
-For example, take the following function:
+```ts filename="lib/data.ts" switcher
+export async function getData() {
+  const res = await fetch('https://external-service.com/data', {
+    headers: {
+      authorization: process.env.API_KEY,
+    },
+  })
+
+  return res.json()
+}
+```
 
 ```js filename="lib/data.js" switcher
 export async function getData() {
@@ -554,4 +563,4 @@ export async function getData() {
 
 Now, if you try to import the module into a Client Component, there will be a build-time error.
 
-> **Good to know**: The corresponding [`client-only` package](https://www.npmjs.com/package/client-only) can be used to mark modules that contain client-only code – for example, code that accesses the `window` object.
+> **Good to know**: The corresponding [`client-only` package](https://www.npmjs.com/package/client-only) can be used to mark modules that contain client-only logic like code that accesses the `window` object.

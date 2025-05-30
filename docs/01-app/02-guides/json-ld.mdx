@@ -6,7 +6,11 @@ description: Learn how to add JSON-LD to your Next.js application to describe yo
 
 [JSON-LD](https://json-ld.org/) is a format for structured data that can be used by search engines and AI to to help them understand the structure of the page beyond pure content. For example, you can use it to describe a person, an event, an organization, a movie, a book, a recipe, and many other types of entities.
 
-Our current recommendation for JSON-LD is to render structured data as a `<script>` tag in your `layout.js` or `page.js` components. For example:
+Our current recommendation for JSON-LD is to render structured data as a `<script>` tag in your `layout.js` or `page.js` components.
+
+The following snippet uses `JSON.stringify`, which does not sanitize malicious strings used in XSS injection. To prevent this type of vulnerability, you can scrub `HTML` tags from the `JSON-LD` payload, for example, by replacing the character, `<`, with its unicode equivalent, `\u003c`.
+
+Review your organization's recommended approach to sanitize potentially dangerous strings, or use community maintained alternatives for `JSON.stringify` such as, [serialize-javascript](https://www.npmjs.com/package/serialize-javascript).
 
 ```tsx filename="app/products/[id]/page.tsx" switcher
 export default async function Page({ params }) {
@@ -26,7 +30,9 @@ export default async function Page({ params }) {
       {/* Add JSON-LD to your page */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c'),
+        }}
       />
       {/* ... */}
     </section>
@@ -52,7 +58,9 @@ export default async function Page({ params }) {
       {/* Add JSON-LD to your page */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c'),
+        }}
       />
       {/* ... */}
     </section>
