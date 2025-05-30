@@ -156,6 +156,7 @@ pub fn create_turbo_tasks(
     persistent_caching: bool,
     _memory_limit: usize,
     dependency_tracking: bool,
+    is_ci: bool,
 ) -> Result<NextTurboTasks> {
     Ok(if persistent_caching {
         let version_info = GitVersionInfo {
@@ -174,7 +175,11 @@ pub fn create_turbo_tasks(
                     dependency_tracking,
                     ..Default::default()
                 },
-                default_backing_storage(&output_path.join("cache/turbopack"), &version_info)?,
+                default_backing_storage(
+                    &output_path.join("cache/turbopack"),
+                    &version_info,
+                    is_ci,
+                )?,
             ),
         ))
     } else {
