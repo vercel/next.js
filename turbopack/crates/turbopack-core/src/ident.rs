@@ -157,6 +157,13 @@ impl AssetIdent {
     }
 
     #[turbo_tasks::function]
+    pub fn with_fragment(&self, fragment: ResolvedVc<RcStr>) -> Vc<Self> {
+        let mut this = self.clone();
+        this.fragment = fragment;
+        Self::new(Value::new(this))
+    }
+
+    #[turbo_tasks::function]
     pub fn with_modifier(&self, modifier: ResolvedVc<RcStr>) -> Vc<Self> {
         let mut this = self.clone();
         this.add_modifier(modifier);

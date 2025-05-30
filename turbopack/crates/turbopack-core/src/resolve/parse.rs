@@ -71,18 +71,18 @@ fn split_off_query_fragment(mut raw: &str) -> (Pattern, RcStr, RcStr) {
 
     let hash = match raw.as_bytes().iter().position(|&b| b == b'#') {
         Some(pos) => {
-            let hash = RcStr::from(&raw[pos..]);
-            raw = &raw[..pos];
-            hash
+            let (prefix, hash) = raw.split_at(pos);
+            raw = prefix;
+            RcStr::from(hash)
         }
         None => RcStr::default(),
     };
 
     let query = match raw.as_bytes().iter().position(|&b| b == b'?') {
         Some(pos) => {
-            let query = RcStr::from(&raw[pos..]);
-            raw = &raw[..pos];
-            query
+            let (prefix, query) = raw.split_at(pos);
+            raw = prefix;
+            RcStr::from(query)
         }
         None => RcStr::default(),
     };
