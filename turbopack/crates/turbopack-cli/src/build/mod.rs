@@ -199,7 +199,11 @@ async fn build_internal(
     target: Target,
 ) -> Result<Vc<()>> {
     let output_fs = output_fs(project_dir.clone());
-    let project_fs = project_fs(root_dir.clone(),  /** watch= */false);
+    let project_fs = project_fs(
+        root_dir.clone(),
+        /** watch= */
+        false,
+    );
     let project_relative = project_dir.strip_prefix(&*root_dir).unwrap();
     let project_relative: RcStr = project_relative
         .strip_prefix(MAIN_SEPARATOR)
