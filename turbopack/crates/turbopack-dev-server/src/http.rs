@@ -1,3 +1,5 @@
+use std::io::Cursor;
+
 use anyhow::{Result, anyhow};
 use auto_hash_map::AutoSet;
 use futures::{StreamExt, TryStreamExt};
@@ -94,7 +96,8 @@ pub async fn process_request_with_content_source(
         Some("get_from_source_operation"),
     )
     .await?;
-    match &*resolved_result.await? {
+    let result = resolved_result.await?;
+    match &*result {
         GetFromSourceResult::Static {
             content,
             status_code,
@@ -172,11 +175,15 @@ pub async fn process_request_with_content_source(
                 }
 
                 let content = file.content();
+                // We already have all the bytes in memory
+                let content = content.to_bytes()?.into_owned();
                 let response = if should_compress {
                     header_map.insert(CONTENT_ENCODING, HeaderValue::from_static("gzip"));
 
                     // Grab ropereader stream, coerce anyhow::Error to std::io::Error
-                    let stream_ext = content.read().into_stream().map_err(std::io::Error::other);
+                    let stream_ext = ReaderStream::new(Cursor::new(content))
+                        .into_stream()
+                        .map_err(std::io::Error::other);
 
                     let gzipped_stream =
                         ReaderStream::new(async_compression::tokio::bufread::GzipEncoder::new(
@@ -190,7 +197,7 @@ pub async fn process_request_with_content_source(
                         hyper::header::HeaderValue::try_from(content.len().to_string())?,
                     );
 
-                    response.body(hyper::Body::wrap_stream(ReaderStream::new(content.read())))?
+                    response.body(hyper::Body::from(content))?
                 };
 
                 return Ok((response, side_effects));
