@@ -1028,7 +1028,7 @@ importers:
         specifier: 15.4.0-canary.54
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 15.4.0-canary.54
+        specifier: 15.4.0-canary.55
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1720,7 +1720,7 @@ importers:
     devDependencies:
       next:
         specifier: 15.4.0-canary.54
-        version: link:../next
+        version: 15.4.0-canary.54(@babel/core@7.26.10)(@opentelemetry/api@1.6.0)(@playwright/test@1.41.2)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@19.0.0-beta-e552027-20250112)(react-dom@19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-197d6a04-20250424))(react@19.2.0-canary-197d6a04-20250424)(sass@1.77.8)
       outdent:
         specifier: 0.8.0
         version: 0.8.0
@@ -4357,6 +4357,57 @@ packages:
 
   '@napi-rs/triples@1.2.0':
     resolution: {integrity: sha512-HAPjR3bnCsdXBsATpDIP5WCrw0JcACwhhrwIAQhiR46n+jm+a2F8kBsfseAuWtSyQ+H3Yebt2k43B5dy+04yMA==}
+
+  '@next/env@15.4.0-canary.54':
+    resolution: {integrity: sha512-y9Ue3Rnm+S/NhVMrV5WTP8s6iS4ypolU6J1MwIHXXzsoy0toLid9pEcnIhnlLBWGHWzxBJ88gbzElbS7b/Jd5A==}
+
+  '@next/swc-darwin-arm64@15.4.0-canary.54':
+    resolution: {integrity: sha512-+jMcIjMYWdG1ZMO1qdkW/UgPbwB/G+VBOL7gi8C+9E7StE6m4PXIHQ823h2PSpgDPmjh5wqmjXiIP69+x3WbQQ==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@next/swc-darwin-x64@15.4.0-canary.54':
+    resolution: {integrity: sha512-OXcxdo5NuED6EE70ughvc04MOUs8mA0L7q//Fo4yPXnH5JSiFCqSQZdG5kHM0UaLcGHAEuA9tHCmU77I6JKHnQ==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [darwin]
+
+  '@next/swc-linux-arm64-gnu@15.4.0-canary.54':
+    resolution: {integrity: sha512-oazP2sXsFFSVqcbNgfab3giBRgrZu0VM0v3X6zIov/Ed19UKX+qR+u8grTzhlV9baRr/BYLJHiDJMbjaEZHjzA==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [linux]
+
+  '@next/swc-linux-arm64-musl@15.4.0-canary.54':
+    resolution: {integrity: sha512-wMSxIFoF/OdyAxomSEM0lOhscKBc3dbRvAH4pV5ZSGliO9feRMOq0VlW0QxNQU1erHIY7KhgJtMoolKr1qsz+w==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [linux]
+
+  '@next/swc-linux-x64-gnu@15.4.0-canary.54':
+    resolution: {integrity: sha512-qAayAbAuY+AeYIUqqtUN8FUtcHTYoIRfqcHP+WYZqZD9dO4LhUK9CWIwj+dnmHqYYzaAQBnJOjW1XyW+iePGnA==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [linux]
+
+  '@next/swc-linux-x64-musl@15.4.0-canary.54':
+    resolution: {integrity: sha512-zsg1oImuIoTXtLzmS1wYnY0VscyAKajiVP6Pg1uVQysp26HLjVjTrOuYA5cfvRc9U8lzBpAJTK8/AWCLOcVazg==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [linux]
+
+  '@next/swc-win32-arm64-msvc@15.4.0-canary.54':
+    resolution: {integrity: sha512-jwxg6Dzw6Vf4wOFrKm5b4aX1ZRH8XhmIviG84ubyni8CVCaGPrtfQcjrMDCs2FrvauGzmMipBpEvJRS1tip7YQ==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [win32]
+
+  '@next/swc-win32-x64-msvc@15.4.0-canary.54':
+    resolution: {integrity: sha512-j9ZfOla5WuO1KYayTVH4UYYlpUFndGuKqrgQCgHbCP/wSfi3PA5hY60rDOrZi76mSbAEWV7WH//GRIxG4Eabow==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [win32]
 
   '@nicolo-ribaudo/eslint-scope-5-internals@5.1.1-v1':
     resolution: {integrity: sha512-54/JRvkLIzzDWshCWfuhadfrfZVPiElY8Fcgmg1HroEly/EDSszzhBAsarCux+D/kOslTRquNzuyGSmUSTTHGg==}
@@ -12110,6 +12161,27 @@ packages:
   next-tick@1.0.0:
     resolution: {integrity: sha512-mc/caHeUcdjnC/boPWJefDr4KUIWQNv+tlnFnJd38QMou86QtxQzBJfxgGRzvx8jazYRqrVlaHarfO72uNxPOg==}
 
+  next@15.4.0-canary.54:
+    resolution: {integrity: sha512-JdEM1JqCDO50ruSfDmmTxgFIOWXQNVDGswLhS1t5o9aXxDFtpkUDYogQY9o2vjIX21QTTsn3NRicr+ouTGF4IQ==}
+    engines: {node: ^18.18.0 || ^19.8.0 || >= 20.0.0}
+    hasBin: true
+    peerDependencies:
+      '@opentelemetry/api': ^1.1.0
+      '@playwright/test': ^1.41.2
+      babel-plugin-react-compiler: '*'
+      react: 19.2.0-canary-197d6a04-20250424
+      react-dom: 19.2.0-canary-197d6a04-20250424
+      sass: ^1.3.0
+    peerDependenciesMeta:
+      '@opentelemetry/api':
+        optional: true
+      '@playwright/test':
+        optional: true
+      babel-plugin-react-compiler:
+        optional: true
+      sass:
+        optional: true
+
   nice-try@1.0.5:
     resolution: {integrity: sha512-1nh45deeb5olNY7eX82BkPO7SSxR5SSYJiPTrTdFUVYwAl8CKMA5N9PjTYkHiRjisVcxcQ1HXdLhx2qxxJzLNQ==}
 
@@ -13548,10 +13620,6 @@ packages:
 
   postcss@8.4.31:
     resolution: {integrity: sha512-PS08Iboia9mts/2ygV3eLpY5ghnUcfLV/EXTOW1E2qYxJKGGBUtNjN76FYHnMs36RmARn41bC0AZmn+rR0OVpQ==}
-    engines: {node: ^10 || ^12 || >=14}
-
-  postcss@8.4.49:
-    resolution: {integrity: sha512-OCVPnIObs4N29kxTjzLfUryOkvZEq+pf8jTF0lg8E7uETuWHA+v7j3c/xJmiqpX450191LlmZfUKkXxkTry7nA==}
     engines: {node: ^10 || ^12 || >=14}
 
   postcss@8.5.3:
@@ -19933,6 +20001,32 @@ snapshots:
 
   '@napi-rs/triples@1.2.0': {}
 
+  '@next/env@15.4.0-canary.54': {}
+
+  '@next/swc-darwin-arm64@15.4.0-canary.54':
+    optional: true
+
+  '@next/swc-darwin-x64@15.4.0-canary.54':
+    optional: true
+
+  '@next/swc-linux-arm64-gnu@15.4.0-canary.54':
+    optional: true
+
+  '@next/swc-linux-arm64-musl@15.4.0-canary.54':
+    optional: true
+
+  '@next/swc-linux-x64-gnu@15.4.0-canary.54':
+    optional: true
+
+  '@next/swc-linux-x64-musl@15.4.0-canary.54':
+    optional: true
+
+  '@next/swc-win32-arm64-msvc@15.4.0-canary.54':
+    optional: true
+
+  '@next/swc-win32-x64-msvc@15.4.0-canary.54':
+    optional: true
+
   '@nicolo-ribaudo/eslint-scope-5-internals@5.1.1-v1':
     dependencies:
       eslint-scope: 5.1.1
@@ -23811,12 +23905,12 @@ snapshots:
 
   css-loader@6.11.0(@rspack/core@1.3.9(@swc/helpers@0.5.15))(webpack@5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.24.2)):
     dependencies:
-      icss-utils: 5.1.0(postcss@8.4.49)
-      postcss: 8.4.49
-      postcss-modules-extract-imports: 3.1.0(postcss@8.4.49)
-      postcss-modules-local-by-default: 4.2.0(postcss@8.4.49)
-      postcss-modules-scope: 3.2.1(postcss@8.4.49)
-      postcss-modules-values: 4.0.0(postcss@8.4.49)
+      icss-utils: 5.1.0(postcss@8.5.3)
+      postcss: 8.5.3
+      postcss-modules-extract-imports: 3.1.0(postcss@8.5.3)
+      postcss-modules-local-by-default: 4.2.0(postcss@8.5.3)
+      postcss-modules-scope: 3.2.1(postcss@8.5.3)
+      postcss-modules-values: 4.0.0(postcss@8.5.3)
       postcss-value-parser: 4.2.0
       semver: 7.6.3
     optionalDependencies:
@@ -27067,9 +27161,9 @@ snapshots:
     dependencies:
       postcss: 8.4.31
 
-  icss-utils@5.1.0(postcss@8.4.49):
+  icss-utils@5.1.0(postcss@8.5.3):
     dependencies:
-      postcss: 8.4.49
+      postcss: 8.5.3
 
   idb@3.0.2: {}
 
@@ -30031,6 +30125,33 @@ snapshots:
 
   next-tick@1.0.0: {}
 
+  next@15.4.0-canary.54(@babel/core@7.26.10)(@opentelemetry/api@1.6.0)(@playwright/test@1.41.2)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@19.0.0-beta-e552027-20250112)(react-dom@19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-197d6a04-20250424))(react@19.2.0-canary-197d6a04-20250424)(sass@1.77.8):
+    dependencies:
+      '@next/env': 15.4.0-canary.54
+      '@swc/helpers': 0.5.15
+      caniuse-lite: 1.0.30001579
+      postcss: 8.4.31
+      react: 19.2.0-canary-197d6a04-20250424
+      react-dom: 19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-197d6a04-20250424)
+      styled-jsx: 5.1.6(@babel/core@7.26.10)(babel-plugin-macros@3.1.0)(react@19.2.0-canary-197d6a04-20250424)
+    optionalDependencies:
+      '@next/swc-darwin-arm64': 15.4.0-canary.54
+      '@next/swc-darwin-x64': 15.4.0-canary.54
+      '@next/swc-linux-arm64-gnu': 15.4.0-canary.54
+      '@next/swc-linux-arm64-musl': 15.4.0-canary.54
+      '@next/swc-linux-x64-gnu': 15.4.0-canary.54
+      '@next/swc-linux-x64-musl': 15.4.0-canary.54
+      '@next/swc-win32-arm64-msvc': 15.4.0-canary.54
+      '@next/swc-win32-x64-msvc': 15.4.0-canary.54
+      '@opentelemetry/api': 1.6.0
+      '@playwright/test': 1.41.2
+      babel-plugin-react-compiler: 19.0.0-beta-e552027-20250112
+      sass: 1.77.8
+      sharp: 0.34.1
+    transitivePeerDependencies:
+      - '@babel/core'
+      - babel-plugin-macros
+
   nice-try@1.0.5: {}
 
   nlcst-is-literal@1.2.2:
@@ -31291,9 +31412,9 @@ snapshots:
     dependencies:
       postcss: 8.4.31
 
-  postcss-modules-extract-imports@3.1.0(postcss@8.4.49):
+  postcss-modules-extract-imports@3.1.0(postcss@8.5.3):
     dependencies:
-      postcss: 8.4.49
+      postcss: 8.5.3
 
   postcss-modules-local-by-default@4.2.0(postcss@8.4.31):
     dependencies:
@@ -31302,10 +31423,10 @@ snapshots:
       postcss-selector-parser: 7.0.0
       postcss-value-parser: 4.2.0
 
-  postcss-modules-local-by-default@4.2.0(postcss@8.4.49):
+  postcss-modules-local-by-default@4.2.0(postcss@8.5.3):
     dependencies:
-      icss-utils: 5.1.0(postcss@8.4.49)
-      postcss: 8.4.49
+      icss-utils: 5.1.0(postcss@8.5.3)
+      postcss: 8.5.3
       postcss-selector-parser: 7.0.0
       postcss-value-parser: 4.2.0
 
@@ -31314,9 +31435,9 @@ snapshots:
       postcss: 8.4.31
       postcss-selector-parser: 6.0.10
 
-  postcss-modules-scope@3.2.1(postcss@8.4.49):
+  postcss-modules-scope@3.2.1(postcss@8.5.3):
     dependencies:
-      postcss: 8.4.49
+      postcss: 8.5.3
       postcss-selector-parser: 7.0.0
 
   postcss-modules-values@4.0.0(postcss@8.4.31):
@@ -31324,10 +31445,10 @@ snapshots:
       icss-utils: 5.1.0(postcss@8.4.31)
       postcss: 8.4.31
 
-  postcss-modules-values@4.0.0(postcss@8.4.49):
+  postcss-modules-values@4.0.0(postcss@8.5.3):
     dependencies:
-      icss-utils: 5.1.0(postcss@8.4.49)
-      postcss: 8.4.49
+      icss-utils: 5.1.0(postcss@8.5.3)
+      postcss: 8.5.3
 
   postcss-modules@4.0.0(postcss@8.4.31):
     dependencies:
@@ -31695,12 +31816,6 @@ snapshots:
       picocolors: 1.1.0
       source-map-js: 1.2.1
 
-  postcss@8.4.49:
-    dependencies:
-      nanoid: 3.3.7
-      picocolors: 1.1.1
-      source-map-js: 1.2.1
-
   postcss@8.5.3:
     dependencies:
       nanoid: 3.3.11
@@ -32044,6 +32159,11 @@ snapshots:
       scheduler: 0.27.0-canary-197d6a04-20250424
 
   react-dom@19.2.0-canary-197d6a04-20250424(react@19.2.0-canary-197d6a04-20250424):
+    dependencies:
+      react: 19.2.0-canary-197d6a04-20250424
+      scheduler: 0.27.0-canary-197d6a04-20250424
+
+  react-dom@19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-197d6a04-20250424):
     dependencies:
       react: 19.2.0-canary-197d6a04-20250424
       scheduler: 0.27.0-canary-197d6a04-20250424
