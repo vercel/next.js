@@ -44,58 +44,11 @@ pub struct Rope {
 #[derive(Clone, Debug)]
 struct InnerRope(Arc<[RopeElem]>);
 
-#[derive(Debug, Clone)]
-pub struct SharedBytes(MaybeArcBytes);
-
-impl Deref for SharedBytes {
-    type Target = [u8];
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl AsRef<[u8]> for SharedBytes {
-    fn as_ref(&self) -> &[u8] {
-        &self.0
-    }
-}
-
-#[derive(Debug, Clone)]
-enum MaybeArcBytes {
-    Arc(Arc<[u8]>),
-    Shared(&'static [u8]),
-}
-
-impl From<Cow<'static, [u8]>> for MaybeArcBytes {
-    fn from(bytes: Cow<'static, [u8]>) -> Self {
-        match bytes {
-            Cow::Borrowed(s) => MaybeArcBytes::Shared(s),
-            Cow::Owned(v) => MaybeArcBytes::Arc(Arc::from(v)),
-        }
-    }
-}
-
-impl Deref for MaybeArcBytes {
-    type Target = [u8];
-    fn deref(&self) -> &Self::Target {
-        match self {
-            MaybeArcBytes::Arc(a) => a,
-            MaybeArcBytes::Shared(s) => s,
-        }
-    }
-}
-
-impl AsRef<[u8]> for MaybeArcBytes {
-    fn as_ref(&self) -> &[u8] {
-        self
-    }
-}
-
 /// Differentiates the types of stored bytes in a rope.
 #[derive(Clone, Debug)]
 enum RopeElem {
     /// Local bytes are owned directly by this rope.
-    Local(MaybeArcBytes),
+    Local(Cow<'static, [u8]>),
 
     /// Shared holds the Arc container of another rope.
     Shared(InnerRope),
@@ -218,7 +171,7 @@ impl RopeBuilder {
         self.finish();
 
         self.length += bytes.len();
-        self.committed.push(Local(MaybeArcBytes::Shared(bytes)));
+        self.committed.push(Local(Cow::Borrowed(bytes)));
     }
 
     /// Concatenate another Rope instance into our builder.
@@ -642,7 +595,7 @@ pub struct RopeReader {
 /// continue onto the next item in the stack.
 #[derive(Debug)]
 enum StackElem {
-    Local(Cursor<SharedBytes>),
+    Local(Cursor<Cow<'static, [u8]>>),
     Shared(InnerRope, usize),
 }
 
@@ -687,7 +640,7 @@ impl RopeReader {
 }
 
 impl Iterator for RopeReader {
-    type Item = Cursor<SharedBytes>;
+    type Item = Cursor<Cow<'static, [u8]>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         // Iterates the rope's elements recursively until we find the next Local
@@ -767,7 +720,7 @@ impl BufRead for RopeReader {
 impl Stream for RopeReader {
     // The Result<Bytes> item type is required for this to be streamable into a
     // [Hyper::Body].
-    type Item = Result<Cursor<SharedBytes>>;
+    type Item = Result<Cursor<Cow<'static, [u8]>>>;
 
     // Returns a "result" of reading the next shared bytes reference. This
     // differs from [Read::read] by not copying any memory.
@@ -780,7 +733,7 @@ impl Stream for RopeReader {
 impl From<RopeElem> for StackElem {
     fn from(el: RopeElem) -> Self {
         match el {
-            Local(bytes) => Self::Local(Cursor::new(SharedBytes(bytes))),
+            Local(bytes) => Self::Local(Cursor::new(bytes)),
             Shared(inner) => Self::Shared(inner, 0),
         }
     }
@@ -795,17 +748,14 @@ mod test {
     };
 
     use anyhow::Result;
-    use triomphe::Arc;
 
-    use super::{InnerRope, MaybeArcBytes, Rope, RopeBuilder, RopeElem};
+    use super::{InnerRope, Rope, RopeBuilder, RopeElem};
 
     // These are intentionally not exposed, because they do inefficient conversions
     // in order to fully test cases.
     impl From<&str> for RopeElem {
         fn from(value: &str) -> Self {
-            RopeElem::Local(MaybeArcBytes::Arc(Arc::from(
-                value.to_string().into_bytes(),
-            )))
+            RopeElem::Local(Cow::Owned(value.into()))
         }
     }
     impl From<Vec<RopeElem>> for RopeElem {
@@ -990,7 +940,7 @@ mod test {
 
         let chunks = rope
             .read()
-            .map(|v| String::from_utf8(v.into_inner().0.to_vec()).unwrap())
+            .map(|v| String::from_utf8(v.into_inner().to_vec()).unwrap())
             .collect::<Vec<_>>();
 
         assert_eq!(chunks, vec!["abc", "def", "ghi"]);
