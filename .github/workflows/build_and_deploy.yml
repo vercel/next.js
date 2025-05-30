@@ -100,20 +100,20 @@ jobs:
       - run: npm i -g npm@10.4.0 # need latest version for provenance (pinning to avoid bugs)
       - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
 
-      - run: npm dist-tag add create-next-app@15.3.2 latest
-      - run: npm dist-tag add eslint-config-next@15.3.2 latest
-      - run: npm dist-tag add @next/eslint-plugin-next@15.3.2 latest
-      - run: npm dist-tag add @next/bundle-analyzer@15.3.2 latest
-      - run: npm dist-tag add @next/codemod@15.3.2 latest
-      - run: npm dist-tag add @next/env@15.3.2 latest
-      - run: npm dist-tag add @next/mdx@15.3.2 latest
-      - run: npm dist-tag add @next/plugin-storybook@15.3.2 latest
-      - run: npm dist-tag add @next/polyfill-module@15.3.2 latest
-      - run: npm dist-tag add @next/polyfill-nomodule@15.3.2 latest
-      - run: npm dist-tag add next-rspack@15.3.2 latest
-      - run: npm dist-tag add next@15.3.2 latest
-      - run: npm dist-tag add @next/react-refresh-utils@15.3.2 latest
-      - run: npm dist-tag add @next/third-parties@15.3.2 latest
+      - run: npm dist-tag add create-next-app@15.4.0-canary.57 canary
+      - run: npm dist-tag add eslint-config-next@15.4.0-canary.57 canary
+      - run: npm dist-tag add @next/eslint-plugin-next@15.4.0-canary.57 canary
+      - run: npm dist-tag add @next/bundle-analyzer@15.4.0-canary.57 canary
+      - run: npm dist-tag add @next/codemod@15.4.0-canary.57 canary
+      - run: npm dist-tag add @next/env@15.4.0-canary.57 canary
+      - run: npm dist-tag add @next/mdx@15.4.0-canary.57 canary
+      - run: npm dist-tag add @next/plugin-storybook@15.4.0-canary.57 canary
+      - run: npm dist-tag add @next/polyfill-module@15.4.0-canary.57 canary
+      - run: npm dist-tag add @next/polyfill-nomodule@15.4.0-canary.57 canary
+      - run: npm dist-tag add next-rspack@15.4.0-canary.57 canary
+      - run: npm dist-tag add next@15.4.0-canary.57 canary
+      - run: npm dist-tag add @next/react-refresh-utils@15.4.0-canary.57 canary
+      - run: npm dist-tag add @next/third-parties@15.4.0-canary.57 canary
 
       - id: get-store-path
         run: echo STORE_PATH=$(pnpm store path) >> $GITHUB_OUTPUT
