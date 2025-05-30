@@ -47,7 +47,7 @@ fn bench_small_apps(c: &mut Criterion) {
     let mut g = c.benchmark_group("turbopack/build/apps");
 
     for app in apps {
-        g.bench_function(app.to_string_lossy().to_string(), |b| {
+        g.bench_function(app.file_name().unwrap_or_default().to_string_lossy(), |b| {
             let apps_dir = apps_dir.clone();
             let app = app.clone();
 
