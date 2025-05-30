@@ -209,7 +209,7 @@ import { durationToString } from './duration-to-string'
 import { traceGlobals } from '../trace/shared'
 import { extractNextErrorCode } from '../lib/error-telemetry-utils'
 import { runAfterProductionCompile } from './after-production-compile'
-import { generatePreviewKeys } from './prerender-key-utils'
+import { generatePreviewKeys } from './preview-key-utils'
 
 type Fallback = null | boolean | string
 
