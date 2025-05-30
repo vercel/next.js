@@ -52,6 +52,7 @@ const initialState: OverlayState = {
           column: 5,
         },
       ],
+      type: 'runtime',
     },
     {
       id: 2,
@@ -59,6 +60,7 @@ const initialState: OverlayState = {
         __NEXT_ERROR_CODE: 'E002',
       }),
       frames: [],
+      type: 'runtime',
     },
     {
       id: 3,
@@ -66,6 +68,7 @@ const initialState: OverlayState = {
         __NEXT_ERROR_CODE: 'E003',
       }),
       frames: [],
+      type: 'runtime',
     },
   ],
   refreshState: { type: 'idle' },
