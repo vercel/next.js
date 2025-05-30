@@ -190,7 +190,7 @@ pub async fn process_request_with_content_source(
                         hyper::header::HeaderValue::try_from(content.len().to_string())?,
                     );
 
-                    response.body(hyper::Body::wrap_stream(content.read()))?
+                    response.body(hyper::Body::wrap_stream(ReaderStream::new(content.read())))?
                 };
 
                 return Ok((response, side_effects));
