@@ -34,14 +34,6 @@ pub struct AssetIdent {
 }
 
 impl AssetIdent {
-    pub fn query(&self) -> &RcStr {
-        &self.query
-    }
-
-    pub fn fragment(&self) -> &RcStr {
-        &self.fragment
-    }
-
     pub fn add_modifier(&mut self, modifier: RcStr) {
         self.modifiers.push(modifier);
     }

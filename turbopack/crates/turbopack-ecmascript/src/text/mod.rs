@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileContent;
 use turbopack_core::{
@@ -29,13 +29,10 @@ impl TextContentFileSource {
 impl Source for TextContentFileSource {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        lazy_static::lazy_static! {
-            static ref MODIFIER: RcStr = "text content".into();
-        }
         self.source
             .ident()
-            .with_modifier(MODIFIER.clone())
-            .rename_as("*.mjs".into())
+            .with_modifier(rcstr!("text content"))
+            .rename_as(rcstr!("*.mjs"))
     }
 }
 

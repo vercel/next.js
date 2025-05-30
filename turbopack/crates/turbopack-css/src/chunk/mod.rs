@@ -5,7 +5,7 @@ use std::fmt::Write;
 
 use anyhow::{Result, bail};
 use swc_core::common::pass::Either;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, ValueDefault, ValueToString,
     Vc,
@@ -175,12 +175,11 @@ impl CssChunk {
                 }
             }
         }
-        let chunk_item_key = &*chunk_item_key().await?;
         let assets = chunk_items
             .iter()
             .map(|chunk_item| async move {
                 Ok((
-                    chunk_item_key.clone(),
+                    rcstr!("chunk item"),
                     chunk_item.content_ident().to_resolved().await?,
                 ))
             })
@@ -315,11 +314,6 @@ impl OutputChunk for CssChunk {
     }
 }
 
-#[turbo_tasks::function]
-fn chunk_item_key() -> Vc<RcStr> {
-    Vc::cell("chunk item".into())
-}
-
 #[turbo_tasks::value_impl]
 impl OutputAsset for CssChunk {
     #[turbo_tasks::function]
@@ -329,7 +323,7 @@ impl OutputAsset for CssChunk {
         Ok(self
             .await?
             .chunking_context
-            .chunk_path(Some(Vc::upcast(self)), ident, ".css".into()))
+            .chunk_path(Some(Vc::upcast(self)), ident, rcstr!(".css")))
     }
 
     #[turbo_tasks::function]

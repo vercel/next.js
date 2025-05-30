@@ -317,48 +317,43 @@ impl Request {
     }
 
     #[turbo_tasks::function]
-    pub async fn raw(
+    pub fn raw(
         request: Value<Pattern>,
         query: RcStr,
         fragment: RcStr,
         force_in_lookup_dir: bool,
-    ) -> Result<Vc<Self>> {
-        Ok(Self::cell(Request::Raw {
+    ) -> Vc<Self> {
+        Self::cell(Request::Raw {
             path: request.into_value(),
             force_in_lookup_dir,
             query,
             fragment,
-        }))
+        })
     }
 
     #[turbo_tasks::function]
-    pub async fn relative(
+    pub fn relative(
         request: Value<Pattern>,
         query: RcStr,
         fragment: RcStr,
         force_in_lookup_dir: bool,
-    ) -> Result<Vc<Self>> {
-        Ok(Self::cell(Request::Relative {
+    ) -> Vc<Self> {
+        Self::cell(Request::Relative {
             path: request.into_value(),
             force_in_lookup_dir,
             query,
             fragment,
-        }))
+        })
     }
 
     #[turbo_tasks::function]
-    pub async fn module(
-        module: RcStr,
-        path: Value<Pattern>,
-        query: RcStr,
-        fragment: RcStr,
-    ) -> Result<Vc<Self>> {
-        Ok(Self::cell(Request::Module {
+    pub fn module(module: RcStr, path: Value<Pattern>, query: RcStr, fragment: RcStr) -> Vc<Self> {
+        Self::cell(Request::Module {
             module,
             path: path.into_value(),
             query,
             fragment,
-        }))
+        })
     }
 
     #[turbo_tasks::function]
@@ -416,37 +411,34 @@ impl Request {
                 query: _,
                 force_in_lookup_dir,
                 fragment,
-            } => Request::Raw {
-                path: path.clone(),
+            } => Request::raw(
+                Value::new(path.clone()),
                 query,
-                force_in_lookup_dir: *force_in_lookup_dir,
-                fragment: fragment.clone(),
-            }
-            .cell(),
+                fragment.clone(),
+                *force_in_lookup_dir,
+            ),
             Request::Relative {
                 path,
                 query: _,
                 force_in_lookup_dir,
                 fragment,
-            } => Request::Relative {
-                path: path.clone(),
+            } => Request::relative(
+                Value::new(path.clone()),
                 query,
-                force_in_lookup_dir: *force_in_lookup_dir,
-                fragment: fragment.clone(),
-            }
-            .cell(),
+                fragment.clone(),
+                *force_in_lookup_dir,
+            ),
             Request::Module {
                 module,
                 path,
                 query: _,
                 fragment,
-            } => Request::Module {
-                module: module.clone(),
-                path: path.clone(),
+            } => Request::module(
+                module.clone(),
+                Value::new(path.clone()),
                 query,
-                fragment: fragment.clone(),
-            }
-            .cell(),
+                fragment.clone(),
+            ),
             Request::ServerRelative {
                 path,
                 query: _,

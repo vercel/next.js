@@ -602,15 +602,6 @@ impl EcmascriptModuleAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl ValueToString for EcmascriptModuleAsset {
-    #[turbo_tasks::function]
-    async fn to_string(self: Vc<Self>) -> Result<Vc<RcStr>> {
-        let this = &*self.await?;
-        Ok(Vc::cell(format!("{this:#?}").into()))
-    }
-}
-
-#[turbo_tasks::value_impl]
 impl Module for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {

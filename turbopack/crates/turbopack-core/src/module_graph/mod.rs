@@ -316,48 +316,14 @@ impl SingleModuleGraph {
         #[cfg(debug_assertions)]
         {
             let mut duplicates = Vec::new();
-            let mut ident_to_module: FxHashMap<ReadRef<RcStr>, Vec<ResolvedVc<Box<dyn Module>>>> =
-                FxHashMap::default();
+            let mut set = FxHashSet::default();
             for &module in modules.keys() {
                 let ident = module.ident().to_string().await?;
-                let modules = ident_to_module.entry(ident.clone()).or_default();
-                modules.push(module);
-                if modules.len() > 1 {
-                    duplicates.push(ident);
+                if !set.insert(ident.clone()) {
+                    duplicates.push(ident)
                 }
             }
             if !duplicates.is_empty() {
-                let duplicates =
-                    duplicates
-                        .iter()
-                        .map(|i| {
-                            let modules = ident_to_module.get(i).unwrap();
-                            async move {
-                                Ok((
-                                    i,
-                                    modules
-                                        .iter()
-                                        .map(|m| async move {
-                                            Ok(
-                                                match ResolvedVc::try_sidecast::<
-                                                    Box<dyn ValueToString>,
-                                                >(
-                                                    *m
-                                                ) {
-                                                    Some(v) => {
-                                                        v.to_string().await?.to_owned().to_string()
-                                                    }
-                                                    None => format!("{m:?}"),
-                                                },
-                                            )
-                                        })
-                                        .try_join()
-                                        .await?,
-                                ))
-                            }
-                        })
-                        .try_join()
-                        .await?;
                 panic!("Duplicate module idents in graph: {duplicates:#?}");
             }
         }
