@@ -614,16 +614,14 @@ impl ValueToString for EcmascriptModuleAsset {
 impl Module for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        let modifier = rcstr!("ecmascript");
-        let layer = (*self.asset_context.layer().await?).clone();
         let mut ident = self.source.ident().owned().await?;
         if let Some(inner_assets) = self.inner_assets {
             for (name, asset) in inner_assets.await?.iter() {
                 ident.add_asset(name.clone(), asset.ident().to_resolved().await?);
             }
         }
-        ident.add_modifier(modifier);
-        ident.layer = Some(layer);
+        ident.add_modifier(rcstr!("ecmascript"));
+        ident.layer = Some(self.asset_context.layer().owned().await?);
         Ok(AssetIdent::new(Value::new(ident)))
     }
 

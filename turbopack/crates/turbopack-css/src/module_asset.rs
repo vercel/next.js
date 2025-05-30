@@ -64,7 +64,7 @@ impl Module for ModuleCssAsset {
             .source
             .ident()
             .with_modifier(rcstr!("css module"))
-            .with_layer((*self.asset_context.layer().await?).clone()))
+            .with_layer(self.asset_context.layer().owned().await?))
     }
 
     #[turbo_tasks::function]

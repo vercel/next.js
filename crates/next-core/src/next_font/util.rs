@@ -24,7 +24,7 @@ pub(crate) struct FontCssProperties {
 /// and scoped font family names.
 pub(crate) fn get_request_hash(query: &str) -> u32 {
     let query = qstring::QString::from(query);
-    let mut to_hash = vec![];
+    let mut to_hash = Vec::with_capacity(query.len() * 2);
     for (k, v) in query {
         to_hash.push(k);
         to_hash.push(v);

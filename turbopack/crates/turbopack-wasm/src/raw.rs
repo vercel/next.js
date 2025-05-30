@@ -57,7 +57,7 @@ impl Module for RawWebAssemblyModuleAsset {
             .source
             .ident()
             .with_modifier(rcstr!("wasm raw"))
-            .with_layer((*self.asset_context.layer().await?).clone()))
+            .with_layer(self.asset_context.layer().owned().await?))
     }
 }
 
@@ -81,10 +81,7 @@ impl ChunkableModule for RawWebAssemblyModuleAsset {
             RawModuleChunkItem {
                 module: self,
                 chunking_context,
-                wasm_asset: self
-                    .wasm_asset(Vc::upcast(*chunking_context))
-                    .to_resolved()
-                    .await?,
+                wasm_asset: self.wasm_asset(*chunking_context).to_resolved().await?,
             }
             .cell(),
         ))

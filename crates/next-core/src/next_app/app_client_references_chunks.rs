@@ -15,7 +15,7 @@ use crate::{
     next_client_reference::{
         ClientReferenceType,
         ecmascript_client_reference::ecmascript_client_reference_module::{
-            ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG_CLIENT, ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG_SSR,
+            ecmascript_client_reference_merge_tag, ecmascript_client_reference_merge_tag_ssr,
         },
         visit_client_reference::ClientReferenceGraphResult,
     },
@@ -217,7 +217,7 @@ pub async fn get_app_client_references_chunks(
                             base_ident.with_modifier(rcstr!("ssr modules")),
                             ChunkGroup::IsolatedMerged {
                                 parent: parent_chunk_group,
-                                merge_tag: ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG_SSR.clone(),
+                                merge_tag: ecmascript_client_reference_merge_tag_ssr(),
                                 entries: ssr_modules,
                             },
                             module_graph,
@@ -255,7 +255,7 @@ pub async fn get_app_client_references_chunks(
                         base_ident.with_modifier(rcstr!("client modules")),
                         ChunkGroup::IsolatedMerged {
                             parent: parent_chunk_group,
-                            merge_tag: ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG_CLIENT.clone(),
+                            merge_tag: ecmascript_client_reference_merge_tag(),
                             entries: client_modules,
                         },
                         module_graph,

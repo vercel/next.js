@@ -110,9 +110,9 @@ impl Module for CssModuleAsset {
             .source
             .ident()
             .with_modifier(rcstr!("css"))
-            .with_layer((*self.asset_context.layer().await?).clone());
+            .with_layer(self.asset_context.layer().owned().await?);
         if let Some(import_context) = self.import_context {
-            ident = ident.with_modifier((*import_context.modifier().await?).clone())
+            ident = ident.with_modifier(import_context.modifier().owned().await?)
         }
         Ok(ident)
     }
