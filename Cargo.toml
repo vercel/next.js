@@ -251,7 +251,7 @@ next-custom-transforms = { path = "crates/next-custom-transforms" }
 auto-hash-map = { path = "turbopack/crates/turbo-tasks-auto-hash-map" }
 swc-ast-explorer = { path = "turbopack/crates/turbopack-swc-ast-explorer" }
 turbo-prehash = { path = "turbopack/crates/turbo-prehash" }
-turbo-rcstr = { path = "turbopack/crates/turbo-rcstr" }
+turbo-rcstr = { path = "turbopack/crates/turbo-rcstr", features = ["napi"] }
 turbo-esregex = { path = "turbopack/crates/turbo-esregex" }
 turbo-persistence = { path = "turbopack/crates/turbo-persistence" }
 turbo-tasks-malloc = { path = "turbopack/crates/turbo-tasks-malloc", default-features = false }
@@ -308,7 +308,7 @@ miette = { version = "5.10.0", features = ["fancy"] }
 mdxjs = "1.0.1"
 modularize_imports = { version = "0.86.0" }
 styled_components = { version = "0.114.0" }
-styled_jsx = { version = "0.90.2" }
+styled_jsx = { version = "0.90.3" }
 swc_emotion = { version = "0.90.0" }
 swc_relay = { version = "0.60.0" }
 
@@ -370,6 +370,16 @@ lightningcss-napi = { version = "0.4.4", default-features = false, features = [
 ]}
 markdown = "1.0.0-alpha.18"
 mime = "0.3.16"
+napi = { version = "2", default-features = false, features = [
+    "napi3",
+    "serde-json",
+    "tokio_rt",
+    "error_anyhow",
+    # Lightningcss uses this features
+    "napi4",
+    "napi5",
+    "compat-mode"
+] }
 nohash-hasher = "0.2.0"
 notify = "8.0.0"
 once_cell = "1.17.1"

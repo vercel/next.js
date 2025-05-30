@@ -18,6 +18,10 @@ bench = false
 name = "mod"
 harness = false
 
+[[bench]]
+name = "small_apps"
+harness = false
+
 [features]
 default = ["custom_allocator"]
 serializable = []

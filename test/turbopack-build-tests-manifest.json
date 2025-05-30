@@ -4543,25 +4543,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/ppr-navigations/simple/per-segment-prefetching.test.ts": {
-    "passed": [
-      "per segment prefetching basic route tree prefetch",
-      "per segment prefetching respond with 204 if the segment does not have prefetch data"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/ppr-navigations/simple/simple.test.ts": {
-    "passed": [
-      "ppr-navigations simple can navigate between all the links and back"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/ppr-navigations/stale-prefetch-entry/stale-prefetch-entry.test.ts": {
     "passed": [
       "stale-prefetch-entry works if a prefetched route entry has become stale (too much time has elapsed since it was prefetched)"
@@ -5407,6 +5388,16 @@
       "segment cache (basic tests) refreshes page segments when navigating to the exact same URL as the current location",
       "segment cache (basic tests) skips dynamic request if prefetched data is fully static",
       "segment cache (basic tests) skips static layouts during partially static navigation"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/segment-cache/cdn-cache-busting/cdn-cache-busting.test.ts": {
+    "passed": [
+      "segment cache (CDN cache busting) perform fully prefetched navigation with a CDN that doesn't respect the Vary header",
+      "segment cache (CDN cache busting) prevent cache poisoning attacks by responding with an error if a custom header is sent during a prefetch without a corresponding cache-busting search param"
     ],
     "failed": [],
     "pending": [],
@@ -6623,8 +6614,8 @@
     "passed": [],
     "failed": [],
     "pending": [
-      "fetch failures have good stack traces in edge runtime when returning `fetch` using an unknown domain, stack traces are preserved",
-      "fetch failures have good stack traces in edge runtime when awaiting `fetch` using an unknown domain, stack traces are preserved"
+      "fetch failures have good stack traces in edge runtime when awaiting `fetch` using an unknown domain, stack traces are preserved",
+      "fetch failures have good stack traces in edge runtime when returning `fetch` using an unknown domain, stack traces are preserved"
     ],
     "flakey": [],
     "runtimeError": false
@@ -7545,6 +7536,7 @@
       "Middleware Rewrite should behave consistently on recursive rewrites",
       "Middleware Rewrite should clear query parameters",
       "Middleware Rewrite should correctly rewriting to a different dynamic path",
+      "Middleware Rewrite should handle catch-all rewrite correctly",
       "Middleware Rewrite should handle middleware rewrite with body correctly",
       "Middleware Rewrite should handle next.config.js rewrite with body correctly",
       "Middleware Rewrite should handle shallow navigation correctly (dynamic page)",
@@ -7573,8 +7565,7 @@
       "Middleware Rewrite should rewrite to the external url for incoming data request externally rewritten",
       "Middleware Rewrite should rewrite when not using localhost",
       "Middleware Rewrite should rewrite without hard navigation",
-      "Middleware Rewrite support colons in path",
-      "Middleware Rewrite should handle catch-all rewrite correctly"
+      "Middleware Rewrite support colons in path"
     ],
     "failed": [],
     "pending": [
