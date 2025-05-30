@@ -23,6 +23,7 @@ export interface OverlayState {
   versionInfo: VersionInfo
   notFound: boolean
   buildingIndicator: boolean
+  renderingIndicator: boolean
   staticIndicator: boolean
   showIndicator: boolean
   disableDevIndicator: boolean
@@ -47,6 +48,8 @@ export const ACTION_ERROR_OVERLAY_CLOSE = 'error-overlay-close'
 export const ACTION_ERROR_OVERLAY_TOGGLE = 'error-overlay-toggle'
 export const ACTION_BUILDING_INDICATOR_SHOW = 'building-indicator-show'
 export const ACTION_BUILDING_INDICATOR_HIDE = 'building-indicator-hide'
+export const ACTION_RENDERING_INDICATOR_SHOW = 'rendering-indicator-show'
+export const ACTION_RENDERING_INDICATOR_HIDE = 'rendering-indicator-hide'
 
 export const STORAGE_KEY_THEME = '__nextjs-dev-tools-theme'
 export const STORAGE_KEY_POSITION = '__nextjs-dev-tools-position'
@@ -112,6 +115,13 @@ export interface BuildingIndicatorHideAction {
   type: typeof ACTION_BUILDING_INDICATOR_HIDE
 }
 
+export interface RenderingIndicatorShowAction {
+  type: typeof ACTION_RENDERING_INDICATOR_SHOW
+}
+export interface RenderingIndicatorHideAction {
+  type: typeof ACTION_RENDERING_INDICATOR_HIDE
+}
+
 export type BusEvent =
   | BuildOkAction
   | BuildErrorAction
@@ -128,6 +138,8 @@ export type BusEvent =
   | ErrorOverlayToggleAction
   | BuildingIndicatorShowAction
   | BuildingIndicatorHideAction
+  | RenderingIndicatorShowAction
+  | RenderingIndicatorHideAction
 
 const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX =
   // 1st group: v8
@@ -153,6 +165,7 @@ export const INITIAL_OVERLAY_STATE: Omit<
   buildError: null,
   errors: [],
   notFound: false,
+  renderingIndicator: false,
   staticIndicator: false,
   /* 
     This is set to `true` when we can reliably know

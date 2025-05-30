@@ -6,9 +6,14 @@ import {
 import type { GlobalErrorComponent } from '../../global-error'
 
 import { useCallback } from 'react'
+import { createContext } from 'react'
 import { AppDevOverlayErrorBoundary } from './app-dev-overlay-error-boundary'
 import { FontStyles } from '../font/font-styles'
 import { DevOverlay } from '../ui/dev-overlay'
+
+export const AppDevOverlayDispatchContext =
+  createContext<OverlayDispatch | null>(null)
+AppDevOverlayDispatchContext.displayName = 'AppDevOverlayDispatchContext'
 
 export function AppDevOverlay({
   state,
@@ -26,7 +31,7 @@ export function AppDevOverlay({
   }, [dispatch])
 
   return (
-    <>
+    <AppDevOverlayDispatchContext value={dispatch}>
       <AppDevOverlayErrorBoundary
         globalError={globalError}
         onError={openOverlay}
@@ -38,6 +43,6 @@ export function AppDevOverlay({
         <FontStyles />
         <DevOverlay state={state} dispatch={dispatch} />
       </>
-    </>
+    </AppDevOverlayDispatchContext>
   )
 }
