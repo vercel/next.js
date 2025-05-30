@@ -125,6 +125,18 @@ jobs:
       - run: pnpm install
       - run: pnpm run build
 
+      # This script is not passed to the `with.version` script of changesets/action
+      # because it conflicts with how they add `(<pre-tag>)` to the release PR title.
+      # They get the pre tag before running the version script, so when we process
+      # modifying the tag during the version script, they use the previous tag, which
+      # doesn't match the output. For example, we are releasing stable but the PR title
+      # can be "Version Packages (canary)". We're opting out instead of sending upstream
+      # because there will be the exact opposite needs as well.
+      - name: Prepare Version Packages
+        run: pnpm tsx scripts/release/version-packages.ts
+        env:
+          RELEASE_TYPE: ${{ github.event.inputs.releaseType }}
+
       - name: Create Release Pull Request
         id: changesets
         uses: changesets/action@v1
@@ -132,7 +144,6 @@ jobs:
           version: pnpm ci:version
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
-          RELEASE_TYPE: ${{ github.event.inputs.releaseType }}
 
       # Add "created-by: CI" label to verify the PR is created from this workflow.
       # If this workflow is manually triggered, add "Freeze: Scheduled Release" label
