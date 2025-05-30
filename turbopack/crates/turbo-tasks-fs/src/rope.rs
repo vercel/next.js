@@ -2,7 +2,7 @@ use std::{
     borrow::Cow,
     cmp::{Ordering, min},
     fmt,
-    io::{BufRead, Read, Result as IoResult, Write},
+    io::{BufRead, Cursor, Read, Result as IoResult, Write},
     mem,
     ops::{AddAssign, Deref},
     pin::Pin,
@@ -48,7 +48,7 @@ struct InnerRope(Arc<[RopeElem]>);
 #[derive(Clone, Debug)]
 enum RopeElem {
     /// Local bytes are owned directly by this rope.
-    Local(Bytes),
+    Local(Cow<'static, [u8]>),
 
     /// Shared holds the Arc container of another rope.
     Shared(InnerRope),
@@ -122,21 +122,24 @@ impl Rope {
 impl From<Vec<u8>> for Rope {
     fn from(mut bytes: Vec<u8>) -> Self {
         bytes.shrink_to_fit();
-        Rope::from(Bytes::from(bytes))
+        Rope::from(Cow::Owned(bytes))
     }
 }
 
 impl From<String> for Rope {
-    fn from(mut bytes: String) -> Self {
-        bytes.shrink_to_fit();
-        Rope::from(Bytes::from(bytes))
+    fn from(bytes: String) -> Self {
+        Rope::from(bytes.into_bytes())
     }
 }
 
-impl<T: Into<Bytes>> From<T> for Rope {
-    default fn from(bytes: T) -> Self {
-        let bytes = bytes.into();
-        // We can't have an InnerRope which contains an empty Local section.
+impl From<&'static str> for Rope {
+    fn from(bytes: &'static str) -> Self {
+        Rope::from(Cow::Borrowed(bytes.as_bytes()))
+    }
+}
+
+impl From<Cow<'static, [u8]>> for Rope {
+    fn from(bytes: Cow<'static, [u8]>) -> Self {
         if bytes.is_empty() {
             Default::default()
         } else {
@@ -181,7 +184,7 @@ impl RopeBuilder {
         self.finish();
 
         self.length += bytes.len();
-        self.committed.push(Local(Bytes::from_static(bytes)));
+        self.committed.push(Local(Cow::Borrowed(bytes)));
     }
 
     /// Concatenate another Rope instance into our builder.
@@ -320,10 +323,10 @@ impl Uncommitted {
 
     /// Converts the current uncommitted bytes into a Bytes, resetting our
     /// representation to None.
-    fn finish(&mut self) -> Option<Bytes> {
+    fn finish(&mut self) -> Option<Cow<'static, [u8]>> {
         match mem::take(self) {
             Self::None => None,
-            Self::Static(s) => Some(Bytes::from_static(s)),
+            Self::Static(s) => Some(Cow::Borrowed(s)),
             Self::Owned(mut v) => {
                 v.shrink_to_fit();
                 Some(v.into())
@@ -336,10 +339,7 @@ impl fmt::Debug for Uncommitted {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Uncommitted::None => f.write_str("None"),
-            Uncommitted::Static(s) => f
-                .debug_tuple("Static")
-                .field(&Bytes::from_static(s))
-                .finish(),
+            Uncommitted::Static(s) => f.debug_tuple("Static").field(&Cow::Borrowed(s)).finish(),
             Uncommitted::Owned(v) => f
                 .debug_tuple("Owned")
                 .field(&Bytes::from(v.clone()))
@@ -637,7 +637,7 @@ pub struct RopeReader {
 /// continue onto the next item in the stack.
 #[derive(Debug)]
 enum StackElem {
-    Local(Bytes),
+    Local(Cursor<Cow<'static, [u8]>>),
     Shared(InnerRope, usize),
 }
 
@@ -660,14 +660,14 @@ impl RopeReader {
         while remaining > 0 {
             let mut bytes = match self.next() {
                 None => break,
-                Some(b) => b,
+                Some(b) => Cursor::new(b),
             };
 
-            let amount = min(bytes.len(), remaining);
+            let amount = min(bytes.get_ref().len(), remaining);
 
-            buf.put_slice(&bytes[0..amount]);
+            buf.put_slice(&bytes.get_ref()[0..amount]);
 
-            if amount < bytes.len() {
+            if amount < bytes.get_ref().len() {
                 bytes.advance(amount);
                 self.stack.push(StackElem::Local(bytes))
             }
@@ -679,7 +679,7 @@ impl RopeReader {
 }
 
 impl Iterator for RopeReader {
-    type Item = Bytes;
+    type Item = Cow<'static, [u8]>;
 
     fn next(&mut self) -> Option<Self::Item> {
         // Iterates the rope's elements recursively until we find the next Local
@@ -688,8 +688,8 @@ impl Iterator for RopeReader {
             let (inner, mut index) = match self.stack.pop() {
                 None => return None,
                 Some(StackElem::Local(b)) => {
-                    debug_assert!(!b.is_empty(), "must not have empty Bytes section");
-                    return Some(b);
+                    debug_assert!(!b.get_ref().is_empty(), "must not have empty Bytes section");
+                    return Some(b.into_inner());
                 }
                 Some(StackElem::Shared(r, i)) => (r, i),
             };
@@ -735,17 +735,17 @@ impl BufRead for RopeReader {
         // This is just so we can get a reference to the asset that is kept alive by the
         // RopeReader itself. We can then auto-convert that reference into the needed u8
         // slice reference.
-        self.stack.push(StackElem::Local(bytes));
+        self.stack.push(StackElem::Local(Cursor::new(bytes)));
         let Some(StackElem::Local(bytes)) = self.stack.last() else {
             unreachable!()
         };
 
-        Ok(bytes)
+        Ok(bytes.get_ref())
     }
 
     fn consume(&mut self, amt: usize) {
         if let Some(StackElem::Local(b)) = self.stack.last_mut() {
-            if amt == b.len() {
+            if amt == b.get_ref().len() {
                 self.stack.pop();
             } else {
                 // Consume some amount of bytes from the current Bytes instance, ensuring
@@ -759,7 +759,7 @@ impl BufRead for RopeReader {
 impl Stream for RopeReader {
     // The Result<Bytes> item type is required for this to be streamable into a
     // [Hyper::Body].
-    type Item = Result<Bytes>;
+    type Item = Result<Cow<'static, [u8]>>;
 
     // Returns a "result" of reading the next shared bytes reference. This
     // differs from [Read::read] by not copying any memory.
@@ -772,7 +772,7 @@ impl Stream for RopeReader {
 impl From<RopeElem> for StackElem {
     fn from(el: RopeElem) -> Self {
         match el {
-            Local(bytes) => Self::Local(bytes),
+            Local(bytes) => Self::Local(Cursor::new(bytes)),
             Shared(inner) => Self::Shared(inner, 0),
         }
     }
@@ -794,7 +794,7 @@ mod test {
     // in order to fully test cases.
     impl From<&str> for RopeElem {
         fn from(value: &str) -> Self {
-            RopeElem::Local(value.to_string().into())
+            RopeElem::Local(value.to_string().into_bytes().into())
         }
     }
     impl From<Vec<RopeElem>> for RopeElem {
@@ -977,7 +977,10 @@ mod test {
         let shared = Rope::from("def");
         let rope = Rope::new(vec!["abc".into(), shared.into(), "ghi".into()]);
 
-        let chunks = rope.read().collect::<Vec<_>>();
+        let chunks = rope
+            .read()
+            .map(|v| String::from_utf8(v.into_owned()).unwrap())
+            .collect::<Vec<_>>();
 
         assert_eq!(chunks, vec!["abc", "def", "ghi"]);
     }
