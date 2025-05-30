@@ -3245,15 +3245,9 @@ export default abstract class Server<
       cacheControl = { revalidate: 0, expire: undefined }
     }
 
-    // If this is in minimal mode and this is a flight request that isn't a
-    // prefetch request while PPR is enabled, it cannot be cached as it contains
-    // dynamic content.
-    else if (
-      this.minimalMode &&
-      isRSCRequest &&
-      !isPrefetchRSCRequest &&
-      isRoutePPREnabled
-    ) {
+    // If this is a flight request that isn't a pre-fetch request while PPR is
+    // enabled, it cannot be cached as it contains dynamic content.
+    else if (isDynamicRSCRequest) {
       cacheControl = { revalidate: 0, expire: undefined }
     } else if (!this.renderOpts.dev || (hasServerProps && !isNextDataRequest)) {
       // If this is a preview mode request, we shouldn't cache it
@@ -3533,19 +3527,14 @@ export default abstract class Server<
           return {
             type: 'rsc',
             body: cachedData.html,
-            // Dynamic RSC responses cannot be cached, even if they're
-            // configured with `force-static` because we have no way of
-            // distinguishing between `force-static` and pages that have no
-            // postponed state.
-            // TODO: distinguish `force-static` from pages with no postponed state (static)
-            cacheControl: { revalidate: 0, expire: undefined },
+            cacheControl: cacheEntry.cacheControl,
           }
         }
         // If the route is PPR enabled and this is a dynamic RSC request, then
         // we need to run the render again with the provided postponed state
         // (if any) as it will use that state for it's embedded resume data
         // cache.
-        else if (isDynamicRSCRequest && isRoutePPREnabled) {
+        else if (isDynamicRSCRequest) {
           const data = await doRender({
             postponed: cachedData.postponed,
             pagesFallback: undefined,
@@ -3562,12 +3551,7 @@ export default abstract class Server<
           return {
             type: 'rsc',
             body: data.value.html,
-            // Dynamic RSC responses cannot be cached, even if they're
-            // configured with `force-static` because we have no way of
-            // distinguishing between `force-static` and pages that have no
-            // postponed state.
-            // TODO: distinguish `force-static` from pages with no postponed state (static)
-            cacheControl: { revalidate: 0, expire: undefined },
+            cacheControl: cacheEntry.cacheControl,
           }
         }
 

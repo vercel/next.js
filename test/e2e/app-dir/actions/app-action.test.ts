@@ -1529,7 +1529,7 @@ describe('app-dir action handling', () => {
         const browser = await next.browser('/revalidate')
         await browser.refresh()
 
-        const thankYouNext = await browser.elementByCss('#thankyounext').text()
+        const original = await browser.elementByCss('#thankyounext').text()
 
         await browser.elementByCss('#another').click()
         await retry(async () => {
@@ -1538,47 +1538,49 @@ describe('app-dir action handling', () => {
           )
         })
 
-        const newThankYouNext = await browser
-          .elementByCss('#thankyounext')
-          .text()
-
         // Should be the same number although in serverless
         // it might be eventually consistent
         if (!isNextDeploy) {
-          expect(thankYouNext).toEqual(newThankYouNext)
+          await retry(async () => {
+            const another = await browser.elementByCss('#thankyounext').text()
+            expect(another).toEqual(original)
+          })
         }
 
         await browser.elementByCss('#back').click()
+        await retry(async () => {
+          expect(await browser.elementByCss('#title').text()).toBe('revalidate')
+        })
+
+        switch (type) {
+          case 'tag':
+            await browser.elementByCss('#revalidate-thankyounext').click()
+            break
+          case 'path':
+            await browser.elementByCss('#revalidate-path').click()
+            break
+          default:
+            throw new Error(`Invalid type: ${type}`)
+        }
 
         // Should be different
-        let revalidatedThankYouNext
+        let revalidated
         await retry(async () => {
-          switch (type) {
-            case 'tag':
-              await browser.elementByCss('#revalidate-thankyounext').click()
-              break
-            case 'path':
-              await browser.elementByCss('#revalidate-path').click()
-              break
-            default:
-              throw new Error(`Invalid type: ${type}`)
-          }
-
-          revalidatedThankYouNext = await browser
-            .elementByCss('#thankyounext')
-            .text()
-
-          expect(thankYouNext).not.toBe(revalidatedThankYouNext)
+          revalidated = await browser.elementByCss('#thankyounext').text()
+          expect(revalidated).not.toBe(original)
         })
 
         await browser.elementByCss('#another').click()
+        await retry(async () => {
+          expect(await browser.elementByCss('#title').text()).toBe(
+            'another route'
+          )
+        })
 
         // The other page should be revalidated too
         await retry(async () => {
-          const newThankYouNext = await browser
-            .elementByCss('#thankyounext')
-            .text()
-          expect(revalidatedThankYouNext).toBe(newThankYouNext)
+          const another = await browser.elementByCss('#thankyounext').text()
+          expect(another).toBe(revalidated)
         })
       }
     )
