@@ -9,7 +9,6 @@ import '../lib/setup-exception-listeners'
 
 import { loadEnvConfig, type LoadedEnvFiles } from '@next/env'
 import { bold, yellow } from '../lib/picocolors'
-import crypto from 'crypto'
 import { makeRe } from 'next/dist/compiled/picomatch'
 import { existsSync, promises as fs } from 'fs'
 import os from 'os'
@@ -210,6 +209,7 @@ import { durationToString } from './duration-to-string'
 import { traceGlobals } from '../trace/shared'
 import { extractNextErrorCode } from '../lib/error-telemetry-utils'
 import { runAfterProductionCompile } from './after-production-compile'
+import { generatePreviewKeys } from './preview-key-utils'
 
 type Fallback = null | boolean | string
 
@@ -1093,11 +1093,10 @@ export default async function build(
 
       NextBuildContext.hasInstrumentationHook = hasInstrumentationHook
 
-      const previewProps: __ApiPreviewProps = {
-        previewModeId: crypto.randomBytes(16).toString('hex'),
-        previewModeSigningKey: crypto.randomBytes(32).toString('hex'),
-        previewModeEncryptionKey: crypto.randomBytes(32).toString('hex'),
-      }
+      const previewProps: __ApiPreviewProps = await generatePreviewKeys({
+        isBuild: true,
+        distDir,
+      })
       NextBuildContext.previewProps = previewProps
 
       const mappedPages = await nextBuildSpan

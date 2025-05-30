@@ -193,6 +193,8 @@ export interface NapiTurboEngineOptions {
   memoryLimit?: number
   /** Track dependencies between tasks. If false, any change during build will error. */
   dependencyTracking?: boolean
+  /** Whether the project is running in a CI environment. */
+  isCi?: boolean
 }
 export declare function projectNew(
   options: NapiProjectOptions,
@@ -345,7 +347,6 @@ export interface NapiIssue {
   detail?: any
   source?: NapiIssueSource
   documentationLink: string
-  subIssues: Array<NapiIssue>
 }
 export interface NapiIssueSource {
   source: NapiSource

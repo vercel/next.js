@@ -22,10 +22,14 @@ pub struct GitVersionInfo<'a> {
 
 /// Specifies many databases that have a different version than the current one are retained.
 /// For example if MAX_OTHER_DB_VERSIONS is 2, there can be at most 3 databases in the directory,
-/// the current one and two older/newer ones.
+/// the current one and two older/newer ones. On CI it never keeps any other versions.
 const MAX_OTHER_DB_VERSIONS: usize = 2;
 
-pub fn handle_db_versioning(base_path: &Path, version_info: &GitVersionInfo) -> Result<PathBuf> {
+pub fn handle_db_versioning(
+    base_path: &Path,
+    version_info: &GitVersionInfo,
+    is_ci: bool,
+) -> Result<PathBuf> {
     if let Ok(version) = env::var("TURBO_ENGINE_VERSION") {
         return Ok(base_path.join(version));
     }
@@ -59,6 +63,8 @@ pub fn handle_db_versioning(base_path: &Path, version_info: &GitVersionInfo) -> 
     if let Some(version) = version {
         path = base_path.join(version);
 
+        let max_other_db_versions = if is_ci { 0 } else { MAX_OTHER_DB_VERSIONS };
+
         // Remove old databases if needed
         if let Ok(read_dir) = read_dir(base_path) {
             let old_dbs = read_dir
@@ -75,7 +81,7 @@ pub fn handle_db_versioning(base_path: &Path, version_info: &GitVersionInfo) -> 
                     Some(entry.path())
                 })
                 .collect::<Vec<_>>();
-            if old_dbs.len() > MAX_OTHER_DB_VERSIONS {
+            if old_dbs.len() > max_other_db_versions {
                 let mut old_dbs = old_dbs
                     .iter()
                     .map(|p| {
@@ -90,7 +96,7 @@ pub fn handle_db_versioning(base_path: &Path, version_info: &GitVersionInfo) -> 
                     })
                     .collect::<Vec<_>>();
                 old_dbs.sort_by_key(|(_, age)| *age);
-                for (p, _) in old_dbs.into_iter().skip(MAX_OTHER_DB_VERSIONS) {
+                for (p, _) in old_dbs.into_iter().skip(max_other_db_versions) {
                     let _ = remove_dir_all(p);
                 }
             }

@@ -781,7 +781,7 @@ export default class MiddlewarePlugin {
   }
 
   public apply(compiler: webpack.Compiler) {
-    compiler.hooks.thisCompilation.tap(NAME, (compilation, params) => {
+    compiler.hooks.compilation.tap(NAME, (compilation, params) => {
       const { hooks } = params.normalModuleFactory
       /**
        * This is the static code analysis phase.

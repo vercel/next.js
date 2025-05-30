@@ -72,7 +72,7 @@ You can use [`generateMetadata`](/docs/app/api-reference/functions/generate-meta
 import type { Metadata, ResolvingMetadata } from 'next'
 
 type Props = {
-  params: Promise<{ id: string }>
+  params: Promise<{ slug: string }>
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 

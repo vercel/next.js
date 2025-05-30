@@ -39,6 +39,7 @@ pub type LmdbBackingStorage = KeyValueDatabaseBackingStorage<
 pub fn lmdb_backing_storage(
     path: &Path,
     version_info: &GitVersionInfo,
+    is_ci: bool,
 ) -> Result<LmdbBackingStorage> {
     use crate::database::{
         fresh_db_optimization::{FreshDbOptimization, is_fresh},
@@ -46,7 +47,7 @@ pub fn lmdb_backing_storage(
         startup_cache::StartupCacheLayer,
     };
 
-    let path = handle_db_versioning(path, version_info)?;
+    let path = handle_db_versioning(path, version_info, is_ci)?;
     let fresh_db = is_fresh(&path);
     let database = crate::database::lmdb::LmbdKeyValueDatabase::new(&path)?;
     let database = FreshDbOptimization::new(database, fresh_db);
@@ -60,8 +61,9 @@ pub type TurboBackingStorage = KeyValueDatabaseBackingStorage<TurboKeyValueDatab
 pub fn turbo_backing_storage(
     path: &Path,
     version_info: &GitVersionInfo,
+    is_ci: bool,
 ) -> Result<TurboBackingStorage> {
-    let path = handle_db_versioning(path, version_info)?;
+    let path = handle_db_versioning(path, version_info, is_ci)?;
     let database = TurboKeyValueDatabase::new(path)?;
     Ok(KeyValueDatabaseBackingStorage::new(database))
 }
@@ -79,8 +81,9 @@ pub type DefaultBackingStorage = LmdbBackingStorage;
 pub fn default_backing_storage(
     path: &Path,
     version_info: &GitVersionInfo,
+    is_ci: bool,
 ) -> Result<DefaultBackingStorage> {
-    lmdb_backing_storage(path, version_info)
+    lmdb_backing_storage(path, version_info, is_ci)
 }
 
 #[cfg(not(feature = "lmdb"))]
@@ -90,6 +93,7 @@ pub type DefaultBackingStorage = TurboBackingStorage;
 pub fn default_backing_storage(
     path: &Path,
     version_info: &GitVersionInfo,
+    is_ci: bool,
 ) -> Result<DefaultBackingStorage> {
-    turbo_backing_storage(path, version_info)
+    turbo_backing_storage(path, version_info, is_ci)
 }

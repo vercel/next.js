@@ -95,7 +95,6 @@ export interface Issue {
     }
   }
   documentationLink: string
-  subIssues: Issue[]
 }
 
 export interface Diagnostics {

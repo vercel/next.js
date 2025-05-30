@@ -222,6 +222,8 @@ pub struct NapiTurboEngineOptions {
     pub memory_limit: Option<f64>,
     /// Track dependencies between tasks. If false, any change during build will error.
     pub dependency_tracking: Option<bool>,
+    /// Whether the project is running in a CI environment.
+    pub is_ci: Option<bool>,
 }
 
 impl From<NapiWatchOptions> for WatchOptions {
@@ -394,11 +396,13 @@ pub async fn project_new(
         .unwrap_or(usize::MAX);
     let persistent_caching = turbo_engine_options.persistent_caching.unwrap_or_default();
     let dependency_tracking = turbo_engine_options.dependency_tracking.unwrap_or(true);
+    let is_ci = turbo_engine_options.is_ci.unwrap_or(false);
     let turbo_tasks = create_turbo_tasks(
         PathBuf::from(&options.dist_dir),
         persistent_caching,
         memory_limit,
         dependency_tracking,
+        is_ci,
     )?;
 
     turbo_tasks.send_compilation_event(Arc::new(DiagnosticEvent::new(
