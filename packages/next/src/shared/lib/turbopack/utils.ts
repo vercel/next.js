@@ -139,7 +139,7 @@ export function formatIssue(issue: Issue) {
   // TODO: Use error codes to identify these
   // TODO: Generalize adapting Turbopack errors to Next.js errors
   if (formattedTitle.includes('Module not found')) {
-    // For compatiblity with webpack
+    // For compatibility with webpack
     // TODO: include columns in webpack errors.
     documentationLink = 'https://nextjs.org/docs/messages/module-not-found'
   }
