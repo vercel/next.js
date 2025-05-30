@@ -1225,7 +1225,11 @@ export default async function getBaseWebpackConfig(
               }).apply(compiler)
             },
         // Minify CSS
-        isRspack && config.experimental.useLightningcss
+        // Rspack using LightningCSS by default
+        isRspack &&
+        (process.env.NEXT_TEST_USE_RSPACK ||
+          config.experimental?.useLightningcss === undefined ||
+          config.experimental.useLightningcss)
           ? new (getRspackCore().LightningCssMinimizerRspackPlugin)({
               // CSS minimizer configuration
               minimizerOptions: {
