@@ -591,6 +591,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "packages/next/src/client/components/react-dev-overlay/utils/launch-editor.test.ts": {
+    "passed": ["applescript string escaping should escape strings correctly"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "packages/next/src/client/components/react-dev-overlay/utils/webpack-module-path.test.ts": {
     "passed": [
       "webpack-module-path formatFrameSourceFile should return the original file path",
@@ -1795,27 +1802,27 @@
   },
   "test/development/acceptance-app/ReactRefreshLogBox.test.ts": {
     "passed": [
+      "ReactRefreshLogBox app Call stack for client error",
+      "ReactRefreshLogBox app Call stack for server error",
+      "ReactRefreshLogBox app Server component errors should open up in fullscreen",
+      "ReactRefreshLogBox app Should show error location for server actions in client component",
+      "ReactRefreshLogBox app Should show error location for server actions in server component",
       "ReactRefreshLogBox app boundaries",
+      "ReactRefreshLogBox app logbox: anchors links in error messages",
+      "ReactRefreshLogBox app server component can recover from error thrown in the module",
+      "ReactRefreshLogBox app should hide unrelated frames in stack trace with nodejs internal calls",
+      "ReactRefreshLogBox app should hide unrelated frames in stack trace with unknown anonymous calls",
       "ReactRefreshLogBox app should strip whitespace correctly with newline"
     ],
     "failed": [
-      "ReactRefreshLogBox app Call stack for client error",
-      "ReactRefreshLogBox app Call stack for server error",
       "ReactRefreshLogBox app Can't resolve @import in CSS file",
       "ReactRefreshLogBox app Import trace when module not found in layout",
-      "ReactRefreshLogBox app Server component errors should open up in fullscreen",
       "ReactRefreshLogBox app Should not show __webpack_exports__ when exporting anonymous arrow function",
-      "ReactRefreshLogBox app Should show error location for server actions in client component",
-      "ReactRefreshLogBox app Should show error location for server actions in server component",
       "ReactRefreshLogBox app Unhandled errors and rejections opens up in the minimized state",
       "ReactRefreshLogBox app conversion to class component (1)",
       "ReactRefreshLogBox app css syntax errors",
-      "ReactRefreshLogBox app logbox: anchors links in error messages",
       "ReactRefreshLogBox app module init error not shown",
-      "ReactRefreshLogBox app server component can recover from error thrown in the module",
       "ReactRefreshLogBox app should collapse bundler internal stack frames",
-      "ReactRefreshLogBox app should hide unrelated frames in stack trace with nodejs internal calls",
-      "ReactRefreshLogBox app should hide unrelated frames in stack trace with unknown anonymous calls",
       "ReactRefreshLogBox app unterminated JSX"
     ],
     "pending": [
@@ -1844,13 +1851,12 @@
       "ReactRefreshRegression app can fast refresh a page with config",
       "ReactRefreshRegression app can fast refresh a page with dynamic rendering",
       "ReactRefreshRegression app can fast refresh a page with static generation",
-      "ReactRefreshRegression app custom loader mdx should have Fast Refresh enabled"
-    ],
-    "failed": [
+      "ReactRefreshRegression app custom loader mdx should have Fast Refresh enabled",
       "ReactRefreshRegression app shows an overlay for anonymous function server-side error",
       "ReactRefreshRegression app shows an overlay for server-side error in client component",
       "ReactRefreshRegression app shows an overlay for server-side error in server component"
     ],
+    "failed": [],
     "pending": [
       "ReactRefreshRegression app styled-components hydration mismatch"
     ],
@@ -1925,15 +1931,16 @@
     "runtimeError": false
   },
   "test/development/acceptance-app/error-recovery.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Error recovery app can recover from a event handler error",
+      "Error recovery app server component can recover from a component error"
+    ],
+    "failed": [
       "Error recovery app can recover from a syntax error without losing state",
       "Error recovery app client component can recover from a component error",
       "Error recovery app client component can recover from syntax error",
       "Error recovery app displays build error on initial page load",
       "Error recovery app render error not shown right after syntax error",
-      "Error recovery app server component can recover from a component error",
       "Error recovery app server component can recover from syntax error",
       "Error recovery app stuck error",
       "Error recovery app syntax > runtime error"
@@ -1945,9 +1952,7 @@
   "test/development/acceptance-app/hydration-error.test.ts": {
     "passed": [
       "Error overlay for hydration errors in App router includes a React docs link when hydration error does occur",
-      "Error overlay for hydration errors in App router should not show a hydration error when using `useId` in a client component"
-    ],
-    "failed": [
+      "Error overlay for hydration errors in App router should not show a hydration error when using `useId` in a client component",
       "Error overlay for hydration errors in App router should only show one hydration error when bad nesting happened - div > tr",
       "Error overlay for hydration errors in App router should only show one hydration error when bad nesting happened - div under p",
       "Error overlay for hydration errors in App router should only show one hydration error when bad nesting happened - p under p",
@@ -1963,6 +1968,7 @@
       "Error overlay for hydration errors in App router should show error if script is directly placed under html instead of body",
       "Error overlay for hydration errors in App router should show the highlighted bad nesting html snippet when bad nesting happened"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2028,12 +2034,12 @@
     "runtimeError": false
   },
   "test/development/acceptance-app/rsc-runtime-errors.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Error overlay - RSC runtime errors should show runtime errors if invalid client API from node_modules is executed",
       "Error overlay - RSC runtime errors should show runtime errors if invalid server API from node_modules is executed",
       "Error overlay - RSC runtime errors should show source code for jsx errors from server component"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2101,12 +2107,11 @@
   "test/development/acceptance/ReactRefreshLogBox-app-doc.test.ts": {
     "passed": [
       "ReactRefreshLogBox _app _document _app syntax error shows logbox",
-      "ReactRefreshLogBox _app _document _document syntax error shows logbox"
-    ],
-    "failed": [
+      "ReactRefreshLogBox _app _document _document syntax error shows logbox",
       "ReactRefreshLogBox _app _document empty _app shows logbox",
       "ReactRefreshLogBox _app _document empty _document shows logbox"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2134,17 +2139,19 @@
     "runtimeError": false
   },
   "test/development/acceptance/ReactRefreshLogBox.test.ts": {
-    "passed": ["ReactRefreshLogBox non-Error errors are handled properly"],
-    "failed": [
+    "passed": [
       "ReactRefreshLogBox Call stack count is correct for pages error",
+      "ReactRefreshLogBox logbox: anchors links in error messages",
+      "ReactRefreshLogBox non-Error errors are handled properly",
+      "ReactRefreshLogBox should collapse nodejs internal stack frames from stack trace",
+      "ReactRefreshLogBox should show anonymous frames from stack trace",
+      "ReactRefreshLogBox should strip whitespace correctly with newline"
+    ],
+    "failed": [
       "ReactRefreshLogBox boundaries",
       "ReactRefreshLogBox conversion to class component (1)",
       "ReactRefreshLogBox css syntax errors",
-      "ReactRefreshLogBox logbox: anchors links in error messages",
       "ReactRefreshLogBox module init error not shown",
-      "ReactRefreshLogBox should collapse nodejs internal stack frames from stack trace",
-      "ReactRefreshLogBox should show anonymous frames from stack trace",
-      "ReactRefreshLogBox should strip whitespace correctly with newline",
       "ReactRefreshLogBox unterminated JSX"
     ],
     "pending": ["ReactRefreshLogBox internal package errors"],
@@ -2161,13 +2168,13 @@
   "test/development/acceptance/ReactRefreshRegression.test.ts": {
     "passed": [
       "ReactRefreshRegression custom loader mdx should have Fast Refresh enabled",
+      "ReactRefreshRegression shows an overlay for a server-side error",
       "ReactRefreshRegression styled-components hydration mismatch"
     ],
     "failed": [
       "ReactRefreshRegression can fast refresh a page with config",
       "ReactRefreshRegression can fast refresh a page with getServerSideProps",
-      "ReactRefreshRegression can fast refresh a page with getStaticProps",
-      "ReactRefreshRegression shows an overlay for a server-side error"
+      "ReactRefreshRegression can fast refresh a page with getStaticProps"
     ],
     "pending": [],
     "flakey": [],
@@ -2198,10 +2205,11 @@
     "runtimeError": false
   },
   "test/development/acceptance/error-recovery.test.ts": {
-    "passed": [],
+    "passed": [
+      "pages/ error recovery logbox: can recover from a event handler error"
+    ],
     "failed": [
       "pages/ error recovery logbox: can recover from a component error",
-      "pages/ error recovery logbox: can recover from a event handler error",
       "pages/ error recovery logbox: can recover from a syntax error without losing state",
       "pages/ error recovery render error not shown right after syntax error",
       "pages/ error recovery stuck error",
@@ -2215,9 +2223,6 @@
     "passed": [
       "Error overlay for hydration errors in Pages router includes a React docs link when hydration error does occur",
       "Error overlay for hydration errors in Pages router should not show a hydration error when using `useId` in a client component",
-      "Error overlay for hydration errors in Pages router should show error if script is directly placed under html instead of body"
-    ],
-    "failed": [
       "Error overlay for hydration errors in Pages router should only show one hydration error when bad nesting happened - div > tr",
       "Error overlay for hydration errors in Pages router should only show one hydration error when bad nesting happened - div under p",
       "Error overlay for hydration errors in Pages router should only show one hydration error when bad nesting happened - p under p",
@@ -2229,8 +2234,10 @@
       "Error overlay for hydration errors in Pages router should show correct hydration error when server renders an extra text node",
       "Error overlay for hydration errors in Pages router should show correct hydration error when server renders an extra text node in an invalid place",
       "Error overlay for hydration errors in Pages router should show correct hydration error when server renders an extra whitespace in an invalid place",
+      "Error overlay for hydration errors in Pages router should show error if script is directly placed under html instead of body",
       "Error overlay for hydration errors in Pages router should show the highlighted bad nesting html snippet when bad nesting happened"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2310,16 +2317,15 @@
   },
   "test/development/app-dir/capture-console-error-owner-stack/capture-console-error-owner-stack.test.ts": {
     "passed": [
-      "app-dir - capture-console-error-owner-stack should display the error message in error event when event.error is not present"
-    ],
-    "failed": [
       "app-dir - capture-console-error-owner-stack should be able to capture rsc logged error",
       "app-dir - capture-console-error-owner-stack should capture browser console error and format the error message",
       "app-dir - capture-console-error-owner-stack should capture browser console error in render and dedupe if necessary",
       "app-dir - capture-console-error-owner-stack should capture browser console error in render and dedupe when multi same errors logged",
       "app-dir - capture-console-error-owner-stack should capture server replay error instance from console error",
-      "app-dir - capture-console-error-owner-stack should capture server replay string error from console error"
+      "app-dir - capture-console-error-owner-stack should capture server replay string error from console error",
+      "app-dir - capture-console-error-owner-stack should display the error message in error event when event.error is not present"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2364,8 +2370,8 @@
     "runtimeError": false
   },
   "test/development/app-dir/dynamic-error-trace/index.test.ts": {
-    "passed": [],
-    "failed": ["app dir - dynamic error trace should show the error trace"],
+    "passed": ["app dir - dynamic error trace should show the error trace"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2382,13 +2388,13 @@
   },
   "test/development/app-dir/dynamic-io-dev-errors/dynamic-io-dev-errors.test.ts": {
     "passed": [
-      "Dynamic IO Dev Errors should not log unhandled rejections for persistently thrown top-level errors"
+      "Dynamic IO Dev Errors should not log unhandled rejections for persistently thrown top-level errors",
+      "Dynamic IO Dev Errors should show a red box error on client navigations",
+      "Dynamic IO Dev Errors should show a red box error on the SSR render"
     ],
     "failed": [
       "Dynamic IO Dev Errors should clear segment errors after correcting them",
-      "Dynamic IO Dev Errors should display error when component accessed data without suspense boundary",
-      "Dynamic IO Dev Errors should show a red box error on client navigations",
-      "Dynamic IO Dev Errors should show a red box error on the SSR render"
+      "Dynamic IO Dev Errors should display error when component accessed data without suspense boundary"
     ],
     "pending": [],
     "flakey": [],
@@ -2436,13 +2442,13 @@
     "runtimeError": false
   },
   "test/development/app-dir/error-overlay/error-ignored-frames/error-ignored-frames.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "error-ignored-frames should be able to collapse ignored frames in client component",
       "error-ignored-frames should be able to collapse ignored frames in interleaved call stack",
       "error-ignored-frames should be able to collapse ignored frames in server component",
       "error-ignored-frames should be able to collapse pages router ignored frames"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2518,23 +2524,23 @@
     "runtimeError": false
   },
   "test/development/app-dir/hook-function-names/hook-function-names.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "hook-function-names should show readable hook names in stacks",
       "hook-function-names should show readable hook names in stacks for default-exported components"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/development/app-dir/hydration-error-count/hydration-error-count.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "hydration-error-count should display correct hydration info in each hydration error view",
       "hydration-error-count should display runtime error separately from hydration errors",
       "hydration-error-count should have correct hydration error count for bad nesting",
       "hydration-error-count should have correct hydration error count for html diff"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2587,35 +2593,34 @@
     "runtimeError": false
   },
   "test/development/app-dir/owner-stack-invalid-element-type/owner-stack-invalid-element-type.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "app-dir - owner-stack-invalid-element-type should catch invalid element from a browser only component",
       "app-dir - owner-stack-invalid-element-type should catch invalid element from a rsc component",
       "app-dir - owner-stack-invalid-element-type should catch invalid element from on ssr client component"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/development/app-dir/owner-stack-react-missing-key-prop/owner-stack-react-missing-key-prop.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "app-dir - owner-stack-react-missing-key-prop should catch invalid element from on rsc component",
       "app-dir - owner-stack-react-missing-key-prop should catch invalid element from on ssr client component"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/development/app-dir/owner-stack/owner-stack.test.ts": {
     "passed": [
-      "app-dir - owner-stack should capture unhandled promise rejections"
-    ],
-    "failed": [
+      "app-dir - owner-stack should capture unhandled promise rejections",
       "app-dir - owner-stack should log stitched error for SSR errors",
       "app-dir - owner-stack should log stitched error for browser caught errors",
       "app-dir - owner-stack should log stitched error for browser uncaught errors"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2660,13 +2665,13 @@
     "runtimeError": false
   },
   "test/development/app-dir/server-navigation-error/server-navigation-error.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "server-navigation-error middleware should error on navigation API not-found",
       "server-navigation-error middleware should error on navigation API redirect ",
       "server-navigation-error pages router should error on navigation API notFound",
       "server-navigation-error pages router should error on navigation API redirect"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2701,9 +2706,10 @@
   },
   "test/development/app-dir/ssr-only-error/ssr-only-error.test.ts": {
     "passed": [
-      "ssr-only-error should not handle internal nextjs errors that will be handled by error boundaries"
+      "ssr-only-error should not handle internal nextjs errors that will be handled by error boundaries",
+      "ssr-only-error should show ssr only error in error overlay"
     ],
-    "failed": ["ssr-only-error should show ssr only error in error overlay"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2734,10 +2740,11 @@
   },
   "test/development/app-dir/use-cache-errors/use-cache-errors.test.ts": {
     "passed": [
-      "use-cache-errors should not show a false-positive compiler error about a misplaced \"use cache\" directive",
+      "use-cache-errors should not show a false-positive compiler error about a misplaced \"use cache\" directive"
+    ],
+    "failed": [
       "use-cache-errors should show a runtime error when calling the incorrectly used cache function"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2916,14 +2923,14 @@
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover from 404 after a page has been added",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover from 404 after a page has been added with dynamic segments",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover from errors in getInitialProps in client",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover from errors in the render function",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should show the error on all pages"
     ],
     "failed": [
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should detect runtime errors on the module scope",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should not continously poll a custom error page",
-      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover after loader parse error in an imported file",
-      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover from errors in the render function"
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover after loader parse error in an imported file"
     ],
     "pending": [],
     "flakey": [],
@@ -2940,14 +2947,14 @@
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover from 404 after a page has been added",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover from 404 after a page has been added with dynamic segments",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover from errors in getInitialProps in client",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover from errors in the render function",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should show the error on all pages"
     ],
     "failed": [
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should detect runtime errors on the module scope",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should not continously poll a custom error page",
-      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover after loader parse error in an imported file",
-      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover from errors in the render function"
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover after loader parse error in an imported file"
     ],
     "pending": [],
     "flakey": [],
@@ -2964,14 +2971,14 @@
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover from 404 after a page has been added",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover from 404 after a page has been added with dynamic segments",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover from errors in getInitialProps in client",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover from errors in the render function",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should show the error on all pages"
     ],
     "failed": [
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should detect runtime errors on the module scope",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should not continously poll a custom error page",
-      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover after loader parse error in an imported file",
-      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover from errors in the render function"
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover after loader parse error in an imported file"
     ],
     "pending": [],
     "flakey": [],
@@ -2988,14 +2995,14 @@
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover from 404 after a page has been added",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover from 404 after a page has been added with dynamic segments",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover from errors in getInitialProps in client",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover from errors in the render function",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should show the error on all pages"
     ],
     "failed": [
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should detect runtime errors on the module scope",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should not continously poll a custom error page",
-      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover after loader parse error in an imported file",
-      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover from errors in the render function"
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover after loader parse error in an imported file"
     ],
     "pending": [],
     "flakey": [],
@@ -3478,6 +3485,9 @@
   "test/development/middleware-errors/index.test.ts": {
     "passed": [
       "middleware - development errors when middleware contains an unhandled rejection does not render the error",
+      "middleware - development errors when middleware contains an unhandled rejection logs the error correctly",
+      "middleware - development errors when middleware throws synchronously logs the error correctly",
+      "middleware - development errors when middleware throws synchronously renders the error correctly and recovers",
       "middleware - development errors when there is a compilation error after boot logs the error correctly",
       "middleware - development errors when there is a compilation error from boot logs the error correctly",
       "middleware - development errors when there is an unhandled rejection while loading a dependency does not render the error",
@@ -3486,9 +3496,6 @@
       "middleware - development errors when there is an unhandled rejection while loading the module logs the error correctly"
     ],
     "failed": [
-      "middleware - development errors when middleware contains an unhandled rejection logs the error correctly",
-      "middleware - development errors when middleware throws synchronously logs the error correctly",
-      "middleware - development errors when middleware throws synchronously renders the error correctly and recovers",
       "middleware - development errors when running invalid dynamic code with eval logs the error correctly",
       "middleware - development errors when running invalid dynamic code with eval renders the error correctly and recovers",
       "middleware - development errors when there is a compilation error after boot renders the error correctly and recovers",
@@ -3652,6 +3659,7 @@
   },
   "test/development/pages-dir/client-navigation/index.test.ts": {
     "passed": [
+      "Client Navigation runtime errors should show redbox when a client side error is thrown inside a component",
       "Client Navigation should emit routeChangeError on hash change cancel",
       "Client Navigation should handle boolean async prop in next/script client-side: false",
       "Client Navigation should handle boolean async prop in next/script client-side: true",
@@ -3676,7 +3684,6 @@
       "Client Navigation with the current url should reload the page"
     ],
     "failed": [
-      "Client Navigation runtime errors should show redbox when a client side error is thrown inside a component",
       "Client Navigation runtime errors should show redbox when a client side error is thrown outside a component"
     ],
     "pending": [],
@@ -3765,7 +3772,12 @@
       "Client Navigation rendering Rendering via HTTP allows to import .json files",
       "Client Navigation rendering Rendering via HTTP asPath",
       "Client Navigation rendering Rendering via HTTP default Content-Type",
+      "Client Navigation rendering Rendering via HTTP default export is not a React Component",
+      "Client Navigation rendering Rendering via HTTP error-in-the-global-scope",
+      "Client Navigation rendering Rendering via HTTP error-inside-page",
       "Client Navigation rendering Rendering via HTTP getInitialProps circular structure",
+      "Client Navigation rendering Rendering via HTTP getInitialProps resolves to null",
+      "Client Navigation rendering Rendering via HTTP getInitialProps should be class method",
       "Client Navigation rendering Rendering via HTTP renders a link component",
       "Client Navigation rendering Rendering via HTTP renders a stateless component",
       "Client Navigation rendering Rendering via HTTP renders properties populated asynchronously",
@@ -3787,13 +3799,7 @@
       "Client Navigation rendering Rendering via HTTP with the HOC based router should include asPath",
       "Client Navigation rendering Rendering via HTTP with the HOC based router should navigate as expected"
     ],
-    "failed": [
-      "Client Navigation rendering Rendering via HTTP default export is not a React Component",
-      "Client Navigation rendering Rendering via HTTP error-in-the-global-scope",
-      "Client Navigation rendering Rendering via HTTP error-inside-page",
-      "Client Navigation rendering Rendering via HTTP getInitialProps resolves to null",
-      "Client Navigation rendering Rendering via HTTP getInitialProps should be class method"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5180,6 +5186,7 @@
       "app dir - basic searchParams prop server component should have the correct search params on middleware rewrite",
       "app dir - basic searchParams prop server component should have the correct search params on rewrite",
       "app dir - basic server components Loading should render loading.js in browser for slow layout",
+      "app dir - basic server components Loading should render loading.js in browser for slow layout and page",
       "app dir - basic server components Loading should render loading.js in browser for slow page",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout and page",
@@ -5193,7 +5200,6 @@
       "app dir - basic server components client components should have consistent query and params handling",
       "app dir - basic server components dynamic routes should only pass params that apply to the layout",
       "app dir - basic server components middleware should strip internal query parameters from requests to middleware for redirect",
-      "app dir - basic server components middleware should strip internal query parameters from requests to middleware for rewrite",
       "app dir - basic server components next/router should support router.back and router.forward",
       "app dir - basic server components should include client component layout with server component route should include it client-side",
       "app dir - basic server components should include client component layout with server component route should include it server-side",
@@ -5219,6 +5225,8 @@
       "app dir - basic should not share edge workers",
       "app dir - basic should pass props from getServerSideProps in root layout",
       "app dir - basic should return normalized dynamic route params for catch-all edge page",
+      "app dir - basic should return the `vary` header from edge runtime",
+      "app dir - basic should return the `vary` header from pages for flight requests",
       "app dir - basic should serve /index as separate page",
       "app dir - basic should serve dynamic parameter",
       "app dir - basic should serve dynamic route from pages",
@@ -5236,7 +5244,7 @@
     ],
     "failed": [
       "app dir - basic <Link /> should navigate to pages dynamic route from pages page if it overlaps with an app page",
-      "app dir - basic server components Loading should render loading.js in browser for slow layout and page"
+      "app dir - basic server components middleware should strip internal query parameters from requests to middleware for rewrite"
     ],
     "pending": [
       "app dir - basic HMR should HMR correctly when changing the component type",
@@ -5779,25 +5787,24 @@
   },
   "test/e2e/app-dir/dynamic-data/dynamic-data.test.ts": {
     "passed": [
+      "dynamic-data inside cache scope displays redbox when accessing dynamic data inside a cache scope",
       "dynamic-data should render empty objects for dynamic APIs when rendering with force-static",
       "dynamic-data should render the dynamic apis dynamically when used in a top-level scope",
       "dynamic-data should render the dynamic apis dynamically when used in a top-level scope with force dynamic",
-      "dynamic-data should track searchParams access as dynamic when the Page is a client component"
-    ],
-    "failed": [
-      "dynamic-data inside cache scope displays redbox when accessing dynamic data inside a cache scope",
+      "dynamic-data should track searchParams access as dynamic when the Page is a client component",
       "dynamic-data with dynamic = \"error\" displays redbox when `dynamic = \"error\"` and dynamic data is read in dev"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/dynamic-href/dynamic-href.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "dynamic-href should error when using dynamic href in app dir",
       "dynamic-href should error when using dynamic href.pathname in app dir"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6260,6 +6267,7 @@
     "passed": [
       "empty-fallback-shells with cached IO and the page not wrapped in Suspense and params.then/catch/finally passed to a cached function does not resume a postponed fallback shell",
       "empty-fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in a cached non-page function does not resume a postponed fallback shell",
+      "empty-fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in the cached page does not render a fallback shell when using a params placeholder",
       "empty-fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in the cached page does not resume a postponed fallback shell",
       "empty-fallback-shells with cached IO and the page wrapped in Suspense and params.then/catch/finally passed to a cached function resumes a postponed fallback shell",
       "empty-fallback-shells with cached IO and the page wrapped in Suspense and the params accessed in cached non-page function resumes a postponed fallback shell",
@@ -6311,10 +6319,10 @@
   "test/e2e/app-dir/error-on-next-codemod-comment/error-on-next-codemod-comment.test.ts": {
     "passed": [
       "app-dir - error-on-next-codemod-comment should disappear the error when you replace with bypass comment",
-      "app-dir - error-on-next-codemod-comment should error with inline comment as well"
+      "app-dir - error-on-next-codemod-comment should disappear the error when you rre the codemod comment"
     ],
     "failed": [
-      "app-dir - error-on-next-codemod-comment should disappear the error when you rre the codemod comment",
+      "app-dir - error-on-next-codemod-comment should error with inline comment as well",
       "app-dir - error-on-next-codemod-comment should error with swc if you have codemod comments left"
     ],
     "pending": [],
@@ -6323,17 +6331,16 @@
   },
   "test/e2e/app-dir/errors/index.test.ts": {
     "passed": [
+      "app-dir - errors error component should display error digest for error in server component with default error boundary",
       "app-dir - errors error component should preserve custom digests",
       "app-dir - errors error component should trigger error component when a string is thrown during server components rendering",
       "app-dir - errors error component should trigger error component when an error happens during rendering",
       "app-dir - errors error component should trigger error component when an error happens during server components rendering",
       "app-dir - errors error component should trigger error component when null is thrown during server components rendering",
-      "app-dir - errors error component should trigger error component when undefined is thrown during server components rendering"
-    ],
-    "failed": [
-      "app-dir - errors error component should display error digest for error in server component with default error boundary",
+      "app-dir - errors error component should trigger error component when undefined is thrown during server components rendering",
       "app-dir - errors error component should use default error boundary for prod and overlay for dev when no error component specified"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6396,15 +6403,14 @@
   },
   "test/e2e/app-dir/global-error/basic/index.test.ts": {
     "passed": [
-      "app dir - global-error should catch metadata error in error boundary if presented"
-    ],
-    "failed": [
+      "app dir - global-error should catch metadata error in error boundary if presented",
       "app dir - global-error should catch metadata error in global-error if no error boundary is presented",
       "app dir - global-error should catch the client error thrown in the nested routes",
       "app dir - global-error should render global error for error in client components during SSR",
       "app dir - global-error should render global error for error in server components",
       "app dir - global-error should trigger error component when an error happens during rendering"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6421,20 +6427,20 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/global-error/error-in-global-error/error-in-global-error.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "app dir - global-error - error-in-global-error should be able to use nextjs navigation hook in global-error",
       "app dir - global-error - error-in-global-error should render fallback UI when error occurs in global-error"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/global-error/layout-error/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "app dir - global error - layout error should render global error for error in server components"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -7526,11 +7532,11 @@
       "app dir - next/font app dir - next-font computed styles should have correct styles at /client",
       "app dir - next/font app dir - next-font import values should have correct values at /",
       "app dir - next/font app dir - next-font import values should have correct values at /client",
-      "app dir - next/font app dir - next-font import values should transform code in node_modules"
+      "app dir - next/font app dir - next-font import values should transform code in node_modules",
+      "app dir - next/font app dir - next-font navigation should not have duplicate preload tags on navigation"
     ],
     "failed": [
-      "app dir - next/font app dir - next-font Dev errors should recover on font loader error",
-      "app dir - next/font app dir - next-font navigation should not have duplicate preload tags on navigation"
+      "app dir - next/font app dir - next-font Dev errors should recover on font loader error"
     ],
     "pending": [],
     "flakey": [],
@@ -7625,10 +7631,10 @@
       "non-root-project-monorepo import.meta.url should work on client-side",
       "non-root-project-monorepo monorepo-package should work during RSC",
       "non-root-project-monorepo monorepo-package should work during SSR",
-      "non-root-project-monorepo monorepo-package should work on client-side"
+      "non-root-project-monorepo monorepo-package should work on client-side",
+      "non-root-project-monorepo source-maps should work on RSC"
     ],
     "failed": [
-      "non-root-project-monorepo source-maps should work on RSC",
       "non-root-project-monorepo source-maps should work on SSR",
       "non-root-project-monorepo source-maps should work on client-side"
     ],
@@ -8205,22 +8211,6 @@
   },
   "test/e2e/app-dir/ppr-navigations/search-params/search-params.test.ts": {
     "passed": ["search-params ppr is disabled in dev"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/ppr-navigations/simple/per-segment-prefetching.test.ts": {
-    "passed": ["per segment prefetching ppr is disabled"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/ppr-navigations/simple/simple.test.ts": {
-    "passed": [
-      "ppr-navigations simple can navigate between all the links and back"
-    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -9063,6 +9053,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/segment-cache/cdn-cache-busting/cdn-cache-busting.test.ts": {
+    "passed": [
+      "segment cache (CDN cache busting) should not run during dev or deploy test runs"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/segment-cache/client-only-opt-in/client-only-opt-in.test.ts": {
     "passed": ["segment cache prefetch scheduling prefetching is disabled"],
     "failed": [],
@@ -9217,27 +9216,27 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/server-source-maps/server-source-maps-edge.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "app-dir - server source maps edge runtime logged errors have a sourcemapped stack with a codeframe",
       "app-dir - server source maps edge runtime should log the correct values on app-render error",
       "app-dir - server source maps edge runtime thrown SSR errors"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/server-source-maps/server-source-maps.test.ts": {
     "passed": [
-      "app-dir - server source maps logged errors preserve their name"
-    ],
-    "failed": [
       "app-dir - server source maps handles invalid sourcemaps gracefully",
       "app-dir - server source maps logged errors have a sourcemapped `cause`",
       "app-dir - server source maps logged errors have a sourcemapped stack with a codeframe",
-      "app-dir - server source maps stack frames are ignore-listed in rsc",
+      "app-dir - server source maps logged errors preserve their name",
       "app-dir - server source maps stack frames are ignore-listed in ssr",
       "app-dir - server source maps thrown SSR errors"
+    ],
+    "failed": [
+      "app-dir - server source maps stack frames are ignore-listed in rsc"
     ],
     "pending": [],
     "flakey": [],
@@ -9446,11 +9445,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/use-cache-close-over-function/use-cache-close-over-function.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "use-cache-close-over-function should show an error toast for client-side usage",
       "use-cache-close-over-function should show the error overlay for server-side usage"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9483,16 +9482,15 @@
   },
   "test/e2e/app-dir/use-cache-hanging-inputs/use-cache-hanging-inputs.test.ts": {
     "passed": [
-      "use-cache-hanging-inputs when an error is thrown should show an error overlay with only one error",
-      "use-cache-hanging-inputs when searchParams are unused inside of \"use cache\" should not show an error"
-    ],
-    "failed": [
       "use-cache-hanging-inputs when a \"use cache\" function is closing over an uncached promise should show an error toast after a timeout",
+      "use-cache-hanging-inputs when an error is thrown should show an error overlay with only one error",
       "use-cache-hanging-inputs when an uncached promise is used inside of \"use cache\" should show an error toast after a timeout",
       "use-cache-hanging-inputs when an uncached promise is used inside of a nested \"use cache\" should show an error toast after a timeout",
+      "use-cache-hanging-inputs when searchParams are unused inside of \"use cache\" should not show an error",
       "use-cache-hanging-inputs when searchParams are used inside of \"use cache\" should show an error toast after a timeout",
       "use-cache-hanging-inputs when searchParams are used inside of \"use cache\", wrapped in try/catch should show an error toast after a timeout"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9539,10 +9537,10 @@
   "test/e2e/app-dir/use-cache-standalone-search-params/use-cache-standalone-search-params.test.ts": {
     "passed": [
       "use-cache-standalone-search-params when searchParams are caught inside of \"use cache\" should also show an error after the second reload",
+      "use-cache-standalone-search-params when searchParams are caught inside of \"use cache\" should show an error",
       "use-cache-standalone-search-params when searchParams are unused inside of \"use cache\" should not show an error"
     ],
     "failed": [
-      "use-cache-standalone-search-params when searchParams are caught inside of \"use cache\" should show an error",
       "use-cache-standalone-search-params when searchParams are used inside of \"use cache\" should show an error"
     ],
     "pending": [],
@@ -10240,10 +10238,10 @@
     "runtimeError": false
   },
   "test/e2e/fetch-failures-have-good-stack-traces-in-edge-runtime/fetch-failures-have-good-stack-traces-in-edge-runtime.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "fetch failures have good stack traces in edge runtime when awaiting `fetch` using an unknown domain, stack traces are preserved"
     ],
+    "failed": [],
     "pending": [
       "fetch failures have good stack traces in edge runtime when returning `fetch` using an unknown domain, stack traces are preserved"
     ],
@@ -11531,13 +11529,13 @@
     "runtimeError": false
   },
   "test/e2e/next-link-errors/next-link-errors.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "next-link errors on invalid href",
       "next-link invalid `prefetch` causes runtime error (dev-only)",
       "next-link multiple children",
       "next-link no children"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -12415,9 +12413,9 @@
   },
   "test/e2e/vary-header/test/index.test.ts": {
     "passed": [
-      "Vary Header Tests should preserve custom vary header",
+      "Vary Header Tests should preserve custom vary header and append RSC headers in app route handlers",
       "Vary Header Tests should preserve custom vary header in API routes",
-      "Vary Header Tests should preserve middleware vary header"
+      "Vary Header Tests should preserve middleware vary header in combination with route handlers"
     ],
     "failed": [],
     "pending": [],
@@ -13403,10 +13401,10 @@
     "runtimeError": false
   },
   "test/integration/config-devtool-dev/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "devtool set in development mode in next config should warn and revert when a devtool is set in development mode"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -21206,13 +21204,14 @@
     "runtimeError": false
   },
   "test/integration/server-side-dev-errors/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "server-side dev errors should show server-side error for api route correctly",
-      "server-side dev errors should show server-side error for dynamic api route correctly",
       "server-side dev errors should show server-side error for dynamic gssp page correctly",
       "server-side dev errors should show server-side error for gsp page correctly",
-      "server-side dev errors should show server-side error for gssp page correctly",
+      "server-side dev errors should show server-side error for gssp page correctly"
+    ],
+    "failed": [
+      "server-side dev errors should show server-side error for dynamic api route correctly",
       "server-side dev errors should show server-side error for uncaught empty exception correctly",
       "server-side dev errors should show server-side error for uncaught empty rejection correctly",
       "server-side dev errors should show server-side error for uncaught exception correctly",
@@ -21590,18 +21589,17 @@
   "test/integration/typescript-paths/test/index.test.js": {
     "passed": [
       "typescript paths default behavior should alias components",
+      "typescript paths default behavior should not resolve to .d.ts files",
       "typescript paths default behavior should resolve a single matching alias",
       "typescript paths default behavior should resolve the first item in the array first",
       "typescript paths default behavior should resolve the second item in as a fallback",
       "typescript paths without baseurl default behavior should alias components",
+      "typescript paths without baseurl default behavior should not resolve to .d.ts files",
       "typescript paths without baseurl default behavior should resolve a single matching alias",
       "typescript paths without baseurl default behavior should resolve the first item in the array first",
       "typescript paths without baseurl default behavior should resolve the second item in as a fallback"
     ],
-    "failed": [
-      "typescript paths default behavior should not resolve to .d.ts files",
-      "typescript paths without baseurl default behavior should not resolve to .d.ts files"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -21609,13 +21607,12 @@
   "test/integration/typescript-workspaces-paths/packages/www/test/index.test.js": {
     "passed": [
       "TypeScript Features default behavior should alias components",
+      "TypeScript Features default behavior should not resolve to .d.ts files",
       "TypeScript Features default behavior should resolve a single matching alias",
       "TypeScript Features default behavior should resolve the first item in the array first",
       "TypeScript Features default behavior should resolve the second item in as a fallback"
     ],
-    "failed": [
-      "TypeScript Features default behavior should not resolve to .d.ts files"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false

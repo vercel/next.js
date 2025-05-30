@@ -21,7 +21,7 @@ Next.js provides a few APIs to handle caching and revalidation. This guide will 
 - [`revalidatePath`](#revalidatepath)
 - [`revalidateTag`](#revalidatetag)
 
-### `fetch`
+## `fetch`
 
 By default, [`fetch`](/docs/app/api-reference/functions/fetch) requests are not cached. You can cache individual requests by setting the `cache` option to `'force-cache'`.
 
@@ -57,7 +57,7 @@ This will revalidate the data after a specified amount of seconds.
 
 See the [`fetch` API reference](/docs/app/api-reference/functions/fetch) to learn more.
 
-### `unstable_cache`
+## `unstable_cache`
 
 `unstable_cache` allows you to cache the result of database queries and other async functions. To use it, wrap `unstable_cache` around the function. For example:
 
@@ -153,7 +153,7 @@ const getCachedUser = unstable_cache(
 
 See the [`unstable_cache` API reference](/docs/app/api-reference/functions/unstable_cache) to learn more.
 
-### `revalidateTag`
+## `revalidateTag`
 
 `revalidateTag` is used to revalidate a cache entries based on a tag and following an event. To use it with `fetch`, start by tagging the function with the `next.tags` option:
 
@@ -227,7 +227,7 @@ You can reuse the same tag in multiple functions to revalidate them all at once.
 
 See the [`revalidateTag` API reference](/docs/app/api-reference/functions/revalidateTag) to learn more.
 
-### `revalidatePath`
+## `revalidatePath`
 
 `revalidatePath` is used to revalidate a route and following an event. To use it, call it in a [Route Handler](/docs/app/api-reference/file-conventions/route) or Server Action:
 

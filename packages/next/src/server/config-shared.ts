@@ -684,15 +684,6 @@ export interface ExperimentalConfig {
   }
 
   /**
-   * Enables the client instrumentation hook.
-   * Loads the instrumentation-client.ts file from the project root
-   * and executes it on the client side before hydration.
-   *
-   * Note: Use with caution as this can negatively impact page loading performance.
-   */
-  clientInstrumentationHook?: boolean
-
-  /**
    * Enables using the global-not-found.js file in the app directory
    *
    */

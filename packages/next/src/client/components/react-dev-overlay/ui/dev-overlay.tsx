@@ -1,4 +1,4 @@
-import type { OverlayState } from '../shared'
+import type { OverlayDispatch, OverlayState } from '../shared'
 
 import { ShadowPortal } from './components/shadow-portal'
 import { Base } from './styles/base'
@@ -13,14 +13,10 @@ import { useDevToolsScale } from './components/errors/dev-tools-indicator/dev-to
 
 export function DevOverlay({
   state,
-  isErrorOverlayOpen,
-  setIsErrorOverlayOpen,
+  dispatch,
 }: {
   state: OverlayState
-  isErrorOverlayOpen: boolean
-  setIsErrorOverlayOpen: (
-    isErrorOverlayOpen: boolean | ((prev: boolean) => boolean)
-  ) => void
+  dispatch: OverlayDispatch
 }) {
   const [scale, setScale] = useDevToolsScale()
   return (
@@ -41,18 +37,17 @@ export function DevOverlay({
                   scale={scale}
                   setScale={setScale}
                   state={state}
+                  dispatch={dispatch}
                   errorCount={totalErrorCount}
                   isBuildError={isBuildError}
-                  setIsErrorOverlayOpen={setIsErrorOverlayOpen}
                 />
               )}
 
               <ErrorOverlay
                 state={state}
+                dispatch={dispatch}
                 runtimeErrors={runtimeErrors}
                 errorCount={totalErrorCount}
-                isErrorOverlayOpen={isErrorOverlayOpen}
-                setIsErrorOverlayOpen={setIsErrorOverlayOpen}
               />
             </>
           )

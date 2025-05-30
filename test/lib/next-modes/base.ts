@@ -545,6 +545,16 @@ export class NextInstance {
     return fs.readFile(path.join(this.testDir, filename), 'utf8')
   }
 
+  public async readFileBuffer(
+    filename: string
+  ): Promise<Buffer<ArrayBufferLike>> {
+    return fs.readFile(path.join(this.testDir, filename))
+  }
+
+  public async writeFileBuffer(filename: string, data: Buffer): Promise<void> {
+    return fs.writeFile(path.join(this.testDir, filename), data)
+  }
+
   public async readFiles(
     dirname: string,
     predicate: (filename: string) => boolean

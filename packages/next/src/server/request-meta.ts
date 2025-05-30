@@ -91,6 +91,17 @@ export interface RequestMeta {
   isRSCRequest?: true
 
   /**
+   * A search param set by the Next.js client when performing RSC requests.
+   * Because some CDNs do not vary their cache entries on our custom headers,
+   * this search param represents a hash of the header values. For any cached
+   * RSC request, we should verify that the hash matches before responding.
+   * Otherwise this can lead to cache poisoning.
+   * TODO: Consider not using custom request headers at all, and instead encode
+   * everything into the search param.
+   */
+  cacheBustingSearchParam?: string
+
+  /**
    * True when the request is for the `/_next/data` route using the pages
    * router.
    */

@@ -1,11 +1,14 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use swc_core::ecma::{
-    ast::{
-        BlockStmt, CallExpr, Expr, Lit, MemberExpr, ModuleDecl, ModuleItem, Pat, Program, Prop,
-        SimpleAssignTarget, Stmt, Str, SwitchCase,
+use swc_core::{
+    base::SwcComments,
+    ecma::{
+        ast::{
+            BlockStmt, CallExpr, Expr, Lit, MemberExpr, ModuleDecl, ModuleItem, Pat, Program, Prop,
+            SimpleAssignTarget, Stmt, Str, SwitchCase,
+        },
+        visit::AstParentKind,
     },
-    visit::AstParentKind,
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
@@ -41,6 +44,7 @@ pub struct CodeGeneration {
     pub visitors: Vec<(Vec<AstParentKind>, Box<dyn AstModifier>)>,
     pub hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
     pub early_hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
+    pub comments: Option<SwcComments>,
 }
 
 impl CodeGeneration {
@@ -59,6 +63,18 @@ impl CodeGeneration {
             visitors,
             hoisted_stmts,
             early_hoisted_stmts,
+            ..Default::default()
+        }
+    }
+
+    pub fn visitors_with_comments(
+        visitors: Vec<(Vec<AstParentKind>, Box<dyn AstModifier>)>,
+        comments: SwcComments,
+    ) -> Self {
+        CodeGeneration {
+            visitors,
+            comments: Some(comments),
+            ..Default::default()
         }
     }
 

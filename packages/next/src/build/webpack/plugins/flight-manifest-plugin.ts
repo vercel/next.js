@@ -223,7 +223,7 @@ export class ClientReferenceManifestPlugin {
   }
 
   apply(compiler: webpack.Compiler) {
-    compiler.hooks.thisCompilation.tap(PLUGIN_NAME, (compilation) => {
+    compiler.hooks.compilation.tap(PLUGIN_NAME, (compilation) => {
       compilation.hooks.processAssets.tap(
         {
           name: PLUGIN_NAME,

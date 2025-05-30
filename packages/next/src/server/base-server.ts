@@ -178,6 +178,7 @@ import { InvariantError } from '../shared/lib/invariant-error'
 import { decodeQueryPathParameter } from './lib/decode-query-path-parameter'
 import { getCacheHandlers } from './use-cache/handlers'
 import { fixMojibake } from './lib/fix-mojibake'
+import { computeCacheBustingSearchParam } from '../shared/lib/router/utils/cache-busting-search-param'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -2074,6 +2075,42 @@ export default abstract class Server<
     const hasGetInitialProps = !!components.Component?.getInitialProps
     let isSSG = !!components.getStaticProps
 
+    // Not all CDNs respect the Vary header when caching. We must assume that
+    // only the URL is used to vary the responses. The Next client computes a
+    // hash of the header values and sends it as a search param. Before
+    // responding to a request, we must verify that the hash matches the
+    // expected value. Neglecting to do this properly can lead to cache
+    // poisoning attacks on certain CDNs.
+    // TODO: This is verification only runs during per-segment prefetch
+    // requests, since those are the only ones that both vary on a custom
+    // header and are cacheable. But for safety, we should run this
+    // verification for all requests, once we confirm the behavior is correct.
+    // Will need to update our test suite, since there are a handlful of unit
+    // tests that send fetch requests with custom headers but without a
+    // corresponding cache-busting search param.
+    // TODO: Consider not using custom request headers at all, and instead fully
+    // encode everything into the search param.
+    if (
+      this.isAppSegmentPrefetchEnabled &&
+      getRequestMeta(req, 'segmentPrefetchRSCRequest')
+    ) {
+      const headers = req.headers
+      const expectedHash = computeCacheBustingSearchParam(
+        headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()],
+        headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER.toLowerCase()],
+        headers[NEXT_ROUTER_STATE_TREE_HEADER.toLowerCase()],
+        headers[NEXT_URL.toLowerCase()]
+      )
+      const actualHash = getRequestMeta(req, 'cacheBustingSearchParam') ?? null
+      if (expectedHash !== actualHash) {
+        // The hash sent by the client does not match the expected value.
+        // Respond with an error.
+        res.statusCode = 400
+        res.body('Bad Request').send()
+        return null
+      }
+    }
+
     // Compute the iSSG cache key. We use the rewroteUrl since
     // pages with fallback: false are allowed to be rewritten to
     // and we need to look up the path by the rewritten path
@@ -3830,6 +3867,11 @@ export default abstract class Server<
     let page = pathname
     const bubbleNoFallback =
       getRequestMeta(ctx.req, 'bubbleNoFallback') ?? false
+    addRequestMeta(
+      ctx.req,
+      'cacheBustingSearchParam',
+      query[NEXT_RSC_UNION_QUERY]
+    )
     delete query[NEXT_RSC_UNION_QUERY]
 
     const options: MatchOptions = {

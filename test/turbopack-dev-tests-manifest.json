@@ -6132,6 +6132,7 @@
     "passed": [
       "empty-fallback-shells with cached IO and the page not wrapped in Suspense and params.then/catch/finally passed to a cached function does not resume a postponed fallback shell",
       "empty-fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in a cached non-page function does not resume a postponed fallback shell",
+      "empty-fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in the cached page does not render a fallback shell when using a params placeholder",
       "empty-fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in the cached page does not resume a postponed fallback shell",
       "empty-fallback-shells with cached IO and the page wrapped in Suspense and params.then/catch/finally passed to a cached function resumes a postponed fallback shell",
       "empty-fallback-shells with cached IO and the page wrapped in Suspense and the params accessed in cached non-page function resumes a postponed fallback shell",
@@ -8076,22 +8077,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/ppr-navigations/simple/per-segment-prefetching.test.ts": {
-    "passed": ["per segment prefetching ppr is disabled"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/ppr-navigations/simple/simple.test.ts": {
-    "passed": [
-      "ppr-navigations simple can navigate between all the links and back"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/ppr-navigations/stale-prefetch-entry/stale-prefetch-entry.test.ts": {
     "passed": ["stale-prefetch-entry should skip dev & deploy"],
     "failed": [],
@@ -8923,6 +8908,15 @@
   },
   "test/e2e/app-dir/segment-cache/basic/segment-cache-basic.test.ts": {
     "passed": ["segment cache (basic tests) ppr is disabled"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/segment-cache/cdn-cache-busting/cdn-cache-busting.test.ts": {
+    "passed": [
+      "segment cache (CDN cache busting) should not run during dev or deploy test runs"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],

@@ -510,7 +510,6 @@
   },
   "test/e2e/app-dir/app-css/index.test.ts": {
     "passed": [
-      "app dir - css css support chunks should bundle css resources into chunks",
       "app dir - css css support client components should support css modules inside client components",
       "app dir - css css support client components should support css modules inside client page",
       "app dir - css css support client layouts should support css modules inside client layouts",
@@ -528,7 +527,6 @@
       "app dir - css css support special entries should include css imported in client not-found.js",
       "app dir - css css support special entries should include css imported in client template.js",
       "app dir - css css support special entries should include css imported in error.js",
-      "app dir - css css support special entries should include css imported in loading.js",
       "app dir - css css support special entries should include css imported in root not-found.js",
       "app dir - css css support special entries should include css imported in server not-found.js",
       "app dir - css css support special entries should include css imported in server template.js",
@@ -543,7 +541,10 @@
       "app dir - css sass support server pages should support global sass/scss inside server pages",
       "app dir - css sass support server pages should support sass/scss modules inside server pages"
     ],
-    "failed": [],
+    "failed": [
+      "app dir - css css support chunks should bundle css resources into chunks",
+      "app dir - css css support special entries should include css imported in loading.js"
+    ],
     "pending": [
       "app dir - css css support server layouts should support global css inside server layouts"
     ],
@@ -1341,6 +1342,8 @@
       "app dir - basic should pass props from getServerSideProps in root layout",
       "app dir - basic should provide query for getStaticProps page correctly",
       "app dir - basic should return normalized dynamic route params for catch-all edge page",
+      "app dir - basic should return the `vary` header from edge runtime",
+      "app dir - basic should return the `vary` header from pages for flight requests",
       "app dir - basic should run generate command correctly",
       "app dir - basic should serve /index as separate page",
       "app dir - basic should serve dynamic parameter",
@@ -1462,6 +1465,8 @@
       "app dir - basic should not share edge workers",
       "app dir - basic should pass props from getServerSideProps in root layout",
       "app dir - basic should return normalized dynamic route params for catch-all edge page",
+      "app dir - basic should return the `vary` header from edge runtime",
+      "app dir - basic should return the `vary` header from pages for flight requests",
       "app dir - basic should serve /index as separate page",
       "app dir - basic should serve dynamic parameter",
       "app dir - basic should serve dynamic route from pages",
@@ -1757,6 +1762,8 @@
       "css-order loose should load correct styles navigating third -> first-client",
       "css-order loose should load correct styles navigating third -> second",
       "css-order loose should load correct styles navigating third -> second-client",
+      "css-order loose should load correct styles on big-interleaved-a",
+      "css-order loose should load correct styles on big-interleaved-b",
       "css-order loose should load correct styles on first",
       "css-order loose should load correct styles on first-client",
       "css-order loose should load correct styles on interleaved-a",
@@ -1774,7 +1781,16 @@
       "css-order loose should load correct styles on second-client",
       "css-order loose should load correct styles on third",
       "css-order loose should load correct styles on vendor",
+      "css-order strict should load correct styles navigating back again first -> first-client -> first -> first-client",
+      "css-order strict should load correct styles navigating back again first -> second -> first -> second",
+      "css-order strict should load correct styles navigating back again first -> second-client -> first -> second-client",
+      "css-order strict should load correct styles navigating back again first -> third -> first -> third",
+      "css-order strict should load correct styles navigating back again first-client -> first -> first-client -> first",
+      "css-order strict should load correct styles navigating back again first-client -> second -> first-client -> second",
+      "css-order strict should load correct styles navigating back again first-client -> second-client -> first-client -> second-client",
+      "css-order strict should load correct styles navigating back again first-client -> third -> first-client -> third",
       "css-order strict should load correct styles navigating back again interleaved-a -> interleaved-b -> interleaved-a -> interleaved-b",
+      "css-order strict should load correct styles navigating back again interleaved-b -> interleaved-a -> interleaved-b -> interleaved-a",
       "css-order strict should load correct styles navigating back again pages-first -> pages-second -> pages-first -> pages-second",
       "css-order strict should load correct styles navigating back again pages-first -> pages-third -> pages-first -> pages-third",
       "css-order strict should load correct styles navigating back again pages-interleaved-a -> pages-interleaved-b -> pages-interleaved-a -> pages-interleaved-b",
@@ -1787,6 +1803,18 @@
       "css-order strict should load correct styles navigating back again pages-second -> pages-third -> pages-second -> pages-third",
       "css-order strict should load correct styles navigating back again pages-third -> pages-first -> pages-third -> pages-first",
       "css-order strict should load correct styles navigating back again pages-third -> pages-second -> pages-third -> pages-second",
+      "css-order strict should load correct styles navigating back again second -> first -> second -> first",
+      "css-order strict should load correct styles navigating back again second -> first-client -> second -> first-client",
+      "css-order strict should load correct styles navigating back again second -> second-client -> second -> second-client",
+      "css-order strict should load correct styles navigating back again second -> third -> second -> third",
+      "css-order strict should load correct styles navigating back again second-client -> first -> second-client -> first",
+      "css-order strict should load correct styles navigating back again second-client -> first-client -> second-client -> first-client",
+      "css-order strict should load correct styles navigating back again second-client -> second -> second-client -> second",
+      "css-order strict should load correct styles navigating back again second-client -> third -> second-client -> third",
+      "css-order strict should load correct styles navigating back again third -> first -> third -> first",
+      "css-order strict should load correct styles navigating back again third -> first-client -> third -> first-client",
+      "css-order strict should load correct styles navigating back again third -> second -> third -> second",
+      "css-order strict should load correct styles navigating back again third -> second-client -> third -> second-client",
       "css-order strict should load correct styles navigating first -> first-client",
       "css-order strict should load correct styles navigating first -> second",
       "css-order strict should load correct styles navigating first -> second-client",
@@ -1821,8 +1849,12 @@
       "css-order strict should load correct styles navigating third -> first-client",
       "css-order strict should load correct styles navigating third -> second",
       "css-order strict should load correct styles navigating third -> second-client",
+      "css-order strict should load correct styles on big-interleaved-a",
+      "css-order strict should load correct styles on big-interleaved-b",
       "css-order strict should load correct styles on first",
       "css-order strict should load correct styles on first-client",
+      "css-order strict should load correct styles on global-first",
+      "css-order strict should load correct styles on global-second",
       "css-order strict should load correct styles on interleaved-a",
       "css-order strict should load correct styles on interleaved-b",
       "css-order strict should load correct styles on pages-first",
@@ -1834,11 +1866,24 @@
       "css-order strict should load correct styles on pages-reversed-b",
       "css-order strict should load correct styles on pages-second",
       "css-order strict should load correct styles on pages-third",
+      "css-order strict should load correct styles on partial-reversed-a",
+      "css-order strict should load correct styles on partial-reversed-b",
+      "css-order strict should load correct styles on reversed-a",
+      "css-order strict should load correct styles on reversed-b",
       "css-order strict should load correct styles on second",
       "css-order strict should load correct styles on second-client",
       "css-order strict should load correct styles on third",
       "css-order strict should load correct styles on vendor",
+      "css-order true should load correct styles navigating back again first -> first-client -> first -> first-client",
+      "css-order true should load correct styles navigating back again first -> second -> first -> second",
+      "css-order true should load correct styles navigating back again first -> second-client -> first -> second-client",
+      "css-order true should load correct styles navigating back again first -> third -> first -> third",
+      "css-order true should load correct styles navigating back again first-client -> first -> first-client -> first",
+      "css-order true should load correct styles navigating back again first-client -> second -> first-client -> second",
+      "css-order true should load correct styles navigating back again first-client -> second-client -> first-client -> second-client",
+      "css-order true should load correct styles navigating back again first-client -> third -> first-client -> third",
       "css-order true should load correct styles navigating back again interleaved-a -> interleaved-b -> interleaved-a -> interleaved-b",
+      "css-order true should load correct styles navigating back again interleaved-b -> interleaved-a -> interleaved-b -> interleaved-a",
       "css-order true should load correct styles navigating back again pages-first -> pages-second -> pages-first -> pages-second",
       "css-order true should load correct styles navigating back again pages-first -> pages-third -> pages-first -> pages-third",
       "css-order true should load correct styles navigating back again pages-interleaved-a -> pages-interleaved-b -> pages-interleaved-a -> pages-interleaved-b",
@@ -1850,49 +1895,7 @@
       "css-order true should load correct styles navigating back again pages-second -> pages-first -> pages-second -> pages-first",
       "css-order true should load correct styles navigating back again pages-second -> pages-third -> pages-second -> pages-third",
       "css-order true should load correct styles navigating back again pages-third -> pages-first -> pages-third -> pages-first",
-      "css-order true should load correct styles navigating back again pages-third -> pages-second -> pages-third -> pages-second"
-    ],
-    "failed": [
-      "css-order loose should load correct styles on big-interleaved-a",
-      "css-order loose should load correct styles on big-interleaved-b",
-      "css-order strict should load correct styles navigating back again first -> first-client -> first -> first-client",
-      "css-order strict should load correct styles navigating back again first -> second -> first -> second",
-      "css-order strict should load correct styles navigating back again first -> second-client -> first -> second-client",
-      "css-order strict should load correct styles navigating back again first -> third -> first -> third",
-      "css-order strict should load correct styles navigating back again first-client -> first -> first-client -> first",
-      "css-order strict should load correct styles navigating back again first-client -> second -> first-client -> second",
-      "css-order strict should load correct styles navigating back again first-client -> second-client -> first-client -> second-client",
-      "css-order strict should load correct styles navigating back again first-client -> third -> first-client -> third",
-      "css-order strict should load correct styles navigating back again interleaved-b -> interleaved-a -> interleaved-b -> interleaved-a",
-      "css-order strict should load correct styles navigating back again second -> first -> second -> first",
-      "css-order strict should load correct styles navigating back again second -> first-client -> second -> first-client",
-      "css-order strict should load correct styles navigating back again second -> second-client -> second -> second-client",
-      "css-order strict should load correct styles navigating back again second -> third -> second -> third",
-      "css-order strict should load correct styles navigating back again second-client -> first -> second-client -> first",
-      "css-order strict should load correct styles navigating back again second-client -> first-client -> second-client -> first-client",
-      "css-order strict should load correct styles navigating back again second-client -> second -> second-client -> second",
-      "css-order strict should load correct styles navigating back again second-client -> third -> second-client -> third",
-      "css-order strict should load correct styles navigating back again third -> first -> third -> first",
-      "css-order strict should load correct styles navigating back again third -> first-client -> third -> first-client",
-      "css-order strict should load correct styles navigating back again third -> second -> third -> second",
-      "css-order strict should load correct styles navigating back again third -> second-client -> third -> second-client",
-      "css-order strict should load correct styles on big-interleaved-a",
-      "css-order strict should load correct styles on big-interleaved-b",
-      "css-order strict should load correct styles on global-first",
-      "css-order strict should load correct styles on global-second",
-      "css-order strict should load correct styles on partial-reversed-a",
-      "css-order strict should load correct styles on partial-reversed-b",
-      "css-order strict should load correct styles on reversed-a",
-      "css-order strict should load correct styles on reversed-b",
-      "css-order true should load correct styles navigating back again first -> first-client -> first -> first-client",
-      "css-order true should load correct styles navigating back again first -> second -> first -> second",
-      "css-order true should load correct styles navigating back again first -> second-client -> first -> second-client",
-      "css-order true should load correct styles navigating back again first -> third -> first -> third",
-      "css-order true should load correct styles navigating back again first-client -> first -> first-client -> first",
-      "css-order true should load correct styles navigating back again first-client -> second -> first-client -> second",
-      "css-order true should load correct styles navigating back again first-client -> second-client -> first-client -> second-client",
-      "css-order true should load correct styles navigating back again first-client -> third -> first-client -> third",
-      "css-order true should load correct styles navigating back again interleaved-b -> interleaved-a -> interleaved-b -> interleaved-a",
+      "css-order true should load correct styles navigating back again pages-third -> pages-second -> pages-third -> pages-second",
       "css-order true should load correct styles navigating back again second -> first -> second -> first",
       "css-order true should load correct styles navigating back again second -> first-client -> second -> first-client",
       "css-order true should load correct styles navigating back again second -> second-client -> second -> second-client",
@@ -1906,6 +1909,7 @@
       "css-order true should load correct styles navigating back again third -> second -> third -> second",
       "css-order true should load correct styles navigating back again third -> second-client -> third -> second-client"
     ],
+    "failed": [],
     "pending": [
       "css-order loose should load correct styles navigating big-interleaved-a -> big-interleaved-b",
       "css-order loose should load correct styles navigating big-interleaved-b -> big-interleaved-a",
@@ -2528,6 +2532,7 @@
       "empty-fallback-shells should not log a HANGING_PROMISE_REJECTION error",
       "empty-fallback-shells with cached IO and the page not wrapped in Suspense and params.then/catch/finally passed to a cached function does not resume a postponed fallback shell",
       "empty-fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in a cached non-page function does not resume a postponed fallback shell",
+      "empty-fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in the cached page does not render a fallback shell when using a params placeholder",
       "empty-fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in the cached page does not resume a postponed fallback shell",
       "empty-fallback-shells with cached IO and the page wrapped in Suspense and params.then/catch/finally passed to a cached function resumes a postponed fallback shell",
       "empty-fallback-shells with cached IO and the page wrapped in Suspense and the params accessed in cached non-page function resumes a postponed fallback shell",
@@ -3742,11 +3747,10 @@
     "passed": [
       "next-dynamic-css should have correct order of global styles between layout and pages",
       "next-dynamic-css should have correct order of styles between global and css modules",
+      "next-dynamic-css should have correct order of styles on client component that is sharing styles with next/dynamic",
       "next-dynamic-css should have correct order of styles on next/dynamic loaded component"
     ],
-    "failed": [
-      "next-dynamic-css should have correct order of styles on client component that is sharing styles with next/dynamic"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3758,18 +3762,19 @@
       "app dir - next/font app dir - next-font import values should have correct values at /",
       "app dir - next/font app dir - next-font import values should have correct values at /client",
       "app dir - next/font app dir - next-font import values should transform code in node_modules",
-      "app dir - next/font app dir - next-font preconnect should not preconnect when css is used but no fonts",
-      "app dir - next/font app dir - next-font preload should preload correctly with client components",
-      "app dir - next/font app dir - next-font preload should preload correctly with layout using fonts",
-      "app dir - next/font app dir - next-font preload should preload correctly with page using fonts"
-    ],
-    "failed": [
       "app dir - next/font app dir - next-font navigation should not have duplicate preload tags on navigation",
       "app dir - next/font app dir - next-font preconnect should add preconnect when preloading is disabled in component",
       "app dir - next/font app dir - next-font preconnect should add preconnect when preloading is disabled in layout",
       "app dir - next/font app dir - next-font preconnect should add preconnect when preloading is disabled in page",
-      "app dir - next/font app dir - next-font preload should preload correctly with server components"
+      "app dir - next/font app dir - next-font preconnect should add preconnect when preloading is disabled in template",
+      "app dir - next/font app dir - next-font preconnect should not preconnect when css is used but no fonts",
+      "app dir - next/font app dir - next-font preload should preload correctly with client components",
+      "app dir - next/font app dir - next-font preload should preload correctly with layout using fonts",
+      "app dir - next/font app dir - next-font preload should preload correctly with page using fonts",
+      "app dir - next/font app dir - next-font preload should preload correctly with server components",
+      "app dir - next/font app dir - next-font preload should preload correctly with template using fonts"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -4654,25 +4659,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/ppr-navigations/simple/per-segment-prefetching.test.ts": {
-    "passed": [
-      "per segment prefetching basic route tree prefetch",
-      "per segment prefetching respond with 204 if the segment does not have prefetch data"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/ppr-navigations/simple/simple.test.ts": {
-    "passed": [
-      "ppr-navigations simple can navigate between all the links and back"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/ppr-navigations/stale-prefetch-entry/stale-prefetch-entry.test.ts": {
     "passed": [
       "stale-prefetch-entry works if a prefetched route entry has become stale (too much time has elapsed since it was prefetched)"
@@ -5518,6 +5504,16 @@
       "segment cache (basic tests) refreshes page segments when navigating to the exact same URL as the current location",
       "segment cache (basic tests) skips dynamic request if prefetched data is fully static",
       "segment cache (basic tests) skips static layouts during partially static navigation"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/segment-cache/cdn-cache-busting/cdn-cache-busting.test.ts": {
+    "passed": [
+      "segment cache (CDN cache busting) perform fully prefetched navigation with a CDN that doesn't respect the Vary header",
+      "segment cache (CDN cache busting) prevent cache poisoning attacks by responding with an error if a custom header is sent during a prefetch without a corresponding cache-busting search param"
     ],
     "failed": [],
     "pending": [],
@@ -8944,9 +8940,9 @@
   },
   "test/e2e/vary-header/test/index.test.ts": {
     "passed": [
-      "Vary Header Tests should preserve custom vary header",
+      "Vary Header Tests should preserve custom vary header and append RSC headers in app route handlers",
       "Vary Header Tests should preserve custom vary header in API routes",
-      "Vary Header Tests should preserve middleware vary header"
+      "Vary Header Tests should preserve middleware vary header in combination with route handlers"
     ],
     "failed": [],
     "pending": [],
@@ -9930,10 +9926,10 @@
     "runtimeError": false
   },
   "test/integration/config-devtool-dev/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "devtool set in development mode in next config should warn and revert when a devtool is set in development mode"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -17732,9 +17728,7 @@
     "runtimeError": false
   },
   "test/integration/server-side-dev-errors/test/index.test.js": {
-    "passed": [],
-    "failed": [
-      "server-side dev errors should show server-side error for api route correctly",
+    "passed": [
       "server-side dev errors should show server-side error for dynamic api route correctly",
       "server-side dev errors should show server-side error for dynamic gssp page correctly",
       "server-side dev errors should show server-side error for gsp page correctly",
@@ -17743,6 +17737,9 @@
       "server-side dev errors should show server-side error for uncaught empty rejection correctly",
       "server-side dev errors should show server-side error for uncaught exception correctly",
       "server-side dev errors should show server-side error for uncaught rejection correctly"
+    ],
+    "failed": [
+      "server-side dev errors should show server-side error for api route correctly"
     ],
     "pending": [],
     "flakey": [],
@@ -18116,18 +18113,17 @@
   "test/integration/typescript-paths/test/index.test.js": {
     "passed": [
       "typescript paths default behavior should alias components",
+      "typescript paths default behavior should not resolve to .d.ts files",
       "typescript paths default behavior should resolve a single matching alias",
       "typescript paths default behavior should resolve the first item in the array first",
       "typescript paths default behavior should resolve the second item in as a fallback",
       "typescript paths without baseurl default behavior should alias components",
+      "typescript paths without baseurl default behavior should not resolve to .d.ts files",
       "typescript paths without baseurl default behavior should resolve a single matching alias",
       "typescript paths without baseurl default behavior should resolve the first item in the array first",
       "typescript paths without baseurl default behavior should resolve the second item in as a fallback"
     ],
-    "failed": [
-      "typescript paths default behavior should not resolve to .d.ts files",
-      "typescript paths without baseurl default behavior should not resolve to .d.ts files"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -18135,13 +18131,12 @@
   "test/integration/typescript-workspaces-paths/packages/www/test/index.test.js": {
     "passed": [
       "TypeScript Features default behavior should alias components",
+      "TypeScript Features default behavior should not resolve to .d.ts files",
       "TypeScript Features default behavior should resolve a single matching alias",
       "TypeScript Features default behavior should resolve the first item in the array first",
       "TypeScript Features default behavior should resolve the second item in as a fallback"
     ],
-    "failed": [
-      "TypeScript Features default behavior should not resolve to .d.ts files"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -19200,11 +19195,11 @@
     "runtimeError": false
   },
   "test/production/generate-middleware-source-maps/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Middleware source maps generates a source map for Edge API",
       "Middleware source maps generates a source map for Middleware"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false

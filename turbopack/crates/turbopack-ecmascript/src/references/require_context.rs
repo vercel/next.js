@@ -24,7 +24,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
         ChunkItem, ChunkType, ChunkableModule, ChunkableModuleReference, ChunkingContext,
-        ModuleChunkItemIdExt,
+        MinifyType, ModuleChunkItemIdExt,
     },
     ident::AssetIdent,
     issue::IssueSource,
@@ -462,6 +462,7 @@ impl EcmascriptChunkItem for RequireContextChunkItem {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
         let map = &*self.map.await?;
+        let minify = self.chunking_context.minify_type().await?;
 
         let mut context_map = ObjectLit {
             span: DUMMY_SP,
@@ -516,12 +517,19 @@ impl EcmascriptChunkItem for RequireContextChunkItem {
         };
 
         let source_map: Arc<swc_core::common::SourceMap> = Default::default();
+
         let mut bytes: Vec<u8> = vec![];
+        let mut wr: JsWriter<'_, &mut Vec<u8>> =
+            JsWriter::new(source_map.clone(), "\n", &mut bytes, None);
+        if matches!(*minify, MinifyType::Minify { .. }) {
+            wr.set_indent_str("");
+        }
+
         let mut emitter = Emitter {
             cfg: swc_core::ecma::codegen::Config::default(),
             cm: source_map.clone(),
             comments: None,
-            wr: JsWriter::new(source_map, "\n", &mut bytes, None),
+            wr,
         };
 
         emitter.emit_module(&module)?;

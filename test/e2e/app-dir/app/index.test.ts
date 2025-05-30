@@ -331,20 +331,18 @@ describe('app dir - basic', () => {
     )
   })
 
-  if (!isNextDeploy) {
-    it('should return the `vary` header from pages for flight requests', async () => {
-      const res = await next.fetch('/', {
-        headers: {
-          ['RSC'.toString()]: '1',
-        },
-      })
-      expect(res.headers.get('vary')).toBe(
-        isNextDeploy
-          ? 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Router-Segment-Prefetch'
-          : 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Router-Segment-Prefetch, Accept-Encoding'
-      )
+  it('should return the `vary` header from pages for flight requests', async () => {
+    const res = await next.fetch('/', {
+      headers: {
+        ['RSC'.toString()]: '1',
+      },
     })
-  }
+    expect(res.headers.get('vary')).toBe(
+      isNextDeploy
+        ? 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Router-Segment-Prefetch'
+        : 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Router-Segment-Prefetch, Accept-Encoding'
+    )
+  })
 
   it('should pass props from getServerSideProps in root layout', async () => {
     const $ = await next.render$('/dashboard')

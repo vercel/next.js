@@ -1,7 +1,7 @@
 /// <reference types="webpack/module.d.ts" />
 
 import type { ReactNode } from 'react'
-import { useCallback, useEffect, startTransition, useMemo, useRef } from 'react'
+import { useEffect, startTransition, useMemo, useRef } from 'react'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import formatWebpackMessages from '../utils/format-webpack-messages'
 import { useRouter } from '../../navigation'
@@ -57,6 +57,8 @@ export interface Dispatcher {
   onRefresh(): void
   onStaticIndicator(status: boolean): void
   onDevIndicator(devIndicator: DevIndicatorServerState): void
+  onUnhandledError(error: Error): void
+  onUnhandledRejection(error: Error): void
 }
 
 let mostRecentCompilationHash: any = null
@@ -511,40 +513,33 @@ export default function HotReload({
           devIndicator,
         })
       },
+      onUnhandledError(error) {
+        // Component stack is added to the error in use-error-handler in case there was a hydration error
+        const componentStack = getComponentStack(error)
+        const ownerStack = getOwnerStack(error)
+
+        dispatch({
+          type: ACTION_UNHANDLED_ERROR,
+          reason: error,
+          frames: parseStack((error.stack || '') + (ownerStack || '')),
+          componentStackFrames:
+            typeof componentStack === 'string'
+              ? parseComponentStack(componentStack)
+              : undefined,
+        })
+      },
+      onUnhandledRejection(error) {
+        const ownerStack = getOwnerStack(error)
+        dispatch({
+          type: ACTION_UNHANDLED_REJECTION,
+          reason: error,
+          frames: parseStack((error.stack || '') + (ownerStack || '')),
+        })
+      },
     }
   }, [dispatch])
 
-  const handleOnUnhandledError = useCallback(
-    (error: Error): void => {
-      // Component stack is added to the error in use-error-handler in case there was a hydration error
-      const componentStack = getComponentStack(error)
-      const ownerStack = getOwnerStack(error)
-
-      dispatch({
-        type: ACTION_UNHANDLED_ERROR,
-        reason: error,
-        frames: parseStack((error.stack || '') + (ownerStack || '')),
-        componentStackFrames:
-          typeof componentStack === 'string'
-            ? parseComponentStack(componentStack)
-            : undefined,
-      })
-    },
-    [dispatch]
-  )
-
-  const handleOnUnhandledRejection = useCallback(
-    (error: Error): void => {
-      const ownerStack = getOwnerStack(error)
-      dispatch({
-        type: ACTION_UNHANDLED_REJECTION,
-        reason: error,
-        frames: parseStack((error.stack || '') + (ownerStack || '')),
-      })
-    },
-    [dispatch]
-  )
-  useErrorHandler(handleOnUnhandledError, handleOnUnhandledRejection)
+  useErrorHandler(dispatcher.onUnhandledError, dispatcher.onUnhandledRejection)
 
   const webSocketRef = useWebsocket(assetPrefix)
   useWebsocketPing(webSocketRef)
@@ -629,7 +624,7 @@ export default function HotReload({
   ])
 
   return (
-    <AppDevOverlay state={state} globalError={globalError}>
+    <AppDevOverlay state={state} dispatch={dispatch} globalError={globalError}>
       {children}
     </AppDevOverlay>
   )
