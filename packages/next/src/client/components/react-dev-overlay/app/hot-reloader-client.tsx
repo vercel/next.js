@@ -11,6 +11,7 @@ import {
   ACTION_BUILD_OK,
   ACTION_DEBUG_INFO,
   ACTION_DEV_INDICATOR,
+  ACTION_ERROR_OVERLAY_OPEN,
   ACTION_REFRESH,
   ACTION_STATIC_INDICATOR,
   ACTION_UNHANDLED_ERROR,
@@ -21,6 +22,7 @@ import {
   useErrorOverlayReducer,
 } from '../shared'
 import { AppDevOverlay } from './app-dev-overlay'
+import { ReplaySsrOnlyErrors } from './replay-ssr-only-errors'
 import { useErrorHandler } from '../../errors/use-error-handler'
 import { RuntimeErrorHandler } from '../../errors/runtime-error-handler'
 import {
@@ -58,6 +60,7 @@ export interface Dispatcher {
   onDevIndicator(devIndicator: DevIndicatorServerState): void
   onUnhandledError(error: Error): void
   onUnhandledRejection(error: Error): void
+  openErrorOverlay(): void
 }
 
 let mostRecentCompilationHash: any = null
@@ -529,6 +532,9 @@ export default function HotReload({
           reason: error,
         })
       },
+      openErrorOverlay() {
+        dispatch({ type: ACTION_ERROR_OVERLAY_OPEN })
+      },
     }
   }, [dispatch])
 
@@ -618,6 +624,7 @@ export default function HotReload({
 
   return (
     <AppDevOverlay state={state} dispatch={dispatch} globalError={globalError}>
+      <ReplaySsrOnlyErrors onBlockingError={dispatcher.openErrorOverlay} />
       {children}
     </AppDevOverlay>
   )
