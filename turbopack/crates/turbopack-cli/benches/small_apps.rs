@@ -1,5 +1,7 @@
 #![cfg_attr(not(codspeed), allow(unused))]
 
+extern crate turbo_tasks_malloc;
+
 use std::{
     path::{Path, PathBuf},
     process::Command,
