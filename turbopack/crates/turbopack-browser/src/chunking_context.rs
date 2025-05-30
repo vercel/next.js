@@ -403,6 +403,10 @@ impl ChunkingContext for BrowserChunkingContext {
         ident: Vc<AssetIdent>,
         extension: RcStr,
     ) -> Result<Vc<FileSystemPath>> {
+        debug_assert!(
+            extension.starts_with("."),
+            "`extension` should include the leading '.', got '{extension}'"
+        );
         let root_path = self.chunk_root_path;
         let name = match self.content_hashing {
             None => {

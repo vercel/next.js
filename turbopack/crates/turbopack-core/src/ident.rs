@@ -224,6 +224,10 @@ impl AssetIdent {
         context_path: Vc<FileSystemPath>,
         expected_extension: RcStr,
     ) -> Result<Vc<RcStr>> {
+        debug_assert!(
+            expected_extension.starts_with("."),
+            "the extension should include the leading '.', got '{expected_extension}'"
+        );
         // TODO(PACK-2140): restrict character set to A–Za–z0–9-_.~'()
         // to be compatible with all operating systems + URLs.
 
