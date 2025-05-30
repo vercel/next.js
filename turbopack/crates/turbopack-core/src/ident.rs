@@ -15,10 +15,12 @@ use crate::resolve::ModulePart;
 pub struct AssetIdent {
     /// The primary path of the asset
     pub path: ResolvedVc<FileSystemPath>,
-    /// The query string of the asset (e.g. `?foo=bar`)
+    /// The query string of the asset this is either the empty string or a query string that starts
+    /// with a `?` (e.g. `?foo=bar`)
     pub query: ResolvedVc<RcStr>,
-    /// The fragment of the asset (e.g. `#foo`)
-    pub fragment: Option<ResolvedVc<RcStr>>,
+    /// The fragment of the asset, this is either the empty string or a fragment string that starts
+    /// with a `#` (e.g. `#foo`)
+    pub fragment: ResolvedVc<RcStr>,
     /// The assets that are nested in this asset
     pub assets: Vec<(ResolvedVc<RcStr>, ResolvedVc<AssetIdent>)>,
     /// The modifiers of this asset (e.g. `client chunks`)
@@ -57,14 +59,10 @@ impl ValueToString for AssetIdent {
     async fn to_string(&self) -> Result<Vc<RcStr>> {
         let mut s = self.path.to_string().owned().await?.into_owned();
 
-        let query = self.query.await?;
-        if !query.is_empty() {
-            write!(s, "?{}", &*query)?;
-        }
-
-        if let Some(fragment) = &self.fragment {
-            write!(s, "#{}", fragment.await?)?;
-        }
+        // The query string is either empty or non-empty starting with `?` so we can just concat
+        s.push_str(&self.query.await?);
+        // ditto for fragment
+        s.push_str(&self.fragment.await?);
 
         if !self.assets.is_empty() {
             s.push_str(" {");
@@ -121,8 +119,19 @@ impl ValueToString for AssetIdent {
 #[turbo_tasks::value_impl]
 impl AssetIdent {
     #[turbo_tasks::function]
-    pub fn new(ident: Value<AssetIdent>) -> Vc<Self> {
-        ident.into_value().cell()
+    pub async fn new(ident: Value<AssetIdent>) -> Result<Vc<Self>> {
+        let query = &*ident.query.await?;
+        // TODO(lukesandberg); downgrade to debug_assert
+        assert!(
+            query.is_empty() || query.starts_with("?"),
+            "query should be empty or start with a `?`"
+        );
+        let fragment = &*ident.fragment.await?;
+        assert!(
+            fragment.is_empty() || fragment.starts_with("#"),
+            "query should be empty or start with a `?`"
+        );
+        Ok(ident.into_value().cell())
     }
 
     /// Creates an [AssetIdent] from a [Vc<FileSystemPath>]
@@ -131,7 +140,7 @@ impl AssetIdent {
         Self::new(Value::new(AssetIdent {
             path,
             query: ResolvedVc::cell(RcStr::default()),
-            fragment: None,
+            fragment: ResolvedVc::cell(RcStr::default()),
             assets: Vec::new(),
             modifiers: Vec::new(),
             parts: Vec::new(),
@@ -252,9 +261,10 @@ impl AssetIdent {
             query.deterministic_hash(&mut hasher);
             has_hash = true;
         }
-        if let Some(fragment) = fragment {
+        let fragment = fragment.await?;
+        if !fragment.is_empty() {
             1_u8.deterministic_hash(&mut hasher);
-            fragment.await?.deterministic_hash(&mut hasher);
+            fragment.deterministic_hash(&mut hasher);
             has_hash = true;
         }
         for (key, ident) in assets.iter() {

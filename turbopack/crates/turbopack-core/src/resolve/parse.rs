@@ -61,30 +61,32 @@ pub enum Request {
     },
 }
 
-fn split_off_query_fragment(raw: RcStr) -> (Pattern, Vc<RcStr>, Vc<RcStr>) {
-    let Some((raw, query)) = raw.split_once('?') else {
-        if let Some((raw, fragment)) = raw.split_once('#') {
-            return (
-                Pattern::Constant(raw.into()),
-                Vc::<RcStr>::default(),
-                Vc::cell(fragment.into()),
-            );
-        }
+/// Splits a string like `foo?bar#baz` into `(Pattern::Constant('foo'), '?bar', '#baz')`
+///
+/// If the hash or query portion are missing they will be empty strings otherwise they will be
+/// non-empty along with their prepender characters
+fn split_off_query_fragment(mut raw: &str) -> (Pattern, RcStr, RcStr) {
+    // Per the URI spec fragments can contain `?` characters, so we should trim it off first
+    // https://datatracker.ietf.org/doc/html/rfc3986#section-3.5
 
-        return (
-            Pattern::Constant(raw),
-            Vc::<RcStr>::default(),
-            Vc::<RcStr>::default(),
-        );
+    let hash = match raw.as_bytes().iter().position(|&b| b == b'#') {
+        Some(pos) => {
+            let hash = RcStr::from(&raw[pos..]);
+            raw = &raw[..pos];
+            hash
+        }
+        None => RcStr::default(),
     };
 
-    let (query, fragment) = query.split_once('#').unwrap_or((query, ""));
-
-    (
-        Pattern::Constant(raw.into()),
-        Vc::cell(format!("?{query}").into()),
-        Vc::cell(format!("#{fragment}").into()),
-    )
+    let query = match raw.as_bytes().iter().position(|&b| b == b'?') {
+        Some(pos) => {
+            let query = RcStr::from(&raw[pos..]);
+            raw = &raw[..pos];
+            query
+        }
+        None => RcStr::default(),
+    };
+    (Pattern::Constant(RcStr::from(raw)), query, hash)
 }
 
 lazy_static! {
@@ -164,12 +166,12 @@ impl Request {
         }
 
         if r.starts_with('/') {
-            let (path, query, fragment) = split_off_query_fragment(r);
+            let (path, query, fragment) = split_off_query_fragment(&r);
 
             return Ok(Request::ServerRelative {
                 path,
-                query: query.to_resolved().await?,
-                fragment: fragment.to_resolved().await?,
+                query: ResolvedVc::cell(query),
+                fragment: ResolvedVc::cell(fragment),
             });
         }
 
@@ -180,23 +182,23 @@ impl Request {
         }
 
         if r.starts_with("./") || r.starts_with("../") || r == "." || r == ".." {
-            let (path, query, fragment) = split_off_query_fragment(r);
+            let (path, query, fragment) = split_off_query_fragment(&r);
 
             return Ok(Request::Relative {
                 path,
                 force_in_lookup_dir: false,
-                query: query.to_resolved().await?,
-                fragment: fragment.to_resolved().await?,
+                query: ResolvedVc::cell(query),
+                fragment: ResolvedVc::cell(fragment),
             });
         }
 
         if WINDOWS_PATH.is_match(&r) {
-            let (path, query, fragment) = split_off_query_fragment(r);
+            let (path, query, fragment) = split_off_query_fragment(&r);
 
             return Ok(Request::Windows {
                 path,
-                query: query.to_resolved().await?,
-                fragment: fragment.to_resolved().await?,
+                query: ResolvedVc::cell(query),
+                fragment: ResolvedVc::cell(fragment),
             });
         }
 
@@ -227,13 +229,13 @@ impl Request {
             .captures(&r)
             .and_then(|caps| caps.get(1).zip(caps.get(2)))
         {
-            let (path, query, fragment) = split_off_query_fragment(path.as_str().into());
+            let (path, query, fragment) = split_off_query_fragment(path.as_str());
 
             return Ok(Request::Module {
                 module: module.as_str().into(),
                 path,
-                query: query.to_resolved().await?,
-                fragment: fragment.to_resolved().await?,
+                query: ResolvedVc::cell(query),
+                fragment: ResolvedVc::cell(fragment),
             });
         }
 
@@ -816,4 +818,64 @@ pub async fn stringify_data_uri(
         if encoding.is_empty() { "" } else { ";" },
         data.await?
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_split_query_fragment() {
+        assert_eq!(
+            (
+                Pattern::Constant("foo".into()),
+                RcStr::default(),
+                RcStr::default()
+            ),
+            split_off_query_fragment("foo")
+        );
+        // These two cases are a bit odd, but it is important to treat `import './foo?'` differently
+        // from `import './foo'`, ditto for fragments.
+        assert_eq!(
+            (
+                Pattern::Constant("foo".into()),
+                RcStr::from("?"),
+                RcStr::default()
+            ),
+            split_off_query_fragment("foo?")
+        );
+        assert_eq!(
+            (
+                Pattern::Constant("foo".into()),
+                RcStr::default(),
+                RcStr::from("#")
+            ),
+            split_off_query_fragment("foo#")
+        );
+        assert_eq!(
+            (
+                Pattern::Constant("foo".into()),
+                RcStr::from("?bar=baz"),
+                RcStr::default()
+            ),
+            split_off_query_fragment("foo?bar=baz")
+        );
+        assert_eq!(
+            (
+                Pattern::Constant("foo".into()),
+                RcStr::default(),
+                RcStr::from("#stuff?bar=baz")
+            ),
+            split_off_query_fragment("foo#stuff?bar=baz")
+        );
+
+        assert_eq!(
+            (
+                Pattern::Constant("foo".into()),
+                RcStr::from("?bar=baz"),
+                RcStr::from("#stuff")
+            ),
+            split_off_query_fragment("foo?bar=baz#stuff")
+        );
+    }
 }

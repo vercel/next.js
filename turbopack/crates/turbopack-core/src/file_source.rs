@@ -33,6 +33,8 @@ impl FileSource {
         query: ResolvedVc<RcStr>,
     ) -> Result<Vc<Self>> {
         if query.await?.is_empty() {
+            // Delegate to the other factory to ensure there is a single empty ResolvedVc<RcStr> for
+            // the FileSource type.
             Ok(Self::new(*path))
         } else {
             Ok(Self::cell(FileSource { path, query }))
