@@ -743,7 +743,7 @@ impl BufRead for RopeReader {
             unreachable!()
         };
 
-        Ok(bytes.get_ref())
+        Ok(&bytes.get_ref()[bytes.position() as usize..])
     }
 
     fn consume(&mut self, amt: usize) {
