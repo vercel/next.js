@@ -11,7 +11,7 @@ use std::{
 
 use RopeElem::{Local, Shared};
 use anyhow::{Context, Result};
-use bytes::{Buf, Bytes};
+use bytes::Buf;
 use futures::Stream;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_bytes::ByteBuf;
@@ -80,12 +80,6 @@ pub struct RopeBuilder {
 enum Uncommitted {
     #[default]
     None,
-
-    /// Stores our attempt to push static lifetime bytes into the rope. If we
-    /// build the Rope or concatenate another Rope, we can commit a static
-    /// Bytes reference and save memory. If not, we'll concatenate this into
-    /// writable bytes to be committed later.
-    Static(&'static [u8]),
 
     /// Mutable bytes collection where non-static/non-shared bytes are written.
     /// This builds until the next time a static or shared bytes is
@@ -171,13 +165,6 @@ impl RopeBuilder {
     pub fn push_static_bytes(&mut self, bytes: &'static [u8]) {
         if bytes.is_empty() {
             return;
-        }
-
-        // If the string is smaller than the cost of a Bytes reference (4 usizes), then
-        // it's more efficient to own the bytes in a new buffer. We may be able to reuse
-        // that buffer when more bytes are pushed.
-        if bytes.len() < mem::size_of::<Bytes>() {
-            return self.uncommitted.push_static_bytes(bytes);
         }
 
         // We may have pending bytes from a prior push.
@@ -283,7 +270,6 @@ impl Uncommitted {
     fn len(&self) -> usize {
         match self {
             Uncommitted::None => 0,
-            Uncommitted::Static(s) => s.len(),
             Uncommitted::Owned(v) => v.len(),
         }
     }
@@ -294,30 +280,7 @@ impl Uncommitted {
         debug_assert!(!bytes.is_empty(), "must not push empty uncommitted bytes");
         match self {
             Self::None => *self = Self::Owned(bytes.to_vec()),
-            Self::Static(s) => {
-                // If we'd previously pushed static bytes, we instead concatenate those bytes
-                // with the new bytes in an attempt to use less memory rather than committing 2
-                // Bytes references (2 * 4 usizes).
-                let v = [s, bytes].concat();
-                *self = Self::Owned(v);
-            }
             Self::Owned(v) => v.extend(bytes),
-        }
-    }
-
-    /// Pushes static lifetime bytes, but only if the current representation is
-    /// None. Else, it coverts to an Owned.
-    fn push_static_bytes(&mut self, bytes: &'static [u8]) {
-        debug_assert!(!bytes.is_empty(), "must not push empty uncommitted bytes");
-        match self {
-            // If we've not already pushed static bytes, we attempt to store the bytes for later. If
-            // we push owned bytes or another static bytes, then this attempt will fail and we'll
-            // instead concatenate into a single owned Bytes. But if we don't push anything (build
-            // the Rope), or concatenate another Rope (we can't join our bytes with the InnerRope of
-            // another Rope), we'll be able to commit a static Bytes reference and save overall
-            // memory (a small static Bytes reference is better than a small owned Bytes reference).
-            Self::None => *self = Self::Static(bytes),
-            _ => self.push_bytes(bytes),
         }
     }
 
@@ -326,7 +289,6 @@ impl Uncommitted {
     fn finish(&mut self) -> Option<Cow<'static, [u8]>> {
         match mem::take(self) {
             Self::None => None,
-            Self::Static(s) => Some(Cow::Borrowed(s)),
             Self::Owned(mut v) => {
                 v.shrink_to_fit();
                 Some(v.into())
@@ -339,11 +301,7 @@ impl fmt::Debug for Uncommitted {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Uncommitted::None => f.write_str("None"),
-            Uncommitted::Static(s) => f.debug_tuple("Static").field(&Cow::Borrowed(s)).finish(),
-            Uncommitted::Owned(v) => f
-                .debug_tuple("Owned")
-                .field(&Bytes::from(v.clone()))
-                .finish(),
+            Uncommitted::Owned(v) => f.debug_tuple("Owned").field(&v).finish(),
         }
     }
 }
