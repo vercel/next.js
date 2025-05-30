@@ -16,9 +16,7 @@ export function PagesDevOverlay({ children }: PagesDevOverlayProps) {
 
   return (
     <>
-      <PagesDevOverlayErrorBoundary>
-        {children ?? null}
-      </PagesDevOverlayErrorBoundary>
+      <PagesDevOverlayErrorBoundary>{children}</PagesDevOverlayErrorBoundary>
 
       {/* Fonts can only be loaded outside the Shadow DOM. */}
       <FontStyles />
