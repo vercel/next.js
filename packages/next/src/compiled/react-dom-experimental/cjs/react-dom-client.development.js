@@ -9909,14 +9909,14 @@
             "%s has a method called componentDidReceiveProps(). But there is no such lifecycle method. If you meant to update the state in response to changing props, use componentWillReceiveProps(). If you meant to fetch data or run side-effects or mutations after React has updated the UI, use componentDidUpdate().",
             state
           );
-        "function" === typeof _instance.componentWillRecieveProps &&
+        "function" === typeof _instance.componentWillReceiveProps &&
           console.error(
-            "%s has a method called componentWillRecieveProps(). Did you mean componentWillReceiveProps()?",
+            "%s has a method called componentWillReceiveProps(). Did you mean componentWillReceiveProps()?",
             state
           );
-        "function" === typeof _instance.UNSAFE_componentWillRecieveProps &&
+        "function" === typeof _instance.UNSAFE_componentWillReceiveProps &&
           console.error(
-            "%s has a method called UNSAFE_componentWillRecieveProps(). Did you mean UNSAFE_componentWillReceiveProps()?",
+            "%s has a method called UNSAFE_componentWillReceiveProps(). Did you mean UNSAFE_componentWillReceiveProps()?",
             state
           );
         lane = _instance.props !== nextProps;
