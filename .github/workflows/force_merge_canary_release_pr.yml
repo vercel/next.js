@@ -1,6 +1,9 @@
 name: Force Merge Canary Release PR
 
-on: pull_request
+on:
+  pull_request:
+    # "labeled" since the labels are added after PR being opened.
+    types: [opened, synchronize, labeled]
 
 permissions:
   # To bypass and merge PR
@@ -13,7 +16,7 @@ jobs:
     # from the release PR and prevent spoofing.
     # If it has "Freeze: Scheduled Release" label, it means that this
     # release PR was triggered manually, assuming we might want to review it.
-    if: |
+    if: >-
       github.event.pull_request.user.login == 'vercel-release-bot' &&
       github.event.pull_request.title == 'Version Packages (canary)' &&
       contains(github.event.pull_request.labels.*.name, 'created-by: CI') &&
