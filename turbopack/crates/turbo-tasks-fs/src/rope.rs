@@ -18,7 +18,6 @@ use serde_bytes::ByteBuf;
 use tokio::io::{AsyncRead, ReadBuf};
 use triomphe::Arc;
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
-use unsize::{CoerceUnsize, Coercion};
 
 static EMPTY_BUF: &[u8] = &[];
 
@@ -42,7 +41,7 @@ pub struct Rope {
 /// An Arc container for ropes. This indirection allows for easily sharing the
 /// contents between Ropes (and also RopeBuilders/RopeReaders).
 #[derive(Clone, Debug)]
-struct InnerRope(Arc<[RopeElem]>);
+struct InnerRope(Arc<Vec<RopeElem>>);
 
 /// Differentiates the types of stored bytes in a rope.
 #[derive(Clone, Debug)]
@@ -111,6 +110,10 @@ impl Rope {
     pub fn to_bytes(&self) -> Result<Cow<'_, [u8]>> {
         self.data.to_bytes(self.length)
     }
+
+    pub fn into_bytes(self) -> Result<Cow<'static, [u8]>> {
+        self.data.into_bytes(self.length)
+    }
 }
 
 impl From<Vec<u8>> for Rope {
@@ -139,7 +142,7 @@ impl From<Cow<'static, [u8]>> for Rope {
         } else {
             Rope {
                 length: bytes.len(),
-                data: InnerRope(Arc::from([Local(bytes)]).unsize(Coercion::to_slice())),
+                data: InnerRope(Arc::new(vec![Local(bytes)])),
             }
         }
     }
@@ -494,11 +497,30 @@ impl InnerRope {
             }
         }
     }
+
+    fn into_bytes(mut self, len: usize) -> Result<Cow<'static, [u8]>> {
+        if self.0.is_empty() {
+            return Ok(Cow::Borrowed(EMPTY_BUF));
+        } else if self.0.len() == 1 {
+            let data = Arc::try_unwrap(self.0);
+            match data {
+                Ok(data) => return data.into_iter().next().unwrap().into_bytes(len),
+                Err(data) => {
+                    self.0 = data;
+                }
+            }
+        }
+
+        let mut read = RopeReader::new(&self, 0);
+        let mut buf = Vec::with_capacity(len);
+        read.read_to_end(&mut buf)?;
+        Ok(Cow::Owned(buf))
+    }
 }
 
 impl Default for InnerRope {
     fn default() -> Self {
-        InnerRope(Arc::new([]).unsize(Coercion::to_slice()))
+        InnerRope(Arc::new(vec![]))
     }
 }
 
@@ -537,7 +559,7 @@ impl From<Vec<RopeElem>> for InnerRope {
 }
 
 impl Deref for InnerRope {
-    type Target = Arc<[RopeElem]>;
+    type Target = Arc<Vec<RopeElem>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -566,6 +588,13 @@ impl RopeElem {
                 None
             }
             _ => None,
+        }
+    }
+
+    fn into_bytes(self, len: usize) -> Result<Cow<'static, [u8]>> {
+        match self {
+            Local(bytes) => Ok(bytes),
+            Shared(inner) => inner.into_bytes(len),
         }
     }
 }
