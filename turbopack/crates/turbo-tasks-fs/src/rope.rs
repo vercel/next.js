@@ -663,11 +663,14 @@ impl RopeReader {
                 Some(b) => b,
             };
 
-            let amount = min(bytes.get_ref().len(), remaining);
+            let pos = bytes.position() as usize;
+            let len = bytes.get_ref().len() - pos;
 
-            buf.put_slice(&bytes.get_ref()[0..amount]);
+            let amount = min(len, remaining);
 
-            if amount < bytes.get_ref().len() {
+            buf.put_slice(&bytes.get_ref()[pos..pos + amount]);
+
+            if amount < len {
                 bytes.advance(amount);
                 self.stack.push(StackElem::Local(bytes))
             }
@@ -745,7 +748,7 @@ impl BufRead for RopeReader {
 
     fn consume(&mut self, amt: usize) {
         if let Some(StackElem::Local(b)) = self.stack.last_mut() {
-            if amt == b.get_ref().len() {
+            if amt == b.get_ref().len() - b.position() as usize {
                 self.stack.pop();
             } else {
                 // Consume some amount of bytes from the current Bytes instance, ensuring
