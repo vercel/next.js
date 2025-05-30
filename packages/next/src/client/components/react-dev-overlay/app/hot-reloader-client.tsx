@@ -7,8 +7,10 @@ import formatWebpackMessages from '../utils/format-webpack-messages'
 import { useRouter } from '../../navigation'
 import {
   ACTION_BEFORE_REFRESH,
+  ACTION_BUILDING_INDICATOR_HIDE,
   ACTION_BUILD_ERROR,
   ACTION_BUILD_OK,
+  ACTION_BUILDING_INDICATOR_SHOW,
   ACTION_DEBUG_INFO,
   ACTION_DEV_INDICATOR,
   ACTION_ERROR_OVERLAY_OPEN,
@@ -40,7 +42,6 @@ import type {
 import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from '../shared'
 import type { DebugInfo } from '../types'
 import { useUntrackedPathname } from '../../navigation-untracked'
-import { handleDevBuildIndicatorHmrEvents } from '../../../dev/dev-build-indicator/internal/handle-dev-build-indicator-hmr-events'
 import type { GlobalErrorComponent } from '../../global-error'
 import type { DevIndicatorServerState } from '../../../../server/dev/dev-indicator-server-state'
 import reportHmrLatency from '../utils/report-hmr-latency'
@@ -61,6 +62,8 @@ export interface Dispatcher {
   onUnhandledError(error: Error): void
   onUnhandledRejection(error: Error): void
   openErrorOverlay(): void
+  buildingIndicatorHide(): void
+  buildingIndicatorShow(): void
 }
 
 let mostRecentCompilationHash: any = null
@@ -302,6 +305,8 @@ function processMessage(
       break
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.BUILDING: {
+      dispatcher.buildingIndicatorShow()
+
       if (process.env.TURBOPACK) {
         turbopackHmr!.onBuilding()
       } else {
@@ -313,6 +318,8 @@ function processMessage(
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.BUILT:
     case HMR_ACTIONS_SENT_TO_BROWSER.SYNC: {
+      dispatcher.buildingIndicatorHide()
+
       if (obj.hash) {
         handleAvailableHash(obj.hash)
       }
@@ -535,6 +542,12 @@ export default function HotReload({
       openErrorOverlay() {
         dispatch({ type: ACTION_ERROR_OVERLAY_OPEN })
       },
+      buildingIndicatorHide() {
+        dispatch({ type: ACTION_BUILDING_INDICATOR_HIDE })
+      },
+      buildingIndicatorShow() {
+        dispatch({ type: ACTION_BUILDING_INDICATOR_SHOW })
+      },
     }
   }, [dispatch])
 
@@ -596,7 +609,6 @@ export default function HotReload({
     const handler = (event: MessageEvent<any>) => {
       try {
         const obj = JSON.parse(event.data)
-        handleDevBuildIndicatorHmrEvents(obj)
         processMessage(
           obj,
           sendMessage,
