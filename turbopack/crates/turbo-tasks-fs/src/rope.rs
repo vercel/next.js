@@ -45,7 +45,7 @@ pub struct Rope {
 struct InnerRope(Arc<[RopeElem]>);
 
 /// Differentiates the types of stored bytes in a rope.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 enum RopeElem {
     /// Local bytes are owned directly by this rope.
     Local(Cow<'static, [u8]>),
