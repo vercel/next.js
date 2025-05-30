@@ -660,7 +660,7 @@ impl RopeReader {
         while remaining > 0 {
             let mut bytes = match self.next() {
                 None => break,
-                Some(b) => Cursor::new(b),
+                Some(b) => b,
             };
 
             let amount = min(bytes.get_ref().len(), remaining);
@@ -679,7 +679,7 @@ impl RopeReader {
 }
 
 impl Iterator for RopeReader {
-    type Item = Cow<'static, [u8]>;
+    type Item = Cursor<Cow<'static, [u8]>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         // Iterates the rope's elements recursively until we find the next Local
@@ -689,7 +689,7 @@ impl Iterator for RopeReader {
                 None => return None,
                 Some(StackElem::Local(b)) => {
                     debug_assert!(!b.get_ref().is_empty(), "must not have empty Bytes section");
-                    return Some(b.into_inner());
+                    return Some(b);
                 }
                 Some(StackElem::Shared(r, i)) => (r, i),
             };
@@ -735,7 +735,7 @@ impl BufRead for RopeReader {
         // This is just so we can get a reference to the asset that is kept alive by the
         // RopeReader itself. We can then auto-convert that reference into the needed u8
         // slice reference.
-        self.stack.push(StackElem::Local(Cursor::new(bytes)));
+        self.stack.push(StackElem::Local(bytes));
         let Some(StackElem::Local(bytes)) = self.stack.last() else {
             unreachable!()
         };
@@ -759,7 +759,7 @@ impl BufRead for RopeReader {
 impl Stream for RopeReader {
     // The Result<Bytes> item type is required for this to be streamable into a
     // [Hyper::Body].
-    type Item = Result<Cow<'static, [u8]>>;
+    type Item = Result<Cursor<Cow<'static, [u8]>>>;
 
     // Returns a "result" of reading the next shared bytes reference. This
     // differs from [Read::read] by not copying any memory.
@@ -979,7 +979,7 @@ mod test {
 
         let chunks = rope
             .read()
-            .map(|v| String::from_utf8(v.into_owned()).unwrap())
+            .map(|v| String::from_utf8(v.into_inner().into_owned()).unwrap())
             .collect::<Vec<_>>();
 
         assert_eq!(chunks, vec!["abc", "def", "ghi"]);
