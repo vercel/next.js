@@ -542,7 +542,7 @@ jobs:
           path: ${{ runner.temp }}/preview-tarballs/*
 
   publishRelease:
-    if: ${{ needs.deploy-target.outputs.value == 'production' }}
+    if: ${{ needs.deploy-target.outputs.value == 'production' && github.event_name == 'push' && (github.ref == 'refs/heads/canary' || github.ref == 'refs/heads/release/dry-run') }}
     name: Potentially publish release
     runs-on: ubuntu-latest
     needs:
@@ -626,7 +626,6 @@ jobs:
           WORKFLOW_ACTOR: ${{ github.actor }}
 
       - name: Upload npm log artifact
-        if: steps.changesets.outputs.published == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: npm-publish-logs

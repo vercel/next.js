@@ -99,7 +99,8 @@ async function publishNpm() {
     })
 
     const packagePath = join(packagesDir, packageDir.name)
-    const args = ['publish', packagePath, '--tag', tag]
+    // TODO: Prevent from accidentally publishing
+    const args = ['publish', packagePath, '--tag', tag, '--dry-run']
 
     console.log(
       `Running command: "pnpm ${args.join(' ')}" for ${pkgJson.name}@${pkgJson.version}`
