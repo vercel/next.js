@@ -347,7 +347,6 @@ export interface NapiIssue {
   detail?: any
   source?: NapiIssueSource
   documentationLink: string
-  subIssues: Array<NapiIssue>
 }
 export interface NapiIssueSource {
   source: NapiSource
