@@ -611,6 +611,8 @@ jobs:
         uses: changesets/action@v1
         with:
           publish: pnpm ci:publish
+          # TODO: Remove once we're certain of this workflow.
+          createGithubReleases: false
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
