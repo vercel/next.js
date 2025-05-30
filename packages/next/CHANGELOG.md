@@ -6,7 +6,7 @@
 
 - [#79302](https://github.com/vercel/next.js/pull/79302) [`aa7d4de`](https://github.com/vercel/next.js/commit/aa7d4de472519f1b1a7a191177edfd08ab61b521) Thanks [@unstubbable](https://github.com/unstubbable)! - Enable `ppr` when `dynamicIO` is enabled
 
-- [#79565](https://github.com/vercel/next.js/pull/79565) [`e0d4df2`](https://github.com/vercel/next.js/commit/e0d4df2180111bcb1511fc08d40d4c1b237326dd) Thanks [@wyattjoh](https://github.com/wyattjoh)! - Resolved bug where hitting the parameterized path directly would cause a fallback shell generation instead of just rendering the route with the parameterized placeholders.
+- [#79565](https://github.com/vercel/next.js/pull/79565) [`e0d4df2`](https://github.com/vercel/next.js/commit/e0d4df2180111bcb1511fc08d40d4c1b237326dd) Thanks [@wyattjoh](https://github.com/wyattjoh)! - Resolved bug where hitting the parameterized path directly would cause a fallback shell generation instead of rendering the route with the parameterized placeholders.
 
 - [#79248](https://github.com/vercel/next.js/pull/79248) [`21e4411`](https://github.com/vercel/next.js/commit/21e4411648cd82f91f31d08114678c37efc27fec) Thanks [@ijjk](https://github.com/ijjk)! - Fix dangling promise in unstable_cache
 
