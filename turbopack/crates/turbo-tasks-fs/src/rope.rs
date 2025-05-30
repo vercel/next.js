@@ -45,7 +45,7 @@ pub struct Rope {
 struct InnerRope(Arc<[RopeElem]>);
 
 /// Differentiates the types of stored bytes in a rope.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 enum RopeElem {
     /// Local bytes are owned directly by this rope.
     Local(Cow<'static, [u8]>),
@@ -98,7 +98,7 @@ impl Rope {
     }
 
     /// Returns a [Read]/[AsyncRead]/[Iterator] instance over all bytes.
-    pub fn read(&self) -> RopeReader {
+    pub fn read(&self) -> RopeReader<'_> {
         RopeReader::new(&self.data, 0)
     }
 
@@ -139,7 +139,7 @@ impl From<Cow<'static, [u8]>> for Rope {
         } else {
             Rope {
                 length: bytes.len(),
-                data: InnerRope(Arc::from([Local(bytes.into())]).unsize(Coercion::to_slice())),
+                data: InnerRope(Arc::from([Local(bytes)]).unsize(Coercion::to_slice())),
             }
         }
     }
@@ -198,7 +198,7 @@ impl RopeBuilder {
         if let Some(b) = self.uncommitted.finish() {
             debug_assert!(!b.is_empty(), "must not have empty uncommitted bytes");
             self.length += b.len();
-            self.committed.push(Local(b.into()));
+            self.committed.push(Local(b));
         }
     }
 
@@ -584,28 +584,28 @@ impl DeterministicHash for RopeElem {
 
 #[derive(Debug, Default)]
 /// Implements the [Read]/[AsyncRead]/[Iterator] trait over a [Rope].
-pub struct RopeReader {
+pub struct RopeReader<'a> {
     /// The Rope's tree is kept as a cloned stack, allowing us to accomplish
     /// incremental yielding.
-    stack: Vec<StackElem>,
+    stack: Vec<StackElem<'a>>,
 }
 
 /// A StackElem holds the current index into either a `Cow<'static, [u8]>` or a shared Rope.
 /// When the index reaches the end of the associated data, it is removed and we
 /// continue onto the next item in the stack.
 #[derive(Debug)]
-enum StackElem {
-    Local(Cursor<Cow<'static, [u8]>>),
-    Shared(InnerRope, usize),
+enum StackElem<'a> {
+    Local(Cursor<&'a [u8]>),
+    Shared(&'a InnerRope, usize),
 }
 
-impl RopeReader {
-    fn new(inner: &InnerRope, index: usize) -> Self {
+impl<'a> RopeReader<'a> {
+    fn new(inner: &'a InnerRope, index: usize) -> Self {
         if index >= inner.len() {
             Default::default()
         } else {
             RopeReader {
-                stack: vec![StackElem::Shared(inner.clone(), index)],
+                stack: vec![StackElem::Shared(inner, index)],
             }
         }
     }
@@ -639,8 +639,8 @@ impl RopeReader {
     }
 }
 
-impl Iterator for RopeReader {
-    type Item = Cursor<Cow<'static, [u8]>>;
+impl<'a> Iterator for RopeReader<'a> {
+    type Item = Cursor<&'a [u8]>;
 
     fn next(&mut self) -> Option<Self::Item> {
         // Iterates the rope's elements recursively until we find the next Local
@@ -655,24 +655,24 @@ impl Iterator for RopeReader {
                 Some(StackElem::Shared(r, i)) => (r, i),
             };
 
-            let el = inner[index].clone();
+            let el = &inner[index];
             index += 1;
             if index < inner.len() {
                 self.stack.push(StackElem::Shared(inner, index));
             }
 
-            self.stack.push(StackElem::from(el));
+            self.stack.push(StackElem::from_ref(el));
         }
     }
 }
 
-impl Read for RopeReader {
+impl<'a> Read for RopeReader<'a> {
     fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
         Ok(self.read_internal(buf.len(), &mut ReadBuf::new(buf)))
     }
 }
 
-impl AsyncRead for RopeReader {
+impl<'a> AsyncRead for RopeReader<'a> {
     fn poll_read(
         self: Pin<&mut Self>,
         _cx: &mut TaskContext<'_>,
@@ -684,7 +684,7 @@ impl AsyncRead for RopeReader {
     }
 }
 
-impl BufRead for RopeReader {
+impl<'a> BufRead for RopeReader<'a> {
     fn fill_buf(&mut self) -> IoResult<&[u8]> {
         // Returns the full buffer without coping any data. The same bytes will
         // continue to be returned until [consume] is called.
@@ -717,10 +717,10 @@ impl BufRead for RopeReader {
     }
 }
 
-impl Stream for RopeReader {
+impl<'a> Stream for RopeReader<'a> {
     // The Result<Bytes> item type is required for this to be streamable into a
     // [Hyper::Body].
-    type Item = Result<Cursor<Cow<'static, [u8]>>>;
+    type Item = Result<Cursor<&'a [u8]>>;
 
     // Returns a "result" of reading the next shared bytes reference. This
     // differs from [Read::read] by not copying any memory.
@@ -730,10 +730,10 @@ impl Stream for RopeReader {
     }
 }
 
-impl From<RopeElem> for StackElem {
-    fn from(el: RopeElem) -> Self {
+impl<'a> StackElem<'a> {
+    fn from_ref(el: &'a RopeElem) -> Self {
         match el {
-            Local(bytes) => Self::Local(Cursor::new(bytes)),
+            Local(bytes) => Self::Local(Cursor::new(bytes.as_ref())),
             Shared(inner) => Self::Shared(inner, 0),
         }
     }
