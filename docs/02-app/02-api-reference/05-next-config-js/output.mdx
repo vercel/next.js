@@ -19,6 +19,29 @@ Next.js' production server is also traced for its needed files and output at `.n
 
 To leverage the `.nft.json` files emitted to the `.next` output directory, you can read the list of files in each trace that are relative to the `.nft.json` file and then copy them to your deployment location.
 
+## Output Types
+
+Set the build output type. Supported values:
+
+- `'export'`: Export your app as static HTML (static site)
+- `'standalone'`: Build a standalone server app (Node.js server)
+
+**Static Export Example:**
+
+```js filename="next.config.js"
+module.exports = {
+  output: 'export',
+}
+```
+
+When using `output: 'export'`, your app will:
+
+- Generate static HTML files during `next build`
+- Disable server-side features (e.g., API routes, `getServerSideProps`)
+- Output to `/out` directory by default
+
+Learn more about [static exports](https://nextjs.org/docs/app/building-your-application/deploying/static-exports).
+
 ## Automatically Copying Traced Files
 
 Next.js can automatically create a `standalone` folder that copies only the necessary files for a production deployment including select files in `node_modules`.
