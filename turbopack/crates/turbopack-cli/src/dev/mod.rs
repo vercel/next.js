@@ -264,11 +264,7 @@ async fn source(
         .into();
 
     let output_fs = output_fs(project_dir);
-    let fs: Vc<Box<dyn FileSystem>> = project_fs(
-        root_dir,
-        /** watch= */
-        true,
-    );
+    let fs: Vc<Box<dyn FileSystem>> = project_fs(root_dir, /* watch= */ true);
     let root_path = fs.root().to_resolved().await?;
     let project_path = root_path.join(project_relative).to_resolved().await?;
 
