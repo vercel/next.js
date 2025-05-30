@@ -3,7 +3,7 @@ name: Force Merge Canary Release PR
 on:
   pull_request:
     # "labeled" since the labels are added after PR being opened.
-    types: [opened, synchronize, labeled]
+    types: [labeled]
 
 permissions:
   # To bypass and merge PR
