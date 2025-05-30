@@ -698,16 +698,68 @@ impl Request {
     #[turbo_tasks::function]
     pub async fn request_pattern(self: Vc<Self>) -> Result<Vc<Pattern>> {
         Ok(match &*self.await? {
-            Request::Raw { path, .. } => path.clone(),
-            Request::Relative { path, .. } => path.clone(),
-            Request::Module { module, path, .. } => {
+            Request::Raw {
+                path,
+                query,
+                fragment,
+                ..
+            } => {
                 let mut path = path.clone();
-                path.push_front(Pattern::Constant(module.clone()));
+                path.push(Pattern::Constant(query.owned().await?));
+                path.push(Pattern::Constant(fragment.owned().await?));
                 path.normalize();
                 path
             }
-            Request::ServerRelative { path, .. } => path.clone(),
-            Request::Windows { path, .. } => path.clone(),
+            Request::Relative {
+                path,
+                query,
+                fragment,
+                ..
+            } => {
+                let mut path = path.clone();
+                path.push(Pattern::Constant(query.owned().await?));
+                path.push(Pattern::Constant(fragment.owned().await?));
+                path.normalize();
+                path
+            }
+            Request::Module {
+                module,
+                path,
+                query,
+                fragment,
+                ..
+            } => {
+                let mut path = path.clone();
+                path.push_front(Pattern::Constant(module.clone()));
+                path.push(Pattern::Constant(query.owned().await?));
+                path.push(Pattern::Constant(fragment.owned().await?));
+                path.normalize();
+                path
+            }
+            Request::ServerRelative {
+                path,
+                query,
+                fragment,
+                ..
+            } => {
+                let mut path = path.clone();
+                path.push(Pattern::Constant(query.owned().await?));
+                path.push(Pattern::Constant(fragment.owned().await?));
+                path.normalize();
+                path
+            }
+            Request::Windows {
+                path,
+                query,
+                fragment,
+                ..
+            } => {
+                let mut path = path.clone();
+                path.push(Pattern::Constant(query.owned().await?));
+                path.push(Pattern::Constant(fragment.owned().await?));
+                path.normalize();
+                path
+            }
             Request::Empty => Pattern::Constant("".into()),
             Request::PackageInternal { path } => path.clone(),
             Request::DataUri {
@@ -722,8 +774,12 @@ impl Request {
             Request::Uri {
                 protocol,
                 remainder,
+                query,
+                fragment,
                 ..
-            } => Pattern::Constant(format!("{protocol}{remainder}").into()),
+            } => Pattern::Constant(
+                format!("{protocol}{remainder}{}{}", query.await?, fragment.await?).into(),
+            ),
             Request::Unknown { path } => path.clone(),
             Request::Dynamic => Pattern::Dynamic,
             Request::Alternatives { requests } => Pattern::Alternatives(
