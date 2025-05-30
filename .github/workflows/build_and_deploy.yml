@@ -44,7 +44,6 @@ jobs:
         # 'staging' for canary branch since that will eventually be published i.e. become the production build.
         id: deploy-target
         run: |
-          # TODO: Remove the new release check once the new release workflow is fully replaced.
           RELEASE_CHECK=$(node ./scripts/check-is-release.js 2> /dev/null || :)
           if [[ $RELEASE_CHECK == 'new-release' ]];
           then
@@ -597,6 +596,7 @@ jobs:
 
       - name: Upload npm log artifact
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: npm-publish-logs
           path: /home/runner/.npm/_logs/*
@@ -680,6 +680,7 @@ jobs:
 
       - name: Upload npm log artifact
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: npm-publish-logs
           path: /home/runner/.npm/_logs/*
