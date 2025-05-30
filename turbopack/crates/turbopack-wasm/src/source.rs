@@ -76,7 +76,7 @@ impl Asset for WebAssemblySource {
             return Ok(AssetContent::file(FileContent::NotFound.cell()));
         };
 
-        let bytes = file.content().to_bytes()?;
+        let bytes = file.content().to_bytes();
         let parsed = wat::parse_bytes(&bytes)?;
 
         Ok(AssetContent::file(File::from(&*parsed).into()))

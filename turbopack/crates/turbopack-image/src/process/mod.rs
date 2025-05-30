@@ -347,7 +347,7 @@ pub async fn get_meta_data(
     let FileContent::Content(content) = &*content.await? else {
         bail!("Input image not found");
     };
-    let bytes = content.content().to_bytes()?;
+    let bytes = content.content().to_bytes();
     let path_resolved = ident.path().to_resolved().await?;
     let path = path_resolved.await?;
     let extension = path.extension_ref();
@@ -430,7 +430,7 @@ pub async fn optimize(
     let FileContent::Content(content) = &*content.await? else {
         return Ok(FileContent::NotFound.cell());
     };
-    let bytes = content.content().to_bytes()?;
+    let bytes = content.content().to_bytes();
     let path = ident.path().to_resolved().await?;
 
     let Some((image, format)) = load_image(path, &bytes, ident.path().await?.extension_ref())
