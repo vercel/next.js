@@ -518,7 +518,7 @@ export async function collectBuildTraces({
           nextServerTraceOutput,
           JSON.stringify({
             version: 1,
-            files: Array.from(serverTracedFilesSorted),
+            files: serverTracedFilesSorted,
           } as {
             version: number
             files: string[]
@@ -528,7 +528,7 @@ export async function collectBuildTraces({
           nextMinimalTraceOutput,
           JSON.stringify({
             version: 1,
-            files: Array.from(minimalServerTracedFilesSorted),
+            files: minimalServerTracedFilesSorted,
           } as {
             version: number
             files: string[]
