@@ -2779,56 +2779,59 @@ export default abstract class Server<
             return null
           }
 
-          if (isPagesRouteModule(routeModule)) {
-            const request = isNodeNextRequest(req) ? req.originalRequest : req
+          const request = isNodeNextRequest(req) ? req.originalRequest : req
+          const response = isNodeNextResponse(res) ? res.originalResponse : res
 
-            const response = isNodeNextResponse(res)
-              ? res.originalResponse
-              : res
+          if (
+            components.ComponentMod.handler &&
+            process.env.NEXT_RUNTIME !== 'edge'
+          ) {
+            const parsedInitUrl = parseUrl(
+              getRequestMeta(req, 'initURL') || req.url
+            )
+            request.url =
+              req.url = `${parsedInitUrl.pathname}${parsedInitUrl.search || ''}`
 
-            if (
-              components.ComponentMod.handler &&
-              process.env.NEXT_RUNTIME !== 'edge'
-            ) {
-              const parsedInitUrl = parseUrl(
-                getRequestMeta(req, 'initURL') || req.url
-              )
-              request.url =
-                req.url = `${parsedInitUrl.pathname}${parsedInitUrl.search || ''}`
+            // propagate the request context for dev
+            setRequestMeta(request, getRequestMeta(req))
+            addRequestMeta(request, 'postponed', postponed)
+            addRequestMeta(request, 'projectDir', this.dir)
+            addRequestMeta(request, 'isIsrFallback', pagesFallback)
+            addRequestMeta(
+              request,
+              'renderFallbackShell',
+              Boolean(fallbackRouteParams)
+            )
+            addRequestMeta(request, 'query', query)
+            addRequestMeta(request, 'params', opts.params)
+            addRequestMeta(
+              request,
+              'ampValidator',
+              this.renderOpts.ampValidator
+            )
 
-              // propagate the request context for dev
-              setRequestMeta(request, getRequestMeta(req))
-              addRequestMeta(request, 'projectDir', this.dir)
-              addRequestMeta(request, 'isIsrFallback', pagesFallback)
-              addRequestMeta(request, 'query', query)
-              addRequestMeta(request, 'params', opts.params)
-              addRequestMeta(
-                request,
-                'ampValidator',
-                this.renderOpts.ampValidator
-              )
-
-              if (renderOpts.err) {
-                addRequestMeta(request, 'invokeError', renderOpts.err)
+            if (renderOpts.err) {
+              addRequestMeta(request, 'invokeError', renderOpts.err)
+            }
+            const handler: (
+              req: ServerRequest | IncomingMessage,
+              res: ServerResponse | HTTPServerResponse,
+              ctx: {
+                waitUntil: ReturnType<Server['getWaitUntil']>
               }
-              const handler: (
-                req: ServerRequest | IncomingMessage,
-                res: ServerResponse | HTTPServerResponse,
-                ctx: {
-                  waitUntil: ReturnType<Server['getWaitUntil']>
-                }
-              ) => Promise<RenderResult> = components.ComponentMod.handler
+            ) => Promise<RenderResult> = components.ComponentMod.handler
 
-              result = await handler(request, response, {
-                waitUntil: this.getWaitUntil(),
-              })
+            result = await handler(request, response, {
+              waitUntil: this.getWaitUntil(),
+            })
 
-              if (!result) {
-                throw new Error(
-                  `Invariant: missing result from invoking ${pathname} handler`
-                )
-              }
-            } else {
+            if (!result) {
+              throw new Error(
+                `Invariant: missing result from invoking ${pathname} handler`
+              )
+            }
+          } else {
+            if (isPagesRouteModule(routeModule)) {
               // Due to the way we pass data by mutating `renderOpts`, we can't extend
               // the object here but only updating its `clientReferenceManifest` and
               // `nextFontManifest` properties.
@@ -2875,48 +2878,48 @@ export default abstract class Server<
                 })
                 throw err
               }
-            }
-          } else {
-            const module = components.routeModule as AppPageRouteModule
+            } else {
+              const module = components.routeModule as AppPageRouteModule
 
-            // Due to the way we pass data by mutating `renderOpts`, we can't extend the
-            // object here but only updating its `nextFontManifest` field.
-            // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
-            renderOpts.nextFontManifest = this.nextFontManifest
+              // Due to the way we pass data by mutating `renderOpts`, we can't extend the
+              // object here but only updating its `nextFontManifest` field.
+              // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
+              renderOpts.nextFontManifest = this.nextFontManifest
 
-            const context: AppPageRouteHandlerContext = {
-              page: is404Page ? '/404' : pathname,
-              params: opts.params,
-              query,
-              fallbackRouteParams,
-              renderOpts,
-              serverComponentsHmrCache: this.getServerComponentsHmrCache(),
-              sharedContext: {
-                buildId: this.buildId,
-              },
-            }
-
-            // TODO: adapt for putting the RDC inside the postponed data
-            // If we're in dev, and this isn't a prefetch or a server action,
-            // we should seed the resume data cache.
-            if (
-              this.nextConfig.experimental.dynamicIO &&
-              this.renderOpts.dev &&
-              !isPrefetchRSCRequest &&
-              !isPossibleServerAction
-            ) {
-              const warmup = await module.warmup(req, res, context)
-
-              // If the warmup is successful, we should use the resume data
-              // cache from the warmup.
-              if (warmup.metadata.devRenderResumeDataCache) {
-                renderOpts.devRenderResumeDataCache =
-                  warmup.metadata.devRenderResumeDataCache
+              const context: AppPageRouteHandlerContext = {
+                page: is404Page ? '/404' : pathname,
+                params: opts.params,
+                query,
+                fallbackRouteParams,
+                renderOpts,
+                serverComponentsHmrCache: this.getServerComponentsHmrCache(),
+                sharedContext: {
+                  buildId: this.buildId,
+                },
               }
-            }
 
-            // Call the built-in render method on the module.
-            result = await module.render(req, res, context)
+              // TODO: adapt for putting the RDC inside the postponed data
+              // If we're in dev, and this isn't a prefetch or a server action,
+              // we should seed the resume data cache.
+              if (
+                this.nextConfig.experimental.dynamicIO &&
+                this.renderOpts.dev &&
+                !isPrefetchRSCRequest &&
+                !isPossibleServerAction
+              ) {
+                const warmup = await module.warmup(req, res, context)
+
+                // If the warmup is successful, we should use the resume data
+                // cache from the warmup.
+                if (warmup.metadata.devRenderResumeDataCache) {
+                  renderOpts.devRenderResumeDataCache =
+                    warmup.metadata.devRenderResumeDataCache
+                }
+              }
+
+              // Call the built-in render method on the module.
+              result = await module.render(req, res, context)
+            }
           }
         } else {
           throw new Error('Invariant: Unknown route module type')
@@ -3205,7 +3208,7 @@ export default abstract class Server<
                 postponed: undefined,
                 pagesFallback: undefined,
                 fallbackRouteParams:
-                  // If we're in production of we're debugging the fallback
+                  // If we're in production or we're debugging the fallback
                   // shell then we should postpone when dynamic params are
                   // accessed.
                   isProduction || isDebugFallbackShell

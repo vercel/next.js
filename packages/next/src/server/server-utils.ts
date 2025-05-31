@@ -105,7 +105,9 @@ export function interpolateDynamicPath(
       paramValue = ''
     }
 
-    pathname = pathname.replaceAll(builtParam, paramValue)
+    if (paramValue || optional) {
+      pathname = pathname.replaceAll(builtParam, paramValue)
+    }
   }
 
   return pathname
