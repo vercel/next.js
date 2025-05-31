@@ -50,7 +50,6 @@ import type {
   AppPageRouteModule,
 } from './route-modules/app-page/module'
 import type { PagesAPIRouteMatch } from './route-matches/pages-api-route-match'
-import type { AppRouteRouteHandlerContext } from './route-modules/app-route/module'
 import type {
   Server as HTTPServer,
   IncomingMessage,
@@ -125,20 +124,14 @@ import { sendResponse } from './send-response'
 import {
   fromNodeOutgoingHttpHeaders,
   normalizeNextQueryParam,
-  toNodeOutgoingHttpHeaders,
 } from './web/utils'
 import {
   CACHE_ONE_YEAR,
-  INFINITE_CACHE,
   MATCHED_PATH_HEADER,
   NEXT_CACHE_TAGS_HEADER,
   NEXT_RESUME_HEADER,
 } from '../lib/constants'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
-import {
-  NextRequestAdapter,
-  signalFromNodeResponse,
-} from './web/spec-extension/adapters/next-request'
 import { matchNextDataPathname } from './lib/match-next-data-pathname'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
 import { decodePathParams } from './lib/router-utils/decode-path-params'
@@ -2641,140 +2634,17 @@ export default abstract class Server<
       let result: RenderResult
 
       if (routeModule) {
-        if (isAppRouteRouteModule(routeModule)) {
-          if (
-            // The type check here ensures that `req` is correctly typed, and the
-            // environment variable check provides dead code elimination.
-            process.env.NEXT_RUNTIME === 'edge' ||
-            !isNodeNextRequest(req) ||
-            !isNodeNextResponse(res)
-          ) {
-            throw new Error(
-              'Invariant: App Route Route Modules cannot be used in the edge runtime'
-            )
-          }
-
-          const context: AppRouteRouteHandlerContext = {
-            params: opts.params,
-            prerenderManifest,
-            renderOpts: {
-              experimental: {
-                dynamicIO: renderOpts.experimental.dynamicIO,
-                authInterrupts: renderOpts.experimental.authInterrupts,
-              },
-              supportsDynamicResponse,
-              incrementalCache,
-              cacheLifeProfiles: this.nextConfig.experimental?.cacheLife,
-              isRevalidate: isSSG,
-              waitUntil: this.getWaitUntil(),
-              onClose: res.onClose.bind(res),
-              onAfterTaskError: undefined,
-              onInstrumentationRequestError:
-                this.renderOpts.onInstrumentationRequestError,
-            },
-            sharedContext: {
-              buildId: this.buildId,
-            },
-          }
-
-          try {
-            const request = NextRequestAdapter.fromNodeNextRequest(
-              req,
-              signalFromNodeResponse(res.originalResponse)
-            )
-
-            const response = await routeModule.handle(request, context)
-
-            ;(req as any).fetchMetrics = (
-              context.renderOpts as any
-            ).fetchMetrics
-
-            const cacheTags = context.renderOpts.collectedTags
-
-            // If the request is for a static response, we can cache it so long
-            // as it's not edge.
-            if (isSSG) {
-              const blob = await response.blob()
-
-              // Copy the headers from the response.
-              const headers = toNodeOutgoingHttpHeaders(response.headers)
-
-              if (cacheTags) {
-                headers[NEXT_CACHE_TAGS_HEADER] = cacheTags
-              }
-
-              if (!headers['content-type'] && blob.type) {
-                headers['content-type'] = blob.type
-              }
-
-              const revalidate =
-                typeof context.renderOpts.collectedRevalidate === 'undefined' ||
-                context.renderOpts.collectedRevalidate >= INFINITE_CACHE
-                  ? false
-                  : context.renderOpts.collectedRevalidate
-
-              const expire =
-                typeof context.renderOpts.collectedExpire === 'undefined' ||
-                context.renderOpts.collectedExpire >= INFINITE_CACHE
-                  ? undefined
-                  : context.renderOpts.collectedExpire
-
-              // Create the cache entry for the response.
-              const cacheEntry: ResponseCacheEntry = {
-                value: {
-                  kind: CachedRouteKind.APP_ROUTE,
-                  status: response.status,
-                  body: Buffer.from(await blob.arrayBuffer()),
-                  headers,
-                },
-                cacheControl: { revalidate, expire },
-              }
-
-              return cacheEntry
-            }
-            let pendingWaitUntil = context.renderOpts.pendingWaitUntil
-
-            // Attempt using provided waitUntil if available
-            // if it's not we fallback to sendResponse's handling
-            if (pendingWaitUntil) {
-              if (context.renderOpts.waitUntil) {
-                context.renderOpts.waitUntil(pendingWaitUntil)
-                pendingWaitUntil = undefined
-              }
-            }
-
-            // Send the response now that we have copied it into the cache.
-            await sendResponse(
-              req,
-              res,
-              response,
-              context.renderOpts.pendingWaitUntil
-            )
-            return null
-          } catch (err) {
-            await this.instrumentationOnRequestError(err, req, {
-              routerKind: 'App Router',
-              routePath: pathname,
-              routeType: 'route',
-              revalidateReason: getRevalidateReason(renderOpts),
-            })
-
-            // If this is during static generation, throw the error again.
-            if (isSSG) throw err
-
-            Log.error(err)
-
-            // Otherwise, send a 500 response.
-            await sendResponse(req, res, new Response(null, { status: 500 }))
-
-            return null
-          }
-        } else if (
+        if (
+          isAppRouteRouteModule(routeModule) ||
           isPagesRouteModule(routeModule) ||
           isAppPageRouteModule(routeModule)
         ) {
           // An OPTIONS request to a page handler is invalid.
-          if (req.method === 'OPTIONS' && !is404Page) {
+          if (
+            req.method === 'OPTIONS' &&
+            !is404Page &&
+            !isAppRouteRouteModule(routeModule)
+          ) {
             await sendResponse(req, res, new Response(null, { status: 400 }))
             return null
           }
@@ -2813,6 +2683,7 @@ export default abstract class Server<
             if (renderOpts.err) {
               addRequestMeta(request, 'invokeError', renderOpts.err)
             }
+
             const handler: (
               req: ServerRequest | IncomingMessage,
               res: ServerResponse | HTTPServerResponse,
@@ -2824,6 +2695,11 @@ export default abstract class Server<
             result = await handler(request, response, {
               waitUntil: this.getWaitUntil(),
             })
+
+            // this is handled fully in handler
+            if (isAppRouteRouteModule(routeModule)) {
+              return result as any as ResponseCacheEntry | null
+            }
 
             if (!result) {
               throw new Error(
