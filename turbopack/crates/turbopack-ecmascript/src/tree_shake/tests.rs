@@ -1,26 +1,26 @@
-use std::{fmt::Write, hash::Hash, path::PathBuf, sync::Arc};
+use std::{collections::BTreeMap, fmt::Write, hash::Hash, path::PathBuf, sync::Arc};
 
 use anyhow::Error;
 use serde::Deserialize;
 use swc_core::{
-    common::{comments::SingleThreadedComments, util::take::Take, Mark, SourceMap, SyntaxContext},
+    common::{Mark, SourceMap, SyntaxContext, comments::SingleThreadedComments, util::take::Take},
     ecma::{
         ast::{EsVersion, Id, Module},
-        atoms::JsWord,
+        atoms::Atom,
         codegen::text_writer::JsWriter,
-        parser::{parse_file_as_module, EsSyntax},
+        parser::{EsSyntax, parse_file_as_module},
         visit::VisitMutWith,
     },
-    testing::{self, fixture, NormalizedOutput},
+    testing::{self, NormalizedOutput, fixture},
 };
 use turbo_tasks::FxIndexSet;
 
 use super::{
+    Analyzer, Key,
     graph::{
         DepGraph, Dependency, InternedGraph, ItemId, ItemIdGroupKind, Mode, SplitModuleResult,
     },
     merge::Merger,
-    Analyzer, Key,
 };
 
 #[fixture("tests/tree-shaker/analyzer/**/input.js")]
@@ -40,7 +40,7 @@ fn run(input: PathBuf) {
     let config = input.with_file_name("config.json");
     let config = std::fs::read_to_string(config).unwrap_or_else(|_| "{}".into());
     let config = serde_json::from_str::<TestConfig>(&config).unwrap_or_else(|_e| {
-        panic!("failed to parse config.json: {}", config);
+        panic!("failed to parse config.json: {config}");
     });
 
     testing::run_test(false, |cm, _handler| {
@@ -170,13 +170,12 @@ fn run(input: PathBuf) {
             s,
             "```mermaid\n{}```",
             render_mermaid(&mut condensed, &|buf: &Vec<ItemId>| format!(
-                "Items: {:?}",
-                buf
+                "Items: {buf:?}"
             ))
         )
         .unwrap();
 
-        let uri_of_module: JsWord = "entry.js".into();
+        let uri_of_module: Atom = "entry.js".into();
 
         let mut describe =
             |is_debug: bool, title: &str, entries: Vec<ItemIdGroupKind>, skip_parts: bool| {
@@ -192,12 +191,18 @@ fn run(input: PathBuf) {
                     ..
                 } = g.split_module(&[], analyzer.items);
 
-                writeln!(s, "# Entrypoints\n\n```\n{:#?}\n```\n\n", entrypoints).unwrap();
+                writeln!(
+                    s,
+                    "# Entrypoints\n\n```\n{:#?}\n```\n\n",
+                    // sort entrypoints for the snapshot
+                    entrypoints.iter().collect::<BTreeMap<_, _>>(),
+                )
+                .unwrap();
 
                 if !skip_parts {
                     writeln!(s, "# Modules ({})", if is_debug { "dev" } else { "prod" }).unwrap();
                     for (i, module) in modules.iter().enumerate() {
-                        writeln!(s, "## Part {}", i).unwrap();
+                        writeln!(s, "## Part {i}").unwrap();
                         writeln!(s, "```js\n{}\n```", print(&cm, &[module])).unwrap();
                     }
                 }
@@ -220,7 +225,7 @@ fn run(input: PathBuf) {
 
                 let module = merger.merge_recursively(entry).unwrap();
 
-                writeln!(s, "## Merged ({})", title).unwrap();
+                writeln!(s, "## Merged ({title})").unwrap();
                 writeln!(s, "```js\n{}\n```", print(&cm, &[&module])).unwrap();
             };
         describe(

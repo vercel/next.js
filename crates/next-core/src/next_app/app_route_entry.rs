@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{fxindexmap, ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc, fxindexmap};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::ModuleAssetContext;
 use turbopack_core::{
@@ -16,7 +16,7 @@ use crate::{
     next_config::{NextConfig, OutputType},
     next_edge::entry::wrap_edge_entry,
     parse_segment_config_from_source,
-    util::{load_next_js_template, NextRuntime},
+    util::{NextRuntime, load_next_js_template},
 };
 
 /// Computes the entry for a Next.js app route.
@@ -80,7 +80,7 @@ pub async fn get_app_route_entry(
             "VAR_DEFINITION_FILENAME" => path.file_stem().await?.as_ref().unwrap().as_str().into(),
             // TODO(alexkirsz) Is this necessary?
             "VAR_DEFINITION_BUNDLE_PATH" => "".to_string().into(),
-            "VAR_RESOLVED_PAGE_PATH" => path.to_string().await?.clone_value(),
+            "VAR_RESOLVED_PAGE_PATH" => path.to_string().owned().await?,
             "VAR_USERLAND" => INNER.into(),
         },
         fxindexmap! {

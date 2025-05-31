@@ -1,5 +1,5 @@
 import type { OutgoingHttpHeaders, ServerResponse } from 'http'
-import type { Revalidate } from './lib/revalidate'
+import type { CacheControl } from './lib/cache-control'
 import type { FetchMetrics } from './base-http'
 
 import {
@@ -16,7 +16,7 @@ type ContentTypeOption = string | undefined
 
 export type AppPageRenderResultMetadata = {
   flightData?: Buffer
-  revalidate?: Revalidate
+  cacheControl?: CacheControl
   staticBailoutInfo?: {
     stack?: string
     description?: string
@@ -31,10 +31,11 @@ export type AppPageRenderResultMetadata = {
    * The headers to set on the response that were added by the render.
    */
   headers?: OutgoingHttpHeaders
+  statusCode?: number
   fetchTags?: string
   fetchMetrics?: FetchMetrics
 
-  segmentFlightData?: Map<string, Buffer>
+  segmentData?: Map<string, Buffer>
 
   /**
    * In development, the cache is warmed up before the render. This is attached
@@ -45,7 +46,7 @@ export type AppPageRenderResultMetadata = {
 
 export type PagesRenderResultMetadata = {
   pageData?: any
-  revalidate?: Revalidate
+  cacheControl?: CacheControl
   assetQueryString?: string
   isNotFound?: boolean
   isRedirect?: boolean

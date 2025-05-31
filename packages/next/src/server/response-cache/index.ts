@@ -1,10 +1,9 @@
-import {
-  type IncrementalCache,
-  type ResponseCacheEntry,
-  type ResponseGenerator,
-  type IncrementalCacheItem,
-  type ResponseCacheBase,
-  CachedRouteKind,
+import type {
+  ResponseCacheEntry,
+  ResponseGenerator,
+  ResponseCacheBase,
+  IncrementalResponseCacheEntry,
+  IncrementalResponseCache,
 } from './types'
 
 import { Batcher } from '../../lib/batcher'
@@ -21,7 +20,7 @@ export * from './types'
 export default class ResponseCache implements ResponseCacheBase {
   private readonly batcher = Batcher.create<
     { key: string; isOnDemandRevalidate: boolean },
-    IncrementalCacheItem | null,
+    IncrementalResponseCacheEntry | null,
     string
   >({
     // Ensure on-demand revalidate doesn't block normal requests, it should be
@@ -36,7 +35,7 @@ export default class ResponseCache implements ResponseCacheBase {
 
   private previousCacheItem?: {
     key: string
-    entry: IncrementalCacheItem | null
+    entry: IncrementalResponseCacheEntry | null
     expiresAt: number
   }
 
@@ -56,7 +55,7 @@ export default class ResponseCache implements ResponseCacheBase {
       routeKind: RouteKind
       isOnDemandRevalidate?: boolean
       isPrefetch?: boolean
-      incrementalCache: IncrementalCache
+      incrementalCache: IncrementalResponseCache
       isRoutePPREnabled?: boolean
       isFallback?: boolean
     }
@@ -91,7 +90,7 @@ export default class ResponseCache implements ResponseCacheBase {
         const kind = routeKindToIncrementalCacheKind(context.routeKind)
 
         let resolved = false
-        let cachedResponse: IncrementalCacheItem = null
+        let cachedResponse: IncrementalResponseCacheEntry | null = null
         try {
           cachedResponse = !this.minimalMode
             ? await incrementalCache.get(key, {
@@ -102,16 +101,7 @@ export default class ResponseCache implements ResponseCacheBase {
             : null
 
           if (cachedResponse && !isOnDemandRevalidate) {
-            if (cachedResponse.value?.kind === CachedRouteKind.FETCH) {
-              throw new Error(
-                `invariant: unexpected cachedResponse of kind fetch in response cache`
-              )
-            }
-
-            resolve({
-              ...cachedResponse,
-              revalidate: cachedResponse.curRevalidate,
-            })
+            resolve(cachedResponse)
             resolved = true
 
             if (!cachedResponse.isStale || context.isPrefetch) {
@@ -152,9 +142,9 @@ export default class ResponseCache implements ResponseCacheBase {
             resolved = true
           }
 
-          // We want to persist the result only if it has a revalidate value
+          // We want to persist the result only if it has a cache control value
           // defined.
-          if (typeof resolveValue.revalidate !== 'undefined') {
+          if (resolveValue.cacheControl) {
             if (this.minimalMode) {
               this.previousCacheItem = {
                 key: cacheKey,
@@ -163,7 +153,7 @@ export default class ResponseCache implements ResponseCacheBase {
               }
             } else {
               await incrementalCache.set(key, resolveValue.value, {
-                revalidate: resolveValue.revalidate,
+                cacheControl: resolveValue.cacheControl,
                 isRoutePPREnabled,
                 isFallback,
               })
@@ -172,14 +162,24 @@ export default class ResponseCache implements ResponseCacheBase {
 
           return resolveValue
         } catch (err) {
-          // When a getStaticProps path is erroring we automatically re-set the
-          // existing cache under a new expiration to prevent non-stop retrying.
-          if (cachedResponse) {
+          // When a path is erroring we automatically re-set the existing cache
+          // with new revalidate and expire times to prevent non-stop retrying.
+          if (cachedResponse?.cacheControl) {
+            const newRevalidate = Math.min(
+              Math.max(cachedResponse.cacheControl.revalidate || 3, 3),
+              30
+            )
+
+            const newExpire =
+              cachedResponse.cacheControl.expire === undefined
+                ? undefined
+                : Math.max(
+                    newRevalidate + 3,
+                    cachedResponse.cacheControl.expire
+                  )
+
             await incrementalCache.set(key, cachedResponse.value, {
-              revalidate: Math.min(
-                Math.max(cachedResponse.revalidate || 3, 3),
-                30
-              ),
+              cacheControl: { revalidate: newRevalidate, expire: newExpire },
               isRoutePPREnabled,
               isFallback,
             })

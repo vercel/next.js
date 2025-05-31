@@ -20,6 +20,7 @@ import { makeHangingPromise } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { scheduleImmediate } from '../../lib/scheduler'
 import { isRequestAPICallableInsideAfter } from './utils'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 /**
  * In this version of Next.js `headers()` returns a Promise however you can still reference the properties of the underlying Headers instance
@@ -64,7 +65,7 @@ export function headers(): Promise<ReadonlyHeaders> {
       !isRequestAPICallableInsideAfter()
     ) {
       throw new Error(
-        `Route ${workStore.route} used "headers" inside "unstable_after(...)". This is not supported. If you need this data inside an "unstable_after" callback, use "headers" outside of the callback. See more info here: https://nextjs.org/docs/canary/app/api-reference/functions/unstable_after`
+        `Route ${workStore.route} used "headers" inside "after(...)". This is not supported. If you need this data inside an "after" callback, use "headers" outside of the callback. See more info here: https://nextjs.org/docs/canary/app/api-reference/functions/after`
       )
     }
 
@@ -93,30 +94,40 @@ export function headers(): Promise<ReadonlyHeaders> {
     }
 
     if (workUnitStore) {
-      if (workUnitStore.type === 'prerender') {
-        // dynamicIO Prerender
-        // We don't track dynamic access here because access will be tracked when you access
-        // one of the properties of the headers object.
-        return makeDynamicallyTrackedExoticHeaders(
-          workStore.route,
-          workUnitStore
-        )
-      } else if (workUnitStore.type === 'prerender-ppr') {
-        // PPR Prerender (no dynamicIO)
-        // We are prerendering with PPR. We need track dynamic access here eagerly
-        // to keep continuity with how headers has worked in PPR without dynamicIO.
-        // TODO consider switching the semantic to throw on property access instead
-        postponeWithTracking(
-          workStore.route,
-          'headers',
-          workUnitStore.dynamicTracking
-        )
-      } else if (workUnitStore.type === 'prerender-legacy') {
-        // Legacy Prerender
-        // We are in a legacy static generation mode while prerendering
-        // We track dynamic access here so we don't need to wrap the headers in
-        // individual property access tracking.
-        throwToInterruptStaticGeneration('headers', workStore, workUnitStore)
+      switch (workUnitStore.type) {
+        case 'prerender':
+          // dynamicIO Prerender
+          // We don't track dynamic access here because access will be tracked when you access
+          // one of the properties of the headers object.
+          return makeDynamicallyTrackedExoticHeaders(
+            workStore.route,
+            workUnitStore
+          )
+        case 'prerender-client':
+          const exportName = '`headers`'
+          throw new InvariantError(
+            `${exportName} must not be used within a client component. Next.js should be preventing ${exportName} from being included in client components statically, but did not in this case.`
+          )
+        case 'prerender-ppr':
+          // PPR Prerender (no dynamicIO)
+          // We are prerendering with PPR. We need track dynamic access here eagerly
+          // to keep continuity with how headers has worked in PPR without dynamicIO.
+          // TODO consider switching the semantic to throw on property access instead
+          postponeWithTracking(
+            workStore.route,
+            'headers',
+            workUnitStore.dynamicTracking
+          )
+          break
+        case 'prerender-legacy':
+          // Legacy Prerender
+          // We are in a legacy static generation mode while prerendering
+          // We track dynamic access here so we don't need to wrap the headers in
+          // individual property access tracking.
+          throwToInterruptStaticGeneration('headers', workStore, workUnitStore)
+          break
+        default:
+        // fallthrough
       }
     }
     // We fall through to the dynamic context below but we still track dynamic access
@@ -480,11 +491,9 @@ function syncIODev(route: string | undefined, expression: string) {
   warnForSyncAccess(route, expression)
 }
 
-const noop = () => {}
-
-const warnForSyncAccess = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
-  ? noop
-  : createDedupedByCallsiteServerErrorLoggerDev(createHeadersAccessError)
+const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(
+  createHeadersAccessError
+)
 
 function createHeadersAccessError(
   route: string | undefined,

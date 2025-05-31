@@ -85,6 +85,7 @@ export function getRender({
 
   const server = new WebServer({
     dev,
+    buildId,
     conf: config,
     minimalMode: true,
     webServerConfig: {
@@ -93,7 +94,6 @@ export function getRender({
       pagesType,
       interceptionRouteRewrites,
       extendRenderOpts: {
-        buildId,
         runtime: SERVER_RUNTIME.experimentalEdge,
         supportsDynamicResponse: true,
         disableOptimizedLoading: true,
@@ -169,7 +169,7 @@ export function getRender({
     if (event?.waitUntil) {
       // TODO(after):
       // remove `internal_runWithWaitUntil` and the `internal-edge-wait-until` module
-      // when consumers switch to `unstable_after`.
+      // when consumers switch to `after`.
       const waitUntilPromise = internal_getCurrentFunctionWaitUntil()
       if (waitUntilPromise) {
         event.waitUntil(waitUntilPromise)

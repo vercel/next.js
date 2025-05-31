@@ -1,5 +1,9 @@
-import type { ExportRouteResult, FileWriter } from '../types'
-import type { RenderOpts } from '../../server/render'
+import type { ExportRouteResult } from '../types'
+import type {
+  PagesRenderContext,
+  PagesSharedContext,
+  RenderOpts,
+} from '../../server/render'
 import type { LoadComponentsReturnType } from '../../server/load-components'
 import type { AmpValidation } from '../types'
 import type { NextParsedUrlQuery } from '../../server/request-meta'
@@ -17,16 +21,13 @@ import {
   SERVER_PROPS_EXPORT_ERROR,
 } from '../../lib/constants'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
-import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import { FileType, fileExists } from '../../lib/file-exists'
 import { lazyRenderPagesPage } from '../../server/route-modules/pages/module.render'
-
-export const enum ExportedPagesFiles {
-  HTML = 'HTML',
-  DATA = 'DATA',
-  AMP_HTML = 'AMP_HTML',
-  AMP_DATA = 'AMP_PAGE_DATA',
-}
+import type { MultiFileWriter } from '../../lib/multi-file-writer'
+import {
+  getAmpValidatorInstance,
+  getBundledAmpValidatorFilepath,
+} from '../helpers/get-amp-html-validator'
 
 /**
  * Renders & exports a page associated with the /pages directory
@@ -47,10 +48,12 @@ export async function exportPagesPage(
   pagesDataDir: string,
   buildExport: boolean,
   isDynamic: boolean,
+  sharedContext: PagesSharedContext,
+  renderContext: PagesRenderContext,
   hasOrigQueryValues: boolean,
   renderOpts: RenderOpts,
   components: LoadComponentsReturnType,
-  fileWriter: FileWriter
+  fileWriter: MultiFileWriter
 ): Promise<ExportRouteResult | undefined> {
   const ampState = {
     ampFirst: components.pageConfig?.amp === true,
@@ -59,9 +62,7 @@ export async function exportPagesPage(
   }
 
   if (!ampValidatorPath) {
-    ampValidatorPath = require.resolve(
-      'next/dist/compiled/amphtml-validator/validator_wasm.js'
-    )
+    ampValidatorPath = getBundledAmpValidatorFilepath()
   }
 
   const inAmpMode = isInAmpMode(ampState)
@@ -117,7 +118,9 @@ export async function exportPagesPage(
         res,
         page,
         searchAndDynamicParams,
-        renderOpts
+        renderOpts,
+        sharedContext,
+        renderContext
       )
     } catch (err) {
       if (!isBailoutToCSRError(err)) throw err
@@ -133,9 +136,44 @@ export async function exportPagesPage(
     ampPageName: string,
     validatorPath: string | undefined
   ) => {
-    const validator = await AmpHtmlValidator.getInstance(validatorPath)
+    const validator = await getAmpValidatorInstance(validatorPath)
     const result = validator.validateString(rawAmpHtml)
-    const errors = result.errors.filter((e) => e.severity === 'ERROR')
+    const errors = result.errors.filter((error) => {
+      if (error.severity === 'ERROR') {
+        // Unclear yet if these actually prevent the page from being indexed by the AMP cache.
+        // These are coming from React so all we can do is ignore them for now.
+
+        // <link rel="expect" blocking="render" />
+        // https://github.com/ampproject/amphtml/issues/40279
+        if (
+          error.code === 'DISALLOWED_ATTR' &&
+          error.params[0] === 'blocking' &&
+          error.params[1] === 'link'
+        ) {
+          return false
+        }
+        // <template> without type
+        // https://github.com/ampproject/amphtml/issues/40280
+        if (
+          error.code === 'MANDATORY_ATTR_MISSING' &&
+          error.params[0] === 'type' &&
+          error.params[1] === 'template'
+        ) {
+          return false
+        }
+        // <template> without type
+        // https://github.com/ampproject/amphtml/issues/40280
+        if (
+          error.code === 'MISSING_REQUIRED_EXTENSION' &&
+          error.params[0] === 'template' &&
+          error.params[1] === 'amp-mustache'
+        ) {
+          return false
+        }
+        return true
+      }
+      return false
+    })
     const warnings = result.errors.filter((e) => e.severity !== 'ERROR')
 
     if (warnings.length || errors.length) {
@@ -173,7 +211,9 @@ export async function exportPagesPage(
           res,
           page,
           { ...searchAndDynamicParams, amp: '1' },
-          renderOpts
+          renderOpts,
+          sharedContext,
+          renderContext
         )
       } catch (err) {
         if (!isBailoutToCSRError(err)) throw err
@@ -187,12 +227,7 @@ export async function exportPagesPage(
         await validateAmp(ampHtml, page + '?amp=1', ampValidatorPath)
       }
 
-      await fileWriter(
-        ExportedPagesFiles.AMP_HTML,
-        ampHtmlFilepath,
-        ampHtml,
-        'utf8'
-      )
+      fileWriter.append(ampHtmlFilepath, ampHtml)
     }
   }
 
@@ -203,31 +238,27 @@ export async function exportPagesPage(
       htmlFilename.replace(/\.html$/, NEXT_DATA_SUFFIX)
     )
 
-    await fileWriter(
-      ExportedPagesFiles.DATA,
-      dataFile,
-      JSON.stringify(metadata.pageData),
-      'utf8'
-    )
+    fileWriter.append(dataFile, JSON.stringify(metadata.pageData))
 
     if (hybridAmp) {
-      await fileWriter(
-        ExportedPagesFiles.AMP_DATA,
+      fileWriter.append(
         dataFile.replace(/\.json$/, '.amp.json'),
-        JSON.stringify(metadata.pageData),
-        'utf8'
+        JSON.stringify(metadata.pageData)
       )
     }
   }
 
   if (!ssgNotFound) {
     // don't attempt writing to disk if getStaticProps returned not found
-    await fileWriter(ExportedPagesFiles.HTML, htmlFilepath, html, 'utf8')
+    fileWriter.append(htmlFilepath, html)
   }
 
   return {
     ampValidations,
-    revalidate: metadata.revalidate ?? false,
+    cacheControl: metadata.cacheControl ?? {
+      revalidate: false,
+      expire: undefined,
+    },
     ssgNotFound,
   }
 }

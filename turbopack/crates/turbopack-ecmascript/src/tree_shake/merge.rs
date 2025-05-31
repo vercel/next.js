@@ -2,10 +2,10 @@ use anyhow::Error;
 use rustc_hash::FxHashSet;
 use swc_core::ecma::{
     ast::{Module, ModuleDecl, ModuleItem},
-    atoms::JsWord,
+    atoms::Atom,
 };
 
-use super::{graph::find_turbopack_part_id_in_asserts, PartId};
+use super::{PartId, graph::find_turbopack_part_id_in_asserts};
 
 /// A loader used to merge module items after splitting.
 pub trait Load {
@@ -22,7 +22,7 @@ where
 {
     loader: L,
 
-    done: FxHashSet<(JsWord, u32)>,
+    done: FxHashSet<(Atom, u32)>,
 }
 
 impl<L> Merger<L>

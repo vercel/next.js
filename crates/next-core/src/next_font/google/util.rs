@@ -1,6 +1,6 @@
 use std::{cmp::Ordering, collections::BTreeSet};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use turbo_rcstr::RcStr;
 use turbo_tasks::FxIndexSet;
 
@@ -296,9 +296,9 @@ mod tests {
 
     use super::get_font_axes;
     use crate::next_font::google::{
-        options::{FontData, FontWeights},
-        util::{get_stylesheet_url, FontAxes, FontAxesWeights, FontStyle},
         GOOGLE_FONTS_STYLESHEET_URL,
+        options::{FontData, FontWeights},
+        util::{FontAxes, FontAxesWeights, FontStyle, get_stylesheet_url},
     };
 
     #[test]

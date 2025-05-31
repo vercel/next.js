@@ -1,10 +1,12 @@
 #![feature(anonymous_lifetime_in_impl_trait)]
 #![feature(associated_type_defaults)]
 #![feature(iter_collect_into)]
+#![feature(box_patterns)]
 
 mod backend;
 mod backing_storage;
 mod data;
+mod data_storage;
 mod database;
 mod kv_backing_storage;
 mod utils;
@@ -13,64 +15,92 @@ use std::path::Path;
 
 use anyhow::Result;
 
-pub use self::{
+use crate::database::{noop_kv::NoopKvDb, turbo::TurboKeyValueDatabase};
+pub use crate::{
     backend::{BackendOptions, StorageMode, TurboTasksBackend},
+    database::db_versioning::GitVersionInfo,
     kv_backing_storage::KeyValueDatabaseBackingStorage,
-};
-use crate::database::{
-    db_versioning::handle_db_versioning, noop_kv::NoopKvDb, turbo::TurboKeyValueDatabase,
 };
 
 #[cfg(feature = "lmdb")]
 pub type LmdbBackingStorage = KeyValueDatabaseBackingStorage<
-    ReadTransactionCache<
-        StartupCacheLayer<FreshDbOptimization<crate::database::lmdb::LmbdKeyValueDatabase>>,
+    database::read_transaction_cache::ReadTransactionCache<
+        database::startup_cache::StartupCacheLayer<
+            database::fresh_db_optimization::FreshDbOptimization<
+                crate::database::lmdb::LmbdKeyValueDatabase,
+            >,
+        >,
     >,
 >;
 
 #[cfg(feature = "lmdb")]
-pub fn lmdb_backing_storage(path: &Path) -> Result<LmdbBackingStorage> {
+pub fn lmdb_backing_storage(
+    base_path: &Path,
+    version_info: &GitVersionInfo,
+    is_ci: bool,
+) -> Result<LmdbBackingStorage> {
     use crate::database::{
-        fresh_db_optimization::{is_fresh, FreshDbOptimization},
+        fresh_db_optimization::{FreshDbOptimization, is_fresh},
         read_transaction_cache::ReadTransactionCache,
         startup_cache::StartupCacheLayer,
     };
 
-    let path = handle_db_versioning(path)?;
-    let fresh_db = is_fresh(&path);
-    let database = crate::database::lmdb::LmbdKeyValueDatabase::new(&path)?;
-    let database = FreshDbOptimization::new(database, fresh_db);
-    let database = StartupCacheLayer::new(database, path.join("startup.cache"), fresh_db)?;
-    let database = ReadTransactionCache::new(database);
-    Ok(KeyValueDatabaseBackingStorage::new(database))
+    KeyValueDatabaseBackingStorage::open_versioned_on_disk(
+        base_path.to_owned(),
+        version_info,
+        is_ci,
+        |versioned_path| {
+            let fresh_db = is_fresh(&versioned_path);
+            let database = crate::database::lmdb::LmbdKeyValueDatabase::new(&versioned_path)?;
+            let database = FreshDbOptimization::new(database, fresh_db);
+            let database =
+                StartupCacheLayer::new(database, versioned_path.join("startup.cache"), fresh_db)?;
+            Ok(ReadTransactionCache::new(database))
+        },
+    )
 }
 
 pub type TurboBackingStorage = KeyValueDatabaseBackingStorage<TurboKeyValueDatabase>;
 
-pub fn turbo_backing_storage(path: &Path) -> Result<TurboBackingStorage> {
-    let path = handle_db_versioning(path)?;
-    let database = TurboKeyValueDatabase::new(path)?;
-    Ok(KeyValueDatabaseBackingStorage::new(database))
+pub fn turbo_backing_storage(
+    base_path: &Path,
+    version_info: &GitVersionInfo,
+    is_ci: bool,
+) -> Result<TurboBackingStorage> {
+    KeyValueDatabaseBackingStorage::open_versioned_on_disk(
+        base_path.to_owned(),
+        version_info,
+        is_ci,
+        TurboKeyValueDatabase::new,
+    )
 }
 
 pub type NoopBackingStorage = KeyValueDatabaseBackingStorage<NoopKvDb>;
 
 pub fn noop_backing_storage() -> NoopBackingStorage {
-    KeyValueDatabaseBackingStorage::new(NoopKvDb)
+    KeyValueDatabaseBackingStorage::new_in_memory(NoopKvDb)
 }
 
 #[cfg(feature = "lmdb")]
 pub type DefaultBackingStorage = LmdbBackingStorage;
 
 #[cfg(feature = "lmdb")]
-pub fn default_backing_storage(path: &Path) -> Result<DefaultBackingStorage> {
-    lmdb_backing_storage(path)
+pub fn default_backing_storage(
+    path: &Path,
+    version_info: &GitVersionInfo,
+    is_ci: bool,
+) -> Result<DefaultBackingStorage> {
+    lmdb_backing_storage(path, version_info, is_ci)
 }
 
 #[cfg(not(feature = "lmdb"))]
 pub type DefaultBackingStorage = TurboBackingStorage;
 
 #[cfg(not(feature = "lmdb"))]
-pub fn default_backing_storage(path: &Path) -> Result<DefaultBackingStorage> {
-    turbo_backing_storage(path)
+pub fn default_backing_storage(
+    path: &Path,
+    version_info: &GitVersionInfo,
+    is_ci: bool,
+) -> Result<DefaultBackingStorage> {
+    turbo_backing_storage(path, version_info, is_ci)
 }

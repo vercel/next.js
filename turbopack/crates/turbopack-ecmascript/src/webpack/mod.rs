@@ -10,9 +10,10 @@ use turbopack_core::{
     reference::{ModuleReference, ModuleReferences},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
+        ModuleResolveResult, ModuleResolveResultItem,
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
-        resolve, ModuleResolveResult, ModuleResolveResultItem,
+        resolve,
     },
     source::Source,
 };
@@ -97,17 +98,16 @@ impl ModuleReference for WebpackChunkAssetReference {
                     Lit::Num(num) => format!("{num}"),
                     _ => todo!(),
                 };
-                let filename = format!("./chunks/{}.js", chunk_id).into();
+                let filename = format!("./chunks/{chunk_id}.js").into();
                 let source = Vc::upcast(FileSource::new(context_path.join(filename)));
 
-                ModuleResolveResult::module(ResolvedVc::upcast(
+                *ModuleResolveResult::module(ResolvedVc::upcast(
                     WebpackModuleAsset::new(source, *self.runtime, *self.transforms)
                         .to_resolved()
                         .await?,
                 ))
-                .cell()
             }
-            WebpackRuntime::None => ModuleResolveResult::unresolvable().cell(),
+            WebpackRuntime::None => *ModuleResolveResult::unresolvable(),
         })
     }
 }
@@ -121,7 +121,7 @@ impl ValueToString for WebpackChunkAssetReference {
             Lit::Num(num) => format!("{num}"),
             _ => todo!(),
         };
-        Vc::cell(format!("webpack chunk {}", chunk_id).into())
+        Vc::cell(format!("webpack chunk {chunk_id}").into())
     }
 }
 
@@ -136,12 +136,11 @@ pub struct WebpackEntryAssetReference {
 impl ModuleReference for WebpackEntryAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        Ok(ModuleResolveResult::module(ResolvedVc::upcast(
+        Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
             WebpackModuleAsset::new(*self.source, *self.runtime, *self.transforms)
                 .to_resolved()
                 .await?,
-        ))
-        .cell())
+        )))
     }
 }
 

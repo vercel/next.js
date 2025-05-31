@@ -1,6 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, ResolvedVc, TaskInput, Vc};
+use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -21,6 +21,7 @@ use turbopack_core::{
     Deserialize,
     TaskInput,
     TraceRawVcs,
+    NonLocalValue,
 )]
 pub enum WebAssemblySourceType {
     /// Binary WebAssembly files (.wasm).

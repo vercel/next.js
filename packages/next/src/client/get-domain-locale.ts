@@ -8,8 +8,8 @@ const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
 export function getDomainLocale(
   path: string,
   locale?: string | false,
-  locales?: string[],
-  domainLocales?: DomainLocale[]
+  locales?: readonly string[],
+  domainLocales?: readonly DomainLocale[]
 ) {
   if (process.env.__NEXT_I18N_SUPPORT) {
     const normalizeLocalePath: typeof NormalizeFn =

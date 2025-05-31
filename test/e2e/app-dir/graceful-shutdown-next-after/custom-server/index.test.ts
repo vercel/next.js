@@ -1,7 +1,7 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
-describe('unstable_after during server shutdown - custom server', () => {
+describe('after during server shutdown - custom server', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     startCommand: 'node server.mjs',
@@ -30,7 +30,7 @@ describe('unstable_after during server shutdown - custom server', () => {
   // unlike the above test for `next dev`, NextCustomServer has no logic that'd cause it to skip cleanups in dev mode,
   // so this is the same in both modes
   it.each(['SIGINT', 'SIGTERM'] as const)(
-    'waits for unstable_after callbacks when the server receives %s',
+    'waits for after callbacks when the server receives %s',
     async (signal) => {
       await next.render('/')
       await retry(async () => {

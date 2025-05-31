@@ -12,6 +12,7 @@ export type NapiRouteHas = {
   value?: string
   readonly __tag: unique symbol
 }
+export type RcStr = string
 
 export function lightningCssTransform(args: object): Promise<unknown>
 export function lightningCssTransformStyleAttribute(
@@ -37,19 +38,20 @@ export interface TransformOutput {
   code: string
   map?: string
   output?: string
+  diagnostics: Array<string>
 }
-export function mdxCompile(
+export declare function mdxCompile(
   value: string,
   option: Buffer,
   signal?: AbortSignal | undefined | null
 ): Promise<unknown>
-export function mdxCompileSync(value: string, option: Buffer): string
-export function minify(
+export declare function mdxCompileSync(value: string, option: Buffer): string
+export declare function minify(
   input: Buffer,
   opts: Buffer,
   signal?: AbortSignal | undefined | null
 ): Promise<TransformOutput>
-export function minifySync(input: Buffer, opts: Buffer): TransformOutput
+export declare function minifySync(input: Buffer, opts: Buffer): TransformOutput
 export interface NapiEndpointConfig {}
 export interface NapiServerPath {
   path: string
@@ -62,26 +64,26 @@ export interface NapiWrittenEndpoint {
   serverPaths: Array<NapiServerPath>
   config: NapiEndpointConfig
 }
-export function endpointWriteToDisk(endpoint: {
+export declare function endpointWriteToDisk(endpoint: {
   __napiType: 'Endpoint'
 }): Promise<TurbopackResult>
-export function endpointServerChangedSubscribe(
+export declare function endpointServerChangedSubscribe(
   endpoint: { __napiType: 'Endpoint' },
   issues: boolean,
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }
-export function endpointClientChangedSubscribe(
+export declare function endpointClientChangedSubscribe(
   endpoint: { __napiType: 'Endpoint' },
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }
 export interface NapiEnvVar {
-  name: string
-  value: string
+  name: RcStr
+  value: RcStr
 }
 export interface NapiDraftModeOptions {
-  previewModeId: string
-  previewModeEncryptionKey: string
-  previewModeSigningKey: string
+  previewModeId: RcStr
+  previewModeEncryptionKey: RcStr
+  previewModeSigningKey: RcStr
 }
 export interface NapiWatchOptions {
   /** Whether to watch the filesystem for file changes. */
@@ -97,20 +99,20 @@ export interface NapiProjectOptions {
    * A root path from which all files must be nested under. Trying to access
    * a file outside this root will fail. Think of this as a chroot.
    */
-  rootPath: string
+  rootPath: RcStr
   /** A path inside the root_path which contains the app/pages directories. */
-  projectPath: string
+  projectPath: RcStr
   /**
    * next.config's distDir. Project initialization occurs eariler than
    * deserializing next.config, so passing it as separate option.
    */
-  distDir: string
+  distDir: RcStr
   /** Filesystem watcher options. */
   watch: NapiWatchOptions
   /** The contents of next.config.js, serialized to JSON. */
-  nextConfig: string
+  nextConfig: RcStr
   /** The contents of ts/config read by load-jsconfig, serialized to JSON. */
-  jsConfig: string
+  jsConfig: RcStr
   /** A map of environment variables to use when compiling code. */
   env: Array<NapiEnvVar>
   /**
@@ -121,13 +123,19 @@ export interface NapiProjectOptions {
   /** The mode in which Next.js is running. */
   dev: boolean
   /** The server actions encryption key. */
-  encryptionKey: string
+  encryptionKey: RcStr
   /** The build id. */
-  buildId: string
+  buildId: RcStr
   /** Options for draft mode. */
   previewProps: NapiDraftModeOptions
   /** The browserslist query to use for targeting browsers. */
-  browserslistQuery: string
+  browserslistQuery: RcStr
+  /**
+   * When the code is minified, this opts out of the default mangling of
+   * local names for variables, functions etc., which can be useful for
+   * debugging/profiling purposes.
+   */
+  noMangling: boolean
 }
 /** [NapiProjectOptions] with all fields optional. */
 export interface NapiPartialProjectOptions {
@@ -135,20 +143,20 @@ export interface NapiPartialProjectOptions {
    * A root path from which all files must be nested under. Trying to access
    * a file outside this root will fail. Think of this as a chroot.
    */
-  rootPath?: string
+  rootPath?: RcStr
   /** A path inside the root_path which contains the app/pages directories. */
-  projectPath?: string
+  projectPath?: RcStr
   /**
    * next.config's distDir. Project initialization occurs eariler than
    * deserializing next.config, so passing it as separate option.
    */
-  distDir?: string | undefined | null
+  distDir?: RcStr | undefined | null
   /** Filesystem watcher options. */
   watch?: NapiWatchOptions
   /** The contents of next.config.js, serialized to JSON. */
-  nextConfig?: string
+  nextConfig?: RcStr
   /** The contents of ts/config read by load-jsconfig, serialized to JSON. */
-  jsConfig?: string
+  jsConfig?: RcStr
   /** A map of environment variables to use when compiling code. */
   env?: Array<NapiEnvVar>
   /**
@@ -159,13 +167,19 @@ export interface NapiPartialProjectOptions {
   /** The mode in which Next.js is running. */
   dev?: boolean
   /** The server actions encryption key. */
-  encryptionKey?: string
+  encryptionKey?: RcStr
   /** The build id. */
-  buildId?: string
+  buildId?: RcStr
   /** Options for draft mode. */
   previewProps?: NapiDraftModeOptions
   /** The browserslist query to use for targeting browsers. */
-  browserslistQuery?: string
+  browserslistQuery?: RcStr
+  /**
+   * When the code is minified, this opts out of the default mangling of
+   * local names for variables, functions etc., which can be useful for
+   * debugging/profiling purposes.
+   */
+  noMangling?: boolean
 }
 export interface NapiDefineEnv {
   client: Array<NapiEnvVar>
@@ -177,21 +191,48 @@ export interface NapiTurboEngineOptions {
   persistentCaching?: boolean
   /** An upper bound of memory that turbopack will attempt to stay under. */
   memoryLimit?: number
+  /** Track dependencies between tasks. If false, any change during build will error. */
+  dependencyTracking?: boolean
+  /** Whether the project is running in a CI environment. */
+  isCi?: boolean
 }
-export function projectNew(
+export declare function projectNew(
   options: NapiProjectOptions,
   turboEngineOptions: NapiTurboEngineOptions
 ): Promise<{ __napiType: 'Project' }>
-export function projectUpdate(
+export declare function projectUpdate(
   project: { __napiType: 'Project' },
   options: NapiPartialProjectOptions
 ): Promise<void>
-export function projectShutdown(project: {
+/**
+ * Invalidates the persistent cache so that it will be deleted next time that a turbopack project
+ * is created with persistent caching enabled.
+ */
+export declare function projectInvalidatePersistentCache(project: {
+  __napiType: 'Project'
+}): Promise<void>
+/**
+ * Runs exit handlers for the project registered using the [`ExitHandler`] API.
+ *
+ * This is called by `project_shutdown`, so if you're calling that API, you shouldn't call this
+ * one.
+ */
+export declare function projectOnExit(project: {
+  __napiType: 'Project'
+}): Promise<void>
+/**
+ * Runs `project_on_exit`, and then waits for turbo_tasks to gracefully shut down.
+ *
+ * This is used in builds where it's important that we completely persist turbo-tasks to disk, but
+ * it's skipped in the development server (`project_on_exit` is used instead with a short timeout),
+ * where we prioritize fast exit and user responsiveness over all else.
+ */
+export declare function projectShutdown(project: {
   __napiType: 'Project'
 }): Promise<void>
 export interface AppPageNapiRoute {
   /** The relative path from project_path to the route file */
-  originalName?: string
+  originalName?: RcStr
   htmlEndpoint?: ExternalObject<ExternalEndpoint>
   rscEndpoint?: ExternalObject<ExternalEndpoint>
 }
@@ -199,7 +240,7 @@ export interface NapiRoute {
   /** The router path */
   pathname: string
   /** The relative path from project_path to the route file */
-  originalName?: string
+  originalName?: RcStr
   /** The type of route, eg a Page or App */
   type: string
   pages?: Array<AppPageNapiRoute>
@@ -223,19 +264,23 @@ export interface NapiEntrypoints {
   pagesAppEndpoint: ExternalObject<ExternalEndpoint>
   pagesErrorEndpoint: ExternalObject<ExternalEndpoint>
 }
-export function projectEntrypointsSubscribe(
+export declare function projectWriteAllEntrypointsToDisk(
+  project: { __napiType: 'Project' },
+  appDirOnly: boolean
+): Promise<TurbopackResult>
+export declare function projectEntrypointsSubscribe(
   project: { __napiType: 'Project' },
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }
-export function projectHmrEvents(
+export declare function projectHmrEvents(
   project: { __napiType: 'Project' },
-  identifier: string,
+  identifier: RcStr,
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }
 export interface HmrIdentifiers {
-  identifiers: Array<string>
+  identifiers: Array<RcStr>
 }
-export function projectHmrIdentifiersSubscribe(
+export declare function projectHmrIdentifiersSubscribe(
   project: { __napiType: 'Project' },
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }
@@ -260,34 +305,46 @@ export interface NapiUpdateInfo {
  *
  * The signature of the `func` is `(update_message: UpdateMessage) => void`.
  */
-export function projectUpdateInfoSubscribe(
+export declare function projectUpdateInfoSubscribe(
   project: { __napiType: 'Project' },
   aggregationMs: number,
   func: (...args: any[]) => any
 ): void
+/** Subscribes to all compilation events that are not cached like timing and progress information. */
+export declare function projectCompilationEventsSubscribe(
+  project: { __napiType: 'Project' },
+  func: (...args: any[]) => any,
+  eventTypes?: Array<string> | undefined | null
+): void
 export interface StackFrame {
   isServer: boolean
   isInternal?: boolean
-  file: string
+  originalFile?: string
+  file: RcStr
   line?: number
   column?: number
-  methodName?: string
+  methodName?: RcStr
 }
-export function projectTraceSource(
+export declare function projectTraceSource(
   project: { __napiType: 'Project' },
-  frame: StackFrame
+  frame: StackFrame,
+  currentDirectoryFileUrl: string
 ): Promise<StackFrame | null>
-export function projectGetSourceForAsset(
+export declare function projectGetSourceForAsset(
   project: { __napiType: 'Project' },
-  filePath: string
+  filePath: RcStr
 ): Promise<string | null>
-export function projectGetSourceMap(
+export declare function projectGetSourceMap(
   project: { __napiType: 'Project' },
-  filePath: string
+  filePath: RcStr
 ): Promise<string | null>
-/** Runs exit handlers for the project registered using the [`ExitHandler`] API. */
-export function projectOnExit(project: { __napiType: 'Project' }): Promise<void>
-export function rootTaskDispose(rootTask: { __napiType: 'RootTask' }): void
+export declare function projectGetSourceMapSync(
+  project: { __napiType: 'Project' },
+  filePath: RcStr
+): string | null
+export declare function rootTaskDispose(rootTask: {
+  __napiType: 'RootTask'
+}): void
 export interface NapiIssue {
   severity: string
   stage: string
@@ -297,7 +354,6 @@ export interface NapiIssue {
   detail?: any
   source?: NapiIssueSource
   documentationLink: string
-  subIssues: Array<NapiIssue>
 }
 export interface NapiIssueSource {
   source: NapiSource
@@ -320,24 +376,28 @@ export interface NapiDiagnostic {
   name: string
   payload: Record<string, string>
 }
-export function parse(
+export declare function parse(
   src: string,
   options: Buffer,
   filename?: string | undefined | null,
   signal?: AbortSignal | undefined | null
 ): Promise<string>
-export function transform(
+export declare function isReactCompilerRequired(
+  filename: string,
+  signal?: AbortSignal | undefined | null
+): Promise<boolean>
+export declare function transform(
   src: string | Buffer | undefined,
   isModule: boolean,
   options: Buffer,
   signal?: AbortSignal | undefined | null
 ): Promise<unknown>
-export function transformSync(
+export declare function transformSync(
   src: string | Buffer | undefined,
   isModule: boolean,
   options: Buffer
 ): object
-export function startTurbopackTraceServer(path: string): void
+export declare function startTurbopackTraceServer(path: string): void
 export interface NextBuildContext {
   /** The root directory of the workspace. */
   root?: string
@@ -370,16 +430,12 @@ export interface NapiRewrite {
   has?: Array<NapiRouteHas>
   missing?: Array<NapiRouteHas>
 }
-export function getTargetTriple(): string
-export function initHeapProfiler(): ExternalObject<RefCell>
-export function teardownHeapProfiler(
-  guardExternal: ExternalObject<RefCell>
-): void
+export declare function getTargetTriple(): string
 /**
  * Initialize tracing subscriber to emit traces. This configures subscribers
  * for Trace Event Format <https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview>.
  */
-export function initCustomTraceSubscriber(
+export declare function initCustomTraceSubscriber(
   traceOutFilePath?: string | undefined | null
 ): ExternalObject<RefCell>
 /**
@@ -387,6 +443,6 @@ export function initCustomTraceSubscriber(
  * This should be called when parent node.js process exits, otherwise generated
  * trace may drop traces in the buffer.
  */
-export function teardownTraceSubscriber(
+export declare function teardownTraceSubscriber(
   guardExternal: ExternalObject<RefCell>
 ): void

@@ -1,7 +1,7 @@
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use syn::{parse_macro_input, DeriveInput, Field, FieldsNamed, FieldsUnnamed};
+use syn::{DeriveInput, Field, FieldsNamed, FieldsUnnamed, parse_macro_input};
 use turbo_tasks_macros_shared::{generate_destructuring, match_expansion};
 
 use super::FieldAttributes;

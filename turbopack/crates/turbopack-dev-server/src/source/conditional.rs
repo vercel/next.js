@@ -1,12 +1,12 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{Completion, ResolvedVc, State, Value, Vc};
+use turbo_tasks::{Completion, ResolvedVc, State, TryJoinIterExt, Value, Vc};
 use turbopack_core::introspect::{Introspectable, IntrospectableChildren};
 
 use super::{
-    route_tree::{MapGetContentSourceContent, RouteTree, RouteTrees},
     ContentSource, ContentSourceData, ContentSourceDataVary, ContentSourceSideEffect,
     GetContentSourceContent,
+    route_tree::{MapGetContentSourceContent, RouteTree, RouteTrees},
 };
 use crate::source::{ContentSourceContent, ContentSources};
 
@@ -126,8 +126,7 @@ impl Introspectable for ConditionalContentSource {
 
     #[turbo_tasks::function]
     async fn title(&self) -> Result<Vc<RcStr>> {
-        if let Some(activator) =
-            ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.activator).await?
+        if let Some(activator) = ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.activator)
         {
             Ok(activator.title())
         } else {
@@ -140,14 +139,16 @@ impl Introspectable for ConditionalContentSource {
         Ok(Vc::cell(
             [
                 ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.activator)
-                    .await?
-                    .map(|i| (activator_key(), *i)),
+                    .map(|i| (activator_key(), i)),
                 ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.action)
-                    .await?
-                    .map(|i| (action_key(), *i)),
+                    .map(|i| (action_key(), i)),
             ]
             .into_iter()
             .flatten()
+            .map(|(k, v)| async move { Ok((k.to_resolved().await?, v)) })
+            .try_join()
+            .await?
+            .into_iter()
             .collect(),
         ))
     }
@@ -168,11 +169,11 @@ impl GetContentSourceContent for ActivateOnGetContentSource {
 
     #[turbo_tasks::function]
     async fn get(
-        self: Vc<Self>,
+        self: ResolvedVc<Self>,
         path: RcStr,
         data: Value<ContentSourceData>,
     ) -> Result<Vc<ContentSourceContent>> {
-        turbo_tasks::emit(Vc::upcast::<Box<dyn ContentSourceSideEffect>>(self));
+        turbo_tasks::emit(ResolvedVc::upcast::<Box<dyn ContentSourceSideEffect>>(self));
         Ok(self.await?.get_content.get(path, data))
     }
 }

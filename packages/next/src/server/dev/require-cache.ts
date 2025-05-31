@@ -1,8 +1,8 @@
 import isError from '../../lib/is-error'
 import { realpathSync } from '../../lib/realpath'
-import { clearManifestCache } from '../load-manifest'
+import { clearManifestCache } from '../load-manifest.external'
 
-function deleteFromRequireCache(filePath: string) {
+export function deleteFromRequireCache(filePath: string) {
   try {
     filePath = realpathSync(filePath)
   } catch (e) {
@@ -25,17 +25,6 @@ function deleteFromRequireCache(filePath: string) {
     return true
   }
   return false
-}
-
-export function deleteAppClientCache() {
-  deleteFromRequireCache(
-    require.resolve('next/dist/compiled/next-server/app-page.runtime.dev.js')
-  )
-  deleteFromRequireCache(
-    require.resolve(
-      'next/dist/compiled/next-server/app-page-experimental.runtime.dev.js'
-    )
-  )
 }
 
 export function deleteCache(filePath: string) {

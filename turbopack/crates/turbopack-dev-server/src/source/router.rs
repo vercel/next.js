@@ -6,11 +6,11 @@ use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, Vc};
 use turbopack_core::introspect::{Introspectable, IntrospectableChildren};
 
 use super::{
-    route_tree::{BaseSegment, RouteTree, RouteTrees},
     ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataVary,
     GetContentSourceContent,
+    route_tree::{BaseSegment, RouteTree, RouteTrees},
 };
-use crate::source::{route_tree::MapGetContentSourceContent, ContentSources};
+use crate::source::{ContentSources, route_tree::MapGetContentSourceContent};
 
 /// Binds different ContentSources to different subpaths.
 ///
@@ -65,8 +65,7 @@ async fn get_introspection_children(
             .chain(std::iter::once((RcStr::default(), *fallback)))
             .map(|(path, source)| async move {
                 Ok(ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(source)
-                    .await?
-                    .map(|i| (Vc::cell(path), *i)))
+                    .map(|i| (ResolvedVc::cell(path), i)))
             })
             .try_join()
             .await?
@@ -85,9 +84,13 @@ impl ContentSource for PrefixedRouterContentSource {
             debug_assert!(prefix.is_empty() || prefix.ends_with('/'));
             debug_assert!(!prefix.starts_with('/'));
         }
-        let prefix = (!prefix.is_empty())
-            .then(|| BaseSegment::from_static_pathname(prefix.as_str()).collect())
-            .unwrap_or(Vec::new());
+
+        let prefix = if prefix.is_empty() {
+            Vec::new()
+        } else {
+            BaseSegment::from_static_pathname(prefix.as_str()).collect()
+        };
+
         let inner_trees = self.routes.iter().map(|(path, source)| {
             let prepended_base = prefix
                 .iter()
@@ -187,7 +190,7 @@ impl Introspectable for PrefixedRouterContentSource {
     #[turbo_tasks::function]
     async fn details(&self) -> Result<Vc<RcStr>> {
         let prefix = self.prefix.await?;
-        Ok(Vc::cell(format!("prefix: '{}'", prefix).into()))
+        Ok(Vc::cell(format!("prefix: '{prefix}'").into()))
     }
 
     #[turbo_tasks::function]

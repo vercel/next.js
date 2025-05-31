@@ -83,7 +83,7 @@ impl Issue for UnsupportedSwcEcmaTransformPluginsIssue {
                  platform."
                     .into(),
             )
-            .cell(),
+            .resolved_cell(),
         ))
     }
 }
@@ -130,7 +130,7 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
                     util::take::Take,
                 },
                 ecma::ast::Module,
-                plugin::proxies::{HostCommentsStorage, COMMENTS},
+                plugin::proxies::{COMMENTS, HostCommentsStorage},
                 plugin_runner::plugin_module_bytes::PluginModuleBytes,
             };
 
@@ -186,7 +186,7 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
                         PluginSerializedBytes::try_serialize(&module_program)?;
 
                     let transform_metadata_context = Arc::new(TransformPluginMetadataContext::new(
-                        Some(ctx.file_name_str.to_string()),
+                        Some(ctx.file_path_str.to_string()),
                         //[TODO]: Support env-related variable injection, i.e process.env.NODE_ENV
                         "development".to_string(),
                         None,
@@ -206,6 +206,7 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
                                 ctx.source_map,
                                 &ctx.unresolved_mark,
                                 &transform_metadata_context,
+                                None,
                                 plugin_module,
                                 Some(plugin_config),
                                 runtime,
@@ -228,7 +229,7 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
             UnsupportedSwcEcmaTransformPluginsIssue {
                 file_path: ctx.file_path,
             }
-            .cell()
+            .resolved_cell()
             .emit();
         }
 

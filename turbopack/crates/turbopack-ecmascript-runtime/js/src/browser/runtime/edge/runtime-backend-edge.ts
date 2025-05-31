@@ -12,98 +12,94 @@
 /// <reference path="../../../shared-node/base-externals-utils.ts" />
 
 type ChunkRunner = {
-  requiredChunks: Set<ChunkPath>;
-  chunkPath: ChunkPath;
-  runtimeModuleIds: ModuleId[];
-};
+  requiredChunks: Set<ChunkPath>
+  chunkPath: ChunkPath
+  runtimeModuleIds: ModuleId[]
+}
 
-let BACKEND: RuntimeBackend;
+let BACKEND: RuntimeBackend
 
 type ExternalRequire = (
   id: ModuleId,
   thunk: () => any,
   esm?: boolean
-) => Exports | EsmNamespaceObject;
-type ExternalImport = (id: ModuleId) => Promise<Exports | EsmNamespaceObject>;
+) => Exports | EsmNamespaceObject
+type ExternalImport = (id: ModuleId) => Promise<Exports | EsmNamespaceObject>
 
 interface TurbopackEdgeContext extends TurbopackBaseContext<Module> {
-  x: ExternalRequire;
-  y: ExternalImport;
+  x: ExternalRequire
+  y: ExternalImport
 }
 
-function augmentContext(context: TurbopackBaseContext<Module>): TurbopackEdgeContext {
-  const nodejsContext = context as TurbopackEdgeContext;
-  nodejsContext.x = externalRequire;
-  nodejsContext.y = externalImport;
-  return nodejsContext;
+function augmentContext(
+  context: TurbopackBaseContext<Module>
+): TurbopackEdgeContext {
+  const nodejsContext = context as TurbopackEdgeContext
+  nodejsContext.x = externalRequire
+  nodejsContext.y = externalImport
+  return nodejsContext
 }
 
 async function loadWebAssembly(
   source: SourceInfo,
   chunkPath: ChunkPath,
+  edgeModule: () => WebAssembly.Module,
   imports: WebAssembly.Imports
 ): Promise<Exports> {
-  const module = await loadWebAssemblyModule(source, chunkPath);
+  const module = await loadWebAssemblyModule(source, chunkPath, edgeModule)
 
-  return await WebAssembly.instantiate(module, imports);
+  return await WebAssembly.instantiate(module, imports)
 }
 
 function getFileStem(path: string): string {
-  const fileName = path.split("/").pop()!;
+  const fileName = path.split('/').pop()!
 
-  const stem = fileName.split(".").shift()!;
+  const stem = fileName.split('.').shift()!
 
-  if (stem === "") {
-    return fileName;
+  if (stem === '') {
+    return fileName
   }
 
-  return stem;
+  return stem
 }
-
-type GlobalWithInjectedWebAssembly = typeof globalThis & {
-  [key: `wasm_${string}`]: WebAssembly.Module;
-};
 
 async function loadWebAssemblyModule(
   _source: SourceInfo,
-  chunkPath: ChunkPath
+  chunkPath: ChunkPath,
+  edgeModule: () => WebAssembly.Module
 ): Promise<WebAssembly.Module> {
-  const stem = getFileStem(chunkPath);
-
-  // very simple escaping just replacing unsupported characters with `_`
-  const escaped = stem.replace(/[^a-zA-Z0-9$_]/gi, "_");
-
-  const identifier: `wasm_${string}` = `wasm_${escaped}`;
-
-  const module = (globalThis as GlobalWithInjectedWebAssembly)[identifier];
+  let module
+  try {
+    module = edgeModule()
+  } catch (_e) {}
 
   if (!module) {
     throw new Error(
-      `dynamically loading WebAssembly is not supported in this runtime and global \`${identifier}\` was not injected`
-    );
+      `dynamically loading WebAssembly is not supported in this runtime as global was not injected for chunk '${chunkPath}'`
+    )
   }
 
-  return module;
+  return module
 }
 
-(() => {
+;(() => {
   BACKEND = {
     // The "none" runtime expects all chunks within the same chunk group to be
     // registered before any of them are instantiated.
     // Furthermore, modules must be instantiated synchronously, hence we don't
     // use promises here.
     registerChunk(chunkPath, params) {
-      registeredChunks.add(chunkPath);
-      instantiateDependentChunks(chunkPath);
+      registeredChunks.add(chunkPath)
+      instantiateDependentChunks(chunkPath)
 
       if (params == null) {
-        return;
+        return
       }
 
       if (params.otherChunks.length === 0) {
         // The current chunk does not depend on any other chunks, it can be
         // instantiated immediately.
-        instantiateRuntimeModules(params.runtimeModuleIds, chunkPath);
+        instantiateRuntimeModules(params.runtimeModuleIds, chunkPath)
       } else {
         // The current chunk depends on other chunks, so we need to wait for
         // those chunks to be registered before instantiating the runtime
@@ -112,20 +108,20 @@ async function loadWebAssemblyModule(
           chunkPath,
           params.otherChunks.filter((chunk) =>
             // The none runtime can only handle JS chunks, so we only wait for these
-            getChunkPath(chunk).endsWith(".js")
+            isJs(getChunkPath(chunk))
           ),
           params.runtimeModuleIds
-        );
+        )
       }
     },
 
-    loadChunk(_chunkPath, _fromChunkPath) {
-      throw new Error("chunk loading is not supported");
+    loadChunk(_chunkUrl, _source) {
+      throw new Error('chunk loading is not supported')
     },
-  };
+  }
 
-  const registeredChunks: Set<ChunkPath> = new Set();
-  const runners: Map<ChunkPath, Set<ChunkRunner>> = new Map();
+  const registeredChunks: Set<ChunkPath> = new Set()
+  const runners: Map<ChunkPath, Set<ChunkRunner>> = new Map()
 
   /**
    * Registers a chunk runner that will be instantiated once all of the
@@ -136,30 +132,30 @@ async function loadWebAssemblyModule(
     otherChunks: ChunkData[],
     runtimeModuleIds: ModuleId[]
   ) {
-    const requiredChunks: Set<ChunkPath> = new Set();
+    const requiredChunks: Set<ChunkPath> = new Set()
     const runner = {
       runtimeModuleIds,
       chunkPath,
       requiredChunks,
-    };
+    }
 
     for (const otherChunkData of otherChunks) {
-      const otherChunkPath = getChunkPath(otherChunkData);
+      const otherChunkPath = getChunkPath(otherChunkData)
       if (registeredChunks.has(otherChunkPath)) {
-        continue;
+        continue
       }
 
-      requiredChunks.add(otherChunkPath);
-      let runnersForChunk = runners.get(otherChunkPath);
+      requiredChunks.add(otherChunkPath)
+      let runnersForChunk = runners.get(otherChunkPath)
       if (runnersForChunk == null) {
-        runnersForChunk = new Set();
-        runners.set(otherChunkPath, runnersForChunk);
+        runnersForChunk = new Set()
+        runners.set(otherChunkPath, runnersForChunk)
       }
-      runnersForChunk.add(runner);
+      runnersForChunk.add(runner)
     }
     // When all chunks are already registered, we can instantiate the runtime module
     if (runner.requiredChunks.size === 0) {
-      instantiateRuntimeModules(runner.runtimeModuleIds, runner.chunkPath);
+      instantiateRuntimeModules(runner.runtimeModuleIds, runner.chunkPath)
     }
   }
 
@@ -170,16 +166,16 @@ async function loadWebAssemblyModule(
   function instantiateDependentChunks(chunkPath: ChunkPath) {
     // Run any chunk runners that were waiting for this chunk to be
     // registered.
-    const runnersForChunk = runners.get(chunkPath);
+    const runnersForChunk = runners.get(chunkPath)
     if (runnersForChunk != null) {
       for (const runner of runnersForChunk) {
-        runner.requiredChunks.delete(chunkPath);
+        runner.requiredChunks.delete(chunkPath)
 
         if (runner.requiredChunks.size === 0) {
-          instantiateRuntimeModules(runner.runtimeModuleIds, runner.chunkPath);
+          instantiateRuntimeModules(runner.runtimeModuleIds, runner.chunkPath)
         }
       }
-      runners.delete(chunkPath);
+      runners.delete(chunkPath)
     }
   }
 
@@ -191,7 +187,7 @@ async function loadWebAssemblyModule(
     chunkPath: ChunkPath
   ) {
     for (const moduleId of runtimeModuleIds) {
-      getOrInstantiateRuntimeModule(moduleId, chunkPath);
+      getOrInstantiateRuntimeModule(moduleId, chunkPath)
     }
   }
-})();
+})()

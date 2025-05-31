@@ -2,7 +2,6 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    ident::AssetIdent,
     output::OutputAsset,
     source::Source,
 };
@@ -33,8 +32,8 @@ impl FixedStaticAsset {
 #[turbo_tasks::value_impl]
 impl OutputAsset for FixedStaticAsset {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        AssetIdent::from_path(*self.output_path)
+    fn path(&self) -> Vc<FileSystemPath> {
+        *self.output_path
     }
 }
 

@@ -1,11 +1,11 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type RenderResult from './render-result'
-import type { Revalidate, ExpireTime } from './lib/revalidate'
+import type { CacheControl } from './lib/cache-control'
 
 import { isResSent } from '../shared/lib/utils'
 import { generateETag } from './lib/etag'
 import fresh from 'next/dist/compiled/fresh'
-import { formatRevalidate } from './lib/revalidate'
+import { getCacheControlHeader } from './lib/cache-control'
 import { RSC_CONTENT_TYPE_HEADER } from '../client/components/app-router-headers'
 
 export function sendEtagResponse(
@@ -39,8 +39,7 @@ export async function sendRenderResult({
   type,
   generateEtags,
   poweredByHeader,
-  revalidate,
-  expireTime,
+  cacheControl,
 }: {
   req: IncomingMessage
   res: ServerResponse
@@ -48,8 +47,7 @@ export async function sendRenderResult({
   type: 'html' | 'json' | 'rsc'
   generateEtags: boolean
   poweredByHeader: boolean
-  revalidate: Revalidate | undefined
-  expireTime: ExpireTime | undefined
+  cacheControl: CacheControl | undefined
 }): Promise<void> {
   if (isResSent(res)) {
     return
@@ -61,15 +59,10 @@ export async function sendRenderResult({
 
   // If cache control is already set on the response we don't
   // override it to allow users to customize it via next.config
-  if (typeof revalidate !== 'undefined' && !res.getHeader('Cache-Control')) {
-    res.setHeader(
-      'Cache-Control',
-      formatRevalidate({
-        revalidate,
-        expireTime,
-      })
-    )
+  if (cacheControl && !res.getHeader('Cache-Control')) {
+    res.setHeader('Cache-Control', getCacheControlHeader(cacheControl))
   }
+
   const payload = result.isDynamic ? null : result.toUnchunkedString()
 
   if (generateEtags && payload !== null) {

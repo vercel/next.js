@@ -1,3 +1,3 @@
-import foo from "./nested";
+import foo from './nested'
 
-console.log(foo);
+console.log(foo)

@@ -18,7 +18,7 @@ import {
   type WorkStoreContext,
 } from '../../async-storage/work-store'
 import { type HTTP_METHOD, HTTP_METHODS, isHTTPMethod } from '../../web/http'
-import { getImplicitTags } from '../../lib/implicit-tags'
+import { getImplicitTags, type ImplicitTags } from '../../lib/implicit-tags'
 import { patchFetch } from '../../lib/patch-fetch'
 import { getTracer } from '../../lib/trace/tracer'
 import { AppRouteRouteHandlersSpan } from '../../lib/trace/constants'
@@ -51,7 +51,7 @@ import {
   type ActionStore,
 } from '../../app-render/action-async-storage.external'
 import * as sharedModules from './shared-modules'
-import { getIsServerAction } from '../../lib/server-action-request-meta'
+import { getIsPossibleServerAction } from '../../lib/server-action-request-meta'
 import { RequestCookies } from 'next/dist/compiled/@edge-runtime/cookies'
 import { cleanURL } from './helpers/clean-url'
 import { StaticGenBailoutError } from '../../../client/components/static-generation-bailout'
@@ -82,6 +82,8 @@ import {
 } from '../../../client/components/http-access-fallback/http-access-fallback'
 import { RedirectStatusCode } from '../../../client/components/redirect-status-code'
 import { INFINITE_CACHE } from '../../../lib/constants'
+import { executeRevalidates } from '../../revalidation-utils'
+import { trackPendingModules } from '../../app-render/module-loading/track-module-loading.external'
 
 export class WrappedNextRouterError {
   constructor(
@@ -96,6 +98,10 @@ export class WrappedNextRouterError {
  */
 export type AppRouteModule = typeof import('../../../build/templates/app-route')
 
+export type AppRouteSharedContext = {
+  buildId: string
+}
+
 /**
  * AppRouteRouteHandlerContext is the context that is passed to the route
  * handler for app routes.
@@ -105,6 +111,7 @@ export interface AppRouteRouteHandlerContext extends RouteModuleHandleContext {
     Pick<RenderOptsPartial, 'onInstrumentationRequestError'> &
     CollectedCacheInfo
   prerenderManifest: DeepReadonly<PrerenderManifest>
+  sharedContext: AppRouteSharedContext
 }
 
 type CollectedCacheInfo = {
@@ -208,10 +215,12 @@ export class AppRouteRouteModule extends RouteModule<
   constructor({
     userland,
     definition,
+    distDir,
+    projectDir,
     resolvedPagePath,
     nextConfigOutput,
   }: AppRouteRouteModuleOptions) {
-    super({ userland, definition })
+    super({ userland, definition, distDir, projectDir })
 
     this.resolvedPagePath = resolvedPagePath
     this.nextConfigOutput = nextConfigOutput
@@ -295,7 +304,7 @@ export class AppRouteRouteModule extends RouteModule<
     // inside this function. Right now we get passed a RequestStore even when
     // we're going to do a prerender. We should probably just split do up into prexecute and execute
     requestStore: RequestStore,
-    implicitTags: string[],
+    implicitTags: ImplicitTags,
     request: NextRequest,
     context: AppRouteRouteHandlerContext
   ) {
@@ -315,6 +324,19 @@ export class AppRouteRouteModule extends RouteModule<
             workStore
           )
         : undefined,
+    }
+
+    const resolvePendingRevalidations = () => {
+      context.renderOpts.pendingWaitUntil = executeRevalidates(
+        workStore
+      ).finally(() => {
+        if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
+          console.log(
+            'pending revalidates promise finished for:',
+            requestStore.url
+          )
+        }
+      })
     }
 
     let prerenderStore: null | PrerenderStore = null
@@ -359,7 +381,10 @@ export class AppRouteRouteModule extends RouteModule<
             (prerenderStore = {
               type: 'prerender',
               phase: 'action',
-              implicitTags: implicitTags,
+              // This replicates prior behavior where rootParams is empty in routes
+              // TODO we need to make this have the proper rootParams for this route
+              rootParams: {},
+              implicitTags,
               renderSignal: prospectiveController.signal,
               controller: prospectiveController,
               cacheSignal,
@@ -369,8 +394,9 @@ export class AppRouteRouteModule extends RouteModule<
               revalidate: defaultRevalidate,
               expire: INFINITE_CACHE,
               stale: INFINITE_CACHE,
-              tags: [...implicitTags],
+              tags: [...implicitTags.tags],
               prerenderResumeDataCache: null,
+              hmrRefreshHash: undefined,
             })
 
           let prospectiveResult
@@ -416,6 +442,8 @@ export class AppRouteRouteModule extends RouteModule<
               }
             )
           }
+
+          trackPendingModules(cacheSignal)
           await cacheSignal.cacheReady()
 
           if (prospectiveRenderIsDynamic) {
@@ -445,7 +473,8 @@ export class AppRouteRouteModule extends RouteModule<
           const finalRoutePrerenderStore: PrerenderStore = (prerenderStore = {
             type: 'prerender',
             phase: 'action',
-            implicitTags: implicitTags,
+            rootParams: {},
+            implicitTags,
             renderSignal: finalController.signal,
             controller: finalController,
             cacheSignal: null,
@@ -453,8 +482,9 @@ export class AppRouteRouteModule extends RouteModule<
             revalidate: defaultRevalidate,
             expire: INFINITE_CACHE,
             stale: INFINITE_CACHE,
-            tags: [...implicitTags],
+            tags: [...implicitTags.tags],
             prerenderResumeDataCache: null,
+            hmrRefreshHash: undefined,
           })
 
           let responseHandled = false
@@ -524,11 +554,12 @@ export class AppRouteRouteModule extends RouteModule<
           prerenderStore = {
             type: 'prerender-legacy',
             phase: 'action',
-            implicitTags: implicitTags,
+            rootParams: {},
+            implicitTags,
             revalidate: defaultRevalidate,
             expire: INFINITE_CACHE,
             stale: INFINITE_CACHE,
-            tags: [...implicitTags],
+            tags: [...implicitTags.tags],
           }
 
           res = await workUnitAsyncStorage.run(
@@ -559,11 +590,13 @@ export class AppRouteRouteModule extends RouteModule<
 
         // Let's append any cookies that were added by the
         // cookie API.
-        // TODO leaving the gate here b/c it indicates that we we might not actually want to do this
+        // TODO leaving the gate here b/c it indicates that we might not actually want to do this
         // on every `do` call. During prerender there should be no mutableCookies because
         if (requestStore.type === 'request') {
           appendMutableCookies(headers, requestStore.mutableCookies)
         }
+
+        resolvePendingRevalidations()
 
         // Return the redirect response.
         return new Response(null, {
@@ -592,12 +625,7 @@ export class AppRouteRouteModule extends RouteModule<
 
     context.renderOpts.fetchMetrics = workStore.fetchMetrics
 
-    context.renderOpts.pendingWaitUntil = Promise.all([
-      workStore.incrementalCache?.revalidateTag(
-        workStore.revalidatedTags || []
-      ),
-      ...Object.values(workStore.pendingRevalidates || {}),
-    ])
+    resolvePendingRevalidations()
 
     if (prerenderStore) {
       context.renderOpts.collectedTags = prerenderStore.tags?.join(',')
@@ -637,6 +665,8 @@ export class AppRouteRouteModule extends RouteModule<
       fallbackRouteParams: null,
       page: this.definition.page,
       renderOpts: context.renderOpts,
+      buildId: context.sharedContext.buildId,
+      previouslyRevalidatedTags: [],
     }
 
     // Add the fetchCache option to the renderOpts.
@@ -644,10 +674,10 @@ export class AppRouteRouteModule extends RouteModule<
 
     const actionStore: ActionStore = {
       isAppRoute: true,
-      isAction: getIsServerAction(req),
+      isAction: getIsPossibleServerAction(req),
     }
 
-    const implicitTags = getImplicitTags(
+    const implicitTags = await getImplicitTags(
       this.definition.page,
       req.nextUrl,
       // App Routes don't support unknown route params.
@@ -1102,7 +1132,7 @@ function createDynamicIOError(route: string) {
   )
 }
 
-export function trackDynamic(
+function trackDynamic(
   store: WorkStore,
   workUnitStore: undefined | WorkUnitStore,
   expression: string

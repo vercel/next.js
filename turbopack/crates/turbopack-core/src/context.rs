@@ -1,14 +1,14 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Value, Vc};
-use turbo_tasks_fs::{glob::Glob, FileSystemPath};
+use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 
 use crate::{
     compile_time_info::CompileTimeInfo,
     issue::module::emit_unknown_module_type_error,
     module::{Module, OptionModule},
     reference_type::ReferenceType,
-    resolve::{options::ResolveOptions, parse::Request, ModuleResolveResult, ResolveResult},
+    resolve::{ModuleResolveResult, ResolveResult, options::ResolveOptions, parse::Request},
     source::Source,
 };
 
@@ -18,7 +18,7 @@ pub enum ProcessResult {
     Module(ResolvedVc<Box<dyn Module>>),
 
     /// A module could not be created (according to the rules, e.g. no module type was assigned)
-    Unknown(Vc<Box<dyn Source>>),
+    Unknown(ResolvedVc<Box<dyn Source>>),
 
     /// Reference is ignored. This should lead to no module being included by
     /// the reference.
@@ -46,7 +46,7 @@ impl ProcessResult {
         Ok(Vc::cell(match self {
             ProcessResult::Module(module) => Some(*module),
             ProcessResult::Unknown(source) => {
-                emit_unknown_module_type_error(*source).await?;
+                emit_unknown_module_type_error(**source).await?;
                 None
             }
             ProcessResult::Ignore => None,

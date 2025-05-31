@@ -1,4 +1,5 @@
 import type {
+  FunctionsConfigManifest,
   ManifestRoute,
   PrerenderManifest,
   RoutesManifest,
@@ -30,6 +31,7 @@ import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/midd
 import {
   APP_PATH_ROUTES_MANIFEST,
   BUILD_ID_FILE,
+  FUNCTIONS_CONFIG_MANIFEST,
   MIDDLEWARE_MANIFEST,
   PAGES_MANIFEST,
   PRERENDER_MANIFEST,
@@ -71,24 +73,30 @@ export const buildCustomRoute = <T>(
   item: T & { source: string },
   basePath?: string,
   caseSensitive?: boolean
-): T & { match: PatchMatcher; check?: boolean } => {
+): T & { match: PatchMatcher; check?: boolean; regex: string } => {
   const restrictedRedirectPaths = ['/_next'].map((p) =>
     basePath ? `${basePath}${p}` : p
   )
+  let builtRegex = ''
   const match = getPathMatch(item.source, {
     strict: true,
     removeUnnamedParams: true,
-    regexModifier: !(item as any).internal
-      ? (regex: string) =>
-          modifyRouteRegex(
-            regex,
-            type === 'redirect' ? restrictedRedirectPaths : undefined
-          )
-      : undefined,
+    regexModifier: (regex: string) => {
+      if (!(item as any).internal) {
+        regex = modifyRouteRegex(
+          regex,
+          type === 'redirect' ? restrictedRedirectPaths : undefined
+        )
+      }
+      builtRegex = regex
+      return builtRegex
+    },
     sensitive: caseSensitive,
   })
+
   return {
     ...item,
+    regex: builtRegex,
     ...(type === 'rewrite' ? { check: true } : {}),
     match,
   }
@@ -201,6 +209,11 @@ export async function setupFsCheck(opts: {
       'server',
       MIDDLEWARE_MANIFEST
     )
+    const functionsConfigManifestPath = path.join(
+      distDir,
+      'server',
+      FUNCTIONS_CONFIG_MANIFEST
+    )
     const pagesManifestPath = path.join(distDir, 'server', PAGES_MANIFEST)
     const appRoutesManifestPath = path.join(distDir, APP_PATH_ROUTES_MANIFEST)
 
@@ -215,6 +228,10 @@ export async function setupFsCheck(opts: {
     const middlewareManifest = JSON.parse(
       await fs.readFile(middlewareManifestPath, 'utf8').catch(() => '{}')
     ) as MiddlewareManifest
+
+    const functionsConfigManifest = JSON.parse(
+      await fs.readFile(functionsConfigManifestPath, 'utf8').catch(() => '{}')
+    ) as FunctionsConfigManifest
 
     const pagesManifest = JSON.parse(
       await fs.readFile(pagesManifestPath, 'utf8')
@@ -273,6 +290,12 @@ export async function setupFsCheck(opts: {
     if (middlewareManifest.middleware?.['/']?.matchers) {
       middlewareMatcher = getMiddlewareRouteMatcher(
         middlewareManifest.middleware?.['/']?.matchers
+      )
+    } else if (functionsConfigManifest?.functions['/_middleware']) {
+      middlewareMatcher = getMiddlewareRouteMatcher(
+        functionsConfigManifest.functions['/_middleware'].matchers ?? [
+          { regexp: '.*', originalSource: '/:path*' },
+        ]
       )
     }
 
@@ -368,6 +391,9 @@ export async function setupFsCheck(opts: {
 
   debug('nextDataRoutes', nextDataRoutes)
   debug('dynamicRoutes', dynamicRoutes)
+  debug('customRoutes', customRoutes)
+  debug('publicFolderItems', publicFolderItems)
+  debug('nextStaticFolderItems', nextStaticFolderItems)
   debug('pageFiles', pageFiles)
   debug('appFiles', appFiles)
 

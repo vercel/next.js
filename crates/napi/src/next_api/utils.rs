@@ -1,23 +1,30 @@
-use std::{
-    collections::HashMap, env, future::Future, ops::Deref, path::PathBuf, sync::Arc, time::Duration,
-};
+use std::{future::Future, ops::Deref, path::PathBuf, sync::Arc, time::Duration};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use napi::{
+    JsFunction, JsObject, JsUnknown, NapiRaw, NapiValue, Status,
     bindgen_prelude::{External, ToNapiValue},
     threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode},
-    JsFunction, JsObject, JsUnknown, NapiRaw, NapiValue, Status,
 };
+use rustc_hash::FxHashMap;
 use serde::Serialize;
+use tokio::sync::mpsc::Receiver;
 use turbo_tasks::{
-    trace::TraceRawVcs, ReadRef, TaskId, TryJoinIterExt, TurboTasks, UpdateInfo, Vc,
+    Effects, OperationVc, ReadRef, TaskId, TryJoinIterExt, TurboTasks, TurboTasksApi, UpdateInfo,
+    Vc, VcValueType, get_effects, message_queue::CompilationEvent,
+    task_statistics::TaskStatisticsApi, trace::TraceRawVcs,
 };
-use turbo_tasks_backend::{default_backing_storage, DefaultBackingStorage};
+use turbo_tasks_backend::{
+    DefaultBackingStorage, GitVersionInfo, NoopBackingStorage, default_backing_storage,
+    noop_backing_storage,
+};
 use turbo_tasks_fs::FileContent;
 use turbopack_core::{
     diagnostics::{Diagnostic, DiagnosticContextExt, PlainDiagnostic},
     error::PrettyPrintError,
-    issue::{IssueDescriptionExt, PlainIssue, PlainIssueSource, PlainSource, StyledString},
+    issue::{
+        IssueDescriptionExt, IssueSeverity, PlainIssue, PlainIssueSource, PlainSource, StyledString,
+    },
     source_pos::SourcePos,
 };
 
@@ -25,7 +32,7 @@ use crate::util::log_internal_error_and_inform;
 
 #[derive(Clone)]
 pub enum NextTurboTasks {
-    Memory(Arc<TurboTasks<turbo_tasks_memory::MemoryBackend>>),
+    Memory(Arc<TurboTasks<turbo_tasks_backend::TurboTasksBackend<NoopBackingStorage>>>),
     PersistentCaching(
         Arc<TurboTasks<turbo_tasks_backend::TurboTasksBackend<DefaultBackingStorage>>>,
     ),
@@ -106,39 +113,96 @@ impl NextTurboTasks {
         }
     }
 
-    pub fn memory_backend(&self) -> Option<&turbo_tasks_memory::MemoryBackend> {
-        match self {
-            NextTurboTasks::Memory(turbo_tasks) => Some(turbo_tasks.backend()),
-            NextTurboTasks::PersistentCaching(_) => None,
-        }
-    }
-
     pub async fn stop_and_wait(&self) {
         match self {
             NextTurboTasks::Memory(turbo_tasks) => turbo_tasks.stop_and_wait().await,
             NextTurboTasks::PersistentCaching(turbo_tasks) => turbo_tasks.stop_and_wait().await,
         }
     }
+
+    pub fn task_statistics(&self) -> &TaskStatisticsApi {
+        match self {
+            NextTurboTasks::Memory(turbo_tasks) => turbo_tasks.task_statistics(),
+            NextTurboTasks::PersistentCaching(turbo_tasks) => turbo_tasks.task_statistics(),
+        }
+    }
+
+    pub fn get_compilation_events_stream(
+        &self,
+        event_types: Option<Vec<String>>,
+    ) -> Receiver<Arc<dyn CompilationEvent>> {
+        match self {
+            NextTurboTasks::Memory(turbo_tasks) => {
+                turbo_tasks.subscribe_to_compilation_events(event_types)
+            }
+            NextTurboTasks::PersistentCaching(turbo_tasks) => {
+                turbo_tasks.subscribe_to_compilation_events(event_types)
+            }
+        }
+    }
+
+    pub fn send_compilation_event(&self, event: Arc<dyn CompilationEvent>) {
+        match self {
+            NextTurboTasks::Memory(turbo_tasks) => turbo_tasks.send_compilation_event(event),
+            NextTurboTasks::PersistentCaching(turbo_tasks) => {
+                turbo_tasks.send_compilation_event(event)
+            }
+        }
+    }
+
+    pub fn invalidate_persistent_cache(&self) -> Result<()> {
+        match self {
+            NextTurboTasks::Memory(_) => {}
+            NextTurboTasks::PersistentCaching(turbo_tasks) => {
+                turbo_tasks.backend().invalidate_storage()?
+            }
+        }
+        Ok(())
+    }
 }
 
 pub fn create_turbo_tasks(
     output_path: PathBuf,
     persistent_caching: bool,
-    memory_limit: usize,
+    _memory_limit: usize,
+    dependency_tracking: bool,
+    is_ci: bool,
 ) -> Result<NextTurboTasks> {
     Ok(if persistent_caching {
+        let version_info = GitVersionInfo {
+            describe: env!("VERGEN_GIT_DESCRIBE"),
+            dirty: option_env!("CI").is_none_or(|value| value.is_empty())
+                && env!("VERGEN_GIT_DIRTY") == "true",
+        };
         NextTurboTasks::PersistentCaching(TurboTasks::new(
             turbo_tasks_backend::TurboTasksBackend::new(
-                turbo_tasks_backend::BackendOptions::default(),
-                default_backing_storage(&output_path.join("cache/turbopack"))?,
+                turbo_tasks_backend::BackendOptions {
+                    storage_mode: Some(if std::env::var("TURBO_ENGINE_READ_ONLY").is_ok() {
+                        turbo_tasks_backend::StorageMode::ReadOnly
+                    } else {
+                        turbo_tasks_backend::StorageMode::ReadWrite
+                    }),
+                    dependency_tracking,
+                    ..Default::default()
+                },
+                default_backing_storage(
+                    &output_path.join("cache/turbopack"),
+                    &version_info,
+                    is_ci,
+                )?,
             ),
         ))
     } else {
-        let mut backend = turbo_tasks_memory::MemoryBackend::new(memory_limit);
-        if env::var_os("NEXT_TURBOPACK_PRINT_TASK_INVALIDATION").is_some() {
-            backend.print_task_invalidation(true);
-        }
-        NextTurboTasks::Memory(TurboTasks::new(backend))
+        NextTurboTasks::Memory(TurboTasks::new(
+            turbo_tasks_backend::TurboTasksBackend::new(
+                turbo_tasks_backend::BackendOptions {
+                    storage_mode: None,
+                    dependency_tracking,
+                    ..Default::default()
+                },
+                noop_backing_storage(),
+            ),
+        ))
     })
 }
 
@@ -147,13 +211,12 @@ pub fn create_turbo_tasks(
 #[derive(Clone)]
 pub struct VcArc<T> {
     turbo_tasks: NextTurboTasks,
-    /// The Vc. Must be resolved, otherwise you are referencing an inactive
-    /// operation.
-    vc: T,
+    /// The Vc. Must be unresolved, otherwise you are referencing an inactive operation.
+    vc: OperationVc<T>,
 }
 
 impl<T> VcArc<T> {
-    pub fn new(turbo_tasks: NextTurboTasks, vc: T) -> Self {
+    pub fn new(turbo_tasks: NextTurboTasks, vc: OperationVc<T>) -> Self {
         Self { turbo_tasks, vc }
     }
 
@@ -163,7 +226,7 @@ impl<T> VcArc<T> {
 }
 
 impl<T> Deref for VcArc<T> {
-    type Target = T;
+    type Target = OperationVc<T>;
 
     fn deref(&self) -> &Self::Target {
         &self.vc
@@ -201,7 +264,7 @@ pub fn root_task_dispose(
     Ok(())
 }
 
-pub async fn get_issues<T: Send>(source: Vc<T>) -> Result<Arc<Vec<ReadRef<PlainIssue>>>> {
+pub async fn get_issues<T: Send>(source: OperationVc<T>) -> Result<Arc<Vec<ReadRef<PlainIssue>>>> {
     let issues = source.peek_issues_with_path().await?;
     Ok(Arc::new(issues.get_plain_issues().await?))
 }
@@ -210,7 +273,9 @@ pub async fn get_issues<T: Send>(source: Vc<T>) -> Result<Arc<Vec<ReadRef<PlainI
 /// by the given source and returns it as a
 /// [turbopack_core::diagnostics::PlainDiagnostic]. It does
 /// not consume any Diagnostics held by the source.
-pub async fn get_diagnostics<T: Send>(source: Vc<T>) -> Result<Arc<Vec<ReadRef<PlainDiagnostic>>>> {
+pub async fn get_diagnostics<T: Send>(
+    source: OperationVc<T>,
+) -> Result<Arc<Vec<ReadRef<PlainDiagnostic>>>> {
     let captured_diags = source.peek_diagnostics().await?;
     let mut diags = captured_diags
         .diagnostics
@@ -234,7 +299,6 @@ pub struct NapiIssue {
     pub detail: Option<serde_json::Value>,
     pub source: Option<NapiIssueSource>,
     pub documentation_link: String,
-    pub sub_issues: Vec<NapiIssue>,
 }
 
 impl From<&PlainIssue> for NapiIssue {
@@ -252,13 +316,8 @@ impl From<&PlainIssue> for NapiIssue {
                 .map(|styled| serde_json::to_value(StyledStringSerialize::from(styled)).unwrap()),
             documentation_link: issue.documentation_link.to_string(),
             severity: issue.severity.as_str().to_string(),
-            source: issue.source.as_deref().map(|source| source.into()),
+            source: issue.source.as_ref().map(|source| source.into()),
             title: serde_json::to_value(StyledStringSerialize::from(&issue.title)).unwrap(),
-            sub_issues: issue
-                .sub_issues
-                .iter()
-                .map(|issue| (&**issue).into())
-                .collect(),
         }
     }
 }
@@ -364,8 +423,8 @@ pub struct NapiSourcePos {
 impl From<SourcePos> for NapiSourcePos {
     fn from(pos: SourcePos) -> Self {
         Self {
-            line: pos.line as u32,
-            column: pos.column as u32,
+            line: pos.line,
+            column: pos.column,
         }
     }
 }
@@ -374,7 +433,8 @@ impl From<SourcePos> for NapiSourcePos {
 pub struct NapiDiagnostic {
     pub category: String,
     pub name: String,
-    pub payload: HashMap<String, String>,
+    #[napi(ts_type = "Record<string, string>")]
+    pub payload: FxHashMap<String, String>,
 }
 
 impl NapiDiagnostic {
@@ -402,10 +462,12 @@ impl<T: ToNapiValue> ToNapiValue for TurbopackResult<T> {
         env: napi::sys::napi_env,
         val: Self,
     ) -> napi::Result<napi::sys::napi_value> {
-        let mut obj = napi::Env::from_raw(env).create_object()?;
+        let mut obj = unsafe { napi::Env::from_raw(env).create_object()? };
 
-        let result = T::to_napi_value(env, val.result)?;
-        let result = JsUnknown::from_raw(env, result)?;
+        let result = unsafe {
+            let result = T::to_napi_value(env, val.result)?;
+            JsUnknown::from_raw(env, result)?
+        };
         if matches!(result.get_type()?, napi::ValueType::Object) {
             // SAFETY: We know that result is an object, so we can cast it to a JsObject
             let result = unsafe { result.cast::<JsObject>() };
@@ -419,7 +481,7 @@ impl<T: ToNapiValue> ToNapiValue for TurbopackResult<T> {
         obj.set_named_property("issues", val.issues)?;
         obj.set_named_property("diagnostics", val.diagnostics)?;
 
-        Ok(obj.raw())
+        Ok(unsafe { obj.raw() })
     }
 }
 
@@ -438,15 +500,14 @@ pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send,
 
             let status = func.call(
                 result.map_err(|e| {
-                    let error = PrettyPrintError(&e).to_string();
-                    log_internal_error_and_inform(&error);
-                    napi::Error::from_reason(error)
+                    log_internal_error_and_inform(&e);
+                    napi::Error::from_reason(PrettyPrintError(&e).to_string())
                 }),
                 ThreadsafeFunctionCallMode::NonBlocking,
             );
             if !matches!(status, Status::Ok) {
                 let error = anyhow!("Error calling JS function: {}", status);
-                eprintln!("{}", error);
+                eprintln!("{error}");
                 return Err::<Vc<()>, _>(error);
             }
             Ok(Default::default())
@@ -456,4 +517,28 @@ pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send,
         turbo_tasks,
         task_id: Some(task_id),
     }))
+}
+
+// Await the source and return fatal issues if there are any, otherwise
+// propagate any actual error results.
+pub async fn strongly_consistent_catch_collectables<R: VcValueType + Send>(
+    source_op: OperationVc<R>,
+) -> Result<(
+    Option<ReadRef<R>>,
+    Arc<Vec<ReadRef<PlainIssue>>>,
+    Arc<Vec<ReadRef<PlainDiagnostic>>>,
+    Arc<Effects>,
+)> {
+    let result = source_op.read_strongly_consistent().await;
+    let issues = get_issues(source_op).await?;
+    let diagnostics = get_diagnostics(source_op).await?;
+    let effects = Arc::new(get_effects(source_op).await?);
+
+    let result = if result.is_err() && issues.iter().any(|i| i.severity <= IssueSeverity::Error) {
+        None
+    } else {
+        Some(result?)
+    };
+
+    Ok((result, issues, diagnostics, effects))
 }

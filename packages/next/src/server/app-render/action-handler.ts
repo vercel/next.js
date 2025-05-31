@@ -1,4 +1,4 @@
-import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'http'
+import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'node:http'
 import type { SizeLimit } from '../../types'
 import type { RequestStore } from '../app-render/work-unit-async-storage.external'
 import type { AppRenderContext, GenerateFlight } from './app-render'
@@ -23,17 +23,16 @@ import {
   isRedirectError,
   type RedirectType,
 } from '../../client/components/redirect-error'
-import RenderResult from '../render-result'
+import RenderResult, {
+  type AppPageRenderResultMetadata,
+} from '../render-result'
 import type { WorkStore } from '../app-render/work-async-storage.external'
 import { FlightRenderResult } from './flight-render-result'
 import {
   filterReqHeaders,
   actionsForbiddenHeaders,
 } from '../lib/server-ipc/utils'
-import {
-  appendMutableCookies,
-  getModifiedCookieValues,
-} from '../web/spec-extension/adapters/request-cookies'
+import { getModifiedCookieValues } from '../web/spec-extension/adapters/request-cookies'
 
 import {
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
@@ -51,6 +50,8 @@ import { RedirectStatusCode } from '../../client/components/redirect-status-code
 import { synchronizeMutableCookies } from '../async-storage/request-store'
 import type { TemporaryReferenceSet } from 'react-server-dom-webpack/server.edge'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
+import { InvariantError } from '../../shared/lib/invariant-error'
+import { executeRevalidates } from '../revalidation-utils'
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -115,7 +116,7 @@ function getForwardedHeaders(
   return new Headers(mergedHeaders)
 }
 
-async function addRevalidationHeader(
+function addRevalidationHeader(
   res: BaseNextResponse,
   {
     workStore,
@@ -125,12 +126,6 @@ async function addRevalidationHeader(
     requestStore: RequestStore
   }
 ) {
-  await Promise.all([
-    workStore.incrementalCache?.revalidateTag(workStore.revalidatedTags || []),
-    ...Object.values(workStore.pendingRevalidates || {}),
-    ...(workStore.pendingRevalidateWrites || []),
-  ])
-
   // If a tag was revalidated, the client router needs to invalidate all the
   // client router cache as they may be stale. And if a path was revalidated, the
   // client needs to invalidate all subtrees below that path.
@@ -144,7 +139,7 @@ async function addRevalidationHeader(
   // TODO-APP: Currently paths are treated as tags, so the second element of the tuple
   // is always empty.
 
-  const isTagRevalidated = workStore.revalidatedTags?.length ? 1 : 0
+  const isTagRevalidated = workStore.pendingRevalidatedTags?.length ? 1 : 0
   const isCookieRevalidated = getModifiedCookieValues(
     requestStore.mutableCookies
   ).length
@@ -322,10 +317,10 @@ async function createRedirectRenderResult(
       `${origin}${appRelativeRedirectUrl.pathname}${appRelativeRedirectUrl.search}`
     )
 
-    if (workStore.revalidatedTags) {
+    if (workStore.pendingRevalidatedTags) {
       forwardedHeaders.set(
         NEXT_CACHE_REVALIDATED_TAGS_HEADER,
-        workStore.revalidatedTags.join(',')
+        workStore.pendingRevalidatedTags.join(',')
       )
       forwardedHeaders.set(
         NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
@@ -399,6 +394,44 @@ function limitUntrustedHeaderValueForLogs(value: string) {
   return value.length > 100 ? value.slice(0, 100) + '...' : value
 }
 
+export function parseHostHeader(
+  headers: IncomingHttpHeaders,
+  originDomain?: string
+) {
+  const forwardedHostHeader = headers['x-forwarded-host']
+  const forwardedHostHeaderValue =
+    forwardedHostHeader && Array.isArray(forwardedHostHeader)
+      ? forwardedHostHeader[0]
+      : forwardedHostHeader?.split(',')?.[0]?.trim()
+  const hostHeader = headers['host']
+
+  if (originDomain) {
+    return forwardedHostHeaderValue === originDomain
+      ? {
+          type: HostType.XForwardedHost,
+          value: forwardedHostHeaderValue,
+        }
+      : hostHeader === originDomain
+        ? {
+            type: HostType.Host,
+            value: hostHeader,
+          }
+        : undefined
+  }
+
+  return forwardedHostHeaderValue
+    ? {
+        type: HostType.XForwardedHost,
+        value: forwardedHostHeaderValue,
+      }
+    : hostHeader
+      ? {
+          type: HostType.Host,
+          value: hostHeader,
+        }
+      : undefined
+}
+
 type ServerModuleMap = Record<
   string,
   {
@@ -423,6 +456,7 @@ export async function handleAction({
   requestStore,
   serverActions,
   ctx,
+  metadata,
 }: {
   req: BaseNextRequest
   res: BaseNextResponse
@@ -433,6 +467,7 @@ export async function handleAction({
   requestStore: RequestStore
   serverActions?: ServerActionsConfig
   ctx: AppRenderContext
+  metadata: AppPageRenderResultMetadata
 }): Promise<
   | undefined
   | {
@@ -452,11 +487,13 @@ export async function handleAction({
     isURLEncodedAction,
     isMultipartAction,
     isFetchAction,
-    isServerAction,
+    isPossibleServerAction,
   } = getServerActionRequestMetadata(req)
 
-  // If it's not a Server Action, skip handling.
-  if (!isServerAction) {
+  // If it can't be a Server Action, skip handling.
+  // Note that this can be a false positive -- any multipart/urlencoded POST can get us here,
+  // But won't know if it's an MPA action or not until we call `decodeAction` below.
+  if (!isPossibleServerAction) {
     return
   }
 
@@ -468,18 +505,6 @@ export async function handleAction({
 
   let temporaryReferences: TemporaryReferenceSet | undefined
 
-  const finalizeAndGenerateFlight: GenerateFlight = (...args) => {
-    // When we switch to the render phase, cookies() will return
-    // `workUnitStore.cookies` instead of `workUnitStore.userspaceMutableCookies`.
-    // We want the render to see any cookie writes that we performed during the action,
-    // so we need to update the immutable cookies to reflect the changes.
-    synchronizeMutableCookies(requestStore)
-    requestStore.phase = 'render'
-    return generateFlight(...args)
-  }
-
-  requestStore.phase = 'action'
-
   // When running actions the default is no-store, you can still `cache: 'force-cache'`
   workStore.fetchCache = 'default-no-store'
 
@@ -487,22 +512,7 @@ export async function handleAction({
     typeof req.headers['origin'] === 'string'
       ? new URL(req.headers['origin']).host
       : undefined
-
-  const forwardedHostHeader = req.headers['x-forwarded-host'] as
-    | string
-    | undefined
-  const hostHeader = req.headers['host']
-  const host: Host = forwardedHostHeader
-    ? {
-        type: HostType.XForwardedHost,
-        value: forwardedHostHeader,
-      }
-    : hostHeader
-      ? {
-          type: HostType.Host,
-          value: hostHeader,
-        }
-      : undefined
+  const host = parseHostHeader(req.headers)
 
   let warning: string | undefined = undefined
 
@@ -546,13 +556,7 @@ export async function handleAction({
 
       if (isFetchAction) {
         res.statusCode = 500
-        await Promise.all([
-          workStore.incrementalCache?.revalidateTag(
-            workStore.revalidatedTags || []
-          ),
-          ...Object.values(workStore.pendingRevalidates || {}),
-          ...(workStore.pendingRevalidateWrites || []),
-        ])
+        metadata.statusCode = 500
 
         const promise = Promise.reject(error)
         try {
@@ -567,10 +571,10 @@ export async function handleAction({
 
         return {
           type: 'done',
-          result: await finalizeAndGenerateFlight(req, ctx, requestStore, {
+          result: await generateFlight(req, ctx, requestStore, {
             actionResult: promise,
-            // if the page was not revalidated, we can skip the rendering the flight tree
-            skipFlight: !workStore.pathWasRevalidated,
+            // We didn't execute an action, so no revalidations could have occurred. We can skip rendering the page.
+            skipFlight: true,
             temporaryReferences,
           }),
         }
@@ -657,8 +661,16 @@ export async function handleAction({
             if (typeof action === 'function') {
               // Only warn if it's a server action, otherwise skip for other post requests
               warnBadServerActionRequest()
-              const actionReturnedState = await action()
-              formState = decodeFormState(
+
+              const actionReturnedState =
+                await executeActionAndPrepareForRender(
+                  action as () => Promise<unknown>,
+                  [],
+                  workStore,
+                  requestStore
+                )
+
+              formState = await decodeFormState(
                 actionReturnedState,
                 formData,
                 serverModuleMap
@@ -680,8 +692,7 @@ export async function handleAction({
             }
           }
 
-          let actionData = ''
-
+          const chunks: Buffer[] = []
           const reader = req.body.getReader()
           while (true) {
             const { done, value } = await reader.read()
@@ -689,8 +700,10 @@ export async function handleAction({
               break
             }
 
-            actionData += new TextDecoder().decode(value)
+            chunks.push(value)
           }
+
+          const actionData = Buffer.concat(chunks).toString('utf-8')
 
           if (isURLEncodedAction) {
             const formData = formDataFromSearchQueryString(actionData)
@@ -726,7 +739,7 @@ export async function handleAction({
 
         temporaryReferences = createTemporaryReferenceSet()
 
-        const { Transform } =
+        const { Transform, pipeline } =
           require('node:stream') as typeof import('node:stream')
 
         const defaultBodySizeLimit = '1 MB'
@@ -740,37 +753,52 @@ export async function handleAction({
             : 1024 * 1024 // 1 MB
 
         let size = 0
-        const body = req.body.pipe(
-          new Transform({
-            transform(chunk, encoding, callback) {
-              size += Buffer.byteLength(chunk, encoding)
-              if (size > bodySizeLimitBytes) {
-                const { ApiError } = require('../api-utils')
+        const sizeLimitTransform = new Transform({
+          transform(chunk, encoding, callback) {
+            size += Buffer.byteLength(chunk, encoding)
+            if (size > bodySizeLimitBytes) {
+              const { ApiError } = require('../api-utils')
 
-                callback(
-                  new ApiError(
-                    413,
-                    `Body exceeded ${bodySizeLimit} limit.
-                To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit`
-                  )
+              callback(
+                new ApiError(
+                  413,
+                  `Body exceeded ${bodySizeLimit} limit.\n` +
+                    `To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit`
                 )
-                return
-              }
+              )
+              return
+            }
 
-              callback(null, chunk)
-            },
-          })
+            callback(null, chunk)
+          },
+        })
+
+        const sizeLimitedBody = pipeline(
+          req.body,
+          sizeLimitTransform,
+          // Avoid unhandled errors from `pipeline()` by passing an empty completion callback.
+          // We'll propagate the errors properly when consuming the stream.
+          () => {}
         )
 
         if (isMultipartAction) {
           if (isFetchAction) {
-            const busboy = (require('busboy') as typeof import('busboy'))({
+            const busboy = (
+              require('next/dist/compiled/busboy') as typeof import('next/dist/compiled/busboy')
+            )({
               defParamCharset: 'utf8',
               headers: req.headers,
               limits: { fieldSize: bodySizeLimitBytes },
             })
 
-            body.pipe(busboy)
+            // We need to use `pipeline(one, two)` instead of `one.pipe(two)` to propagate size limit errors correctly.
+            pipeline(
+              sizeLimitedBody,
+              busboy,
+              // Avoid unhandled errors from `pipeline()` by passing an empty completion callback.
+              // We'll propagate the errors properly when consuming the stream.
+              () => {}
+            )
 
             boundActionArguments = await decodeReplyFromBusboy(
               busboy,
@@ -786,13 +814,13 @@ export async function handleAction({
               headers: { 'Content-Type': contentType },
               body: new ReadableStream({
                 start: (controller) => {
-                  body.on('data', (chunk) => {
+                  sizeLimitedBody.on('data', (chunk) => {
                     controller.enqueue(new Uint8Array(chunk))
                   })
-                  body.on('end', () => {
+                  sizeLimitedBody.on('end', () => {
                     controller.close()
                   })
-                  body.on('error', (err) => {
+                  sizeLimitedBody.on('error', (err) => {
                     controller.error(err)
                   })
                 },
@@ -804,7 +832,15 @@ export async function handleAction({
             if (typeof action === 'function') {
               // Only warn if it's a server action, otherwise skip for other post requests
               warnBadServerActionRequest()
-              const actionReturnedState = await action()
+
+              const actionReturnedState =
+                await executeActionAndPrepareForRender(
+                  action as () => Promise<unknown>,
+                  [],
+                  workStore,
+                  requestStore
+                )
+
               formState = await decodeFormState(
                 actionReturnedState,
                 formData,
@@ -828,7 +864,7 @@ export async function handleAction({
           }
 
           const chunks: Buffer[] = []
-          for await (const chunk of req.body) {
+          for await (const chunk of sizeLimitedBody) {
             chunks.push(Buffer.from(chunk))
           }
 
@@ -877,25 +913,27 @@ export async function handleAction({
         }
       }
 
-      const actionHandler = (
-        await ComponentMod.__next_app__.require(actionModId)
-      )[
-        // `actionId` must exist if we got here, as otherwise we would have thrown an error above
-        actionId!
-      ]
+      const actionMod = (await ComponentMod.__next_app__.require(
+        actionModId
+      )) as Record<string, (...args: unknown[]) => Promise<unknown>>
+      const actionHandler =
+        actionMod[
+          // `actionId` must exist if we got here, as otherwise we would have thrown an error above
+          actionId!
+        ]
 
-      const returnVal = await workUnitAsyncStorage.run(requestStore, () =>
-        actionHandler.apply(null, boundActionArguments)
-      )
+      const returnVal = await executeActionAndPrepareForRender(
+        actionHandler,
+        boundActionArguments,
+        workStore,
+        requestStore
+      ).finally(() => {
+        addRevalidationHeader(res, { workStore, requestStore })
+      })
 
       // For form actions, we need to continue rendering the page.
       if (isFetchAction) {
-        await addRevalidationHeader(res, {
-          workStore,
-          requestStore,
-        })
-
-        actionResult = await finalizeAndGenerateFlight(req, ctx, requestStore, {
+        actionResult = await generateFlight(req, ctx, requestStore, {
           actionResult: Promise.resolve(returnVal),
           // if the page was not revalidated, or if the action was forwarded from another worker, we can skip the rendering the flight tree
           skipFlight: !workStore.pathWasRevalidated || actionWasForwarded,
@@ -914,14 +952,10 @@ export async function handleAction({
       const redirectUrl = getURLFromRedirectError(err)
       const redirectType = getRedirectTypeFromError(err)
 
-      await addRevalidationHeader(res, {
-        workStore,
-        requestStore,
-      })
-
       // if it's a fetch action, we'll set the status code for logging/debugging purposes
       // but we won't set a Location header, as the redirect will be handled by the client router
       res.statusCode = RedirectStatusCode.SeeOther
+      metadata.statusCode = RedirectStatusCode.SeeOther
 
       if (isFetchAction) {
         return {
@@ -938,13 +972,6 @@ export async function handleAction({
         }
       }
 
-      // If there were mutable cookies set, we need to set them on the
-      // response.
-      const headers = new Headers()
-      if (appendMutableCookies(headers, requestStore.mutableCookies)) {
-        res.setHeader('set-cookie', Array.from(headers.values()))
-      }
-
       res.setHeader('Location', redirectUrl)
       return {
         type: 'done',
@@ -952,11 +979,7 @@ export async function handleAction({
       }
     } else if (isHTTPAccessFallbackError(err)) {
       res.statusCode = getAccessFallbackHTTPStatus(err)
-
-      await addRevalidationHeader(res, {
-        workStore,
-        requestStore,
-      })
+      metadata.statusCode = res.statusCode
 
       if (isFetchAction) {
         const promise = Promise.reject(err)
@@ -971,7 +994,7 @@ export async function handleAction({
         }
         return {
           type: 'done',
-          result: await finalizeAndGenerateFlight(req, ctx, requestStore, {
+          result: await generateFlight(req, ctx, requestStore, {
             skipFlight: false,
             actionResult: promise,
             temporaryReferences,
@@ -984,14 +1007,11 @@ export async function handleAction({
     }
 
     if (isFetchAction) {
+      // TODO: consider checking if the error is an `ApiError` and change status code
+      // so that we can respond with a 413 to requests that break the body size limit
+      // (but if we do that, we also need to make sure that whatever handles the non-fetch error path below does the same)
       res.statusCode = 500
-      await Promise.all([
-        workStore.incrementalCache?.revalidateTag(
-          workStore.revalidatedTags || []
-        ),
-        ...Object.values(workStore.pendingRevalidates || {}),
-        ...(workStore.pendingRevalidateWrites || []),
-      ])
+      metadata.statusCode = 500
       const promise = Promise.reject(err)
       try {
         // we need to await the promise to trigger the rejection early
@@ -1003,7 +1023,6 @@ export async function handleAction({
         // swallow error, it's gonna be handled on the client
       }
 
-      requestStore.phase = 'render'
       return {
         type: 'done',
         result: await generateFlight(req, ctx, requestStore, {
@@ -1019,6 +1038,38 @@ export async function handleAction({
   }
 }
 
+async function executeActionAndPrepareForRender<
+  TFn extends (...args: any[]) => Promise<any>,
+>(
+  action: TFn,
+  args: Parameters<TFn>,
+  workStore: WorkStore,
+  requestStore: RequestStore
+): Promise<Awaited<ReturnType<TFn>>> {
+  requestStore.phase = 'action'
+  try {
+    return await workUnitAsyncStorage.run(requestStore, () =>
+      action.apply(null, args)
+    )
+  } finally {
+    requestStore.phase = 'render'
+
+    // When we switch to the render phase, cookies() will return
+    // `workUnitStore.cookies` instead of `workUnitStore.userspaceMutableCookies`.
+    // We want the render to see any cookie writes that we performed during the action,
+    // so we need to update the immutable cookies to reflect the changes.
+    synchronizeMutableCookies(requestStore)
+
+    // The server action might have toggled draft mode, so we need to reflect
+    // that in the work store to be up-to-date for subsequent rendering.
+    workStore.isDraftMode = requestStore.draftMode.isEnabled
+
+    // If the action called revalidateTag/revalidatePath, then that might affect data used by the subsequent render,
+    // so we need to make sure all revalidations are applied before that
+    await executeRevalidates(workStore)
+  }
+}
+
 /**
  * Attempts to find the module ID for the action from the module map. When this fails, it could be a deployment skew where
  * the action came from a different deployment. It could also simply be an invalid POST request that is not a server action.
@@ -1028,26 +1079,18 @@ function getActionModIdOrError(
   actionId: string | null,
   serverModuleMap: ServerModuleMap
 ): string {
-  try {
-    // if we're missing the action ID header, we can't do any further processing
-    if (!actionId) {
-      throw new Error("Invariant: Missing 'next-action' header.")
-    }
+  // if we're missing the action ID header, we can't do any further processing
+  if (!actionId) {
+    throw new InvariantError("Missing 'next-action' header.")
+  }
 
-    const actionModId = serverModuleMap?.[actionId]?.id
+  const actionModId = serverModuleMap[actionId]?.id
 
-    if (!actionModId) {
-      throw new Error(
-        "Invariant: Couldn't find action module ID from module map."
-      )
-    }
-
-    return actionModId
-  } catch (err) {
+  if (!actionModId) {
     throw new Error(
-      `Failed to find Server Action "${actionId}". This request might be from an older or newer deployment. ${
-        err instanceof Error ? `Original error: ${err.message}` : ''
-      }`
+      `Failed to find Server Action "${actionId}". This request might be from an older or newer deployment.\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action`
     )
   }
+
+  return actionModId
 }

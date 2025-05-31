@@ -19,6 +19,8 @@ const getInitialRouterStateTree = (): FlightRouterState => [
   true,
 ]
 
+const navigatedAt = Date.now()
+
 describe('createInitialRouterState', () => {
   it('should return the correct initial router state', () => {
     const initialTree = getInitialRouterStateTree()
@@ -32,9 +34,8 @@ describe('createInitialRouterState', () => {
     const initialParallelRoutes: CacheNode['parallelRoutes'] = new Map()
 
     const state = createInitialRouterState({
-      initialFlightData: [
-        [initialTree, ['', children, {}, null], <title>Test</title>],
-      ],
+      navigatedAt,
+      initialFlightData: [[initialTree, ['', children, {}, null]]],
       initialCanonicalUrlParts: initialCanonicalUrl.split('/'),
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
@@ -44,9 +45,8 @@ describe('createInitialRouterState', () => {
     })
 
     const state2 = createInitialRouterState({
-      initialFlightData: [
-        [initialTree, ['', children, {}, null], <title>Test</title>],
-      ],
+      navigatedAt,
+      initialFlightData: [[initialTree, ['', children, {}, null]]],
       initialCanonicalUrlParts: initialCanonicalUrl.split('/'),
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
@@ -56,6 +56,7 @@ describe('createInitialRouterState', () => {
     })
 
     const expectedCache: CacheNode = {
+      navigatedAt,
       lazyData: null,
       rsc: children,
       prefetchRsc: null,
@@ -69,6 +70,7 @@ describe('createInitialRouterState', () => {
             [
               'linking',
               {
+                navigatedAt,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -76,12 +78,13 @@ describe('createInitialRouterState', () => {
                       [
                         '',
                         {
+                          navigatedAt,
                           lazyData: null,
                           rsc: null,
                           prefetchRsc: null,
                           parallelRoutes: new Map(),
                           loading: null,
-                          head: <title>Test</title>,
+                          head: null,
                           prefetchHead: null,
                         },
                       ],

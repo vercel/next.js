@@ -1,0 +1,69 @@
+import { PureComponent } from 'react'
+import { RuntimeErrorHandler } from '../../errors/runtime-error-handler'
+import { ErrorBoundary } from '../../error-boundary'
+import DefaultGlobalError, {
+  type GlobalErrorComponent,
+} from '../../global-error'
+
+type AppDevOverlayErrorBoundaryProps = {
+  children: React.ReactNode
+  globalError: [GlobalErrorComponent, React.ReactNode]
+  onError: () => void
+}
+
+type AppDevOverlayErrorBoundaryState = {
+  reactError: unknown
+}
+
+function ErroredHtml({
+  globalError: [GlobalError, globalErrorStyles],
+  error,
+}: {
+  globalError: [GlobalErrorComponent, React.ReactNode]
+  error: unknown
+}) {
+  if (!error) {
+    return (
+      <html>
+        <head />
+        <body />
+      </html>
+    )
+  }
+  return (
+    <ErrorBoundary errorComponent={DefaultGlobalError}>
+      {globalErrorStyles}
+      <GlobalError error={error} />
+    </ErrorBoundary>
+  )
+}
+
+export class AppDevOverlayErrorBoundary extends PureComponent<
+  AppDevOverlayErrorBoundaryProps,
+  AppDevOverlayErrorBoundaryState
+> {
+  state = { reactError: null }
+
+  static getDerivedStateFromError(error: Error) {
+    RuntimeErrorHandler.hadRuntimeError = true
+
+    return {
+      reactError: error,
+    }
+  }
+
+  componentDidCatch() {
+    this.props.onError()
+  }
+
+  render() {
+    const { children, globalError } = this.props
+    const { reactError } = this.state
+
+    const fallback = (
+      <ErroredHtml globalError={globalError} error={reactError} />
+    )
+
+    return reactError !== null ? fallback : children
+  }
+}

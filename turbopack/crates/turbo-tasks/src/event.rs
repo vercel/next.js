@@ -1,9 +1,9 @@
 #[cfg(feature = "hanging_detection")]
 use std::sync::Arc;
 #[cfg(feature = "hanging_detection")]
-use std::task::ready;
-#[cfg(feature = "hanging_detection")]
 use std::task::Poll;
+#[cfg(feature = "hanging_detection")]
+use std::task::ready;
 #[cfg(feature = "hanging_detection")]
 use std::time::Duration;
 use std::{
@@ -14,9 +14,9 @@ use std::{
 };
 
 #[cfg(feature = "hanging_detection")]
-use tokio::time::timeout;
-#[cfg(feature = "hanging_detection")]
 use tokio::time::Timeout;
+#[cfg(feature = "hanging_detection")]
+use tokio::time::timeout;
 
 pub struct Event {
     #[cfg(feature = "hanging_detection")]
@@ -141,10 +141,11 @@ impl Future for EventListener {
     type Output = ();
 
     fn poll(
-        self: std::pin::Pin<&mut Self>,
+        self: Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Self::Output> {
-        unsafe { Pin::new_unchecked(&mut self.get_unchecked_mut().listener) }.poll(cx)
+        let listener = unsafe { self.map_unchecked_mut(|s| &mut s.listener) };
+        listener.poll(cx)
     }
 }
 
@@ -154,7 +155,7 @@ pub struct EventListener {
     note: Arc<dyn Fn() -> String + Sync + Send>,
     // Timeout need to stay pinned while polling and also while it's dropped.
     // So it's important to put it into a pinned Box to be able to take it out of the Option.
-    future: Option<Pin<Box<Timeout<event_listener::EventListener>>>>,
+    future: Option<std::pin::Pin<Box<Timeout<event_listener::EventListener>>>>,
     duration: Duration,
 }
 
@@ -176,7 +177,7 @@ impl Future for EventListener {
     type Output = ();
 
     fn poll(
-        mut self: std::pin::Pin<&mut Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Self::Output> {
         while let Some(future) = self.future.as_mut() {
@@ -200,7 +201,7 @@ impl Future for EventListener {
                         self.duration,
                         // SAFETY: We can move the inner future since it's an EventListener and
                         // that is Unpin.
-                        unsafe { Pin::into_inner_unchecked(future) }.into_inner(),
+                        unsafe { std::pin::Pin::into_inner_unchecked(future) }.into_inner(),
                     )));
                 }
             }

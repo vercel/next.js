@@ -1,17 +1,19 @@
-use anyhow::{bail, Context, Result};
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use std::future::Future;
+
+use anyhow::{Context, Result, bail};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use swc_core::{
     common::GLOBALS,
     ecma::ast::{Expr, Lit, Program},
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexMap, FxIndexSet, ResolvedVc, TaskInput, ValueDefault, ValueToString,
-    Vc,
+    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, ValueDefault, ValueToString, Vc,
+    trace::TraceRawVcs, util::WrapFuture,
 };
 use turbo_tasks_fs::{
-    self, json::parse_json_rope_with_source_context, rope::Rope, util::join_path, File,
-    FileContent, FileSystemPath,
+    self, File, FileContent, FileSystem, FileSystemPath, json::parse_json_rope_with_source_context,
+    rope::Rope, util::join_path,
 };
 use turbopack_core::{
     asset::AssetContent,
@@ -23,13 +25,14 @@ use turbopack_core::{
     virtual_source::VirtualSource,
 };
 use turbopack_ecmascript::{
+    EcmascriptParsable,
     analyzer::{ConstantValue, JsValue, ObjectPart},
     parse::ParseResult,
     utils::StringifyJs,
-    EcmascriptParsable,
 };
 
 use crate::{
+    embed_js::next_js_fs,
     next_config::{NextConfig, RouteHas},
     next_import_map::get_next_package,
     next_manifests::MiddlewareMatcher,
@@ -37,7 +40,9 @@ use crate::{
 
 const NEXT_TEMPLATE_PATH: &str = "dist/esm/build/templates";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TaskInput, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, TaskInput, Serialize, Deserialize, TraceRawVcs,
+)]
 pub enum PathType {
     PagesPage,
     PagesApi,
@@ -66,7 +71,7 @@ pub async fn pathname_for_path(
         (PathType::Data, "") => "/index".into(),
         // `get_path_to` always strips the leading `/` from the path, so we need to add
         // it back here.
-        (_, path) => format!("/{}", path).into(),
+        (_, path) => format!("/{path}").into(),
     };
 
     Ok(Vc::cell(path))
@@ -79,7 +84,7 @@ pub fn get_asset_prefix_from_pathname(pathname: &str) -> String {
     if pathname == "/" {
         "/index".to_string()
     } else if pathname == "/index" || pathname.starts_with("/index/") {
-        format!("/index{}", pathname)
+        format!("/index{pathname}")
     } else {
         pathname.to_string()
     }
@@ -95,7 +100,7 @@ pub async fn get_transpiled_packages(
     next_config: Vc<NextConfig>,
     project_path: ResolvedVc<FileSystemPath>,
 ) -> Result<Vc<Vec<RcStr>>> {
-    let mut transpile_packages: Vec<RcStr> = next_config.transpile_packages().await?.clone_value();
+    let mut transpile_packages: Vec<RcStr> = next_config.transpile_packages().owned().await?;
 
     let default_transpiled_packages: Vec<RcStr> = load_next_js_templateon(
         project_path,
@@ -119,7 +124,10 @@ pub async fn foreign_code_context_condition(
     // of the `node_modules` specific resolve options (the template files are
     // technically node module files).
     let not_next_template_dir = ContextCondition::not(ContextCondition::InPath(
-        get_next_package(*project_path).join(NEXT_TEMPLATE_PATH.into()),
+        get_next_package(*project_path)
+            .join(NEXT_TEMPLATE_PATH.into())
+            .to_resolved()
+            .await?,
     ));
 
     let result = ContextCondition::all(vec![
@@ -133,6 +141,30 @@ pub async fn foreign_code_context_condition(
         )),
     ]);
     Ok(result)
+}
+
+/// Determines if the module is an internal asset (i.e overlay, fallback) coming from the embedded
+/// FS, don't apply user defined transforms.
+//
+// TODO: Turbopack specific embed fs paths should be handled by internals of Turbopack itself and
+// user config should not try to leak this. However, currently we apply few transform options
+// subject to Next.js's configuration even if it's embedded assets.
+pub async fn internal_assets_conditions() -> Result<ContextCondition> {
+    Ok(ContextCondition::any(vec![
+        ContextCondition::InPath(next_js_fs().root().to_resolved().await?),
+        ContextCondition::InPath(
+            turbopack_ecmascript_runtime::embed_fs()
+                .root()
+                .to_resolved()
+                .await?,
+        ),
+        ContextCondition::InPath(
+            turbopack_node::embed_js::embed_fs()
+                .root()
+                .to_resolved()
+                .await?,
+        ),
+    ]))
 }
 
 #[derive(
@@ -149,6 +181,7 @@ pub async fn foreign_code_context_condition(
     PartialOrd,
     Ord,
     TaskInput,
+    NonLocalValue,
 )]
 #[serde(rename_all = "lowercase")]
 pub enum NextRuntime {
@@ -196,8 +229,16 @@ impl ValueDefault for NextSourceConfig {
 /// An issue that occurred while parsing the page config.
 #[turbo_tasks::value(shared)]
 pub struct NextSourceConfigParsingIssue {
-    ident: Vc<AssetIdent>,
+    ident: ResolvedVc<AssetIdent>,
     detail: ResolvedVc<StyledString>,
+}
+
+#[turbo_tasks::value_impl]
+impl NextSourceConfigParsingIssue {
+    #[turbo_tasks::function]
+    pub fn new(ident: ResolvedVc<AssetIdent>, detail: ResolvedVc<StyledString>) -> Vc<Self> {
+        Self { ident, detail }.cell()
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -209,7 +250,8 @@ impl Issue for NextSourceConfigParsingIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Unable to parse config export in source file".into()).cell()
+        StyledString::Text("Next.js can't recognize the exported `config` field in route".into())
+            .cell()
     }
 
     #[turbo_tasks::function]
@@ -230,31 +272,36 @@ impl Issue for NextSourceConfigParsingIssue {
                  format from which some properties can be statically parsed at compiled-time."
                     .into(),
             )
-            .cell(),
+            .resolved_cell(),
         ))
     }
 
     #[turbo_tasks::function]
     fn detail(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(*self.detail))
+        Vc::cell(Some(self.detail))
     }
 }
 
-fn emit_invalid_config_warning(ident: Vc<AssetIdent>, detail: &str, value: &JsValue) {
+async fn emit_invalid_config_warning(
+    ident: Vc<AssetIdent>,
+    detail: &str,
+    value: &JsValue,
+) -> Result<()> {
     let (explainer, hints) = value.explain(2, 0);
-    NextSourceConfigParsingIssue {
+    NextSourceConfigParsingIssue::new(
         ident,
-        detail: StyledString::Text(format!("{detail} Got {explainer}.{hints}").into())
-            .resolved_cell(),
-    }
-    .resolved_cell()
-    .emit()
+        StyledString::Text(format!("{detail} Got {explainer}.{hints}").into()).cell(),
+    )
+    .to_resolved()
+    .await?
+    .emit();
+    Ok(())
 }
 
-fn parse_route_matcher_from_js_value(
+async fn parse_route_matcher_from_js_value(
     ident: Vc<AssetIdent>,
     value: &JsValue,
-) -> Option<Vec<MiddlewareMatcherKind>> {
+) -> Result<Option<Vec<MiddlewareMatcherKind>>> {
     let parse_matcher_kind_matcher = |value: &JsValue| {
         let mut route_has = vec![];
         if let JsValue::Array { items, .. } = value {
@@ -320,7 +367,8 @@ fn parse_route_matcher_from_js_value(
                     ident,
                     "The matcher property must be a string or array of strings",
                     value,
-                );
+                )
+                .await?;
             }
         }
         JsValue::Array { items, .. } => {
@@ -356,30 +404,34 @@ fn parse_route_matcher_from_js_value(
                         ident,
                         "The matcher property must be a string or array of strings",
                         value,
-                    );
+                    )
+                    .await?;
                 }
             }
         }
-        _ => emit_invalid_config_warning(
-            ident,
-            "The matcher property must be a string or array of strings",
-            value,
-        ),
+        _ => {
+            emit_invalid_config_warning(
+                ident,
+                "The matcher property must be a string or array of strings",
+                value,
+            )
+            .await?
+        }
     }
 
-    if matchers.is_empty() {
+    Ok(if matchers.is_empty() {
         None
     } else {
         Some(matchers)
-    }
+    })
 }
 
 #[turbo_tasks::function]
 pub async fn parse_config_from_source(
     module: ResolvedVc<Box<dyn Module>>,
+    default_runtime: NextRuntime,
 ) -> Result<Vc<NextSourceConfig>> {
-    if let Some(ecmascript_asset) =
-        ResolvedVc::try_sidecast::<Box<dyn EcmascriptParsable>>(module).await?
+    if let Some(ecmascript_asset) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptParsable>>(module)
     {
         if let ParseResult::Ok {
             program: Program::Module(module_ast),
@@ -404,22 +456,33 @@ pub async fn parse_config_from_source(
                             .unwrap_or_default()
                         {
                             if let Some(init) = decl.init.as_ref() {
-                                return GLOBALS.set(globals, || {
-                                    let value = eval_context.eval(init);
-                                    Ok(parse_config_from_js_value(*module, &value).cell())
-                                });
+                                return WrapFuture::new(
+                                    async {
+                                        let value = eval_context.eval(init);
+                                        Ok(parse_config_from_js_value(
+                                            *module,
+                                            &value,
+                                            default_runtime,
+                                        )
+                                        .await?
+                                        .cell())
+                                    },
+                                    |f, ctx| GLOBALS.set(globals, || f.poll(ctx)),
+                                )
+                                .await;
                             } else {
-                                NextSourceConfigParsingIssue {
-                                    ident: module.ident(),
-                                    detail: StyledString::Text(
+                                NextSourceConfigParsingIssue::new(
+                                    module.ident(),
+                                    StyledString::Text(
                                         "The exported config object must contain an variable \
                                          initializer."
                                             .into(),
                                     )
-                                    .resolved_cell(),
-                                }
-                                .resolved_cell()
-                                .emit()
+                                    .cell(),
+                                )
+                                .to_resolved()
+                                .await?
+                                .emit();
                             }
                         }
                         // Or, check if there is segment runtime option
@@ -428,15 +491,16 @@ pub async fn parse_config_from_source(
                             .map(|ident| &*ident.sym == "runtime")
                             .unwrap_or_default()
                         {
-                            let runtime_value_issue = NextSourceConfigParsingIssue {
-                                ident: module.ident(),
-                                detail: StyledString::Text(
+                            let runtime_value_issue = NextSourceConfigParsingIssue::new(
+                                module.ident(),
+                                StyledString::Text(
                                     "The runtime property must be either \"nodejs\" or \"edge\"."
                                         .into(),
                                 )
-                                .resolved_cell(),
-                            }
-                            .resolved_cell();
+                                .cell(),
+                            )
+                            .to_resolved()
+                            .await?;
                             if let Some(init) = decl.init.as_ref() {
                                 // skipping eval and directly read the expr's value, as we know it
                                 // should be a const string
@@ -461,17 +525,18 @@ pub async fn parse_config_from_source(
                                     runtime_value_issue.emit();
                                 }
                             } else {
-                                NextSourceConfigParsingIssue {
-                                    ident: module.ident(),
-                                    detail: StyledString::Text(
+                                NextSourceConfigParsingIssue::new(
+                                    module.ident(),
+                                    StyledString::Text(
                                         "The exported segment runtime option must contain an \
                                          variable initializer."
                                             .into(),
                                     )
-                                    .resolved_cell(),
-                                }
-                                .resolved_cell()
-                                .emit()
+                                    .cell(),
+                                )
+                                .to_resolved()
+                                .await?
+                                .emit();
                             }
                         }
                     }
@@ -479,20 +544,35 @@ pub async fn parse_config_from_source(
             }
         }
     }
-    Ok(Default::default())
+    let config = NextSourceConfig {
+        runtime: default_runtime,
+        ..Default::default()
+    };
+
+    Ok(config.cell())
 }
 
-fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> NextSourceConfig {
-    let mut config = NextSourceConfig::default();
+async fn parse_config_from_js_value(
+    module: Vc<Box<dyn Module>>,
+    value: &JsValue,
+    default_runtime: NextRuntime,
+) -> Result<NextSourceConfig> {
+    let mut config = NextSourceConfig {
+        runtime: default_runtime,
+        ..Default::default()
+    };
 
     if let JsValue::Object { parts, .. } = value {
         for part in parts {
             match part {
-                ObjectPart::Spread(_) => emit_invalid_config_warning(
-                    module.ident(),
-                    "Spread properties are not supported in the config export.",
-                    value,
-                ),
+                ObjectPart::Spread(_) => {
+                    emit_invalid_config_warning(
+                        module.ident(),
+                        "Spread properties are not supported in the config export.",
+                        value,
+                    )
+                    .await?
+                }
                 ObjectPart::KeyValue(key, value) => {
                     if let Some(key) = key.as_str() {
                         match key {
@@ -512,7 +592,8 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
                                                     "The runtime property must be either \
                                                      \"nodejs\" or \"edge\".",
                                                     value,
-                                                );
+                                                )
+                                                .await?;
                                             }
                                         }
                                     }
@@ -521,12 +602,14 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
                                         module.ident(),
                                         "The runtime property must be a constant string.",
                                         value,
-                                    );
+                                    )
+                                    .await?;
                                 }
                             }
                             "matcher" => {
                                 config.matcher =
-                                    parse_route_matcher_from_js_value(module.ident(), value);
+                                    parse_route_matcher_from_js_value(module.ident(), value)
+                                        .await?;
                             }
                             "regions" => {
                                 config.regions = match value {
@@ -549,7 +632,8 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
                                                     "Values of the `config.regions` array need to \
                                                      static strings",
                                                     item,
-                                                );
+                                                )
+                                                .await?;
                                             }
                                         }
                                         Some(regions)
@@ -560,7 +644,8 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
                                             "`config.regions` needs to be a static string or \
                                              array of static strings",
                                             value,
-                                        );
+                                        )
+                                        .await?;
                                         None
                                     }
                                 };
@@ -572,7 +657,8 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
                             module.ident(),
                             "The exported config object must not contain non-constant strings.",
                             key,
-                        );
+                        )
+                        .await?;
                     }
                 }
             }
@@ -582,10 +668,11 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
             module.ident(),
             "The exported config object must be a valid object literal.",
             value,
-        );
+        )
+        .await?;
     }
 
-    config
+    Ok(config)
 }
 
 /// Loads a next.js template, replaces `replacements` and `injections` and makes
@@ -600,7 +687,7 @@ pub async fn load_next_js_template(
     let path = virtual_next_js_template_path(project_path, path.to_string());
 
     let content = &*file_content_rope(path.read()).await?;
-    let content = content.to_str()?.to_string();
+    let content = content.to_str()?.into_owned();
 
     let parent_path = path.parent();
     let parent_path_value = &*parent_path.await?;
@@ -687,7 +774,7 @@ pub async fn load_next_js_template(
     // variable is missing, throw an error.
     let mut replaced = FxIndexSet::default();
     for (key, replacement) in &replacements {
-        let full = format!("'{}'", key);
+        let full = format!("'{key}'");
 
         if content.contains(&full) {
             replaced.insert(*key);
@@ -729,12 +816,12 @@ pub async fn load_next_js_template(
     // Replace the injections.
     let mut injected = FxIndexSet::default();
     for (key, injection) in &injections {
-        let full = format!("// INJECT:{}", key);
+        let full = format!("// INJECT:{key}");
 
         if content.contains(&full) {
             // Track all the injections to ensure that we're not missing any.
             injected.insert(*key);
-            content = content.replace(&full, &format!("const {} = {}", key, injection));
+            content = content.replace(&full, &format!("const {key} = {injection}"));
         }
     }
 
@@ -772,9 +859,9 @@ pub async fn load_next_js_template(
     // Replace the optional imports.
     let mut imports_added = FxIndexSet::default();
     for (key, import_path) in &imports {
-        let mut full = format!("// OPTIONAL_IMPORT:{}", key);
+        let mut full = format!("// OPTIONAL_IMPORT:{key}");
         let namespace = if !content.contains(&full) {
-            full = format!("// OPTIONAL_IMPORT:* as {}", key);
+            full = format!("// OPTIONAL_IMPORT:* as {key}");
             if content.contains(&full) {
                 true
             } else {
@@ -798,7 +885,7 @@ pub async fn load_next_js_template(
                 ),
             );
         } else {
-            content = content.replace(&full, &format!("const {} = null", key));
+            content = content.replace(&full, &format!("const {key} = null"));
         }
     }
 
@@ -873,7 +960,7 @@ pub async fn load_next_js_templateon<T: DeserializeOwned>(
     let content = &*file_path.read().await?;
 
     let FileContent::Content(file) = content else {
-        bail!("Expected file content at {}", path);
+        bail!("Expected file content at {}", file_path.to_string().await?);
     };
 
     let result: T = parse_json_rope_with_source_context(file.content())?;

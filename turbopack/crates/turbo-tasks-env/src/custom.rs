@@ -2,7 +2,7 @@ use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 
-use crate::{case_insensitive_read, EnvMap, ProcessEnv};
+use crate::{EnvMap, ProcessEnv, case_insensitive_read};
 
 /// Allows providing any custom env values that you'd like, deferring the prior
 /// envs if a key is not overridden.
@@ -24,11 +24,11 @@ impl CustomProcessEnv {
 impl ProcessEnv for CustomProcessEnv {
     #[turbo_tasks::function]
     async fn read_all(&self) -> Result<Vc<EnvMap>> {
-        let prior = self.prior.read_all().await?;
-        let custom = self.custom.await?;
+        let prior = self.prior.read_all().owned().await?;
+        let custom = self.custom.owned().await?;
 
-        let mut extended = prior.clone_value();
-        extended.extend(custom.clone_value());
+        let mut extended = prior;
+        extended.extend(custom);
         Ok(Vc::cell(extended))
     }
 

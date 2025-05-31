@@ -1,6 +1,7 @@
 import type { Socket } from 'net'
 import { mkdir, writeFile } from 'fs/promises'
 import { join, extname } from 'path'
+import { pathToFileURL } from 'url'
 
 import ws from 'next/dist/compiled/ws'
 
@@ -20,6 +21,8 @@ import type {
   Endpoint,
   WrittenEndpoint,
   TurbopackResult,
+  Project,
+  Entrypoints,
 } from '../../build/swc/types'
 import { createDefineEnv } from '../../build/swc'
 import * as Log from '../../build/output/log'
@@ -34,7 +37,7 @@ import {
 } from '../../client/components/react-dev-overlay/server/middleware-turbopack'
 import { PageNotFoundError } from '../../shared/lib/utils'
 import { debounce } from '../utils'
-import { deleteAppClientCache, deleteCache } from './require-cache'
+import { deleteCache, deleteFromRequireCache } from './require-cache'
 import {
   clearAllModuleContexts,
   clearModuleContext,
@@ -45,46 +48,56 @@ import {
   AssetMapper,
   type ChangeSubscriptions,
   type ClientState,
-  type EntryIssuesMap,
-  formatIssue,
-  getTurbopackJsConfig,
   handleEntrypoints,
   handlePagesErrorRoute,
   handleRouteType,
   hasEntrypointForKey,
   msToNs,
-  processIssues,
   type ReadyIds,
-  renderStyledStringToErrorAnsi,
   type SendHmr,
   type StartBuilding,
   processTopLevelIssues,
-  type TopLevelIssuesMap,
-  isWellKnownError,
   printNonFatalIssue,
   normalizedPageToTurbopackStructureRoute,
-  isPersistentCachingEnabled,
 } from './turbopack-utils'
 import {
   propagateServerField,
   type ServerFields,
   type SetupOpts,
 } from '../lib/router-utils/setup-dev-bundler'
-import { TurbopackManifestLoader } from './turbopack/manifest-loader'
-import type { Entrypoints } from './turbopack/types'
+import { TurbopackManifestLoader } from '../../shared/lib/turbopack/manifest-loader'
 import { findPagePathData } from './on-demand-entry-handler'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 import {
   type EntryKey,
   getEntryKey,
   splitEntryKey,
-} from './turbopack/entry-key'
+} from '../../shared/lib/turbopack/entry-key'
 import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
 import { generateEncryptionKeyBase64 } from '../app-render/encryption-utils-server'
 import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { getNodeDebugType } from '../lib/utils'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
+import {
+  setBundlerFindSourceMapImplementation,
+  type ModernSourceMapPayload,
+} from '../patch-error-inspect'
+import { getNextErrorFeedbackMiddleware } from '../../client/components/react-dev-overlay/server/get-next-error-feedback-middleware'
+import {
+  formatIssue,
+  getTurbopackJsConfig,
+  isPersistentCachingEnabled,
+  isWellKnownError,
+  processIssues,
+  renderStyledStringToErrorAnsi,
+  type EntryIssuesMap,
+  type TopLevelIssuesMap,
+} from '../../shared/lib/turbopack/utils'
+import { getDevOverlayFontMiddleware } from '../../client/components/react-dev-overlay/font/get-dev-overlay-font-middleware'
+import { devIndicatorServerState } from './dev-indicator-server-state'
+import { getDisableDevIndicatorMiddleware } from './dev-indicator-middleware'
+import { getRestartDevServerMiddleware } from '../../client/components/react-dev-overlay/server/restart-dev-server-middleware'
 // import { getSupportedBrowsers } from '../../build/utils'
 
 const wsServer = new ws.Server({ noServer: true })
@@ -96,6 +109,51 @@ const isTestMode = !!(
 
 const sessionId = Math.floor(Number.MAX_SAFE_INTEGER * Math.random())
 
+/**
+ * Replaces turbopack:///[project] with the specified project in the `source` field.
+ */
+function rewriteTurbopackSources(
+  projectRoot: string,
+  sourceMap: ModernSourceMapPayload
+): void {
+  if ('sections' in sourceMap) {
+    for (const section of sourceMap.sections) {
+      rewriteTurbopackSources(projectRoot, section.map)
+    }
+  } else {
+    for (let i = 0; i < sourceMap.sources.length; i++) {
+      sourceMap.sources[i] = pathToFileURL(
+        join(
+          projectRoot,
+          sourceMap.sources[i].replace(/turbopack:\/\/\/\[project\]/, '')
+        )
+      ).toString()
+    }
+  }
+}
+
+function getSourceMapFromTurbopack(
+  project: Project,
+  projectRoot: string,
+  sourceURL: string
+): ModernSourceMapPayload | undefined {
+  let sourceMapJson: string | null = null
+
+  try {
+    sourceMapJson = project.getSourceMapSync(sourceURL)
+  } catch (err) {}
+
+  if (sourceMapJson === null) {
+    return undefined
+  } else {
+    const payload: ModernSourceMapPayload = JSON.parse(sourceMapJson)
+    // The sourcemap from Turbopack is not yet written to disk so its `sources`
+    // are not absolute paths yet. We need to rewrite them to be absolute paths.
+    rewriteTurbopackSources(projectRoot, payload)
+    return payload
+  }
+}
+
 export async function createHotReloaderTurbopack(
   opts: SetupOpts,
   serverFields: ServerFields,
@@ -104,7 +162,7 @@ export async function createHotReloaderTurbopack(
 ): Promise<NextJsHotReloaderInterface> {
   const dev = true
   const buildId = 'development'
-  const { nextConfig, dir } = opts
+  const { nextConfig, dir: projectPath } = opts
 
   const { loadBindings } =
     require('../../build/swc') as typeof import('../../build/swc')
@@ -113,9 +171,9 @@ export async function createHotReloaderTurbopack(
 
   // For the debugging purpose, check if createNext or equivalent next instance setup in test cases
   // works correctly. Normally `run-test` hides output so only will be visible when `--debug` flag is used.
-  if (process.env.TURBOPACK && isTestMode) {
+  if (isTestMode) {
     require('console').log('Creating turbopack project', {
-      dir,
+      dir: projectPath,
       testMode: isTestMode,
     })
   }
@@ -150,14 +208,14 @@ export async function createHotReloaderTurbopack(
 
   const project = await bindings.turbo.createProject(
     {
-      projectPath: dir,
+      projectPath: projectPath,
       rootPath:
-        opts.nextConfig.experimental.turbo?.root ||
+        opts.nextConfig.turbopack?.root ||
         opts.nextConfig.outputFileTracingRoot ||
-        dir,
+        projectPath,
       distDir,
       nextConfig: opts.nextConfig,
-      jsConfig: await getTurbopackJsConfig(dir, nextConfig),
+      jsConfig: await getTurbopackJsConfig(projectPath, nextConfig),
       watch: {
         enable: dev,
         pollIntervalMs: nextConfig.watchOptions?.pollIntervalMs,
@@ -170,6 +228,7 @@ export async function createHotReloaderTurbopack(
         config: nextConfig,
         dev,
         distDir,
+        projectPath,
         fetchCacheKeyPrefix: opts.nextConfig.experimental.fetchCacheKeyPrefix,
         hasRewrites,
         // TODO: Implement
@@ -179,13 +238,20 @@ export async function createHotReloaderTurbopack(
       encryptionKey,
       previewProps: opts.fsChecker.prerenderManifest.preview,
       browserslistQuery: supportedBrowsers.join(', '),
+      noMangling: false,
     },
     {
       persistentCaching: isPersistentCachingEnabled(opts.nextConfig),
-      memoryLimit: opts.nextConfig.experimental.turbo?.memoryLimit,
+      memoryLimit: opts.nextConfig.experimental?.turbopackMemoryLimit,
     }
   )
-  opts.onDevServerCleanup?.(() => project.onExit())
+  setBundlerFindSourceMapImplementation(
+    getSourceMapFromTurbopack.bind(null, project, projectPath)
+  )
+  opts.onDevServerCleanup?.(async () => {
+    setBundlerFindSourceMapImplementation(() => undefined)
+    await project.onExit()
+  })
   const entrypointsSubscription = project.entrypointsSubscribe()
 
   const currentWrittenEntrypoints: Map<EntryKey, WrittenEndpoint> = new Map()
@@ -232,7 +298,7 @@ export async function createHotReloaderTurbopack(
       // Always clear the cache, don't check if files have changed
       force?: boolean
     } = {}
-  ): void {
+  ): boolean {
     if (force) {
       for (const { path, contentHash } of writtenEndpoint.serverPaths) {
         serverPathState.set(path, contentHash)
@@ -264,7 +330,7 @@ export async function createHotReloaderTurbopack(
       }
 
       if (!hasChange) {
-        return
+        return false
       }
     }
 
@@ -275,7 +341,16 @@ export async function createHotReloaderTurbopack(
     )
 
     if (hasAppPaths) {
-      deleteAppClientCache()
+      deleteFromRequireCache(
+        require.resolve(
+          'next/dist/compiled/next-server/app-page-turbo.runtime.dev.js'
+        )
+      )
+      deleteFromRequireCache(
+        require.resolve(
+          'next/dist/compiled/next-server/app-page-turbo-experimental.runtime.dev.js'
+        )
+      )
     }
 
     const serverPaths = writtenEndpoint.serverPaths.map(({ path: p }) =>
@@ -287,7 +362,7 @@ export async function createHotReloaderTurbopack(
       deleteCache(file)
     }
 
-    return
+    return true
   }
 
   const buildingIds = new Set()
@@ -407,7 +482,8 @@ export async function createHotReloaderTurbopack(
     includeIssues: boolean,
     endpoint: Endpoint,
     makePayload: (
-      change: TurbopackResult
+      change: TurbopackResult,
+      hash: string
     ) => Promise<HMR_ACTION_TYPES> | HMR_ACTION_TYPES | void,
     onError?: (
       error: Error
@@ -426,7 +502,8 @@ export async function createHotReloaderTurbopack(
 
       for await (const change of changed) {
         processIssues(currentEntryIssues, key, change, false, true)
-        const payload = await makePayload(change)
+        // TODO: Get an actual content hash from Turbopack.
+        const payload = await makePayload(change, String(++hmrHash))
         if (payload) {
           sendHmr(key, payload)
         }
@@ -535,9 +612,9 @@ export async function createHotReloaderTurbopack(
           serverFields,
 
           hooks: {
-            handleWrittenEndpoint: (id, result) => {
+            handleWrittenEndpoint: (id, result, forceDeleteCache) => {
               currentWrittenEntrypoints.set(id, result)
-              clearRequireCache(id, result)
+              return clearRequireCache(id, result, { force: forceDeleteCache })
             },
             propagateServerField: propagateServerField.bind(null, opts),
             sendHmr,
@@ -568,13 +645,18 @@ export async function createHotReloaderTurbopack(
   )
 
   const middlewares = [
-    getOverlayMiddleware(project),
+    getOverlayMiddleware(project, projectPath),
     getSourceMapMiddleware(project),
+    getNextErrorFeedbackMiddleware(opts.telemetry),
+    getDevOverlayFontMiddleware(),
+    getDisableDevIndicatorMiddleware(),
+    getRestartDevServerMiddleware({
+      telemetry: opts.telemetry,
+      turbopackProject: project,
+    }),
   ]
 
-  const versionInfoPromise = getVersionInfo(
-    isTestMode || opts.telemetry.isEnabled
-  )
+  const versionInfoPromise = getVersionInfo()
 
   let devtoolsFrontendUrl: string | undefined
   const nodeDebugType = getNodeDebugType()
@@ -668,9 +750,6 @@ export async function createHotReloaderTurbopack(
 
           // Next.js messages
           switch (parsedData.event) {
-            case 'ping':
-              // Ping doesn't need additional handling in Turbopack.
-              break
             case 'span-end': {
               hotReloaderSpan.manualTraceChild(
                 parsedData.spanName,
@@ -763,6 +842,10 @@ export async function createHotReloaderTurbopack(
           }
         }
 
+        if (devIndicatorServerState.disabledUntil < Date.now()) {
+          devIndicatorServerState.disabledUntil = 0
+        }
+
         ;(async function () {
           const versionInfo = await versionInfoPromise
 
@@ -775,6 +858,7 @@ export async function createHotReloaderTurbopack(
             debug: {
               devtoolsFrontendUrl,
             },
+            devIndicator: devIndicatorServerState,
           }
 
           sendToClient(client, sync)
@@ -796,9 +880,6 @@ export async function createHotReloaderTurbopack(
       // Not implemented yet.
     },
     async start() {},
-    async stop() {
-      // Not implemented yet.
-    },
     async getCompilationErrors(page) {
       const appEntryKey = getEntryKey('app', 'server', page)
       const pagesEntryKey = getEntryKey('pages', 'server', page)
@@ -857,6 +938,7 @@ export async function createHotReloaderTurbopack(
         await clearAllModuleContexts()
         this.send({
           action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
+          hash: String(++hmrHash),
         })
       }
     },
@@ -872,6 +954,15 @@ export async function createHotReloaderTurbopack(
       isApp,
       url: requestUrl,
     }) {
+      // When there is no route definition this is an internal file not a route the user added.
+      // Middleware and instrumentation are handled in turbpack-utils.ts handleEntrypoints instead.
+      if (!definition) {
+        if (inputPage === '/middleware') return
+        if (inputPage === '/src/middleware') return
+        if (inputPage === '/instrumentation') return
+        if (inputPage === '/src/instrumentation') return
+      }
+
       return hotReloaderSpan
         .traceChild('ensure-page', {
           inputPage,
@@ -890,11 +981,12 @@ export async function createHotReloaderTurbopack(
           > =
             definition ??
             (await findPagePathData(
-              dir,
+              projectPath,
               inputPage,
               nextConfig.pageExtensions,
               opts.pagesDir,
-              opts.appDir
+              opts.appDir,
+              !!nextConfig.experimental.globalNotFound
             ))
 
           // If the route is actually an app page route, then we should have access
@@ -922,20 +1014,20 @@ export async function createHotReloaderTurbopack(
             let finishBuilding = startBuilding(pathname, requestUrl, false)
             try {
               await handlePagesErrorRoute({
-                dev: true,
                 currentEntryIssues,
                 entrypoints: currentEntrypoints,
                 manifestLoader,
                 devRewrites: opts.fsChecker.rewrites,
                 productionRewrites: undefined,
                 logErrors: true,
-
                 hooks: {
                   subscribeToChanges,
-                  handleWrittenEndpoint: (id, result) => {
-                    clearRequireCache(id, result)
+                  handleWrittenEndpoint: (id, result, forceDeleteCache) => {
                     currentWrittenEntrypoints.set(id, result)
                     assetMapper.setPathsForKey(id, result.clientPaths)
+                    return clearRequireCache(id, result, {
+                      force: forceDeleteCache,
+                    })
                   },
                 },
               })
@@ -996,10 +1088,12 @@ export async function createHotReloaderTurbopack(
 
               hooks: {
                 subscribeToChanges,
-                handleWrittenEndpoint: (id, result) => {
+                handleWrittenEndpoint: (id, result, forceDeleteCache) => {
                   currentWrittenEntrypoints.set(id, result)
-                  clearRequireCache(id, result)
                   assetMapper.setPathsForKey(id, result.clientPaths)
+                  return clearRequireCache(id, result, {
+                    force: forceDeleteCache,
+                  })
                 },
               },
             })
@@ -1007,6 +1101,13 @@ export async function createHotReloaderTurbopack(
             finishBuilding()
           }
         })
+    },
+    close() {
+      for (const wsClient of clients) {
+        // it's okay to not cleanly close these websocket connections, this is dev
+        wsClient.terminate()
+      }
+      clients.clear()
     },
   }
 

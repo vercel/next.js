@@ -5,13 +5,13 @@ use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath};
 use turbopack_core::{
     asset::Asset,
     file_source::FileSource,
-    introspect::{source::IntrospectableSource, Introspectable, IntrospectableChildren},
+    introspect::{Introspectable, IntrospectableChildren, source::IntrospectableSource},
     version::VersionedContentExt,
 };
 
 use super::{
-    route_tree::{BaseSegment, RouteTree, RouteTrees, RouteType},
     ContentSource, ContentSourceContent, ContentSourceData, GetContentSourceContent,
+    route_tree::{BaseSegment, RouteTree, RouteTrees, RouteType},
 };
 
 #[turbo_tasks::value(shared)]
@@ -121,22 +121,35 @@ impl Introspectable for StaticAssetsContentSource {
         let prefix = self.prefix.await?;
         let children = entries
             .iter()
-            .map(|(name, entry)| {
-                let child = match entry {
-                    DirectoryEntry::File(path) | DirectoryEntry::Symlink(path) => {
-                        IntrospectableSource::new(Vc::upcast(FileSource::new(**path)))
-                    }
-                    DirectoryEntry::Directory(path) => {
-                        Vc::upcast(StaticAssetsContentSource::with_prefix(
-                            Vc::cell(format!("{}{name}/", &*prefix).into()),
-                            **path,
-                        ))
-                    }
-                    DirectoryEntry::Other(_) => todo!("what's DirectoryContent::Other?"),
-                    DirectoryEntry::Error => todo!(),
-                };
-                (Vc::cell(name.clone()), child)
+            .map(move |(name, entry)| {
+                let prefix = prefix.clone();
+                async move {
+                    let child = match entry {
+                        DirectoryEntry::File(path) | DirectoryEntry::Symlink(path) => {
+                            ResolvedVc::upcast(
+                                IntrospectableSource::new(Vc::upcast(FileSource::new(**path)))
+                                    .to_resolved()
+                                    .await?,
+                            )
+                        }
+                        DirectoryEntry::Directory(path) => ResolvedVc::upcast(
+                            StaticAssetsContentSource::with_prefix(
+                                Vc::cell(format!("{}{name}/", &*prefix).into()),
+                                **path,
+                            )
+                            .to_resolved()
+                            .await?,
+                        ),
+                        DirectoryEntry::Other(_) | DirectoryEntry::Error => {
+                            todo!("unsupported DirectoryContent variant: {entry:?}")
+                        }
+                    };
+                    Ok((ResolvedVc::cell(name.clone()), child))
+                }
             })
+            .try_join()
+            .await?
+            .into_iter()
             .collect();
         Ok(Vc::cell(children))
     }

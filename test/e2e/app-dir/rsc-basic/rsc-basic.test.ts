@@ -7,7 +7,6 @@ import cheerio from 'cheerio'
 // on experimental flags. For example, as a first step we could all the common
 // gates like this one into a single module.
 const isPPREnabledByDefault = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
-const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
 async function resolveStreamResponse(response: any, onData?: any) {
   let result = ''
@@ -23,10 +22,6 @@ async function resolveStreamResponse(response: any, onData?: any) {
 describe('app dir - rsc basics', () => {
   const { next, isNextDev, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
-    dependencies: {
-      'styled-components': 'latest',
-      'server-only': 'latest',
-    },
     resolutions: {
       '@babel/core': '7.22.18',
       '@babel/parser': '7.22.16',
@@ -75,39 +70,39 @@ describe('app dir - rsc basics', () => {
   })
 
   it('should correctly render page returning null', async () => {
-    const homeHTML = await next.render('/return-null/page')
-    const $ = cheerio.load(homeHTML)
-    expect($('#return-null-layout').html()).toBeEmpty()
+    const browser = await next.browser('/return-null/page')
+    expect(await browser.elementByCss('#return-null-layout').text()).toBeEmpty()
   })
 
   it('should correctly render component returning null', async () => {
-    const homeHTML = await next.render('/return-null/component')
-    const $ = cheerio.load(homeHTML)
-    expect($('#return-null-layout').html()).toBeEmpty()
+    const browser = await next.browser('/return-null/component')
+    expect(await browser.elementByCss('#return-null-layout').text()).toBeEmpty()
   })
 
   it('should correctly render layout returning null', async () => {
-    const homeHTML = await next.render('/return-null/layout')
-    const $ = cheerio.load(homeHTML)
-    expect($('#return-null-layout').html()).toBeEmpty()
+    const browser = await next.browser('/return-null/layout')
+    expect(await browser.elementByCss('#return-null-layout').text()).toBeEmpty()
   })
 
   it('should correctly render page returning undefined', async () => {
-    const homeHTML = await next.render('/return-undefined/page')
-    const $ = cheerio.load(homeHTML)
-    expect($('#return-undefined-layout').html()).toBeEmpty()
+    const browser = await next.browser('/return-undefined/page')
+    expect(
+      await browser.elementByCss('#return-undefined-layout').text()
+    ).toBeEmpty()
   })
 
   it('should correctly render component returning undefined', async () => {
-    const homeHTML = await next.render('/return-undefined/component')
-    const $ = cheerio.load(homeHTML)
-    expect($('#return-undefined-layout').html()).toBeEmpty()
+    const browser = await next.browser('/return-undefined/component')
+    expect(
+      await browser.elementByCss('#return-undefined-layout').text()
+    ).toBeEmpty()
   })
 
   it('should correctly render layout returning undefined', async () => {
-    const homeHTML = await next.render('/return-undefined/layout')
-    const $ = cheerio.load(homeHTML)
-    expect($('#return-undefined-layout').html()).toBeEmpty()
+    const browser = await next.browser('/return-undefined/layout')
+    expect(
+      await browser.elementByCss('#return-undefined-layout').text()
+    ).toBeEmpty()
   })
 
   it('should handle named client components imported as page', async () => {
@@ -162,27 +157,28 @@ describe('app dir - rsc basics', () => {
   })
 
   it('should reuse the inline flight response without sending extra requests', async () => {
-    let hasFlightRequest = false
+    const flightRequests: string[] = []
     let requestsCount = 0
-    await next.browser('/root', {
+    const browser = await next.browser('/root', {
       beforePageLoad(page) {
         page.on('request', (request) => {
           requestsCount++
-          return request.allHeaders().then((headers) => {
-            if (
-              headers['RSC'.toLowerCase()] === '1' &&
-              // Prefetches also include `RSC`
-              headers['Next-Router-Prefetch'.toLowerCase()] !== '1'
-            ) {
-              hasFlightRequest = true
-            }
-          })
+          const headers = request.headers()
+          if (
+            headers['RSC'.toLowerCase()] === '1' &&
+            // Prefetches also include `RSC`
+            headers['Next-Router-Prefetch'.toLowerCase()] !== '1'
+          ) {
+            flightRequests.push(request.url())
+          }
         })
       },
     })
 
+    await browser.waitForIdleNetwork()
+
     expect(requestsCount).toBeGreaterThan(0)
-    expect(hasFlightRequest).toBe(false)
+    expect(flightRequests).toEqual([])
   })
 
   it('should support multi-level server component imports', async () => {
@@ -369,84 +365,12 @@ describe('app dir - rsc basics', () => {
     expect(content).toContain('bar.server.js:')
   })
 
-  it('should render initial styles of css-in-js in nodejs SSR correctly', async () => {
-    const $ = await next.render$('/css-in-js')
-    const head = $('head').html()
-
-    // from styled-jsx
-    expect(head).toMatch(/{color:(\s*)purple;?}/) // styled-jsx/style
-    expect(head).toMatch(/{color:(\s*)(?:hotpink|#ff69b4);?}/) // styled-jsx/css
-
-    // from styled-components
-    expect(head).toMatch(/{color:(\s*)(?:blue|#00f);?}/)
-  })
-
-  it('should render initial styles of css-in-js in edge SSR correctly', async () => {
-    const $ = await next.render$('/css-in-js/edge')
-    const head = $('head').html()
-
-    // from styled-jsx
-    expect(head).toMatch(/{color:(\s*)purple;?}/) // styled-jsx/style
-    expect(head).toMatch(/{color:(\s*)(?:hotpink|#ff69b4);?}/) // styled-jsx/css
-
-    // from styled-components
-    expect(head).toMatch(/{color:(\s*)(?:blue|#00f);?}/)
-  })
-
-  it('should render css-in-js suspense boundary correctly', async () => {
-    await next.fetch('/css-in-js/suspense').then(async (response) => {
-      const results = []
-
-      await resolveStreamResponse(response, (chunk: string) => {
-        const isSuspenseyDataResolved =
-          /<style[^<>]*>(\s)*.+{padding:2px;(\s)*color:orange;}/.test(chunk)
-        if (isSuspenseyDataResolved) results.push('data')
-
-        // check if rsc refresh script for suspense show up, the test content could change with react version
-        const hasRCScript = /\$RC=function/.test(chunk)
-        if (hasRCScript) results.push('refresh-script')
-
-        const isFallbackResolved = chunk.includes('$test-fallback-sentinel')
-        if (isFallbackResolved) results.push('fallback')
-      })
-
-      expect(results).toEqual(['fallback', 'data', 'refresh-script'])
-    })
-    // // TODO-APP: fix streaming/suspense within browser for test suite
-    // const browser = await next.browser( '/css-in-js', { waitHydration: false })
-    // const footer = await browser.elementByCss('#footer')
-    // expect(await footer.text()).toBe('wait for fallback')
-    // expect(
-    //   await browser.eval(
-    //     `window.getComputedStyle(document.querySelector('#footer')).borderColor`
-    //   )
-    // ).toBe('rgb(255, 165, 0)')
-    // // Suspense is not rendered yet
-    // expect(
-    //   await browser.eval(
-    //     `document.querySelector('#footer-inner')`
-    //   )
-    // ).toBe('null')
-
-    // // Wait for suspense boundary
-    // await check(
-    //   () => browser.elementByCss('#footer').text(),
-    //   'wait for footer'
-    // )
-    // expect(
-    //   await browser.eval(
-    //     `window.getComputedStyle(document.querySelector('#footer-inner')).color`
-    //   )
-    // ).toBe('rgb(255, 165, 0)')
-  })
-
   it('should stick to the url without trailing /page suffix', async () => {
     const browser = await next.browser('/edge/dynamic')
     const indexUrl = await browser.url()
 
     await browser.loadPage(`${next.url}/edge/dynamic/123`, {
       disableCache: false,
-      beforePageLoad: null,
     })
 
     const dynamicRouteUrl = await browser.url()
@@ -501,8 +425,11 @@ describe('app dir - rsc basics', () => {
   })
 
   // TODO: (PPR) remove once PPR is stable
+  // TODO(new-dev-overlay): remove once new dev overlay is stable
   const bundledReactVersionPattern =
-    process.env.__NEXT_EXPERIMENTAL_PPR === 'true' ? '-experimental-' : '-rc-'
+    process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+      ? '-experimental-'
+      : '-canary-'
 
   it('should not use bundled react for pages with app', async () => {
     const ssrPaths = ['/pages-react', '/edge-pages-react']
@@ -515,14 +442,7 @@ describe('app dir - rsc basics', () => {
       ]
 
       ssrPagesReactVersions.forEach((version) => {
-        if (isReact18 || isPPREnabledByDefault) {
-          expect(version).not.toMatch(bundledReactVersionPattern)
-        } else {
-          // TODO: Pages router only supports React 19 that is bundled
-          // Once we run with React 19 stable, this branch should be removed in
-          // favor of unconditional `not.toMatch`
-          expect(version).toMatch(bundledReactVersionPattern)
-        }
+        expect(version).not.toMatch(bundledReactVersionPattern)
       })
     })
     await Promise.all(promises)
@@ -556,24 +476,10 @@ describe('app dir - rsc basics', () => {
     `)
 
     browserPagesReactVersions.forEach((version) => {
-      if (isReact18 || isPPREnabledByDefault) {
-        expect(version).not.toMatch(bundledReactVersionPattern)
-      } else {
-        // TODO: Pages router only supports React 19 that is bundled
-        // Once we run with React 19 stable, this branch should be removed in
-        // favor of unconditional `not.toMatch`
-        expect(version).toMatch(bundledReactVersionPattern)
-      }
+      expect(version).not.toMatch(bundledReactVersionPattern)
     })
     browserEdgePagesReactVersions.forEach((version) => {
-      if (isReact18 || isPPREnabledByDefault) {
-        expect(version).not.toMatch(bundledReactVersionPattern)
-      } else {
-        // TODO: Pages router only supports React 19 that is bundled
-        // Once we run with React 19 stable, this branch should be removed in
-        // favor of unconditional `not.toMatch`
-        expect(version).toMatch(bundledReactVersionPattern)
-      }
+      expect(version).not.toMatch(bundledReactVersionPattern)
     })
   })
 
@@ -709,84 +615,4 @@ describe('app dir - rsc basics', () => {
       await Promise.all(promises)
     })
   }
-
-  describe('react@experimental', () => {
-    it.each([{ flag: 'ppr' }, { flag: 'taint' }])(
-      'should opt into the react@experimental when enabling $flag',
-      async ({ flag }) => {
-        await next.stop()
-        await next.patchFile(
-          'next.config.js',
-          `
-          module.exports = {
-            experimental: {
-              ${flag}: true
-            }
-          }
-          `,
-          async () => {
-            await next.start()
-            const resPages$ = await next.render$('/app-react')
-            const [
-              ssrReact,
-              ssrReactDOM,
-              ssrClientReact,
-              ssrClientReactDOM,
-              ssrClientReactDOMServer,
-            ] = [
-              resPages$('#react').text(),
-              resPages$('#react-dom').text(),
-              resPages$('#client-react').text(),
-              resPages$('#client-react-dom').text(),
-              resPages$('#client-react-dom-server').text(),
-            ]
-            expect({
-              ssrReact,
-              ssrReactDOM,
-              ssrClientReact,
-              ssrClientReactDOM,
-              ssrClientReactDOMServer,
-            }).toEqual({
-              ssrReact: expect.stringMatching('-experimental-'),
-              ssrReactDOM: expect.stringMatching('-experimental-'),
-              ssrClientReact: expect.stringMatching('-experimental-'),
-              ssrClientReactDOM: expect.stringMatching('-experimental-'),
-              ssrClientReactDOMServer: expect.stringMatching('-experimental-'),
-            })
-
-            const browser = await next.browser('/app-react')
-            const [
-              browserReact,
-              browserReactDOM,
-              browserClientReact,
-              browserClientReactDOM,
-              browserClientReactDOMServer,
-            ] = await browser.eval(`
-              [
-                document.querySelector('#react').innerText,
-                document.querySelector('#react-dom').innerText,
-                document.querySelector('#client-react').innerText,
-                document.querySelector('#client-react-dom').innerText,
-                document.querySelector('#client-react-dom-server').innerText,
-              ]
-            `)
-            expect({
-              browserReact,
-              browserReactDOM,
-              browserClientReact,
-              browserClientReactDOM,
-              browserClientReactDOMServer,
-            }).toEqual({
-              browserReact: expect.stringMatching('-experimental-'),
-              browserReactDOM: expect.stringMatching('-experimental-'),
-              browserClientReact: expect.stringMatching('-experimental-'),
-              browserClientReactDOM: expect.stringMatching('-experimental-'),
-              browserClientReactDOMServer:
-                expect.stringMatching('-experimental-'),
-            })
-          }
-        )
-      }
-    )
-  })
 })

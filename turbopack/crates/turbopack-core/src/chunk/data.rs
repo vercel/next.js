@@ -1,7 +1,8 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_hash::Xxh3Hash64Hasher;
 
 use crate::{
     chunk::{ModuleId, OutputChunk, OutputChunkRuntimeInfo},
@@ -18,14 +19,26 @@ pub struct ChunkData {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct ChunkDataOption(Option<Vc<ChunkData>>);
+pub struct ChunkDataOption(Option<ResolvedVc<ChunkData>>);
 
 // NOTE(alexkirsz) Our convention for naming vector types is to add an "s" to
 // the end of the type name, but in this case it would be both gramatically
 // incorrect and clash with the variable names everywhere.
 // TODO(WEB-101) Should fix this.
 #[turbo_tasks::value(transparent)]
-pub struct ChunksData(Vec<Vc<ChunkData>>);
+pub struct ChunksData(Vec<ResolvedVc<ChunkData>>);
+
+#[turbo_tasks::value_impl]
+impl ChunksData {
+    #[turbo_tasks::function]
+    pub async fn hash(&self) -> Result<Vc<u64>> {
+        let mut hasher = Xxh3Hash64Hasher::new();
+        for chunk in self.0.iter() {
+            hasher.write_value(chunk.await?.path.as_str());
+        }
+        Ok(Vc::cell(hasher.finish()))
+    }
+}
 
 #[turbo_tasks::function]
 fn module_chunk_reference_description() -> Vc<RcStr> {
@@ -35,12 +48,32 @@ fn module_chunk_reference_description() -> Vc<RcStr> {
 #[turbo_tasks::value_impl]
 impl ChunkData {
     #[turbo_tasks::function]
+    pub async fn hash(&self) -> Result<Vc<u64>> {
+        let mut hasher = Xxh3Hash64Hasher::new();
+        hasher.write_value(self.path.as_str());
+        for module in &self.included {
+            hasher.write_value(module);
+        }
+        for module in &self.excluded {
+            hasher.write_value(module);
+        }
+        for module_chunk in &self.module_chunks {
+            hasher.write_value(module_chunk.as_str());
+        }
+        for reference in self.references.await?.iter() {
+            hasher.write_value(reference.path().to_string().await?);
+        }
+
+        Ok(Vc::cell(hasher.finish()))
+    }
+
+    #[turbo_tasks::function]
     pub async fn from_asset(
         output_root: Vc<FileSystemPath>,
         chunk: Vc<Box<dyn OutputAsset>>,
     ) -> Result<Vc<ChunkDataOption>> {
         let output_root = output_root.await?;
-        let path = chunk.ident().path().await?;
+        let path = chunk.path().await?;
         // The "path" in this case is the chunk's path, not the chunk item's path.
         // The difference is a chunk is a file served by the dev server, and an
         // item is one of several that are contained in that chunk file.
@@ -59,7 +92,7 @@ impl ChunkData {
                     module_chunks: Vec::new(),
                     references: OutputAssets::empty().to_resolved().await?,
                 }
-                .cell(),
+                .resolved_cell(),
             )));
         };
 
@@ -91,7 +124,7 @@ impl ChunkData {
                     let output_root = output_root.clone();
 
                     async move {
-                        let chunk_path = chunk.ident().path().await?;
+                        let chunk_path = chunk.path().await?;
                         Ok(output_root
                             .get_path_to(&chunk_path)
                             .map(|path| (path.to_owned(), chunk)))
@@ -114,7 +147,7 @@ impl ChunkData {
                 module_chunks,
                 references: ResolvedVc::cell(module_chunks_references),
             }
-            .cell(),
+            .resolved_cell(),
         )))
     }
 

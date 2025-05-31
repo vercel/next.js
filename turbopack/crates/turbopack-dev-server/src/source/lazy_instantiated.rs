@@ -1,9 +1,9 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::introspect::{Introspectable, IntrospectableChildren};
 
-use super::{route_tree::RouteTree, ContentSource};
+use super::{ContentSource, route_tree::RouteTree};
 
 /// A functor to get a [ContentSource]. Will be invoked when needed when using
 /// [LazyInstantiatedContentSource].
@@ -48,15 +48,16 @@ impl Introspectable for LazyInstantiatedContentSource {
     #[turbo_tasks::function]
     async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
         Ok(Vc::cell(
-            [
-                Vc::try_resolve_sidecast::<Box<dyn Introspectable>>(
-                    self.get_source.content_source(),
-                )
-                .await?
-                .map(|i| (source_key(), i)),
-            ]
+            [ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(
+                self.get_source.content_source().to_resolved().await?,
+            )
+            .map(|i| (source_key(), i))]
             .into_iter()
             .flatten()
+            .map(|(k, v)| async move { Ok((k.to_resolved().await?, v)) })
+            .try_join()
+            .await?
+            .into_iter()
             .collect(),
         ))
     }

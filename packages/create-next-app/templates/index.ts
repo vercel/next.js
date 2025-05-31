@@ -13,7 +13,7 @@ import { GetTemplateFileArgs, InstallTemplateArgs } from "./types";
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.0.0-rc-b01722d5-20241114";
+const nextjsReactPeerVersion = "19.1.0";
 
 /**
  * Get the file path for a given file in a template, e.g. "next.config.js".
@@ -44,6 +44,7 @@ export const installTemplate = async ({
   importAlias,
   skipInstall,
   turbopack,
+  rspack,
 }: InstallTemplateArgs) => {
   console.log(bold(`Using ${packageManager}.`));
 
@@ -51,14 +52,11 @@ export const installTemplate = async ({
    * Copy the template files to the target directory.
    */
   console.log("\nInitializing project with template:", template, "\n");
+  const isApi = template === "app-api";
   const templatePath = path.join(__dirname, template, mode);
   const copySource = ["**"];
   if (!eslint) copySource.push("!eslint.config.mjs");
-  if (!tailwind)
-    copySource.push(
-      mode == "ts" ? "tailwind.config.ts" : "!tailwind.config.mjs",
-      "!postcss.config.mjs",
-    );
+  if (!tailwind) copySource.push("!postcss.config.mjs");
 
   await copy(copySource, root, {
     parents: true,
@@ -79,6 +77,21 @@ export const installTemplate = async ({
       }
     },
   });
+
+  if (rspack) {
+    const nextConfigFile = path.join(
+      root,
+      mode === "js" ? "next.config.mjs" : "next.config.ts",
+    );
+    await fs.writeFile(
+      nextConfigFile,
+      `import withRspack from "next-rspack";\n\n` +
+        (await fs.readFile(nextConfigFile, "utf8")).replace(
+          "export default nextConfig;",
+          "export default withRspack(nextConfig);",
+        ),
+    );
+  }
 
   const tsconfigFile = path.join(
     root,
@@ -146,33 +159,21 @@ export const installTemplate = async ({
       }),
     );
 
-    const isAppTemplate = template.startsWith("app");
+    if (!isApi) {
+      const isAppTemplate = template.startsWith("app");
 
-    // Change the `Get started by editing pages/index` / `app/page` to include `src`
-    const indexPageFile = path.join(
-      "src",
-      isAppTemplate ? "app" : "pages",
-      `${isAppTemplate ? "page" : "index"}.${mode === "ts" ? "tsx" : "js"}`,
-    );
-
-    await fs.writeFile(
-      indexPageFile,
-      (await fs.readFile(indexPageFile, "utf8")).replace(
-        isAppTemplate ? "app/page" : "pages/index",
-        isAppTemplate ? "src/app/page" : "src/pages/index",
-      ),
-    );
-
-    if (tailwind) {
-      const tailwindConfigFile = path.join(
-        root,
-        mode === "ts" ? "tailwind.config.ts" : "tailwind.config.mjs",
+      // Change the `Get started by editing pages/index` / `app/page` to include `src`
+      const indexPageFile = path.join(
+        "src",
+        isAppTemplate ? "app" : "pages",
+        `${isAppTemplate ? "page" : "index"}.${mode === "ts" ? "tsx" : "js"}`,
       );
+
       await fs.writeFile(
-        tailwindConfigFile,
-        (await fs.readFile(tailwindConfigFile, "utf8")).replace(
-          /\.\/(\w+)\/\*\*\/\*\.\{js,ts,jsx,tsx,mdx\}/g,
-          "./src/$1/**/*.{js,ts,jsx,tsx,mdx}",
+        indexPageFile,
+        (await fs.readFile(indexPageFile, "utf8")).replace(
+          isAppTemplate ? "app/page" : "pages/index",
+          isAppTemplate ? "src/app/page" : "src/pages/index",
         ),
       );
     }
@@ -203,6 +204,21 @@ export const installTemplate = async ({
     devDependencies: {},
   };
 
+  if (rspack) {
+    const NEXT_PRIVATE_TEST_VERSION = process.env.NEXT_PRIVATE_TEST_VERSION;
+    if (
+      NEXT_PRIVATE_TEST_VERSION &&
+      path.isAbsolute(NEXT_PRIVATE_TEST_VERSION)
+    ) {
+      packageJson.dependencies["next-rspack"] = path.resolve(
+        path.dirname(NEXT_PRIVATE_TEST_VERSION),
+        "../next-rspack/next-rspack-packed.tgz",
+      );
+    } else {
+      packageJson.dependencies["next-rspack"] = version;
+    }
+  }
+
   /**
    * TypeScript projects will have type definitions and other devDependencies.
    */
@@ -211,8 +227,8 @@ export const installTemplate = async ({
       ...packageJson.devDependencies,
       typescript: "^5",
       "@types/node": "^20",
-      "@types/react": "^18",
-      "@types/react-dom": "^18",
+      "@types/react": "^19",
+      "@types/react-dom": "^19",
     };
   }
 
@@ -220,8 +236,8 @@ export const installTemplate = async ({
   if (tailwind) {
     packageJson.devDependencies = {
       ...packageJson.devDependencies,
-      postcss: "^8",
-      tailwindcss: "^3.4.1",
+      "@tailwindcss/postcss": "^4",
+      tailwindcss: "^4",
     };
   }
 
@@ -234,6 +250,20 @@ export const installTemplate = async ({
       // TODO: Remove @eslint/eslintrc once eslint-config-next is pure Flat config
       "@eslint/eslintrc": "^3",
     };
+  }
+
+  if (isApi) {
+    delete packageJson.dependencies.react;
+    delete packageJson.dependencies["react-dom"];
+    // We cannot delete `@types/react` now since it is used in
+    // route type definitions e.g. `.next/types/app/page.ts`.
+    // TODO(jiwon): Implement this when we added logic to
+    // auto-install `react` and `react-dom` if page.tsx was used.
+    // We can achieve this during verify-typescript stage and see
+    // if a type error was thrown at `distDir/types/app/page.ts`.
+    delete packageJson.devDependencies["@types/react-dom"];
+
+    delete packageJson.scripts.lint;
   }
 
   const devDeps = Object.keys(packageJson.devDependencies).length;

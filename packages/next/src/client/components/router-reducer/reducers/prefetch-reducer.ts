@@ -8,13 +8,11 @@ import {
   getOrCreatePrefetchCacheEntry,
   prunePrefetchCache,
 } from '../prefetch-cache-utils'
-
 export const prefetchQueue = new PromiseQueue(5)
 
-export const prefetchReducer =
-  process.env.__NEXT_PPR && process.env.__NEXT_CLIENT_SEGMENT_CACHE
-    ? identityReducerWhenSegmentCacheIsEnabled
-    : prefetchReducerImpl
+export const prefetchReducer = process.env.__NEXT_CLIENT_SEGMENT_CACHE
+  ? identityReducerWhenSegmentCacheIsEnabled
+  : prefetchReducerImpl
 
 function identityReducerWhenSegmentCacheIsEnabled<T>(state: T): T {
   // Unlike the old implementation, the Segment Cache doesn't store its data in

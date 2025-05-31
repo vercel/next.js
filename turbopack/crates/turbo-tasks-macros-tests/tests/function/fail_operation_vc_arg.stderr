@@ -1,0 +1,21 @@
+error[E0277]: the trait bound `Vc<i32>: NonLocalValue` is not satisfied
+ --> tests/function/fail_operation_vc_arg.rs:7:26
+  |
+7 | async fn multiply(value: Vc<i32>, coefficient: ResolvedVc<i32>) -> Result<Vc<i32>> {
+  |                          ^^^^^^^ the trait `NonLocalValue` is not implemented for `Vc<i32>`
+  |
+  = help: the following other types implement trait `NonLocalValue`:
+            &T
+            &mut T
+            ()
+            (A, Z, Y, X, W, V, U, T)
+            (B, A, Z, Y, X, W, V, U, T)
+            (C, B, A, Z, Y, X, W, V, U, T)
+            (D, C, B, A, Z, Y, X, W, V, U, T)
+            (E, D, C, B, A, Z, Y, X, W, V, U, T)
+          and $N others
+note: required by a bound in `assert_argument_is_non_local_value`
+ --> $WORKSPACE/turbopack/crates/turbo-tasks/src/macro_helpers.rs
+  |
+  | pub fn assert_argument_is_non_local_value<Argument: NonLocalValue>() {}
+  |                                                     ^^^^^^^^^^^^^ required by this bound in `assert_argument_is_non_local_value`

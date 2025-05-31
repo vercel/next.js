@@ -25,7 +25,7 @@ export function connection(): Promise<void> {
       !isRequestAPICallableInsideAfter()
     ) {
       throw new Error(
-        `Route ${workStore.route} used "connection" inside "unstable_after(...)". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual Request, but "unstable_after(...)" executes after the request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/canary/app/api-reference/functions/unstable_after`
+        `Route ${workStore.route} used "connection" inside "after(...)". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual Request, but "after(...)" executes after the request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/canary/app/api-reference/functions/after`
       )
     }
 
@@ -53,7 +53,10 @@ export function connection(): Promise<void> {
     }
 
     if (workUnitStore) {
-      if (workUnitStore.type === 'prerender') {
+      if (
+        workUnitStore.type === 'prerender' ||
+        workUnitStore.type === 'prerender-client'
+      ) {
         // dynamicIO Prerender
         // We return a promise that never resolves to allow the prender to stall at this point
         return makeHangingPromise(workUnitStore.renderSignal, '`connection()`')

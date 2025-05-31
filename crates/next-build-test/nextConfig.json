@@ -37,7 +37,6 @@
     "unoptimized": false
   },
   "devIndicators": {
-    "buildActivity": true,
     "buildActivityPosition": "bottom-right"
   },
   "onDemandEntries": {

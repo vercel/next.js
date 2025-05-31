@@ -1,4 +1,3 @@
-import React from 'react'
 import { fillCacheWithNewSubTreeData } from './fill-cache-with-new-subtree-data'
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 import type { NormalizedFlightData } from '../../flight-data-helpers'
@@ -10,8 +9,9 @@ const getFlightData = (): NormalizedFlightData[] => {
       segmentPath: ['children', 'linking', 'children', 'about'],
       segment: 'about',
       tree: ['about', { children: ['', {}] }],
-      seedData: ['about', <h1>SubTreeData Injected!</h1>, {}, null],
-      head: '<title>Head Injected!</title>',
+      seedData: ['about', <h1>SubTreeData Injected!</h1>, {}, null, false],
+      head: null,
+      isHeadPartial: false,
       isRootRender: false,
     },
   ]
@@ -20,6 +20,7 @@ const getFlightData = (): NormalizedFlightData[] => {
 describe('fillCacheWithNewSubtreeData', () => {
   it('should apply rsc and head property', () => {
     const cache: CacheNode = {
+      navigatedAt: -1,
       lazyData: null,
       rsc: null,
       prefetchRsc: null,
@@ -29,6 +30,7 @@ describe('fillCacheWithNewSubtreeData', () => {
       parallelRoutes: new Map(),
     }
     const existingCache: CacheNode = {
+      navigatedAt: -1,
       lazyData: null,
       rsc: <>Root layout</>,
       prefetchRsc: null,
@@ -42,6 +44,7 @@ describe('fillCacheWithNewSubtreeData', () => {
             [
               'linking',
               {
+                navigatedAt: -1,
                 lazyData: null,
                 rsc: <>Linking</>,
                 prefetchRsc: null,
@@ -55,6 +58,7 @@ describe('fillCacheWithNewSubtreeData', () => {
                       [
                         '',
                         {
+                          navigatedAt: -1,
                           lazyData: null,
                           rsc: <>Page</>,
                           prefetchRsc: null,
@@ -83,9 +87,16 @@ describe('fillCacheWithNewSubtreeData', () => {
     // Mirrors the way router-reducer values are passed in.
     const normalizedFlightData = flightData[0]
 
-    fillCacheWithNewSubTreeData(cache, existingCache, normalizedFlightData)
+    const navigatedAt = -1
+    fillCacheWithNewSubTreeData(
+      navigatedAt,
+      cache,
+      existingCache,
+      normalizedFlightData
+    )
 
     const expectedCache: CacheNode = {
+      navigatedAt: -1,
       lazyData: null,
       rsc: null,
       prefetchRsc: null,
@@ -99,6 +110,7 @@ describe('fillCacheWithNewSubtreeData', () => {
             [
               'linking',
               {
+                navigatedAt: -1,
                 lazyData: null,
                 rsc: <>Linking</>,
                 prefetchRsc: null,
@@ -113,6 +125,7 @@ describe('fillCacheWithNewSubtreeData', () => {
                       [
                         '',
                         {
+                          navigatedAt: -1,
                           lazyData: null,
                           rsc: <>Page</>,
                           prefetchRsc: null,
@@ -125,6 +138,7 @@ describe('fillCacheWithNewSubtreeData', () => {
                       [
                         'about',
                         {
+                          navigatedAt: -1,
                           lazyData: null,
                           head: null,
                           prefetchHead: null,
@@ -142,11 +156,7 @@ describe('fillCacheWithNewSubtreeData', () => {
                                     parallelRoutes: new Map(),
                                     prefetchHead: null,
                                     loading: null,
-                                    head: (
-                                      <>
-                                        <title>Head Injected!</title>
-                                      </>
-                                    ),
+                                    head: null,
                                   },
                                 ],
                               ]),

@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use swc_core::{
     common::DUMMY_SP,
     ecma::{
@@ -6,6 +6,7 @@ use swc_core::{
         visit::AstParentKind,
     },
 };
+use turbo_tasks::{NonLocalValue, trace::TraceRawVcs};
 use turbopack_core::{chunk::ModuleId, resolve::pattern::Pattern};
 
 use crate::analyzer::{
@@ -32,7 +33,7 @@ pub fn js_value_to_pattern(value: &JsValue) -> Pattern {
             ConstantValue::Null => "null".into(),
             ConstantValue::Num(ConstantNumber(n)) => n.to_string().into(),
             ConstantValue::BigInt(n) => n.to_string().into(),
-            ConstantValue::Regex(exp, flags) => format!("/{exp}/{flags}").into(),
+            ConstantValue::Regex(box (exp, flags)) => format!("/{exp}/{flags}").into(),
             ConstantValue::Undefined => "undefined".into(),
         }),
         JsValue::Url(v, JsValueUrlKind::Relative) => Pattern::Constant(v.as_str().into()),
@@ -78,6 +79,23 @@ pub fn module_id_to_lit(module_id: &ModuleId) -> Expr {
     })
 }
 
+pub struct StringifyModuleId<'a>(pub &'a ModuleId);
+
+impl std::fmt::Display for StringifyModuleId<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.0 {
+            ModuleId::Number(n) => {
+                if *n <= JS_MAX_SAFE_INTEGER {
+                    n.fmt(f)
+                } else {
+                    write!(f, "\"{n}\"")
+                }
+            }
+            ModuleId::String(s) => StringifyJs(s).fmt(f),
+        }
+    }
+}
+
 pub struct StringifyJs<'a, T>(pub &'a T)
 where
     T: ?Sized;
@@ -96,11 +114,8 @@ where
         impl std::io::Write for DisplayWriter<'_, '_> {
             fn write(&mut self, bytes: &[u8]) -> std::result::Result<usize, std::io::Error> {
                 self.f
-                    .write_str(
-                        std::str::from_utf8(bytes)
-                            .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?,
-                    )
-                    .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+                    .write_str(std::str::from_utf8(bytes).map_err(std::io::Error::other)?)
+                    .map_err(std::io::Error::other)?;
                 Ok(bytes.len())
             }
 
@@ -146,8 +161,7 @@ format_iter!(std::fmt::Pointer);
 format_iter!(std::fmt::UpperExp);
 format_iter!(std::fmt::UpperHex);
 
-#[turbo_tasks::value(shared, serialization = "none")]
-#[derive(Debug, Clone)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, Debug, NonLocalValue)]
 pub enum AstPathRange {
     /// The ast path to the block or expression.
     Exact(#[turbo_tasks(trace_ignore)] Vec<AstParentKind>),
@@ -170,7 +184,9 @@ pub fn module_value_to_well_known_object(module_value: &ModuleValue) -> Option<J
         }
         "node:os" | "os" => JsValue::WellKnownObject(WellKnownObjectKind::OsModule),
         "node:process" | "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
-        "@mapbox/node-pre-gyp" => JsValue::WellKnownObject(WellKnownObjectKind::NodePreGyp),
+        "node-pre-gyp" | "@mapbox/node-pre-gyp" => {
+            JsValue::WellKnownObject(WellKnownObjectKind::NodePreGyp)
+        }
         "node-gyp-build" => JsValue::WellKnownFunction(WellKnownFunctionKind::NodeGypBuild),
         "node:bindings" | "bindings" => {
             JsValue::WellKnownFunction(WellKnownFunctionKind::NodeBindings)

@@ -130,14 +130,10 @@ digestbytes = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-i = (0 | ???*0* | ((0 | ???*1* | ???*2*) + 16))
+i = (0 | ???*0* | (???*1* + 16))
 - *0* updated with update expression
   ⚠️  This value might have side effects
-- *1* updated with update expression
-  ⚠️  This value might have side effects
-- *2* (???*3* + 16)
-  ⚠️  nested operation
-- *3* i
+- *1* i
   ⚠️  circular variable reference
 
 isBuffer = module<is-buffer, {}>
@@ -174,81 +170,33 @@ message#11 = ???*0*
 
 message#4 = (
   | ???*0*
-  | module<charenc, {}>["bin"]["stringToBytes"]((???*1* | ???*2* | ???*4*))
-  | module<charenc, {}>["utf8"]["stringToBytes"]((???*8* | ???*9* | ???*11*))
-  | ???*15*
-  | ???*19*()
-  | ???*21*()
+  | module<charenc, {}>["bin"]["stringToBytes"](???*1*)
+  | module<charenc, {}>["utf8"]["stringToBytes"](???*2*)
+  | ???*3*
+  | ???*7*()
 )
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
-- *1* arguments[0]
-  ⚠️  function calls are not analysed yet
-- *2* module<charenc, {}>["bin"]["stringToBytes"](???*3*)
-  ⚠️  nested operation
-- *3* message
+- *1* message
   ⚠️  circular variable reference
-- *4* ???*5*["call"](message, 0)
-  ⚠️  unknown callee object
-  ⚠️  This value might have side effects
-- *5* ???*6*["slice"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *6* ???*7*["prototype"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *7* FreeVar(Array)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
-- *8* arguments[0]
-  ⚠️  function calls are not analysed yet
-- *9* module<charenc, {}>["bin"]["stringToBytes"](???*10*)
-  ⚠️  nested operation
-- *10* message
+- *2* message
   ⚠️  circular variable reference
-- *11* ???*12*["call"](message, 0)
+- *3* ???*4*["call"](message, 0)
   ⚠️  unknown callee object
   ⚠️  This value might have side effects
-- *12* ???*13*["slice"]
+- *4* ???*5*["slice"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *13* ???*14*["prototype"]
+- *5* ???*6*["prototype"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *14* FreeVar(Array)
+- *6* FreeVar(Array)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *15* ???*16*["call"](message, 0)
-  ⚠️  unknown callee object
-  ⚠️  This value might have side effects
-- *16* ???*17*["slice"]
+- *7* ???*8*["toString"]
   ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *17* ???*18*["prototype"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *18* FreeVar(Array)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
-- *19* ???*20*["toString"]
-  ⚠️  unknown object
-- *20* arguments[0]
-  ⚠️  function calls are not analysed yet
-- *21* ???*22*["toString"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *22* ???*23*["call"](message, 0)
-  ⚠️  unknown callee object
-  ⚠️  This value might have side effects
-- *23* ???*24*["slice"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *24* ???*25*["prototype"]
-  ⚠️  unknown object
-  ⚠️  This value might have side effects
-- *25* FreeVar(Array)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+- *8* message
+  ⚠️  circular variable reference
 
 n#10 = (???*0* + ???*1* + ???*2* + ???*3*)
 - *0* arguments[0]

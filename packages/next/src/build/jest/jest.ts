@@ -141,7 +141,7 @@ export default function nextJest(options: { dir?: string } = {}) {
           // Handle next/font
           'next/font/(.*)': require.resolve('./__mocks__/nextFontMock.js'),
           // Disable server-only
-          'server-only': require.resolve('./__mocks__/empty.js'),
+          '^server-only$': require.resolve('./__mocks__/empty.js'),
 
           // custom config comes last to ensure the above rules are matched,
           // fixes the case where @pages/(.*) -> src/pages/$! doesn't break

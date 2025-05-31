@@ -1,6 +1,6 @@
 # Items
 
-Count: 10
+Count: 9
 
 ## Item 1: Stmt 0, `VarDeclarator(0)`
 
@@ -133,13 +133,11 @@ graph TD
     Item5;
     Item6;
     Item7;
-    Item7["ModuleEvaluation"];
+    Item7["export addMessageListener"];
     Item8;
-    Item8["export addMessageListener"];
+    Item8["export sendMessage"];
     Item9;
-    Item9["export sendMessage"];
-    Item10;
-    Item10["export connectHMR"];
+    Item9["export connectHMR"];
 ```
 # Phase 2
 ```mermaid
@@ -151,16 +149,14 @@ graph TD
     Item5;
     Item6;
     Item7;
-    Item7["ModuleEvaluation"];
+    Item7["export addMessageListener"];
     Item8;
-    Item8["export addMessageListener"];
+    Item8["export sendMessage"];
     Item9;
-    Item9["export sendMessage"];
-    Item10;
-    Item10["export connectHMR"];
-    Item8 --> Item4;
-    Item9 --> Item5;
-    Item10 --> Item6;
+    Item9["export connectHMR"];
+    Item7 --> Item4;
+    Item8 --> Item5;
+    Item9 --> Item6;
 ```
 # Phase 3
 ```mermaid
@@ -172,16 +168,14 @@ graph TD
     Item5;
     Item6;
     Item7;
-    Item7["ModuleEvaluation"];
+    Item7["export addMessageListener"];
     Item8;
-    Item8["export addMessageListener"];
+    Item8["export sendMessage"];
     Item9;
-    Item9["export sendMessage"];
-    Item10;
-    Item10["export connectHMR"];
-    Item8 --> Item4;
-    Item9 --> Item5;
-    Item10 --> Item6;
+    Item9["export connectHMR"];
+    Item7 --> Item4;
+    Item8 --> Item5;
+    Item9 --> Item6;
     Item4 --> Item2;
     Item5 --> Item1;
     Item6 --> Item1;
@@ -198,16 +192,14 @@ graph TD
     Item5;
     Item6;
     Item7;
-    Item7["ModuleEvaluation"];
+    Item7["export addMessageListener"];
     Item8;
-    Item8["export addMessageListener"];
+    Item8["export sendMessage"];
     Item9;
-    Item9["export sendMessage"];
-    Item10;
-    Item10["export connectHMR"];
-    Item8 --> Item4;
-    Item9 --> Item5;
-    Item10 --> Item6;
+    Item9["export connectHMR"];
+    Item7 --> Item4;
+    Item8 --> Item5;
+    Item9 --> Item6;
     Item4 --> Item2;
     Item5 --> Item1;
     Item6 --> Item1;
@@ -222,7 +214,6 @@ graph TD
     N2["Items: [ItemId(2, Normal), ItemId(5, Normal), ItemId(Export((&quot;connectHMR&quot;, #2), &quot;connectHMR&quot;))]"];
     N3["Items: [ItemId(3, Normal), ItemId(Export((&quot;addMessageListener&quot;, #2), &quot;addMessageListener&quot;))]"];
     N4["Items: [ItemId(4, Normal), ItemId(Export((&quot;sendMessage&quot;, #2), &quot;sendMessage&quot;))]"];
-    N5["Items: [ItemId(ModuleEvaluation)]"];
     N4 --> N0;
     N2 --> N1;
     N2 --> N0;
@@ -232,17 +223,17 @@ graph TD
 
 ```
 {
-    Export(
-        "connectHMR",
-    ): 2,
-    ModuleEvaluation: 5,
+    ModuleEvaluation: 6,
     Export(
         "addMessageListener",
     ): 3,
-    Exports: 6,
+    Export(
+        "connectHMR",
+    ): 2,
     Export(
         "sendMessage",
     ): 4,
+    Exports: 5,
 }
 ```
 
@@ -360,11 +351,6 @@ export { sendMessage as f } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 5
 ```js
-"module evaluation";
-
-```
-## Part 6
-```js
 export { connectHMR } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export connectHMR"
 };
@@ -376,26 +362,31 @@ export { sendMessage } from "__TURBOPACK_PART__" assert {
 };
 
 ```
+## Part 6
+```js
+export { };
+
+```
 ## Merged (module eval)
 ```js
-"module evaluation";
+export { };
 
 ```
 # Entrypoints
 
 ```
 {
-    Export(
-        "connectHMR",
-    ): 2,
-    ModuleEvaluation: 5,
+    ModuleEvaluation: 6,
     Export(
         "addMessageListener",
     ): 3,
-    Exports: 6,
+    Export(
+        "connectHMR",
+    ): 2,
     Export(
         "sendMessage",
     ): 4,
+    Exports: 5,
 }
 ```
 
@@ -513,11 +504,6 @@ export { sendMessage as f } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 5
 ```js
-"module evaluation";
-
-```
-## Part 6
-```js
 export { connectHMR } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export connectHMR"
 };
@@ -529,8 +515,13 @@ export { sendMessage } from "__TURBOPACK_PART__" assert {
 };
 
 ```
+## Part 6
+```js
+export { };
+
+```
 ## Merged (module eval)
 ```js
-"module evaluation";
+export { };
 
 ```

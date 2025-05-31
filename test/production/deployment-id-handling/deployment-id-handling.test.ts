@@ -38,7 +38,7 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'CUSTOM_DEPLOYMENT_ID'])(
         expect(links.length).toBeGreaterThan(0)
 
         for (const link of links) {
-          if (link.attribs.href) {
+          if (link.attribs.href && link.attribs.rel !== 'expect') {
             if (link.attribs.as === 'font') {
               expect(link.attribs.href).not.toContain('dpl=' + deploymentId)
             } else {
@@ -83,6 +83,34 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'CUSTOM_DEPLOYMENT_ID'])(
         })
       }
     )
+
+    it('should contain deployment id in prefetch request', async () => {
+      const dataHeaders = []
+      const browser = await next.browser('/', {
+        beforePageLoad(page) {
+          page.on('request', async (req) => {
+            const headers = await req.allHeaders()
+            if (headers['x-nextjs-data']) {
+              dataHeaders.push(headers)
+            }
+          })
+        },
+      })
+
+      await browser.elementByCss('#edge-link').click()
+
+      await retry(async () => {
+        expect(await browser.elementByCss('h1').text()).toBe('hello pages edge')
+        expect(await browser.url()).toContain('/pages-edge')
+        expect(dataHeaders.length).toBeGreaterThan(0)
+      })
+
+      expect(
+        dataHeaders.every(
+          (headers) => headers['x-deployment-id'] === deploymentId
+        )
+      ).toBe(true)
+    })
 
     it('should contain deployment id in RSC payload request headers', async () => {
       const rscHeaders = []

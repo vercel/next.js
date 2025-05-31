@@ -3,7 +3,7 @@ use std::{collections::HashMap, fmt::Write, mem::take};
 use anyhow::Result;
 use serde_json::Value as JsonValue;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{fxindexset, ResolvedVc, Value, ValueDefault, Vc};
+use turbo_tasks::{ResolvedVc, Value, ValueDefault, Vc, fxindexset};
 use turbo_tasks_fs::{FileContent, FileJsonContent, FileSystemPath};
 use turbopack_core::{
     asset::Asset,
@@ -13,7 +13,7 @@ use turbopack_core::{
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     reference_type::{ReferenceType, TypeScriptReferenceSubType},
     resolve::{
-        handle_resolve_error,
+        AliasPattern, ModuleResolveResult, handle_resolve_error,
         node::node_cjs_resolve_options,
         options::{
             ConditionValue, ImportMap, ImportMapping, ResolveIntoPackage, ResolveModules,
@@ -22,7 +22,7 @@ use turbopack_core::{
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
         pattern::Pattern,
-        resolve, AliasPattern, ModuleResolveResult,
+        resolve,
     },
     source::{OptionSource, Source},
 };
@@ -38,7 +38,7 @@ pub struct TsConfigIssue {
 
 #[turbo_tasks::function]
 async fn json_only(resolve_options: Vc<ResolveOptions>) -> Result<Vc<ResolveOptions>> {
-    let mut opts = resolve_options.await?.clone_value();
+    let mut opts = resolve_options.owned().await?;
     opts.extensions = vec![".json".into()];
     Ok(opts.cell())
 }
@@ -69,14 +69,14 @@ pub async fn read_tsconfigs(
                     let text = content.content().to_str()?;
                     e.write_with_content(&mut message, text.as_ref())?;
                 } else {
-                    write!(message, "{}", e)?;
+                    write!(message, "{e}")?;
                 }
                 TsConfigIssue {
                     severity: IssueSeverity::Error.resolved_cell(),
                     source_ident: tsconfig.ident().to_resolved().await?,
                     message: message.into(),
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
             }
             FileJsonContent::NotFound => {
@@ -85,7 +85,7 @@ pub async fn read_tsconfigs(
                     source_ident: tsconfig.ident().to_resolved().await?,
                     message: "tsconfig not found".into(),
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
             }
             FileJsonContent::Content(json) => {
@@ -100,10 +100,10 @@ pub async fn read_tsconfigs(
                         TsConfigIssue {
                             severity: IssueSeverity::Error.resolved_cell(),
                             source_ident: tsconfig.ident().to_resolved().await?,
-                            message: format!("extends: \"{}\" doesn't resolve correctly", extends)
+                            message: format!("extends: \"{extends}\" doesn't resolve correctly")
                                 .into(),
                         }
-                        .cell()
+                        .resolved_cell()
                         .emit();
                     }
                 }
@@ -308,7 +308,7 @@ pub async fn tsconfig_resolve_options(
                             )
                             .into(),
                         }
-                        .cell()
+                        .resolved_cell()
                         .emit()
                     }
                 }
@@ -353,7 +353,7 @@ pub async fn apply_tsconfig_resolve_options(
     tsconfig_resolve_options: Vc<TsConfigResolveOptions>,
 ) -> Result<Vc<ResolveOptions>> {
     let tsconfig_resolve_options = tsconfig_resolve_options.await?;
-    let mut resolve_options = resolve_options.await?.clone_value();
+    let mut resolve_options = resolve_options.owned().await?;
     if let Some(base_url) = tsconfig_resolve_options.base_url {
         // We want to resolve in `compilerOptions.baseUrl` first, then in other
         // locations as a fallback.
@@ -465,9 +465,8 @@ pub async fn type_resolve(
 
 #[turbo_tasks::function]
 pub async fn as_typings_result(result: Vc<ModuleResolveResult>) -> Result<Vc<ModuleResolveResult>> {
-    let mut result = result.await?.clone_value();
-    result.primary = take(&mut result.primary)
-        .into_iter()
+    let mut result = result.owned().await?;
+    result.primary = IntoIterator::into_iter(take(&mut result.primary))
         .map(|(mut k, v)| {
             k.conditions.insert("types".to_string(), true);
             (k, v)
@@ -480,7 +479,7 @@ pub async fn as_typings_result(result: Vc<ModuleResolveResult>) -> Result<Vc<Mod
 async fn apply_typescript_types_options(
     resolve_options: Vc<ResolveOptions>,
 ) -> Result<Vc<ResolveOptions>> {
-    let mut resolve_options = resolve_options.await?.clone_value();
+    let mut resolve_options = resolve_options.owned().await?;
     resolve_options.extensions = vec![".tsx".into(), ".ts".into(), ".d.ts".into()];
     resolve_options.into_package = resolve_options
         .into_package
@@ -531,7 +530,9 @@ impl Issue for TsConfigIssue {
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(StyledString::Text(self.message.clone()).cell()))
+        Vc::cell(Some(
+            StyledString::Text(self.message.clone()).resolved_cell(),
+        ))
     }
 
     #[turbo_tasks::function]

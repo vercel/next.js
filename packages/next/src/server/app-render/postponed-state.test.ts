@@ -1,5 +1,8 @@
 import { createPrerenderResumeDataCache } from '../resume-data-cache/resume-data-cache'
-import { streamFromString } from '../stream-utils/node-web-streams-helper'
+import {
+  streamFromString,
+  streamToString,
+} from '../stream-utils/node-web-streams-helper'
 import {
   DynamicState,
   getDynamicDataPostponedState,
@@ -31,9 +34,32 @@ describe('getDynamicHTMLPostponedState', () => {
       prerenderResumeDataCache
     )
 
-    expect(state).toMatchInlineSnapshot(
-      `"169:39[["slug","%%drp:slug:e9615126684e5%%"]]{"%%drp:slug:e9615126684e5%%":"%%drp:slug:e9615126684e5%%","nested":{"%%drp:slug:e9615126684e5%%":"%%drp:slug:e9615126684e5%%"}}{"store":{"fetch":{},"cache":{"1":{"value":"aGVsbG8=","tags":[],"stale":0,"timestamp":0,"expire":0,"revalidate":0}}}}"`
-    )
+    const parsed = parsePostponedState(state, { slug: '123' })
+    expect(parsed).toMatchInlineSnapshot(`
+     {
+       "data": {
+         "123": "123",
+         "nested": {
+           "123": "123",
+         },
+       },
+       "renderResumeDataCache": {
+         "cache": Map {
+           "1" => Promise {},
+         },
+         "decryptedBoundArgs": Map {},
+         "encryptedBoundArgs": Map {},
+         "fetch": Map {},
+       },
+       "type": 2,
+     }
+    `)
+
+    const value = await parsed.renderResumeDataCache.cache.get('1')
+
+    expect(value).toBeDefined()
+
+    await expect(streamToString(value!.value)).resolves.toEqual('hello')
   })
 
   it('serializes a HTML postponed state without fallback params', async () => {

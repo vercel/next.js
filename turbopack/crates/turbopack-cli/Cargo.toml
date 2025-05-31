@@ -2,8 +2,8 @@
 name = "turbopack-cli"
 version = "0.1.0"
 description = "TBD"
-license = "MPL-2.0"
-edition = "2021"
+license = "MIT"
+edition = "2024"
 autobenches = false
 
 [[bin]]
@@ -16,6 +16,10 @@ bench = false
 
 [[bench]]
 name = "mod"
+harness = false
+
+[[bench]]
+name = "small_apps"
 harness = false
 
 [features]
@@ -40,16 +44,18 @@ dunce = { workspace = true }
 futures = { workspace = true }
 mime = { workspace = true }
 owo-colors = { workspace = true }
+rustc-hash = { workspace = true }
 serde = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
-tracing-subscriber = { workspace = true, features = ["env-filter", "json"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["json"] }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
+turbo-tasks-backend = { workspace = true }
 turbo-tasks-env = { workspace = true }
 turbo-tasks-fetch = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbo-tasks-malloc = { workspace = true, default-features = false }
-turbo-tasks-memory = { workspace = true }
 turbopack = { workspace = true }
 turbopack-browser = { workspace = true }
 turbopack-cli-utils = { workspace = true }

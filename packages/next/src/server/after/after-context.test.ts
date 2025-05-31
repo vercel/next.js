@@ -16,7 +16,7 @@ describe('AfterContext', () => {
   let workAsyncStorage: WASMod['workAsyncStorage']
   let workUnitAsyncStorage: WSMod['workUnitAsyncStorage']
   let AfterContext: AfterContextMod['AfterContext']
-  let after: AfterMod['unstable_after']
+  let after: AfterMod['after']
 
   beforeAll(async () => {
     // @ts-expect-error
@@ -32,7 +32,7 @@ describe('AfterContext', () => {
     AfterContext = AfterContextMod.AfterContext
 
     const AfterMod = await import('./after')
-    after = AfterMod.unstable_after
+    after = AfterMod.after
   })
 
   const createRun =
@@ -53,7 +53,6 @@ describe('AfterContext', () => {
     })
 
     const afterContext = new AfterContext({
-      isEnabled: true,
       waitUntil,
       onClose,
       onTaskError: undefined,
@@ -121,7 +120,6 @@ describe('AfterContext', () => {
     })
 
     const afterContext = new AfterContext({
-      isEnabled: true,
       waitUntil,
       onClose,
       onTaskError: undefined,
@@ -170,7 +168,6 @@ describe('AfterContext', () => {
     })
 
     const afterContext = new AfterContext({
-      isEnabled: true,
       waitUntil,
       onClose,
       onTaskError: undefined,
@@ -262,7 +259,6 @@ describe('AfterContext', () => {
     })
 
     const afterContext = new AfterContext({
-      isEnabled: true,
       waitUntil,
       onClose,
       onTaskError: undefined,
@@ -323,7 +319,6 @@ describe('AfterContext', () => {
     })
 
     const afterContext = new AfterContext({
-      isEnabled: true,
       waitUntil,
       onClose,
       onTaskError: undefined,
@@ -364,7 +359,6 @@ describe('AfterContext', () => {
     const onTaskError = jest.fn()
 
     const afterContext = new AfterContext({
-      isEnabled: true,
       waitUntil,
       onClose,
       onTaskError,
@@ -428,7 +422,6 @@ describe('AfterContext', () => {
     const onClose = jest.fn()
 
     const afterContext = new AfterContext({
-      isEnabled: true,
       waitUntil,
       onClose,
       onTaskError: undefined,
@@ -461,7 +454,6 @@ describe('AfterContext', () => {
     })
 
     const afterContext = new AfterContext({
-      isEnabled: true,
       waitUntil,
       onClose,
       onTaskError: undefined,
@@ -507,7 +499,6 @@ describe('AfterContext', () => {
     })
 
     const afterContext = new AfterContext({
-      isEnabled: true,
       waitUntil,
       onClose,
       onTaskError: undefined,
@@ -551,7 +542,7 @@ const createMockWorkStore = (afterContext: AfterContext): WorkStore => {
     forceDynamic: false,
     dynamicShouldError: false,
     isStaticGeneration: false,
-    revalidatedTags: [],
+    pendingRevalidatedTags: [],
     pendingRevalidates: undefined,
     pendingRevalidateWrites: undefined,
     incrementalCache: undefined,

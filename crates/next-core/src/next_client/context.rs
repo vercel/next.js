@@ -2,28 +2,35 @@ use std::iter::once;
 
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ResolvedVc, Value, Vc};
+use turbo_tasks::{FxIndexMap, OptionVcExt, ResolvedVc, Value, Vc};
 use turbo_tasks_env::EnvMap;
-use turbo_tasks_fs::{FileSystem, FileSystemPath};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
+    css::chunk::CssChunkType,
     module_options::{
-        module_options_context::ModuleOptionsContext, CssOptionsContext, EcmascriptOptionsContext,
-        JsxTransformOptions, ModuleRule, TypeofWindow, TypescriptTransformOptions,
+        CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleRule, TypeofWindow,
+        TypescriptTransformOptions, module_options_context::ModuleOptionsContext,
     },
     resolve_options_context::ResolveOptionsContext,
 };
-use turbopack_browser::{react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext};
+use turbopack_browser::{
+    BrowserChunkingContext, ContentHashing, CurrentChunkMethod,
+    react_refresh::assert_can_resolve_react_refresh,
+};
 use turbopack_core::{
-    chunk::{module_id_strategies::ModuleIdStrategy, ChunkingContext, MinifyType},
+    chunk::{
+        ChunkingConfig, ChunkingContext, MangleType, MinifyType, SourceMapsType,
+        module_id_strategies::ModuleIdStrategy,
+    },
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
         FreeVarReference, FreeVarReferences,
     },
-    condition::ContextCondition,
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
     free_var_references,
     resolve::{parse::Request, pattern::Pattern},
 };
+use turbopack_ecmascript::chunk::EcmascriptChunkType;
 use turbopack_node::{
     execution_context::ExecutionContext,
     transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
@@ -31,7 +38,6 @@ use turbopack_node::{
 
 use super::transforms::get_next_client_transforms_rules;
 use crate::{
-    embed_js::next_js_fs,
     mode::NextMode,
     next_build::get_postcss_package_mapping,
     next_client::runtime_entry::{RuntimeEntries, RuntimeEntry},
@@ -43,8 +49,8 @@ use crate::{
     },
     next_shared::{
         resolve::{
-            get_invalid_server_only_resolve_plugin, ModuleFeatureReportResolvePlugin,
-            NextSharedRuntimeResolvePlugin,
+            ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin,
+            get_invalid_server_only_resolve_plugin,
         },
         transforms::{
             emotion::get_emotion_transform_rule,
@@ -60,7 +66,7 @@ use crate::{
         get_decorators_transform_options, get_jsx_transform_options,
         get_typescript_transform_options,
     },
-    util::foreign_code_context_condition,
+    util::{foreign_code_context_condition, internal_assets_conditions},
 };
 
 fn defines(define_env: &FxIndexMap<RcStr, RcStr>) -> CompileTimeDefines {
@@ -166,7 +172,7 @@ pub async fn get_client_resolve_options_context(
             .to_resolved()
             .await?;
     let custom_conditions = vec![mode.await?.condition().into()];
-    let module_options_context = ResolveOptionsContext {
+    let resolve_options_context = ResolveOptionsContext {
         enable_node_modules: Some(project_path.root().to_resolved().await?),
         custom_conditions,
         import_map: Some(next_client_import_map),
@@ -198,26 +204,26 @@ pub async fn get_client_resolve_options_context(
         )],
         ..Default::default()
     };
+
     Ok(ResolveOptionsContext {
         enable_typescript: true,
         enable_react: true,
         enable_mjs_extension: true,
-        custom_extensions: next_config.resolve_extension().await?.clone_value(),
+        custom_extensions: next_config.resolve_extension().owned().await?,
+        tsconfig_path: next_config
+            .typescript_tsconfig_path()
+            .await?
+            .as_ref()
+            .map(|p| project_path.join(p.to_owned()))
+            .to_resolved()
+            .await?,
         rules: vec![(
             foreign_code_context_condition(next_config, project_path).await?,
-            module_options_context.clone().resolved_cell(),
+            resolve_options_context.clone().resolved_cell(),
         )],
-        ..module_options_context
+        ..resolve_options_context
     }
     .cell())
-}
-
-fn internal_assets_conditions() -> ContextCondition {
-    ContextCondition::any(vec![
-        ContextCondition::InPath(next_js_fs().root()),
-        ContextCondition::InPath(turbopack_ecmascript_runtime::embed_fs().root()),
-        ContextCondition::InPath(turbopack_node::embed_js::embed_fs().root()),
-    ])
 }
 
 #[turbo_tasks::function]
@@ -228,6 +234,8 @@ pub async fn get_client_module_options_context(
     ty: Value<ClientContextType>,
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
+    encryption_key: ResolvedVc<RcStr>,
+    no_mangling: Vc<bool>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let next_mode = mode.await?;
     let resolve_options_context = get_client_resolve_options_context(
@@ -283,9 +291,11 @@ pub async fn get_client_module_options_context(
     let target_browsers = env.runtime_versions();
 
     let mut next_client_rules =
-        get_next_client_transforms_rules(next_config, ty.into_value(), mode, false).await?;
+        get_next_client_transforms_rules(next_config, ty.into_value(), mode, false, encryption_key)
+            .await?;
     let foreign_next_client_rules =
-        get_next_client_transforms_rules(next_config, ty.into_value(), mode, true).await?;
+        get_next_client_transforms_rules(next_config, ty.into_value(), mode, true, encryption_key)
+            .await?;
     let additional_rules: Vec<ModuleRule> = vec![
         get_swc_ecma_transform_plugin_rule(next_config, project_path).await?,
         get_relay_transform_rule(next_config, project_path).await?,
@@ -319,16 +329,27 @@ pub async fn get_client_module_options_context(
     let enable_postcss_transform = Some(postcss_transform_options.resolved_cell());
     let enable_foreign_postcss_transform = Some(postcss_foreign_transform_options.resolved_cell());
 
+    let source_maps = if *next_config.client_source_maps(mode).await? {
+        SourceMapsType::Full
+    } else {
+        SourceMapsType::None
+    };
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
             enable_typeof_window_inlining: Some(TypeofWindow::Object),
+            source_maps,
+            ..Default::default()
+        },
+        css: CssOptionsContext {
+            source_maps,
             ..Default::default()
         },
         preset_env_versions: Some(env),
         execution_context: Some(execution_context),
         tree_shaking_mode: tree_shaking_mode_for_user_code,
         enable_postcss_transform,
-        side_effect_free_packages: next_config.optimize_package_imports().await?.clone_value(),
+        side_effect_free_packages: next_config.optimize_package_imports().owned().await?,
+        keep_last_successful_parse: next_mode.is_development(),
         ..Default::default()
     };
 
@@ -336,6 +357,8 @@ pub async fn get_client_module_options_context(
     let foreign_codes_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
             enable_typeof_window_inlining: None,
+            // Ignore e.g. import(`${url}`) requests in node_modules.
+            ignore_dynamic_requests: true,
             ..module_options_context.ecmascript
         },
         enable_webpack_loaders: foreign_enable_webpack_loaders,
@@ -372,7 +395,9 @@ pub async fn get_client_module_options_context(
         enable_mdx_rs,
         css: CssOptionsContext {
             minify_type: if *next_config.turbo_minify(mode).await? {
-                MinifyType::Minify
+                MinifyType::Minify {
+                    mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),
+                }
             } else {
                 MinifyType::NoMinify
             },
@@ -384,7 +409,7 @@ pub async fn get_client_module_options_context(
                 foreign_codes_options_context.resolved_cell(),
             ),
             (
-                internal_assets_conditions(),
+                internal_assets_conditions().await?,
                 internal_context.resolved_cell(),
             ),
         ],
@@ -398,18 +423,23 @@ pub async fn get_client_module_options_context(
 
 #[turbo_tasks::function]
 pub async fn get_client_chunking_context(
-    project_path: ResolvedVc<FileSystemPath>,
+    root_path: ResolvedVc<FileSystemPath>,
     client_root: ResolvedVc<FileSystemPath>,
+    client_root_to_root_path: ResolvedVc<RcStr>,
     asset_prefix: ResolvedVc<Option<RcStr>>,
+    chunk_suffix_path: ResolvedVc<Option<RcStr>>,
     environment: ResolvedVc<Environment>,
     mode: Vc<NextMode>,
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
-    turbo_minify: Vc<bool>,
+    minify: Vc<bool>,
+    source_maps: Vc<bool>,
+    no_mangling: Vc<bool>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
     let next_mode = mode.await?;
     let mut builder = BrowserChunkingContext::builder(
-        project_path,
+        root_path,
         client_root,
+        client_root_to_root_path,
         client_root,
         client_root
             .join("static/chunks".into())
@@ -420,16 +450,43 @@ pub async fn get_client_chunking_context(
         next_mode.runtime_type(),
     )
     .chunk_base_path(asset_prefix)
-    .minify_type(if *turbo_minify.await? {
-        MinifyType::Minify
+    .chunk_suffix_path(chunk_suffix_path)
+    .minify_type(if *minify.await? {
+        MinifyType::Minify {
+            mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),
+        }
     } else {
         MinifyType::NoMinify
     })
+    .source_maps(if *source_maps.await? {
+        SourceMapsType::Full
+    } else {
+        SourceMapsType::None
+    })
     .asset_base_path(asset_prefix)
+    .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
     .module_id_strategy(module_id_strategy);
 
     if next_mode.is_development() {
         builder = builder.hot_module_replacement().use_file_source_map_uris();
+    } else {
+        builder = builder.chunking_config(
+            Vc::<EcmascriptChunkType>::default().to_resolved().await?,
+            ChunkingConfig {
+                min_chunk_size: 50_000,
+                max_chunk_count_per_group: 40,
+                max_merge_chunk_size: 200_000,
+                ..Default::default()
+            },
+        );
+        builder = builder.chunking_config(
+            Vc::<CssChunkType>::default().to_resolved().await?,
+            ChunkingConfig {
+                max_merge_chunk_size: 100_000,
+                ..Default::default()
+            },
+        );
+        builder = builder.use_content_hashing(ContentHashing::Direct { length: 16 })
     }
 
     Ok(Vc::upcast(builder.build()))

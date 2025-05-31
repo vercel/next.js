@@ -29,7 +29,7 @@ import { ImageConfigContext } from '../shared/lib/image-config-context.shared-ru
 import { warnOnce } from '../shared/lib/utils/warn-once'
 import { RouterContext } from '../shared/lib/router-context.shared-runtime'
 
-// @ts-ignore - This is replaced by webpack alias
+// This is replaced by webpack alias
 import defaultLoader from 'next/dist/shared/lib/image-loader'
 import { useMergedRef } from './use-merged-ref'
 
@@ -371,7 +371,8 @@ export const Image = forwardRef<HTMLImageElement | null, ImageProps>(
       const c = configEnv || configContext || imageConfigDefault
       const allSizes = [...c.deviceSizes, ...c.imageSizes].sort((a, b) => a - b)
       const deviceSizes = c.deviceSizes.sort((a, b) => a - b)
-      return { ...c, allSizes, deviceSizes }
+      const qualities = c.qualities?.sort((a, b) => a - b)
+      return { ...c, allSizes, deviceSizes, qualities }
     }, [configContext])
 
     const { onLoad, onLoadingComplete } = props

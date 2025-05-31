@@ -1,21 +1,18 @@
-use std::{
-    collections::{hash_map::Entry, HashMap},
-    hash::Hash,
-    marker::PhantomData,
-};
+use std::{collections::hash_map::Entry, hash::Hash, marker::PhantomData};
 
 use parking_lot::Mutex;
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use turbo_tasks::event::Event;
 
 pub struct MutexMap<K> {
-    map: Mutex<HashMap<K, Option<(Event, usize)>>>,
+    map: Mutex<FxHashMap<K, Option<(Event, usize)>>>,
 }
 
 impl<K> Default for MutexMap<K> {
     fn default() -> Self {
         Self {
-            map: Mutex::new(HashMap::new()),
+            map: Mutex::new(FxHashMap::default()),
         }
     }
 }

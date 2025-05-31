@@ -1,15 +1,13 @@
-use std::collections::{HashMap, HashSet};
-
 use serde_json::{Map, Number, Value};
 use swc_core::{
+    atoms::Atom,
     common::{Mark, SyntaxContext},
     ecma::{
         ast::{
-            BindingIdent, Decl, ExportDecl, Expr, Lit, ModuleDecl, ModuleItem, Pat, Prop, PropName,
-            PropOrSpread, VarDecl, VarDeclKind, VarDeclarator,
+            BindingIdent, Decl, ExportDecl, Expr, Lit, Module, ModuleDecl, ModuleItem, Pat,
+            Program, Prop, PropName, PropOrSpread, VarDecl, VarDeclKind, VarDeclarator,
         },
         utils::{ExprCtx, ExprExt},
-        visit::{Visit, VisitWith},
     },
 };
 
@@ -21,30 +19,36 @@ pub enum Const {
     Unsupported(String),
 }
 
-pub(crate) struct CollectExportedConstVisitor {
-    pub properties: HashMap<String, Option<Const>>,
+pub(crate) struct CollectExportedConstVisitor<'a, M>
+where
+    M: GetMut<Atom, Option<Const>>,
+{
+    pub properties: &'a mut M,
     expr_ctx: ExprCtx,
 }
 
-impl CollectExportedConstVisitor {
-    pub fn new(properties_to_extract: HashSet<String>) -> Self {
+impl<'a, M> CollectExportedConstVisitor<'a, M>
+where
+    M: GetMut<Atom, Option<Const>>,
+{
+    pub fn new(properties: &'a mut M) -> Self {
         Self {
-            properties: properties_to_extract
-                .into_iter()
-                .map(|p| (p, None))
-                .collect(),
+            properties,
             expr_ctx: ExprCtx {
                 unresolved_ctxt: SyntaxContext::empty().apply_mark(Mark::new()),
                 is_unresolved_ref_safe: false,
                 in_strict: false,
+                remaining_depth: 4,
             },
         }
     }
-}
 
-impl Visit for CollectExportedConstVisitor {
-    fn visit_module_items(&mut self, module_items: &[ModuleItem]) {
-        for module_item in module_items {
+    pub fn check_program(&mut self, program: &Program) {
+        let Program::Module(Module { body, .. }) = program else {
+            return;
+        };
+
+        for module_item in body {
             if let ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
                 decl: Decl::Var(decl),
                 ..
@@ -59,22 +63,24 @@ impl Visit for CollectExportedConstVisitor {
                             ..
                         } = decl
                         {
-                            let id = id.sym.as_ref();
+                            let id = &id.sym;
                             if let Some(prop) = self.properties.get_mut(id) {
-                                *prop = extract_value(&self.expr_ctx, init, id.to_string());
+                                *prop = extract_value(self.expr_ctx, init, id.to_string());
                             };
                         }
                     }
                 }
             }
         }
-
-        module_items.visit_children_with(self);
     }
 }
 
+pub trait GetMut<K, V> {
+    fn get_mut(&mut self, key: &K) -> Option<&mut V>;
+}
+
 /// Coerece the actual value of the given ast node.
-fn extract_value(ctx: &ExprCtx, init: &Expr, id: String) -> Option<Const> {
+fn extract_value(ctx: ExprCtx, init: &Expr, id: String) -> Option<Const> {
     match init {
         init if init.is_undefined(ctx) => Some(Const::Value(Value::Null)),
         Expr::Ident(ident) => Some(Const::Unsupported(format!(

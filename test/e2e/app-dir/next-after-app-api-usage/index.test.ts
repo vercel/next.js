@@ -2,7 +2,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
-describe('nextjs APIs in unstable_after()', () => {
+describe('nextjs APIs in after()', () => {
   const { next, skipped, isNextDev } = nextTestSetup({
     files: __dirname,
     skipStart: true,
@@ -36,7 +36,7 @@ describe('nextjs APIs in unstable_after()', () => {
     await next.start()
   })
 
-  describe('request APIs inside unstable_after()', () => {
+  describe('request APIs inside after()', () => {
     // TODO(after): test unawaited calls, like this
     //
     // export default function Page() {
@@ -55,32 +55,32 @@ describe('nextjs APIs in unstable_after()', () => {
 
         expect(logs).not.toContain(`[${path}] headers(): ok`)
         expect(logs).toContain(
-          `[${path}] headers(): error: Error: Route ${path} used "headers" inside "unstable_after(...)". This is not supported.`
+          `[${path}] headers(): error: Error: Route ${path} used "headers" inside "after(...)". This is not supported.`
         )
 
         expect(logs).not.toContain(`[${path}] nested headers(): ok`)
         expect(logs).toContain(
-          `[${path}] nested headers(): error: Error: Route ${path} used "headers" inside "unstable_after(...)". This is not supported.`
+          `[${path}] nested headers(): error: Error: Route ${path} used "headers" inside "after(...)". This is not supported.`
         )
 
         expect(logs).not.toContain(`[${path}] cookies(): ok`)
         expect(logs).toContain(
-          `[${path}] cookies(): error: Error: Route ${path} used "cookies" inside "unstable_after(...)". This is not supported.`
+          `[${path}] cookies(): error: Error: Route ${path} used "cookies" inside "after(...)". This is not supported.`
         )
 
         expect(logs).not.toContain(`[${path}] nested cookies(): ok`)
         expect(logs).toContain(
-          `[${path}] nested cookies(): error: Error: Route ${path} used "cookies" inside "unstable_after(...)". This is not supported.`
+          `[${path}] nested cookies(): error: Error: Route ${path} used "cookies" inside "after(...)". This is not supported.`
         )
 
         expect(logs).not.toContain(`[${path}] connection(): ok`)
         expect(logs).toContain(
-          `[${path}] connection(): error: Error: Route ${path} used "connection" inside "unstable_after(...)".`
+          `[${path}] connection(): error: Error: Route ${path} used "connection" inside "after(...)".`
         )
 
         expect(logs).not.toContain(`[${path}] nested connection(): ok`)
         expect(logs).toContain(
-          `[${path}] nested connection(): error: Error: Route ${path} used "connection" inside "unstable_after(...)".`
+          `[${path}] nested connection(): error: Error: Route ${path} used "connection" inside "after(...)".`
         )
       })
     })
@@ -102,32 +102,32 @@ describe('nextjs APIs in unstable_after()', () => {
 
           expect(logs).not.toContain(`[${path}] headers(): ok`)
           expect(logs).toContain(
-            `[${path}] headers(): error: Error: Route ${path} used "headers" inside "unstable_after(...)". This is not supported.`
+            `[${path}] headers(): error: Error: Route ${path} used "headers" inside "after(...)". This is not supported.`
           )
 
           expect(logs).not.toContain(`[${path}] nested headers(): ok`)
           expect(logs).toContain(
-            `[${path}] nested headers(): error: Error: Route ${path} used "headers" inside "unstable_after(...)". This is not supported.`
+            `[${path}] nested headers(): error: Error: Route ${path} used "headers" inside "after(...)". This is not supported.`
           )
 
           expect(logs).not.toContain(`[${path}] cookies(): ok`)
           expect(logs).toContain(
-            `[${path}] cookies(): error: Error: Route ${path} used "cookies" inside "unstable_after(...)". This is not supported.`
+            `[${path}] cookies(): error: Error: Route ${path} used "cookies" inside "after(...)". This is not supported.`
           )
 
           expect(logs).not.toContain(`[${path}] nested cookies(): ok`)
           expect(logs).toContain(
-            `[${path}] nested cookies(): error: Error: Route ${path} used "cookies" inside "unstable_after(...)". This is not supported.`
+            `[${path}] nested cookies(): error: Error: Route ${path} used "cookies" inside "after(...)". This is not supported.`
           )
 
           expect(logs).not.toContain(`[${path}] connection(): ok`)
           expect(logs).toContain(
-            `[${path}] connection(): error: Error: Route ${path} used "connection" inside "unstable_after(...)".`
+            `[${path}] connection(): error: Error: Route ${path} used "connection" inside "after(...)".`
           )
 
           expect(logs).not.toContain(`[${path}] nested connection(): ok`)
           expect(logs).toContain(
-            `[${path}] nested connection(): error: Error: Route ${path} used "connection" inside "unstable_after(...)".`
+            `[${path}] nested connection(): error: Error: Route ${path} used "connection" inside "after(...)".`
           )
         })
       })
@@ -250,10 +250,10 @@ describe('nextjs APIs in unstable_after()', () => {
         const logs = isDynamic || isNextDev ? getLogs() : buildLogs
         expect(logs).toContain(`[${path}] draft.isEnabled: false`)
         expect(logs).toContain(
-          `Route ${path} used "draftMode().enable()" inside \`unstable_after\``
+          `Route ${path} used "draftMode().enable()" inside \`after\``
         )
         expect(logs).toContain(
-          `Route ${path} used "draftMode().disable()" inside \`unstable_after\``
+          `Route ${path} used "draftMode().disable()" inside \`after\``
         )
       })
     })
@@ -266,10 +266,10 @@ describe('nextjs APIs in unstable_after()', () => {
         const logs = getLogs()
         expect(logs).toContain(`[${path}] draft.isEnabled: false`)
         expect(logs).toContain(
-          `Route ${path} used "draftMode().enable()" inside \`unstable_after\``
+          `Route ${path} used "draftMode().enable()" inside \`after\``
         )
         expect(logs).toContain(
-          `Route ${path} used "draftMode().disable()" inside \`unstable_after\``
+          `Route ${path} used "draftMode().disable()" inside \`after\``
         )
       })
     })

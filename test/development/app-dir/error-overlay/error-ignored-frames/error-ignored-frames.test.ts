@@ -6,46 +6,25 @@ import {
 } from 'next-test-utils'
 
 describe('error-ignored-frames', () => {
-  const { next } = nextTestSetup({
+  const { isTurbopack, next } = nextTestSetup({
     files: __dirname,
   })
-
-  if (
-    // TODO: remove this when reactOwnerStack is enabled by default
-    // Since PPR mode is just going to add owner stack, skip this test for now
-    process.env.__NEXT_EXPERIMENTAL_PPR === 'true' ||
-    // Skip react 18 test as the call stacks are different
-    process.env.NEXT_TEST_REACT_VERSION === '18.3.1'
-  ) {
-    it('skip test', () => {})
-    return
-  }
 
   it('should be able to collapse ignored frames in server component', async () => {
     const browser = await next.browser('/')
     await assertHasRedbox(browser)
 
     const defaultStack = await getStackFramesContent(browser)
-    expect(defaultStack).toMatchInlineSnapshot(`""`)
+    expect(defaultStack).toMatchInlineSnapshot(`"at Page (app/page.tsx (2:9))"`)
 
     await toggleCollapseCallStackFrames(browser)
 
-    const expendedStack = await getStackFramesContent(browser)
-    if (process.env.TURBOPACK) {
-      expect(expendedStack).toMatchInlineSnapshot(`
-        "at resolveErrorDev ()
-        at processFullStringRow ()
-        at processFullBinaryRow ()
-        at progress ()"
-      `)
-    } else {
-      expect(expendedStack).toMatchInlineSnapshot(`
-        "at resolveErrorDev ()
-        at processFullStringRow ()
-        at processFullBinaryRow ()
-        at progress ()"
-      `)
-    }
+    const expandedStack = await getStackFramesContent(browser)
+    const ignoreListedStack = expandedStack.replace(defaultStack, '')
+    // We don't care about the exact stack trace that was ignore-listed.
+    // It'll contain implementation details that may change and
+    // shouldn't break this test.
+    expect(ignoreListedStack.trim()).toMatch(/at .*/)
   })
 
   it('should be able to collapse ignored frames in client component', async () => {
@@ -53,40 +32,18 @@ describe('error-ignored-frames', () => {
     await assertHasRedbox(browser)
 
     const defaultStack = await getStackFramesContent(browser)
-    expect(defaultStack).toMatchInlineSnapshot(`""`)
+    expect(defaultStack).toMatchInlineSnapshot(
+      `"at Page (app/client/page.tsx (4:9))"`
+    )
 
     await toggleCollapseCallStackFrames(browser)
 
-    const expendedStack = await getStackFramesContent(browser)
-    if (process.env.TURBOPACK) {
-      expect(expendedStack).toMatchInlineSnapshot(`
-        "at react-stack-bottom-frame ()
-        at renderWithHooks ()
-        at updateFunctionComponent ()
-        at beginWork ()
-        at runWithFiberInDEV ()
-        at performUnitOfWork ()
-        at workLoopSync ()
-        at renderRootSync ()
-        at performWorkOnRoot ()
-        at performWorkOnRootViaSchedulerTask ()
-        at MessagePort.performWorkUntilDeadline ()"
-      `)
-    } else {
-      expect(expendedStack).toMatchInlineSnapshot(`
-        "at react-stack-bottom-frame ()
-        at renderWithHooks ()
-        at updateFunctionComponent ()
-        at beginWork ()
-        at runWithFiberInDEV ()
-        at performUnitOfWork ()
-        at workLoopSync ()
-        at renderRootSync ()
-        at performWorkOnRoot ()
-        at performWorkOnRootViaSchedulerTask ()
-        at MessagePort.performWorkUntilDeadline ()"
-      `)
-    }
+    const expandedStack = await getStackFramesContent(browser)
+    const ignoreListedStack = expandedStack.replace(defaultStack, '')
+    // We don't care about the exact stack trace that was ignore-listed.
+    // It'll contain implementation details that may change and
+    // shouldn't break this test.
+    expect(ignoreListedStack.trim()).toMatch(/at .*/)
   })
 
   it('should be able to collapse ignored frames in interleaved call stack', async () => {
@@ -94,52 +51,26 @@ describe('error-ignored-frames', () => {
     await assertHasRedbox(browser)
 
     const defaultStack = await getStackFramesContent(browser)
-    if (process.env.TURBOPACK) {
-      expect(defaultStack).toMatchInlineSnapshot(
-        `"at Page (app/interleaved/page.tsx (6:35))"`
-      )
+    if (isTurbopack) {
+      expect(defaultStack).toMatchInlineSnapshot(`
+       "at <unknown> (app/interleaved/page.tsx (7:11))
+       at Page (app/interleaved/page.tsx (6:35))"
+      `)
     } else {
-      expect(defaultStack).toMatchInlineSnapshot(
-        `"at Page (app/interleaved/page.tsx (6:37))"`
-      )
+      expect(defaultStack).toMatchInlineSnapshot(`
+       "at eval (app/interleaved/page.tsx (7:11))
+       at Page (app/interleaved/page.tsx (6:36))"
+      `)
     }
 
     await toggleCollapseCallStackFrames(browser)
 
-    const expendedStack = await getStackFramesContent(browser)
-    if (process.env.TURBOPACK) {
-      expect(expendedStack).toMatchInlineSnapshot(`
-        "at invokeCallback ()
-        at Page (app/interleaved/page.tsx (6:35))
-        at react-stack-bottom-frame ()
-        at renderWithHooks ()
-        at updateFunctionComponent ()
-        at beginWork ()
-        at runWithFiberInDEV ()
-        at performUnitOfWork ()
-        at workLoopSync ()
-        at renderRootSync ()
-        at performWorkOnRoot ()
-        at performWorkOnRootViaSchedulerTask ()
-        at MessagePort.performWorkUntilDeadline ()"
-      `)
-    } else {
-      expect(expendedStack).toMatchInlineSnapshot(`
-        "at invokeCallback (node_modules/interleave/index.js (2:1))
-        at Page (app/interleaved/page.tsx (6:37))
-        at react-stack-bottom-frame ()
-        at renderWithHooks ()
-        at updateFunctionComponent ()
-        at beginWork ()
-        at runWithFiberInDEV ()
-        at performUnitOfWork ()
-        at workLoopSync ()
-        at renderRootSync ()
-        at performWorkOnRoot ()
-        at performWorkOnRootViaSchedulerTask ()
-        at MessagePort.performWorkUntilDeadline ()"
-      `)
-    }
+    const expandedStack = await getStackFramesContent(browser)
+    const ignoreListedStack = expandedStack.replace(defaultStack, '')
+    // We don't care about the exact stack trace that was ignore-listed.
+    // It'll contain implementation details that may change and
+    // shouldn't break this test.
+    expect(ignoreListedStack.trim()).toMatch(/at .*/)
   })
 
   it('should be able to collapse pages router ignored frames', async () => {
@@ -147,80 +78,17 @@ describe('error-ignored-frames', () => {
     await assertHasRedbox(browser)
 
     const defaultStack = await getStackFramesContent(browser)
-    expect(defaultStack).toMatchInlineSnapshot(`""`)
+    expect(defaultStack).toMatchInlineSnapshot(
+      `"at Page (pages/pages.tsx (2:9))"`
+    )
 
     await toggleCollapseCallStackFrames(browser)
 
-    const expendedStack = await getStackFramesContent(browser)
-    if (process.env.TURBOPACK) {
-      expect(expendedStack).toMatchInlineSnapshot(`
-        "at react-stack-bottom-frame ()
-        at renderWithHooks ()
-        at renderElement ()
-        at retryNode ()
-        at renderNodeDestructive ()
-        at renderElement ()
-        at retryNode ()
-        at renderNodeDestructive ()
-        at finishFunctionComponent ()
-        at renderElement ()
-        at retryNode ()
-        at renderNodeDestructive ()
-        at renderNode ()
-        at renderChildrenArray ()
-        at retryNode ()
-        at renderNodeDestructive ()
-        at renderElement ()
-        at retryNode ()
-        at renderNodeDestructive ()
-        at renderNode ()
-        at renderChildrenArray ()
-        at retryNode ()
-        at renderNodeDestructive ()
-        at renderElement ()
-        at retryNode ()
-        at renderNodeDestructive ()
-        at renderElement ()
-        at retryNode ()
-        at renderNodeDestructive ()
-        at renderElement ()
-        at retryNode ()
-        at renderNodeDestructive ()
-        at finishFunctionComponent ()
-        at renderElement ()
-        at retryNode ()
-        at renderNodeDestructive ()
-        at renderElement ()
-        at retryNode ()
-        at renderNodeDestructive ()
-        at renderElement ()
-        at retryNode ()
-        at renderNodeDestructive ()
-        at renderElement ()
-        at retryNode ()
-        at renderNodeDestructive ()
-        at renderElement ()
-        at retryNode ()
-        at renderNodeDestructive ()
-        at renderElement ()"
-      `)
-    } else {
-      expect(expendedStack).toMatchInlineSnapshot(`
-        "at react-stack-bottom-frame ()
-        at renderWithHooks ()
-        at renderElement ()
-        at retryNode ()
-        at renderNodeDestructive ()
-        at renderElement ()
-        at retryNode ()
-        at renderNodeDestructive ()
-        at finishFunctionComponent ()
-        at renderElement ()
-        at retryNode ()
-        at renderNodeDestructive ()
-        at renderNode ()
-        at renderChildrenArray ()"
-      `)
-    }
+    const expandedStack = await getStackFramesContent(browser)
+    const ignoreListedStack = expandedStack.replace(defaultStack, '')
+    // We don't care about the exact stack trace that was ignore-listed.
+    // It'll contain implementation details that may change and
+    // shouldn't break this test.
+    expect(ignoreListedStack.trim()).toMatch(/at .*/)
   })
 })

@@ -13,23 +13,33 @@ use crate::{
 /// references to other [Source]s.
 #[turbo_tasks::value]
 pub struct FileSource {
-    pub path: ResolvedVc<FileSystemPath>,
-    pub query: ResolvedVc<RcStr>,
+    path: ResolvedVc<FileSystemPath>,
+    query: RcStr,
+    fragment: RcStr,
+}
+
+impl FileSource {
+    pub fn new(path: Vc<FileSystemPath>) -> Vc<Self> {
+        FileSource::new_with_query_and_fragment(path, RcStr::default(), RcStr::default())
+    }
+    pub fn new_with_query(path: Vc<FileSystemPath>, query: RcStr) -> Vc<Self> {
+        FileSource::new_with_query_and_fragment(path, query, RcStr::default())
+    }
 }
 
 #[turbo_tasks::value_impl]
 impl FileSource {
     #[turbo_tasks::function]
-    pub fn new(path: ResolvedVc<FileSystemPath>) -> Vc<Self> {
+    pub fn new_with_query_and_fragment(
+        path: ResolvedVc<FileSystemPath>,
+        query: RcStr,
+        fragment: RcStr,
+    ) -> Vc<Self> {
         Self::cell(FileSource {
             path,
-            query: ResolvedVc::cell(RcStr::default()),
+            query,
+            fragment,
         })
-    }
-
-    #[turbo_tasks::function]
-    pub fn new_with_query(path: ResolvedVc<FileSystemPath>, query: ResolvedVc<RcStr>) -> Vc<Self> {
-        Self::cell(FileSource { path, query })
     }
 }
 
@@ -37,7 +47,14 @@ impl FileSource {
 impl Source for FileSource {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        AssetIdent::from_path(*self.path).with_query(*self.query)
+        let mut ident = AssetIdent::from_path(*self.path);
+        if !self.query.is_empty() {
+            ident = ident.with_query(Vc::cell(self.query.clone()));
+        }
+        if !self.fragment.is_empty() {
+            ident = ident.with_fragment(Vc::cell(self.fragment.clone()));
+        }
+        ident
     }
 }
 

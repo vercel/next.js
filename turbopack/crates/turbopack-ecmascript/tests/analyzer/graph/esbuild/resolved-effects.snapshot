@@ -67,8 +67,8 @@
   | [generateBinPath(), []]
 )()
 
-0 -> 21 member call = ???*0*["concat"]("--service=0.14.12", "--ping")
-- *0* max number of linking steps reached
+0 -> 21 member call = (["bin/esbuild"] | ???*0* | [])["concat"]("--service=0.14.12", "--ping")
+- *0* unknown mutation
   ⚠️  This value might have side effects
 
 0 -> 22 free var = FreeVar(require)

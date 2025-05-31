@@ -1,5 +1,5 @@
 [package]
-edition = "2021"
+edition = "2024"
 name = "next-swc-napi"
 version = "0.0.0"
 publish = false
@@ -37,44 +37,39 @@ __internal_dhat-heap = ["dhat"]
 # effectively does nothing.
 __internal_dhat-ad-hoc = ["dhat"]
 
+# Enable support for the tokio console: https://github.com/tokio-rs/console
+tokio-console = ["dep:console-subscriber"]
+
 [lints]
 workspace = true
 
 [dependencies]
 anyhow = "1.0.66"
 backtrace = "0.3"
-fxhash = "0.2.1"
+console-subscriber = { workspace = true, optional = true }
 dhat = { workspace = true, optional = true }
 indexmap = { workspace = true }
 owo-colors = { workspace = true }
-napi = { version = "2", default-features = false, features = [
-    "napi3",
-    "serde-json",
-    "tokio_rt",
-    "error_anyhow",
-    # Lightningcss uses this features
-    "napi4",
-    "napi5",
-    "compat-mode"
-] }
+napi = { workspace = true }
 napi-derive = "2"
 next-custom-transforms = { workspace = true }
 rand = { workspace = true }
+rustc-hash = { workspace = true }
 serde = "1"
 serde_json = "1"
-shadow-rs = { workspace = true }
+supports-hyperlinks = "3.1.0"
+terminal_hyperlink = "0.1.0"
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 tracing-chrome = "0.5.0"
 url = { workspace = true }
 urlencoding = { workspace = true }
 once_cell = { workspace = true }
+dashmap = { workspace = true }
 
 swc_core = { workspace = true, features = [
     "base_concurrent",
     "base_node",
-    "bundler",
-    "bundler_concurrent",
     "common_concurrent",
     "ecma_ast",
     "ecma_ast_serde",
@@ -91,6 +86,7 @@ swc_core = { workspace = true, features = [
     "ecma_utils",
     "ecma_visit",
 ] }
+par-core = { workspace = true, features = ["rayon"] }
 
 # Dependencies for the native, non-wasm32 build.
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
@@ -98,7 +94,6 @@ lightningcss-napi = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
-turbo-tasks-memory = { workspace = true }
 turbo-tasks-backend = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 next-api = { workspace = true }
@@ -134,11 +129,11 @@ turbo-tasks-malloc = { workspace = true, default-features = false }
 tokio = { workspace = true, features = ["full"] }
 
 [build-dependencies]
+anyhow = { workspace = true }
 napi-build = "2"
-serde = "1"
-serde_json = "1"
-# It is not a mistake this dependency is specified in dep / build-dep both.
-shadow-rs = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+vergen-gitcl = { workspace = true }
 
 # build-dependencies for the native, non-wasm32 build
 [target.'cfg(not(target_arch = "wasm32"))'.build-dependencies]

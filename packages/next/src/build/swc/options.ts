@@ -1,3 +1,4 @@
+import path from 'path'
 import { WEBPACK_LAYERS, type WebpackLayerName } from '../../lib/constants'
 import type {
   NextConfig,
@@ -7,9 +8,13 @@ import type {
 } from '../../server/config-shared'
 import type { ResolvedBaseUrl } from '../load-jsconfig'
 import { isWebpackServerOnlyLayer, isWebpackAppPagesLayer } from '../utils'
+import { escapeStringRegexp } from '../../shared/lib/escape-regexp'
 
-const nextDistPath =
-  /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
+const nextDirname = path.dirname(require.resolve('next/package.json'))
+
+const nextDistPath = new RegExp(
+  `${escapeStringRegexp(nextDirname)}[\\/]dist[\\/](shared[\\/]lib|client|pages)`
+)
 
 const nodeModulesPath = /[\\/]node_modules[\\/]/
 
@@ -60,12 +65,15 @@ function getBaseSWCOptions({
   compilerOptions,
   resolvedBaseUrl,
   jsConfig,
+  supportedBrowsers,
   swcCacheDir,
   serverComponents,
   serverReferenceHashSalt,
   bundleLayer,
   isDynamicIo,
   cacheHandlers,
+  useCacheEnabled,
+  trackDynamicImports,
 }: {
   filename: string
   jest?: boolean
@@ -78,12 +86,15 @@ function getBaseSWCOptions({
   swcPlugins: ExperimentalConfig['swcPlugins']
   resolvedBaseUrl?: ResolvedBaseUrl
   jsConfig: any
+  supportedBrowsers: string[] | undefined
   swcCacheDir?: string
   serverComponents?: boolean
   serverReferenceHashSalt: string
   bundleLayer?: WebpackLayerName
   isDynamicIo?: boolean
   cacheHandlers?: ExperimentalConfig['cacheHandlers']
+  useCacheEnabled?: boolean
+  trackDynamicImports?: boolean
 }) {
   const isReactServerLayer = isWebpackServerOnlyLayer(bundleLayer)
   const isAppRouterPagesLayer = isWebpackAppPagesLayer(bundleLayer)
@@ -189,7 +200,9 @@ function getBaseSWCOptions({
       : undefined,
     relay: compilerOptions?.relay,
     // Always transform styled-jsx and error when `client-only` condition is triggered
-    styledJsx: {},
+    styledJsx: compilerOptions?.styledJsx ?? {
+      useLightningcss: jsConfig?.experimental?.useLightningcss ?? false,
+    },
     // Disable css-in-js libs (without client-only integration) transform on server layer for server components
     ...(!isReactServerLayer && {
       // eslint-disable-next-line @typescript-eslint/no-use-before-define
@@ -205,22 +218,35 @@ function getBaseSWCOptions({
         ? {
             isReactServerLayer,
             dynamicIoEnabled: isDynamicIo,
+            useCacheEnabled,
           }
         : undefined,
     serverActions:
       isAppRouterPagesLayer && !jest
         ? {
             isReactServerLayer,
-            dynamicIoEnabled: isDynamicIo,
+            isDevelopment: development,
+            useCacheEnabled,
             hashSalt: serverReferenceHashSalt,
-            cacheKinds: cacheHandlers ? Object.keys(cacheHandlers) : [],
+            cacheKinds: ['default', 'remote'].concat(
+              cacheHandlers ? Object.keys(cacheHandlers) : []
+            ),
           }
         : undefined,
     // For app router we prefer to bundle ESM,
     // On server side of pages router we prefer CJS.
     preferEsm: esm,
     lintCodemodComments: true,
+    trackDynamicImports: trackDynamicImports,
     debugFunctionName: development,
+
+    ...(supportedBrowsers && supportedBrowsers.length > 0
+      ? {
+          cssEnv: {
+            targets: supportedBrowsers,
+          },
+        }
+      : {}),
   }
 }
 
@@ -308,6 +334,7 @@ export function getJestSWCOptions({
     compilerOptions,
     jsConfig,
     resolvedBaseUrl,
+    supportedBrowsers: undefined,
     esm,
     // Don't apply server layer transformations for Jest
     // Disable server / client graph assertions for Jest
@@ -359,6 +386,8 @@ export function getLoaderSWCOptions({
   bundleLayer,
   esm,
   cacheHandlers,
+  useCacheEnabled,
+  trackDynamicImports,
 }: {
   filename: string
   development: boolean
@@ -384,6 +413,8 @@ export function getLoaderSWCOptions({
   serverReferenceHashSalt: string
   bundleLayer?: WebpackLayerName
   cacheHandlers: ExperimentalConfig['cacheHandlers']
+  useCacheEnabled?: boolean
+  trackDynamicImports?: boolean
 }) {
   let baseOptions: any = getBaseSWCOptions({
     filename,
@@ -395,6 +426,7 @@ export function getLoaderSWCOptions({
     compilerOptions,
     jsConfig,
     // resolvedBaseUrl,
+    supportedBrowsers,
     swcCacheDir,
     bundleLayer,
     serverComponents,
@@ -402,6 +434,8 @@ export function getLoaderSWCOptions({
     esm: !!esm,
     isDynamicIo,
     cacheHandlers,
+    useCacheEnabled,
+    trackDynamicImports,
   })
   baseOptions.fontLoaders = {
     fontLoaders: ['next/font/local', 'next/font/google'],
@@ -499,7 +533,10 @@ export function getLoaderSWCOptions({
     options.cjsRequireOptimizer = undefined
     // Disable optimizer for node_modules in app browser layer, to avoid unnecessary replacement.
     // e.g. typeof window could result differently in js worker or browser.
-    if (options.jsc.transform.optimizer.globals?.typeofs) {
+    if (
+      options.jsc.transform.optimizer.globals?.typeofs &&
+      !filename.includes(nextDirname)
+    ) {
       delete options.jsc.transform.optimizer.globals.typeofs.window
     }
   }

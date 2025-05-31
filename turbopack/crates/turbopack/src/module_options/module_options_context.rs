@@ -1,12 +1,17 @@
+use std::fmt::Debug;
+
 use serde::{Deserialize, Serialize};
+use turbo_esregex::EsRegex;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, ResolvedVc, ValueDefault, Vc};
+use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, ValueDefault, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::MinifyType, condition::ContextCondition, environment::Environment,
+    chunk::{MinifyType, SourceMapsType},
+    condition::ContextCondition,
+    environment::Environment,
     resolve::options::ImportMapping,
 };
-use turbopack_ecmascript::{references::esm::UrlRewriteBehavior, TreeShakingMode};
+use turbopack_ecmascript::{TreeShakingMode, references::esm::UrlRewriteBehavior};
 pub use turbopack_mdx::MdxTransformOptions;
 use turbopack_node::{
     execution_context::ExecutionContext,
@@ -15,7 +20,7 @@ use turbopack_node::{
 
 use super::ModuleRule;
 
-#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
 pub struct LoaderRuleItem {
     pub loaders: ResolvedVc<WebpackLoaderItems>,
     pub rename_as: Option<RcStr>,
@@ -29,23 +34,44 @@ pub struct WebpackRules(FxIndexMap<RcStr, LoaderRuleItem>);
 #[turbo_tasks::value(transparent)]
 pub struct OptionWebpackRules(Option<ResolvedVc<WebpackRules>>);
 
+#[derive(Default)]
+#[turbo_tasks::value(transparent)]
+pub struct WebpackConditions(pub FxIndexMap<RcStr, ConditionItem>);
+
+#[derive(Default)]
+#[turbo_tasks::value(transparent)]
+pub struct OptionWebpackConditions(Option<ResolvedVc<WebpackConditions>>);
+
+#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
+pub enum ConditionPath {
+    Glob(RcStr),
+    Regex(ResolvedVc<EsRegex>),
+}
+
+#[turbo_tasks::value(shared)]
+#[derive(Clone, Debug)]
+pub struct ConditionItem {
+    pub path: ConditionPath,
+}
+
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub struct WebpackLoadersOptions {
     pub rules: ResolvedVc<WebpackRules>,
+    pub conditions: ResolvedVc<OptionWebpackConditions>,
     pub loader_runner_package: Option<ResolvedVc<ImportMapping>>,
 }
 
 /// The kind of decorators transform to use.
 /// [TODO]: might need bikeshed for the name (Ecma)
-#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
 pub enum DecoratorsKind {
     Legacy,
     Ecma,
 }
 
 /// The types when replacing `typeof window` with a constant.
-#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
 pub enum TypeofWindow {
     Object,
     Undefined,
@@ -133,6 +159,11 @@ pub struct ModuleOptionsContext {
     /// runtime.
     pub enable_externals_tracing: Option<ResolvedVc<FileSystemPath>>,
 
+    /// If true, it stores the last successful parse result in state and keeps using it when
+    /// parsing fails. This is useful to keep the module graph structure intact when syntax errors
+    /// are temporarily introduced.
+    pub keep_last_successful_parse: bool,
+
     /// Custom rules to be applied after all default rules.
     pub module_rules: Vec<ModuleRule>,
     /// A list of rules to use a different module option context for certain
@@ -160,6 +191,8 @@ pub struct EcmascriptOptionsContext {
     /// If false, they will reference the whole directory. If true, they won't
     /// reference anything and lead to an runtime error instead.
     pub ignore_dynamic_requests: bool,
+    /// Specifies how Source Maps are handled.
+    pub source_maps: SourceMapsType,
 
     pub placeholder_for_future_extensions: (),
 }
@@ -176,6 +209,9 @@ pub struct CssOptionsContext {
     pub enable_raw_css: bool,
 
     pub minify_type: MinifyType,
+
+    /// Specifies how Source Maps are handled.
+    pub source_maps: SourceMapsType,
 
     pub placeholder_for_future_extensions: (),
 }

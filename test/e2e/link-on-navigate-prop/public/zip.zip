@@ -1,0 +1,2 @@
+// This is a stub file to simulate a downloadable zip file
+// Used in download link tests to verify onClick/onNavigate behavior

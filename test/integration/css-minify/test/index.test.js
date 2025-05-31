@@ -18,16 +18,12 @@ function runTests() {
   it('should minify correctly by removing whitespace', async () => {
     const html = await renderViaHTTP(appPort, '/')
     const $ = cheerio.load(html)
-    const href = $('link').attr('href')
+    const href = $('link[rel="preload"]').attr('href')
     const css = await renderViaHTTP(appPort, href)
-    if (process.env.TURBOPACK) {
-      expect(css).toMatchInlineSnapshot(`
-        "/* [project]/test/integration/css-minify/styles/global.css [client] (css) */
-        .a{--var-1:0;--var-2:0;--var-1:-50%;--var-2:-50%}.b{--var-1:0;--var-2:0;--var-2:-50%}
-
-        /*# sourceMappingURL=styles_global_411632.css.map*/
-        "
-      `)
+    if (process.env.IS_TURBOPACK_TEST || process.env.NEXT_RSPACK) {
+      expect(css).toContain(
+        '.a{--var-1:-50%;--var-2:-50%}.b{--var-1:0;--var-2:-50%}'
+      )
     } else {
       expect(css).toMatchInlineSnapshot(
         `".a{--var-1:0;--var-2:0;--var-1:-50%;--var-2:-50%}.b{--var-1:0;--var-2:0;--var-2:-50%}"`

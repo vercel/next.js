@@ -36,3 +36,26 @@ export const filterReqHeaders = (
   }
   return headers as Record<string, undefined | string | string[]>
 }
+
+// These are headers that are only used internally and should
+// not be honored from the external request
+const INTERNAL_HEADERS = [
+  'x-middleware-rewrite',
+  'x-middleware-redirect',
+  'x-middleware-set-cookie',
+  'x-middleware-skip',
+  'x-middleware-override-headers',
+  'x-middleware-next',
+  'x-now-route-matches',
+  'x-matched-path',
+]
+
+export const filterInternalHeaders = (
+  headers: Record<string, undefined | string | string[]>
+) => {
+  for (const header in headers) {
+    if (INTERNAL_HEADERS.includes(header)) {
+      delete headers[header]
+    }
+  }
+}

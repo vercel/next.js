@@ -2,8 +2,8 @@
 name = "turbopack-ecmascript-plugins"
 version = "0.1.0"
 description = "TBD"
-license = "MPL-2.0"
-edition = "2021"
+license = "MIT"
+edition = "2024"
 autobenches = false
 
 [lib]
@@ -29,6 +29,7 @@ lightningcss = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }
+rustc-hash = { workspace = true }
 
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }

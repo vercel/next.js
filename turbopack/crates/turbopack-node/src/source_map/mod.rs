@@ -1,26 +1,28 @@
 use std::{
     borrow::Cow,
     fmt::Write,
-    path::{Path, MAIN_SEPARATOR},
+    path::{MAIN_SEPARATOR, Path},
 };
 
 use anyhow::Result;
 use const_format::concatcp;
 use once_cell::sync::Lazy;
 use regex::Regex;
-pub use trace::{SourceMapTrace, StackFrame, TraceResult};
-use tracing::{instrument, Level};
+pub use trace::{StackFrame, TraceResult, trace_source_map};
+use tracing::{Level, instrument};
 use turbo_tasks::{ReadRef, Vc};
 use turbo_tasks_fs::{
-    source_context::get_source_context, to_sys_path, FileLinesContent, FileSystemPath,
+    FileLinesContent, FileSystemPath, source_context::get_source_context, to_sys_path,
 };
 use turbopack_cli_utils::source_context::format_source_context_lines;
 use turbopack_core::{
-    output::OutputAsset, source_map::GenerateSourceMap, PROJECT_FILESYSTEM_NAME, SOURCE_MAP_PREFIX,
+    PROJECT_FILESYSTEM_NAME, SOURCE_URL_PROTOCOL,
+    output::OutputAsset,
+    source_map::{GenerateSourceMap, SourceMap},
 };
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 
-use crate::{internal_assets_for_source_mapping, pool::FormattingMode, AssetsForSourceMapping};
+use crate::{AssetsForSourceMapping, internal_assets_for_source_mapping, pool::FormattingMode};
 
 pub mod trace;
 
@@ -52,8 +54,8 @@ pub async fn apply_source_mapping(
         let file = cap.get(2).unwrap().as_str();
         let line = cap.get(3).unwrap().as_str();
         let column = cap.get(4).unwrap().as_str();
-        let line = line.parse::<usize>()?;
-        let column = column.parse::<usize>()?;
+        let line = line.parse::<u32>()?;
+        let column = column.parse::<u32>()?;
         let frame = StackFrame {
             name: name.map(|s| s.into()),
             file: file.into(),
@@ -89,9 +91,9 @@ fn write_resolved(
     match resolved {
         Err(err) => {
             // There was an error resolving the source map
-            write!(writable, "{PADDING}at {}", original_frame)?;
+            write!(writable, "{PADDING}at {original_frame}")?;
             if *first_error {
-                write!(writable, "{PADDING}(error resolving source map: {})", err)?;
+                write!(writable, "{PADDING}(error resolving source map: {err})")?;
                 *first_error = false;
             } else {
                 write!(writable, "{PADDING}(error resolving source map)")?;
@@ -102,7 +104,7 @@ fn write_resolved(
             write!(
                 writable,
                 "{PADDING}{}",
-                formatting_mode.lowlight(&format_args!("[at {}]", original_frame))
+                formatting_mode.lowlight(&format_args!("[at {original_frame}]"))
             )?;
         }
         Ok(ResolvedSourceMapping::Mapped { frame }) => {
@@ -163,7 +165,7 @@ fn write_resolved(
                     let ctx = get_source_context(lines, line, column, line, column);
                     match formatting_mode {
                         FormattingMode::Plain => {
-                            write!(writable, "\n{}", ctx)?;
+                            write!(writable, "\n{ctx}")?;
                         }
                         FormattingMode::AnsiColors => {
                             writable.write_char('\n')?;
@@ -222,18 +224,17 @@ async fn resolve_source_mapping(
     let Some(generate_source_map) = map.get(file.as_ref()) else {
         return Ok(ResolvedSourceMapping::NoSourceMap);
     };
-    let Some(sm) = *generate_source_map.generate_source_map().await? else {
+    let sm = generate_source_map.generate_source_map();
+    let Some(sm) = &*SourceMap::new_from_rope_cached(sm).await? else {
         return Ok(ResolvedSourceMapping::NoSourceMap);
     };
-    let trace = SourceMapTrace::new(sm, line, column, name.map(|s| s.clone().into()))
-        .trace()
-        .await?;
-    match &*trace {
+    let trace = trace_source_map(sm, line, column, name.map(|s| &**s)).await?;
+    match trace {
         TraceResult::Found(frame) => {
             let lib_code = frame.file.contains("/node_modules/");
             if let Some(project_path) = frame.file.strip_prefix(concatcp!(
-                SOURCE_MAP_PREFIX,
-                "[",
+                SOURCE_URL_PROTOCOL,
+                "///[",
                 PROJECT_FILESYSTEM_NAME,
                 "]/"
             )) {
@@ -275,7 +276,7 @@ impl StructuredError {
         &self,
         assets_for_source_mapping: Vc<AssetsForSourceMapping>,
         root: Vc<FileSystemPath>,
-        project_dir: Vc<FileSystemPath>,
+        root_path: Vc<FileSystemPath>,
         formatting_mode: FormattingMode,
     ) -> Result<String> {
         let mut message = String::new();
@@ -295,8 +296,7 @@ impl StructuredError {
         for frame in &self.stack {
             let frame = frame.unmangle_identifiers(magic);
             let resolved =
-                resolve_source_mapping(assets_for_source_mapping, root, project_dir.root(), &frame)
-                    .await;
+                resolve_source_mapping(assets_for_source_mapping, root, root_path, &frame).await;
             write_resolved(
                 &mut message,
                 resolved,
@@ -310,13 +310,8 @@ impl StructuredError {
         if let Some(cause) = &self.cause {
             message.write_str("\nCaused by: ")?;
             message.write_str(
-                &Box::pin(cause.print(
-                    assets_for_source_mapping,
-                    root,
-                    project_dir,
-                    formatting_mode,
-                ))
-                .await?,
+                &Box::pin(cause.print(assets_for_source_mapping, root, root_path, formatting_mode))
+                    .await?,
             )?;
         }
 

@@ -9,7 +9,7 @@ describe('ReactRefreshRegression app', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     dependencies: {
-      'styled-components': '5.1.0',
+      'styled-components': '6.1.16',
       '@next/mdx': 'canary',
       '@mdx-js/loader': '2.2.1',
       '@mdx-js/react': '2.2.1',
@@ -280,7 +280,8 @@ describe('ReactRefreshRegression app', () => {
     await session.assertHasRedbox()
 
     const source = await session.getRedboxSource()
-    expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
+    expect(source.split(/\r?\n/g).slice(2).join('\n').replace(/^\n+/, ''))
+      .toMatchInlineSnapshot(`
       "> 1 | export default function () { throw new Error('boom'); }
           |                                    ^"
     `)
@@ -298,7 +299,8 @@ describe('ReactRefreshRegression app', () => {
     await session.assertHasRedbox()
 
     const source = await session.getRedboxSource()
-    expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
+    expect(source.split(/\r?\n/g).slice(2).join('\n').replace(/^\n+/, ''))
+      .toMatchInlineSnapshot(`
       "> 1 | export default function Page() { throw new Error('boom'); }
           |                                        ^"
     `)
@@ -319,7 +321,8 @@ describe('ReactRefreshRegression app', () => {
     await session.assertHasRedbox()
 
     const source = await session.getRedboxSource()
-    expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
+    expect(source.split(/\r?\n/g).slice(2).join('\n').replace(/^\n+/, ''))
+      .toMatchInlineSnapshot(`
         "  1 | 'use client'
         > 2 | export default function Page() { throw new Error('boom'); }
             |                                        ^"

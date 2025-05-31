@@ -2,14 +2,14 @@
 
 use anyhow::Result;
 use turbo_tasks::{ResolvedVc, Value, Vc};
-use turbo_tasks_fs::{glob::Glob, FileSystemPath};
+use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 use turbopack_core::{
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     reference_type::ReferenceType,
     resolve::{
+        ResolveResultOption,
         parse::Request,
         plugin::{AfterResolvePlugin, AfterResolvePluginCondition},
-        ResolveResultOption,
     },
 };
 
@@ -48,7 +48,7 @@ impl AfterResolvePlugin for UnsupportedSassResolvePlugin {
                 file_path: lookup_path,
                 request,
             }
-            .cell()
+            .resolved_cell()
             .emit();
         }
 
@@ -90,7 +90,7 @@ impl Issue for UnsupportedSassModuleIssue {
     fn description(&self) -> Vc<OptionStyledString> {
         Vc::cell(Some(
             StyledString::Text("Turbopack does not yet support importing Sass modules.".into())
-                .cell(),
+                .resolved_cell(),
         ))
     }
 

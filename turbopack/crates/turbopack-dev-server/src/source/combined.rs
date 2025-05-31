@@ -4,8 +4,8 @@ use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::introspect::{Introspectable, IntrospectableChildren};
 
 use super::{
-    route_tree::{RouteTree, RouteTrees},
     ContentSource,
+    route_tree::{RouteTree, RouteTrees},
 };
 use crate::source::ContentSources;
 
@@ -58,7 +58,7 @@ impl Introspectable for CombinedContentSource {
             .map(|&source| async move {
                 Ok(
                     if let Some(source) =
-                        ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(source).await?
+                        ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(source)
                     {
                         Some(source.title().await?)
                     } else {
@@ -85,19 +85,17 @@ impl Introspectable for CombinedContentSource {
 
     #[turbo_tasks::function]
     async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
-        let source = Vc::cell("source".into());
+        let source = ResolvedVc::cell("source".into());
         Ok(Vc::cell(
             self.sources
                 .iter()
                 .copied()
-                .map(|s| async move {
-                    Ok(ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(s).await?)
-                })
+                .map(|s| async move { Ok(ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(s)) })
                 .try_join()
                 .await?
                 .into_iter()
                 .flatten()
-                .map(|i| (source, *i))
+                .map(|i| (source, i))
                 .collect(),
         ))
     }

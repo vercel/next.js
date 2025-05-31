@@ -10,25 +10,25 @@ import {
   waitFor,
   openRedbox,
   getRedboxDescriptionWarning,
-  toggleCollapseComponentStack,
   getRedboxErrorLink,
 } from './next-test-utils'
 import webdriver, { WebdriverOptions } from './next-webdriver'
 import { NextInstance } from './next-modes/base'
-import { BrowserInterface } from './browsers/base'
+import { Playwright } from 'next-webdriver'
 
-export function waitForHydration(browser: BrowserInterface): Promise<void> {
-  return browser.evalAsync(function () {
-    var callback = arguments[arguments.length - 1]
-    if ((window as any).__NEXT_HYDRATED) {
-      callback()
-    } else {
-      var timeout = setTimeout(callback, 30 * 1000)
-      ;(window as any).__NEXT_HYDRATED_CB = function () {
-        clearTimeout(timeout)
-        callback()
+export async function waitForHydration(browser: Playwright) {
+  await browser.eval(() => {
+    return new Promise<void>((resolve) => {
+      if ((window as any).__NEXT_HYDRATED) {
+        resolve()
+      } else {
+        var timeout = setTimeout(resolve, 30 * 1000)
+        ;(window as any).__NEXT_HYDRATED_CB = function () {
+          clearTimeout(timeout)
+          resolve()
+        }
       }
-    }
+    })
   })
 }
 
@@ -36,7 +36,7 @@ export async function createSandbox(
   next: NextInstance,
   initialFiles?: Map<string, string | ((contents: string) => string)>,
   initialUrl: string = '/',
-  webDriverOptions: WebdriverOptions = undefined
+  webDriverOptions: WebdriverOptions | undefined = undefined
 ) {
   let unwrappedByTypeScriptUsingKeyword = false
 
@@ -51,6 +51,26 @@ export async function createSandbox(
     await next.start()
 
     const browser = await webdriver(next.url, initialUrl, webDriverOptions)
+
+    async function evaluate<TFn extends (...args: any[]) => any>(
+      fn: TFn,
+      ...args: Parameters<TFn>
+    ): Promise<ReturnType<TFn>>
+    async function evaluate(fn: string): Promise<unknown>
+    async function evaluate(
+      snippet: string | ((...args: any) => any)
+    ): Promise<any> {
+      if (typeof snippet === 'function' || typeof snippet === 'string') {
+        const result = await browser.eval(snippet)
+        await waitFor(30)
+        return result
+      } else {
+        throw new Error(
+          `You must pass a string or function to be evaluated in the browser.`
+        )
+      }
+    }
+
     return {
       browser,
       session: {
@@ -107,17 +127,7 @@ export async function createSandbox(
         async remove(filename) {
           await next.deleteFile(filename)
         },
-        async evaluate(snippet: string | Function) {
-          if (typeof snippet === 'function' || typeof snippet === 'string') {
-            const result = await browser.eval(snippet)
-            await waitFor(30)
-            return result
-          } else {
-            throw new Error(
-              `You must pass a string or function to be evaluated in the browser.`
-            )
-          }
-        },
+        evaluate,
         async assertHasRedbox() {
           return assertHasRedbox(browser)
         },
@@ -148,11 +158,11 @@ export async function createSandbox(
           }
           return source
         },
-        async getRedboxComponentStack() {
+        /**
+         * @returns `null` if there are no frames
+         */
+        getRedboxComponentStack() {
           return getRedboxComponentStack(browser)
-        },
-        async toggleCollapseComponentStack() {
-          return toggleCollapseComponentStack(browser)
         },
         async getVersionCheckerText() {
           return getVersionCheckerText(browser)

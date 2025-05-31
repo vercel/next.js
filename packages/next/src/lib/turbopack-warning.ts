@@ -45,6 +45,7 @@ const unsupportedTurbopackNextConfigOptions = [
   'experimental.forceSwcTransforms',
   'experimental.fullySpecified',
   'experimental.urlImports',
+  'experimental.slowModuleDetection',
 ]
 
 // The following will need to be supported by `next build --turbopack`
@@ -143,7 +144,7 @@ export async function validateTurboNextConfig({
       if (key.startsWith('webpack') && rawNextConfig.webpack) {
         hasWebpackConfig = true
       }
-      if (key.startsWith('experimental.turbo')) {
+      if (key.startsWith('turbopack') || key.startsWith('experimental.turbo')) {
         hasTurboConfig = true
       }
 
@@ -171,7 +172,7 @@ export async function validateTurboNextConfig({
   }
 
   const feedbackMessage = `Learn more about Next.js and Turbopack: ${underline(
-    'https://nextjs.link/with-turbopack'
+    'https://nextjs.org/docs/architecture/turbopack'
   )}\n`
 
   if (hasWebpackConfig && !hasTurboConfig) {
@@ -179,7 +180,7 @@ export async function validateTurboNextConfig({
       `Webpack is configured while Turbopack is not, which may cause problems.`
     )
     Log.warn(
-      `See instructions if you need to configure Turbopack:\n  https://nextjs.org/docs/app/api-reference/next-config-js/turbo\n`
+      `See instructions if you need to configure Turbopack:\n  https://nextjs.org/docs/app/api-reference/next-config-js/turbopack\n`
     )
   }
 

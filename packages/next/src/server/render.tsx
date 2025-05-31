@@ -36,7 +36,7 @@ import type { NextFontManifest } from '../build/webpack/plugins/next-font-manife
 import type { PagesModule } from './route-modules/pages/module'
 import type { ComponentsEnhancer } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
-import type { Revalidate, ExpireTime } from './lib/revalidate'
+import type { Revalidate } from './lib/cache-control'
 import type { COMPILER_NAMES } from '../shared/lib/constants'
 
 import React, { type JSX } from 'react'
@@ -100,9 +100,11 @@ import {
 import { getTracer } from './lib/trace/tracer'
 import { RenderSpan } from './lib/trace/constants'
 import { ReflectAdapter } from './web/spec-extension/adapters/reflect'
-import { formatRevalidate } from './lib/revalidate'
+import { getCacheControlHeader } from './lib/cache-control'
 import { getErrorSource } from '../shared/lib/error-source'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
+import type { PagesDevOverlayType } from '../client/components/react-dev-overlay/pages/pages-dev-overlay'
+import { getScriptNonceFromHeader } from './app-render/get-script-nonce-from-header'
 
 let tryGetPreviewData: typeof import('./api-utils/node/try-get-preview-data').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -142,9 +144,9 @@ class ServerRouter implements NextRouter {
   isFallback: boolean
   locale?: string
   isReady: boolean
-  locales?: string[]
+  locales?: readonly string[]
   defaultLocale?: string
-  domainLocales?: DomainLocale[]
+  domainLocales?: readonly DomainLocale[]
   isPreview: boolean
   isLocaleDomain: boolean
 
@@ -156,9 +158,9 @@ class ServerRouter implements NextRouter {
     isReady: boolean,
     basePath: string,
     locale?: string,
-    locales?: string[],
+    locales?: readonly string[],
     defaultLocale?: string,
-    domainLocales?: DomainLocale[],
+    domainLocales?: readonly DomainLocale[],
     isPreview?: boolean,
     isLocaleDomain?: boolean
   ) {
@@ -233,7 +235,6 @@ function renderPageTree(
 }
 
 export type RenderOptsPartial = {
-  buildId: string
   canonicalBase: string
   runtimeConfig?: { [key: string]: any }
   assetPrefix?: string
@@ -241,7 +242,7 @@ export type RenderOptsPartial = {
   nextExport?: boolean
   dev?: boolean
   ampPath?: string
-  ErrorDebug?: React.ComponentType<{ error: Error }>
+  ErrorDebug?: PagesDevOverlayType
   ampValidator?: (html: string, pathname: string) => Promise<void>
   ampSkipValidation?: boolean
   ampOptimizerConfig?: { [key: string]: any }
@@ -257,34 +258,34 @@ export type RenderOptsPartial = {
   assetQueryString?: string
   resolvedUrl?: string
   resolvedAsPath?: string
+  setIsrStatus?: (key: string, value: boolean | null) => void
   clientReferenceManifest?: DeepReadonly<ClientReferenceManifest>
   nextFontManifest?: DeepReadonly<NextFontManifest>
   distDir?: string
   locale?: string
-  locales?: string[]
+  locales?: readonly string[]
   defaultLocale?: string
-  domainLocales?: DomainLocale[]
+  domainLocales?: readonly DomainLocale[]
   disableOptimizedLoading?: boolean
   supportsDynamicResponse: boolean
-  isBot?: boolean
+  botType?: 'dom' | 'html' | undefined
+  serveStreamingMetadata?: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
   serverActions?: {
     bodySizeLimit?: SizeLimit
     allowedOrigins?: string[]
   }
-  customServer?: boolean
   crossOrigin?: 'anonymous' | 'use-credentials' | '' | undefined
   images: ImageConfigComplete
   largePageDataBytes?: number
   isOnDemandRevalidate?: boolean
   strictNextHead: boolean
-  isDraftMode?: boolean
-  deploymentId?: string
-  isServerAction?: boolean
+  isPossibleServerAction?: boolean
   isExperimentalCompile?: boolean
   isPrefetch?: boolean
-  expireTime?: ExpireTime
+  isBot?: boolean
+  expireTime?: number
   experimental: {
     clientTraceMetadata?: string[]
   }
@@ -292,6 +293,47 @@ export type RenderOptsPartial = {
 
 export type RenderOpts = LoadComponentsReturnType<PagesModule> &
   RenderOptsPartial
+
+/**
+ * Shared context used for all page renders.
+ */
+export type PagesSharedContext = {
+  /**
+   * Used to facilitate caching of page bundles, we send it to the client so
+   * that pageloader knows where to load bundles.
+   */
+  buildId: string
+
+  /**
+   * The deployment ID if the user is deploying to a platform that provides one.
+   */
+  deploymentId: string | undefined
+
+  /**
+   * True if the user is using a custom server.
+   */
+  customServer: true | undefined
+}
+
+/**
+ * The context for the given request.
+ */
+export type PagesRenderContext = {
+  /**
+   * Whether this should be rendered as a fallback page.
+   */
+  isFallback: boolean
+
+  /**
+   * Whether this is in draft mode.
+   */
+  isDraftMode: boolean | undefined
+
+  /**
+   * In development, the original source page that returned a 404.
+   */
+  developmentNotFoundSourcePage: string | undefined
+}
 
 /**
  * RenderOptsExtra is being used to split away functionality that's within the
@@ -406,7 +448,9 @@ export async function renderToHTMLImpl(
   pathname: string,
   query: NextParsedUrlQuery,
   renderOpts: Omit<RenderOpts, keyof RenderOptsExtra>,
-  extra: RenderOptsExtra
+  extra: RenderOptsExtra,
+  sharedContext: PagesSharedContext,
+  renderContext: PagesRenderContext
 ): Promise<RenderResult> {
   // Adds support for reading `cookies` in `getServerSideProps` when SSR.
   setLazyProp({ req: req as any }, 'cookies', getCookieParser(req.headers))
@@ -429,9 +473,9 @@ export async function renderToHTMLImpl(
   }
 
   // if deploymentId is provided we append it to all asset requests
-  if (renderOpts.deploymentId) {
+  if (sharedContext.deploymentId) {
     metadata.assetQueryString += `${metadata.assetQueryString ? '&' : '?'}dpl=${
-      renderOpts.deploymentId
+      sharedContext.deploymentId
     }`
   }
 
@@ -468,8 +512,8 @@ export async function renderToHTMLImpl(
     renderOpts.Component
   const OriginComponent = Component
 
-  const isFallback = !!query.__nextFallback
-  const notFoundSrcPage = query.__nextNotFoundSrcPage
+  const isFallback = renderContext.isFallback ?? false
+  const notFoundSrcPage = renderContext.developmentNotFoundSourcePage
 
   // next internal queries should be stripped out
   stripInternalQueries(query)
@@ -515,10 +559,7 @@ export async function renderToHTMLImpl(
   if (isAutoExport && !dev && isExperimentalCompile) {
     res.setHeader(
       'Cache-Control',
-      formatRevalidate({
-        revalidate: false,
-        expireTime,
-      })
+      getCacheControlHeader({ revalidate: false, expire: expireTime })
     )
     isAutoExport = false
   }
@@ -612,6 +653,10 @@ export async function renderToHTMLImpl(
         `\`pages${pathname}\` ${STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR}`
       )
     }
+
+    if (renderOpts?.setIsrStatus) {
+      renderOpts.setIsrStatus(asPath, isSSG || isAutoExport ? true : null)
+    }
   }
 
   for (const methodName of [
@@ -696,6 +741,13 @@ export async function renderToHTMLImpl(
       .map((script: any) => script.props)
   }
 
+  const csp =
+    req.headers['content-security-policy'] ||
+    req.headers['content-security-policy-report-only']
+
+  const nonce =
+    typeof csp === 'string' ? getScriptNonceFromHeader(csp) : undefined
+
   const AppContainer = ({ children }: { children: JSX.Element }) => (
     <AppRouterContext.Provider value={appRouter}>
       <SearchParamsContext.Provider value={adaptForSearchParams(router)}>
@@ -716,6 +768,7 @@ export async function renderToHTMLImpl(
                     },
                     scripts: initialScripts,
                     mountedInstances: new Set(),
+                    nonce,
                   }}
                 >
                   <LoadableContext.Provider
@@ -799,7 +852,7 @@ export async function renderToHTMLImpl(
       const { html, head: renderPageHead } = await docCtx.renderPage({
         enhanceApp,
       })
-      const styles = jsxStyleRegistry.styles({ nonce: options.nonce })
+      const styles = jsxStyleRegistry.styles({ nonce: options.nonce || nonce })
       jsxStyleRegistry.flush()
       return { html, head: renderPageHead, styles }
     },
@@ -848,7 +901,7 @@ export async function renderToHTMLImpl(
             ...(isPreview
               ? { draftMode: true, preview: true, previewData: previewData }
               : undefined),
-            locales: renderOpts.locales,
+            locales: [...(renderOpts.locales ?? [])],
             locale: renderOpts.locale,
             defaultLocale: renderOpts.defaultLocale,
             revalidateReason: renderOpts.isOnDemandRevalidate
@@ -1006,8 +1059,8 @@ export async function renderToHTMLImpl(
       'props' in data ? data.props : undefined
     )
 
-    // pass up revalidate and props for export
-    metadata.revalidate = revalidate
+    // pass up cache control and props for export
+    metadata.cacheControl = { revalidate, expire: undefined }
     metadata.pageData = props
 
     // this must come after revalidate is added to renderResultMeta
@@ -1071,13 +1124,16 @@ export async function renderToHTMLImpl(
             ...(previewData !== false
               ? { draftMode: true, preview: true, previewData: previewData }
               : undefined),
-            locales: renderOpts.locales,
+            // We create a copy here to avoid having the types of
+            // `getServerSideProps` change. This ensures that users can't
+            // mutate this array and have it poison the reference.
+            locales: [...(renderOpts.locales ?? [])],
             locale: renderOpts.locale,
             defaultLocale: renderOpts.defaultLocale,
           })
       )
       canAccessRes = false
-      metadata.revalidate = 0
+      metadata.cacheControl = { revalidate: 0, expire: undefined }
     } catch (serverSidePropsError: any) {
       // remove not found error code to prevent triggering legacy
       // 404 rendering
@@ -1256,7 +1312,7 @@ export async function renderToHTMLImpl(
 
           const html = await renderToString(
             <Body>
-              <ErrorDebug error={ctx.err} />
+              <ErrorDebug />
             </Body>
           )
           return { html, head }
@@ -1301,7 +1357,7 @@ export async function renderToHTMLImpl(
 
       return ctx.err && ErrorDebug ? (
         <Body>
-          <ErrorDebug error={ctx.err} />
+          <ErrorDebug />
         </Body>
       ) : (
         <Body>
@@ -1421,8 +1477,6 @@ export async function renderToHTMLImpl(
 
   const {
     assetPrefix,
-    buildId,
-    customServer,
     defaultLocale,
     disableOptimizedLoading,
     domainLocales,
@@ -1435,7 +1489,7 @@ export async function renderToHTMLImpl(
       props, // The result of getInitialProps
       page: pathname, // The rendered page
       query, // querystring parsed / passed by the user
-      buildId, // buildId is used to facilitate caching of page bundles, we send it to the client so that pageloader knows where to load bundles
+      buildId: sharedContext.buildId,
       assetPrefix: assetPrefix === '' ? undefined : assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
       runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
       nextExport: nextExport === true ? true : undefined, // If this is a page exported by `next export`
@@ -1449,7 +1503,7 @@ export async function renderToHTMLImpl(
       err: renderOpts.err ? serializeError(dev, renderOpts.err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
       gsp: !!getStaticProps ? true : undefined, // whether the page is getStaticProps
       gssp: !!getServerSideProps ? true : undefined, // whether the page is getServerSideProps
-      customServer, // whether the user is using a custom server
+      customServer: sharedContext.customServer,
       gip: hasPageGetInitialProps ? true : undefined, // whether the page has getInitialProps
       appGip: !defaultAppGetInitialProps ? true : undefined, // whether the _app has getInitialProps
       locale,
@@ -1459,6 +1513,7 @@ export async function renderToHTMLImpl(
       isPreview: isPreview === true ? true : undefined,
       notFoundSrcPage: notFoundSrcPage && dev ? notFoundSrcPage : undefined,
     },
+    nonce,
     strictNextHead: renderOpts.strictNextHead,
     buildManifest: filteredBuildManifest,
     docComponentsRendered,
@@ -1563,7 +1618,9 @@ export type PagesRender = (
   res: ServerResponse,
   pathname: string,
   query: NextParsedUrlQuery,
-  renderOpts: RenderOpts
+  renderOpts: RenderOpts,
+  sharedContext: PagesSharedContext,
+  renderContext: PagesRenderContext
 ) => Promise<RenderResult>
 
 export const renderToHTML: PagesRender = (
@@ -1571,7 +1628,18 @@ export const renderToHTML: PagesRender = (
   res,
   pathname,
   query,
-  renderOpts
+  renderOpts,
+  sharedContext,
+  renderContext
 ) => {
-  return renderToHTMLImpl(req, res, pathname, query, renderOpts, renderOpts)
+  return renderToHTMLImpl(
+    req,
+    res,
+    pathname,
+    query,
+    renderOpts,
+    renderOpts,
+    sharedContext,
+    renderContext
+  )
 }

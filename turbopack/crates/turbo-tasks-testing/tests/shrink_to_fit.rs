@@ -4,7 +4,7 @@
 
 use anyhow::Result;
 use turbo_tasks::Vc;
-use turbo_tasks_testing::{register, run, Registration};
+use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 
@@ -17,9 +17,6 @@ async fn test_shrink_to_fit() -> Result<()> {
         // `Vec::shrink_to_fit` is implicitly called when a cell is constructed.
         let a: Vc<Wrapper> = Vc::cell(Vec::with_capacity(100));
         assert_eq!(a.await?.capacity(), 0);
-
-        let b: Vc<Wrapper> = Vc::local_cell(Vec::with_capacity(100));
-        assert_eq!(b.await?.capacity(), 0);
 
         Ok(())
     })

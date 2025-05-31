@@ -1,76 +1,156 @@
-use std::mem::take;
+use std::{mem::take, sync::LazyLock};
 
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use swc_core::{
-    common::{util::take::Take, Spanned},
+    atoms::Atom,
+    base::SwcComments,
+    common::{
+        DUMMY_SP, Span, Spanned,
+        comments::{Comment, CommentKind, Comments},
+        util::take::Take,
+    },
     ecma::{
         ast::{
             ArrayPat, ArrowExpr, AssignPat, AssignPatProp, BindingIdent, BlockStmt, ClassDecl,
-            Decl, FnDecl, Ident, KeyValuePatProp, ObjectPat, ObjectPatProp, Pat, RestPat, Stmt,
-            VarDecl, VarDeclKind, VarDeclarator,
+            Decl, EmptyStmt, Expr, FnDecl, Ident, KeyValuePatProp, Lit, ObjectPat, ObjectPatProp,
+            Pat, RestPat, Stmt, Str, SwitchCase, VarDecl, VarDeclKind, VarDeclarator,
         },
         visit::{
-            fields::{BlockStmtField, SwitchCaseField},
             AstParentKind, VisitMut, VisitMutWith,
+            fields::{BlockStmtField, SwitchCaseField},
         },
     },
     quote,
 };
-use turbo_tasks::{ResolvedVc, Vc};
-use turbopack_core::chunk::ChunkingContext;
+use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
+use turbopack_core::{chunk::ChunkingContext, module_graph::ModuleGraph};
 
 use crate::{
-    code_gen::{CodeGenerateable, CodeGeneration},
-    create_visitor,
+    code_gen::{AstModifier, CodeGen, CodeGeneration},
     utils::AstPathRange,
 };
 
-#[turbo_tasks::value]
+#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+
 pub struct Unreachable {
-    range: ResolvedVc<AstPathRange>,
+    range: AstPathRange,
 }
 
-#[turbo_tasks::value_impl]
-impl Unreachable {
-    #[turbo_tasks::function]
-    pub fn new(range: ResolvedVc<AstPathRange>) -> Vc<Self> {
-        Self::cell(Unreachable { range })
+static UNREACHABLE_ATOM: LazyLock<Atom> = LazyLock::new(|| "TURBOPACK unreachable".into());
+
+struct UnreachableModifier {
+    comments: SwcComments,
+}
+
+impl AstModifier for UnreachableModifier {
+    fn visit_mut_expr(&self, node: &mut Expr) {
+        // We use an AST node instead of a comment here because we need to replace it with a valid
+        // JS expression anyway.
+        let span = node.span();
+
+        *node = Expr::Lit(Lit::Str(Str {
+            span,
+            value: UNREACHABLE_ATOM.clone(),
+            raw: None,
+        }));
+    }
+
+    fn visit_mut_stmt(&self, stmt: &mut Stmt) {
+        let mut replacement = Vec::new();
+
+        let span = Span::dummy_with_cmt();
+
+        self.comments.add_leading(
+            span.lo,
+            Comment {
+                kind: CommentKind::Line,
+                span: DUMMY_SP,
+                text: UNREACHABLE_ATOM.clone(),
+            },
+        );
+
+        stmt.visit_mut_with(&mut ExtractDeclarations {
+            stmts: &mut replacement,
+            in_nested_block_scope: false,
+        });
+
+        if replacement.is_empty() {
+            *stmt = Stmt::Empty(EmptyStmt { span });
+            return;
+        }
+
+        *stmt = Stmt::Block(BlockStmt {
+            span,
+            stmts: replacement,
+            ..Default::default()
+        });
     }
 }
 
-#[turbo_tasks::value_impl]
-impl CodeGenerateable for Unreachable {
-    #[turbo_tasks::function]
-    async fn code_generation(
-        &self,
-        _context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<CodeGeneration>> {
-        let range = self.range.await?;
-        let visitors = match &*range {
-            AstPathRange::Exact(path) => {
-                [
-                    // Unreachable might be used on Stmt or Expr
-                    create_visitor!(exact path, visit_mut_expr(expr: &mut Expr) {
-                        *expr = quote!("(\"TURBOPACK unreachable\", undefined)" as Expr);
-                    }),
-                    create_visitor!(exact path, visit_mut_stmt(stmt: &mut Stmt) {
-                        // TODO(WEB-553) walk ast to find all `var` declarations and keep them
-                        // since they hoist out of the scope
-                        let mut replacement = Vec::new();
-                        replacement.push(quote!("\"TURBOPACK unreachable\";" as Stmt));
-                        stmt.visit_mut_with(&mut ExtractDeclarations {
-                            stmts: &mut replacement,
-                            in_nested_block_scope: false,
-                        });
-                        *stmt = Stmt::Block(BlockStmt {
-                            span: stmt.span(),
-                            stmts: replacement,
-                            ..Default::default()
-                        });
-                    }),
-                ]
-                .into()
+struct UnreachableRangeModifier {
+    comments: SwcComments,
+    start_index: usize,
+}
+
+impl AstModifier for UnreachableRangeModifier {
+    fn visit_mut_block_stmt(&self, block: &mut BlockStmt) {
+        self.replace(&mut block.stmts, self.start_index);
+    }
+
+    fn visit_mut_switch_case(&self, case: &mut SwitchCase) {
+        self.replace(&mut case.cons, self.start_index);
+    }
+}
+
+impl UnreachableRangeModifier {
+    fn replace(&self, stmts: &mut Vec<Stmt>, start_index: usize) {
+        if stmts.len() > start_index + 1 {
+            let span = Span::dummy_with_cmt();
+
+            self.comments.add_leading(
+                span.lo,
+                Comment {
+                    kind: CommentKind::Line,
+                    span: DUMMY_SP,
+                    text: UNREACHABLE_ATOM.clone(),
+                },
+            );
+
+            let unreachable_stmt = Stmt::Empty(EmptyStmt { span });
+
+            let unreachable = stmts
+                .splice(start_index + 1.., [unreachable_stmt])
+                .collect::<Vec<_>>();
+            for mut stmt in unreachable {
+                stmt.visit_mut_with(&mut ExtractDeclarations {
+                    stmts,
+                    in_nested_block_scope: false,
+                });
             }
+        }
+    }
+}
+
+impl Unreachable {
+    pub fn new(range: AstPathRange) -> Self {
+        Unreachable { range }
+    }
+
+    pub async fn code_generation(
+        &self,
+        _module_graph: Vc<ModuleGraph>,
+        _chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Result<CodeGeneration> {
+        let comments = SwcComments::default();
+
+        let visitors = match &self.range {
+            AstPathRange::Exact(path) => vec![(
+                path.clone(),
+                Box::new(UnreachableModifier {
+                    comments: comments.clone(),
+                }) as Box<dyn AstModifier>,
+            )],
             AstPathRange::StartAfter(path) => {
                 let mut parent = &path[..];
                 while !parent.is_empty()
@@ -80,41 +160,28 @@ impl CodeGenerateable for Unreachable {
                 }
                 if !parent.is_empty() {
                     parent = &parent[0..parent.len() - 1];
-                    fn replace(stmts: &mut Vec<Stmt>, start_index: usize) {
-                        if stmts.len() > start_index + 1 {
-                            let unreachable = stmts
-                                .splice(
-                                    start_index + 1..,
-                                    [quote!("\"TURBOPACK unreachable\";" as Stmt)].into_iter(),
-                                )
-                                .collect::<Vec<_>>();
-                            for mut stmt in unreachable {
-                                stmt.visit_mut_with(&mut ExtractDeclarations {
-                                    stmts,
-                                    in_nested_block_scope: false,
-                                });
-                            }
-                        }
-                    }
+
                     let (parent, [last]) = parent.split_at(parent.len() - 1) else {
                         unreachable!();
                     };
                     if let &AstParentKind::BlockStmt(BlockStmtField::Stmts(start_index)) = last {
-                        [
-                            create_visitor!(exact parent, visit_mut_block_stmt(block: &mut BlockStmt) {
-                                replace(&mut block.stmts, start_index);
-                            }),
-                        ]
-                        .into()
+                        vec![(
+                            parent.to_vec(),
+                            Box::new(UnreachableRangeModifier {
+                                comments: comments.clone(),
+                                start_index,
+                            }) as Box<dyn AstModifier>,
+                        )]
                     } else if let &AstParentKind::SwitchCase(SwitchCaseField::Cons(start_index)) =
                         last
                     {
-                        [
-                            create_visitor!(exact parent, visit_mut_switch_case(case: &mut SwitchCase) {
-                                replace(&mut case.cons, start_index);
-                            }),
-                        ]
-                        .into()
+                        vec![(
+                            parent.to_vec(),
+                            Box::new(UnreachableRangeModifier {
+                                comments: comments.clone(),
+                                start_index,
+                            }) as Box<dyn AstModifier>,
+                        )]
                     } else {
                         Vec::new()
                     }
@@ -124,7 +191,13 @@ impl CodeGenerateable for Unreachable {
             }
         };
 
-        Ok(CodeGeneration::visitors(visitors))
+        Ok(CodeGeneration::visitors_with_comments(visitors, comments))
+    }
+}
+
+impl From<Unreachable> for CodeGen {
+    fn from(val: Unreachable) -> Self {
+        CodeGen::Unreachable(val)
     }
 }
 

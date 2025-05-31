@@ -3,7 +3,14 @@ exports.__esModule = true
 exports.default = undefined
 
 exports.init = function () {
-  if (process.env.NEXT_PRIVATE_LOCAL_WEBPACK) {
+  if (process.env.NEXT_RSPACK) {
+    // eslint-disable-next-line
+    Object.assign(exports, getRspackCore())
+    Object.assign(exports, {
+      // eslint-disable-next-line import/no-extraneous-dependencies
+      StringXor: require('./bundle5')().StringXor,
+    })
+  } else if (process.env.NEXT_PRIVATE_LOCAL_WEBPACK) {
     Object.assign(exports, {
       // eslint-disable-next-line import/no-extraneous-dependencies
       BasicEvaluatedExpression: require('webpack/lib/javascript/BasicEvaluatedExpression'),
@@ -31,5 +38,20 @@ exports.init = function () {
     })
   } else {
     Object.assign(exports, require('./bundle5')())
+  }
+}
+
+function getRspackCore() {
+  try {
+    // eslint-disable-next-line import/no-extraneous-dependencies
+    return require('@rspack/core')
+  } catch (e) {
+    if (e instanceof Error && 'code' in e && e.code === 'MODULE_NOT_FOUND') {
+      throw new Error(
+        '@rspack/core is not available. Please make sure the appropriate Next.js plugin is installed.'
+      )
+    }
+
+    throw e
   }
 }

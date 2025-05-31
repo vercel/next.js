@@ -2,9 +2,10 @@ pub mod svg;
 
 use std::{io::Cursor, str::FromStr};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use base64::{display::Base64Display, engine::general_purpose::STANDARD};
 use image::{
+    DynamicImage, GenericImageView, ImageEncoder, ImageFormat,
     codecs::{
         bmp::BmpEncoder,
         ico::IcoEncoder,
@@ -12,12 +13,11 @@ use image::{
         png::{CompressionType, PngEncoder},
     },
     imageops::FilterType,
-    DynamicImage, GenericImageView, ImageEncoder, ImageFormat,
 };
 use mime::Mime;
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, DisplayFromStr};
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, ResolvedVc, Vc};
+use serde_with::{DisplayFromStr, serde_as};
+use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     error::PrettyPrintError,
@@ -28,7 +28,7 @@ use turbopack_core::{
 use self::svg::calculate;
 
 /// Small placeholder version of the image.
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat)]
+#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 pub struct BlurPlaceholder {
     pub data_url: String,
     pub width: u32,
@@ -112,7 +112,7 @@ fn result_to_issue<T>(path: ResolvedVc<FileSystemPath>, result: Result<T>) -> Op
                 issue_severity: None,
                 title: None,
             }
-            .cell()
+            .resolved_cell()
             .emit();
             None
         }
@@ -174,7 +174,7 @@ fn load_image_internal(
             title: Some(StyledString::Text("AVIF image not supported".into()).resolved_cell()),
             issue_severity: Some(IssueSeverity::Warning.resolved_cell()),
         }
-        .cell()
+        .resolved_cell()
         .emit();
         return Ok((ImageBuffer::Raw(bytes.to_vec()), format));
     }
@@ -192,7 +192,7 @@ fn load_image_internal(
             title: Some(StyledString::Text("WEBP image not supported".into()).resolved_cell()),
             issue_severity: Some(IssueSeverity::Warning.resolved_cell()),
         }
-        .cell()
+        .resolved_cell()
         .emit();
         return Ok((ImageBuffer::Raw(bytes.to_vec()), format));
     }
@@ -219,7 +219,7 @@ fn compute_blur_data(
                 issue_severity: None,
                 title: None,
             }
-            .cell()
+            .resolved_cell()
             .emit();
             Some(BlurPlaceholder::fallback())
         }
@@ -520,6 +520,6 @@ impl Issue for ImageProcessingIssue {
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(*self.message))
+        Vc::cell(Some(self.message))
     }
 }

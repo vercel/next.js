@@ -21,9 +21,9 @@ var REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
   REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"),
   REACT_MEMO_TYPE = Symbol.for("react.memo"),
   REACT_LAZY_TYPE = Symbol.for("react.lazy"),
-  REACT_DEBUG_TRACING_MODE_TYPE = Symbol.for("react.debug_trace_mode"),
-  REACT_OFFSCREEN_TYPE = Symbol.for("react.offscreen"),
+  REACT_ACTIVITY_TYPE = Symbol.for("react.activity"),
   REACT_POSTPONE_TYPE = Symbol.for("react.postpone"),
+  REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
   MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 function getIteratorFn(maybeIterable) {
   if (null === maybeIterable || "object" !== typeof maybeIterable) return null;
@@ -76,7 +76,7 @@ pureComponentPrototype.constructor = PureComponent;
 assign(pureComponentPrototype, Component.prototype);
 pureComponentPrototype.isPureReactComponent = !0;
 var isArrayImpl = Array.isArray,
-  ReactSharedInternals = { H: null, A: null, T: null, S: null },
+  ReactSharedInternals = { H: null, A: null, T: null, S: null, G: null },
   hasOwnProperty = Object.prototype.hasOwnProperty;
 function ReactElement(type, key, self, source, owner, props) {
   self = props.ref;
@@ -322,7 +322,41 @@ var reportGlobalError =
         }
         console.error(error);
       };
+function startTransition(scope) {
+  var prevTransition = ReactSharedInternals.T,
+    currentTransition = {};
+  currentTransition.types =
+    null !== prevTransition ? prevTransition.types : null;
+  currentTransition.gesture = null;
+  ReactSharedInternals.T = currentTransition;
+  try {
+    var returnValue = scope(),
+      onStartTransitionFinish = ReactSharedInternals.S;
+    null !== onStartTransitionFinish &&
+      onStartTransitionFinish(currentTransition, returnValue);
+    "object" === typeof returnValue &&
+      null !== returnValue &&
+      "function" === typeof returnValue.then &&
+      returnValue.then(noop, reportGlobalError);
+  } catch (error) {
+    reportGlobalError(error);
+  } finally {
+    null !== prevTransition &&
+      null !== currentTransition.types &&
+      (prevTransition.types = currentTransition.types),
+      (ReactSharedInternals.T = prevTransition);
+  }
+}
 function noop() {}
+function addTransitionType(type) {
+  var transition = ReactSharedInternals.T;
+  if (null !== transition) {
+    var transitionTypes = transition.types;
+    null === transitionTypes
+      ? (transition.types = [type])
+      : -1 === transitionTypes.indexOf(type) && transitionTypes.push(type);
+  } else startTransition(addTransitionType.bind(null, type));
+}
 exports.Children = {
   map: mapChildren,
   forEach: function (children, forEachFunc, forEachContext) {
@@ -365,20 +399,15 @@ exports.Suspense = REACT_SUSPENSE_TYPE;
 exports.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE =
   ReactSharedInternals;
 exports.__COMPILER_RUNTIME = {
+  __proto__: null,
   c: function (size) {
     return ReactSharedInternals.H.useMemoCache(size);
   }
-};
-exports.act = function () {
-  throw Error("act(...) is not supported in production builds of React.");
 };
 exports.cache = function (fn) {
   return function () {
     return fn.apply(null, arguments);
   };
-};
-exports.captureOwnerStack = function () {
-  return null;
 };
 exports.cloneElement = function (element, config, children) {
   if (null === element || void 0 === element)
@@ -474,28 +503,11 @@ exports.memo = function (type, compare) {
     compare: void 0 === compare ? null : compare
   };
 };
-exports.startTransition = function (scope) {
-  var prevTransition = ReactSharedInternals.T,
-    currentTransition = {};
-  ReactSharedInternals.T = currentTransition;
-  try {
-    var returnValue = scope(),
-      onStartTransitionFinish = ReactSharedInternals.S;
-    null !== onStartTransitionFinish &&
-      onStartTransitionFinish(currentTransition, returnValue);
-    "object" === typeof returnValue &&
-      null !== returnValue &&
-      "function" === typeof returnValue.then &&
-      returnValue.then(noop, reportGlobalError);
-  } catch (error) {
-    reportGlobalError(error);
-  } finally {
-    ReactSharedInternals.T = prevTransition;
-  }
-};
-exports.unstable_Activity = REACT_OFFSCREEN_TYPE;
-exports.unstable_DebugTracingMode = REACT_DEBUG_TRACING_MODE_TYPE;
+exports.startTransition = startTransition;
+exports.unstable_Activity = REACT_ACTIVITY_TYPE;
 exports.unstable_SuspenseList = REACT_SUSPENSE_LIST_TYPE;
+exports.unstable_ViewTransition = REACT_VIEW_TRANSITION_TYPE;
+exports.unstable_addTransitionType = addTransitionType;
 exports.unstable_getCacheForType = function (resourceType) {
   var dispatcher = ReactSharedInternals.A;
   return dispatcher ? dispatcher.getCacheForType(resourceType) : resourceType();
@@ -504,6 +516,31 @@ exports.unstable_postpone = function (reason) {
   reason = Error(reason);
   reason.$$typeof = REACT_POSTPONE_TYPE;
   throw reason;
+};
+exports.unstable_startGestureTransition = function (provider, scope, options) {
+  if (null == provider)
+    throw Error(
+      "A Timeline is required as the first argument to startGestureTransition."
+    );
+  var prevTransition = ReactSharedInternals.T,
+    currentTransition = { types: null };
+  currentTransition.gesture = provider;
+  ReactSharedInternals.T = currentTransition;
+  try {
+    scope();
+    var onStartGestureTransitionFinish = ReactSharedInternals.G;
+    if (null !== onStartGestureTransitionFinish)
+      return onStartGestureTransitionFinish(
+        currentTransition,
+        provider,
+        options
+      );
+  } catch (error) {
+    reportGlobalError(error);
+  } finally {
+    ReactSharedInternals.T = prevTransition;
+  }
+  return function () {};
 };
 exports.unstable_useCacheRefresh = function () {
   return ReactSharedInternals.H.useCacheRefresh();
@@ -566,4 +603,4 @@ exports.useSyncExternalStore = function (
 exports.useTransition = function () {
   return ReactSharedInternals.H.useTransition();
 };
-exports.version = "19.0.0-experimental-b01722d5-20241114";
+exports.version = "19.2.0-experimental-197d6a04-20250424";

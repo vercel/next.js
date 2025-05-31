@@ -74,7 +74,7 @@
                 [
                     Constant(
                         Str(
-                            Word(
+                            Atom(
                                 "b",
                             ),
                         ),
@@ -213,7 +213,7 @@
             [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "a",
                         ),
                     ),

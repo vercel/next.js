@@ -26,13 +26,13 @@ export class NextStartInstance extends NextInstance {
   private handleStdio = (childProcess) => {
     childProcess.stdout.on('data', (chunk) => {
       const msg = chunk.toString()
-      if (!process.env.CI) process.stdout.write(chunk)
+      process.stdout.write(chunk)
       this._cliOutput += msg
       this.emit('stdout', [msg])
     })
     childProcess.stderr.on('data', (chunk) => {
       const msg = chunk.toString()
-      if (!process.env.CI) process.stderr.write(chunk)
+      process.stderr.write(chunk)
       this._cliOutput += msg
       this.emit('stderr', [msg])
     })
@@ -70,8 +70,16 @@ export class NextStartInstance extends NextInstance {
       buildArgs = this.buildCommand.split(' ')
     }
 
+    if (this.buildOptions) {
+      buildArgs.push(...this.buildOptions)
+    }
+
     if (this.startCommand) {
       startArgs = this.startCommand.split(' ')
+    }
+
+    if (this.startOptions) {
+      startArgs.push(...this.startOptions)
     }
 
     if (process.env.NEXT_SKIP_ISOLATE) {
@@ -94,7 +102,7 @@ export class NextStartInstance extends NextInstance {
         )
         this.handleStdio(this.childProcess)
         this.childProcess.on('exit', (code, signal) => {
-          this.childProcess = null
+          this.childProcess = undefined
           if (code || signal)
             reject(
               new Error(`next build failed with code/signal ${code || signal}`)
@@ -155,7 +163,7 @@ export class NextStartInstance extends NextInstance {
             this._parsedUrl = new URL(this._url)
           }
 
-          if (this.serverReadyPattern.test(colorStrippedMsg)) {
+          if (this.serverReadyPattern!.test(colorStrippedMsg)) {
             clearTimeout(serverReadyTimeoutId)
             resolve()
             this.off('stdout', readyCb)
@@ -182,9 +190,16 @@ export class NextStartInstance extends NextInstance {
         __NEXT_TEST_MODE: 'e2e',
       },
     }
-    return new Promise((resolve) => {
+    return new Promise<{
+      exitCode: NodeJS.Signals | number | null
+      cliOutput: string
+    }>((resolve) => {
       const curOutput = this._cliOutput.length
       const exportArgs = ['pnpm', 'next', 'build']
+
+      if (this.buildOptions) {
+        exportArgs.push(...this.buildOptions)
+      }
 
       if (this.childProcess) {
         throw new Error(

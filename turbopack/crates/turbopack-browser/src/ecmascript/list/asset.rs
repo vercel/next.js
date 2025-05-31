@@ -1,6 +1,7 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkingContext, EvaluatableAssets},
@@ -90,14 +91,15 @@ fn chunk_key() -> Vc<RcStr> {
 #[turbo_tasks::value_impl]
 impl OutputAsset for EcmascriptDevChunkList {
     #[turbo_tasks::function]
-    async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        let mut ident = self.ident.await?.clone_value();
-        ident.add_modifier(modifier());
+    async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+        let this = self.await?;
+        let mut ident = this.ident.owned().await?;
+        ident.add_modifier(modifier().to_resolved().await?);
 
-        match self.source {
+        match this.source {
             EcmascriptDevChunkListSource::Entry => {}
             EcmascriptDevChunkListSource::Dynamic => {
-                ident.add_modifier(dynamic_modifier());
+                ident.add_modifier(dynamic_modifier().to_resolved().await?);
             }
         }
 
@@ -106,9 +108,9 @@ impl OutputAsset for EcmascriptDevChunkList {
         // removed from the list.
 
         let ident = AssetIdent::new(Value::new(ident));
-        Ok(AssetIdent::from_path(
-            self.chunking_context.chunk_path(ident, ".js".into()),
-        ))
+        Ok(this
+            .chunking_context
+            .chunk_path(Some(Vc::upcast(self)), ident, ".js".into()))
     }
 
     #[turbo_tasks::function]
