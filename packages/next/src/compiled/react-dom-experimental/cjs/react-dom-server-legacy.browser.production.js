@@ -321,6 +321,7 @@ ReactDOMSharedInternals.d = {
   M: preinitModuleScript
 };
 var PRELOAD_NO_CREDS = [],
+  currentlyFlushingRenderState = null,
   scriptRegex = /(<\/|<)(s)(cript)/gi;
 function scriptReplacer(match, prefix, s, suffix) {
   return "" + prefix + ("s" === s ? "\\u0073" : "\\u0053") + suffix;
@@ -1617,7 +1618,8 @@ function pushStartInstance(
     case "style":
       var noscriptTagInScope$jscomp$2 = formatContext.tagScope & 1,
         precedence$jscomp$0 = props.precedence,
-        href$jscomp$0 = props.href;
+        href$jscomp$0 = props.href,
+        nonce = props.nonce;
       if (
         4 === formatContext.insertionMode ||
         noscriptTagInScope$jscomp$2 ||
@@ -1672,46 +1674,47 @@ function pushStartInstance(
             : void 0)
         ) {
           resumableState.styleResources[href$jscomp$0] = null;
-          styleQueue$jscomp$0
-            ? styleQueue$jscomp$0.hrefs.push(
-                escapeTextForBrowser(href$jscomp$0)
-              )
-            : ((styleQueue$jscomp$0 = {
-                precedence: escapeTextForBrowser(precedence$jscomp$0),
-                rules: [],
-                hrefs: [escapeTextForBrowser(href$jscomp$0)],
-                sheets: new Map()
-              }),
-              renderState.styles.set(precedence$jscomp$0, styleQueue$jscomp$0));
-          var target = styleQueue$jscomp$0.rules,
-            children$jscomp$7 = null,
-            innerHTML$jscomp$6 = null,
-            propKey$jscomp$9;
-          for (propKey$jscomp$9 in props)
-            if (hasOwnProperty.call(props, propKey$jscomp$9)) {
-              var propValue$jscomp$9 = props[propKey$jscomp$9];
-              if (null != propValue$jscomp$9)
-                switch (propKey$jscomp$9) {
-                  case "children":
-                    children$jscomp$7 = propValue$jscomp$9;
-                    break;
-                  case "dangerouslySetInnerHTML":
-                    innerHTML$jscomp$6 = propValue$jscomp$9;
-                }
-            }
-          var child$jscomp$0 = Array.isArray(children$jscomp$7)
-            ? 2 > children$jscomp$7.length
-              ? children$jscomp$7[0]
-              : null
-            : children$jscomp$7;
-          "function" !== typeof child$jscomp$0 &&
-            "symbol" !== typeof child$jscomp$0 &&
-            null !== child$jscomp$0 &&
-            void 0 !== child$jscomp$0 &&
-            target.push(
-              ("" + child$jscomp$0).replace(styleRegex, styleReplacer)
-            );
-          pushInnerHTML(target, innerHTML$jscomp$6, children$jscomp$7);
+          styleQueue$jscomp$0 ||
+            ((styleQueue$jscomp$0 = {
+              precedence: escapeTextForBrowser(precedence$jscomp$0),
+              rules: [],
+              hrefs: [],
+              sheets: new Map()
+            }),
+            renderState.styles.set(precedence$jscomp$0, styleQueue$jscomp$0));
+          var nonceStyle = renderState.nonce.style;
+          if (!nonceStyle || nonceStyle === nonce) {
+            styleQueue$jscomp$0.hrefs.push(escapeTextForBrowser(href$jscomp$0));
+            var target = styleQueue$jscomp$0.rules,
+              children$jscomp$7 = null,
+              innerHTML$jscomp$6 = null,
+              propKey$jscomp$9;
+            for (propKey$jscomp$9 in props)
+              if (hasOwnProperty.call(props, propKey$jscomp$9)) {
+                var propValue$jscomp$9 = props[propKey$jscomp$9];
+                if (null != propValue$jscomp$9)
+                  switch (propKey$jscomp$9) {
+                    case "children":
+                      children$jscomp$7 = propValue$jscomp$9;
+                      break;
+                    case "dangerouslySetInnerHTML":
+                      innerHTML$jscomp$6 = propValue$jscomp$9;
+                  }
+              }
+            var child$jscomp$0 = Array.isArray(children$jscomp$7)
+              ? 2 > children$jscomp$7.length
+                ? children$jscomp$7[0]
+                : null
+              : children$jscomp$7;
+            "function" !== typeof child$jscomp$0 &&
+              "symbol" !== typeof child$jscomp$0 &&
+              null !== child$jscomp$0 &&
+              void 0 !== child$jscomp$0 &&
+              target.push(
+                ("" + child$jscomp$0).replace(styleRegex, styleReplacer)
+              );
+            pushInnerHTML(target, innerHTML$jscomp$6, children$jscomp$7);
+          }
         }
         styleQueue$jscomp$0 &&
           hoistableState &&
@@ -2206,7 +2209,8 @@ function flushStyleTagsLateForBoundary(styleQueue) {
     hrefs = styleQueue.hrefs,
     i = 0;
   if (hrefs.length) {
-    this.push('<style media="not all" data-precedence="');
+    this.push(currentlyFlushingRenderState.startInlineStyle);
+    this.push(' media="not all" data-precedence="');
     this.push(styleQueue.precedence);
     for (this.push('" data-href="'); i < hrefs.length - 1; i++)
       this.push(hrefs[i]), this.push(" ");
@@ -2227,7 +2231,9 @@ function hasStylesToHoist(stylesheet) {
 function writeHoistablesForBoundary(destination, hoistableState, renderState) {
   currentlyRenderingBoundaryHasStylesToHoist = !1;
   destinationHasCapacity = !0;
+  currentlyFlushingRenderState = renderState;
   hoistableState.styles.forEach(flushStyleTagsLateForBoundary, destination);
+  currentlyFlushingRenderState = null;
   hoistableState.stylesheets.forEach(hasStylesToHoist);
   currentlyRenderingBoundaryHasStylesToHoist &&
     (renderState.stylesToHoist = !0);
@@ -2252,7 +2258,8 @@ function flushStylesInPreamble(styleQueue) {
   var rules = styleQueue.rules,
     hrefs = styleQueue.hrefs;
   if (!hasStylesheets || hrefs.length) {
-    this.push('<style data-precedence="');
+    this.push(currentlyFlushingRenderState.startInlineStyle);
+    this.push(' data-precedence="');
     this.push(styleQueue.precedence);
     styleQueue = 0;
     if (hrefs.length) {
@@ -2937,16 +2944,16 @@ function createRenderState(resumableState, generateStaticMarkup) {
       "\x3c/script>"
     ));
   bootstrapScriptContent = idPrefix + "P:";
-  var JSCompiler_object_inline_segmentPrefix_1859 = idPrefix + "S:";
+  var JSCompiler_object_inline_segmentPrefix_1870 = idPrefix + "S:";
   idPrefix += "B:";
-  var JSCompiler_object_inline_preconnects_1872 = new Set(),
-    JSCompiler_object_inline_fontPreloads_1873 = new Set(),
-    JSCompiler_object_inline_highImagePreloads_1874 = new Set(),
-    JSCompiler_object_inline_styles_1875 = new Map(),
-    JSCompiler_object_inline_bootstrapScripts_1876 = new Set(),
-    JSCompiler_object_inline_scripts_1877 = new Set(),
-    JSCompiler_object_inline_bulkPreloads_1878 = new Set(),
-    JSCompiler_object_inline_preloads_1879 = {
+  var JSCompiler_object_inline_preconnects_1884 = new Set(),
+    JSCompiler_object_inline_fontPreloads_1885 = new Set(),
+    JSCompiler_object_inline_highImagePreloads_1886 = new Set(),
+    JSCompiler_object_inline_styles_1887 = new Map(),
+    JSCompiler_object_inline_bootstrapScripts_1888 = new Set(),
+    JSCompiler_object_inline_scripts_1889 = new Set(),
+    JSCompiler_object_inline_bulkPreloads_1890 = new Set(),
+    JSCompiler_object_inline_preloads_1891 = {
       images: new Map(),
       stylesheets: new Map(),
       scripts: new Map(),
@@ -2983,7 +2990,7 @@ function createRenderState(resumableState, generateStaticMarkup) {
       scriptConfig.moduleScriptResources[href] = null;
       scriptConfig = [];
       pushLinkImpl(scriptConfig, props);
-      JSCompiler_object_inline_bootstrapScripts_1876.add(scriptConfig);
+      JSCompiler_object_inline_bootstrapScripts_1888.add(scriptConfig);
       bootstrapChunks.push('<script src="', escapeTextForBrowser(src), '"');
       "string" === typeof integrity &&
         bootstrapChunks.push(
@@ -3030,7 +3037,7 @@ function createRenderState(resumableState, generateStaticMarkup) {
         (props.moduleScriptResources[scriptConfig] = null),
         (props = []),
         pushLinkImpl(props, integrity),
-        JSCompiler_object_inline_bootstrapScripts_1876.add(props),
+        JSCompiler_object_inline_bootstrapScripts_1888.add(props),
         bootstrapChunks.push(
           '<script type="module" src="',
           escapeTextForBrowser(i),
@@ -3052,9 +3059,10 @@ function createRenderState(resumableState, generateStaticMarkup) {
         bootstrapChunks.push(' async="">\x3c/script>');
   return {
     placeholderPrefix: bootstrapScriptContent,
-    segmentPrefix: JSCompiler_object_inline_segmentPrefix_1859,
+    segmentPrefix: JSCompiler_object_inline_segmentPrefix_1870,
     boundaryPrefix: idPrefix,
     startInlineScript: "<script",
+    startInlineStyle: "<style",
     preamble: { htmlChunks: null, headChunks: null, bodyChunks: null },
     externalRuntimeScript: null,
     bootstrapChunks: bootstrapChunks,
@@ -3071,14 +3079,15 @@ function createRenderState(resumableState, generateStaticMarkup) {
     charsetChunks: [],
     viewportChunks: [],
     hoistableChunks: [],
-    preconnects: JSCompiler_object_inline_preconnects_1872,
-    fontPreloads: JSCompiler_object_inline_fontPreloads_1873,
-    highImagePreloads: JSCompiler_object_inline_highImagePreloads_1874,
-    styles: JSCompiler_object_inline_styles_1875,
-    bootstrapScripts: JSCompiler_object_inline_bootstrapScripts_1876,
-    scripts: JSCompiler_object_inline_scripts_1877,
-    bulkPreloads: JSCompiler_object_inline_bulkPreloads_1878,
-    preloads: JSCompiler_object_inline_preloads_1879,
+    preconnects: JSCompiler_object_inline_preconnects_1884,
+    fontPreloads: JSCompiler_object_inline_fontPreloads_1885,
+    highImagePreloads: JSCompiler_object_inline_highImagePreloads_1886,
+    styles: JSCompiler_object_inline_styles_1887,
+    bootstrapScripts: JSCompiler_object_inline_bootstrapScripts_1888,
+    scripts: JSCompiler_object_inline_scripts_1889,
+    bulkPreloads: JSCompiler_object_inline_bulkPreloads_1890,
+    preloads: JSCompiler_object_inline_preloads_1891,
+    nonce: { script: void 0, style: void 0 },
     stylesToHoist: !1,
     generateStaticMarkup: generateStaticMarkup
   };
@@ -6677,7 +6686,9 @@ function flushCompletedQueues(request, destination) {
         renderState.fontPreloads.clear();
         renderState.highImagePreloads.forEach(flushResource, destination);
         renderState.highImagePreloads.clear();
+        currentlyFlushingRenderState = renderState;
         renderState.styles.forEach(flushStylesInPreamble, destination);
+        currentlyFlushingRenderState = null;
         var importMapChunks = renderState.importMapChunks;
         for (i$jscomp$0 = 0; i$jscomp$0 < importMapChunks.length; i$jscomp$0++)
           destination.push(importMapChunks[i$jscomp$0]);
@@ -7049,4 +7060,4 @@ exports.renderToString = function (children, options) {
     'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToReadableStream" which supports Suspense on the server'
   );
 };
-exports.version = "19.2.0-experimental-b07717d8-20250528";
+exports.version = "19.2.0-experimental-14094f80-20250529";
