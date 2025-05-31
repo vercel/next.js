@@ -43,11 +43,10 @@ Libraries like `@material-ui/icons` or `react-icons` can import thousands of ico
 
 ```jsx
 // Instead of this:
-import { Icon1, Icon2 } from 'react-icons/md'
+import * as Icons from 'react-icons/md'
 
 // Do this:
-import Icon1 from 'react-icons/md/Icon1'
-import Icon2 from 'react-icons/md/Icon2'
+import { Icon1, Icon2 } from 'react-icons/md'
 ```
 
 Libraries like `react-icons` includes many different icon sets. Choose one set and stick with that set.
