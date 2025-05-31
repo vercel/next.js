@@ -568,6 +568,18 @@ pub async fn project_update(
     Ok(())
 }
 
+/// Invalidates the persistent cache so that it will be deleted next time that a turbopack project
+/// is created with persistent caching enabled.
+#[napi]
+pub async fn project_invalidate_persistent_cache(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+) -> napi::Result<()> {
+    tokio::task::spawn_blocking(move || project.turbo_tasks.invalidate_persistent_cache())
+        .await
+        .context("panicked while invalidating persistent cache")??;
+    Ok(())
+}
+
 /// Runs exit handlers for the project registered using the [`ExitHandler`] API.
 ///
 /// This is called by `project_shutdown`, so if you're calling that API, you shouldn't call this

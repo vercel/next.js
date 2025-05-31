@@ -723,6 +723,10 @@ function bindingToApi(
       )
     }
 
+    invalidatePersistentCache(): Promise<void> {
+      return binding.projectInvalidatePersistentCache(this._nativeProject)
+    }
+
     shutdown(): Promise<void> {
       return binding.projectShutdown(this._nativeProject)
     }
