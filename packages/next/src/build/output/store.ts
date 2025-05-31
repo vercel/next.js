@@ -1,7 +1,7 @@
 import createStore from 'next/dist/compiled/unistore'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { type Span, flushAllTraces, trace } from '../../trace'
-import { teardownHeapProfiler, teardownTraceSubscriber } from '../swc'
+import { teardownTraceSubscriber } from '../swc'
 import * as Log from './log'
 
 const MAX_LOG_SKIP_DURATION = 500 // 500ms
@@ -152,7 +152,6 @@ store.subscribe((state) => {
     // Ensure traces are flushed after each compile in development mode
     flushAllTraces()
     teardownTraceSubscriber()
-    teardownHeapProfiler()
     return
   }
 
@@ -176,7 +175,6 @@ store.subscribe((state) => {
     // Ensure traces are flushed after each compile in development mode
     flushAllTraces()
     teardownTraceSubscriber()
-    teardownHeapProfiler()
     return
   }
 
@@ -207,5 +205,4 @@ store.subscribe((state) => {
   // Ensure traces are flushed after each compile in development mode
   flushAllTraces()
   teardownTraceSubscriber()
-  teardownHeapProfiler()
 })

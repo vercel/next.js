@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import imageSize from 'image-size'
+import path from 'path'
 
 describe('app dir - Metadata API on the Edge runtime', () => {
   const { next, isNextStart } = nextTestSetup({
@@ -9,13 +10,41 @@ describe('app dir - Metadata API on the Edge runtime', () => {
   describe('OG image route', () => {
     if (isNextStart) {
       it('should not bundle `ImageResponse` into the page worker', async () => {
-        const pageBundle = await next.readFile('.next/server/app/page.js')
-        expect(pageBundle).not.toContain('ImageResponse')
-
-        const sharedPageBundle = await next.readFile(
-          '.next/server/app/another/page.js'
+        const middlewareManifest = JSON.parse(
+          await next.readFile('.next/server/middleware-manifest.json')
         )
-        expect(sharedPageBundle).not.toContain('ImageResponse')
+
+        const uniquePageFiles = [
+          ...new Set<string>(middlewareManifest.functions['/page'].files),
+        ]
+
+        const pageFilesThatHaveImageResponse = uniquePageFiles.filter(
+          (file) => {
+            return next
+              .readFileSync(path.join('.next', file))
+              .includes('ImageResponse')
+          }
+        )
+
+        const uniqueAnotherFiles = [
+          ...new Set<string>(
+            middlewareManifest.functions['/another/page'].files
+          ),
+        ]
+
+        const anotherFilesThatHaveImageResponse = uniqueAnotherFiles.filter(
+          (file) => {
+            return next
+              .readFileSync(path.join('.next', file))
+              .includes('ImageResponse')
+          }
+        )
+
+        // Grab the list of files that hold `ImageResponse`. Given the chunking should create the same file for both routes it should end up being the same object.
+        // This test was added to ensure that we don't include `ImageResponse` in the individual page bundles: https://github.com/vercel/next.js/pull/51950.
+        expect(pageFilesThatHaveImageResponse).toMatchObject(
+          anotherFilesThatHaveImageResponse
+        )
       })
     }
   })

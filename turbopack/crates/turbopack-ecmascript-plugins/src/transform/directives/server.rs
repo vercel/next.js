@@ -43,7 +43,7 @@ impl CustomTransformer for ServerDirectiveTransformer {
             UnsupportedServerActionIssue {
                 file_path: ctx.file_path,
             }
-            .cell()
+            .resolved_cell()
             .emit();
         }
 

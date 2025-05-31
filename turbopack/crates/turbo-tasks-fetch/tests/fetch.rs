@@ -2,9 +2,9 @@
 #![cfg(test)]
 
 use turbo_tasks::Vc;
-use turbo_tasks_fetch::{fetch, FetchErrorKind};
+use turbo_tasks_fetch::{FetchErrorKind, fetch};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
-use turbo_tasks_testing::{register, run, Registration};
+use turbo_tasks_testing::{Registration, register, run};
 use turbopack_core::issue::{Issue, IssueSeverity, StyledString};
 
 static REGISTRATION: Registration = register!(turbo_tasks_fetch::register);

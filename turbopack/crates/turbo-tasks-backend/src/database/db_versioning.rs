@@ -7,22 +7,35 @@ use std::{
 
 use anyhow::Result;
 
+/// Information gathered by `vergen_gitcl` in the top-level binary crate and passed down. This
+/// information must be computed in the top-level crate for cargo incremental compilation to work
+/// correctly.
+///
+/// See `crates/napi/build.rs` for details.
+pub struct GitVersionInfo<'a> {
+    /// Output of `git describe --match 'v[0-9]' --dirty`.
+    pub describe: &'a str,
+    /// Is the git repository dirty? Always forced to `false` when the `CI` environment variable is
+    /// set and non-empty.
+    pub dirty: bool,
+}
+
 /// Specifies many databases that have a different version than the current one are retained.
 /// For example if MAX_OTHER_DB_VERSIONS is 2, there can be at most 3 databases in the directory,
-/// the current one and two older/newer ones.
+/// the current one and two older/newer ones. On CI it never keeps any other versions.
 const MAX_OTHER_DB_VERSIONS: usize = 2;
 
-pub fn handle_db_versioning(base_path: &Path) -> Result<PathBuf> {
+pub fn handle_db_versioning(
+    base_path: &Path,
+    version_info: &GitVersionInfo,
+    is_ci: bool,
+) -> Result<PathBuf> {
+    if let Ok(version) = env::var("TURBO_ENGINE_VERSION") {
+        return Ok(base_path.join(version));
+    }
     // Database versioning. Pass `TURBO_ENGINE_IGNORE_DIRTY` at runtime to ignore a
     // dirty git repository. Pass `TURBO_ENGINE_DISABLE_VERSIONING` at runtime to disable
     // versioning and always use the same database.
-    let version_info = env!("VERGEN_GIT_DESCRIBE");
-    let (version_info, git_dirty) = if let Some(version_info) = version_info.strip_suffix("-dirty")
-    {
-        (version_info, true)
-    } else {
-        (version_info, false)
-    };
     let ignore_dirty = env::var("TURBO_ENGINE_IGNORE_DIRTY").ok().is_some();
     let disabled_versioning = env::var("TURBO_ENGINE_DISABLE_VERSIONING").ok().is_some();
     let version = if disabled_versioning {
@@ -31,14 +44,14 @@ pub fn handle_db_versioning(base_path: &Path) -> Result<PathBuf> {
              caching database might be required."
         );
         Some("unversioned")
-    } else if !git_dirty {
-        Some(version_info)
+    } else if !version_info.dirty {
+        Some(version_info.describe)
     } else if ignore_dirty {
         println!(
             "WARNING: The git repository is dirty, but Persistent Caching is still enabled. \
              Manual removal of the persistent caching database might be required."
         );
-        Some(version_info)
+        Some(version_info.describe)
     } else {
         println!(
             "WARNING: The git repository is dirty: Persistent Caching is disabled. Use \
@@ -49,6 +62,8 @@ pub fn handle_db_versioning(base_path: &Path) -> Result<PathBuf> {
     let path;
     if let Some(version) = version {
         path = base_path.join(version);
+
+        let max_other_db_versions = if is_ci { 0 } else { MAX_OTHER_DB_VERSIONS };
 
         // Remove old databases if needed
         if let Ok(read_dir) = read_dir(base_path) {
@@ -66,7 +81,7 @@ pub fn handle_db_versioning(base_path: &Path) -> Result<PathBuf> {
                     Some(entry.path())
                 })
                 .collect::<Vec<_>>();
-            if old_dbs.len() > MAX_OTHER_DB_VERSIONS {
+            if old_dbs.len() > max_other_db_versions {
                 let mut old_dbs = old_dbs
                     .iter()
                     .map(|p| {
@@ -81,14 +96,14 @@ pub fn handle_db_versioning(base_path: &Path) -> Result<PathBuf> {
                     })
                     .collect::<Vec<_>>();
                 old_dbs.sort_by_key(|(_, age)| *age);
-                for (p, _) in old_dbs.into_iter().skip(MAX_OTHER_DB_VERSIONS) {
+                for (p, _) in old_dbs.into_iter().skip(max_other_db_versions) {
                     let _ = remove_dir_all(p);
                 }
             }
         }
     } else {
-        let _ = remove_dir_all(base_path);
         path = base_path.join("temp");
+        let _ = remove_dir_all(&path);
     }
 
     Ok(path)

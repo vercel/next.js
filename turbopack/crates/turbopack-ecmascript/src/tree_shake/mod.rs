@@ -1,9 +1,9 @@
 use std::fmt::Write;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use rustc_hash::FxHashMap;
 use swc_core::{
-    common::{comments::Comments, util::take::Take, SyntaxContext, DUMMY_SP, GLOBALS},
+    common::{DUMMY_SP, GLOBALS, SyntaxContext, comments::Comments, util::take::Take},
     ecma::{
         ast::{
             ExportAll, ExportNamedSpecifier, Expr, ExprStmt, Id, Ident, ImportDecl, Lit, Module,
@@ -16,11 +16,11 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToString, Vc};
 use turbopack_core::{ident::AssetIdent, resolve::ModulePart, source::Source};
 
-pub(crate) use self::graph::{
-    create_turbopack_part_id_assert, find_turbopack_part_id_in_asserts, PartId,
-};
 use self::graph::{DepGraph, ItemData, ItemId, ItemIdGroupKind, Mode, SplitModuleResult};
-use crate::{analyzer::graph::EvalContext, parse::ParseResult, EcmascriptModuleAsset};
+pub(crate) use self::graph::{
+    PartId, create_turbopack_part_id_assert, find_turbopack_part_id_in_asserts,
+};
+use crate::{EcmascriptModuleAsset, analyzer::graph::EvalContext, parse::ParseResult};
 
 pub mod asset;
 pub mod chunk_item;
@@ -350,47 +350,41 @@ impl Analyzer<'_> {
 
     /// Phase 4: Exports
     fn handle_exports(&mut self, _module: &Module) {
+        // We use the last side effect as a module evaluation
+        if let Some(last) = self.last_side_effects.last() {
+            if let Some(item) = self.items.get_mut(last) {
+                item.is_module_evaluation = true;
+            }
+        }
+
         for item_id in self.item_ids.iter() {
-            if let ItemId::Group(kind) = item_id {
-                match kind {
-                    ItemIdGroupKind::ModuleEvaluation => {
-                        // Create a strong dependency to LAST_SIDE_EFFECTS
+            if let ItemId::Group(ItemIdGroupKind::Export(local, _)) = item_id {
+                // Create a strong dependency to LAST_WRITES for this var
 
-                        self.g
-                            .add_strong_deps(item_id, self.last_side_effects.last());
-                    }
-                    ItemIdGroupKind::Export(local, _) => {
-                        // Create a strong dependency to LAST_WRITES for this var
+                let state = self.vars.entry(local.clone()).or_default();
 
-                        let state = self.vars.entry(local.clone()).or_default();
-
-                        self.g.add_strong_deps(item_id, state.last_writes.iter());
-                    }
-                }
+                self.g.add_strong_deps(item_id, state.last_writes.iter());
             }
         }
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub(crate) enum Key {
     ModuleEvaluation,
     Export(RcStr),
     Exports,
+    StarExports,
 }
 
-/// Converts [Vc<ModulePart>] to the index.
-async fn get_part_id(result: &SplitResult, part: Vc<ModulePart>) -> Result<u32> {
-    let part = part.await?;
-
+/// Converts [ModulePart] to the index.
+async fn get_part_id(result: &SplitResult, part: &ModulePart) -> Result<u32> {
     // TODO implement ModulePart::Facade
-    let key = match &*part {
+    let key = match part {
         ModulePart::Evaluation => Key::ModuleEvaluation,
-        ModulePart::Export(export) => Key::Export(export.await?.as_str().into()),
+        ModulePart::Export(export) => Key::Export(export.clone()),
         ModulePart::Exports => Key::Exports,
-        ModulePart::Internal(part_id) | ModulePart::InternalEvaluation(part_id) => {
-            return Ok(*part_id)
-        }
+        ModulePart::Internal(part_id) => return Ok(*part_id),
         ModulePart::Locals
         | ModulePart::Facade
         | ModulePart::RenamedExport { .. }
@@ -413,8 +407,11 @@ async fn get_part_id(result: &SplitResult, part: Vc<ModulePart>) -> Result<u32> 
     }
 
     // This is required to handle `export * from 'foo'`
-    if let ModulePart::Export(..) = &*part {
-        if let Some(&v) = entrypoints.get(&Key::Exports) {
+    if let ModulePart::Export(..) = part {
+        if let Some(&v) = entrypoints
+            .get(&Key::StarExports)
+            .or_else(|| entrypoints.get(&Key::Exports))
+        {
             return Ok(v);
         }
     }
@@ -480,7 +477,7 @@ pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<
 #[turbo_tasks::function]
 pub(super) async fn split(
     ident: ResolvedVc<AssetIdent>,
-    source: Vc<Box<dyn Source>>,
+    source: ResolvedVc<Box<dyn Source>>,
     parsed: ResolvedVc<ParseResult>,
 ) -> Result<Vc<SplitResult>> {
     // Do not split already split module
@@ -577,6 +574,7 @@ pub(super) async fn split(
                         &program,
                         eval_context.unresolved_mark,
                         eval_context.top_level_mark,
+                        eval_context.force_free_values.clone(),
                         None,
                         Some(source),
                     );
@@ -611,7 +609,7 @@ pub(super) async fn split(
 #[turbo_tasks::function]
 pub(crate) async fn part_of_module(
     split_data: Vc<SplitResult>,
-    part: Vc<ModulePart>,
+    part: ModulePart,
 ) -> Result<Vc<ParseResult>> {
     let split_data = split_data.await?;
 
@@ -626,7 +624,7 @@ pub(crate) async fn part_of_module(
         } => {
             debug_assert_ne!(modules.len(), 0, "modules.len() == 0");
 
-            if matches!(&*part.await?, ModulePart::Facade) {
+            if part == ModulePart::Facade {
                 if let ParseResult::Ok {
                     comments,
                     eval_context,
@@ -701,6 +699,7 @@ pub(crate) async fn part_of_module(
                         &program,
                         eval_context.unresolved_mark,
                         eval_context.top_level_mark,
+                        eval_context.force_free_values.clone(),
                         None,
                         None,
                     );
@@ -718,7 +717,7 @@ pub(crate) async fn part_of_module(
                 }
             }
 
-            let part_id = get_part_id(&split_data, part).await?;
+            let part_id = get_part_id(&split_data, &part).await?;
 
             if part_id as usize >= modules.len() {
                 bail!(

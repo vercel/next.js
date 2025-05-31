@@ -1,41 +1,61 @@
-use std::collections::{HashMap, HashSet};
-
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use next_core::emit_assets;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexSet, ResolvedVc, State, TryFlatJoinIterExt,
-    TryJoinIterExt, ValueDefault, ValueToString, Vc,
+    FxIndexSet, NonLocalValue, OperationValue, OperationVc, ResolvedVc, State, TryFlatJoinIterExt,
+    TryJoinIterExt, ValueDefault, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::Asset,
     output::{OptionOutputAsset, OutputAsset, OutputAssets},
-    source_map::{GenerateSourceMap, OptionSourceMap},
+    source_map::{GenerateSourceMap, OptionStringifiedSourceMap},
     version::OptionVersionedContent,
 };
 
-/// An unresolved output assets operation. We need to pass an operation here as
-/// it's stored for later usage and we want to reconnect this operation when
-/// it's received from the map again.
-#[turbo_tasks::value(transparent)]
-pub struct OutputAssetsOperation(Vc<OutputAssets>);
-
-#[derive(Clone, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Serialize, Deserialize, Debug)]
+#[derive(
+    Clone,
+    TraceRawVcs,
+    PartialEq,
+    Eq,
+    ValueDebugFormat,
+    Serialize,
+    Deserialize,
+    Debug,
+    NonLocalValue,
+)]
 struct MapEntry {
-    // must not be resolved
-    assets_operation: Vc<OutputAssets>,
+    assets_operation: OperationVc<OutputAssets>,
     /// Precomputed map for quick access to output asset by filepath
-    path_to_asset: HashMap<ResolvedVc<FileSystemPath>, Vc<Box<dyn OutputAsset>>>,
+    path_to_asset: FxHashMap<ResolvedVc<FileSystemPath>, ResolvedVc<Box<dyn OutputAsset>>>,
 }
 
-#[turbo_tasks::value(transparent)]
+// HACK: This is technically incorrect because `path_to_asset` contains `ResolvedVc`...
+unsafe impl OperationValue for MapEntry {}
+
+#[turbo_tasks::value(transparent, operation)]
 struct OptionMapEntry(Option<MapEntry>);
 
-type PathToOutputOperation = HashMap<ResolvedVc<FileSystemPath>, FxIndexSet<Vc<OutputAssets>>>;
+#[turbo_tasks::value]
+#[derive(Debug)]
+pub struct PathToOutputOperation(
+    /// We need to use an operation for outputs as it's stored for later usage and we want to
+    /// reconnect this operation when it's received from the map again.
+    ///
+    /// It may not be 100% correct for the key (`FileSystemPath`) to be in a `ResolvedVc` here, but
+    /// it's impractical to make it an `OperationVc`/`OperationValue`, and it's unlikely to
+    /// change/break?
+    FxHashMap<ResolvedVc<FileSystemPath>, FxIndexSet<OperationVc<OutputAssets>>>,
+);
+
+// HACK: This is technically incorrect because the map's key is a `ResolvedVc`...
+unsafe impl OperationValue for PathToOutputOperation {}
+
 // A precomputed map for quick access to output asset by filepath
-type OutputOperationToComputeEntry = HashMap<Vc<OutputAssets>, Vc<OptionMapEntry>>;
+type OutputOperationToComputeEntry =
+    FxHashMap<OperationVc<OutputAssets>, OperationVc<OptionMapEntry>>;
 
 #[turbo_tasks::value]
 pub struct VersionedContentMap {
@@ -46,19 +66,19 @@ pub struct VersionedContentMap {
 
 impl ValueDefault for VersionedContentMap {
     fn value_default() -> Vc<Self> {
-        VersionedContentMap {
-            map_path_to_op: State::new(HashMap::new()),
-            map_op_to_compute_entry: State::new(HashMap::new()),
-        }
-        .cell()
+        *VersionedContentMap::new()
     }
 }
 
 impl VersionedContentMap {
     // NOTE(alexkirsz) This must not be a `#[turbo_tasks::function]` because it
     // should be a singleton for each project.
-    pub fn new() -> Vc<Self> {
-        Self::value_default()
+    pub fn new() -> ResolvedVc<Self> {
+        VersionedContentMap {
+            map_path_to_op: State::new(PathToOutputOperation(FxHashMap::default())),
+            map_op_to_compute_entry: State::new(FxHashMap::default()),
+        }
+        .resolved_cell()
     }
 }
 
@@ -68,23 +88,24 @@ impl VersionedContentMap {
     /// awaited will emit the assets that were inserted.
     #[turbo_tasks::function]
     pub async fn insert_output_assets(
-        self: Vc<Self>,
+        self: ResolvedVc<Self>,
         // Output assets to emit
-        assets_operation: Vc<OutputAssetsOperation>,
-        node_root: Vc<FileSystemPath>,
-        client_relative_path: Vc<FileSystemPath>,
-        client_output_path: Vc<FileSystemPath>,
+        assets_operation: OperationVc<OutputAssets>,
+        node_root: ResolvedVc<FileSystemPath>,
+        client_relative_path: ResolvedVc<FileSystemPath>,
+        client_output_path: ResolvedVc<FileSystemPath>,
     ) -> Result<()> {
         let this = self.await?;
-        let compute_entry = self.compute_entry(
+        let compute_entry = compute_entry_operation(
+            self,
             assets_operation,
             node_root,
             client_relative_path,
             client_output_path,
         );
-        let assets = *assets_operation.await?;
-        this.map_op_to_compute_entry
-            .update_conditionally(|map| map.insert(assets, compute_entry) != Some(compute_entry));
+        this.map_op_to_compute_entry.update_conditionally(|map| {
+            map.insert(assets_operation, compute_entry) != Some(compute_entry)
+        });
         Ok(())
     }
 
@@ -93,36 +114,25 @@ impl VersionedContentMap {
     #[turbo_tasks::function]
     async fn compute_entry(
         &self,
-        assets_operation: Vc<OutputAssetsOperation>,
+        assets_operation: OperationVc<OutputAssets>,
         node_root: Vc<FileSystemPath>,
         client_relative_path: Vc<FileSystemPath>,
         client_output_path: Vc<FileSystemPath>,
     ) -> Result<Vc<OptionMapEntry>> {
-        let assets = *assets_operation.await?;
-        async fn get_entries(
-            assets: Vc<OutputAssets>,
-        ) -> Result<Vec<(ResolvedVc<FileSystemPath>, Vc<Box<dyn OutputAsset>>)>> {
-            let assets_ref = assets.await?;
-            let entries = assets_ref
-                .iter()
-                .map(|&asset| async move {
-                    let path = asset.ident().path().to_resolved().await?;
-                    Ok((path, *asset))
-                })
-                .try_join()
-                .await?;
-            Ok(entries)
-        }
-        let entries = get_entries(assets).await.unwrap_or_default();
+        let entries = get_entries(assets_operation)
+            .read_strongly_consistent()
+            .await
+            // Any error should result in an empty list, which removes all assets from the map
+            .ok();
 
         self.map_path_to_op.update_conditionally(|map| {
             let mut changed = false;
 
             // get current map's keys, subtract keys that don't exist in operation
-            let mut stale_assets = map.keys().copied().collect::<HashSet<_>>();
+            let mut stale_assets = map.0.keys().copied().collect::<FxHashSet<_>>();
 
-            for (k, _) in entries.iter() {
-                let res = map.entry(*k).or_default().insert(assets);
+            for (k, _) in entries.iter().flatten() {
+                let res = map.0.entry(*k).or_default().insert(assets_operation);
                 stale_assets.remove(k);
                 changed = changed || res;
             }
@@ -130,22 +140,28 @@ impl VersionedContentMap {
             // Make more efficient with reverse map
             for k in &stale_assets {
                 let res = map
+                    .0
                     .get_mut(k)
                     // guaranteed
                     .unwrap()
-                    .swap_remove(&assets);
+                    .swap_remove(&assets_operation);
                 changed = changed || res
             }
             changed
         });
 
         // Make sure all written client assets are up-to-date
-        let _ = emit_assets(assets, node_root, client_relative_path, client_output_path)
-            .resolve()
-            .await?;
+        let _ = emit_assets(
+            assets_operation.connect(),
+            node_root,
+            client_relative_path,
+            client_output_path,
+        )
+        .resolve()
+        .await?;
         let map_entry = Vc::cell(Some(MapEntry {
-            assets_operation: assets,
-            path_to_asset: entries.into_iter().collect(),
+            assets_operation,
+            path_to_asset: entries.iter().flatten().copied().collect(),
         }));
         Ok(map_entry)
     }
@@ -155,9 +171,10 @@ impl VersionedContentMap {
         self: Vc<Self>,
         path: Vc<FileSystemPath>,
     ) -> Result<Vc<OptionVersionedContent>> {
-        Ok(Vc::cell(
-            (*self.get_asset(path).await?).map(|a| a.versioned_content()),
-        ))
+        Ok(Vc::cell(match *self.get_asset(path).await? {
+            Some(asset) => Some(asset.versioned_content().to_resolved().await?),
+            None => None,
+        }))
     }
 
     #[turbo_tasks::function]
@@ -165,14 +182,13 @@ impl VersionedContentMap {
         self: Vc<Self>,
         path: Vc<FileSystemPath>,
         section: Option<RcStr>,
-    ) -> Result<Vc<OptionSourceMap>> {
+    ) -> Result<Vc<OptionStringifiedSourceMap>> {
         let Some(asset) = &*self.get_asset(path).await? else {
             return Ok(Vc::cell(None));
         };
 
         if let Some(generate_source_map) =
-            Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(*asset.to_resolved().await?)
-                .await?
+            ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(*asset)
         {
             Ok(if let Some(section) = section {
                 generate_source_map.by_section(section)
@@ -196,14 +212,8 @@ impl VersionedContentMap {
             path_to_asset,
         }) = &*result
         {
-            if let Some(asset) = path_to_asset.get(&path) {
-                return Ok(Vc::cell(Some(asset.to_resolved().await?)));
-            } else {
-                let path = path.to_string().await?;
-                bail!(
-                    "could not find asset for path {} (asset has been removed)",
-                    path,
-                );
+            if let Some(&asset) = path_to_asset.get(&path) {
+                return Ok(Vc::cell(Some(asset)));
             }
         }
 
@@ -213,7 +223,7 @@ impl VersionedContentMap {
     #[turbo_tasks::function]
     pub async fn keys_in_path(&self, root: Vc<FileSystemPath>) -> Result<Vc<Vec<RcStr>>> {
         let keys = {
-            let map = self.map_path_to_op.get();
+            let map = &self.map_path_to_op.get().0;
             map.keys().copied().collect::<Vec<_>>()
         };
         let root = &root.await?;
@@ -228,14 +238,14 @@ impl VersionedContentMap {
     #[turbo_tasks::function]
     fn raw_get(&self, path: ResolvedVc<FileSystemPath>) -> Vc<OptionMapEntry> {
         let assets = {
-            let map = self.map_path_to_op.get();
+            let map = &self.map_path_to_op.get().0;
             map.get(&path).and_then(|m| m.iter().next().copied())
         };
         let Some(assets) = assets else {
             return Vc::cell(None);
         };
         // Need to reconnect the operation to the map
-        Vc::connect(assets);
+        let _ = assets.connect();
 
         let compute_entry = {
             let map = self.map_op_to_compute_entry.get();
@@ -244,9 +254,41 @@ impl VersionedContentMap {
         let Some(compute_entry) = compute_entry else {
             return Vc::cell(None);
         };
-        // Need to reconnect the operation to the map
-        Vc::connect(compute_entry);
-
-        compute_entry
+        compute_entry.connect()
     }
+}
+
+type GetEntriesResultT = Vec<(ResolvedVc<FileSystemPath>, ResolvedVc<Box<dyn OutputAsset>>)>;
+
+#[turbo_tasks::value(transparent)]
+struct GetEntriesResult(GetEntriesResultT);
+
+#[turbo_tasks::function(operation)]
+async fn get_entries(assets: OperationVc<OutputAssets>) -> Result<Vc<GetEntriesResult>> {
+    let assets_ref = assets.connect().await?;
+    let entries = assets_ref
+        .iter()
+        .map(|&asset| async move {
+            let path = asset.path().to_resolved().await?;
+            Ok((path, asset))
+        })
+        .try_join()
+        .await?;
+    Ok(Vc::cell(entries))
+}
+
+#[turbo_tasks::function(operation)]
+fn compute_entry_operation(
+    map: ResolvedVc<VersionedContentMap>,
+    assets_operation: OperationVc<OutputAssets>,
+    node_root: ResolvedVc<FileSystemPath>,
+    client_relative_path: ResolvedVc<FileSystemPath>,
+    client_output_path: ResolvedVc<FileSystemPath>,
+) -> Vc<OptionMapEntry> {
+    map.compute_entry(
+        assets_operation,
+        *node_root,
+        *client_relative_path,
+        *client_output_path,
+    )
 }

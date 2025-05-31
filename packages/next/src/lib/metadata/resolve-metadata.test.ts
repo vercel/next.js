@@ -12,10 +12,10 @@ function accumulateMetadata(metadataItems: MetadataItems) {
   const fullMetadataItems: FullMetadataItems = metadataItems.map((item) => [
     item[0],
     item[1],
-    null,
   ])
-  return originAccumulateMetadata(fullMetadataItems, {
-    pathname: '/test',
+  const route = '/test'
+  const pathname = Promise.resolve('/test')
+  return originAccumulateMetadata(route, fullMetadataItems, pathname, {
     trailingSlash: false,
     isStaticMetadataRouteFile: false,
   })
@@ -23,9 +23,7 @@ function accumulateMetadata(metadataItems: MetadataItems) {
 
 function accumulateViewport(viewportExports: Viewport[]) {
   // skip the first two arguments (metadata and static metadata)
-  return originAccumulateViewport(
-    viewportExports.map((item) => [null, null, item])
-  )
+  return originAccumulateViewport(viewportExports.map((item) => item))
 }
 
 function mapUrlsToStrings(obj: any) {
@@ -778,6 +776,14 @@ describe('accumulateViewport', () => {
         viewportFit: 'cover',
         userScalable: false,
         interactiveWidget: 'overlays-content',
+      })
+    })
+
+    it('should skip viewport.initialScale if it is set undefined explicitly', async () => {
+      const viewport = await accumulateViewport([{ initialScale: undefined }])
+      expect(viewport).toMatchObject({
+        width: 'device-width',
+        initialScale: undefined,
       })
     })
   })

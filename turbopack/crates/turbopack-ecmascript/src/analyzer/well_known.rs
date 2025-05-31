@@ -1,13 +1,13 @@
 use std::mem::take;
 
 use anyhow::Result;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::Vc;
 use turbopack_core::compile_time_info::CompileTimeInfo;
 use url::Url;
 
 use super::{
-    imports::ImportAnnotations, ConstantValue, JsValue, JsValueUrlKind, ModuleValue,
-    WellKnownFunctionKind, WellKnownObjectKind,
+    ConstantValue, JsValue, JsValueUrlKind, ModuleValue, WellKnownFunctionKind,
+    WellKnownObjectKind, imports::ImportAnnotations,
 };
 use crate::analyzer::RequireContextValue;
 
@@ -57,11 +57,7 @@ pub async fn well_known_function_call(
         WellKnownFunctionKind::PathJoin => path_join(args),
         WellKnownFunctionKind::PathDirname => path_dirname(args),
         WellKnownFunctionKind::PathResolve(cwd) => path_resolve(*cwd, args),
-        WellKnownFunctionKind::Import => JsValue::unknown(
-            JsValue::call(Box::new(JsValue::WellKnownFunction(kind)), args),
-            true,
-            "import() is not supported",
-        ),
+        WellKnownFunctionKind::Import => import(args),
         WellKnownFunctionKind::Require => require(args),
         WellKnownFunctionKind::RequireContextRequire(value) => {
             require_context_require(value, args).await?
@@ -322,6 +318,27 @@ pub fn path_dirname(mut args: Vec<JsValue>) -> JsValue {
     )
 }
 
+/// Resolve the contents of an import call, throwing errors
+/// if we come across any unsupported syntax.
+pub fn import(args: Vec<JsValue>) -> JsValue {
+    match &args[..] {
+        [JsValue::Constant(ConstantValue::Str(v))] => {
+            JsValue::promise(Box::new(JsValue::Module(ModuleValue {
+                module: v.as_atom().into_owned(),
+                annotations: ImportAnnotations::default(),
+            })))
+        }
+        _ => JsValue::unknown(
+            JsValue::call(
+                Box::new(JsValue::WellKnownFunction(WellKnownFunctionKind::Import)),
+                args,
+            ),
+            true,
+            "only a single constant argument is supported",
+        ),
+    }
+}
+
 /// Resolve the contents of a require call, throwing errors
 /// if we come across any unsupported syntax.
 pub fn require(args: Vec<JsValue>) -> JsValue {
@@ -354,10 +371,7 @@ pub fn require(args: Vec<JsValue>) -> JsValue {
 }
 
 /// (try to) statically evaluate `require.context(...)()`
-async fn require_context_require(
-    val: ResolvedVc<RequireContextValue>,
-    args: Vec<JsValue>,
-) -> Result<JsValue> {
+async fn require_context_require(val: RequireContextValue, args: Vec<JsValue>) -> Result<JsValue> {
     if args.is_empty() {
         return Ok(JsValue::unknown(
             JsValue::call(
@@ -384,8 +398,7 @@ async fn require_context_require(
         ));
     };
 
-    let map = val.await?;
-    let Some(m) = map.get(s) else {
+    let Some(m) = val.0.get(s) else {
         return Ok(JsValue::unknown(
             JsValue::call(
                 Box::new(JsValue::WellKnownFunction(
@@ -407,12 +420,11 @@ async fn require_context_require(
 
 /// (try to) statically evaluate `require.context(...).keys()`
 async fn require_context_require_keys(
-    val: ResolvedVc<RequireContextValue>,
+    val: RequireContextValue,
     args: Vec<JsValue>,
 ) -> Result<JsValue> {
     Ok(if args.is_empty() {
-        let map = val.await?;
-        JsValue::array(map.keys().cloned().map(|k| k.into()).collect())
+        JsValue::array(val.0.keys().cloned().map(|k| k.into()).collect())
     } else {
         JsValue::unknown(
             JsValue::call(
@@ -429,7 +441,7 @@ async fn require_context_require_keys(
 
 /// (try to) statically evaluate `require.context(...).resolve()`
 async fn require_context_require_resolve(
-    val: ResolvedVc<RequireContextValue>,
+    val: RequireContextValue,
     args: Vec<JsValue>,
 ) -> Result<JsValue> {
     if args.len() != 1 {
@@ -458,8 +470,7 @@ async fn require_context_require_resolve(
         ));
     };
 
-    let map = val.await?;
-    let Some(m) = map.get(s) else {
+    let Some(m) = val.0.get(s) else {
         return Ok(JsValue::unknown(
             JsValue::call(
                 Box::new(JsValue::WellKnownFunction(
@@ -521,13 +532,13 @@ pub fn path_to_file_url(args: Vec<JsValue>) -> JsValue {
 
 pub fn well_known_function_member(kind: WellKnownFunctionKind, prop: JsValue) -> (JsValue, bool) {
     let new_value = match (kind, prop.as_str()) {
-        (WellKnownFunctionKind::Require { .. }, Some("resolve")) => {
+        (WellKnownFunctionKind::Require, Some("resolve")) => {
             JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve)
         }
-        (WellKnownFunctionKind::Require { .. }, Some("cache")) => {
+        (WellKnownFunctionKind::Require, Some("cache")) => {
             JsValue::WellKnownObject(WellKnownObjectKind::RequireCache)
         }
-        (WellKnownFunctionKind::Require { .. }, Some("context")) => {
+        (WellKnownFunctionKind::Require, Some("context")) => {
             JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContext)
         }
         (WellKnownFunctionKind::RequireContextRequire(val), Some("resolve")) => {
@@ -542,7 +553,7 @@ pub fn well_known_function_member(kind: WellKnownFunctionKind, prop: JsValue) ->
         (WellKnownFunctionKind::NodeResolveFrom, Some("silent")) => {
             JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom)
         }
-        (WellKnownFunctionKind::Import { .. }, Some("meta")) => {
+        (WellKnownFunctionKind::Import, Some("meta")) => {
             JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta)
         }
         #[allow(unreachable_patterns)]
@@ -550,7 +561,7 @@ pub fn well_known_function_member(kind: WellKnownFunctionKind, prop: JsValue) ->
             return (
                 JsValue::member(Box::new(JsValue::WellKnownFunction(kind)), Box::new(prop)),
                 false,
-            )
+            );
         }
     };
     (new_value, true)
@@ -587,7 +598,7 @@ pub async fn well_known_object_member(
             return Ok((
                 JsValue::member(Box::new(JsValue::WellKnownObject(kind)), Box::new(prop)),
                 false,
-            ))
+            ));
         }
     };
     Ok((new_value, true))
@@ -644,10 +655,10 @@ pub fn fs_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
                 ));
             }
             (WellKnownObjectKind::FsModule | WellKnownObjectKind::FsModuleDefault, "promises") => {
-                return JsValue::WellKnownObject(WellKnownObjectKind::FsModulePromises)
+                return JsValue::WellKnownObject(WellKnownObjectKind::FsModulePromises);
             }
             (WellKnownObjectKind::FsModule, "default") => {
-                return JsValue::WellKnownObject(WellKnownObjectKind::FsModuleDefault)
+                return JsValue::WellKnownObject(WellKnownObjectKind::FsModuleDefault);
             }
             _ => {}
         }

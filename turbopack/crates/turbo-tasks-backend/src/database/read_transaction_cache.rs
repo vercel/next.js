@@ -6,8 +6,10 @@ use smallvec::SmallVec;
 use thread_local::ThreadLocal;
 
 use crate::database::{
-    key_value_database::KeyValueDatabase,
-    write_batch::{BaseWriteBatch, ConcurrentWriteBatch, SerialWriteBatch, WriteBatch},
+    key_value_database::{KeySpace, KeyValueDatabase},
+    write_batch::{
+        BaseWriteBatch, ConcurrentWriteBatch, SerialWriteBatch, WriteBatch, WriteBuffer,
+    },
 };
 
 struct ThreadLocalReadTransactionsContainer<T: KeyValueDatabase + 'static>(
@@ -86,7 +88,7 @@ impl<T: KeyValueDatabase + 'static> KeyValueDatabase for ReadTransactionCache<T>
     fn get<'l, 'db: 'l>(
         &'l self,
         transaction: &'l Self::ReadTransaction<'db>,
-        key_space: super::key_value_database::KeySpace,
+        key_space: KeySpace,
         key: &[u8],
     ) -> anyhow::Result<Option<Self::ValueBuffer<'l>>> {
         self.database
@@ -166,11 +168,7 @@ impl<'a, T: KeyValueDatabase + 'static, B: BaseWriteBatch<'a>> BaseWriteBatch<'a
         Self: 'l,
         'a: 'l;
 
-    fn get<'l>(
-        &'l self,
-        key_space: super::key_value_database::KeySpace,
-        key: &[u8],
-    ) -> Result<Option<Self::ValueBuffer<'l>>>
+    fn get<'l>(&'l self, key_space: KeySpace, key: &[u8]) -> Result<Option<Self::ValueBuffer<'l>>>
     where
         'a: 'l,
     {
@@ -183,37 +181,32 @@ impl<'a, T: KeyValueDatabase, B: SerialWriteBatch<'a>> SerialWriteBatch<'a>
 {
     fn put(
         &mut self,
-        key_space: super::key_value_database::KeySpace,
-        key: std::borrow::Cow<[u8]>,
-        value: std::borrow::Cow<[u8]>,
+        key_space: KeySpace,
+        key: WriteBuffer<'_>,
+        value: WriteBuffer<'_>,
     ) -> Result<()> {
         self.write_batch.put(key_space, key, value)
     }
-    fn delete(
-        &mut self,
-        key_space: super::key_value_database::KeySpace,
-        key: std::borrow::Cow<[u8]>,
-    ) -> Result<()> {
+    fn delete(&mut self, key_space: KeySpace, key: WriteBuffer<'_>) -> Result<()> {
         self.write_batch.delete(key_space, key)
+    }
+
+    fn flush(&mut self, key_space: KeySpace) -> Result<()> {
+        self.write_batch.flush(key_space)
     }
 }
 
 impl<'a, T: KeyValueDatabase, B: ConcurrentWriteBatch<'a>> ConcurrentWriteBatch<'a>
     for ReadTransactionCacheWriteBatch<'a, T, B>
 {
-    fn put(
-        &self,
-        key_space: super::key_value_database::KeySpace,
-        key: std::borrow::Cow<[u8]>,
-        value: std::borrow::Cow<[u8]>,
-    ) -> Result<()> {
+    fn put(&self, key_space: KeySpace, key: WriteBuffer<'_>, value: WriteBuffer<'_>) -> Result<()> {
         self.write_batch.put(key_space, key, value)
     }
-    fn delete(
-        &self,
-        key_space: super::key_value_database::KeySpace,
-        key: std::borrow::Cow<[u8]>,
-    ) -> Result<()> {
+    fn delete(&self, key_space: KeySpace, key: WriteBuffer<'_>) -> Result<()> {
         self.write_batch.delete(key_space, key)
+    }
+
+    unsafe fn flush(&self, key_space: KeySpace) -> Result<()> {
+        unsafe { self.write_batch.flush(key_space) }
     }
 }

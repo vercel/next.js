@@ -15,7 +15,7 @@ import { join } from 'path'
 const fixturesDir = join(__dirname, '../fixtures')
 
 // Turbopack uses LightningCSS which supports scoping `:root` to the CSS module.
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'Custom Properties: Fail for :root {} in CSS Modules',
   () => {
     ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
@@ -100,7 +100,7 @@ describe('CSS Modules: Import Global CSS', () => {
           .replace(/\/\*.*?\*\//g, '')
           .trim()
 
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
           ).toMatchInlineSnapshot(`"a .foo{all:initial}"`)
@@ -138,7 +138,7 @@ describe('CSS Modules: Importing Invalid Global CSS', () => {
 })
 
 // Turbopack uses LightningCSS which doesn't support `@value`.
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'CSS Modules: Import Exports',
   () => {
     ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
@@ -178,7 +178,7 @@ describe('CSS Modules: Importing Invalid Global CSS', () => {
 
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
-          ).toMatchInlineSnapshot(`".styles_blk__480DC{color:#000}"`)
+          ).toMatchInlineSnapshot(`".styles_blk__480DC{color:#000000}"`)
         })
       }
     )

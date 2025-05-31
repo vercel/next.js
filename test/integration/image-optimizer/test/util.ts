@@ -16,11 +16,13 @@ import {
 } from 'next-test-utils'
 import isAnimated from 'next/dist/compiled/is-animated'
 import type { RequestInit } from 'node-fetch'
+import type { NextConfig } from 'next'
 
 type SetupTestsCtx = {
   appDir: string
   imagesDir: string
   nextConfigImages?: Partial<import('next').NextConfig['images']>
+  nextConfigExperimental?: Partial<import('next').NextConfig['experimental']>
   isDev?: boolean
 }
 
@@ -69,7 +71,10 @@ export async function serveSlowImage() {
 }
 
 export async function fsToJson(dir: string, output = {}) {
-  const files = await fs.readdir(dir)
+  const files = await fs.readdir(dir).catch((e: Error) => e)
+  if (!Array.isArray(files)) {
+    return output
+  }
   for (let file of files) {
     const fsPath = join(dir, file)
     const stat = await fs.stat(fsPath)
@@ -241,7 +246,7 @@ export function runTests(ctx: RunTestsCtx) {
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('image/gif')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=0, must-revalidate`
+      `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -258,7 +263,7 @@ export function runTests(ctx: RunTestsCtx) {
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('image/png')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=0, must-revalidate`
+      `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -275,7 +280,7 @@ export function runTests(ctx: RunTestsCtx) {
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('image/png')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=0, must-revalidate`
+      `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -292,7 +297,7 @@ export function runTests(ctx: RunTestsCtx) {
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('image/webp')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=0, must-revalidate`
+      `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -312,7 +317,7 @@ export function runTests(ctx: RunTestsCtx) {
       expect(res.headers.get('Content-Length')).toBe('603')
       expect(res.headers.get('Content-Type')).toContain('image/svg+xml')
       expect(res.headers.get('Cache-Control')).toBe(
-        `public, max-age=0, must-revalidate`
+        `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
       )
       // SVG is compressible so will have accept-encoding set from
       // compression
@@ -874,6 +879,9 @@ export function runTests(ctx: RunTestsCtx) {
     })
 
     it('should use cache and stale-while-revalidate when query is the same for external image', async () => {
+      if (ctx.nextConfigExperimental?.isrFlushToDisk === false) {
+        return // this test is not applicable when we don't write the cache
+      }
       await cleanImagesDir(ctx)
       const delay = 500
 
@@ -903,6 +911,7 @@ export function runTests(ctx: RunTestsCtx) {
       const etagOne = one.res.headers.get('etag')
 
       let json1
+
       await check(async () => {
         json1 = await fsToJson(ctx.imagesDir)
         return Object.keys(json1).some((dir) => {
@@ -951,6 +960,7 @@ export function runTests(ctx: RunTestsCtx) {
         expect(four.res.headers.get('Content-Disposition')).toBe(
           `${contentDispositionType}; filename="slow.webp"`
         )
+
         await check(async () => {
           const json4 = await fsToJson(ctx.imagesDir)
           try {
@@ -1093,6 +1103,9 @@ export function runTests(ctx: RunTestsCtx) {
   }
 
   it('should use cache and stale-while-revalidate when query is the same for internal image', async () => {
+    if (ctx.nextConfigExperimental?.isrFlushToDisk === false) {
+      return // this test is not applicable when we don't write the cache
+    }
     await cleanImagesDir(ctx)
 
     if (globalThis.isrImgQuality) {
@@ -1243,6 +1256,9 @@ export function runTests(ctx: RunTestsCtx) {
   }
 
   it('should use cached image file when parameters are the same for animated gif', async () => {
+    if (ctx.nextConfigExperimental?.isrFlushToDisk === false) {
+      return // this test is not applicable when we don't write the cache
+    }
     await cleanImagesDir(ctx)
 
     const query = { url: '/animated.gif', w: ctx.w, q: 80 }
@@ -1339,14 +1355,19 @@ export function runTests(ctx: RunTestsCtx) {
       `${contentDispositionType}; filename="test.bmp"`
     )
 
-    await check(async () => {
-      try {
-        assert.deepStrictEqual(await fsToJson(ctx.imagesDir), json1)
-        return 'expected change, but matched'
-      } catch (_) {
-        return 'success'
-      }
-    }, 'success')
+    if (ctx.nextConfigExperimental?.isrFlushToDisk === false) {
+      expect(json1).toEqual({})
+      expect(await fsToJson(ctx.imagesDir)).toEqual({})
+    } else {
+      await check(async () => {
+        try {
+          assert.deepStrictEqual(await fsToJson(ctx.imagesDir), json1)
+          return 'expected change, but matched'
+        } catch (_) {
+          return 'success'
+        }
+      }, 'success')
+    }
   })
 
   it('should not resize if requested width is larger than original source image', async () => {
@@ -1458,9 +1479,12 @@ export function runTests(ctx: RunTestsCtx) {
       await expectWidth(res2, ctx.w)
       await expectWidth(res3, ctx.w)
 
+      const length =
+        ctx.nextConfigExperimental?.isrFlushToDisk === false ? 0 : 1
+
       await check(async () => {
         const json1 = await fsToJson(ctx.imagesDir)
-        return Object.keys(json1).length === 1 ? 'success' : 'fail'
+        return Object.keys(json1).length === length ? 'success' : 'fail'
       }, 'success')
 
       const xCache = [res1, res2, res3]
@@ -1492,10 +1516,10 @@ export const setupTests = (ctx: SetupTestsCtx) => {
 
     beforeAll(async () => {
       const json = JSON.stringify({
-        experimental: {
-          outputFileTracingRoot: join(__dirname, '../../../..'),
-        },
-      })
+        // See https://github.com/vercel/next.js/pull/60972
+        outputFileTracingRoot: join(__dirname, '../../../..'),
+        experimental: curCtx.nextConfigExperimental,
+      } satisfies NextConfig)
       nextConfig.replace('{ /* replaceme */ }', json)
       curCtx.nextOutput = ''
       curCtx.appPort = await findPort()
@@ -1537,11 +1561,11 @@ export const setupTests = (ctx: SetupTestsCtx) => {
     }
     beforeAll(async () => {
       const json = JSON.stringify({
+        // See https://github.com/vercel/next.js/pull/60972
+        outputFileTracingRoot: join(__dirname, '../../../..'),
         images: curCtx.nextConfigImages,
-        experimental: {
-          outputFileTracingRoot: join(__dirname, '../../../..'),
-        },
-      })
+        experimental: curCtx.nextConfigExperimental,
+      } satisfies NextConfig)
       curCtx.nextOutput = ''
       nextConfig.replace('{ /* replaceme */ }', json)
       await cleanImagesDir(ctx)
@@ -1575,10 +1599,10 @@ export const setupTests = (ctx: SetupTestsCtx) => {
     }
     beforeAll(async () => {
       const json = JSON.stringify({
-        experimental: {
-          outputFileTracingRoot: join(__dirname, '../../../..'),
-        },
-      })
+        // See https://github.com/vercel/next.js/pull/60972
+        outputFileTracingRoot: join(__dirname, '../../../..'),
+        experimental: curCtx.nextConfigExperimental,
+      } satisfies NextConfig)
       nextConfig.replace('{ /* replaceme */ }', json)
       curCtx.nextOutput = ''
       await nextBuild(curCtx.appDir)
@@ -1621,11 +1645,11 @@ export const setupTests = (ctx: SetupTestsCtx) => {
     }
     beforeAll(async () => {
       const json = JSON.stringify({
+        // See https://github.com/vercel/next.js/pull/60972
+        outputFileTracingRoot: join(__dirname, '../../../..'),
         images: curCtx.nextConfigImages,
-        experimental: {
-          outputFileTracingRoot: join(__dirname, '../../../..'),
-        },
-      })
+        experimental: curCtx.nextConfigExperimental,
+      } satisfies NextConfig)
       curCtx.nextOutput = ''
       nextConfig.replace('{ /* replaceme */ }', json)
       await nextBuild(curCtx.appDir)

@@ -2,7 +2,7 @@ use anyhow::Result;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{trace::TraceRawVcs, ResolvedVc, Vc};
+use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
 
 pub(crate) struct DefaultFallbackFont {
     pub name: RcStr,
@@ -60,7 +60,7 @@ impl FontFallback {
 }
 
 #[turbo_tasks::value(transparent)]
-pub(crate) struct FontFallbacks(Vec<ResolvedVc<FontFallback>>);
+pub(crate) struct FontFallbacks(pub Vec<ResolvedVc<FontFallback>>);
 
 #[turbo_tasks::value_impl]
 impl FontFallbacks {
@@ -79,7 +79,7 @@ impl FontFallbacks {
 /// An adjustment to be made to a fallback font to approximate the geometry of
 /// the main webfont. Rendered as e.g. `ascent-override: 56.8%;` in the
 /// stylesheet
-#[derive(Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
 pub(crate) struct FontAdjustment {
     pub ascent: f64,
     pub descent: f64,

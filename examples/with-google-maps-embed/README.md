@@ -1,10 +1,8 @@
 ## Example app using Google Maps Embed
 
-This example shows how to embed a Google Maps Embed using `@next/third-parties`.
+This example shows how to embed a Google Maps Embed using [`@next/third-parties`](https://nextjs.org/docs/app/building-your-application/optimizing/third-party-libraries).
 
 ## Deploy your own
-
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-google-maps-embed&project-name=with-google-maps-embed&repository-name=with-google-maps-embed)
 

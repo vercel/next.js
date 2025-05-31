@@ -1,0 +1,8 @@
+module.exports = {
+  experimental: {
+    dynamicIO: true,
+    cacheHandlers: {
+      custom: require.resolve('next/dist/server/lib/cache-handlers/default'),
+    },
+  },
+}

@@ -1,7 +1,9 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{fxindexset, trace::TraceRawVcs, FxIndexMap, FxIndexSet, Value, Vc};
+use turbo_tasks::{
+    FxIndexMap, FxIndexSet, NonLocalValue, Value, Vc, fxindexset, trace::TraceRawVcs,
+};
 
 use super::request::{NextFontRequest, OneOrManyStrings};
 
@@ -41,21 +43,31 @@ impl NextFontGoogleOptions {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TraceRawVcs,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
 )]
 pub(super) enum FontWeights {
     Variable,
     Fixed(Vec<u16>),
 }
 
-#[derive(Debug, PartialEq, Eq, Deserialize, Serialize, TraceRawVcs)]
+#[derive(Debug, PartialEq, Eq, Deserialize, Serialize, TraceRawVcs, NonLocalValue)]
 pub(super) struct FontDataEntry {
     pub weights: Vec<RcStr>,
     pub styles: Vec<RcStr>,
     pub axes: Option<Vec<Axis>>,
 }
 
-#[derive(Debug, PartialEq, Deserialize, Serialize, TraceRawVcs)]
+#[derive(Debug, PartialEq, Deserialize, Serialize, TraceRawVcs, NonLocalValue)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct Axis {
     pub tag: RcStr,
@@ -205,7 +217,7 @@ mod tests {
     use turbo_tasks::FxIndexMap;
     use turbo_tasks_fs::json::parse_json_with_source_context;
 
-    use super::{options_from_request, FontDataEntry, NextFontGoogleOptions};
+    use super::{FontDataEntry, NextFontGoogleOptions, options_from_request};
     use crate::next_font::google::{options::FontWeights, request::NextFontRequest};
 
     #[test]

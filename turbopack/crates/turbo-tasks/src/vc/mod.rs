@@ -1,6 +1,8 @@
 pub(crate) mod cast;
 mod cell_mode;
 pub(crate) mod default;
+mod local;
+pub(crate) mod operation;
 mod read;
 pub(crate) mod resolved;
 mod traits;
@@ -15,40 +17,153 @@ use std::{
 };
 
 use anyhow::Result;
-use auto_hash_map::AutoSet;
 use serde::{Deserialize, Serialize};
+use shrink_to_fit::ShrinkToFit;
 
 pub use self::{
     cast::{VcCast, VcValueTraitCast, VcValueTypeCast},
     cell_mode::{VcCellMode, VcCellNewMode, VcCellSharedMode},
     default::ValueDefault,
-    read::{ReadVcFuture, VcDefaultRead, VcRead, VcTransparentRead},
-    resolved::{ResolvedValue, ResolvedVc},
+    local::NonLocalValue,
+    operation::{OperationValue, OperationVc},
+    read::{ReadOwnedVcFuture, ReadVcFuture, VcDefaultRead, VcRead, VcTransparentRead},
+    resolved::ResolvedVc,
     traits::{Dynamic, TypedForInput, Upcast, VcValueTrait, VcValueType},
 };
 use crate::{
+    CellId, RawVc, ResolveTypeError,
     debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString},
-    manager::{create_local_cell, try_get_function_meta},
     registry,
     trace::{TraceRawVcs, TraceRawVcsContext},
-    CellId, CollectiblesSource, RawVc, ResolveTypeError, SharedReference, ShrinkToFit,
 };
 
-/// A Value Cell (`Vc` for short) is a reference to a memoized computation
-/// result stored on the heap or in persistent cache, depending on the
-/// Turbo Engine backend implementation.
+type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
+
+/// A "Value Cell" (`Vc` for short) is a reference to a memoized computation result stored on the
+/// heap or in persistent cache, depending on the Turbo Engine backend implementation.
 ///
-/// In order to get a reference to the pointed value, you need to `.await` the
-/// [`Vc<T>`] to get a [`ReadRef<T>`][crate::ReadRef]:
+/// In order to get a reference to the pointed value, you need to `.await` the [`Vc<T>`] to get a
+/// [`ReadRef<T>`][`ReadRef`]:
 ///
 /// ```
 /// let some_vc: Vc<T>;
 /// let some_ref: ReadRef<T> = some_vc.await?;
 /// some_ref.some_method_on_t();
 /// ```
+///
+/// `Vc`s are similar to a [`Future`] or a Promise with a few key differences:
+///
+/// - The value pointed to by a `Vc` can be invalidated by changing dependencies or cache evicted,
+///   meaning that `await`ing a `Vc` multiple times can give different results. A [`ReadRef`] is
+///   snapshot of the underlying cell at a point in time.
+///
+/// - Reading (`await`ing) `Vc`s causes the current task to be tracked a dependent of the `Vc`'s
+///   task or task cell. When the read task or task cell changes, the current task may be
+///   re-executed.
+///
+/// - `Vc` types are always [`Copy`]. Most [`Future`]s are not. This works because `Vc`s are
+///   represented as a few ids or indicies into data structures managed by the `turbo-tasks`
+///   framework. `Vc` types are not reference counted, but do support [tracing] for a hypothetical
+///   (unimplemented) garbage collector.
+///
+/// - Unlike futures (but like promises), the work that a `Vc` represents [begins execution even if
+///   the `Vc` is not `await`ed](#execution-model).
+///
+/// For a more in-depth explanation of the concepts behind value cells, [refer to the Turbopack
+/// book][book-cells].
+///
+///
+/// ## Subtypes
+///
+/// There are a couple of explicit "subtypes" of `Vc`. These can both be cheaply converted back into
+/// a `Vc`.
+///
+/// - **[`ResolvedVc`]:** *(aka [`RawVc::TaskCell`])* A reference to a cell constructed within a
+///   task, as part of a [`Vc::cell`] or `value_type.cell()` constructor. As the cell has been
+///   constructed at least once, the concrete type of the cell is known (allowing
+///   [downcasting][ResolvedVc::try_downcast]). This is stored as a combination of a task id, a type
+///   id, and a cell id.
+///
+/// - **[`OperationVc`]:** *(aka [`RawVc::TaskOutput`])* The synchronous return value of a
+///   [`turbo_tasks::function`]. Internally, this is stored using a task id. Exact type information
+///   of trait types (i.e. `Vc<Box<dyn Trait>>`) is not known because the function may not have
+///   finished execution yet. [`OperationVc`]s must first be [`connect`][OperationVc::connect]ed
+///   before being read.
+///
+/// [`ResolvedVc`] is almost always preferred over the more awkward [`OperationVc`] API, but
+/// [`OperationVc`] can be useful when dealing with [collectibles], when you need to [read the
+/// result of a function with strong consistency][OperationVc::read_strongly_consistent], or with
+/// [`State`].
+///
+/// These many representations are stored internally using a type-erased [`RawVc`]. Type erasure
+/// reduces the [monomorphization] (and therefore binary size and compilation time) required to
+/// support `Vc` and its subtypes.
+///
+/// |                 | Representation                     | Equality        | Downcasting                | Strong Consistency     | Collectibles      | [Non-Local]  |
+/// |-----------------|------------------------------------|-----------------|----------------------------|------------------------|-------------------|--------------|
+/// | [`Vc`]          | [One of many][RawVc]               | ❌ [Broken][eq] | ⚠️  After resolution        | ❌ Eventual            | ❌ No             | ❌ [No][loc] |
+/// | [`ResolvedVc`]  | [Task Id + Type Id + Cell Id][rtc] | ✅ Yes\*        | ✅ [Yes, cheaply][resolve] | ❌ Eventual            | ❌ No             | ✅ Yes       |
+/// | [`OperationVc`] | [Task Id][rto]                     | ✅ Yes\*        | ⚠️  After resolution        | ✅ [Supported][strong] | ✅ [Yes][collect] | ✅ Yes       |
+///
+/// *\* see the type's documentation for details*
+///
+/// [Non-Local]: NonLocalValue
+/// [rtc]: RawVc::TaskCell
+/// [rto]: RawVc::TaskOutput
+/// [loc]: #optimization-local-outputs
+/// [eq]: #equality--hashing
+/// [resolve]: ResolvedVc::try_downcast
+/// [strong]: OperationVc::read_strongly_consistent
+/// [collect]: crate::CollectiblesSource
+///
+///
+/// ## Execution Model
+///
+/// While task functions are expected to be side-effect free, their execution behavior is still
+/// important for performance reasons, or to code using [collectibles] to represent issues or
+/// side-effects.
+///
+/// Function calls are neither "eager", nor "lazy". Even if not awaited, they are guaranteed to
+/// execute (potentially emitting collectibles) before the root task finishes or before the
+/// completion of any strongly consistent read containing their call. However, the exact point when
+/// that execution begins is an implementation detail. Functions may execute more than once due to
+/// dirty task invalidation.
+///
+///
+/// ## Equality & Hashing
+///
+/// Because `Vc`s can be equivalent but have different representation, it's not recommended to
+/// compare `Vc`s by equality. Instead, you should convert a `Vc` to an explicit subtype first
+/// (likely [`ResolvedVc`]). Future versions of `Vc` may not implement [`Eq`], [`PartialEq`], or
+/// [`Hash`].
+///
+///
+/// ## Optimization: Local Outputs
+///
+/// In addition to the potentially-explicit "resolved" and "operation" representations of a `Vc`,
+/// there's another internal representation of a `Vc`, known as a "Local `Vc`", or
+/// [`RawVc::LocalOutput`].
+///
+/// This is a special case of the synchronous return value of a [`turbo_tasks::function`] when some
+/// of its arguments have not yet been resolved. These are stored in task-local state that is freed
+/// after their parent non-local task exits.
+///
+/// We prevent potentially-local `Vc`s from escaping the lifetime of a function using the
+/// [`NonLocalValue`] marker trait alongside some fallback runtime checks. We do this to avoid some
+/// ergonomic challenges that would come from using lifetime annotations with `Vc`.
+///
+///
+/// [tracing]: crate::trace::TraceRawVcs
+/// [`ReadRef`]: crate::ReadRef
+/// [`turbo_tasks::function`]: crate::function
+/// [monomorphization]: https://doc.rust-lang.org/book/ch10-01-syntax.html#performance-of-code-using-generics
+/// [`State`]: crate::State
+/// [book-cells]: https://turbopack-rust-docs.vercel.sh/turbo-engine/cells.html
+/// [collectibles]: crate::CollectiblesSource
 #[must_use]
 #[derive(Serialize, Deserialize)]
 #[serde(transparent, bound = "")]
+#[repr(transparent)]
 pub struct Vc<T>
 where
     T: ?Sized,
@@ -166,7 +281,7 @@ where
     type Target = *const *mut *const T;
 
     fn deref(&self) -> &Self::Target {
-        extern "C" {
+        unsafe extern "C" {
             #[link_name = "\n\nERROR: you tried to dereference a `Vc<T>`\n"]
             fn trigger() -> !;
         }
@@ -192,7 +307,7 @@ where
     type Target = VcDeref<T>;
 
     fn deref(&self) -> &Self::Target {
-        extern "C" {
+        unsafe extern "C" {
             #[link_name = "\n\nERROR: you tried to dereference a `Vc<T>`\n"]
             fn trigger() -> !;
         }
@@ -255,38 +370,7 @@ where
     pub fn cell_private(mut inner: <T::Read as VcRead<T>>::Target) -> Self {
         // cell contents are immutable, so go ahead and shrink the cell's contents
         ShrinkToFit::shrink_to_fit(<T::Read as VcRead<T>>::target_to_value_mut_ref(&mut inner));
-
-        if try_get_function_meta()
-            .map(|meta| meta.local_cells)
-            .unwrap_or(false)
-        {
-            Self::local_cell_private(inner)
-        } else {
-            <T::CellMode as VcCellMode<T>>::cell(inner)
-        }
-    }
-
-    // called by the `.local_cell()` method generated by the `#[turbo_tasks::value]`
-    // macro
-    #[doc(hidden)]
-    pub fn local_cell_private(mut inner: <T::Read as VcRead<T>>::Target) -> Self {
-        // Cell contents are immutable, so go ahead and shrink the cell's contents. Ideally we'd
-        // wait until the cell is upgraded from local to global to pay the cost of shrinking, but by
-        // that point it's too late to get a mutable reference (the `SharedReference` type has
-        // already been constructed).
-        ShrinkToFit::shrink_to_fit(<T::Read as VcRead<T>>::target_to_value_mut_ref(&mut inner));
-
-        // `T::CellMode` isn't applicable here, we always create new local cells. Local
-        // cells aren't stored across executions, so there can be no concept of
-        // "updating" the cell across multiple executions.
-        let (execution_id, local_cell_id) = create_local_cell(
-            SharedReference::new(triomphe::Arc::new(T::Read::target_to_repr(inner)))
-                .into_typed(T::get_value_type_id()),
-        );
-        Vc {
-            node: RawVc::LocalCell(execution_id, local_cell_id),
-            _t: PhantomData,
-        }
+        <T::CellMode as VcCellMode<T>>::cell(inner)
     }
 }
 
@@ -299,24 +383,12 @@ where
     pub fn cell(inner: Inner) -> Self {
         Self::cell_private(inner)
     }
-
-    pub fn local_cell(inner: Inner) -> Self {
-        // `T::CellMode` isn't applicable here, we always create new local cells. Local
-        // cells aren't stored across executions, so there can be no concept of
-        // "updating" the cell across multiple executions.
-        Self::local_cell_private(inner)
-    }
 }
 
 impl<T> Vc<T>
 where
     T: ?Sized,
 {
-    /// Connects the operation pointed to by this `Vc` to the current task.
-    pub fn connect(vc: Self) {
-        vc.node.connect()
-    }
-
     /// Returns a debug identifier for this `Vc`.
     pub async fn debug_identifier(vc: Self) -> Result<String> {
         let resolved = vc.resolve().await?;
@@ -349,15 +421,8 @@ where
         }
     }
 
-    /// Resolve the reference until it points to a cell directly.
-    ///
-    /// Resolving will wait for task execution to be finished, so that the
-    /// returned `Vc` points to a cell that stores a value.
-    ///
-    /// Resolving is necessary to compare identities of `Vc`s.
-    ///
-    /// This is async and will rethrow any fatal error that happened during task
-    /// execution.
+    /// Do not use this: Use [`Vc::to_resolved`] instead. If you must have a resolved [`Vc`] type
+    /// and not a [`ResolvedVc`] type, simply deref the result of [`Vc::to_resolved`].
     pub async fn resolve(self) -> Result<Vc<T>> {
         Ok(Self {
             node: self.node.resolve().await?,
@@ -366,7 +431,7 @@ where
     }
 
     /// Resolve the reference until it points to a cell directly, and wrap the
-    /// result in a [`ResolvedVc`], which strongly guarantees that the
+    /// result in a [`ResolvedVc`], which statically guarantees that the
     /// [`Vc`] was resolved.
     pub async fn to_resolved(self) -> Result<ResolvedVc<T>> {
         Ok(ResolvedVc {
@@ -374,15 +439,19 @@ where
         })
     }
 
-    /// Returns `true` if the reference is resolved.
+    /// Returns `true` if the reference is resolved, meaning the underlying [`RawVc`] uses the
+    /// [`RawVc::TaskCell`] representation.
     ///
-    /// See also [`Vc::resolve`].
+    /// If you need resolved [`Vc`] value, it's typically better to use the [`ResolvedVc`] type to
+    /// enforce your requirements statically instead of dynamically at runtime.
+    ///
+    /// See also [`ResolvedVc::to_resolved`] and [`RawVc::is_resolved`].
     pub fn is_resolved(self) -> bool {
         self.node.is_resolved()
     }
 
-    /// Returns `true` if the Vc was created inside a task with
-    /// [`#[turbo_tasks::function(local_cells)]`][crate::function] and has not yet been resolved.
+    /// Returns `true` if the `Vc` was by a local function call (e.g. one who's arguments were not
+    /// fully resolved) and has not yet been resolved.
     ///
     /// Aside from differences in caching, a function's behavior should not be changed by using
     /// local or non-local cells, so this function is mostly useful inside tests and internally in
@@ -391,16 +460,8 @@ where
         self.node.is_local()
     }
 
-    /// Resolve the reference until it points to a cell directly in a strongly
-    /// consistent way.
-    ///
-    /// Resolving will wait for task execution to be finished, so that the
-    /// returned Vc points to a cell that stores a value.
-    ///
-    /// Resolving is necessary to compare identities of Vcs.
-    ///
-    /// This is async and will rethrow any fatal error that happened during task
-    /// execution.
+    /// Do not use this: Use [`OperationVc::resolve_strongly_consistent`] instead.
+    #[cfg(feature = "non_operation_vc_strongly_consistent")]
     pub async fn resolve_strongly_consistent(self) -> Result<Self> {
         Ok(Self {
             node: self.node.resolve_strongly_consistent().await?,
@@ -474,19 +535,6 @@ where
     }
 }
 
-impl<T> CollectiblesSource for Vc<T>
-where
-    T: ?Sized,
-{
-    fn take_collectibles<Vt: VcValueTrait>(self) -> AutoSet<Vc<Vt>> {
-        self.node.take_collectibles()
-    }
-
-    fn peek_collectibles<Vt: VcValueTrait>(self) -> AutoSet<Vc<Vt>> {
-        self.node.peek_collectibles()
-    }
-}
-
 impl<T> From<RawVc> for Vc<T>
 where
     T: ?Sized,
@@ -545,18 +593,37 @@ impl<T> Vc<T>
 where
     T: VcValueType,
 {
-    /// Returns a strongly consistent read of the value. This ensures that all
-    /// internal tasks are finished before the read is returned.
+    /// Do not use this: Use [`OperationVc::read_strongly_consistent`] instead.
+    #[cfg(feature = "non_operation_vc_strongly_consistent")]
     #[must_use]
     pub fn strongly_consistent(self) -> ReadVcFuture<T> {
-        self.node.into_strongly_consistent_read().into()
+        self.node.into_read().strongly_consistent().into()
     }
 
     /// Returns a untracked read of the value. This will not invalidate the current function when
     /// the read value changed.
     #[must_use]
     pub fn untracked(self) -> ReadVcFuture<T> {
-        self.node.into_read_untracked().into()
+        self.node.into_read().untracked().into()
+    }
+
+    /// Read the value with the hint that this is the final read of the value. This might drop the
+    /// cell content. Future reads might need to recompute the value.
+    #[must_use]
+    pub fn final_read_hint(self) -> ReadVcFuture<T> {
+        self.node.into_read().final_read_hint().into()
+    }
+}
+
+impl<T> Vc<T>
+where
+    T: VcValueType,
+    VcReadTarget<T>: Clone,
+{
+    /// Read the value and returns a owned version of it. It might clone the value.
+    pub fn owned(self) -> ReadOwnedVcFuture<T> {
+        let future: ReadVcFuture<T> = self.node.into_read().into();
+        future.owned()
     }
 }
 
@@ -568,5 +635,25 @@ where
 {
     fn default() -> Self {
         T::value_default()
+    }
+}
+
+pub trait OptionVcExt<T>
+where
+    T: VcValueType,
+{
+    fn to_resolved(self) -> impl Future<Output = Result<Option<ResolvedVc<T>>>> + Send;
+}
+
+impl<T> OptionVcExt<T> for Option<Vc<T>>
+where
+    T: VcValueType,
+{
+    async fn to_resolved(self) -> Result<Option<ResolvedVc<T>>> {
+        if let Some(vc) = self {
+            Ok(Some(vc.to_resolved().await?))
+        } else {
+            Ok(None)
+        }
     }
 }

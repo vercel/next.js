@@ -1,6 +1,5 @@
 //@ts-check
 
-const os = require('os')
 const path = require('path')
 const _glob = require('glob')
 const { existsSync } = require('fs')
@@ -20,7 +19,7 @@ const { getTestFilter } = require('./test/get-test-filter')
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.0.0-rc-b01722d5-20241114";
+const nextjsReactPeerVersion = "19.1.0";
 
 let argv = require('yargs/yargs')(process.argv.slice(2))
   .string('type')
@@ -52,7 +51,7 @@ const ENDGROUP = process.env.CI ? '##[endgroup]' : ''
 const externalTestsFilter = getTestFilter()
 
 const timings = []
-const DEFAULT_NUM_RETRIES = os.platform() === 'win32' ? 2 : 1
+const DEFAULT_NUM_RETRIES = 2
 const DEFAULT_CONCURRENCY = 2
 const RESULTS_EXT = `.results.json`
 const isTestJob = !!process.env.NEXT_TEST_JOB
@@ -201,8 +200,13 @@ async function main() {
   // Ensure we have the arguments awaited from yargs.
   argv = await argv
 
+  // `.github/workflows/build_reusable.yml` sets this, we should use it unless
+  // it's overridden by an explicit `--concurrency` argument.
+  const envConcurrency =
+    process.env.TEST_CONCURRENCY && parseInt(process.env.TEST_CONCURRENCY, 10)
+
   const options = {
-    concurrency: argv.concurrency || DEFAULT_CONCURRENCY,
+    concurrency: argv.concurrency ?? envConcurrency ?? DEFAULT_CONCURRENCY,
     debug: argv.debug ?? false,
     timings: argv.timings ?? false,
     writeTimings: argv.writeTimings ?? false,
@@ -382,9 +386,9 @@ async function main() {
         Math.round(groupTimes[curGroupIdx]) + 's'
       )
     } else {
-      const numPerGroup = Math.ceil(tests.length / groupTotal)
-      let offset = (groupPos - 1) * numPerGroup
-      tests = tests.slice(offset, offset + numPerGroup)
+      // assign every nth test "round-robin" to the group, so that similar slow
+      // tests tend not to get clustered together
+      tests = tests.filter((_value, idx) => idx % groupTotal === groupPos - 1)
       console.log('Splitting without timings')
     }
   }
@@ -476,7 +480,7 @@ ${ENDGROUP}`)
         // tested when enabled
         CI: '',
         // But some tests need to fork based on machine? CI? behavior differences
-        // Only use read this in tests.
+        // Only use this in tests.
         // For implementation forks, use `process.env.CI` instead
         NEXT_TEST_CI: process.env.CI,
 

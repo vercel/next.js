@@ -144,9 +144,22 @@ describe('loadCustomRoutes', () => {
 
       it('does not insert assetPrefix rewrite for /_next/ paths when assetPrefix is absolute URL', async () => {
         const customRoutes = await loadCustomRoutes({
-          assetPrefix: 'https://example.com/custom-asset-prefix',
+          assetPrefix: 'https://example.com',
         })
         expect(customRoutes.rewrites.beforeFiles).toEqual([])
+        expect(customRoutes.rewrites.afterFiles).toEqual([])
+      })
+
+      it('automatically insert assetPrefix rewrite for /_next/ paths when assetPrefix is absolute URL with a path', async () => {
+        const customRoutes = await loadCustomRoutes({
+          assetPrefix: 'https://example.com/custom-asset-prefix',
+        })
+        expect(customRoutes.rewrites.beforeFiles).toEqual([
+          {
+            destination: '/_next/:path+',
+            source: '/custom-asset-prefix/_next/:path+',
+          },
+        ])
         expect(customRoutes.rewrites.afterFiles).toEqual([])
       })
 

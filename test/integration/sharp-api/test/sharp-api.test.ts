@@ -16,7 +16,7 @@ let app,
   appPort
 
   // Skip as Turbopack doesn't support `next build` yet
-;(process.env.TURBOPACK ? describe.skip : describe)('sharp api', () => {
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)('sharp api', () => {
   beforeAll(async () => {
     await execa('npm', ['install'], { cwd: appDir, stdio: 'inherit' })
     await nextBuild(appDir)

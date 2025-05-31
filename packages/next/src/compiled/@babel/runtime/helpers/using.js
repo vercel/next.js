@@ -1,13 +1,12 @@
-var _typeof = require("./typeof.js")["default"];
-function _using(stack, value, isAwait) {
-  if (null == value) return value;
-  if ("object" != _typeof(value)) throw new TypeError("using decarations can only be used with objects, null, or undefined.");
-  if (isAwait) var dispose = value[Symbol.asyncDispose || Symbol["for"]("Symbol.asyncDispose")];
-  if (null == dispose && (dispose = value[Symbol.dispose || Symbol["for"]("Symbol.dispose")]), "function" != typeof dispose) throw new TypeError("Property [Symbol.dispose] is not a function.");
-  return stack.push({
-    v: value,
-    d: dispose,
-    a: isAwait
-  }), value;
+function _using(o, n, e) {
+  if (null == n) return n;
+  if (Object(n) !== n) throw new TypeError("using declarations can only be used with objects, functions, null, or undefined.");
+  if (e) var r = n[Symbol.asyncDispose || Symbol["for"]("Symbol.asyncDispose")];
+  if (null == r && (r = n[Symbol.dispose || Symbol["for"]("Symbol.dispose")]), "function" != typeof r) throw new TypeError("Property [Symbol.dispose] is not a function.");
+  return o.push({
+    v: n,
+    d: r,
+    a: e
+  }), n;
 }
 module.exports = _using, module.exports.__esModule = true, module.exports["default"] = module.exports;

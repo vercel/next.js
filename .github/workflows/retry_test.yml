@@ -2,7 +2,7 @@ name: retry-tests
 
 on:
   workflow_run:
-    workflows: ['build-and-test']
+    workflows: ['build-and-test', 'build-and-deploy']
     branches: [canary]
     types:
       - completed
@@ -38,6 +38,7 @@ jobs:
   report-failure:
     name: report failure to slack
     # Report the failure to Slack if the build-and-test workflow has failed 3 times
+    # build-and-deploy is not retried so we always report it
     if: >-
       ${{ 
         github.event.workflow_run.conclusion == 'failure' &&

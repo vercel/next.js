@@ -12,11 +12,34 @@ use crate::ident::AssetIdent;
 #[turbo_tasks::value(shared)]
 pub struct AnalyzeIssue {
     pub severity: ResolvedVc<IssueSeverity>,
-    pub source_ident: Vc<AssetIdent>,
+    pub source_ident: ResolvedVc<AssetIdent>,
     pub title: ResolvedVc<RcStr>,
     pub message: ResolvedVc<StyledString>,
     pub code: Option<RcStr>,
-    pub source: Option<Vc<IssueSource>>,
+    pub source: Option<IssueSource>,
+}
+
+#[turbo_tasks::value_impl]
+impl AnalyzeIssue {
+    #[turbo_tasks::function]
+    pub fn new(
+        severity: IssueSeverity,
+        source_ident: ResolvedVc<AssetIdent>,
+        title: ResolvedVc<RcStr>,
+        message: ResolvedVc<StyledString>,
+        code: Option<RcStr>,
+        source: Option<IssueSource>,
+    ) -> Vc<Self> {
+        Self {
+            severity: severity.resolved_cell(),
+            source_ident,
+            title,
+            message,
+            code,
+            source,
+        }
+        .cell()
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -53,14 +76,14 @@ impl Issue for AnalyzeIssue {
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(*self.message))
+        Vc::cell(Some(self.message))
     }
 
     #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(
-            self.source
-                .map(|s| s.resolve_source_map(self.source_ident.path())),
-        )
+    async fn source(&self) -> Result<Vc<OptionIssueSource>> {
+        Ok(Vc::cell(match &self.source {
+            Some(source) => Some(source.resolve_source_map().await?.into_owned()),
+            None => None,
+        }))
     }
 }

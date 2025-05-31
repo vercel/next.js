@@ -3,13 +3,13 @@ use std::{fs, path::PathBuf};
 use criterion::{Bencher, BenchmarkId, Criterion};
 use regex::Regex;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{apply_effects, ReadConsistency, TurboTasks, Value, Vc};
+use turbo_tasks::{ReadConsistency, ResolvedVc, TurboTasks, Value, Vc, apply_effects};
+use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, NullFileSystem};
-use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
-    emit_with_completion,
+    ModuleAssetContext, emit_with_completion_operation,
     module_options::{EcmascriptOptionsContext, ModuleOptionsContext},
-    register, ModuleAssetContext,
+    register,
 };
 use turbopack_core::{
     compile_time_info::CompileTimeInfo,
@@ -70,7 +70,10 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
         .unwrap();
 
     b.to_async(rt).iter(move || {
-        let tt = TurboTasks::new(MemoryBackend::default());
+        let tt = TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
         let tests_root: RcStr = bench_input.tests_root.clone().into();
         let input: RcStr = bench_input.input.clone().into();
         async move {
@@ -80,7 +83,7 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
 
                 let input_dir = input.parent().parent();
                 let output_fs: Vc<NullFileSystem> = NullFileSystem.into();
-                let output_dir = output_fs.root();
+                let output_dir = output_fs.root().to_resolved().await?;
 
                 let source = FileSource::new(input);
                 let compile_time_info = CompileTimeInfo::builder(
@@ -115,11 +118,14 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
                 let module = module_asset_context
                     .process(Vc::upcast(source), Value::new(ReferenceType::Undefined))
                     .module();
-                let rebased = RebasedAsset::new(Vc::upcast(module), input_dir, output_dir);
+                let rebased = RebasedAsset::new(Vc::upcast(module), input_dir, *output_dir)
+                    .to_resolved()
+                    .await?;
 
-                let emit = emit_with_completion(Vc::upcast(rebased), output_dir);
-                emit.strongly_consistent().await?;
-                apply_effects(emit).await?;
+                let emit_op =
+                    emit_with_completion_operation(ResolvedVc::upcast(rebased), output_dir);
+                emit_op.read_strongly_consistent().await?;
+                apply_effects(emit_op).await?;
 
                 Ok::<Vc<()>, _>(Default::default())
             });

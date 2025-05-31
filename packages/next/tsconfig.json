@@ -8,10 +8,29 @@
     "jsx": "react-jsx",
     "module": "ESNext",
     "target": "ES2018",
-    "moduleResolution": "node"
+    "moduleResolution": "node",
+    "paths": {
+      // Required absolute paths.
+      // We rewrite these here so that they aren't also input files which would fail tsc with
+      // "Cannot write file ... because it would overwrite input file."
+      // Also has the benefit of enabling auto-completion before build.
+      "next/dist/client/app-find-source-map-url": [
+        "./src/client/app-find-source-map-url.ts"
+      ],
+      "next/dist/client/app-call-server": ["./src/client/app-call-server.ts"],
+      "next/dist/compiled/@edge-runtime/ponyfill": [
+        "./src/compiled/@edge-runtime/ponyfill"
+      ],
+      "next/dist/compiled/@vercel/og/satori": [
+        "./src/compiled/@vercel/og/satori"
+      ],
+      "next/dist/shared/lib/image-loader": ["./src/shared/lib/image-loader.ts"]
+    }
   },
+  // When changing `exclude`, also update
+  // `tsconfig.build.json`.
   "exclude": [
-    "dist",
+    "./dist/**/*",
     "./*.d.ts",
     "future/*.d.ts",
     "image-types/global.d.ts",

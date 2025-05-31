@@ -1,1 +1,1 @@
-const {cat} = require('./lib')
+const { cat } = require('./lib')

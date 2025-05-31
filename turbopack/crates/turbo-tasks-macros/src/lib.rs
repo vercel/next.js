@@ -3,6 +3,7 @@
 #![feature(allow_internal_unstable)]
 #![feature(box_patterns)]
 
+mod assert_fields;
 mod derive;
 mod func;
 mod function_macro;
@@ -22,14 +23,14 @@ pub fn derive_trace_raw_vcs_attr(input: TokenStream) -> TokenStream {
     derive::derive_trace_raw_vcs(input)
 }
 
-#[proc_macro_derive(ShrinkToFit, attributes(turbo_tasks))]
-pub fn derive_shrink_to_fit(input: TokenStream) -> TokenStream {
-    derive::derive_shrink_to_fit(input)
+#[proc_macro_derive(NonLocalValue, attributes(turbo_tasks))]
+pub fn derive_non_local_value_attr(input: TokenStream) -> TokenStream {
+    derive::derive_non_local_value(input)
 }
 
-#[proc_macro_derive(ResolvedValue, attributes(turbo_tasks))]
-pub fn derive_resolved_value_attr(input: TokenStream) -> TokenStream {
-    derive::derive_resolved_value(input)
+#[proc_macro_derive(OperationValue, attributes(turbo_tasks))]
+pub fn derive_operation_value_attr(input: TokenStream) -> TokenStream {
+    derive::derive_operation_value(input)
 }
 
 #[proc_macro_derive(ValueDebug, attributes(turbo_tasks))]
@@ -52,17 +53,19 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
     derive::derive_task_input(input)
 }
 
-/// Derives the `turbo_tasks::KeyValuePair` trait for a enum. Each variant need to have a `value`
-/// field which becomes part of the value enum and all remaining fields become part of the key.
-///
-/// Assuming the enum is called `Abc` it exposes `AbcKey` and `AbcValue` types for it too. The key
-/// enum will have `Debug, Clone, PartialEq, Eq, Hash` derived and the value enum will have `Debug,
-/// Clone` derived. It's expected that all fields implement these traits.
+/// <!--
+/// Documentation for this macro is available on the re-export:
+/// <https://turbopack-rust-docs.vercel.sh/rustdoc/turbo_tasks/derive.KeyValuePair.html>
+/// -->
 #[proc_macro_derive(KeyValuePair)]
 pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
     derive::derive_key_value_pair(input)
 }
 
+/// <!--
+/// Documentation for this macro is available on the re-export:
+/// <https://turbopack-rust-docs.vercel.sh/rustdoc/turbo_tasks/attr.value.html>
+/// -->
 #[allow_internal_unstable(min_specialization, into_future, trivial_bounds)]
 #[proc_macro_error]
 #[proc_macro_attribute]
@@ -70,24 +73,10 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     value_macro::value(args, input)
 }
 
-/// Allows this trait to be used as part of a trait object inside of a value
-/// cell, in the form of `Vc<dyn MyTrait>`.
-///
-/// ## Arguments
-///
-/// Example: `#[turbo_tasks::value_trait(no_debug, resolved)]`
-///
-/// ### 'no_debug`
-///
-/// Disables the automatic implementation of [`turbo_tasks::debug::ValueDebug`].
-///
-/// Example: `#[turbo_tasks::value_trait(no_debug)]`
-///
-/// ### 'resolved`
-///
-/// Adds [`turbo_tasks::ResolvedValue`] as a supertrait of this trait.
-///
-/// Example: `#[turbo_tasks::value_trait(resolved)]`
+/// <!--
+/// Documentation for this macro is available on the re-export:
+/// <https://turbopack-rust-docs.vercel.sh/rustdoc/turbo_tasks/attr.value_trait.html>
+/// -->
 #[allow_internal_unstable(min_specialization, into_future, trivial_bounds)]
 #[proc_macro_error]
 #[proc_macro_attribute]

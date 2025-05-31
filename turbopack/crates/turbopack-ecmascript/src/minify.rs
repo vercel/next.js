@@ -1,71 +1,72 @@
-use std::{io::Write, sync::Arc};
+use std::sync::Arc;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use swc_core::{
-    base::{try_with_handler, Compiler},
+    base::try_with_handler,
     common::{
+        BytePos, FileName, FilePathMapping, GLOBALS, LineCol, Mark, SourceMap as SwcSourceMap,
         comments::{Comments, SingleThreadedComments},
-        BytePos, FileName, FilePathMapping, LineCol, Mark, SourceMap as SwcSourceMap, GLOBALS,
     },
     ecma::{
         self,
         ast::{EsVersion, Program},
         codegen::{
-            text_writer::{self, JsWriter, WriteJs},
             Emitter,
+            text_writer::{self, JsWriter, WriteJs},
         },
-        minifier::option::{ExtraOptions, MangleOptions, MinifyOptions},
-        parser::{lexer::Lexer, Parser, StringInput, Syntax},
-        transforms::base::fixer::paren_remover,
+        minifier::option::{CompressOptions, ExtraOptions, MangleOptions, MinifyOptions},
+        parser::{Parser, StringInput, Syntax, lexer::Lexer},
+        transforms::base::{
+            fixer::paren_remover,
+            hygiene::{self, hygiene_with_config},
+        },
     },
 };
-use turbo_tasks::Vc;
-use turbo_tasks_fs::FileSystemPath;
+use tracing::{Level, instrument};
 use turbopack_core::{
+    chunk::MangleType,
     code_builder::{Code, CodeBuilder},
-    source_map::GenerateSourceMap,
 };
 
-use crate::ParseResultSourceMap;
+use crate::parse::generate_js_source_map;
 
-#[turbo_tasks::function]
-pub async fn minify(path: Vc<FileSystemPath>, code: Vc<Code>) -> Result<Vc<Code>> {
-    let path = path.await?;
-    let original_map = code.generate_source_map().to_resolved().await?;
-    let code = code.await?;
+#[instrument(level = Level::INFO, skip_all)]
+pub fn minify(code: &Code, source_maps: bool, mangle: Option<MangleType>) -> Result<Code> {
+    let source_maps = source_maps
+        .then(|| code.generate_source_map_ref())
+        .transpose()?;
 
     let cm = Arc::new(SwcSourceMap::new(FilePathMapping::empty()));
-    let compiler = Arc::new(Compiler::new(cm.clone()));
-    let fm = compiler.cm.new_source_file(
-        FileName::Custom(path.path.to_string()).into(),
-        code.source_code().to_str()?.to_string(),
-    );
+    let (src, mut src_map_buf) = {
+        let fm = cm.new_source_file(
+            FileName::Anon.into(),
+            code.source_code().to_str()?.into_owned(),
+        );
 
-    let lexer = Lexer::new(
-        Syntax::default(),
-        EsVersion::latest(),
-        StringInput::from(&*fm),
-        None,
-    );
-    let mut parser = Parser::new_from(lexer);
+        let lexer = Lexer::new(
+            Syntax::default(),
+            EsVersion::latest(),
+            StringInput::from(&*fm),
+            None,
+        );
+        let mut parser = Parser::new_from(lexer);
 
-    let program = try_with_handler(cm.clone(), Default::default(), |handler| {
-        GLOBALS.set(&Default::default(), || {
-            let program = match parser.parse_program() {
-                Ok(program) => program,
-                Err(err) => {
-                    err.into_diagnostic(handler).emit();
-                    bail!(
-                        "failed to parse source code\n{}",
-                        code.source_code().to_str()?
-                    )
-                }
-            };
-            let comments = SingleThreadedComments::default();
-            let unresolved_mark = Mark::new();
-            let top_level_mark = Mark::new();
+        let program = try_with_handler(cm.clone(), Default::default(), |handler| {
+            GLOBALS.set(&Default::default(), || {
+                let program = match parser.parse_program() {
+                    Ok(program) => program,
+                    Err(err) => {
+                        err.into_diagnostic(handler).emit();
+                        bail!(
+                            "failed to parse source code\n{}",
+                            code.source_code().to_str()?
+                        )
+                    }
+                };
+                let comments = SingleThreadedComments::default();
+                let unresolved_mark = Mark::new();
+                let top_level_mark = Mark::new();
 
-            Ok(compiler.run_transform(handler, false, || {
                 let program = program.apply(paren_remover(Some(&comments)));
 
                 let mut program = program.apply(swc_core::ecma::transforms::base::resolver(
@@ -80,51 +81,80 @@ pub async fn minify(path: Vc<FileSystemPath>, code: Vc<Code>) -> Result<Vc<Code>
                     Some(&comments),
                     None,
                     &MinifyOptions {
-                        compress: Some(Default::default()),
-                        mangle: Some(MangleOptions {
-                            reserved: vec!["AbortSignal".into()],
+                        compress: Some(CompressOptions {
+                            // Only run 2 passes, this is a tradeoff between performance and
+                            // compression size. Default is 3 passes.
+                            passes: 2,
+                            keep_classnames: mangle.is_none(),
+                            keep_fnames: mangle.is_none(),
                             ..Default::default()
+                        }),
+                        mangle: mangle.map(|mangle| {
+                            let reserved = vec!["AbortSignal".into()];
+                            match mangle {
+                                MangleType::OptimalSize => MangleOptions {
+                                    reserved,
+                                    ..Default::default()
+                                },
+                                MangleType::Deterministic => MangleOptions {
+                                    reserved,
+                                    disable_char_freq: true,
+                                    ..Default::default()
+                                },
+                            }
                         }),
                         ..Default::default()
                     },
                     &ExtraOptions {
                         top_level_mark,
                         unresolved_mark,
-                        mangle_name_cache: Default::default(),
+                        mangle_name_cache: None,
                     },
                 );
 
-                program.apply(ecma::transforms::base::fixer::fixer(Some(
+                if mangle.is_none() {
+                    program.mutate(hygiene_with_config(hygiene::Config {
+                        top_level_mark,
+                        ..Default::default()
+                    }));
+                }
+
+                Ok(program.apply(ecma::transforms::base::fixer::fixer(Some(
                     &comments as &dyn Comments,
-                )))
-            }))
+                ))))
+            })
         })
-    })?;
+        .map_err(|e| e.to_pretty_error())?;
 
-    let (src, src_map_buf) = print_program(cm.clone(), program)?;
+        print_program(cm.clone(), program, source_maps.is_some())?
+    };
 
-    let mut builder = CodeBuilder::default();
-    builder.push_source(
-        &src.into(),
-        Some(Vc::upcast(
-            ParseResultSourceMap::new(cm, src_map_buf, original_map).cell(),
-        )),
-    );
-
-    write!(
-        builder,
-        // findSourceMapURL assumes this co-located sourceMappingURL,
-        // and needs to be adjusted in case this is ever changed.
-        "\n\n//# sourceMappingURL={}.map",
-        urlencoding::encode(path.file_name())
-    )?;
-    Ok(builder.build().cell())
+    let mut builder = CodeBuilder::new(source_maps.is_some());
+    if let Some(original_map) = source_maps.as_ref() {
+        src_map_buf.shrink_to_fit();
+        builder.push_source(
+            &src.into(),
+            Some(generate_js_source_map(
+                cm,
+                src_map_buf,
+                Some(original_map),
+                // We do not inline source contents.
+                // We provide a synthesized value to `cm.new_source_file` above, so it cannot be
+                // the value user expect anyway.
+                false,
+            )?),
+        );
+    } else {
+        builder.push_source(&src.into(), None);
+    }
+    Ok(builder.build())
 }
 
 // From https://github.com/swc-project/swc/blob/11efd4e7c5e8081f8af141099d3459c3534c1e1d/crates/swc/src/lib.rs#L523-L560
 fn print_program(
     cm: Arc<SwcSourceMap>,
     program: Program,
+    source_maps: bool,
 ) -> Result<(String, Vec<(BytePos, LineCol)>)> {
     let mut src_map_buf = vec![];
 
@@ -135,7 +165,7 @@ fn print_program(
                 cm.clone(),
                 "\n",
                 &mut buf,
-                Some(&mut src_map_buf),
+                source_maps.then_some(&mut src_map_buf),
             )))) as Box<dyn WriteJs>;
 
             let mut emitter = Emitter {
@@ -150,7 +180,8 @@ fn print_program(
                 .context("failed to emit module")?;
         }
         // Invalid utf8 is valid in javascript world.
-        String::from_utf8(buf).expect("invalid utf8 character detected")
+        // SAFETY: SWC generates valid utf8.
+        unsafe { String::from_utf8_unchecked(buf) }
     };
 
     Ok((src, src_map_buf))

@@ -1592,12 +1592,21 @@
     ),
     (
         "aa",
-        Variable(
-            (
-                "a",
-                #4,
-            ),
-        ),
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "a",
+                        #4,
+                    ),
+                ),
+                Constant(
+                    Undefined,
+                ),
+            ],
+            logical_property: None,
+        },
     ),
     (
         "b#10",
@@ -2835,12 +2844,21 @@
     ),
     (
         "bb",
-        Variable(
-            (
-                "b",
-                #4,
-            ),
-        ),
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "b",
+                        #4,
+                    ),
+                ),
+                Constant(
+                    Undefined,
+                ),
+            ],
+            logical_property: None,
+        },
     ),
     (
         "bin",
@@ -2854,7 +2872,7 @@
                 [
                     Constant(
                         Str(
-                            Word(
+                            Atom(
                                 "charenc",
                             ),
                         ),
@@ -4110,12 +4128,21 @@
     ),
     (
         "cc",
-        Variable(
-            (
-                "c",
-                #4,
-            ),
-        ),
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "c",
+                        #4,
+                    ),
+                ),
+                Constant(
+                    Undefined,
+                ),
+            ],
+            logical_property: None,
+        },
     ),
     (
         "crypt",
@@ -4127,7 +4154,7 @@
             [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "crypt",
                         ),
                     ),
@@ -5378,12 +5405,21 @@
     ),
     (
         "dd",
-        Variable(
-            (
-                "d",
-                #4,
-            ),
-        ),
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "d",
+                        #4,
+                    ),
+                ),
+                Constant(
+                    Undefined,
+                ),
+            ],
+            logical_property: None,
+        },
     ),
     (
         "digestbytes",
@@ -5478,7 +5514,7 @@
             [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "is-buffer",
                         ),
                     ),
@@ -5865,7 +5901,7 @@
                 [
                     Constant(
                         Str(
-                            Word(
+                            Atom(
                                 "charenc",
                             ),
                         ),

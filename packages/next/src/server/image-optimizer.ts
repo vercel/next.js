@@ -19,14 +19,16 @@ import {
   CachedRouteKind,
   type CachedImageValue,
   type IncrementalCacheEntry,
-  type IncrementalCacheItem,
   type IncrementalCacheValue,
+  type IncrementalResponseCacheEntry,
 } from './response-cache'
 import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
 import * as Log from '../build/output/log'
 import isError from '../lib/is-error'
 import { parseUrl } from '../lib/url'
+import type { CacheControl } from './lib/cache-control'
+import { InvariantError } from '../shared/lib/invariant-error'
 
 type XCacheHeader = 'MISS' | 'HIT' | 'STALE'
 
@@ -37,11 +39,12 @@ const JPEG = 'image/jpeg'
 const GIF = 'image/gif'
 const SVG = 'image/svg+xml'
 const ICO = 'image/x-icon'
+const ICNS = 'image/x-icns'
 const TIFF = 'image/tiff'
 const BMP = 'image/bmp'
 const CACHE_VERSION = 4
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
-const VECTOR_TYPES = [SVG]
+const BYPASS_TYPES = [SVG, ICO, ICNS, BMP]
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
 const BLUR_QUALITY = 70 // should match `next-image-loader`
 
@@ -186,6 +189,9 @@ export function detectContentType(buffer: Buffer) {
   if ([0x00, 0x00, 0x01, 0x00].every((b, i) => buffer[i] === b)) {
     return ICO
   }
+  if ([0x69, 0x63, 0x6e, 0x73].every((b, i) => buffer[i] === b)) {
+    return ICNS
+  }
   if ([0x49, 0x49, 0x2a, 0x00].every((b, i) => buffer[i] === b)) {
     return TIFF
   }
@@ -215,6 +221,7 @@ export class ImageOptimizerCache {
     } = imageData
     const remotePatterns = nextConfig.images?.remotePatterns || []
     const localPatterns = nextConfig.images?.localPatterns
+    const qualities = nextConfig.images?.qualities
     const { url, w, q } = query
     let href: string
 
@@ -330,6 +337,18 @@ export class ImageOptimizerCache {
       }
     }
 
+    if (qualities) {
+      if (isDev) {
+        qualities.push(BLUR_QUALITY)
+      }
+
+      if (!qualities.includes(quality)) {
+        return {
+          errorMessage: `"q" parameter (quality) of ${q} is not allowed`,
+        }
+      }
+    }
+
     const mimeType = getSupportedMimeType(formats || [], req.headers['accept'])
 
     const isStatic = url.startsWith(
@@ -373,7 +392,7 @@ export class ImageOptimizerCache {
     this.nextConfig = nextConfig
   }
 
-  async get(cacheKey: string): Promise<IncrementalCacheEntry | null> {
+  async get(cacheKey: string): Promise<IncrementalResponseCacheEntry | null> {
     try {
       const cacheDir = join(this.cacheDir, cacheKey)
       const files = await promises.readdir(cacheDir)
@@ -397,9 +416,8 @@ export class ImageOptimizerCache {
           revalidateAfter:
             Math.max(maxAge, this.nextConfig.images.minimumCacheTTL) * 1000 +
             Date.now(),
-          curRevalidate: maxAge,
+          cacheControl: { revalidate: maxAge, expire: undefined },
           isStale: now > expireAt,
-          isFallback: false,
         }
       }
     } catch (_) {
@@ -411,18 +429,25 @@ export class ImageOptimizerCache {
     cacheKey: string,
     value: IncrementalCacheValue | null,
     {
-      revalidate,
+      cacheControl,
     }: {
-      revalidate?: number | false
+      cacheControl?: CacheControl
     }
   ) {
+    if (!this.nextConfig.experimental.isrFlushToDisk) {
+      return
+    }
+
     if (value?.kind !== CachedRouteKind.IMAGE) {
       throw new Error('invariant attempted to set non-image to image-cache')
     }
 
+    const revalidate = cacheControl?.revalidate
+
     if (typeof revalidate !== 'number') {
-      throw new Error('invariant revalidate must be a number for image-cache')
+      throw new InvariantError('revalidate must be a number for image-cache')
     }
+
     const expireAt =
       Math.max(revalidate, this.nextConfig.images.minimumCacheTTL) * 1000 +
       Date.now()
@@ -491,7 +516,7 @@ export function getMaxAge(str: string | null | undefined): number {
 }
 export function getPreviouslyCachedImageOrNull(
   upstreamImage: ImageUpstream,
-  previousCacheEntry: IncrementalCacheItem | undefined
+  previousCacheEntry: IncrementalCacheEntry | null | undefined
 ): CachedImageValue | null {
   if (
     previousCacheEntry?.value?.kind === 'IMAGE' &&
@@ -661,7 +686,7 @@ export async function imageOptimizer(
   opts: {
     isDev?: boolean
     silent?: boolean
-    previousCacheEntry?: IncrementalCacheItem
+    previousCacheEntry?: IncrementalResponseCacheEntry | null
   }
 ): Promise<{
   buffer: Buffer
@@ -673,7 +698,10 @@ export async function imageOptimizer(
 }> {
   const { href, quality, width, mimeType } = paramsResult
   const { buffer: upstreamBuffer, etag: upstreamEtag } = imageUpstream
-  const maxAge = getMaxAge(imageUpstream.cacheControl)
+  const maxAge = Math.max(
+    nextConfig.images.minimumCacheTTL,
+    getMaxAge(imageUpstream.cacheControl)
+  )
 
   const upstreamType =
     detectContentType(upstreamBuffer) ||
@@ -708,10 +736,7 @@ export async function imageOptimizer(
         upstreamEtag,
       }
     }
-    if (VECTOR_TYPES.includes(upstreamType)) {
-      // We don't warn here because we already know that "dangerouslyAllowSVG"
-      // was enabled above, therefore the user explicitly opted in.
-      // If we add more VECTOR_TYPES besides SVG, perhaps we could warn for those.
+    if (BYPASS_TYPES.includes(upstreamType)) {
       return {
         buffer: upstreamBuffer,
         contentType: upstreamType,
@@ -755,7 +780,7 @@ export async function imageOptimizer(
     return {
       buffer: previouslyCachedImage.buffer,
       contentType,
-      maxAge: opts?.previousCacheEntry?.curRevalidate || maxAge,
+      maxAge: opts?.previousCacheEntry?.cacheControl?.revalidate || maxAge,
       etag: previouslyCachedImage.etag,
       upstreamEtag: previouslyCachedImage.upstreamEtag,
     }
@@ -790,7 +815,7 @@ export async function imageOptimizer(
     return {
       buffer: optimizedBuffer,
       contentType,
-      maxAge: Math.max(maxAge, nextConfig.images.minimumCacheTTL),
+      maxAge,
       etag: getImageEtag(optimizedBuffer),
       upstreamEtag,
     }

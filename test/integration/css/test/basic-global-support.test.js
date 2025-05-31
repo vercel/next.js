@@ -57,23 +57,36 @@ module.exports = {
           const $ = cheerio.load(content)
 
           const cssSheet = $('link[rel="stylesheet"]')
-          expect(cssSheet.length).toBe(1)
-          const stylesheet = cssSheet.attr('href')
+          const cssContent = await getStylesheetContents($, appPort, cssSheet)
 
-          const cssContent = (
-            await fetchViaHTTP(appPort, stylesheet).then((res) => res.text())
-          )
-            .replace(/\/\*.*?\*\//g, '')
-            .trim()
-
-          if (process.env.TURBOPACK && useLightningcss) {
-            expect(cssContent).toMatchInlineSnapshot(`".red-text{color:red}"`)
-          } else if (process.env.TURBOPACK && !useLightningcss) {
-            expect(cssContent).toMatchInlineSnapshot(`".red-text{color:red}"`)
+          if (process.env.IS_TURBOPACK_TEST && useLightningcss) {
+            expect(cssContent).toMatchInlineSnapshot(`
+             [
+               "/_next/static/chunks/HASH.css:
+             .red-text{color:red}",
+             ]
+            `)
+          } else if (process.env.IS_TURBOPACK_TEST && !useLightningcss) {
+            expect(cssContent).toMatchInlineSnapshot(`
+             [
+               "/_next/static/chunks/HASH.css:
+             .red-text{color:red}",
+             ]
+            `)
           } else if (useLightningcss) {
-            expect(cssContent).toMatchInlineSnapshot(`".red-text{color:red}"`)
+            expect(cssContent).toMatchInlineSnapshot(`
+             [
+               "/_next/static/css/HASH.css:
+             .red-text{color:red}",
+             ]
+            `)
           } else {
-            expect(cssContent).toMatchInlineSnapshot(`".red-text{color:red}"`)
+            expect(cssContent).toMatchInlineSnapshot(`
+             [
+               "/_next/static/css/HASH.css:
+             .red-text{color:red}",
+             ]
+            `)
           }
         })
       })
@@ -128,23 +141,36 @@ module.exports = {
           const $ = cheerio.load(content)
 
           const cssSheet = $('link[rel="stylesheet"]')
-          expect(cssSheet.length).toBe(1)
-          const stylesheet = cssSheet.attr('href')
+          const cssContent = await getStylesheetContents($, appPort, cssSheet)
 
-          const cssContent = (
-            await fetchViaHTTP(appPort, stylesheet).then((res) => res.text())
-          )
-            .replace(/\/\*.*?\*\//g, '')
-            .trim()
-
-          if (process.env.TURBOPACK && useLightningcss) {
-            expect(cssContent).toMatchInlineSnapshot(`".red-text{color:red}"`)
-          } else if (process.env.TURBOPACK && !useLightningcss) {
-            expect(cssContent).toMatchInlineSnapshot(`".red-text{color:red}"`)
+          if (process.env.IS_TURBOPACK_TEST && useLightningcss) {
+            expect(cssContent).toMatchInlineSnapshot(`
+             [
+               "/_next/static/chunks/HASH.css:
+             .red-text{color:red}",
+             ]
+            `)
+          } else if (process.env.IS_TURBOPACK_TEST && !useLightningcss) {
+            expect(cssContent).toMatchInlineSnapshot(`
+             [
+               "/_next/static/chunks/HASH.css:
+             .red-text{color:red}",
+             ]
+            `)
           } else if (useLightningcss) {
-            expect(cssContent).toMatchInlineSnapshot(`".red-text{color:red}"`)
+            expect(cssContent).toMatchInlineSnapshot(`
+             [
+               "/_next/static/css/HASH.css:
+             .red-text{color:red}",
+             ]
+            `)
           } else {
-            expect(cssContent).toMatchInlineSnapshot(`".red-text{color:red}"`)
+            expect(cssContent).toMatchInlineSnapshot(`
+             [
+               "/_next/static/css/HASH.css:
+             .red-text{color:red}",
+             ]
+            `)
           }
         })
       })
@@ -194,23 +220,36 @@ module.exports = {
           const $ = cheerio.load(content)
 
           const cssSheet = $('link[rel="stylesheet"]')
-          expect(cssSheet.length).toBe(1)
-          const stylesheet = cssSheet.attr('href')
+          const cssContent = await getStylesheetContents($, appPort, cssSheet)
 
-          const cssContent = (
-            await fetchViaHTTP(appPort, stylesheet).then((res) => res.text())
-          )
-            .replace(/\/\*.*?\*\//g, '')
-            .trim()
-
-          if (process.env.TURBOPACK && useLightningcss) {
-            expect(cssContent).toMatchInlineSnapshot(`".red-text{color:red}"`)
-          } else if (process.env.TURBOPACK && !useLightningcss) {
-            expect(cssContent).toMatchInlineSnapshot(`".red-text{color:red}"`)
+          if (process.env.IS_TURBOPACK_TEST && useLightningcss) {
+            expect(cssContent).toMatchInlineSnapshot(`
+             [
+               "/_next/static/chunks/HASH.css:
+             .red-text{color:red}",
+             ]
+            `)
+          } else if (process.env.IS_TURBOPACK_TEST && !useLightningcss) {
+            expect(cssContent).toMatchInlineSnapshot(`
+             [
+               "/_next/static/chunks/HASH.css:
+             .red-text{color:red}",
+             ]
+            `)
           } else if (useLightningcss) {
-            expect(cssContent).toMatchInlineSnapshot(`".red-text{color:red}"`)
+            expect(cssContent).toMatchInlineSnapshot(`
+             [
+               "/_next/static/css/HASH.css:
+             .red-text{color:red}",
+             ]
+            `)
           } else {
-            expect(cssContent).toMatchInlineSnapshot(`".red-text{color:red}"`)
+            expect(cssContent).toMatchInlineSnapshot(`
+             [
+               "/_next/static/css/HASH.css:
+             .red-text{color:red}",
+             ]
+            `)
           }
         })
       })
@@ -261,37 +300,40 @@ module.exports = {
           const $ = cheerio.load(content)
 
           const cssSheet = $('link[rel="stylesheet"]')
-          expect(cssSheet.length).toBe(1)
-          const stylesheet = cssSheet.attr('href')
+          const cssContent = await getStylesheetContents($, appPort, cssSheet)
 
-          const cssContent = (
-            await fetchViaHTTP(appPort, stylesheet).then((res) => res.text())
-          )
-            .replace(/\/\*.*?\*\//g, '')
-            .trim()
-
-          if (process.env.TURBOPACK && useLightningcss) {
+          if (process.env.IS_TURBOPACK_TEST && useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(`
-".red-text{color:red}
+             [
+               "/_next/static/chunks/HASH.css:
+             .red-text{color:red}
 
-
-.blue-text{color:#00f}"
-`)
-          } else if (process.env.TURBOPACK && !useLightningcss) {
+             .blue-text{color:#00f}",
+             ]
+            `)
+          } else if (process.env.IS_TURBOPACK_TEST && !useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(`
-".red-text{color:red}
+             [
+               "/_next/static/chunks/HASH.css:
+             .red-text{color:red}
 
-
-.blue-text{color:#00f}"
-`)
+             .blue-text{color:#00f}",
+             ]
+            `)
           } else if (useLightningcss) {
-            expect(cssContent).toMatchInlineSnapshot(
-              `".red-text{color:red}.blue-text{color:#00f}"`
-            )
+            expect(cssContent).toMatchInlineSnapshot(`
+             [
+               "/_next/static/css/HASH.css:
+             .red-text{color:red}.blue-text{color:#00f}",
+             ]
+            `)
           } else {
-            expect(cssContent).toMatchInlineSnapshot(
-              `".red-text{color:red}.blue-text{color:blue}"`
-            )
+            expect(cssContent).toMatchInlineSnapshot(`
+             [
+               "/_next/static/css/HASH.css:
+             .red-text{color:red}.blue-text{color:blue}",
+             ]
+            `)
           }
         })
       })
@@ -342,49 +384,48 @@ module.exports = {
           const $ = cheerio.load(content)
 
           const cssSheet = $('link[rel="stylesheet"]')
-          expect(cssSheet.length).toBe(1)
-          const stylesheet = cssSheet.attr('href')
+          const cssContent = await getStylesheetContents($, appPort, cssSheet)
 
-          const cssContent = (
-            await fetchViaHTTP(appPort, stylesheet).then((res) => res.text())
-          )
-            .replace(/\/\*.*?\*\//g, '')
-            .trim()
-
-          if (process.env.TURBOPACK && useLightningcss) {
+          if (process.env.IS_TURBOPACK_TEST && useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(`
-".red-text{color:purple;font-weight:bolder}
+             [
+               "/_next/static/chunks/HASH.css:
+             .red-text{color:purple;font-weight:bolder}
 
+             .red-text{color:red}
 
-.red-text{color:red}
+             .blue-text{color:orange;font-weight:bolder}
 
-
-.blue-text{color:orange;font-weight:bolder}
-
-
-.blue-text{color:#00f}"
-`)
-          } else if (process.env.TURBOPACK && !useLightningcss) {
+             .blue-text{color:#00f}",
+             ]
+            `)
+          } else if (process.env.IS_TURBOPACK_TEST && !useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(`
-".red-text{color:purple;font-weight:bolder}
+             [
+               "/_next/static/chunks/HASH.css:
+             .red-text{color:purple;font-weight:bolder}
 
+             .red-text{color:red}
 
-.red-text{color:red}
+             .blue-text{color:orange;font-weight:bolder}
 
-
-.blue-text{color:orange;font-weight:bolder}
-
-
-.blue-text{color:#00f}"
-`)
+             .blue-text{color:#00f}",
+             ]
+            `)
           } else if (useLightningcss) {
-            expect(cssContent).toMatchInlineSnapshot(
-              `".red-text{color:purple;font-weight:bolder;color:red}.blue-text{color:orange;font-weight:bolder;color:#00f}"`
-            )
+            expect(cssContent).toMatchInlineSnapshot(`
+             [
+               "/_next/static/css/HASH.css:
+             .red-text{color:purple;font-weight:bolder;color:red}.blue-text{color:orange;font-weight:bolder;color:#00f}",
+             ]
+            `)
           } else {
-            expect(cssContent).toMatchInlineSnapshot(
-              `".red-text{color:purple;font-weight:bolder;color:red}.blue-text{color:orange;font-weight:bolder;color:blue}"`
-            )
+            expect(cssContent).toMatchInlineSnapshot(`
+             [
+               "/_next/static/css/HASH.css:
+             .red-text{color:purple;font-weight:bolder;color:red}.blue-text{color:orange;font-weight:bolder;color:blue}",
+             ]
+            `)
           }
         })
       })
@@ -436,37 +477,40 @@ module.exports = {
           const $ = cheerio.load(content)
 
           const cssSheet = $('link[rel="stylesheet"]')
-          expect(cssSheet.length).toBe(1)
-          const stylesheet = cssSheet.attr('href')
+          const cssContent = await getStylesheetContents($, appPort, cssSheet)
 
-          const cssContent = (
-            await fetchViaHTTP(appPort, stylesheet).then((res) => res.text())
-          )
-            .replace(/\/\*.*?\*\//g, '')
-            .trim()
-
-          if (process.env.TURBOPACK && useLightningcss) {
+          if (process.env.IS_TURBOPACK_TEST && useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(`
-".blue-text{color:#00f}
+             [
+               "/_next/static/chunks/HASH.css:
+             .blue-text{color:#00f}
 
-
-.red-text{color:red}"
-`)
-          } else if (process.env.TURBOPACK && !useLightningcss) {
+             .red-text{color:red}",
+             ]
+            `)
+          } else if (process.env.IS_TURBOPACK_TEST && !useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(`
-".blue-text{color:#00f}
+             [
+               "/_next/static/chunks/HASH.css:
+             .blue-text{color:#00f}
 
-
-.red-text{color:red}"
-`)
+             .red-text{color:red}",
+             ]
+            `)
           } else if (useLightningcss) {
-            expect(cssContent).toMatchInlineSnapshot(
-              `".blue-text{color:#00f}.red-text{color:red}"`
-            )
+            expect(cssContent).toMatchInlineSnapshot(`
+             [
+               "/_next/static/css/HASH.css:
+             .blue-text{color:#00f}.red-text{color:red}",
+             ]
+            `)
           } else {
-            expect(cssContent).toMatchInlineSnapshot(
-              `".blue-text{color:blue}.red-text{color:red}"`
-            )
+            expect(cssContent).toMatchInlineSnapshot(`
+             [
+               "/_next/static/css/HASH.css:
+             .blue-text{color:blue}.red-text{color:red}",
+             ]
+            `)
           }
         })
       })
@@ -517,43 +561,44 @@ module.exports = {
           const $ = cheerio.load(content)
 
           const cssSheet = $('link[rel="stylesheet"]')
-          expect(cssSheet.length).toBe(1)
-          const stylesheet = cssSheet.attr('href')
+          const cssContent = await getStylesheetContents($, appPort, cssSheet)
 
-          const cssContent = (
-            await fetchViaHTTP(appPort, stylesheet).then((res) => res.text())
-          )
-            .replace(/\/\*.*?\*\//g, '')
-            .trim()
-
-          if (process.env.TURBOPACK && useLightningcss) {
+          if (process.env.IS_TURBOPACK_TEST && useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(`
-".red-text{color:red;background-image:url(../media/dark.993bedd3.svg) url(../media/dark2.993bedd3.svg)}
+             [
+               "/_next/static/chunks/HASH.css:
+             .red-text{color:red;background-image:url(../media/dark.993bedd3.svg),url(../media/dark2.993bedd3.svg)}
 
+             .blue-text{color:orange;background-image:url(../media/light.180573e4.svg);font-weight:bolder}
 
-.blue-text{color:orange;font-weight:bolder;background-image:url(../media/light.180573e4.svg)}
-
-
-.blue-text{color:#00f}"
-`)
-          } else if (process.env.TURBOPACK && !useLightningcss) {
+             .blue-text{color:#00f}",
+             ]
+            `)
+          } else if (process.env.IS_TURBOPACK_TEST && !useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(`
-".red-text{color:red;background-image:url(../media/dark.993bedd3.svg) url(../media/dark2.993bedd3.svg)}
+             [
+               "/_next/static/chunks/HASH.css:
+             .red-text{color:red;background-image:url(../media/dark.993bedd3.svg),url(../media/dark2.993bedd3.svg)}
 
+             .blue-text{color:orange;background-image:url(../media/light.180573e4.svg);font-weight:bolder}
 
-.blue-text{color:orange;font-weight:bolder;background-image:url(../media/light.180573e4.svg)}
-
-
-.blue-text{color:#00f}"
-`)
+             .blue-text{color:#00f}",
+             ]
+            `)
           } else if (useLightningcss) {
-            expect(cssContent).toMatchInlineSnapshot(
-              `".red-text{color:red;background-image:url(/_next/static/media/dark.6b01655b.svg) url(/_next/static/media/dark2.6b01655b.svg)}.blue-text{color:orange;background-image:url(/_next/static/media/light.2da1d3d6.svg);font-weight:bolder;color:#00f}"`
-            )
+            expect(cssContent).toMatchInlineSnapshot(`
+             [
+               "/_next/static/css/HASH.css:
+             .red-text{color:red;background-image:url(/_next/static/media/dark.6b01655b.svg),url(/_next/static/media/dark2.6b01655b.svg)}.blue-text{color:orange;background-image:url(/_next/static/media/light.2da1d3d6.svg);font-weight:bolder;color:#00f}",
+             ]
+            `)
           } else {
-            expect(cssContent).toMatchInlineSnapshot(
-              `".red-text{color:red;background-image:url(/_next/static/media/dark.6b01655b.svg) url(/_next/static/media/dark2.6b01655b.svg)}.blue-text{color:orange;font-weight:bolder;background-image:url(/_next/static/media/light.2da1d3d6.svg);color:blue}"`
-            )
+            expect(cssContent).toMatchInlineSnapshot(`
+             [
+               "/_next/static/css/HASH.css:
+             .red-text{color:red;background-image:url(/_next/static/media/dark.6b01655b.svg),url(/_next/static/media/dark2.6b01655b.svg)}.blue-text{color:orange;font-weight:bolder;background-image:url(/_next/static/media/light.2da1d3d6.svg);color:blue}",
+             ]
+            `)
           }
         })
       })
@@ -589,31 +634,26 @@ describe('CSS URL via `file-loader` and asset prefix (1)', () => {
         const $ = cheerio.load(content)
 
         const cssSheet = $('link[rel="stylesheet"]')
-        expect(cssSheet.length).toBe(1)
-        const stylesheet = cssSheet.attr('href')
+        const cssContent = await getStylesheetContents($, appPort, cssSheet)
 
-        const cssContent = (
-          await fetchViaHTTP(appPort, stylesheet.replace('/foo/', '/')).then(
-            (res) => res.text()
-          )
-        )
-          .replace(/\/\*.*?\*\//g, '')
-          .trim()
-
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           expect(cssContent).toMatchInlineSnapshot(`
-".red-text{color:red;background-image:url(../media/dark.993bedd3.svg) url(../media/dark2.993bedd3.svg)}
+           [
+             "/_next/static/chunks/HASH.css:
+           .red-text{color:red;background-image:url(../media/dark.993bedd3.svg) url(../media/dark2.993bedd3.svg)}
 
+           .blue-text{color:orange;background-image:url(../media/light.180573e4.svg);font-weight:bolder}
 
-.blue-text{color:orange;font-weight:bolder;background-image:url(../media/light.180573e4.svg)}
-
-
-.blue-text{color:#00f}"
-`)
+           .blue-text{color:#00f}",
+           ]
+          `)
         } else {
-          expect(cssContent).toMatchInlineSnapshot(
-            `".red-text{color:red;background-image:url(/foo/_next/static/media/dark.6b01655b.svg) url(/foo/_next/static/media/dark2.6b01655b.svg)}.blue-text{color:orange;font-weight:bolder;background-image:url(/foo/_next/static/media/light.2da1d3d6.svg);color:blue}"`
-          )
+          expect(cssContent).toMatchInlineSnapshot(`
+           [
+             "/_next/static/css/HASH.css:
+           .red-text{color:red;background-image:url(/foo/_next/static/media/dark.6b01655b.svg) url(/foo/_next/static/media/dark2.6b01655b.svg)}.blue-text{color:orange;font-weight:bolder;background-image:url(/foo/_next/static/media/light.2da1d3d6.svg);color:blue}",
+           ]
+          `)
         }
       })
     }
@@ -648,31 +688,47 @@ describe('CSS URL via `file-loader` and asset prefix (2)', () => {
         const $ = cheerio.load(content)
 
         const cssSheet = $('link[rel="stylesheet"]')
-        expect(cssSheet.length).toBe(1)
-        const stylesheet = cssSheet.attr('href')
+        const cssContent = await getStylesheetContents($, appPort, cssSheet)
 
-        const cssContent = (
-          await fetchViaHTTP(appPort, stylesheet).then((res) => res.text())
-        )
-          .replace(/\/\*.*?\*\//g, '')
-          .trim()
-
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           expect(cssContent).toMatchInlineSnapshot(`
-".red-text{color:red;background-image:url(../media/dark.993bedd3.svg) url(../media/dark2.993bedd3.svg)}
+           [
+             "/_next/static/chunks/HASH.css:
+           .red-text{color:red;background-image:url(../media/dark.993bedd3.svg) url(../media/dark2.993bedd3.svg)}
 
+           .blue-text{color:orange;background-image:url(../media/light.180573e4.svg);font-weight:bolder}
 
-.blue-text{color:orange;font-weight:bolder;background-image:url(../media/light.180573e4.svg)}
-
-
-.blue-text{color:#00f}"
-`)
+           .blue-text{color:#00f}",
+           ]
+          `)
         } else {
-          expect(cssContent).toMatchInlineSnapshot(
-            `".red-text{color:red;background-image:url(/foo/_next/static/media/dark.6b01655b.svg) url(/foo/_next/static/media/dark2.6b01655b.svg)}.blue-text{color:orange;font-weight:bolder;background-image:url(/foo/_next/static/media/light.2da1d3d6.svg);color:blue}"`
-          )
+          expect(cssContent).toMatchInlineSnapshot(`
+           [
+             "/_next/static/css/HASH.css:
+           .red-text{color:red;background-image:url(/foo/_next/static/media/dark.6b01655b.svg) url(/foo/_next/static/media/dark2.6b01655b.svg)}.blue-text{color:orange;font-weight:bolder;background-image:url(/foo/_next/static/media/light.2da1d3d6.svg);color:blue}",
+           ]
+          `)
         }
       })
     }
   )
 })
+
+async function getStylesheetContents($, appPort, items) {
+  const results = []
+  for (let i = 0; i < items.length; i++) {
+    const item = $(items[i])
+    const href = item.attr('href').replace(/^\/foo\//, '/')
+    const res = await fetchViaHTTP(appPort, href)
+    if (res.status !== 200)
+      throw new Error(`Failed to load stylesheet: ${href}`)
+    const text = await res.text()
+    results.push(
+      `${href.replace(
+        /[0-9a-f]{8,}/g,
+        'HASH'
+      )}:\n${text.replace(/\/\*.*?\*\/\n?/g, '').trim()}`
+    )
+  }
+  return results
+}

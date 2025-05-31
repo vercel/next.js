@@ -19,6 +19,7 @@ declare namespace NodeJS {
   }
 
   interface ProcessEnv {
+    // TODO: Should be optional and possibly undefined
     readonly NODE_ENV: 'development' | 'production' | 'test'
   }
 
@@ -48,6 +49,12 @@ interface Window {
   __NEXT_HMR_CB?: null | ((message?: string) => void)
   /** @internal */
   __next_root_layout_missing_tags?: ('html' | 'body')[]
+  /** @internal */
+  __NEXT_DEV_INDICATOR_POSITION?:
+    | 'top-left'
+    | 'top-right'
+    | 'bottom-left'
+    | 'bottom-right'
 }
 
 interface NextFetchRequestConfig {

@@ -1,4 +1,4 @@
-import { check } from 'next-test-utils'
+import { check, retry } from 'next-test-utils'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import { createSandbox } from 'development-sandbox'
@@ -65,11 +65,25 @@ describe('Error overlay - editor links', () => {
       `
     )
 
+    // Ensure the Next Logo is not loading. This is to assert that the build did stop.
+    await retry(async () => {
+      const loaded = await browser.eval(() => {
+        return Boolean(
+          [].slice
+            .call(document.querySelectorAll('nextjs-portal'))
+            .find((p) =>
+              p.shadowRoot.querySelector('[data-next-mark-loading="false"]')
+            )
+        )
+      })
+      expect(loaded).toBe(true)
+    })
+
     await session.assertHasRedbox()
     await clickSourceFile(browser)
     await check(() => editorRequestsCount, /1/)
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)(
+  ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
     'opening links in import traces',
     () => {
       it('should be possible to open import trace files on RSC parse error', async () => {

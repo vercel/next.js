@@ -1,12 +1,19 @@
 import dynamic from 'next/dynamic';
-const DynamicComponent = dynamic(()=>handleImport(import('./components/hello'))
-, {
+const DynamicComponent1 = dynamic(()=>handleImport(import('./components/hello1')), {
     loadableGenerated: {
         webpack: ()=>[
-                require.resolveWeak("./components/hello")
+                require.resolveWeak("./components/hello1")
             ]
     },
-    loading: ()=>null
-    ,
+    loading: ()=>null,
     ssr: false
+});
+const DynamicComponent2 = dynamic(()=>import('./components/hello2').then((mod)=>{
+        return mod.Button;
+    }), {
+    loadableGenerated: {
+        webpack: ()=>[
+                require.resolveWeak("./components/hello2")
+            ]
+    }
 });

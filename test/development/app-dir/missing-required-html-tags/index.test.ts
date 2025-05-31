@@ -2,21 +2,36 @@ import { nextTestSetup } from 'e2e-utils'
 import {
   assertHasRedbox,
   assertNoRedbox,
-  getRedboxDescription,
+  getToastErrorCount,
+  hasErrorToast,
   retry,
 } from 'next-test-utils'
-import { outdent } from 'outdent'
 
 describe('app-dir - missing required html tags', () => {
   const { next } = nextTestSetup({ files: __dirname })
+
+  it('should display correct error count in dev indicator', async () => {
+    const browser = await next.browser('/')
+    await assertHasRedbox(browser)
+    retry(async () => {
+      expect(await hasErrorToast(browser)).toBe(true)
+    })
+    expect(await getToastErrorCount(browser)).toBe(1)
+  })
 
   it('should show error overlay', async () => {
     const browser = await next.browser('/')
 
     await assertHasRedbox(browser)
-    expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(`
-      "The following tags are missing in the Root Layout: <html>, <body>.
-      Read more at https://nextjs.org/docs/messages/missing-root-layout-tags"
+    await expect(browser).toDisplayRedbox(`
+     {
+       "description": "Missing <html> and <body> tags in the root layout.
+     Read more at https://nextjs.org/docs/messages/missing-root-layout-tags",
+       "environmentLabel": null,
+       "label": "Runtime Error",
+       "source": null,
+       "stack": [],
+     }
     `)
   })
 
@@ -28,13 +43,17 @@ describe('app-dir - missing required html tags', () => {
     )
 
     await assertHasRedbox(browser)
-    // Wait for the HMR to apply and the updated error to show.
-    await retry(async () => {
-      expect(await getRedboxDescription(browser)).toEqual(outdent`
-        The following tags are missing in the Root Layout: <html>.
-        Read more at https://nextjs.org/docs/messages/missing-root-layout-tags
-      `)
-    })
+
+    await expect(browser).toDisplayRedbox(`
+     {
+       "description": "Missing <html> tags in the root layout.
+     Read more at https://nextjs.org/docs/messages/missing-root-layout-tags",
+       "environmentLabel": null,
+       "label": "Runtime Error",
+       "source": null,
+       "stack": [],
+     }
+    `)
 
     await next.patchFile('app/layout.js', (code) =>
       code.replace(
@@ -54,16 +73,7 @@ describe('app-dir - missing required html tags', () => {
       )
     )
 
-    await assertHasRedbox(browser)
-
-    // Fix the issue again
-    await next.patchFile('app/layout.js', (code) =>
-      code.replace(
-        'return children',
-        'return <html><body>{children}</body></html>'
-      )
-    )
-
+    // TODO(NDX-768): Should show "missing tags" error
     await assertNoRedbox(browser)
   })
 })

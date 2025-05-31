@@ -1,20 +1,20 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{trace::TraceRawVcs, ResolvedVc, Value, Vc};
-use turbo_tasks_fs::{self, glob::Glob, FileJsonContent, FileSystemPath};
+use turbo_tasks::{NonLocalValue, ResolvedVc, Value, Vc, trace::TraceRawVcs};
+use turbo_tasks_fs::{self, FileJsonContent, FileSystemPath, glob::Glob};
 use turbopack_core::{
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::{
-        find_context_file,
+        ExternalTraced, ExternalType, FindContextFileResult, ResolveResult, ResolveResultItem,
+        ResolveResultOption, find_context_file,
         node::{node_cjs_resolve_options, node_esm_resolve_options},
         package_json,
         parse::Request,
         pattern::Pattern,
         plugin::{AfterResolvePlugin, AfterResolvePluginCondition},
-        resolve, ExternalTraced, ExternalType, FindContextFileResult, ResolveResult,
-        ResolveResultItem, ResolveResultOption,
+        resolve,
     },
     source::Source,
 };
@@ -93,7 +93,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         };
 
         // from https://github.com/vercel/next.js/blob/8d1c619ad650f5d147207f267441caf12acd91d1/packages/next/src/build/handle-externals.ts#L188
-        let never_external_regex = lazy_regex::regex!("^(?:private-next-pages\\/|next\\/(?:dist\\/pages\\/|(?:app|document|link|image|legacy\\/image|constants|dynamic|script|navigation|headers|router)$)|string-hash|private-next-rsc-action-validate|private-next-rsc-action-client-wrapper|private-next-rsc-server-reference$)");
+        let never_external_regex = lazy_regex::regex!("^(?:private-next-pages\\/|next\\/(?:dist\\/pages\\/|(?:app|cache|document|link|form|head|image|legacy\\/image|constants|dynamic|script|navigation|headers|router|compat\\/router|server)$)|string-hash|private-next-rsc-action-validate|private-next-rsc-action-client-wrapper|private-next-rsc-server-reference|private-next-rsc-cache-wrapper$)");
 
         let Pattern::Constant(package_subpath) = package_subpath else {
             return Ok(ResolveResultOption::none());
@@ -119,8 +119,8 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                     request_glob,
                 }) = *exception_glob
                 {
-                    let path_match = path_glob.await?.execute(&raw_fs_path.path);
-                    let request_match = request_glob.await?.execute(&request_str);
+                    let path_match = path_glob.await?.matches(&raw_fs_path.path);
+                    let request_match = request_glob.await?.matches(&request_str);
                     if path_match || request_match {
                         return Ok(ResolveResultOption::none());
                     }
@@ -135,8 +135,8 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                     request_glob,
                 }) = *external_glob
                 {
-                    let path_match = path_glob.await?.execute(&raw_fs_path.path);
-                    let request_match = request_glob.await?.execute(&request_str);
+                    let path_match = path_glob.await?.matches(&raw_fs_path.path);
+                    let request_match = request_glob.await?.matches(&request_str);
 
                     if !path_match && !request_match {
                         return Ok(ResolveResultOption::none());
@@ -205,7 +205,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                     request_str: request_str.clone(),
                     reason,
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
             }
             Ok(ResolveResultOption::none())
@@ -230,7 +230,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                 *node_resolved_from_original_location.first_source().await?
             else {
                 if is_esm
-                    && package_subpath != ""
+                    && !package_subpath.is_empty()
                     && package_subpath != "/"
                     && !request_str.ends_with(".js")
                 {
@@ -275,8 +275,6 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             ]);
         };
 
-        let result = result.resolve().await?;
-        let result_from_original_location = result_from_original_location.resolve().await?;
         if result_from_original_location != result {
             let package_json_file = find_context_file(
                 result.ident().path().parent().resolve().await?,
@@ -417,24 +415,22 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             }
         };
 
-        Ok(ResolveResultOption::some(
-            ResolveResult::primary(ResolveResultItem::External {
+        Ok(ResolveResultOption::some(*ResolveResult::primary(
+            ResolveResultItem::External {
                 name: request_str.into(),
                 ty: external_type,
                 traced: ExternalTraced::Traced,
-            })
-            .cell(),
-        ))
+            },
+        )))
     }
 }
 
-#[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, Debug)]
+#[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, Debug, NonLocalValue)]
 pub struct PackagesGlobs {
-    path_glob: Vc<Glob>,
-    request_glob: Vc<Glob>,
+    path_glob: ResolvedVc<Glob>,
+    request_glob: ResolvedVc<Glob>,
 }
 
-// TODO move that to turbo
 #[turbo_tasks::value(transparent)]
 pub struct OptionPackagesGlobs(Option<PackagesGlobs>);
 
@@ -448,8 +444,8 @@ async fn packages_glob(packages: Vc<Vec<RcStr>>) -> Result<Vc<OptionPackagesGlob
     let request_glob =
         Glob::new(format!("{{{},{}/**}}", packages.join(","), packages.join("/**,")).into());
     Ok(Vc::cell(Some(PackagesGlobs {
-        path_glob: path_glob.resolve().await?,
-        request_glob: request_glob.resolve().await?,
+        path_glob: path_glob.to_resolved().await?,
+        request_glob: request_glob.to_resolved().await?,
     })))
 }
 
@@ -501,7 +497,7 @@ impl Issue for ExternalizeIssue {
                 ]),
                 StyledString::Line(self.reason.clone()),
             ])
-            .cell(),
+            .resolved_cell(),
         )))
     }
 }

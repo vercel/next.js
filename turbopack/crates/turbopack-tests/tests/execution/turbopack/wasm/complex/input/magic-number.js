@@ -1,7 +1,7 @@
 export function getNumber() {
-  return 42;
+  return 42
 }
 
 export function getRandomNumber() {
-  return Math.floor(Math.random() * 256);
+  return Math.floor(Math.random() * 256)
 }

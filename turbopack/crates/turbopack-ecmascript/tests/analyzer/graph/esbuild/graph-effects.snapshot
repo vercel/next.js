@@ -691,7 +691,7 @@
                             StrictNotEqual,
                             Constant(
                                 Str(
-                                    Word(
+                                    Atom(
                                         "main.js",
                                     ),
                                 ),
@@ -723,7 +723,7 @@
                             StrictNotEqual,
                             Constant(
                                 Str(
-                                    Word(
+                                    Atom(
                                         "lib",
                                     ),
                                 ),
@@ -1328,7 +1328,7 @@
                             Value(
                                 Constant(
                                     Str(
-                                        Word(
+                                        Atom(
                                             "..",
                                         ),
                                     ),
@@ -1337,7 +1337,7 @@
                             Value(
                                 Constant(
                                     Str(
-                                        Word(
+                                        Atom(
                                             "bin",
                                         ),
                                     ),
@@ -1346,7 +1346,7 @@
                             Value(
                                 Constant(
                                     Str(
-                                        Word(
+                                        Atom(
                                             "esbuild",
                                         ),
                                     ),
@@ -1872,7 +1872,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "--ping",
                         ),
                     ),
@@ -1961,7 +1961,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "path",
                         ),
                     ),
@@ -2050,7 +2050,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "path",
                         ),
                     ),
@@ -2139,7 +2139,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "os",
                         ),
                     ),
@@ -4532,7 +4532,7 @@
                             Value(
                                 Constant(
                                     Str(
-                                        Word(
+                                        Atom(
                                             "pnpapi",
                                         ),
                                     ),
@@ -4882,7 +4882,7 @@
                                             Value(
                                                 Constant(
                                                     Str(
-                                                        Word(
+                                                        Atom(
                                                             "esbuild",
                                                         ),
                                                     ),
@@ -4993,7 +4993,7 @@
                                                     [
                                                         Constant(
                                                             Str(
-                                                                Word(
+                                                                Atom(
                                                                     "esbuild",
                                                                 ),
                                                             ),

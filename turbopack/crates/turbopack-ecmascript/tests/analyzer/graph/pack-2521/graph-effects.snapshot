@@ -50,7 +50,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "./libvips",
                         ),
                     ),
@@ -225,7 +225,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "runtimePlatform:",
                         ),
                     ),

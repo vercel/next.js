@@ -36,7 +36,7 @@ export class NextDeployInstance extends NextInstance {
       })
     }
 
-    const vercelFlags = []
+    const vercelFlags: string[] = []
 
     // If the team name is available in the environment, use it as the scope.
     if (TEST_TEAM_NAME) {
@@ -87,7 +87,7 @@ export class NextDeployInstance extends NextInstance {
     }
     require('console').log(`Deploying project at ${this.testDir}`)
 
-    const additionalEnv = []
+    const additionalEnv: string[] = []
 
     for (const key of Object.keys(this.env || {})) {
       additionalEnv.push('--build-env')

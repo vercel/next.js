@@ -2,8 +2,9 @@ use std::cmp::Ordering;
 
 use anyhow::Result;
 use async_trait::async_trait;
+use auto_hash_map::AutoSet;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{emit, CollectiblesSource, FxIndexMap, Upcast, Vc};
+use turbo_tasks::{CollectiblesSource, FxIndexMap, ResolvedVc, Upcast, Vc, emit};
 
 #[turbo_tasks::value(serialization = "none")]
 #[derive(Clone, Debug)]
@@ -64,9 +65,9 @@ pub trait Diagnostic {
 
     async fn into_plain(self: Vc<Self>) -> Result<Vc<PlainDiagnostic>> {
         Ok(PlainDiagnostic {
-            category: self.category().await?.clone_value(),
-            name: self.name().await?.clone_value(),
-            payload: self.payload().await?.clone_value(),
+            category: self.category().owned().await?,
+            name: self.name().owned().await?,
+            payload: self.payload().owned().await?,
         }
         .cell())
     }
@@ -76,12 +77,12 @@ pub trait DiagnosticExt {
     fn emit(self);
 }
 
-impl<T> DiagnosticExt for Vc<T>
+impl<T> DiagnosticExt for ResolvedVc<T>
 where
     T: Upcast<Box<dyn Diagnostic>>,
 {
     fn emit(self) {
-        let diagnostic = Vc::upcast::<Box<dyn Diagnostic>>(self);
+        let diagnostic = ResolvedVc::upcast::<Box<dyn Diagnostic>>(self);
         emit(diagnostic);
     }
 }
@@ -111,5 +112,5 @@ where
 #[derive(Debug)]
 #[turbo_tasks::value]
 pub struct CapturedDiagnostics {
-    pub diagnostics: auto_hash_map::AutoSet<Vc<Box<dyn Diagnostic>>>,
+    pub diagnostics: AutoSet<ResolvedVc<Box<dyn Diagnostic>>>,
 }

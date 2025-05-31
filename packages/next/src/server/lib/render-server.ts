@@ -9,6 +9,8 @@ export type ServerInitResult = {
   requestHandler: RequestHandler
   upgradeHandler: UpgradeHandler
   server: NextServer
+  // Make an effort to close upgraded HTTP requests (e.g. Turbopack HMR websockets)
+  closeUpgraded: () => void
 }
 
 let initializations: Record<string, Promise<ServerInitResult> | undefined> = {}
@@ -109,6 +111,9 @@ async function initializeImpl(opts: {
     requestHandler,
     upgradeHandler,
     server,
+    closeUpgraded() {
+      opts.bundlerService?.close()
+    },
   }
 }
 

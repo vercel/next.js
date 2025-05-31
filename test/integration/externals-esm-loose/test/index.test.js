@@ -13,7 +13,7 @@ import {
 const appDir = join(__dirname, '../')
 let appPort
 let app
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   "Handle ESM externals with esmExternals: 'loose'",
   () => {
     ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(

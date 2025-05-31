@@ -1,5 +1,6 @@
-import undef from "./temporalUndefined.js";
-import err from "./tdz.js";
-export default function _temporalRef(val, name) {
-  return val === undef ? err(name) : val;
+import temporalUndefined from "./temporalUndefined.js";
+import tdz from "./tdz.js";
+function _temporalRef(r, e) {
+  return r === temporalUndefined ? tdz(e) : r;
 }
+export { _temporalRef as default };

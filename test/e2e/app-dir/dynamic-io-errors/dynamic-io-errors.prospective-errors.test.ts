@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
-const isTurbopack = !!process.env.TURBOPACK
+const isTurbopack = !!process.env.IS_TURBOPACK_TEST
 
 describe(`Dynamic IO Prospective Render Errors - Debug Build`, () => {
   const { next, isNextDev, skipped } = nextTestSetup({

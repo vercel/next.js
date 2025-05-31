@@ -1,22 +1,21 @@
-use std::collections::HashMap;
-
 use anyhow::Result;
 use lazy_static::lazy_static;
+use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Value, Vc};
-use turbo_tasks_fs::{glob::Glob, FileSystemPath};
+use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 use turbopack_core::{
     diagnostics::DiagnosticExt,
     file_source::FileSource,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     reference_type::ReferenceType,
     resolve::{
+        ExternalTraced, ExternalType, ResolveResult, ResolveResultItem, ResolveResultOption,
         parse::Request,
         plugin::{
             AfterResolvePlugin, AfterResolvePluginCondition, BeforeResolvePlugin,
             BeforeResolvePluginCondition,
         },
-        ExternalTraced, ExternalType, ResolveResult, ResolveResultItem, ResolveResultOption,
     },
 };
 
@@ -24,7 +23,7 @@ use crate::{next_server::ServerContextType, next_telemetry::ModuleFeatureTelemet
 
 lazy_static! {
     // Set of the features we want to track, following existing references in webpack/plugins/telemetry-plugin.
-    static ref FEATURE_MODULES: HashMap<&'static str, Vec<&'static str>> = HashMap::from([
+    static ref FEATURE_MODULES: FxHashMap<&'static str, Vec<&'static str>> = FxHashMap::from_iter([
         (
             "next",
             vec![
@@ -86,10 +85,10 @@ impl Issue for InvalidImportModuleIssue {
             StyledString::Line(
                 messages
                     .iter()
-                    .map(|v| StyledString::Text(format!("{}\n", v).into()))
+                    .map(|v| StyledString::Text(format!("{v}\n").into()))
                     .collect::<Vec<StyledString>>(),
             )
-            .cell(),
+            .resolved_cell(),
         )))
     }
 }
@@ -142,15 +141,12 @@ impl BeforeResolvePlugin for InvalidImportResolvePlugin {
             // styled-jsx specific resolve error has its own message
             skip_context_message: self.invalid_import == "styled-jsx",
         }
-        .cell()
+        .resolved_cell()
         .emit();
 
-        ResolveResultOption::some(
-            ResolveResult::primary(ResolveResultItem::Error(Vc::cell(
-                self.message.join("\n").into(),
-            )))
-            .cell(),
-        )
+        ResolveResultOption::some(*ResolveResult::primary(ResolveResultItem::Error(
+            ResolvedVc::cell(self.message.join("\n").into()),
+        )))
     }
 }
 
@@ -246,14 +242,13 @@ impl AfterResolvePlugin for NextExternalResolvePlugin {
         // Replace '/esm/' with '/' to match the CJS version of the file.
         let specifier: RcStr = specifier.replace("/esm/", "/").into();
 
-        Ok(Vc::cell(Some(
-            ResolveResult::primary(ResolveResultItem::External {
+        Ok(Vc::cell(Some(ResolveResult::primary(
+            ResolveResultItem::External {
                 name: specifier.clone(),
                 ty: ExternalType::CommonJs,
                 traced: ExternalTraced::Traced,
-            })
-            .into(),
-        )))
+            },
+        ))))
     }
 }
 
@@ -325,12 +320,9 @@ impl AfterResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
             .root()
             .join(format!("{base}/{resource_request}").into());
 
-        Ok(Vc::cell(Some(
-            ResolveResult::source(ResolvedVc::upcast(
-                FileSource::new(new_path).to_resolved().await?,
-            ))
-            .cell(),
-        )))
+        Ok(Vc::cell(Some(ResolveResult::source(ResolvedVc::upcast(
+            FileSource::new(new_path).to_resolved().await?,
+        )))))
     }
 }
 
@@ -382,8 +374,8 @@ impl BeforeResolvePlugin for ModuleFeatureReportResolvePlugin {
                     .find(|sub_path| path.is_match(sub_path));
 
                 if let Some(sub_path) = sub_path {
-                    ModuleFeatureTelemetry::new(format!("{}{}", module, sub_path).into(), 1)
-                        .cell()
+                    ModuleFeatureTelemetry::new(format!("{module}{sub_path}").into(), 1)
+                        .resolved_cell()
                         .emit();
                 }
             }
@@ -427,11 +419,8 @@ impl AfterResolvePlugin for NextSharedRuntimeResolvePlugin {
         let raw_fs_path = &*fs_path.await?;
         let modified_path = raw_fs_path.path.replace("next/dist/esm/", "next/dist/");
         let new_path = fs_path.root().join(modified_path.into());
-        Ok(Vc::cell(Some(
-            ResolveResult::source(ResolvedVc::upcast(
-                FileSource::new(new_path).to_resolved().await?,
-            ))
-            .cell(),
-        )))
+        Ok(Vc::cell(Some(ResolveResult::source(ResolvedVc::upcast(
+            FileSource::new(new_path).to_resolved().await?,
+        )))))
     }
 }

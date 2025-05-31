@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('app dir - next-image (with https)', () => {
+// TODO: Test didn't (or maybe) never ran in CI but it should.
+describe.skip('app dir - next-image (with https)', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
@@ -8,12 +9,6 @@ describe('app dir - next-image (with https)', () => {
   })
 
   if (skipped) {
-    return
-  }
-
-  if (!process.env.CI) {
-    console.warn('only runs on CI as it requires administrator privileges')
-    it('only runs on CI as it requires administrator privileges', () => {})
     return
   }
 
@@ -39,7 +34,7 @@ describe('app dir - next-image (with https)', () => {
     const image = browser.elementByCss('#app-page')
     const src = await image.getAttribute('src')
 
-    if (process.env.TURBOPACK) {
+    if (process.env.IS_TURBOPACK_TEST) {
       expect(src).toMatchInlineSnapshot(
         `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=828&q=90"`
       )

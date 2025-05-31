@@ -58,7 +58,7 @@ impl ProcessEnv for TryDotenvProcessEnv {
                     description: StyledString::Text(e.root_cause().to_string().into())
                         .resolved_cell(),
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
                 Ok(prior)
             }

@@ -25,6 +25,10 @@ unsafe impl<K: Eq + Hash + Sync, V: Sync> Send for RefMut<'_, K, V> {}
 unsafe impl<K: Eq + Hash + Sync, V: Sync> Sync for RefMut<'_, K, V> {}
 
 impl<K: Eq + Hash, V> RefMut<'_, K, V> {
+    pub fn key(&self) -> &K {
+        self.pair().0
+    }
+
     pub fn value(&self) -> &V {
         self.pair().1
     }
@@ -202,6 +206,7 @@ mod tests {
     use std::thread::scope;
 
     use rand::prelude::SliceRandom;
+    use turbo_tasks::FxDashMap;
 
     use super::*;
 
@@ -210,11 +215,11 @@ mod tests {
         const N: usize = 100000;
         const THREADS: usize = 20;
 
-        let map = DashMap::with_shard_amount(4);
+        let map = FxDashMap::with_hasher_and_shard_amount(Default::default(), 4);
         let indicies = (0..THREADS)
             .map(|_| {
                 let mut vec = (0..N).collect::<Vec<_>>();
-                vec.shuffle(&mut rand::thread_rng());
+                vec.shuffle(&mut rand::rng());
                 vec
             })
             .collect::<Vec<_>>();

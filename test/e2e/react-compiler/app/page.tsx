@@ -1,25 +1,25 @@
 'use client'
 
+import { useEffect } from 'react'
+
 export default function Page() {
-  let heading: any = ''
+  let $_: any
   if (typeof window !== 'undefined') {
     // eslint-disable-next-line no-eval
-    const $_ = eval('$')
-
-    if (Array.isArray($_)) {
-      heading = (
-        <h1 id="react-compiler-enabled-message">
-          {/* @ts-ignore */}
-          React compiler is enabled with <strong>{$_.length}</strong> memo slots
-        </h1>
-      )
-    }
+    $_ = eval('$')
   }
+
+  useEffect(() => {
+    if (Array.isArray($_)) {
+      document.getElementById('react-compiler-enabled-message')!.textContent =
+        `React compiler is enabled with ${$_!.length} memo slots`
+    }
+  })
 
   return (
     <>
       <div>
-        {heading}
+        <h1 id="react-compiler-enabled-message" />
         <p>hello world</p>
       </div>
     </>

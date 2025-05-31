@@ -18,7 +18,6 @@ export const NEXT_META_SUFFIX = '.meta'
 export const NEXT_BODY_SUFFIX = '.body'
 
 export const NEXT_CACHE_TAGS_HEADER = 'x-next-cache-tags'
-export const NEXT_CACHE_SOFT_TAGS_HEADER = 'x-next-cache-soft-tags'
 export const NEXT_CACHE_REVALIDATED_TAGS_HEADER = 'x-next-revalidated-tags'
 export const NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER =
   'x-next-revalidate-tag-token'
@@ -57,6 +56,8 @@ export const RSC_MOD_REF_PROXY_ALIAS = 'private-next-rsc-mod-ref-proxy'
 export const RSC_ACTION_VALIDATE_ALIAS = 'private-next-rsc-action-validate'
 export const RSC_ACTION_PROXY_ALIAS = 'private-next-rsc-server-reference'
 export const RSC_CACHE_WRAPPER_ALIAS = 'private-next-rsc-cache-wrapper'
+export const RSC_DYNAMIC_IMPORT_WRAPPER_ALIAS =
+  'private-next-rsc-track-dynamic-import'
 export const RSC_ACTION_ENCRYPTION_ALIAS = 'private-next-rsc-action-encryption'
 export const RSC_ACTION_CLIENT_WRAPPER_ALIAS =
   'private-next-rsc-action-client-wrapper'
@@ -119,9 +120,13 @@ const WEBPACK_LAYERS_NAMES = {
    */
   actionBrowser: 'action-browser',
   /**
-   * The layer for the API routes.
+   * The Node.js bundle layer for the API routes.
    */
-  api: 'api',
+  apiNode: 'api-node',
+  /**
+   * The Edge Lite bundle layer for the API routes.
+   */
+  apiEdge: 'api-edge',
   /**
    * The layer for the middleware code.
    */
@@ -138,6 +143,18 @@ const WEBPACK_LAYERS_NAMES = {
    * The browser client bundle layer for App directory.
    */
   appPagesBrowser: 'app-pages-browser',
+  /**
+   * The browser client bundle layer for Pages directory.
+   */
+  pagesDirBrowser: 'pages-dir-browser',
+  /**
+   * The Edge Lite bundle layer for Pages directory.
+   */
+  pagesDirEdge: 'pages-dir-edge',
+  /**
+   * The Node.js bundle layer for Pages directory.
+   */
+  pagesDirNode: 'pages-dir-node',
 } as const
 
 export type WebpackLayerName =
@@ -158,7 +175,8 @@ const WEBPACK_LAYERS = {
     ],
     neutralTarget: [
       // pages api
-      WEBPACK_LAYERS_NAMES.api,
+      WEBPACK_LAYERS_NAMES.apiNode,
+      WEBPACK_LAYERS_NAMES.apiEdge,
     ],
     clientOnly: [
       WEBPACK_LAYERS_NAMES.serverSideRendering,
@@ -171,6 +189,7 @@ const WEBPACK_LAYERS = {
       WEBPACK_LAYERS_NAMES.appPagesBrowser,
       WEBPACK_LAYERS_NAMES.shared,
       WEBPACK_LAYERS_NAMES.instrument,
+      WEBPACK_LAYERS_NAMES.middleware,
     ],
     appPages: [
       // app router pages and layouts

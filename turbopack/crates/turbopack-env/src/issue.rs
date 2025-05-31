@@ -28,6 +28,6 @@ impl Issue for ProcessEnvIssue {
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(*self.description))
+        Vc::cell(Some(self.description))
     }
 }

@@ -1,11 +1,16 @@
-/*
-  This is the default "use cache" handler it defaults
-  to an in memory store
-*/
+/**
+ * This is the default "use cache" handler it defaults to an in-memory store.
+ * In-memory caches are fragile and should not use stale-while-revalidate
+ * semantics on the caches because it's not worth warming up an entry that's
+ * likely going to get evicted before we get to use it anyway. However, we also
+ * don't want to reuse a stale entry for too long so stale entries should be
+ * considered expired/missing in such cache handlers.
+ */
+
 import { LRUCache } from '../lru-cache'
-import type { CacheEntry, CacheHandler } from './types'
+import type { CacheEntry, CacheHandlerV2 } from './types'
 import {
-  isTagStale,
+  isStale,
   tagsManifest,
 } from '../incremental-cache/tags-manifest.external'
 
@@ -30,16 +35,29 @@ type PrivateCacheEntry = {
 }
 
 // LRU cache default to max 50 MB but in future track
-const memoryCache = new LRUCache<PrivateCacheEntry>(50_000_000)
+const memoryCache = new LRUCache<PrivateCacheEntry>(
+  50 * 1024 * 1024,
+  (entry) => entry.size
+)
 const pendingSets = new Map<string, Promise<void>>()
 
-const DefaultCacheHandler: CacheHandler = {
-  async get(cacheKey, softTags) {
-    await pendingSets.get(cacheKey)
+const debug = process.env.NEXT_PRIVATE_DEBUG_CACHE
+  ? console.debug.bind(console, 'DefaultCacheHandler:')
+  : undefined
+
+const DefaultCacheHandler: CacheHandlerV2 = {
+  async get(cacheKey) {
+    const pendingPromise = pendingSets.get(cacheKey)
+
+    if (pendingPromise) {
+      debug?.('get', cacheKey, 'pending')
+      await pendingPromise
+    }
 
     const privateEntry = memoryCache.get(cacheKey)
 
     if (!privateEntry) {
+      debug?.('get', cacheKey, 'not found')
       return undefined
     }
 
@@ -48,19 +66,28 @@ const DefaultCacheHandler: CacheHandler = {
       performance.timeOrigin + performance.now() >
       entry.timestamp + entry.revalidate * 1000
     ) {
-      // In memory caches should expire after revalidate time because it is unlikely that
-      // a new entry will be able to be used before it is dropped from the cache.
+      // In-memory caches should expire after revalidate time because it is
+      // unlikely that a new entry will be able to be used before it is dropped
+      // from the cache.
+      debug?.('get', cacheKey, 'expired')
+
       return undefined
     }
 
-    if (
-      isTagStale(entry.tags, entry.timestamp) ||
-      isTagStale(softTags, entry.timestamp)
-    ) {
+    if (isStale(entry.tags, entry.timestamp)) {
+      debug?.('get', cacheKey, 'had stale tag')
+
       return undefined
     }
     const [returnStream, newSaved] = entry.value.tee()
     entry.value = newSaved
+
+    debug?.('get', cacheKey, 'found', {
+      tags: entry.tags,
+      timestamp: entry.timestamp,
+      revalidate: entry.revalidate,
+      expire: entry.expire,
+    })
 
     return {
       ...entry,
@@ -69,6 +96,8 @@ const DefaultCacheHandler: CacheHandler = {
   },
 
   async set(cacheKey, pendingEntry) {
+    debug?.('set', cacheKey, 'start')
+
     let resolvePending: () => void = () => {}
     const pendingPromise = new Promise<void>((resolve) => {
       resolvePending = resolve
@@ -94,27 +123,39 @@ const DefaultCacheHandler: CacheHandler = {
         errorRetryCount: 0,
         size,
       })
+
+      debug?.('set', cacheKey, 'done')
     } catch (err) {
-      console.error(`Error while saving cache key: ${cacheKey}`, err)
       // TODO: store partial buffer with error after we retry 3 times
+      debug?.('set', cacheKey, 'failed', err)
     } finally {
       resolvePending()
       pendingSets.delete(cacheKey)
     }
   },
 
-  async unstable_expireTags(...tags) {
-    for (const tag of tags) {
-      if (!tagsManifest.items[tag]) {
-        tagsManifest.items[tag] = {}
-      }
-      // TODO: use performance.now and update file-system-cache?
-      tagsManifest.items[tag].revalidatedAt = Date.now()
-    }
+  async refreshTags() {
+    // Nothing to do for an in-memory cache handler.
   },
 
-  async receiveExpiredTags(...tags): Promise<void> {
-    return this.unstable_expireTags(...tags)
+  async getExpiration(...tags) {
+    const expiration = Math.max(
+      ...tags.map((tag) => tagsManifest.get(tag) ?? 0)
+    )
+
+    debug?.('getExpiration', { tags, expiration })
+
+    return expiration
+  },
+
+  async expireTags(...tags) {
+    const timestamp = Math.round(performance.timeOrigin + performance.now())
+    debug?.('expireTags', { tags, timestamp })
+
+    for (const tag of tags) {
+      // TODO: update file-system-cache?
+      tagsManifest.set(tag, timestamp)
+    }
   },
 }
 

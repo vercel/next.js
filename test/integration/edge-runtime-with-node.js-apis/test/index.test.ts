@@ -67,8 +67,10 @@ describe.each([
       let appPort: number
       let app = null
 
-      beforeAll(async () => {
+      beforeEach(() => {
         output = ''
+      })
+      beforeAll(async () => {
         appPort = await findPort()
         app = await launchApp(appDir, appPort, {
           env: { __NEXT_TEST_WITH_DEVTOOL: '1' },

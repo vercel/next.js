@@ -5,7 +5,6 @@ import {
   TRACE_IGNORES,
   type BuildTraceContext,
   getFilesMapFromReasons,
-  getHash,
 } from './webpack/plugins/next-trace-entrypoints-plugin'
 
 import path from 'path'
@@ -23,8 +22,6 @@ import type { NodeFileTraceReasons } from '@vercel/nft'
 import type { RoutesUsingEdgeRuntime } from './utils'
 
 const debug = debugOriginal('next:build:build-traces')
-
-const hashCache: Record<string, string> = {}
 
 function shouldIgnore(
   file: string,
@@ -85,19 +82,19 @@ export async function collectBuildTraces({
   hasSsrAmpPages,
   buildTraceContext,
   outputFileTracingRoot,
-  isFlyingShuttle,
+  isTurbopack,
 }: {
   dir: string
   distDir: string
   staticPages: string[]
   hasSsrAmpPages: boolean
-  isFlyingShuttle?: boolean
   outputFileTracingRoot: string
   // pageInfos is serialized when this function runs in a worker.
   edgeRuntimeRoutes: RoutesUsingEdgeRuntime
   nextBuildSpan?: Span
   config: NextConfigComplete
   buildTraceContext?: BuildTraceContext
+  isTurbopack: boolean
 }) {
   const startTime = Date.now()
   debug('starting build traces')
@@ -206,7 +203,7 @@ export async function collectBuildTraces({
       const sharedIgnores = [
         '**/next/dist/compiled/next-server/**/*.dev.js',
         ...(isStandalone ? [] : ['**/next/dist/compiled/jest-worker/**/*']),
-        '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
+        '**/next/dist/compiled/webpack/*',
         '**/node_modules/webpack5/**/*',
         '**/next/dist/server/lib/route-resolver*',
         'next/dist/compiled/semver/semver/**/*.js',
@@ -281,6 +278,11 @@ export async function collectBuildTraces({
           require.resolve('next/dist/compiled/jest-worker/threadChild'),
           serverTracedFiles
         )
+      }
+
+      if (isTurbopack) {
+        addToTracedFiles(distDir, './package.json', serverTracedFiles)
+        addToTracedFiles(distDir, './package.json', minimalServerTracedFiles)
       }
 
       {
@@ -421,7 +423,7 @@ export async function collectBuildTraces({
             // pages as they don't have server bundles, note there is
             // the caveat with flying shuttle mode as it needs this for
             // detecting changed entries
-            if (staticPages.includes(route) && !isFlyingShuttle) {
+            if (staticPages.includes(route)) {
               return
             }
             const entryOutputPath = path.join(
@@ -439,8 +441,6 @@ export async function collectBuildTraces({
             }
             const traceOutputDir = path.dirname(traceOutputPath)
             const curTracedFiles = new Set<string>()
-            const curFileHashes: Record<string, string> =
-              existingTrace.fileHashes
 
             for (const file of [...entryNameFiles, entryOutputPath]) {
               const curFiles = [
@@ -462,19 +462,6 @@ export async function collectBuildTraces({
                     .relative(traceOutputDir, filePath)
                     .replace(/\\/g, '/')
                   curTracedFiles.add(outputFile)
-
-                  if (isFlyingShuttle) {
-                    try {
-                      let hash = hashCache[filePath]
-
-                      if (!hash) {
-                        hash = getHash(await fs.readFile(filePath))
-                      }
-                      curFileHashes[outputFile] = hash
-                    } catch (err: any) {
-                      // handle symlink errors or similar
-                    }
-                  }
                 }
               }
             }
@@ -488,11 +475,6 @@ export async function collectBuildTraces({
               JSON.stringify({
                 ...existingTrace,
                 files: [...curTracedFiles].sort(),
-                ...(isFlyingShuttle
-                  ? {
-                      fileHashes: curFileHashes,
-                    }
-                  : {}),
               })
             )
           })
@@ -524,12 +506,19 @@ export async function collectBuildTraces({
         addToTracedFiles(root, relativeModulePath, minimalServerTracedFiles)
       }
 
+      const serverTracedFilesSorted = Array.from(serverTracedFiles)
+      serverTracedFilesSorted.sort()
+      const minimalServerTracedFilesSorted = Array.from(
+        minimalServerTracedFiles
+      )
+      minimalServerTracedFilesSorted.sort()
+
       await Promise.all([
         fs.writeFile(
           nextServerTraceOutput,
           JSON.stringify({
             version: 1,
-            files: Array.from(serverTracedFiles),
+            files: serverTracedFilesSorted,
           } as {
             version: number
             files: string[]
@@ -539,7 +528,7 @@ export async function collectBuildTraces({
           nextMinimalTraceOutput,
           JSON.stringify({
             version: 1,
-            files: Array.from(minimalServerTracedFiles),
+            files: minimalServerTracedFilesSorted,
           } as {
             version: number
             files: string[]

@@ -9,6 +9,6 @@ pub trait CustomModuleType {
         self: Vc<Self>,
         source: Vc<Box<dyn Source>>,
         module_asset_context: Vc<ModuleAssetContext>,
-        part: Option<Vc<ModulePart>>,
+        part: Option<ModulePart>,
     ) -> Vc<Box<dyn Module>>;
 }

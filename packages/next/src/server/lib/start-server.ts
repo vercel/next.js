@@ -30,10 +30,10 @@ import { CONFIG_FILES } from '../../shared/lib/constants'
 import { getStartServerInfo, logStartInfo } from './app-info-log'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import { type Span, trace, flushAllTraces } from '../../trace'
-import { isPostpone } from './router-utils/is-postpone'
 import { isIPv6 } from './is-ipv6'
 import { AsyncCallbackSet } from './async-callback-set'
 import type { NextServer } from '../next'
+import type { ConfiguredExperimentalFeature } from '../config'
 
 const debug = setupDebug('next:start-server')
 let startServerSpan: Span | undefined
@@ -202,6 +202,7 @@ export async function startServer(
   })
 
   let portRetryCount = 0
+  const originalPort = port
 
   server.on('error', (err: NodeJS.ErrnoException) => {
     if (
@@ -211,7 +212,6 @@ export async function startServer(
       err.code === 'EADDRINUSE' &&
       portRetryCount < 10
     ) {
-      Log.warn(`Port ${port} is in use, trying ${port + 1} instead.`)
       port += 1
       portRetryCount += 1
       server.listen(port, hostname)
@@ -243,6 +243,12 @@ export async function startServer(
 
       port = typeof addr === 'object' ? addr?.port || port : port
 
+      if (portRetryCount) {
+        Log.warn(
+          `Port ${originalPort} is in use, using available port ${port} instead.`
+        )
+      }
+
       const networkHostname =
         hostname ?? getNetworkHost(isIPv6(actualHostname) ? 'IPv6' : 'IPv4')
 
@@ -270,17 +276,17 @@ export async function startServer(
 
       // Only load env and config in dev to for logging purposes
       let envInfo: string[] | undefined
-      let expFeatureInfo: string[] | undefined
+      let experimentalFeatures: ConfiguredExperimentalFeature[] | undefined
       if (isDev) {
         const startServerInfo = await getStartServerInfo(dir, isDev)
         envInfo = startServerInfo.envInfo
-        expFeatureInfo = startServerInfo.expFeatureInfo
+        experimentalFeatures = startServerInfo.experimentalFeatures
       }
       logStartInfo({
         networkUrl,
         appUrl,
         envInfo,
-        expFeatureInfo,
+        experimentalFeatures,
         maxExperimentalFeatures: 3,
       })
 
@@ -288,6 +294,7 @@ export async function startServer(
 
       try {
         let cleanupStarted = false
+        let closeUpgraded: (() => void) | null = null
         const cleanup = () => {
           if (cleanupStarted) {
             // We can get duplicate signals, e.g. when `ctrl+c` is used in an
@@ -302,12 +309,16 @@ export async function startServer(
 
             // first, stop accepting new connections and finish pending requests,
             // because they might affect `nextServer.close()` (e.g. by scheduling an `after`)
-            await new Promise<void>((res) =>
+            await new Promise<void>((res) => {
               server.close((err) => {
                 if (err) console.error(err)
                 res()
               })
-            )
+              if (isDev) {
+                server.closeAllConnections()
+                closeUpgraded?.()
+              }
+            })
 
             // now that no new requests can come in, clean up the rest
             await Promise.all([
@@ -319,29 +330,13 @@ export async function startServer(
             process.exit(0)
           })()
         }
-        const exception = (err: Error) => {
-          if (isPostpone(err)) {
-            // React postpones that are unhandled might end up logged here but they're
-            // not really errors. They're just part of rendering.
-            return
-          }
 
-          // This is the render worker, we keep the process alive
-          console.error(err)
-        }
         // Make sure commands gracefully respect termination signals (e.g. from Docker)
         // Allow the graceful termination to be manually configurable
         if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
           process.on('SIGINT', cleanup)
           process.on('SIGTERM', cleanup)
         }
-        process.on('rejectionHandled', () => {
-          // It is ok to await a Promise late in Next.js as it allows for better
-          // prefetching patterns to avoid waterfalls. We ignore loggining these.
-          // We should've already errored in anyway unhandledRejection.
-        })
-        process.on('uncaughtException', exception)
-        process.on('unhandledRejection', exception)
 
         const initResult = await getRequestHandlers({
           dir,
@@ -359,6 +354,7 @@ export async function startServer(
         requestHandler = initResult.requestHandler
         upgradeHandler = initResult.upgradeHandler
         nextServer = initResult.server
+        closeUpgraded = initResult.closeUpgraded
 
         const startServerProcessDuration =
           performance.mark('next-start-end') &&
@@ -425,7 +421,12 @@ export async function startServer(
 
 if (process.env.NEXT_PRIVATE_WORKER && process.send) {
   process.addListener('message', async (msg: any) => {
-    if (msg && typeof msg && msg.nextWorkerOptions && process.send) {
+    if (
+      msg &&
+      typeof msg === 'object' &&
+      msg.nextWorkerOptions &&
+      process.send
+    ) {
       startServerSpan = trace('start-dev-server', undefined, {
         cpus: String(os.cpus().length),
         platform: os.platform(),

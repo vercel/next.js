@@ -4,6 +4,8 @@
 const nextConfig = {
   experimental: {
     dynamicIO: true,
+    cacheHandlers: {}, // overwrite the default config
+    prerenderEarlyExit: false,
   },
 }
 

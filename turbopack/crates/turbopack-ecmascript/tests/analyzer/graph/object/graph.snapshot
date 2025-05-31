@@ -49,7 +49,7 @@
             ),
             Constant(
                 Str(
-                    Word(
+                    Atom(
                         "a",
                     ),
                 ),
@@ -182,7 +182,7 @@
             ),
             Constant(
                 Str(
-                    Word(
+                    Atom(
                         "b",
                     ),
                 ),
@@ -315,7 +315,7 @@
             ),
             Constant(
                 Str(
-                    Word(
+                    Atom(
                         "c",
                     ),
                 ),
@@ -353,7 +353,7 @@
             ),
             Constant(
                 Str(
-                    Word(
+                    Atom(
                         "c",
                     ),
                 ),
@@ -448,7 +448,7 @@
             ),
             Constant(
                 Str(
-                    Word(
+                    Atom(
                         "d",
                     ),
                 ),
@@ -571,7 +571,7 @@
                 KeyValue(
                     Constant(
                         Str(
-                            Word(
+                            Atom(
                                 "c",
                             ),
                         ),

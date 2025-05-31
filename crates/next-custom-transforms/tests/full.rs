@@ -81,6 +81,8 @@ fn test(input: &Path, minify: bool) {
                 optimize_server_react: None,
                 prefer_esm: false,
                 debug_function_name: false,
+                css_env: None,
+                track_dynamic_imports: false,
             };
 
             let unresolved_mark = Mark::new();
@@ -102,6 +104,7 @@ fn test(input: &Path, minify: bool) {
                         comments.clone(),
                         Default::default(),
                         unresolved_mark,
+                        Default::default(),
                     )
                 },
                 |_| noop_pass(),

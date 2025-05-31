@@ -1,11 +1,10 @@
-use std::collections::HashMap;
-
 use anyhow::{Context, Result};
 use once_cell::sync::Lazy;
 use regex::Regex;
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{trace::TraceRawVcs, ResolvedVc, Vc};
+use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{IssueExt, IssueSeverity, StyledString};
 
@@ -13,11 +12,11 @@ use super::options::NextFontGoogleOptions;
 use crate::{
     next_font::{
         font_fallback::{
-            AutomaticFontFallback, FontAdjustment, FontFallback, DEFAULT_SANS_SERIF_FONT,
-            DEFAULT_SERIF_FONT,
+            AutomaticFontFallback, DEFAULT_SANS_SERIF_FONT, DEFAULT_SERIF_FONT, FontAdjustment,
+            FontFallback,
         },
         issue::NextFontIssue,
-        util::{get_scoped_font_family, FontFamilyType},
+        util::{FontFamilyType, get_scoped_font_family},
     },
     util::load_next_js_templateon,
 };
@@ -35,9 +34,9 @@ pub(super) struct FontMetricsMapEntry {
 }
 
 #[derive(Deserialize, Debug)]
-pub(super) struct FontMetricsMap(pub HashMap<RcStr, FontMetricsMapEntry>);
+pub(super) struct FontMetricsMap(pub FxHashMap<RcStr, FontMetricsMapEntry>);
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
 struct Fallback {
     pub font_family: RcStr,
     pub adjustment: Option<FontAdjustment>,
@@ -92,7 +91,7 @@ pub(super) async fn get_font_fallback(
                         .resolved_cell(),
                         severity: IssueSeverity::Warning.resolved_cell(),
                     }
-                    .cell()
+                    .resolved_cell()
                     .emit();
                     FontFallback::Error.cell()
                 }
@@ -176,7 +175,7 @@ mod tests {
     use turbo_tasks_fs::json::parse_json_with_source_context;
 
     use super::{FontAdjustment, FontMetricsMap};
-    use crate::next_font::google::font_fallback::{lookup_fallback, Fallback};
+    use crate::next_font::google::font_fallback::{Fallback, lookup_fallback};
 
     #[test]
     fn test_fallback_from_metrics_sans_serif() -> Result<()> {

@@ -3,16 +3,16 @@ use std::{
     panic::AssertUnwindSafe,
     path::Path,
     sync::{
-        atomic::{AtomicUsize, Ordering},
         Arc,
+        atomic::{AtomicUsize, Ordering},
     },
     time::Duration,
 };
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use criterion::{
-    measurement::{Measurement, WallTime},
     BenchmarkGroup, BenchmarkId, Criterion,
+    measurement::{Measurement, WallTime},
 };
 use once_cell::sync::Lazy;
 use tokio::{
@@ -21,10 +21,9 @@ use tokio::{
 };
 use turbo_tasks::util::FormatDuration;
 use util::{
-    build_test, create_browser,
+    AsyncBencherExtension, BINDING_NAME, PreparedApp, build_test, create_browser,
     env::{read_env, read_env_bool, read_env_list},
     module_picker::ModulePicker,
-    AsyncBencherExtension, PreparedApp, BINDING_NAME,
 };
 
 use self::{bundlers::RenderType, util::resume_on_error};
@@ -85,7 +84,7 @@ fn bench_startup_internal(
             let input = (bundler.as_ref(), &test_app);
             resume_on_error(AssertUnwindSafe(|| {
                 g.bench_with_input(
-                    BenchmarkId::new(bundler.get_name(), format!("{} modules", module_count)),
+                    BenchmarkId::new(bundler.get_name(), format!("{module_count} modules")),
                     &input,
                     |b, &(bundler, test_app)| {
                         let test_app = &**test_app;
@@ -172,7 +171,7 @@ fn bench_hmr_internal(
 
             resume_on_error(AssertUnwindSafe(|| {
                 g.bench_with_input(
-                    BenchmarkId::new(bundler.get_name(), format!("{} modules", module_count)),
+                    BenchmarkId::new(bundler.get_name(), format!("{module_count} modules")),
                     &input,
                     |b, &(bundler, test_app)| {
                         let test_app = &**test_app;
@@ -309,7 +308,7 @@ fn bench_hmr_internal(
                                                 FormatDuration(value / (iter as u32)),
                                                 iter,
                                                 if dropped > 0 {
-                                                    format!(" ({} dropped)", dropped)
+                                                    format!(" ({dropped} dropped)")
                                                 } else {
                                                     "".to_string()
                                                 }
@@ -387,10 +386,10 @@ fn insert_code(
 
 static CHANGE_TIMEOUT_MESSAGE: &str = "update was not registered by bundler";
 
-async fn make_change<'a>(
+async fn make_change(
     module: &Path,
     bundler: &dyn Bundler,
-    guard: &mut PageGuard<'a>,
+    guard: &mut PageGuard<'_>,
     location: CodeLocation,
     timeout_duration: Duration,
     measurement: &WallTime,
@@ -481,7 +480,7 @@ fn bench_startup_cached_internal(
 
             resume_on_error(AssertUnwindSafe(|| {
                 g.bench_with_input(
-                    BenchmarkId::new(bundler.get_name(), format!("{} modules", module_count)),
+                    BenchmarkId::new(bundler.get_name(), format!("{module_count} modules")),
                     &input,
                     |b, &(bundler, test_app)| {
                         let test_app = &**test_app;

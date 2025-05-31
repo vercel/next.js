@@ -2,39 +2,42 @@
 //! execution.
 //!
 //! It defines 4 primitives:
-//! - functions: Unit of execution, invalidation and reexecution.
-//! - values: Data created, stored and returned by functions.
-//! - traits: Traits that define a set of functions on values.
-//! - collectibles: Values emitted in functions that bubble up the call graph and can be collected
-//!   in parent functions.
+//! - **[Functions][macro@crate::function]:** Units of execution, invalidation, and reexecution.
+//! - **[Values][macro@crate::value]:** Data created, stored, and returned by functions.
+//! - **[Traits][macro@crate::value_trait]:** Traits that define a set of functions on values.
+//! - **[Collectibles][crate::TurboTasks::emit_collectible]:** Values emitted in functions that
+//!   bubble up the call graph and can be collected in parent functions.
 //!
 //! It also defines some derived elements from that:
-//! - cells: The locations in functions where values are stored. The content of a cell can change
-//!   after the reexecution of a function.
-//! - Vcs: A reference to a cell in a function or a return value of a function.
-//! - task: An instance of a function together with its arguments.
+//! - **[Tasks][book-tasks]:** An instance of a function together with its arguments.
+//! - **[Cells][book-cells]:** The locations associated with tasks where values are stored. The
+//!   contents of a cell can change after the reexecution of a function.
+//! - **[`Vc`s ("Value Cells")][Vc]:** A reference to a cell or a return value of a function.
 //!
-//! A Vc can be read to get a read-only reference to the stored data.
+//! A [`Vc`] can be read to get [a read-only reference][ReadRef] to the stored data, representing a
+//! snapshot of that cell at that point in time.
 //!
-//! On execution of functions, turbo-tasks will track which Vcs are read. Once
-//! any of these change, turbo-tasks will invalidate the task created from the
-//! function's execution and it will eventually be scheduled and reexecuted.
+//! On execution of functions, `turbo-tasks` will track which [`Vc`]s are read. Once any of these
+//! change, `turbo-tasks` will invalidate the task created from the function's execution and it will
+//! eventually be scheduled and reexecuted.
 //!
 //! Collectibles go through a similar process.
+//!
+//! [book-cells]: https://turbopack-rust-docs.vercel.sh/turbo-engine/cells.html
+//! [book-tasks]: https://turbopack-rust-docs.vercel.sh/turbo-engine/tasks.html
 
 #![feature(trivial_bounds)]
 #![feature(min_specialization)]
+#![feature(thread_local)]
 #![feature(try_trait_v2)]
-#![feature(hash_extract_if)]
 #![deny(unsafe_op_in_unsafe_fn)]
 #![feature(result_flattening)]
 #![feature(error_generic_member_access)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 #![feature(new_zeroed_alloc)]
-#![feature(type_alias_impl_trait)]
 #![feature(never_type)]
-#![feature(impl_trait_in_assoc_type)]
+#![feature(downcast_unchecked)]
 
 pub mod backend;
 mod capture_future;
@@ -55,6 +58,8 @@ mod key_value_pair;
 pub mod macro_helpers;
 mod magic_any;
 mod manager;
+mod marker_trait;
+pub mod message_queue;
 mod native_function;
 mod no_move_vec;
 mod once_map;
@@ -62,14 +67,15 @@ mod output;
 pub mod persisted_graph;
 pub mod primitives;
 mod raw_vc;
+mod read_options;
 mod read_ref;
 pub mod registry;
 mod scope;
 mod serialization_invalidation;
-mod shrink_to_fit;
 pub mod small_duration;
 mod state;
 pub mod task;
+pub mod task_statistics;
 pub mod trace;
 mod trait_helpers;
 mod trait_ref;
@@ -79,54 +85,59 @@ mod value;
 mod value_type;
 mod vc;
 
-use std::hash::BuildHasherDefault;
+use std::{cell::RefCell, hash::BuildHasherDefault, panic};
 
 pub use anyhow::{Error, Result};
 use auto_hash_map::AutoSet;
+pub use capture_future::TurboTasksPanic;
 pub use collectibles::CollectiblesSource;
 pub use completion::{Completion, Completions};
 pub use display::ValueToString;
-pub use effect::{apply_effects, effect, get_effects, Effects};
+pub use effect::{ApplyEffectsContext, Effects, apply_effects, effect, get_effects};
 pub use id::{
-    ExecutionId, FunctionId, LocalTaskId, SessionId, TaskId, TraitTypeId, ValueTypeId,
-    TRANSIENT_TASK_BIT,
+    ExecutionId, FunctionId, LocalTaskId, SessionId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId,
+    ValueTypeId,
 };
 pub use invalidation::{
-    get_invalidator, DynamicEqHash, InvalidationReason, InvalidationReasonKind,
-    InvalidationReasonSet, Invalidator,
+    DynamicEqHash, InvalidationReason, InvalidationReasonKind, InvalidationReasonSet, Invalidator,
+    get_invalidator,
 };
 pub use join_iter_ext::{JoinIterExt, TryFlatJoinIterExt, TryJoinIterExt};
 pub use key_value_pair::KeyValuePair;
 pub use magic_any::MagicAny;
 pub use manager::{
-    dynamic_call, dynamic_this_call, emit, mark_finished, mark_session_dependent, mark_stateful,
+    CurrentCellRef, ReadConsistency, TaskPersistence, TurboTasks, TurboTasksApi,
+    TurboTasksBackendApi, TurboTasksBackendApiExt, TurboTasksCallApi, Unused, UpdateInfo,
+    dynamic_call, emit, mark_finished, mark_root, mark_session_dependent, mark_stateful,
     prevent_gc, run_once, run_once_with_reason, spawn_blocking, spawn_thread, trait_call,
-    turbo_tasks, turbo_tasks_scope, CurrentCellRef, ReadConsistency, TaskPersistence, TurboTasks,
-    TurboTasksApi, TurboTasksBackendApi, TurboTasksBackendApiExt, TurboTasksCallApi, Unused,
-    UpdateInfo,
+    turbo_tasks, turbo_tasks_scope,
 };
-pub use native_function::{FunctionMeta, NativeFunction};
 pub use output::OutputContent;
 pub use raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveTypeError};
+pub use read_options::ReadCellOptions;
 pub use read_ref::ReadRef;
 use rustc_hash::FxHasher;
 pub use scope::scope;
 pub use serialization_invalidation::SerializationInvalidator;
 pub use shrink_to_fit::ShrinkToFit;
 pub use state::{State, TransientState};
-pub use task::{task_input::TaskInput, SharedReference, TypedSharedReference};
+pub use task::{SharedReference, TypedSharedReference, task_input::TaskInput};
 pub use trait_ref::{IntoTraitRef, TraitRef};
-pub use turbo_tasks_macros::{function, value_impl, value_trait, KeyValuePair, TaskInput};
+pub use turbo_tasks_macros::{TaskInput, function, value_impl};
 pub use value::{TransientInstance, TransientValue, Value};
 pub use value_type::{TraitMethod, TraitType, ValueType};
 pub use vc::{
-    Dynamic, ResolvedValue, ResolvedVc, TypedForInput, Upcast, ValueDefault, Vc, VcCast,
-    VcCellNewMode, VcCellSharedMode, VcDefaultRead, VcRead, VcTransparentRead, VcValueTrait,
-    VcValueTraitCast, VcValueType, VcValueTypeCast,
+    Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, ReadVcFuture, ResolvedVc,
+    TypedForInput, Upcast, ValueDefault, Vc, VcCast, VcCellNewMode, VcCellSharedMode,
+    VcDefaultRead, VcRead, VcTransparentRead, VcValueTrait, VcValueTraitCast, VcValueType,
+    VcValueTypeCast,
 };
+
+pub type SliceMap<K, V> = Box<[(K, V)]>;
 
 pub type FxIndexSet<T> = indexmap::IndexSet<T, BuildHasherDefault<FxHasher>>;
 pub type FxIndexMap<K, V> = indexmap::IndexMap<K, V, BuildHasherDefault<FxHasher>>;
+pub type FxDashMap<K, V> = dashmap::DashMap<K, V, BuildHasherDefault<FxHasher>>;
 
 // Copied from indexmap! and indexset!
 #[macro_export]
@@ -258,20 +269,55 @@ macro_rules! fxindexset {
 ///
 /// [repr-transparent]: https://doc.rust-lang.org/nomicon/other-reprs.html#reprtransparent
 ///
-/// ## `resolved`
+/// ## `local`
 ///
-/// Applies the [`#[derive(ResolvedValue)]`][macro@ResolvedValue] macro.
+/// Skip the implementation of [`NonLocalValue`] for this type.
 ///
-/// Indicates that this struct has no fields containing [`Vc`] by implementing the [`ResolvedValue`]
-/// marker trait. In order to safely implement [`ResolvedValue`], this inserts compile-time
-/// assertions that every field in this struct has a type that is also a [`ResolvedValue`].
+/// If not specified, we apply the [`#[derive(NonLocalValue)]`][macro@NonLocalValue] macro, which
+/// asserts that this struct has no fields containing [`Vc`] by implementing the [`NonLocalValue`]
+/// marker trait. Compile-time assertions are generated on every field, checking that they are also
+/// [`NonLocalValue`]s.
 #[rustfmt::skip]
 pub use turbo_tasks_macros::value;
+
+/// Allows this trait to be used as part of a trait object inside of a value
+/// cell, in the form of `Vc<dyn MyTrait>`.
+///
+/// ## Arguments
+///
+/// Example: `#[turbo_tasks::value_trait(no_debug, resolved)]`
+///
+/// ### 'no_debug`
+///
+/// Disables the automatic implementation of [`ValueDebug`][crate::debug::ValueDebug].
+///
+/// Example: `#[turbo_tasks::value_trait(no_debug)]`
+///
+/// ### 'resolved`
+///
+/// Adds [`NonLocalValue`] as a supertrait of this trait.
+///
+/// Example: `#[turbo_tasks::value_trait(resolved)]`
+#[rustfmt::skip]
+pub use turbo_tasks_macros::value_trait;
 
 pub type TaskIdSet = AutoSet<TaskId, BuildHasherDefault<FxHasher>, 2>;
 
 pub mod test_helpers {
     pub use super::manager::{current_task_for_testing, with_turbo_tasks_for_testing};
+}
+
+thread_local! {
+    /// The location of the last error that occurred in the current thread.
+    ///
+    /// Used for debugging when errors are sent to telemetry
+    pub(crate) static LAST_ERROR_LOCATION: RefCell<Option<String>> = const { RefCell::new(None) };
+}
+
+pub fn handle_panic(info: &panic::PanicHookInfo<'_>) {
+    LAST_ERROR_LOCATION.with_borrow_mut(|loc| {
+        *loc = info.location().map(|l| l.to_string());
+    });
 }
 
 pub fn register() {

@@ -4,6 +4,7 @@ import { COMPILER_NAMES } from '../../../../shared/lib/constants'
 import type { ConfigurationContext } from '../utils'
 import DevToolsIgnorePlugin from '../../plugins/devtools-ignore-list-plugin'
 import EvalSourceMapDevToolPlugin from '../../plugins/eval-source-map-dev-tool-plugin'
+import { getRspackCore } from '../../../../shared/lib/get-rspack'
 
 function shouldIgnorePath(modulePath: string): boolean {
   return (
@@ -49,14 +50,6 @@ export const base = curry(function base(
       (ctx.productionBrowserSourceMaps && ctx.isClient)
     ) {
       config.devtool = 'source-map'
-      config.plugins ??= []
-      config.plugins.push(
-        new DevToolsIgnorePlugin({
-          // TODO: eval-source-map has different module paths than source-map.
-          // We're currently not actually ignore listing anything.
-          shouldIgnorePath,
-        })
-      )
     } else {
       config.devtool = false
     }
@@ -67,7 +60,7 @@ export const base = curry(function base(
   }
 
   config.plugins ??= []
-  if (config.devtool === 'source-map') {
+  if (config.devtool === 'source-map' && !process.env.NEXT_RSPACK) {
     config.plugins.push(
       new DevToolsIgnorePlugin({
         shouldIgnorePath,
@@ -76,12 +69,20 @@ export const base = curry(function base(
   } else if (config.devtool === 'eval-source-map') {
     // We're using a fork of `eval-source-map`
     config.devtool = false
-    config.plugins.push(
-      new EvalSourceMapDevToolPlugin({
-        moduleFilenameTemplate: config.output?.devtoolModuleFilenameTemplate,
-        shouldIgnorePath,
-      })
-    )
+    if (process.env.NEXT_RSPACK) {
+      config.plugins.push(
+        new (getRspackCore().EvalSourceMapDevToolPlugin)({
+          moduleFilenameTemplate: config.output?.devtoolModuleFilenameTemplate,
+        })
+      )
+    } else {
+      config.plugins.push(
+        new EvalSourceMapDevToolPlugin({
+          moduleFilenameTemplate: config.output?.devtoolModuleFilenameTemplate,
+          shouldIgnorePath,
+        })
+      )
+    }
   }
 
   // TODO: add codemod for "Should not import the named export" with JSON files

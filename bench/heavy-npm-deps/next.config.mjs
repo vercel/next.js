@@ -7,9 +7,7 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   experimental: {
-    turbo: {
-      unstablePersistentCaching: process.env.TURBO_CACHE === '1',
-    },
+    turbopackPersistentCaching: process.env.TURBO_CACHE === '1',
   },
 }
 

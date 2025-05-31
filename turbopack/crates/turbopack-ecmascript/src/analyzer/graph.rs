@@ -1,30 +1,32 @@
 use std::{
-    collections::HashMap,
     iter,
     mem::{replace, take},
+    sync::Arc,
 };
 
+use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
     atoms::Atom,
-    common::{comments::Comments, pass::AstNodePath, Mark, Span, Spanned, SyntaxContext, GLOBALS},
+    common::{GLOBALS, Mark, Span, Spanned, SyntaxContext, comments::Comments, pass::AstNodePath},
     ecma::{
         ast::*,
-        atoms::js_word,
+        atoms::atom,
+        utils::contains_ident_ref,
         visit::{fields::*, *},
     },
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::Vc;
+use turbo_tasks::ResolvedVc;
 use turbopack_core::source::Source;
 
 use super::{
-    is_unresolved_id, ConstantNumber, ConstantValue, ImportMap, JsValue, ObjectPart,
-    WellKnownFunctionKind,
+    ConstantNumber, ConstantValue, ImportMap, JsValue, ObjectPart, WellKnownFunctionKind,
+    is_unresolved_id,
 };
 use crate::{
-    analyzer::{is_unresolved, WellKnownObjectKind},
-    utils::{unparen, AstPathRange},
     SpecifiedModuleType,
+    analyzer::{WellKnownObjectKind, is_unresolved},
+    utils::{AstPathRange, unparen},
 };
 
 #[derive(Debug, Clone)]
@@ -42,31 +44,33 @@ impl EffectsBlock {
 #[derive(Debug, Clone)]
 pub enum ConditionalKind {
     /// The blocks of an `if` statement without an `else` block.
-    If { then: EffectsBlock },
+    If { then: Box<EffectsBlock> },
     /// The blocks of an `if ... else` or `if { ... return ... } ...` statement.
     IfElse {
-        then: EffectsBlock,
-        r#else: EffectsBlock,
+        then: Box<EffectsBlock>,
+        r#else: Box<EffectsBlock>,
     },
     /// The blocks of an `if ... else` statement.
-    Else { r#else: EffectsBlock },
+    Else { r#else: Box<EffectsBlock> },
     /// The blocks of an `if { ... return ... } else { ... } ...` or `if { ... }
     /// else { ... return ... } ...` statement.
     IfElseMultiple {
-        then: Vec<EffectsBlock>,
-        r#else: Vec<EffectsBlock>,
+        then: Vec<Box<EffectsBlock>>,
+        r#else: Vec<Box<EffectsBlock>>,
     },
     /// The expressions on the right side of the `?:` operator.
     Ternary {
-        then: EffectsBlock,
-        r#else: EffectsBlock,
+        then: Box<EffectsBlock>,
+        r#else: Box<EffectsBlock>,
     },
     /// The expression on the right side of the `&&` operator.
-    And { expr: EffectsBlock },
+    And { expr: Box<EffectsBlock> },
     /// The expression on the right side of the `||` operator.
-    Or { expr: EffectsBlock },
+    Or { expr: Box<EffectsBlock> },
     /// The expression on the right side of the `??` operator.
-    NullishCoalescing { expr: EffectsBlock },
+    NullishCoalescing { expr: Box<EffectsBlock> },
+    /// The expression on the right side of a labeled statement.
+    Labeled { body: Box<EffectsBlock> },
 }
 
 impl ConditionalKind {
@@ -98,6 +102,11 @@ impl ConditionalKind {
                     }
                 }
             }
+            ConditionalKind::Labeled { body } => {
+                for effect in &mut body.effects {
+                    effect.normalize();
+                }
+            }
         }
     }
 }
@@ -105,7 +114,7 @@ impl ConditionalKind {
 #[derive(Debug, Clone)]
 pub enum EffectArg {
     Value(JsValue),
-    Closure(JsValue, EffectsBlock),
+    Closure(JsValue, Box<EffectsBlock>),
     Spread,
 }
 
@@ -131,7 +140,7 @@ pub enum Effect {
     /// condition evaluates to some compile-time constant, we can use that
     /// to determine which effects are executed and remove the others.
     Conditional {
-        condition: JsValue,
+        condition: Box<JsValue>,
         kind: Box<ConditionalKind>,
         /// The ast path to the condition.
         ast_path: Vec<AstParentKind>,
@@ -140,7 +149,7 @@ pub enum Effect {
     },
     /// A function call or a new call of a function.
     Call {
-        func: JsValue,
+        func: Box<JsValue>,
         args: Vec<EffectArg>,
         ast_path: Vec<AstParentKind>,
         span: Span,
@@ -149,8 +158,8 @@ pub enum Effect {
     },
     /// A function call or a new call of a property of an object.
     MemberCall {
-        obj: JsValue,
-        prop: JsValue,
+        obj: Box<JsValue>,
+        prop: Box<JsValue>,
         args: Vec<EffectArg>,
         ast_path: Vec<AstParentKind>,
         span: Span,
@@ -159,8 +168,8 @@ pub enum Effect {
     },
     /// A property access.
     Member {
-        obj: JsValue,
-        prop: JsValue,
+        obj: Box<JsValue>,
+        prop: Box<JsValue>,
         ast_path: Vec<AstParentKind>,
         span: Span,
         in_try: bool,
@@ -175,14 +184,14 @@ pub enum Effect {
     },
     /// A reference to a free var access.
     FreeVar {
-        var: JsValue,
+        var: Box<JsValue>,
         ast_path: Vec<AstParentKind>,
         span: Span,
         in_try: bool,
     },
     /// A typeof expression
     TypeOf {
-        arg: JsValue,
+        arg: Box<JsValue>,
         ast_path: Vec<AstParentKind>,
         span: Span,
     },
@@ -241,9 +250,9 @@ impl Effect {
 
 #[derive(Debug)]
 pub struct VarGraph {
-    pub values: HashMap<Id, JsValue>,
+    pub values: FxHashMap<Id, JsValue>,
     /// Map FreeVar names to their Id to facilitate lookups into [values]
-    pub free_var_ids: HashMap<Atom, Id>,
+    pub free_var_ids: FxHashMap<Atom, Id>,
 
     pub effects: Vec<Effect>,
 }
@@ -294,6 +303,7 @@ pub struct EvalContext {
     pub(crate) unresolved_mark: Mark,
     pub(crate) top_level_mark: Mark,
     pub(crate) imports: ImportMap,
+    pub(crate) force_free_values: Arc<FxHashSet<Id>>,
 }
 
 impl EvalContext {
@@ -304,13 +314,15 @@ impl EvalContext {
         module: &Program,
         unresolved_mark: Mark,
         top_level_mark: Mark,
+        force_free_values: Arc<FxHashSet<Id>>,
         comments: Option<&dyn Comments>,
-        source: Option<Vc<Box<dyn Source>>>,
+        source: Option<ResolvedVc<Box<dyn Source>>>,
     ) -> Self {
         Self {
             unresolved_mark,
             top_level_mark,
             imports: ImportMap::analyze(module, source, comments),
+            force_free_values,
         }
     }
 
@@ -325,6 +337,14 @@ impl EvalContext {
             PropName::Num(num) => num.value.into(),
             PropName::Computed(ComputedPropName { expr, .. }) => self.eval(expr),
             PropName::BigInt(bigint) => (*bigint.value.clone()).into(),
+        }
+    }
+
+    fn eval_member_prop(&self, prop: &MemberProp) -> Option<JsValue> {
+        match prop {
+            MemberProp::Ident(ident) => Some(ident.sym.clone().into()),
+            MemberProp::Computed(ComputedPropName { expr, .. }) => Some(self.eval(expr)),
+            MemberProp::PrivateName(_) => None,
         }
     }
 
@@ -369,7 +389,7 @@ impl EvalContext {
         if let Some(imported) = self.imports.get_import(&id) {
             return imported;
         }
-        if is_unresolved(i, self.unresolved_mark) {
+        if is_unresolved(i, self.unresolved_mark) || self.force_free_values.contains(&id) {
             JsValue::FreeVar(i.sym.clone())
         } else {
             JsValue::Variable(id)
@@ -448,28 +468,28 @@ impl EvalContext {
                 left,
                 right,
                 ..
-            }) => JsValue::equal(self.eval(left), self.eval(right)),
+            }) => JsValue::equal(Box::new(self.eval(left)), Box::new(self.eval(right))),
 
             Expr::Bin(BinExpr {
                 op: op!("!="),
                 left,
                 right,
                 ..
-            }) => JsValue::not_equal(self.eval(left), self.eval(right)),
+            }) => JsValue::not_equal(Box::new(self.eval(left)), Box::new(self.eval(right))),
 
             Expr::Bin(BinExpr {
                 op: op!("==="),
                 left,
                 right,
                 ..
-            }) => JsValue::strict_equal(self.eval(left), self.eval(right)),
+            }) => JsValue::strict_equal(Box::new(self.eval(left)), Box::new(self.eval(right))),
 
             Expr::Bin(BinExpr {
                 op: op!("!=="),
                 left,
                 right,
                 ..
-            }) => JsValue::strict_not_equal(self.eval(left), self.eval(right)),
+            }) => JsValue::strict_not_equal(Box::new(self.eval(left)), Box::new(self.eval(right))),
 
             &Expr::Cond(CondExpr {
                 box ref cons,
@@ -530,7 +550,7 @@ impl EvalContext {
                 SyntaxContext::empty(),
             )),
 
-            Expr::Await(AwaitExpr { arg, .. }) => self.eval(arg),
+            Expr::Await(AwaitExpr { arg, .. }) => JsValue::awaited(Box::new(self.eval(arg))),
 
             Expr::Seq(e) => {
                 let mut seq = e.exprs.iter().map(|e| self.eval(e)).peekable();
@@ -649,7 +669,7 @@ impl EvalContext {
                 }
                 let args = args.iter().map(|arg| self.eval(&arg.expr)).collect();
 
-                let callee = Box::new(JsValue::FreeVar(js_word!("import")));
+                let callee = Box::new(JsValue::FreeVar(atom!("import")));
 
                 JsValue::call(callee, args)
             }
@@ -664,7 +684,7 @@ impl EvalContext {
                     .iter()
                     .map(|e| match e {
                         Some(e) => self.eval(&e.expr),
-                        _ => JsValue::FreeVar(js_word!("undefined")),
+                        _ => JsValue::FreeVar(atom!("undefined")),
                     })
                     .collect();
                 JsValue::array(arr)
@@ -711,9 +731,9 @@ enum EarlyReturn {
         prev_effects: Vec<Effect>,
         start_ast_path: Vec<AstParentKind>,
 
-        condition: JsValue,
-        then: Option<EffectsBlock>,
-        r#else: Option<EffectsBlock>,
+        condition: Box<JsValue>,
+        then: Option<Box<EffectsBlock>>,
+        r#else: Option<Box<EffectsBlock>>,
         /// The ast path to the condition.
         condition_ast_path: Vec<AstParentKind>,
         span: Span,
@@ -721,6 +741,17 @@ enum EarlyReturn {
 
         early_return_condition_value: bool,
     },
+}
+
+pub fn as_parent_path_skip(
+    ast_path: &AstNodePath<AstParentNodeRef<'_>>,
+    skip: usize,
+) -> Vec<AstParentKind> {
+    ast_path
+        .iter()
+        .take(ast_path.len() - skip)
+        .map(|n| n.kind())
+        .collect()
 }
 
 struct Analyzer<'a> {
@@ -863,6 +894,13 @@ impl Analyzer<'_> {
                         let mut ast_path = ast_path
                             .with_guard(AstParentNodeRef::FnExpr(fn_expr, FnExprField::Ident));
                         self.visit_opt_ident(ident, &mut ast_path);
+
+                        // We cannot analyze recursive IIFE
+                        if let Some(ident) = ident {
+                            if contains_ident_ref(&function.body, &ident.to_id()) {
+                                return false;
+                            }
+                        }
                     }
 
                     {
@@ -1081,10 +1119,10 @@ impl Analyzer<'_> {
                         let effects = replace(&mut self.effects, old_effects);
                         EffectArg::Closure(
                             value,
-                            EffectsBlock {
+                            Box::new(EffectsBlock {
                                 effects,
                                 range: AstPathRange::Exact(path),
-                            },
+                            }),
                         )
                     } else {
                         arg.visit_with_ast_path(self, &mut ast_path);
@@ -1100,7 +1138,7 @@ impl Analyzer<'_> {
         match callee {
             Callee::Import(_) => {
                 self.add_effect(Effect::Call {
-                    func: JsValue::FreeVar(js_word!("import")),
+                    func: Box::new(JsValue::FreeVar(atom!("import"))),
                     args,
                     ast_path: as_parent_path(ast_path),
                     span,
@@ -1110,15 +1148,16 @@ impl Analyzer<'_> {
             }
             Callee::Expr(box expr) => {
                 if let Expr::Member(MemberExpr { obj, prop, .. }) = unparen(expr) {
-                    let obj_value = self.eval_context.eval(obj);
+                    let obj_value = Box::new(self.eval_context.eval(obj));
                     let prop_value = match prop {
                         // TODO avoid clone
-                        MemberProp::Ident(i) => i.sym.clone().into(),
-                        MemberProp::PrivateName(_) => {
-                            return;
-                        }
+                        MemberProp::Ident(i) => Box::new(i.sym.clone().into()),
+                        MemberProp::PrivateName(_) => Box::new(JsValue::unknown_empty(
+                            false,
+                            "private names in member expressions are not supported",
+                        )),
                         MemberProp::Computed(ComputedPropName { expr, .. }) => {
-                            self.eval_context.eval(expr)
+                            Box::new(self.eval_context.eval(expr))
                         }
                     };
                     self.add_effect(Effect::MemberCall {
@@ -1131,7 +1170,7 @@ impl Analyzer<'_> {
                         new,
                     });
                 } else {
-                    let fn_value = self.eval_context.eval(expr);
+                    let fn_value = Box::new(self.eval_context.eval(expr));
                     self.add_effect(Effect::Call {
                         func: fn_value,
                         args,
@@ -1143,10 +1182,11 @@ impl Analyzer<'_> {
                 }
             }
             Callee::Super(_) => self.add_effect(Effect::Call {
-                func: self
-                    .eval_context
-                    // Unwrap because `new super(..)` isn't valid anyway
-                    .eval(&Expr::Call(n.as_call().unwrap().clone())),
+                func: Box::new(
+                    self.eval_context
+                        // Unwrap because `new super(..)` isn't valid anyway
+                        .eval(&Expr::Call(n.as_call().unwrap().clone())),
+                ),
                 args,
                 ast_path: as_parent_path(ast_path),
                 span,
@@ -1161,14 +1201,16 @@ impl Analyzer<'_> {
         member_expr: &'ast MemberExpr,
         ast_path: &AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        let obj_value = self.eval_context.eval(&member_expr.obj);
+        let obj_value = Box::new(self.eval_context.eval(&member_expr.obj));
         let prop_value = match &member_expr.prop {
             // TODO avoid clone
-            MemberProp::Ident(i) => i.sym.clone().into(),
+            MemberProp::Ident(i) => Box::new(i.sym.clone().into()),
             MemberProp::PrivateName(_) => {
                 return;
             }
-            MemberProp::Computed(ComputedPropName { expr, .. }) => self.eval_context.eval(expr),
+            MemberProp::Computed(ComputedPropName { expr, .. }) => {
+                Box::new(self.eval_context.eval(expr))
+            }
         };
         self.add_effect(Effect::Member {
             obj: obj_value,
@@ -1183,7 +1225,7 @@ impl Analyzer<'_> {
         let values = self.cur_fn_return_values.take().unwrap();
 
         Box::new(match values.len() {
-            0 => JsValue::FreeVar(js_word!("undefined")),
+            0 => JsValue::FreeVar(atom!("undefined")),
             1 => values.into_iter().next().unwrap(),
             _ => JsValue::alternatives(values),
         })
@@ -1214,10 +1256,10 @@ impl Analyzer<'_> {
                     in_try,
                     early_return_condition_value,
                 } => {
-                    let block = EffectsBlock {
+                    let block = Box::new(EffectsBlock {
                         effects: take(&mut self.effects),
                         range: AstPathRange::StartAfter(start_ast_path),
-                    };
+                    });
                     self.effects = prev_effects;
                     let kind = match (then, r#else, early_return_condition_value) {
                         (None, None, false) => ConditionalKind::If { then: block },
@@ -1474,10 +1516,9 @@ impl VisitAstPath for Analyzer<'_> {
         decl: &'ast FnDecl,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        let old = replace(
-            &mut self.cur_fn_return_values,
-            Some(get_fn_init_return_vals(decl.function.body.as_ref())),
-        );
+        let old = self
+            .cur_fn_return_values
+            .replace(get_fn_init_return_vals(decl.function.body.as_ref()));
         let old_ident = self.cur_fn_ident;
         self.cur_fn_ident = decl.function.span.lo.0;
         decl.visit_children_with_ast_path(self, ast_path);
@@ -1498,10 +1539,9 @@ impl VisitAstPath for Analyzer<'_> {
         expr: &'ast FnExpr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        let old = replace(
-            &mut self.cur_fn_return_values,
-            Some(get_fn_init_return_vals(expr.function.body.as_ref())),
-        );
+        let old = self
+            .cur_fn_return_values
+            .replace(get_fn_init_return_vals(expr.function.body.as_ref()));
         let old_ident = self.cur_fn_ident;
         self.cur_fn_ident = expr.function.span.lo.0;
         expr.visit_children_with_ast_path(self, ast_path);
@@ -1608,7 +1648,27 @@ impl VisitAstPath for Analyzer<'_> {
     ) {
         if self.var_decl_kind.is_some() {
             if let Some(init) = &n.init {
-                self.current_value = Some(self.eval_context.eval(init));
+                // For case like
+                //
+                // if (shouldRun()) {
+                //   var x = true;
+                // }
+                // if (x) {
+                // }
+                //
+                // The variable `x` is undefined
+
+                let should_include_undefined = matches!(self.var_decl_kind, Some(VarDeclKind::Var))
+                    && is_lexically_block_scope(ast_path);
+                let init_value = self.eval_context.eval(init);
+                self.current_value = Some(if should_include_undefined {
+                    JsValue::alternatives(vec![
+                        init_value,
+                        JsValue::Constant(ConstantValue::Undefined),
+                    ])
+                } else {
+                    init_value
+                });
             }
         }
         {
@@ -1643,7 +1703,7 @@ impl VisitAstPath for Analyzer<'_> {
         {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::ForOfStmt(n, ForOfStmtField::Left));
-            self.current_value = Some(JsValue::iterated(array));
+            self.current_value = Some(JsValue::iterated(Box::new(array)));
             self.visit_for_head(&n.left, &mut ast_path);
         }
 
@@ -1763,7 +1823,7 @@ impl VisitAstPath for Analyzer<'_> {
                 .arg
                 .as_deref()
                 .map(|e| self.eval_context.eval(e))
-                .unwrap_or(JsValue::FreeVar(js_word!("undefined")));
+                .unwrap_or(JsValue::FreeVar(atom!("undefined")));
 
             values.push(return_value);
         }
@@ -1796,6 +1856,47 @@ impl VisitAstPath for Analyzer<'_> {
         if let Some((esm_reference_index, export)) =
             self.eval_context.imports.get_binding(&ident.to_id())
         {
+            if export.is_none()
+                && !self
+                    .eval_context
+                    .imports
+                    .should_import_all(esm_reference_index)
+            {
+                // export.is_none() checks for a namespace import.
+
+                // Note: This is optimization that can be applied if we don't need to
+                // import all bindings
+                if let Some(AstParentNodeRef::MemberExpr(member, MemberExprField::Obj)) =
+                    ast_path.get(ast_path.len() - 2)
+                {
+                    // Skip if it's on the LHS of assignment
+                    let is_lhs = matches!(
+                        ast_path.get(ast_path.len() - 3),
+                        Some(AstParentNodeRef::SimpleAssignTarget(
+                            _,
+                            SimpleAssignTargetField::Member
+                        ))
+                    );
+
+                    if !is_lhs {
+                        if let Some(prop) = self.eval_context.eval_member_prop(&member.prop) {
+                            if let Some(prop_str) = prop.as_str() {
+                                // a namespace member access like
+                                // `import * as ns from "..."; ns.exportName`
+                                self.add_effect(Effect::ImportedBinding {
+                                    esm_reference_index,
+                                    export: Some(prop_str.into()),
+                                    ast_path: as_parent_path_skip(ast_path, 1),
+                                    span: member.span(),
+                                    in_try: is_in_try(ast_path),
+                                });
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+
             self.add_effect(Effect::ImportedBinding {
                 esm_reference_index,
                 export,
@@ -1803,9 +1904,11 @@ impl VisitAstPath for Analyzer<'_> {
                 span: ident.span(),
                 in_try: is_in_try(ast_path),
             })
-        } else if is_unresolved(ident, self.eval_context.unresolved_mark) {
+        } else if is_unresolved(ident, self.eval_context.unresolved_mark)
+            || self.eval_context.force_free_values.contains(&ident.to_id())
+        {
             self.add_effect(Effect::FreeVar {
-                var: JsValue::FreeVar(ident.sym.clone()),
+                var: Box::new(JsValue::FreeVar(ident.sym.clone())),
                 ast_path: as_parent_path(ast_path),
                 span: ident.span(),
                 in_try: is_in_try(ast_path),
@@ -1857,19 +1960,19 @@ impl VisitAstPath for Analyzer<'_> {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::CondExpr(expr, CondExprField::Cons));
             expr.cons.visit_with_ast_path(self, &mut ast_path);
-            EffectsBlock {
+            Box::new(EffectsBlock {
                 effects: take(&mut self.effects),
                 range: AstPathRange::Exact(as_parent_path(&ast_path)),
-            }
+            })
         };
         let r#else = {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::CondExpr(expr, CondExprField::Alt));
             expr.alt.visit_with_ast_path(self, &mut ast_path);
-            EffectsBlock {
+            Box::new(EffectsBlock {
                 effects: take(&mut self.effects),
                 range: AstPathRange::Exact(as_parent_path(&ast_path)),
-            }
+            })
         };
         self.effects = prev_effects;
 
@@ -1900,10 +2003,10 @@ impl VisitAstPath for Analyzer<'_> {
                 ast_path.with_guard(AstParentNodeRef::IfStmt(stmt, IfStmtField::Cons));
             stmt.cons.visit_with_ast_path(self, &mut ast_path);
             then_returning = self.end_early_return_block();
-            EffectsBlock {
+            Box::new(EffectsBlock {
                 effects: take(&mut self.effects),
                 range: AstPathRange::Exact(as_parent_path(&ast_path)),
-            }
+            })
         };
         let mut else_returning = false;
         let r#else = stmt.alt.as_ref().map(|alt| {
@@ -1911,10 +2014,10 @@ impl VisitAstPath for Analyzer<'_> {
                 ast_path.with_guard(AstParentNodeRef::IfStmt(stmt, IfStmtField::Alt));
             alt.visit_with_ast_path(self, &mut ast_path);
             else_returning = self.end_early_return_block();
-            EffectsBlock {
+            Box::new(EffectsBlock {
                 effects: take(&mut self.effects),
                 range: AstPathRange::Exact(as_parent_path(&ast_path)),
-            }
+            })
         });
         self.early_return_stack = prev_early_return_stack;
         self.effects = prev_effects;
@@ -1999,6 +2102,10 @@ impl VisitAstPath for Analyzer<'_> {
                     AstParentNodeRef::TryStmt(_, TryStmtField::Handler),
                     AstParentNodeRef::CatchClause(_, CatchClauseField::Body)
                 ]
+                | [
+                    AstParentNodeRef::LabeledStmt(_, LabeledStmtField::Body),
+                    AstParentNodeRef::Stmt(_, StmtField::Block)
+                ]
         ) {
             None
         } else if matches!(
@@ -2050,7 +2157,7 @@ impl VisitAstPath for Analyzer<'_> {
         ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
     ) {
         if n.op == UnaryOp::TypeOf {
-            let arg_value = self.eval_context.eval(&n.arg);
+            let arg_value = Box::new(self.eval_context.eval(&n.arg));
             self.add_effect(Effect::TypeOf {
                 arg: arg_value,
                 ast_path: as_parent_path(ast_path),
@@ -2060,6 +2167,57 @@ impl VisitAstPath for Analyzer<'_> {
 
         n.visit_children_with_ast_path(self, ast_path);
     }
+
+    fn visit_labeled_stmt<'ast: 'r, 'r>(
+        &mut self,
+        stmt: &'ast LabeledStmt,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
+        let mut prev_effects = take(&mut self.effects);
+        let prev_early_return_stack = take(&mut self.early_return_stack);
+
+        stmt.visit_children_with_ast_path(self, ast_path);
+
+        self.end_early_return_block();
+
+        let effects = take(&mut self.effects);
+
+        prev_effects.push(Effect::Conditional {
+            condition: Box::new(JsValue::unknown_empty(true, "labeled statement")),
+            kind: Box::new(ConditionalKind::Labeled {
+                body: Box::new(EffectsBlock {
+                    effects,
+                    range: AstPathRange::Exact(as_parent_path_with(
+                        ast_path,
+                        AstParentKind::LabeledStmt(LabeledStmtField::Body),
+                    )),
+                }),
+            }),
+            ast_path: as_parent_path(ast_path),
+            span: stmt.span,
+            in_try: is_in_try(ast_path),
+        });
+
+        self.effects = prev_effects;
+        self.early_return_stack = prev_early_return_stack;
+    }
+}
+
+fn is_lexically_block_scope(ast_path: &mut AstNodePath<AstParentNodeRef>) -> bool {
+    let mut iter = ast_path.iter().rev().peekable();
+
+    while let Some(cur) = iter.next() {
+        // If it's a block statement, we need to check if it's Function#body
+        if matches!(cur.kind(), AstParentKind::BlockStmt(..)) {
+            if let Some(next) = iter.peek() {
+                return !matches!(next.kind(), AstParentKind::Function(FunctionField::Body));
+            }
+            return false;
+        }
+    }
+
+    // This `var` is not in a block scope
+    false
 }
 
 impl Analyzer<'_> {
@@ -2069,8 +2227,8 @@ impl Analyzer<'_> {
         ast_path: &AstNodePath<AstParentNodeRef<'_>>,
         condition_ast_kind: AstParentKind,
         span: Span,
-        then: Option<EffectsBlock>,
-        r#else: Option<EffectsBlock>,
+        then: Option<Box<EffectsBlock>>,
+        r#else: Option<Box<EffectsBlock>>,
         early_return_when_true: bool,
         early_return_when_false: bool,
     ) {
@@ -2078,7 +2236,7 @@ impl Analyzer<'_> {
         {
             return;
         }
-        let condition = self.eval_context.eval(test);
+        let condition = Box::new(self.eval_context.eval(test));
         if condition.is_unknown() {
             if let Some(mut then) = then {
                 self.effects.append(&mut then.effects);
@@ -2147,7 +2305,7 @@ impl Analyzer<'_> {
         span: Span,
         mut cond_kind: ConditionalKind,
     ) {
-        let condition = self.eval_context.eval(test);
+        let condition = Box::new(self.eval_context.eval(test));
         if condition.is_unknown() {
             match &mut cond_kind {
                 ConditionalKind::If { then } => {
@@ -2173,6 +2331,9 @@ impl Analyzer<'_> {
                 | ConditionalKind::Or { expr }
                 | ConditionalKind::NullishCoalescing { expr } => {
                     self.effects.append(&mut expr.effects);
+                }
+                ConditionalKind::Labeled { body } => {
+                    self.effects.append(&mut body.effects);
                 }
             }
         } else {

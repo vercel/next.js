@@ -11,7 +11,7 @@ import { IncrementalCache } from '../lib/incremental-cache'
 import { RouteMatcher } from '../route-matchers/route-matcher'
 import type { NextFetchEvent } from './spec-extension/fetch-event'
 import { internal_getCurrentFunctionWaitUntil } from './internal-edge-wait-until'
-import { getUtils } from '../server-utils'
+import { getServerUtils } from '../server-utils'
 import { searchParamsToUrlQuery } from '../../shared/lib/router/utils/querystring'
 import { CloseController, trackStreamConsumed } from './web-on-close'
 import { getEdgePreviewProps } from './get-edge-preview-props'
@@ -71,7 +71,7 @@ export class EdgeRouteModuleWrapper {
     request: NextRequest,
     evt: NextFetchEvent
   ): Promise<Response> {
-    const utils = getUtils({
+    const utils = getServerUtils({
       pageIsDynamic: this.matcher.isDynamic,
       page: this.matcher.definition.pathname,
       basePath: request.nextUrl.basePath,
@@ -82,10 +82,9 @@ export class EdgeRouteModuleWrapper {
     })
 
     const { params } = utils.normalizeDynamicRouteParams(
-      searchParamsToUrlQuery(request.nextUrl.searchParams)
+      searchParamsToUrlQuery(request.nextUrl.searchParams),
+      false
     )
-
-    const isAfterEnabled = !!process.env.__NEXT_AFTER
 
     const waitUntil = evt.waitUntil.bind(evt)
     const closeController = new CloseController()
@@ -109,12 +108,13 @@ export class EdgeRouteModuleWrapper {
         onClose: closeController.onClose.bind(closeController),
         onAfterTaskError: undefined,
         experimental: {
-          after: isAfterEnabled,
           dynamicIO: !!process.env.__NEXT_DYNAMIC_IO,
           authInterrupts: !!process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS,
         },
-        buildId: '', // TODO: Populate this properly.
         cacheLifeProfiles: this.nextConfig.experimental.cacheLife,
+      },
+      sharedContext: {
+        buildId: '', // TODO: Populate this properly.
       },
     }
 

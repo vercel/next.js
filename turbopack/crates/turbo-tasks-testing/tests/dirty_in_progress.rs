@@ -4,10 +4,10 @@
 
 use std::time::Duration;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{emit, CollectiblesSource, State, ValueToString, Vc};
-use turbo_tasks_testing::{register, run, Registration};
+use turbo_tasks::{CollectiblesSource, ResolvedVc, State, ValueToString, Vc, emit};
+use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 
@@ -23,7 +23,7 @@ async fn dirty_in_progress() {
             (11, 13, 2, 2, ""),
         ];
         for (a, b, c, value, collectible) in cases {
-            println!("{} -> {} -> {} = {} {}", a, b, c, value, collectible);
+            println!("{a} -> {b} -> {c} = {value} {collectible}");
             let input = ChangingInput {
                 state: State::new(a),
             }
@@ -31,10 +31,10 @@ async fn dirty_in_progress() {
             let input_val = input.await?;
             let output = compute(input);
             output.await?;
-            println!("update to {}", b);
+            println!("update to {b}");
             input_val.state.set(b);
-            tokio::time::sleep(Duration::from_millis(100)).await;
-            println!("update to {}", c);
+            tokio::time::sleep(Duration::from_millis(50)).await;
+            println!("update to {c}");
             input_val.state.set(c);
             let read = output.strongly_consistent().await?;
             assert_eq!(read.value, value);
@@ -71,13 +71,14 @@ impl ValueToString for Collectible {
     }
 }
 
-#[turbo_tasks::function]
-async fn inner_compute(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
+#[turbo_tasks::function(operation)]
+async fn inner_compute(input: ResolvedVc<ChangingInput>) -> Result<Vc<u32>> {
     println!("start inner_compute");
     let value = *input.await?.state.get();
     tokio::time::sleep(Duration::from_millis(200)).await;
     if value > 10 {
-        let collectible: Vc<Box<dyn ValueToString>> = Vc::upcast(Collectible { value }.cell());
+        let collectible: ResolvedVc<Box<dyn ValueToString>> =
+            ResolvedVc::upcast(Collectible { value }.resolved_cell());
         emit(collectible);
 
         println!("end inner_compute with collectible");
@@ -89,10 +90,10 @@ async fn inner_compute(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
 }
 
 #[turbo_tasks::function]
-async fn compute(input: Vc<ChangingInput>) -> Result<Vc<Output>> {
+async fn compute(input: ResolvedVc<ChangingInput>) -> Result<Vc<Output>> {
     println!("start compute");
     let operation = inner_compute(input);
-    let value = *operation.await?;
+    let value = *operation.connect().await?;
     let collectibles = operation.peek_collectibles::<Box<dyn ValueToString>>();
     if collectibles.len() > 1 {
         bail!("expected 0..1 collectible, found {}", collectibles.len());

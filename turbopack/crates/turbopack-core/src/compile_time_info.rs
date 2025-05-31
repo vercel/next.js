@@ -1,6 +1,7 @@
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ResolvedVc, Vc};
+use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::environment::Environment;
@@ -200,6 +201,14 @@ impl CompileTimeDefines {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
+pub enum InputRelativeConstant {
+    // The project relative directory name of the source file
+    DirName,
+    // The project relative file name of the source file.
+    FileName,
+}
+
 #[turbo_tasks::value]
 #[derive(Debug, Clone)]
 pub enum FreeVarReference {
@@ -209,7 +218,9 @@ pub enum FreeVarReference {
         export: Option<RcStr>,
     },
     Ident(RcStr),
+    Member(RcStr, RcStr),
     Value(CompileTimeDefineValue),
+    InputRelative(InputRelativeConstant),
     Error(RcStr),
 }
 
@@ -241,10 +252,14 @@ impl From<CompileTimeDefineValue> for FreeVarReference {
 #[derive(Debug, Clone)]
 pub struct FreeVarReferences(pub FxIndexMap<Vec<DefineableNameSegment>, FreeVarReference>);
 
+/// A map from the last element (the member prop) to a map of the rest of the name to the value.
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
 pub struct FreeVarReferencesIndividual(
-    pub FxIndexMap<Vec<DefineableNameSegment>, ResolvedVc<FreeVarReference>>,
+    pub  FxIndexMap<
+        DefineableNameSegment,
+        FxIndexMap<Vec<DefineableNameSegment>, ResolvedVc<FreeVarReference>>,
+    >,
 );
 
 #[turbo_tasks::value_impl]
@@ -256,12 +271,20 @@ impl FreeVarReferences {
 
     #[turbo_tasks::function]
     pub fn individual(&self) -> Vc<FreeVarReferencesIndividual> {
-        Vc::cell(
-            self.0
-                .iter()
-                .map(|(key, value)| (key.clone(), value.clone().resolved_cell()))
-                .collect(),
-        )
+        let mut result: FxIndexMap<
+            DefineableNameSegment,
+            FxIndexMap<Vec<DefineableNameSegment>, ResolvedVc<FreeVarReference>>,
+        > = FxIndexMap::default();
+
+        for (key, value) in &self.0 {
+            let (last_key, key) = key.split_last().unwrap();
+            result
+                .entry(last_key.clone())
+                .or_default()
+                .insert(key.to_vec(), value.clone().resolved_cell());
+        }
+
+        Vc::cell(result)
     }
 }
 

@@ -26,7 +26,7 @@ interface Options {
 }
 
 export type PatchMatcher = (
-  pathname?: string | null,
+  pathname: string,
   params?: Record<string, any>
 ) => Record<string, any> | false
 

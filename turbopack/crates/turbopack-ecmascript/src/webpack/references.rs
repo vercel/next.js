@@ -1,6 +1,6 @@
 use anyhow::Result;
 use swc_core::{
-    common::errors::{Handler, HANDLER},
+    common::errors::{HANDLER, Handler},
     ecma::{
         ast::{CallExpr, Expr, ExprOrSpread},
         visit::{Visit, VisitWith},
@@ -13,10 +13,10 @@ use turbopack_core::{
 };
 use turbopack_swc_utils::emitter::IssueEmitter;
 
-use super::{parse::WebpackRuntime, WebpackChunkAssetReference};
+use super::{WebpackChunkAssetReference, parse::WebpackRuntime};
 use crate::{
-    parse::{parse, ParseResult},
     EcmascriptInputTransforms, EcmascriptModuleAssetType,
+    parse::{ParseResult, parse},
 };
 
 #[turbo_tasks::function]
@@ -43,18 +43,16 @@ pub async fn module_references(
                 runtime,
                 transforms,
             };
-            let handler = Handler::with_emitter(
-                true,
-                false,
-                Box::new(IssueEmitter::new(
-                    source,
-                    source_map.clone(),
-                    Some("Parsing webpack bundle failed".into()),
-                )),
+            let (emitter, collector) = IssueEmitter::new(
+                source,
+                source_map.clone(),
+                Some("Parsing webpack bundle failed".into()),
             );
+            let handler = Handler::with_emitter(true, false, Box::new(emitter));
             HANDLER.set(&handler, || {
                 program.visit_with(&mut visitor);
             });
+            collector.emit().await?;
             Ok(Vc::cell(references))
         }
         ParseResult::Unparseable { .. } | ParseResult::NotFound => Ok(Vc::cell(Vec::new())),
@@ -63,7 +61,7 @@ pub async fn module_references(
 
 struct ModuleReferencesVisitor<'a> {
     runtime: ResolvedVc<WebpackRuntime>,
-    references: &'a mut Vec<Vc<Box<dyn ModuleReference>>>,
+    references: &'a mut Vec<ResolvedVc<Box<dyn ModuleReference>>>,
     transforms: ResolvedVc<EcmascriptInputTransforms>,
 }
 
@@ -74,13 +72,13 @@ impl Visit for ModuleReferencesVisitor<'_> {
                 if &*obj.sym == "__webpack_require__" && &*prop.sym == "e" {
                     if let [ExprOrSpread { spread: None, expr }] = &call.args[..] {
                         if let Expr::Lit(lit) = &**expr {
-                            self.references.push(Vc::upcast(
+                            self.references.push(ResolvedVc::upcast(
                                 WebpackChunkAssetReference {
                                     chunk_id: lit.clone(),
                                     runtime: self.runtime,
                                     transforms: self.transforms,
                                 }
-                                .cell(),
+                                .resolved_cell(),
                             ));
                         }
                     }

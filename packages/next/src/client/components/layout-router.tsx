@@ -1,17 +1,19 @@
 'use client'
 
 import type {
-  ChildSegmentMap,
+  CacheNode,
   LazyCacheNode,
   LoadingModuleData,
 } from '../../shared/lib/app-router-context.shared-runtime'
 import type {
   FlightRouterState,
   FlightSegmentPath,
-  Segment,
 } from '../../server/app-render/types'
 import type { ErrorComponent } from './error-boundary'
-import type { FocusAndScrollRef } from './router-reducer/router-reducer-types'
+import {
+  ACTION_SERVER_PATCH,
+  type FocusAndScrollRef,
+} from './router-reducer/router-reducer-types'
 
 import React, {
   useContext,
@@ -34,9 +36,14 @@ import { matchSegment } from './match-segments'
 import { handleSmoothScroll } from '../../shared/lib/router/utils/handle-smooth-scroll'
 import { RedirectBoundary } from './redirect-boundary'
 import { HTTPAccessFallbackBoundary } from './http-access-fallback/error-boundary'
-import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
 import { createRouterCacheKey } from './router-reducer/create-router-cache-key'
 import { hasInterceptionRouteInCurrentTree } from './router-reducer/reducers/has-interception-route-in-current-tree'
+import { dispatchAppRouterAction } from './use-action-queue'
+import { useRouterBFCache, type RouterBFCacheEntry } from './bfcache'
+
+const Activity = process.env.__NEXT_ROUTER_BF_CACHE
+  ? require('react').unstable_Activity
+  : null
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
@@ -217,6 +224,14 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
       // Verify if the element is a HTMLElement and if we want to consider it for scroll behavior.
       // If the element is skipped, try to select the next sibling and try again.
       while (!(domNode instanceof HTMLElement) || shouldSkipElement(domNode)) {
+        if (process.env.NODE_ENV !== 'production') {
+          if (domNode.parentElement?.localName === 'head') {
+            // TODO: We enter this state when metadata was rendered as part of the page or via Next.js.
+            // This is always a bug in Next.js and caused by React hoisting metadata.
+            // We need to replace `findDOMNode` in favor of Fragment Refs (when available) so that we can skip over metadata.
+          }
+        }
+
         // No siblings found that match the criteria are found, so handle scroll higher up in the tree instead.
         if (domNode.nextElementSibling === null) {
           return
@@ -316,52 +331,22 @@ function ScrollAndFocusHandler({
  * InnerLayoutRouter handles rendering the provided segment based on the cache.
  */
 function InnerLayoutRouter({
-  parallelRouterKey,
-  url,
-  childNodes,
-  segmentPath,
   tree,
-  // TODO-APP: implement `<Offscreen>` when available.
-  // isActive,
-  cacheKey,
+  segmentPath,
+  cacheNode,
+  url,
 }: {
-  parallelRouterKey: string
-  url: string
-  childNodes: ChildSegmentMap
-  segmentPath: FlightSegmentPath
   tree: FlightRouterState
-  isActive: boolean
-  cacheKey: ReturnType<typeof createRouterCacheKey>
+  segmentPath: FlightSegmentPath
+  cacheNode: CacheNode
+  url: string
 }) {
   const context = useContext(GlobalLayoutRouterContext)
   if (!context) {
     throw new Error('invariant global layout router not mounted')
   }
 
-  const { changeByServerResponse, tree: fullTree } = context
-
-  // Read segment path from the parallel router cache node.
-  let childNode = childNodes.get(cacheKey)
-
-  // When data is not available during rendering client-side we need to fetch
-  // it from the server.
-  if (childNode === undefined) {
-    const newLazyCacheNode: LazyCacheNode = {
-      lazyData: null,
-      rsc: null,
-      prefetchRsc: null,
-      head: null,
-      prefetchHead: null,
-      parallelRoutes: new Map(),
-      loading: null,
-    }
-
-    /**
-     * Flight data fetch kicked off during render and put into the cache.
-     */
-    childNode = newLazyCacheNode
-    childNodes.set(cacheKey, newLazyCacheNode)
-  }
+  const { tree: fullTree } = context
 
   // `rsc` represents the renderable node for this segment.
 
@@ -371,16 +356,12 @@ function InnerLayoutRouter({
   //
   // If no prefetch data is available, then we go straight to rendering `rsc`.
   const resolvedPrefetchRsc =
-    childNode.prefetchRsc !== null ? childNode.prefetchRsc : childNode.rsc
+    cacheNode.prefetchRsc !== null ? cacheNode.prefetchRsc : cacheNode.rsc
 
   // We use `useDeferredValue` to handle switching between the prefetched and
   // final values. The second argument is returned on initial render, then it
   // re-renders with the first argument.
-  //
-  // @ts-expect-error The second argument to `useDeferredValue` is only
-  // available in the experimental builds. When its disabled, it will always
-  // return `rsc`.
-  const rsc: any = useDeferredValue(childNode.rsc, resolvedPrefetchRsc)
+  const rsc: any = useDeferredValue(cacheNode.rsc, resolvedPrefetchRsc)
 
   // `rsc` is either a React node or a promise for a React node, except we
   // special case `null` to represent that this segment's data is missing. If
@@ -397,7 +378,7 @@ function InnerLayoutRouter({
     // the server and patch the cache.
 
     // Check if there's already a pending request.
-    let lazyData = childNode.lazyData
+    let lazyData = cacheNode.lazyData
     if (lazyData === null) {
       /**
        * Router state with refetch marker added
@@ -405,7 +386,8 @@ function InnerLayoutRouter({
       // TODO-APP: remove ''
       const refetchTree = walkAddRefetch(['', ...segmentPath], fullTree)
       const includeNextUrl = hasInterceptionRouteInCurrentTree(fullTree)
-      childNode.lazyData = lazyData = fetchServerResponse(
+      const navigatedAt = Date.now()
+      cacheNode.lazyData = lazyData = fetchServerResponse(
         new URL(url, location.origin),
         {
           flightRouterState: refetchTree,
@@ -413,14 +395,19 @@ function InnerLayoutRouter({
         }
       ).then((serverResponse) => {
         startTransition(() => {
-          changeByServerResponse({
+          dispatchAppRouterAction({
+            type: ACTION_SERVER_PATCH,
             previousTree: fullTree,
             serverResponse,
+            navigatedAt,
           })
         })
 
         return serverResponse
       })
+
+      // Suspend while waiting for lazyData to resolve
+      use(lazyData)
     }
     // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.
     // A falsey `resolvedRsc` indicates missing data -- we should not commit that branch, and we need to wait for the data to arrive.
@@ -432,11 +419,12 @@ function InnerLayoutRouter({
     // The layout router context narrows down tree and childNodes at each level.
     <LayoutRouterContext.Provider
       value={{
-        tree: tree[1][parallelRouterKey],
-        childNodes: childNode.parallelRoutes,
+        parentTree: tree,
+        parentCacheNode: cacheNode,
+        parentSegmentPath: segmentPath,
+
         // TODO-APP: overriding of url for parallel routes
         url: url,
-        loading: childNode.loading,
       }}
     >
       {resolvedRsc}
@@ -499,13 +487,16 @@ function LoadingBoundary({
   return <>{children}</>
 }
 
+function RenderChildren({ children }: { children: React.ReactNode }) {
+  return <>{children}</>
+}
+
 /**
  * OuterLayoutRouter handles the current segment as well as <Offscreen> rendering of other segments.
  * It can be rendered next to each other with a different `parallelRouterKey`, allowing for Parallel routes.
  */
 export default function OuterLayoutRouter({
   parallelRouterKey,
-  segmentPath,
   error,
   errorStyles,
   errorScripts,
@@ -515,9 +506,9 @@ export default function OuterLayoutRouter({
   notFound,
   forbidden,
   unauthorized,
+  gracefullyDegrade,
 }: {
   parallelRouterKey: string
-  segmentPath: FlightSegmentPath
   error: ErrorComponent | undefined
   errorStyles: React.ReactNode | undefined
   errorScripts: React.ReactNode | undefined
@@ -527,92 +518,161 @@ export default function OuterLayoutRouter({
   notFound: React.ReactNode | undefined
   forbidden: React.ReactNode | undefined
   unauthorized: React.ReactNode | undefined
+  gracefullyDegrade?: boolean
 }) {
   const context = useContext(LayoutRouterContext)
   if (!context) {
     throw new Error('invariant expected layout router to be mounted')
   }
 
-  const { childNodes, tree, url, loading } = context
+  const { parentTree, parentCacheNode, parentSegmentPath, url } = context
 
-  // Get the current parallelRouter cache node
-  let childNodesForParallelRouter = childNodes.get(parallelRouterKey)
+  // Get the CacheNode for this segment by reading it from the parent segment's
+  // child map.
+  const parentParallelRoutes = parentCacheNode.parallelRoutes
+  let segmentMap = parentParallelRoutes.get(parallelRouterKey)
   // If the parallel router cache node does not exist yet, create it.
   // This writes to the cache when there is no item in the cache yet. It never *overwrites* existing cache items which is why it's safe in concurrent mode.
-  if (!childNodesForParallelRouter) {
-    childNodesForParallelRouter = new Map()
-    childNodes.set(parallelRouterKey, childNodesForParallelRouter)
+  if (!segmentMap) {
+    segmentMap = new Map()
+    parentParallelRoutes.set(parallelRouterKey, segmentMap)
   }
+  const parentTreeSegment = parentTree[0]
+  const segmentPath =
+    parentSegmentPath === null
+      ? // TODO: The root segment value is currently omitted from the segment
+        // path. This has led to a bunch of special cases scattered throughout
+        // the code. We should clean this up.
+        [parallelRouterKey]
+      : parentSegmentPath.concat([parentTreeSegment, parallelRouterKey])
 
-  // Get the active segment in the tree
-  // The reason arrays are used in the data format is that these are transferred from the server to the browser so it's optimized to save bytes.
-  const treeSegment = tree[1][parallelRouterKey][0]
+  // The "state" key of a segment is the one passed to React — it represents the
+  // identity of the UI tree. Whenever the state key changes, the tree is
+  // recreated and the state is reset. In the App Router model, search params do
+  // not cause state to be lost, so two segments with the same segment path but
+  // different search params should have the same state key.
+  //
+  // The "cache" key of a segment, however, *does* include the search params, if
+  // it's possible that the segment accessed the search params on the server.
+  // (This only applies to page segments; layout segments cannot access search
+  // params on the server.)
+  const activeTree = parentTree[1][parallelRouterKey]
+  const activeSegment = activeTree[0]
+  const activeStateKey = createRouterCacheKey(activeSegment, true) // no search params
 
-  // If segment is an array it's a dynamic route and we want to read the dynamic route value as the segment to get from the cache.
-  const currentChildSegmentValue = getSegmentValue(treeSegment)
-
-  /**
-   * Decides which segments to keep rendering, all segments that are not active will be wrapped in `<Offscreen>`.
-   */
-  // TODO-APP: Add handling of `<Offscreen>` when it's available.
-  const preservedSegments: Segment[] = [treeSegment]
-
-  return (
-    <>
-      {preservedSegments.map((preservedSegment) => {
-        const preservedSegmentValue = getSegmentValue(preservedSegment)
-        const cacheKey = createRouterCacheKey(preservedSegment)
-
-        return (
-          /*
-            - Error boundary
-              - Only renders error boundary if error component is provided.
-              - Rendered for each segment to ensure they have their own error state.
-            - Loading boundary
-              - Only renders suspense boundary if loading components is provided.
-              - Rendered for each segment to ensure they have their own loading state.
-              - Passed to the router during rendering to ensure it can be immediately rendered when suspending on a Flight fetch.
-          */
-          <TemplateContext.Provider
-            key={createRouterCacheKey(preservedSegment, true)}
-            value={
-              <ScrollAndFocusHandler segmentPath={segmentPath}>
-                <ErrorBoundary
-                  errorComponent={error}
-                  errorStyles={errorStyles}
-                  errorScripts={errorScripts}
-                >
-                  <LoadingBoundary loading={loading}>
-                    <HTTPAccessFallbackBoundary
-                      notFound={notFound}
-                      forbidden={forbidden}
-                      unauthorized={unauthorized}
-                    >
-                      <RedirectBoundary>
-                        <InnerLayoutRouter
-                          parallelRouterKey={parallelRouterKey}
-                          url={url}
-                          tree={tree}
-                          childNodes={childNodesForParallelRouter!}
-                          segmentPath={segmentPath}
-                          cacheKey={cacheKey}
-                          isActive={
-                            currentChildSegmentValue === preservedSegmentValue
-                          }
-                        />
-                      </RedirectBoundary>
-                    </HTTPAccessFallbackBoundary>
-                  </LoadingBoundary>
-                </ErrorBoundary>
-              </ScrollAndFocusHandler>
-            }
-          >
-            {templateStyles}
-            {templateScripts}
-            {template}
-          </TemplateContext.Provider>
-        )
-      })}
-    </>
+  // At each level of the route tree, not only do we render the currently
+  // active segment — we also render the last N segments that were active at
+  // this level inside a hidden <Activity> boundary, to preserve their state
+  // if or when the user navigates to them again.
+  //
+  // bfcacheEntry is a linked list of FlightRouterStates.
+  let bfcacheEntry: RouterBFCacheEntry | null = useRouterBFCache(
+    activeTree,
+    activeStateKey
   )
+  let children: Array<React.ReactNode> = []
+  do {
+    const tree = bfcacheEntry.tree
+    const stateKey = bfcacheEntry.stateKey
+    const segment = tree[0]
+    const cacheKey = createRouterCacheKey(segment)
+
+    // Read segment path from the parallel router cache node.
+    let cacheNode = segmentMap.get(cacheKey)
+    if (cacheNode === undefined) {
+      // When data is not available during rendering client-side we need to fetch
+      // it from the server.
+      const newLazyCacheNode: LazyCacheNode = {
+        lazyData: null,
+        rsc: null,
+        prefetchRsc: null,
+        head: null,
+        prefetchHead: null,
+        parallelRoutes: new Map(),
+        loading: null,
+        navigatedAt: -1,
+      }
+
+      // Flight data fetch kicked off during render and put into the cache.
+      cacheNode = newLazyCacheNode
+      segmentMap.set(cacheKey, newLazyCacheNode)
+    }
+
+    /*
+    - Error boundary
+      - Only renders error boundary if error component is provided.
+      - Rendered for each segment to ensure they have their own error state.
+      - When gracefully degrade for bots, skip rendering error boundary.
+    - Loading boundary
+      - Only renders suspense boundary if loading components is provided.
+      - Rendered for each segment to ensure they have their own loading state.
+      - Passed to the router during rendering to ensure it can be immediately rendered when suspending on a Flight fetch.
+  */
+
+    const ErrorBoundaryComponent = gracefullyDegrade
+      ? RenderChildren
+      : ErrorBoundary
+
+    // TODO: The loading module data for a segment is stored on the parent, then
+    // applied to each of that parent segment's parallel route slots. In the
+    // simple case where there's only one parallel route (the `children` slot),
+    // this is no different from if the loading module data where stored on the
+    // child directly. But I'm not sure this actually makes sense when there are
+    // multiple parallel routes. It's not a huge issue because you always have
+    // the option to define a narrower loading boundary for a particular slot. But
+    // this sort of smells like an implementation accident to me.
+    const loadingModuleData = parentCacheNode.loading
+    let child = (
+      <TemplateContext.Provider
+        key={stateKey}
+        value={
+          <ScrollAndFocusHandler segmentPath={segmentPath}>
+            <ErrorBoundaryComponent
+              errorComponent={error}
+              errorStyles={errorStyles}
+              errorScripts={errorScripts}
+            >
+              <LoadingBoundary loading={loadingModuleData}>
+                <HTTPAccessFallbackBoundary
+                  notFound={notFound}
+                  forbidden={forbidden}
+                  unauthorized={unauthorized}
+                >
+                  <RedirectBoundary>
+                    <InnerLayoutRouter
+                      url={url}
+                      tree={tree}
+                      cacheNode={cacheNode}
+                      segmentPath={segmentPath}
+                    />
+                  </RedirectBoundary>
+                </HTTPAccessFallbackBoundary>
+              </LoadingBoundary>
+            </ErrorBoundaryComponent>
+          </ScrollAndFocusHandler>
+        }
+      >
+        {templateStyles}
+        {templateScripts}
+        {template}
+      </TemplateContext.Provider>
+    )
+
+    if (process.env.__NEXT_ROUTER_BF_CACHE) {
+      child = (
+        <Activity
+          key={stateKey}
+          mode={stateKey === activeStateKey ? 'visible' : 'hidden'}
+        >
+          {child}
+        </Activity>
+      )
+    }
+
+    children.push(child)
+
+    bfcacheEntry = bfcacheEntry.next
+  } while (bfcacheEntry !== null)
+
+  return children
 }

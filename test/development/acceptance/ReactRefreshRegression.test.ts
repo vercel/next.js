@@ -6,11 +6,11 @@ import { outdent } from 'outdent'
 import path from 'path'
 
 describe('ReactRefreshRegression', () => {
-  const { next } = nextTestSetup({
+  const { isTurbopack, next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
     dependencies: {
-      'styled-components': '5.1.0',
+      'styled-components': '6.1.16',
       '@next/mdx': 'canary',
       '@mdx-js/loader': '2.2.1',
       '@mdx-js/react': '2.2.1',
@@ -268,7 +268,7 @@ describe('ReactRefreshRegression', () => {
   // https://github.com/vercel/next.js/issues/11504
   test('shows an overlay for a server-side error', async () => {
     await using sandbox = await createSandbox(next)
-    const { session } = sandbox
+    const { browser, session } = sandbox
 
     await session.patch(
       'pages/index.js',
@@ -281,13 +281,36 @@ describe('ReactRefreshRegression', () => {
     )
     expect(didNotReload).toBe(false)
 
-    await session.assertHasRedbox()
-
-    const source = await session.getRedboxSource()
-    expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
-      "> 1 | export default function () { throw new Error('boom'); }
-          |                                    ^"
-    `)
+    if (isTurbopack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "boom",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": "pages/index.js (1:36) @
+       {default export}
+       > 1 | export default function () { throw new Error('boom'); }
+           |                                    ^",
+         "stack": [
+           "{default export} pages/index.js (1:36)",
+         ],
+       }
+      `)
+    } else {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "boom",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": "pages/index.js (1:36) @ default
+       > 1 | export default function () { throw new Error('boom'); }
+           |                                    ^",
+         "stack": [
+           "default pages/index.js (1:36)",
+         ],
+       }
+      `)
+    }
   })
 
   // https://github.com/vercel/next.js/issues/13574

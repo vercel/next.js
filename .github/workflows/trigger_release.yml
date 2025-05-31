@@ -35,7 +35,7 @@ name: Trigger Release
 
 env:
   NAPI_CLI_VERSION: 2.14.7
-  TURBO_VERSION: 2.1.2
+  TURBO_VERSION: 2.3.3
   NODE_LTS_VERSION: 20
 
 jobs:
@@ -82,7 +82,11 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - run: corepack enable && pnpm --version
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
+          pnpm --version
 
       - id: get-store-path
         run: echo STORE_PATH=$(pnpm store path) >> $GITHUB_OUTPUT

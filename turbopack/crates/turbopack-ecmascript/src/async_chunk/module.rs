@@ -3,16 +3,17 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext},
+    chunk::{ChunkableModule, ChunkingContext, availability_info::AvailabilityInfo},
     ident::AssetIdent,
     module::Module,
+    module_graph::ModuleGraph,
     reference::{ModuleReferences, SingleModuleReference},
 };
 
 use crate::async_chunk::chunk_item::AsyncLoaderChunkItem;
 
 #[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
+fn async_loader_modifier() -> Vc<RcStr> {
     Vc::cell("async loader".into())
 }
 
@@ -42,7 +43,7 @@ impl AsyncLoaderModule {
 
     #[turbo_tasks::function]
     pub fn asset_ident_for(module: Vc<Box<dyn ChunkableModule>>) -> Vc<AssetIdent> {
-        module.ident().with_modifier(modifier())
+        module.ident().with_modifier(async_loader_modifier())
     }
 }
 
@@ -60,10 +61,14 @@ impl Module for AsyncLoaderModule {
 
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
-        Ok(Vc::cell(vec![Vc::upcast(SingleModuleReference::new(
-            *ResolvedVc::upcast(self.await?.inner),
-            inner_module_reference_description(),
-        ))]))
+        Ok(Vc::cell(vec![ResolvedVc::upcast(
+            SingleModuleReference::new(
+                *ResolvedVc::upcast(self.await?.inner),
+                inner_module_reference_description(),
+            )
+            .to_resolved()
+            .await?,
+        )]))
     }
 }
 
@@ -71,7 +76,7 @@ impl Module for AsyncLoaderModule {
 impl Asset for AsyncLoaderModule {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
-        todo!()
+        panic!("content() should not be called");
     }
 }
 
@@ -80,11 +85,13 @@ impl ChunkableModule for AsyncLoaderModule {
     #[turbo_tasks::function]
     async fn as_chunk_item(
         self: ResolvedVc<Self>,
+        module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
         Vc::upcast(
             AsyncLoaderChunkItem {
                 chunking_context,
+                module_graph,
                 module: self,
             }
             .cell(),

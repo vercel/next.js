@@ -236,11 +236,14 @@ const nextDev = async (
     hostname: host,
   }
 
-  if (options.turbo || options.turbopack) {
+  const isTurbopack = Boolean(
+    options.turbo || options.turbopack || process.env.IS_TURBOPACK_TEST
+  )
+  if (isTurbopack) {
     process.env.TURBOPACK = '1'
   }
 
-  isTurboSession = !!process.env.TURBOPACK
+  isTurboSession = isTurbopack
 
   const distDir = path.join(dir, config.distDir ?? '.next')
   setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
@@ -284,13 +287,18 @@ const nextDev = async (
         stdio: 'inherit',
         env: {
           ...defaultEnv,
-          TURBOPACK: process.env.TURBOPACK,
+          ...(isTurbopack ? { TURBOPACK: '1' } : undefined),
           NEXT_PRIVATE_WORKER: '1',
           NEXT_PRIVATE_TRACE_ID: traceId,
           NODE_EXTRA_CA_CERTS: startServerOptions.selfSignedCertificate
             ? startServerOptions.selfSignedCertificate.rootCA
             : defaultEnv.NODE_EXTRA_CA_CERTS,
           NODE_OPTIONS: formatNodeOptions(nodeOptions),
+          // There is a node.js bug on MacOS which causes closing file watchers to be really slow.
+          // This limits the number of watchers to mitigate the issue.
+          // https://github.com/nodejs/node/issues/29949
+          WATCHPACK_WATCHER_LIMIT:
+            os.platform() === 'darwin' ? '20' : undefined,
         },
       })
 

@@ -3,7 +3,7 @@ use swc_core::{
     common::{errors::HANDLER, Spanned, DUMMY_SP},
     ecma::{
         ast::*,
-        atoms::JsWord,
+        atoms::Atom,
         visit::{noop_visit_type, Visit},
     },
 };
@@ -66,7 +66,7 @@ impl FontImportsGenerator<'_> {
 
                         return Some(ImportDecl {
                             src: Box::new(Str {
-                                value: JsWord::from(format!(
+                                value: Atom::from(format!(
                                     "{}/target.css?{}",
                                     font_function.loader, query_json
                                 )),

@@ -15,26 +15,23 @@ let appPort
 const appDir = join(__dirname, '../')
 
 // Turbopack does not support AMP rendering.
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'AMP Custom Validator',
   () => {
-    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-      'production mode',
-      () => {
-        it('should build and start successfully', async () => {
-          const { code } = await nextBuild(appDir)
-          expect(code).toBe(0)
+    describe('production mode', () => {
+      it('should build and start successfully', async () => {
+        const { code } = await nextBuild(appDir)
+        expect(code).toBe(0)
 
-          appPort = await findPort()
-          app = await nextStart(appDir, appPort)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
 
-          const html = await renderViaHTTP(appPort, '/')
-          await killApp(app)
+        const html = await renderViaHTTP(appPort, '/')
+        await killApp(app)
 
-          expect(html).toContain('Hello from AMP')
-        })
-      }
-    )
+        expect(html).toContain('Hello from AMP')
+      })
+    })
     ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
       'development mode',
       () => {

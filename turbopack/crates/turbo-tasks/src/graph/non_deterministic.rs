@@ -18,7 +18,10 @@ impl<T> NonDeterministic<T> {
     }
 }
 
-impl<T> GraphStore for NonDeterministic<T> {
+impl<T> GraphStore for NonDeterministic<T>
+where
+    T: Send,
+{
     type Node = T;
     type Handle = ();
 

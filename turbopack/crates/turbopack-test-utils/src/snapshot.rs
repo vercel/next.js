@@ -1,21 +1,17 @@
-use std::{
-    collections::{HashMap, HashSet},
-    env, fs,
-    path::PathBuf,
-};
+use std::{env, path::PathBuf};
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use once_cell::sync::Lazy;
 use regex::Regex;
+use rustc_hash::{FxHashMap, FxHashSet};
 use similar::TextDiff;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ReadRef, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{
-    DirectoryContent, DirectoryEntry, DiskFileSystem, File, FileContent, FileSystemEntryType,
-    FileSystemPath,
+    DirectoryContent, DirectoryEntry, File, FileContent, FileSystemEntryType, FileSystemPath,
 };
-use turbo_tasks_hash::encode_hex;
-use turbopack_cli_utils::issue::{format_issue, LogOptions};
+use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
+use turbopack_cli_utils::issue::{LogOptions, format_issue};
 use turbopack_core::{
     asset::AssetContent,
     issue::{IssueSeverity, PlainIssue, StyledString},
@@ -33,7 +29,7 @@ pub async fn snapshot_issues<I: IntoIterator<Item = ReadRef<PlainIssue>>>(
     workspace_root: &str,
 ) -> Result<()> {
     let expected_issues = expected(issues_path).await?;
-    let mut seen = HashSet::new();
+    let mut seen = FxHashSet::default();
     for plain_issue in captured_issues.into_iter() {
         let title = styled_string_to_file_safe_string(&plain_issue.title)
             .replace('/', "__")
@@ -85,8 +81,8 @@ pub async fn snapshot_issues<I: IntoIterator<Item = ReadRef<PlainIssue>>>(
     matches_expected(expected_issues, seen).await
 }
 
-pub async fn expected(dir: Vc<FileSystemPath>) -> Result<HashSet<Vc<FileSystemPath>>> {
-    let mut expected = HashSet::new();
+pub async fn expected(dir: Vc<FileSystemPath>) -> Result<FxHashSet<Vc<FileSystemPath>>> {
+    let mut expected = FxHashSet::default();
     let entries = dir.read_dir().await?;
     if let DirectoryContent::Entries(entries) = &*entries {
         for (file, entry) in entries {
@@ -106,14 +102,14 @@ pub async fn expected(dir: Vc<FileSystemPath>) -> Result<HashSet<Vc<FileSystemPa
 }
 
 pub async fn matches_expected(
-    expected: HashSet<Vc<FileSystemPath>>,
-    seen: HashSet<Vc<FileSystemPath>>,
+    expected: FxHashSet<Vc<FileSystemPath>>,
+    seen: FxHashSet<Vc<FileSystemPath>>,
 ) -> Result<()> {
     for path in diff_paths(&expected, &seen).await? {
         let p = &path.await?.path;
         if *UPDATE {
             remove_file(path).await?;
-            println!("removed file {}", p);
+            println!("removed file {p}");
         } else {
             bail!("expected file {}, but it was not emitted", p);
         }
@@ -133,7 +129,7 @@ pub async fn diff(path: Vc<FileSystemPath>, actual: Vc<AssetContent>) -> Result<
             if *UPDATE {
                 let content = File::from(RcStr::from(actual)).into();
                 path.write(content).await?;
-                println!("updated contents of {}", path_str);
+                println!("updated contents of {path_str}");
             } else {
                 if expected.is_none() {
                     eprintln!("new file {path_str} detected:");
@@ -170,24 +166,26 @@ async fn get_contents(file: Vc<AssetContent>, path: Vc<FileSystemPath>) -> Resul
             ))? {
                 FileContent::NotFound => None,
                 FileContent::Content(expected) => {
-                    Some(expected.content().to_str()?.trim().to_string())
+                    let rope = expected.content();
+                    let str = rope.to_str();
+                    match str {
+                        Ok(str) => Some(str.trim().to_string()),
+                        Err(_) => {
+                            let hash = hash_xxh3_hash64(rope);
+                            Some(format!("Binary content {hash:016x}"))
+                        }
+                    }
                 }
             },
             AssetContent::Redirect { target, link_type } => Some(format!(
-                "Redirect {{ target: {target}, link_type: {:?} }}",
-                link_type
+                "Redirect {{ target: {target}, link_type: {link_type:?} }}"
             )),
         },
     )
 }
 
 async fn remove_file(path: Vc<FileSystemPath>) -> Result<()> {
-    let fs = Vc::try_resolve_downcast_type::<DiskFileSystem>(path.fs())
-        .await?
-        .context(anyhow!("unexpected fs type"))?
-        .await?;
-    let sys_path = fs.to_sys_path(path).await?;
-    fs::remove_file(&sys_path).context(format!("remove file {} error", sys_path.display()))?;
+    path.write(FileContent::NotFound.cell()).await?;
     Ok(())
 }
 
@@ -195,9 +193,9 @@ async fn remove_file(path: Vc<FileSystemPath>) -> Result<()> {
 /// Vc<FileSystemPath> hashes as a Vc, not as the file path, so we need to get
 /// the path to properly diff.
 async fn diff_paths(
-    left: &HashSet<Vc<FileSystemPath>>,
-    right: &HashSet<Vc<FileSystemPath>>,
-) -> Result<HashSet<Vc<FileSystemPath>>> {
+    left: &FxHashSet<Vc<FileSystemPath>>,
+    right: &FxHashSet<Vc<FileSystemPath>>,
+) -> Result<FxHashSet<Vc<FileSystemPath>>> {
     let mut map = left
         .iter()
         .map(|p| async move { Ok((p.await?.path.clone(), *p)) })
@@ -205,7 +203,7 @@ async fn diff_paths(
         .await?
         .iter()
         .cloned()
-        .collect::<HashMap<_, _>>();
+        .collect::<FxHashMap<_, _>>();
     for p in right {
         map.remove(&p.await?.path);
     }
@@ -234,7 +232,7 @@ fn styled_string_to_file_safe_string(styled_string: &StyledString) -> String {
             string
         }
         StyledString::Text(string) => string.to_string(),
-        StyledString::Code(string) => format!("__c_{}__", string),
-        StyledString::Strong(string) => format!("__{}__", string),
+        StyledString::Code(string) => format!("__c_{string}__"),
+        StyledString::Strong(string) => format!("__{string}__"),
     }
 }

@@ -24,9 +24,13 @@
  * SOFTWARE.
  */
 
+/// <reference types="webpack/module.d.ts" />
+
 // This file is a modified version of the Create React App HMR dev client that
 // can be found here:
 // https://github.com/facebook/create-react-app/blob/v3.4.1/packages/react-dev-utils/webpackHotDevClient.js
+
+/// <reference types="webpack/module.d.ts" />
 
 import {
   register,
@@ -35,18 +39,26 @@ import {
   onBeforeRefresh,
   onRefresh,
   onVersionInfo,
+  onStaticIndicator,
+  onDevIndicator,
 } from './client'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { addMessageListener, sendMessage } from './websocket'
-import formatWebpackMessages from '../internal/helpers/format-webpack-messages'
+import formatWebpackMessages from '../utils/format-webpack-messages'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../../server/dev/hot-reloader-types'
 import type {
   HMR_ACTION_TYPES,
   TurbopackMsgToBrowser,
 } from '../../../../server/dev/hot-reloader-types'
-import { extractModulesFromTurbopackMessage } from '../../../../server/dev/extract-modules-from-turbopack-message'
-import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from '../shared'
-import { RuntimeErrorHandler } from '../internal/helpers/runtime-error-handler'
+import {
+  REACT_REFRESH_FULL_RELOAD,
+  REACT_REFRESH_FULL_RELOAD_FROM_ERROR,
+  reportInvalidHmrMessage,
+} from '../shared'
+import { RuntimeErrorHandler } from '../../errors/runtime-error-handler'
+import reportHmrLatency from '../utils/report-hmr-latency'
+import { TurbopackHmr } from '../utils/turbopack-hot-reloader-common'
+
 // This alternative WebpackDevServer combines the functionality of:
 // https://github.com/webpack/webpack-dev-server/blob/webpack-1/client/index.js
 // https://github.com/webpack/webpack/blob/webpack-1/hot/dev-server.js
@@ -57,10 +69,8 @@ import { RuntimeErrorHandler } from '../internal/helpers/runtime-error-handler'
 // https://github.com/glenjamin/webpack-hot-middleware
 
 declare global {
-  const __webpack_hash__: string
   interface Window {
     __nextDevClientId: number
-    __NEXT_HMR_LATENCY_CB: any
   }
 }
 
@@ -68,9 +78,7 @@ window.__nextDevClientId = Math.round(Math.random() * 100 + Date.now())
 
 let customHmrEventHandler: any
 let turbopackMessageListeners: ((msg: TurbopackMsgToBrowser) => void)[] = []
-let MODE: 'webpack' | 'turbopack' = 'webpack'
-export default function connect(mode: 'webpack' | 'turbopack') {
-  MODE = mode
+export default function connect() {
   register()
 
   addMessageListener((payload) => {
@@ -80,13 +88,8 @@ export default function connect(mode: 'webpack' | 'turbopack') {
 
     try {
       processMessage(payload)
-    } catch (err: any) {
-      console.warn(
-        '[HMR] Invalid message: ' +
-          JSON.stringify(payload) +
-          '\n' +
-          (err?.stack ?? '')
-      )
+    } catch (err: unknown) {
+      reportInvalidHmrMessage(payload, err)
     }
   })
 
@@ -126,21 +129,32 @@ function clearOutdatedErrors() {
 // Successful compilation.
 function handleSuccess() {
   clearOutdatedErrors()
+  hasCompileErrors = false
 
-  if (MODE === 'webpack') {
+  if (process.env.TURBOPACK) {
+    const hmrUpdate = turbopackHmr!.onBuilt()
+    if (hmrUpdate != null) {
+      reportHmrLatency(
+        sendMessage,
+        [...hmrUpdate.updatedModules],
+        hmrUpdate.startMsSinceEpoch,
+        hmrUpdate.endMsSinceEpoch,
+        hmrUpdate.hasUpdates
+      )
+    }
+    onBuildOk()
+  } else {
     const isHotUpdate =
       !isFirstCompilation ||
       (window.__NEXT_DATA__.page !== '/_error' && isUpdateAvailable())
-    isFirstCompilation = false
-    hasCompileErrors = false
 
     // Attempt to apply hot updates or reload.
     if (isHotUpdate) {
-      tryApplyUpdates(onBeforeFastRefresh, onFastRefresh)
+      tryApplyUpdatesWebpack()
     }
-  } else {
-    onBuildOk()
   }
+
+  isFirstCompilation = false
 }
 
 // Compilation with warnings (e.g. ESLint).
@@ -176,7 +190,7 @@ function handleWarnings(warnings: any) {
 
   // Attempt to apply hot updates or reload.
   if (isHotUpdate) {
-    tryApplyUpdates(onBeforeFastRefresh, onFastRefresh)
+    tryApplyUpdatesWebpack()
   }
 }
 
@@ -194,6 +208,7 @@ function handleErrors(errors: any) {
   })
 
   // Only show the first error.
+
   onBuildError(formatted.errors[0])
 
   // Also log them to the console.
@@ -213,50 +228,11 @@ function handleErrors(errors: any) {
   }
 }
 
-let startLatency: number | undefined = undefined
-
-function onBeforeFastRefresh(updatedModules: string[]) {
-  if (updatedModules.length > 0) {
-    // Only trigger a pending state if we have updates to apply
-    // (cf. onFastRefresh)
-    onBeforeRefresh()
-  }
-}
-
-function onFastRefresh(updatedModules: ReadonlyArray<string> = []) {
-  onBuildOk()
-  if (updatedModules.length === 0) {
-    return
-  }
-
-  onRefresh()
-
-  reportHmrLatency()
-}
-
-function reportHmrLatency(updatedModules: ReadonlyArray<string> = []) {
-  if (startLatency) {
-    const endLatency = Date.now()
-    const latency = endLatency - startLatency
-    console.log(`[Fast Refresh] done in ${latency}ms`)
-    sendMessage(
-      JSON.stringify({
-        event: 'client-hmr-latency',
-        id: window.__nextDevClientId,
-        startTime: startLatency,
-        endTime: endLatency,
-        page: window.location.pathname,
-        updatedModules,
-        // Whether the page (tab) was hidden at the time the event occurred.
-        // This can impact the accuracy of the event's timing.
-        isPageHidden: document.visibilityState === 'hidden',
-      })
-    )
-    if (self.__NEXT_HMR_LATENCY_CB) {
-      self.__NEXT_HMR_LATENCY_CB(latency)
-    }
-  }
-}
+let webpackStartMsSinceEpoch: number | null = null
+const turbopackHmr: TurbopackHmr | null = process.env.TURBOPACK
+  ? new TurbopackHmr()
+  : null
+let isrManifest: Record<string, boolean> = {}
 
 // There is a newer version of the code available.
 function handleAvailableHash(hash: string) {
@@ -264,17 +240,44 @@ function handleAvailableHash(hash: string) {
   mostRecentCompilationHash = hash
 }
 
-/** Handles messages from the sevrer for the Pages Router. */
+export function handleStaticIndicator() {
+  if (process.env.__NEXT_DEV_INDICATOR) {
+    const routeInfo = window.next.router.components[window.next.router.pathname]
+    const pageComponent = routeInfo?.Component
+    const appComponent = window.next.router.components['/_app']?.Component
+    const isDynamicPage =
+      Boolean(pageComponent?.getInitialProps) || Boolean(routeInfo?.__N_SSP)
+    const hasAppGetInitialProps =
+      Boolean(appComponent?.getInitialProps) &&
+      appComponent?.getInitialProps !== appComponent?.origGetInitialProps
+
+    const isPageStatic =
+      window.location.pathname in isrManifest ||
+      (!isDynamicPage && !hasAppGetInitialProps)
+
+    onStaticIndicator(isPageStatic)
+  }
+}
+
+/** Handles messages from the server for the Pages Router. */
 function processMessage(obj: HMR_ACTION_TYPES) {
   if (!('action' in obj)) {
     return
   }
 
-  // Use turbopack message for analytics, (still need built for webpack)
   switch (obj.action) {
+    case HMR_ACTIONS_SENT_TO_BROWSER.ISR_MANIFEST: {
+      isrManifest = obj.data
+      handleStaticIndicator()
+      break
+    }
     case HMR_ACTIONS_SENT_TO_BROWSER.BUILDING: {
-      startLatency = Date.now()
-      console.log('[Fast Refresh] rebuilding')
+      if (process.env.TURBOPACK) {
+        turbopackHmr!.onBuilding()
+      } else {
+        webpackStartMsSinceEpoch = Date.now()
+        console.log('[Fast Refresh] rebuilding')
+      }
       break
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.BUILT:
@@ -285,6 +288,7 @@ function processMessage(obj: HMR_ACTION_TYPES) {
 
       // Is undefined when it's a 'built' event
       if ('versionInfo' in obj) onVersionInfo(obj.versionInfo)
+      if ('devIndicator' in obj) onDevIndicator(obj.devIndicator)
 
       const hasErrors = Boolean(errors && errors.length)
       if (hasErrors) {
@@ -298,6 +302,7 @@ function processMessage(obj: HMR_ACTION_TYPES) {
         return handleErrors(errors)
       }
 
+      // NOTE: Turbopack does not currently send warnings
       const hasWarnings = Boolean(warnings && warnings.length)
       if (hasWarnings) {
         sendMessage(
@@ -319,6 +324,7 @@ function processMessage(obj: HMR_ACTION_TYPES) {
       return handleSuccess()
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES: {
+      turbopackHmr?.onServerComponentChanges()
       if (hasCompileErrors || RuntimeErrorHandler.hadRuntimeError) {
         window.location.reload()
       }
@@ -344,8 +350,8 @@ function processMessage(obj: HMR_ACTION_TYPES) {
       break
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE: {
-      const updatedModules = extractModulesFromTurbopackMessage(obj.data)
-      onBeforeFastRefresh(updatedModules)
+      turbopackHmr!.onTurbopackMessage(obj)
+      onBeforeRefresh()
       for (const listener of turbopackMessageListeners) {
         listener({
           type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
@@ -357,7 +363,6 @@ function processMessage(obj: HMR_ACTION_TYPES) {
         performFullReload(null)
       }
       onRefresh()
-      reportHmrLatency(updatedModules)
       break
     }
     default: {
@@ -380,7 +385,6 @@ function isUpdateAvailable() {
 
 // Webpack disallows updates in other states.
 function canApplyUpdates() {
-  // @ts-expect-error TODO: module.hot exists but type needs to be added. Can't use `as any` here as webpack parses for `module.hot` calls.
   return module.hot.status() === 'idle'
 }
 function afterApplyUpdates(fn: () => void) {
@@ -389,22 +393,16 @@ function afterApplyUpdates(fn: () => void) {
   } else {
     function handler(status: string) {
       if (status === 'idle') {
-        // @ts-expect-error TODO: module.hot exists but type needs to be added. Can't use `as any` here as webpack parses for `module.hot` calls.
         module.hot.removeStatusHandler(handler)
         fn()
       }
     }
-    // @ts-expect-error TODO: module.hot exists but type needs to be added. Can't use `as any` here as webpack parses for `module.hot` calls.
     module.hot.addStatusHandler(handler)
   }
 }
 
 // Attempt to update code on the fly, fall back to a hard reload.
-function tryApplyUpdates(
-  onBeforeHotUpdate: ((updatedModules: string[]) => unknown) | undefined,
-  onHotUpdateSuccess: (updatedModules: string[]) => unknown
-) {
-  // @ts-expect-error TODO: module.hot exists but type needs to be added. Can't use `as any` here as webpack parses for `module.hot` calls.
+function tryApplyUpdatesWebpack() {
   if (!module.hot) {
     // HotModuleReplacementPlugin is not in Webpack configuration.
     console.error('HotModuleReplacementPlugin is not in Webpack configuration.')
@@ -417,68 +415,63 @@ function tryApplyUpdates(
     return
   }
 
-  function handleApplyUpdates(err: any, updatedModules: string[] | null) {
-    if (err || RuntimeErrorHandler.hadRuntimeError || !updatedModules) {
+  function handleApplyUpdates(
+    err: any,
+    updatedModules: (string | number)[] | null
+  ) {
+    if (err || RuntimeErrorHandler.hadRuntimeError || updatedModules == null) {
       if (err) {
-        console.warn(
-          '[Fast Refresh] performing full reload\n\n' +
-            "Fast Refresh will perform a full reload when you edit a file that's imported by modules outside of the React rendering tree.\n" +
-            'You might have a file which exports a React component but also exports a value that is imported by a non-React component file.\n' +
-            'Consider migrating the non-React component export to a separate file and importing it into both files.\n\n' +
-            'It is also possible the parent component of the component you edited is a class component, which disables Fast Refresh.\n' +
-            'Fast Refresh requires at least one parent function component in your React tree.'
-        )
+        console.warn(REACT_REFRESH_FULL_RELOAD)
       } else if (RuntimeErrorHandler.hadRuntimeError) {
-        console.warn(
-          '[Fast Refresh] performing full reload because your application had an unrecoverable error'
-        )
+        console.warn(REACT_REFRESH_FULL_RELOAD_FROM_ERROR)
       }
       performFullReload(err)
       return
     }
 
-    if (typeof onHotUpdateSuccess === 'function') {
-      // Maybe we want to do something.
-      onHotUpdateSuccess(updatedModules)
-    }
+    onBuildOk()
 
     if (isUpdateAvailable()) {
       // While we were updating, there was a new update! Do it again.
-      // However, this time, don't trigger a pending refresh state.
-      tryApplyUpdates(
-        updatedModules.length > 0 ? undefined : onBeforeHotUpdate,
-        updatedModules.length > 0 ? onBuildOk : onHotUpdateSuccess
-      )
-    } else {
-      onBuildOk()
-      if (process.env.__NEXT_TEST_MODE) {
-        afterApplyUpdates(() => {
-          if (self.__NEXT_HMR_CB) {
-            self.__NEXT_HMR_CB()
-            self.__NEXT_HMR_CB = null
-          }
-        })
-      }
+      tryApplyUpdatesWebpack()
+      return
+    }
+
+    onRefresh()
+    reportHmrLatency(
+      sendMessage,
+      updatedModules,
+      webpackStartMsSinceEpoch!,
+      Date.now()
+    )
+
+    if (process.env.__NEXT_TEST_MODE) {
+      afterApplyUpdates(() => {
+        if (self.__NEXT_HMR_CB) {
+          self.__NEXT_HMR_CB()
+          self.__NEXT_HMR_CB = null
+        }
+      })
     }
   }
 
   // https://webpack.js.org/api/hot-module-replacement/#check
-  // @ts-expect-error TODO: module.hot exists but type needs to be added. Can't use `as any` here as webpack parses for `module.hot` calls.
   module.hot
     .check(/* autoApply */ false)
-    .then((updatedModules: any) => {
-      if (!updatedModules) {
+    .then((updatedModules: (string | number)[] | null) => {
+      if (updatedModules == null) {
         return null
       }
 
-      if (typeof onBeforeHotUpdate === 'function') {
-        onBeforeHotUpdate(updatedModules)
-      }
-      // @ts-expect-error TODO: module.hot exists but type needs to be added. Can't use `as any` here as webpack parses for `module.hot` calls.
+      // We should always handle an update, even if updatedModules is empty (but
+      // non-null) for any reason. That's what webpack would normally do:
+      // https://github.com/webpack/webpack/blob/3aa6b6bc3a64/lib/hmr/HotModuleReplacement.runtime.js#L296-L298
+      onBeforeRefresh()
+      // https://webpack.js.org/api/hot-module-replacement/#apply
       return module.hot.apply()
     })
     .then(
-      (updatedModules: any) => {
+      (updatedModules: (string | number)[] | null) => {
         handleApplyUpdates(null, updatedModules)
       },
       (err: any) => {

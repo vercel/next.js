@@ -1,23 +1,25 @@
-use std::{borrow::Cow, ops::ControlFlow, thread::available_parallelism, time::Duration};
+use std::{borrow::Cow, iter, ops::ControlFlow, thread::available_parallelism, time::Duration};
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use async_stream::try_stream as generator;
 use async_trait::async_trait;
 use futures::{
-    channel::mpsc::{unbounded, UnboundedSender},
-    pin_mut, SinkExt, StreamExt,
+    SinkExt, StreamExt,
+    channel::mpsc::{UnboundedSender, unbounded},
+    pin_mut,
 };
 use futures_retry::{FutureRetry, RetryPolicy};
 use parking_lot::Mutex;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value as JsonValue;
 use turbo_tasks::{
-    apply_effects, duration_span, fxindexmap, mark_finished, prevent_gc, util::SharedError,
-    Completion, FxIndexMap, RawVc, ResolvedVc, TaskInput, TryJoinIterExt, Value, Vc,
+    Completion, FxIndexMap, NonLocalValue, OperationVc, RawVc, ResolvedVc, TaskInput,
+    TryJoinIterExt, Value, Vc, apply_effects, duration_span, fxindexmap, mark_finished, prevent_gc,
+    trace::TraceRawVcs, util::SharedError,
 };
 use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::{EnvMap, ProcessEnv};
-use turbo_tasks_fs::{to_sys_path, File, FileSystemPath};
+use turbo_tasks_fs::{File, FileSystemPath, to_sys_path};
 use turbopack_core::{
     asset::AssetContent,
     changed::content_changed,
@@ -28,17 +30,18 @@ use turbopack_core::{
     ident::AssetIdent,
     issue::{Issue, IssueExt, IssueStage, OptionStyledString, StyledString},
     module::Module,
+    module_graph::{ModuleGraph, chunk_group_info::ChunkGroupEntry},
     output::{OutputAsset, OutputAssets},
     reference_type::{InnerAssets, ReferenceType},
     virtual_source::VirtualSource,
 };
 
 use crate::{
+    AssetsForSourceMapping,
     embed_js::embed_file_path,
     emit, emit_package_json, internal_assets_for_source_mapping,
     pool::{FormattingMode, NodeJsOperation, NodeJsPool},
     source_map::StructuredError,
-    AssetsForSourceMapping,
 };
 
 #[derive(Serialize)]
@@ -84,12 +87,12 @@ struct EmittedEvaluatePoolAssets {
     entrypoint: ResolvedVc<FileSystemPath>,
 }
 
-#[turbo_tasks::function]
-async fn emit_evaluate_pool_assets(
+#[turbo_tasks::function(operation)]
+async fn emit_evaluate_pool_assets_operation(
     module_asset: ResolvedVc<Box<dyn Module>>,
-    asset_context: Vc<Box<dyn AssetContext>>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    runtime_entries: Option<Vc<EvaluatableAssets>>,
+    asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    runtime_entries: Option<ResolvedVc<EvaluatableAssets>>,
 ) -> Result<Vc<EmittedEvaluatePoolAssets>> {
     let runtime_asset = asset_context
         .process(
@@ -125,7 +128,9 @@ async fn emit_evaluate_pool_assets(
                 "RUNTIME".into() => runtime_asset
             }))),
         )
-        .module();
+        .module()
+        .to_resolved()
+        .await?;
 
     let runtime_entries = {
         let globals_module = asset_context
@@ -143,21 +148,30 @@ async fn emit_evaluate_pool_assets(
             bail!("Internal module is not evaluatable");
         };
 
-        let mut entries = vec![globals_module];
+        let mut entries = vec![globals_module.to_resolved().await?];
         if let Some(runtime_entries) = runtime_entries {
             for &entry in &*runtime_entries.await? {
                 entries.push(entry)
             }
         }
-
-        Vc::<EvaluatableAssets>::cell(entries)
+        entries
     };
+
+    let module_graph = ModuleGraph::from_modules(
+        Vc::cell(vec![ChunkGroupEntry::Entry(
+            iter::once(entry_module)
+                .chain(runtime_entries.iter().copied().map(ResolvedVc::upcast))
+                .collect(),
+        )]),
+        false,
+    );
 
     let bootstrap = chunking_context.root_entry_chunk_group_asset(
         entrypoint,
-        entry_module,
+        Vc::<EvaluatableAssets>::cell(runtime_entries)
+            .with_entry(*ResolvedVc::try_downcast(entry_module).unwrap()),
+        module_graph,
         OutputAssets::empty(),
-        runtime_entries,
     );
 
     let output_root = chunking_context.output_root().to_resolved().await?;
@@ -172,14 +186,14 @@ async fn emit_evaluate_pool_assets(
     .cell())
 }
 
-#[turbo_tasks::function]
-async fn emit_evaluate_pool_assets_with_effects(
-    module_asset: Vc<Box<dyn Module>>,
-    asset_context: Vc<Box<dyn AssetContext>>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    runtime_entries: Option<Vc<EvaluatableAssets>>,
+#[turbo_tasks::function(operation)]
+async fn emit_evaluate_pool_assets_with_effects_operation(
+    module_asset: ResolvedVc<Box<dyn Module>>,
+    asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    runtime_entries: Option<ResolvedVc<EvaluatableAssets>>,
 ) -> Result<Vc<EmittedEvaluatePoolAssets>> {
-    let operation = emit_evaluate_pool_assets(
+    let operation = emit_evaluate_pool_assets_operation(
         module_asset,
         asset_context,
         chunking_context,
@@ -187,26 +201,38 @@ async fn emit_evaluate_pool_assets_with_effects(
     );
     let result = operation.resolve_strongly_consistent().await?;
     apply_effects(operation).await?;
-    Ok(result)
+    Ok(*result)
 }
 
-#[derive(Clone, Copy, Hash, Debug, PartialEq, Eq, Serialize, Deserialize, TaskInput)]
+#[derive(
+    Clone,
+    Copy,
+    Hash,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    TaskInput,
+    NonLocalValue,
+    TraceRawVcs,
+)]
 pub enum EnvVarTracking {
     WholeEnvTracked,
     Untracked,
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(operation)]
 /// Pass the file you cared as `runtime_entries` to invalidate and reload the
 /// evaluated result automatically.
 pub async fn get_evaluate_pool(
-    module_asset: Vc<Box<dyn Module>>,
-    cwd: Vc<FileSystemPath>,
-    env: Vc<Box<dyn ProcessEnv>>,
-    asset_context: Vc<Box<dyn AssetContext>>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    runtime_entries: Option<Vc<EvaluatableAssets>>,
-    additional_invalidation: Vc<Completion>,
+    module_asset: ResolvedVc<Box<dyn Module>>,
+    cwd: ResolvedVc<FileSystemPath>,
+    env: ResolvedVc<Box<dyn ProcessEnv>>,
+    asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    runtime_entries: Option<ResolvedVc<EvaluatableAssets>>,
+    additional_invalidation: ResolvedVc<Completion>,
     debug: bool,
     env_var_tracking: EnvVarTracking,
 ) -> Result<Vc<NodeJsPool>> {
@@ -214,16 +240,16 @@ pub async fn get_evaluate_pool(
         bootstrap,
         output_root,
         entrypoint,
-    } = *emit_evaluate_pool_assets_with_effects(
+    } = *emit_evaluate_pool_assets_with_effects_operation(
         module_asset,
         asset_context,
         chunking_context,
         runtime_entries,
     )
-    .strongly_consistent()
+    .read_strongly_consistent()
     .await?;
 
-    let (Some(cwd), Some(entrypoint)) = (to_sys_path(cwd).await?, to_sys_path(*entrypoint).await?)
+    let (Some(cwd), Some(entrypoint)) = (to_sys_path(*cwd).await?, to_sys_path(*entrypoint).await?)
     else {
         panic!("can only evaluate from a disk filesystem");
     };
@@ -237,7 +263,7 @@ pub async fn get_evaluate_pool(
         EnvVarTracking::WholeEnvTracked => env.read_all().await?,
         EnvVarTracking::Untracked => {
             // We always depend on some known env vars that are used by Node.js
-            common_node_env(env).await?;
+            common_node_env(*env).await?;
             for name in ["FORCE_COLOR", "NO_COLOR", "OPENSSL_CONF", "TZ"] {
                 env.read(name.into()).await?;
             }
@@ -251,7 +277,7 @@ pub async fn get_evaluate_pool(
         env.iter().map(|(k, v)| (k.clone(), v.clone())).collect(),
         assets_for_source_mapping,
         output_root,
-        chunking_context.context_path().root().to_resolved().await?,
+        chunking_context.root_path().to_resolved().await?,
         available_parallelism().map_or(1, |v| v.get()),
         debug,
     );
@@ -304,7 +330,7 @@ pub trait EvaluateContext {
     type State: Default;
 
     fn compute(self, sender: Vc<JavaScriptStreamSender>);
-    fn pool(&self) -> Vc<NodeJsPool>;
+    fn pool(&self) -> OperationVc<NodeJsPool>;
     fn keep_alive(&self) -> bool {
         false
     }
@@ -412,12 +438,12 @@ pub async fn compute(
     };
 
     let stream = generator! {
-        let pool_operation = evaluate_context.pool();
+        let pool_op = evaluate_context.pool();
         let mut state = Default::default();
 
         // Read this strongly consistent, since we don't want to run inconsistent
         // node.js code.
-        let pool = pool_operation.strongly_consistent().await?;
+        let pool = pool_op.read_strongly_consistent().await?;
 
         let args = evaluate_context.args().iter().try_join().await?;
         // Assume this is a one-off operation, so we can kill the process
@@ -555,7 +581,7 @@ async fn basic_compute(
     compute(evaluate_context, sender).await
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, TaskInput, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, TaskInput, Debug, Serialize, Deserialize, TraceRawVcs)]
 struct BasicEvaluateContext {
     module_asset: ResolvedVc<Box<dyn Module>>,
     cwd: ResolvedVc<FileSystemPath>,
@@ -580,15 +606,15 @@ impl EvaluateContext for BasicEvaluateContext {
         let _ = basic_compute(self, sender);
     }
 
-    fn pool(&self) -> Vc<crate::pool::NodeJsPool> {
+    fn pool(&self) -> OperationVc<crate::pool::NodeJsPool> {
         get_evaluate_pool(
-            *self.module_asset,
-            *self.cwd,
-            *self.env,
-            *self.asset_context,
-            *self.chunking_context,
-            self.runtime_entries.map(|r| *r),
-            *self.additional_invalidation,
+            self.module_asset,
+            self.cwd,
+            self.env,
+            self.asset_context,
+            self.chunking_context,
+            self.runtime_entries,
+            self.additional_invalidation,
             self.debug,
             EnvVarTracking::WholeEnvTracked,
         )
@@ -612,14 +638,9 @@ impl EvaluateContext for BasicEvaluateContext {
             context_ident: self.context_ident_for_issue,
             assets_for_source_mapping: pool.assets_for_source_mapping,
             assets_root: pool.assets_root,
-            project_dir: self
-                .chunking_context
-                .context_path()
-                .root()
-                .to_resolved()
-                .await?,
+            root_path: self.chunking_context.root_path().to_resolved().await?,
         }
-        .cell()
+        .resolved_cell()
         .emit();
         Ok(())
     }
@@ -647,6 +668,14 @@ impl EvaluateContext for BasicEvaluateContext {
     }
 }
 
+pub fn scale_zero() {
+    NodeJsPool::scale_zero();
+}
+
+pub fn scale_down() {
+    NodeJsPool::scale_down();
+}
+
 async fn print_error(
     error: StructuredError,
     pool: &NodeJsPool,
@@ -668,7 +697,7 @@ pub struct EvaluationIssue {
     pub error: StructuredError,
     pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
     pub assets_root: ResolvedVc<FileSystemPath>,
-    pub project_dir: ResolvedVc<FileSystemPath>,
+    pub root_path: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
@@ -696,13 +725,13 @@ impl Issue for EvaluationIssue {
                     .print(
                         *self.assets_for_source_mapping,
                         *self.assets_root,
-                        *self.project_dir,
+                        *self.root_path,
                         FormattingMode::Plain,
                     )
                     .await?
                     .into(),
             )
-            .cell(),
+            .resolved_cell(),
         )))
     }
 }

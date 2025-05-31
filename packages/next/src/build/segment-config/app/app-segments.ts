@@ -18,9 +18,13 @@ import {
   isAppRouteRouteModule,
   isAppPageRouteModule,
 } from '../../../server/route-modules/checks'
-import { isClientReference } from '../../../lib/client-reference'
+import { isClientReference } from '../../../lib/client-and-server-references'
 import { getSegmentParam } from '../../../server/app-render/get-segment-param'
-import { getLayoutOrPageModule } from '../../../server/lib/app-dir-module'
+import {
+  getLayoutOrPageModule,
+  type LoaderTree,
+} from '../../../server/lib/app-dir-module'
+import { PAGE_SEGMENT_KEY } from '../../../shared/lib/segment'
 
 type GenerateStaticParams = (options: { params?: Params }) => Promise<Params[]>
 
@@ -73,40 +77,67 @@ export type AppSegment = {
  * @returns the segments for the app page route module
  */
 async function collectAppPageSegments(routeModule: AppPageRouteModule) {
-  const segments: AppSegment[] = []
+  // We keep track of unique segments, since with parallel routes, it's possible
+  // to see the same segment multiple times.
+  const uniqueSegments = new Map<string, AppSegment>()
 
-  let current = routeModule.userland.loaderTree
-  while (current) {
-    const [name, parallelRoutes] = current
-    const { mod: userland, filePath } = await getLayoutOrPageModule(current)
+  // Queue will store tuples of [loaderTree, currentSegments]
+  type QueueItem = [LoaderTree, AppSegment[]]
+  const queue: QueueItem[] = [[routeModule.userland.loaderTree, []]]
 
-    const isClientComponent: boolean = userland && isClientReference(userland)
-    const isDynamicSegment = /^\[.*\]$/.test(name)
-    const param = isDynamicSegment ? getSegmentParam(name)?.param : undefined
+  while (queue.length > 0) {
+    const [loaderTree, currentSegments] = queue.shift()!
+    const [name, parallelRoutes] = loaderTree
+
+    // Process current node
+    const { mod: userland, filePath } = await getLayoutOrPageModule(loaderTree)
+    const isClientComponent = userland && isClientReference(userland)
+
+    const param = getSegmentParam(name)?.param
 
     const segment: AppSegment = {
       name,
       param,
       filePath,
       config: undefined,
-      isDynamicSegment,
+      isDynamicSegment: !!param,
       generateStaticParams: undefined,
     }
 
-    // Only server components can have app segment configurations. If this isn't
-    // an object, then we should skip it. This can happen when parsing the
-    // error components.
+    // Only server components can have app segment configurations
     if (!isClientComponent) {
       attach(segment, userland, routeModule.definition.pathname)
     }
 
-    segments.push(segment)
+    // Create a unique key for the segment
+    const segmentKey = getSegmentKey(segment)
+    if (!uniqueSegments.has(segmentKey)) {
+      uniqueSegments.set(segmentKey, segment)
+    }
 
-    // Use this route's parallel route children as the next segment.
-    current = parallelRoutes.children
+    const updatedSegments = [...currentSegments, segment]
+
+    // If this is a page segment, we've reached a leaf node
+    if (name === PAGE_SEGMENT_KEY) {
+      // Add all segments in the current path
+      updatedSegments.forEach((seg) => {
+        const key = getSegmentKey(seg)
+        uniqueSegments.set(key, seg)
+      })
+    }
+
+    // Add all parallel routes to the queue
+    for (const parallelRouteKey in parallelRoutes) {
+      const parallelRoute = parallelRoutes[parallelRouteKey]
+      queue.push([parallelRoute, updatedSegments])
+    }
   }
 
-  return segments
+  return Array.from(uniqueSegments.values())
+}
+
+function getSegmentKey(segment: AppSegment) {
+  return `${segment.name}-${segment.filePath ?? ''}-${segment.param ?? ''}`
 }
 
 /**
@@ -126,14 +157,13 @@ function collectAppRouteSegments(
 
   // Generate all the segments.
   const segments: AppSegment[] = parts.map((name) => {
-    const isDynamicSegment = /^\[.*\]$/.test(name)
-    const param = isDynamicSegment ? getSegmentParam(name)?.param : undefined
+    const param = getSegmentParam(name)?.param
 
     return {
       name,
       param,
       filePath: undefined,
-      isDynamicSegment,
+      isDynamicSegment: !!param,
       config: undefined,
       generateStaticParams: undefined,
     }

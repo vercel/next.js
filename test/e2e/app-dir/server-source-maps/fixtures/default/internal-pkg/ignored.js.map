@@ -1,0 +1,13 @@
+{
+  "version": 3,
+  "file": "ignored.js",
+  "sourceRoot": "",
+  "sources": [
+    "ignored.ts"
+  ],
+  "ignoreList": [
+    0
+  ],
+  "names": [],
+  "mappings": "AAIA,MAAM,UAAU,kBAAkB,CAAI,EAAS;IAC7C,OAAO,EAAE,EAAE,CAAA;AACb,CAAC"
+}

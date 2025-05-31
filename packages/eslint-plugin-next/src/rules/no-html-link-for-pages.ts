@@ -21,6 +21,20 @@ const pagesDirWarning = execOnce((pagesDirs) => {
 // Prevent multiple blocking IO requests that have already been calculated.
 const fsExistsSyncCache = {}
 
+const memoize = <T = any>(fn: (...args: any[]) => T) => {
+  const cache = {}
+  return (...args: any[]): T => {
+    const key = JSON.stringify(args)
+    if (cache[key] === undefined) {
+      cache[key] = fn(...args)
+    }
+    return cache[key]
+  }
+}
+
+const cachedGetUrlFromPagesDirectories = memoize(getUrlFromPagesDirectories)
+const cachedGetUrlFromAppDirectory = memoize(getUrlFromAppDirectory)
+
 const url = 'https://nextjs.org/docs/messages/no-html-link-for-pages'
 
 export = defineRule({
@@ -93,9 +107,9 @@ export = defineRule({
       return {}
     }
 
-    const pageUrls = getUrlFromPagesDirectories('/', foundPagesDirs)
-    const appDirUrls = getUrlFromAppDirectory('/', foundAppDirs)
-    const allUrls = [...pageUrls, ...appDirUrls]
+    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
+    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
+    const allUrlRegex = [...pageUrls, ...appDirUrls]
 
     return {
       JSXOpeningElement(node) {
@@ -138,7 +152,7 @@ export = defineRule({
           return
         }
 
-        allUrls.forEach((foundUrl) => {
+        allUrlRegex.forEach((foundUrl) => {
           if (foundUrl.test(normalizeURL(hrefPath))) {
             context.report({
               node,

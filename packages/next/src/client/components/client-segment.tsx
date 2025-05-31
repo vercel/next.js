@@ -45,7 +45,7 @@ export function ClientSegmentRoot({
     return <Component {...slots} params={clientParams} />
   } else {
     const { createRenderParamsFromClient } =
-      require('../../server/request/params.browser') as typeof import('../../server/request/params.browser')
+      require('../request/params.browser') as typeof import('../request/params.browser')
     const clientParams = createRenderParamsFromClient(params)
     return <Component {...slots} params={clientParams} />
   }

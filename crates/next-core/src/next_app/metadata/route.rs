@@ -2,7 +2,7 @@
 //!
 //! See `next/src/build/webpack/loaders/next-metadata-route-loader`
 
-use anyhow::{bail, Ok, Result};
+use anyhow::{Ok, Result, bail};
 use base64::{display::Base64Display, engine::general_purpose::STANDARD};
 use indoc::{formatdoc, indoc};
 use turbo_tasks::{ValueToString, Vc};
@@ -18,7 +18,7 @@ use crate::{
     app_structure::MetadataItem,
     mode::NextMode,
     next_app::{
-        app_entry::AppEntry, app_route_entry::get_app_route_entry, AppPage, PageSegment, PageType,
+        AppPage, PageSegment, PageType, app_entry::AppEntry, app_route_entry::get_app_route_entry,
     },
     next_config::NextConfig,
     parse_segment_config_from_source,
@@ -32,17 +32,17 @@ pub async fn get_app_metadata_route_source(
     is_multi_dynamic: bool,
 ) -> Result<Vc<Box<dyn Source>>> {
     Ok(match metadata {
-        MetadataItem::Static { path } => static_route_source(mode, path),
+        MetadataItem::Static { path } => static_route_source(mode, *path),
         MetadataItem::Dynamic { path } => {
             let stem = path.file_stem().await?;
             let stem = stem.as_deref().unwrap_or_default();
 
             if stem == "robots" || stem == "manifest" {
-                dynamic_text_route_source(path)
+                dynamic_text_route_source(*path)
             } else if stem == "sitemap" {
-                dynamic_site_map_route_source(mode, path, is_multi_dynamic)
+                dynamic_site_map_route_source(mode, *path, is_multi_dynamic)
             } else {
-                dynamic_image_route_source(path)
+                dynamic_image_route_source(*path)
             }
         }
     })
@@ -60,11 +60,9 @@ pub async fn get_app_metadata_route_entry(
 ) -> Vc<AppEntry> {
     // Read original source's segment config before replacing source into
     // dynamic|static metadata route handler.
-    let original_path = match metadata {
-        MetadataItem::Static { path } | MetadataItem::Dynamic { path } => path,
-    };
+    let original_path = metadata.into_path();
 
-    let source = Vc::upcast(FileSource::new(original_path));
+    let source = Vc::upcast(FileSource::new(*original_path));
     let segment_config = parse_segment_config_from_source(source);
     let is_dynamic_metadata = matches!(metadata, MetadataItem::Dynamic { .. });
     let is_multi_dynamic: bool = if Some(segment_config).is_some() {
@@ -242,7 +240,7 @@ async fn dynamic_text_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<dy
               }})
             }}
         "#,
-        resource_path = StringifyJs(&format!("./{}.{}", stem, ext)),
+        resource_path = StringifyJs(&format!("./{stem}.{ext}")),
         content_type = StringifyJs(&content_type),
         file_type = StringifyJs(&stem),
         cache_control = StringifyJs(CACHE_HEADER_REVALIDATE),
@@ -334,7 +332,7 @@ async fn dynamic_site_map_route_source(
 
             {static_generation_code}
         "#,
-        resource_path = StringifyJs(&format!("./{}.{}", stem, ext)),
+        resource_path = StringifyJs(&format!("./{stem}.{ext}")),
         content_type = StringifyJs(&content_type),
         file_type = StringifyJs(&stem),
         cache_control = StringifyJs(CACHE_HEADER_REVALIDATE),
@@ -398,7 +396,7 @@ async fn dynamic_image_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<d
                 return handler({{ params: restParams, id }})
             }}
         "#,
-        resource_path = StringifyJs(&format!("./{}.{}", stem, ext)),
+        resource_path = StringifyJs(&format!("./{stem}.{ext}")),
     };
 
     let file = File::from(code);

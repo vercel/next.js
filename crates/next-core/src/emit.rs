@@ -1,10 +1,10 @@
 use anyhow::Result;
 use tracing::Instrument;
 use turbo_tasks::{
+    FxIndexSet, ResolvedVc, TryFlatJoinIterExt, ValueToString, Vc,
     graph::{AdjacencyMap, GraphTraversal},
-    ResolvedVc, TryFlatJoinIterExt, ValueToString, Vc,
 };
-use turbo_tasks_fs::{rebase, FileSystemPath};
+use turbo_tasks_fs::{FileSystemPath, rebase};
 use turbopack_core::{
     asset::Asset,
     output::{OutputAsset, OutputAssets},
@@ -50,18 +50,21 @@ pub async fn emit_assets(
         .iter()
         .copied()
         .map(|asset| async move {
-            let asset = asset.resolve().await?;
-            let path = asset.ident().path();
+            let path = asset.path();
             let span = tracing::info_span!("emit asset", name = %path.to_string().await?);
             async move {
                 let path = path.await?;
                 Ok(if path.is_inside_ref(&*node_root.await?) {
-                    Some(emit(asset))
+                    Some(emit(*asset))
                 } else if path.is_inside_ref(&*client_relative_path.await?) {
                     // Client assets are emitted to the client output path, which is prefixed
                     // with _next. We need to rebase them to remove that
                     // prefix.
-                    Some(emit_rebase(asset, client_relative_path, client_output_path))
+                    Some(emit_rebase(
+                        *asset,
+                        client_relative_path,
+                        client_output_path,
+                    ))
                 } else {
                     None
                 })
@@ -76,11 +79,7 @@ pub async fn emit_assets(
 
 #[turbo_tasks::function]
 async fn emit(asset: Vc<Box<dyn OutputAsset>>) -> Result<()> {
-    let _ = asset
-        .content()
-        .write(asset.ident().path())
-        .resolve()
-        .await?;
+    let _ = asset.content().write(asset.path()).resolve().await?;
     Ok(())
 }
 
@@ -90,7 +89,7 @@ async fn emit_rebase(
     from: Vc<FileSystemPath>,
     to: Vc<FileSystemPath>,
 ) -> Result<()> {
-    let path = rebase(asset.ident().path(), from, to);
+    let path = rebase(asset.path(), from, to);
     let content = asset.content();
     let _ = content
         .resolve()
@@ -112,7 +111,9 @@ pub async fn all_assets_from_entries(entries: Vc<OutputAssets>) -> Result<Vc<Out
             .await
             .completed()?
             .into_inner()
-            .into_reverse_topological()
+            .into_postorder_topological()
+            .collect::<FxIndexSet<_>>()
+            .into_iter()
             .collect(),
     ))
 }

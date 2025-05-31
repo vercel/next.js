@@ -13,3 +13,8 @@ export default async function Layout(props: {
     </html>
   )
 }
+
+export const revalidate = 0
+export async function generateStaticParams() {
+  return [{ locale: 'en' }]
+}
