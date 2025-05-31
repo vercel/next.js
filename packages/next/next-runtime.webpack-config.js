@@ -92,6 +92,8 @@ const sharedExternals = [
 
 const externalsMap = {
   './web/sandbox': 'next/dist/server/web/sandbox',
+  'next/dist/compiled/next-devtools':
+    'commonjs next/dist/client/components/react-dev-overlay/app/app-dev-overlay.shim.js',
 }
 
 const externalsRegexMap = {
@@ -254,7 +256,6 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
     module: {
       rules: [
         { test: /\.m?js$/, loader: `source-map-loader`, enforce: `pre` },
-        // TODO: Empty next-devtools-app layer. The runtime shouldn't use any NDT bridge APIs.
         {
           include: /[\\/]react-server\.node/,
           layer: 'react-server',

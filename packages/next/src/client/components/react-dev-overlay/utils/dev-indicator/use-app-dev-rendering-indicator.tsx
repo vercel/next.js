@@ -1,5 +1,5 @@
 import { useEffect, useTransition } from 'react'
-import { dispatcher } from '../../app/app-dev-overlay' with { 'turbopack-transition': 'nextjs-devtools' }
+import { dispatcher } from 'next/dist/compiled/next-devtools'
 
 export const useAppDevRenderingIndicator = () => {
   const [isPending, startTransition] = useTransition()
