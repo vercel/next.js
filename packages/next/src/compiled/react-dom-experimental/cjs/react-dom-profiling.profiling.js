@@ -20715,7 +20715,7 @@ function defaultOnDefaultTransitionIndicator() {
   }
   function handleNavigateComplete() {
     null !== pendingResolve && (pendingResolve(), (pendingResolve = null));
-    isCancelled || startFakeNavigation();
+    isCancelled || setTimeout(startFakeNavigation, 20);
   }
   function startFakeNavigation() {
     if (!isCancelled && !navigation.transition) {
@@ -20787,14 +20787,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_2400 = React.version;
 if (
-  "19.2.0-experimental-b07717d8-20250528" !==
+  "19.2.0-experimental-14094f80-20250529" !==
   isomorphicReactPackageVersion$jscomp$inline_2400
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_2400,
-      "19.2.0-experimental-b07717d8-20250528"
+      "19.2.0-experimental-14094f80-20250529"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -20816,10 +20816,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 };
 var internals$jscomp$inline_3087 = {
   bundleType: 0,
-  version: "19.2.0-experimental-b07717d8-20250528",
+  version: "19.2.0-experimental-14094f80-20250529",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.2.0-experimental-b07717d8-20250528"
+  reconcilerVersion: "19.2.0-experimental-14094f80-20250529"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
   var hook$jscomp$inline_3088 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -21086,7 +21086,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.2.0-experimental-b07717d8-20250528";
+exports.version = "19.2.0-experimental-14094f80-20250529";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
