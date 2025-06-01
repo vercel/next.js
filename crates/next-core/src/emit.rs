@@ -1,8 +1,7 @@
 use anyhow::Result;
-use rustc_hash::FxHashSet;
 use tracing::Instrument;
 use turbo_tasks::{
-    ResolvedVc, TryFlatJoinIterExt, ValueToString, Vc,
+    FxIndexSet, ResolvedVc, TryFlatJoinIterExt, ValueToString, Vc,
     graph::{AdjacencyMap, GraphTraversal},
 };
 use turbo_tasks_fs::{FileSystemPath, rebase};
@@ -113,7 +112,7 @@ pub async fn all_assets_from_entries(entries: Vc<OutputAssets>) -> Result<Vc<Out
             .completed()?
             .into_inner()
             .into_postorder_topological()
-            .collect::<FxHashSet<_>>()
+            .collect::<FxIndexSet<_>>()
             .into_iter()
             .collect(),
     ))

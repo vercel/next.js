@@ -125,7 +125,7 @@ impl Chunk for EcmascriptChunk {
                 ServerFileSystem::new().root().to_resolved().await?
             },
             query: ResolvedVc::cell(RcStr::default()),
-            fragment: None,
+            fragment: ResolvedVc::cell(RcStr::default()),
             assets,
             modifiers: Vec::new(),
             parts: Vec::new(),

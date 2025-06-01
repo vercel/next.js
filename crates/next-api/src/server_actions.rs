@@ -213,7 +213,7 @@ pub async fn to_rsc_context(
     // module.
     let source = FileSource::new_with_query(
         client_module.ident().path().root().join(entry_path.into()),
-        Vc::cell(entry_query.into()),
+        entry_query.into(),
     );
     let module = asset_context
         .process(
