@@ -13,16 +13,18 @@ function parseUrlForPages(urlprefix: string, directory: string) {
     withFileTypes: true,
   })
   const res = []
+  const extensions = getPageExtensions()
+  const joinedExt = extensions.join('|')
+  const extPattern = new RegExp(`\\.(${joinedExt})$`)
+  const indexPattern = new RegExp(`^index\\.(${joinedExt})$`)
+
   fsReadDirSyncCache[directory].forEach((dirent) => {
-    // TODO: this should account for all page extensions
-    // not just js(x) and ts(x)
-    if (/(\.(j|t)sx?)$/.test(dirent.name)) {
-      if (/^index(\.(j|t)sx?)$/.test(dirent.name)) {
-        res.push(
-          `${urlprefix}${dirent.name.replace(/^index(\.(j|t)sx?)$/, '')}`
-        )
+    if (extPattern.test(dirent.name)) {
+      if (indexPattern.test(dirent.name)) {
+        res.push(`${urlprefix}${dirent.name.replace(indexPattern, '')}`)
       }
-      res.push(`${urlprefix}${dirent.name.replace(/(\.(j|t)sx?)$/, '')}`)
+
+      res.push(`${urlprefix}${dirent.name.replace(extPattern, '')}`)
     } else {
       const dirPath = path.join(directory, dirent.name)
       if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
@@ -30,6 +32,7 @@ function parseUrlForPages(urlprefix: string, directory: string) {
       }
     }
   })
+
   return res
 }
 
@@ -41,14 +44,18 @@ function parseUrlForAppDir(urlprefix: string, directory: string) {
     withFileTypes: true,
   })
   const res = []
+  const extensions = getPageExtensions()
+  const joinedExt = extensions.join('|')
+  const extPattern = new RegExp(`\\.(${joinedExt})$`)
+  const pagePattern = new RegExp(`^page\\.(${joinedExt})$`)
+  const layoutPattern = new RegExp(`^layout\\.(${joinedExt})$`)
+
   fsReadDirSyncCache[directory].forEach((dirent) => {
-    // TODO: this should account for all page extensions
-    // not just js(x) and ts(x)
-    if (/(\.(j|t)sx?)$/.test(dirent.name)) {
-      if (/^page(\.(j|t)sx?)$/.test(dirent.name)) {
-        res.push(`${urlprefix}${dirent.name.replace(/^page(\.(j|t)sx?)$/, '')}`)
-      } else if (!/^layout(\.(j|t)sx?)$/.test(dirent.name)) {
-        res.push(`${urlprefix}${dirent.name.replace(/(\.(j|t)sx?)$/, '')}`)
+    if (extPattern.test(dirent.name)) {
+      if (pagePattern.test(dirent.name)) {
+        res.push(`${urlprefix}${dirent.name.replace(pagePattern, '')}`)
+      } else if (!layoutPattern.test(dirent.name)) {
+        res.push(`${urlprefix}${dirent.name.replace(extPattern, '')}`)
       }
     } else {
       const dirPath = path.join(directory, dirent.name)
@@ -104,19 +111,13 @@ export function normalizeAppPath(route: string) {
   return ensureLeadingSlash(
     route.split('/').reduce((pathname, segment, index, segments) => {
       // Empty segments are ignored.
-      if (!segment) {
-        return pathname
-      }
+      if (!segment) return pathname
 
       // Groups are ignored.
-      if (isGroupSegment(segment)) {
-        return pathname
-      }
+      if (isGroupSegment(segment)) return pathname
 
       // Parallel segments are ignored.
-      if (segment[0] === '@') {
-        return pathname
-      }
+      if (segment[0] === '@') return pathname
 
       // The last segment (if it's a leaf) should be ignored.
       if (
@@ -197,3 +198,32 @@ function ensureLeadingSlash(route: string) {
 function isGroupSegment(segment: string) {
   return segment[0] === '(' && segment.endsWith(')')
 }
+
+export const getPageExtensions = (() => {
+  let cached: string[] | null = null
+
+  return () => {
+    if (cached) return cached
+
+    const fallback = ['js', 'jsx', 'ts', 'tsx']
+
+    try {
+      const userConfig = require(path.resolve(process.cwd(), 'next.config.js'))
+      if (
+        userConfig &&
+        Array.isArray(userConfig.pageExtensions) &&
+        userConfig.pageExtensions.length > 0
+      ) {
+        cached = userConfig.pageExtensions.map((ext: string) =>
+          ext.replace(/^\./, '')
+        )
+        return cached
+      }
+    } catch {
+      // ignore error, fallback to default
+    }
+
+    cached = fallback
+    return cached
+  }
+})()
