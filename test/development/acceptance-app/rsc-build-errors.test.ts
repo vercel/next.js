@@ -188,7 +188,6 @@ describe('Error overlay - RSC build errors', () => {
 
        Example import trace:
          ./app/server-with-errors/client-only-in-server/client-only-lib.js [app-rsc]
-         ./app/server-with-errors/client-only-in-server/page.js [app-rsc]
          ./app/server-with-errors/client-only-in-server/page.js [app-rsc] [entrypoint]"
       `)
     } else {
@@ -359,10 +358,7 @@ describe('Error overlay - RSC build errors', () => {
            | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
        app/server-with-errors/error-file/error.js must be a Client Component. Add the "use client" directive the top of the file to resolve this issue.
-       Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
-
-       Example import trace:
-         ./app/server-with-errors/error-file/error.js [app-rsc] [entrypoint]"
+       Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client"
       `)
     } else {
       await expect(session.getRedboxSource()).resolves.toMatch(

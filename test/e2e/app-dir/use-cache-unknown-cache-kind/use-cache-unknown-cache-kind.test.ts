@@ -148,10 +148,7 @@ describe('use-cache-unknown-cache-kind', () => {
            3 | export default async function Page() {
            4 |   return <p>hello world</p>
 
-         Unknown cache kind "custom". Please configure a cache handler for this kind in the "experimental.cacheHandlers" object in your Next.js config.
-
-         Example import trace:
-           ./app/page.tsx [app-rsc] [entrypoint]"
+         Unknown cache kind "custom". Please configure a cache handler for this kind in the "experimental.cacheHandlers" object in your Next.js config."
         `)
       } else if (isRspack) {
         expect(errorSource).toMatchInlineSnapshot(`

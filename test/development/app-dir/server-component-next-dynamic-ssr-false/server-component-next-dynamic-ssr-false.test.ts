@@ -33,10 +33,7 @@ describe('app-dir - server-component-next-dynamic-ssr-false', () => {
          5 | export default function Page() {
          6 |   return <DynamicClient />
 
-       \`ssr: false\` is not allowed with \`next/dynamic\` in Server Components. Please move it into a Client Component.
-
-       Example import trace:
-         ./app/page.js [app-rsc] [entrypoint]"
+       \`ssr: false\` is not allowed with \`next/dynamic\` in Server Components. Please move it into a Client Component."
       `)
     } else {
       expect(redbox.description).toMatchInlineSnapshot(

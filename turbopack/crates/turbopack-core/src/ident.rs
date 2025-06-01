@@ -376,26 +376,6 @@ impl AssetIdent {
         name += &expected_extension;
         Ok(Vc::cell(name.into()))
     }
-
-    /// Computes a name for this asset to display in error traces.
-    #[turbo_tasks::function]
-    pub async fn trace_display_name(&self) -> Result<Vc<RcStr>> {
-        let mut s = self.path.to_string().owned().await?.into_owned();
-        // Drop `[project]/` if present, this is the assumed default.
-        // leave other prefixes in place.
-        if s.starts_with("[project]/") {
-            s.drain(0.."[project]/".len());
-        }
-
-        if !self.assets.is_empty() {
-            s.push_str(" [generated]");
-        }
-
-        if let Some(layer) = &self.layer {
-            write!(s, " [{}]", layer.await?)?;
-        }
-        Ok(Vc::cell(s.into()))
-    }
 }
 
 fn clean_separators(s: &str) -> String {
