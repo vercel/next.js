@@ -13,22 +13,19 @@ function parseUrlForPages(urlprefix: string, directory: string) {
     withFileTypes: true,
   })
   const res = []
-  const extensions = getPageExtensions()
-  const joinedExt = extensions.join('|')
-  const extPattern = new RegExp(`\\.(${joinedExt})$`)
-  const indexPattern = new RegExp(`^index\\.(${joinedExt})$`)
+  const { patterns } = getRegexPatterns()
+  const { ext, index } = patterns
 
   fsReadDirSyncCache[directory].forEach((dirent) => {
-    if (extPattern.test(dirent.name)) {
-      if (indexPattern.test(dirent.name)) {
-        res.push(`${urlprefix}${dirent.name.replace(indexPattern, '')}`)
+    if (ext.test(dirent.name)) {
+      if (index.test(dirent.name)) {
+        res.push(`${urlprefix}${dirent.name.replace(index, '')}`)
       }
-
-      res.push(`${urlprefix}${dirent.name.replace(extPattern, '')}`)
+      res.push(`${urlprefix}${dirent.name.replace(ext, '')}`)
     } else {
       const dirPath = path.join(directory, dirent.name)
       if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
-        res.push(...parseUrlForPages(urlprefix + dirent.name + '/', dirPath))
+        res.push(...parseUrlForPages(`${urlprefix}${dirent.name}/`, dirPath))
       }
     }
   })
@@ -44,23 +41,20 @@ function parseUrlForAppDir(urlprefix: string, directory: string) {
     withFileTypes: true,
   })
   const res = []
-  const extensions = getPageExtensions()
-  const joinedExt = extensions.join('|')
-  const extPattern = new RegExp(`\\.(${joinedExt})$`)
-  const pagePattern = new RegExp(`^page\\.(${joinedExt})$`)
-  const layoutPattern = new RegExp(`^layout\\.(${joinedExt})$`)
+  const { patterns } = getRegexPatterns()
+  const { ext, page, layout } = patterns
 
   fsReadDirSyncCache[directory].forEach((dirent) => {
-    if (extPattern.test(dirent.name)) {
-      if (pagePattern.test(dirent.name)) {
-        res.push(`${urlprefix}${dirent.name.replace(pagePattern, '')}`)
-      } else if (!layoutPattern.test(dirent.name)) {
-        res.push(`${urlprefix}${dirent.name.replace(extPattern, '')}`)
+    if (ext.test(dirent.name)) {
+      if (page.test(dirent.name)) {
+        res.push(`${urlprefix}${dirent.name.replace(page, '')}`)
+      } else if (!layout.test(dirent.name)) {
+        res.push(`${urlprefix}${dirent.name.replace(ext, '')}`)
       }
     } else {
       const dirPath = path.join(directory, dirent.name)
       if (dirent.isDirectory(dirPath) && !dirent.isSymbolicLink()) {
-        res.push(...parseUrlForPages(urlprefix + dirent.name + '/', dirPath))
+        res.push(...parseUrlForPages(`${urlprefix}${dirent.name}/`, dirPath))
       }
     }
   })
@@ -79,7 +73,7 @@ export function normalizeURL(url: string) {
   }
   url = url.split('?', 1)[0]
   url = url.split('#', 1)[0]
-  url = url = url.replace(/(\/index\.html)$/, '/')
+  url = url.replace(/(\/index\.html)$/, '/')
   // Empty URLs should not be trailed with `/`, e.g. `#heading`
   if (url === '') {
     return url
@@ -117,7 +111,7 @@ export function normalizeAppPath(route: string) {
       if (isGroupSegment(segment)) return pathname
 
       // Parallel segments are ignored.
-      if (segment[0] === '@') return pathname
+      if (segment.startsWith('@')) return pathname
 
       // The last segment (if it's a leaf) should be ignored.
       if (
@@ -196,16 +190,25 @@ function ensureLeadingSlash(route: string) {
 }
 
 function isGroupSegment(segment: string) {
-  return segment[0] === '(' && segment.endsWith(')')
+  return segment.startsWith('(') && segment.endsWith(')')
 }
 
-export const getPageExtensions = (() => {
-  let cached: string[] | null = null
+const getRegexPatterns = (() => {
+  let cached: {
+    extensions: string[]
+    patterns: {
+      ext: RegExp
+      index: RegExp
+      page: RegExp
+      layout: RegExp
+    }
+  } | null = null
 
   return () => {
     if (cached) return cached
 
     const fallback = ['js', 'jsx', 'ts', 'tsx']
+    let extensions: string[]
 
     try {
       const userConfig = require(path.resolve(process.cwd(), 'next.config.js'))
@@ -214,16 +217,33 @@ export const getPageExtensions = (() => {
         Array.isArray(userConfig.pageExtensions) &&
         userConfig.pageExtensions.length > 0
       ) {
-        cached = userConfig.pageExtensions.map((ext: string) =>
+        extensions = userConfig.pageExtensions.map((ext: string) =>
           ext.replace(/^\./, '')
         )
-        return cached
+      } else {
+        extensions = fallback
       }
     } catch {
-      // ignore error, fallback to default
+      extensions = fallback
     }
 
-    cached = fallback
+    const escaped = extensions.map((ext) =>
+      ext.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    )
+    const group = escaped.join('|')
+
+    cached = {
+      extensions,
+      patterns: {
+        ext: new RegExp(`\\.(${group})$`),
+        index: new RegExp(`^index\\.(${group})$`),
+        page: new RegExp(`^page\\.(${group})$`),
+        layout: new RegExp(`^layout\\.(${group})$`),
+      },
+    }
+
     return cached
   }
 })()
+
+export const getPageExtensions = () => getRegexPatterns().extensions
