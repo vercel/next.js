@@ -12,7 +12,7 @@ use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystem;
-use turbo_tasks_hash::{encode_hex, Xxh3Hash64Hasher};
+use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher, encode_hex};
 use turbopack_core::{
     chunk::{Chunk, ChunkItem, ChunkItems, ChunkingContext, ModuleIds},
     ident::AssetIdent,
@@ -94,7 +94,7 @@ impl Chunk for EcmascriptChunk {
 
             let mut hasher = Xxh3Hash64Hasher::new();
             chunk_item_idents.iter().for_each(|ident| {
-                hasher.write_value(ident.as_str());
+                ident.deterministic_hash(&mut hasher);
             });
 
             let hash = hasher.finish();

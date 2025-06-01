@@ -14,7 +14,7 @@ use turbo_tasks_fs::{
     File, FileSystem, FileSystemPath,
     rope::{Rope, RopeBuilder},
 };
-use turbo_tasks_hash::{encode_hex, Xxh3Hash64Hasher};
+use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher, encode_hex};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
@@ -165,7 +165,7 @@ impl CssChunk {
 
             let mut hasher = Xxh3Hash64Hasher::new();
             chunk_item_idents.iter().for_each(|ident| {
-                hasher.write_value(ident.as_str());
+                ident.deterministic_hash(&mut hasher);
             });
 
             let hash = hasher.finish();
