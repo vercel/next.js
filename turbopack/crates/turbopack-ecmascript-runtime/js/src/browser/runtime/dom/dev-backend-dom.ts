@@ -111,7 +111,10 @@ let DEV_BACKEND: DevRuntimeBackend
 
 function _eval({ code, url, map }: EcmascriptModuleEntry): ModuleFactory {
   code += `\n\n//# sourceURL=${encodeURI(
-    location.origin + NORMED_CHUNK_BASE_PATH + normalizeChunPath(url) + NORMED_CHUNK_SUFFIX_PATH
+    location.origin +
+      NORMALIZED_CHUNK_BASE_PATH +
+      normalizeChunPath(url) +
+      NORMALIZED_CHUNK_SUFFIX_PATH
   )}`
   if (map) {
     code += `\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,${btoa(
