@@ -1539,14 +1539,14 @@ impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder<'_> {
         async move {
             Ok(match (module, chunkable_ref_target) {
                 (Some(module), None) => {
-                    let refs_cell =
-                        primary_chunkable_referenced_modules(*module, include_traced).await;
-                    let refs = match refs_cell {
+                    let refs_cell = primary_chunkable_referenced_modules(*module, include_traced);
+                    let refs = match refs_cell.await {
                         Ok(refs) => refs,
                         Err(e) => {
                             return Err(e.context(module.ident().to_string().await?));
                         }
                     };
+
                     refs.iter()
                         .flat_map(|(ty, modules)| modules.iter().map(|m| (ty.clone(), *m)))
                         .map(async |(ty, target)| {
@@ -1587,6 +1587,7 @@ impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder<'_> {
             SingleModuleGraphBuilderNode::Module { ident, .. } => {
                 tracing::info_span!("module", name = display(ident))
             }
+
             SingleModuleGraphBuilderNode::ChunkableReference {
                 chunking_type,
                 source_ident,

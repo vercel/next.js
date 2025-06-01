@@ -653,10 +653,6 @@ impl PlainTraceItem {
         let root_path = fs_path.fs.root().await?.path.to_string();
 
         let path = fs_path.path.to_string();
-        // let path = AssetIdent::new(turbo_tasks::Value::new((**asset).clone()))
-        //     .to_string()
-        //     .await?
-        //     .to_string();
         let layer = match asset.layer {
             Some(layer) => Some(layer.await?.to_string()),
             None => None,
@@ -672,7 +668,7 @@ impl PlainTraceItem {
 
 pub type PlainTrace = Vec<PlainTraceItem>;
 
-// Flatten this set of traces into a simpler format for formatting.
+// Flatten and simplify this set of import traces into a simpler format for formatting.
 async fn into_plain(traces: Vec<Vec<ReadRef<AssetIdent>>>) -> Result<Vec<PlainTrace>> {
     let mut plain_traces = traces
         .into_iter()

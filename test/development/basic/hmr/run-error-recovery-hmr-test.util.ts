@@ -173,11 +173,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
            | ^
          8 |
 
-       Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
-
-       Example import trace:
-         ./pages/hmr/about2.js [client]
-         ./pages/hmr/about2.js [entrypoint]"
+       Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?"
       `)
     } else if (process.env.NEXT_RSPACK) {
       expect(trimEndMultiline(source)).toMatchInlineSnapshot(`
