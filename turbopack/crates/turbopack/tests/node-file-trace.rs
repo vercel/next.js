@@ -284,6 +284,7 @@ fn node_file_trace_persistent(#[case] input: CaseInput) {
                     describe: "test-unversioned",
                     dirty: false,
                 },
+                false,
             )
             .unwrap(),
         ))

@@ -1,11 +1,13 @@
 #![cfg_attr(not(codspeed), allow(unused))]
 
+extern crate turbo_tasks_malloc;
+
 use std::{
     path::{Path, PathBuf},
     process::Command,
 };
 
-use criterion::{Criterion, criterion_group, criterion_main};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use turbopack_cli::{
     arguments::{BuildArguments, CommonArguments},
     register,
@@ -27,7 +29,7 @@ fn list_apps() -> (PathBuf, Vec<PathBuf>) {
         let path = entry.path();
         if path.is_dir() {
             // Exclude node_modules
-            if path.file_name().unwrap().to_string_lossy() == "node_modules" {
+            if path.file_name().unwrap_or_default() == "node_modules" {
                 continue;
             }
 
@@ -47,44 +49,46 @@ fn bench_small_apps(c: &mut Criterion) {
     let mut g = c.benchmark_group("turbopack/build/apps");
 
     for app in apps {
-        g.bench_function(app.to_string_lossy().to_string(), |b| {
-            let apps_dir = apps_dir.clone();
-            let app = app.clone();
-
-            b.iter(move || {
-                let mut rt = tokio::runtime::Builder::new_multi_thread();
-                rt.enable_all().on_thread_stop(|| {
-                    TurboMalloc::thread_stop();
-                });
-                let rt = rt.build().unwrap();
-
+        g.bench_function(
+            BenchmarkId::new("build", app.file_name().unwrap().to_string_lossy()),
+            |b| {
                 let apps_dir = apps_dir.clone();
                 let app = app.clone();
 
-                let app_name = app.file_name().unwrap().to_string_lossy().to_string();
+                b.iter(move || {
+                    let mut rt = tokio::runtime::Builder::new_multi_thread();
+                    rt.enable_all().on_thread_stop(|| {
+                        TurboMalloc::thread_stop();
+                    });
+                    let rt = rt.build().unwrap();
 
-                rt.block_on(async move {
-                    //
-                    turbopack_cli::build::build(&BuildArguments {
-                        common: CommonArguments {
-                            entries: Some(vec![format!("{app_name}/index.tsx")]),
-                            dir: Some(app.clone()),
-                            root: Some(apps_dir),
-                            log_level: None,
-                            show_all: false,
-                            log_detail: false,
-                            full_stats: false,
-                            target: None,
-                        },
-                        no_sourcemap: false,
-                        no_minify: false,
-                        force_memory_cleanup: true,
+                    let apps_dir = apps_dir.clone();
+                    let app = app.clone();
+
+                    let app_name = app.file_name().unwrap().to_string_lossy().to_string();
+
+                    rt.block_on(async move {
+                        turbopack_cli::build::build(&BuildArguments {
+                            common: CommonArguments {
+                                entries: Some(vec![format!("{app_name}/index.tsx")]),
+                                dir: Some(app.clone()),
+                                root: Some(apps_dir),
+                                log_level: None,
+                                show_all: false,
+                                log_detail: false,
+                                full_stats: false,
+                                target: None,
+                            },
+                            no_sourcemap: false,
+                            no_minify: false,
+                            force_memory_cleanup: true,
+                        })
+                        .await
                     })
-                    .await
-                })
-                .unwrap();
-            });
-        });
+                    .unwrap();
+                });
+            },
+        );
     }
 }
 

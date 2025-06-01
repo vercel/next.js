@@ -10157,6 +10157,7 @@ dependencies = [
  "turbo-tasks-build",
  "turbo-tasks-fs",
  "turbo-tasks-hash",
+ "turbo-tasks-malloc",
  "turbo-tasks-testing",
  "turbopack-core",
  "turbopack-resolve",

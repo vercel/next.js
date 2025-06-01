@@ -510,7 +510,12 @@ async function startWatcher(opts: SetupOpts) {
           if (!appPaths[pageName]) {
             appPaths[pageName] = []
           }
-          appPaths[pageName].push(originalPageName)
+          appPaths[pageName].push(
+            opts.turbo
+              ? // Turbopack outputs the correct path which is normalized with the `_`.
+                originalPageName.replace(/%5F/g, '_')
+              : originalPageName
+          )
 
           if (useFileSystemPublicRoutes) {
             appFiles.add(pageName)
