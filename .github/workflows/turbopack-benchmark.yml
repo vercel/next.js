@@ -25,11 +25,14 @@ env:
   CARGO_INCREMENTAL: 0
   # For faster CI
   RUST_LOG: 'off'
+  TURBO_TEAM: 'vercel'
+  TURBO_CACHE: 'remote:rw'
+  TURBO_TOKEN: ${{ secrets.HOSTED_TURBO_TOKEN }}
 
 jobs:
-  benchmark-small:
-    name: Benchmark Rust Crates (small)
-    runs-on: ubuntu-22.04
+  benchmark-tiny:
+    name: Benchmark Rust Crates (tiny)
+    runs-on: ['self-hosted', 'linux', 'x64', 'metal']
     steps:
       - uses: actions/checkout@v4
 
@@ -50,11 +53,48 @@ jobs:
           run: cargo codspeed run
           token: ${{ secrets.CODSPEED_TOKEN }}
 
+  benchmark-small-apps:
+    name: Benchmark Rust Crates (small apps)
+    runs-on: ['self-hosted', 'linux', 'x64', 'metal']
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/setup-rust
+
+      - name: Install cargo-codspeed
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-codspeed@2.10.1
+
+      - name: Cache on ${{ github.ref_name }}
+        uses: ijjk/rust-cache@turbo-cache-v1.0.8
+        with:
+          save-if: 'true'
+          cache-provider: 'turbo'
+          shared-key: build-turbopack-benchmark-small-apps-${{ hashFiles('.cargo/config.toml') }}
+
+      - name: Install pnpm dependencies
+        working-directory: turbopack/benchmark-apps
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
+          pnpm install --loglevel error
+
+      - name: Build app build benchmarks
+        run: cargo codspeed build -p turbopack-cli small_apps
+
+      - name: Run the benchmarks
+        uses: CodSpeedHQ/action@v3
+        with:
+          run: cargo codspeed run
+          token: ${{ secrets.CODSPEED_TOKEN }}
+
   benchmark-large:
     name: Benchmark Rust Crates (large)
     # If the task is triggered manually, we want to run the large benchmarks
     if: ${{ github.event_name == 'workflow_dispatch' }}
-    runs-on: ubuntu-22.04
+    runs-on: ['self-hosted', 'linux', 'x64', 'metal']
     steps:
       - uses: actions/checkout@v4
 
