@@ -674,15 +674,24 @@ async fn into_plain(traces: Vec<Vec<ReadRef<AssetIdent>>>) -> Result<Vec<PlainTr
         .try_join()
         .await?;
 
-    // Sort so the shortest traces come first
-    plain_traces.sort_by_key(|t| t.len());
+    // Sort so the shortest traces come first, and break ties by the trace itself to ensure
+    // stability
+    plain_traces.sort_by(|a, b| {
+        // Sort by length first, so that shorter traces come first.
+        let ordering = a.len().cmp(&b.len());
+        if ordering.is_eq() {
+            // If the lengths are equal, sort by the trace itself to ensure stability.
+            return a.cmp(b);
+        }
+        ordering
+    });
     // trim any empty traces and traces that only contain 1 item.  Showing a trace that points to
-    // the file with the issue is not useful.
-    while let Some(trace) = plain_traces.first()
-        && trace.len() <= 1
-    {
-        plain_traces.remove(0);
+    // the file with the issue is not useful.  Due to the sort these are all at the beginning so we
+    // just remove all until the first one with a length greater than 1.
+    if let Some(end) = plain_traces.iter().position(|t| t.len() > 1) {
+        drop(plain_traces.drain(0..end));
     }
+
     // Now see if there are any overlaps
     // If two of the traces overlap that means one is a suffix of another one.  Because we are
     // computing shortest paths in the same graph and the shortest path algorithm we use is
@@ -809,6 +818,8 @@ impl PlainIssue {
         hasher.finish()
     }
 
+    /// Translate an [Issue] into a [PlainIssue]. A more regular structure suitable for printing and
+    /// serialization.
     pub async fn from_issue(
         issue: ResolvedVc<Box<dyn Issue>>,
         import_traces: Vec<PlainTrace>,

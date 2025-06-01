@@ -10,9 +10,4 @@
       13 | 
       14 | fs.readFileSync(unknown)
       15 | readFileSync(unknown)
-      16 | 
-  
-  
-  
-  Example import trace:
-    ./turbopack/crates/turbopack-tests/tests/snapshot/dynamic-request/very-dynamic/input/index.js [test] [entrypoint]
+      16 |

@@ -9,9 +9,4 @@
          + ^-------------------^
       16 | 
       17 | new URL(unknown, import.meta.url)
-      18 | 
-  
-  
-  
-  Example import trace:
-    ./turbopack/crates/turbopack-tests/tests/snapshot/dynamic-request/very-dynamic/input/index.js [test] [entrypoint]
+      18 |
