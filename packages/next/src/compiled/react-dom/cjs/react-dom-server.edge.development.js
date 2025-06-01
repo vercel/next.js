@@ -5124,14 +5124,14 @@
               "%s has a method called componentDidReceiveProps(). But there is no such lifecycle method. If you meant to update the state in response to changing props, use componentWillReceiveProps(). If you meant to fetch data or run side-effects or mutations after React has updated the UI, use componentDidUpdate().",
               name
             );
-          "function" === typeof instance.componentWillReceiveProps &&
+          "function" === typeof instance.componentWillRecieveProps &&
             console.error(
-              "%s has a method called componentWillReceiveProps(). Did you mean componentWillReceiveProps()?",
+              "%s has a method called componentWillRecieveProps(). Did you mean componentWillReceiveProps()?",
               name
             );
-          "function" === typeof instance.UNSAFE_componentWillReceiveProps &&
+          "function" === typeof instance.UNSAFE_componentWillRecieveProps &&
             console.error(
-              "%s has a method called UNSAFE_componentWillReceiveProps(). Did you mean UNSAFE_componentWillReceiveProps()?",
+              "%s has a method called UNSAFE_componentWillRecieveProps(). Did you mean UNSAFE_componentWillReceiveProps()?",
               name
             );
           var hasMutatedProps = instance.props !== resolvedProps;
