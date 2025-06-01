@@ -175,12 +175,9 @@ export function runErrorRecoveryHmrTest(nextConfig: {
 
        Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
 
-       Example import traces:
-         #1:
-           ./pages/hmr/about2.js [ssr] [entrypoint]
-
-         #2:
-           ./pages/hmr/about2.js [entrypoint]"
+       Example import trace:
+         ./pages/hmr/about2.js [client]
+         ./pages/hmr/about2.js [entrypoint]"
       `)
     } else if (process.env.NEXT_RSPACK) {
       expect(trimEndMultiline(source)).toMatchInlineSnapshot(`
@@ -622,13 +619,12 @@ export function runErrorRecoveryHmrTest(nextConfig: {
 
          Example import traces:
            #1:
-             ./components/parse-error.js [ssr]
-             ./pages/hmr/about9.js [ssr] [entrypoint]
+             ./components/parse-error.js [client]
+             ./pages/hmr/about9.js [client] [entrypoint]
 
            #2:
-             ./components/parse-error.js [client]
-             ./pages/hmr/about9.js [client]
-             ./pages/hmr/about9.js [entrypoint]"
+             ./components/parse-error.js [ssr]
+             ./pages/hmr/about9.js [ssr] [entrypoint]"
         `)
       } else if (process.env.NEXT_RSPACK) {
         expect(trimEndMultiline(next.normalizeTestDirContent(redboxSource)))

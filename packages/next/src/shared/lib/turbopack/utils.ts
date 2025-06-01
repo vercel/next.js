@@ -215,10 +215,10 @@ export function formatIssue(issue: Issue) {
       // We end up with multiple traces when the file with the error is reachable from multiple different entry points (e.g. ssr, client)
       message += 'Example import traces:\n'
       for (let i = 0; i < importTraces.length; i++) {
-        message += `  #${i + 1}:\n${formatIssueTraceItems(importTraces[i], '    ')}\n\n`
+        message += `  #${i + 1}:\n${formatIssueTrace(importTraces[i], '    ')}`
       }
     } else {
-      message += `Example import trace:\n${formatIssueTraceItems(importTraces[0], '  ')}\n\n`
+      message += `Example import trace:\n${formatIssueTrace(importTraces[0], '  ')}`
     }
   }
   if (documentationLink) {
@@ -227,29 +227,29 @@ export function formatIssue(issue: Issue) {
 
   return message
 }
-function formatIssueTraceItems(
-  items: PlainTraceItem[],
-  indent: string
-): string {
-  return items
-    .map((item, index, array) => {
-      let r = indent
-      if (item.fsName !== 'project') {
-        r += `[${item.fsName}]`
-      } else {
-        // This is consistent with webpack's output
-        r += './'
-      }
-      r += item.path
-      if (item.layer) {
-        r += ` [${item.layer}]`
-      }
-      if (index === array.length - 1) {
-        r += ' [entrypoint]'
-      }
-      return r
-    })
-    .join('\n')
+
+function formatIssueTrace(items: PlainTraceItem[], indent: string): string {
+  return (
+    items
+      .map((item, index, array) => {
+        let r = indent
+        if (item.fsName !== 'project') {
+          r += `[${item.fsName}]`
+        } else {
+          // This is consistent with webpack's output
+          r += './'
+        }
+        r += item.path
+        if (item.layer) {
+          r += ` [${item.layer}]`
+        }
+        if (index === array.length - 1) {
+          r += ' [entrypoint]'
+        }
+        return r
+      })
+      .join('\n') + '\n\n'
+  )
 }
 
 export function isRelevantWarning(issue: Issue): boolean {

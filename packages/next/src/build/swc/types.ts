@@ -99,7 +99,6 @@ export interface Issue {
 }
 export interface PlainTraceItem {
   fsName: string
-  isSynthetic: boolean
   path: string
   rootPath: string
   layer?: string

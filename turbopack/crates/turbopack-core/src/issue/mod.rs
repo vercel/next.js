@@ -620,7 +620,18 @@ pub struct OptionIssueSource(Option<IssueSource>);
 pub struct OptionStyledString(Option<ResolvedVc<StyledString>>);
 
 // A structured reference to a file with module level details for displaying in an import trace
-#[derive(Serialize, PartialEq, Eq, PartialOrd, Ord, Clone, Debug, TraceRawVcs, NonLocalValue)]
+#[derive(
+    Serialize,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Clone,
+    Debug,
+    TraceRawVcs,
+    NonLocalValue,
+    DeterministicHash,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct PlainTraceItem {
     // The name of the filesystem
@@ -634,13 +645,18 @@ pub struct PlainTraceItem {
 }
 
 impl PlainTraceItem {
-    async fn from_asset(asset: &ReadRef<AssetIdent>) -> Result<Self> {
+    async fn from_asset_ident(asset: ReadRef<AssetIdent>) -> Result<Self> {
         // TODO(lukesandberg): How should we display paths? it would be good to display all paths
         // relative to the cwd or the project root.
         let fs_path = asset.path.await?;
         let fs_name = fs_path.fs.to_string().await?.to_string();
         let root_path = fs_path.fs.root().await?.path.to_string();
+
         let path = fs_path.path.to_string();
+        // let path = AssetIdent::new(turbo_tasks::Value::new((**asset).clone()))
+        //     .to_string()
+        //     .await?
+        //     .to_string();
         let layer = match asset.layer {
             Some(layer) => Some(layer.await?.to_string()),
             None => None,
@@ -659,17 +675,39 @@ pub type PlainTrace = Vec<PlainTraceItem>;
 // Flatten this set of traces into a simpler format for formatting.
 async fn into_plain(traces: Vec<Vec<ReadRef<AssetIdent>>>) -> Result<Vec<PlainTrace>> {
     let mut plain_traces = traces
-        .iter()
-        .map(|trace| {
-            trace
-                .iter()
+        .into_iter()
+        .map(|trace| async move {
+            let mut plain_trace = trace
+                .into_iter()
                 .filter(|asset| {
                     // If there are nested assets, this is a synthetic module which is likely to be
                     // confusing/distracting.  Just skip it.
                     asset.assets.is_empty()
                 })
-                .map(PlainTraceItem::from_asset)
+                .map(PlainTraceItem::from_asset_ident)
                 .try_join()
+                .await?;
+
+            // After simplifying the trace, we may end up with apparent duplicates.
+            // Consider thjs example:
+            // Example import trace:
+            // ./[project]/app/global.scss.css [app-client] (css) [app-client]
+            // ./[project]/app/layout.js [app-client] (ecmascript) [app-client]
+            // ./[project]/app/layout.js [app-rsc] (client reference proxy) [app-rsc]
+            // ./[project]/app/layout.js [app-rsc] (ecmascript) [app-rsc]
+            // ./[project]/app/layout.js [app-rsc] (ecmascript, Next.js Server Component) [app-rsc]
+            // [entrypoint]"
+            //
+            // In that case, there are an number of 'shim modules' that are inserted by next with
+            // different `modifiers` that are used to model the server->client hand off.  The
+            // simplification performed by `PlainTraceItem::from_asset_ident` drops these
+            // 'modifiers' and so we would end up with 'app/layout.js' appearing to be duplicated
+            // several times.  These modules are implementation details of the application so we
+            // just deduplicate them here.
+
+            plain_trace.dedup();
+
+            Ok(plain_trace)
         })
         .try_join()
         .await?;
@@ -800,6 +838,7 @@ fn hash_plain_issue(issue: &PlainIssue, hasher: &mut Xxh3Hash64Hasher, full: boo
 
     if full {
         hasher.write_ref(&issue.processing_path);
+        hasher.write_ref(&issue.import_traces);
     }
 }
 
