@@ -16,7 +16,7 @@ use super::{
     facade::module::EcmascriptModuleFacadeModule, locals::module::EcmascriptModuleLocalsModule,
 };
 use crate::{
-    EcmascriptOptions, chunk::EcmascriptChunkPlaceable, code_gen::CodeGeneration,
+    chunk::EcmascriptChunkPlaceable, code_gen::CodeGeneration,
     references::esm::base::ReferencedAsset, runtime_functions::TURBOPACK_IMPORT,
     utils::module_id_to_lit,
 };
@@ -27,7 +27,7 @@ use crate::{
 pub struct EcmascriptModulePartReference {
     pub module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     pub part: Option<ModulePart>,
-    pub options: ResolvedVc<EcmascriptOptions>,
+    pub remove_unused_exports: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -36,12 +36,12 @@ impl EcmascriptModulePartReference {
     pub fn new_part(
         module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
         part: ModulePart,
-        options: ResolvedVc<EcmascriptOptions>,
+        remove_unused_exports: bool,
     ) -> Vc<Self> {
         EcmascriptModulePartReference {
             module,
             part: Some(part),
-            options,
+            remove_unused_exports,
         }
         .cell()
     }
@@ -49,12 +49,12 @@ impl EcmascriptModulePartReference {
     #[turbo_tasks::function]
     pub fn new(
         module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
-        options: ResolvedVc<EcmascriptOptions>,
+        remove_unused_exports: bool,
     ) -> Vc<Self> {
         EcmascriptModulePartReference {
             module,
             part: None,
-            options,
+            remove_unused_exports,
         }
         .cell()
     }
@@ -90,9 +90,13 @@ impl ModuleReference for EcmascriptModulePartReference {
                 | ModulePart::Evaluation
                 | ModulePart::Facade
                 | ModulePart::RenamedExport { .. }
-                | ModulePart::RenamedNamespace { .. } => Vc::upcast(
-                    EcmascriptModuleFacadeModule::new(*self.module, part.clone(), *self.options),
-                ),
+                | ModulePart::RenamedNamespace { .. } => {
+                    Vc::upcast(EcmascriptModuleFacadeModule::new(
+                        *self.module,
+                        part.clone(),
+                        self.remove_unused_exports,
+                    ))
+                }
                 ModulePart::Export(..) | ModulePart::Internal(..) => {
                     bail!(
                         "Unexpected ModulePart \"{}\" for EcmascriptModulePartReference",
