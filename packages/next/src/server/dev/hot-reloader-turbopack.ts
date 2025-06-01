@@ -650,7 +650,10 @@ export async function createHotReloaderTurbopack(
     getNextErrorFeedbackMiddleware(opts.telemetry),
     getDevOverlayFontMiddleware(),
     getDisableDevIndicatorMiddleware(),
-    getRestartDevServerMiddleware(opts.telemetry),
+    getRestartDevServerMiddleware({
+      telemetry: opts.telemetry,
+      turbopackProject: project,
+    }),
   ]
 
   const versionInfoPromise = getVersionInfo()

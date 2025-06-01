@@ -20,7 +20,7 @@ function runTests() {
     const $ = cheerio.load(html)
     const href = $('link[rel="preload"]').attr('href')
     const css = await renderViaHTTP(appPort, href)
-    if (process.env.IS_TURBOPACK_TEST) {
+    if (process.env.IS_TURBOPACK_TEST || process.env.NEXT_RSPACK) {
       expect(css).toContain(
         '.a{--var-1:-50%;--var-2:-50%}.b{--var-1:0;--var-2:-50%}'
       )

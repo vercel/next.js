@@ -2203,18 +2203,17 @@ async fn resolve_relative_request(
 
     let fragment_val = fragment.await?;
     if !fragment_val.is_empty() {
-        new_path.push(Pattern::Alternatives(
-            once(Pattern::Constant("".into()))
-                .chain(once(Pattern::Constant(format!("#{fragment_val}").into())))
-                .collect(),
-        ));
+        new_path.push(Pattern::Alternatives(vec![
+            Pattern::Constant(RcStr::default()),
+            Pattern::Constant((*fragment_val).clone()),
+        ]));
     }
 
     if !options_value.fully_specified {
         // Add the extensions as alternatives to the path
         // read_matches keeps the order of alternatives intact
         new_path.push(Pattern::Alternatives(
-            once(Pattern::Constant("".into()))
+            once(Pattern::Constant(RcStr::default()))
                 .chain(
                     options_value
                         .extensions
@@ -2328,10 +2327,7 @@ async fn resolve_relative_request(
             }
             if !fragment_val.is_empty() {
                 // If the fragment is not empty, we need to strip it from the matched pattern
-                if let Some(matched_pattern) = matched_pattern
-                    .strip_suffix(&**fragment_val)
-                    .and_then(|s| s.strip_suffix('#'))
-                {
+                if let Some(matched_pattern) = matched_pattern.strip_suffix(&**fragment_val) {
                     results.push(
                         resolved(
                             RequestKey::new(matched_pattern.into()),
@@ -2864,9 +2860,13 @@ async fn resolved(
     Ok(*ResolveResult::source_with_affecting_sources(
         request_key,
         ResolvedVc::upcast(
-            FileSource::new_with_query(**path, query)
-                .to_resolved()
-                .await?,
+            FileSource::new_with_query_and_fragment(
+                **path,
+                (*query.await?).clone(),
+                (*fragment.await?).clone(),
+            )
+            .to_resolved()
+            .await?,
         ),
         symlinks
             .iter()

@@ -207,6 +207,10 @@ impl<B: BackingStorage> TurboTasksBackend<B> {
             backing_storage,
         )))
     }
+
+    pub fn invalidate_storage(&self) -> Result<()> {
+        self.0.backing_storage.invalidate()
+    }
 }
 
 impl<B: BackingStorage> TurboTasksBackendInner<B> {

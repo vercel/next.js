@@ -1266,7 +1266,7 @@ describe('required server files', () => {
     )
 
     const json = await res.json()
-    expect(json.query).toEqual({ another: 'value', rest: ['index'] })
+    expect(json.query).toEqual({ another: 'value' })
     expect(json.url).toBe('/api/optional/index?another=value')
   })
 
