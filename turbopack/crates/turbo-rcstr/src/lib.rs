@@ -250,7 +250,7 @@ impl Clone for RcStr {
 
 impl Default for RcStr {
     fn default() -> Self {
-        RcStr::from("")
+        rcstr!("")
     }
 }
 
@@ -299,6 +299,33 @@ impl Drop for RcStr {
             unsafe { drop(dynamic::restore_arc(self.unsafe_data)) }
         }
     }
+}
+
+#[doc(hidden)]
+pub const fn inline_atom(s: &str) -> Option<RcStr> {
+    dynamic::inline_atom(s)
+}
+
+/// Create an rcstr from a string literal.
+/// allocates the RcStr inline when possible otherwise uses a `LazyLock` to manage the allocation.
+#[macro_export]
+macro_rules! rcstr {
+    ($s:tt) => {{
+        const INLINE: core::option::Option<$crate::RcStr> = $crate::inline_atom($s);
+        // this condition should be able to be compile time evaluated and inlined.
+        if INLINE.is_some() {
+            INLINE.unwrap()
+        } else {
+            #[inline(never)]
+            fn get_rcstr() -> $crate::RcStr {
+                static CACHE: std::sync::LazyLock<$crate::RcStr> =
+                    std::sync::LazyLock::new(|| $crate::RcStr::from($s));
+
+                (*CACHE).clone()
+            }
+            get_rcstr()
+        }
+    }};
 }
 
 /// noop
@@ -374,5 +401,34 @@ mod tests {
 
         let _ = str.clone().into_owned();
         assert_eq!(refcount(&str), 1);
+    }
+
+    #[test]
+    fn test_rcstr() {
+        // Test enough to exceed the small string optimization
+        assert_eq!(rcstr!(""), RcStr::default());
+        assert_eq!(rcstr!(""), RcStr::from(""));
+        assert_eq!(rcstr!("a"), RcStr::from("a"));
+        assert_eq!(rcstr!("ab"), RcStr::from("ab"));
+        assert_eq!(rcstr!("abc"), RcStr::from("abc"));
+        assert_eq!(rcstr!("abcd"), RcStr::from("abcd"));
+        assert_eq!(rcstr!("abcde"), RcStr::from("abcde"));
+        assert_eq!(rcstr!("abcdef"), RcStr::from("abcdef"));
+        assert_eq!(rcstr!("abcdefg"), RcStr::from("abcdefg"));
+        assert_eq!(rcstr!("abcdefgh"), RcStr::from("abcdefgh"));
+        assert_eq!(rcstr!("abcdefghi"), RcStr::from("abcdefghi"));
+    }
+    #[test]
+    fn test_inline_atom() {
+        // This is a silly test, just asserts that we can evaluate this in a constant context.
+        const STR: RcStr = {
+            let inline = inline_atom("hello");
+            if inline.is_some() {
+                inline.unwrap()
+            } else {
+                unreachable!();
+            }
+        };
+        assert_eq!(STR, RcStr::from("hello"));
     }
 }

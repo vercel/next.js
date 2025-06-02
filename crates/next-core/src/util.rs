@@ -385,6 +385,9 @@ async fn parse_route_matcher_from_js_value(
                                         matcher.original_source = value.into();
                                     }
                                 }
+                                Some("locale") => {
+                                    matcher.locale = value.as_bool().unwrap_or_default();
+                                }
                                 Some("missing") => {
                                     matcher.missing = Some(parse_matcher_kind_matcher(value))
                                 }
