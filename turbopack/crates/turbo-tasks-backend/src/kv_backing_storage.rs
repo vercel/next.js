@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, cmp::max, sync::Arc};
+use std::{borrow::Borrow, cmp::max, path::PathBuf, sync::Arc};
 
 use anyhow::{Context, Result, anyhow};
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
@@ -8,10 +8,13 @@ use tracing::Span;
 use turbo_tasks::{SessionId, TaskId, backend::CachedTaskType, turbo_tasks_scope};
 
 use crate::{
+    GitVersionInfo,
     backend::{AnyOperation, TaskDataCategory},
     backing_storage::BackingStorage,
     data::CachedDataItem,
     database::{
+        db_invalidation::{check_db_invalidation_and_cleanup, invalidate_db},
+        db_versioning::handle_db_versioning,
         key_value_database::{KeySpace, KeyValueDatabase},
         write_batch::{
             BaseWriteBatch, ConcurrentWriteBatch, SerialWriteBatch, WriteBatch, WriteBatchRef,
@@ -82,11 +85,31 @@ fn as_u32(bytes: impl Borrow<[u8]>) -> Result<u32> {
 
 pub struct KeyValueDatabaseBackingStorage<T: KeyValueDatabase> {
     database: T,
+    /// Used when calling [`BackingStorage::invalidate`]. Can be `None` in the memory-only/no-op
+    /// storage case.
+    base_path: Option<PathBuf>,
 }
 
 impl<T: KeyValueDatabase> KeyValueDatabaseBackingStorage<T> {
-    pub fn new(database: T) -> Self {
-        Self { database }
+    pub fn new_in_memory(database: T) -> Self {
+        Self {
+            database,
+            base_path: None,
+        }
+    }
+
+    pub fn open_versioned_on_disk(
+        base_path: PathBuf,
+        version_info: &GitVersionInfo,
+        is_ci: bool,
+        database: impl FnOnce(PathBuf) -> Result<T>,
+    ) -> Result<Self> {
+        check_db_invalidation_and_cleanup(&base_path)?;
+        let versioned_path = handle_db_versioning(&base_path, version_info, is_ci)?;
+        Ok(Self {
+            database: (database)(versioned_path)?,
+            base_path: Some(base_path),
+        })
     }
 
     fn with_tx<R>(
@@ -440,6 +463,18 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
         }
         self.with_tx(tx, |tx| lookup(&self.database, tx, task_id, category))
             .with_context(|| format!("Looking up data for {task_id} from database failed"))
+    }
+
+    fn invalidate(&self) -> Result<()> {
+        // `base_path` can be `None` for a `NoopKvDb`
+        if let Some(base_path) = &self.base_path {
+            // Invalidate first, as it's a very fast atomic operation. `prevent_writes` is allowed
+            // to be slower (e.g. wait for a lock) and is allowed to corrupt the database with
+            // partial writes.
+            invalidate_db(base_path)?;
+            self.database.prevent_writes()
+        }
+        Ok(())
     }
 
     fn shutdown(&self) -> Result<()> {

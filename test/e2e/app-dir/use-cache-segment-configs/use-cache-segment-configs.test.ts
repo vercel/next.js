@@ -2,6 +2,8 @@ import { nextTestSetup } from 'e2e-utils'
 import { assertHasRedbox } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
+const isRspack = !!process.env.NEXT_RSPACK
+
 describe('use-cache-segment-configs', () => {
   const { next, skipped, isNextDev, isTurbopack } = nextTestSetup({
     files: __dirname,
@@ -72,6 +74,28 @@ describe('use-cache-segment-configs', () => {
 
 
              at <unknown> (./app/runtime/page.tsx:1:14)
+         "
+        `)
+      } else if (isRspack) {
+        expect(buildOutput).toMatchInlineSnapshot(`
+         "
+         // TODO(veil): Fix broken import trace for Webpack loader resource.
+           × Module build failed:
+           ╰─▶   × Error:   x Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it.
+                 │    ,-[1:1]
+                 │  1 | export const runtime = 'edge'
+                 │    :              ^^^^^^^
+                 │  2 |
+                 │  3 | export default function Page() {
+                 │  4 |   return <div>This page uses \`export const runtime\`.</div>
+                 │    \`----
+                 │
+               
+         Import trace for requested module:
+         // TODO(veil): Fix broken import trace for Webpack loader resource.
+
+
+         > Build failed because of rspack errors
          "
         `)
       } else {

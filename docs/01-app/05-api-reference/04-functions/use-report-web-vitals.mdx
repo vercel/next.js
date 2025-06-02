@@ -7,15 +7,19 @@ description: API Reference for the useReportWebVitals function.
 
 The `useReportWebVitals` hook allows you to report [Core Web Vitals](https://web.dev/vitals/), and can be used in combination with your analytics service.
 
+New functions passed to `useReportWebVitals` are called with the available metrics up to that point. To prevent reporting duplicated data, ensure that the callback function reference does not change (as shown in the code examples below).
+
 <PagesOnly>
 
 ```jsx filename="pages/_app.js"
 import { useReportWebVitals } from 'next/web-vitals'
 
+const logWebVitals = (metric) => {
+  console.log(metric)
+}
+
 function MyApp({ Component, pageProps }) {
-  useReportWebVitals((metric) => {
-    console.log(metric)
-  })
+  useReportWebVitals(logWebVitals)
 
   return <Component {...pageProps} />
 }
@@ -30,10 +34,12 @@ function MyApp({ Component, pageProps }) {
 
 import { useReportWebVitals } from 'next/web-vitals'
 
+const logWebVitals = (metric) => {
+  console.log(metric)
+}
+
 export function WebVitals() {
-  useReportWebVitals((metric) => {
-    console.log(metric)
-  })
+  useReportWebVitals(logWebVitals)
 
   return null
 }
@@ -89,18 +95,20 @@ You can handle all the results of these metrics using the `name` property.
 ```jsx filename="pages/_app.js"
 import { useReportWebVitals } from 'next/web-vitals'
 
-function MyApp({ Component, pageProps }) {
-  useReportWebVitals((metric) => {
-    switch (metric.name) {
-      case 'FCP': {
-        // handle FCP results
-      }
-      case 'LCP': {
-        // handle LCP results
-      }
-      // ...
+const handleWebVitals = (metric) => {
+  switch (metric.name) {
+    case 'FCP': {
+      // handle FCP results
     }
-  })
+    case 'LCP': {
+      // handle LCP results
+    }
+    // ...
+  }
+}
+
+function MyApp({ Component, pageProps }) {
+  useReportWebVitals(handleWebVitals)
 
   return <Component {...pageProps} />
 }
@@ -115,18 +123,22 @@ function MyApp({ Component, pageProps }) {
 
 import { useReportWebVitals } from 'next/web-vitals'
 
-export function WebVitals() {
-  useReportWebVitals((metric) => {
-    switch (metric.name) {
-      case 'FCP': {
-        // handle FCP results
-      }
-      case 'LCP': {
-        // handle LCP results
-      }
-      // ...
+type ReportWebVitalsCallback = Parameters<typeof useReportWebVitals>[0]
+
+const handleWebVitals: ReportWebVitalsCallback = (metric) => {
+  switch (metric.name) {
+    case 'FCP': {
+      // handle FCP results
     }
-  })
+    case 'LCP': {
+      // handle LCP results
+    }
+    // ...
+  }
+}
+
+export function WebVitals() {
+  useReportWebVitals(handleWebVitals)
 }
 ```
 
@@ -135,18 +147,20 @@ export function WebVitals() {
 
 import { useReportWebVitals } from 'next/web-vitals'
 
-export function WebVitals() {
-  useReportWebVitals((metric) => {
-    switch (metric.name) {
-      case 'FCP': {
-        // handle FCP results
-      }
-      case 'LCP': {
-        // handle LCP results
-      }
-      // ...
+const handleWebVitals = (metric) => {
+  switch (metric.name) {
+    case 'FCP': {
+      // handle FCP results
     }
-  })
+    case 'LCP': {
+      // handle LCP results
+    }
+    // ...
+  }
+}
+
+export function WebVitals() {
+  useReportWebVitals(handleWebVitals)
 }
 ```
 
@@ -169,22 +183,24 @@ You can handle all the results of these metrics separately:
 ```jsx filename="pages/_app.js"
 import { useReportWebVitals } from 'next/web-vitals'
 
+function handleCustomMetrics(metrics) {
+  switch (metric.name) {
+    case 'Next.js-hydration':
+      // handle hydration results
+      break
+    case 'Next.js-route-change-to-render':
+      // handle route-change to render results
+      break
+    case 'Next.js-render':
+      // handle render results
+      break
+    default:
+      break
+  }
+}
+
 function MyApp({ Component, pageProps }) {
-  useReportWebVitals((metric) => {
-    switch (metric.name) {
-      case 'Next.js-hydration':
-        // handle hydration results
-        break
-      case 'Next.js-route-change-to-render':
-        // handle route-change to render results
-        break
-      case 'Next.js-render':
-        // handle render results
-        break
-      default:
-        break
-    }
-  })
+  useReportWebVitals(handleCustomMetrics)
 
   return <Component {...pageProps} />
 }
@@ -200,7 +216,7 @@ You can send results to any endpoint to measure and track
 real user performance on your site. For example:
 
 ```js
-useReportWebVitals((metric) => {
+function postWebVitals(metrics) {
   const body = JSON.stringify(metric)
   const url = 'https://example.com/analytics'
 
@@ -210,7 +226,9 @@ useReportWebVitals((metric) => {
   } else {
     fetch(url, { body, method: 'POST', keepalive: true })
   }
-})
+}
+
+useReportWebVitals(postWebVitals)
 ```
 
 > **Good to know**: If you use [Google Analytics](https://analytics.google.com/analytics/web/), using the

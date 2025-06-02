@@ -6043,7 +6043,14 @@
         "defaultValue": 0
       }
     ],
-    "subsets": ["cyrillic", "cyrillic-ext", "latin", "latin-ext", "vietnamese"]
+    "subsets": [
+      "cyrillic",
+      "cyrillic-ext",
+      "emoji",
+      "latin",
+      "latin-ext",
+      "vietnamese"
+    ]
   },
   "Kadwa": {
     "weights": ["400", "700"],

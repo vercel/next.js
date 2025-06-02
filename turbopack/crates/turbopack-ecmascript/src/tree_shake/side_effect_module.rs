@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, Vc};
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
@@ -57,15 +57,15 @@ impl Module for SideEffectsModule {
         ident.parts.push(self.part.clone());
 
         ident.add_asset(
-            ResolvedVc::cell(RcStr::from("resolved")),
+            rcstr!("resolved"),
             self.resolved_as.ident().to_resolved().await?,
         );
 
-        ident.add_modifier(ResolvedVc::cell(RcStr::from("side effects")));
+        ident.add_modifier(rcstr!("side effects"));
 
         for (i, side_effect) in self.side_effects.iter().enumerate() {
             ident.add_asset(
-                ResolvedVc::cell(RcStr::from(format!("side effect {i}"))),
+                RcStr::from(format!("side effect {i}")),
                 side_effect.ident().to_resolved().await?,
             );
         }
@@ -84,7 +84,7 @@ impl Module for SideEffectsModule {
                     Ok(ResolvedVc::upcast(
                         SingleChunkableModuleReference::new(
                             *ResolvedVc::upcast(*side_effect),
-                            Vc::cell(RcStr::from("side effect")),
+                            Vc::cell(rcstr!("side effect")),
                         )
                         .to_resolved()
                         .await?,
@@ -97,7 +97,7 @@ impl Module for SideEffectsModule {
         references.push(ResolvedVc::upcast(
             SingleChunkableModuleReference::new(
                 *ResolvedVc::upcast(self.resolved_as),
-                Vc::cell(RcStr::from("resolved as")),
+                Vc::cell(rcstr!("resolved as")),
             )
             .to_resolved()
             .await?,

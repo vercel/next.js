@@ -58,6 +58,13 @@ export class AppPageRouteModule extends RouteModule<
   AppPageRouteDefinition,
   AppPageUserlandModule
 > {
+  constructor(
+    options: RouteModuleOptions<AppPageRouteDefinition, AppPageUserlandModule>
+  ) {
+    super(options)
+    this.isAppRouter = true
+  }
+
   public render(
     req: BaseNextRequest,
     res: BaseNextResponse,

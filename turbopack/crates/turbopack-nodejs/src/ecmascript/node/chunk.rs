@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -56,9 +56,8 @@ impl ValueToString for EcmascriptBuildNodeChunk {
     }
 }
 
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("ecmascript build node chunk".into())
+fn modifier() -> RcStr {
+    rcstr!("ecmascript build node chunk")
 }
 
 #[turbo_tasks::value_impl]

@@ -26,6 +26,12 @@ use crate::{
     next_import_map::get_next_package,
 };
 
+// Next.js ignores underscores for routes but you can use %5f to still serve an underscored
+// route.
+fn normalize_underscore(string: &str) -> String {
+    string.replace("%5F", "_")
+}
+
 /// A final route in the app directory.
 #[turbo_tasks::value]
 #[derive(Default, Debug, Clone)]
@@ -977,7 +983,7 @@ async fn directory_tree_to_loader_tree_internal(
         // When constructing the app_page fails (e. g. due to limitations of the order),
         // we only want to emit the error when there are actual pages below that
         // directory.
-        if let Err(e) = child_app_page.push_str(subdir_name) {
+        if let Err(e) = child_app_page.push_str(&normalize_underscore(subdir_name)) {
             illegal_path_error = Some(e);
         }
 
@@ -1394,7 +1400,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             // When constructing the app_page fails (e. g. due to limitations of the order),
             // we only want to emit the error when there are actual pages below that
             // directory.
-            if let Err(e) = child_app_page.push_str(subdir_name) {
+            if let Err(e) = child_app_page.push_str(&normalize_underscore(subdir_name)) {
                 illegal_path = Some(e);
             }
 

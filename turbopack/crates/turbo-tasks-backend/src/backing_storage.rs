@@ -63,6 +63,16 @@ pub trait BackingStorage: 'static + Send + Sync {
         category: TaskDataCategory,
     ) -> Result<Vec<CachedDataItem>>;
 
+    /// Called when the database should be invalidated upon re-initialization.
+    ///
+    /// This typically means that we'll restart the process or `turbo-tasks` soon with a fresh
+    /// database. If this happens, there's no point in writing anything else to disk, or flushing
+    /// during [`KeyValueDatabase::shutdown`].
+    ///
+    /// This can be implemented by calling [`crate::database::db_invalidation::invalidate_db`] with
+    /// the database's non-versioned base path.
+    fn invalidate(&self) -> Result<()>;
+
     fn shutdown(&self) -> Result<()> {
         Ok(())
     }

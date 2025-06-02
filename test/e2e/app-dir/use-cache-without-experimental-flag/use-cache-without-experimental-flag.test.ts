@@ -13,7 +13,7 @@ const nextConfigWithUseCache: NextConfig = {
   experimental: { useCache: true },
 }
 
-const isRspack = process.env.NEXT_RSPACK !== undefined
+const isRspack = !!process.env.NEXT_RSPACK
 
 describe('use-cache-without-experimental-flag', () => {
   const { next, isNextStart, isTurbopack, skipped } = nextTestSetup({
@@ -49,6 +49,31 @@ describe('use-cache-without-experimental-flag', () => {
 
 
              at <unknown> (./app/page.tsx:1:1)
+         "
+        `)
+      } else if (isRspack) {
+        expect(buildOutput).toMatchInlineSnapshot(`
+         "
+         ./app/page.tsx
+           × Module build failed:
+           ╰─▶   × Error:   x To use "use cache", please enable the experimental feature flag "useCache" in your Next.js config.
+                 │   |
+                 │   | Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage
+                 │
+                 │    ,-[1:1]
+                 │  1 | 'use cache'
+                 │    : ^^^^^^^^^^^
+                 │  2 |
+                 │  3 | export default async function Page() {
+                 │  4 |   return <p>hello world</p>
+                 │    \`----
+                 │
+               
+         Import trace for requested module:
+         ./app/page.tsx
+
+
+         > Build failed because of rspack errors
          "
         `)
       } else {

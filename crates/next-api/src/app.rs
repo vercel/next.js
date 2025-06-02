@@ -37,7 +37,7 @@ use next_core::{
 };
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc,
     fxindexmap, fxindexset, trace::TraceRawVcs,
@@ -438,7 +438,7 @@ impl AppProject {
             self.project().server_compile_time_info(),
             self.rsc_module_options_context(),
             self.rsc_resolve_options_context(),
-            Vc::cell("app-rsc".into()),
+            rcstr!("app-rsc"),
         ))
     }
 
@@ -453,7 +453,7 @@ impl AppProject {
             self.project().edge_compile_time_info(),
             self.edge_rsc_module_options_context(),
             self.edge_rsc_resolve_options_context(),
-            Vc::cell("app-edge-rsc".into()),
+            rcstr!("app-edge-rsc"),
         ))
     }
 
@@ -504,7 +504,7 @@ impl AppProject {
             self.project().server_compile_time_info(),
             self.route_module_options_context(),
             self.route_resolve_options_context(),
-            Vc::cell("app-route".into()),
+            rcstr!("app-route"),
         ))
     }
 
@@ -554,7 +554,7 @@ impl AppProject {
             self.project().edge_compile_time_info(),
             self.edge_route_module_options_context(),
             self.edge_route_resolve_options_context(),
-            Vc::cell("app-edge-route".into()),
+            rcstr!("app-edge-route"),
         ))
     }
 
@@ -581,7 +581,7 @@ impl AppProject {
             self.project().client_compile_time_info(),
             self.client_module_options_context(),
             self.client_resolve_options_context(),
-            Vc::cell("app-client".into()),
+            rcstr!("app-client"),
         ))
     }
 
@@ -664,7 +664,7 @@ impl AppProject {
             self.project().server_compile_time_info(),
             self.ssr_module_options_context(),
             self.ssr_resolve_options_context(),
-            Vc::cell("app-ssr".into()),
+            rcstr!("app-ssr"),
         ))
     }
 
@@ -684,7 +684,7 @@ impl AppProject {
             self.project().server_compile_time_info(),
             self.ssr_module_options_context(),
             self.ssr_resolve_options_context(),
-            Vc::cell("app-shared".into()),
+            rcstr!("app-shared"),
         ))
     }
 
@@ -724,7 +724,7 @@ impl AppProject {
             self.project().edge_compile_time_info(),
             self.edge_ssr_module_options_context(),
             self.edge_ssr_resolve_options_context(),
-            Vc::cell("app-edge-ssr".into()),
+            rcstr!("app-edge-ssr"),
         ))
     }
 
@@ -744,7 +744,7 @@ impl AppProject {
             self.project().edge_compile_time_info(),
             self.edge_ssr_module_options_context(),
             self.edge_ssr_resolve_options_context(),
-            Vc::cell("app-edge-shared".into()),
+            rcstr!("app-edge-shared"),
         ))
     }
 
@@ -1027,16 +1027,6 @@ pub fn app_entry_point_to_route(
     .cell()
 }
 
-#[turbo_tasks::function]
-fn client_shared_chunks_modifier() -> Vc<RcStr> {
-    Vc::cell("client-shared-chunks".into())
-}
-
-#[turbo_tasks::function]
-fn server_utils_modifier() -> Vc<RcStr> {
-    Vc::cell("server-utils".into())
-}
-
 #[turbo_tasks::value(transparent)]
 struct OutputAssetsWithAvailability((ResolvedVc<OutputAssets>, AvailabilityInfo));
 
@@ -1230,7 +1220,7 @@ impl AppEndpoint {
 
         let client_shared_chunk_group = get_app_client_shared_chunk_group(
             AssetIdent::from_path(project.project_path())
-                .with_modifier(client_shared_chunks_modifier()),
+                .with_modifier(rcstr!("client-shared-chunks")),
             this.app_project.client_runtime_entries(),
             *module_graphs.full,
             *client_chunking_context,
@@ -1785,7 +1775,7 @@ impl AppEndpoint {
                         let chunk_group = chunking_context
                             .chunk_group(
                                 AssetIdent::from_path(this.app_project.project().project_path())
-                                    .with_modifier(server_utils_modifier()),
+                                    .with_modifier(rcstr!("server-utils")),
                                 // TODO this should be ChunkGroup::Shared
                                 ChunkGroup::Entry(server_utils),
                                 module_graph,

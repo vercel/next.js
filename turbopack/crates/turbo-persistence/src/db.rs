@@ -190,7 +190,7 @@ impl TurboPersistence {
         Ok(db)
     }
 
-    /// Performas the initial check on the database directory.
+    /// Performs the initial check on the database directory.
     fn open_directory(&mut self) -> Result<()> {
         match fs::read_dir(&self.path) {
             Ok(entries) => {

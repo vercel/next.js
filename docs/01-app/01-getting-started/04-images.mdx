@@ -58,10 +58,8 @@ export default function Page() {
     <Image
       src="/profile.png"
       alt="Picture of the author"
-      // width={500} automatically provided
-      // height={500} automatically provided
-      // blurDataURL="data:..." automatically provided
-      // placeholder="blur" // Optional blur-up while loading
+      width={500}
+      height={500}
     />
   )
 }
@@ -75,6 +73,26 @@ export default function Page() {
     <Image
       src="/profile.png"
       alt="Picture of the author"
+      width={500}
+      height={500}
+    />
+  )
+}
+```
+
+### Statically imported images
+
+You can also import and use local image files. Next.js will automatically determine the intrinsic [`width`](/docs/app/api-reference/components/image#width-and-height) and [`height`](/docs/app/api-reference/components/image#width-and-height) of your image based on the imported file. These values are used to determine the image ratio and prevent [Cumulative Layout Shift](https://web.dev/articles/cls) while your image is loading.
+
+```tsx filename="app/page.tsx" switcher
+import Image from 'next/image'
+import ProfileImage from './profile.png'
+
+export default function Page() {
+  return (
+    <Image
+      src={ProfileImage}
+      alt="Picture of the author"
       // width={500} automatically provided
       // height={500} automatically provided
       // blurDataURL="data:..." automatically provided
@@ -84,7 +102,25 @@ export default function Page() {
 }
 ```
 
-When using local images, Next.js will automatically determine the intrinsic [`width`](/docs/app/api-reference/components/image#width-and-height) and [`height`](/docs/app/api-reference/components/image#width-and-height) of your image based on the imported file. These values are used to determine the image ratio and prevent [Cumulative Layout Shift](https://web.dev/articles/cls) while your image is loading.
+```jsx filename="app/page.js" switcher
+import Image from 'next/image'
+import ProfileImage from './profile.png'
+
+export default function Page() {
+  return (
+    <Image
+      src={ProfileImage}
+      alt="Picture of the author"
+      // width={500} automatically provided
+      // height={500} automatically provided
+      // blurDataURL="data:..." automatically provided
+      // placeholder="blur" // Optional blur-up while loading
+    />
+  )
+}
+```
+
+In this case, Next.js expects the `app/profile.png` file to be available.
 
 ## Remote images
 

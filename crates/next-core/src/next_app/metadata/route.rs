@@ -117,7 +117,7 @@ async fn get_base64_file_content(path: Vc<FileSystemPath>) -> Result<String> {
 
     Ok(match &*original_file_content {
         FileContent::Content(content) => {
-            let content = content.content().to_bytes()?;
+            let content = content.content().to_bytes();
             Base64Display::new(&content, &STANDARD).to_string()
         }
         FileContent::NotFound => {

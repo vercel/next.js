@@ -45,7 +45,7 @@ jobs:
           tool: cargo-codspeed@2.10.1
 
       - name: Build the benchmark target(s)
-        run: cargo codspeed build -p turbo-rcstr -p turbopack-ecmascript
+        run: cargo codspeed build -p turbo-rcstr
 
       - name: Run the benchmarks
         uses: CodSpeedHQ/action@v3

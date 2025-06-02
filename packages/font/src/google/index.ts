@@ -10540,7 +10540,7 @@ export declare function Kablammo<
   fallback?: string[]
   adjustFontFallback?: boolean
   subsets?: Array<
-    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+    'cyrillic' | 'cyrillic-ext' | 'emoji' | 'latin' | 'latin-ext' | 'vietnamese'
   >
   axes?: 'MORF'[]
 }): T extends undefined ? NextFont : NextFontWithVariable

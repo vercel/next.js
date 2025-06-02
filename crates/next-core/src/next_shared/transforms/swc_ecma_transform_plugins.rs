@@ -101,7 +101,7 @@ pub async fn get_swc_ecma_transform_rule_impl(
             };
 
             Ok(Some((
-                SwcPluginModule::new(name, file.content().to_bytes()?.to_vec()).resolved_cell(),
+                SwcPluginModule::new(name, file.content().to_bytes().to_vec()).resolved_cell(),
                 config.clone(),
             )))
         })

@@ -2,7 +2,7 @@ use std::io::Write as _;
 
 use anyhow::{Result, anyhow};
 use indoc::writedoc;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
     chunk::{
@@ -25,9 +25,8 @@ use crate::{
     utils::{StringifyJs, StringifyModuleId},
 };
 
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("loader".into())
+fn modifier() -> RcStr {
+    rcstr!("loader")
 }
 
 /// The manifest loader item is shipped in the same chunk that uses the dynamic

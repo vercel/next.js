@@ -205,6 +205,13 @@ export declare function projectUpdate(
   options: NapiPartialProjectOptions
 ): Promise<void>
 /**
+ * Invalidates the persistent cache so that it will be deleted next time that a turbopack project
+ * is created with persistent caching enabled.
+ */
+export declare function projectInvalidatePersistentCache(project: {
+  __napiType: 'Project'
+}): Promise<void>
+/**
  * Runs exit handlers for the project registered using the [`ExitHandler`] API.
  *
  * This is called by `project_shutdown`, so if you're calling that API, you shouldn't call this

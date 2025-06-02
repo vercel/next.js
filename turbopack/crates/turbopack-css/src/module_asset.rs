@@ -4,7 +4,7 @@ use anyhow::{Context, Result, bail};
 use indoc::formatdoc;
 use lightningcss::css_modules::CssModuleReference;
 use swc_core::common::{BytePos, FileName, LineCol, SourceMap};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::{FileSystemPath, rope::Rope};
 use turbopack_core::{
@@ -35,11 +35,6 @@ use crate::{
     references::{compose::CssModuleComposeReference, internal::InternalCssAssetReference},
 };
 
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("css module".into())
-}
-
 #[turbo_tasks::value]
 #[derive(Clone)]
 pub struct ModuleCssAsset {
@@ -64,11 +59,12 @@ impl ModuleCssAsset {
 #[turbo_tasks::value_impl]
 impl Module for ModuleCssAsset {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        self.source
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(self
+            .source
             .ident()
-            .with_modifier(modifier())
-            .with_layer(self.asset_context.layer())
+            .with_modifier(rcstr!("css module"))
+            .with_layer(self.asset_context.layer().owned().await?))
     }
 
     #[turbo_tasks::function]

@@ -23,8 +23,8 @@ pub struct TurboKeyValueDatabase {
 }
 
 impl TurboKeyValueDatabase {
-    pub fn new(path: PathBuf) -> Result<Self> {
-        let db = Arc::new(TurboPersistence::open(path.to_path_buf())?);
+    pub fn new(versioned_path: PathBuf) -> Result<Self> {
+        let db = Arc::new(TurboPersistence::open(versioned_path)?);
         let mut this = Self {
             db: db.clone(),
             compact_join_handle: Mutex::new(None),
@@ -98,6 +98,8 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
             initial_write: self.db.is_empty(),
         }))
     }
+
+    fn prevent_writes(&self) {}
 
     fn shutdown(&self) -> Result<()> {
         // Wait for the compaction to finish
