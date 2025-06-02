@@ -37,8 +37,7 @@ export function useActionQueue(
   if (process.env.NODE_ENV !== 'production') {
     const useSyncDevRenderIndicator = (
       require('./react-dev-overlay/utils/dev-indicator/use-sync-dev-render-indicator') as typeof import('./react-dev-overlay/utils/dev-indicator/use-sync-dev-render-indicator')
-    )
-      .useSyncDevRenderIndicator as typeof import('./react-dev-overlay/utils/dev-indicator/use-sync-dev-render-indicator').useSyncDevRenderIndicator
+    ).useSyncDevRenderIndicator
     // eslint-disable-next-line react-hooks/rules-of-hooks
     const syncDevRenderIndicator = useSyncDevRenderIndicator()
 
