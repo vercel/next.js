@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react'
 import { RefreshClockWise } from '../../../icons/refresh-clock-wise'
 
+declare global {
+  interface Window {
+    __NEXT_TURBOPACK_PERSISTENT_CACHE: boolean
+  }
+}
+
 export function RestartServerButton({ error }: { error: Error }) {
   const [showButton, setShowButton] = useState(false)
 
@@ -32,8 +38,26 @@ export function RestartServerButton({ error }: { error: Error }) {
     return null
   }
 
+  function handleClick() {
+    let endpoint = '/__nextjs_restart_dev'
+
+    if (window.__NEXT_TURBOPACK_PERSISTENT_CACHE) {
+      endpoint = '/__nextjs_restart_dev?invalidatePersistentCache'
+    }
+
+    fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: '{}',
+    }).then(() => {
+      // TODO: poll server status and reload when the server is back up.
+    })
+  }
+
   return (
-    <button className="restart-dev-server-button">
+    <button className="restart-dev-server-button" onClick={handleClick}>
       <RefreshClockWise width={14} height={14} />
       Restart Dev Server
     </button>
