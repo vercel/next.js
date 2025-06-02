@@ -55,6 +55,8 @@ interface Window {
     | 'top-right'
     | 'bottom-left'
     | 'bottom-right'
+  /** @internal */
+  __NEXT_TURBOPACK_PERSISTENT_CACHE: boolean
 }
 
 interface NextFetchRequestConfig {

@@ -1,12 +1,6 @@
 import { useState, useEffect } from 'react'
 import { RefreshClockWise } from '../../../icons/refresh-clock-wise'
 
-declare global {
-  interface Window {
-    __NEXT_TURBOPACK_PERSISTENT_CACHE: boolean
-  }
-}
-
 /**
  * When the user reloads on a specific error and that error persists, we show
  * the restart server button as an option. This is because some errors are
