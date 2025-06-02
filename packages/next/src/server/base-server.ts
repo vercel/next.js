@@ -3119,6 +3119,11 @@ export default abstract class Server<
           ? minimalPostponed
           : undefined
 
+      // If this is a dynamic RSC request, we should resume the render with the
+      // postponed data from the cache. This will enable the resume data cache
+      // to be reused from the static render (if available). If the cache entry
+      // is not found, then we don't use the postponed state or regenerate it,
+      // that's the responsibility of the static prefetch.
       if (
         process.env.NEXT_RUNTIME !== 'edge' &&
         !this.minimalMode &&
@@ -3134,6 +3139,8 @@ export default abstract class Server<
           }
         )
 
+        // If the cache entry is found, we should use the postponed data from
+        // the cache.
         if (
           cachedEntry &&
           cachedEntry.value &&
