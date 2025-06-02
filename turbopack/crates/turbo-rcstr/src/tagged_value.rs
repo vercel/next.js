@@ -75,7 +75,7 @@ impl TaggedValue {
     pub const fn new_tag(value: NonZeroU8) -> Self {
         let value = value.get() as RawTaggedValue;
         Self {
-            value: unsafe { std::mem::transmute(value) },
+            value: unsafe { RawTaggedNonZeroValue::new_unchecked(value) },
         }
     }
 
