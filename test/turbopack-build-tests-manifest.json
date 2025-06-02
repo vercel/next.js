@@ -7767,15 +7767,14 @@
       "next/font import values page with font",
       "next/font import values page with local fonts",
       "next/font preload page with fonts",
-      "next/font should not have deprecation warning"
-    ],
-    "failed": [
+      "next/font should not have deprecation warning",
       "next/font preload font without preloadable subsets",
       "next/font preload font without size adjust",
       "next/font preload google fonts with multiple weights/styles",
       "next/font preload page with local fonts",
       "next/font preload page without fonts"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
