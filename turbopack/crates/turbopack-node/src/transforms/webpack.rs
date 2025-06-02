@@ -230,7 +230,7 @@ impl WebpackLoadersProcessedAsset {
                 "binary".to_string(),
                 JsonValue::from(
                     base64::engine::general_purpose::STANDARD
-                        .encode(file_content.content().to_bytes().unwrap()),
+                        .encode(file_content.content().to_bytes()),
                 ),
             )))),
         };

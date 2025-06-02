@@ -114,7 +114,7 @@ impl Rope {
     }
 
     /// Returns a slice of all bytes
-    pub fn to_bytes(&self) -> Result<Cow<'_, [u8]>> {
+    pub fn to_bytes(&self) -> Cow<'_, [u8]> {
         self.data.to_bytes(self.length)
     }
 }
@@ -362,8 +362,7 @@ impl Serialize for Rope {
     /// deserialization won't deduplicate and share the Arcs (being the only
     /// possible owner of a individual "shared" data doesn't make sense).
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        use serde::ser::Error;
-        let bytes = self.to_bytes().map_err(Error::custom)?;
+        let bytes = self.to_bytes();
         match bytes {
             Cow::Borrowed(b) => serde_bytes::Bytes::new(b).serialize(serializer),
             Cow::Owned(b) => ByteBuf::from(b).serialize(serializer),
@@ -523,16 +522,17 @@ impl InnerRope {
     }
 
     /// Returns a slice of all bytes.
-    fn to_bytes(&self, len: usize) -> Result<Cow<'_, [u8]>> {
+    fn to_bytes(&self, len: usize) -> Cow<'_, [u8]> {
         match &self[..] {
-            [] => Ok(Cow::Borrowed(EMPTY_BUF)),
+            [] => Cow::Borrowed(EMPTY_BUF),
             [Shared(inner)] => inner.to_bytes(len),
-            [Local(bytes)] => Ok(Cow::Borrowed(bytes)),
+            [Local(bytes)] => Cow::Borrowed(bytes),
             _ => {
                 let mut read = RopeReader::new(self, 0);
                 let mut buf = Vec::with_capacity(len);
-                read.read_to_end(&mut buf)?;
-                Ok(Cow::Owned(buf))
+                read.read_to_end(&mut buf)
+                    .expect("rope reader should not fail");
+                buf.into()
             }
         }
     }
@@ -1045,7 +1045,7 @@ mod test {
     #[test]
     fn test_to_bytes() -> Result<()> {
         let rope = Rope::from("abc");
-        assert_eq!(rope.to_bytes()?, Cow::Borrowed::<[u8]>(&[0x61, 0x62, 0x63]));
+        assert_eq!(rope.to_bytes(), Cow::Borrowed::<[u8]>(&[0x61, 0x62, 0x63]));
         Ok(())
     }
 }
