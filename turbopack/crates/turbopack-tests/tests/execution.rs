@@ -11,7 +11,7 @@ use anyhow::{Context, Result};
 use dunce::canonicalize;
 use serde::{Deserialize, Serialize};
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, NonLocalValue, OperationVc, ResolvedVc, TryJoinIterExt, TurboTasks, Value, Vc,
     apply_effects, debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs,
@@ -404,7 +404,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
             ..Default::default()
         }
         .cell(),
-        Vc::cell("test".into()),
+        rcstr!("test"),
     ));
 
     let chunking_context = NodeJsChunkingContext::builder(

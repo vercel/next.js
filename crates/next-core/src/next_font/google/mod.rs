@@ -86,13 +86,11 @@ impl NextFontGoogleReplacer {
 
     #[turbo_tasks::function]
     async fn import_map_result(&self, query: RcStr) -> Result<Vc<ImportMapResult>> {
-        let request_hash = get_request_hash(&query).await?;
+        let request_hash = get_request_hash(&query);
         let qstr = qstring::QString::from(query.as_str());
 
-        let query_vc = Vc::cell(query);
-
         let font_data = load_font_data(*self.project_path);
-        let options = font_options_from_query_map(query_vc, font_data);
+        let options = font_options_from_query_map(query, font_data);
 
         let fallback = get_font_fallback(*self.project_path, options);
         let properties = get_font_css_properties(options, fallback).await?;
@@ -169,8 +167,8 @@ impl ImportMappingReplacement for NextFontGoogleReplacer {
         };
 
         let this = &*self.await?;
-        if can_use_next_font(*this.project_path, **query).await? {
-            Ok(self.import_map_result(query.await?.as_str().into()))
+        if can_use_next_font(*this.project_path, query).await? {
+            Ok(self.import_map_result(query.clone()))
         } else {
             Ok(ImportMapResult::NoEntry.into())
         }
@@ -198,10 +196,9 @@ impl NextFontGoogleCssModuleReplacer {
 
     #[turbo_tasks::function]
     async fn import_map_result(&self, query: RcStr) -> Result<Vc<ImportMapResult>> {
-        let request_hash = get_request_hash(&query).await?;
-        let query_vc = Vc::cell(query);
+        let request_hash = get_request_hash(&query);
         let font_data = load_font_data(*self.project_path);
-        let options = font_options_from_query_map(query_vc, font_data);
+        let options = font_options_from_query_map(query, font_data);
         let stylesheet_url = get_stylesheet_url_from_options(options, font_data);
         let scoped_font_family =
             get_scoped_font_family(FontFamilyType::WebFont.cell(), options.font_family());
@@ -291,14 +288,14 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
         let Request::Module {
             module: _,
             path: _,
-            query: query_vc,
+            query,
             fragment: _,
         } = request
         else {
             return Ok(ImportMapResult::NoEntry.cell());
         };
 
-        Ok(self.import_map_result(query_vc.owned().await?))
+        Ok(self.import_map_result(query.clone()))
     }
 }
 
@@ -342,7 +339,7 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
         let Request::Module {
             module: _,
             path: _,
-            query: query_vc,
+            query,
             fragment: _,
         } = request
         else {
@@ -353,7 +350,7 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
             url,
             preload,
             has_size_adjust: size_adjust,
-        } = font_file_options_from_query_map(**query_vc).await?;
+        } = font_file_options_from_query_map(query)?;
 
         let (filename, ext) = split_extension(&url);
         let ext = ext.with_context(|| format!("font url {} is missing an extension", &url))?;
@@ -562,10 +559,10 @@ async fn get_font_css_properties(
 
 #[turbo_tasks::function]
 async fn font_options_from_query_map(
-    query: Vc<RcStr>,
+    query: RcStr,
     font_data: Vc<FontData>,
 ) -> Result<Vc<NextFontGoogleOptions>> {
-    let query_map = qstring::QString::from(&**query.await?);
+    let query_map = qstring::QString::from(query.as_str());
 
     if query_map.len() != 1 {
         bail!("next/font/google queries must have exactly one entry");
@@ -579,11 +576,8 @@ async fn font_options_from_query_map(
         options_from_request(&parse_json_with_source_context(&json)?, &*font_data.await?)?;
     Ok(NextFontGoogleOptions::new(Value::new(options)))
 }
-
-async fn font_file_options_from_query_map(
-    query: Vc<RcStr>,
-) -> Result<NextFontGoogleFontFileOptions> {
-    let query_map = qstring::QString::from(&**query.await?);
+fn font_file_options_from_query_map(query: &RcStr) -> Result<NextFontGoogleFontFileOptions> {
+    let query_map = qstring::QString::from(query.as_str());
 
     if query_map.len() != 1 {
         bail!("next/font/google queries have exactly one entry");

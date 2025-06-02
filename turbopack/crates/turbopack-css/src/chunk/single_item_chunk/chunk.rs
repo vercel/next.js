@@ -1,7 +1,7 @@
 use std::fmt::Write;
 
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath, rope::RopeBuilder};
 use turbopack_core::{
@@ -75,7 +75,7 @@ impl SingleItemCssChunk {
     #[turbo_tasks::function]
     pub(super) async fn ident_for_path(&self) -> Result<Vc<AssetIdent>> {
         let item = self.item.asset_ident();
-        Ok(item.with_modifier(single_item_modifier()))
+        Ok(item.with_modifier(rcstr!("single item css chunk")))
     }
 }
 
@@ -91,11 +91,6 @@ impl Chunk for SingleItemCssChunk {
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         *self.chunking_context
     }
-}
-
-#[turbo_tasks::function]
-fn single_item_modifier() -> Vc<RcStr> {
-    Vc::cell("single item css chunk".into())
 }
 
 #[turbo_tasks::value_impl]

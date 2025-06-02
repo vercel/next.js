@@ -1,5 +1,5 @@
 use anyhow::{Result, bail};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack::css::chunk::CssChunkPlaceable;
 use turbopack_core::{
@@ -31,18 +31,13 @@ impl CssClientReferenceModule {
     }
 }
 
-#[turbo_tasks::function]
-fn css_client_reference_modifier() -> Vc<RcStr> {
-    Vc::cell("css client reference".into())
-}
-
 #[turbo_tasks::value_impl]
 impl Module for CssClientReferenceModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         self.client_module
             .ident()
-            .with_modifier(css_client_reference_modifier())
+            .with_modifier(rcstr!("css client reference"))
     }
 
     #[turbo_tasks::function]

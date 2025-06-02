@@ -22,7 +22,7 @@ use next_core::{
 };
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Completions, FxIndexMap, IntoTraitRef, NonLocalValue, OperationValue, OperationVc,
     ReadRef, ResolvedVc, State, TaskInput, TransientInstance, TryFlatJoinIterExt, Value, Vc,
@@ -1308,7 +1308,7 @@ impl Project {
                 self.next_config(),
                 self.execution_context(),
             ),
-            Vc::cell("middleware-edge".into()),
+            rcstr!("middleware-edge"),
         )))
     }
 
@@ -1363,7 +1363,7 @@ impl Project {
                 self.next_config(),
                 self.execution_context(),
             ),
-            Vc::cell("middleware".into()),
+            rcstr!("middleware"),
         )))
     }
 
@@ -1475,7 +1475,7 @@ impl Project {
                 self.next_config(),
                 self.execution_context(),
             ),
-            Vc::cell("instrumentation".into()),
+            rcstr!("instrumentation"),
         )))
     }
 
@@ -1530,7 +1530,7 @@ impl Project {
                 self.next_config(),
                 self.execution_context(),
             ),
-            Vc::cell("instrumentation-edge".into()),
+            rcstr!("instrumentation-edge"),
         )))
     }
 
