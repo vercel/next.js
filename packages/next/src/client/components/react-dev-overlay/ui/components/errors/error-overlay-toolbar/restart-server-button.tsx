@@ -38,7 +38,7 @@ export function RestartServerButton({ error }: { error: Error }) {
   function handleClick() {
     let endpoint = '/__nextjs_restart_dev'
 
-    if (window.__NEXT_TURBOPACK_PERSISTENT_CACHE) {
+    if (process.env.__NEXT_TURBOPACK_PERSISTENT_CACHE) {
       endpoint = '/__nextjs_restart_dev?invalidatePersistentCache'
     }
 
