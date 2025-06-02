@@ -1,5 +1,5 @@
 import { PureComponent } from 'react'
-import { dispatcher } from './app-dev-overlay' with { 'turbopack-transition': 'nextjs-devtools' }
+import { dispatcher } from './app-dev-overlay' with { 'turbopack-transition': 'next-devtools' }
 import { RuntimeErrorHandler } from '../../errors/runtime-error-handler'
 import { ErrorBoundary } from '../../error-boundary'
 import DefaultGlobalError, {

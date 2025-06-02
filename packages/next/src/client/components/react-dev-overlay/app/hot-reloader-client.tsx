@@ -6,7 +6,7 @@ import stripAnsi from 'next/dist/compiled/strip-ansi'
 import formatWebpackMessages from '../utils/format-webpack-messages'
 import { useRouter } from '../../navigation'
 import { REACT_REFRESH_FULL_RELOAD, reportInvalidHmrMessage } from '../shared'
-import { dispatcher } from './app-dev-overlay' with { 'turbopack-transition': 'nextjs-devtools' }
+import { dispatcher } from './app-dev-overlay' with { 'turbopack-transition': 'next-devtools' }
 import { ReplaySsrOnlyErrors } from './replay-ssr-only-errors'
 import { AppDevOverlayErrorBoundary } from './app-dev-overlay-error-boundary'
 import { useErrorHandler } from '../../errors/use-error-handler'

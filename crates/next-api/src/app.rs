@@ -387,6 +387,10 @@ impl AppProject {
                 ("next-ssr".into(), ssr_transition.to_resolved().await?),
                 ("next-shared".into(), shared_transition.to_resolved().await?),
                 (
+                    "next-devtools".into(),
+                    ResolvedVc::upcast(self.devtools_transition().to_resolved().await?),
+                ),
+                (
                     "next-server-utility".into(),
                     ResolvedVc::upcast(NextServerUtilityTransition::new().to_resolved().await?),
                 ),
@@ -487,6 +491,10 @@ impl AppProject {
                 ResolvedVc::upcast(self.shared_transition().to_resolved().await?),
             ),
             (
+                "next-devtools".into(),
+                ResolvedVc::upcast(self.devtools_transition().to_resolved().await?),
+            ),
+            (
                 "next-server-utility".into(),
                 ResolvedVc::upcast(NextServerUtilityTransition::new().to_resolved().await?),
             ),
@@ -536,6 +544,10 @@ impl AppProject {
             (
                 "next-shared".into(),
                 ResolvedVc::upcast(self.edge_shared_transition().to_resolved().await?),
+            ),
+            (
+                "next-devtools".into(),
+                ResolvedVc::upcast(self.devtools_transition().to_resolved().await?),
             ),
             (
                 "next-server-utility".into(),
@@ -652,6 +664,10 @@ impl AppProject {
                 "next-shared".into(),
                 ResolvedVc::upcast(self.shared_transition().to_resolved().await?),
             ),
+            (
+                "next-devtools".into(),
+                ResolvedVc::upcast(self.devtools_transition().to_resolved().await?),
+            ),
         ]
         .into_iter()
         .collect();
@@ -694,6 +710,25 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
+    async fn devtools_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
+        Ok(ModuleAssetContext::new(
+            TransitionOptions {
+                ..Default::default()
+            }
+            .cell(),
+            self.project().client_compile_time_info(),
+            self.client_module_options_context(),
+            self.client_resolve_options_context(),
+            Vc::cell("devtools".into()),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    fn devtools_transition(self: Vc<Self>) -> Vc<Box<dyn Transition>> {
+        Vc::upcast(FullContextTransition::new(self.devtools_module_context()))
+    }
+
+    #[turbo_tasks::function]
     async fn edge_ssr_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
         let transitions = [
             (
@@ -711,6 +746,10 @@ impl AppProject {
             (
                 "next-shared".into(),
                 ResolvedVc::upcast(self.edge_shared_transition().to_resolved().await?),
+            ),
+            (
+                "next-devtools".into(),
+                ResolvedVc::upcast(self.devtools_transition().to_resolved().await?),
             ),
         ]
         .into_iter()
