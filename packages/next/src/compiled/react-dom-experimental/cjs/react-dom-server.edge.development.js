@@ -2816,6 +2816,7 @@
               "symbol" !== typeof child$jscomp$1 &&
               null !== child$jscomp$1 &&
               void 0 !== child$jscomp$1 &&
+              target$jscomp$0.push(
                 stringToChunk(escapeStyleTextContent(child$jscomp$1))
               );
             pushInnerHTML(
