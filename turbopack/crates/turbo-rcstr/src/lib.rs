@@ -37,8 +37,8 @@ mod tagged_value;
 ///
 /// ## Conversion
 ///
-/// Converting a `String` or `&str` to an `RcStr` can be perfomed using `.into()` or
-/// `RcStr::from(...)`:
+/// Converting a `String` or `&str` to an `RcStr` can be perfomed using `.into()`,
+/// `RcStr::from(...)`, or the `rcstr!` macro.
 ///
 /// ```
 /// # use turbo_rcstr::RcStr;
@@ -46,6 +46,7 @@ mod tagged_value;
 /// let s = "foo";
 /// let rc_s1: RcStr = s.into();
 /// let rc_s2 = RcStr::from(s);
+/// let rc_s3 = rcstr!("foo");
 /// assert_eq!(rc_s1, rc_s2);
 /// ```
 ///
