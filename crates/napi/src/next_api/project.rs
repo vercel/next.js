@@ -31,7 +31,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{
     Completion, Effects, FxIndexSet, OperationVc, ReadRef, ResolvedVc, TransientInstance,
     TryJoinIterExt, UpdateInfo, Vc, get_effects,
-    message_queue::{CompilationEvent, DiagnosticEvent, Severity, TimingEvent},
+    message_queue::{CompilationEvent, Severity, TimingEvent},
 };
 use turbo_tasks_fs::{
     DiskFileSystem, FileContent, FileSystem, FileSystemPath, get_relative_path_to,
@@ -404,11 +404,6 @@ pub async fn project_new(
         dependency_tracking,
         is_ci,
     )?;
-
-    turbo_tasks.send_compilation_event(Arc::new(DiagnosticEvent::new(
-        Severity::Info,
-        "Starting the compilation events server ...".to_owned(),
-    )));
 
     let stats_path = std::env::var_os("NEXT_TURBOPACK_TASK_STATISTICS");
     if let Some(stats_path) = stats_path {
@@ -869,7 +864,7 @@ pub async fn project_write_all_entrypoints_to_disk(
 
             // Send a compilation event to indicate that the files have been written to disk
             compilation_event_sender.send_compilation_event(Arc::new(TimingEvent::new(
-                "Finished writing all entrypoints to disk".to_owned(),
+                "Finished writing to disk".to_owned(),
                 now.elapsed(),
             )));
 
