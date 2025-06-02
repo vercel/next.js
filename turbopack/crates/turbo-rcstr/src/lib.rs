@@ -451,4 +451,18 @@ mod tests {
         };
         assert_eq!(STR, RcStr::from("hello"));
     }
+
+    #[test]
+    fn test_hash() {
+        let long_string = "A very long long long string that would not be inlined";
+
+        let str = RcStr::from(long_string);
+        assert_eq!(fxhash(str), fxhash(long_string));
+    }
+
+    fn fxhash<T: Hash>(value: T) -> u64 {
+        let mut hasher = FxHasher::default();
+        value.hash(&mut hasher);
+        hasher.finish()
+    }
 }
