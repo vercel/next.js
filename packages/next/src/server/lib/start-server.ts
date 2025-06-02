@@ -16,6 +16,7 @@ import path from 'path'
 import http from 'http'
 import https from 'https'
 import os from 'os'
+import { exec } from 'child_process'
 import Watchpack from 'next/dist/compiled/watchpack'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
@@ -37,6 +38,51 @@ import type { ConfiguredExperimentalFeature } from '../config'
 
 const debug = setupDebug('next:start-server')
 let startServerSpan: Span | undefined
+
+/**
+ * Get the process ID (PID) of the process using the specified port
+ */
+async function getProcessIdUsingPort(port: number): Promise<string | null> {
+  return new Promise((resolve) => {
+    try {
+      // Use lsof on Unix-like systems (macOS, Linux)
+      if (process.platform !== 'win32') {
+        exec(`lsof -ti:${port}`, (error, stdout) => {
+          if (error) {
+            debug('Failed to get process ID for port', port, error)
+            resolve(null)
+            return
+          }
+          const pid = stdout.trim()
+          resolve(pid || null)
+        })
+      } else {
+        // Use netstat on Windows
+        exec(
+          `netstat -ano | findstr :${port} | findstr LISTENING`,
+          (error, stdout) => {
+            if (error) {
+              debug('Failed to get process ID for port', port, error)
+              resolve(null)
+              return
+            }
+            const lines = stdout.trim().split('\n')
+            if (lines.length > 0) {
+              const parts = lines[0].trim().split(/\s+/)
+              const pid = parts[parts.length - 1]
+              resolve(pid || null)
+            } else {
+              resolve(null)
+            }
+          }
+        )
+      }
+    } catch (error) {
+      debug('Failed to get process ID for port', port, error)
+      resolve(null)
+    }
+  })
+}
 
 export interface StartServerOptions {
   dir: string
@@ -244,9 +290,16 @@ export async function startServer(
       port = typeof addr === 'object' ? addr?.port || port : port
 
       if (portRetryCount) {
-        Log.warn(
-          `Port ${originalPort} is in use, using available port ${port} instead.`
-        )
+        const pid = await getProcessIdUsingPort(originalPort)
+        if (pid) {
+          Log.warn(
+            `Port ${originalPort} is in use by process ${pid}, using available port ${port} instead.`
+          )
+        } else {
+          Log.warn(
+            `Port ${originalPort} is in use, using available port ${port} instead.`
+          )
+        }
       }
 
       const networkHostname =
