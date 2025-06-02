@@ -1,6 +1,6 @@
 use std::{
     cell::RefCell,
-    collections::{hash_map, BTreeMap},
+    collections::{BTreeMap, hash_map},
     convert::{TryFrom, TryInto},
     mem::{replace, take},
     path::{Path, PathBuf},
@@ -16,23 +16,23 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
 use sha1::{Digest, Sha1};
 use swc_core::{
-    atoms::{atom, Atom},
+    atoms::{Atom, atom},
     common::{
+        BytePos, DUMMY_SP, FileName, Mark, SourceMap, Span, SyntaxContext,
         comments::{Comment, CommentKind, Comments, SingleThreadedComments},
         errors::HANDLER,
-        source_map::{SourceMapGenConfig, PURE_SP},
+        source_map::{PURE_SP, SourceMapGenConfig},
         util::take::Take,
-        BytePos, FileName, Mark, SourceMap, Span, SyntaxContext, DUMMY_SP,
     },
     ecma::{
         ast::*,
-        codegen::{self, text_writer::JsWriter, Emitter},
-        utils::{private_ident, quote_ident, ExprFactory},
-        visit::{noop_visit_mut_type, visit_mut_pass, VisitMut, VisitMutWith},
+        codegen::{self, Emitter, text_writer::JsWriter},
+        utils::{ExprFactory, private_ident, quote_ident},
+        visit::{VisitMut, VisitMutWith, noop_visit_mut_type, visit_mut_pass},
     },
     quote,
 };
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 
 use crate::FxIndexMap;
 
@@ -2778,7 +2778,7 @@ impl DirectiveVisitor<'_> {
 
                         if value == "use cache" {
                             self.directive = Some(Directive::UseCache {
-                                cache_kind: RcStr::from("default"),
+                                cache_kind: rcstr!("default"),
                             });
                             self.increment_cache_usage_counter("default");
                         } else {

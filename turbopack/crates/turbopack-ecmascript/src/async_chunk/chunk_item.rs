@@ -1,6 +1,5 @@
 use anyhow::Result;
 use indoc::formatdoc;
-use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, Vc};
 use turbopack_core::{
     chunk::{

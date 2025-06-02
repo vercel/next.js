@@ -23,7 +23,6 @@ pub mod source_context;
 pub mod util;
 pub(crate) mod virtual_fs;
 mod watcher;
-
 use std::{
     borrow::Cow,
     cmp::{Ordering, min},
@@ -57,7 +56,7 @@ use tokio::{
     sync::{RwLock, RwLockReadGuard},
 };
 use tracing::Instrument;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     ApplyEffectsContext, Completion, InvalidationReason, Invalidator, NonLocalValue, ReadRef,
     ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, effect, mark_session_dependent,
@@ -2404,7 +2403,7 @@ impl FileSystem for NullFileSystem {
 impl ValueToString for NullFileSystem {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(RcStr::from("null"))
+        Vc::cell(rcstr!("null"))
     }
 }
 

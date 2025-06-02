@@ -846,7 +846,7 @@ mod tests {
         assert_eq!(
             (
                 Pattern::Constant(rcstr!("foo")),
-                RcStr::from("?"),
+                rcstr!("?"),
                 RcStr::default()
             ),
             split_off_query_fragment("foo?")
@@ -855,14 +855,14 @@ mod tests {
             (
                 Pattern::Constant(rcstr!("foo")),
                 RcStr::default(),
-                RcStr::from("#")
+                rcstr!("#")
             ),
             split_off_query_fragment("foo#")
         );
         assert_eq!(
             (
                 Pattern::Constant(rcstr!("foo")),
-                RcStr::from("?bar=baz"),
+                rcstr!("?bar=baz"),
                 RcStr::default()
             ),
             split_off_query_fragment("foo?bar=baz")
@@ -871,7 +871,7 @@ mod tests {
             (
                 Pattern::Constant(rcstr!("foo")),
                 RcStr::default(),
-                RcStr::from("#stuff?bar=baz")
+                rcstr!("#stuff?bar=baz")
             ),
             split_off_query_fragment("foo#stuff?bar=baz")
         );
@@ -879,8 +879,8 @@ mod tests {
         assert_eq!(
             (
                 Pattern::Constant(rcstr!("foo")),
-                RcStr::from("?bar=baz"),
-                RcStr::from("#stuff")
+                rcstr!("?bar=baz"),
+                rcstr!("#stuff")
             ),
             split_off_query_fragment("foo?bar=baz#stuff")
         );

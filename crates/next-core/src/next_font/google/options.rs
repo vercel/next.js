@@ -437,7 +437,7 @@ mod tests {
         )?;
 
         let options = options_from_request(&request, &data)?;
-        assert_eq!(options.styles, vec![RcStr::from("italic")]);
+        assert_eq!(options.styles, vec![rcstr!("italic")]);
 
         Ok(())
     }
@@ -469,7 +469,7 @@ mod tests {
         )?;
 
         let options = options_from_request(&request, &data)?;
-        assert_eq!(options.styles, vec![RcStr::from("normal")]);
+        assert_eq!(options.styles, vec![rcstr!("normal")]);
 
         Ok(())
     }

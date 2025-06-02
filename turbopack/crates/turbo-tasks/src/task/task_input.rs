@@ -3,7 +3,7 @@ use std::{any::Any, fmt::Debug, future::Future, hash::Hash, sync::Arc, time::Dur
 use anyhow::Result;
 use either::Either;
 use serde::{Deserialize, Serialize};
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::RcStr;
 
 use crate::{
     MagicAny, ResolvedVc, TaskId, TransientInstance, TransientValue, Value, ValueTypeId, Vc,
@@ -322,6 +322,7 @@ tuple_impls! { A B C D E F G H I J K L }
 
 #[cfg(test)]
 mod tests {
+    use turbo_rcstr::rcstr;
     use turbo_tasks_macros::TaskInput;
 
     use super::*;
@@ -406,7 +407,7 @@ mod tests {
         struct GenericField<T>(T);
 
         assert_task_input(GenericField(42));
-        assert_task_input(GenericField(RcStr::from("42")));
+        assert_task_input(GenericField(rcstr!("42")));
         Ok(())
     }
 

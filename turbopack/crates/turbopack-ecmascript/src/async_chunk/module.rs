@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},

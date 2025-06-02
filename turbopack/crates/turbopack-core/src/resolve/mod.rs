@@ -1927,7 +1927,7 @@ async fn resolve_internal_inline(
                 fragment,
             } => {
                 let mut new_pat = path.clone();
-                new_pat.push_front(RcStr::from(".").into());
+                new_pat.push_front(rcstr!(".").into());
                 let relative =
                     Request::relative(Value::new(new_pat), query.clone(), fragment.clone(), true);
 
@@ -2700,7 +2700,7 @@ async fn resolve_into_package(
 
     if could_match_others {
         let mut new_pat = path.clone();
-        new_pat.push_front(RcStr::from(".").into());
+        new_pat.push_front(rcstr!(".").into());
 
         let relative = Request::relative(Value::new(new_pat), query, fragment, true)
             .to_resolved()
