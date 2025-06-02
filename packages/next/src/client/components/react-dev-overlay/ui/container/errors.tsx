@@ -17,9 +17,10 @@ import {
 } from '../../../react-19-hydration-error'
 import type { ReadyRuntimeError } from '../../utils/get-error-by-type'
 import type { ErrorBaseProps } from '../components/errors/error-overlay/error-overlay'
-import { getSquashedHydrationErrorDetails } from '../../pages/hydration-error-state'
+import type { HydrationErrorState } from '../../pages/hydration-error-state'
 
 export interface ErrorsProps extends ErrorBaseProps {
+  getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
   runtimeErrors: ReadyRuntimeError[]
   debugInfo: DebugInfo
   onClose: () => void
@@ -72,7 +73,10 @@ const noErrorDetails = {
   notes: null,
   reactOutputComponentDiff: null,
 }
-function useErrorDetails(error: Error | undefined): {
+function useErrorDetails(
+  error: Error | undefined,
+  getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
+): {
   hydrationWarning: string | null
   notes: string | null
   reactOutputComponentDiff: string | null
@@ -106,10 +110,11 @@ function useErrorDetails(error: Error | undefined): {
       notes,
       reactOutputComponentDiff: diff,
     }
-  }, [error])
+  }, [error, getSquashedHydrationErrorDetails])
 }
 
 export function Errors({
+  getSquashedHydrationErrorDetails,
   runtimeErrors,
   debugInfo,
   onClose,
@@ -127,7 +132,10 @@ export function Errors({
     () => runtimeErrors[activeIdx] ?? null,
     [activeIdx, runtimeErrors]
   )
-  const errorDetails = useErrorDetails(activeError?.error)
+  const errorDetails = useErrorDetails(
+    activeError?.error,
+    getSquashedHydrationErrorDetails
+  )
 
   if (isLoading) {
     // TODO: better loading state
