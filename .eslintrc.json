@@ -126,7 +126,7 @@
       }
     },
     {
-      "files": ["packages/**/*.tsx?"],
+      "files": ["packages/**/*.ts", "packages/**/*.tsx"],
       "rules": {
         "jsdoc/no-types": "error",
         "jsdoc/no-undefined-types": "error"
