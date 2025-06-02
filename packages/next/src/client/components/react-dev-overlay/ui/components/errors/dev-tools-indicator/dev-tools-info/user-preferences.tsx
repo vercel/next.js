@@ -69,7 +69,7 @@ export function UserPreferences({
   function handleRestartDevServer() {
     let endpoint = '/__nextjs_restart_dev'
 
-    if (window.__NEXT_TURBOPACK_PERSISTENT_CACHE) {
+    if (process.env.__NEXT_TURBOPACK_PERSISTENT_CACHE) {
       endpoint = '/__nextjs_restart_dev?invalidatePersistentCache'
     }
 
@@ -202,7 +202,7 @@ export function UserPreferences({
           </div>
         </div>
       </div>
-      {window.__NEXT_TURBOPACK_PERSISTENT_CACHE ? (
+      {process.env.__NEXT_TURBOPACK_PERSISTENT_CACHE ? (
         <div className="preferences-container">
           <div className="preference-section">
             <div className="preference-header">
