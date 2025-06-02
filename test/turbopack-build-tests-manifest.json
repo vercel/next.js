@@ -3652,11 +3652,13 @@
       "app dir - next/font app dir - next-font preconnect should add preconnect when preloading is disabled in component",
       "app dir - next/font app dir - next-font preconnect should add preconnect when preloading is disabled in layout",
       "app dir - next/font app dir - next-font preconnect should add preconnect when preloading is disabled in page",
+      "app dir - next/font app dir - next-font preconnect should add preconnect when preloading is disabled in template",
       "app dir - next/font app dir - next-font preconnect should not preconnect when css is used but no fonts",
       "app dir - next/font app dir - next-font preload should preload correctly with client components",
       "app dir - next/font app dir - next-font preload should preload correctly with layout using fonts",
       "app dir - next/font app dir - next-font preload should preload correctly with page using fonts",
-      "app dir - next/font app dir - next-font preload should preload correctly with server components"
+      "app dir - next/font app dir - next-font preload should preload correctly with server components",
+      "app dir - next/font app dir - next-font preload should preload correctly with template using fonts"
     ],
     "failed": [],
     "pending": [],
