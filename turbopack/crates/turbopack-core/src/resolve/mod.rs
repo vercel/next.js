@@ -1656,6 +1656,24 @@ pub async fn url_resolve(
     .await
 }
 
+#[turbo_tasks::value(transparent)]
+struct MatchingBeforeResolvePlugins(Vec<ResolvedVc<Box<dyn BeforeResolvePlugin>>>);
+
+#[turbo_tasks::function]
+async fn get_matching_before_resolve_plugins(
+    options: Vc<ResolveOptions>,
+    request: Vc<Request>,
+) -> Result<Vc<MatchingBeforeResolvePlugins>> {
+    let mut matching_plugins = Vec::new();
+    for &plugin in &options.await?.before_resolve_plugins {
+        let condition = plugin.before_resolve_condition().resolve().await?;
+        if *condition.matches(request).await? {
+            matching_plugins.push(plugin);
+        }
+    }
+    Ok(Vc::cell(matching_plugins))
+}
+
 #[tracing::instrument(level = "trace", skip_all)]
 async fn handle_before_resolve_plugins(
     lookup_path: Vc<FileSystemPath>,
@@ -1663,12 +1681,7 @@ async fn handle_before_resolve_plugins(
     request: Vc<Request>,
     options: Vc<ResolveOptions>,
 ) -> Result<Option<Vc<ResolveResult>>> {
-    for plugin in &options.await?.before_resolve_plugins {
-        let condition = plugin.before_resolve_condition().resolve().await?;
-        if !*condition.matches(request).await? {
-            continue;
-        }
-
+    for plugin in get_matching_before_resolve_plugins(options, request).await? {
         if let Some(result) = *plugin
             .before_resolve(lookup_path, reference_type.clone(), request)
             .await?
@@ -1677,6 +1690,24 @@ async fn handle_before_resolve_plugins(
         }
     }
     Ok(None)
+}
+
+#[turbo_tasks::value(transparent)]
+struct MatchingAfterResolvePlugins(Vec<ResolvedVc<Box<dyn AfterResolvePlugin>>>);
+
+#[turbo_tasks::function]
+async fn get_matching_after_resolve_plugins(
+    options: Vc<ResolveOptions>,
+    path: Vc<FileSystemPath>,
+) -> Result<Vc<MatchingAfterResolvePlugins>> {
+    let mut matching_plugins = Vec::new();
+    for &plugin in &options.await?.after_resolve_plugins {
+        let after_resolve_condition = plugin.after_resolve_condition().resolve().await?;
+        if *after_resolve_condition.matches(path).await? {
+            matching_plugins.push(plugin);
+        }
+    }
+    Ok(Vc::cell(matching_plugins))
 }
 
 #[tracing::instrument(level = "trace", skip_all)]
@@ -1694,15 +1725,12 @@ async fn handle_after_resolve_plugins(
         request: Vc<Request>,
         options: Vc<ResolveOptions>,
     ) -> Result<Option<Vc<ResolveResult>>> {
-        for plugin in &options.await?.after_resolve_plugins {
-            let after_resolve_condition = plugin.after_resolve_condition().resolve().await?;
-            if *after_resolve_condition.matches(path).await? {
-                if let Some(result) = *plugin
-                    .after_resolve(path, lookup_path, reference_type.clone(), request)
-                    .await?
-                {
-                    return Ok(Some(*result));
-                }
+        for &plugin in get_matching_after_resolve_plugins(options, path).await? {
+            if let Some(result) = *plugin
+                .after_resolve(path, lookup_path, reference_type.clone(), request)
+                .await?
+            {
+                return Ok(Some(*result));
             }
         }
         Ok(None)
