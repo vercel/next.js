@@ -416,7 +416,7 @@ smallvec = { version = "1.13.1", features = [
   "union",
   "const_new",
 ] }
-sourcemap = "9.2.1"
+sourcemap = "9.2.2"
 strsim = "0.11.1"
 shrink-to-fit = "0.2.10"
 swc-rustc-hash = { package = "rustc-hash", version = "1.1.0" } # used with swc
@@ -440,5 +440,3 @@ webbrowser = "0.8.7"
 
 [patch.crates-io]
 mdxjs = { git = "https://github.com/kdy1/mdxjs-rs", branch = "swc-core-26" }
-# Use unreleased version of sourcemap, in the name of performance
-sourcemap = { git = "https://github.com/getsentry/rust-sourcemap", branch = "master" }
