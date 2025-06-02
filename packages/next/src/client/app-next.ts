@@ -10,8 +10,9 @@ const instrumentationHooks =
 appBootstrap(() => {
   const { hydrate } = require('./app-index') as typeof import('./app-index')
   // Include app-router and layout-router in the main chunk
-  // TODO: Why not relative imports?
-  require('next/dist/client/components/app-router') as typeof import('next/dist/client/components/app-router')
-  require('next/dist/client/components/layout-router') as typeof import('next/dist/client/components/layout-router')
+  // eslint-disable-next-line @next/internal/typechecked-require -- Why not relative imports?
+  require('next/dist/client/components/app-router')
+  // eslint-disable-next-line @next/internal/typechecked-require -- Why not relative imports?
+  require('next/dist/client/components/layout-router')
   hydrate(instrumentationHooks)
 })

@@ -48,11 +48,10 @@ export type LoadComponentsReturnType = {
 async function loadDefaultErrorComponentsImpl(
   distDir: string
 ): Promise<LoadComponentsReturnType> {
-  const Document = interopDefault(
-    require('next/dist/pages/_document') as typeof import('next/dist/pages/_document')
-  )
-  const AppMod =
-    require('next/dist/pages/_app') as typeof import('next/dist/pages/_app')
+  // eslint-disable-next-line @next/internal/typechecked-require -- Why not relative imports?
+  const Document = interopDefault(require('next/dist/pages/_document'))
+  // eslint-disable-next-line @next/internal/typechecked-require -- Why not relative imports?
+  const AppMod = require('next/dist/pages/_app')
   const App = interopDefault(AppMod)
 
   // Load the compiled route module for this builtin error.
