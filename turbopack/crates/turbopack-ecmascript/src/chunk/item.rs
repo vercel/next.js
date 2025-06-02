@@ -274,11 +274,7 @@ async fn module_factory_with_code_generation_issue(
         {
             Ok(factory) => factory,
             Err(error) => {
-                let id = chunk_item
-                    .chunking_context()
-                    .chunk_item_id(Vc::upcast(chunk_item))
-                    .to_string()
-                    .await;
+                let id = chunk_item.asset_ident().to_string().await;
                 let id = id.as_ref().map_or_else(|_| "unknown", |id| &**id);
                 let error = error.context(format!(
                     "An error occurred while generating the chunk item {id}"
