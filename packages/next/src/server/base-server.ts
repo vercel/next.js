@@ -2526,11 +2526,6 @@ export default abstract class Server<
        * The unknown route params for this render.
        */
       fallbackRouteParams: FallbackRouteParams | null
-
-      /**
-       * Whether this render supports dynamic HTML.
-       */
-      supportsDynamicResponse: true | undefined
     }
     type Renderer = (
       context: RendererContext
@@ -2540,16 +2535,22 @@ export default abstract class Server<
       postponed,
       pagesFallback = false,
       fallbackRouteParams,
-      // If we're in development, we always support dynamic HTML, unless it's
-      // a data request, in which case we only produce static HTML.
-      supportsDynamicResponse = (!isNextDataRequest && opts.dev === true) ||
+    }) => {
+      // In development, we always want to generate dynamic HTML.
+      let supportsDynamicResponse: boolean =
+        // If we're in development, we always support dynamic HTML, unless it's
+        // a data request, in which case we only produce static HTML.
+        (!isNextDataRequest && opts.dev === true) ||
         // If this is not SSG or does not have static paths, then it supports
         // dynamic HTML.
         (!isSSG && !hasGetStaticPaths) ||
         // If this request has provided postponed data, it supports dynamic
         // HTML.
-        typeof postponed === 'string',
-    }) => {
+        typeof postponed === 'string' ||
+        // If this is a dynamic RSC request, then this render supports dynamic
+        // HTML (it's dynamic).
+        isDynamicRSCRequest
+
       const origQuery = parseUrl(req.url || '', true).query
 
       // clear any dynamic route params so they aren't in
@@ -3053,7 +3054,6 @@ export default abstract class Server<
                 // aren't a app path.
                 pagesFallback: true,
                 fallbackRouteParams: null,
-                supportsDynamicResponse: undefined,
               })
             },
             {
@@ -3089,7 +3089,6 @@ export default abstract class Server<
                   isProduction || isDebugFallbackShell
                     ? getFallbackRouteParams(pathname)
                     : null,
-                supportsDynamicResponse: undefined,
               }),
             {
               routeKind: RouteKind.APP_PAGE,
@@ -3177,7 +3176,6 @@ export default abstract class Server<
         postponed,
         pagesFallback: undefined,
         fallbackRouteParams,
-        supportsDynamicResponse: undefined,
       })
     }
 
@@ -3226,7 +3224,6 @@ export default abstract class Server<
       // data. If this is a Dynamic RSC request or wasn't a Prefetch RSC
       // request, then we should set the cache header.
       !isDynamicRSCRequest &&
-      !isPossibleServerAction &&
       (!didPostpone || isPrefetchRSCRequest)
     ) {
       if (!this.minimalMode) {
@@ -3613,7 +3610,6 @@ export default abstract class Server<
         // This is a resume render, not a fallback render, so we don't need to
         // set this.
         fallbackRouteParams: null,
-        supportsDynamicResponse: true,
       })
         .then(async (result) => {
           if (!result) {
