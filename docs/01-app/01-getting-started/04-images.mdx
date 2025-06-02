@@ -82,7 +82,7 @@ export default function Page() {
 
 ### Statically imported images
 
-You can also import local images into a module. When doing so, Next.js will automatically determine the intrinsic [`width`](/docs/app/api-reference/components/image#width-and-height) and [`height`](/docs/app/api-reference/components/image#width-and-height) of your image based on the imported file. These values are used to determine the image ratio and prevent [Cumulative Layout Shift](https://web.dev/articles/cls) while your image is loading.
+You can also import and use local image files. Next.js will automatically determine the intrinsic [`width`](/docs/app/api-reference/components/image#width-and-height) and [`height`](/docs/app/api-reference/components/image#width-and-height) of your image based on the imported file. These values are used to determine the image ratio and prevent [Cumulative Layout Shift](https://web.dev/articles/cls) while your image is loading.
 
 ```tsx filename="app/page.tsx" switcher
 import Image from 'next/image'
