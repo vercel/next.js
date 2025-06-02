@@ -487,7 +487,7 @@ async function exportAppImpl(
         ) +
         `\n` +
         yellow(
-          `Learn more: https://nextjs.org/docs/pages/building-your-application/data-fetching/incremental-static-regeneration`
+          `Learn more: https://nextjs.org/docs/app/guides/incremental-static-regeneration`
         )
     )
   }
