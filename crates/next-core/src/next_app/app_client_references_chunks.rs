@@ -1,6 +1,6 @@
 use anyhow::Result;
 use tracing::Instrument;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::rcstr;
 use turbo_tasks::{
     FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, ValueToString, Vc,
 };
@@ -15,22 +15,12 @@ use crate::{
     next_client_reference::{
         ClientReferenceType,
         ecmascript_client_reference::ecmascript_client_reference_module::{
-            ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG_CLIENT, ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG_SSR,
+            ecmascript_client_reference_merge_tag, ecmascript_client_reference_merge_tag_ssr,
         },
         visit_client_reference::ClientReferenceGraphResult,
     },
     next_server_component::server_component_module::NextServerComponentModule,
 };
-
-#[turbo_tasks::function]
-pub fn client_modules_modifier() -> Vc<RcStr> {
-    Vc::cell("client modules".into())
-}
-
-#[turbo_tasks::function]
-pub fn ssr_modules_modifier() -> Vc<RcStr> {
-    Vc::cell("ssr modules".into())
-}
 
 #[turbo_tasks::value]
 pub struct ClientReferencesChunks {
@@ -224,10 +214,10 @@ pub async fn get_app_client_references_chunks(
                         .entered();
 
                         ssr_chunking_context.chunk_group(
-                            base_ident.with_modifier(ssr_modules_modifier()),
+                            base_ident.with_modifier(rcstr!("ssr modules")),
                             ChunkGroup::IsolatedMerged {
                                 parent: parent_chunk_group,
-                                merge_tag: ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG_SSR.clone(),
+                                merge_tag: ecmascript_client_reference_merge_tag_ssr(),
                                 entries: ssr_modules,
                             },
                             module_graph,
@@ -262,10 +252,10 @@ pub async fn get_app_client_references_chunks(
                     .entered();
 
                     Some(client_chunking_context.chunk_group(
-                        base_ident.with_modifier(client_modules_modifier()),
+                        base_ident.with_modifier(rcstr!("client modules")),
                         ChunkGroup::IsolatedMerged {
                             parent: parent_chunk_group,
-                            merge_tag: ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG_CLIENT.clone(),
+                            merge_tag: ecmascript_client_reference_merge_tag(),
                             entries: client_modules,
                         },
                         module_graph,

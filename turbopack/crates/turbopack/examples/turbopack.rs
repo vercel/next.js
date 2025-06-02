@@ -8,7 +8,7 @@ use std::{
 
 use anyhow::Result;
 use tokio::{spawn, time::sleep};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ReadConsistency, TurboTasks, UpdateInfo, Value, Vc, util::FormatDuration};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
@@ -62,7 +62,7 @@ async fn main() -> Result<()> {
                     ..Default::default()
                 }
                 .cell(),
-                Vc::cell("default".into()),
+                rcstr!("default"),
             );
             let module = module_asset_context
                 .process(

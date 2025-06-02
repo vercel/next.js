@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -20,11 +20,6 @@ use turbopack_ecmascript::{
 };
 
 use crate::output_asset::StaticOutputAsset;
-
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("static in ecmascript".into())
-}
 
 #[turbo_tasks::value]
 #[derive(Clone)]
@@ -52,7 +47,9 @@ impl StaticUrlJsModule {
 impl Module for StaticUrlJsModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        self.source.ident().with_modifier(modifier())
+        self.source
+            .ident()
+            .with_modifier(rcstr!("static in ecmascript"))
     }
 }
 

@@ -68,7 +68,7 @@ pub use transform::{
     CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransforms, TransformContext,
     TransformPlugin, UnsupportedServerActionIssue,
 };
-use turbo_rcstr::RcStr;
+use turbo_rcstr::rcstr;
 use turbo_tasks::{
     FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Value,
     ValueToString, Vc, trace::TraceRawVcs,
@@ -206,11 +206,6 @@ impl Display for EcmascriptModuleAssetType {
             EcmascriptModuleAssetType::TypescriptDeclaration => write!(f, "typescript declaration"),
         }
     }
-}
-
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("ecmascript".into())
 }
 
 #[derive(Clone)]
@@ -610,24 +605,15 @@ impl EcmascriptModuleAsset {
 impl Module for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        let mut ident = self.source.ident().owned().await?;
         if let Some(inner_assets) = self.inner_assets {
-            let mut ident = self.source.ident().owned().await?;
             for (name, asset) in inner_assets.await?.iter() {
-                ident.add_asset(
-                    ResolvedVc::cell(name.to_string().into()),
-                    asset.ident().to_resolved().await?,
-                );
+                ident.add_asset(name.clone(), asset.ident().to_resolved().await?);
             }
-            ident.add_modifier(modifier().to_resolved().await?);
-            ident.layer = Some(self.asset_context.layer().to_resolved().await?);
-            Ok(AssetIdent::new(Value::new(ident)))
-        } else {
-            Ok(self
-                .source
-                .ident()
-                .with_modifier(modifier())
-                .with_layer(self.asset_context.layer()))
         }
+        ident.add_modifier(rcstr!("ecmascript"));
+        ident.layer = Some(self.asset_context.layer().owned().await?);
+        Ok(AssetIdent::new(Value::new(ident)))
     }
 
     #[turbo_tasks::function]

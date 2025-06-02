@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use anyhow::{Result, bail};
 use indoc::formatdoc;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -21,11 +21,6 @@ use turbopack_ecmascript::{
     runtime_functions::{TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_IMPORT},
     utils::StringifyJs,
 };
-
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("next/dynamic entry".into())
-}
 
 /// A [`NextDynamicEntryModule`] is a marker asset used to indicate which
 /// dynamic assets should appear in the dynamic manifest.
@@ -51,7 +46,9 @@ fn dynamic_ref_description() -> Vc<RcStr> {
 impl Module for NextDynamicEntryModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        self.module.ident().with_modifier(modifier())
+        self.module
+            .ident()
+            .with_modifier(rcstr!("next/dynamic entry"))
     }
 
     #[turbo_tasks::function]
