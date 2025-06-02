@@ -398,6 +398,8 @@ mod napi_impl {
 mod tests {
     use std::mem::ManuallyDrop;
 
+    use rustc_hash::FxHasher;
+
     use super::*;
 
     #[test]
