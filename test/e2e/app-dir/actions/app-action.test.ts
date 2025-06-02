@@ -551,10 +551,10 @@ describe('app-dir action handling', () => {
     // this triggers a revalidate + redirect in a client component
     await browser.elementById('redirect-revalidate-client').click()
     await retry(async () => {
+      expect(await browser.url()).toBe(`${next.url}/revalidate?foo=bar`)
+
       const newJustPutIt = await browser.elementById('justputit').text()
       expect(newJustPutIt).not.toBe(initialJustPutit)
-
-      expect(await browser.url()).toBe(`${next.url}/revalidate?foo=bar`)
     })
 
     // this triggers a revalidate + redirect in a server component
