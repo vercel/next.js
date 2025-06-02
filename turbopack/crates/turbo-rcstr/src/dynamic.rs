@@ -195,3 +195,36 @@ fn hash_bytes(bytes: &[u8]) -> u64 {
 
     multiply_mix(s0, s1) ^ (len as u64)
 }
+
+#[cfg(test)]
+mod tests {
+    use std::hash::{Hash, Hasher};
+
+    use rustc_hash::FxHasher;
+
+    use crate::RcStr;
+
+    #[test]
+    fn test_hash() {
+        let long_string = "A very long long long string that would not be inlined";
+
+        {
+            let u64_value = super::hash_bytes(long_string.as_bytes());
+            dbg!(u64_value);
+            let mut hasher = FxHasher::default();
+            hasher.write_u64(u64_value);
+            let expected = hasher.finish();
+
+            println!("Expected: {expected:?}");
+        }
+
+        let str = RcStr::from(long_string);
+        assert_eq!(fxhash(str), fxhash(long_string));
+    }
+
+    fn fxhash<T: Hash>(value: T) -> u64 {
+        let mut hasher = FxHasher::default();
+        value.hash(&mut hasher);
+        hasher.finish()
+    }
+}
