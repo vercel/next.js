@@ -32,7 +32,7 @@ use swc_core::{
     },
     quote,
 };
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::RcStr;
 
 use crate::FxIndexMap;
 
@@ -2778,7 +2778,7 @@ impl DirectiveVisitor<'_> {
 
                         if value == "use cache" {
                             self.directive = Some(Directive::UseCache {
-                                cache_kind: rcstr!("default"),
+                                cache_kind: "default".into(),
                             });
                             self.increment_cache_usage_counter("default");
                         } else {
