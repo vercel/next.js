@@ -5,6 +5,7 @@ edition = "2024"
 license = "MIT"
 
 [features]
+default = ["atom_size_128"]
 atom_size_64 = []
 atom_size_128 = []
 napi = ["dep:napi"]
