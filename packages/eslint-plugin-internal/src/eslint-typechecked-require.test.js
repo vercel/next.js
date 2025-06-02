@@ -122,6 +122,11 @@ describe('require-cast-to-import ESLint rule', () => {
         code: `const module = require()`,
         filename: 'test.ts',
       },
+
+      {
+        code: `const config = require('./config.json')`,
+        filename: 'test.ts',
+      },
     ],
 
     invalid: [
@@ -287,14 +292,6 @@ describe('require-cast-to-import ESLint rule', () => {
         filename: 'test.ts',
         errors: [{ messageId: 'missingCast' }],
         output: `const util = (require('../../../../utils/deep/nested') as typeof import('../../../../utils/deep/nested'))`,
-      },
-
-      // ❌ File extensions in require
-      {
-        code: `const config = require('./config.json')`,
-        filename: 'test.ts',
-        errors: [{ messageId: 'missingCast' }],
-        output: `const config = (require('./config.json') as typeof import('./config.json'))`,
       },
 
       // ❌ Multiple violations in one file

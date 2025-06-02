@@ -42,6 +42,11 @@ module.exports = {
       const requireSource = node.arguments[0].value
       const parent = node.parent
 
+      // json is fine because we have resolveJsonModule disabled in our TS project
+      if (requireSource.endsWith('.json')) {
+        return
+      }
+
       // Check if the require is wrapped in a TypeScript assertion
       if (parent && parent.type === 'TSAsExpression') {
         const typeAnnotation = parent.typeAnnotation
