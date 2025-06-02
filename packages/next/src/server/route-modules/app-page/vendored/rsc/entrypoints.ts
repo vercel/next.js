@@ -36,8 +36,9 @@ let ReactServerDOMTurbopackServerNode, ReactServerDOMWebpackServerNode
 let ReactServerDOMTurbopackStaticEdge, ReactServerDOMWebpackStaticEdge
 
 if (process.env.TURBOPACK) {
-  // eslint-disable-next-line import/no-extraneous-dependencies
   ReactServerDOMTurbopackServerEdge =
+    // @ts-expect-error -- TODO: Add types
+    // eslint-disable-next-line import/no-extraneous-dependencies
     require('react-server-dom-turbopack/server.edge') as typeof import('react-server-dom-turbopack/server.edge')
   if (process.env.NODE_ENV === 'development') {
     ReactServerDOMWebpackServerEdge = getAltProxyForBindingsDEV(
@@ -45,8 +46,9 @@ if (process.env.TURBOPACK) {
       'react-server-dom-turbopack/server.edge'
     )
   }
-  // eslint-disable-next-line import/no-extraneous-dependencies
   ReactServerDOMTurbopackServerNode =
+    // @ts-expect-error -- TODO: Add types
+    // eslint-disable-next-line import/no-extraneous-dependencies
     require('react-server-dom-turbopack/server.node') as typeof import('react-server-dom-turbopack/server.node')
   if (process.env.NODE_ENV === 'development') {
     ReactServerDOMWebpackServerNode = getAltProxyForBindingsDEV(
@@ -54,8 +56,9 @@ if (process.env.TURBOPACK) {
       'react-server-dom-turbopack/server.node'
     )
   }
-  // eslint-disable-next-line import/no-extraneous-dependencies
   ReactServerDOMTurbopackStaticEdge =
+    // @ts-expect-error -- TODO: Add types
+    // eslint-disable-next-line import/no-extraneous-dependencies
     require('react-server-dom-turbopack/static.edge') as typeof import('react-server-dom-turbopack/static.edge')
   if (process.env.NODE_ENV === 'development') {
     ReactServerDOMWebpackStaticEdge = getAltProxyForBindingsDEV(
@@ -64,8 +67,8 @@ if (process.env.TURBOPACK) {
     )
   }
 } else {
-  // eslint-disable-next-line import/no-extraneous-dependencies
   ReactServerDOMWebpackServerEdge =
+    // eslint-disable-next-line import/no-extraneous-dependencies
     require('react-server-dom-webpack/server.edge') as typeof import('react-server-dom-webpack/server.edge')
   if (process.env.NODE_ENV === 'development') {
     ReactServerDOMTurbopackServerEdge = getAltProxyForBindingsDEV(
@@ -73,8 +76,8 @@ if (process.env.TURBOPACK) {
       'react-server-dom-webpack/server.edge'
     )
   }
-  // eslint-disable-next-line import/no-extraneous-dependencies
   ReactServerDOMWebpackServerNode =
+    // eslint-disable-next-line import/no-extraneous-dependencies
     require('react-server-dom-webpack/server.node') as typeof import('react-server-dom-webpack/server.node')
   if (process.env.NODE_ENV === 'development') {
     ReactServerDOMTurbopackServerNode = getAltProxyForBindingsDEV(
@@ -82,8 +85,8 @@ if (process.env.TURBOPACK) {
       'react-server-dom-webpack/server.node'
     )
   }
-  // eslint-disable-next-line import/no-extraneous-dependencies
   ReactServerDOMWebpackStaticEdge =
+    // eslint-disable-next-line import/no-extraneous-dependencies
     require('react-server-dom-webpack/static.edge') as typeof import('react-server-dom-webpack/static.edge')
   if (process.env.NODE_ENV === 'development') {
     ReactServerDOMTurbopackStaticEdge = getAltProxyForBindingsDEV(

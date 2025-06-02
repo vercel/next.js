@@ -14,6 +14,7 @@ if (process.env.NEXT_RUNTIME === 'edge') {
   webCrypto = crypto
 } else {
   if (typeof crypto === 'undefined') {
+    // @ts-expect-error -- TODO: Is this actually safe?
     webCrypto = (require('node:crypto') as typeof import('node:crypto'))
       .webcrypto
   } else {

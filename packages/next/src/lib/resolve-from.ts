@@ -37,10 +37,13 @@ export const resolveFrom = (
   const fromFile = path.join(fromDirectory, 'noop.js')
 
   const resolveFileName = () =>
+    // @ts-expect-error
     Module._resolveFilename(moduleId, {
       id: fromFile,
       filename: fromFile,
-      paths: Module._nodeModulePaths(fromDirectory),
+      paths:
+        // @ts-expect-error
+        Module._nodeModulePaths(fromDirectory),
     })
 
   if (silent) {

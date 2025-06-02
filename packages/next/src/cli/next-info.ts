@@ -226,10 +226,10 @@ async function runSharedDependencyCheck(
       outputs.push(`Running ${tool.bin} ------------- `)
       // Captures output, doesn't matter if it fails or not since we'll forward both to output.
       const procPromise = new Promise((resolve) => {
-        proc.stdout.on('data', function (data: string) {
+        proc.stdout!.on('data', function (data: string) {
           outputs.push(data)
         })
-        proc.stderr.on('data', function (data: string) {
+        proc.stderr!.on('data', function (data: string) {
           outputs.push(data)
         })
         proc.on('close', (c: any) => resolve(c))

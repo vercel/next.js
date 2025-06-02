@@ -35,6 +35,7 @@ if (process.env.NEXT_RUNTIME === 'edge') {
   const randomBytesExpression = "`require('node:crypto').randomBytes(size)`"
   try {
     const _randomBytes = nodeCrypto.randomBytes
+    // @ts-expect-error -- TODO: tell TS the overloads are preserved
     nodeCrypto.randomBytes = function randomBytes() {
       if (typeof arguments[1] !== 'function') {
         // randomBytes is sync if the second arg is undefined
@@ -52,6 +53,7 @@ if (process.env.NEXT_RUNTIME === 'edge') {
     "`require('node:crypto').randomFillSync(...)`"
   try {
     const _randomFillSync = nodeCrypto.randomFillSync
+    // @ts-expect-error -- TODO: tell TS the overloads are preserved
     nodeCrypto.randomFillSync = function randomFillSync() {
       io(randomFillSyncExpression, 'random')
       return _randomFillSync.apply(this, arguments as any)
@@ -65,6 +67,7 @@ if (process.env.NEXT_RUNTIME === 'edge') {
   const randomIntExpression = "`require('node:crypto').randomInt(min, max)`"
   try {
     const _randomInt = nodeCrypto.randomInt
+    // @ts-expect-error -- TODO: tell TS the overloads are preserved
     nodeCrypto.randomInt = function randomInt() {
       if (typeof arguments[2] !== 'function') {
         // randomInt is sync if the third arg is undefined
@@ -82,6 +85,7 @@ if (process.env.NEXT_RUNTIME === 'edge') {
     "`require('node:crypto').generatePrimeSync(...)`"
   try {
     const _generatePrimeSync = nodeCrypto.generatePrimeSync
+    // @ts-expect-error -- TODO: tell TS the overloads are preserved
     nodeCrypto.generatePrimeSync = function generatePrimeSync() {
       io(generatePrimeSyncExpression, 'random')
       return _generatePrimeSync.apply(this, arguments as any)
@@ -96,6 +100,7 @@ if (process.env.NEXT_RUNTIME === 'edge') {
     "`require('node:crypto').generateKeyPairSync(...)`"
   try {
     const _generateKeyPairSync = nodeCrypto.generateKeyPairSync
+    // @ts-expect-error -- TODO: tell TS the overloads are preserved
     nodeCrypto.generateKeyPairSync = function generateKeyPairSync() {
       io(generateKeyPairSyncExpression, 'random')
       return _generateKeyPairSync.apply(this, arguments as any)

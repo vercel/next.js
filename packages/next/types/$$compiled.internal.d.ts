@@ -411,6 +411,7 @@ declare module 'next/dist/compiled/amphtml-validator' {
   import m from 'amphtml-validator'
   export = m
 }
+declare module 'next/dist/compiled/@ampproject/toolbox-optimizer'
 
 declare module 'next/dist/compiled/superstruct' {
   import * as m from 'superstruct'
@@ -553,6 +554,9 @@ declare module 'next/dist/compiled/jsonwebtoken' {
 declare module 'next/dist/compiled/lodash.curry' {
   import m from 'lodash.curry'
   export = m
+}
+declare module 'next/dist/compiled/nanoid' {
+  export * from 'nanoid'
 }
 declare module 'next/dist/compiled/picomatch' {
   import m from 'picomatch'

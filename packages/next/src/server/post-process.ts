@@ -37,6 +37,7 @@ async function postProcessHTML(
       ? async (html: string) => {
           // eslint-disable-next-line import/no-extraneous-dependencies
           const Critters = require('critters') as typeof import('critters')
+          // @ts-expect-error -- interopRequireDefault
           const cssOptimizer = new Critters({
             ssrMode: true,
             reduceInlineStyles: false,

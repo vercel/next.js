@@ -124,7 +124,10 @@ async function webpackBuildWithWorker(
 export async function webpackBuild(
   withWorker: boolean,
   compilerNames: typeof ORDERED_COMPILER_NAMES | null
-): ReturnType<typeof webpackBuildWithWorker> {
+): Promise<
+  | Awaited<ReturnType<typeof webpackBuildWithWorker>>
+  | Awaited<ReturnType<typeof import('./impl').webpackBuildImpl>>
+> {
   if (withWorker) {
     debug('using separate compiler workers')
     return await webpackBuildWithWorker(compilerNames)
@@ -132,7 +135,7 @@ export async function webpackBuild(
     debug('building all compilers in same process')
     const webpackBuildImpl = (require('./impl') as typeof import('./impl'))
       .webpackBuildImpl
-    const curResult = await webpackBuildImpl(null, null)
+    const curResult = await webpackBuildImpl(null)
 
     // Mirror what happens in webpackBuildWithWorker
     if (curResult.telemetryState) {
