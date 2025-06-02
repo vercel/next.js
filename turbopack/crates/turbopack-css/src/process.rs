@@ -521,7 +521,7 @@ impl CssError {
             CssError::CssSelectorInModuleNotPure { selector } => {
                 ParsingIssue {
                     file,
-                    msg: format!("{CSS_MODULE_ERROR}, (lightningcss, {selector})").into(),
+                    msg: format!("{CSS_MODULE_ERROR}, ({selector})").into(),
 
                     source: None,
                 }
