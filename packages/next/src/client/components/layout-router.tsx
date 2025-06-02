@@ -42,7 +42,7 @@ import { dispatchAppRouterAction } from './use-action-queue'
 import { useRouterBFCache, type RouterBFCacheEntry } from './bfcache'
 
 const Activity = process.env.__NEXT_ROUTER_BF_CACHE
-  ? require('react').unstable_Activity
+  ? (require('react') as typeof import('react')).unstable_Activity
   : null
 
 /**

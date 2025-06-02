@@ -12,7 +12,7 @@ import { io } from './utils'
 if (process.env.NEXT_RUNTIME === 'edge') {
   // nothing to patch
 } else {
-  const nodeCrypto = require('node:crypto')
+  const nodeCrypto = require('node:crypto') as typeof import('node:crypto')
 
   // require('node:crypto').getRandomValues is an alias for
   // crypto.getRandomValues which is extended in web-crypto.tsx

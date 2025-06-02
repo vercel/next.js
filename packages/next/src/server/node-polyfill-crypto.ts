@@ -8,7 +8,8 @@ if (!global.crypto) {
     configurable: true,
     get() {
       if (!webcrypto) {
-        webcrypto = require('node:crypto').webcrypto
+        webcrypto = (require('node:crypto') as typeof import('node:crypto'))
+          .webcrypto
       }
       return webcrypto
     },

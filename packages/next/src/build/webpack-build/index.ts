@@ -130,7 +130,8 @@ export async function webpackBuild(
     return await webpackBuildWithWorker(compilerNames)
   } else {
     debug('building all compilers in same process')
-    const webpackBuildImpl = require('./impl').webpackBuildImpl
+    const webpackBuildImpl = (require('./impl') as typeof import('./impl'))
+      .webpackBuildImpl
     const curResult = await webpackBuildImpl(null, null)
 
     // Mirror what happens in webpackBuildWithWorker

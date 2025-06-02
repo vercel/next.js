@@ -905,8 +905,12 @@ function resolvePendingResult<
   // In dev we clone and freeze to prevent relying on mutating resolvedMetadata directly.
   // In prod we just pass resolvedMetadata through without any copying.
   if (process.env.NODE_ENV === 'development') {
-    parentResult = require('../../shared/lib/deep-freeze').deepFreeze(
-      require('./clone-metadata').cloneMetadata(parentResult)
+    parentResult = (
+      require('../../shared/lib/deep-freeze') as typeof import('../../shared/lib/deep-freeze')
+    ).deepFreeze(
+      (
+        require('./clone-metadata') as typeof import('./clone-metadata')
+      ).cloneMetadata(parentResult)
     )
   }
 

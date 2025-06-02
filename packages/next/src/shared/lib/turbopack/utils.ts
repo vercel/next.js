@@ -171,7 +171,8 @@ export function formatIssue(issue: Issue) {
     !isInternal(filePath)
   ) {
     const { start, end } = source.range
-    const { codeFrameColumns } = require('next/dist/compiled/babel/code-frame')
+    const { codeFrameColumns } =
+      require('next/dist/compiled/babel/code-frame') as typeof import('next/dist/compiled/babel/code-frame')
 
     message +=
       codeFrameColumns(

@@ -757,7 +757,8 @@ export async function handleAction({
           transform(chunk, encoding, callback) {
             size += Buffer.byteLength(chunk, encoding)
             if (size > bodySizeLimitBytes) {
-              const { ApiError } = require('../api-utils')
+              const { ApiError } =
+                require('../api-utils') as typeof import('../api-utils')
 
               callback(
                 new ApiError(

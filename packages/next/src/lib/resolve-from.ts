@@ -3,7 +3,7 @@ import path from 'path'
 import isError from './is-error'
 import { realpathSync } from './realpath'
 
-const Module = require('module')
+const Module = require('module') as typeof import('module')
 
 export const resolveFrom = (
   fromDirectory: string,

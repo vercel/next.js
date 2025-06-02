@@ -23,8 +23,10 @@ let vendoredReactSSR
 
 // the vendored Reacts are loaded from their original source in the edge runtime
 if (process.env.NEXT_RUNTIME !== 'edge') {
-  vendoredReactRSC = require('./vendored/rsc/entrypoints')
-  vendoredReactSSR = require('./vendored/ssr/entrypoints')
+  vendoredReactRSC =
+    require('./vendored/rsc/entrypoints') as typeof import('./vendored/rsc/entrypoints')
+  vendoredReactSSR =
+    require('./vendored/ssr/entrypoints') as typeof import('./vendored/ssr/entrypoints')
 }
 
 /**

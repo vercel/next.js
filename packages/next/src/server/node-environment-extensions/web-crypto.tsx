@@ -14,7 +14,8 @@ if (process.env.NEXT_RUNTIME === 'edge') {
   webCrypto = crypto
 } else {
   if (typeof crypto === 'undefined') {
-    webCrypto = require('node:crypto').webcrypto
+    webCrypto = (require('node:crypto') as typeof import('node:crypto'))
+      .webcrypto
   } else {
     webCrypto = crypto
   }

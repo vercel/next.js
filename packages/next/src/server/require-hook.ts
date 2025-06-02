@@ -3,8 +3,8 @@
 // Individually compiled modules are as defined for the compilation in bundles/webpack/packages/*.
 
 // This module will only be loaded once per process.
-const path = require('path')
-const mod = require('module')
+const path = require('path') as typeof import('path')
+const mod = require('module') as typeof import('module')
 const originalRequire = mod.prototype.require
 const resolveFilename = mod._resolveFilename
 
