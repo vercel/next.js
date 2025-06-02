@@ -3033,7 +3033,7 @@ dependencies = [
  "httpdate",
  "itoa",
  "pin-project-lite",
- "socket2 0.5.8",
+ "socket2 0.4.9",
  "tokio",
  "tower-service",
  "tracing",
@@ -7469,9 +7469,9 @@ dependencies = [
 
 [[package]]
 name = "swc_common"
-version = "11.0.1"
+version = "11.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e20e02d8dab809d7f971a24895ff8935542f5c2449d4295029bef5fce3992d1"
+checksum = "07eee3b76576a59386a0245cdf6ecc37b837da5d515c965f34362b338fa99141"
 dependencies = [
  "anyhow",
  "ast_node",
@@ -7562,9 +7562,9 @@ dependencies = [
 
 [[package]]
 name = "swc_core"
-version = "26.3.2"
+version = "26.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "957c899d528e8a5e36632afb8789e9c72fdd5b76d3529fbdf37d0ee94bc0ae5d"
+checksum = "a31930a468e3178fe8ac7f47bd1fcccdd1d97d11abf6ffec7d7b8800196c36bf"
 dependencies = [
  "binding_macros",
  "swc",
