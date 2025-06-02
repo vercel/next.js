@@ -9,18 +9,23 @@ export function RestartServerButton({ error }: { error: Error }) {
       return
     }
 
-    const isReload =
-      performance.getEntriesByType('navigation')[0]?.type === 'reload'
+    const ERROR_KEY = `error-overlay:${window.location.pathname}:${error.message}`
 
-    const ERROR_KEY = `error-overlay:${window.location.pathname}:latest-error`
-    const storedError = sessionStorage.getItem(ERROR_KEY)
-
-    if (isReload && storedError === error.message) {
+    if (sessionStorage.getItem(ERROR_KEY) === '1') {
       setShowButton(true)
+    } else {
+      setShowButton(false)
     }
 
-    // Always update with current error
-    sessionStorage.setItem(ERROR_KEY, error.message)
+    const handleBeforeUnload = () => {
+      sessionStorage.setItem(ERROR_KEY, '1')
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
   }, [error.message])
 
   if (!showButton) {
