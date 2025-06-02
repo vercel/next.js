@@ -36,7 +36,7 @@ pub fn minify(code: Code, source_maps: bool, mangle: Option<MangleType>) -> Resu
         .then(|| code.generate_source_map_ref())
         .transpose()?;
 
-    let source_code = code.into_source_code().into_bytes().into_owned();
+    let source_code = code.into_source_code().into_bytes().into();
     let source_code = String::from_utf8(source_code)?;
 
     let cm = Arc::new(SwcSourceMap::new(FilePathMapping::empty()));
