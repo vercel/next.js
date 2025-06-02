@@ -7,14 +7,18 @@ declare global {
   }
 }
 
+/**
+ * When the user reloads on a specific error and that error persists, we show
+ * the restart server button as an option. This is because some errors are
+ * recoverable by restarting the server and rebuilding the app.
+ *
+ * When Turbopack persistent cache is enabled, it will also clear the bundler
+ * cache. This improves DX by replacing the need to run `rm -rf .next` manually.
+ */
 export function RestartServerButton({ error }: { error: Error }) {
   const [showButton, setShowButton] = useState(false)
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
-      return
-    }
-
     const ERROR_KEY = `error-overlay:${window.location.pathname}:${error.message}`
 
     if (sessionStorage.getItem(ERROR_KEY) === '1') {
@@ -23,12 +27,11 @@ export function RestartServerButton({ error }: { error: Error }) {
       setShowButton(false)
     }
 
+    // When the user tries to reload, set the error key to the session storage.
     const handleBeforeUnload = () => {
       sessionStorage.setItem(ERROR_KEY, '1')
     }
-
     window.addEventListener('beforeunload', handleBeforeUnload)
-
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload)
     }
@@ -47,12 +50,9 @@ export function RestartServerButton({ error }: { error: Error }) {
 
     fetch(endpoint, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: '{}',
     }).then(() => {
       // TODO: poll server status and reload when the server is back up.
+      // https://github.com/vercel/next.js/pull/80005
     })
   }
 
