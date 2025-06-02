@@ -497,13 +497,13 @@ struct CssValidator {
 
 #[derive(Debug, PartialEq, Eq)]
 enum CssError {
-    LightningCssSelectorInModuleNotPure { selector: String },
+    CssSelectorInModuleNotPure { selector: String },
 }
 
 impl CssError {
     fn report(self, file: ResolvedVc<FileSystemPath>) {
         match self {
-            CssError::LightningCssSelectorInModuleNotPure { selector } => {
+            CssError::CssSelectorInModuleNotPure { selector } => {
                 ParsingIssue {
                     file,
                     msg: ResolvedVc::cell(
@@ -562,10 +562,9 @@ impl lightningcss::visitor::Visitor<'_> for CssValidator {
         }
 
         if is_selector_problematic(selector) {
-            self.errors
-                .push(CssError::LightningCssSelectorInModuleNotPure {
-                    selector: format!("{selector:?}"),
-                });
+            self.errors.push(CssError::CssSelectorInModuleNotPure {
+                selector: format!("{selector:?}"),
+            });
         }
 
         Ok(())
