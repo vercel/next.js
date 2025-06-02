@@ -217,7 +217,9 @@ export function renderAppDevOverlay(
     script.appendChild(container)
     document.body.appendChild(script)
 
-    const root = createRoot(container)
+    const root = createRoot(container, {
+      identifierPrefix: 'ndt-',
+    })
 
     startTransition(() => {
       // TODO: Dedicated error boundary or root error callbacks?
