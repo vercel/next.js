@@ -12,11 +12,6 @@ use turbopack_core::{
 
 use crate::async_chunk::chunk_item::AsyncLoaderChunkItem;
 
-#[turbo_tasks::function]
-fn async_loader_modifier() -> Vc<RcStr> {
-    Vc::cell("async loader".into())
-}
-
 /// The AsyncLoaderModule is a module that loads another module async, by
 /// putting it into a separate chunk group.
 #[turbo_tasks::value]
@@ -47,11 +42,6 @@ impl AsyncLoaderModule {
     }
 }
 
-#[turbo_tasks::function]
-fn inner_module_reference_description() -> Vc<RcStr> {
-    Vc::cell("async module".into())
-}
-
 #[turbo_tasks::value_impl]
 impl Module for AsyncLoaderModule {
     #[turbo_tasks::function]
@@ -64,7 +54,7 @@ impl Module for AsyncLoaderModule {
         Ok(Vc::cell(vec![ResolvedVc::upcast(
             SingleModuleReference::new(
                 *ResolvedVc::upcast(self.await?.inner),
-                inner_module_reference_description(),
+                rcstr!("async module"),
             )
             .to_resolved()
             .await?,

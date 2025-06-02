@@ -19,11 +19,6 @@ use turbopack_core::{
     source_transform::SourceTransform,
 };
 
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("mdx".into())
-}
-
 #[turbo_tasks::value(shared, operation)]
 #[derive(Hash, Debug, Clone)]
 #[serde(rename_all = "camelCase")]

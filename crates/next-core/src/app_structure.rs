@@ -5,7 +5,7 @@ use indexmap::map::{Entry, OccupiedEntry};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueDefault, ValueToString,
     Vc, debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs,
@@ -131,7 +131,7 @@ pub async fn get_metadata_route_name(meta: MetadataItem) -> Result<Vc<RcStr>> {
             };
 
             match stem.as_str() {
-                "manifest" => Vc::cell("manifest.webmanifest".into()),
+                "manifest" => Vc::cell(rcstr!("manifest.webmanifest")),
                 _ => Vc::cell(stem.clone()),
             }
         }

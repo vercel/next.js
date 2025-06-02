@@ -51,7 +51,7 @@ use swc_core::{
     },
 };
 use tracing::Instrument;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Upcast,
     Value, ValueToString, Vc, trace::TraceRawVcs,
@@ -979,8 +979,8 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             AnalyzeIssue::new(
                 IssueSeverity::Error,
                 source.ident(),
-                Vc::cell("unexpected top level await".into()),
-                StyledString::Text("top level await is only supported in ESM modules.".into())
+                Vc::cell(rcstr!("unexpected top level await")),
+                StyledString::Text(rcstr!("top level await is only supported in ESM modules."))
                     .cell(),
                 None,
                 Some(issue_source(source, span)),

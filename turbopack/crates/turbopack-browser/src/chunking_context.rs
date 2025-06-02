@@ -367,7 +367,7 @@ impl ChunkingContext for BrowserChunkingContext {
         if let Some(name) = &self.name {
             Vc::cell(name.clone())
         } else {
-            Vc::cell("unknown".into())
+            Vc::cell(rcstr!("unknown"))
         }
     }
 

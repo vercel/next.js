@@ -411,16 +411,11 @@ pub trait CssChunkItem: ChunkItem {
     fn content(self: Vc<Self>) -> Vc<CssChunkItemContent>;
 }
 
-#[turbo_tasks::function]
-fn entry_module_key() -> Vc<RcStr> {
-    Vc::cell("entry module".into())
-}
-
 #[turbo_tasks::value_impl]
 impl Introspectable for CssChunk {
     #[turbo_tasks::function]
     fn ty(&self) -> Vc<RcStr> {
-        Vc::cell("css chunk".into())
+        Vc::cell(rcstr!("css chunk"))
     }
 
     #[turbo_tasks::function]
@@ -456,7 +451,7 @@ impl Introspectable for CssChunk {
                 .iter()
                 .map(|chunk_item| async move {
                     Ok((
-                        entry_module_key().to_resolved().await?,
+                        rcstr!("entry module"),
                         IntrospectableModule::new(chunk_item.module())
                             .to_resolved()
                             .await?,
@@ -477,7 +472,7 @@ pub struct CssChunkType {}
 impl ValueToString for CssChunkType {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell("css".into())
+        Vc::cell(rcstr!("css"))
     }
 }
 

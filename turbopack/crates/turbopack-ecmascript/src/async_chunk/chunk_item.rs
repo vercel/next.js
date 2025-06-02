@@ -152,11 +152,6 @@ impl EcmascriptChunkItem for AsyncLoaderChunkItem {
     }
 }
 
-#[turbo_tasks::function]
-fn chunk_reference_description() -> Vc<RcStr> {
-    Vc::cell("chunk".into())
-}
-
 #[turbo_tasks::value_impl]
 impl ChunkItem for AsyncLoaderChunkItem {
     #[turbo_tasks::function]

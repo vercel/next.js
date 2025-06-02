@@ -121,11 +121,6 @@ impl PageLoaderAsset {
     }
 }
 
-#[turbo_tasks::function]
-fn page_loader_chunk_reference_description() -> Vc<RcStr> {
-    Vc::cell("page loader chunk".into())
-}
-
 #[turbo_tasks::value_impl]
 impl OutputAsset for PageLoaderAsset {
     #[turbo_tasks::function]

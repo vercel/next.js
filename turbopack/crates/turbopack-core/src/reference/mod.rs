@@ -49,7 +49,7 @@ impl ModuleReferences {
 #[turbo_tasks::value]
 pub struct SingleModuleReference {
     asset: ResolvedVc<Box<dyn Module>>,
-    description: ResolvedVc<RcStr>,
+    description: RcStr,
 }
 
 #[turbo_tasks::value_impl]
@@ -64,7 +64,7 @@ impl ModuleReference for SingleModuleReference {
 impl ValueToString for SingleModuleReference {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        *self.description
+        Vc::cell(self.description.clone())
     }
 }
 
@@ -73,7 +73,7 @@ impl SingleModuleReference {
     /// Create a new [Vc<SingleModuleReference>] that resolves to the given
     /// asset.
     #[turbo_tasks::function]
-    pub fn new(asset: ResolvedVc<Box<dyn Module>>, description: ResolvedVc<RcStr>) -> Vc<Self> {
+    pub fn new(asset: ResolvedVc<Box<dyn Module>>, description: RcStr) -> Vc<Self> {
         Self::cell(SingleModuleReference { asset, description })
     }
 
@@ -129,7 +129,7 @@ impl ValueToString for SingleChunkableModuleReference {
 #[turbo_tasks::value]
 pub struct SingleOutputAssetReference {
     asset: ResolvedVc<Box<dyn OutputAsset>>,
-    description: ResolvedVc<RcStr>,
+    description: RcStr,
 }
 
 #[turbo_tasks::value_impl]
@@ -144,7 +144,7 @@ impl ModuleReference for SingleOutputAssetReference {
 impl ValueToString for SingleOutputAssetReference {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        *self.description
+        Vc::cell(self.description.clone())
     }
 }
 
@@ -153,10 +153,7 @@ impl SingleOutputAssetReference {
     /// Create a new [Vc<SingleOutputAssetReference>] that resolves to the given
     /// asset.
     #[turbo_tasks::function]
-    pub fn new(
-        asset: ResolvedVc<Box<dyn OutputAsset>>,
-        description: ResolvedVc<RcStr>,
-    ) -> Vc<Self> {
+    pub fn new(asset: ResolvedVc<Box<dyn OutputAsset>>, description: RcStr) -> Vc<Self> {
         Self::cell(SingleOutputAssetReference { asset, description })
     }
 
