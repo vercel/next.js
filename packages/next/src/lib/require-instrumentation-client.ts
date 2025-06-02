@@ -7,8 +7,8 @@
 if (process.env.NODE_ENV === 'development') {
   const measureName = 'Client Instrumentation Hook'
   const startTime = performance.now()
-  module.exports =
-    require('private-next-instrumentation-client') as typeof import('private-next-instrumentation-client')
+  // eslint-disable-next-line @next/internal/typechecked-require -- Not a module.
+  module.exports = require('private-next-instrumentation-client')
   const endTime = performance.now()
   const duration = endTime - startTime
 
@@ -22,6 +22,6 @@ if (process.env.NODE_ENV === 'development') {
     )
   }
 } else {
-  module.exports =
-    require('private-next-instrumentation-client') as typeof import('private-next-instrumentation-client')
+  // eslint-disable-next-line @next/internal/typechecked-require -- Not a module.
+  module.exports = require('private-next-instrumentation-client')
 }
