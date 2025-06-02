@@ -4,7 +4,7 @@
 
 use anyhow::Result;
 use mdxjs::{MdxParseOptions, Options, compile};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueDefault, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath, rope::Rope};
 use turbopack_core::{
@@ -110,7 +110,7 @@ struct MdxTransformedAsset {
 impl Source for MdxTransformedAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        self.source.ident().rename_as("*.tsx".into())
+        self.source.ident().rename_as(rcstr!("*.tsx"))
     }
 }
 
@@ -279,7 +279,7 @@ impl Issue for MdxIssue {
 
     #[turbo_tasks::function]
     fn title(self: Vc<Self>) -> Vc<StyledString> {
-        StyledString::Text("MDX Parse Error".into()).cell()
+        StyledString::Text(rcstr!("MDX Parse Error")).cell()
     }
 
     #[turbo_tasks::function]

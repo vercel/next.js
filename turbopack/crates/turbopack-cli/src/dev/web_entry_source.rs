@@ -76,7 +76,7 @@ pub async fn get_client_runtime_entries(
         runtime_entries.push(
             RuntimeEntry::Request(
                 request.to_resolved().await?,
-                project_path.join("_".into()).to_resolved().await?,
+                project_path.join(rcstr!("_")).to_resolved().await?,
             )
             .resolved_cell(),
         )
@@ -84,7 +84,7 @@ pub async fn get_client_runtime_entries(
 
     runtime_entries.push(
         RuntimeEntry::Source(ResolvedVc::upcast(
-            FileSource::new(embed_file_path("entry/bootstrap.ts".into()))
+            FileSource::new(embed_file_path(rcstr!("entry/bootstrap.ts")))
                 .to_resolved()
                 .await?,
         ))
@@ -127,7 +127,7 @@ pub async fn create_web_entry_source(
 
     let runtime_entries = entries.resolve_entries(asset_context);
 
-    let origin = PlainResolveOrigin::new(asset_context, root_path.join("_".into()));
+    let origin = PlainResolveOrigin::new(asset_context, root_path.join(rcstr!("_")));
     let entries = entry_requests
         .into_iter()
         .map(|request| async move {
@@ -196,7 +196,7 @@ pub async fn create_web_entry_source(
         .await?;
 
     let entry_asset = Vc::upcast(DevHtmlAsset::new(
-        server_root.join("index.html".into()).to_resolved().await?,
+        server_root.join(rcstr!("index.html")).to_resolved().await?,
         entries,
     ));
 

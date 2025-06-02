@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use serde::Deserialize;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{FileSystemPath, json::parse_json_with_source_context};
 use turbo_tasks_hash::hash_xxh3_hash64;
@@ -88,12 +88,12 @@ pub(crate) async fn can_use_next_font(
         NextFontIssue {
             path: path.to_resolved().await?,
             title: StyledString::Line(vec![
-                StyledString::Code("next/font:".into()),
-                StyledString::Text(" error:".into()),
+                StyledString::Code(rcstr!("next/font:")),
+                StyledString::Text(rcstr!(" error:")),
             ])
             .resolved_cell(),
             description: StyledString::Line(vec![
-                StyledString::Text("Cannot be used within ".into()),
+                StyledString::Text(rcstr!("Cannot be used within ")),
                 StyledString::Code(request.path),
             ])
             .resolved_cell(),

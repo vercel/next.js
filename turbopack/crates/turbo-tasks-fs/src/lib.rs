@@ -2431,6 +2431,8 @@ pub fn register() {
 
 #[cfg(test)]
 mod tests {
+    use turbo_rcstr::rcstr;
+
     use super::*;
 
     #[test]
@@ -2456,26 +2458,26 @@ mod tests {
         turbo_tasks_testing::VcStorage::with(async {
             let fs = Vc::upcast(VirtualFileSystem::new());
 
-            let path_txt = FileSystemPath::new_normalized(fs, "foo/bar.txt".into());
+            let path_txt = FileSystemPath::new_normalized(fs, rcstr!("foo/bar.txt"));
 
-            let path_json = path_txt.with_extension("json".into());
+            let path_json = path_txt.with_extension(rcstr!("json"));
             assert_eq!(&*path_json.await.unwrap().path, "foo/bar.json");
 
-            let path_no_ext = path_txt.with_extension("".into());
+            let path_no_ext = path_txt.with_extension(rcstr!(""));
             assert_eq!(&*path_no_ext.await.unwrap().path, "foo/bar");
 
-            let path_new_ext = path_no_ext.with_extension("json".into());
+            let path_new_ext = path_no_ext.with_extension(rcstr!("json"));
             assert_eq!(&*path_new_ext.await.unwrap().path, "foo/bar.json");
 
-            let path_no_slash_txt = FileSystemPath::new_normalized(fs, "bar.txt".into());
+            let path_no_slash_txt = FileSystemPath::new_normalized(fs, rcstr!("bar.txt"));
 
-            let path_no_slash_json = path_no_slash_txt.with_extension("json".into());
+            let path_no_slash_json = path_no_slash_txt.with_extension(rcstr!("json"));
             assert_eq!(path_no_slash_json.await.unwrap().path.as_str(), "bar.json");
 
-            let path_no_slash_no_ext = path_no_slash_txt.with_extension("".into());
+            let path_no_slash_no_ext = path_no_slash_txt.with_extension(rcstr!(""));
             assert_eq!(path_no_slash_no_ext.await.unwrap().path.as_str(), "bar");
 
-            let path_no_slash_new_ext = path_no_slash_no_ext.with_extension("json".into());
+            let path_no_slash_new_ext = path_no_slash_no_ext.with_extension(rcstr!("json"));
             assert_eq!(
                 path_no_slash_new_ext.await.unwrap().path.as_str(),
                 "bar.json"
@@ -2494,19 +2496,19 @@ mod tests {
         turbo_tasks_testing::VcStorage::with(async {
             let fs = Vc::upcast::<Box<dyn FileSystem>>(VirtualFileSystem::new());
 
-            let path = FileSystemPath::new_normalized(fs, "".into());
+            let path = FileSystemPath::new_normalized(fs, rcstr!(""));
             assert_eq!(path.file_stem().await.unwrap().as_deref(), None);
 
-            let path = FileSystemPath::new_normalized(fs, "foo/bar.txt".into());
+            let path = FileSystemPath::new_normalized(fs, rcstr!("foo/bar.txt"));
             assert_eq!(path.file_stem().await.unwrap().as_deref(), Some("bar"));
 
-            let path = FileSystemPath::new_normalized(fs, "bar.txt".into());
+            let path = FileSystemPath::new_normalized(fs, rcstr!("bar.txt"));
             assert_eq!(path.file_stem().await.unwrap().as_deref(), Some("bar"));
 
-            let path = FileSystemPath::new_normalized(fs, "foo/bar".into());
+            let path = FileSystemPath::new_normalized(fs, rcstr!("foo/bar"));
             assert_eq!(path.file_stem().await.unwrap().as_deref(), Some("bar"));
 
-            let path = FileSystemPath::new_normalized(fs, "foo/.bar".into());
+            let path = FileSystemPath::new_normalized(fs, rcstr!("foo/.bar"));
             assert_eq!(path.file_stem().await.unwrap().as_deref(), Some(".bar"));
 
             anyhow::Ok(())

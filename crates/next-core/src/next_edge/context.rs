@@ -71,9 +71,9 @@ async fn next_edge_free_vars(
     Ok(free_var_references!(
         ..defines(&*define_env.await?).into_iter(),
         Buffer = FreeVarReference::EcmaScriptModule {
-            request: "buffer".into(),
+            request: rcstr!("buffer"),
             lookup_path: Some(project_path),
-            export: Some("Buffer".into()),
+            export: Some(rcstr!("Buffer")),
         },
     )
     .cell())
@@ -176,7 +176,7 @@ pub async fn get_edge_resolve_options_context(
     );
 
     if ty.supports_react_server() {
-        custom_conditions.push("react-server".into());
+        custom_conditions.push(rcstr!("react-server"));
     };
 
     let resolve_options_context = ResolveOptionsContext {
@@ -228,16 +228,16 @@ pub async fn get_edge_chunking_context_with_client_assets(
     turbo_source_maps: Vc<bool>,
     no_mangling: Vc<bool>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
-    let output_root = node_root.join("server/edge".into()).to_resolved().await?;
+    let output_root = node_root.join(rcstr!("server/edge")).to_resolved().await?;
     let next_mode = mode.await?;
     let mut builder = BrowserChunkingContext::builder(
         root_path,
         output_root,
         output_root_to_root_path,
         client_root,
-        output_root.join("chunks/ssr".into()).to_resolved().await?,
+        output_root.join(rcstr!("chunks/ssr")).to_resolved().await?,
         client_root
-            .join("static/media".into())
+            .join(rcstr!("static/media"))
             .to_resolved()
             .await?,
         environment,

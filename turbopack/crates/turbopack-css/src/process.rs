@@ -13,7 +13,7 @@ use rustc_hash::FxHashMap;
 use smallvec::smallvec;
 use swc_core::base::sourcemap::SourceMapBuilder;
 use tracing::Instrument;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath, rope::Rope};
 use turbopack_core::{
@@ -635,7 +635,7 @@ impl Issue for ParsingIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Parsing css source code failed".into()).cell()
+        StyledString::Text(rcstr!("Parsing css source code failed")).cell()
     }
 
     #[turbo_tasks::function]

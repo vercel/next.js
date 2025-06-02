@@ -277,7 +277,7 @@ impl PagesProject {
         Ok(if let Some(pages) = self.pages_structure().await?.pages {
             pages.project_path()
         } else {
-            self.project().project_path().join("pages".into())
+            self.project().project_path().join(rcstr!("pages"))
         })
     }
 
@@ -286,11 +286,11 @@ impl PagesProject {
         Ok(TransitionOptions {
             named_transitions: [
                 (
-                    "next-dynamic".into(),
+                    rcstr!("next-dynamic"),
                     ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
                 ),
                 (
-                    "next-dynamic-client".into(),
+                    rcstr!("next-dynamic-client"),
                     ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
                 ),
             ]
@@ -306,11 +306,11 @@ impl PagesProject {
         Ok(TransitionOptions {
             named_transitions: [
                 (
-                    "next-dynamic".into(),
+                    rcstr!("next-dynamic"),
                     ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
                 ),
                 (
-                    "next-dynamic-client".into(),
+                    rcstr!("next-dynamic-client"),
                     ResolvedVc::upcast(
                         NextDynamicTransition::new_client(Vc::upcast(self.client_transition()))
                             .to_resolved()
@@ -627,7 +627,7 @@ impl PagesProject {
         let client_main_module = esm_resolve(
             Vc::upcast(PlainResolveOrigin::new(
                 client_module_context,
-                self.project().project_path().join("_".into()),
+                self.project().project_path().join(rcstr!("_")),
             )),
             Request::parse(Value::new(Pattern::Constant(
                 match *self.project().next_mode().await? {
@@ -1148,7 +1148,7 @@ impl PageEndpoint {
             this.pages_project
                 .project()
                 .node_root()
-                .join("server".into()),
+                .join(rcstr!("server")),
             project.server_chunking_context(true),
             project.edge_chunking_context(true),
             this.pages_project.ssr_runtime_entries(),
@@ -1164,7 +1164,7 @@ impl PageEndpoint {
             this.pages_project
                 .project()
                 .node_root()
-                .join("server/data".into()),
+                .join(rcstr!("server/data")),
             this.pages_project.project().server_chunking_context(true),
             this.pages_project.project().edge_chunking_context(true),
             this.pages_project.ssr_data_runtime_entries(),
@@ -1371,9 +1371,9 @@ impl PageEndpoint {
                     //
                     // they are created in `setup-dev-bundler.ts`
                     let mut file_paths_from_root = vec![
-                        "server/server-reference-manifest.js".into(),
-                        "server/middleware-build-manifest.js".into(),
-                        "server/next-font-manifest.js".into(),
+                        rcstr!("server/server-reference-manifest.js"),
+                        rcstr!("server/middleware-build-manifest.js"),
+                        rcstr!("server/next-font-manifest.js"),
                     ];
                     let mut wasm_paths_from_root = fxindexset![];
 

@@ -467,7 +467,7 @@ impl ProjectContainer {
             .await?
             .dist_dir
             .as_ref()
-            .map_or_else(|| ".next".into(), |d| d.clone());
+            .map_or_else(|| rcstr!(".next"), |d| d.clone());
 
         Ok(Project {
             root_path,
@@ -657,13 +657,13 @@ impl Project {
 
     #[turbo_tasks::function]
     pub fn client_fs(self: Vc<Self>) -> Vc<Box<dyn FileSystem>> {
-        let virtual_fs = VirtualFileSystem::new_with_name("client-fs".into());
+        let virtual_fs = VirtualFileSystem::new_with_name(rcstr!("client-fs"));
         Vc::upcast(virtual_fs)
     }
 
     #[turbo_tasks::function]
     pub fn output_fs(&self) -> Vc<DiskFileSystem> {
-        DiskFileSystem::new("output".into(), self.project_path.clone(), vec![])
+        DiskFileSystem::new(rcstr!("output"), self.project_path.clone(), vec![])
     }
 
     #[turbo_tasks::function]
@@ -693,7 +693,7 @@ impl Project {
         Ok(self.client_root().join(
             format!(
                 "{}/_next",
-                next_config.base_path.clone().unwrap_or_else(|| "".into()),
+                next_config.base_path.clone().unwrap_or_else(|| rcstr!("")),
             )
             .into(),
         ))
@@ -766,7 +766,7 @@ impl Project {
     #[turbo_tasks::function]
     pub(super) async fn should_create_webpack_stats(&self) -> Result<Vc<bool>> {
         Ok(Vc::cell(
-            self.env.read("TURBOPACK_STATS".into()).await?.is_some(),
+            self.env.read(rcstr!("TURBOPACK_STATS")).await?.is_some(),
         ))
     }
 

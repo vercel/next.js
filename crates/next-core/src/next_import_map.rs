@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use anyhow::{Context, Result};
 use rustc_hash::FxHashMap;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, Value, Vc, fxindexmap};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::{
@@ -333,7 +333,7 @@ pub async fn get_next_server_import_map(
             import_map.insert_exact_alias(
                 "styled-jsx/style",
                 ImportMapping::External(
-                    Some("styled-jsx/style.js".into()),
+                    Some(rcstr!("styled-jsx/style.js")),
                     ExternalType::CommonJs,
                     ExternalTraced::Traced,
                 )
@@ -1014,7 +1014,7 @@ pub async fn get_next_package(context_directory: Vc<FileSystemPath>) -> Result<V
     let result = resolve(
         context_directory,
         Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)),
-        Request::parse(Value::new(Pattern::Constant("next/package.json".into()))),
+        Request::parse(Value::new(Pattern::Constant(rcstr!("next/package.json")))),
         node_cjs_resolve_options(context_directory.root()),
     );
     let source = result
@@ -1113,7 +1113,7 @@ fn insert_package_alias(
 ) {
     import_map.insert_wildcard_alias(
         prefix,
-        ImportMapping::PrimaryAlternative("./*".into(), Some(package_root)).resolved_cell(),
+        ImportMapping::PrimaryAlternative(rcstr!("./*"), Some(package_root)).resolved_cell(),
     );
 }
 

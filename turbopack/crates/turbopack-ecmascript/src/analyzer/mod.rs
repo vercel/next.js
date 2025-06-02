@@ -25,7 +25,7 @@ use swc_core::{
     },
 };
 use turbo_esregex::EsRegex;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, FxIndexSet, Vc};
 use turbopack_core::compile_time_info::{
     CompileTimeDefineValue, DefineableNameSegment, FreeVarReference,
@@ -3847,6 +3847,7 @@ fn is_unresolved_id(i: &Id, unresolved_mark: Mark) -> bool {
 #[doc(hidden)]
 pub mod test_utils {
     use anyhow::Result;
+    use turbo_rcstr::rcstr;
     use turbo_tasks::{FxIndexMap, Vc};
     use turbopack_core::{compile_time_info::CompileTimeInfo, error::PrettyPrintError};
 
@@ -3907,9 +3908,18 @@ pub mod test_utils {
                 Ok(options) => {
                     let mut map = FxIndexMap::default();
 
-                    map.insert("./a".into(), format!("[context: {}]/a", options.dir).into());
-                    map.insert("./b".into(), format!("[context: {}]/b", options.dir).into());
-                    map.insert("./c".into(), format!("[context: {}]/c", options.dir).into());
+                    map.insert(
+                        rcstr!("./a"),
+                        format!("[context: {}]/a", options.dir).into(),
+                    );
+                    map.insert(
+                        rcstr!("./b"),
+                        format!("[context: {}]/b", options.dir).into(),
+                    );
+                    map.insert(
+                        rcstr!("./c"),
+                        format!("[context: {}]/c", options.dir).into(),
+                    );
 
                     JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContextRequire(
                         RequireContextValue(map),

@@ -10180,6 +10180,7 @@ dependencies = [
  "rustc-hash 2.1.1",
  "serde",
  "serde_with",
+ "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
  "turbo-tasks-fs",

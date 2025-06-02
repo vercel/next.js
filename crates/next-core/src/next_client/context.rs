@@ -102,14 +102,14 @@ async fn next_client_free_vars(define_env: Vc<EnvMap>) -> Result<Vc<FreeVarRefer
     Ok(free_var_references!(
         ..defines(&*define_env.await?).into_iter(),
         Buffer = FreeVarReference::EcmaScriptModule {
-            request: "node:buffer".into(),
+            request: rcstr!("node:buffer"),
             lookup_path: None,
-            export: Some("Buffer".into()),
+            export: Some(rcstr!("Buffer")),
         },
         process = FreeVarReference::EcmaScriptModule {
-            request: "node:process".into(),
+            request: rcstr!("node:process"),
             lookup_path: None,
-            export: Some("default".into()),
+            export: Some(rcstr!("default")),
         }
     )
     .cell())
@@ -265,7 +265,7 @@ pub async fn get_client_module_options_context(
     // foreign_code_context_condition. This allows to import codes from
     // node_modules that requires webpack loaders, which next-dev implicitly
     // does by default.
-    let conditions = vec!["browser".into(), mode.await?.condition().into()];
+    let conditions = vec![rcstr!("browser"), mode.await?.condition().into()];
     let foreign_enable_webpack_loaders = webpack_loader_options(
         project_path,
         next_config,
@@ -273,7 +273,7 @@ pub async fn get_client_module_options_context(
         conditions
             .iter()
             .cloned()
-            .chain(once("foreign".into()))
+            .chain(once(rcstr!("foreign")))
             .collect(),
     )
     .await?;
@@ -522,7 +522,7 @@ pub async fn get_client_runtime_entries(
             runtime_entries.push(
                 RuntimeEntry::Request(
                     request.to_resolved().await?,
-                    project_root.join("_".into()).to_resolved().await?,
+                    project_root.join(rcstr!("_")).to_resolved().await?,
                 )
                 .resolved_cell(),
             )

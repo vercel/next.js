@@ -114,7 +114,7 @@ pub async fn get_browser_runtime_code(
         code.push_code(
             &*embed_static_code(
                 asset_context,
-                "shared-node/base-externals-utils.ts".into(),
+                rcstr!("shared-node/base-externals-utils.ts"),
                 generate_source_map,
             )
             .await?,
@@ -124,7 +124,7 @@ pub async fn get_browser_runtime_code(
         code.push_code(
             &*embed_static_code(
                 asset_context,
-                "shared-node/node-externals-utils.ts".into(),
+                rcstr!("shared-node/node-externals-utils.ts"),
                 generate_source_map,
             )
             .await?,
@@ -134,7 +134,7 @@ pub async fn get_browser_runtime_code(
         code.push_code(
             &*embed_static_code(
                 asset_context,
-                "shared-node/node-wasm-utils.ts".into(),
+                rcstr!("shared-node/node-wasm-utils.ts"),
                 generate_source_map,
             )
             .await?,

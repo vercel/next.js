@@ -3,7 +3,7 @@ use std::{any::Any, fmt::Debug, future::Future, hash::Hash, sync::Arc, time::Dur
 use anyhow::Result;
 use either::Either;
 use serde::{Deserialize, Serialize};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 
 use crate::{
     MagicAny, ResolvedVc, TaskId, TransientInstance, TransientValue, Value, ValueTypeId, Vc,
@@ -364,7 +364,7 @@ mod tests {
         )]
         struct MultipleUnnamedFields(u32, RcStr);
 
-        assert_task_input(MultipleUnnamedFields(42, "42".into()));
+        assert_task_input(MultipleUnnamedFields(42, rcstr!("42")));
         Ok(())
     }
 
@@ -393,7 +393,7 @@ mod tests {
 
         assert_task_input(MultipleNamedFields {
             named: 42,
-            other: "42".into(),
+            other: rcstr!("42"),
         });
         Ok(())
     }
@@ -448,7 +448,7 @@ mod tests {
     fn test_multiple_variants_and_heterogeneous_fields() -> Result<()> {
         assert_task_input(MultipleVariantsAndHeterogeneousFields::Variant5 {
             named: 42,
-            other: "42".into(),
+            other: rcstr!("42"),
         });
         Ok(())
     }
@@ -468,12 +468,12 @@ mod tests {
 
         assert_task_input(NestedVariants::Variant5 {
             named: OneVariant::Variant,
-            other: "42".into(),
+            other: rcstr!("42"),
         });
         assert_task_input(NestedVariants::Variant2(
             MultipleVariantsAndHeterogeneousFields::Variant5 {
                 named: 42,
-                other: "42".into(),
+                other: rcstr!("42"),
             },
         ));
         Ok(())

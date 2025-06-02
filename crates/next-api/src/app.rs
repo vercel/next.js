@@ -821,7 +821,7 @@ impl AppProject {
         let client_main_module = cjs_resolve(
             Vc::upcast(PlainResolveOrigin::new(
                 client_module_context,
-                self.project().project_path().join("_".into()),
+                self.project().project_path().join(rcstr!("_")),
             )),
             Request::parse(Value::new(Pattern::Constant(rcstr!(
                 "next/dist/client/app-next-turbopack.js"
@@ -1177,7 +1177,7 @@ impl AppEndpoint {
 
         let node_root = project.node_root().to_resolved().await?;
         let client_relative_path = project.client_relative_path().to_resolved().await?;
-        let server_path = node_root.join("server".into());
+        let server_path = node_root.join(rcstr!("server"));
 
         let mut server_assets = fxindexset![];
         let mut client_assets = fxindexset![];
@@ -1318,11 +1318,11 @@ impl AppEndpoint {
         // load it as a RawModule.
         let next_package = get_next_package(project.project_path());
         let polyfill_source =
-            FileSource::new(next_package.join("dist/build/polyfills/polyfill-nomodule.js".into()));
+            FileSource::new(next_package.join(rcstr!("dist/build/polyfills/polyfill-nomodule.js")));
         let polyfill_output_path = client_chunking_context.chunk_path(
             Some(Vc::upcast(polyfill_source)),
             polyfill_source.ident(),
-            ".js".into(),
+            rcstr!(".js"),
         );
         let polyfill_output_asset = ResolvedVc::upcast(
             RawOutput::new(polyfill_output_path, Vc::upcast(polyfill_source))
@@ -1482,10 +1482,10 @@ impl AppEndpoint {
                 //
                 // they are created in `setup-dev-bundler.ts`
                 let mut file_paths_from_root = fxindexset![
-                    "server/server-reference-manifest.js".into(),
-                    "server/middleware-build-manifest.js".into(),
-                    "server/next-font-manifest.js".into(),
-                    "server/interception-route-rewrite-manifest.js".into(),
+                    rcstr!("server/server-reference-manifest.js"),
+                    rcstr!("server/middleware-build-manifest.js"),
+                    rcstr!("server/next-font-manifest.js"),
+                    rcstr!("server/interception-route-rewrite-manifest.js"),
                 ];
                 let mut wasm_paths_from_root = fxindexset![];
 
@@ -1506,7 +1506,7 @@ impl AppEndpoint {
                 let all_assets =
                     get_asset_paths_from_root(&node_root_value, &all_output_assets).await?;
 
-                let entry_file = "app-edge-has-no-entrypoint".into();
+                let entry_file = rcstr!("app-edge-has-no-entrypoint");
 
                 if emit_manifests == EmitManifests::Full {
                     let dynamic_import_entries = collect_next_dynamic_chunks(

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
 
 pub(crate) struct DefaultFallbackFont {
@@ -14,16 +14,16 @@ pub(crate) struct DefaultFallbackFont {
 // From https://github.com/vercel/next.js/blob/a3893bf69c83fb08e88c87bf8a21d987a0448c8e/packages/font/src/utils.ts#L4
 pub(crate) static DEFAULT_SANS_SERIF_FONT: Lazy<DefaultFallbackFont> =
     Lazy::new(|| DefaultFallbackFont {
-        name: "Arial".into(),
-        capsize_key: "arial".into(),
+        name: rcstr!("Arial"),
+        capsize_key: rcstr!("arial"),
         az_avg_width: 934.5116279069767,
         units_per_em: 2048,
     });
 
 pub(crate) static DEFAULT_SERIF_FONT: Lazy<DefaultFallbackFont> =
     Lazy::new(|| DefaultFallbackFont {
-        name: "Times New Roman".into(),
-        capsize_key: "timesNewRoman".into(),
+        name: rcstr!("Times New Roman"),
+        capsize_key: rcstr!("timesNewRoman"),
         az_avg_width: 854.3953488372093,
         units_per_em: 2048,
     });

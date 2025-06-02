@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, Value, Vc, fxindexset, trace::TraceRawVcs,
 };
@@ -156,7 +156,7 @@ pub(super) fn options_from_request(
         if font_data.styles.len() == 1 {
             styles.push(font_data.styles[0].clone());
         } else {
-            styles.push("normal".into());
+            styles.push(rcstr!("normal"));
         }
     }
 
@@ -171,7 +171,7 @@ pub(super) fn options_from_request(
         }
     }
 
-    let display = argument.display.unwrap_or_else(|| "swap".into());
+    let display = argument.display.unwrap_or_else(|| rcstr!("swap"));
 
     if !ALLOWED_DISPLAY_VALUES.contains(&display.as_str()) {
         anyhow::bail!(
@@ -214,7 +214,7 @@ pub(super) fn options_from_request(
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use turbo_rcstr::RcStr;
+    use turbo_rcstr::{RcStr, rcstr};
     use turbo_tasks::FxIndexMap;
     use turbo_tasks_fs::json::parse_json_with_source_context;
 
@@ -281,10 +281,10 @@ mod tests {
         assert_eq!(
             options_from_request(&request, &data)?,
             NextFontGoogleOptions {
-                font_family: "ABeeZee".into(),
+                font_family: rcstr!("ABeeZee"),
                 weights: FontWeights::Variable,
-                styles: vec!["normal".into()],
-                display: "swap".into(),
+                styles: vec![rcstr!("normal")],
+                display: rcstr!("swap"),
                 preload: true,
                 selected_variable_axes: None,
                 fallback: None,

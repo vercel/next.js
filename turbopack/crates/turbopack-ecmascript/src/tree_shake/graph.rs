@@ -23,7 +23,7 @@ use swc_core::{
         utils::{ExprCtx, ExprExt, find_pat_ids, private_ident, quote_ident},
     },
 };
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::FxIndexSet;
 
 use super::{

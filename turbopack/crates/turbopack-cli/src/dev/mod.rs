@@ -338,7 +338,7 @@ async fn source(
     .to_resolved()
     .await?;
     let static_source = ResolvedVc::upcast(
-        StaticAssetsContentSource::new(Default::default(), project_path.join("public".into()))
+        StaticAssetsContentSource::new(Default::default(), project_path.join(rcstr!("public")))
             .to_resolved()
             .await?,
     );
@@ -354,7 +354,7 @@ async fn source(
     let main_source = ResolvedVc::upcast(main_source);
     Ok(Vc::upcast(PrefixedRouterContentSource::new(
         Default::default(),
-        vec![("__turbopack__".into(), introspect)],
+        vec![(rcstr!("__turbopack__"), introspect)],
         *main_source,
     )))
 }

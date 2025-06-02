@@ -244,8 +244,8 @@ async fn wrap_edge_page(
             "nextConfig" => serde_json::to_string(next_config_val)?.into(),
             "dev" => serde_json::Value::Bool(dev).to_string().into(),
             "pageRouteModuleOptions" => serde_json::to_string(&get_route_module_options(page.clone(), pathname.clone()))?.into(),
-            "errorRouteModuleOptions" => serde_json::to_string(&get_route_module_options("/_error".into(), "/_error".into()))?.into(),
-            "user500RouteModuleOptions" => serde_json::to_string(&get_route_module_options("/500".into(), "/500".into()))?.into(),
+            "errorRouteModuleOptions" => serde_json::to_string(&get_route_module_options(rcstr!("/_error"), rcstr!("/_error")))?.into(),
+            "user500RouteModuleOptions" => serde_json::to_string(&get_route_module_options(rcstr!("/500"), rcstr!("/500")))?.into(),
         },
         fxindexmap! {
             // TODO
@@ -322,12 +322,12 @@ struct RouteDefinition {
 fn get_route_module_options(page: RcStr, pathname: RcStr) -> PartialRouteModuleOptions {
     PartialRouteModuleOptions {
         definition: RouteDefinition {
-            kind: "PAGES".into(),
+            kind: rcstr!("PAGES"),
             page,
             pathname,
             // The following aren't used in production.
-            bundle_path: "".into(),
-            filename: "".into(),
+            bundle_path: rcstr!(""),
+            filename: rcstr!(""),
         },
     }
 }

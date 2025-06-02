@@ -1,4 +1,5 @@
 use anyhow::Result;
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbopack_core::{
     issue::IssueSource,
@@ -63,8 +64,8 @@ async fn apply_esm_specific_options_internal(
     // TODO set fully_specified when in strict ESM mode
     // options.fully_specified = true;
     for conditions in get_condition_maps(&mut options) {
-        conditions.insert("import".into(), ConditionValue::Set);
-        conditions.insert("require".into(), ConditionValue::Unset);
+        conditions.insert(rcstr!("import"), ConditionValue::Set);
+        conditions.insert(rcstr!("require"), ConditionValue::Unset);
     }
 
     if clear_extensions {
@@ -80,8 +81,8 @@ async fn apply_esm_specific_options_internal(
 pub async fn apply_cjs_specific_options(options: Vc<ResolveOptions>) -> Result<Vc<ResolveOptions>> {
     let mut options: ResolveOptions = options.owned().await?;
     for conditions in get_condition_maps(&mut options) {
-        conditions.insert("import".into(), ConditionValue::Unset);
-        conditions.insert("require".into(), ConditionValue::Set);
+        conditions.insert(rcstr!("import"), ConditionValue::Unset);
+        conditions.insert(rcstr!("require"), ConditionValue::Set);
     }
     Ok(options.into())
 }

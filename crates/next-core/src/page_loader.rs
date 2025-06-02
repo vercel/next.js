@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use anyhow::{Result, bail};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, Vc, fxindexmap};
 use turbo_tasks_fs::{
     self, File, FileContent, FileSystemPath, FileSystemPathOption, rope::RopeBuilder,
@@ -30,7 +30,7 @@ pub async fn create_page_loader_entry_module(
     let mut result = RopeBuilder::default();
     writeln!(result, "const PAGE_PATH = {};\n", StringifyJs(&pathname))?;
 
-    let page_loader_path = next_js_file_path("entry/page-loader.ts".into());
+    let page_loader_path = next_js_file_path(rcstr!("entry/page-loader.ts"));
     let base_code = page_loader_path.read();
     if let FileContent::Content(base_file) = &*base_code.await? {
         result += base_file.content()
@@ -58,7 +58,7 @@ pub async fn create_page_loader_entry_module(
         .process(
             virtual_source,
             Value::new(ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
-                "PAGE".into() => module,
+                rcstr!("PAGE") => module,
             }))),
         )
         .module();
