@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -68,38 +68,18 @@ impl ValueToString for EcmascriptDevChunkList {
     }
 }
 
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("ecmascript dev chunk list".into())
-}
-
-#[turbo_tasks::function]
-fn dynamic_modifier() -> Vc<RcStr> {
-    Vc::cell("dynamic".into())
-}
-
-#[turbo_tasks::function]
-fn chunk_list_chunk_reference_description() -> Vc<RcStr> {
-    Vc::cell("chunk list chunk".into())
-}
-
-#[turbo_tasks::function]
-fn chunk_key() -> Vc<RcStr> {
-    Vc::cell("chunk".into())
-}
-
 #[turbo_tasks::value_impl]
 impl OutputAsset for EcmascriptDevChunkList {
     #[turbo_tasks::function]
     async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
         let mut ident = this.ident.owned().await?;
-        ident.add_modifier(modifier().to_resolved().await?);
+        ident.add_modifier(rcstr!("ecmascript dev chunk list"));
 
         match this.source {
             EcmascriptDevChunkListSource::Entry => {}
             EcmascriptDevChunkListSource::Dynamic => {
-                ident.add_modifier(dynamic_modifier().to_resolved().await?);
+                ident.add_modifier(rcstr!("dynamic"));
             }
         }
 

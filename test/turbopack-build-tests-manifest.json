@@ -3652,11 +3652,13 @@
       "app dir - next/font app dir - next-font preconnect should add preconnect when preloading is disabled in component",
       "app dir - next/font app dir - next-font preconnect should add preconnect when preloading is disabled in layout",
       "app dir - next/font app dir - next-font preconnect should add preconnect when preloading is disabled in page",
+      "app dir - next/font app dir - next-font preconnect should add preconnect when preloading is disabled in template",
       "app dir - next/font app dir - next-font preconnect should not preconnect when css is used but no fonts",
       "app dir - next/font app dir - next-font preload should preload correctly with client components",
       "app dir - next/font app dir - next-font preload should preload correctly with layout using fonts",
       "app dir - next/font app dir - next-font preload should preload correctly with page using fonts",
-      "app dir - next/font app dir - next-font preload should preload correctly with server components"
+      "app dir - next/font app dir - next-font preload should preload correctly with server components",
+      "app dir - next/font app dir - next-font preload should preload correctly with template using fonts"
     ],
     "failed": [],
     "pending": [],
@@ -7141,12 +7143,11 @@
       "Middleware custom matchers i18n should not match /en/about",
       "Middleware custom matchers i18n should not match /hello/invalid",
       "Middleware custom matchers i18n should not match /invalid/hello",
-      "Middleware custom matchers with root should not match"
-    ],
-    "failed": [
+      "Middleware custom matchers with root should not match",
       "Middleware custom matchers i18n should match /nl-NL/about",
       "Middleware custom matchers i18n should match has query on client routing nl-NL_about"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
