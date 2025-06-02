@@ -7171,8 +7171,9 @@ dependencies = [
 
 [[package]]
 name = "sourcemap"
-version = "9.2.1"
-source = "git+https://github.com/getsentry/rust-sourcemap?branch=master#24a07e376a634c7823ada1b55326454ba7fc921d"
+version = "9.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e22afbcb92ce02d23815b9795523c005cb9d3c214f8b7a66318541c240ea7935"
 dependencies = [
  "base64-simd 0.8.0",
  "bitvec",
