@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use swc_core::{
-    common::{DUMMY_SP, SyntaxContext},
+    common::DUMMY_SP,
     ecma::ast::{ArrayLit, ArrayPat, Expr, Ident},
     quote,
 };
@@ -17,7 +17,10 @@ use turbopack_core::{
 };
 
 use super::esm::base::ReferencedAsset;
-use crate::code_gen::{CodeGeneration, CodeGenerationHoistedStmt};
+use crate::{
+    code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
+    utils::AstSyntaxContext,
+};
 
 /// Information needed for generating the async module wrapper for
 /// [EcmascriptChunkItem](crate::chunk::EcmascriptChunkItem)s.
@@ -76,8 +79,10 @@ impl OptionAsyncModule {
     }
 }
 
+/// The identifiers (and their corresponding syntax context) of all async modules referenced by the
+/// current module.
 #[turbo_tasks::value(transparent)]
-struct AsyncModuleIdents(FxIndexSet<(String, u32)>);
+struct AsyncModuleIdents(FxIndexSet<(String, AstSyntaxContext)>);
 
 async fn get_inherit_async_referenced_asset(
     r: Vc<Box<dyn ModuleReference>>,
@@ -127,7 +132,7 @@ impl AsyncModule {
                                 .get_ident(chunking_context, None, None)
                                 .await?
                                 .map(|i| i.into_module_namespace_ident().unwrap())
-                                .map(|(i, ctx)| (i, ctx.unwrap_or_default().as_u32()))
+                                .map(|(i, ctx)| (i, ctx.unwrap_or_default().into()))
                         } else {
                             None
                         }
@@ -141,7 +146,7 @@ impl AsyncModule {
                                 .get_ident(chunking_context, None, None)
                                 .await?
                                 .map(|i| i.into_module_namespace_ident().unwrap())
-                                .map(|(i, ctx)| (i, ctx.unwrap_or_default().as_u32()))
+                                .map(|(i, ctx)| (i, ctx.unwrap_or_default().into()))
                         } else {
                             None
                         }
@@ -216,13 +221,7 @@ impl AsyncModule {
             if !async_idents.is_empty() {
                 let idents = async_idents
                     .iter()
-                    .map(|(ident, ctxt)| {
-                        Ident::new(
-                            ident.clone().into(),
-                            DUMMY_SP,
-                            SyntaxContext::from_u32(*ctxt),
-                        )
-                    })
+                    .map(|(ident, ctxt)| Ident::new(ident.clone().into(), DUMMY_SP, **ctxt))
                     .collect::<Vec<_>>();
 
                 return Ok(CodeGeneration::hoisted_stmts([
