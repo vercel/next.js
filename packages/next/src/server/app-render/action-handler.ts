@@ -748,7 +748,7 @@ export async function handleAction({
         const bodySizeLimitBytes =
           bodySizeLimit !== defaultBodySizeLimit
             ? (
-                require('next/dist/compiled/bytes') as typeof import('bytes')
+                require('next/dist/compiled/bytes') as typeof import('next/dist/compiled/bytes')
               ).parse(bodySizeLimit)
             : 1024 * 1024 // 1 MB
 
