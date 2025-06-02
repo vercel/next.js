@@ -265,7 +265,7 @@ impl PartialEq for RcStr {
                 let r = unsafe { deref_from(other.unsafe_data) };
                 l.hash == r.hash && l.value == r.value
             }
-            (INLINE_TAG, INLINE_TAG) => self.as_str() == other.as_str(),
+            (INLINE_TAG, INLINE_TAG) => self.unsafe_data == other.unsafe_data,
             _ => false,
         }
     }
