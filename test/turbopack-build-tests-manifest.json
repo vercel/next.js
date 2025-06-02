@@ -7141,12 +7141,11 @@
       "Middleware custom matchers i18n should not match /en/about",
       "Middleware custom matchers i18n should not match /hello/invalid",
       "Middleware custom matchers i18n should not match /invalid/hello",
-      "Middleware custom matchers with root should not match"
-    ],
-    "failed": [
+      "Middleware custom matchers with root should not match",
       "Middleware custom matchers i18n should match /nl-NL/about",
       "Middleware custom matchers i18n should match has query on client routing nl-NL_about"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
