@@ -108,12 +108,9 @@ impl WebAssemblyModuleAsset {
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
         Ok(Vc::cell(vec![ResolvedVc::upcast(
-            SingleChunkableModuleReference::new(
-                Vc::upcast(self.loader()),
-                Vc::cell("wasm loader".into()),
-            )
-            .to_resolved()
-            .await?,
+            SingleChunkableModuleReference::new(Vc::upcast(self.loader()), rcstr!("wasm loader"))
+                .to_resolved()
+                .await?,
         )]))
     }
 }

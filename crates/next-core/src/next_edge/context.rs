@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, OptionVcExt, ResolvedVc, Value, Vc};
 use turbo_tasks_env::EnvMap;
 use turbo_tasks_fs::FileSystemPath;
@@ -109,10 +109,15 @@ pub async fn get_edge_resolve_options_context(
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ResolveOptionsContext>> {
-    let next_edge_import_map =
-        get_next_edge_import_map(*project_path, ty, next_config, mode, execution_context)
-            .to_resolved()
-            .await?;
+    let next_edge_import_map = get_next_edge_import_map(
+        *project_path,
+        ty.clone(),
+        next_config,
+        mode,
+        execution_context,
+    )
+    .to_resolved()
+    .await?;
 
     let ty: ServerContextType = ty.into_value();
 
@@ -214,9 +219,9 @@ pub async fn get_edge_chunking_context_with_client_assets(
     mode: Vc<NextMode>,
     root_path: ResolvedVc<FileSystemPath>,
     node_root: ResolvedVc<FileSystemPath>,
-    output_root_to_root_path: ResolvedVc<RcStr>,
+    output_root_to_root_path: RcStr,
     client_root: ResolvedVc<FileSystemPath>,
-    asset_prefix: ResolvedVc<Option<RcStr>>,
+    asset_prefix: Option<RcStr>,
     environment: ResolvedVc<Environment>,
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     turbo_minify: Vc<bool>,
@@ -279,22 +284,22 @@ pub async fn get_edge_chunking_context(
     mode: Vc<NextMode>,
     root_path: ResolvedVc<FileSystemPath>,
     node_root: ResolvedVc<FileSystemPath>,
-    node_root_to_root_path: ResolvedVc<RcStr>,
+    node_root_to_root_path: RcStr,
     environment: ResolvedVc<Environment>,
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     turbo_minify: Vc<bool>,
     turbo_source_maps: Vc<bool>,
     no_mangling: Vc<bool>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
-    let output_root = node_root.join("server/edge".into()).to_resolved().await?;
+    let output_root = node_root.join(rcstr!("server/edge")).to_resolved().await?;
     let next_mode = mode.await?;
     let mut builder = BrowserChunkingContext::builder(
         root_path,
         output_root,
         node_root_to_root_path,
         output_root,
-        output_root.join("chunks".into()).to_resolved().await?,
-        output_root.join("assets".into()).to_resolved().await?,
+        output_root.join(rcstr!("chunks")).to_resolved().await?,
+        output_root.join(rcstr!("assets")).to_resolved().await?,
         environment,
         next_mode.runtime_type(),
     )
@@ -302,7 +307,7 @@ pub async fn get_edge_chunking_context(
     // instead. This special blob url is handled by the custom fetch
     // implementation in the edge sandbox. It will respond with the
     // asset from the output directory.
-    .asset_base_path(ResolvedVc::cell(Some("blob:server/edge/".into())))
+    .asset_base_path(Some(rcstr!("blob:server/edge/")))
     .minify_type(if *turbo_minify.await? {
         MinifyType::Minify {
             mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),

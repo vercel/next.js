@@ -10,7 +10,7 @@ use anyhow::{Result, bail};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Level};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, SliceMap, TaskInput,
     TryJoinIterExt, Value, ValueToString, Vc, trace::TraceRawVcs,
@@ -2606,13 +2606,13 @@ async fn resolve_module_request(
 
     let module_result =
         merge_results_with_affecting_sources(results, result.affecting_sources.clone())
-            .with_replaced_request_key(".".into(), Value::new(RequestKey::new(module.into())));
+            .with_replaced_request_key(rcstr!("."), Value::new(RequestKey::new(module.into())));
 
     if options_value.prefer_relative {
         let module_prefix: RcStr = format!("./{module}").into();
         let pattern = Pattern::concat([
             module_prefix.clone().into(),
-            RcStr::from("/").into(),
+            rcstr!("/").into(),
             path.clone(),
         ]);
         let relative = Request::relative(Value::new(pattern), query, fragment, true)

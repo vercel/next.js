@@ -434,7 +434,7 @@ async fn process_content(
 
                             ParsingIssue {
                                 file: fs_path_vc,
-                                msg: ResolvedVc::cell(err.to_string().into()),
+                                msg: err.to_string().into(),
                                 source,
                             }
                             .resolved_cell()
@@ -471,7 +471,7 @@ async fn process_content(
                 };
                 ParsingIssue {
                     file: fs_path_vc,
-                    msg: ResolvedVc::cell(e.to_string().into()),
+                    msg: e.to_string().into(),
                     source,
                 }
                 .resolved_cell()
@@ -520,9 +520,8 @@ impl CssError {
             CssError::CssSelectorInModuleNotPure { selector } => {
                 ParsingIssue {
                     file,
-                    msg: ResolvedVc::cell(
-                        format!("{CSS_MODULE_ERROR}, (lightningcss, {selector})").into(),
-                    ),
+                    msg: format!("{CSS_MODULE_ERROR}, (lightningcss, {selector})").into(),
+
                     source: None,
                 }
                 .resolved_cell()
@@ -617,7 +616,7 @@ fn generate_css_source_map(source_map: &parcel_sourcemap::SourceMap) -> Result<R
 
 #[turbo_tasks::value]
 struct ParsingIssue {
-    msg: ResolvedVc<RcStr>,
+    msg: RcStr,
     file: ResolvedVc<FileSystemPath>,
     source: Option<IssueSource>,
 }
@@ -650,7 +649,7 @@ impl Issue for ParsingIssue {
     #[turbo_tasks::function]
     async fn description(&self) -> Result<Vc<OptionStyledString>> {
         Ok(Vc::cell(Some(
-            StyledString::Text(self.msg.await?.as_str().into()).resolved_cell(),
+            StyledString::Text(self.msg.clone()).resolved_cell(),
         )))
     }
 }

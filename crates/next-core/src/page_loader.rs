@@ -25,14 +25,10 @@ use crate::{embed_js::next_js_file_path, util::get_asset_path_from_pathname};
 pub async fn create_page_loader_entry_module(
     client_context: Vc<Box<dyn AssetContext>>,
     entry_asset: Vc<Box<dyn Source>>,
-    pathname: Vc<RcStr>,
+    pathname: RcStr,
 ) -> Result<Vc<Box<dyn Module>>> {
     let mut result = RopeBuilder::default();
-    writeln!(
-        result,
-        "const PAGE_PATH = {};\n",
-        StringifyJs(&*pathname.await?)
-    )?;
+    writeln!(result, "const PAGE_PATH = {};\n", StringifyJs(&pathname))?;
 
     let page_loader_path = next_js_file_path("entry/page-loader.ts".into());
     let base_code = page_loader_path.read();
@@ -72,7 +68,7 @@ pub async fn create_page_loader_entry_module(
 #[turbo_tasks::value(shared)]
 pub struct PageLoaderAsset {
     pub server_root: ResolvedVc<FileSystemPath>,
-    pub pathname: ResolvedVc<RcStr>,
+    pub pathname: RcStr,
     pub rebase_prefix_path: ResolvedVc<FileSystemPathOption>,
     pub page_chunks: ResolvedVc<OutputAssets>,
 }
@@ -82,7 +78,7 @@ impl PageLoaderAsset {
     #[turbo_tasks::function]
     pub fn new(
         server_root: ResolvedVc<FileSystemPath>,
-        pathname: ResolvedVc<RcStr>,
+        pathname: RcStr,
         rebase_prefix_path: ResolvedVc<FileSystemPathOption>,
         page_chunks: ResolvedVc<OutputAssets>,
     ) -> Vc<Self> {
@@ -141,7 +137,7 @@ impl OutputAsset for PageLoaderAsset {
         Ok(root.join(
             format!(
                 "static/chunks/pages{}",
-                get_asset_path_from_pathname(&self.pathname.await?, ".js")
+                get_asset_path_from_pathname(&self.pathname, ".js")
             )
             .into(),
         ))
@@ -181,7 +177,7 @@ impl Asset for PageLoaderAsset {
 
         let content = format!(
             "__turbopack_load_page_chunks__({}, {:#})\n",
-            StringifyJs(&this.pathname.await?),
+            StringifyJs(&this.pathname),
             StringifyJs(&chunks_data)
         );
 

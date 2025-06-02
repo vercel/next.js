@@ -29,16 +29,17 @@ pub(super) struct NextFontGoogleOptions {
     pub subsets: Option<Vec<RcStr>>,
 }
 
+impl NextFontGoogleOptions {
+    pub async fn font_family(self: Vc<Self>) -> Result<RcStr> {
+        Ok(self.await?.font_family.clone())
+    }
+}
+
 #[turbo_tasks::value_impl]
 impl NextFontGoogleOptions {
     #[turbo_tasks::function]
     pub fn new(options: Value<NextFontGoogleOptions>) -> Vc<NextFontGoogleOptions> {
         Self::cell(options.into_value())
-    }
-
-    #[turbo_tasks::function]
-    pub fn font_family(&self) -> Vc<RcStr> {
-        Vc::cell((*self.font_family).into())
     }
 }
 

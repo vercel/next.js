@@ -78,7 +78,11 @@ impl EcmascriptBrowserEvaluateChunk {
         let chunking_context = this.chunking_context.await?;
         let environment = this.chunking_context.environment();
 
-        let output_root_to_root_path = this.chunking_context.output_root_to_root_path();
+        let output_root_to_root_path = this
+            .chunking_context
+            .output_root_to_root_path()
+            .owned()
+            .await?;
         let source_maps = *this
             .chunking_context
             .reference_chunk_source_maps(Vc::upcast(self))

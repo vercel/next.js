@@ -456,7 +456,7 @@ pub async fn get_next_edge_import_map(
     .await?;
 
     let ty = ty.into_value();
-    match ty {
+    match &ty {
         ServerContextType::Pages { .. }
         | ServerContextType::PagesData { .. }
         | ServerContextType::PagesApi { .. }
@@ -486,7 +486,7 @@ pub async fn get_next_edge_import_map(
     insert_next_server_special_aliases(
         &mut import_map,
         project_path,
-        ty,
+        ty.clone(),
         NextRuntime::Edge,
         next_config,
     )
@@ -607,14 +607,14 @@ async fn insert_next_server_special_aliases(
         .resolved_cell(),
     );
 
-    match ty {
+    match &ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {}
         ServerContextType::PagesData { .. } => {}
         // the logic closely follows the one in createRSCAliases in webpack-config.ts
         ServerContextType::AppSSR { app_dir }
         | ServerContextType::AppRSC { app_dir, .. }
         | ServerContextType::AppRoute { app_dir, .. } => {
-            let next_package = get_next_package(*app_dir).to_resolved().await?;
+            let next_package = get_next_package(**app_dir).to_resolved().await?;
             import_map.insert_exact_alias(
                 "styled-jsx",
                 request_to_import_mapping(next_package, "styled-jsx"),
@@ -624,10 +624,10 @@ async fn insert_next_server_special_aliases(
                 request_to_import_mapping(next_package, "styled-jsx/*"),
             );
 
-            rsc_aliases(import_map, project_path, ty, runtime, next_config).await?;
+            rsc_aliases(import_map, project_path, ty.clone(), runtime, next_config).await?;
         }
         ServerContextType::Middleware { .. } | ServerContextType::Instrumentation { .. } => {
-            rsc_aliases(import_map, project_path, ty, runtime, next_config).await?;
+            rsc_aliases(import_map, project_path, ty.clone(), runtime, next_config).await?;
         }
     }
 
@@ -636,7 +636,7 @@ async fn insert_next_server_special_aliases(
     // context, it'll resolve to the noop where it's allowed, or aliased into
     // the error which throws a runtime error. This works with in combination of
     // build-time error as well, refer https://github.com/vercel/next.js/blob/0060de1c4905593ea875fa7250d4b5d5ce10897d/packages/next-swc/crates/next-core/src/next_server/context.rs#L103
-    match ty {
+    match &ty {
         ServerContextType::Pages { .. } => {
             insert_exact_alias_map(
                 import_map,

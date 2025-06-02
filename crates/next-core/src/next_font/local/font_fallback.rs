@@ -3,6 +3,7 @@ use allsorts::{
     font_data::{DynamicFontTableProvider, FontData},
 };
 use anyhow::{Context, Result, bail};
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 
@@ -38,7 +39,7 @@ pub(super) async fn get_font_fallbacks(
 ) -> Result<Vc<FontFallbackResult>> {
     let options = &*options_vc.await?;
     let scoped_font_family =
-        get_scoped_font_family(FontFamilyType::Fallback.cell(), options_vc.font_family());
+        get_scoped_font_family(FontFamilyType::Fallback, options_vc.font_family().await?);
 
     let mut font_fallbacks = vec![];
     match options.adjust_font_fallback {
@@ -49,8 +50,8 @@ pub(super) async fn get_font_fallbacks(
             match adjustment {
                 FontResult::Ok(adjustment) => font_fallbacks.push(
                     FontFallback::Automatic(AutomaticFontFallback {
-                        scoped_font_family: scoped_font_family.to_resolved().await?,
-                        local_font_family: ResolvedVc::cell("Arial".into()),
+                        scoped_font_family,
+                        local_font_family: rcstr!("Arial"),
                         adjustment: Some(adjustment),
                     })
                     .resolved_cell(),
@@ -67,8 +68,8 @@ pub(super) async fn get_font_fallbacks(
             match adjustment {
                 FontResult::Ok(adjustment) => font_fallbacks.push(
                     FontFallback::Automatic(AutomaticFontFallback {
-                        scoped_font_family: scoped_font_family.to_resolved().await?,
-                        local_font_family: ResolvedVc::cell("Times New Roman".into()),
+                        scoped_font_family,
+                        local_font_family: rcstr!("Times New Roman"),
                         adjustment: Some(adjustment),
                     })
                     .resolved_cell(),

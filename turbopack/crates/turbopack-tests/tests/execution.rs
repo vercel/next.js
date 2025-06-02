@@ -410,7 +410,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     let chunking_context = NodeJsChunkingContext::builder(
         project_root,
         chunk_root_path,
-        ResolvedVc::cell(chunk_root_path_in_root_path_offset),
+        chunk_root_path_in_root_path_offset,
         static_root_path,
         chunk_root_path,
         static_root_path,

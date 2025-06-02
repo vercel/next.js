@@ -5,7 +5,7 @@ use futures::FutureExt;
 use indoc::formatdoc;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{Completion, FxIndexMap, ResolvedVc, Value, Vc};
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::{CommandLineProcessEnv, ProcessEnv};
@@ -97,7 +97,7 @@ impl NextFontGoogleReplacer {
         let properties = get_font_css_properties(options, fallback).await?;
         let js_asset = VirtualSource::new(
             next_js_file_path("internal/font/google".into())
-                .join(format!("{}.js", get_request_id(options.font_family(), request_hash).await?).into()),
+                .join(format!("{}.js", get_request_id(options.font_family().await?, request_hash)).into()),
             AssetContent::file(FileContent::Content(
                 formatdoc!(
                     r#"
@@ -204,21 +204,19 @@ impl NextFontGoogleCssModuleReplacer {
         let font_data = load_font_data(*self.project_path);
         let options = font_options_from_query_map(query, font_data);
         let stylesheet_url = get_stylesheet_url_from_options(options, font_data);
+        let font_family = options.font_family().await?;
         let scoped_font_family =
-            get_scoped_font_family(FontFamilyType::WebFont.cell(), options.font_family());
-        let css_virtual_path = next_js_file_path("internal/font/google".into()).join(
-            format!(
-                "/{}.module.css",
-                get_request_id(options.font_family(), request_hash).await?
-            )
-            .into(),
-        );
+            get_scoped_font_family(FontFamilyType::WebFont, font_family.clone());
+        let css_virtual_path = next_js_file_path(rcstr!("internal/font/google"))
+            .join(format!("/{}.module.css", get_request_id(font_family, request_hash)).into());
 
         // When running Next.js integration tests, use the mock data available in
         // process.env.NEXT_FONT_GOOGLE_MOCKED_RESPONSES instead of making real
         // requests to Google Fonts.
         let env = Vc::upcast::<Box<dyn ProcessEnv>>(CommandLineProcessEnv::new());
-        let mocked_responses_path = &*env.read("NEXT_FONT_GOOGLE_MOCKED_RESPONSES".into()).await?;
+        let mocked_responses_path = &*env
+            .read(rcstr!("NEXT_FONT_GOOGLE_MOCKED_RESPONSES"))
+            .await?;
 
         let stylesheet_str = mocked_responses_path
             .as_ref()
@@ -453,7 +451,7 @@ async fn load_font_data(project_root: ResolvedVc<FileSystemPath>) -> Result<Vc<F
 async fn update_google_stylesheet(
     stylesheet: Vc<RcStr>,
     options: Vc<NextFontGoogleOptions>,
-    scoped_font_family: Vc<RcStr>,
+    scoped_font_family: RcStr,
     has_size_adjust: Vc<bool>,
 ) -> Result<Vc<RcStr>> {
     let options = &*options.await?;
@@ -462,7 +460,7 @@ async fn update_google_stylesheet(
     // TODO: Do this more resiliently, e.g. transforming an swc ast
     let mut stylesheet = stylesheet.await?.replace(
         &format!("font-family: '{}';", &options.font_family),
-        &format!("font-family: '{}';", &*scoped_font_family.await?),
+        &format!("font-family: '{scoped_font_family}';"),
     );
 
     let font_files = find_font_files_in_css(
@@ -571,7 +569,7 @@ async fn get_font_css_properties(
 ) -> Result<Vc<FontCssProperties>> {
     let options = &*options_vc.await?;
     let scoped_font_family =
-        &*get_scoped_font_family(FontFamilyType::WebFont.cell(), options_vc.font_family()).await?;
+        get_scoped_font_family(FontFamilyType::WebFont, options_vc.font_family().await?);
 
     let mut font_families = vec![format!("'{}'", scoped_font_family.clone()).into()];
     let font_fallback = &*font_fallback.await?;
@@ -580,7 +578,7 @@ async fn get_font_css_properties(
             font_families.extend_from_slice(fonts);
         }
         FontFallback::Automatic(fallback) => {
-            font_families.push(format!("'{}'", *fallback.scoped_font_family.await?).into());
+            font_families.push(format!("'{}'", fallback.scoped_font_family).into());
         }
         FontFallback::Error => {}
     }

@@ -230,7 +230,7 @@ async fn build_internal(
             NodeJsChunkingContext::builder(
                 project_path,
                 build_output_root,
-                ResolvedVc::cell(build_output_root_to_root_path.clone()),
+                build_output_root_to_root_path.clone(),
                 build_output_root,
                 build_output_root,
                 build_output_root,
@@ -318,7 +318,7 @@ async fn build_internal(
             let mut builder = BrowserChunkingContext::builder(
                 project_path,
                 build_output_root,
-                ResolvedVc::cell(build_output_root_to_root_path),
+                build_output_root_to_root_path,
                 build_output_root,
                 build_output_root,
                 build_output_root,
@@ -369,7 +369,7 @@ async fn build_internal(
             let mut builder = NodeJsChunkingContext::builder(
                 project_path,
                 build_output_root,
-                ResolvedVc::cell(build_output_root_to_root_path),
+                build_output_root_to_root_path,
                 build_output_root,
                 build_output_root,
                 build_output_root,

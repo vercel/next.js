@@ -99,8 +99,6 @@ pub struct OptionAppProject(Option<ResolvedVc<AppProject>>);
 
 impl AppProject {}
 
-pub(crate) const ECMASCRIPT_CLIENT_TRANSITION_NAME: &str = "next-ecmascript-client-reference";
-
 fn styles_rule_condition() -> RuleCondition {
     RuleCondition::any(vec![
         RuleCondition::all(vec![
@@ -130,6 +128,11 @@ fn module_styles_rule_condition() -> RuleCondition {
         RuleCondition::ResourcePathEndsWith(".module.sass".into()),
         RuleCondition::ContentTypeStartsWith("text/css+module".into()),
     ])
+}
+impl AppProject {
+    pub fn client_transition_name() -> RcStr {
+        rcstr!("next-ecmascript-client-reference")
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -165,9 +168,7 @@ impl AppProject {
             client_transition: Some(ResolvedVc::upcast(
                 self.client_transition().to_resolved().await?,
             )),
-            ecmascript_client_reference_transition_name: Some(
-                self.client_transition_name().to_resolved().await?,
-            ),
+            ecmascript_client_reference_transition_name: Some(Self::client_transition_name()),
         }
         .cell())
     }
@@ -177,9 +178,7 @@ impl AppProject {
         let this = self.await?;
         Ok(ServerContextType::AppRoute {
             app_dir: this.app_dir,
-            ecmascript_client_reference_transition_name: Some(
-                self.client_transition_name().to_resolved().await?,
-            ),
+            ecmascript_client_reference_transition_name: Some(Self::client_transition_name()),
         }
         .cell())
     }
@@ -225,11 +224,6 @@ impl AppProject {
             self.project().next_config(),
             self.project().execution_context(),
         ))
-    }
-
-    #[turbo_tasks::function]
-    pub(crate) fn client_transition_name(self: Vc<Self>) -> Vc<RcStr> {
-        Vc::cell(ECMASCRIPT_CLIENT_TRANSITION_NAME.into())
     }
 
     #[turbo_tasks::function]
@@ -369,25 +363,28 @@ impl AppProject {
         Ok(TransitionOptions {
             named_transitions: [
                 (
-                    ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
+                    AppProject::client_transition_name(),
                     ecmascript_client_reference_transition.to_resolved().await?,
                 ),
                 (
-                    "next-dynamic".into(),
+                    rcstr!("next-dynamic"),
                     ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
                 ),
                 (
-                    "next-dynamic-client".into(),
+                    rcstr!("next-dynamic-client"),
                     ResolvedVc::upcast(
                         NextDynamicTransition::new_client(Vc::upcast(self.client_transition()))
                             .to_resolved()
                             .await?,
                     ),
                 ),
-                ("next-ssr".into(), ssr_transition.to_resolved().await?),
-                ("next-shared".into(), shared_transition.to_resolved().await?),
+                (rcstr!("next-ssr"), ssr_transition.to_resolved().await?),
                 (
-                    "next-server-utility".into(),
+                    rcstr!("next-shared"),
+                    shared_transition.to_resolved().await?,
+                ),
+                (
+                    rcstr!("next-server-utility"),
                     ResolvedVc::upcast(NextServerUtilityTransition::new().to_resolved().await?),
                 ),
             ]
@@ -461,17 +458,17 @@ impl AppProject {
     async fn route_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
         let transitions = [
             (
-                ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
+                AppProject::client_transition_name(),
                 self.ecmascript_client_reference_transition()
                     .to_resolved()
                     .await?,
             ),
             (
-                "next-dynamic".into(),
+                rcstr!("next-dynamic"),
                 ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
             ),
             (
-                "next-dynamic-client".into(),
+                rcstr!("next-dynamic-client"),
                 ResolvedVc::upcast(
                     NextDynamicTransition::new_client(Vc::upcast(self.client_transition()))
                         .to_resolved()
@@ -479,15 +476,15 @@ impl AppProject {
                 ),
             ),
             (
-                "next-ssr".into(),
+                rcstr!("next-ssr"),
                 ResolvedVc::upcast(self.ssr_transition().to_resolved().await?),
             ),
             (
-                "next-shared".into(),
+                rcstr!("next-shared"),
                 ResolvedVc::upcast(self.shared_transition().to_resolved().await?),
             ),
             (
-                "next-server-utility".into(),
+                rcstr!("next-server-utility"),
                 ResolvedVc::upcast(NextServerUtilityTransition::new().to_resolved().await?),
             ),
         ]
@@ -512,17 +509,17 @@ impl AppProject {
     async fn edge_route_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
         let transitions = [
             (
-                ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
+                AppProject::client_transition_name(),
                 self.edge_ecmascript_client_reference_transition()
                     .to_resolved()
                     .await?,
             ),
             (
-                "next-dynamic".into(),
+                rcstr!("next-dynamic"),
                 ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
             ),
             (
-                "next-dynamic-client".into(),
+                rcstr!("next-dynamic-client"),
                 ResolvedVc::upcast(
                     NextDynamicTransition::new_client(Vc::upcast(self.client_transition()))
                         .to_resolved()
@@ -530,15 +527,15 @@ impl AppProject {
                 ),
             ),
             (
-                "next-ssr".into(),
+                rcstr!("next-ssr"),
                 ResolvedVc::upcast(self.edge_ssr_transition().to_resolved().await?),
             ),
             (
-                "next-shared".into(),
+                rcstr!("next-shared"),
                 ResolvedVc::upcast(self.edge_shared_transition().to_resolved().await?),
             ),
             (
-                "next-server-utility".into(),
+                rcstr!("next-server-utility"),
                 ResolvedVc::upcast(NextServerUtilityTransition::new().to_resolved().await?),
             ),
         ]
@@ -562,11 +559,11 @@ impl AppProject {
     async fn client_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
         let transitions = [
             (
-                "next-dynamic".into(),
+                rcstr!("next-dynamic"),
                 ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
             ),
             (
-                "next-dynamic-client".into(),
+                rcstr!("next-dynamic-client"),
                 ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
             ),
         ]
@@ -637,11 +634,11 @@ impl AppProject {
     async fn ssr_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
         let transitions = [
             (
-                "next-dynamic".into(),
+                rcstr!("next-dynamic"),
                 ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
             ),
             (
-                "next-dynamic-client".into(),
+                rcstr!("next-dynamic-client"),
                 ResolvedVc::upcast(
                     NextDynamicTransition::new_client(Vc::upcast(self.client_transition()))
                         .to_resolved()
@@ -649,7 +646,7 @@ impl AppProject {
                 ),
             ),
             (
-                "next-shared".into(),
+                rcstr!("next-shared"),
                 ResolvedVc::upcast(self.shared_transition().to_resolved().await?),
             ),
         ]
@@ -697,11 +694,11 @@ impl AppProject {
     async fn edge_ssr_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
         let transitions = [
             (
-                "next-dynamic".into(),
+                rcstr!("next-dynamic"),
                 ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
             ),
             (
-                "next-dynamic-client".into(),
+                rcstr!("next-dynamic-client"),
                 ResolvedVc::upcast(
                     NextDynamicTransition::new_client(Vc::upcast(self.client_transition()))
                         .to_resolved()
@@ -709,7 +706,7 @@ impl AppProject {
                 ),
             ),
             (
-                "next-shared".into(),
+                rcstr!("next-shared"),
                 ResolvedVc::upcast(self.edge_shared_transition().to_resolved().await?),
             ),
         ]
@@ -826,9 +823,9 @@ impl AppProject {
                 client_module_context,
                 self.project().project_path().join("_".into()),
             )),
-            Request::parse(Value::new(Pattern::Constant(
-                "next/dist/client/app-next-turbopack.js".into(),
-            ))),
+            Request::parse(Value::new(Pattern::Constant(rcstr!(
+                "next/dist/client/app-next-turbopack.js"
+            )))),
             None,
             false,
         )

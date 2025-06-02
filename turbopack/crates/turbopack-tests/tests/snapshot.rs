@@ -342,15 +342,15 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         .await?
         .map(|asset| EvaluatableAssets::one(asset.to_evaluatable(asset_context)));
 
-    let chunk_root_path = project_path.join("output".into()).to_resolved().await?;
-    let static_root_path = project_path.join("static".into()).to_resolved().await?;
+    let chunk_root_path = project_path.join(rcstr!("output")).to_resolved().await?;
+    let static_root_path = project_path.join(rcstr!("static")).to_resolved().await?;
 
     let chunking_context: Vc<Box<dyn ChunkingContext>> = match options.runtime {
         Runtime::Browser => Vc::upcast(
             BrowserChunkingContext::builder(
                 project_root,
                 project_path,
-                ResolvedVc::cell(project_path_to_project_root),
+                project_path_to_project_root,
                 project_path,
                 chunk_root_path,
                 static_root_path,
@@ -363,7 +363,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             NodeJsChunkingContext::builder(
                 project_root,
                 project_path,
-                ResolvedVc::cell(project_path_to_project_root),
+                project_path_to_project_root,
                 project_path,
                 chunk_root_path,
                 static_root_path,

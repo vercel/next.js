@@ -2,7 +2,7 @@ use std::io::Write;
 
 use anyhow::{Result, bail};
 use serde::Serialize;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, Value, Vc, fxindexmap};
 use turbo_tasks_fs::{File, FileSystemPath, rope::RopeBuilder};
 use turbopack_core::{
@@ -32,18 +32,18 @@ pub struct PageSsrEntryModule {
 
 #[turbo_tasks::function]
 pub async fn create_page_ssr_entry_module(
-    pathname: Vc<RcStr>,
+    pathname: RcStr,
     reference_type: Value<ReferenceType>,
     project_root: Vc<FileSystemPath>,
     ssr_module_context: Vc<Box<dyn AssetContext>>,
     source: Vc<Box<dyn Source>>,
-    next_original_name: Vc<RcStr>,
+    next_original_name: RcStr,
     pages_structure: Vc<PagesStructure>,
     runtime: NextRuntime,
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<PageSsrEntryModule>> {
-    let definition_page = &*next_original_name.await?;
-    let definition_pathname = &*pathname.await?;
+    let definition_page = next_original_name;
+    let definition_pathname = pathname;
 
     let ssr_module = ssr_module_context
         .process(source, reference_type.clone())
@@ -69,20 +69,20 @@ pub async fn create_page_ssr_entry_module(
         _ => bail!("Invalid path type"),
     };
 
-    const INNER: &str = "INNER_PAGE";
+    let inner = rcstr!("INNER_PAGE");
 
-    const INNER_DOCUMENT: &str = "INNER_DOCUMENT";
-    const INNER_APP: &str = "INNER_APP";
+    let inner_document = rcstr!("INNER_DOCUMENT");
+    let inner_app = rcstr!("INNER_APP");
 
     let mut replacements = fxindexmap! {
         "VAR_DEFINITION_PAGE" => definition_page.clone(),
         "VAR_DEFINITION_PATHNAME" => definition_pathname.clone(),
-        "VAR_USERLAND" => INNER.into(),
+        "VAR_USERLAND" => inner.clone(),
     };
 
     if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page) {
-        replacements.insert("VAR_MODULE_DOCUMENT", INNER_DOCUMENT.into());
-        replacements.insert("VAR_MODULE_APP", INNER_APP.into());
+        replacements.insert("VAR_MODULE_DOCUMENT", inner_document.clone());
+        replacements.insert("VAR_MODULE_APP", inner_app.clone());
     }
 
     // Load the file from the next.js codebase.
@@ -99,7 +99,7 @@ pub async fn create_page_ssr_entry_module(
     // instrumentation file conflicts with a page also labeled
     // /instrumentation) hoist the `register` method.
     if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page)
-        && (*definition_page == "/instrumentation" || *definition_page == "/src/instrumentation")
+        && (definition_page == "/instrumentation" || definition_page == "/src/instrumentation")
     {
         let file = &*file_content_rope(source.content().file_content()).await?;
 
@@ -120,7 +120,7 @@ pub async fn create_page_ssr_entry_module(
     }
 
     let mut inner_assets = fxindexmap! {
-        INNER.into() => ssr_module,
+        inner => ssr_module,
     };
 
     let pages_structure_ref = pages_structure.await?;
@@ -141,8 +141,8 @@ pub async fn create_page_ssr_entry_module(
             )
             .to_resolved()
             .await?;
-            inner_assets.insert(INNER_DOCUMENT.into(), document_module);
-            inner_assets.insert(INNER_APP.into(), app_module);
+            inner_assets.insert(inner_document, document_module);
+            inner_assets.insert(inner_app, app_module);
             (Some(app_module), Some(document_module))
         } else {
             (None, None)

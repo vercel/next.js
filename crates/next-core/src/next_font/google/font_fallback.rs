@@ -65,12 +65,10 @@ pub(super) async fn get_font_fallback(
             match fallback {
                 Ok(fallback) => FontFallback::Automatic(AutomaticFontFallback {
                     scoped_font_family: get_scoped_font_family(
-                        FontFamilyType::Fallback.cell(),
-                        options_vc.font_family(),
-                    )
-                    .to_resolved()
-                    .await?,
-                    local_font_family: ResolvedVc::cell(fallback.font_family),
+                        FontFamilyType::Fallback,
+                        options_vc.font_family().await?,
+                    ),
+                    local_font_family: fallback.font_family,
                     adjustment: fallback.adjustment,
                 })
                 .cell(),

@@ -163,7 +163,7 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                     lookup_path.join(
                         format!(
                             "{}.js",
-                            get_request_id(options_vc.font_family(), request_hash).await?
+                            get_request_id(options_vc.font_family().await?, request_hash)
                         )
                         .into(),
                     ),
@@ -182,7 +182,7 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                 let css_virtual_path = lookup_path.join(
                     format!(
                         "/{}.module.css",
-                        get_request_id(options.font_family(), request_hash).await?
+                        get_request_id(options.font_family().await?, request_hash)
                     )
                     .into(),
                 );

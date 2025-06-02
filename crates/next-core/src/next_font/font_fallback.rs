@@ -32,9 +32,9 @@ pub(crate) static DEFAULT_SERIF_FONT: Lazy<DefaultFallbackFont> =
 #[turbo_tasks::value(shared)]
 pub(crate) struct AutomaticFontFallback {
     /// e.g. `__Roboto_Fallback_c123b8`
-    pub scoped_font_family: ResolvedVc<RcStr>,
+    pub scoped_font_family: RcStr,
     /// The name of font locally, used in `src: local("{}")`
-    pub local_font_family: ResolvedVc<RcStr>,
+    pub local_font_family: RcStr,
     pub adjustment: Option<FontAdjustment>,
 }
 

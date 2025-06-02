@@ -34,16 +34,17 @@ pub(super) struct NextFontLocalOptions {
     pub variable_name: RcStr,
 }
 
+impl NextFontLocalOptions {
+    pub async fn font_family(self: Vc<Self>) -> Result<RcStr> {
+        Ok(self.await?.variable_name.clone())
+    }
+}
+
 #[turbo_tasks::value_impl]
 impl NextFontLocalOptions {
     #[turbo_tasks::function]
     pub fn new(options: Value<NextFontLocalOptions>) -> Vc<NextFontLocalOptions> {
         Self::cell(options.into_value())
-    }
-
-    #[turbo_tasks::function]
-    pub fn font_family(&self) -> Vc<RcStr> {
-        Vc::cell(self.variable_name.clone())
     }
 }
 

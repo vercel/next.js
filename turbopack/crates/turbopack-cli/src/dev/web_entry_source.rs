@@ -1,5 +1,5 @@
 use anyhow::{Result, anyhow};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, Vc};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
@@ -36,7 +36,7 @@ use crate::{
 pub async fn get_client_chunking_context(
     root_path: ResolvedVc<FileSystemPath>,
     server_root: ResolvedVc<FileSystemPath>,
-    server_root_to_root_path: ResolvedVc<RcStr>,
+    server_root_to_root_path: RcStr,
     environment: ResolvedVc<Environment>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
     Ok(Vc::upcast(
@@ -45,8 +45,8 @@ pub async fn get_client_chunking_context(
             server_root,
             server_root_to_root_path,
             server_root,
-            server_root.join("/_chunks".into()).to_resolved().await?,
-            server_root.join("/_assets".into()).to_resolved().await?,
+            server_root.join(rcstr!("/_chunks")).to_resolved().await?,
+            server_root.join(rcstr!("/_assets")).to_resolved().await?,
             environment,
             RuntimeType::Development,
         )
@@ -100,7 +100,7 @@ pub async fn create_web_entry_source(
     execution_context: Vc<ExecutionContext>,
     entry_requests: Vec<Vc<Request>>,
     server_root: Vc<FileSystemPath>,
-    server_root_to_root_path: ResolvedVc<RcStr>,
+    server_root_to_root_path: RcStr,
     _env: Vc<Box<dyn ProcessEnv>>,
     eager_compile: bool,
     node_env: Vc<NodeEnv>,
@@ -118,7 +118,7 @@ pub async fn create_web_entry_source(
     let chunking_context = get_client_chunking_context(
         root_path,
         server_root,
-        *server_root_to_root_path,
+        server_root_to_root_path,
         compile_time_info.environment(),
     )
     .to_resolved()

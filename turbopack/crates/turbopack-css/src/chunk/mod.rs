@@ -412,11 +412,6 @@ pub trait CssChunkItem: ChunkItem {
 }
 
 #[turbo_tasks::function]
-fn introspectable_type() -> Vc<RcStr> {
-    Vc::cell("css chunk".into())
-}
-
-#[turbo_tasks::function]
 fn entry_module_key() -> Vc<RcStr> {
     Vc::cell("entry module".into())
 }
@@ -425,7 +420,7 @@ fn entry_module_key() -> Vc<RcStr> {
 impl Introspectable for CssChunk {
     #[turbo_tasks::function]
     fn ty(&self) -> Vc<RcStr> {
-        introspectable_type()
+        Vc::cell("css chunk".into())
     }
 
     #[turbo_tasks::function]
