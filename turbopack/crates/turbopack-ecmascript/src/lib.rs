@@ -109,6 +109,7 @@ pub use turbopack_resolve::ecmascript as resolve;
 
 use self::chunk::{EcmascriptChunkItemContent, EcmascriptChunkType, EcmascriptExports};
 use crate::{
+    analyzer::graph::EvalContext,
     chunk::{EcmascriptChunkPlaceable, placeable::is_marked_as_side_effect_free},
     code_gen::{CodeGens, ModifiableAst},
     merged_module::MergedEcmascriptModule,
@@ -1108,7 +1109,6 @@ impl EcmascriptModuleContent {
             ..
         } = &*input;
 
-        let code_gens = input.merged_code_gens(None).await?;
         async {
             let minify = chunking_context.minify_type().await?;
 
@@ -1116,10 +1116,10 @@ impl EcmascriptModuleContent {
                 *parsed,
                 **ident,
                 *specified_module_type,
-                code_gens,
                 *generate_source_map,
                 *original_source_map,
                 *minify,
+                Some(&*input),
                 None,
             )
             .await?;
@@ -1141,10 +1141,10 @@ impl EcmascriptModuleContent {
             parsed.to_resolved().await?,
             ident,
             specified_module_type,
-            vec![],
             generate_source_map,
             None,
             MinifyType::NoMinify,
+            None,
             None,
         )
         .await?;
@@ -1205,61 +1205,23 @@ impl EcmascriptModuleContent {
                     original_source_map,
                     ..
                 } = &*options;
-                let var_name = parsed.await?;
-                let globals = if let ParseResult::Ok { globals, .. } = &*var_name {
-                    globals
-                } else {
-                    bail!("expected ParseResult::Ok");
-                };
-                let (is_export_mark, module_syntax_contexts) = GLOBALS.set(globals, || {
-                    let is_export_mark = Mark::new();
-                    let module_syntax_contexts: FxIndexMap<_, _> = modules
-                        .keys()
-                        .map(|m| {
-                            let mark = Mark::fresh(is_export_mark);
-                            (
-                                *m,
-                                SyntaxContext::empty()
-                                    .apply_mark(is_export_mark)
-                                    .apply_mark(mark),
-                            )
-                        })
-                        .collect();
-                    (is_export_mark, module_syntax_contexts)
-                });
-                let ctx = ScopeHoistingContext {
-                    module,
-                    modules: &modules,
-                    module_syntax_contexts: &module_syntax_contexts,
-                };
-                let code_gens = options.merged_code_gens(Some(ctx)).await?;
-                let preserved_exports = match &*module.get_exports().await? {
-                    EcmascriptExports::EsmExports(exports) => exports
-                        .await?
-                        .exports
-                        .iter()
-                        .flat_map(|(_, e)| {
-                            if let export::EsmExport::LocalBinding(n, _) = e {
-                                Some(Atom::from(&**n))
-                            } else {
-                                None
-                            }
-                        })
-                        .collect(),
-                    _ => Default::default(),
-                };
+
                 let result = process_parse_result(
                     *parsed,
                     **ident,
                     *specified_module_type,
-                    code_gens,
                     *generate_source_map,
                     *original_source_map,
                     *chunking_context.minify_type().await?,
-                    Some((is_export_mark, preserved_exports)),
+                    Some(&*options),
+                    Some(ScopeHoistingOptions {
+                        module,
+                        modules: &modules,
+                    }),
                 )
                 .await?;
-                Ok((module, module_syntax_contexts, is_export_mark, result))
+
+                Ok((module, result))
             })
             .try_join()
             .await?;
@@ -1283,6 +1245,7 @@ impl EcmascriptModuleContent {
                 .minify_type()
                 .await?,
             extra_comments: SwcComments::default(),
+            scope_hoisting_syntax_contexts: None,
         };
         let chunking_context = module_options.last().unwrap().await?.chunking_context;
         let additional_ids = modules
@@ -1299,12 +1262,7 @@ impl EcmascriptModuleContent {
 
 #[allow(clippy::type_complexity)]
 async fn merge_modules(
-    mut contents: Vec<(
-        ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
-        FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, SyntaxContext>,
-        Mark,
-        CodeGenResult,
-    )>,
+    mut contents: Vec<(ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, CodeGenResult)>,
     entries: Vec<(ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, usize)>,
     merged_ctxts: &'_ FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, SyntaxContext>,
     globals_merged: &'_ Globals,
@@ -1334,35 +1292,31 @@ async fn merge_modules(
 
             *ctxt = *self.merged_ctxts.get(&module).unwrap();
         }
-        // fn visit_mut_span(&mut self, span: &mut Span) {}
     }
 
-    let prepare_module = |(module, module_contexts, export_mark, content): &mut (
-        ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
-        FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, SyntaxContext>,
-        Mark,
-        CodeGenResult,
-    )| {
-        if let CodeGenResult {
-            program: Program::Module(content),
-            globals,
-            ..
-        } = content
-        {
-            GLOBALS.set(&*globals, || {
-                content.visit_mut_with(&mut SetSyntaxContextVisitor {
-                    current_module: *module,
-                    export_mark: *export_mark,
-                    merged_ctxts,
-                    current_module_contexts: module_contexts,
+    let prepare_module =
+        |(module, content): &mut (ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, CodeGenResult)| {
+            if let CodeGenResult {
+                program: Program::Module(content),
+                globals,
+                scope_hoisting_syntax_contexts: Some((export_mark, module_contexts)),
+                ..
+            } = content
+            {
+                GLOBALS.set(&*globals, || {
+                    content.visit_mut_with(&mut SetSyntaxContextVisitor {
+                        current_module: *module,
+                        export_mark: *export_mark,
+                        merged_ctxts,
+                        current_module_contexts: module_contexts,
+                    });
                 });
-            });
 
-            Ok(content.take().body)
-        } else {
-            bail!("Expected Program::Module");
-        }
-    };
+                Ok(content.take().body)
+            } else {
+                bail!("Expected Program::Module with scope_hosting_syntax_contexts");
+            }
+        };
 
     let mut inserted = FxHashSet::with_capacity_and_hasher(contents.len(), Default::default());
 
@@ -1457,72 +1411,93 @@ struct CodeGenResult {
     generate_source_map: bool,
     original_source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
     minify: MinifyType,
+    #[allow(clippy::type_complexity)]
+    scope_hoisting_syntax_contexts: Option<(
+        Mark,
+        FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable + 'static>>, SyntaxContext>,
+    )>,
+}
+
+struct ScopeHoistingOptions<'a> {
+    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    modules: &'a FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, bool>,
 }
 
 async fn process_parse_result(
     parsed: ResolvedVc<ParseResult>,
     ident: Vc<AssetIdent>,
     specified_module_type: SpecifiedModuleType,
-    mut code_gens: Vec<CodeGeneration>,
     generate_source_map: bool,
     original_source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
     minify: MinifyType,
-    retain_syntax_context: Option<(Mark, FxHashSet<Atom>)>,
+    options: Option<&EcmascriptModuleContentOptions>,
+    scope_hoisting_options: Option<ScopeHoistingOptions<'_>>,
 ) -> Result<CodeGenResult> {
-    let parsed = parsed.final_read_hint().await?;
+    with_consumed_parse_result(
+        parsed,
+        async |mut program, source_map, globals, eval_context, comments| -> Result<CodeGenResult> {
+            let (mut code_gens, retain_syntax_context) = if let Some(scope_hoisting_options) =
+                scope_hoisting_options
+            {
+                let (is_export_mark, module_syntax_contexts) = GLOBALS.set(&globals, || {
+                    let is_export_mark = Mark::new();
+                    let module_syntax_contexts: FxIndexMap<_, _> = scope_hoisting_options
+                        .modules
+                        .keys()
+                        .map(|m| {
+                            let mark = Mark::fresh(is_export_mark);
+                            (
+                                *m,
+                                SyntaxContext::empty()
+                                    .apply_mark(is_export_mark)
+                                    .apply_mark(mark),
+                            )
+                        })
+                        .collect();
+                    (is_export_mark, module_syntax_contexts)
+                });
 
-    Ok(match &*parsed {
-        ParseResult::Ok { .. } => {
+                let ctx = ScopeHoistingContext {
+                    module: scope_hoisting_options.module,
+                    modules: scope_hoisting_options.modules,
+                    module_syntax_contexts: &module_syntax_contexts,
+                };
+                let code_gens = options.unwrap().merged_code_gens(Some(ctx)).await?;
+                let preserved_exports = match &*scope_hoisting_options.module.get_exports().await? {
+                    EcmascriptExports::EsmExports(exports) => exports
+                        .await?
+                        .exports
+                        .iter()
+                        .flat_map(|(_, e)| {
+                            if let export::EsmExport::LocalBinding(n, _) = e {
+                                Some(Atom::from(&**n))
+                            } else {
+                                None
+                            }
+                        })
+                        .collect(),
+                    _ => Default::default(),
+                };
+
+                (
+                    code_gens,
+                    Some((is_export_mark, module_syntax_contexts, preserved_exports)),
+                )
+            } else if let Some(options) = options {
+                (options.merged_code_gens(None).await?, None)
+            } else {
+                (vec![], None)
+            };
+
             let extra_comments = SwcComments {
                 leading: Default::default(),
                 trailing: Default::default(),
             };
 
-            // We need a mutable version of the AST. We try to avoid cloning it by unwrapping the
-            // ReadRef.
-            let mut parsed = ReadRef::try_unwrap(parsed);
-            let (mut program, source_map, globals, eval_context, comments) = match &mut parsed {
-                Ok(ParseResult::Ok {
-                    program,
-                    source_map,
-                    globals,
-                    eval_context,
-                    comments,
-                }) => (
-                    program.take(),
-                    &*source_map,
-                    &*globals,
-                    &*eval_context,
-                    match Arc::try_unwrap(take(comments)) {
-                        Ok(comments) => Either::Left(comments),
-                        Err(comments) => Either::Right(comments),
-                    },
-                ),
-                Err(parsed) => {
-                    let ParseResult::Ok {
-                        program,
-                        source_map,
-                        globals,
-                        eval_context,
-                        comments,
-                    } = &**parsed
-                    else {
-                        unreachable!();
-                    };
-                    (
-                        program.clone(),
-                        source_map,
-                        globals,
-                        eval_context,
-                        Either::Right(comments.clone()),
-                    )
-                }
-                _ => unreachable!(),
-            };
             let top_level_mark = eval_context.top_level_mark;
             let is_esm = eval_context.is_esm(specified_module_type);
 
-            process_content_with_code_gens(&mut program, globals, &mut code_gens);
+            process_content_with_code_gens(&mut program, &globals, &mut code_gens);
 
             for comments in code_gens.iter_mut().flat_map(|cg| cg.comments.as_mut()) {
                 let leading = Arc::unwrap_or_clone(take(&mut comments.leading));
@@ -1537,11 +1512,11 @@ async fn process_parse_result(
                 }
             }
 
-            GLOBALS.set(globals, || {
-                if let Some((is_export_mark, preserved_symbols)) = retain_syntax_context {
+            GLOBALS.set(&globals, || {
+                if let Some((is_export_mark, _, preserved_symbols)) = &retain_syntax_context {
                     program.visit_mut_with(&mut hygiene_rename_only(
                         Some(top_level_mark),
-                        is_export_mark,
+                        *is_export_mark,
                         preserved_symbols,
                     ));
                 } else {
@@ -1564,78 +1539,153 @@ async fn process_parse_result(
                 remove_shebang(&mut program);
             });
 
-            CodeGenResult {
+            Ok(CodeGenResult {
                 program,
                 source_map: source_map.clone(),
-                globals: globals.clone(),
+                globals: Arc::new(globals),
                 comments,
                 extra_comments,
                 is_esm,
                 generate_source_map,
                 original_source_map,
                 minify,
-            }
-        }
-        ParseResult::Unparseable { messages } => {
-            let path = ident.path().to_string().await?;
-            let error_messages = messages
-                .as_ref()
-                .and_then(|m| m.first().map(|f| format!("\n{f}")))
-                .unwrap_or("".into());
-            let msg = format!("Could not parse module '{path}'\n{error_messages}");
-            let body = vec![
-                quote!(
-                    "const e = new Error($msg);" as Stmt,
-                    msg: Expr = Expr::Lit(msg.into()),
-                ),
-                quote!("e.code = 'MODULE_UNPARSEABLE';" as Stmt),
-                quote!("throw e;" as Stmt),
-            ];
+                scope_hoisting_syntax_contexts: retain_syntax_context
+                    .map(|(mark, ctxts, _)| (mark, ctxts)),
+            })
+        },
+        async |parse_result| -> Result<CodeGenResult> {
+            Ok(match parse_result {
+                ParseResult::Ok { .. } => unreachable!(),
+                ParseResult::Unparseable { messages } => {
+                    let path = ident.path().to_string().await?;
+                    let error_messages = messages
+                        .as_ref()
+                        .and_then(|m| m.first().map(|f| format!("\n{f}")))
+                        .unwrap_or("".into());
+                    let msg = format!("Could not parse module '{path}'\n{error_messages}");
+                    let body = vec![
+                        quote!(
+                            "const e = new Error($msg);" as Stmt,
+                            msg: Expr = Expr::Lit(msg.into()),
+                        ),
+                        quote!("e.code = 'MODULE_UNPARSEABLE';" as Stmt),
+                        quote!("throw e;" as Stmt),
+                    ];
 
-            CodeGenResult {
-                program: Program::Script(Script {
-                    span: DUMMY_SP,
-                    body,
-                    shebang: None,
-                }),
-                source_map: Arc::new(SourceMap::default()),
-                globals: Arc::new(Globals::default()),
-                comments: Either::Left(Default::default()),
-                extra_comments: Default::default(),
-                is_esm: false,
-                generate_source_map: false,
-                original_source_map: None,
-                minify: MinifyType::NoMinify,
-            }
-        }
-        ParseResult::NotFound => {
-            let path = ident.path().to_string().await?;
-            let msg = format!("Could not parse module '{path}'");
-            let body = vec![
-                quote!(
-                    "const e = new Error($msg);" as Stmt,
-                    msg: Expr = Expr::Lit(msg.into()),
+                    CodeGenResult {
+                        program: Program::Script(Script {
+                            span: DUMMY_SP,
+                            body,
+                            shebang: None,
+                        }),
+                        source_map: Arc::new(SourceMap::default()),
+                        globals: Arc::new(Globals::default()),
+                        comments: Either::Left(Default::default()),
+                        extra_comments: Default::default(),
+                        is_esm: false,
+                        generate_source_map: false,
+                        original_source_map: None,
+                        minify: MinifyType::NoMinify,
+                        scope_hoisting_syntax_contexts: None,
+                    }
+                }
+                ParseResult::NotFound => {
+                    let path = ident.path().to_string().await?;
+                    let msg = format!("Could not parse module '{path}'");
+                    let body = vec![
+                        quote!(
+                            "const e = new Error($msg);" as Stmt,
+                            msg: Expr = Expr::Lit(msg.into()),
+                        ),
+                        quote!("e.code = 'MODULE_UNPARSEABLE';" as Stmt),
+                        quote!("throw e;" as Stmt),
+                    ];
+                    CodeGenResult {
+                        program: Program::Script(Script {
+                            span: DUMMY_SP,
+                            body,
+                            shebang: None,
+                        }),
+                        source_map: Arc::new(SourceMap::default()),
+                        globals: Arc::new(Globals::default()),
+                        comments: Either::Left(Default::default()),
+                        extra_comments: Default::default(),
+                        is_esm: false,
+                        generate_source_map: false,
+                        original_source_map: None,
+                        minify: MinifyType::NoMinify,
+                        scope_hoisting_syntax_contexts: None,
+                    }
+                }
+            })
+        },
+    )
+    .await
+}
+
+/// Try to avoid cloning the AST and Globals by unwrapping the ReadRef.
+async fn with_consumed_parse_result<T>(
+    parsed: ResolvedVc<ParseResult>,
+    success: impl AsyncFnOnce(
+        Program,
+        &Arc<SourceMap>,
+        Globals,
+        &EvalContext,
+        Either<ImmutableComments, Arc<ImmutableComments>>,
+    ) -> Result<T>,
+    error: impl AsyncFnOnce(&ParseResult) -> Result<T>,
+) -> Result<T> {
+    let parsed = parsed.final_read_hint().await?;
+    match &*parsed {
+        ParseResult::Ok { .. } => {
+            let mut parsed = ReadRef::try_unwrap(parsed);
+            let (program, source_map, globals, eval_context, comments) = match &mut parsed {
+                Ok(ParseResult::Ok {
+                    program,
+                    source_map,
+                    globals,
+                    eval_context,
+                    comments,
+                }) => (
+                    program.take(),
+                    &*source_map,
+                    // TODO?
+                    // Arc::get_mut(globals)
+                    //     .take()
+                    //     .map_or_else(|| globals.clone_data(), |v| std::mem::take(v)),
+                    globals.clone_data(),
+                    &*eval_context,
+                    match Arc::try_unwrap(take(comments)) {
+                        Ok(comments) => Either::Left(comments),
+                        Err(comments) => Either::Right(comments),
+                    },
                 ),
-                quote!("e.code = 'MODULE_UNPARSEABLE';" as Stmt),
-                quote!("throw e;" as Stmt),
-            ];
-            CodeGenResult {
-                program: Program::Script(Script {
-                    span: DUMMY_SP,
-                    body,
-                    shebang: None,
-                }),
-                source_map: Arc::new(SourceMap::default()),
-                globals: Arc::new(Globals::default()),
-                comments: Either::Left(Default::default()),
-                extra_comments: Default::default(),
-                is_esm: false,
-                generate_source_map: false,
-                original_source_map: None,
-                minify: MinifyType::NoMinify,
-            }
+                Err(parsed) => {
+                    let ParseResult::Ok {
+                        program,
+                        source_map,
+                        globals,
+                        eval_context,
+                        comments,
+                    } = &**parsed
+                    else {
+                        unreachable!();
+                    };
+                    (
+                        program.clone(),
+                        source_map,
+                        globals.clone_data(),
+                        eval_context,
+                        Either::Right(comments.clone()),
+                    )
+                }
+                _ => unreachable!(),
+            };
+
+            success(program, source_map, globals, eval_context, comments).await
         }
-    })
+        _ => error(&parsed).await,
+    }
 }
 
 async fn emit_content(
@@ -1652,6 +1702,7 @@ async fn emit_content(
         original_source_map,
         minify,
         globals: _,
+        scope_hoisting_syntax_contexts: _,
     } = content;
 
     let mut bytes: Vec<u8> = vec![];
@@ -1793,13 +1844,13 @@ fn process_content_with_code_gens(
 fn hygiene_rename_only(
     top_level_mark: Option<Mark>,
     is_export_mark: Mark,
-    preserved_symbols: FxHashSet<Atom>,
+    preserved_symbols: &FxHashSet<Atom>,
 ) -> impl VisitMut {
-    struct HygieneRenamer {
-        preserved_symbols: FxHashSet<Atom>,
+    struct HygieneRenamer<'a> {
+        preserved_symbols: &'a FxHashSet<Atom>,
         is_export_mark: Mark,
     }
-    impl swc_core::ecma::transforms::base::rename::Renamer for HygieneRenamer {
+    impl swc_core::ecma::transforms::base::rename::Renamer for HygieneRenamer<'_> {
         const MANGLE: bool = false;
         const RESET_N: bool = true;
 
