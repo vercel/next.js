@@ -131,7 +131,7 @@ fn multiply_mix(x: u64, y: u64) -> u64 {
     }
 }
 
-/// Copied from `hash_byts` of `rustc-hash`.
+/// Copied from `hash_bytes` of `rustc-hash`.
 ///
 /// See: https://github.com/rust-lang/rustc-hash/blob/dc5c33f1283de2da64d8d7a06401d91aded03ad4/src/lib.rs#L252-L297
 ///
