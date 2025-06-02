@@ -117,7 +117,7 @@ impl Rope {
         self.data.to_bytes(self.length)
     }
 
-    pub fn into_bytes(self) -> Cow<'static, [u8]> {
+    pub fn into_bytes(self) -> Bytes {
         self.data.into_bytes(self.length)
     }
 }
@@ -540,9 +540,9 @@ impl InnerRope {
         }
     }
 
-    fn into_bytes(mut self, len: usize) -> Cow<'static, [u8]> {
+    fn into_bytes(mut self, len: usize) -> Bytes {
         if self.0.is_empty() {
-            return Cow::Borrowed(EMPTY_BUF);
+            return Bytes::default();
         } else if self.0.len() == 1 {
             let data = Arc::try_unwrap(self.0);
             match data {
@@ -559,7 +559,7 @@ impl InnerRope {
         let mut buf = Vec::with_capacity(len);
         read.read_to_end(&mut buf)
             .expect("read of rope cannot fail");
-        Cow::Owned(buf)
+        buf.into()
     }
 }
 
@@ -636,7 +636,7 @@ impl RopeElem {
         }
     }
 
-    fn into_bytes(self, len: usize) -> Cow<'static, [u8]> {
+    fn into_bytes(self, len: usize) -> Bytes {
         match self {
             Local(bytes) => bytes,
             Shared(inner) => inner.into_bytes(len),
