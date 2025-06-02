@@ -1,7 +1,7 @@
 use std::fmt;
 
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack::{
@@ -192,7 +192,7 @@ pub fn get_client_asset_context(
         compile_time_info,
         module_options_context,
         resolve_options_context,
-        Vc::cell("client".into()),
+        rcstr!("client"),
     ));
 
     asset_context

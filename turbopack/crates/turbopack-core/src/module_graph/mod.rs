@@ -320,7 +320,7 @@ impl SingleModuleGraph {
             for &module in modules.keys() {
                 let ident = module.ident().to_string().await?;
                 if !set.insert(ident.clone()) {
-                    duplicates.push(ident);
+                    duplicates.push(ident)
                 }
             }
             if !duplicates.is_empty() {

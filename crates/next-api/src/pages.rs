@@ -27,7 +27,7 @@ use next_core::{
 };
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, Value, ValueToString, Vc,
     fxindexmap, fxindexset, trace::TraceRawVcs,
@@ -84,11 +84,6 @@ use crate::{
 #[turbo_tasks::value]
 pub struct PagesProject {
     project: ResolvedVc<Project>,
-}
-
-#[turbo_tasks::function]
-fn client_layer() -> Vc<RcStr> {
-    Vc::cell("client".into())
 }
 
 #[turbo_tasks::value_impl]
@@ -373,7 +368,7 @@ impl PagesProject {
             self.project().client_compile_time_info(),
             self.client_module_options_context(),
             self.client_resolve_options_context(),
-            client_layer(),
+            rcstr!("client"),
         )
     }
 
@@ -384,7 +379,7 @@ impl PagesProject {
             self.project().server_compile_time_info(),
             self.ssr_module_options_context(),
             self.ssr_resolve_options_context(),
-            Vc::cell("ssr".into()),
+            rcstr!("ssr"),
         )
     }
 
@@ -397,7 +392,7 @@ impl PagesProject {
             self.project().server_compile_time_info(),
             self.api_module_options_context(),
             self.ssr_resolve_options_context(),
-            Vc::cell("api".into()),
+            rcstr!("api"),
         )
     }
 
@@ -408,7 +403,7 @@ impl PagesProject {
             self.project().server_compile_time_info(),
             self.ssr_data_module_options_context(),
             self.ssr_resolve_options_context(),
-            Vc::cell("ssr-data".into()),
+            rcstr!("ssr-data"),
         )
     }
 
@@ -419,7 +414,7 @@ impl PagesProject {
             self.project().edge_compile_time_info(),
             self.edge_ssr_module_options_context(),
             self.edge_ssr_resolve_options_context(),
-            Vc::cell("edge-ssr".into()),
+            rcstr!("edge-ssr"),
         )
     }
 
@@ -430,7 +425,7 @@ impl PagesProject {
             self.project().edge_compile_time_info(),
             self.edge_api_module_options_context(),
             self.edge_ssr_resolve_options_context(),
-            Vc::cell("edge-api".into()),
+            rcstr!("edge-api"),
         )
     }
 
@@ -441,7 +436,7 @@ impl PagesProject {
             self.project().edge_compile_time_info(),
             self.edge_ssr_data_module_options_context(),
             self.edge_ssr_resolve_options_context(),
-            Vc::cell("edge-ssr-data".into()),
+            rcstr!("edge-ssr-data"),
         )
     }
 

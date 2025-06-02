@@ -408,8 +408,8 @@ pub async fn type_resolve(
         Some(Request::module(
             format!("@types/{m}").into(),
             Value::new(p.clone()),
-            Vc::<RcStr>::default(),
-            Vc::<RcStr>::default(),
+            RcStr::default(),
+            RcStr::default(),
         ))
     } else {
         None

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -28,11 +28,6 @@ use crate::{
         compose::CssModuleComposeReference, import::ImportAssetReference, url::ReferencedAsset,
     },
 };
-
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("css".into())
-}
 
 #[turbo_tasks::value]
 #[derive(Clone)]
@@ -110,16 +105,16 @@ impl ProcessCss for CssModuleAsset {
 #[turbo_tasks::value_impl]
 impl Module for CssModuleAsset {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
         let mut ident = self
             .source
             .ident()
-            .with_modifier(modifier())
-            .with_layer(self.asset_context.layer());
+            .with_modifier(rcstr!("css"))
+            .with_layer(self.asset_context.layer().owned().await?);
         if let Some(import_context) = self.import_context {
-            ident = ident.with_modifier(import_context.modifier())
+            ident = ident.with_modifier(import_context.modifier().owned().await?)
         }
-        ident
+        Ok(ident)
     }
 
     #[turbo_tasks::function]
