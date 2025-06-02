@@ -290,7 +290,7 @@ impl Hash for RcStr {
         match self.tag() {
             DYNAMIC_TAG => {
                 let l = unsafe { deref_from(self.unsafe_data) };
-                l.value.as_str().hash(state);
+                state.write_u64(l.hash);
             }
             INLINE_TAG => {
                 self.as_str().hash(state);
