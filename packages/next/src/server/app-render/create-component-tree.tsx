@@ -1014,12 +1014,13 @@ function normalizePageOrLayoutFilePath(
   projectDir: string,
   layoutOrPagePath: string | undefined
 ) {
-  const dir = projectDir /*ctx.renderOpts.dir*/ || process.cwd()
   const relativePath = (layoutOrPagePath || '')
     // remove turbopack [project] prefix
     .replace(/^\[project\][\\/]/, '')
+    // remove the process.cwd() prefix
+    .replace(process.cwd() + '/', '')
     // remove the project root from the path
-    .replace(dir, '')
+    .replace(projectDir, '')
     // remove /(src/)?app/ dir prefix
     .replace(/^[\\/](src[\\/])?app[\\/]/, '')
 
