@@ -225,6 +225,7 @@ mod tests {
 
         let str = RcStr::from(long_string);
         assert_eq!(fxhash(str), fxhash(long_string));
+        assert_eq!(fxhash((1, str, 1)), fxhash((1, long_string, 1)));
     }
 
     fn fxhash<T: Hash>(value: T) -> u64 {
