@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -50,7 +50,9 @@ impl EcmascriptBrowserChunk {
 
 impl EcmascriptBrowserChunk {
     fn ident_for_path(&self) -> Vc<AssetIdent> {
-        self.chunk.ident().with_modifier(modifier())
+        self.chunk
+            .ident()
+            .with_modifier(rcstr!("ecmascript dev chunk"))
     }
 }
 
@@ -72,11 +74,6 @@ impl OutputChunk for EcmascriptBrowserChunk {
         }
         .cell())
     }
-}
-
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("ecmascript dev chunk".into())
 }
 
 #[turbo_tasks::value_impl]

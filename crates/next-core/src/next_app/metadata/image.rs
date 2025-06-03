@@ -29,7 +29,7 @@ async fn hash_file_content(path: Vc<FileSystemPath>) -> Result<u64> {
 
     Ok(match &*original_file_content {
         FileContent::Content(content) => {
-            let content = content.content().to_bytes()?;
+            let content = content.content().to_bytes();
             hash_xxh3_hash64(&*content)
         }
         FileContent::NotFound => {

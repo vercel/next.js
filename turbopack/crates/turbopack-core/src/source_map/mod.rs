@@ -116,7 +116,7 @@ pub struct TokenWithSource {
 pub struct SyntheticToken {
     pub generated_line: u32,
     pub generated_column: u32,
-    pub guessed_original_file: Option<String>,
+    pub guessed_original_file: Option<RcStr>,
 }
 
 /// An OriginalToken represents a region of the generated file that exists in
@@ -126,7 +126,7 @@ pub struct SyntheticToken {
 pub struct OriginalToken {
     pub generated_line: u32,
     pub generated_column: u32,
-    pub original_file: String,
+    pub original_file: RcStr,
     pub original_line: u32,
     pub original_column: u32,
     pub name: Option<RcStr>,
@@ -154,10 +154,9 @@ impl From<sourcemap::Token<'_>> for Token {
             Token::Original(OriginalToken {
                 generated_line: t.get_dst_line(),
                 generated_column: t.get_dst_col(),
-                original_file: t
-                    .get_source()
-                    .expect("already checked token has source")
-                    .to_string(),
+                original_file: RcStr::from(
+                    t.get_source().expect("already checked token has source"),
+                ),
                 original_line: t.get_src_line(),
                 original_column: t.get_src_col(),
                 name: t.get_name().map(RcStr::from),
@@ -574,7 +573,7 @@ impl SourceMap {
                     if let DecodedMap::Regular(map) = &map.map.0 {
                         if map.get_source_count() == 1 {
                             let source = map.sources().next().unwrap();
-                            *guessed_original_file = Some(source.to_string());
+                            *guessed_original_file = Some(RcStr::from(source));
                         }
                     }
                 }
