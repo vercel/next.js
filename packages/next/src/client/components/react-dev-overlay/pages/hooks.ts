@@ -2,9 +2,14 @@ import React from 'react'
 import * as Bus from './bus'
 import { useErrorOverlayReducer } from '../shared'
 import { Router } from '../../../router'
+import { getComponentStack, getOwnerStack } from '../../errors/stitched-error'
 
 export const usePagesDevOverlay = () => {
-  const [state, dispatch] = useErrorOverlayReducer('pages')
+  const [state, dispatch] = useErrorOverlayReducer(
+    'pages',
+    getComponentStack,
+    getOwnerStack
+  )
 
   React.useEffect(() => {
     Bus.on(dispatch)
