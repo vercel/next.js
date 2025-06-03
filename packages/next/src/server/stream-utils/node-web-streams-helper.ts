@@ -218,6 +218,17 @@ function createMetadataTransformStream(
         return
       }
 
+      // When we found the `<meta name="«nxt-icon»"` tag prefix, we will remove it from the chunk.
+      // Its close tag could either be `/>` or `>`, checking the next char to ensure we cover both cases.
+      let replaceLength = ENCODED_TAGS.META.ICON_MARK.length
+      // Check if next char is /, this is for xml mode.
+      if (chunk[iconMarkIndex + replaceLength] === 47) {
+        replaceLength += 2
+      } else {
+        // The last char is `>`
+        replaceLength++
+      }
+
       // Check if icon mark is inside <head> tag in the first chunk.
       if (chunkIndex === 0) {
         closedHeadIndex = indexOfUint8Array(chunk, ENCODED_TAGS.CLOSED.HEAD)
@@ -228,27 +239,15 @@ function createMetadataTransformStream(
           const replaced = new Uint8Array(chunk.length)
           replaced.set(chunk.subarray(0, iconMarkIndex))
           replaced.set(
-            chunk.subarray(iconMarkIndex + ENCODED_TAGS.META.ICON_MARK.length),
+            chunk.subarray(iconMarkIndex + replaceLength),
             iconMarkIndex
           )
           controller.enqueue(replaced)
           isMarkRemoved = true
         }
       } else {
-        // When it's appeared in the following chunks, we'll need to insert the script tag.
-
-        // Firstly, need to remove the icon mark from the chunk.
-        // When we found the `<meta name="«nxt-icon»"` tag prefix, we will remove it from the chunk.
-        // Its close tag could either be `/>` or `>`, checking the next char to ensure we cover both cases.
-        let replaceLength = ENCODED_TAGS.META.ICON_MARK.length
-        // Check if next char is /, this is for xml mode.
-        if (chunk[iconMarkIndex + replaceLength] === 47) {
-          replaceLength += 2
-        }
-        // The last char is `>`
-        else {
-          replaceLength++
-        }
+        // When it's appeared in the following chunks, we'll need to
+        // remove the mark and then insert the script tag at that position.
         const insertion = await insert()
         const encodedInsertion = encoder.encode(insertion)
         const insertionLength = encodedInsertion.length
