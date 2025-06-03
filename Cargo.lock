@@ -9977,6 +9977,7 @@ dependencies = [
  "turbopack-browser",
  "turbopack-cli-utils",
  "turbopack-core",
+ "turbopack-create-test-app",
  "turbopack-dev-server",
  "turbopack-ecmascript-plugins",
  "turbopack-ecmascript-runtime",
