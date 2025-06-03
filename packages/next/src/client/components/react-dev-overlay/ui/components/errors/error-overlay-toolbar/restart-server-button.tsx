@@ -48,7 +48,15 @@ export function RestartServerButton({ error }: { error: Error }) {
   }
 
   return (
-    <button className="restart-dev-server-button" onClick={handleClick}>
+    <button
+      className="restart-dev-server-button"
+      onClick={handleClick}
+      title={
+        process.env.__NEXT_TURBOPACK_PERSISTENT_CACHE
+          ? 'Clears the bundler cache and restarts the dev server. Helpful if you are seeing stale errors or changes are not appearing.'
+          : 'Restarts the development server without needing to leave the browser.'
+      }
+    >
       <RefreshClockWise width={14} height={14} />
       Restart Dev Server
     </button>
