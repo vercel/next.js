@@ -134,7 +134,7 @@ pub async fn get_server_resolve_options_context(
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ResolveOptionsContext>> {
     let next_server_import_map =
-        get_next_server_import_map(*project_path, ty, next_config, execution_context)
+        get_next_server_import_map(*project_path, ty, next_config, mode, execution_context)
             .to_resolved()
             .await?;
     let foreign_code_context_condition =
