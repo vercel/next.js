@@ -45,6 +45,7 @@ import reportHmrLatency from '../utils/report-hmr-latency'
 import { TurbopackHmr } from '../utils/turbopack-hot-reloader-common'
 import { NEXT_HMR_REFRESH_HASH_COOKIE } from '../../app-router-headers'
 import { getComponentStack, getOwnerStack } from '../../errors/stitched-error'
+import { isRecoverableError } from '../../../react-client-callbacks/on-recoverable-error'
 
 export interface Dispatcher {
   onBuildOk(): void
@@ -483,7 +484,8 @@ export default function HotReload({
   const [state, dispatch] = useErrorOverlayReducer(
     'app',
     getComponentStack,
-    getOwnerStack
+    getOwnerStack,
+    isRecoverableError
   )
 
   const dispatcher = useMemo<Dispatcher>(() => {

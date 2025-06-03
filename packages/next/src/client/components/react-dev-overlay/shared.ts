@@ -7,6 +7,7 @@ import type { DebugInfo } from './types'
 import type { DevIndicatorServerState } from '../../../server/dev/dev-indicator-server-state'
 import type { HMR_ACTION_TYPES } from '../../../server/dev/hot-reloader-types'
 import { parseStack } from './utils/parse-stack'
+import { isConsoleError } from '../errors/console-error'
 
 type FastRefreshState =
   /** No refresh in progress. */
@@ -169,7 +170,8 @@ function getInitialState(
 export function useErrorOverlayReducer(
   routerType: 'pages' | 'app',
   getComponentStack: (error: Error) => string | undefined,
-  getOwnerStack: (error: Error) => string | null | undefined
+  getOwnerStack: (error: Error) => string | null | undefined,
+  isRecoverableError: (error: Error) => boolean
 ) {
   function pushErrorFilterDuplicates(
     events: SupportedErrorEvent[],
@@ -188,6 +190,11 @@ export function useErrorOverlayReducer(
       error,
       frames,
       componentStackFrames,
+      type: isRecoverableError(error)
+        ? 'recoverable'
+        : isConsoleError(error)
+          ? 'console'
+          : 'runtime',
     }
     const pendingEvents = events.filter((event) => {
       // Filter out duplicate errors

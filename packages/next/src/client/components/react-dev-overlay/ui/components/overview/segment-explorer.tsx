@@ -54,7 +54,10 @@ function PageSegmentTree({ tree }: { tree: Trie<SegmentNode> | undefined }) {
     return null
   }
   return (
-    <div className="segment-explorer-content">
+    <div
+      className="segment-explorer-content"
+      data-nextjs-devtool-segment-explorer
+    >
       <PageSegmentTreeLayerPresentation
         tree={tree}
         node={tree.getRoot()}
@@ -147,11 +150,6 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
 
   .segment-explorer-filename-path {
     display: inline-block;
-
-    &:hover {
-      color: var(--color-gray-1000);
-      text-decoration: none;
-    }
   }
 
   .segment-explorer-filename-path a {
@@ -161,6 +159,7 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
 
   .segment-explorer-line {
     white-space: pre;
+    cursor: default;
   }
 
   .segment-explorer-line-icon {
