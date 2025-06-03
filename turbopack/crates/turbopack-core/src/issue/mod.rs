@@ -713,12 +713,7 @@ async fn into_plain(traces: Vec<Vec<ReadRef<AssetIdent>>>) -> Result<Vec<PlainTr
     // trim any empty traces and traces that only contain 1 item.  Showing a trace that points to
     // the file with the issue is not useful.  Due to the sort these are all at the beginning so we
     // just remove all until the first one with a length greater than 1.
-    match plain_traces.iter().position(|t| t.len() > 1) {
-        Some(end) => drop(plain_traces.drain(0..end)),
-        None => {
-            // If there are no traces with length greater than 1, we just return an empty vector.
-            return Ok(vec![]);
-        }
+    plain_traces.retain(|t| t.len() > 1);
     }
 
     // Now see if there are any overlaps

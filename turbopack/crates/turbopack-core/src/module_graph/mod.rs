@@ -767,7 +767,7 @@ impl SingleModuleGraph {
                     ) else {
                         unreachable!("there must be a path to a root");
                     };
-                    // Represent the path as a sequence of AssetIdentsthe path just using filepaths.
+                    // Represent the path as a sequence of AssetIdents
                     // TODO: consider hinting at various transitions (e.g. was this an
                     // import/require/dynamic-import?)
                     let path = path
