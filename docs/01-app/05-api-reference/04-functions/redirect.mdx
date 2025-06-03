@@ -12,12 +12,9 @@ When used in a [streaming context](/docs/app/building-your-application/routing/l
 
 If a resource doesn't exist, you can use the [`notFound` function](/docs/app/api-reference/functions/not-found) instead.
 
-> **Good to know**:
->
-> - In Server Actions and Route Handlers, `redirect` should be called after the `try/catch` block.
-> - If you prefer to return a 308 (Permanent) HTTP redirect instead of 307 (Temporary), you can use the [`permanentRedirect` function](/docs/app/api-reference/functions/permanentRedirect) instead.
+## Reference
 
-## Parameters
+### Parameters
 
 The `redirect` function accepts two arguments:
 
@@ -34,9 +31,18 @@ By default, `redirect` will use `push` (adding a new entry to the browser histor
 
 The `type` parameter has no effect when used in Server Components.
 
-## Returns
+### Returns
 
 `redirect` does not return a value.
+
+## Behavior
+
+- In Server Actions and Route Handlers, `redirect` should be called after the `try/catch` block.
+- If you prefer to return a 308 (Permanent) HTTP redirect instead of 307 (Temporary), you can use the [`permanentRedirect` function](/docs/app/api-reference/functions/permanentRedirect) instead.
+- `redirect` internally throws an error so it should be called outside of `try/catch` blocks.
+- `redirect` can be called in Client Components during the rendering process but not in event handlers. You can use the [`useRouter` hook](#userouter-hook) instead.
+- `redirect` also accepts absolute URLs and can be used to redirect to external links.
+- If you'd like to redirect before the render process, use [`next.config.js`](/docs/app/guides/redirecting#redirects-in-nextconfigjs) or [Middleware](/docs/app/guides/redirecting#nextresponseredirect-in-middleware).
 
 ## Example
 
