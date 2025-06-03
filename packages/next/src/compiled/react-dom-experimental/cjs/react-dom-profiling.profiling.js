@@ -2476,7 +2476,7 @@ function getViewTransitionName(props, instance) {
   if (null !== instance.autoName) return instance.autoName;
   props = pendingEffectsRoot.identifierPrefix;
   var globalClientId = globalClientIdCounter$1++;
-  props = "\u00ab" + props + "t" + globalClientId.toString(32) + "\u00bb";
+  props = "_" + props + "t_" + globalClientId.toString(32) + "_";
   return (instance.autoName = props);
 }
 function getClassNameByType(classByType) {
@@ -6417,19 +6417,19 @@ var HooksDispatcherOnMount = {
             idWithLeadingBit & ~(1 << (32 - clz32(idWithLeadingBit) - 1))
           ).toString(32) + JSCompiler_inline_result;
         identifierPrefix =
-          "\u00ab" + identifierPrefix + "R" + JSCompiler_inline_result;
+          "_" + identifierPrefix + "R_" + JSCompiler_inline_result;
         JSCompiler_inline_result = localIdCounter++;
         0 < JSCompiler_inline_result &&
           (identifierPrefix += "H" + JSCompiler_inline_result.toString(32));
-        identifierPrefix += "\u00bb";
+        identifierPrefix += "_";
       } else
         (JSCompiler_inline_result = globalClientIdCounter++),
           (identifierPrefix =
-            "\u00ab" +
+            "_" +
             identifierPrefix +
-            "r" +
+            "r_" +
             JSCompiler_inline_result.toString(32) +
-            "\u00bb");
+            "_");
       return (hook.memoizedState = identifierPrefix);
     },
     useHostTransitionStatus: useHostTransitionStatus,
@@ -20787,14 +20787,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_2400 = React.version;
 if (
-  "19.2.0-experimental-14094f80-20250529" !==
+  "19.2.0-experimental-1ae0a845-20250603" !==
   isomorphicReactPackageVersion$jscomp$inline_2400
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_2400,
-      "19.2.0-experimental-14094f80-20250529"
+      "19.2.0-experimental-1ae0a845-20250603"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -20816,10 +20816,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 };
 var internals$jscomp$inline_3087 = {
   bundleType: 0,
-  version: "19.2.0-experimental-14094f80-20250529",
+  version: "19.2.0-experimental-1ae0a845-20250603",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.2.0-experimental-14094f80-20250529"
+  reconcilerVersion: "19.2.0-experimental-1ae0a845-20250603"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
   var hook$jscomp$inline_3088 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -21086,7 +21086,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.2.0-experimental-14094f80-20250529";
+exports.version = "19.2.0-experimental-1ae0a845-20250603";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

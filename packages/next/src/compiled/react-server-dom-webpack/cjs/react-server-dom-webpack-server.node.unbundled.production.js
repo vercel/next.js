@@ -572,13 +572,7 @@ function useId() {
   if (null === currentRequest$1)
     throw Error("useId can only be used while React is rendering");
   var id = currentRequest$1.identifierCount++;
-  return (
-    "\u00ab" +
-    currentRequest$1.identifierPrefix +
-    "S" +
-    id.toString(32) +
-    "\u00bb"
-  );
+  return "_" + currentRequest$1.identifierPrefix + "S_" + id.toString(32) + "_";
 }
 function use(usable) {
   if (

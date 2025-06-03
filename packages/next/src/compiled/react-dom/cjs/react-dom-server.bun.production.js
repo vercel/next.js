@@ -2374,7 +2374,7 @@ function pushCompletedShellIdAttribute(target, resumableState) {
     ((resumableState.instructions |= 32),
     target.push(
       ' id="',
-      escapeTextForBrowser("\u00ab" + resumableState.idPrefix + "R\u00bb"),
+      escapeTextForBrowser("_" + resumableState.idPrefix + "R_"),
       '"'
     ));
 }
@@ -3393,9 +3393,9 @@ var HooksDispatcher = {
         );
       overflow = localIdCounter++;
       JSCompiler_inline_result =
-        "\u00ab" + resumableState.idPrefix + "R" + JSCompiler_inline_result;
+        "_" + resumableState.idPrefix + "R_" + JSCompiler_inline_result;
       0 < overflow && (JSCompiler_inline_result += "H" + overflow.toString(32));
-      return JSCompiler_inline_result + "\u00bb";
+      return JSCompiler_inline_result + "_";
     },
     useSyncExternalStore: function (subscribe, getSnapshot, getServerSnapshot) {
       if (void 0 === getServerSnapshot)
@@ -6201,7 +6201,7 @@ function flushCompletedQueues(request, destination) {
             writeChunk(destination, renderState$jscomp$0.startInlineScript);
             if (0 === (resumableState.instructions & 32)) {
               resumableState.instructions |= 32;
-              var shellId = "\u00ab" + resumableState.idPrefix + "R\u00bb";
+              var shellId = "_" + resumableState.idPrefix + "R_";
               writeChunk(destination, ' id="');
               writeChunk(destination, escapeTextForBrowser(shellId));
               writeChunk(destination, '"');
@@ -6437,13 +6437,13 @@ function addToReplayParent(node, parentKeyPath, trackedPostpones) {
 }
 var isomorphicReactPackageVersion$jscomp$inline_812 = React.version;
 if (
-  "19.2.0-canary-14094f80-20250529" !==
+  "19.2.0-canary-1ae0a845-20250603" !==
   isomorphicReactPackageVersion$jscomp$inline_812
 )
   throw Error(
     'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
       (isomorphicReactPackageVersion$jscomp$inline_812 +
-        "\n  - react-dom:  19.2.0-canary-14094f80-20250529\nLearn more: https://react.dev/warnings/version-mismatch")
+        "\n  - react-dom:  19.2.0-canary-1ae0a845-20250603\nLearn more: https://react.dev/warnings/version-mismatch")
   );
 exports.renderToReadableStream = function (children, options) {
   return new Promise(function (resolve, reject) {
@@ -6534,4 +6534,4 @@ exports.renderToReadableStream = function (children, options) {
     startWork(request);
   });
 };
-exports.version = "19.2.0-canary-14094f80-20250529";
+exports.version = "19.2.0-canary-1ae0a845-20250603";

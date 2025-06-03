@@ -3163,7 +3163,7 @@
         ((resumableState.instructions |= SentCompletedShellId),
         target.push(
           completedShellIdAttributeStart,
-          escapeTextForBrowser("\u00ab" + resumableState.idPrefix + "R\u00bb"),
+          escapeTextForBrowser("_" + resumableState.idPrefix + "R_"),
           attributeEnd
         ));
     }
@@ -7829,7 +7829,7 @@
                   NothingSent
                 ) {
                   resumableState.instructions |= SentCompletedShellId;
-                  var shellId = "\u00ab" + resumableState.idPrefix + "R\u00bb";
+                  var shellId = "_" + resumableState.idPrefix + "R_";
                   destination.push(completedShellIdAttributeStart);
                   var chunk$jscomp$1 = escapeTextForBrowser(shellId);
                   destination.push(chunk$jscomp$1);
@@ -8088,7 +8088,17 @@
                 : reason;
           request.fatalError = error;
           abortableTasks.forEach(function (task) {
-            return abortTask(task, request, error);
+            var prevTaskInDEV = currentTaskInDEV,
+              prevGetCurrentStackImpl = ReactSharedInternals.getCurrentStack;
+            currentTaskInDEV = task;
+            ReactSharedInternals.getCurrentStack = getCurrentStackInDEV;
+            try {
+              abortTask(task, request, error);
+            } finally {
+              (currentTaskInDEV = prevTaskInDEV),
+                (ReactSharedInternals.getCurrentStack =
+                  prevGetCurrentStackImpl);
+            }
           });
           abortableTasks.clear();
         }
@@ -9497,9 +9507,9 @@
               "Invalid hook call. Hooks can only be called inside of the body of a function component."
             );
           overflow = localIdCounter++;
-          treeId = "\u00ab" + resumableState.idPrefix + "R" + treeId;
+          treeId = "_" + resumableState.idPrefix + "R_" + treeId;
           0 < overflow && (treeId += "H" + overflow.toString(32));
-          return treeId + "\u00bb";
+          return treeId + "_";
         },
         useSyncExternalStore: function (
           subscribe,
@@ -9626,5 +9636,5 @@
         'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToPipeableStream" which supports Suspense on the server'
       );
     };
-    exports.version = "19.2.0-canary-14094f80-20250529";
+    exports.version = "19.2.0-canary-1ae0a845-20250603";
   })();

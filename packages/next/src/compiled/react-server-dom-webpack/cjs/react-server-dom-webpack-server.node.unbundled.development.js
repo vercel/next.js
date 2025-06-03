@@ -3899,11 +3899,11 @@
             throw Error("useId can only be used while React is rendering");
           var id = currentRequest$1.identifierCount++;
           return (
-            "\u00ab" +
+            "_" +
             currentRequest$1.identifierPrefix +
-            "S" +
+            "S_" +
             id.toString(32) +
-            "\u00bb"
+            "_"
           );
         },
         useHostTransitionStatus: unsupportedHook,
