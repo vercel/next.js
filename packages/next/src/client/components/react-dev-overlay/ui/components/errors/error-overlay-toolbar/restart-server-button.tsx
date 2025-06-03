@@ -38,6 +38,7 @@ export function RestartServerButton({ error }: { error: Error }) {
       endpoint = '/__nextjs_restart_dev?invalidatePersistentCache'
     }
 
+    // TODO: Use Client Action for transition indicator when DevTools is isolated.
     fetch(endpoint, {
       method: 'POST',
     }).then(() => {
