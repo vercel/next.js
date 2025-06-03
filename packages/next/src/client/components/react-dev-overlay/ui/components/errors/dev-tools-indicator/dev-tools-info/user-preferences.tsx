@@ -270,6 +270,11 @@ export const DEV_TOOLS_INFO_USER_PREFERENCES_STYLES = css`
     select {
       all: unset;
     }
+
+    option {
+      color: var(--color-gray-1000);
+      background: var(--color-background-100);
+    }
   }
 
   :global(.icon) {
