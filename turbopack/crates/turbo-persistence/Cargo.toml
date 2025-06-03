@@ -33,7 +33,7 @@ zstd = { version = "0.13.2", features = ["zdict_builder"] }
 
 [dev-dependencies]
 rand = { workspace = true, features = ["small_rng"] }
-tempfile = "3.14.0"
+tempfile = { workspace = true }
 
 [lints]
 workspace = true
