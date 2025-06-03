@@ -25,6 +25,7 @@ import type {
   UseCacheLayoutComponentProps,
   UseCachePageComponentProps,
 } from '../use-cache/use-cache-wrapper'
+import { scheduleOnNextTick } from '../../lib/scheduler'
 
 /**
  * Use the provided loader tree to create the React Component tree.
@@ -281,10 +282,10 @@ async function createComponentTreeInternal({
     validateRevalidate(layoutOrPageMod?.revalidate, workStore.route)
   }
 
+  const workUnitStore = workUnitAsyncStorage.getStore()
+
   if (typeof layoutOrPageMod?.revalidate === 'number') {
     const defaultRevalidate = layoutOrPageMod.revalidate as number
-
-    const workUnitStore = workUnitAsyncStorage.getStore()
 
     if (workUnitStore) {
       if (
@@ -814,7 +815,6 @@ async function createComponentTreeInternal({
         ) {
           segmentNode = (
             <HTTPAccessFallbackBoundary
-              key={cacheNodeKey}
               notFound={notfoundClientSegment}
               forbidden={forbiddenClientSegment}
               unauthorized={unauthorizedClientSegment}
@@ -825,18 +825,18 @@ async function createComponentTreeInternal({
           )
         } else {
           segmentNode = (
-            <React.Fragment key={cacheNodeKey}>
+            <>
               {layerAssets}
               {clientSegment}
-            </React.Fragment>
+            </>
           )
         }
       } else {
         segmentNode = (
-          <React.Fragment key={cacheNodeKey}>
+          <>
             {layerAssets}
             {clientSegment}
-          </React.Fragment>
+          </>
         )
       }
     } else {
@@ -872,7 +872,6 @@ async function createComponentTreeInternal({
         // rely on the `NotFound` behavior.
         segmentNode = (
           <HTTPAccessFallbackBoundary
-            key={cacheNodeKey}
             notFound={
               NotFound ? (
                 <>
@@ -891,22 +890,43 @@ async function createComponentTreeInternal({
         )
       } else {
         segmentNode = (
-          <React.Fragment key={cacheNodeKey}>
+          <>
             {layerAssets}
             {serverSegment}
-          </React.Fragment>
+          </>
         )
       }
     }
+
+    const SegmentNodeWrapper =
+      workUnitStore?.type === 'prerender'
+        ? AsyncSegmentNodeWrapper
+        : React.Fragment
+
     // For layouts we just render the component
     return [
       actualSegment,
-      segmentNode,
+      <SegmentNodeWrapper key={cacheNodeKey}>{segmentNode}</SegmentNodeWrapper>,
       parallelRouteCacheNodeSeedData,
       loadingData,
       isPossiblyPartialResponse,
     ]
   }
+}
+
+/**
+ * The async segment node wrapper is used to ensure that the children are
+ * rendered after already scheduled microtasks have been executed. This avoids
+ * that the async Viewport component is aborted prematurely in case the segment
+ * aborts the prerender on synchronous IO access.
+ */
+async function AsyncSegmentNodeWrapper({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  await new Promise<void>((resolve) => scheduleOnNextTick(resolve))
+  return children
 }
 
 async function MetadataOutlet({

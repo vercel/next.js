@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { assertNoErrorToast } from 'next-test-utils'
 
 import { createExpectError } from './utils'
 
@@ -18,11 +19,6 @@ function runTests(options: { withMinification: boolean }) {
         return
       }
 
-      if (isNextDev) {
-        it('does not run in dev', () => {})
-        return
-      }
-
       beforeEach(async () => {
         if (!withMinification) {
           await next.patchFile('next.config.js', (content) =>
@@ -34,14 +30,22 @@ function runTests(options: { withMinification: boolean }) {
         }
       })
 
-      it('should not error the build sync IO is used inside a Suspense Boundary in a client Component and nothing else is dynamic', async () => {
-        try {
+      if (isNextDev) {
+        it('does not show a validation error in the dev overlay', async () => {
           await next.start()
-        } catch {
-          throw new Error('expected build not to fail')
-        }
-        expect(next.cliOutput).toContain('◐ / ')
-      })
+          const browser = await next.browser('/')
+          await assertNoErrorToast(browser)
+        })
+      } else {
+        it('should not error the build sync IO is used inside a Suspense Boundary in a client Component and nothing else is dynamic', async () => {
+          try {
+            await next.start()
+          } catch {
+            throw new Error('expected build not to fail')
+          }
+          expect(next.cliOutput).toContain('◐ / ')
+        })
+      }
     })
     describe('Error Attribution with Sync IO - Guarded RSC with unguarded Client sync IO', () => {
       const { next, isNextDev, skipped } = nextTestSetup({
