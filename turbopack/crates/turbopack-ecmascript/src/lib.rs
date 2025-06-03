@@ -1009,7 +1009,7 @@ pub struct EcmascriptModuleContentOptions {
 impl EcmascriptModuleContentOptions {
     async fn merged_code_gens(
         &self,
-        scope_hoisting_context: Option<ScopeHoistingContext<'_>>,
+        scope_hoisting_context: ScopeHoistingContext<'_>,
     ) -> Result<Vec<CodeGeneration>> {
         let EcmascriptModuleContentOptions {
             parsed,
@@ -1393,13 +1393,63 @@ async fn merge_modules(
 //         ident.sym = format!("{}$$${}{}", ident.sym, self.postfix, ident.ctxt.as_u32()).into();
 //     }
 // }
+
+/// Provides information about the other modules in the current scope hoisting group.
 #[derive(Clone, Copy)]
-pub struct ScopeHoistingContext<'a> {
-    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
-    modules: &'a FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, bool>,
-    /// To import a specifier from another module, apply this context to the Ident
-    module_syntax_contexts:
-        &'a FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, SyntaxContext>,
+pub enum ScopeHoistingContext<'a> {
+    Some {
+        /// The current module when scope hoisting
+        module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+        /// All modules in the current group, and whether they should expose their exports
+        modules: &'a FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, bool>,
+        /// To import a specifier from another module, apply this context to the Ident
+        module_syntax_contexts:
+            &'a FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, SyntaxContext>,
+    },
+    None,
+}
+
+impl<'a> ScopeHoistingContext<'a> {
+    /// The current module when scope hoisting
+    pub fn module(&self) -> Option<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>> {
+        match self {
+            ScopeHoistingContext::Some { module, .. } => Some(*module),
+            ScopeHoistingContext::None => None,
+        }
+    }
+
+    /// Whether the current module should not expose it's exports into the module cache.
+    pub fn skip_module_exports(&self) -> bool {
+        match self {
+            ScopeHoistingContext::Some {
+                module, modules, ..
+            } => !(*modules.get(module).unwrap()),
+            ScopeHoistingContext::None => false,
+        }
+    }
+
+    pub fn get_module_syntax_context(
+        &self,
+        module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    ) -> Option<SyntaxContext> {
+        match self {
+            ScopeHoistingContext::Some {
+                module_syntax_contexts,
+                ..
+            } => module_syntax_contexts.get(&module).copied(),
+            ScopeHoistingContext::None => None,
+        }
+    }
+
+    pub fn get_module_index(
+        &self,
+        module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    ) -> Option<usize> {
+        match self {
+            ScopeHoistingContext::Some { modules, .. } => modules.get_index_of(&module),
+            ScopeHoistingContext::None => None,
+        }
+    }
 }
 
 struct CodeGenResult {
@@ -1458,12 +1508,12 @@ async fn process_parse_result(
                     (is_export_mark, module_syntax_contexts)
                 });
 
-                let ctx = ScopeHoistingContext {
+                let ctx = ScopeHoistingContext::Some {
                     module: scope_hoisting_options.module,
                     modules: scope_hoisting_options.modules,
                     module_syntax_contexts: &module_syntax_contexts,
                 };
-                let code_gens = options.unwrap().merged_code_gens(Some(ctx)).await?;
+                let code_gens = options.unwrap().merged_code_gens(ctx).await?;
                 let preserved_exports = match &*scope_hoisting_options.module.get_exports().await? {
                     EcmascriptExports::EsmExports(exports) => exports
                         .await?
@@ -1485,7 +1535,10 @@ async fn process_parse_result(
                     Some((is_export_mark, module_syntax_contexts, preserved_exports)),
                 )
             } else if let Some(options) = options {
-                (options.merged_code_gens(None).await?, None)
+                (
+                    options.merged_code_gens(ScopeHoistingContext::None).await?,
+                    None,
+                )
             } else {
                 (vec![], None)
             };

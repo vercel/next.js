@@ -18,6 +18,7 @@ use turbopack_core::{
 
 use super::esm::base::ReferencedAsset;
 use crate::{
+    ScopeHoistingContext,
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
     utils::AstSyntaxContext,
 };
@@ -129,7 +130,7 @@ impl AsyncModule {
                     ReferencedAsset::External(_, ExternalType::EcmaScriptModule) => {
                         if self.import_externals {
                             referenced_asset
-                                .get_ident(chunking_context, None, None)
+                                .get_ident(chunking_context, None, ScopeHoistingContext::None)
                                 .await?
                                 .map(|i| i.into_module_namespace_ident().unwrap())
                                 .map(|(i, ctx)| (i, ctx.unwrap_or_default().into()))
@@ -143,7 +144,7 @@ impl AsyncModule {
                             .contains(&ResolvedVc::upcast(*placeable))
                         {
                             referenced_asset
-                                .get_ident(chunking_context, None, None)
+                                .get_ident(chunking_context, None, ScopeHoistingContext::None)
                                 .await?
                                 .map(|i| i.into_module_namespace_ident().unwrap())
                                 .map(|(i, ctx)| (i, ctx.unwrap_or_default().into()))

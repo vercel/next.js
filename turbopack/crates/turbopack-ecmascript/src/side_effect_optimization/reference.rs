@@ -16,7 +16,7 @@ use super::{
     facade::module::EcmascriptModuleFacadeModule, locals::module::EcmascriptModuleLocalsModule,
 };
 use crate::{
-    chunk::EcmascriptChunkPlaceable, code_gen::CodeGeneration,
+    ScopeHoistingContext, chunk::EcmascriptChunkPlaceable, code_gen::CodeGeneration,
     references::esm::base::ReferencedAsset, runtime_functions::TURBOPACK_IMPORT,
     utils::module_id_to_lit,
 };
@@ -142,7 +142,7 @@ impl EcmascriptModulePartReference {
         let referenced_asset = ReferencedAsset::from_resolve_result(self.resolve_reference());
         let referenced_asset = referenced_asset.await?;
         let ident = referenced_asset
-            .get_ident(chunking_context, None, None)
+            .get_ident(chunking_context, None, ScopeHoistingContext::None)
             .await?
             .context("part module reference should have an ident")?
             .as_expr_individual(DUMMY_SP)

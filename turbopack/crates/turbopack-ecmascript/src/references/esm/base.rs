@@ -146,7 +146,7 @@ impl ReferencedAsset {
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         export: Option<RcStr>,
-        scope_hoisting_context: Option<ScopeHoistingContext<'_>>,
+        scope_hoisting_context: ScopeHoistingContext<'_>,
     ) -> Result<Option<ReferencedAssetIdent>> {
         self.get_ident_inner(chunking_context, export, scope_hoisting_context, None)
             .await
@@ -156,93 +156,49 @@ impl ReferencedAsset {
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         export: Option<RcStr>,
-        scope_hoisting_context: Option<ScopeHoistingContext<'_>>,
+        scope_hoisting_context: ScopeHoistingContext<'_>,
         initial: Option<&ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
     ) -> Result<Option<ReferencedAssetIdent>> {
         Ok(match self {
             ReferencedAsset::Some(asset) => {
-                if let Some(scope_hoisting_context) = scope_hoisting_context {
-                    if let Some(ctxt) = scope_hoisting_context
-                        .module_syntax_contexts
-                        .get(&ResolvedVc::upcast(*asset))
-                    {
-                        if let Some(export) = &export {
-                            if let EcmascriptExports::EsmExports(exports) =
-                                *asset.get_exports().await?
+                if let Some(ctxt) =
+                    scope_hoisting_context.get_module_syntax_context(ResolvedVc::upcast(*asset))
+                    && let Some(export) = &export
+                    && let EcmascriptExports::EsmExports(exports) = *asset.get_exports().await?
+                {
+                    let exports = exports.expand_exports(None).await?;
+                    let esm_export = exports.exports.get(export);
+                    match esm_export {
+                        Some(EsmExport::LocalBinding(name, _)) => {
+                            // A local binding in a module that is merged in the same
+                            // group
+                            return Ok(Some(ReferencedAssetIdent::LocalBinding {
+                                ident: name.clone(),
+                                ctxt,
+                            }));
+                        }
+                        Some(b @ EsmExport::ImportedBinding(esm_ref, _, _))
+                        | Some(b @ EsmExport::ImportedNamespace(esm_ref)) => {
+                            let imported = if let EsmExport::ImportedBinding(_, export, _) = b {
+                                Some(export.clone())
+                            } else {
+                                None
+                            };
+
+                            let referenced_asset =
+                                ReferencedAsset::from_resolve_result(esm_ref.resolve_reference())
+                                    .await?;
+
+                            if let Some(&initial) = initial
+                                && *referenced_asset == ReferencedAsset::Some(initial)
                             {
-                                let exports = exports.expand_exports(None).await?;
-                                let esm_export = exports.exports.get(export);
-                                match esm_export {
-                                    Some(EsmExport::LocalBinding(name, _)) => {
-                                        // A local binding in a module that is merged in the same
-                                        // group
-                                        return Ok(Some(ReferencedAssetIdent::LocalBinding {
-                                            ident: name.clone(),
-                                            ctxt: *ctxt,
-                                        }));
-                                    }
-                                    Some(b @ EsmExport::ImportedBinding(esm_ref, _, _))
-                                    | Some(b @ EsmExport::ImportedNamespace(esm_ref)) => {
-                                        let imported =
-                                            if let EsmExport::ImportedBinding(_, export, _) = b {
-                                                Some(export.clone())
-                                            } else {
-                                                None
-                                            };
-
-                                        let referenced_asset =
-                                            ReferencedAsset::from_resolve_result(
-                                                esm_ref.resolve_reference(),
-                                            )
-                                            .await?;
-
-                                        if let Some(&initial) = initial
-                                            && *referenced_asset == ReferencedAsset::Some(initial)
-                                        {
-                                            // `initial` reexports from `asset` reexports from
-                                            // `referenced_asset` (which is `initial`)
-                                            CircularReExport {
-                                                export: export.clone(),
-                                                import: imported.clone(),
-                                                module: *asset,
-                                                module_cycle: initial,
-                                            }
-                                            .resolved_cell()
-                                            .emit();
-                                            return Ok(None);
-                                        }
-
-                                        // If the target module is still in the same group, we can
-                                        // refer it locally, otherwise it will be imported
-                                        return Ok(
-                                            match Box::pin(referenced_asset.get_ident_inner(
-                                                chunking_context,
-                                                imported,
-                                                Some(scope_hoisting_context),
-                                                Some(asset),
-                                            ))
-                                            .await?
-                                            {
-                                                Some(ReferencedAssetIdent::Module {
-                                                    namespace_ident,
-                                                    // Overwrite the context. This import isn't
-                                                    // inserted in the module that uses the import,
-                                                    // but in the module containing the reexport
-                                                    ctxt: None,
-                                                    export,
-                                                }) => Some(ReferencedAssetIdent::Module {
-                                                    namespace_ident,
-                                                    ctxt: Some(*ctxt),
-                                                    export,
-                                                }),
-                                                ident => ident,
-                                            },
-                                        );
-                                    }
-                                    Some(EsmExport::Error) | None => {
-                                        // Export not found, either there was already an error, or
-                                        // this is some dynamic (CJS) (re)export situation.
-                                    }
+                                // `initial` reexports from `asset` reexports from
+                                // `referenced_asset` (which is `initial`)
+                                CircularReExport {
+                                    export: export.clone(),
+                                    import: imported.clone(),
+                                    module: *asset,
+                                    module_cycle: initial,
                                 }
                                 .resolved_cell()
                                 .emit();
@@ -536,7 +492,7 @@ impl EsmAssetReference {
     pub async fn code_generation(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-        scope_hoisting_context: Option<ScopeHoistingContext<'_>>,
+        scope_hoisting_context: ScopeHoistingContext<'_>,
     ) -> Result<CodeGeneration> {
         let this = &*self.await?;
 
@@ -563,13 +519,11 @@ impl EsmAssetReference {
                 _ => {
                     let mut result = vec![];
 
-                    let merged_index = scope_hoisting_context
-                        .zip(if let ReferencedAsset::Some(asset) = &*referenced_asset {
-                            Some(*asset)
-                        } else {
-                            None
-                        })
-                        .and_then(|(c, asset)| c.modules.get_index_of(&ResolvedVc::upcast(asset)));
+                    let merged_index = if let ReferencedAsset::Some(asset) = &*referenced_asset {
+                        scope_hoisting_context.get_module_index(*asset)
+                    } else {
+                        None
+                    };
 
                     if let Some(merged_index) = merged_index {
                         // Insert a placeholder to inline the merged module at the right place
