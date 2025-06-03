@@ -81,7 +81,7 @@ function runTests(options: { withMinification: boolean }) {
         const expectError = createExpectError(next.cliOutput)
 
         expectError(
-          'Error: Route "/" used `new Date()` instead of using `performance` or without explicitly calling `await connection()` beforehand.'
+          'Error: Route "/" used `new Date()` inside a Client Component without a Suspense boundary above it.'
         )
         expectError('Error occurred prerendering page "/"')
       })
@@ -167,7 +167,7 @@ function runTests(options: { withMinification: boolean }) {
         const expectError = createExpectError(next.cliOutput)
 
         expectError(
-          'Error: Route "/" used `new Date()` instead of using `performance` or without explicitly calling `await connection()` beforehand.'
+          'Error: Route "/" used `new Date()` inside a Client Component without a Suspense boundary above it.'
         )
         expectError('Error occurred prerendering page "/"')
       })
