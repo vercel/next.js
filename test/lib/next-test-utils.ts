@@ -1124,6 +1124,22 @@ export function getRedboxErrorLink(
   })
 }
 
+export function getRedboxFooterMessage(
+  browser: Playwright
+): Promise<string | null> {
+  return browser.eval(() => {
+    const portal = [].slice
+      .call(document.querySelectorAll('nextjs-portal'))
+      .find((p) =>
+        p.shadowRoot.querySelector('[data-next-error-overlay-footer]')
+      )
+    const root = portal.shadowRoot
+    return (
+      root.querySelector('[data-next-error-overlay-footer]')?.innerText ?? null
+    )
+  })
+}
+
 export function getBrowserBodyText(browser: Playwright) {
   return browser.eval<string>(
     'document.getElementsByTagName("body")[0].innerText'

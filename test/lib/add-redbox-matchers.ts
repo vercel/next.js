@@ -10,6 +10,7 @@ import {
   getRedboxLabel,
   getRedboxTotalErrorCount,
   openRedbox,
+  getRedboxFooterMessage,
 } from './next-test-utils'
 import type { Playwright } from 'next-webdriver'
 import { NextInstance } from 'e2e-utils'
@@ -76,6 +77,7 @@ interface ErrorSnapshot {
   environmentLabel: string | null
   label: string | null
   description: string | null
+  footerMessage: string | null
   componentStack?: string
   source: string | null
   stack: string[] | null
@@ -86,15 +88,23 @@ async function createErrorSnapshot(
   next: NextInstance | null,
   { label: includeLabel = true }: ErrorSnapshotOptions = {}
 ): Promise<ErrorSnapshot> {
-  const [label, environmentLabel, description, source, stack, componentStack] =
-    await Promise.all([
-      includeLabel ? getRedboxLabel(browser) : null,
-      getRedboxEnvironmentLabel(browser),
-      getRedboxDescription(browser),
-      getRedboxSource(browser),
-      getRedboxCallStack(browser),
-      getRedboxComponentStack(browser),
-    ])
+  const [
+    label,
+    environmentLabel,
+    description,
+    footerMessage,
+    source,
+    stack,
+    componentStack,
+  ] = await Promise.all([
+    includeLabel ? getRedboxLabel(browser) : null,
+    getRedboxEnvironmentLabel(browser),
+    getRedboxDescription(browser),
+    getRedboxFooterMessage(browser),
+    getRedboxSource(browser),
+    getRedboxCallStack(browser),
+    getRedboxComponentStack(browser),
+  ])
 
   // We don't need to test the codeframe logic everywhere.
   // Here we focus on the cursor position of the top most frame
@@ -171,6 +181,7 @@ async function createErrorSnapshot(
       description !== null && next !== null
         ? description.replace(next.testDir, '<FIXME-project-root>')
         : description,
+    footerMessage,
     source: focusedSource,
     stack:
       next !== null && stack !== null
