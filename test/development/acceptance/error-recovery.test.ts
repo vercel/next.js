@@ -250,36 +250,20 @@ describe('pages/ error recovery', () => {
     // Somehow we end up with two in React 18 due to React's attempt to recover from this error.
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
-       [
-         {
-           "description": "oops",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "child.js (3:9) @ Child
+       {
+         "description": "oops",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": "child.js (3:9) @ Child
        > 3 |   throw new Error('oops')
            |         ^",
-           "stack": [
-             "Child child.js (3:9)",
-             "Set.forEach <anonymous> (0:0)",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-           ],
-         },
-         {
-           "description": "oops",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "child.js (3:9) @ Child
-       > 3 |   throw new Error('oops')
-           |         ^",
-           "stack": [
-             "Child child.js (3:9)",
-             "Set.forEach <anonymous> (0:0)",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-           ],
-         },
-       ]
+         "stack": [
+           "Child child.js (3:9)",
+           "Set.forEach <anonymous> (0:0)",
+           "<FIXME-next-dist-dir>",
+           "<FIXME-next-dist-dir>",
+         ],
+       }
       `)
     } else {
       await expect(browser).toDisplayRedbox(`
@@ -538,36 +522,20 @@ describe('pages/ error recovery', () => {
     // Somehow we end up with two in React 18 due to React's attempt to recover from this error.
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
-       [
-         {
-           "description": "nooo",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "index.js (5:11) @ ClassDefault.render
+       {
+         "description": "nooo",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": "index.js (5:11) @ ClassDefault.render
        > 5 |     throw new Error('nooo');
            |           ^",
-           "stack": [
-             "ClassDefault.render index.js (5:11)",
-             "Set.forEach <anonymous> (0:0)",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-           ],
-         },
-         {
-           "description": "nooo",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "index.js (5:11) @ ClassDefault.render
-       > 5 |     throw new Error('nooo');
-           |           ^",
-           "stack": [
-             "ClassDefault.render index.js (5:11)",
-             "Set.forEach <anonymous> (0:0)",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-           ],
-         },
-       ]
+         "stack": [
+           "ClassDefault.render index.js (5:11)",
+           "Set.forEach <anonymous> (0:0)",
+           "<FIXME-next-dist-dir>",
+           "<FIXME-next-dist-dir>",
+         ],
+       }
       `)
     } else {
       if (process.env.NEXT_RSPACK) {
@@ -654,36 +622,20 @@ describe('pages/ error recovery', () => {
     // Somehow we end up with two in React 18 due to React's attempt to recover from this error.
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
-       [
-         {
-           "description": "React is not defined",
-           "environmentLabel": null,
-           "label": "Runtime ReferenceError",
-           "source": "Foo.js (3:3) @ Foo
+       {
+         "description": "React is not defined",
+         "environmentLabel": null,
+         "label": "Runtime ReferenceError",
+         "source": "Foo.js (3:3) @ Foo
        > 3 |   return React.createElement('h1', null, 'Foo');
            |   ^",
-           "stack": [
-             "Foo Foo.js (3:3)",
-             "Set.forEach <anonymous> (0:0)",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-           ],
-         },
-         {
-           "description": "React is not defined",
-           "environmentLabel": null,
-           "label": "Runtime ReferenceError",
-           "source": "Foo.js (3:3) @ Foo
-       > 3 |   return React.createElement('h1', null, 'Foo');
-           |   ^",
-           "stack": [
-             "Foo Foo.js (3:3)",
-             "Set.forEach <anonymous> (0:0)",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-           ],
-         },
-       ]
+         "stack": [
+           "Foo Foo.js (3:3)",
+           "Set.forEach <anonymous> (0:0)",
+           "<FIXME-next-dist-dir>",
+           "<FIXME-next-dist-dir>",
+         ],
+       }
       `)
     } else {
       await expect(browser).toDisplayRedbox(`

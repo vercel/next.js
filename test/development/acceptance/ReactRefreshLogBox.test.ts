@@ -269,36 +269,20 @@ describe('ReactRefreshLogBox', () => {
 
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
-       [
-         {
-           "description": "no",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "FunctionDefault.js (1:51) @ FunctionDefault
+       {
+         "description": "no",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": "FunctionDefault.js (1:51) @ FunctionDefault
        > 1 | export default function FunctionDefault() { throw new Error('no'); }
            |                                                   ^",
-           "stack": [
-             "FunctionDefault FunctionDefault.js (1:51)",
-             "Set.forEach <anonymous> (0:0)",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-           ],
-         },
-         {
-           "description": "no",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "FunctionDefault.js (1:51) @ FunctionDefault
-       > 1 | export default function FunctionDefault() { throw new Error('no'); }
-           |                                                   ^",
-           "stack": [
-             "FunctionDefault FunctionDefault.js (1:51)",
-             "Set.forEach <anonymous> (0:0)",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-           ],
-         },
-       ]
+         "stack": [
+           "FunctionDefault FunctionDefault.js (1:51)",
+           "Set.forEach <anonymous> (0:0)",
+           "<FIXME-next-dist-dir>",
+           "<FIXME-next-dist-dir>",
+         ],
+       }
       `)
     } else {
       await expect(browser).toDisplayRedbox(`
@@ -470,36 +454,20 @@ describe('ReactRefreshLogBox', () => {
     // TODO(veil): Don't bail in Turbopack for sources outside of the project (https://linear.app/vercel/issue/NDX-944)
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
-       [
-         {
-           "description": "",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "Child.js (4:11) @ ClickCount.render
+       {
+         "description": "",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": "Child.js (4:11) @ ClickCount.render
        > 4 |     throw new Error()
            |           ^",
-           "stack": [
-             "ClickCount.render Child.js (4:11)",
-             "Set.forEach <anonymous> (0:0)",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-           ],
-         },
-         {
-           "description": "",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "Child.js (4:11) @ ClickCount.render
-       > 4 |     throw new Error()
-           |           ^",
-           "stack": [
-             "ClickCount.render Child.js (4:11)",
-             "Set.forEach <anonymous> (0:0)",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-           ],
-         },
-       ]
+         "stack": [
+           "ClickCount.render Child.js (4:11)",
+           "Set.forEach <anonymous> (0:0)",
+           "<FIXME-next-dist-dir>",
+           "<FIXME-next-dist-dir>",
+         ],
+       }
       `)
     } else {
       await expect(browser).toDisplayRedbox(`
