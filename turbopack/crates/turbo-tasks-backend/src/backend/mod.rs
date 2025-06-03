@@ -31,9 +31,11 @@ use turbo_tasks::{
         TransientTaskType, TurboTasksExecutionError, TypedCellContent,
     },
     event::{Event, EventListener},
+    message_queue::TimingEvent,
     registry::{self, get_value_type_global_name},
     task_statistics::TaskStatisticsApi,
     trace::TraceRawVcs,
+    turbo_tasks,
     util::IdFactoryWithReuse,
 };
 
@@ -811,6 +813,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     }
 
     fn snapshot(&self) -> Option<(Instant, bool)> {
+        let start = Instant::now();
         debug_assert!(self.should_persist());
         let mut snapshot_request = self.snapshot_request.lock();
         snapshot_request.snapshot_requested = true;
@@ -1040,6 +1043,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     }
                 }
             }
+        }
+
+        if new_items {
+            let elapsed = start.elapsed();
+            turbo_tasks().send_compilation_event(Arc::new(TimingEvent::new(
+                "Finished writing to persistent cache".to_string(),
+                elapsed,
+            )));
         }
 
         Some((snapshot_time, new_items))
