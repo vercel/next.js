@@ -406,7 +406,7 @@ function DevToolsPopover({
               />
               {process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER ? (
                 <MenuItem
-                  data-rendered-files
+                  data-segment-explorer
                   label="Segment Explorer"
                   value={<ChevronRight />}
                   onClick={() => setOpen(OVERLAYS.SegmentExplorer)}
