@@ -32,19 +32,9 @@ describe('preferred-region', () => {
           await next.readFile('.next/server/functions-config-manifest.json')
         )
 
-        console.log(
-          'Functions config manifest:',
-          JSON.stringify(functionsConfigManifest, null, 2)
-        )
-
         // Check Middleware Manifest (for Edge runtime)
         middlewareManifest = JSON.parse(
           await next.readFile('.next/server/middleware-manifest.json')
-        )
-
-        console.log(
-          'Middleware manifest functions:',
-          JSON.stringify(middlewareManifest.functions, null, 2)
         )
       } catch (error) {
         console.error('Error reading manifests:', error)
