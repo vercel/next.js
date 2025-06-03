@@ -48,7 +48,11 @@ export function RestartServerButton({ error }: { error: Error }) {
   }
 
   return (
-    <button className="restart-dev-server-button" onClick={handleClick}>
+    <button
+      className="restart-dev-server-button"
+      onClick={handleClick}
+      title="Restarts the development server without needing to leave the browser."
+    >
       <RefreshClockWise width={14} height={14} />
       Restart Dev Server
     </button>
