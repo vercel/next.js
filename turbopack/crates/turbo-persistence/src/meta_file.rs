@@ -68,9 +68,15 @@ impl MetaEntry {
             .expect("AQMF data out of bounds")
     }
 
-    pub fn sst(&self, db_path: &Path) -> Result<&StaticSortedFile> {
-        self.sst
-            .get_or_try_init(|| StaticSortedFile::open(db_path, self.sst_data.clone()))
+    pub fn sst(&self, meta: &MetaFile) -> Result<&StaticSortedFile> {
+        self.sst.get_or_try_init(|| {
+            StaticSortedFile::open(&meta.db_path, self.sst_data.clone()).with_context(|| {
+                format!(
+                    "Unable to open static sorted file referenced from {:08}.meta",
+                    meta.sequence_number()
+                )
+            })
+        })
     }
 
     /// Returns the key family and hash range of this file.
@@ -262,7 +268,14 @@ impl MetaFile {
                     GuardResult::Value(aqmf) => aqmf,
                     GuardResult::Guard(guard) => {
                         let aqmf = entry.aqmf(self.aqmf_data());
-                        let aqmf: Arc<qfilter::Filter> = Arc::new(pot::from_slice(aqmf)?);
+                        let aqmf: Arc<qfilter::Filter> =
+                            Arc::new(pot::from_slice(aqmf).with_context(|| {
+                                format!(
+                                    "Failed to deserialize AQMF from {:08}.meta for {:08}.sst",
+                                    self.sequence_number,
+                                    entry.sequence_number()
+                                )
+                            })?);
                         let _ = guard.insert(aqmf.clone());
                         aqmf
                     }
@@ -275,19 +288,23 @@ impl MetaFile {
             } else {
                 let aqmf = entry.aqmf.get_or_try_init(|| {
                     let aqmf = entry.aqmf(self.aqmf_data());
-                    anyhow::Ok(pot::from_slice(aqmf)?)
+                    anyhow::Ok(pot::from_slice(aqmf).with_context(|| {
+                        format!(
+                            "Failed to deserialize AQMF from {:08}.meta for {:08}.sst",
+                            self.sequence_number,
+                            entry.sequence_number()
+                        )
+                    })?)
                 })?;
                 if !aqmf.contains_fingerprint(key_hash) {
                     miss_result = MetaLookupResult::QuickFilterMiss;
                     continue;
                 }
             };
-            let result = entry.sst(&self.db_path)?.lookup(
-                key_hash,
-                key,
-                key_block_cache,
-                value_block_cache,
-            )?;
+            let result =
+                entry
+                    .sst(&self)?
+                    .lookup(key_hash, key, key_block_cache, value_block_cache)?;
             if !matches!(result, SstLookupResult::NotFound) {
                 return Ok(MetaLookupResult::SstLookup(result));
             }

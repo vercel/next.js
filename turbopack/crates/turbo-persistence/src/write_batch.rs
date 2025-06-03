@@ -397,10 +397,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
                 }
                 keys_written.fetch_add(entries, Ordering::Relaxed);
                 let seq = self.current_sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
-                let file = self.db_path.join(format!("{seq:08}.meta"));
-                let file = builder
-                    .write(&file)
-                    .with_context(|| format!("Unable to write meta file {seq:08}.meta"))?;
+                let file = builder.write(&self.db_path, seq)?;
                 Ok((seq, file))
             })
             .collect::<Result<Vec<_>>>()?;
