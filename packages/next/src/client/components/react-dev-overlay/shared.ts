@@ -1,13 +1,13 @@
 import { useReducer } from 'react'
 
-import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import type { VersionInfo } from '../../../server/dev/parse-version-info'
 import type { SupportedErrorEvent } from './ui/container/runtime-error/render-error'
-import type { ComponentStackFrame } from './utils/parse-component-stack'
+import { parseComponentStack } from './utils/parse-component-stack'
 import type { DebugInfo } from './types'
 import type { DevIndicatorServerState } from '../../../server/dev/dev-indicator-server-state'
 import type { HMR_ACTION_TYPES } from '../../../server/dev/hot-reloader-types'
-import { getOwnerStack } from '../errors/stitched-error'
+import { parseStack } from './utils/parse-stack'
+import { getComponentStack, getOwnerStack } from '../errors/stitched-error'
 
 type FastRefreshState =
   /** No refresh in progress. */
@@ -71,13 +71,10 @@ interface FastRefreshAction {
 export interface UnhandledErrorAction {
   type: typeof ACTION_UNHANDLED_ERROR
   reason: Error
-  frames: StackFrame[]
-  componentStackFrames?: ComponentStackFrame[]
 }
 export interface UnhandledRejectionAction {
   type: typeof ACTION_UNHANDLED_REJECTION
   reason: Error
-  frames: StackFrame[]
 }
 
 export interface DebugInfoAction {
@@ -134,21 +131,35 @@ function getStackIgnoringStrictMode(stack: string | undefined) {
 }
 
 function pushErrorFilterDuplicates(
-  errors: SupportedErrorEvent[],
-  err: SupportedErrorEvent
+  events: SupportedErrorEvent[],
+  id: number,
+  error: Error
 ): SupportedErrorEvent[] {
-  const pendingErrors = errors.filter((e) => {
+  const componentStack = getComponentStack(error)
+  const componentStackFrames =
+    componentStack === undefined
+      ? undefined
+      : parseComponentStack(componentStack)
+  const ownerStack = getOwnerStack(error)
+  const frames = parseStack((error.stack || '') + (ownerStack || ''))
+  const pendingEvent: SupportedErrorEvent = {
+    id,
+    error,
+    frames,
+    componentStackFrames,
+  }
+  const pendingEvents = events.filter((event) => {
     // Filter out duplicate errors
     return (
-      (e.event.reason.stack !== err.event.reason.stack &&
+      (event.error.stack !== pendingEvent.error.stack &&
         // TODO: Let ReactDevTools control deduping instead?
-        getStackIgnoringStrictMode(e.event.reason.stack) !==
-          getStackIgnoringStrictMode(err.event.reason.stack)) ||
-      getOwnerStack(e.event.reason) !== getOwnerStack(err.event.reason)
+        getStackIgnoringStrictMode(event.error.stack) !==
+          getStackIgnoringStrictMode(pendingEvent.error.stack)) ||
+      getOwnerStack(event.error) !== getOwnerStack(pendingEvent.error)
     )
   })
-  pendingErrors.push(err)
-  return pendingErrors
+  pendingEvents.push(pendingEvent)
+  return pendingEvents
 }
 
 const shouldDisableDevIndicator =
@@ -230,10 +241,11 @@ export function useErrorOverlayReducer(routerType: 'pages' | 'app') {
             return {
               ...state,
               nextId: state.nextId + 1,
-              errors: pushErrorFilterDuplicates(state.errors, {
-                id: state.nextId,
-                event: action,
-              }),
+              errors: pushErrorFilterDuplicates(
+                state.errors,
+                state.nextId,
+                action.reason
+              ),
             }
           }
           case 'pending': {
@@ -242,10 +254,11 @@ export function useErrorOverlayReducer(routerType: 'pages' | 'app') {
               nextId: state.nextId + 1,
               refreshState: {
                 ...state.refreshState,
-                errors: pushErrorFilterDuplicates(state.refreshState.errors, {
-                  id: state.nextId,
-                  event: action,
-                }),
+                errors: pushErrorFilterDuplicates(
+                  state.errors,
+                  state.nextId,
+                  action.reason
+                ),
               },
             }
           }
