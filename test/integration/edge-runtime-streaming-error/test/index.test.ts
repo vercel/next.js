@@ -50,25 +50,23 @@ function createContext() {
   return ctx
 }
 
-// TODO(veil): Missing `cause` in Turbopack
-;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
-  'development mode',
-  () => {
-    const context = createContext()
+describe('development mode', () => {
+  const context = createContext()
 
-    beforeAll(async () => {
-      context.appPort = await findPort()
-      context.app = await launchApp(appDir, context.appPort, {
-        ...context.handler,
-        env: { __NEXT_TEST_WITH_DEVTOOL: '1' },
-      })
+  beforeAll(async () => {
+    context.appPort = await findPort()
+    context.app = await launchApp(appDir, context.appPort, {
+      ...context.handler,
+      env: { __NEXT_TEST_WITH_DEVTOOL: '1' },
     })
+  })
 
-    afterAll(() => killApp(context.app))
+  afterAll(() => killApp(context.app))
 
-    it('logs the error correctly', test(context))
-  }
-)
+  it('logs the error correctly', test(context))
+})
+
+// This test setups fails for unrelated reasons when TURBOPACK_DEV is set
 ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
   'production mode',
   () => {

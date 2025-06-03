@@ -9,7 +9,7 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use serde_json::json;
 use turbo_tasks::Vc;
-use turbo_tasks_testing::{register, run_without_cache_check, Registration};
+use turbo_tasks_testing::{Registration, register, run_without_cache_check};
 
 static REGISTRATION: Registration = register!();
 

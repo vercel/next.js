@@ -223,11 +223,11 @@ export function createRouterAct(
       // that comes after the scope function, rather than immediately when the
       // scope function exits.
       //
-      // We use requestAnimationFrame to schedule the task because that's
+      // We use requestIdleCallback to schedule the task because that's
       // guaranteed to fire after any IntersectionObserver events, which the
       // router uses to track the visibility of links.
       await page.evaluate(
-        () => new Promise<void>((res) => requestAnimationFrame(() => res()))
+        () => new Promise<void>((res) => requestIdleCallback(() => res()))
       )
 
       // Checking whether a request needs to be intercepted is an async
@@ -254,7 +254,16 @@ export function createRouterAct(
           } else {
             item.didProcess = true
             if (expectedResponses === null) {
-              error.message = 'Expected no network requests to be initiated.'
+              error.message = `
+Expected no network requests to be initiated.
+
+URL: ${request.url()}
+Headers: ${JSON.stringify(fulfilled.headers)}
+
+Response:
+${fulfilled.body}
+`
+
               throw error
             }
             if (expectedResponses !== null) {

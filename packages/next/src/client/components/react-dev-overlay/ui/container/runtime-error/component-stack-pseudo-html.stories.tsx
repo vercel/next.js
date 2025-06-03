@@ -15,25 +15,18 @@ type Story = StoryObj<typeof PseudoHtmlDiff>
 
 export const TextMismatch: Story = {
   args: {
-    firstContent: 'Server rendered content',
-    secondContent: 'Client rendered content',
-    hydrationMismatchType: 'text',
     reactOutputComponentDiff: undefined,
   },
 }
 
 export const TextInTagMismatch: Story = {
   args: {
-    firstContent: 'Mismatched content',
-    secondContent: 'p',
-    hydrationMismatchType: 'text-in-tag',
     reactOutputComponentDiff: undefined,
   },
 }
 
 export const ReactUnifiedMismatch: Story = {
   args: {
-    hydrationMismatchType: 'tag',
     reactOutputComponentDiff: `<Page>
   <Layout>
     <div>

@@ -38,7 +38,7 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'CUSTOM_DEPLOYMENT_ID'])(
         expect(links.length).toBeGreaterThan(0)
 
         for (const link of links) {
-          if (link.attribs.href) {
+          if (link.attribs.href && link.attribs.rel !== 'expect') {
             if (link.attribs.as === 'font') {
               expect(link.attribs.href).not.toContain('dpl=' + deploymentId)
             } else {

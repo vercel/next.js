@@ -5,7 +5,7 @@ use turbopack_core::{
     chunk::ChunkableModuleReference,
     reference::ModuleReference,
     reference_type::CssReferenceSubType,
-    resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
+    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
 };
 
 use crate::references::css_resolve;

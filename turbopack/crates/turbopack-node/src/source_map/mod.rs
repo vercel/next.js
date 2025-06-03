@@ -1,28 +1,28 @@
 use std::{
     borrow::Cow,
     fmt::Write,
-    path::{Path, MAIN_SEPARATOR},
+    path::{MAIN_SEPARATOR, Path},
 };
 
 use anyhow::Result;
 use const_format::concatcp;
 use once_cell::sync::Lazy;
 use regex::Regex;
-pub use trace::{trace_source_map, StackFrame, TraceResult};
-use tracing::{instrument, Level};
+pub use trace::{StackFrame, TraceResult, trace_source_map};
+use tracing::{Level, instrument};
 use turbo_tasks::{ReadRef, Vc};
 use turbo_tasks_fs::{
-    source_context::get_source_context, to_sys_path, FileLinesContent, FileSystemPath,
+    FileLinesContent, FileSystemPath, source_context::get_source_context, to_sys_path,
 };
 use turbopack_cli_utils::source_context::format_source_context_lines;
 use turbopack_core::{
+    PROJECT_FILESYSTEM_NAME, SOURCE_URL_PROTOCOL,
     output::OutputAsset,
     source_map::{GenerateSourceMap, SourceMap},
-    PROJECT_FILESYSTEM_NAME, SOURCE_URL_PROTOCOL,
 };
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 
-use crate::{internal_assets_for_source_mapping, pool::FormattingMode, AssetsForSourceMapping};
+use crate::{AssetsForSourceMapping, internal_assets_for_source_mapping, pool::FormattingMode};
 
 pub mod trace;
 
@@ -91,9 +91,9 @@ fn write_resolved(
     match resolved {
         Err(err) => {
             // There was an error resolving the source map
-            write!(writable, "{PADDING}at {}", original_frame)?;
+            write!(writable, "{PADDING}at {original_frame}")?;
             if *first_error {
-                write!(writable, "{PADDING}(error resolving source map: {})", err)?;
+                write!(writable, "{PADDING}(error resolving source map: {err})")?;
                 *first_error = false;
             } else {
                 write!(writable, "{PADDING}(error resolving source map)")?;
@@ -104,7 +104,7 @@ fn write_resolved(
             write!(
                 writable,
                 "{PADDING}{}",
-                formatting_mode.lowlight(&format_args!("[at {}]", original_frame))
+                formatting_mode.lowlight(&format_args!("[at {original_frame}]"))
             )?;
         }
         Ok(ResolvedSourceMapping::Mapped { frame }) => {
@@ -165,7 +165,7 @@ fn write_resolved(
                     let ctx = get_source_context(lines, line, column, line, column);
                     match formatting_mode {
                         FormattingMode::Plain => {
-                            write!(writable, "\n{}", ctx)?;
+                            write!(writable, "\n{ctx}")?;
                         }
                         FormattingMode::AnsiColors => {
                             writable.write_char('\n')?;

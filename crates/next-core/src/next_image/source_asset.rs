@@ -1,22 +1,18 @@
 use std::io::Write;
 
-use anyhow::{bail, Result};
-use turbo_rcstr::RcStr;
+use anyhow::{Result, bail};
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{rope::RopeBuilder, FileContent};
+use turbo_tasks_fs::{FileContent, rope::RopeBuilder};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     ident::AssetIdent,
     source::Source,
 };
 use turbopack_ecmascript::utils::StringifyJs;
-use turbopack_image::process::{get_meta_data, BlurPlaceholderOptions};
+use turbopack_image::process::{BlurPlaceholderOptions, get_meta_data};
 
 use super::module::BlurPlaceholderMode;
-
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("structured image object".into())
-}
 
 #[turbo_tasks::function]
 fn blur_options() -> Vc<BlurPlaceholderOptions> {
@@ -41,7 +37,7 @@ impl Source for StructuredImageFileSource {
     fn ident(&self) -> Vc<AssetIdent> {
         self.image
             .ident()
-            .with_modifier(modifier())
+            .with_modifier(rcstr!("structured image object"))
             .rename_as("*.mjs".into())
     }
 }

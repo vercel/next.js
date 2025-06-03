@@ -1,5 +1,5 @@
 [package]
-edition = "2021"
+edition = "2024"
 name = "next-swc-napi"
 version = "0.0.0"
 publish = false
@@ -50,16 +50,7 @@ console-subscriber = { workspace = true, optional = true }
 dhat = { workspace = true, optional = true }
 indexmap = { workspace = true }
 owo-colors = { workspace = true }
-napi = { version = "2", default-features = false, features = [
-    "napi3",
-    "serde-json",
-    "tokio_rt",
-    "error_anyhow",
-    # Lightningcss uses this features
-    "napi4",
-    "napi5",
-    "compat-mode"
-] }
+napi = { workspace = true }
 napi-derive = "2"
 next-custom-transforms = { workspace = true }
 rand = { workspace = true }
@@ -79,8 +70,6 @@ dashmap = { workspace = true }
 swc_core = { workspace = true, features = [
     "base_concurrent",
     "base_node",
-    "bundler",
-    "bundler_concurrent",
     "common_concurrent",
     "ecma_ast",
     "ecma_ast_serde",
@@ -105,7 +94,6 @@ lightningcss-napi = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
-turbo-tasks-memory = { workspace = true }
 turbo-tasks-backend = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 next-api = { workspace = true }

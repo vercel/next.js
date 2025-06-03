@@ -1,0 +1,11 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@3.1.1/schema.json",
+  "changelog": ["@changesets/changelog-github", { "repo": "vercel/next.js" }],
+  "commit": false,
+  "fixed": [["next", "@next/swc"]],
+  "linked": [],
+  "access": "public",
+  "baseBranch": "canary",
+  "updateInternalDependencies": "patch",
+  "ignore": []
+}

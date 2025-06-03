@@ -1,7 +1,6 @@
-use anyhow::{bail, Result};
-use turbo_rcstr::RcStr;
+use anyhow::{Result, bail};
 use turbo_tasks::{ResolvedVc, Value, Vc};
-use turbopack::{transition::Transition, ModuleAssetContext};
+use turbopack::{ModuleAssetContext, transition::Transition};
 use turbopack_core::{
     context::{AssetContext, ProcessResult},
     reference_type::ReferenceType,
@@ -45,11 +44,6 @@ impl NextDynamicTransition {
 
 #[turbo_tasks::value_impl]
 impl Transition for NextDynamicTransition {
-    #[turbo_tasks::function]
-    fn process_layer(self: Vc<Self>, layer: Vc<RcStr>) -> Vc<RcStr> {
-        layer
-    }
-
     #[turbo_tasks::function]
     async fn process(
         self: Vc<Self>,

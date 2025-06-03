@@ -11,6 +11,7 @@ import type {
   CacheNodeSeedData,
   Segment as FlightRouterStateSegment,
 } from '../../../server/app-render/types'
+import { HasLoadingBoundary } from '../../../server/app-render/types'
 import {
   NEXT_DID_POSTPONE_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
@@ -28,6 +29,7 @@ import {
 } from '../router-reducer/fetch-server-response'
 import {
   pingPrefetchTask,
+  isPrefetchTaskDirty,
   type PrefetchTask,
   type PrefetchSubtaskResult,
 } from './scheduler'
@@ -84,6 +86,13 @@ export type RouteTree = {
     [parallelRouteKey: string]: RouteTree
   }
   isRootLayout: boolean
+
+  // If this is a dynamic route, indicates whether there is a loading boundary
+  // somewhere in the tree. If not, we can skip the prefetch for the data,
+  // because we know it would be an empty response. (For a static/PPR route,
+  // this value is disregarded, because in that model `loading.tsx` is treated
+  // like any other Suspense boundary.)
+  hasLoadingBoundary: HasLoadingBoundary
 }
 
 type RouteCacheEntryShared = {
@@ -245,6 +254,14 @@ let segmentCacheLru = createLRU<SegmentCacheEntry>(
   onSegmentLRUEviction
 )
 
+// All invalidation listeners for the whole cache are tracked in single set.
+// Since we don't yet support tag or path-based invalidation, there's no point
+// tracking them any more granularly than this. Once we add granular
+// invalidation, that may change, though generally the model is to just notify
+// the listeners and allow the caller to poll the prefetch cache with a new
+// prefetch task if desired.
+let invalidationListeners: Set<PrefetchTask> | null = null
+
 // Incrementing counter used to track cache invalidations.
 let currentCacheVersion = 0
 
@@ -276,6 +293,65 @@ export function revalidateEntireCache(
 
   // Prefetch all the currently visible links again, to re-fill the cache.
   pingVisibleLinks(nextUrl, tree)
+
+  // Similarly, notify all invalidation listeners (i.e. those passed to
+  // `router.prefetch(onInvalidate)`), so they can trigger a new prefetch
+  // if needed.
+  pingInvalidationListeners(nextUrl, tree)
+}
+
+function attachInvalidationListener(task: PrefetchTask): void {
+  // This function is called whenever a prefetch task reads a cache entry. If
+  // the task has an onInvalidate function associated with it — i.e. the one
+  // optionally passed to router.prefetch(onInvalidate) — then we attach that
+  // listener to the every cache entry that the task reads. Then, if an entry
+  // is invalidated, we call the function.
+  if (task.onInvalidate !== null) {
+    if (invalidationListeners === null) {
+      invalidationListeners = new Set([task])
+    } else {
+      invalidationListeners.add(task)
+    }
+  }
+}
+
+function notifyInvalidationListener(task: PrefetchTask): void {
+  const onInvalidate = task.onInvalidate
+  if (onInvalidate !== null) {
+    // Clear the callback from the task object to guarantee it's not called more
+    // than once.
+    task.onInvalidate = null
+
+    // This is a user-space function, so we must wrap in try/catch.
+    try {
+      onInvalidate()
+    } catch (error) {
+      if (typeof reportError === 'function') {
+        reportError(error)
+      } else {
+        console.error(error)
+      }
+    }
+  }
+}
+
+export function pingInvalidationListeners(
+  nextUrl: string | null,
+  tree: FlightRouterState
+): void {
+  // The rough equivalent of pingVisibleLinks, but for onInvalidate callbacks.
+  // This is called when the Next-Url or the base tree changes, since those
+  // may affect the result of a prefetch task. It's also called after a
+  // cache invalidation.
+  if (invalidationListeners !== null) {
+    const tasks = invalidationListeners
+    invalidationListeners = null
+    for (const task of tasks) {
+      if (isPrefetchTaskDirty(task, nextUrl, tree)) {
+        notifyInvalidationListener(task)
+      }
+    }
+  }
 }
 
 export function readExactRouteCacheEntry(
@@ -445,6 +521,8 @@ export function readOrCreateRouteCacheEntry(
   now: number,
   task: PrefetchTask
 ): RouteCacheEntry {
+  attachInvalidationListener(task)
+
   const key = task.key
   const existingEntry = readRouteCacheEntry(now, key)
   if (existingEntry !== null) {
@@ -801,6 +879,9 @@ function convertTreePrefetchToRouteTree(
     segment: prefetch.segment,
     slots,
     isRootLayout: prefetch.isRootLayout,
+    // This field is only relevant to dynamic routes. For a PPR/static route,
+    // there's always some partial loading state we can fetch.
+    hasLoadingBoundary: HasLoadingBoundary.SegmentHasLoadingBoundary,
   }
 }
 
@@ -865,6 +946,10 @@ function convertFlightRouterStateToRouteTree(
     segment: segmentWithoutSearchParams,
     slots,
     isRootLayout: flightRouterState[4] === true,
+    hasLoadingBoundary:
+      flightRouterState[5] !== undefined
+        ? flightRouterState[5]
+        : HasLoadingBoundary.SubtreeHasNoLoadingBoundary,
   }
 }
 
@@ -994,6 +1079,7 @@ export async function fetchRouteOnCacheMiss(
         // TODO: Consider moving the build ID to a response header so we can check
         // it before decoding the response, and so there's one way of checking
         // across all response types.
+        // TODO: We should cache the fact that this is an MPA navigation.
         rejectRouteCacheEntry(entry, Date.now() + 10 * 1000)
         return null
       }
@@ -1025,6 +1111,16 @@ export async function fetchRouteOnCacheMiss(
       const serverData = await (createFromNextReadableStream(
         prefetchStream
       ) as Promise<NavigationFlightResponse>)
+      if (serverData.b !== getAppBuildId()) {
+        // The server build does not match the client. Treat as a 404. During
+        // an actual navigation, the router will trigger an MPA navigation.
+        // TODO: Consider moving the build ID to a response header so we can check
+        // it before decoding the response, and so there's one way of checking
+        // across all response types.
+        // TODO: We should cache the fact that this is an MPA navigation.
+        rejectRouteCacheEntry(entry, Date.now() + 10 * 1000)
+        return null
+      }
 
       writeDynamicTreeResponseIntoCache(
         Date.now(),
@@ -1283,15 +1379,6 @@ function writeDynamicTreeResponseIntoCache(
   canonicalUrl: string,
   routeIsPPREnabled: boolean
 ) {
-  if (serverData.b !== getAppBuildId()) {
-    // The server build does not match the client. Treat as a 404. During
-    // an actual navigation, the router will trigger an MPA navigation.
-    // TODO: Consider moving the build ID to a response header so we can check
-    // it before decoding the response, and so there's one way of checking
-    // across all response types.
-    rejectRouteCacheEntry(entry, now + 10 * 1000)
-    return
-  }
   const normalizedFlightDataResult = normalizeFlightData(serverData.f)
   if (
     // A string result means navigating to this route will result in an

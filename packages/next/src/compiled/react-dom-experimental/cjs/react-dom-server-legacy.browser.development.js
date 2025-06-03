@@ -262,6 +262,22 @@
         4294967295;
       return (h1 ^ (h1 >>> 16)) >>> 0;
     }
+    function readAsDataURL(blob) {
+      return blob.arrayBuffer().then(function (arrayBuffer) {
+        arrayBuffer =
+          "function" === typeof Buffer && "function" === typeof Buffer.from
+            ? Buffer.from(arrayBuffer).toString("base64")
+            : btoa(
+                String.fromCharCode.apply(String, new Uint8Array(arrayBuffer))
+              );
+        return (
+          "data:" +
+          (blob.type || "application/octet-stream") +
+          ";base64," +
+          arrayBuffer
+        );
+      });
+    }
     function typeName(value) {
       return (
         ("function" === typeof Symbol &&
@@ -763,12 +779,7 @@
       };
     }
     function createPreambleState() {
-      return {
-        htmlChunks: null,
-        headChunks: null,
-        bodyChunks: null,
-        contribution: NoContribution
-      };
+      return { htmlChunks: null, headChunks: null, bodyChunks: null };
     }
     function createFormatContext(insertionMode, selectedValue, tagScope) {
       return {
@@ -1069,6 +1080,33 @@
       null != formTarget && pushAttribute(target, "formTarget", formTarget);
       return formData;
     }
+    function pushSrcObjectAttribute(target, blob) {
+      null === blobCache && (blobCache = new WeakMap());
+      var suspenseCache = blobCache,
+        thenable = suspenseCache.get(blob);
+      void 0 === thenable &&
+        ((thenable = readAsDataURL(blob)),
+        thenable.then(
+          function (result) {
+            thenable.status = "fulfilled";
+            thenable.value = result;
+          },
+          function (error) {
+            thenable.status = "rejected";
+            thenable.reason = error;
+          }
+        ),
+        suspenseCache.set(blob, thenable));
+      if ("rejected" === thenable.status) throw thenable.reason;
+      if ("fulfilled" !== thenable.status) throw thenable;
+      target.push(
+        attributeSeparator,
+        "src",
+        attributeAssign,
+        escapeTextForBrowser(thenable.value),
+        attributeEnd
+      );
+    }
     function pushAttribute(target, name, value) {
       switch (name) {
         case "className":
@@ -1088,6 +1126,15 @@
           pushStyleAttribute(target, value);
           break;
         case "src":
+          if (
+            "object" === typeof value &&
+            null !== value &&
+            "function" === typeof Blob &&
+            value instanceof Blob
+          ) {
+            pushSrcObjectAttribute(target, value);
+            break;
+          }
         case "href":
           if ("" === value) {
             "src" === name
@@ -2700,6 +2747,7 @@
             var preamble = preambleState || renderState.preamble;
             if (preamble.headChunks)
               throw Error("The `<head>` tag may only be rendered once.");
+            null !== preambleState && target$jscomp$0.push("\x3c!--head--\x3e");
             preamble.headChunks = [];
             var JSCompiler_inline_result$jscomp$9 = pushStartSingletonElement(
               preamble.headChunks,
@@ -2718,6 +2766,7 @@
             var preamble$jscomp$0 = preambleState || renderState.preamble;
             if (preamble$jscomp$0.bodyChunks)
               throw Error("The `<body>` tag may only be rendered once.");
+            null !== preambleState && target$jscomp$0.push("\x3c!--body--\x3e");
             preamble$jscomp$0.bodyChunks = [];
             var JSCompiler_inline_result$jscomp$10 = pushStartSingletonElement(
               preamble$jscomp$0.bodyChunks,
@@ -2736,6 +2785,7 @@
             var preamble$jscomp$1 = preambleState || renderState.preamble;
             if (preamble$jscomp$1.htmlChunks)
               throw Error("The `<html>` tag may only be rendered once.");
+            null !== preambleState && target$jscomp$0.push("\x3c!--html--\x3e");
             preamble$jscomp$1.htmlChunks = [doctypeChunk];
             var JSCompiler_inline_result$jscomp$11 = pushStartSingletonElement(
               preamble$jscomp$1.htmlChunks,
@@ -2819,16 +2869,13 @@
       renderState = renderState.preamble;
       null === renderState.htmlChunks &&
         preambleState.htmlChunks &&
-        ((renderState.htmlChunks = preambleState.htmlChunks),
-        (preambleState.contribution |= 1));
+        (renderState.htmlChunks = preambleState.htmlChunks);
       null === renderState.headChunks &&
         preambleState.headChunks &&
-        ((renderState.headChunks = preambleState.headChunks),
-        (preambleState.contribution |= 4));
+        (renderState.headChunks = preambleState.headChunks);
       null === renderState.bodyChunks &&
         preambleState.bodyChunks &&
-        ((renderState.bodyChunks = preambleState.bodyChunks),
-        (preambleState.contribution |= 2));
+        (renderState.bodyChunks = preambleState.bodyChunks);
     }
     function writeBootstrap(destination, renderState) {
       renderState = renderState.bootstrapChunks;
@@ -2848,13 +2895,6 @@
       renderState = id.toString(16);
       destination.push(renderState);
       return destination.push(startPendingSuspenseBoundary2);
-    }
-    function writePreambleContribution(destination, preambleState) {
-      preambleState = preambleState.contribution;
-      preambleState !== NoContribution &&
-        (destination.push(boundaryPreambleContributionChunkStart),
-        destination.push("" + preambleState),
-        destination.push(boundaryPreambleContributionChunkEnd));
     }
     function writeStartSegment(destination, renderState, formatContext, id) {
       switch (formatContext.insertionMode) {
@@ -5447,18 +5487,32 @@
             task.keyPath = prevKeyPath$jscomp$1;
             return;
           case REACT_ACTIVITY_TYPE:
-            if ("hidden" !== props.mode) {
-              var prevKeyPath$jscomp$2 = task.keyPath;
+            var segment$jscomp$0 = task.blockedSegment;
+            if (null === segment$jscomp$0) {
+              if ("hidden" !== props.mode) {
+                var prevKeyPath$jscomp$2 = task.keyPath;
+                task.keyPath = keyPath;
+                renderNode(request, task, props.children, -1);
+                task.keyPath = prevKeyPath$jscomp$2;
+              }
+            } else if ("hidden" !== props.mode) {
+              request.renderState.generateStaticMarkup ||
+                segment$jscomp$0.chunks.push("\x3c!--&--\x3e");
+              segment$jscomp$0.lastPushedText = !1;
+              var _prevKeyPath3 = task.keyPath;
               task.keyPath = keyPath;
-              renderNodeDestructive(request, task, props.children, -1);
-              task.keyPath = prevKeyPath$jscomp$2;
+              renderNode(request, task, props.children, -1);
+              task.keyPath = _prevKeyPath3;
+              request.renderState.generateStaticMarkup ||
+                segment$jscomp$0.chunks.push("\x3c!--/&--\x3e");
+              segment$jscomp$0.lastPushedText = !1;
             }
             return;
           case REACT_SUSPENSE_LIST_TYPE:
-            var _prevKeyPath3 = task.keyPath;
+            var _prevKeyPath4 = task.keyPath;
             task.keyPath = keyPath;
             renderNodeDestructive(request, task, props.children, -1);
-            task.keyPath = _prevKeyPath3;
+            task.keyPath = _prevKeyPath4;
             return;
           case REACT_VIEW_TRANSITION_TYPE:
             var prevKeyPath$jscomp$3 = task.keyPath;
@@ -7438,8 +7492,8 @@
         if (!request.renderState.generateStaticMarkup) {
           var errorDigest = boundary.errorDigest,
             errorMessage = boundary.errorMessage,
-            errorStack = boundary.errorStack,
-            errorComponentStack = boundary.errorComponentStack;
+            errorStack = boundary.errorStack;
+          boundary = boundary.errorComponentStack;
           destination.push(startClientRenderedSuspenseBoundary);
           destination.push(clientRenderedSuspenseBoundaryError1);
           errorDigest &&
@@ -7463,22 +7517,20 @@
             destination.push(
               clientRenderedSuspenseBoundaryErrorAttrInterstitial
             ));
-          errorComponentStack &&
+          boundary &&
             (destination.push(clientRenderedSuspenseBoundaryError1D),
-            (errorComponentStack = escapeTextForBrowser(errorComponentStack)),
-            destination.push(errorComponentStack),
+            (errorStack = escapeTextForBrowser(boundary)),
+            destination.push(errorStack),
             destination.push(
               clientRenderedSuspenseBoundaryErrorAttrInterstitial
             ));
           destination.push(clientRenderedSuspenseBoundaryError2);
         }
         flushSubtree(request, destination, segment, hoistableState);
-        request.renderState.generateStaticMarkup
-          ? (destination = !0)
-          : ((request = boundary.fallbackPreamble) &&
-              writePreambleContribution(destination, request),
-            (destination = destination.push(endSuspenseBoundary)));
-        return destination;
+        request = request.renderState.generateStaticMarkup
+          ? !0
+          : destination.push(endSuspenseBoundary);
+        return request;
       }
       if (boundary.status !== COMPLETED)
         return (
@@ -7492,9 +7544,12 @@
             boundary.rootSegmentID
           ),
           hoistableState &&
-            ((boundary = boundary.fallbackState),
-            boundary.styles.forEach(hoistStyleQueueDependency, hoistableState),
-            boundary.stylesheets.forEach(
+            ((errorStack = boundary.fallbackState),
+            errorStack.styles.forEach(
+              hoistStyleQueueDependency,
+              hoistableState
+            ),
+            errorStack.stylesheets.forEach(
               hoistStylesheetDependency,
               hoistableState
             )),
@@ -7525,12 +7580,10 @@
           "A previously unvisited boundary must have exactly one root segment. This is a bug in React."
         );
       flushSegment(request, destination, segment[0], hoistableState);
-      request.renderState.generateStaticMarkup
-        ? (destination = !0)
-        : ((request = boundary.contentPreamble) &&
-            writePreambleContribution(destination, request),
-          (destination = destination.push(endSuspenseBoundary)));
-      return destination;
+      request = request.renderState.generateStaticMarkup
+        ? !0
+        : destination.push(endSuspenseBoundary);
+      return request;
     }
     function flushSegmentContainer(
       request,
@@ -9217,8 +9270,7 @@
     Object.freeze(PRELOAD_NO_CREDS);
     var scriptRegex = /(<\/|<)(s)(cript)/gi;
     var didWarnForNewBooleanPropsWithEmptyValue = {};
-    var NoContribution = 0,
-      ROOT_HTML_MODE = 0,
+    var ROOT_HTML_MODE = 0,
       HTML_HTML_MODE = 1,
       HTML_MODE = 2,
       HTML_HEAD_MODE = 3,
@@ -9239,6 +9291,7 @@
       actionJavaScriptURL = escapeTextForBrowser(
         "javascript:throw new Error('React form unexpectedly submitted.')"
       ),
+      blobCache = null,
       endOfStartTag = ">",
       endOfStartTagSelfClosing = "/>",
       didWarnDefaultInputValue = !1,
@@ -9273,8 +9326,6 @@
       clientRenderedSuspenseBoundaryError1C = ' data-stck="',
       clientRenderedSuspenseBoundaryError1D = ' data-cstck="',
       clientRenderedSuspenseBoundaryError2 = "></template>",
-      boundaryPreambleContributionChunkStart = "\x3c!--",
-      boundaryPreambleContributionChunkEnd = "--\x3e",
       startSegmentHTML = '<div hidden id="',
       startSegmentHTML2 = '">',
       endSegmentHTML = "</div>",
@@ -9305,10 +9356,10 @@
       completeSegmentData2 = '" data-pid="',
       completeSegmentDataEnd = '"></template>',
       completeBoundaryScript1Full =
-        '$RC=function(b,c,e){c=document.getElementById(c);c.parentNode.removeChild(c);var a=document.getElementById(b);if(a){b=a.previousSibling;if(e)b.data="$!",a.setAttribute("data-dgst",e);else{e=b.parentNode;a=b.nextSibling;var f=0;do{if(a&&8===a.nodeType){var d=a.data;if("/$"===d)if(0===f)break;else f--;else"$"!==d&&"$?"!==d&&"$!"!==d||f++}d=a.nextSibling;e.removeChild(a);a=d}while(a);for(;c.firstChild;)e.insertBefore(c.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}};$RC("',
+        '$RC=function(b,d,e){d=document.getElementById(d);d.parentNode.removeChild(d);var a=document.getElementById(b);if(a){b=a.previousSibling;if(e)b.data="$!",a.setAttribute("data-dgst",e);else{e=b.parentNode;a=b.nextSibling;var f=0;do{if(a&&8===a.nodeType){var c=a.data;if("/$"===c||"/&"===c)if(0===f)break;else f--;else"$"!==c&&"$?"!==c&&"$!"!==c&&"&"!==c||f++}c=a.nextSibling;e.removeChild(a);a=c}while(a);for(;d.firstChild;)e.insertBefore(d.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}};$RC("',
       completeBoundaryScript1Partial = '$RC("',
       completeBoundaryWithStylesScript1FullBoth =
-        '$RC=function(b,c,e){c=document.getElementById(c);c.parentNode.removeChild(c);var a=document.getElementById(b);if(a){b=a.previousSibling;if(e)b.data="$!",a.setAttribute("data-dgst",e);else{e=b.parentNode;a=b.nextSibling;var f=0;do{if(a&&8===a.nodeType){var d=a.data;if("/$"===d)if(0===f)break;else f--;else"$"!==d&&"$?"!==d&&"$!"!==d||f++}d=a.nextSibling;e.removeChild(a);a=d}while(a);for(;c.firstChild;)e.insertBefore(c.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}};$RM=new Map;\n$RR=function(t,u,y){function v(n){this._p=null;n()}for(var w=$RC,p=$RM,q=new Map,r=document,g,b,h=r.querySelectorAll("link[data-precedence],style[data-precedence]"),x=[],k=0;b=h[k++];)"not all"===b.getAttribute("media")?x.push(b):("LINK"===b.tagName&&p.set(b.getAttribute("href"),b),q.set(b.dataset.precedence,g=b));b=0;h=[];var l,a;for(k=!0;;){if(k){var e=y[b++];if(!e){k=!1;b=0;continue}var c=!1,m=0;var d=e[m++];if(a=p.get(d)){var f=a._p;c=!0}else{a=r.createElement("link");a.href=\nd;a.rel="stylesheet";for(a.dataset.precedence=l=e[m++];f=e[m++];)a.setAttribute(f,e[m++]);f=a._p=new Promise(function(n,z){a.onload=v.bind(a,n);a.onerror=v.bind(a,z)});p.set(d,a)}d=a.getAttribute("media");!f||d&&!matchMedia(d).matches||h.push(f);if(c)continue}else{a=x[b++];if(!a)break;l=a.getAttribute("data-precedence");a.removeAttribute("media")}c=q.get(l)||g;c===g&&(g=a);q.set(l,a);c?c.parentNode.insertBefore(a,c.nextSibling):(c=r.head,c.insertBefore(a,c.firstChild))}Promise.all(h).then(w.bind(null,\nt,u,""),w.bind(null,t,u,"Resource failed to load"))};$RR("',
+        '$RC=function(b,d,e){d=document.getElementById(d);d.parentNode.removeChild(d);var a=document.getElementById(b);if(a){b=a.previousSibling;if(e)b.data="$!",a.setAttribute("data-dgst",e);else{e=b.parentNode;a=b.nextSibling;var f=0;do{if(a&&8===a.nodeType){var c=a.data;if("/$"===c||"/&"===c)if(0===f)break;else f--;else"$"!==c&&"$?"!==c&&"$!"!==c&&"&"!==c||f++}c=a.nextSibling;e.removeChild(a);a=c}while(a);for(;d.firstChild;)e.insertBefore(d.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}};$RM=new Map;\n$RR=function(t,u,y){function v(n){this._p=null;n()}for(var w=$RC,p=$RM,q=new Map,r=document,g,b,h=r.querySelectorAll("link[data-precedence],style[data-precedence]"),x=[],k=0;b=h[k++];)"not all"===b.getAttribute("media")?x.push(b):("LINK"===b.tagName&&p.set(b.getAttribute("href"),b),q.set(b.dataset.precedence,g=b));b=0;h=[];var l,a;for(k=!0;;){if(k){var e=y[b++];if(!e){k=!1;b=0;continue}var c=!1,m=0;var d=e[m++];if(a=p.get(d)){var f=a._p;c=!0}else{a=r.createElement("link");a.href=\nd;a.rel="stylesheet";for(a.dataset.precedence=l=e[m++];f=e[m++];)a.setAttribute(f,e[m++]);f=a._p=new Promise(function(n,z){a.onload=v.bind(a,n);a.onerror=v.bind(a,z)});p.set(d,a)}d=a.getAttribute("media");!f||d&&!matchMedia(d).matches||h.push(f);if(c)continue}else{a=x[b++];if(!a)break;l=a.getAttribute("data-precedence");a.removeAttribute("media")}c=q.get(l)||g;c===g&&(g=a);q.set(l,a);c?c.parentNode.insertBefore(a,c.nextSibling):(c=r.head,c.insertBefore(a,c.firstChild))}Promise.all(h).then(w.bind(null,\nt,u,""),w.bind(null,t,u,"Resource failed to load"))};$RR("',
       completeBoundaryWithStylesScript1FullPartial =
         '$RM=new Map;\n$RR=function(t,u,y){function v(n){this._p=null;n()}for(var w=$RC,p=$RM,q=new Map,r=document,g,b,h=r.querySelectorAll("link[data-precedence],style[data-precedence]"),x=[],k=0;b=h[k++];)"not all"===b.getAttribute("media")?x.push(b):("LINK"===b.tagName&&p.set(b.getAttribute("href"),b),q.set(b.dataset.precedence,g=b));b=0;h=[];var l,a;for(k=!0;;){if(k){var e=y[b++];if(!e){k=!1;b=0;continue}var c=!1,m=0;var d=e[m++];if(a=p.get(d)){var f=a._p;c=!0}else{a=r.createElement("link");a.href=\nd;a.rel="stylesheet";for(a.dataset.precedence=l=e[m++];f=e[m++];)a.setAttribute(f,e[m++]);f=a._p=new Promise(function(n,z){a.onload=v.bind(a,n);a.onerror=v.bind(a,z)});p.set(d,a)}d=a.getAttribute("media");!f||d&&!matchMedia(d).matches||h.push(f);if(c)continue}else{a=x[b++];if(!a)break;l=a.getAttribute("data-precedence");a.removeAttribute("media")}c=q.get(l)||g;c===g&&(g=a);q.set(l,a);c?c.parentNode.insertBefore(a,c.nextSibling):(c=r.head,c.insertBefore(a,c.firstChild))}Promise.all(h).then(w.bind(null,\nt,u,""),w.bind(null,t,u,"Resource failed to load"))};$RR("',
       completeBoundaryWithStylesScript1Partial = '$RR("',
@@ -9621,5 +9672,5 @@
         'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToReadableStream" which supports Suspense on the server'
       );
     };
-    exports.version = "19.2.0-experimental-33661467-20250407";
+    exports.version = "19.2.0-experimental-197d6a04-20250424";
   })();

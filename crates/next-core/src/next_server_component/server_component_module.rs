@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use indoc::formatdoc;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -24,11 +24,6 @@ use turbopack_ecmascript::{
 };
 
 use super::server_component_reference::NextServerComponentModuleReference;
-
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("Next.js server component".into())
-}
 
 #[turbo_tasks::value(shared)]
 pub struct NextServerComponentModule {
@@ -52,7 +47,9 @@ impl NextServerComponentModule {
 impl Module for NextServerComponentModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        self.module.ident().with_modifier(modifier())
+        self.module
+            .ident()
+            .with_modifier(rcstr!("Next.js Server Component"))
     }
 
     #[turbo_tasks::function]
@@ -69,7 +66,7 @@ impl Module for NextServerComponentModule {
 impl Asset for NextServerComponentModule {
     #[turbo_tasks::function]
     fn content(&self) -> Result<Vc<AssetContent>> {
-        bail!("Next.js server component module has no content")
+        bail!("Next.js Server Component module has no content")
     }
 }
 

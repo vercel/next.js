@@ -9,13 +9,14 @@ use sourcemap::{DecodedMap, SourceMap as RegularMap, SourceMapBuilder, SourceMap
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{
-    rope::{Rope, RopeBuilder},
     File, FileContent, FileSystem, FileSystemPath, VirtualFileSystem,
+    rope::{Rope, RopeBuilder},
 };
 
 use crate::{
-    asset::AssetContent, source::Source, source_map::utils::add_default_ignore_list,
-    source_pos::SourcePos, virtual_source::VirtualSource, SOURCE_URL_PROTOCOL,
+    SOURCE_URL_PROTOCOL, asset::AssetContent, source::Source,
+    source_map::utils::add_default_ignore_list, source_pos::SourcePos,
+    virtual_source::VirtualSource,
 };
 
 pub(crate) mod source_map_asset;
@@ -115,7 +116,7 @@ pub struct TokenWithSource {
 pub struct SyntheticToken {
     pub generated_line: u32,
     pub generated_column: u32,
-    pub guessed_original_file: Option<String>,
+    pub guessed_original_file: Option<RcStr>,
 }
 
 /// An OriginalToken represents a region of the generated file that exists in
@@ -125,7 +126,7 @@ pub struct SyntheticToken {
 pub struct OriginalToken {
     pub generated_line: u32,
     pub generated_column: u32,
-    pub original_file: String,
+    pub original_file: RcStr,
     pub original_line: u32,
     pub original_column: u32,
     pub name: Option<RcStr>,
@@ -153,10 +154,9 @@ impl From<sourcemap::Token<'_>> for Token {
             Token::Original(OriginalToken {
                 generated_line: t.get_dst_line(),
                 generated_column: t.get_dst_col(),
-                original_file: t
-                    .get_source()
-                    .expect("already checked token has source")
-                    .to_string(),
+                original_file: RcStr::from(
+                    t.get_source().expect("already checked token has source"),
+                ),
                 original_line: t.get_src_line(),
                 original_column: t.get_src_col(),
                 name: t.get_name().map(RcStr::from),
@@ -412,7 +412,7 @@ impl SourceMap {
             Ok(
                 if let Some(path) = *origin.parent().try_join((&*source_request).into()).await? {
                     let path_str = path.to_string().await?;
-                    let source = format!("{SOURCE_URL_PROTOCOL}///{}", path_str);
+                    let source = format!("{SOURCE_URL_PROTOCOL}///{path_str}");
                     let source_content = if let Some(source_content) = source_content {
                         source_content
                     } else if let FileContent::Content(file) = &*path.read().await? {
@@ -430,7 +430,7 @@ impl SourceMap {
                         .replace_all(&source_request, |s: &regex::Captures<'_>| {
                             s[0].replace('.', "_")
                         });
-                    let source = format!("{SOURCE_URL_PROTOCOL}///{}/{}", origin_str, source);
+                    let source = format!("{SOURCE_URL_PROTOCOL}///{origin_str}/{source}");
                     let source_content = source_content.unwrap_or_else(|| {
                         format!(
                             "unable to access {source_request} in {origin_str} (it's leaving the \
@@ -573,7 +573,7 @@ impl SourceMap {
                     if let DecodedMap::Regular(map) = &map.map.0 {
                         if map.get_source_count() == 1 {
                             let source = map.sources().next().unwrap();
-                            *guessed_original_file = Some(source.to_string());
+                            *guessed_original_file = Some(RcStr::from(source));
                         }
                     }
                 }

@@ -6,7 +6,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
-    chunk::{module_id_strategies::GlobalModuleIdStrategy, ChunkableModule, ChunkingType},
+    chunk::{ChunkableModule, ChunkingType, module_id_strategies::GlobalModuleIdStrategy},
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,

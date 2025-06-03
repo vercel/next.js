@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useMemo, useRef, useState } from 'react'
+import { forwardRef, useEffect, useRef, useState } from 'react'
 import { css } from '../../../../utils/css'
 import mergeRefs from '../../../utils/merge-refs'
 import { useMinimumLoadingTimeMultiple } from './use-minimum-loading-time-multiple'
@@ -39,22 +39,13 @@ export const NextLogo = forwardRef(function NextLogo(
 
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   const ref = useRef<HTMLDivElement | null>(null)
-  const [measuredWidth, pristine] = useMeasureWidth(ref)
+  const measuredWidth = useMeasureWidth(ref)
 
   const isLoading = useMinimumLoadingTimeMultiple(
     isDevBuilding || isDevRendering
   )
   const isExpanded = isErrorExpanded || disabled
-
-  const style = useMemo(() => {
-    let width: number | string = SIZE
-    // Animates the badge, if expanded
-    if (measuredWidth > SIZE) width = measuredWidth
-    // No animations on page load, assume the intrinsic width immediately
-    if (pristine && hasError) width = 'auto'
-    // Default state, collapsed
-    return { width }
-  }, [measuredWidth, pristine, hasError, SIZE])
+  const width = measuredWidth === 0 ? 'auto' : measuredWidth
 
   useEffect(() => {
     setIsErrorExpanded(hasError)
@@ -200,7 +191,7 @@ export const NextLogo = forwardRef(function NextLogo(
             padding-left: 8px;
             padding-right: 8px;
             height: var(--size-32);
-            margin: 0 2px;
+            margin-right: 2px;
             border-radius: var(--rounded-full);
             transition: background var(--duration-short) ease;
 
@@ -256,7 +247,7 @@ export const NextLogo = forwardRef(function NextLogo(
           [data-next-mark] {
             width: var(--mark-size);
             height: var(--mark-size);
-            margin-left: 2px;
+            margin: 0 2px;
             display: flex;
             align-items: center;
             border-radius: var(--rounded-full);
@@ -400,7 +391,7 @@ export const NextLogo = forwardRef(function NextLogo(
         data-error={hasError}
         data-error-expanded={isExpanded}
         data-animate={newErrorDetected}
-        style={style}
+        style={{ width }}
       >
         <div ref={ref}>
           {/* Children */}
@@ -496,11 +487,8 @@ function AnimateCount({
   )
 }
 
-function useMeasureWidth(
-  ref: React.RefObject<HTMLDivElement | null>
-): [number, boolean] {
+function useMeasureWidth(ref: React.RefObject<HTMLDivElement | null>): number {
   const [width, setWidth] = useState<number>(0)
-  const [pristine, setPristine] = useState(true)
 
   useEffect(() => {
     const el = ref.current
@@ -509,21 +497,15 @@ function useMeasureWidth(
       return
     }
 
-    const observer = new ResizeObserver(() => {
-      const { width: w } = el.getBoundingClientRect()
-      setWidth((prevWidth) => {
-        if (prevWidth !== 0) {
-          setPristine(false)
-        }
-        return w
-      })
+    const observer = new ResizeObserver(([{ contentRect }]) => {
+      setWidth(contentRect.width)
     })
 
     observer.observe(el)
     return () => observer.disconnect()
   }, [ref])
 
-  return [width, pristine]
+  return width
 }
 
 function useUpdateAnimation(issueCount: number, animationDurationMs = 0) {

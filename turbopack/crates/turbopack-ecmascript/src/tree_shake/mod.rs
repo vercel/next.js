@@ -1,9 +1,9 @@
 use std::fmt::Write;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use rustc_hash::FxHashMap;
 use swc_core::{
-    common::{comments::Comments, util::take::Take, SyntaxContext, DUMMY_SP, GLOBALS},
+    common::{DUMMY_SP, GLOBALS, SyntaxContext, comments::Comments, util::take::Take},
     ecma::{
         ast::{
             ExportAll, ExportNamedSpecifier, Expr, ExprStmt, Id, Ident, ImportDecl, Lit, Module,
@@ -16,11 +16,11 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToString, Vc};
 use turbopack_core::{ident::AssetIdent, resolve::ModulePart, source::Source};
 
-pub(crate) use self::graph::{
-    create_turbopack_part_id_assert, find_turbopack_part_id_in_asserts, PartId,
-};
 use self::graph::{DepGraph, ItemData, ItemId, ItemIdGroupKind, Mode, SplitModuleResult};
-use crate::{analyzer::graph::EvalContext, parse::ParseResult, EcmascriptModuleAsset};
+pub(crate) use self::graph::{
+    PartId, create_turbopack_part_id_assert, find_turbopack_part_id_in_asserts,
+};
+use crate::{EcmascriptModuleAsset, analyzer::graph::EvalContext, parse::ParseResult};
 
 pub mod asset;
 pub mod chunk_item;
@@ -374,6 +374,7 @@ pub(crate) enum Key {
     ModuleEvaluation,
     Export(RcStr),
     Exports,
+    StarExports,
 }
 
 /// Converts [ModulePart] to the index.
@@ -383,9 +384,7 @@ async fn get_part_id(result: &SplitResult, part: &ModulePart) -> Result<u32> {
         ModulePart::Evaluation => Key::ModuleEvaluation,
         ModulePart::Export(export) => Key::Export(export.clone()),
         ModulePart::Exports => Key::Exports,
-        ModulePart::Internal(part_id) | ModulePart::InternalEvaluation(part_id) => {
-            return Ok(*part_id)
-        }
+        ModulePart::Internal(part_id) => return Ok(*part_id),
         ModulePart::Locals
         | ModulePart::Facade
         | ModulePart::RenamedExport { .. }
@@ -409,7 +408,10 @@ async fn get_part_id(result: &SplitResult, part: &ModulePart) -> Result<u32> {
 
     // This is required to handle `export * from 'foo'`
     if let ModulePart::Export(..) = part {
-        if let Some(&v) = entrypoints.get(&Key::Exports) {
+        if let Some(&v) = entrypoints
+            .get(&Key::StarExports)
+            .or_else(|| entrypoints.get(&Key::Exports))
+        {
             return Ok(v);
         }
     }

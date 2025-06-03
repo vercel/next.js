@@ -50,6 +50,7 @@ export type AppLoaderOptions = {
   nextConfigOutput?: NextConfig['output']
   nextConfigExperimentalUseEarlyImport?: true
   middlewareConfig: string
+  isGlobalNotFoundEnabled: true | undefined
 }
 type AppLoader = webpack.LoaderDefinitionFunction<AppLoaderOptions>
 
@@ -70,15 +71,19 @@ const FILE_TYPES = {
   error: 'error',
   loading: 'loading',
   'global-error': 'global-error',
+  'global-not-found': 'global-not-found',
   ...HTTP_ACCESS_FALLBACKS,
 } as const
 
 const GLOBAL_ERROR_FILE_TYPE = 'global-error'
+const GLOBAL_NOT_FOUND_FILE_TYPE = 'global-not-found'
 const PAGE_SEGMENT = 'page$'
 const PARALLEL_CHILDREN_SEGMENT = 'children$'
 
-const defaultGlobalErrorPath = 'next/dist/client/components/error-boundary'
+const defaultGlobalErrorPath = 'next/dist/client/components/global-error'
+const defaultNotFoundPath = 'next/dist/client/components/not-found-error'
 const defaultLayoutPath = 'next/dist/client/components/default-layout'
+const defaultGlobalNotFoundPath = 'next/dist/client/components/global-not-found'
 
 type DirResolver = (pathToResolve: string) => string
 type PathResolver = (
@@ -123,6 +128,7 @@ async function createTreeCodeFromPath(
     pageExtensions,
     basePath,
     collectedDeclarations,
+    isGlobalNotFoundEnabled,
   }: {
     page: string
     resolveDir: DirResolver
@@ -135,22 +141,25 @@ async function createTreeCodeFromPath(
     pageExtensions: PageExtensions
     basePath: string
     collectedDeclarations: [string, string][]
+    isGlobalNotFoundEnabled: boolean
   }
 ): Promise<{
   treeCode: string
   pages: string
   rootLayout: string | undefined
   globalError: string
+  globalNotFound: string
 }> {
   const splittedPath = pagePath.split(/[\\/]/, 1)
   const isNotFoundRoute = page === UNDERSCORE_NOT_FOUND_ROUTE_ENTRY
-
   const isDefaultNotFound = isAppBuiltinNotFoundPage(pagePath)
+
   const appDirPrefix = isDefaultNotFound ? APP_DIR_ALIAS : splittedPath[0]
   const pages: string[] = []
 
   let rootLayout: string | undefined
   let globalError: string | undefined
+  let globalNotFound: string | undefined
 
   async function resolveAdjacentParallelSegments(
     segmentPath: string
@@ -209,10 +218,7 @@ async function createTreeCodeFromPath(
     let metadata: Awaited<ReturnType<typeof createStaticMetadataFromRoute>> =
       null
     const routerDirPath = `${appDirPrefix}${segmentPath}`
-    // For default not-found, don't traverse the directory to find metadata.
-    const resolvedRouteDir = isDefaultNotFound
-      ? ''
-      : await resolveDir(routerDirPath)
+    const resolvedRouteDir = resolveDir(routerDirPath)
 
     if (resolvedRouteDir) {
       metadata = await createStaticMetadataFromRoute(resolvedRouteDir, {
@@ -294,7 +300,7 @@ async function createTreeCodeFromPath(
         })
       )
 
-      const definedFilePaths = filePaths.filter(
+      let definedFilePaths = filePaths.filter(
         ([, filePath]) => filePath !== undefined
       ) as [ValueOf<typeof FILE_TYPES>, string][]
 
@@ -325,7 +331,9 @@ async function createTreeCodeFromPath(
             !hasLayerFallbackFile
           ) {
             const defaultFallbackPath = defaultHTTPAccessFallbackPaths[type]
-            definedFilePaths.push([type, defaultFallbackPath])
+            if (!(isDefaultNotFound && type === 'not-found')) {
+              definedFilePaths.push([type, defaultFallbackPath])
+            }
           }
         }
       }
@@ -336,7 +344,15 @@ async function createTreeCodeFromPath(
         )?.[1]
         rootLayout = layoutPath
 
-        if (isDefaultNotFound && !layoutPath && !rootLayout) {
+        // When `global-not-found` is disabled, we insert a default layout if
+        // root layout is presented. This logic and the default layout will be removed
+        // once `global-not-found` is stabilized.
+        if (
+          !isGlobalNotFoundEnabled &&
+          isDefaultNotFound &&
+          !layoutPath &&
+          !rootLayout
+        ) {
           rootLayout = defaultLayoutPath
           definedFilePaths.push(['layout', rootLayout])
         }
@@ -348,6 +364,16 @@ async function createTreeCodeFromPath(
         )
         if (resolvedGlobalErrorPath) {
           globalError = resolvedGlobalErrorPath
+        }
+      }
+      // TODO(global-not-found): remove this flag assertion condition
+      //  once global-not-found is stable
+      if (isGlobalNotFoundEnabled && !globalNotFound) {
+        const resolvedGlobalNotFoundPath = await resolver(
+          `${appDirPrefix}/${GLOBAL_NOT_FOUND_FILE_TYPE}`
+        )
+        if (resolvedGlobalNotFoundPath) {
+          globalNotFound = resolvedGlobalNotFoundPath
         }
       }
 
@@ -368,23 +394,57 @@ async function createTreeCodeFromPath(
       const normalizedParallelKey = normalizeParallelKey(parallelKey)
       let subtreeCode
       // If it's root not found page, set not-found boundary as children page
-      if (isNotFoundRoute && normalizedParallelKey === 'children') {
-        const notFoundPath =
-          definedFilePaths.find(([type]) => type === 'not-found')?.[1] ??
-          defaultHTTPAccessFallbackPaths['not-found']
+      if (isNotFoundRoute) {
+        if (normalizedParallelKey === 'children') {
+          const matchedGlobalNotFound = isGlobalNotFoundEnabled
+            ? definedFilePaths.find(
+                ([type]) => type === GLOBAL_NOT_FOUND_FILE_TYPE
+              )?.[1] ?? defaultGlobalNotFoundPath
+            : undefined
 
-        const varName = `notFound${nestedCollectedDeclarations.length}`
-        nestedCollectedDeclarations.push([varName, notFoundPath])
-        subtreeCode = `{
-          children: [${JSON.stringify(UNDERSCORE_NOT_FOUND_ROUTE)}, {
-            children: ['${PAGE_SEGMENT_KEY}', {}, {
-              page: [
-                ${varName},
-                ${JSON.stringify(notFoundPath)}
-              ]
-            }]
-          }, {}]
-        }`
+          // If custom global-not-found.js is defined, use global-not-found.js
+          if (matchedGlobalNotFound) {
+            const varName = `notFound${nestedCollectedDeclarations.length}`
+            nestedCollectedDeclarations.push([varName, matchedGlobalNotFound])
+            subtreeCode = `{
+              children: [${JSON.stringify(UNDERSCORE_NOT_FOUND_ROUTE)}, {
+                children: ['${PAGE_SEGMENT_KEY}', {}, {
+                  page: [
+                    ${varName},
+                    ${JSON.stringify(matchedGlobalNotFound)}
+                  ]
+                }]
+              }, {}]
+            }`
+          } else {
+            // If custom not-found.js is found, use it and layout to compose the page,
+            // and fallback to built-in not-found component if doesn't exist.
+            const notFoundPath =
+              definedFilePaths.find(([type]) => type === 'not-found')?.[1] ??
+              defaultNotFoundPath
+            const varName = `notFound${nestedCollectedDeclarations.length}`
+            nestedCollectedDeclarations.push([varName, notFoundPath])
+            subtreeCode = `{
+              children: [${JSON.stringify(UNDERSCORE_NOT_FOUND_ROUTE)}, {
+                children: ['${PAGE_SEGMENT_KEY}', {}, {
+                  page: [
+                    ${varName},
+                    ${JSON.stringify(notFoundPath)}
+                  ]
+                }]
+              }, {}]
+            }`
+          }
+        }
+      }
+
+      // For 404 route
+      // if global-not-found is in definedFilePaths, remove root layout for /_not-found
+      // TODO: remove this once global-not-found is stable.
+      if (isNotFoundRoute && isGlobalNotFoundEnabled) {
+        definedFilePaths = definedFilePaths.filter(
+          ([type]) => type !== 'layout'
+        )
       }
 
       const modulesCode = `{
@@ -461,6 +521,7 @@ async function createTreeCodeFromPath(
     pages: `${JSON.stringify(pages)};`,
     rootLayout,
     globalError: globalError ?? defaultGlobalErrorPath,
+    globalNotFound: globalNotFound ?? defaultNotFoundPath,
   }
 }
 
@@ -495,6 +556,14 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     nextConfigExperimentalUseEarlyImport,
   } = loaderOptions
 
+  const isGlobalNotFoundEnabled = !!loaderOptions.isGlobalNotFoundEnabled
+
+  // Update FILE_TYPES on the very top-level of the loader
+  if (!isGlobalNotFoundEnabled) {
+    // @ts-expect-error this delete is only necessary while experimental
+    delete FILE_TYPES['global-not-found']
+  }
+
   const buildInfo = getModuleBuildInfo((this as any)._module)
   const collectedDeclarations: [string, string][] = []
   const page = name.replace(/^app/, '')
@@ -509,7 +578,10 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     relatedModules: [],
   }
 
-  const extensions = pageExtensions.map((extension) => `.${extension}`)
+  const extensions =
+    typeof pageExtensions === 'string'
+      ? [pageExtensions]
+      : pageExtensions.map((extension) => `.${extension}`)
 
   const normalizedAppPaths =
     typeof appPaths === 'string' ? [appPaths] : appPaths || []
@@ -687,9 +759,15 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     pageExtensions,
     basePath,
     collectedDeclarations,
+    isGlobalNotFoundEnabled,
   })
 
-  if (!treeCodeResult.rootLayout) {
+  const isGlobalNotFoundPath =
+    page === UNDERSCORE_NOT_FOUND_ROUTE_ENTRY &&
+    !!treeCodeResult.globalNotFound &&
+    isGlobalNotFoundEnabled
+
+  if (!treeCodeResult.rootLayout && !isGlobalNotFoundPath) {
     if (!isDev) {
       // If we're building and missing a root layout, exit the build
       Log.error(
@@ -736,6 +814,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         pageExtensions,
         basePath,
         collectedDeclarations,
+        isGlobalNotFoundEnabled,
       })
     }
   }

@@ -1,9 +1,9 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext},
+    chunk::{ChunkableModule, ChunkingContext, availability_info::AvailabilityInfo},
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
@@ -43,7 +43,7 @@ impl AsyncLoaderModule {
 
     #[turbo_tasks::function]
     pub fn asset_ident_for(module: Vc<Box<dyn ChunkableModule>>) -> Vc<AssetIdent> {
-        module.ident().with_modifier(async_loader_modifier())
+        module.ident().with_modifier(rcstr!("async loader"))
     }
 }
 
@@ -76,7 +76,7 @@ impl Module for AsyncLoaderModule {
 impl Asset for AsyncLoaderModule {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
-        todo!()
+        panic!("content() should not be called");
     }
 }
 

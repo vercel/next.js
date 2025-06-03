@@ -3,8 +3,8 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 
 use super::{
-    utils::{children_from_module_references, content_to_details},
     Introspectable, IntrospectableChildren,
+    utils::{children_from_module_references, content_to_details},
 };
 use crate::{asset::Asset, module::Module};
 

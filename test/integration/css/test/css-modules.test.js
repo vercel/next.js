@@ -1,6 +1,6 @@
 /* eslint-env jest */
 import cheerio from 'cheerio'
-import { readdir, readFile, remove } from 'fs-extra'
+import { readFile, remove } from 'fs-extra'
 import {
   check,
   File,
@@ -14,6 +14,7 @@ import {
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
+import nodeFs from 'fs'
 
 const fixturesDir = join(__dirname, '../..', 'css-fixtures')
 
@@ -145,26 +146,33 @@ describe('should handle unresolved files gracefully', () => {
       })
 
       it('should have correct file references in CSS output', async () => {
-        const cssFiles = await readdir(join(workDir, '.next/static/css'))
+        const cssFolder = join(workDir, '.next', 'static')
+        const cssFiles = nodeFs
+          .readdirSync(cssFolder, {
+            recursive: true,
+            encoding: 'utf8',
+          })
+          .filter((f) => f.endsWith('.css'))
+          // Ensure the loop is more deterministic
+          .sort()
+
+        expect(cssFiles).not.toBeEmpty()
 
         for (const file of cssFiles) {
-          if (file.endsWith('.css.map')) continue
+          const content = await readFile(join(cssFolder, file), 'utf8')
 
-          const content = await readFile(
-            join(workDir, '.next/static/css', file),
-            'utf8'
-          )
-          console.log(file, content)
+          const svgCount = content.match(/\(\/vercel\.svg/g).length
+          expect(svgCount === 1 || svgCount === 2).toBe(true)
 
-          // if it is the combined global CSS file there are double the expected
-          // results
-          const howMany =
-            content.includes('p{') || content.includes('p,') ? 2 : 1
-
-          expect(content.match(/\(\/vercel\.svg/g).length).toBe(howMany)
-          // expect(content.match(/\(vercel\.svg/g).length).toBe(howMany)
-          expect(content.match(/\(\/_next\/static\/media/g).length).toBe(1)
-          expect(content.match(/\(https:\/\//g).length).toBe(howMany)
+          if (process.env.IS_TURBOPACK_TEST) {
+            // With Turbopack these are combined and the path is relative.
+            const mediaCount = content.match(/\(\.\.\/media/g).length
+            expect(mediaCount === 1 || mediaCount === 2).toBe(true)
+          } else {
+            expect(content.match(/\(\/_next\/static\/media/g).length).toBe(1)
+          }
+          const httpsCount = content.match(/\(https:\/\//g).length
+          expect(httpsCount === 1 || httpsCount === 2).toBe(true)
         }
       })
     }
@@ -184,14 +192,18 @@ describe('Data URLs', () => {
       })
 
       it('should have emitted expected files', async () => {
-        const cssFolder = join(workDir, '.next/static/css')
-        const files = await readdir(cssFolder)
-        const cssFiles = files.filter((f) => /\.css$/.test(f))
+        const cssFolder = join(workDir, '.next', 'static')
+        const cssFiles = nodeFs
+          .readdirSync(cssFolder, {
+            recursive: true,
+            encoding: 'utf8',
+          })
+          .filter((f) => f.endsWith('.css'))
 
         expect(cssFiles.length).toBe(1)
         const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
-        expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
-          /background:url\("data:[^"]+"\)/
+        expect(cssContent.replace(/\/\*.*?\*\/n/g, '').trim()).toMatch(
+          /background:url\("?data:[^"]+"?\)/
         )
       })
     }

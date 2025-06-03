@@ -1,12 +1,12 @@
 use std::fmt::Write;
 
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{rope::RopeBuilder, File, FileSystemPath};
+use turbo_tasks_fs::{File, FileSystemPath, rope::RopeBuilder};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{Chunk, ChunkItem, ChunkItemExt, ChunkingContext, MinifyType},
+    chunk::{Chunk, ChunkItem, ChunkingContext, MinifyType},
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
     introspect::Introspectable,
@@ -15,7 +15,7 @@ use turbopack_core::{
 };
 
 use super::source_map::SingleItemCssChunkSourceMapAsset;
-use crate::chunk::{write_import_context, CssChunkItem};
+use crate::chunk::{CssChunkItem, write_import_context};
 
 /// A CSS chunk that only contains a single item. This is used for selectively
 /// loading CSS modules that are part of a larger chunk in development mode, and
@@ -59,8 +59,8 @@ impl SingleItemCssChunk {
             &*this.chunking_context.minify_type().await?,
             MinifyType::NoMinify
         ) {
-            let id = this.item.id().await?;
-            writeln!(code, "/* {} */", id)?;
+            let id = this.item.asset_ident().to_string().await?;
+            writeln!(code, "/* {id} */")?;
         }
         let content = this.item.content().await?;
         let close = write_import_context(&mut code, content.import_context).await?;
@@ -75,7 +75,7 @@ impl SingleItemCssChunk {
     #[turbo_tasks::function]
     pub(super) async fn ident_for_path(&self) -> Result<Vc<AssetIdent>> {
         let item = self.item.asset_ident();
-        Ok(item.with_modifier(single_item_modifier()))
+        Ok(item.with_modifier(rcstr!("single item css chunk")))
     }
 }
 
@@ -91,11 +91,6 @@ impl Chunk for SingleItemCssChunk {
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         *self.chunking_context
     }
-}
-
-#[turbo_tasks::function]
-fn single_item_modifier() -> Vc<RcStr> {
-    Vc::cell("single item css chunk".into())
 }
 
 #[turbo_tasks::value_impl]

@@ -1,4 +1,4 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use swc_core::{common::DUMMY_SP, ecma::ast::Ident, quote};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
@@ -8,7 +8,6 @@ use turbopack_core::{
         ModuleChunkItemIdExt,
     },
     module::Module,
-    module_graph::ModuleGraph,
     reference::ModuleReference,
     resolve::{ModulePart, ModuleResolveResult},
 };
@@ -17,7 +16,7 @@ use super::{
     facade::module::EcmascriptModuleFacadeModule, locals::module::EcmascriptModuleLocalsModule,
 };
 use crate::{
-    chunk::EcmascriptChunkPlaceable, code_gen::CodeGeneration, parse::ParseResult,
+    chunk::EcmascriptChunkPlaceable, code_gen::CodeGeneration,
     references::esm::base::ReferencedAsset, runtime_functions::TURBOPACK_IMPORT,
     utils::module_id_to_lit,
 };
@@ -27,7 +26,6 @@ use crate::{
 #[turbo_tasks::value]
 pub struct EcmascriptModulePartReference {
     pub module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
-    pub parsed: ResolvedVc<ParseResult>,
     pub part: Option<ModulePart>,
 }
 
@@ -36,28 +34,18 @@ impl EcmascriptModulePartReference {
     #[turbo_tasks::function]
     pub fn new_part(
         module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
-        parsed: ResolvedVc<ParseResult>,
         part: ModulePart,
     ) -> Vc<Self> {
         EcmascriptModulePartReference {
             module,
-            parsed,
             part: Some(part),
         }
         .cell()
     }
 
     #[turbo_tasks::function]
-    pub fn new(
-        module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
-        parsed: ResolvedVc<ParseResult>,
-    ) -> Vc<Self> {
-        EcmascriptModulePartReference {
-            module,
-            parsed,
-            part: None,
-        }
-        .cell()
+    pub fn new(module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>) -> Vc<Self> {
+        EcmascriptModulePartReference { module, part: None }.cell()
     }
 }
 
@@ -92,11 +80,9 @@ impl ModuleReference for EcmascriptModulePartReference {
                 | ModulePart::Facade
                 | ModulePart::RenamedExport { .. }
                 | ModulePart::RenamedNamespace { .. } => Vc::upcast(
-                    EcmascriptModuleFacadeModule::new(*self.module, *self.parsed, part.clone()),
+                    EcmascriptModuleFacadeModule::new(*self.module, part.clone()),
                 ),
-                ModulePart::Export(..)
-                | ModulePart::Internal(..)
-                | ModulePart::InternalEvaluation(..) => {
+                ModulePart::Export(..) | ModulePart::Internal(..) => {
                     bail!(
                         "Unexpected ModulePart \"{}\" for EcmascriptModulePartReference",
                         part
@@ -116,14 +102,16 @@ impl ModuleReference for EcmascriptModulePartReference {
 impl ChunkableModuleReference for EcmascriptModulePartReference {
     #[turbo_tasks::function]
     fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::ParallelInheritAsync))
+        Vc::cell(Some(ChunkingType::Parallel {
+            inherit_async: true,
+            hoisted: true,
+        }))
     }
 }
 
 impl EcmascriptModulePartReference {
     pub async fn code_generation(
         self: Vc<Self>,
-        _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let referenced_asset = ReferencedAsset::from_resolve_result(self.resolve_reference());

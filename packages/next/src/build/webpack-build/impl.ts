@@ -120,7 +120,7 @@ export async function webpackBuildImpl(
     reactProductionProfiling: NextBuildContext.reactProductionProfiling!,
     noMangling: NextBuildContext.noMangling!,
     clientRouterFilters: NextBuildContext.clientRouterFilters!,
-    previewModeId: NextBuildContext.previewModeId!,
+    previewProps: NextBuildContext.previewProps!,
     allowedRevalidateHeaderKeys: NextBuildContext.allowedRevalidateHeaderKeys!,
     fetchCacheKeyPrefix: NextBuildContext.fetchCacheKeyPrefix!,
   }
@@ -156,14 +156,6 @@ export async function webpackBuildImpl(
           middlewareMatchers: entrypoints.middlewareMatchers,
           compilerType: COMPILER_NAMES.edgeServer,
           entrypoints: entrypoints.edgeServer,
-          edgePreviewProps: {
-            __NEXT_PREVIEW_MODE_ID:
-              NextBuildContext.previewProps!.previewModeId,
-            __NEXT_PREVIEW_MODE_ENCRYPTION_KEY:
-              NextBuildContext.previewProps!.previewModeEncryptionKey,
-            __NEXT_PREVIEW_MODE_SIGNING_KEY:
-              NextBuildContext.previewProps!.previewModeSigningKey,
-          },
           ...info,
         }),
       ])

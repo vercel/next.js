@@ -1,12 +1,12 @@
 use std::io::Write;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use either::Either;
 use indoc::writedoc;
 use serde::Serialize;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
-use turbo_tasks_fs::{rope::RopeBuilder, File, FileSystemPath};
+use turbo_tasks_fs::{File, FileSystemPath, rope::RopeBuilder};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
@@ -28,8 +28,8 @@ use turbopack_ecmascript::{
 use turbopack_ecmascript_runtime::RuntimeType;
 
 use crate::{
-    chunking_context::{CurrentChunkMethod, CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR},
     BrowserChunkingContext,
+    chunking_context::{CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR, CurrentChunkMethod},
 };
 
 /// An Ecmascript chunk that:
@@ -194,7 +194,7 @@ impl EcmascriptBrowserEvaluateChunk {
         let mut code = code.build();
 
         if let MinifyType::Minify { mangle } = this.chunking_context.await?.minify_type() {
-            code = minify(&code, source_maps, mangle)?;
+            code = minify(code, source_maps, mangle)?;
         }
 
         Ok(code.cell())
@@ -204,13 +204,13 @@ impl EcmascriptBrowserEvaluateChunk {
     async fn ident_for_path(&self) -> Result<Vc<AssetIdent>> {
         let mut ident = self.ident.owned().await?;
 
-        ident.add_modifier(modifier().to_resolved().await?);
+        ident.add_modifier(rcstr!("ecmascript browser evaluate chunk"));
 
         let evaluatable_assets = self.evaluatable_assets.await?;
         ident.modifiers.extend(
             evaluatable_assets
                 .iter()
-                .map(|entry| entry.ident().to_string().to_resolved())
+                .map(|entry| async move { Ok((*entry.ident().to_string().await?).clone()) })
                 .try_join()
                 .await?,
         );
@@ -219,7 +219,7 @@ impl EcmascriptBrowserEvaluateChunk {
             self.other_chunks
                 .await?
                 .iter()
-                .map(|chunk| chunk.path().to_string().to_resolved())
+                .map(|chunk| async move { Ok((*chunk.path().to_string().await?).clone()) })
                 .try_join()
                 .await?,
         );
@@ -244,11 +244,6 @@ impl ValueToString for EcmascriptBrowserEvaluateChunk {
     fn to_string(&self) -> Vc<RcStr> {
         Vc::cell("Ecmascript Browser Evaluate Chunk".into())
     }
-}
-
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("ecmascript browser evaluate chunk".into())
 }
 
 #[turbo_tasks::value_impl]

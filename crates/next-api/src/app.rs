@@ -1,67 +1,67 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use next_core::{
     all_assets_from_entries,
     app_segment_config::NextSegmentConfig,
     app_structure::{
-        get_entrypoints, AppPageLoaderTree, Entrypoint as AppEntrypoint,
-        Entrypoints as AppEntrypoints, FileSystemPathVec, MetadataItem,
+        AppPageLoaderTree, Entrypoint as AppEntrypoint, Entrypoints as AppEntrypoints,
+        FileSystemPathVec, MetadataItem, get_entrypoints,
     },
     get_edge_resolve_options_context, get_next_package,
     next_app::{
-        get_app_client_references_chunks, get_app_client_shared_chunk_group, get_app_page_entry,
-        get_app_route_entry, metadata::route::get_app_metadata_route_entry, AppEntry, AppPage,
+        AppEntry, AppPage, get_app_client_references_chunks, get_app_client_shared_chunk_group,
+        get_app_page_entry, get_app_route_entry, metadata::route::get_app_metadata_route_entry,
     },
     next_client::{
-        get_client_module_options_context, get_client_resolve_options_context,
-        get_client_runtime_entries, ClientContextType, RuntimeEntries,
+        ClientContextType, RuntimeEntries, get_client_module_options_context,
+        get_client_resolve_options_context, get_client_runtime_entries,
     },
     next_client_reference::{
-        find_server_entries, ClientReferenceGraphResult, NextCssClientReferenceTransition,
-        NextEcmascriptClientReferenceTransition, ServerEntries,
+        ClientReferenceGraphResult, NextCssClientReferenceTransition,
+        NextEcmascriptClientReferenceTransition, ServerEntries, find_server_entries,
     },
     next_config::NextConfig,
     next_dynamic::NextDynamicTransition,
     next_edge::route_regex::get_named_middleware_regex,
     next_manifests::{
-        client_reference_manifest::ClientReferenceManifestOptions, AppBuildManifest,
-        AppPathsManifest, BuildManifest, ClientReferenceManifest, EdgeFunctionDefinition,
-        MiddlewareMatcher, MiddlewaresManifestV2, PagesManifest, Regions,
+        AppBuildManifest, AppPathsManifest, BuildManifest, ClientReferenceManifest,
+        EdgeFunctionDefinition, MiddlewareMatcher, MiddlewaresManifestV2, PagesManifest, Regions,
+        client_reference_manifest::ClientReferenceManifestOptions,
     },
     next_server::{
-        get_server_module_options_context, get_server_resolve_options_context,
-        get_server_runtime_entries, ServerContextType,
+        ServerContextType, get_server_module_options_context, get_server_resolve_options_context,
+        get_server_runtime_entries,
     },
-    next_server_utility::{NextServerUtilityTransition, NEXT_SERVER_UTILITY_MERGE_TAG},
+    next_server_utility::{NEXT_SERVER_UTILITY_MERGE_TAG, NextServerUtilityTransition},
     parse_segment_config_from_source,
     util::NextRuntime,
 };
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    fxindexmap, fxindexset, trace::TraceRawVcs, Completion, FxIndexSet, NonLocalValue, ResolvedVc,
-    TryJoinIterExt, Value, ValueToString, Vc,
+    Completion, FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc,
+    fxindexmap, fxindexset, trace::TraceRawVcs,
 };
 use turbo_tasks_env::{CustomProcessEnv, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack::{
-    module_options::{transition_rule::TransitionRule, ModuleOptionsContext, RuleCondition},
-    resolve_options_context::ResolveOptionsContext,
-    transition::{ContextTransition, FullContextTransition, Transition, TransitionOptions},
     ModuleAssetContext,
+    module_options::{ModuleOptionsContext, RuleCondition, transition_rule::TransitionRule},
+    resolve_options_context::ResolveOptionsContext,
+    transition::{FullContextTransition, Transition, TransitionOptions},
 };
 use turbopack_core::{
     asset::AssetContent,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkGroupResult, ChunkingContext, ChunkingContextExt,
-        EvaluatableAsset, EvaluatableAssets,
+        ChunkGroupResult, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets,
+        availability_info::AvailabilityInfo,
     },
     file_source::FileSource,
     ident::AssetIdent,
     module::Module,
     module_graph::{
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
         GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
     },
     output::{OutputAsset, OutputAssets},
     raw_output::RawOutput,
@@ -73,7 +73,7 @@ use turbopack_core::{
 use turbopack_ecmascript::resolve::cjs_resolve;
 
 use crate::{
-    dynamic_imports::{collect_next_dynamic_chunks, NextDynamicChunkAvailability},
+    dynamic_imports::{NextDynamicChunkAvailability, collect_next_dynamic_chunks},
     font::create_font_manifest,
     loadable_manifest::create_react_loadable_manifest,
     module_graph::get_reduced_graphs_for_endpoint,
@@ -115,6 +115,12 @@ fn styles_rule_condition() -> RuleCondition {
             RuleCondition::ResourcePathEndsWith(".sass".into()),
             RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.sass".into())),
         ]),
+        RuleCondition::all(vec![
+            RuleCondition::ContentTypeStartsWith("text/css".into()),
+            RuleCondition::not(RuleCondition::ContentTypeStartsWith(
+                "text/css+module".into(),
+            )),
+        ]),
     ])
 }
 fn module_styles_rule_condition() -> RuleCondition {
@@ -122,6 +128,7 @@ fn module_styles_rule_condition() -> RuleCondition {
         RuleCondition::ResourcePathEndsWith(".module.css".into()),
         RuleCondition::ResourcePathEndsWith(".module.scss".into()),
         RuleCondition::ResourcePathEndsWith(".module.sass".into()),
+        RuleCondition::ContentTypeStartsWith("text/css+module".into()),
     ])
 }
 
@@ -187,7 +194,12 @@ impl AppProject {
 
     #[turbo_tasks::function]
     fn app_entrypoints(&self) -> Vc<AppEntrypoints> {
-        get_entrypoints(*self.app_dir, self.project.next_config().page_extensions())
+        let conf = self.project.next_config();
+        get_entrypoints(
+            *self.app_dir,
+            conf.page_extensions(),
+            conf.is_global_not_found_enabled(),
+        )
     }
 
     #[turbo_tasks::function]
@@ -426,7 +438,7 @@ impl AppProject {
             self.project().server_compile_time_info(),
             self.rsc_module_options_context(),
             self.rsc_resolve_options_context(),
-            Vc::cell("app-rsc".into()),
+            rcstr!("app-rsc"),
         ))
     }
 
@@ -441,7 +453,7 @@ impl AppProject {
             self.project().edge_compile_time_info(),
             self.edge_rsc_module_options_context(),
             self.edge_rsc_resolve_options_context(),
-            Vc::cell("app-edge-rsc".into()),
+            rcstr!("app-edge-rsc"),
         ))
     }
 
@@ -492,7 +504,7 @@ impl AppProject {
             self.project().server_compile_time_info(),
             self.route_module_options_context(),
             self.route_resolve_options_context(),
-            Vc::cell("app-route".into()),
+            rcstr!("app-route"),
         ))
     }
 
@@ -542,7 +554,7 @@ impl AppProject {
             self.project().edge_compile_time_info(),
             self.edge_route_module_options_context(),
             self.edge_route_resolve_options_context(),
-            Vc::cell("app-edge-route".into()),
+            rcstr!("app-edge-route"),
         ))
     }
 
@@ -569,7 +581,7 @@ impl AppProject {
             self.project().client_compile_time_info(),
             self.client_module_options_context(),
             self.client_resolve_options_context(),
-            Vc::cell("app-client".into()),
+            rcstr!("app-client"),
         ))
     }
 
@@ -652,7 +664,7 @@ impl AppProject {
             self.project().server_compile_time_info(),
             self.ssr_module_options_context(),
             self.ssr_resolve_options_context(),
-            Vc::cell("app-ssr".into()),
+            rcstr!("app-ssr"),
         ))
     }
 
@@ -663,13 +675,22 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    fn shared_transition(self: Vc<Self>) -> Vc<ContextTransition> {
-        ContextTransition::new(
+    async fn shared_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
+        Ok(ModuleAssetContext::new(
+            TransitionOptions {
+                ..Default::default()
+            }
+            .cell(),
             self.project().server_compile_time_info(),
             self.ssr_module_options_context(),
             self.ssr_resolve_options_context(),
-            Vc::cell("app-shared".into()),
-        )
+            rcstr!("app-shared"),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    fn shared_transition(self: Vc<Self>) -> Vc<Box<dyn Transition>> {
+        Vc::upcast(FullContextTransition::new(self.shared_module_context()))
     }
 
     #[turbo_tasks::function]
@@ -703,7 +724,7 @@ impl AppProject {
             self.project().edge_compile_time_info(),
             self.edge_ssr_module_options_context(),
             self.edge_ssr_resolve_options_context(),
-            Vc::cell("app-edge-ssr".into()),
+            rcstr!("app-edge-ssr"),
         ))
     }
 
@@ -714,13 +735,24 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    fn edge_shared_transition(self: Vc<Self>) -> Vc<ContextTransition> {
-        ContextTransition::new(
+    async fn edge_shared_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
+        Ok(ModuleAssetContext::new(
+            TransitionOptions {
+                ..Default::default()
+            }
+            .cell(),
             self.project().edge_compile_time_info(),
             self.edge_ssr_module_options_context(),
             self.edge_ssr_resolve_options_context(),
-            Vc::cell("app-edge-shared".into()),
-        )
+            rcstr!("app-edge-shared"),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    fn edge_shared_transition(self: Vc<Self>) -> Vc<Box<dyn Transition>> {
+        Vc::upcast(FullContextTransition::new(
+            self.edge_shared_module_context(),
+        ))
     }
 
     #[turbo_tasks::function]
@@ -823,6 +855,7 @@ impl AppProject {
             .map(|m| ResolvedVc::upcast(*m))
             .collect();
 
+        let should_trace = self.project.next_mode().await?.is_production();
         if *self.project.per_page_module_graph().await? {
             // Implements layout segment optimization to compute a graph "chain" for each layout
             // segment
@@ -835,7 +868,7 @@ impl AppProject {
                     let ServerEntries {
                         server_utils,
                         server_component_entries,
-                    } = &*find_server_entries(*rsc_entry).await?;
+                    } = &*find_server_entries(*rsc_entry, should_trace).await?;
 
                     let graph = SingleModuleGraph::new_with_entries_visited_intern(
                         vec![
@@ -851,6 +884,7 @@ impl AppProject {
                             ChunkGroupEntry::Entry(client_shared_entries),
                         ],
                         VisitedModules::empty(),
+                        should_trace,
                     );
                     graphs.push(graph);
                     let mut visited_modules = VisitedModules::from_graph(graph);
@@ -867,6 +901,7 @@ impl AppProject {
                             // but that breaks everything for some reason.
                             vec![ChunkGroupEntry::Entry(vec![ResolvedVc::upcast(*module)])],
                             visited_modules,
+                            should_trace,
                         );
                         graphs.push(graph);
                         let is_layout =
@@ -888,6 +923,7 @@ impl AppProject {
                     let graph = SingleModuleGraph::new_with_entries_visited_intern(
                         vec![ChunkGroupEntry::Entry(client_shared_entries)],
                         VisitedModules::empty(),
+                        should_trace,
                     );
                     graphs.push(graph);
                     VisitedModules::from_graph(graph)
@@ -896,6 +932,7 @@ impl AppProject {
                 let graph = SingleModuleGraph::new_with_entries_visited_intern(
                     vec![rsc_entry_chunk_group],
                     visited_modules,
+                    should_trace,
                 );
                 graphs.push(graph);
                 visited_modules = visited_modules.concatenate(graph);
@@ -905,6 +942,7 @@ impl AppProject {
                 let additional_module_graph = SingleModuleGraph::new_with_entries_visited_intern(
                     additional_entries.owned().await?,
                     visited_modules,
+                    should_trace,
                 );
                 graphs.push(additional_module_graph);
 
@@ -987,16 +1025,6 @@ pub fn app_entry_point_to_route(
         },
     }
     .cell()
-}
-
-#[turbo_tasks::function]
-fn client_shared_chunks_modifier() -> Vc<RcStr> {
-    Vc::cell("client-shared-chunks".into())
-}
-
-#[turbo_tasks::function]
-fn server_utils_modifier() -> Vc<RcStr> {
-    Vc::cell("server-utils".into())
 }
 
 #[turbo_tasks::value(transparent)]
@@ -1192,7 +1220,7 @@ impl AppEndpoint {
 
         let client_shared_chunk_group = get_app_client_shared_chunk_group(
             AssetIdent::from_path(project.project_path())
-                .with_modifier(client_shared_chunks_modifier()),
+                .with_modifier(rcstr!("client-shared-chunks")),
             this.app_project.client_runtime_entries(),
             *module_graphs.full,
             *client_chunking_context,
@@ -1222,6 +1250,7 @@ impl AppEndpoint {
             .get_client_references_for_endpoint(
                 *rsc_entry,
                 matches!(this.ty, AppEndpointType::Page { .. }),
+                project.next_mode().await?.is_production(),
             )
             .to_resolved()
             .await?;
@@ -1420,7 +1449,6 @@ impl AppEndpoint {
                     entry_name: app_entry.original_name.clone(),
                     client_references,
                     client_references_chunks,
-                    rsc_app_entry_chunks: app_entry_chunks,
                     client_chunking_context,
                     ssr_chunking_context,
                     async_module_info: module_graphs.full.async_module_info().to_resolved().await?,
@@ -1522,7 +1550,7 @@ impl AppEndpoint {
                     };
                     let edge_function_definition = EdgeFunctionDefinition {
                         files: file_paths_from_root.into_iter().collect(),
-                        wasm: wasm_paths_to_bindings(wasm_paths_from_root.into_iter().collect()),
+                        wasm: wasm_paths_to_bindings(wasm_paths_from_root).await?,
                         assets: paths_to_bindings(all_assets),
                         name: app_entry.pathname.clone(),
                         page: app_entry.original_name.clone(),
@@ -1747,7 +1775,7 @@ impl AppEndpoint {
                         let chunk_group = chunking_context
                             .chunk_group(
                                 AssetIdent::from_path(this.app_project.project().project_path())
-                                    .with_modifier(server_utils_modifier()),
+                                    .with_modifier(rcstr!("server-utils")),
                                 // TODO this should be ChunkGroup::Shared
                                 ChunkGroup::Entry(server_utils),
                                 module_graph,
@@ -1936,7 +1964,7 @@ impl Endpoint for AppEndpoint {
         }
         .instrument(span)
         .await
-        .with_context(|| format!("Failed to write app endpoint {}", page_name))
+        .with_context(|| format!("Failed to write app endpoint {page_name}"))
     }
 
     #[turbo_tasks::function]

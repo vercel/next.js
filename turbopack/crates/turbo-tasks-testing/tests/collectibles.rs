@@ -9,8 +9,8 @@ use auto_hash_map::AutoSet;
 use rustc_hash::FxHashSet;
 use tokio::time::sleep;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{emit, CollectiblesSource, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
-use turbo_tasks_testing::{register, run, Registration};
+use turbo_tasks::{CollectiblesSource, ResolvedVc, ValueToString, Vc, emit};
+use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 
@@ -206,14 +206,7 @@ async fn my_transitive_emitting_function_collectibles(
 ) -> Result<Vc<Collectibles>> {
     let result_op = my_transitive_emitting_function(key, key2);
     Ok(Vc::cell(
-        result_op
-            .peek_collectibles::<Box<dyn ValueToString>>()
-            .into_iter()
-            .map(|v| v.to_resolved())
-            .try_join()
-            .await?
-            .into_iter()
-            .collect(),
+        result_op.peek_collectibles::<Box<dyn ValueToString>>(),
     ))
 }
 

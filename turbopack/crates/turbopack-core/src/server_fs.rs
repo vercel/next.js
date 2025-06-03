@@ -1,6 +1,6 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{Completion, ValueToString, Vc};
+use turbo_tasks::{ValueToString, Vc};
 use turbo_tasks_fs::{
     FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent, RawDirectoryContent,
 };
@@ -31,11 +31,6 @@ impl FileSystem for ServerFileSystem {
     #[turbo_tasks::function]
     fn raw_read_dir(&self, _fs_path: Vc<FileSystemPath>) -> Result<Vc<RawDirectoryContent>> {
         bail!("Reading is not possible from the marker filesystem for the server")
-    }
-
-    #[turbo_tasks::function]
-    fn track(&self, _fs_path: Vc<FileSystemPath>) -> Result<Vc<Completion>> {
-        bail!("Tracking is not possible to the marker filesystem for the server")
     }
 
     #[turbo_tasks::function]

@@ -159,6 +159,7 @@ export default function Nav() {
           <Link
             href={'/pages/partial-reversed/a'}
             id="pages-partial-reversed-a"
+            prefetch={false}
           >
             Partial Reversed A
           </Link>
@@ -167,6 +168,7 @@ export default function Nav() {
           <Link
             href={'/pages/partial-reversed/b'}
             id="pages-partial-reversed-b"
+            prefetch={false}
           >
             Partial Reversed B
           </Link>

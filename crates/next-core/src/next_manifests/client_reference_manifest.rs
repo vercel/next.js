@@ -7,15 +7,15 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexSet, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt,
-    TryJoinIterExt, ValueToString, Vc,
+    FxIndexSet, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt, ValueToString,
+    Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkingContext, ModuleChunkItemIdExt, ModuleId as TurbopackModuleId},
     module_graph::async_module_info::AsyncModulesInfo,
-    output::{OutputAsset, OutputAssets},
+    output::OutputAsset,
     virtual_output::VirtualOutputAsset,
 };
 use turbopack_ecmascript::utils::StringifyJs;
@@ -37,7 +37,6 @@ pub struct ClientReferenceManifestOptions {
     pub entry_name: RcStr,
     pub client_references: ResolvedVc<ClientReferenceGraphResult>,
     pub client_references_chunks: ResolvedVc<ClientReferencesChunks>,
-    pub rsc_app_entry_chunks: ResolvedVc<OutputAssets>,
     pub client_chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     pub ssr_chunking_context: Option<ResolvedVc<Box<dyn ChunkingContext>>>,
     pub async_module_info: ResolvedVc<AsyncModulesInfo>,
@@ -58,7 +57,6 @@ impl ClientReferenceManifest {
             entry_name,
             client_references,
             client_references_chunks,
-            rsc_app_entry_chunks,
             client_chunking_context,
             ssr_chunking_context,
             async_module_info,
@@ -100,7 +98,6 @@ impl ClientReferenceManifest {
             } = &*client_references_chunks.await?;
             let client_relative_path = &*client_relative_path.await?;
             let node_root_ref = &*node_root.await?;
-            let rsc_app_entry_chunks = &*rsc_app_entry_chunks.await?;
 
             let client_references_ecmascript = client_references
                 .await?
@@ -164,10 +161,6 @@ impl ClientReferenceManifest {
                 ReadRef<FileSystemPath>,
             > = FxHashMap::default();
             let mut ssr_chunk_path_cache: FxHashMap<
-                ResolvedVc<Box<dyn OutputAsset>>,
-                ReadRef<FileSystemPath>,
-            > = FxHashMap::default();
-            let mut rsc_chunk_path_cache: FxHashMap<
                 ResolvedVc<Box<dyn OutputAsset>>,
                 ReadRef<FileSystemPath>,
             > = FxHashMap::default();
@@ -266,32 +259,10 @@ impl ClientReferenceManifest {
                         (Vec::new(), false)
                     };
 
-                    let (rsc_chunks_paths, rsc_is_async) = if runtime == NextRuntime::Edge {
-                        // the chunks get added to the middleware-manifest.json instead
-                        // of this file because the
-                        // edge runtime doesn't support dynamically
-                        // loading chunks.
-                        (Vec::new(), false)
+                    let rsc_is_async = if runtime == NextRuntime::Edge {
+                        false
                     } else {
-                        let rsc_chunks_paths = cached_chunk_paths(
-                            &mut rsc_chunk_path_cache,
-                            rsc_app_entry_chunks.iter().copied(),
-                        )
-                        .await?;
-
-                        let chunk_paths = rsc_chunks_paths
-                            .filter_map(|(_, chunk_path)| {
-                                node_root_ref
-                                    .get_path_to(&chunk_path)
-                                    .map(ToString::to_string)
-                            })
-                            .map(RcStr::from)
-                            .collect::<Vec<_>>();
-
-                        let is_async =
-                            async_modules.contains(&ResolvedVc::upcast(client_reference_module));
-
-                        (chunk_paths, is_async)
+                        async_modules.contains(&ResolvedVc::upcast(client_reference_module))
                     };
 
                     entry_manifest.client_modules.module_exports.insert(
@@ -326,7 +297,7 @@ impl ClientReferenceManifest {
                         ManifestNodeEntry {
                             name: "*".into(),
                             id: (&*rsc_chunk_item_id).into(),
-                            chunks: rsc_chunks_paths,
+                            chunks: vec![],
                             r#async: rsc_is_async,
                         },
                     );
@@ -462,6 +433,6 @@ pub fn get_client_reference_module_key(server_path: &str, export_name: &str) -> 
     if export_name == "*" {
         server_path.into()
     } else {
-        format!("{}#{}", server_path, export_name).into()
+        format!("{server_path}#{export_name}").into()
     }
 }

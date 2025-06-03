@@ -82,6 +82,7 @@ export async function collectBuildTraces({
   hasSsrAmpPages,
   buildTraceContext,
   outputFileTracingRoot,
+  isTurbopack,
 }: {
   dir: string
   distDir: string
@@ -93,6 +94,7 @@ export async function collectBuildTraces({
   nextBuildSpan?: Span
   config: NextConfigComplete
   buildTraceContext?: BuildTraceContext
+  isTurbopack: boolean
 }) {
   const startTime = Date.now()
   debug('starting build traces')
@@ -276,6 +278,11 @@ export async function collectBuildTraces({
           require.resolve('next/dist/compiled/jest-worker/threadChild'),
           serverTracedFiles
         )
+      }
+
+      if (isTurbopack) {
+        addToTracedFiles(distDir, './package.json', serverTracedFiles)
+        addToTracedFiles(distDir, './package.json', minimalServerTracedFiles)
       }
 
       {
@@ -499,12 +506,19 @@ export async function collectBuildTraces({
         addToTracedFiles(root, relativeModulePath, minimalServerTracedFiles)
       }
 
+      const serverTracedFilesSorted = Array.from(serverTracedFiles)
+      serverTracedFilesSorted.sort()
+      const minimalServerTracedFilesSorted = Array.from(
+        minimalServerTracedFiles
+      )
+      minimalServerTracedFilesSorted.sort()
+
       await Promise.all([
         fs.writeFile(
           nextServerTraceOutput,
           JSON.stringify({
             version: 1,
-            files: Array.from(serverTracedFiles),
+            files: serverTracedFilesSorted,
           } as {
             version: number
             files: string[]
@@ -514,7 +528,7 @@ export async function collectBuildTraces({
           nextMinimalTraceOutput,
           JSON.stringify({
             version: 1,
-            files: Array.from(minimalServerTracedFiles),
+            files: minimalServerTracedFilesSorted,
           } as {
             version: number
             files: string[]

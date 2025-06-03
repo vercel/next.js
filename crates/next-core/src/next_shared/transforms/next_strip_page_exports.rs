@@ -1,7 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::strip_page_exports::{
-    next_transform_strip_page_exports, ExportFilter,
+    ExportFilter, next_transform_strip_page_exports,
 };
 use swc_core::ecma::ast::Program;
 use turbo_tasks::{ResolvedVc, Vc};

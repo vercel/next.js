@@ -1,9 +1,9 @@
 use std::{
     env::current_dir,
-    future::{join, Future},
-    io::{stdout, Write},
+    future::{Future, join},
+    io::{Write, stdout},
     net::{IpAddr, SocketAddr},
-    path::{PathBuf, MAIN_SEPARATOR},
+    path::{MAIN_SEPARATOR, PathBuf},
     sync::Arc,
     time::{Duration, Instant},
 };
@@ -13,12 +13,12 @@ use owo_colors::OwoColorize;
 use rustc_hash::FxHashSet;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
+    NonLocalValue, OperationVc, ResolvedVc, TransientInstance, TurboTasks, UpdateInfo, Value, Vc,
     trace::TraceRawVcs,
     util::{FormatBytes, FormatDuration},
-    NonLocalValue, OperationVc, ResolvedVc, TransientInstance, TurboTasks, UpdateInfo, Value, Vc,
 };
 use turbo_tasks_backend::{
-    noop_backing_storage, BackendOptions, NoopBackingStorage, TurboTasksBackend,
+    BackendOptions, NoopBackingStorage, TurboTasksBackend, noop_backing_storage,
 };
 use turbo_tasks_fs::FileSystem;
 use turbo_tasks_malloc::TurboMalloc;
@@ -30,12 +30,12 @@ use turbopack_core::{
     server_fs::ServerFileSystem,
 };
 use turbopack_dev_server::{
+    DevServer, DevServerBuilder, SourceProvider,
     introspect::IntrospectionSource,
     source::{
-        combined::CombinedContentSource, router::PrefixedRouterContentSource,
-        static_assets::StaticAssetsContentSource, ContentSource,
+        ContentSource, combined::CombinedContentSource, router::PrefixedRouterContentSource,
+        static_assets::StaticAssetsContentSource,
     },
-    DevServer, DevServerBuilder, SourceProvider,
 };
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_env::dotenv::load_env;
@@ -47,7 +47,7 @@ use crate::{
     arguments::DevArguments,
     contexts::NodeEnv,
     util::{
-        normalize_dirs, normalize_entries, output_fs, project_fs, EntryRequest, NormalizedDirs,
+        EntryRequest, NormalizedDirs, normalize_dirs, normalize_entries, output_fs, project_fs,
     },
 };
 
@@ -264,7 +264,7 @@ async fn source(
         .into();
 
     let output_fs = output_fs(project_dir);
-    let fs: Vc<Box<dyn FileSystem>> = project_fs(root_dir);
+    let fs: Vc<Box<dyn FileSystem>> = project_fs(root_dir, /* watch= */ true);
     let root_path = fs.root().to_resolved().await?;
     let project_path = root_path.join(project_relative).to_resolved().await?;
 

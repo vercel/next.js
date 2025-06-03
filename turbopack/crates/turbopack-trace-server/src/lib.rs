@@ -1,5 +1,4 @@
 #![feature(iter_intersperse)]
-#![feature(hash_raw_entry)]
 #![feature(box_patterns)]
 
 use std::{hash::BuildHasherDefault, path::PathBuf, sync::Arc};

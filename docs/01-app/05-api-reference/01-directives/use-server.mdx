@@ -79,31 +79,37 @@ export default function MyButton() {
 
 In the following example, `use server` is used inline at the top of a function to mark it as a [Server Function](https://19.react.dev/reference/rsc/server-functions):
 
-```tsx filename="app/page.tsx" highlight={5} switcher
-import { db } from '@/lib/db' // Your database client
+```tsx filename="app/posts/[id]/page.tsx" switcher highlight={8}
+import { EditPost } from './edit-post'
+import { revalidatePath } from 'next/cache'
 
-export default function UserList() {
-  async function fetchUsers() {
+export default async function PostPage({ params }: { params: { id: string } }) {
+  const post = await getPost(params.id)
+
+  async function updatePost(formData: FormData) {
     'use server'
-    const users = await db.user.findMany()
-    return users
+    await savePost(params.id, formData)
+    revalidatePath(`/posts/${params.id}`)
   }
 
-  return <button onClick={() => fetchUsers()}>Fetch Users</button>
+  return <EditPost updatePostAction={updatePost} post={post} />
 }
 ```
 
-```jsx filename="app/page.js" highlight={5} switcher
-import { db } from '@/lib/db' // Your database client
+```jsx filename="app/posts/[id]/page.js" switcher highlight={8}
+import { EditPost } from './edit-post'
+import { revalidatePath } from 'next/cache'
 
-export default function UserList() {
-  async function fetchUsers() {
+export default async function PostPage({ params }) {
+  const post = await getPost(params.id)
+
+  async function updatePost(formData) {
     'use server'
-    const users = await db.user.findMany()
-    return users
+    await savePost(params.id, formData)
+    revalidatePath(`/posts/${params.id}`)
   }
 
-  return <button onClick={() => fetchUsers()}>Fetch Users</button>
+  return <EditPost updatePostAction={updatePost} post={post} />
 }
 ```
 

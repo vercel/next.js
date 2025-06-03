@@ -7,45 +7,9 @@ related:
   links:
     - app/api-reference/file-conventions/metadata
     - app/api-reference/functions/generate-viewport
-    - app/building-your-application/optimizing/metadata
 ---
 
-This page covers all **Config-based Metadata** options with `generateMetadata` and the static metadata object.
-
-```tsx filename="layout.tsx | page.tsx" switcher
-import type { Metadata } from 'next'
-
-// either Static metadata
-export const metadata: Metadata = {
-  title: '...',
-}
-
-// or Dynamic metadata
-export async function generateMetadata({ params }) {
-  return {
-    title: '...',
-  }
-}
-```
-
-```jsx filename="layout.js | page.js" switcher
-// either Static metadata
-export const metadata = {
-  title: '...',
-}
-
-// or Dynamic metadata
-export async function generateMetadata({ params }) {
-  return {
-    title: '...',
-  }
-}
-```
-
-> **Good to know**:
->
-> - The `metadata` object and `generateMetadata` function exports are **only supported in Server Components**.
-> - You cannot export both the `metadata` object and `generateMetadata` function from the same route segment.
+You can use the `metadata` object or the `generateMetadata` function to define metadata.
 
 ## The `metadata` object
 
@@ -71,7 +35,7 @@ export const metadata = {
 export default function Page() {}
 ```
 
-See the [Metadata Fields](#metadata-fields) for a complete list of supported options.
+> See the [Metadata Fields](#metadata-fields) for a complete list of supported options.
 
 ## `generateMetadata` function
 
@@ -131,13 +95,24 @@ export async function generateMetadata({ params, searchParams }, parent) {
 export default function Page({ params, searchParams }) {}
 ```
 
+> **Good to know**:
+>
+> - Metadata can be added to `layout.js` and `page.js` files.
+> - Next.js will automatically resolve the metadata, and create the relevant `<head>` tags for the page.
+> - The `metadata` object and `generateMetadata` function exports are **only supported in Server Components**.
+> - You cannot export both the `metadata` object and `generateMetadata` function from the same route segment.
+> - `fetch` requests inside `generateMetadata` are automatically [memoized](/docs/app/deep-dive/caching#request-memoization) for the same data across `generateMetadata`, `generateStaticParams`, Layouts, Pages, and Server Components.
+> - React [`cache` can be used](/docs/app/deep-dive/caching#react-cache-function) if `fetch` is unavailable. -[ File-based metadat](/docs/app/api-reference/file-conventions/metadata) has the higher priority and will override the `metadata` object and `generateMetadata` function.
+
+## Reference
+
 ### Parameters
 
 `generateMetadata` function accepts the following parameters:
 
 - `props` - An object containing the parameters of the current route:
 
-  - `params` - An object containing the [dynamic route parameters](/docs/app/building-your-application/routing/dynamic-routes) object from the root segment down to the segment `generateMetadata` is called from. Examples:
+  - `params` - An object containing the [dynamic route parameters](/docs/app/api-reference/file-conventions/dynamic-routes) object from the root segment down to the segment `generateMetadata` is called from. Examples:
 
     | Route                           | URL         | `params`                  |
     | ------------------------------- | ----------- | ------------------------- |
@@ -162,17 +137,19 @@ export default function Page({ params, searchParams }) {}
 > **Good to know**:
 >
 > - If metadata doesn't depend on runtime information, it should be defined using the static [`metadata` object](#the-metadata-object) rather than `generateMetadata`.
-> - `fetch` requests are automatically [memoized](/docs/app/building-your-application/caching#request-memoization) for the same data across `generateMetadata`, `generateStaticParams`, Layouts, Pages, and Server Components. React [`cache` can be used](/docs/app/building-your-application/caching#react-cache-function) if `fetch` is unavailable.
+> - `fetch` requests are automatically [memoized](/docs/app/deep-dive/caching#request-memoization) for the same data across `generateMetadata`, `generateStaticParams`, Layouts, Pages, and Server Components. React [`cache` can be used](/docs/app/deep-dive/caching#react-cache-function) if `fetch` is unavailable.
 > - `searchParams` are only available in `page.js` segments.
 > - The [`redirect()`](/docs/app/api-reference/functions/redirect) and [`notFound()`](/docs/app/api-reference/functions/not-found) Next.js methods can also be used inside `generateMetadata`.
 
-## Metadata Fields
+### Metadata Fields
 
-### `title`
+The following fields are supported:
 
-The `title` attribute is used to set the title of the document. It can be defined as a simple [string](#string) or an optional [template object](#template-object).
+#### `title`
 
-#### String
+The `title` attribute is used to set the title of the document. It can be defined as a simple [string](#string) or an optional [template object](#template).
+
+##### String
 
 ```jsx filename="layout.js | page.js"
 export const metadata = {
@@ -184,31 +161,7 @@ export const metadata = {
 <title>Next.js</title>
 ```
 
-#### Template object
-
-```tsx filename="app/layout.tsx" switcher
-import type { Metadata } from 'next'
-
-export const metadata: Metadata = {
-  title: {
-    template: '...',
-    default: '...',
-    absolute: '...',
-  },
-}
-```
-
-```jsx filename="app/layout.js" switcher
-export const metadata = {
-  title: {
-    default: '...',
-    template: '...',
-    absolute: '...',
-  },
-}
-```
-
-##### Default
+##### `default`
 
 `title.default` can be used to provide a **fallback title** to child route segments that don't define a `title`.
 
@@ -230,7 +183,7 @@ export const metadata: Metadata = {}
 // Output: <title>Acme</title>
 ```
 
-##### Template
+##### `template`
 
 `title.template` can be used to add a prefix or a suffix to `titles` defined in **child** route segments.
 
@@ -282,7 +235,7 @@ export const metadata = {
 >
 > - `title.template` has **no effect** if a route has not defined a `title` or `title.default`.
 
-##### Absolute
+##### `absolute`
 
 `title.absolute` can be used to provide a title that **ignores** `title.template` set in parent segments.
 
@@ -352,7 +305,7 @@ export const metadata = {
 <meta name="description" content="The React Framework for the Web" />
 ```
 
-### Basic Fields
+### Other fields
 
 ```jsx filename="layout.js | page.js"
 export const metadata = {
@@ -385,13 +338,12 @@ export const metadata = {
 <meta name="format-detection" content="telephone=no, address=no, email=no" />
 ```
 
-### `metadataBase`
+#### `metadataBase`
 
 `metadataBase` is a convenience option to set a base URL prefix for `metadata` fields that require a fully qualified URL.
 
 - `metadataBase` allows URL-based `metadata` fields defined in the **current route segment and below** to use a **relative path** instead of an otherwise required absolute URL.
 - The field's relative path will be composed with `metadataBase` to form a fully qualified URL.
-- If not configured, `metadataBase` is **automatically populated** with a [default value](#default-value).
 
 ```jsx filename="layout.js | page.js"
 export const metadata = {
@@ -424,19 +376,6 @@ export const metadata = {
 > - If a `metadata` field provides an absolute URL, `metadataBase` will be ignored.
 > - Using a relative path in a URL-based `metadata` field without configuring a `metadataBase` will cause a build error.
 > - Next.js will normalize duplicate slashes between `metadataBase` (e.g. `https://acme.com/`) and a relative field (e.g. `/path`) to a single slash (e.g. `https://acme.com/path`)
-
-#### Default value
-
-If not configured, `metadataBase` has a **default value**.
-
-> On Vercel:
->
-> - For production deployments, `VERCEL_PROJECT_PRODUCTION_URL` will be used.
-> - For preview deployments, `VERCEL_BRANCH_URL` will take priority, and fallback to `VERCEL_URL` if it's not present.
->
-> If these values are present they will be used as the **default value** of `metadataBase`, otherwise it falls back to `http://localhost:${process.env.PORT || 3000}`. This allows Open Graph images to work on both local build and Vercel preview and production deployments. When overriding the default, we recommend using environment variables to compute the URL. This allows configuring a URL for local development, staging, and production environments.
->
-> See more details about these environment variables in the [System Environment Variables](https://vercel.com/docs/concepts/projects/environment-variables/system-environment-variables) docs.
 
 #### URL Composition
 
@@ -1037,17 +976,102 @@ export const metadata = {
 <meta name="custom" content="meta1" /> <meta name="custom" content="meta2" />
 ```
 
-## Unsupported Metadata
+### Unsupported Metadata
 
 The following metadata types do not currently have built-in support. However, they can still be rendered in the layout or page itself.
+
+### Types
+
+You can add type safety to your metadata by using the `Metadata` type. If you are using the [built-in TypeScript plugin](/docs/app/api-reference/config/typescript) in your IDE, you do not need to manually add the type, but you can still explicitly add it if you want.
+
+#### `metadata` object
+
+```tsx filename="layout.tsx | page.tsx"
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Next.js',
+}
+```
+
+#### `generateMetadata` function
+
+##### Regular function
+
+```tsx filename="layout.tsx | page.tsx"
+import type { Metadata } from 'next'
+
+export function generateMetadata(): Metadata {
+  return {
+    title: 'Next.js',
+  }
+}
+```
+
+##### Async function
+
+```tsx filename="layout.tsx | page.tsx"
+import type { Metadata } from 'next'
+
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    title: 'Next.js',
+  }
+}
+```
+
+##### With segment props
+
+```tsx filename="layout.tsx | page.tsx"
+import type { Metadata } from 'next'
+
+type Props = {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}
+
+export function generateMetadata({ params, searchParams }: Props): Metadata {
+  return {
+    title: 'Next.js',
+  }
+}
+
+export default function Page({ params, searchParams }: Props) {}
+```
+
+##### With parent metadata
+
+```tsx filename="layout.tsx | page.tsx"
+import type { Metadata, ResolvingMetadata } from 'next'
+
+export async function generateMetadata(
+  { params, searchParams }: Props,
+  parent: ResolvingMetadata
+): Promise<Metadata> {
+  return {
+    title: 'Next.js',
+  }
+}
+```
+
+##### JavaScript Projects
+
+For JavaScript projects, you can use JSDoc to add type safety.
+
+```js filename="layout.js | page.js"
+/** @type {import("next").Metadata} */
+export const metadata = {
+  title: 'Next.js',
+}
+```
 
 | Metadata                      | Recommendation                                                                                                                                                                                                                                            |
 | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `<meta http-equiv="...">`     | Use appropriate HTTP Headers via [`redirect()`](/docs/app/api-reference/functions/redirect), [Middleware](/docs/app/building-your-application/routing/middleware#nextresponse), [Security Headers](/docs/app/api-reference/config/next-config-js/headers) |
 | `<base>`                      | Render the tag in the layout or page itself.                                                                                                                                                                                                              |
 | `<noscript>`                  | Render the tag in the layout or page itself.                                                                                                                                                                                                              |
-| `<style>`                     | Learn more about [styling in Next.js](/docs/app/building-your-application/styling/css).                                                                                                                                                                   |
-| `<script>`                    | Learn more about [using scripts](/docs/app/building-your-application/optimizing/scripts).                                                                                                                                                                 |
+| `<style>`                     | Learn more about [styling in Next.js](/docs/app/getting-started/css).                                                                                                                                                                                     |
+| `<script>`                    | Learn more about [using scripts](/docs/app/guides/scripts).                                                                                                                                                                                               |
 | `<link rel="stylesheet" />`   | `import` stylesheets directly in the layout or page itself.                                                                                                                                                                                               |
 | `<link rel="preload />`       | Use [ReactDOM preload method](#link-relpreload)                                                                                                                                                                                                           |
 | `<link rel="preconnect" />`   | Use [ReactDOM preconnect method](#link-relpreconnect)                                                                                                                                                                                                     |
@@ -1087,7 +1111,7 @@ export function PreloadResources() {
 }
 ```
 
-##### `<link rel="preload">`
+#### `<link rel="preload">`
 
 Start loading a resource early in the page rendering (browser) lifecycle. [MDN Docs](https://developer.mozilla.org/docs/Web/HTML/Attributes/rel/preload).
 
@@ -1111,7 +1135,7 @@ ReactDOM.preconnect(href: string, options?: { crossOrigin?: string })
 <link rel="preconnect" href="..." crossorigin />
 ```
 
-##### `<link rel="dns-prefetch">`
+#### `<link rel="dns-prefetch">`
 
 Attempt to resolve a domain name before resources get requested. [MDN Docs](https://developer.mozilla.org/docs/Web/HTML/Attributes/rel/dns-prefetch).
 
@@ -1128,92 +1152,23 @@ ReactDOM.prefetchDNS(href: string)
 > - These methods are currently only supported in Client Components, which are still Server Side Rendered on initial page load.
 > - Next.js in-built features such as `next/font`, `next/image` and `next/script` automatically handle relevant resource hints.
 
-## Types
+## Behavior
 
-You can add type safety to your metadata by using the `Metadata` type. If you are using the [built-in TypeScript plugin](/docs/app/api-reference/config/typescript) in your IDE, you do not need to manually add the type, but you can still explicitly add it if you want.
+### Default Fields
 
-### `metadata` object
+There are two default `meta` tags that are always added even if a route doesn't define metadata:
 
-```tsx filename="layout.tsx | page.tsx"
-import type { Metadata } from 'next'
+- The [meta charset tag](https://developer.mozilla.org/docs/Web/HTML/Element/meta#attr-charset) sets the character encoding for the website.
+- The [meta viewport tag](https://developer.mozilla.org/docs/Web/HTML/Viewport_meta_tag) sets the viewport width and scale for the website to adjust for different devices.
 
-export const metadata: Metadata = {
-  title: 'Next.js',
-}
+```html
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 ```
 
-### `generateMetadata` function
+> **Good to know**: You can overwrite the default [`viewport`](/docs/app/api-reference/functions/generate-metadata#viewport) meta tag.
 
-#### Regular function
-
-```tsx filename="layout.tsx | page.tsx"
-import type { Metadata } from 'next'
-
-export function generateMetadata(): Metadata {
-  return {
-    title: 'Next.js',
-  }
-}
-```
-
-#### Async function
-
-```tsx filename="layout.tsx | page.tsx"
-import type { Metadata } from 'next'
-
-export async function generateMetadata(): Promise<Metadata> {
-  return {
-    title: 'Next.js',
-  }
-}
-```
-
-#### With segment props
-
-```tsx filename="layout.tsx | page.tsx"
-import type { Metadata } from 'next'
-
-type Props = {
-  params: Promise<{ id: string }>
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
-}
-
-export function generateMetadata({ params, searchParams }: Props): Metadata {
-  return {
-    title: 'Next.js',
-  }
-}
-
-export default function Page({ params, searchParams }: Props) {}
-```
-
-#### With parent metadata
-
-```tsx filename="layout.tsx | page.tsx"
-import type { Metadata, ResolvingMetadata } from 'next'
-
-export async function generateMetadata(
-  { params, searchParams }: Props,
-  parent: ResolvingMetadata
-): Promise<Metadata> {
-  return {
-    title: 'Next.js',
-  }
-}
-```
-
-#### JavaScript Projects
-
-For JavaScript projects, you can use JSDoc to add type safety.
-
-```js filename="layout.js | page.js"
-/** @type {import("next").Metadata} */
-export const metadata = {
-  title: 'Next.js',
-}
-```
-
-## Streaming metadata
+### Streaming metadata
 
 Metadata returned by `generateMetadata` is streamed to the client. This allows Next.js to inject metadata into the HTML as soon as it's resolved.
 
@@ -1227,7 +1182,7 @@ If you need to customize this list, you can define them manually using the `html
 import type { NextConfig } from 'next'
 
 const config: NextConfig = {
-  htmlLimitedBots: 'MySpecialBot|MyAnotherSpecialBot|SimpleCrawler',
+  htmlLimitedBots: /MySpecialBot|MyAnotherSpecialBot|SimpleCrawler/,
 }
 
 export default config
@@ -1235,11 +1190,113 @@ export default config
 
 ```js filename="next.config.js" switcher
 module.exports = {
-  htmlLimitedBots: 'MySpecialBot|MyAnotherSpecialBot|SimpleCrawler',
+  htmlLimitedBots: /MySpecialBot|MyAnotherSpecialBot|SimpleCrawler/,
 }
 ```
 
 Specifying a `htmlLimitedBots` config will override the Next.js' default list, allowing you full control over what user agents should opt into this behavior. This is advanced behavior, and the default should be sufficient for most cases.
+
+### Ordering
+
+Metadata is evaluated in order, starting from the root segment down to the segment closest to the final `page.js` segment. For example:
+
+1. `app/layout.tsx` (Root Layout)
+2. `app/blog/layout.tsx` (Nested Blog Layout)
+3. `app/blog/[slug]/page.tsx` (Blog Page)
+
+### Merging
+
+Following the [evaluation order](#ordering), Metadata objects exported from multiple segments in the same route are **shallowly** merged together to form the final metadata output of a route. Duplicate keys are **replaced** based on their ordering.
+
+This means metadata with nested fields such as [`openGraph`](/docs/app/api-reference/functions/generate-metadata#opengraph) and [`robots`](/docs/app/api-reference/functions/generate-metadata#robots) that are defined in an earlier segment are **overwritten** by the last segment to define them.
+
+#### Overwriting fields
+
+```jsx filename="app/layout.js"
+export const metadata = {
+  title: 'Acme',
+  openGraph: {
+    title: 'Acme',
+    description: 'Acme is a...',
+  },
+}
+```
+
+```jsx filename="app/blog/page.js"
+export const metadata = {
+  title: 'Blog',
+  openGraph: {
+    title: 'Blog',
+  },
+}
+
+// Output:
+// <title>Blog</title>
+// <meta property="og:title" content="Blog" />
+```
+
+In the example above:
+
+- `title` from `app/layout.js` is **replaced** by `title` in `app/blog/page.js`.
+- All `openGraph` fields from `app/layout.js` are **replaced** in `app/blog/page.js` because `app/blog/page.js` sets `openGraph` metadata. Note the absence of `openGraph.description`.
+
+If you'd like to share some nested fields between segments while overwriting others, you can pull them out into a separate variable:
+
+```jsx filename="app/shared-metadata.js"
+export const openGraphImage = { images: ['http://...'] }
+```
+
+```jsx filename="app/page.js"
+import { openGraphImage } from './shared-metadata'
+
+export const metadata = {
+  openGraph: {
+    ...openGraphImage,
+    title: 'Home',
+  },
+}
+```
+
+```jsx filename="app/about/page.js"
+import { openGraphImage } from '../shared-metadata'
+
+export const metadata = {
+  openGraph: {
+    ...openGraphImage,
+    title: 'About',
+  },
+}
+```
+
+In the example above, the OG image is shared between `app/layout.js` and `app/about/page.js` while the titles are different.
+
+#### Inheriting fields
+
+```jsx filename="app/layout.js"
+export const metadata = {
+  title: 'Acme',
+  openGraph: {
+    title: 'Acme',
+    description: 'Acme is a...',
+  },
+}
+```
+
+```jsx filename="app/about/page.js"
+export const metadata = {
+  title: 'About',
+}
+
+// Output:
+// <title>About</title>
+// <meta property="og:title" content="Acme" />
+// <meta property="og:description" content="Acme is a..." />
+```
+
+**Notes**
+
+- `title` from `app/layout.js` is **replaced** by `title` in `app/about/page.js`.
+- All `openGraph` fields from `app/layout.js` are **inherited** in `app/about/page.js` because `app/about/page.js` doesn't set `openGraph` metadata.
 
 ## Version History
 

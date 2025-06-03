@@ -6,23 +6,23 @@ use std::{
     iter::once,
 };
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Level};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, SliceMap,
-    TaskInput, TryJoinIterExt, Value, ValueToString, Vc,
+    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, SliceMap, TaskInput,
+    TryJoinIterExt, Value, ValueToString, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{
-    util::normalize_request, FileSystemEntryType, FileSystemPath, RealPathResult,
+    FileSystemEntryType, FileSystemPath, RealPathResult, util::normalize_request,
 };
 
 use self::{
     options::{
-        resolve_modules_options, ConditionValue, ImportMapResult, ResolveInPackage,
-        ResolveIntoPackage, ResolveModules, ResolveModulesOptions, ResolveOptions,
+        ConditionValue, ImportMapResult, ResolveInPackage, ResolveIntoPackage, ResolveModules,
+        ResolveModulesOptions, ResolveOptions, resolve_modules_options,
     },
     origin::{ResolveOrigin, ResolveOriginExt},
     parse::Request,
@@ -35,17 +35,17 @@ use crate::{
     data_uri_source::DataUriSource,
     file_source::FileSource,
     issue::{
-        module::emit_unknown_module_type_error, resolve::ResolvingIssue, IssueExt, IssueSource,
+        IssueExt, IssueSource, module::emit_unknown_module_type_error, resolve::ResolvingIssue,
     },
     module::{Module, Modules, OptionModule},
     output::{OutputAsset, OutputAssets},
-    package_json::{read_package_json, PackageJsonIssue},
+    package_json::{PackageJsonIssue, read_package_json},
     raw_module::RawModule,
     reference_type::ReferenceType,
     resolve::{
         node::{node_cjs_resolve_options, node_esm_resolve_options},
         parse::stringify_data_uri,
-        pattern::{read_matches, PatternMatch},
+        pattern::{PatternMatch, read_matches},
         plugin::AfterResolvePlugin,
     },
     source::{OptionSource, Source, Sources},
@@ -492,7 +492,7 @@ pub struct RequestKey {
 impl Display for RequestKey {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         if let Some(request) = &self.request {
-            write!(f, "{}", request)?;
+            write!(f, "{request}")?;
         } else {
             write!(f, "<default>")?;
         }
@@ -502,7 +502,7 @@ impl Display for RequestKey {
                 if i > 0 {
                     write!(f, ", ")?;
                 }
-                write!(f, "{}={}", k, v)?;
+                write!(f, "{k}={v}")?;
             }
             write!(f, ")")?;
         }
@@ -538,7 +538,7 @@ impl ValueToString for ResolveResult {
             if i > 0 {
                 result.push_str(", ");
             }
-            write!(result, "{} -> ", request).unwrap();
+            write!(result, "{request} -> ").unwrap();
             match item {
                 ResolveResultItem::Source(a) => {
                     result.push_str(&a.ident().to_string().await?);
@@ -550,7 +550,7 @@ impl ValueToString for ResolveResult {
                 } => {
                     result.push_str("external ");
                     result.push_str(s);
-                    write!(result, " ({}, {})", ty, traced)?;
+                    write!(result, " ({ty}, {traced})")?;
                 }
                 ResolveResultItem::Ignore => {
                     result.push_str("ignore");
@@ -1029,7 +1029,7 @@ impl ResolveResult {
                         request: request_key
                             .request
                             .as_ref()
-                            .map(|r| format!("{}{}", r, remaining).into()),
+                            .map(|r| format!("{r}{remaining}").into()),
                         conditions: request_key.conditions.clone(),
                     },
                     v.clone(),
@@ -1694,7 +1694,7 @@ async fn handle_after_resolve_plugins(
         request: Vc<Request>,
         options: Vc<ResolveOptions>,
     ) -> Result<Option<Vc<ResolveResult>>> {
-        for plugin in &options.await?.plugins {
+        for plugin in &options.await?.after_resolve_plugins {
             let after_resolve_condition = plugin.after_resolve_condition().resolve().await?;
             if *after_resolve_condition.matches(path).await? {
                 if let Some(result) = *plugin
@@ -1796,7 +1796,7 @@ async fn resolve_internal_inline(
                         lookup_path,
                         *request,
                         options,
-                        request.query(),
+                        request.query().owned().await?,
                     )
                     .await?;
                     // We might have matched an alias in the import map, but there is no guarantee
@@ -1851,8 +1851,8 @@ async fn resolve_internal_inline(
                                     request,
                                     options_value,
                                     options,
-                                    **query,
-                                    **fragment,
+                                    query.clone(),
+                                    fragment.clone(),
                                 )
                                 .await?,
                             );
@@ -1874,16 +1874,16 @@ async fn resolve_internal_inline(
                 force_in_lookup_dir,
                 fragment,
             } => {
-                if !fragment.await?.is_empty() {
+                if !fragment.is_empty() {
                     if let Ok(result) = resolve_relative_request(
                         lookup_path,
                         request,
                         options,
                         options_value,
                         path,
-                        **query,
+                        query.clone(),
                         *force_in_lookup_dir,
-                        **fragment,
+                        fragment.clone(),
                     )
                     .await
                     {
@@ -1897,9 +1897,9 @@ async fn resolve_internal_inline(
                     options,
                     options_value,
                     path,
-                    **query,
+                    query.clone(),
                     *force_in_lookup_dir,
-                    Vc::cell(RcStr::default()),
+                    RcStr::default(),
                 )
                 .await?
             }
@@ -1916,8 +1916,8 @@ async fn resolve_internal_inline(
                     options_value,
                     module,
                     path,
-                    **query,
-                    **fragment,
+                    query.clone(),
+                    fragment.clone(),
                 )
                 .await?
             }
@@ -1928,7 +1928,8 @@ async fn resolve_internal_inline(
             } => {
                 let mut new_pat = path.clone();
                 new_pat.push_front(RcStr::from(".").into());
-                let relative = Request::relative(Value::new(new_pat), **query, **fragment, true);
+                let relative =
+                    Request::relative(Value::new(new_pat), query.clone(), fragment.clone(), true);
 
                 if !has_alias {
                     ResolvingIssue {
@@ -2040,7 +2041,7 @@ async fn resolve_internal_inline(
                 query: _,
                 fragment: _,
             } => {
-                let uri: RcStr = format!("{}{}", protocol, remainder).into();
+                let uri: RcStr = format!("{protocol}{remainder}").into();
                 *ResolveResult::primary_with_key(
                     RequestKey::new(uri.clone()),
                     ResolveResultItem::External {
@@ -2054,7 +2055,7 @@ async fn resolve_internal_inline(
                 if !has_alias {
                     ResolvingIssue {
                         severity: error_severity(options).await?,
-                        request_type: format!("unknown import: `{}`", path),
+                        request_type: format!("unknown import: `{path}`"),
                         request: request.to_resolved().await?,
                         file_path: lookup_path.to_resolved().await?,
                         resolve_options: options.to_resolved().await?,
@@ -2078,7 +2079,7 @@ async fn resolve_internal_inline(
                     lookup_path,
                     request,
                     options,
-                    request.query(),
+                    request.query().owned().await?,
                 )
                 .await?;
                 if let Some(result) = resolved_result {
@@ -2175,9 +2176,9 @@ async fn resolve_relative_request(
     options: Vc<ResolveOptions>,
     options_value: &ResolveOptions,
     path_pattern: &Pattern,
-    query: Vc<RcStr>,
+    query: RcStr,
     force_in_lookup_dir: bool,
-    fragment: Vc<RcStr>,
+    fragment: RcStr,
 ) -> Result<Vc<ResolveResult>> {
     // Check alias field for aliases first
     let lookup_path_ref = &*lookup_path.await?;
@@ -2191,8 +2192,8 @@ async fn resolve_relative_request(
             let request = normalize_request(&format!("./{prefix_path}/{request}"));
             Some(request.into())
         },
-        query,
-        fragment,
+        query.clone(),
+        fragment.clone(),
     )
     .await?
     {
@@ -2201,20 +2202,18 @@ async fn resolve_relative_request(
 
     let mut new_path = path_pattern.clone();
 
-    let fragment_val = fragment.await?;
-    if !fragment_val.is_empty() {
-        new_path.push(Pattern::Alternatives(
-            once(Pattern::Constant("".into()))
-                .chain(once(Pattern::Constant(format!("#{fragment_val}").into())))
-                .collect(),
-        ));
+    if !fragment.is_empty() {
+        new_path.push(Pattern::Alternatives(vec![
+            Pattern::Constant(RcStr::default()),
+            Pattern::Constant(fragment.clone()),
+        ]));
     }
 
     if !options_value.fully_specified {
         // Add the extensions as alternatives to the path
         // read_matches keeps the order of alternatives intact
         new_path.push(Pattern::Alternatives(
-            once(Pattern::Constant("".into()))
+            once(Pattern::Constant(RcStr::default()))
                 .chain(
                     options_value
                         .extensions
@@ -2285,11 +2284,11 @@ async fn resolve_relative_request(
                         continue;
                     };
 
-                    if !fragment_val.is_empty() {
+                    if !fragment.is_empty() {
                         // If the fragment is not empty, we need to strip it from the matched
                         // pattern
                         if let Some(matched_pattern) = matched_pattern
-                            .strip_suffix(&**fragment_val)
+                            .strip_suffix(fragment.as_str())
                             .and_then(|s| s.strip_suffix('#'))
                         {
                             results.push(
@@ -2300,8 +2299,8 @@ async fn resolve_relative_request(
                                     request,
                                     options_value,
                                     options,
-                                    query,
-                                    Vc::cell(RcStr::default()),
+                                    query.clone(),
+                                    RcStr::default(),
                                 )
                                 .await?,
                             );
@@ -2317,8 +2316,8 @@ async fn resolve_relative_request(
                                 request,
                                 options_value,
                                 options,
-                                query,
-                                fragment,
+                                query.clone(),
+                                fragment.clone(),
                             )
                             .await?,
                         );
@@ -2326,12 +2325,9 @@ async fn resolve_relative_request(
                     }
                 }
             }
-            if !fragment_val.is_empty() {
+            if !fragment.is_empty() {
                 // If the fragment is not empty, we need to strip it from the matched pattern
-                if let Some(matched_pattern) = matched_pattern
-                    .strip_suffix(&**fragment_val)
-                    .and_then(|s| s.strip_suffix('#'))
-                {
+                if let Some(matched_pattern) = matched_pattern.strip_suffix(fragment.as_str()) {
                     results.push(
                         resolved(
                             RequestKey::new(matched_pattern.into()),
@@ -2340,8 +2336,8 @@ async fn resolve_relative_request(
                             request,
                             options_value,
                             options,
-                            query,
-                            Vc::cell(RcStr::default()),
+                            query.clone(),
+                            RcStr::default(),
                         )
                         .await?,
                     );
@@ -2358,8 +2354,8 @@ async fn resolve_relative_request(
                         request,
                         options_value,
                         options,
-                        query,
-                        fragment,
+                        query.clone(),
+                        fragment.clone(),
                     )
                     .await?,
                 );
@@ -2383,8 +2379,8 @@ async fn apply_in_package(
     options: Vc<ResolveOptions>,
     options_value: &ResolveOptions,
     get_request: impl Fn(&FileSystemPath) -> Option<RcStr>,
-    query: Vc<RcStr>,
-    fragment: Vc<RcStr>,
+    query: RcStr,
+    fragment: RcStr,
 ) -> Result<Option<Vc<ResolveResult>>> {
     // Check alias field for module aliases first
     for in_package in options_value.in_package.iter() {
@@ -2447,8 +2443,8 @@ async fn apply_in_package(
                 resolve_internal(
                     package_path,
                     Request::parse(Value::new(Pattern::Constant(value.into())))
-                        .with_query(query)
-                        .with_fragment(fragment),
+                        .with_query(query.clone())
+                        .with_fragment(fragment.clone()),
                     options,
                 )
                 .with_replaced_request_key(value.into(), Value::new(request_key))
@@ -2464,7 +2460,7 @@ async fn apply_in_package(
                 .to_resolved()
                 .await?,
             resolve_options: options.to_resolved().await?,
-            error_message: Some(format!("invalid alias field value: {}", value)),
+            error_message: Some(format!("invalid alias field value: {value}")),
             source: None,
         }
         .resolved_cell()
@@ -2518,8 +2514,8 @@ async fn resolve_module_request(
     options_value: &ResolveOptions,
     module: &str,
     path: &Pattern,
-    query: Vc<RcStr>,
-    fragment: Vc<RcStr>,
+    query: RcStr,
+    fragment: RcStr,
 ) -> Result<Vc<ResolveResult>> {
     // Check alias field for module aliases first
     if let Some(result) = apply_in_package(
@@ -2530,8 +2526,8 @@ async fn resolve_module_request(
             let full_pattern = Pattern::concat([RcStr::from(module).into(), path.clone()]);
             full_pattern.into_string()
         },
-        query,
-        fragment,
+        query.clone(),
+        fragment.clone(),
     )
     .await?
     {
@@ -2548,8 +2544,8 @@ async fn resolve_module_request(
             let result = resolve_into_package(
                 Value::new(path.clone()),
                 **package_path,
-                query,
-                fragment,
+                query.clone(),
+                fragment.clone(),
                 options,
             );
             if !(*result.is_unresolvable().await?) {
@@ -2584,8 +2580,8 @@ async fn resolve_module_request(
                 results.push(resolve_into_package(
                     Value::new(path.clone()),
                     *package_path,
-                    query,
-                    fragment,
+                    query.clone(),
+                    fragment.clone(),
                     options,
                 ));
             }
@@ -2598,8 +2594,8 @@ async fn resolve_module_request(
                         request,
                         options_value,
                         options,
-                        query,
-                        fragment,
+                        query.clone(),
+                        fragment.clone(),
                     )
                     .await?;
                     results.push(resolved)
@@ -2637,8 +2633,8 @@ async fn resolve_module_request(
 async fn resolve_into_package(
     path: Value<Pattern>,
     package_path: ResolvedVc<FileSystemPath>,
-    query: Vc<RcStr>,
-    fragment: Vc<RcStr>,
+    query: RcStr,
+    fragment: RcStr,
     options: ResolvedVc<ResolveOptions>,
 ) -> Result<Vc<ResolveResult>> {
     let path = path.into_value();
@@ -2722,7 +2718,7 @@ async fn resolve_import_map_result(
     original_lookup_path: Vc<FileSystemPath>,
     original_request: Vc<Request>,
     options: Vc<ResolveOptions>,
-    query: Vc<RcStr>,
+    query: RcStr,
 ) -> Result<Option<Vc<ResolveResult>>> {
     Ok(match result {
         ImportMapResult::Result(result) => Some(**result),
@@ -2801,7 +2797,7 @@ async fn resolve_import_map_result(
                         original_lookup_path,
                         original_request,
                         options,
-                        query,
+                        query.clone(),
                     ))
                 })
                 .try_join()
@@ -2821,8 +2817,8 @@ async fn resolved(
     original_request: Vc<Request>,
     options_value: &ResolveOptions,
     options: Vc<ResolveOptions>,
-    query: Vc<RcStr>,
-    fragment: Vc<RcStr>,
+    query: RcStr,
+    fragment: RcStr,
 ) -> Result<Vc<ResolveResult>> {
     let RealPathResult { path, symlinks } = &*fs_path.realpath_with_links().await?;
 
@@ -2833,8 +2829,8 @@ async fn resolved(
         options,
         options_value,
         |package_path| package_path.get_relative_path_to(path_ref),
-        query,
-        fragment,
+        query.clone(),
+        fragment.clone(),
     )
     .await?
     {
@@ -2852,7 +2848,7 @@ async fn resolved(
             original_context,
             original_request,
             options,
-            query,
+            query.clone(),
         )
         .await?;
 
@@ -2864,7 +2860,7 @@ async fn resolved(
     Ok(*ResolveResult::source_with_affecting_sources(
         request_key,
         ResolvedVc::upcast(
-            FileSource::new_with_query(**path, query)
+            FileSource::new_with_query_and_fragment(**path, query, fragment)
                 .to_resolved()
                 .await?,
         ),
@@ -2888,13 +2884,12 @@ async fn handle_exports_imports_field(
     path: &str,
     conditions: &BTreeMap<RcStr, ConditionValue>,
     unspecified_conditions: &ConditionValue,
-    query: Vc<RcStr>,
+    query: RcStr,
 ) -> Result<Vc<ResolveResult>> {
     let mut results = Vec::new();
     let mut conditions_state = FxHashMap::default();
 
-    let query_str = query.await?;
-    let req = Pattern::Constant(format!("{}{}", path, query_str).into());
+    let req = Pattern::Constant(format!("{path}{query}").into());
 
     let values = exports_imports_field
         .lookup(&req)
@@ -2988,7 +2983,7 @@ async fn resolve_package_internal_with_imports_field(
         specifier,
         conditions,
         unspecified_conditions,
-        Vc::<RcStr>::default(),
+        RcStr::default(),
     )
     .await
 }
@@ -3144,7 +3139,6 @@ async fn error_severity(resolve_options: Vc<ResolveOptions>) -> Result<ResolvedV
     })
 }
 
-// TODO this should become a TaskInput instead of a Vc
 /// ModulePart represents a part of a module.
 ///
 /// Currently this is used only for ESMs.
@@ -3166,8 +3160,6 @@ pub enum ModulePart {
     RenamedNamespace { export: RcStr },
     /// A pointer to a specific part.
     Internal(u32),
-    /// A pointer to a specific part, but with evaluation.
-    InternalEvaluation(u32),
     /// The local declarations of a module.
     Locals,
     /// The whole exports of a module.
@@ -3201,10 +3193,6 @@ impl ModulePart {
         ModulePart::Internal(id)
     }
 
-    pub fn internal_evaluation(id: u32) -> Self {
-        ModulePart::InternalEvaluation(id)
-    }
-
     pub fn locals() -> Self {
         ModulePart::Locals
     }
@@ -3222,16 +3210,15 @@ impl Display for ModulePart {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             ModulePart::Evaluation => f.write_str("module evaluation"),
-            ModulePart::Export(export) => write!(f, "export {}", export),
+            ModulePart::Export(export) => write!(f, "export {export}"),
             ModulePart::RenamedExport {
                 original_export,
                 export,
-            } => write!(f, "export {} as {}", original_export, export),
+            } => write!(f, "export {original_export} as {export}"),
             ModulePart::RenamedNamespace { export } => {
-                write!(f, "export * as {}", export)
+                write!(f, "export * as {export}")
             }
-            ModulePart::Internal(id) => write!(f, "internal part {}", id),
-            ModulePart::InternalEvaluation(id) => write!(f, "internal part {}", id),
+            ModulePart::Internal(id) => write!(f, "internal part {id}"),
             ModulePart::Locals => f.write_str("locals"),
             ModulePart::Exports => f.write_str("exports"),
             ModulePart::Facade => f.write_str("facade"),

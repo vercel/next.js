@@ -1,13 +1,13 @@
 use std::{
     cmp::min,
     fs::File,
-    io::{self, BufWriter, Write},
+    io::{self, BufWriter, Seek, Write},
     path::Path,
 };
 
 use anyhow::{Context, Result};
-use byteorder::{ByteOrder, WriteBytesExt, BE};
-use lzzzz::lz4::{max_compressed_size, ACC_LEVEL_DEFAULT};
+use byteorder::{BE, ByteOrder, WriteBytesExt};
+use lzzzz::lz4::{ACC_LEVEL_DEFAULT, max_compressed_size};
 
 use crate::static_sorted_file::{
     BLOCK_TYPE_INDEX, BLOCK_TYPE_KEY, KEY_BLOCK_ENTRY_TYPE_BLOB, KEY_BLOCK_ENTRY_TYPE_DELETED,
@@ -71,29 +71,48 @@ pub enum EntryValue<'l> {
     Deleted,
 }
 
+#[derive(Debug, Clone)]
+pub struct StaticSortedFileBuilderMeta {
+    /// The minimum hash of the keys in the SST file
+    pub min_hash: u64,
+    /// The maximum hash of the keys in the SST file
+    pub max_hash: u64,
+    /// The AQMF data
+    pub aqmf: Vec<u8>,
+    /// The key compression dictionary
+    pub key_compression_dictionary_length: u16,
+    /// The value compression dictionary
+    pub value_compression_dictionary_length: u16,
+    /// The number of blocks in the SST file
+    pub block_count: u16,
+    /// The file size of the SST file
+    pub size: u64,
+    /// The number of entries in the SST file
+    pub entries: u64,
+}
+
 #[derive(Debug, Default)]
 pub struct StaticSortedFileBuilder {
-    family: u32,
     aqmf: Vec<u8>,
     key_compression_dictionary: Vec<u8>,
     value_compression_dictionary: Vec<u8>,
     blocks: Vec<(u32, Vec<u8>)>,
     min_hash: u64,
     max_hash: u64,
+    entries: u64,
 }
 
 impl StaticSortedFileBuilder {
     pub fn new<E: Entry>(
-        family: u32,
         entries: &[E],
         total_key_size: usize,
         total_value_size: usize,
     ) -> Result<Self> {
         debug_assert!(entries.iter().map(|e| e.key_hash()).is_sorted());
         let mut builder = Self {
-            family,
             min_hash: entries.first().map(|e| e.key_hash()).unwrap_or(u64::MAX),
             max_hash: entries.last().map(|e| e.key_hash()).unwrap_or(0),
+            entries: entries.len() as u64,
             ..Default::default()
         };
         builder.compute_aqmf(entries);
@@ -103,6 +122,7 @@ impl StaticSortedFileBuilder {
     }
 
     /// Computes a AQMF from the keys of all entries.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn compute_aqmf<E: Entry>(&mut self, entries: &[E]) {
         let mut filter = qfilter::Filter::new(entries.len() as u64, AQMF_FALSE_POSITIVE_RATE)
             // This won't fail as we limit the number of entries per SST file
@@ -113,10 +133,14 @@ impl StaticSortedFileBuilder {
                 // This can't fail as we allocated enough capacity
                 .expect("AQMF insert failed");
         }
+        for entry in entries {
+            debug_assert!(filter.contains_fingerprint(entry.key_hash()));
+        }
         self.aqmf = pot::to_vec(&filter).expect("AQMF serialization failed");
     }
 
     /// Computes compression dictionaries from keys and values of all entries
+    #[tracing::instrument(level = "trace", skip_all)]
     fn compute_compression_dictionary<E: Entry>(
         &mut self,
         entries: &[E],
@@ -202,6 +226,7 @@ impl StaticSortedFileBuilder {
     }
 
     /// Compute index, key and value blocks.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn compute_blocks<E: Entry>(&mut self, entries: &[E]) {
         // TODO implement multi level index
         // TODO place key and value block near to each other
@@ -352,37 +377,21 @@ impl StaticSortedFileBuilder {
     }
 
     /// Compresses an index or key block.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn compress_key_block(&self, block: &[u8]) -> (u32, Vec<u8>) {
         self.compress_block(block, &self.key_compression_dictionary)
     }
 
     /// Compresses a value block.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn compress_value_block(&self, block: &[u8]) -> (u32, Vec<u8>) {
         self.compress_block(block, &self.value_compression_dictionary)
     }
 
     /// Writes the SST file.
-    pub fn write(&self, file: &Path) -> io::Result<File> {
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub fn write(self, file: &Path) -> io::Result<(StaticSortedFileBuilderMeta, File)> {
         let mut file = BufWriter::new(File::create(file)?);
-        // magic number and version
-        file.write_u32::<BE>(0x53535401)?;
-        // family
-        file.write_u32::<BE>(self.family)?;
-        // min hash
-        file.write_u64::<BE>(self.min_hash)?;
-        // max hash
-        file.write_u64::<BE>(self.max_hash)?;
-        // AQMF length
-        file.write_u24::<BE>(self.aqmf.len().try_into().unwrap())?;
-        // Key compression dictionary length
-        file.write_u16::<BE>(self.key_compression_dictionary.len().try_into().unwrap())?;
-        // Value compression dictionary length
-        file.write_u16::<BE>(self.value_compression_dictionary.len().try_into().unwrap())?;
-        // Number of blocks
-        file.write_u16::<BE>(self.blocks.len().try_into().unwrap())?;
-
-        // Write the AQMF
-        file.write_all(&self.aqmf)?;
         // Write the key compression dictionary
         file.write_all(&self.key_compression_dictionary)?;
         // Write the value compression dictionary
@@ -396,13 +405,32 @@ impl StaticSortedFileBuilder {
             offset += len;
             file.write_u32::<BE>(offset.try_into().unwrap())?;
         }
-        for (uncompressed_size, block) in &self.blocks {
+        let block_count = self.blocks.len().try_into().unwrap();
+        for (uncompressed_size, block) in self.blocks {
             // Uncompressed size
-            file.write_u32::<BE>(*uncompressed_size)?;
+            file.write_u32::<BE>(uncompressed_size)?;
             // Compressed block
-            file.write_all(block)?;
+            file.write_all(&block)?;
         }
-        Ok(file.into_inner()?)
+        let meta = StaticSortedFileBuilderMeta {
+            min_hash: self.min_hash,
+            max_hash: self.max_hash,
+            aqmf: self.aqmf,
+            key_compression_dictionary_length: self
+                .key_compression_dictionary
+                .len()
+                .try_into()
+                .unwrap(),
+            value_compression_dictionary_length: self
+                .value_compression_dictionary
+                .len()
+                .try_into()
+                .unwrap(),
+            block_count,
+            size: file.stream_position()?,
+            entries: self.entries,
+        };
+        Ok((meta, file.into_inner()?))
     }
 }
 

@@ -1,6 +1,6 @@
 use std::iter::once;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, OptionVcExt, ResolvedVc, Value, Vc};
 use turbo_tasks_env::{EnvMap, ProcessEnv};
@@ -16,8 +16,8 @@ use turbopack::{
 };
 use turbopack_core::{
     chunk::{
-        module_id_strategies::ModuleIdStrategy, ChunkingConfig, MangleType, MinifyType,
-        SourceMapsType,
+        ChunkingConfig, MangleType, MinifyType, SourceMapsType,
+        module_id_strategies::ModuleIdStrategy,
     },
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
@@ -53,9 +53,9 @@ use crate::{
     next_server::resolve::ExternalPredicate,
     next_shared::{
         resolve::{
-            get_invalid_client_only_resolve_plugin, get_invalid_styled_jsx_resolve_plugin,
             ModuleFeatureReportResolvePlugin, NextExternalResolvePlugin,
-            NextNodeSharedRuntimeResolvePlugin,
+            NextNodeSharedRuntimeResolvePlugin, get_invalid_client_only_resolve_plugin,
+            get_invalid_styled_jsx_resolve_plugin,
         },
         transforms::{
             emotion::get_emotion_transform_rule, get_ecma_transform_rule,
@@ -73,8 +73,8 @@ use crate::{
         get_typescript_transform_options,
     },
     util::{
-        foreign_code_context_condition, get_transpiled_packages, internal_assets_conditions,
-        load_next_js_templateon, NextRuntime,
+        NextRuntime, foreign_code_context_condition, get_transpiled_packages,
+        internal_assets_conditions, load_next_js_templateon,
     },
 };
 
@@ -536,25 +536,22 @@ pub async fn get_server_module_options_context(
         get_styled_components_transform_rule(next_config).await?;
     let styled_jsx_transform_rule = get_styled_jsx_transform_rule(next_config, versions).await?;
 
+    let source_maps = if *next_config.server_source_maps().await? {
+        SourceMapsType::Full
+    } else {
+        SourceMapsType::None
+    };
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
             enable_typeof_window_inlining: Some(TypeofWindow::Undefined),
             import_externals: *next_config.import_externals().await?,
             ignore_dynamic_requests: true,
-            source_maps: if *next_config.turbo_source_maps().await? {
-                SourceMapsType::Full
-            } else {
-                SourceMapsType::None
-            },
+            source_maps,
             ..Default::default()
         },
         execution_context: Some(execution_context),
         css: CssOptionsContext {
-            source_maps: if *next_config.turbo_source_maps().await? {
-                SourceMapsType::Full
-            } else {
-                SourceMapsType::None
-            },
+            source_maps,
             ..Default::default()
         },
         tree_shaking_mode: tree_shaking_mode_for_user_code,

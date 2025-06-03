@@ -11,7 +11,7 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::utils::StringifyJs;
 
-use crate::{asset_context::get_runtime_asset_context, embed_js::embed_static_code, RuntimeType};
+use crate::{RuntimeType, asset_context::get_runtime_asset_context, embed_js::embed_static_code};
 
 /// Returns the code for the ECMAScript runtime.
 #[turbo_tasks::function]

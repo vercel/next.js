@@ -1,7 +1,7 @@
 import {
   NEXTJS_HYDRATION_ERROR_LINK,
   REACT_HYDRATION_ERROR_LINK,
-} from '../../../../../is-hydration-error'
+} from '../../../../../react-19-hydration-error'
 import { parseUrlFromText } from '../../../utils/parse-url-from-text'
 
 const docsURLAllowlist = ['https://nextjs.org', 'https://react.dev']

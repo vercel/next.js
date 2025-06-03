@@ -2,9 +2,10 @@ pub mod svg;
 
 use std::{io::Cursor, str::FromStr};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use base64::{display::Base64Display, engine::general_purpose::STANDARD};
 use image::{
+    DynamicImage, GenericImageView, ImageEncoder, ImageFormat,
     codecs::{
         bmp::BmpEncoder,
         ico::IcoEncoder,
@@ -12,12 +13,11 @@ use image::{
         png::{CompressionType, PngEncoder},
     },
     imageops::FilterType,
-    DynamicImage, GenericImageView, ImageEncoder, ImageFormat,
 };
 use mime::Mime;
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, DisplayFromStr};
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, Vc};
+use serde_with::{DisplayFromStr, serde_as};
+use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     error::PrettyPrintError,
@@ -347,7 +347,7 @@ pub async fn get_meta_data(
     let FileContent::Content(content) = &*content.await? else {
         bail!("Input image not found");
     };
-    let bytes = content.content().to_bytes()?;
+    let bytes = content.content().to_bytes();
     let path_resolved = ident.path().to_resolved().await?;
     let path = path_resolved.await?;
     let extension = path.extension_ref();
@@ -430,7 +430,7 @@ pub async fn optimize(
     let FileContent::Content(content) = &*content.await? else {
         return Ok(FileContent::NotFound.cell());
     };
-    let bytes = content.content().to_bytes()?;
+    let bytes = content.content().to_bytes();
     let path = ident.path().to_resolved().await?;
 
     let Some((image, format)) = load_image(path, &bytes, ident.path().await?.extension_ref())

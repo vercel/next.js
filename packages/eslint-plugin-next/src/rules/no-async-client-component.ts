@@ -1,7 +1,7 @@
 import { defineRule } from '../utils/define-rule'
 
 const url = 'https://nextjs.org/docs/messages/no-async-client-component'
-const description = 'Prevent client components from being async functions.'
+const description = 'Prevent Client Components from being async functions.'
 const message = `${description} See: ${url}`
 
 function isCapitalized(str: string): boolean {

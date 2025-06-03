@@ -127,7 +127,7 @@ The following examples show how to combine Route Handlers with other Next.js API
 
 ### Revalidating Cached Data
 
-You can [revalidate cached data](/docs/app/building-your-application/data-fetching/incremental-static-regeneration) using Incremental Static Regeneration (ISR):
+You can [revalidate cached data](/docs/app/guides/incremental-static-regeneration) using Incremental Static Regeneration (ISR):
 
 ```ts filename="app/posts/route.ts" switcher
 export const revalidate = 60
@@ -271,7 +271,7 @@ export async function GET(request) {
 
 ### Dynamic Route Segments
 
-Route Handlers can use [Dynamic Segments](/docs/app/building-your-application/routing/dynamic-routes) to create request handlers from dynamic data.
+Route Handlers can use [Dynamic Segments](/docs/app/api-reference/file-conventions/dynamic-routes) to create request handlers from dynamic data.
 
 ```ts filename="app/items/[slug]/route.ts" switcher
 export async function GET(
@@ -296,7 +296,7 @@ export async function GET(request, { params }) {
 
 ### URL Query Parameters
 
-The request object passed to the Route Handler is a `NextRequest` instance, which has [some additional convenience methods](/docs/app/api-reference/functions/next-request#nexturl), including for more easily handling query parameters.
+The request object passed to the Route Handler is a `NextRequest` instance, which includes [some additional convenience methods](/docs/app/api-reference/functions/next-request#nexturl), such as those for more easily handling query parameters.
 
 ```ts filename="app/api/search/route.ts" switcher
 import { type NextRequest } from 'next/server'

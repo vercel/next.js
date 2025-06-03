@@ -53,17 +53,19 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
     derive::derive_task_input(input)
 }
 
-/// Derives the `turbo_tasks::KeyValuePair` trait for a enum. Each variant need to have a `value`
-/// field which becomes part of the value enum and all remaining fields become part of the key.
-///
-/// Assuming the enum is called `Abc` it exposes `AbcKey` and `AbcValue` types for it too. The key
-/// enum will have `Debug, Clone, PartialEq, Eq, Hash` derived and the value enum will have `Debug,
-/// Clone` derived. It's expected that all fields implement these traits.
+/// <!--
+/// Documentation for this macro is available on the re-export:
+/// <https://turbopack-rust-docs.vercel.sh/rustdoc/turbo_tasks/derive.KeyValuePair.html>
+/// -->
 #[proc_macro_derive(KeyValuePair)]
 pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
     derive::derive_key_value_pair(input)
 }
 
+/// <!--
+/// Documentation for this macro is available on the re-export:
+/// <https://turbopack-rust-docs.vercel.sh/rustdoc/turbo_tasks/attr.value.html>
+/// -->
 #[allow_internal_unstable(min_specialization, into_future, trivial_bounds)]
 #[proc_macro_error]
 #[proc_macro_attribute]
@@ -71,24 +73,10 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     value_macro::value(args, input)
 }
 
-/// Allows this trait to be used as part of a trait object inside of a value
-/// cell, in the form of `Vc<dyn MyTrait>`.
-///
-/// ## Arguments
-///
-/// Example: `#[turbo_tasks::value_trait(no_debug, resolved)]`
-///
-/// ### 'no_debug`
-///
-/// Disables the automatic implementation of [`turbo_tasks::debug::ValueDebug`].
-///
-/// Example: `#[turbo_tasks::value_trait(no_debug)]`
-///
-/// ### 'resolved`
-///
-/// Adds [`turbo_tasks::NonLocalValue`] as a supertrait of this trait.
-///
-/// Example: `#[turbo_tasks::value_trait(resolved)]`
+/// <!--
+/// Documentation for this macro is available on the re-export:
+/// <https://turbopack-rust-docs.vercel.sh/rustdoc/turbo_tasks/attr.value_trait.html>
+/// -->
 #[allow_internal_unstable(min_specialization, into_future, trivial_bounds)]
 #[proc_macro_error]
 #[proc_macro_attribute]

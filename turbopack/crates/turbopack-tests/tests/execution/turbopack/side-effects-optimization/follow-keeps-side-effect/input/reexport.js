@@ -1,7 +1,7 @@
-import { value } from "./valueSetter.js";
+import { value } from './valueSetter.js'
 
-export { value } from "./valueSetter.js";
+export { value } from './valueSetter.js'
 
 export default () => {
-    return value
+  return value
 }

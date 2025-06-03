@@ -7,7 +7,7 @@ use std::{
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
     atoms::Atom,
-    common::{comments::Comments, pass::AstNodePath, Mark, Span, Spanned, SyntaxContext, GLOBALS},
+    common::{GLOBALS, Mark, Span, Spanned, SyntaxContext, comments::Comments, pass::AstNodePath},
     ecma::{
         ast::*,
         atoms::atom,
@@ -20,13 +20,13 @@ use turbo_tasks::ResolvedVc;
 use turbopack_core::source::Source;
 
 use super::{
-    is_unresolved_id, ConstantNumber, ConstantValue, ImportMap, JsValue, ObjectPart,
-    WellKnownFunctionKind,
+    ConstantNumber, ConstantValue, ImportMap, JsValue, ObjectPart, WellKnownFunctionKind,
+    is_unresolved_id,
 };
 use crate::{
-    analyzer::{is_unresolved, WellKnownObjectKind},
-    utils::{unparen, AstPathRange},
     SpecifiedModuleType,
+    analyzer::{WellKnownObjectKind, is_unresolved},
+    utils::{AstPathRange, unparen},
 };
 
 #[derive(Debug, Clone)]
@@ -69,6 +69,8 @@ pub enum ConditionalKind {
     Or { expr: Box<EffectsBlock> },
     /// The expression on the right side of the `??` operator.
     NullishCoalescing { expr: Box<EffectsBlock> },
+    /// The expression on the right side of a labeled statement.
+    Labeled { body: Box<EffectsBlock> },
 }
 
 impl ConditionalKind {
@@ -98,6 +100,11 @@ impl ConditionalKind {
                     for effect in &mut block.effects {
                         effect.normalize();
                     }
+                }
+            }
+            ConditionalKind::Labeled { body } => {
+                for effect in &mut body.effects {
+                    effect.normalize();
                 }
             }
         }
@@ -1509,10 +1516,9 @@ impl VisitAstPath for Analyzer<'_> {
         decl: &'ast FnDecl,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        let old = replace(
-            &mut self.cur_fn_return_values,
-            Some(get_fn_init_return_vals(decl.function.body.as_ref())),
-        );
+        let old = self
+            .cur_fn_return_values
+            .replace(get_fn_init_return_vals(decl.function.body.as_ref()));
         let old_ident = self.cur_fn_ident;
         self.cur_fn_ident = decl.function.span.lo.0;
         decl.visit_children_with_ast_path(self, ast_path);
@@ -1533,10 +1539,9 @@ impl VisitAstPath for Analyzer<'_> {
         expr: &'ast FnExpr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        let old = replace(
-            &mut self.cur_fn_return_values,
-            Some(get_fn_init_return_vals(expr.function.body.as_ref())),
-        );
+        let old = self
+            .cur_fn_return_values
+            .replace(get_fn_init_return_vals(expr.function.body.as_ref()));
         let old_ident = self.cur_fn_ident;
         self.cur_fn_ident = expr.function.span.lo.0;
         expr.visit_children_with_ast_path(self, ast_path);
@@ -1643,7 +1648,27 @@ impl VisitAstPath for Analyzer<'_> {
     ) {
         if self.var_decl_kind.is_some() {
             if let Some(init) = &n.init {
-                self.current_value = Some(self.eval_context.eval(init));
+                // For case like
+                //
+                // if (shouldRun()) {
+                //   var x = true;
+                // }
+                // if (x) {
+                // }
+                //
+                // The variable `x` is undefined
+
+                let should_include_undefined = matches!(self.var_decl_kind, Some(VarDeclKind::Var))
+                    && is_lexically_block_scope(ast_path);
+                let init_value = self.eval_context.eval(init);
+                self.current_value = Some(if should_include_undefined {
+                    JsValue::alternatives(vec![
+                        init_value,
+                        JsValue::Constant(ConstantValue::Undefined),
+                    ])
+                } else {
+                    init_value
+                });
             }
         }
         {
@@ -2077,6 +2102,10 @@ impl VisitAstPath for Analyzer<'_> {
                     AstParentNodeRef::TryStmt(_, TryStmtField::Handler),
                     AstParentNodeRef::CatchClause(_, CatchClauseField::Body)
                 ]
+                | [
+                    AstParentNodeRef::LabeledStmt(_, LabeledStmtField::Body),
+                    AstParentNodeRef::Stmt(_, StmtField::Block)
+                ]
         ) {
             None
         } else if matches!(
@@ -2138,6 +2167,57 @@ impl VisitAstPath for Analyzer<'_> {
 
         n.visit_children_with_ast_path(self, ast_path);
     }
+
+    fn visit_labeled_stmt<'ast: 'r, 'r>(
+        &mut self,
+        stmt: &'ast LabeledStmt,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
+        let mut prev_effects = take(&mut self.effects);
+        let prev_early_return_stack = take(&mut self.early_return_stack);
+
+        stmt.visit_children_with_ast_path(self, ast_path);
+
+        self.end_early_return_block();
+
+        let effects = take(&mut self.effects);
+
+        prev_effects.push(Effect::Conditional {
+            condition: Box::new(JsValue::unknown_empty(true, "labeled statement")),
+            kind: Box::new(ConditionalKind::Labeled {
+                body: Box::new(EffectsBlock {
+                    effects,
+                    range: AstPathRange::Exact(as_parent_path_with(
+                        ast_path,
+                        AstParentKind::LabeledStmt(LabeledStmtField::Body),
+                    )),
+                }),
+            }),
+            ast_path: as_parent_path(ast_path),
+            span: stmt.span,
+            in_try: is_in_try(ast_path),
+        });
+
+        self.effects = prev_effects;
+        self.early_return_stack = prev_early_return_stack;
+    }
+}
+
+fn is_lexically_block_scope(ast_path: &mut AstNodePath<AstParentNodeRef>) -> bool {
+    let mut iter = ast_path.iter().rev().peekable();
+
+    while let Some(cur) = iter.next() {
+        // If it's a block statement, we need to check if it's Function#body
+        if matches!(cur.kind(), AstParentKind::BlockStmt(..)) {
+            if let Some(next) = iter.peek() {
+                return !matches!(next.kind(), AstParentKind::Function(FunctionField::Body));
+            }
+            return false;
+        }
+    }
+
+    // This `var` is not in a block scope
+    false
 }
 
 impl Analyzer<'_> {
@@ -2251,6 +2331,9 @@ impl Analyzer<'_> {
                 | ConditionalKind::Or { expr }
                 | ConditionalKind::NullishCoalescing { expr } => {
                     self.effects.append(&mut expr.effects);
+                }
+                ConditionalKind::Labeled { body } => {
+                    self.effects.append(&mut body.effects);
                 }
             }
         } else {

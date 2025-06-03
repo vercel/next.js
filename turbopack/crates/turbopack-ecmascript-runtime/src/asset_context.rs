@@ -1,7 +1,8 @@
+use turbo_rcstr::rcstr;
 use turbo_tasks::{Result, Vc};
 use turbopack::{
-    module_options::{EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions},
     ModuleAssetContext,
+    module_options::{EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions},
 };
 use turbopack_core::{
     compile_time_info::CompileTimeInfo, context::AssetContext, environment::Environment,
@@ -34,7 +35,7 @@ pub async fn get_runtime_asset_context(
         compile_time_info,
         module_options_context,
         Vc::default(),
-        Vc::cell("runtime".into()),
+        rcstr!("runtime"),
     ));
 
     Ok(asset_context)

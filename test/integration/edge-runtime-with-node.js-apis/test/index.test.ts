@@ -44,8 +44,6 @@ const unsupportedClasses = [
   'WritableStreamDefaultController',
 ]
 
-const isTurbopack = process.env.IS_TURBOPACK_TEST
-
 describe.each([
   {
     title: 'Middleware',
@@ -113,12 +111,7 @@ describe.each([
         expect(output)
           .toInclude(`A Node.js API is used (${api}) which is not supported in the Edge Runtime.
 Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
-        if (isTurbopack) {
-          expect(stripAnsi(output)).toInclude(errorHighlight)
-        } else {
-          // TODO(veil): Use codeframe froma stackframe that's not ignore-listed
-          expect(stripAnsi(output)).not.toInclude(errorHighlight)
-        }
+        expect(stripAnsi(output)).toInclude(errorHighlight)
       })
     }
   )

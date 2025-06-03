@@ -71,7 +71,7 @@ These scripts refer to the different stages of developing an application:
 
 Next.js uses file-system routing, which means the routes in your application are determined by how you structure your files.
 
-Create an `app` folder. Then, inside `app`, create a `layout.tsx` file. This file is the [root layout](/docs/app/api-reference/file-conventions/layout#root-layouts). It's required and must contain the `<html>` and `<body>` tags.
+Create an `app` folder. Then, inside `app`, create a `layout.tsx` file. This file is the [root layout](/docs/app/api-reference/file-conventions/layout#root-layout). It's required and must contain the `<html>` and `<body>` tags.
 
 ```tsx filename="app/layout.tsx" switcher
 export default function RootLayout({
@@ -124,7 +124,7 @@ Both `layout.tsx` and `page.tsx` will be rendered when the user visits the root 
 > **Good to know**:
 >
 > - If you forget to create the root layout, Next.js will automatically create this file when running the development server with `next dev`.
-> - You can optionally use a [`src` directory](/docs/app/building-your-application/configuring/src-directory) in the root of your project to separate your application's code from configuration files.
+> - You can optionally use a [`src` folder](/docs/app/api-reference/file-conventions/src-folder) in the root of your project to separate your application's code from configuration files.
 
 </AppOnly>
 
@@ -202,7 +202,7 @@ export default function Document() {
 
 ### Create the `public` folder (optional)
 
-Create a [`public` folder](/docs/app/building-your-application/optimizing/static-assets) at the root of your project to store static assets such as images, fonts, etc. Files inside `public` can then be referenced by your code starting from the base URL (`/`).
+Create a [`public` folder](/docs/app/api-reference/file-conventions/public-folder) at the root of your project to store static assets such as images, fonts, etc. Files inside `public` can then be referenced by your code starting from the base URL (`/`).
 
 You can then reference these assets using the root path (`/`). For example, `public/profile.png` can be referenced as `/profile.png`:
 
@@ -226,7 +226,7 @@ export default function Page() {
 
 1. Run `npm run dev` to start the development server.
 2. Visit `http://localhost:3000` to view your application.
-3. Edit the<AppOnly>`app/page.tsx`</AppOnly> <PagesOnly>`pages/index.tsx`</PagesOnly> file and save it to see the updated result in your browser.
+3. Edit the <AppOnly>`app/page.tsx`</AppOnly><PagesOnly>`pages/index.tsx`</PagesOnly> file and save it to see the updated result in your browser.
 
 ## Set up TypeScript
 

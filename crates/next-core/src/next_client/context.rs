@@ -8,19 +8,19 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
     css::chunk::CssChunkType,
     module_options::{
-        module_options_context::ModuleOptionsContext, CssOptionsContext, EcmascriptOptionsContext,
-        JsxTransformOptions, ModuleRule, TypeofWindow, TypescriptTransformOptions,
+        CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleRule, TypeofWindow,
+        TypescriptTransformOptions, module_options_context::ModuleOptionsContext,
     },
     resolve_options_context::ResolveOptionsContext,
 };
 use turbopack_browser::{
-    react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext, ContentHashing,
-    CurrentChunkMethod,
+    BrowserChunkingContext, ContentHashing, CurrentChunkMethod,
+    react_refresh::assert_can_resolve_react_refresh,
 };
 use turbopack_core::{
     chunk::{
-        module_id_strategies::ModuleIdStrategy, ChunkingConfig, ChunkingContext, MangleType,
-        MinifyType, SourceMapsType,
+        ChunkingConfig, ChunkingContext, MangleType, MinifyType, SourceMapsType,
+        module_id_strategies::ModuleIdStrategy,
     },
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
@@ -49,8 +49,8 @@ use crate::{
     },
     next_shared::{
         resolve::{
-            get_invalid_server_only_resolve_plugin, ModuleFeatureReportResolvePlugin,
-            NextSharedRuntimeResolvePlugin,
+            ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin,
+            get_invalid_server_only_resolve_plugin,
         },
         transforms::{
             emotion::get_emotion_transform_rule,
@@ -329,22 +329,19 @@ pub async fn get_client_module_options_context(
     let enable_postcss_transform = Some(postcss_transform_options.resolved_cell());
     let enable_foreign_postcss_transform = Some(postcss_foreign_transform_options.resolved_cell());
 
+    let source_maps = if *next_config.client_source_maps(mode).await? {
+        SourceMapsType::Full
+    } else {
+        SourceMapsType::None
+    };
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
             enable_typeof_window_inlining: Some(TypeofWindow::Object),
-            source_maps: if *next_config.turbo_source_maps().await? {
-                SourceMapsType::Full
-            } else {
-                SourceMapsType::None
-            },
+            source_maps,
             ..Default::default()
         },
         css: CssOptionsContext {
-            source_maps: if *next_config.turbo_source_maps().await? {
-                SourceMapsType::Full
-            } else {
-                SourceMapsType::None
-            },
+            source_maps,
             ..Default::default()
         },
         preset_env_versions: Some(env),
@@ -360,6 +357,8 @@ pub async fn get_client_module_options_context(
     let foreign_codes_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
             enable_typeof_window_inlining: None,
+            // Ignore e.g. import(`${url}`) requests in node_modules.
+            ignore_dynamic_requests: true,
             ..module_options_context.ecmascript
         },
         enable_webpack_loaders: foreign_enable_webpack_loaders,
