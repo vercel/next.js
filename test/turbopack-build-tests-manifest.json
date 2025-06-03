@@ -7306,12 +7306,11 @@
       "Middleware Runtime without i18n should validate & parse request url from any route",
       "Middleware Runtime without i18n should warn when using NextResponse.redirect with a relative URL",
       "Middleware Runtime without i18n should warn when using Response.redirect with a relative URL",
-      "Middleware Runtime without i18n should work with notFound: true correctly"
-    ],
-    "failed": [
+      "Middleware Runtime without i18n should work with notFound: true correctly",
       "Middleware Runtime with i18n should have the custom config in the manifest",
       "Middleware Runtime without i18n should have the custom config in the manifest"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
