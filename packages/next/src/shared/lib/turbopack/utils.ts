@@ -223,7 +223,7 @@ export function formatIssue(issue: Issue) {
       for (let i = 0; i < tracesAndLayers.length; i++) {
         const [layer, trace] = tracesAndLayers[i]
         if (everyTraceHasADistinctLayer) {
-          message += `  [${layer}]:\n`
+          message += `  ${layer}:\n`
         } else {
           message += `  #${i + 1}`
           if (layer) {

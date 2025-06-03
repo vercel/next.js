@@ -244,7 +244,7 @@ pub fn format_issue(
                 == traces_and_layers.len();
             if every_trace_has_a_distinct_layer {
                 for (layer, trace) in traces_and_layers {
-                    writeln!(styled_issue, "  [{}]:", layer.unwrap()).unwrap();
+                    writeln!(styled_issue, "  {}:", layer.unwrap()).unwrap();
                     format_trace_items(&mut styled_issue, "    ", false, trace);
                 }
             } else {

@@ -614,13 +614,13 @@ export function runErrorRecoveryHmrTest(nextConfig: {
          Expression expected
 
          Example import traces:
-           #1:
-             ./components/parse-error.js [client]
-             ./pages/hmr/about9.js [client]
+           client:
+             ./components/parse-error.js
+             ./pages/hmr/about9.js
 
-           #2:
-             ./components/parse-error.js [ssr]
-             ./pages/hmr/about9.js [ssr]"
+           ssr:
+             ./components/parse-error.js
+             ./pages/hmr/about9.js"
         `)
       } else if (process.env.NEXT_RSPACK) {
         expect(trimEndMultiline(next.normalizeTestDirContent(redboxSource)))
