@@ -787,13 +787,13 @@ impl FileSystem for DiskFileSystem {
                         f.flush()?;
                         #[cfg(feature = "write_version")]
                         {
-                            let mut full_path = full_path.into_owned();
+                            let mut full_path = full_path.to_owned();
                             let hash = hash_xxh3_hash64(file);
                             let ext = full_path.extension();
                             let ext = if let Some(ext) = ext {
                                 format!("{:016x}.{}", hash, ext.to_string_lossy())
                             } else {
-                                format!("{:016x}", hash)
+                                format!("{hash:016x}")
                             };
                             full_path.set_extension(ext);
                             let mut f = std::fs::File::create(&full_path)?;
