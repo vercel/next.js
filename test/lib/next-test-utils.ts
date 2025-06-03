@@ -1131,11 +1131,12 @@ export function getRedboxFooterMessage(
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) =>
-        p.shadowRoot.querySelector('[data-next-error-overlay-footer]')
+        p.shadowRoot.querySelector('[data-nextjs-error-overlay-footer]')
       )
     const root = portal.shadowRoot
     return (
-      root.querySelector('[data-next-error-overlay-footer]')?.innerText ?? null
+      root.querySelector('[data-nextjs-error-overlay-footer]')?.innerText ??
+      null
     )
   })
 }

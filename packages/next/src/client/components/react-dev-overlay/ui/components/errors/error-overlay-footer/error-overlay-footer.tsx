@@ -11,7 +11,7 @@ export function ErrorOverlayFooter({
   footerMessage,
 }: ErrorOverlayFooterProps) {
   return (
-    <footer data-next-error-overlay-footer className="error-overlay-footer">
+    <footer data-nextjs-error-overlay-footer className="error-overlay-footer">
       {footerMessage ? (
         <p className="error-overlay-footer-message">{footerMessage}</p>
       ) : null}
