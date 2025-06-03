@@ -8,10 +8,10 @@ import {
   getRedboxSource,
 } from 'next-test-utils'
 import type { Request, Response } from 'playwright'
-import fs from 'fs-extra'
-import nodeFs from 'fs'
-import path, { join } from 'path'
+import fs from 'node:fs/promises'
+import path, { join } from 'node:path'
 import { outdent } from 'outdent'
+import { setTimeout } from 'node:timers/promises'
 
 const GENERIC_RSC_ERROR =
   'Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
@@ -966,16 +966,21 @@ describe('app-dir action handling', () => {
   if (isNextStart) {
     it('should not expose action content in sourcemaps', async () => {
       // We check all sourcemaps in the `static` folder for sensitive information given that chunking
-      const sourcemaps = nodeFs
-        .readdirSync(join(next.testDir, '.next', 'static'), {
+      const sourcemaps = await fs
+        .readdir(join(next.testDir, '.next', 'static'), {
           recursive: true,
           encoding: 'utf8',
         })
-        .filter((f) => f.endsWith('.js.map'))
-        .map((f) =>
-          nodeFs.readFileSync(join(next.testDir, '.next', 'static', f), {
-            encoding: 'utf8',
-          })
+        .then((files) =>
+          Promise.all(
+            files
+              .filter((f) => f.endsWith('.js.map'))
+              .map((f) =>
+                fs.readFile(join(next.testDir, '.next', 'static', f), {
+                  encoding: 'utf8',
+                })
+              )
+          )
         )
 
       expect(sourcemaps).not.toBeEmpty()
@@ -1049,23 +1054,22 @@ describe('app-dir action handling', () => {
     it('should bundle external libraries if they are on the action layer', async () => {
       await next.fetch('/client')
       const pageBundle = await fs.readFile(
-        join(next.testDir, '.next', 'server', 'app', 'client', 'page.js')
+        join(next.testDir, '.next', 'server', 'app', 'client', 'page.js'),
+        { encoding: 'utf8' }
       )
       if (isTurbopack) {
-        const chunkPaths = pageBundle
-          .toString()
-          .matchAll(/loadChunk\("([^"]*)"\)/g)
-        // @ts-ignore
+        const chunkPaths = pageBundle.matchAll(/loadChunk\("([^"]*)"\)/g)
         const reads = [...chunkPaths].map(async (match) => {
           const bundle = await fs.readFile(
-            join(next.testDir, '.next', ...match[1].split(/[\\/]/g))
+            join(next.testDir, '.next', ...match[1].split(/[\\/]/g)),
+            { encoding: 'utf8' }
           )
-          return bundle.toString().includes('node_modules/nanoid/index.js')
+          return bundle.includes('node_modules/nanoid/index.js')
         })
 
         expect(await Promise.all(reads)).toContain(true)
       } else {
-        expect(pageBundle.toString()).toContain('node_modules/nanoid/index.js')
+        expect(pageBundle).toContain('node_modules/nanoid/index.js')
       }
     })
   }
@@ -1538,8 +1542,8 @@ describe('app-dir action handling', () => {
           )
         })
 
-        // Should be the same number although in serverless
-        // it might be eventually consistent
+        // Should be the same number although in serverless it might be
+        // eventually consistent.
         if (!isNextDeploy) {
           await retry(async () => {
             const another = await browser.elementByCss('#thankyounext').text()
@@ -1561,6 +1565,11 @@ describe('app-dir action handling', () => {
             break
           default:
             throw new Error(`Invalid type: ${type}`)
+        }
+
+        // Give some time for it to be revalidated.
+        if (isNextDeploy) {
+          await setTimeout(1000)
         }
 
         // Should be different
