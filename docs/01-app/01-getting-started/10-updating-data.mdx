@@ -259,7 +259,7 @@ While executing a Server Function, you can show a loading indicator with React's
 ```tsx filename="app/ui/button.tsx" switcher
 'use client'
 
-import { useActionState } from 'react'
+import { useActionState, startTransition } from 'react'
 import { createPost } from '@/app/actions'
 import { LoadingSpinner } from '@/app/ui/loading-spinner'
 
@@ -267,7 +267,7 @@ export function Button() {
   const [state, action, pending] = useActionState(createPost, false)
 
   return (
-    <button onClick={async () => action()}>
+    <button onClick={() => startTransition(action)}>
       {pending ? <LoadingSpinner /> : 'Create Post'}
     </button>
   )
@@ -277,7 +277,7 @@ export function Button() {
 ```jsx filename="app/ui/button.js" switcher
 'use client'
 
-import { useActionState } from 'react'
+import { useActionState, startTransition } from 'react'
 import { createPost } from '@/app/actions'
 import { LoadingSpinner } from '@/app/ui/loading-spinner'
 
@@ -285,7 +285,7 @@ export function Button() {
   const [state, action, pending] = useActionState(createPost, false)
 
   return (
-    <button onClick={async () => action()}>
+    <button onClick={() => startTransition(action)}>
       {pending ? <LoadingSpinner /> : 'Create Post'}
     </button>
   )
