@@ -87,13 +87,13 @@ impl GetContentFn {
     }
 }
 
-async fn peek_issues<T: Send>(source: OperationVc<T>) -> Result<Vec<PlainIssue>> {
+async fn peek_issues<T: Send>(source: OperationVc<T>) -> Result<Vec<ReadRef<PlainIssue>>> {
     let captured = source.peek_issues_with_path().await?;
 
     captured.get_plain_issues().await
 }
 
-fn extend_issues(issues: &mut Vec<PlainIssue>, new_issues: Vec<PlainIssue>) {
+fn extend_issues(issues: &mut Vec<ReadRef<PlainIssue>>, new_issues: Vec<ReadRef<PlainIssue>>) {
     for issue in new_issues {
         if issues.contains(&issue) {
             continue;
@@ -126,7 +126,7 @@ async fn get_update_stream_item_operation(
         Err(e) => {
             plain_issues.push(
                 PlainIssue::from_issue(
-                    ResolvedVc::upcast(
+                    Vc::upcast(
                         FatalStreamIssue {
                             resource,
                             description: StyledString::Text(
@@ -134,9 +134,9 @@ async fn get_update_stream_item_operation(
                             )
                             .resolved_cell(),
                         }
-                        .resolved_cell(),
+                        .cell(),
                     ),
-                    Vec::new(),
+                    None,
                     OptionIssueProcessingPathItems::none(),
                 )
                 .await?,
@@ -367,7 +367,7 @@ pub enum UpdateStreamItem {
     NotFound,
     Found {
         update: ReadRef<Update>,
-        issues: Vec<PlainIssue>,
+        issues: Vec<ReadRef<PlainIssue>>,
     },
 }
 

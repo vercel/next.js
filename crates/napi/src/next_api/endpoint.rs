@@ -99,7 +99,7 @@ impl Deref for ExternalEndpoint {
 #[turbo_tasks::value(serialization = "none")]
 struct WrittenEndpointWithIssues {
     written: Option<ReadRef<EndpointOutputPaths>>,
-    issues: Arc<Vec<PlainIssue>>,
+    issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
     effects: Arc<Effects>,
 }
@@ -147,7 +147,7 @@ pub async fn endpoint_write_to_disk(
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
     Ok(TurbopackResult {
         result: NapiWrittenEndpoint::from(written.map(ReadRef::into_owned)),
-        issues: issues.iter().map(NapiIssue::from).collect(),
+        issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
         diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
     })
 }
@@ -182,7 +182,7 @@ pub fn endpoint_server_changed_subscribe(
 
             Ok(vec![TurbopackResult {
                 result: (),
-                issues: issues.iter().map(NapiIssue::from).collect(),
+                issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
                 diagnostics: diagnostics
                     .iter()
                     .map(|d| NapiDiagnostic::from(d))
@@ -195,7 +195,7 @@ pub fn endpoint_server_changed_subscribe(
 #[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
 struct EndpointIssuesAndDiags {
     changed: Option<ReadRef<Completion>>,
-    issues: Arc<Vec<PlainIssue>>,
+    issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
     effects: Arc<Effects>,
 }

@@ -264,7 +264,7 @@ pub fn root_task_dispose(
     Ok(())
 }
 
-pub async fn get_issues<T: Send>(source: OperationVc<T>) -> Result<Arc<Vec<PlainIssue>>> {
+pub async fn get_issues<T: Send>(source: OperationVc<T>) -> Result<Arc<Vec<ReadRef<PlainIssue>>>> {
     let issues = source.peek_issues_with_path().await?;
     Ok(Arc::new(issues.get_plain_issues().await?))
 }
@@ -527,7 +527,7 @@ pub async fn strongly_consistent_catch_collectables<R: VcValueType + Send>(
     source_op: OperationVc<R>,
 ) -> Result<(
     Option<ReadRef<R>>,
-    Arc<Vec<PlainIssue>>,
+    Arc<Vec<ReadRef<PlainIssue>>>,
     Arc<Vec<ReadRef<PlainDiagnostic>>>,
     Arc<Effects>,
 )> {
