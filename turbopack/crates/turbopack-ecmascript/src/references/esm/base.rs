@@ -148,6 +148,17 @@ impl ReferencedAsset {
         export: Option<RcStr>,
         scope_hoisting_context: Option<ScopeHoistingContext<'_>>,
     ) -> Result<Option<ReferencedAssetIdent>> {
+        self.get_ident_inner(chunking_context, export, scope_hoisting_context, None)
+            .await
+    }
+
+    async fn get_ident_inner(
+        &self,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        export: Option<RcStr>,
+        scope_hoisting_context: Option<ScopeHoistingContext<'_>>,
+        initial: Option<&ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
+    ) -> Result<Option<ReferencedAssetIdent>> {
         Ok(match self {
             ReferencedAsset::Some(asset) => {
                 if let Some(scope_hoisting_context) = scope_hoisting_context {
@@ -160,8 +171,8 @@ impl ReferencedAsset {
                                 *asset.get_exports().await?
                             {
                                 let exports = exports.expand_exports(None).await?;
-                                let export = exports.exports.get(export);
-                                match export {
+                                let esm_export = exports.exports.get(export);
+                                match esm_export {
                                     Some(EsmExport::LocalBinding(name, _)) => {
                                         // A local binding in a module that is merged in the same
                                         // group
@@ -172,7 +183,7 @@ impl ReferencedAsset {
                                     }
                                     Some(b @ EsmExport::ImportedBinding(esm_ref, _, _))
                                     | Some(b @ EsmExport::ImportedNamespace(esm_ref)) => {
-                                        let export =
+                                        let imported =
                                             if let EsmExport::ImportedBinding(_, export, _) = b {
                                                 Some(export.clone())
                                             } else {
@@ -185,13 +196,30 @@ impl ReferencedAsset {
                                             )
                                             .await?;
 
+                                        if let Some(&initial) = initial
+                                            && *referenced_asset == ReferencedAsset::Some(initial)
+                                        {
+                                            // `initial` reexports from `asset` reexports from
+                                            // `referenced_asset` (which is `initial`)
+                                            CircularReExport {
+                                                export: export.clone(),
+                                                import: imported.clone(),
+                                                module: *asset,
+                                                module_cycle: initial,
+                                            }
+                                            .resolved_cell()
+                                            .emit();
+                                            return Ok(None);
+                                        }
+
                                         // If the target module is still in the same group, we can
                                         // refer it locally, otherwise it will be imported
                                         return Ok(
-                                            match Box::pin(referenced_asset.get_ident(
+                                            match Box::pin(referenced_asset.get_ident_inner(
                                                 chunking_context,
-                                                export,
+                                                imported,
                                                 Some(scope_hoisting_context),
+                                                Some(asset),
                                             ))
                                             .await?
                                             {
@@ -781,5 +809,65 @@ impl Issue for InvalidExport {
     #[turbo_tasks::function]
     fn source(&self) -> Vc<OptionIssueSource> {
         Vc::cell(Some(self.source.clone()))
+    }
+}
+
+#[turbo_tasks::value(shared)]
+pub struct CircularReExport {
+    export: RcStr,
+    import: Option<RcStr>,
+    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    module_cycle: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    // TODO ideally we'd have an issue source here
+}
+
+#[turbo_tasks::value_impl]
+impl Issue for CircularReExport {
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    #[turbo_tasks::function]
+    async fn title(&self) -> Result<Vc<StyledString>> {
+        Ok(StyledString::Line(vec![
+            StyledString::Text("Export ".into()),
+            StyledString::Code(self.export.clone()),
+            StyledString::Text(" is a circular re-export".into()),
+        ])
+        .cell())
+    }
+
+    #[turbo_tasks::function]
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::Bindings.into()
+    }
+
+    #[turbo_tasks::function]
+    fn file_path(&self) -> Vc<FileSystemPath> {
+        self.module.ident().path()
+    }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<OptionStyledString>> {
+        Ok(Vc::cell(Some(
+            StyledString::Stack(vec![
+                StyledString::Line(vec![StyledString::Text("The export".into())]),
+                StyledString::Line(vec![
+                    StyledString::Code(self.export.clone()),
+                    StyledString::Text(" of module ".into()),
+                    StyledString::Strong(self.module.ident().to_string().owned().await?),
+                ]),
+                StyledString::Line(vec![StyledString::Text(
+                    "is a re-export of the export".into(),
+                )]),
+                StyledString::Line(vec![
+                    StyledString::Code(self.import.clone().unwrap_or_else(|| "*".into())),
+                    StyledString::Text(" of module ".into()),
+                    StyledString::Strong(self.module_cycle.ident().to_string().owned().await?),
+                    StyledString::Text(".".into()),
+                ]),
+            ])
+            .resolved_cell(),
+        )))
     }
 }
