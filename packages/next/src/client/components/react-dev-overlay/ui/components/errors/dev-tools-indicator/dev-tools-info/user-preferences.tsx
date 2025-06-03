@@ -200,7 +200,6 @@ function ThemeIcon({ theme }: { theme: 'dark' | 'light' | 'system' }) {
 
 export const DEV_TOOLS_INFO_USER_PREFERENCES_STYLES = css`
   .preferences-container {
-    padding: 8px 6px;
     width: 100%;
   }
 
