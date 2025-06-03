@@ -86,7 +86,7 @@ impl HmrBenchmark {
 
     /// Run a warmup phase before benchmarking
     pub async fn warmup(&self, warmup_iterations: usize) -> Result<()> {
-        let target_file = self.test_app.path().join("src").join("index.tsx");
+        let target_file = self.test_app.path().join("src").join("index.jsx");
 
         for i in 0..warmup_iterations {
             let _duration = self
@@ -100,7 +100,7 @@ impl HmrBenchmark {
 
     /// Benchmark many HMR updates in sequence
     pub async fn bench_many_updates(&self, update_count: usize) -> Result<Vec<Duration>> {
-        let target_file = self.test_app.path().join("src").join("index.tsx");
+        let target_file = self.test_app.path().join("src").join("index.jsx");
         let mut durations = Vec::with_capacity(update_count);
 
         for i in 0..update_count {
@@ -138,7 +138,7 @@ pub fn bench_hmr_single_update(c: &mut Criterion) {
                 b.to_async(&runtime()).iter_custom({
                     |iters| async move {
                         let benchmark = HmrBenchmark::new(module_count).unwrap();
-                        let target_file = benchmark.test_app.path().join("src").join("index.tsx");
+                        let target_file = benchmark.test_app.path().join("src").join("index.jsx");
 
                         let mut total_duration = Duration::ZERO;
                         let mut change_counter = 0;
@@ -243,7 +243,7 @@ pub fn bench_hmr_throughput(c: &mut Criterion) {
                         while throughput_start.elapsed() < Duration::from_secs(1) {
                             change_counter += 1;
                             let target_file =
-                                benchmark.test_app.path().join("src").join("index.tsx");
+                                benchmark.test_app.path().join("src").join("index.jsx");
                             let _duration = benchmark
                                 .measure_hmr_update(&target_file, change_counter)
                                 .await
