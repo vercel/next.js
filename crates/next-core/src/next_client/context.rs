@@ -161,7 +161,7 @@ pub async fn get_client_resolve_options_context(
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ResolveOptionsContext>> {
     let next_client_import_map =
-        get_next_client_import_map(*project_path, ty, next_config, execution_context)
+        get_next_client_import_map(*project_path, ty, next_config, mode, execution_context)
             .to_resolved()
             .await?;
     let next_client_fallback_import_map = get_next_client_fallback_import_map(ty)

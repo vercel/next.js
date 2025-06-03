@@ -2,6 +2,7 @@ import { PagesDevOverlayErrorBoundary } from './pages-dev-overlay-error-boundary
 import { usePagesDevOverlay } from './hooks'
 import { FontStyles } from '../font/font-styles'
 import { DevOverlay } from '../ui/dev-overlay'
+import { getSquashedHydrationErrorDetails } from './hydration-error-state'
 
 export type ErrorType = 'runtime' | 'build'
 
@@ -22,7 +23,11 @@ export function PagesDevOverlay({ children }: PagesDevOverlayProps) {
 
       {/* Fonts can only be loaded outside the Shadow DOM. */}
       <FontStyles />
-      <DevOverlay state={state} dispatch={dispatch} />
+      <DevOverlay
+        state={state}
+        dispatch={dispatch}
+        getSquashedHydrationErrorDetails={getSquashedHydrationErrorDetails}
+      />
     </>
   )
 }

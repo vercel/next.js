@@ -369,6 +369,8 @@ export async function handler(
           enableTainting: nextConfig.experimental.taint,
           // @ts-expect-error fix issue with readonly regex object type
           htmlLimitedBots: nextConfig.htmlLimitedBots,
+          devtoolSegmentExplorer:
+            nextConfig.experimental.devtoolSegmentExplorer,
           reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
 
           multiZoneDraftMode,
