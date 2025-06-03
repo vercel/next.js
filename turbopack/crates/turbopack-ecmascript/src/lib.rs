@@ -1228,7 +1228,7 @@ impl EcmascriptModuleContent {
 
         // TODO properly merge ASTs:
         // - somehow merge the SourceMap struct
-        let merged_ast = merge_modules(contents, entries, &merged_ctxts, &globals_merged).await?;
+        let merged_ast = merge_modules(contents, &entries, &merged_ctxts, &globals_merged).await?;
         let content = CodeGenResult {
             program: merged_ast,
             source_map: Arc::new(SourceMap::default()),
@@ -1247,10 +1247,13 @@ impl EcmascriptModuleContent {
             extra_comments: SwcComments::default(),
             scope_hoisting_syntax_contexts: None,
         };
+
         let chunking_context = module_options.last().unwrap().await?.chunking_context;
+        let first_entry = entries.first().unwrap().0;
         let additional_ids = modules
             .keys()
-            .take(modules.len() - 1)
+            // Skip the first entry, which is the name of the chunk item
+            .filter(|m| **m != first_entry)
             .map(|m| m.chunk_item_id(*chunking_context).to_resolved())
             .try_join()
             .await?
@@ -1263,7 +1266,7 @@ impl EcmascriptModuleContent {
 #[allow(clippy::type_complexity)]
 async fn merge_modules(
     mut contents: Vec<(ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, CodeGenResult)>,
-    entries: Vec<(ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, usize)>,
+    entries: &Vec<(ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, usize)>,
     merged_ctxts: &'_ FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, SyntaxContext>,
     globals_merged: &'_ Globals,
 ) -> Result<Program> {
