@@ -19,7 +19,7 @@ describe('font-loader-in-document-error', () => {
   test('next/font inside _document', async () => {
     const browser = await webdriver(next.url, '/')
     await assertHasRedbox(browser)
-    if (process.env.TURBOPACK) {
+    if (process.env.IS_TURBOPACK_TEST) {
       // TODO: Turbopack doesn't include pages/
       expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
         "./_document.js

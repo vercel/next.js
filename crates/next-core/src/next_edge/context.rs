@@ -1,14 +1,14 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ResolvedVc, Value, Vc};
+use turbo_tasks::{FxIndexMap, OptionVcExt, ResolvedVc, Value, Vc};
 use turbo_tasks_env::EnvMap;
 use turbo_tasks_fs::FileSystemPath;
-use turbopack::resolve_options_context::ResolveOptionsContext;
+use turbopack::{css::chunk::CssChunkType, resolve_options_context::ResolveOptionsContext};
 use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
     chunk::{
-        module_id_strategies::ModuleIdStrategy, ChunkingConfig, ChunkingContext, MinifyType,
-        SourceMapsType,
+        ChunkingConfig, ChunkingContext, MangleType, MinifyType, SourceMapsType,
+        module_id_strategies::ModuleIdStrategy,
     },
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
@@ -17,6 +17,7 @@ use turbopack_core::{
     environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment},
     free_var_references,
 };
+use turbopack_ecmascript::chunk::EcmascriptChunkType;
 use turbopack_node::execution_context::ExecutionContext;
 
 use crate::{
@@ -26,10 +27,10 @@ use crate::{
     next_import_map::get_next_edge_import_map,
     next_server::context::ServerContextType,
     next_shared::resolve::{
-        get_invalid_client_only_resolve_plugin, get_invalid_styled_jsx_resolve_plugin,
         ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin,
+        get_invalid_client_only_resolve_plugin, get_invalid_styled_jsx_resolve_plugin,
     },
-    util::{foreign_code_context_condition, NextRuntime},
+    util::{NextRuntime, foreign_code_context_condition},
 };
 
 fn defines(define_env: &FxIndexMap<RcStr, RcStr>) -> CompileTimeDefines {
@@ -182,6 +183,7 @@ pub async fn get_edge_resolve_options_context(
         browser: true,
         after_resolve_plugins,
         before_resolve_plugins,
+
         ..Default::default()
     };
 
@@ -191,6 +193,13 @@ pub async fn get_edge_resolve_options_context(
         enable_mjs_extension: true,
         enable_edge_node_externals: true,
         custom_extensions: next_config.resolve_extension().owned().await?,
+        tsconfig_path: next_config
+            .typescript_tsconfig_path()
+            .await?
+            .as_ref()
+            .map(|p| project_path.join(p.to_owned()))
+            .to_resolved()
+            .await?,
         rules: vec![(
             foreign_code_context_condition(next_config, project_path).await?,
             resolve_options_context.clone().resolved_cell(),
@@ -232,7 +241,8 @@ pub async fn get_edge_chunking_context_with_client_assets(
     .asset_base_path(asset_prefix)
     .minify_type(if *turbo_minify.await? {
         MinifyType::Minify {
-            mangle: !*no_mangling.await?,
+            // React needs deterministic function names to work correctly.
+            mangle: (!*no_mangling.await?).then_some(MangleType::Deterministic),
         }
     } else {
         MinifyType::NoMinify
@@ -245,10 +255,20 @@ pub async fn get_edge_chunking_context_with_client_assets(
     .module_id_strategy(module_id_strategy);
 
     if !next_mode.is_development() {
-        builder = builder.ecmascript_chunking_config(ChunkingConfig {
-            min_chunk_size: 20_000,
-            ..Default::default()
-        })
+        builder = builder.chunking_config(
+            Vc::<EcmascriptChunkType>::default().to_resolved().await?,
+            ChunkingConfig {
+                min_chunk_size: 20_000,
+                ..Default::default()
+            },
+        );
+        builder = builder.chunking_config(
+            Vc::<CssChunkType>::default().to_resolved().await?,
+            ChunkingConfig {
+                max_merge_chunk_size: 100_000,
+                ..Default::default()
+            },
+        );
     }
 
     Ok(Vc::upcast(builder.build()))
@@ -285,7 +305,7 @@ pub async fn get_edge_chunking_context(
     .asset_base_path(ResolvedVc::cell(Some("blob:server/edge/".into())))
     .minify_type(if *turbo_minify.await? {
         MinifyType::Minify {
-            mangle: !*no_mangling.await?,
+            mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),
         }
     } else {
         MinifyType::NoMinify
@@ -298,10 +318,20 @@ pub async fn get_edge_chunking_context(
     .module_id_strategy(module_id_strategy);
 
     if !next_mode.is_development() {
-        builder = builder.ecmascript_chunking_config(ChunkingConfig {
-            min_chunk_size: 20_000,
-            ..Default::default()
-        })
+        builder = builder.chunking_config(
+            Vc::<EcmascriptChunkType>::default().to_resolved().await?,
+            ChunkingConfig {
+                min_chunk_size: 20_000,
+                ..Default::default()
+            },
+        );
+        builder = builder.chunking_config(
+            Vc::<CssChunkType>::default().to_resolved().await?,
+            ChunkingConfig {
+                max_merge_chunk_size: 100_000,
+                ..Default::default()
+            },
+        );
     }
 
     Ok(Vc::upcast(builder.build()))

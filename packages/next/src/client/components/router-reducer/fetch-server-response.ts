@@ -160,6 +160,20 @@ export async function fetchServerResponse(
         : 'low'
       : 'auto'
 
+    if (process.env.NODE_ENV === 'production') {
+      if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
+        // In "output: export" mode, we can't rely on headers to distinguish
+        // between HTML and RSC requests. Instead, we append an extra prefix
+        // to the request.
+        url = new URL(url)
+        if (url.pathname.endsWith('/')) {
+          url.pathname += 'index.txt'
+        } else {
+          url.pathname += '.txt'
+        }
+      }
+    }
+
     const res = await createFetch(
       url,
       headers,
@@ -173,9 +187,13 @@ export async function fetchServerResponse(
     const contentType = res.headers.get('content-type') || ''
     const interception = !!res.headers.get('vary')?.includes(NEXT_URL)
     const postponed = !!res.headers.get(NEXT_DID_POSTPONE_HEADER)
-    const staleTimeHeader = res.headers.get(NEXT_ROUTER_STALE_TIME_HEADER)
+    const staleTimeHeaderSeconds = res.headers.get(
+      NEXT_ROUTER_STALE_TIME_HEADER
+    )
     const staleTime =
-      staleTimeHeader !== null ? parseInt(staleTimeHeader, 10) : -1
+      staleTimeHeaderSeconds !== null
+        ? parseInt(staleTimeHeaderSeconds, 10) * 1000
+        : -1
     let isFlightResponse = contentType.startsWith(RSC_CONTENT_TYPE_HEADER)
 
     if (process.env.NODE_ENV === 'production') {
@@ -255,16 +273,9 @@ export function createFetch(
 ) {
   const fetchUrl = new URL(url)
 
-  if (process.env.NODE_ENV === 'production') {
-    if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
-      if (fetchUrl.pathname.endsWith('/')) {
-        fetchUrl.pathname += 'index.txt'
-      } else {
-        fetchUrl.pathname += '.txt'
-      }
-    }
-  }
-
+  // TODO: In output: "export" mode, the headers do nothing. Omit them (and the
+  // cache busting search param) from the request so they're
+  // maximally cacheable.
   setCacheBustingSearchParam(fetchUrl, headers)
 
   if (process.env.__NEXT_TEST_MODE && fetchPriority !== null) {

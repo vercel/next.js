@@ -109,10 +109,10 @@ Add `NEXT_TEST_TRACE=1` to enable test profiling. It's useful for improving our 
 
 ### Testing Turbopack
 
-To run the test suite using Turbopack, you can use the `TURBOPACK=1` environment variable:
+To run the test suite using Turbopack, you can use the `-turbo` version of the npm script:
 
 ```sh
-TURBOPACK=1 pnpm test-dev test/e2e/app-dir/app/
+pnpm test-dev-turbo test/e2e/app-dir/app/
 ```
 
 If you want to run a test again both Turbopack and Webpack, use Jest's `--projects` flag:
@@ -123,40 +123,53 @@ pnpm test-dev test/e2e/app-dir/app/ --projects jest.config.*
 
 ## Integration testing outside the repository with local builds
 
-You can locally generate tarballs for each package in this repository with:
+You can locally generate builds for each package in this repository with:
 
-```
+```bash
 pnpm pack-next
 ```
 
-The tarballs will be written to a `tarballs` directory in the root of the repository, and you will
-be shown information about how to use these tarballs in a project by modifying the workspace
-`package.json` file.
+You can automatically apply modifications to `package.json` by specifying your project directory:
 
-Alternatively, you can automatically apply these `package.json` modifications by passing in your
-project directory:
-
-```
+```bash
 pnpm pack-next --project ~/shadcn-ui/apps/www/
 ```
 
 This will find and modify parent workspaces when relevant. These automatic overrides should work
 with `npm` and `pnpm`. There are known issues preventing it from working with `bun` and `yarn`.
 
-On some platforms, this generates stripped `@next/swc` binaries to avoid exceeding 2 GiB, [which is
+Flags can be passed to `napi`'s CLI, separated by an argument separator (`--`). For example:
+
+```bash
+pnpm pack-next --project ~/my-project/ -- --release
+```
+
+See `pnpm pack-next --help` for more details.
+
+### Locally creating tarballs
+
+You can create tarballs with:
+
+```bash
+pnpm pack-next --tar
+```
+
+The tarballs will be written to a `tarballs` directory in the root of the repository, and you will
+be shown information about how to use these tarballs in a project by modifying the workspace
+`package.json` file.
+
+On Linux, this generates stripped `@next/swc` binaries to avoid exceeding 2 GiB, [which is
 known to cause problems with `pnpm`](https://github.com/libuv/libuv/pull/1501). That behavior can be
-overridden with `PACK_NEXT_COMPRESS=objcopy-zstd` on Linux (which is slower, but retains debuginfo),
-or with `PACK_NEXT_COMPRESS=none` on all platforms (which disables stripping entirely).
+overridden with `--compress objcopy-zstd` on Linux (which is slower, but retains debuginfo).
 
 These tarballs can be extracted directly into a project's `node_modules` directory (bypassing the
 package manager) by using:
 
-```
+```bash
 pnpm unpack-next ~/shadcn-ui
 ```
 
-However, this is not typically recommended, unless you're running into issues like the 2 GiB file
-size limit.
+However, this is not typically recommended, as installing using the package manager is safer.
 
 ## Integration testing outside the repository with preview builds
 

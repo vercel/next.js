@@ -4,12 +4,10 @@ import fs from 'fs/promises'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import {
-  assertHasRedbox,
   killApp,
   findPort,
   launchApp,
   retry,
-  getRedboxSource,
   assertNoRedbox,
 } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
@@ -25,7 +23,7 @@ let stderr = ''
 let appPort
 let app
 
-const isTurbopack = process.env.TURBOPACK
+const isTurbopack = process.env.IS_TURBOPACK_TEST
 
 describe('server-side dev errors', () => {
   beforeAll(async () => {
@@ -33,10 +31,10 @@ describe('server-side dev errors', () => {
     app = await launchApp(appDir, appPort, {
       onStderr(msg) {
         stderr += msg
-        // All tests cause runtime errors which may lead to this message which
+        // All tests cause Runtime ReferenceErrors which may lead to this message which
         // is not relevant to this test.
         stderr = stderr.replace(
-          ' ⚠ Fast Refresh had to perform a full reload due to a runtime error.',
+          ' ⚠ Fast Refresh had to perform a full reload due to a Runtime ReferenceError.',
           ''
         )
       },
@@ -46,6 +44,15 @@ describe('server-side dev errors', () => {
     })
   })
   afterAll(() => killApp(app))
+
+  // TODO: update to ensure this frame is ignored properly by default
+  function stripInternalHandler(output) {
+    return output
+      .replace(/.*at async handler .*next-route-loader.*/, '')
+      .split(/\n/)
+      .filter((item) => !!item.trim())
+      .join('\n')
+  }
 
   it('should show server-side error for gsp page correctly', async () => {
     const content = await fs.readFile(gspPage, 'utf8')
@@ -64,32 +71,33 @@ describe('server-side dev errors', () => {
         )
       })
 
-      const stderrOutput = stripAnsi(stderr.slice(stderrIdx)).trim()
-      if (isTurbopack) {
-        expect(stderrOutput).toContain(
-          ' ⨯ ReferenceError: missingVar is not defined' +
-            '\n    at getStaticProps (../../test/integration/server-side-dev-errors/pages/gsp.js:6:2)' +
-            // Next.js internal frame. Feel free to adjust.
-            // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
-            '\n    at <unknown>'
-        )
-      } else {
-        expect(stderrOutput).toStartWith(
-          '⨯ ReferenceError: missingVar is not defined' +
-            '\n    at getStaticProps (../../test/integration/server-side-dev-errors/pages/gsp.js:6:2)' +
-            // Next.js internal frame. Feel free to adjust.
-            // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
-            '\n    at <unknown>'
-        )
-      }
-      expect(stderr).toContain(
-        '\n  5 | export async function getStaticProps() {' +
-          '\n> 6 |   missingVar;return {'
+      const stderrOutput = stripInternalHandler(
+        stripAnsi(stderr.slice(stderrIdx)).trim()
       )
 
-      await assertHasRedbox(browser)
+      expect(stderrOutput).toStartWith(
+        '⨯ ReferenceError: missingVar is not defined' +
+          '\n    at getStaticProps (../../test/integration/server-side-dev-errors/pages/gsp.js:6:2)' +
+          '\n  4 |' +
+          '\n  5 | export async function getStaticProps() {' +
+          '\n> 6 |   missingVar;return {' +
+          '\n    |  ^'
+      )
 
-      expect(await getRedboxSource(browser)).toContain('missingVar')
+      await expect(browser).toDisplayRedbox(`
+        {
+          "description": "missingVar is not defined",
+          "environmentLabel": null,
+          "label": "Runtime ReferenceError",
+          "source": "pages/gsp.js (6:3) @ getStaticProps
+        > 6 |   missingVar;return {
+            |   ^",
+          "stack": [
+            "getStaticProps pages/gsp.js (6:3)",
+          ],
+        }
+      `)
+
       await fs.writeFile(gspPage, content, { flush: true })
       await assertNoRedbox(browser)
     } finally {
@@ -114,32 +122,32 @@ describe('server-side dev errors', () => {
         )
       })
 
-      const stderrOutput = stripAnsi(stderr.slice(stderrIdx)).trim()
-      if (isTurbopack) {
-        expect(stderrOutput).toContain(
-          ' ⨯ ReferenceError: missingVar is not defined' +
-            '\n    at getServerSideProps (../../test/integration/server-side-dev-errors/pages/gssp.js:6:2)' +
-            // Next.js internal frame. Feel free to adjust.
-            // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
-            '\n    at <unknown>'
-        )
-      } else {
-        expect(stderrOutput).toStartWith(
-          '⨯ ReferenceError: missingVar is not defined' +
-            '\n    at getServerSideProps (../../test/integration/server-side-dev-errors/pages/gssp.js:6:2)' +
-            // Next.js internal frame. Feel free to adjust.
-            // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
-            '\n    at <unknown>'
-        )
-      }
-      expect(stderrOutput).toContain(
-        '\n  5 | export async function getServerSideProps() {' +
-          '\n> 6 |   missingVar;return {'
+      const stderrOutput = stripInternalHandler(
+        stripAnsi(stderr.slice(stderrIdx)).trim()
+      )
+      expect(stderrOutput).toStartWith(
+        '⨯ ReferenceError: missingVar is not defined' +
+          '\n    at getServerSideProps (../../test/integration/server-side-dev-errors/pages/gssp.js:6:2)' +
+          '\n  4 |' +
+          '\n  5 | export async function getServerSideProps() {' +
+          '\n> 6 |   missingVar;return {' +
+          '\n    |  ^'
       )
 
-      await assertHasRedbox(browser)
+      await expect(browser).toDisplayRedbox(`
+        {
+          "description": "missingVar is not defined",
+          "environmentLabel": null,
+          "label": "Runtime ReferenceError",
+          "source": "pages/gssp.js (6:3) @ getServerSideProps
+        > 6 |   missingVar;return {
+            |   ^",
+          "stack": [
+            "getServerSideProps pages/gssp.js (6:3)",
+          ],
+        }
+      `)
 
-      expect(await getRedboxSource(browser)).toContain('missingVar')
       await fs.writeFile(gsspPage, content)
       await assertNoRedbox(browser)
     } finally {
@@ -164,34 +172,33 @@ describe('server-side dev errors', () => {
         )
       })
 
-      const stderrOutput = stripAnsi(stderr.slice(stderrIdx)).trim()
-      if (isTurbopack) {
-        expect(stderrOutput).toContain(
-          ' ⨯ ReferenceError: missingVar is not defined' +
-            '\n    at getServerSideProps (../../test/integration/server-side-dev-errors/pages/blog/[slug].js:6:2)' +
-            // Next.js internal frame. Feel free to adjust.
-            // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
-            '\n    at <unknown>'
-        )
-      } else {
-        expect(stderrOutput).toStartWith(
-          '⨯ ReferenceError: missingVar is not defined' +
-            '\n    at getServerSideProps (../../test/integration/server-side-dev-errors/pages/blog/[slug].js:6:2)' +
-            // Next.js internal frame. Feel free to adjust.
-            // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
-            '\n    at <unknown>'
-        )
-      }
-      expect(stderrOutput).toContain(
-        '\n  5 | export async function getServerSideProps() {' +
-          '\n> 6 |   missingVar;return {'
+      const stderrOutput = stripInternalHandler(
+        stripAnsi(stderr.slice(stderrIdx)).trim()
+      )
+      expect(stderrOutput).toStartWith(
+        '⨯ ReferenceError: missingVar is not defined' +
+          '\n    at getServerSideProps (../../test/integration/server-side-dev-errors/pages/blog/[slug].js:6:2)' +
+          '\n  4 |' +
+          '\n  5 | export async function getServerSideProps() {' +
+          '\n> 6 |   missingVar;return {' +
+          '\n    |  ^'
       )
 
-      await assertHasRedbox(browser)
+      await expect(browser).toDisplayRedbox(`
+        {
+          "description": "missingVar is not defined",
+          "environmentLabel": null,
+          "label": "Runtime ReferenceError",
+          "source": "pages/blog/[slug].js (6:3) @ getServerSideProps
+        > 6 |   missingVar;return {
+            |   ^",
+          "stack": [
+            "getServerSideProps pages/blog/[slug].js (6:3)",
+          ],
+        }
+      `)
 
-      expect(await getRedboxSource(browser)).toContain('missingVar')
       await fs.writeFile(dynamicGsspPage, content)
-      await assertHasRedbox(browser)
     } finally {
       await fs.writeFile(dynamicGsspPage, content)
     }
@@ -216,32 +223,56 @@ describe('server-side dev errors', () => {
 
       const stderrOutput = stripAnsi(stderr.slice(stderrIdx)).trim()
       if (isTurbopack) {
-        expect(stderrOutput).toContain(
-          ' ⨯ ReferenceError: missingVar is not defined' +
+        expect(stderrOutput).toStartWith(
+          '⨯ ReferenceError: missingVar is not defined' +
             '\n    at handler (../../test/integration/server-side-dev-errors/pages/api/hello.js:2:2)' +
-            // Next.js internal frame. Feel free to adjust.
-            // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
-            '\n    at async'
+            '\n  1 | export default function handler(req, res) {' +
+            "\n> 2 |   missingVar;res.status(200).json({ hello: 'world' })" +
+            '\n    |  ^'
         )
       } else {
         expect(stderrOutput).toStartWith(
           '⨯ ReferenceError: missingVar is not defined' +
             '\n    at handler (../../test/integration/server-side-dev-errors/pages/api/hello.js:2:2)' +
-            // Next.js internal frame. Feel free to adjust.
-            // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
-            '\n    at async'
+            // TODO(veil): Why not ignore-listed?
+            '\n    at '
+        )
+        expect(stderrOutput).toContain(
+          '\n  1 | export default function handler(req, res) {' +
+            "\n> 2 |   missingVar;res.status(200).json({ hello: 'world' })" +
+            '\n    |  ^'
         )
       }
-      expect(stderrOutput).toContain(
-        '\n  1 | export default function handler(req, res) {' +
-          "\n> 2 |   missingVar;res.status(200).json({ hello: 'world' })"
-      )
 
-      await assertHasRedbox(browser)
+      await expect(browser).toDisplayRedbox(`
+        {
+          "description": "missingVar is not defined",
+          "environmentLabel": null,
+          "label": "Runtime ReferenceError",
+          "source": "pages/api/hello.js (2:3) @ handler
+        > 2 |   missingVar;res.status(200).json({ hello: 'world' })
+            |   ^",
+          "stack": [
+            "handler pages/api/hello.js (2:3)",
+          ],
+        }
+      `)
 
-      expect(await getRedboxSource(browser)).toContain('missingVar')
       await fs.writeFile(apiPage, content)
-      await assertHasRedbox(browser)
+
+      await expect(browser).toDisplayRedbox(`
+        {
+          "description": "missingVar is not defined",
+          "environmentLabel": null,
+          "label": "Runtime ReferenceError",
+          "source": "pages/api/hello.js (2:3) @ handler
+        > 2 |   missingVar;res.status(200).json({ hello: 'world' })
+            |   ^",
+          "stack": [
+            "handler pages/api/hello.js (2:3)",
+          ],
+        }
+      `)
     } finally {
       await fs.writeFile(apiPage, content)
     }
@@ -265,35 +296,57 @@ describe('server-side dev errors', () => {
       })
 
       const stderrOutput = stripAnsi(stderr.slice(stderrIdx)).trim()
-      // FIXME(veil): error repeated
       if (isTurbopack) {
-        expect(stderrOutput).toContain(
-          ' ⨯ ReferenceError: missingVar is not defined' +
+        expect(stderrOutput).toStartWith(
+          '⨯ ReferenceError: missingVar is not defined' +
             '\n    at handler (../../test/integration/server-side-dev-errors/pages/api/blog/[slug].js:2:2)' +
-            // Next.js internal frame. Feel free to adjust.
-            // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
-            '\n    at'
+            '\n  1 | export default function handler(req, res) {' +
+            '\n> 2 |   missingVar;res.status(200).json({ slug: req.query.slug })' +
+            '\n    |  ^'
         )
       } else {
-        expect(stderrOutput).toContain(
-          ' ⨯ ReferenceError: missingVar is not defined' +
+        expect(stderrOutput).toStartWith(
+          '⨯ ReferenceError: missingVar is not defined' +
             '\n    at handler (../../test/integration/server-side-dev-errors/pages/api/blog/[slug].js:2:2)' +
-            // Next.js internal frame. Feel free to adjust.
-            // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
+            // TODO(veil): Why not ignore-listed?
             '\n    at'
+        )
+        expect(stderrOutput).toContain(
+          '\n  1 | export default function handler(req, res) {' +
+            '\n> 2 |   missingVar;res.status(200).json({ slug: req.query.slug })' +
+            '\n    |  ^'
         )
       }
 
-      expect(stderrOutput).toContain(
-        '\n  1 | export default function handler(req, res) {' +
-          '\n> 2 |   missingVar;res.status(200).json({ slug: req.query.slug })'
-      )
+      await expect(browser).toDisplayRedbox(`
+        {
+          "description": "missingVar is not defined",
+          "environmentLabel": null,
+          "label": "Runtime ReferenceError",
+          "source": "pages/api/blog/[slug].js (2:3) @ handler
+        > 2 |   missingVar;res.status(200).json({ slug: req.query.slug })
+            |   ^",
+          "stack": [
+            "handler pages/api/blog/[slug].js (2:3)",
+          ],
+        }
+      `)
 
-      await assertHasRedbox(browser)
-
-      expect(await getRedboxSource(browser)).toContain('missingVar')
       await fs.writeFile(dynamicApiPage, content)
-      await assertHasRedbox(browser)
+
+      await expect(browser).toDisplayRedbox(`
+        {
+          "description": "missingVar is not defined",
+          "environmentLabel": null,
+          "label": "Runtime ReferenceError",
+          "source": "pages/api/blog/[slug].js (2:3) @ handler
+        > 2 |   missingVar;res.status(200).json({ slug: req.query.slug })
+            |   ^",
+          "stack": [
+            "handler pages/api/blog/[slug].js (2:3)",
+          ],
+        }
+      `)
     } finally {
       await fs.writeFile(dynamicApiPage, content)
     }
@@ -309,7 +362,7 @@ describe('server-side dev errors', () => {
 
     const stderrOutput = stripAnsi(stderr.slice(stderrIdx))
       .replace(
-        '⚠ Fast Refresh had to perform a full reload due to a runtime error.',
+        '⚠ Fast Refresh had to perform a full reload due to a Runtime ReferenceError.',
         ''
       )
       .trim()
@@ -388,70 +441,70 @@ describe('server-side dev errors', () => {
 
     const stderrOutput = stripAnsi(stderr.slice(stderrIdx))
       .replace(
-        '⚠ Fast Refresh had to perform a full reload due to a runtime error.',
+        '⚠ Fast Refresh had to perform a full reload due to a Runtime ReferenceError.',
         ''
       )
       .trim()
     // FIXME(veil): error repeated
     if (isTurbopack) {
       expect(stderrOutput).toMatchInlineSnapshot(`
-        "Error: 
-            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-empty-rejection.js:7:19)
-           5 | export async function getServerSideProps() {
-           6 |   setTimeout(() => {
-        >  7 |     Promise.reject(new Error())
-             |                   ^
-           8 |   }, 10)
-           9 |   return {
-          10 |     props: {},
-         ⨯ unhandledRejection: Error: 
-            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-empty-rejection.js:7:19)
-           5 | export async function getServerSideProps() {
-           6 |   setTimeout(() => {
-        >  7 |     Promise.reject(new Error())
-             |                   ^
-           8 |   }, 10)
-           9 |   return {
-          10 |     props: {},
-         ⨯ unhandledRejection:  Error: 
-            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-empty-rejection.js:7:19)
-           5 | export async function getServerSideProps() {
-           6 |   setTimeout(() => {
-        >  7 |     Promise.reject(new Error())
-             |                   ^
-           8 |   }, 10)
-           9 |   return {
-          10 |     props: {},"
+       "Error: 
+           at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-empty-rejection.js:7:19)
+          5 | export async function getServerSideProps() {
+          6 |   setTimeout(() => {
+       >  7 |     Promise.reject(new Error())
+            |                   ^
+          8 |   }, 10)
+          9 |   return {
+         10 |     props: {},
+        ⨯ unhandledRejection: Error: 
+           at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-empty-rejection.js:7:19)
+          5 | export async function getServerSideProps() {
+          6 |   setTimeout(() => {
+       >  7 |     Promise.reject(new Error())
+            |                   ^
+          8 |   }, 10)
+          9 |   return {
+         10 |     props: {},
+        ⨯ unhandledRejection:  Error: 
+           at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-empty-rejection.js:7:19)
+          5 | export async function getServerSideProps() {
+          6 |   setTimeout(() => {
+       >  7 |     Promise.reject(new Error())
+            |                   ^
+          8 |   }, 10)
+          9 |   return {
+         10 |     props: {},"
       `)
     } else {
       expect(stderrOutput).toMatchInlineSnapshot(`
-        "Error: 
-            at Timeout.eval [as _onTimeout] (../../test/integration/server-side-dev-errors/pages/uncaught-empty-rejection.js:7:19)
-           5 | export async function getServerSideProps() {
-           6 |   setTimeout(() => {
-        >  7 |     Promise.reject(new Error())
-             |                   ^
-           8 |   }, 10)
-           9 |   return {
-          10 |     props: {},
-         ⨯ unhandledRejection: Error: 
-            at Timeout.eval [as _onTimeout] (../../test/integration/server-side-dev-errors/pages/uncaught-empty-rejection.js:7:19)
-           5 | export async function getServerSideProps() {
-           6 |   setTimeout(() => {
-        >  7 |     Promise.reject(new Error())
-             |                   ^
-           8 |   }, 10)
-           9 |   return {
-          10 |     props: {},
-         ⨯ unhandledRejection:  Error: 
-            at Timeout.eval [as _onTimeout] (../../test/integration/server-side-dev-errors/pages/uncaught-empty-rejection.js:7:19)
-           5 | export async function getServerSideProps() {
-           6 |   setTimeout(() => {
-        >  7 |     Promise.reject(new Error())
-             |                   ^
-           8 |   }, 10)
-           9 |   return {
-          10 |     props: {},"
+       "Error: 
+           at Timeout.eval [as _onTimeout] (../../test/integration/server-side-dev-errors/pages/uncaught-empty-rejection.js:7:19)
+          5 | export async function getServerSideProps() {
+          6 |   setTimeout(() => {
+       >  7 |     Promise.reject(new Error())
+            |                   ^
+          8 |   }, 10)
+          9 |   return {
+         10 |     props: {},
+        ⨯ unhandledRejection: Error: 
+           at Timeout.eval [as _onTimeout] (../../test/integration/server-side-dev-errors/pages/uncaught-empty-rejection.js:7:19)
+          5 | export async function getServerSideProps() {
+          6 |   setTimeout(() => {
+       >  7 |     Promise.reject(new Error())
+            |                   ^
+          8 |   }, 10)
+          9 |   return {
+         10 |     props: {},
+        ⨯ unhandledRejection:  Error: 
+           at Timeout.eval [as _onTimeout] (../../test/integration/server-side-dev-errors/pages/uncaught-empty-rejection.js:7:19)
+          5 | export async function getServerSideProps() {
+          6 |   setTimeout(() => {
+       >  7 |     Promise.reject(new Error())
+            |                   ^
+          8 |   }, 10)
+          9 |   return {
+         10 |     props: {},"
       `)
     }
   })
@@ -466,7 +519,7 @@ describe('server-side dev errors', () => {
 
     const stderrOutput = stripAnsi(stderr.slice(stderrIdx))
       .replace(
-        '⚠ Fast Refresh had to perform a full reload due to a runtime error.',
+        '⚠ Fast Refresh had to perform a full reload due to a Runtime ReferenceError.',
         ''
       )
       .trim()
@@ -544,70 +597,70 @@ describe('server-side dev errors', () => {
 
     const stderrOutput = stripAnsi(stderr.slice(stderrIdx))
       .replace(
-        '⚠ Fast Refresh had to perform a full reload due to a runtime error.',
+        '⚠ Fast Refresh had to perform a full reload due to a Runtime ReferenceError.',
         ''
       )
       .trim()
     // FIXME(veil): error repeated
     if (isTurbopack) {
       expect(stderrOutput).toMatchInlineSnapshot(`
-        "Error: 
-            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-empty-exception.js:7:10)
-           5 | export async function getServerSideProps() {
-           6 |   setTimeout(() => {
-        >  7 |     throw new Error()
-             |          ^
-           8 |   }, 10)
-           9 |   return {
-          10 |     props: {},
-         ⨯ uncaughtException: Error: 
-            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-empty-exception.js:7:10)
-           5 | export async function getServerSideProps() {
-           6 |   setTimeout(() => {
-        >  7 |     throw new Error()
-             |          ^
-           8 |   }, 10)
-           9 |   return {
-          10 |     props: {},
-         ⨯ uncaughtException:  Error: 
-            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-empty-exception.js:7:10)
-           5 | export async function getServerSideProps() {
-           6 |   setTimeout(() => {
-        >  7 |     throw new Error()
-             |          ^
-           8 |   }, 10)
-           9 |   return {
-          10 |     props: {},"
+       "Error: 
+           at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-empty-exception.js:7:10)
+          5 | export async function getServerSideProps() {
+          6 |   setTimeout(() => {
+       >  7 |     throw new Error()
+            |          ^
+          8 |   }, 10)
+          9 |   return {
+         10 |     props: {},
+        ⨯ uncaughtException: Error: 
+           at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-empty-exception.js:7:10)
+          5 | export async function getServerSideProps() {
+          6 |   setTimeout(() => {
+       >  7 |     throw new Error()
+            |          ^
+          8 |   }, 10)
+          9 |   return {
+         10 |     props: {},
+        ⨯ uncaughtException:  Error: 
+           at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-empty-exception.js:7:10)
+          5 | export async function getServerSideProps() {
+          6 |   setTimeout(() => {
+       >  7 |     throw new Error()
+            |          ^
+          8 |   }, 10)
+          9 |   return {
+         10 |     props: {},"
       `)
     } else {
       expect(stderrOutput).toMatchInlineSnapshot(`
-        "Error: 
-            at Timeout.eval [as _onTimeout] (../../test/integration/server-side-dev-errors/pages/uncaught-empty-exception.js:7:10)
-           5 | export async function getServerSideProps() {
-           6 |   setTimeout(() => {
-        >  7 |     throw new Error()
-             |          ^
-           8 |   }, 10)
-           9 |   return {
-          10 |     props: {},
-         ⨯ uncaughtException: Error: 
-            at Timeout.eval [as _onTimeout] (../../test/integration/server-side-dev-errors/pages/uncaught-empty-exception.js:7:10)
-           5 | export async function getServerSideProps() {
-           6 |   setTimeout(() => {
-        >  7 |     throw new Error()
-             |          ^
-           8 |   }, 10)
-           9 |   return {
-          10 |     props: {},
-         ⨯ uncaughtException:  Error: 
-            at Timeout.eval [as _onTimeout] (../../test/integration/server-side-dev-errors/pages/uncaught-empty-exception.js:7:10)
-           5 | export async function getServerSideProps() {
-           6 |   setTimeout(() => {
-        >  7 |     throw new Error()
-             |          ^
-           8 |   }, 10)
-           9 |   return {
-          10 |     props: {},"
+       "Error: 
+           at Timeout.eval [as _onTimeout] (../../test/integration/server-side-dev-errors/pages/uncaught-empty-exception.js:7:10)
+          5 | export async function getServerSideProps() {
+          6 |   setTimeout(() => {
+       >  7 |     throw new Error()
+            |          ^
+          8 |   }, 10)
+          9 |   return {
+         10 |     props: {},
+        ⨯ uncaughtException: Error: 
+           at Timeout.eval [as _onTimeout] (../../test/integration/server-side-dev-errors/pages/uncaught-empty-exception.js:7:10)
+          5 | export async function getServerSideProps() {
+          6 |   setTimeout(() => {
+       >  7 |     throw new Error()
+            |          ^
+          8 |   }, 10)
+          9 |   return {
+         10 |     props: {},
+        ⨯ uncaughtException:  Error: 
+           at Timeout.eval [as _onTimeout] (../../test/integration/server-side-dev-errors/pages/uncaught-empty-exception.js:7:10)
+          5 | export async function getServerSideProps() {
+          6 |   setTimeout(() => {
+       >  7 |     throw new Error()
+            |          ^
+          8 |   }, 10)
+          9 |   return {
+         10 |     props: {},"
       `)
     }
   })

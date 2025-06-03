@@ -9,6 +9,7 @@ related:
     - app/api-reference/file-conventions/layout
     - app/api-reference/file-conventions/page
     - app/api-reference/components/link
+    - app/api-reference/file-conventions/dynamic-routes
 ---
 
 Next.js uses **file-system based routing**, meaning you can use folders and files to define routes. This page will guide you through how to create layouts and pages, and link between them.
@@ -85,7 +86,7 @@ export default function DashboardLayout({ children }) {
 }
 ```
 
-The layout above is called a [root layout](/docs/app/api-reference/file-conventions/layout#root-layouts) because it's defined at the root of the `app` directory. The root layout is **required** and must contain `html` and `body` tags.
+The layout above is called a [root layout](/docs/app/api-reference/file-conventions/layout#root-layout) because it's defined at the root of the `app` directory. The root layout is **required** and must contain `html` and `body` tags.
 
 ## Creating a nested route
 
@@ -100,7 +101,7 @@ In Next.js:
 - **Folders** are used to define the route segments that map to URL segments.
 - **Files** (like `page` and `layout`) are used to create UI that is shown for a segment.
 
-To create nested routes, you can nest folders inside each other. For example, to add a route for `/blog`, create a folder called `blog` in the `app` directory. Then, to make `/blog` publicly accessible, add a `page` file:
+To create nested routes, you can nest folders inside each other. For example, to add a route for `/blog`, create a folder called `blog` in the `app` directory. Then, to make `/blog` publicly accessible, add a `page.tsx` file:
 
 <Image
   alt="File hierarchy showing blog folder and a page.js file"
@@ -111,6 +112,7 @@ To create nested routes, you can nest folders inside each other. For example, to
 />
 
 ```tsx filename="app/blog/page.tsx" switcher
+// Dummy imports
 import { getPosts } from '@/lib/posts'
 import { Post } from '@/ui/post'
 
@@ -128,6 +130,7 @@ export default async function Page() {
 ```
 
 ```jsx filename="app/blog/[slug]/page.js" switcher
+// Dummy imports
 import { getPosts } from '@/lib/posts'
 import { Post } from '@/ui/post'
 
@@ -170,7 +173,7 @@ export default function Page() {
 }
 ```
 
-> **Good to know**: Wrapping a folder name in square brackets (e.g. `[slug]`) creates a special [dynamic route segment](/docs/app/building-your-application/routing/dynamic-routes) used to generate multiple pages from data. This is useful for blog posts, product pages, etc.
+Wrapping a folder name in square brackets (e.g. `[slug]`) creates a [dynamic route segment](/docs/app/api-reference/file-conventions/dynamic-routes) which is used to generate multiple pages from data. e.g. blog posts, product pages, etc.
 
 ## Nesting layouts
 
@@ -204,9 +207,49 @@ export default function BlogLayout({ children }) {
 
 If you were to combine the two layouts above, the root layout (`app/layout.js`) would wrap the blog layout (`app/blog/layout.js`), which would wrap the blog (`app/blog/page.js`) and blog post page (`app/blog/[slug]/page.js`).
 
+## Creating a dynamic segment
+
+[Dynamic segments](/docs/app/api-reference/file-conventions/dynamic-routes) allow you to create routes that are generated from data. For example, instead of manually creating a route for each individual blog post, you can create a dynamic segment to generate the routes based on blog post data.
+
+To create a dynamic segment, wrap the segment (folder) name in square brackets: `[segmentName]`. For example, in the `app/blog/[slug]/page.tsx` route, the `[slug]` is the dynamic segment.
+
+```tsx filename="app/blog/[slug]/page.tsx" switcher
+export default async function BlogPostPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
+  const post = await getPost(slug)
+
+  return (
+    <div>
+      <h1>{post.title}</h1>
+      <p>{post.content}</p>
+    </div>
+  )
+}
+```
+
+```jsx filename="app/blog/[slug]/page.js" switcher
+export default async function BlogPostPage({ params }) {
+  const { slug } = await params
+  const post = await getPost(slug)
+
+  return (
+    <div>
+      <h1>{post.title}</h1>
+      <p>{post.content}</p>
+    </div>
+  )
+}
+```
+
+Learn more about [Dynamic Segments](/docs/app/api-reference/file-conventions/dynamic-routes).
+
 ## Linking between pages
 
-You can use the [`<Link>` component](/docs/app/api-reference/components/link) to navigate between routes. `<Link>` is a built-in Next.js component that extends the HTML `<a>` tag to provide prefetching and client-side navigation.
+You can use the [`<Link>` component](/docs/app/api-reference/components/link) to navigate between routes. `<Link>` is a built-in Next.js component that extends the HTML `<a>` tag to provide [prefetching](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching) and [client-side navigation](/docs/app/building-your-application/routing/linking-and-navigating#5-soft-navigation).
 
 For example, to generate a list of blog posts, import `<Link>` from `next/link` and pass a `href` prop to the component:
 

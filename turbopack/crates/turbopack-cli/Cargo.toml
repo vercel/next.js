@@ -3,7 +3,7 @@ name = "turbopack-cli"
 version = "0.1.0"
 description = "TBD"
 license = "MIT"
-edition = "2021"
+edition = "2024"
 autobenches = false
 
 [[bin]]
@@ -16,6 +16,10 @@ bench = false
 
 [[bench]]
 name = "mod"
+harness = false
+
+[[bench]]
+name = "small_apps"
 harness = false
 
 [features]

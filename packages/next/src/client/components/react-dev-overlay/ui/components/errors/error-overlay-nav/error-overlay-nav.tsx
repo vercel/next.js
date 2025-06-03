@@ -17,8 +17,12 @@ export function ErrorOverlayNav({
   activeIdx,
   setActiveIndex,
   versionInfo,
-  isTurbopack,
 }: ErrorOverlayNavProps) {
+  const bundlerName = (process.env.__NEXT_BUNDLER || 'Webpack') as
+    | 'Webpack'
+    | 'Turbopack'
+    | 'Rspack'
+
   return (
     <div data-nextjs-error-overlay-nav>
       <Notch side="left">
@@ -33,7 +37,7 @@ export function ErrorOverlayNav({
         <Notch side="right">
           <VersionStalenessInfo
             versionInfo={versionInfo}
-            isTurbopack={isTurbopack}
+            bundlerName={bundlerName}
           />
         </Notch>
       )}
@@ -43,33 +47,33 @@ export function ErrorOverlayNav({
 
 export const styles = `
   [data-nextjs-error-overlay-nav] {
-    --notch-height: 2.625rem; /* 42px */
+    --stroke-color: var(--color-gray-400);
+    --background-color: var(--color-background-100);
     display: flex;
     justify-content: space-between;
     align-items: center;
 
     width: 100%;
 
+    position: relative;
+    z-index: 2;
     outline: none;
-    translate: 1px 1px;
+    translate: var(--next-dialog-border-width) var(--next-dialog-border-width);
     max-width: var(--next-dialog-max-width);
 
     .error-overlay-notch {
-      --stroke-color: var(--color-gray-400);
-      --background-color: var(--color-background-100);
-
-      translate: -1px 0;
+      translate: calc(var(--next-dialog-border-width) * -1);
       width: auto;
-      height: var(--notch-height);
+      height: var(--next-dialog-notch-height);
       padding: 12px;
       background: var(--background-color);
-      border: 1px solid var(--stroke-color);
+      border: var(--next-dialog-border-width) solid var(--stroke-color);
       border-bottom: none;
       position: relative;
 
       &[data-side='left'] {
         padding-right: 0;
-        border-radius: var(--rounded-xl) 0 0 0;
+        border-radius: var(--next-dialog-radius) 0 0 0;
 
         .error-overlay-notch-tail {
           right: -54px;
@@ -82,7 +86,7 @@ export const styles = `
 
       &[data-side='right'] {
         padding-left: 0;
-        border-radius: 0 var(--rounded-xl) 0 0;
+        border-radius: 0 var(--next-dialog-radius) 0 0;
 
         .error-overlay-notch-tail {
           left: -54px;
@@ -96,10 +100,34 @@ export const styles = `
 
       .error-overlay-notch-tail {
         position: absolute;
-        top: -1px;
+        top: calc(var(--next-dialog-border-width) * -1);
         pointer-events: none;
         z-index: -1;
-        height: calc(100% + 1px);
+        height: calc(100% + var(--next-dialog-border-width));
+      }
+    }
+  }
+
+  @media (max-width: 600px) {
+    [data-nextjs-error-overlay-nav] {
+      background: var(--background-color);
+      border-radius: var(--next-dialog-radius) var(--next-dialog-radius) 0 0;
+      border: var(--next-dialog-border-width) solid var(--stroke-color);
+      border-bottom: none;
+      overflow: hidden;
+      translate: 0 var(--next-dialog-border-width);
+      
+      .error-overlay-notch {
+        border-radius: 0;
+        border: 0;
+
+        &[data-side="left"], &[data-side="right"] {
+          border-radius: 0;
+        }
+
+        .error-overlay-notch-tail {
+          display: none;
+        }
       }
     }
   }

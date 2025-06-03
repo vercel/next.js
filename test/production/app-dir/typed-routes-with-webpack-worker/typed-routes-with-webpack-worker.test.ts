@@ -1,6 +1,6 @@
 import { nextBuild } from 'next-test-utils'
 import path from 'path'
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'app dir - typed-routes-with-webpack-worker',
   () => {
     it('builds successfully without errors', async () => {

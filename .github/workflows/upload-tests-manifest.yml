@@ -1,0 +1,44 @@
+# Workflow to upload next.js integration test results to KV for https://areweturboyet.com/
+# This workflow assumes the `next-integration-test` workflow has been executed
+# and test reports have been uploaded to the `test-results` artifact.
+name: Upload bundler test manifests to areweturboyet.com
+
+on:
+  schedule:
+    - cron: '0 8 * * *'
+  workflow_dispatch: {}
+  push:
+    branches:
+      - canary
+    paths:
+      - 'test/*-manifest.json'
+
+jobs:
+  upload_test_results:
+    name: Upload test results
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_LTS_VERSION }}
+          check-latest: true
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
+
+      - name: Install dependencies
+        shell: bash
+        run: pnpm i
+
+      - name: 'Upload results to "Are We Turbo Yet" KV'
+        env:
+          TURBOYET_KV_REST_API_URL: ${{ secrets.TURBOYET_KV_REST_API_URL }}
+          TURBOYET_KV_REST_API_TOKEN: ${{ secrets.TURBOYET_KV_REST_API_TOKEN }}
+          TURBOYET_TOKEN: ${{ secrets.TURBOYET_TOKEN }}
+        uses: ./.github/actions/upload-turboyet-data

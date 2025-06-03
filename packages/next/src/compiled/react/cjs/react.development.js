@@ -87,15 +87,13 @@
     function getComponentNameFromType(type) {
       if (null == type) return null;
       if ("function" === typeof type)
-        return type.$$typeof === REACT_CLIENT_REFERENCE$1
+        return type.$$typeof === REACT_CLIENT_REFERENCE
           ? null
           : type.displayName || type.name || null;
       if ("string" === typeof type) return type;
       switch (type) {
         case REACT_FRAGMENT_TYPE:
           return "Fragment";
-        case REACT_PORTAL_TYPE:
-          return "Portal";
         case REACT_PROFILER_TYPE:
           return "Profiler";
         case REACT_STRICT_MODE_TYPE:
@@ -104,6 +102,8 @@
           return "Suspense";
         case REACT_SUSPENSE_LIST_TYPE:
           return "SuspenseList";
+        case REACT_ACTIVITY_TYPE:
+          return "Activity";
       }
       if ("object" === typeof type)
         switch (
@@ -113,6 +113,8 @@
             ),
           type.$$typeof)
         ) {
+          case REACT_PORTAL_TYPE:
+            return "Portal";
           case REACT_CONTEXT_TYPE:
             return (type.displayName || "Context") + ".Provider";
           case REACT_CONSUMER_TYPE:
@@ -158,6 +160,9 @@
     function getOwner() {
       var dispatcher = ReactSharedInternals.A;
       return null === dispatcher ? null : dispatcher.getOwner();
+    }
+    function UnknownOwner() {
+      return Error("react-stack-top-frame");
     }
     function hasValidKey(config) {
       if (hasOwnProperty.call(config, "key")) {
@@ -493,6 +498,9 @@
         );
       return dispatcher;
     }
+    function releaseAsyncTransition() {
+      ReactSharedInternals.asyncTransitions--;
+    }
     function noop() {}
     function enqueueTask(task) {
       if (null === enqueueTaskImpl)
@@ -594,7 +602,7 @@
       REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"),
       REACT_MEMO_TYPE = Symbol.for("react.memo"),
       REACT_LAZY_TYPE = Symbol.for("react.lazy"),
-      REACT_OFFSCREEN_TYPE = Symbol.for("react.offscreen"),
+      REACT_ACTIVITY_TYPE = Symbol.for("react.activity"),
       MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
       didWarnStateUpdateForUnmountedComponent = {},
       ReactNoopUpdateQueue = {
@@ -649,31 +657,38 @@
     assign(deprecatedAPIs, Component.prototype);
     deprecatedAPIs.isPureReactComponent = !0;
     var isArrayImpl = Array.isArray,
-      REACT_CLIENT_REFERENCE$1 = Symbol.for("react.client.reference"),
+      REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference"),
       ReactSharedInternals = {
         H: null,
         A: null,
         T: null,
         S: null,
-        V: null,
         actQueue: null,
+        asyncTransitions: 0,
         isBatchingLegacy: !1,
         didScheduleLegacyUpdate: !1,
         didUsePromise: !1,
         thrownErrors: [],
-        getCurrentStack: null
+        getCurrentStack: null,
+        recentlyCreatedOwnerStacks: 0
       },
       hasOwnProperty = Object.prototype.hasOwnProperty,
-      REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference");
-    new ("function" === typeof WeakMap ? WeakMap : Map)();
-    var createTask = console.createTask
+      createTask = console.createTask
         ? console.createTask
         : function () {
             return null;
-          },
-      specialPropKeyWarningShown,
-      didWarnAboutOldJSXRuntime;
+          };
+    deprecatedAPIs = {
+      "react-stack-bottom-frame": function (callStackForError) {
+        return callStackForError();
+      }
+    };
+    var specialPropKeyWarningShown, didWarnAboutOldJSXRuntime;
     var didWarnAboutElementRef = {};
+    var unknownOwnerDebugStack = deprecatedAPIs[
+      "react-stack-bottom-frame"
+    ].bind(deprecatedAPIs, UnknownOwner)();
+    var unknownOwnerDebugTask = createTask(getTaskName(UnknownOwner));
     var didWarnAboutMaps = !1,
       userProvidedKeyEscapeRegex = /\/+/g,
       reportGlobalError =
@@ -969,7 +984,6 @@
         var node = arguments[i];
         isValidElement(node) && node._store && (node._store.validated = 1);
       }
-      var propName;
       i = {};
       node = null;
       if (null != config)
@@ -1010,6 +1024,7 @@
             ? type.displayName || type.name || "Unknown"
             : type
         );
+      var propName = 1e4 > ReactSharedInternals.recentlyCreatedOwnerStacks++;
       return ReactElement(
         type,
         node,
@@ -1017,8 +1032,8 @@
         void 0,
         getOwner(),
         i,
-        Error("react-stack-top-frame"),
-        createTask(getTaskName(type))
+        propName ? Error("react-stack-top-frame") : unknownOwnerDebugStack,
+        propName ? createTask(getTaskName(type)) : unknownOwnerDebugTask
       );
     };
     exports.createRef = function () {
@@ -1076,23 +1091,7 @@
       };
     };
     exports.memo = function (type, compare) {
-      "string" === typeof type ||
-        "function" === typeof type ||
-        type === REACT_FRAGMENT_TYPE ||
-        type === REACT_PROFILER_TYPE ||
-        type === REACT_STRICT_MODE_TYPE ||
-        type === REACT_SUSPENSE_TYPE ||
-        type === REACT_SUSPENSE_LIST_TYPE ||
-        type === REACT_OFFSCREEN_TYPE ||
-        ("object" === typeof type &&
-          null !== type &&
-          (type.$$typeof === REACT_LAZY_TYPE ||
-            type.$$typeof === REACT_MEMO_TYPE ||
-            type.$$typeof === REACT_CONTEXT_TYPE ||
-            type.$$typeof === REACT_CONSUMER_TYPE ||
-            type.$$typeof === REACT_FORWARD_REF_TYPE ||
-            type.$$typeof === REACT_CLIENT_REFERENCE ||
-            void 0 !== type.getModuleId)) ||
+      null == type &&
         console.error(
           "memo: The first argument must be a component. Instead received: %s",
           null === type ? "null" : typeof type
@@ -1122,8 +1121,8 @@
     exports.startTransition = function (scope) {
       var prevTransition = ReactSharedInternals.T,
         currentTransition = {};
-      ReactSharedInternals.T = currentTransition;
       currentTransition._updatedFibers = new Set();
+      ReactSharedInternals.T = currentTransition;
       try {
         var returnValue = scope(),
           onStartTransitionFinish = ReactSharedInternals.S;
@@ -1132,7 +1131,9 @@
         "object" === typeof returnValue &&
           null !== returnValue &&
           "function" === typeof returnValue.then &&
-          returnValue.then(noop, reportGlobalError);
+          (ReactSharedInternals.asyncTransitions++,
+          returnValue.then(releaseAsyncTransition, releaseAsyncTransition),
+          returnValue.then(noop, reportGlobalError));
       } catch (error) {
         reportGlobalError(error);
       } finally {
@@ -1144,6 +1145,14 @@
             console.warn(
               "Detected a large number of updates inside startTransition. If this is due to a subscription please re-write it to use React provided hooks. Otherwise concurrent mode guarantees are off the table."
             )),
+          null !== prevTransition &&
+            null !== currentTransition.types &&
+            (null !== prevTransition.types &&
+              prevTransition.types !== currentTransition.types &&
+              console.error(
+                "We expected inner Transitions to have transferred the outer types set and that you cannot add to the outer Transition while inside the inner.This is a bug in React."
+              ),
+            (prevTransition.types = currentTransition.types)),
           (ReactSharedInternals.T = prevTransition);
       }
     };
@@ -1177,17 +1186,12 @@
     exports.useDeferredValue = function (value, initialValue) {
       return resolveDispatcher().useDeferredValue(value, initialValue);
     };
-    exports.useEffect = function (create, createDeps, update) {
+    exports.useEffect = function (create, deps) {
       null == create &&
         console.warn(
           "React Hook useEffect requires an effect callback. Did you forget to pass a callback to the hook?"
         );
-      var dispatcher = resolveDispatcher();
-      if ("function" === typeof update)
-        throw Error(
-          "useEffect CRUD overload is not enabled in this build of React."
-        );
-      return dispatcher.useEffect(create, createDeps);
+      return resolveDispatcher().useEffect(create, deps);
     };
     exports.useId = function () {
       return resolveDispatcher().useId();
@@ -1238,7 +1242,7 @@
     exports.useTransition = function () {
       return resolveDispatcher().useTransition();
     };
-    exports.version = "19.1.0-canary-22e39ea7-20250225";
+    exports.version = "19.2.0-canary-197d6a04-20250424";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

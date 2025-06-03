@@ -33,7 +33,7 @@ const frame = {
     column: 5,
   },
   originalCodeFrame: 'export default function MyComponent() {',
-  error: false,
+  error: false as const,
   reason: null,
   external: false,
   ignored: false,
@@ -62,6 +62,7 @@ export const MultipleFrames: Story = {
           lineNumber: 5,
         },
       },
+      ...Array(5).fill(ignoredFrame),
       {
         ...frame,
         originalStackFrame: {

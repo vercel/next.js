@@ -15,7 +15,7 @@ import { join } from 'path'
 const fixturesDir = join(__dirname, '../fixtures')
 
 // Turbopack uses LightningCSS which supports scoping `:root` to the CSS module.
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'Custom Properties: Fail for :root {} in CSS Modules',
   () => {
     ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
@@ -56,9 +56,16 @@ describe('Custom Properties: Fail for global element in CSS Modules', () => {
           stderr: true,
         })
         expect(code).not.toBe(0)
-        expect(stderr).toContain('Failed to compile')
-        expect(stderr).toContain('pages/styles.module.css')
-        expect(stderr).toContain('Selector "h1" is not pure')
+        if (process.env.IS_TURBOPACK_TEST) {
+          expect(stderr).toContain('pages/styles.module.css')
+          expect(stderr).toContain(
+            'Selector is not pure (pure selectors must contain at least one local class or id)'
+          )
+        } else {
+          expect(stderr).toContain('Failed to compile')
+          expect(stderr).toContain('pages/styles.module.css')
+          expect(stderr).toContain('Selector "h1" is not pure')
+        }
       })
     }
   )
@@ -100,7 +107,7 @@ describe('CSS Modules: Import Global CSS', () => {
           .replace(/\/\*.*?\*\//g, '')
           .trim()
 
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
           ).toMatchInlineSnapshot(`"a .foo{all:initial}"`)
@@ -138,7 +145,7 @@ describe('CSS Modules: Importing Invalid Global CSS', () => {
 })
 
 // Turbopack uses LightningCSS which doesn't support `@value`.
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'CSS Modules: Import Exports',
   () => {
     ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(

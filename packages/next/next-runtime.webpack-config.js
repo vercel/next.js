@@ -1,8 +1,6 @@
-const webpack = require('webpack')
+const webpack = require('@rspack/core')
 const path = require('path')
-const TerserPlugin = require('terser-webpack-plugin')
 const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer')
-const EvalSourceMapDevToolPlugin = require('./webpack-plugins/eval-source-map-dev-tool-plugin')
 const DevToolsIgnoreListPlugin = require('./webpack-plugins/devtools-ignore-list-plugin')
 
 function shouldIgnorePath(modulePath) {
@@ -40,7 +38,9 @@ const appExternals = [
   'next/dist/compiled/react-dom-experimental/cjs/react-dom-server-legacy.browser.production.js',
 ]
 
-function makeAppAliases(reactChannel = '') {
+function makeAppAliases({ experimental, bundler }) {
+  const reactChannel = experimental ? '-experimental' : ''
+
   return {
     react$: `next/dist/compiled/react${reactChannel}`,
     'react/react.react-server$': `next/dist/compiled/react${reactChannel}/react.react-server`,
@@ -61,18 +61,15 @@ function makeAppAliases(reactChannel = '') {
     'react-server-dom-turbopack/server.edge$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/server.edge`,
     'react-server-dom-turbopack/server.node$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/server.node`,
     'react-server-dom-turbopack/static.edge$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/static.edge`,
-    'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/client`,
-    'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/client.edge`,
-    'react-server-dom-webpack/server.edge$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/server.edge`,
-    'react-server-dom-webpack/server.node$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/server.node`,
-    'react-server-dom-webpack/static.edge$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/static.edge`,
+    'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-${bundler}${reactChannel}/client`,
+    'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-${bundler}${reactChannel}/client.edge`,
+    'react-server-dom-webpack/server.edge$': `next/dist/compiled/react-server-dom-${bundler}${reactChannel}/server.edge`,
+    'react-server-dom-webpack/server.node$': `next/dist/compiled/react-server-dom-${bundler}${reactChannel}/server.node`,
+    'react-server-dom-webpack/static.edge$': `next/dist/compiled/react-server-dom-${bundler}${reactChannel}/static.edge`,
     '@vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts':
       'next/dist/client/dev/noop-turbopack-hmr',
   }
 }
-
-const appAliases = makeAppAliases()
-const appExperimentalAliases = makeAppAliases('-experimental')
 
 const sharedExternals = [
   'styled-jsx',
@@ -186,36 +183,21 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
       }.runtime.${dev ? 'dev' : 'prod'}.js`,
       libraryTarget: 'commonjs2',
     },
-    devtool: process.env.NEXT_SERVER_EVAL_SOURCE_MAPS
-      ? // We'll use a fork in plugins
-        false
-      : 'source-map',
+    devtool: 'source-map',
     optimization: {
       moduleIds: 'named',
       minimize: true,
       concatenateModules: true,
       minimizer: [
-        new TerserPlugin({
-          minify: TerserPlugin.swcMinify,
-          terserOptions: {
-            compress: {
-              dead_code: true,
-              // Zero means no limit.
-              passes: 0,
-            },
-            format: {
-              preamble: '',
-            },
-            mangle:
-              dev && !process.env.NEXT_SERVER_EVAL_SOURCE_MAPS ? false : true,
+        new webpack.SwcJsMinimizerRspackPlugin({
+          minimizerOptions: {
+            mangle: dev || process.env.NEXT_SERVER_NO_MANGLE ? false : true,
           },
         }),
       ],
     },
     plugins: [
-      process.env.NEXT_SERVER_EVAL_SOURCE_MAPS
-        ? new EvalSourceMapDevToolPlugin({ shouldIgnorePath })
-        : new DevToolsIgnoreListPlugin({ shouldIgnorePath }),
+      new DevToolsIgnoreListPlugin({ shouldIgnorePath }),
       new webpack.DefinePlugin({
         'typeof window': JSON.stringify('undefined'),
         'process.env.NEXT_MINIMAL': JSON.stringify('true'),
@@ -230,7 +212,8 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
           experimental ? true : false
         ),
         'process.env.NEXT_RUNTIME': JSON.stringify('nodejs'),
-        ...(!dev ? { 'process.env.TURBOPACK': JSON.stringify(turbo) } : {}),
+        'process.turbopack': JSON.stringify(turbo),
+        'process.env.TURBOPACK': JSON.stringify(turbo),
       }),
       !!process.env.ANALYZE &&
         new BundleAnalyzerPlugin({
@@ -262,9 +245,10 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
     resolve: {
       alias:
         bundleType === 'app'
-          ? experimental
-            ? appExperimentalAliases
-            : appAliases
+          ? makeAppAliases({
+              experimental,
+              bundler: turbo ? 'turbopack' : 'webpack',
+            })
           : {},
     },
     module: {

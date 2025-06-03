@@ -1,45 +1,83 @@
+import { useRef } from 'react'
+import { MENU_DURATION_MS, useClickOutside, useFocusTrap } from '../utils'
+import { useDelayedRender } from '../../../../hooks/use-delayed-render'
+
+export interface DevToolsInfoPropsCore {
+  isOpen: boolean
+  triggerRef: React.RefObject<HTMLButtonElement | null>
+  close: () => void
+}
+
+export interface DevToolsInfoProps extends DevToolsInfoPropsCore {
+  title: React.ReactNode
+  children: React.ReactNode
+  learnMoreLink?: string
+  closeButton?: boolean
+}
+
 export function DevToolsInfo({
   title,
   children,
   learnMoreLink,
-  setIsOpen,
-  setPreviousOpen,
+  isOpen,
+  triggerRef,
+  closeButton = true,
+  close,
   ...props
-}: {
-  title: string
-  children: React.ReactNode
-  learnMoreLink?: string
-  setIsOpen?: (isOpen: boolean) => void
-  setPreviousOpen?: (isOpen: boolean) => void
-}) {
-  const hasActionButtons = Boolean(
-    learnMoreLink && setIsOpen && setPreviousOpen
-  )
+}: DevToolsInfoProps) {
+  const ref = useRef<HTMLDivElement | null>(null)
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null)
+
+  const { mounted, rendered } = useDelayedRender(isOpen, {
+    // Intentionally no fade in, makes the UI feel more immediate
+    enterDelay: 0,
+    // Graceful fade out to confirm that the UI did not break
+    exitDelay: MENU_DURATION_MS,
+  })
+
+  useFocusTrap(ref, triggerRef, isOpen, () => {
+    // Bring focus to close button, so the user can easily close the overlay
+    closeButtonRef.current?.focus()
+  })
+  useClickOutside(ref, triggerRef, isOpen, close)
+
+  if (!mounted) {
+    return null
+  }
 
   return (
-    <div data-info-popover {...props}>
+    <div
+      tabIndex={-1}
+      role="dialog"
+      ref={ref}
+      data-info-popover
+      {...props}
+      data-rendered={rendered}
+    >
       <div className="dev-tools-info-container">
         <h1 className="dev-tools-info-title">{title}</h1>
         {children}
-        {hasActionButtons && (
+        {(closeButton || learnMoreLink) && (
           <div className="dev-tools-info-button-container">
-            <button
-              className="dev-tools-info-close-button"
-              onClick={() => {
-                setIsOpen?.(false)
-                setPreviousOpen?.(true)
-              }}
-            >
-              Close
-            </button>
-            <a
-              className="dev-tools-info-learn-more-button"
-              href={learnMoreLink}
-              target="_blank"
-              rel="noreferrer noopener"
-            >
-              Learn More
-            </a>
+            {closeButton ? (
+              <button
+                ref={closeButtonRef}
+                className="dev-tools-info-close-button"
+                onClick={close}
+              >
+                Close
+              </button>
+            ) : null}
+            {learnMoreLink && (
+              <a
+                className="dev-tools-info-learn-more-button"
+                href={learnMoreLink}
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                Learn More
+              </a>
+            )}
           </div>
         )}
       </div>
@@ -72,10 +110,15 @@ export const DEV_TOOLS_INFO_STYLES = `
       opacity: 1;
       scale: 1;
     }
+
+    button:focus-visible {
+      outline: var(--focus-ring);
+    }
   }
 
   .dev-tools-info-container {
     padding: 12px;
+    width: 100%;
   }
 
   .dev-tools-info-title {
@@ -134,7 +177,6 @@ export const DEV_TOOLS_INFO_STYLES = `
     transition: background var(--duration-short) ease;
     color: var(--color-background-100);
     border-radius: var(--rounded-md-2);
-    border: 1px solid var(--color-gray-1000);
     background: var(--color-gray-1000);
   }
 

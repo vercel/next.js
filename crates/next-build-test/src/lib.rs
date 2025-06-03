@@ -9,10 +9,10 @@ use anyhow::{Context, Result};
 use futures_util::{StreamExt, TryStreamExt};
 use next_api::{
     project::{ProjectContainer, ProjectOptions},
-    route::{endpoint_write_to_disk, Endpoint, EndpointOutputPaths, Route},
+    route::{Endpoint, EndpointOutputPaths, Route, endpoint_write_to_disk},
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{get_effects, ReadConsistency, ResolvedVc, TransientInstance, TurboTasks, Vc};
+use turbo_tasks::{ReadConsistency, ResolvedVc, TransientInstance, TurboTasks, Vc, get_effects};
 use turbo_tasks_backend::{NoopBackingStorage, TurboTasksBackend};
 use turbo_tasks_malloc::TurboMalloc;
 
@@ -150,7 +150,7 @@ impl Strategy {
 }
 
 pub fn shuffle<'a, T: 'a>(items: impl Iterator<Item = T>) -> impl Iterator<Item = T> {
-    use rand::{seq::SliceRandom, SeedableRng};
+    use rand::{SeedableRng, seq::SliceRandom};
     let mut rng = rand::rngs::SmallRng::from_seed([0; 32]);
     let mut input = items.collect::<Vec<_>>();
     input.shuffle(&mut rng);

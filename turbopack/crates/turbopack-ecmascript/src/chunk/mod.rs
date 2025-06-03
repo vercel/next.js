@@ -1,4 +1,6 @@
+pub(crate) mod batch;
 pub(crate) mod chunk_type;
+pub(crate) mod code_and_ids;
 pub(crate) mod content;
 pub(crate) mod data;
 pub(crate) mod item;
@@ -7,22 +9,27 @@ pub(crate) mod placeable;
 use std::fmt::Write;
 
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystem;
 use turbopack_core::{
     chunk::{Chunk, ChunkItem, ChunkItems, ChunkingContext, ModuleIds},
     ident::AssetIdent,
     introspect::{
-        module::IntrospectableModule, utils::children_from_output_assets, Introspectable,
-        IntrospectableChildren,
+        Introspectable, IntrospectableChildren, module::IntrospectableModule,
+        utils::children_from_output_assets,
     },
     output::{OutputAsset, OutputAssets},
     server_fs::ServerFileSystem,
 };
 
 pub use self::{
+    batch::{
+        EcmascriptChunkBatchWithAsyncInfo, EcmascriptChunkItemBatchGroup,
+        EcmascriptChunkItemOrBatchWithAsyncInfo,
+    },
     chunk_type::EcmascriptChunkType,
+    code_and_ids::{BatchGroupCodeAndIds, CodeAndIds, batch_group_code_and_ids, item_code_and_ids},
     content::EcmascriptChunkContent,
     data::EcmascriptChunkData,
     item::{
@@ -59,16 +66,6 @@ impl EcmascriptChunk {
     }
 }
 
-#[turbo_tasks::function]
-fn chunk_item_key() -> Vc<RcStr> {
-    Vc::cell("chunk item".into())
-}
-
-#[turbo_tasks::function]
-fn availability_root_key() -> Vc<RcStr> {
-    Vc::cell("current_availability_root".into())
-}
-
 #[turbo_tasks::value_impl]
 impl Chunk for EcmascriptChunk {
     #[turbo_tasks::function]
@@ -97,12 +94,11 @@ impl Chunk for EcmascriptChunk {
             }
         }
 
-        let chunk_item_key = chunk_item_key().to_resolved().await?;
         let assets = chunk_items
             .iter()
             .map(|&chunk_item| async move {
                 Ok((
-                    chunk_item_key,
+                    rcstr!("chunk item"),
                     chunk_item.content_ident().to_resolved().await?,
                 ))
             })
@@ -115,12 +111,13 @@ impl Chunk for EcmascriptChunk {
             } else {
                 ServerFileSystem::new().root().to_resolved().await?
             },
-            query: ResolvedVc::cell(RcStr::default()),
-            fragment: None,
+            query: RcStr::default(),
+            fragment: RcStr::default(),
             assets,
             modifiers: Vec::new(),
             parts: Vec::new(),
             layer: None,
+            content_type: None,
         };
 
         Ok(AssetIdent::new(Value::new(ident)))
@@ -137,14 +134,7 @@ impl Chunk for EcmascriptChunk {
         let mut referenced_output_assets: Vec<ResolvedVc<Box<dyn OutputAsset>>> = content
             .chunk_items
             .iter()
-            .map(async |with_info| {
-                Ok(with_info
-                    .chunk_item
-                    .references()
-                    .await?
-                    .into_iter()
-                    .copied())
-            })
+            .map(async |with_info| Ok(with_info.references().await?.into_iter().copied()))
             .try_flat_join()
             .await?;
         referenced_output_assets.extend(content.referenced_output_assets.iter().copied());

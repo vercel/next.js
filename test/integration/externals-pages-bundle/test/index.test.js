@@ -15,7 +15,7 @@ describe('bundle pages externals with config.bundlePagesRouterDependencies', () 
       })
 
       it('should have no externals with the config set', async () => {
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           const ssrPath = join(appDir, '.next/server/chunks/ssr')
           const pageBundleBasenames = (await fs.readdir(ssrPath)).filter((p) =>
             p.match(/\.js$/)
@@ -39,7 +39,7 @@ describe('bundle pages externals with config.bundlePagesRouterDependencies', () 
       })
 
       it('should respect the serverExternalPackages config', async () => {
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           const ssrPath = join(appDir, '.next/server/chunks/ssr')
           const pageBundleBasenames = (await fs.readdir(ssrPath)).filter((p) =>
             p.match(/\.js$/)

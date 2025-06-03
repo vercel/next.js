@@ -69,7 +69,7 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { denormalizeAppPagePath } from '../shared/lib/page-path/denormalize-app-path'
 import { RouteKind } from '../server/route-kind'
 import type { PageExtensions } from './page-extensions-type'
-import { isInterceptionRouteAppPath } from '../server/lib/interception-routes'
+import { isInterceptionRouteAppPath } from '../shared/lib/router/utils/interception-routes'
 import { checkIsRoutePPREnabled } from '../server/lib/experimental/ppr'
 import type { FallbackMode } from '../lib/fallback'
 import type { OutgoingHttpHeaders } from 'http'
@@ -81,6 +81,8 @@ import { collectRootParamKeys } from './segment-config/app/collect-root-param-ke
 import { buildAppStaticPaths } from './static-paths/app'
 import { buildPagesStaticPaths } from './static-paths/pages'
 import type { PrerenderedRoute } from './static-paths/types'
+import type { CacheControl } from '../server/lib/cache-control'
+import { formatExpire, formatRevalidate } from './output/format'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -336,6 +338,7 @@ const filterAndSortList = (
 }
 
 export interface PageInfo {
+  originalAppPath: string | undefined
   isHybridAmp?: boolean
   size: number
   totalSize: number
@@ -346,11 +349,11 @@ export interface PageInfo {
    */
   isRoutePPREnabled: boolean
   ssgPageRoutes: string[] | null
-  initialRevalidateSeconds: number | false
+  initialCacheControl: CacheControl | undefined
   pageDuration: number | undefined
   ssgPageDurations: number[] | undefined
   runtime: ServerRuntime
-  hasEmptyPrelude?: boolean
+  hasEmptyStaticShell?: boolean
   hasPostponed?: boolean
   isDynamicAppRoute?: boolean
 }
@@ -445,7 +448,7 @@ export async function printTreeView(
   // Collect all the symbols we use so we can print the icons out.
   const usedSymbols = new Set()
 
-  const messages: [string, string, string][] = []
+  const messages: [string, string, string, string, string][] = []
 
   const stats = await computeFromManifest(
     { build: buildManifest, app: appBuildManifest },
@@ -466,12 +469,39 @@ export async function printTreeView(
       return
     }
 
+    let showRevalidate = false
+    let showExpire = false
+
+    for (const page of filteredPages) {
+      const cacheControl = pageInfos.get(page)?.initialCacheControl
+
+      if (cacheControl?.revalidate) {
+        showRevalidate = true
+      }
+
+      if (cacheControl?.expire) {
+        showExpire = true
+      }
+
+      if (showRevalidate && showExpire) {
+        break
+      }
+    }
+
     messages.push(
       [
         routerType === 'app' ? 'Route (app)' : 'Route (pages)',
         'Size',
         'First Load JS',
-      ].map((entry) => underline(entry)) as [string, string, string]
+        showRevalidate ? 'Revalidate' : '',
+        showExpire ? 'Expire' : '',
+      ].map((entry) => underline(entry)) as [
+        string,
+        string,
+        string,
+        string,
+        string,
+      ]
     )
 
     filteredPages.forEach((item, i, arr) => {
@@ -498,8 +528,9 @@ export async function printTreeView(
         symbol = 'ƒ'
       } else if (pageInfo?.isRoutePPREnabled) {
         if (
-          // If the page has an empty prelude, then it's equivalent to a dynamic page
-          pageInfo?.hasEmptyPrelude ||
+          // If the page has an empty static shell, then it's equivalent to a
+          // dynamic page
+          pageInfo?.hasEmptyStaticShell ||
           // ensure we don't mark dynamic paths that postponed as being dynamic
           // since in this case we're able to partially prerender it
           (pageInfo.isDynamicAppRoute && !pageInfo.hasPostponed)
@@ -520,14 +551,8 @@ export async function printTreeView(
 
       usedSymbols.add(symbol)
 
-      if (pageInfo?.initialRevalidateSeconds) usedSymbols.add('ISR')
-
       messages.push([
-        `${border} ${symbol} ${
-          pageInfo?.initialRevalidateSeconds
-            ? `${item} (ISR: ${pageInfo?.initialRevalidateSeconds} Seconds)`
-            : item
-        }${
+        `${border} ${symbol} ${item}${
           totalDuration > MIN_DURATION
             ? ` (${getPrettyDuration(totalDuration)})`
             : ''
@@ -545,6 +570,12 @@ export async function printTreeView(
             : pageInfo.size >= 0
               ? getPrettySize(pageInfo.totalSize, { strong: true })
               : ''
+          : '',
+        showRevalidate && pageInfo?.initialCacheControl
+          ? formatRevalidate(pageInfo.initialCacheControl)
+          : '',
+        showExpire && pageInfo?.initialCacheControl
+          ? formatExpire(pageInfo.initialCacheControl)
           : '',
       ])
 
@@ -564,6 +595,8 @@ export async function printTreeView(
           messages.push([
             `${contSymbol}   ${innerSymbol} ${getCleanName(file)}`,
             typeof size === 'number' ? getPrettySize(size) : '',
+            '',
+            '',
             '',
           ])
         })
@@ -619,6 +652,10 @@ export async function printTreeView(
         routes.forEach(
           ({ route, duration, avgDuration }, index, { length }) => {
             const innerSymbol = index === length - 1 ? '└' : '├'
+
+            const initialCacheControl =
+              pageInfos.get(route)?.initialCacheControl
+
             messages.push([
               `${contSymbol}   ${innerSymbol} ${route}${
                 duration > MIN_DURATION
@@ -631,6 +668,12 @@ export async function printTreeView(
               }`,
               '',
               '',
+              showRevalidate && initialCacheControl
+                ? formatRevalidate(initialCacheControl)
+                : '',
+              showExpire && initialCacheControl
+                ? formatExpire(initialCacheControl)
+                : '',
             ])
           }
         )
@@ -648,6 +691,8 @@ export async function printTreeView(
       typeof sharedFilesSize === 'number'
         ? getPrettySize(sharedFilesSize, { strong: true })
         : '',
+      '',
+      '',
       '',
     ])
     const sharedCssFiles: string[] = []
@@ -682,13 +727,21 @@ export async function printTreeView(
         return
       }
 
-      messages.push([`  ${innerSymbol} ${cleanName}`, getPrettySize(size), ''])
+      messages.push([
+        `  ${innerSymbol} ${cleanName}`,
+        getPrettySize(size),
+        '',
+        '',
+        '',
+      ])
     })
 
     if (restChunkCount > 0) {
       messages.push([
         `  └ other shared chunks (total)`,
         getPrettySize(restChunkSize),
+        '',
+        '',
         '',
       ])
     }
@@ -701,7 +754,7 @@ export async function printTreeView(
       list: lists.app,
     })
 
-    messages.push(['', '', ''])
+    messages.push(['', '', '', '', ''])
   }
 
   pageInfos.set('/404', {
@@ -731,17 +784,19 @@ export async function printTreeView(
         .map(gzipSize ? fsStatGzip : fsStat)
     )
 
-    messages.push(['', '', ''])
+    messages.push(['', '', '', '', ''])
     messages.push([
       'ƒ Middleware',
       getPrettySize(sum(middlewareSizes), { strong: true }),
+      '',
+      '',
       '',
     ])
   }
 
   print(
     textTable(messages, {
-      align: ['l', 'l', 'r'],
+      align: ['l', 'r', 'r', 'r', 'r'],
       stringLength: (str) => stripAnsi(str).length,
     })
   )
@@ -761,13 +816,6 @@ export async function printTreeView(
           '●',
           '(SSG)',
           `prerendered as static HTML (uses ${cyan(staticFunctionInfo)})`,
-        ],
-        usedSymbols.has('ISR') && [
-          '',
-          '(ISR)',
-          `incremental static regeneration (uses revalidate in ${cyan(
-            staticFunctionInfo
-          )})`,
         ],
         usedSymbols.has('◐') && [
           '◐',
@@ -1491,6 +1539,10 @@ export async function copyTracedFiles(
   staticPages: Set<string>
 ) {
   const outputPath = path.join(distDir, 'standalone')
+
+  // Clean up standalone directory first.
+  await fs.rm(outputPath, { recursive: true, force: true })
+
   let moduleType = false
   const nextConfig = {
     ...serverConfig,
@@ -1498,11 +1550,21 @@ export async function copyTracedFiles(
   }
   try {
     const packageJsonPath = path.join(distDir, '../package.json')
-    const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf8'))
+    const packageJsonContent = await fs.readFile(packageJsonPath, 'utf8')
+    const packageJson = JSON.parse(packageJsonContent)
     moduleType = packageJson.type === 'module'
+
+    // we always copy the package.json to the standalone
+    // folder to ensure any resolving logic is maintained
+    const packageJsonOutputPath = path.join(
+      outputPath,
+      path.relative(tracingRoot, dir),
+      'package.json'
+    )
+    await fs.mkdir(path.dirname(packageJsonOutputPath), { recursive: true })
+    await fs.writeFile(packageJsonOutputPath, packageJsonContent)
   } catch {}
   const copiedFiles = new Set()
-  await fs.rm(outputPath, { recursive: true, force: true })
 
   async function handleTraceFiles(traceFilePath: string) {
     const traceData = JSON.parse(await fs.readFile(traceFilePath, 'utf8')) as {
@@ -1639,9 +1701,9 @@ export async function copyTracedFiles(
     `${
       moduleType
         ? `performance.mark('next-start');
-import path from 'path'
-import { fileURLToPath } from 'url'
-import module from 'module'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import module from 'node:module'
 const require = module.createRequire(import.meta.url)
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 `
@@ -1692,7 +1754,7 @@ export function isReservedPage(page: string) {
 }
 
 export function isAppBuiltinNotFoundPage(page: string) {
-  return /next[\\/]dist[\\/]client[\\/]components[\\/]not-found-error/.test(
+  return /next[\\/]dist[\\/]client[\\/]components[\\/](not-found-error|global-not-found)/.test(
     page
   )
 }
@@ -1869,3 +1931,7 @@ export function collectMeta({
 
   return meta
 }
+
+export const RSPACK_DEFAULT_LAYERS_REGEX = new RegExp(
+  `^(|${[WEBPACK_LAYERS.pagesDirBrowser, WEBPACK_LAYERS.pagesDirEdge, WEBPACK_LAYERS.pagesDirNode].join('|')})$`
+)

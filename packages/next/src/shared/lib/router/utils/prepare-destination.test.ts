@@ -20,6 +20,7 @@ describe('parseDestination', () => {
        "pathname": "/hello/:name",
        "query": {},
        "search": "",
+       "slashes": undefined,
      }
     `)
   })
@@ -45,6 +46,7 @@ describe('parseDestination', () => {
        "protocol": "https:",
        "query": {},
        "search": "",
+       "slashes": true,
      }
     `)
   })
@@ -72,6 +74,7 @@ describe('parseDestination', () => {
          "foo": ":bar",
        },
        "search": "?foo=:bar",
+       "slashes": true,
      }
     `)
   })

@@ -3,7 +3,7 @@ name = "turbopack-nodejs"
 version = "0.1.0"
 description = "TBD"
 license = "MIT"
-edition = "2021"
+edition = "2024"
 autobenches = false
 
 [lib]
@@ -20,10 +20,12 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
+either = { workspace = true }
 indexmap = { workspace = true }
 indoc = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true }
+smallvec = { workspace = true }
 tracing = { workspace = true }
 urlencoding = { workspace = true }
 

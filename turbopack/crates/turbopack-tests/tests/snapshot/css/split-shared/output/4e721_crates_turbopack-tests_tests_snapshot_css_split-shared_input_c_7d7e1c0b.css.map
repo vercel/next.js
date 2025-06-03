@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/c.css"],"sourcesContent":[".c {\n  content: \"12\";\n}\n"],"names":[],"mappings":"AAAA"}},
-    {"offset": {"line": 1, "column": 16}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
-}

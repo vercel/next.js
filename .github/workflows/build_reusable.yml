@@ -74,12 +74,16 @@ env:
   NAPI_CLI_VERSION: 2.14.7
   TURBO_VERSION: 2.3.3
   NODE_LTS_VERSION: 20.9.0
+  # run-tests.js reads `TEST_CONCURRENCY` if no explicit `--concurrency` or `-c`
+  # argument is provided
   TEST_CONCURRENCY: 8
   # disable backtrace for test snapshots
   RUST_BACKTRACE: 0
 
   TURBO_TEAM: 'vercel'
   TURBO_CACHE: 'remote:rw'
+  TURBO_API: ${{ secrets.HOSTED_TURBO_API }}
+  TURBO_TOKEN: ${{ secrets.HOSTED_TURBO_TOKEN }}
   NEXT_TELEMETRY_DISABLED: 1
   # allow not skipping install-native postinstall script if we don't have a binary available already
   NEXT_SKIP_NATIVE_POSTINSTALL: ${{ inputs.skipNativeInstall == 'yes' && '1' || '' }}
@@ -216,6 +220,16 @@ jobs:
         run: pnpm install -r --side-effects-cache false
 
       - run: ANALYZE=1 pnpm build
+        if: ${{ inputs.skipInstallBuild != 'yes' }}
+
+      # Some packages e.g. `devlow-bench` depend on `pnpm build` to generate
+      # their `dist` directory. The first run of `pnpm install` will generate
+      # warnings because these don't exist yet.
+      #
+      # We need to run `pnpm install` a _second_ time to fix this. Fortunately,
+      # this second run is very fast and cheap.
+      - name: Re-run pnpm install to link built packages into node_modules/.bin
+        run: pnpm install
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
       - run: pnpm playwright install-deps

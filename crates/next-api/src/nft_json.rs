@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use serde_json::json;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
@@ -75,31 +75,27 @@ fn get_output_specifier(
     path_ref: &FileSystemPath,
     ident_folder: &FileSystemPath,
     ident_folder_in_project_fs: &FileSystemPath,
-    ident_folder_in_client_fs: &FileSystemPath,
     output_root: &FileSystemPath,
     project_root: &FileSystemPath,
     client_root: &FileSystemPath,
-    dist_dir: &RcStr,
-) -> Result<RcStr> {
+) -> Result<Option<RcStr>> {
     // include assets in the outputs such as referenced chunks
     if path_ref.is_inside_ref(output_root) {
-        return Ok(ident_folder.get_relative_path_to(path_ref).unwrap());
+        return Ok(Some(ident_folder.get_relative_path_to(path_ref).unwrap()));
     }
 
     // include assets in the project root such as images and traced references (externals)
     if path_ref.is_inside_ref(project_root) {
-        return Ok(ident_folder_in_project_fs
-            .get_relative_path_to(path_ref)
-            .unwrap());
+        return Ok(Some(
+            ident_folder_in_project_fs
+                .get_relative_path_to(path_ref)
+                .unwrap(),
+        ));
     }
 
-    // assets that are needed on the client side such as fonts and icons
     if path_ref.is_inside_ref(client_root) {
-        return Ok(ident_folder_in_client_fs
-            .get_relative_path_to(path_ref)
-            .unwrap()
-            .replace("/_next/", dist_dir)
-            .into());
+        // Client assets are never needed on the server, they are served via a CDN
+        return Ok(None);
     }
 
     // Make this an error for now, this should effectively be unreachable
@@ -111,13 +107,12 @@ impl Asset for NftJsonAsset {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let this = &*self.await?;
-        let mut result = BTreeSet::new();
+        let mut result: BTreeSet<RcStr> = BTreeSet::new();
 
         let output_root_ref = this.project.output_fs().root().await?;
         let project_root_ref = this.project.project_fs().root().await?;
         let client_root = this.project.client_fs().root();
         let client_root_ref = client_root.await?;
-        let dist_dir = self.dist_dir().await?;
 
         let ident_folder = self.path().parent().await?;
         let ident_folder_in_project_fs = this
@@ -125,7 +120,6 @@ impl Asset for NftJsonAsset {
             .project_path()
             .join(ident_folder.path.clone())
             .await?;
-        let ident_folder_in_client_fs = client_root.join(ident_folder.path.clone()).await?;
 
         let chunk = this.chunk;
         let entries = this
@@ -144,16 +138,17 @@ impl Asset for NftJsonAsset {
                 continue;
             }
 
-            let specifier = get_output_specifier(
+            let Some(specifier) = get_output_specifier(
                 &referenced_chunk_path,
                 &ident_folder,
                 &ident_folder_in_project_fs,
-                &ident_folder_in_client_fs,
                 &output_root_ref,
                 &project_root_ref,
                 &client_root_ref,
-                &dist_dir,
-            )?;
+            )?
+            else {
+                continue;
+            };
             result.insert(specifier);
         }
 

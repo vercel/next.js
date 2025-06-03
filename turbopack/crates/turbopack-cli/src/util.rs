@@ -4,10 +4,12 @@ use anyhow::{Context, Result};
 use dunce::canonicalize;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, TaskInput, Vc};
+use turbo_tasks::{NonLocalValue, TaskInput, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 
-#[derive(Clone, Debug, TaskInput, Hash, PartialEq, Eq, NonLocalValue, Serialize, Deserialize)]
+#[derive(
+    Clone, Debug, TaskInput, Hash, PartialEq, Eq, NonLocalValue, Serialize, Deserialize, TraceRawVcs,
+)]
 pub enum EntryRequest {
     Relative(RcStr),
     Module(RcStr, RcStr),
@@ -58,9 +60,11 @@ pub fn normalize_entries(entries: &Option<Vec<String>>) -> Vec<RcStr> {
 }
 
 #[turbo_tasks::function]
-pub async fn project_fs(project_dir: RcStr) -> Result<Vc<Box<dyn FileSystem>>> {
+pub async fn project_fs(project_dir: RcStr, watch: bool) -> Result<Vc<Box<dyn FileSystem>>> {
     let disk_fs = DiskFileSystem::new("project".into(), project_dir, vec![]);
-    disk_fs.await?.start_watching(None).await?;
+    if watch {
+        disk_fs.await?.start_watching(None).await?;
+    }
     Ok(Vc::upcast(disk_fs))
 }
 

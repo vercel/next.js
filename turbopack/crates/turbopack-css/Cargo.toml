@@ -3,7 +3,7 @@ name = "turbopack-css"
 version = "0.1.0"
 description = "TBD"
 license = "MIT"
-edition = "2021"
+edition = "2024"
 autobenches = false
 
 [lib]
@@ -29,6 +29,7 @@ swc_core = { workspace = true, features = [
   "common",
   "common_concurrent",
 ] }
+tokio = { workspace = true }
 tracing = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }

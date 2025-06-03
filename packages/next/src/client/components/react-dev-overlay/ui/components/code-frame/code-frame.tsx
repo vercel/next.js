@@ -1,55 +1,29 @@
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
-
-import Anser from 'next/dist/compiled/anser'
-import stripAnsi from 'next/dist/compiled/strip-ansi'
-
 import { useMemo } from 'react'
 import { HotlinkedText } from '../hot-linked-text'
 import { getFrameSource } from '../../../utils/stack-frame'
 import { useOpenInEditor } from '../../utils/use-open-in-editor'
 import { ExternalIcon } from '../../icons/external'
 import { FileIcon } from '../../icons/file'
+import {
+  formatCodeFrame,
+  groupCodeFrameLines,
+  parseLineNumberFromCodeFrameLine,
+} from './parse-code-frame'
 
 export type CodeFrameProps = { stackFrame: StackFrame; codeFrame: string }
 
 export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
-  // Strip leading spaces out of the code frame:
-  const formattedFrame = useMemo<string>(() => {
-    const lines = codeFrame.split(/\r?\n/g)
+  const parsedLineStates = useMemo(() => {
+    const decodedLines = groupCodeFrameLines(formatCodeFrame(codeFrame))
 
-    // Find the minimum length of leading spaces after `|` in the code frame
-    const miniLeadingSpacesLength = lines
-      .map((line) =>
-        /^>? +\d+ +\| [ ]+/.exec(stripAnsi(line)) === null
-          ? null
-          : /^>? +\d+ +\| ( *)/.exec(stripAnsi(line))
-      )
-      .filter(Boolean)
-      .map((v) => v!.pop()!)
-      .reduce((c, n) => (isNaN(c) ? n.length : Math.min(c, n.length)), NaN)
-
-    // When the minimum length of leading spaces is greater than 1, remove them
-    // from the code frame to help the indentation looks better when there's a lot leading spaces.
-    if (miniLeadingSpacesLength > 1) {
-      return lines
-        .map((line, a) =>
-          ~(a = line.indexOf('|'))
-            ? line.substring(0, a) +
-              line.substring(a).replace(`^\\ {${miniLeadingSpacesLength}}`, '')
-            : line
-        )
-        .join('\n')
-    }
-    return lines.join('\n')
-  }, [codeFrame])
-
-  const decoded = useMemo(() => {
-    return Anser.ansiToJson(formattedFrame, {
-      json: true,
-      use_classes: true,
-      remove_empty: true,
+    return decodedLines.map((line) => {
+      return {
+        line,
+        parsedLine: parseLineNumberFromCodeFrameLine(line, stackFrame),
+      }
     })
-  }, [formattedFrame])
+  }, [codeFrame, stackFrame])
 
   const open = useOpenInEditor({
     file: stackFrame.file,
@@ -88,24 +62,42 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
         </p>
       </div>
       <pre className="code-frame-pre">
-        {decoded.map((entry, index) => (
-          <span
-            key={`frame-${index}`}
-            style={{
-              color: entry.fg ? `var(--color-${entry.fg})` : undefined,
-              ...(entry.decoration === 'bold'
-                ? // TODO(jiwon): This used to be 800, but the symbols like `─┬─` are
-                  // having longer width than expected on Geist Mono font-weight
-                  // above 600, hence a temporary fix is to use 500 for bold.
-                  { fontWeight: 500 }
-                : entry.decoration === 'italic'
-                  ? { fontStyle: 'italic' }
-                  : undefined),
-            }}
-          >
-            {entry.content}
-          </span>
-        ))}
+        <div className="code-frame-lines">
+          {parsedLineStates.map(({ line, parsedLine }, lineIndex) => {
+            const { lineNumber, isErroredLine } = parsedLine
+
+            const lineNumberProps: Record<string, string | boolean> = {}
+            if (lineNumber) {
+              lineNumberProps['data-nextjs-codeframe-line'] = lineNumber
+            }
+            if (isErroredLine) {
+              lineNumberProps['data-nextjs-codeframe-line--errored'] = true
+            }
+
+            return (
+              <div key={`line-${lineIndex}`} {...lineNumberProps}>
+                {line.map((entry, entryIndex) => (
+                  <span
+                    key={`frame-${entryIndex}`}
+                    style={{
+                      color: entry.fg ? `var(--color-${entry.fg})` : undefined,
+                      ...(entry.decoration === 'bold'
+                        ? // TODO(jiwon): This used to be 800, but the symbols like `─┬─` are
+                          // having longer width than expected on Geist Mono font-weight
+                          // above 600, hence a temporary fix is to use 500 for bold.
+                          { fontWeight: 500 }
+                        : entry.decoration === 'italic'
+                          ? { fontStyle: 'italic' }
+                          : undefined),
+                    }}
+                  >
+                    {entry.content}
+                  </span>
+                ))}
+              </div>
+            )
+          })}
+        </div>
       </pre>
     </div>
   )
@@ -113,6 +105,8 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
 
 export const CODE_FRAME_STYLES = `
   [data-nextjs-codeframe] {
+    --code-frame-padding: 12px;
+    --code-frame-line-height: var(--size-16);
     background-color: var(--color-background-200);
     overflow: hidden;
     color: var(--color-gray-1000);
@@ -121,7 +115,7 @@ export const CODE_FRAME_STYLES = `
     border-radius: 8px;
     font-family: var(--font-stack-monospace);
     font-size: var(--size-12);
-    line-height: var(--size-16);
+    line-height: var(--code-frame-line-height);
     margin: 8px 0;
 
     svg {
@@ -132,21 +126,21 @@ export const CODE_FRAME_STYLES = `
 
   .code-frame-link,
   .code-frame-pre {
-    padding: 12px;
+    padding: var(--code-frame-padding);
   }
 
   .code-frame-link svg {
     flex-shrink: 0;
   }
 
+  .code-frame-lines {
+    min-width: max-content;
+  }
+
   .code-frame-link [data-text] {
     display: inline-flex;
     text-align: left;
     margin: auto 6px;
-  }
-
-  .code-frame-pre {
-    white-space: pre-wrap;
   }
 
   .code-frame-header {
@@ -182,6 +176,27 @@ export const CODE_FRAME_STYLES = `
     background-color: transparent;
     font-family: var(--font-stack-monospace);
   }
+
+  [data-nextjs-codeframe-line][data-nextjs-codeframe-line--errored="true"] {
+    position: relative;
+    isolation: isolate;
+
+    > span { 
+      position: relative;
+      z-index: 1;
+    }
+
+    &::after {
+      content: "";
+      width: calc(100% + var(--code-frame-padding) * 2);
+      height: var(--code-frame-line-height);
+      left: calc(-1 * var(--code-frame-padding));
+      background: var(--color-red-200);
+      box-shadow: 2px 0 0 0 var(--color-red-900) inset;
+      position: absolute;
+    }
+  }
+
 
   [data-nextjs-codeframe] > * {
     margin: 0;

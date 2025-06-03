@@ -1,14 +1,14 @@
 use std::{convert::Infallible, str::FromStr, time::Instant};
 
 use next_api::project::{DefineEnv, ProjectOptions};
-use next_build_test::{main_inner, Strategy};
+use next_build_test::{Strategy, main_inner};
 use next_core::tracing_presets::{
-    TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBOPACK_TARGETS,
-    TRACING_NEXT_TURBO_TASKS_TARGETS,
+    TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBO_TASKS_TARGETS,
+    TRACING_NEXT_TURBOPACK_TARGETS,
 };
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Registry};
+use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
 use turbo_tasks::TurboTasks;
-use turbo_tasks_backend::{noop_backing_storage, BackendOptions, TurboTasksBackend};
+use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_malloc::TurboMalloc;
 use turbopack_trace_utils::{
     exit::ExitGuard, filter_layer::FilterLayer, raw_trace::RawTraceLayer, trace_writer::TraceWriter,
@@ -169,7 +169,7 @@ fn main() {
             };
 
             let json = serde_json::to_string_pretty(&options).unwrap();
-            println!("{}", json);
+            println!("{json}");
         }
     }
 }

@@ -1,5 +1,8 @@
+import { unstable_cacheLife } from 'next/cache'
+
 async function getCachedRandom(n: number) {
   'use cache'
+  unstable_cacheLife('weeks')
   return String(Math.ceil(Math.random() * n))
 }
 
@@ -11,5 +14,7 @@ export async function generateStaticParams() {
 }
 
 export default async function Page() {
-  return 'hit'
+  const value = getCachedRandom(1)
+
+  return <p>{value}</p>
 }

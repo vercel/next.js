@@ -3,7 +3,7 @@ use std::{
     ffi::OsStr,
     fmt::{Debug, Display},
     hash::{Hash, Hasher},
-    mem::{forget, ManuallyDrop},
+    mem::{ManuallyDrop, forget},
     num::NonZeroU8,
     ops::Deref,
     path::{Path, PathBuf},
@@ -22,12 +22,15 @@ mod tagged_value;
 
 /// An immutable reference counted [`String`], similar to [`Arc<String>`][std::sync::Arc].
 ///
-/// This is the preferred immutable string type for [`turbo_task::function`][macro@crate::function]
-/// arguments and inside of [`turbo_task::value`][macro@crate::value].
+/// This is the preferred immutable string type for [`turbo_tasks::function`][func] arguments and
+/// inside of [`turbo_tasks::value`][value].
 ///
 /// As turbo-tasks must store copies of function arguments to enable caching, non-reference counted
 /// [`String`]s would incur frequent cloning. Reference counting typically decreases memory
 /// consumption and CPU time in these cases.
+///
+/// [func]: https://turbopack-rust-docs.vercel.sh/rustdoc/turbo_tasks/attr.function.html
+/// [value]: https://turbopack-rust-docs.vercel.sh/rustdoc/turbo_tasks/attr.value.html
 ///
 /// ## Conversion
 ///
@@ -247,7 +250,7 @@ impl Clone for RcStr {
 
 impl Default for RcStr {
     fn default() -> Self {
-        RcStr::from("")
+        rcstr!("")
     }
 }
 
@@ -298,10 +301,77 @@ impl Drop for RcStr {
     }
 }
 
+#[doc(hidden)]
+pub const fn inline_atom(s: &str) -> Option<RcStr> {
+    dynamic::inline_atom(s)
+}
+
+/// Create an rcstr from a string literal.
+/// allocates the RcStr inline when possible otherwise uses a `LazyLock` to manage the allocation.
+#[macro_export]
+macro_rules! rcstr {
+    ($s:tt) => {{
+        const INLINE: core::option::Option<$crate::RcStr> = $crate::inline_atom($s);
+        // this condition should be able to be compile time evaluated and inlined.
+        if INLINE.is_some() {
+            INLINE.unwrap()
+        } else {
+            #[inline(never)]
+            fn get_rcstr() -> $crate::RcStr {
+                static CACHE: std::sync::LazyLock<$crate::RcStr> =
+                    std::sync::LazyLock::new(|| $crate::RcStr::from($s));
+
+                (*CACHE).clone()
+            }
+            get_rcstr()
+        }
+    }};
+}
+
 /// noop
 impl ShrinkToFit for RcStr {
     #[inline(always)]
     fn shrink_to_fit(&mut self) {}
+}
+
+#[cfg(feature = "napi")]
+mod napi_impl {
+    use napi::{
+        bindgen_prelude::{FromNapiValue, ToNapiValue, TypeName, ValidateNapiValue},
+        sys::{napi_env, napi_value},
+    };
+
+    use super::*;
+
+    impl TypeName for RcStr {
+        fn type_name() -> &'static str {
+            String::type_name()
+        }
+
+        fn value_type() -> napi::ValueType {
+            String::value_type()
+        }
+    }
+
+    impl ToNapiValue for RcStr {
+        unsafe fn to_napi_value(env: napi_env, val: Self) -> napi::Result<napi_value> {
+            unsafe { ToNapiValue::to_napi_value(env, val.as_str()) }
+        }
+    }
+
+    impl FromNapiValue for RcStr {
+        unsafe fn from_napi_value(env: napi_env, napi_val: napi_value) -> napi::Result<Self> {
+            Ok(RcStr::from(unsafe {
+                String::from_napi_value(env, napi_val)
+            }?))
+        }
+    }
+
+    impl ValidateNapiValue for RcStr {
+        unsafe fn validate(env: napi_env, napi_val: napi_value) -> napi::Result<napi_value> {
+            unsafe { String::validate(env, napi_val) }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -331,5 +401,34 @@ mod tests {
 
         let _ = str.clone().into_owned();
         assert_eq!(refcount(&str), 1);
+    }
+
+    #[test]
+    fn test_rcstr() {
+        // Test enough to exceed the small string optimization
+        assert_eq!(rcstr!(""), RcStr::default());
+        assert_eq!(rcstr!(""), RcStr::from(""));
+        assert_eq!(rcstr!("a"), RcStr::from("a"));
+        assert_eq!(rcstr!("ab"), RcStr::from("ab"));
+        assert_eq!(rcstr!("abc"), RcStr::from("abc"));
+        assert_eq!(rcstr!("abcd"), RcStr::from("abcd"));
+        assert_eq!(rcstr!("abcde"), RcStr::from("abcde"));
+        assert_eq!(rcstr!("abcdef"), RcStr::from("abcdef"));
+        assert_eq!(rcstr!("abcdefg"), RcStr::from("abcdefg"));
+        assert_eq!(rcstr!("abcdefgh"), RcStr::from("abcdefgh"));
+        assert_eq!(rcstr!("abcdefghi"), RcStr::from("abcdefghi"));
+    }
+    #[test]
+    fn test_inline_atom() {
+        // This is a silly test, just asserts that we can evaluate this in a constant context.
+        const STR: RcStr = {
+            let inline = inline_atom("hello");
+            if inline.is_some() {
+                inline.unwrap()
+            } else {
+                unreachable!();
+            }
+        };
+        assert_eq!(STR, RcStr::from("hello"));
     }
 }

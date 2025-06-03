@@ -39,7 +39,7 @@ function runTests() {
     expect(html).toMatch(
       /<link rel="stylesheet" href="\/_next\/static\/.*\.css" .*>/
     )
-    expect(html).toMatch(/body{font-family:SF Pro Text/)
+    expect(html).toMatch(/body{/)
   })
 
   it('should inline critical CSS (dynamic)', async () => {
@@ -47,7 +47,7 @@ function runTests() {
     expect(html).toMatch(
       /<link rel="stylesheet" href="\/_next\/static\/.*\.css" .*>/
     )
-    expect(html).toMatch(/body{font-family:SF Pro Text/)
+    expect(html).toMatch(/body{/)
   })
 
   it('should not inline non-critical css', async () => {

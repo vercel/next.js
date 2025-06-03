@@ -32,7 +32,7 @@ import {
   navigate as navigateUsingSegmentCache,
   NavigationResultTag,
   type NavigationResult,
-} from '../../segment-cache/navigation'
+} from '../../segment-cache'
 
 export function handleExternalUrl(
   state: ReadonlyReducerState,
@@ -101,6 +101,7 @@ function triggerLazyFetchForLeafSegments(
 }
 
 function handleNavigationResult(
+  url: URL,
   state: ReadonlyReducerState,
   mutable: Mutable,
   pendingPush: boolean,
@@ -112,9 +113,32 @@ function handleNavigationResult(
       const newUrl = result.data
       return handleExternalUrl(state, mutable, newUrl, pendingPush)
     }
-    case NavigationResultTag.NoOp:
-      // The server responded with no change to the current page.
+    case NavigationResultTag.NoOp: {
+      // The server responded with no change to the current page. However, if
+      // the URL changed, we still need to update that.
+      const newCanonicalUrl = result.data.canonicalUrl
+      mutable.canonicalUrl = newCanonicalUrl
+
+      // Check if the only thing that changed was the hash fragment.
+      const oldUrl = new URL(state.canonicalUrl, url)
+      const onlyHashChange =
+        // We don't need to compare the origins, because client-driven
+        // navigations are always same-origin.
+        url.pathname === oldUrl.pathname &&
+        url.search === oldUrl.search &&
+        url.hash !== oldUrl.hash
+      if (onlyHashChange) {
+        // The only updated part of the URL is the hash.
+        mutable.onlyHashChange = true
+        mutable.shouldScroll = result.data.shouldScroll
+        mutable.hashFragment = url.hash
+        // Setting this to an empty array triggers a scroll for all new and
+        // updated segments. See `ScrollAndFocusHandler` for more details.
+        mutable.scrollableSegments = []
+      }
+
       return handleMutable(state, mutable)
+    }
     case NavigationResultTag.Success: {
       // Received a new result.
       mutable.cache = result.data.cacheNode
@@ -122,14 +146,13 @@ function handleNavigationResult(
       mutable.canonicalUrl = result.data.canonicalUrl
       mutable.scrollableSegments = result.data.scrollableSegments
       mutable.shouldScroll = result.data.shouldScroll
-      // TODO: Not yet implemented
-      // mutable.hashFragment = hash
+      mutable.hashFragment = result.data.hash
       return handleMutable(state, mutable)
     }
     case NavigationResultTag.Async: {
       return result.data.then(
         (asyncResult) =>
-          handleNavigationResult(state, mutable, pendingPush, asyncResult),
+          handleNavigationResult(url, state, mutable, pendingPush, asyncResult),
         // If the navigation failed, return the current state.
         // TODO: This matches the current behavior but we need to do something
         // better here if the network fails.
@@ -138,9 +161,10 @@ function handleNavigationResult(
         }
       )
     }
-    default:
-      const _exhaustiveCheck: never = result
+    default: {
+      result satisfies never
       return state
+    }
   }
 }
 
@@ -179,9 +203,6 @@ export function navigateReducer(
     // Temporary glue code between the router reducer and the new navigation
     // implementation. Eventually we'll rewrite the router reducer to a
     // state machine.
-    // TODO: Currently this always returns an async result, but in the future
-    // it will return a sync result if the navigation was prefetched. Hence
-    // a result type that's more complicated than you might expect.
     const result = navigateUsingSegmentCache(
       url,
       state.cache,
@@ -189,7 +210,7 @@ export function navigateReducer(
       state.nextUrl,
       shouldScroll
     )
-    return handleNavigationResult(state, mutable, pendingPush, result)
+    return handleNavigationResult(url, state, mutable, pendingPush, result)
   }
 
   const prefetchValues = getOrCreatePrefetchCacheEntry({
@@ -205,12 +226,33 @@ export function navigateReducer(
 
   return data.then(
     ({ flightData, canonicalUrl: canonicalUrlOverride, postponed }) => {
+      const navigatedAt = Date.now()
+
       let isFirstRead = false
       // we only want to mark this once
       if (!prefetchValues.lastUsedTime) {
         // important: we should only mark the cache node as dirty after we unsuspend from the call above
-        prefetchValues.lastUsedTime = Date.now()
+        prefetchValues.lastUsedTime = navigatedAt
         isFirstRead = true
+      }
+
+      if (prefetchValues.aliased) {
+        const result = handleAliasedPrefetchEntry(
+          navigatedAt,
+          state,
+          flightData,
+          url,
+          mutable
+        )
+
+        // We didn't return new router state because we didn't apply the aliased entry for some reason.
+        // We'll re-invoke the navigation handler but ensure that we don't attempt to use the aliased entry. This
+        // will create an on-demand prefetch entry.
+        if (result === false) {
+          return navigateReducer(state, { ...action, allowAliasing: false })
+        }
+
+        return result
       }
 
       // Handle case when navigating to page in `pages` from `app`
@@ -236,24 +278,6 @@ export function navigateReducer(
         mutable.hashFragment = hash
         mutable.scrollableSegments = []
         return handleMutable(state, mutable)
-      }
-
-      if (prefetchValues.aliased) {
-        const result = handleAliasedPrefetchEntry(
-          state,
-          flightData,
-          url,
-          mutable
-        )
-
-        // We didn't return new router state because we didn't apply the aliased entry for some reason.
-        // We'll re-invoke the navigation handler but ensure that we don't attempt to use the aliased entry. This
-        // will create an on-demand prefetch entry.
-        if (result === false) {
-          return navigateReducer(state, { ...action, allowAliasing: false })
-        }
-
-        return result
       }
 
       let currentTree = state.tree
@@ -307,12 +331,14 @@ export function navigateReducer(
             postponed
           ) {
             const task = startPPRNavigation(
+              navigatedAt,
               currentCache,
               currentTree,
               treePatch,
               seedData,
               head,
               isHeadPartial,
+              false,
               scrollableSegments
             )
 
@@ -405,9 +431,10 @@ export function navigateReducer(
               )
               // since we re-used the stale cache's loading state & refreshed the data,
               // update the `lastUsedTime` so that it can continue to be re-used for the next 30s
-              prefetchValues.lastUsedTime = Date.now()
+              prefetchValues.lastUsedTime = navigatedAt
             } else {
               applied = applyFlightData(
+                navigatedAt,
                 currentCache,
                 cache,
                 normalizedFlightData,

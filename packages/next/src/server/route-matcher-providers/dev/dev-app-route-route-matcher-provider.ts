@@ -19,16 +19,19 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
     bundlePath: Normalizer
   }
   private readonly appDir: string
+  private readonly isTurbopack: boolean
 
   constructor(
     appDir: string,
     extensions: ReadonlyArray<string>,
-    reader: FileReader
+    reader: FileReader,
+    isTurbopack: boolean
   ) {
     super(appDir, reader)
 
     this.appDir = appDir
-    this.normalizers = new DevAppNormalizers(appDir, extensions)
+    this.isTurbopack = isTurbopack
+    this.normalizers = new DevAppNormalizers(appDir, extensions, isTurbopack)
   }
 
   protected async transform(
@@ -36,13 +39,21 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
   ): Promise<ReadonlyArray<AppRouteRouteMatcher>> {
     const matchers: Array<AppRouteRouteMatcher> = []
     for (const filename of files) {
-      const page = this.normalizers.page.normalize(filename)
+      let page = this.normalizers.page.normalize(filename)
 
       // If the file isn't a match for this matcher, then skip it.
       if (!isAppRouteRoute(page)) continue
 
       // Validate that this is not an ignored page.
       if (page.includes('/_')) continue
+
+      // Turbopack uses the correct page name with the underscore normalized.
+      // TODO: Move implementation to packages/next/src/server/normalizers/built/app/app-page-normalizer.ts.
+      // The `includes('/_')` check above needs to be moved for that to work as otherwise `%5Fsegmentname`
+      // will result in `_segmentname` which hits that includes check and be skipped.
+      if (this.isTurbopack) {
+        page = page.replace(/%5F/g, '_')
+      }
 
       const pathname = this.normalizers.pathname.normalize(filename)
       const bundlePath = this.normalizers.bundlePath.normalize(filename)
@@ -53,7 +64,7 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
         true
       )
 
-      if (!isStaticMetadataRoute(page) && isEntryMetadataRouteFile) {
+      if (isEntryMetadataRouteFile && !isStaticMetadataRoute(page)) {
         // Matching dynamic metadata routes.
         // Add 2 possibilities for both single and multiple routes:
         {

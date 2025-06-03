@@ -1,6 +1,6 @@
 use anyhow::Result;
 use swc_core::{
-    common::errors::{Handler, HANDLER},
+    common::errors::{HANDLER, Handler},
     ecma::{
         ast::{CallExpr, Expr, ExprOrSpread},
         visit::{Visit, VisitWith},
@@ -13,10 +13,10 @@ use turbopack_core::{
 };
 use turbopack_swc_utils::emitter::IssueEmitter;
 
-use super::{parse::WebpackRuntime, WebpackChunkAssetReference};
+use super::{WebpackChunkAssetReference, parse::WebpackRuntime};
 use crate::{
-    parse::{parse, ParseResult},
     EcmascriptInputTransforms, EcmascriptModuleAssetType,
+    parse::{ParseResult, parse},
 };
 
 #[turbo_tasks::function]

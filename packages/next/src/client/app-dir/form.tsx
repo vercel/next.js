@@ -17,9 +17,9 @@ import {
   type FormProps,
 } from '../form-shared'
 import {
-  mountLinkInstance,
-  unmountLinkInstance,
-} from '../components/segment-cache/links'
+  mountFormInstance,
+  unmountPrefetchableInstance,
+} from '../components/links'
 
 export type { FormProps }
 
@@ -99,10 +99,10 @@ export default function Form({
   const observeFormVisibilityOnMount = useCallback(
     (element: HTMLFormElement) => {
       if (isPrefetchEnabled && router !== null) {
-        mountLinkInstance(element, actionProp, router, PrefetchKind.AUTO)
+        mountFormInstance(element, actionProp, router, PrefetchKind.AUTO)
       }
       return () => {
-        unmountLinkInstance(element)
+        unmountPrefetchableInstance(element)
       }
     },
     [isPrefetchEnabled, actionProp, router]

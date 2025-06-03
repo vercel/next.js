@@ -4,8 +4,8 @@ use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::introspect::{Introspectable, IntrospectableChildren};
 
 use super::{
-    route_tree::{RouteTree, RouteTrees},
     ContentSource,
+    route_tree::{RouteTree, RouteTrees},
 };
 use crate::source::ContentSources;
 

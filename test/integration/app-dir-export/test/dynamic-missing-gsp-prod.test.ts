@@ -10,7 +10,7 @@ describe('app dir - with output export - dynamic missing gsp prod', () => {
           dynamicPage: 'undefined',
           generateStaticParamsOpt: 'set noop',
           expectedErrMsg:
-            'Page "/another/[slug]" is missing "generateStaticParams()" so it cannot be used with "output: export" config.',
+            /Page ".*\/another\/\[slug\].*" is missing "generateStaticParams\(\)" so it cannot be used with "output: export" config\./,
         })
       })
 
@@ -20,7 +20,7 @@ describe('app dir - with output export - dynamic missing gsp prod', () => {
           dynamicPage: 'undefined',
           generateStaticParamsOpt: 'set client',
           expectedErrMsg:
-            'Page "/another/[slug]/page" cannot use both "use client" and export function "generateStaticParams()".',
+            /Page ".*\/another\/\[slug\]\/page.*" cannot use both "use client" and export function "generateStaticParams\(\)"\./,
         })
       })
     }

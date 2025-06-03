@@ -101,10 +101,4 @@ export const styles = `
       }
     }
   }
-
-  @media (prefers-color-scheme: dark) {
-    .error-overlay-bottom-stack-layer {
-      border-color: var(--color-gray-400);
-    }
-  }
 `

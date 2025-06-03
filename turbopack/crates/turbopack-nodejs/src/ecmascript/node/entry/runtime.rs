@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use indoc::writedoc;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
@@ -38,9 +38,10 @@ impl EcmascriptBuildNodeRuntimeChunk {
 
         let output_root_to_root_path = this.chunking_context.output_root_to_root_path().await?;
         let output_root = this.chunking_context.output_root().await?;
-        let generate_source_map = this
+        let generate_source_map = *this
             .chunking_context
-            .reference_chunk_source_maps(Vc::upcast(self));
+            .reference_chunk_source_maps(Vc::upcast(self))
+            .await?;
         let runtime_path = self.path().await?;
         let runtime_public_path = if let Some(path) = output_root.get_path_to(&runtime_path) {
             path
@@ -92,6 +93,25 @@ impl EcmascriptBuildNodeRuntimeChunk {
 
         Ok(Code::cell(code.build()))
     }
+
+    #[turbo_tasks::function]
+    fn ident_for_path(self: Vc<Self>) -> Vc<AssetIdent> {
+        AssetIdent::from_path(
+            turbopack_ecmascript_runtime::embed_fs()
+                .root()
+                .join("runtime.js".into()),
+        )
+    }
+
+    #[turbo_tasks::function]
+    async fn source_map(self: Vc<Self>) -> Result<Vc<SourceMapAsset>> {
+        let this = self.await?;
+        Ok(SourceMapAsset::new(
+            Vc::upcast(*this.chunking_context),
+            self.ident_for_path(),
+            Vc::upcast(self),
+        ))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -105,14 +125,13 @@ impl ValueToString for EcmascriptBuildNodeRuntimeChunk {
 #[turbo_tasks::value_impl]
 impl OutputAsset for EcmascriptBuildNodeRuntimeChunk {
     #[turbo_tasks::function]
-    fn path(&self) -> Vc<FileSystemPath> {
-        let ident = AssetIdent::from_path(
-            turbopack_ecmascript_runtime::embed_fs()
-                .root()
-                .join("runtime.js".into()),
-        );
+    async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+        let this = self.await?;
+        let ident = self.ident_for_path();
 
-        self.chunking_context.chunk_path(ident, ".js".into())
+        Ok(this
+            .chunking_context
+            .chunk_path(Some(Vc::upcast(self)), ident, ".js".into()))
     }
 
     #[turbo_tasks::function]
@@ -125,9 +144,7 @@ impl OutputAsset for EcmascriptBuildNodeRuntimeChunk {
             .reference_chunk_source_maps(Vc::upcast(self))
             .await?
         {
-            references.push(ResolvedVc::upcast(
-                SourceMapAsset::new(Vc::upcast(self)).to_resolved().await?,
-            ))
+            references.push(ResolvedVc::upcast(self.source_map().to_resolved().await?))
         }
 
         Ok(Vc::cell(references))

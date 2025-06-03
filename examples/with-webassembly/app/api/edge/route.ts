@@ -1,6 +1,6 @@
 import type * as addWasmModule from "../../../add.wasm";
 // @ts-ignore
-import addWasm from "../../add.wasm?module";
+import addWasm from "../../../add.wasm?module";
 
 const module$ = WebAssembly.instantiate(addWasm);
 

@@ -1,1 +1,1 @@
-console.log("this is the content of module.js")
+console.log('this is the content of module.js')

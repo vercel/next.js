@@ -3,13 +3,13 @@ use std::ops::Deref;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
+    NonLocalValue,
     debug::ValueDebugFormat,
     trace::{TraceRawVcs, TraceRawVcsContext},
-    NonLocalValue,
 };
 
 #[derive(Clone, Debug, ValueDebugFormat, Serialize, Deserialize)]
-pub struct TracedDiGraph<N, E>(DiGraph<N, E>);
+pub struct TracedDiGraph<N, E>(pub DiGraph<N, E>);
 impl<N, E> Default for TracedDiGraph<N, E> {
     fn default() -> Self {
         Self(Default::default())

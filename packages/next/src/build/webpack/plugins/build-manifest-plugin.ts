@@ -17,11 +17,8 @@ import type { BuildManifest } from '../../../server/get-page-files'
 import getRouteFromEntrypoint from '../../../server/get-route-from-entrypoint'
 import { ampFirstEntryNamesMap } from './next-drop-client-page-plugin'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
-import { spans as webpackSpans } from './profiling-plugin'
-import { compilationSpans as rspackSpans } from './rspack-profiling-plugin'
 import { Span } from '../../../trace'
-
-const compilationSpans = process.env.NEXT_RSPACK ? rspackSpans : webpackSpans
+import { getCompilationSpan } from '../utils'
 
 type DeepMutable<T> = { -readonly [P in keyof T]: DeepMutable<T[P]> }
 
@@ -39,10 +36,12 @@ function buildNodejsLowPriorityPath(filename: string, buildId: string) {
   return `${CLIENT_STATIC_FILES_PATH}/${buildId}/${filename}`
 }
 
-function createEdgeRuntimeManifest(originAssetMap: BuildManifest): string {
+export function createEdgeRuntimeManifest(
+  originAssetMap: Partial<BuildManifest>
+): string {
   const manifestFilenames = ['_buildManifest.js', '_ssgManifest.js']
 
-  const assetMap: BuildManifest = {
+  const assetMap: Partial<BuildManifest> = {
     ...originAssetMap,
     lowPriorityFiles: [],
   }
@@ -109,9 +108,9 @@ export function generateClientManifest(
   compilation?: any
 ): string | undefined {
   const compilationSpan = compilation
-    ? compilationSpans.get(compilation)
+    ? getCompilationSpan(compilation)
     : compiler
-      ? compilationSpans.get(compiler)
+      ? getCompilationSpan(compiler)
       : new Span({ name: 'client-manifest' })
 
   const genClientManifestSpan = compilationSpan?.traceChild(
@@ -205,7 +204,7 @@ export default class BuildManifestPlugin {
 
   createAssets(compiler: any, compilation: any) {
     const compilationSpan =
-      compilationSpans.get(compilation) ?? compilationSpans.get(compiler)
+      getCompilationSpan(compilation) ?? getCompilationSpan(compiler)
     if (!compilationSpan) {
       throw new Error('No span found for compilation')
     }

@@ -17,7 +17,9 @@ function normalizeCodeLocInfo(str) {
 }
 
 describe.each(
-  ['default', process.env.TURBOPACK ? undefined : 'babelrc'].filter(Boolean)
+  ['default', process.env.IS_TURBOPACK_TEST ? undefined : 'babelrc'].filter(
+    Boolean
+  )
 )('react-compiler %s', (variant) => {
   const dependencies = (global as any).isNextDeploy
     ? // `link` is incompatible with the npm version used when this test is deployed

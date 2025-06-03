@@ -1,5 +1,4 @@
 import { nextTestSetup } from 'e2e-utils'
-import type * as Playwright from 'playwright'
 import { createRouterAct } from '../router-act'
 
 describe('segment cache memory pressure', () => {
@@ -15,7 +14,7 @@ describe('segment cache memory pressure', () => {
   it('evicts least recently used prefetch data once cache size exceeds limit', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/memory-pressure', {
-      beforePageLoad(page: Playwright.Page) {
+      beforePageLoad(page) {
         act = createRouterAct(page)
       },
     })

@@ -36,7 +36,7 @@ import type { NextFontManifest } from '../build/webpack/plugins/next-font-manife
 import type { PagesModule } from './route-modules/pages/module'
 import type { ComponentsEnhancer } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
-import type { Revalidate, ExpireTime } from './lib/revalidate'
+import type { Revalidate } from './lib/cache-control'
 import type { COMPILER_NAMES } from '../shared/lib/constants'
 
 import React, { type JSX } from 'react'
@@ -100,10 +100,11 @@ import {
 import { getTracer } from './lib/trace/tracer'
 import { RenderSpan } from './lib/trace/constants'
 import { ReflectAdapter } from './web/spec-extension/adapters/reflect'
-import { formatRevalidate } from './lib/revalidate'
+import { getCacheControlHeader } from './lib/cache-control'
 import { getErrorSource } from '../shared/lib/error-source'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import type { PagesDevOverlayType } from '../client/components/react-dev-overlay/pages/pages-dev-overlay'
+import { getScriptNonceFromHeader } from './app-render/get-script-nonce-from-header'
 
 let tryGetPreviewData: typeof import('./api-utils/node/try-get-preview-data').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -280,10 +281,11 @@ export type RenderOptsPartial = {
   largePageDataBytes?: number
   isOnDemandRevalidate?: boolean
   strictNextHead: boolean
-  isServerAction?: boolean
+  isPossibleServerAction?: boolean
   isExperimentalCompile?: boolean
   isPrefetch?: boolean
-  expireTime?: ExpireTime
+  isBot?: boolean
+  expireTime?: number
   experimental: {
     clientTraceMetadata?: string[]
   }
@@ -557,10 +559,7 @@ export async function renderToHTMLImpl(
   if (isAutoExport && !dev && isExperimentalCompile) {
     res.setHeader(
       'Cache-Control',
-      formatRevalidate({
-        revalidate: false,
-        expireTime,
-      })
+      getCacheControlHeader({ revalidate: false, expire: expireTime })
     )
     isAutoExport = false
   }
@@ -742,6 +741,13 @@ export async function renderToHTMLImpl(
       .map((script: any) => script.props)
   }
 
+  const csp =
+    req.headers['content-security-policy'] ||
+    req.headers['content-security-policy-report-only']
+
+  const nonce =
+    typeof csp === 'string' ? getScriptNonceFromHeader(csp) : undefined
+
   const AppContainer = ({ children }: { children: JSX.Element }) => (
     <AppRouterContext.Provider value={appRouter}>
       <SearchParamsContext.Provider value={adaptForSearchParams(router)}>
@@ -762,6 +768,7 @@ export async function renderToHTMLImpl(
                     },
                     scripts: initialScripts,
                     mountedInstances: new Set(),
+                    nonce,
                   }}
                 >
                   <LoadableContext.Provider
@@ -845,7 +852,7 @@ export async function renderToHTMLImpl(
       const { html, head: renderPageHead } = await docCtx.renderPage({
         enhanceApp,
       })
-      const styles = jsxStyleRegistry.styles({ nonce: options.nonce })
+      const styles = jsxStyleRegistry.styles({ nonce: options.nonce || nonce })
       jsxStyleRegistry.flush()
       return { html, head: renderPageHead, styles }
     },
@@ -1052,8 +1059,8 @@ export async function renderToHTMLImpl(
       'props' in data ? data.props : undefined
     )
 
-    // pass up revalidate and props for export
-    metadata.revalidate = revalidate
+    // pass up cache control and props for export
+    metadata.cacheControl = { revalidate, expire: undefined }
     metadata.pageData = props
 
     // this must come after revalidate is added to renderResultMeta
@@ -1126,7 +1133,7 @@ export async function renderToHTMLImpl(
           })
       )
       canAccessRes = false
-      metadata.revalidate = 0
+      metadata.cacheControl = { revalidate: 0, expire: undefined }
     } catch (serverSidePropsError: any) {
       // remove not found error code to prevent triggering legacy
       // 404 rendering
@@ -1506,6 +1513,7 @@ export async function renderToHTMLImpl(
       isPreview: isPreview === true ? true : undefined,
       notFoundSrcPage: notFoundSrcPage && dev ? notFoundSrcPage : undefined,
     },
+    nonce,
     strictNextHead: renderOpts.strictNextHead,
     buildManifest: filteredBuildManifest,
     docComponentsRendered,

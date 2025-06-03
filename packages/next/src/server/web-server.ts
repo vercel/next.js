@@ -10,7 +10,7 @@ import type {
   Options,
   RouteHandler,
 } from './base-server'
-import type { Revalidate, ExpireTime } from './lib/revalidate'
+import type { CacheControl } from './lib/cache-control'
 
 import { byteLength } from './api-utils/web'
 import BaseServer, { NoFallbackError } from './base-server'
@@ -21,7 +21,7 @@ import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import {
   interpolateDynamicPath,
-  normalizeVercelUrl,
+  normalizeCdnUrl,
   normalizeDynamicRouteParams,
 } from './server-utils'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
@@ -186,7 +186,7 @@ export default class NextWebServer extends BaseServer<
           normalizedParams,
           routeRegex
         )
-        normalizeVercelUrl(req, Object.keys(routeRegex.routeKeys), routeRegex)
+        normalizeCdnUrl(req, Object.keys(routeRegex.routeKeys), routeRegex)
       }
     }
 
@@ -261,8 +261,7 @@ export default class NextWebServer extends BaseServer<
       type: 'html' | 'json'
       generateEtags: boolean
       poweredByHeader: boolean
-      revalidate: Revalidate | undefined
-      expireTime: ExpireTime | undefined
+      cacheControl: CacheControl | undefined
     }
   ): Promise<void> {
     res.setHeader('X-Edge-Runtime', '1')

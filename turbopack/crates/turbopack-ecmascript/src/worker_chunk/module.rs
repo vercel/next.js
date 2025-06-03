@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -15,11 +15,6 @@ use turbopack_core::{
 };
 
 use super::chunk_item::WorkerLoaderChunkItem;
-
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("worker loader".into())
-}
 
 /// The WorkerLoaderModule is a module that creates a separate root chunk group for the given module
 /// and exports a URL to pass to the worker constructor.
@@ -37,7 +32,7 @@ impl WorkerLoaderModule {
 
     #[turbo_tasks::function]
     pub fn asset_ident_for(module: Vc<Box<dyn ChunkableModule>>) -> Vc<AssetIdent> {
-        module.ident().with_modifier(modifier())
+        module.ident().with_modifier(rcstr!("worker loader"))
     }
 }
 
@@ -62,7 +57,7 @@ impl Module for WorkerLoaderModule {
 impl Asset for WorkerLoaderModule {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
-        todo!()
+        panic!("content() should not be called");
     }
 }
 

@@ -1,4 +1,4 @@
-function _AwaitValue(value) {
-  this.wrapped = value;
+function _AwaitValue(t) {
+  this.wrapped = t;
 }
 module.exports = _AwaitValue, module.exports.__esModule = true, module.exports["default"] = module.exports;

@@ -3,8 +3,8 @@ use std::collections::HashSet;
 use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    graph::{AdjacencyMap, GraphTraversal},
     FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
+    graph::{AdjacencyMap, GraphTraversal},
 };
 
 use crate::{
@@ -102,7 +102,10 @@ impl SingleChunkableModuleReference {
 impl ChunkableModuleReference for SingleChunkableModuleReference {
     #[turbo_tasks::function]
     fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::ParallelInheritAsync))
+        Vc::cell(Some(ChunkingType::Parallel {
+            inherit_async: true,
+            hoisted: false,
+        }))
     }
 }
 
@@ -282,6 +285,7 @@ pub struct ModulesWithChunkingType(Vec<(ChunkingType, ModulesVec)>);
 #[turbo_tasks::function]
 pub async fn primary_chunkable_referenced_modules(
     module: Vc<Box<dyn Module>>,
+    include_traced: bool,
 ) -> Result<Vc<ModulesWithChunkingType>> {
     let modules = module
         .references()
@@ -292,6 +296,10 @@ pub async fn primary_chunkable_referenced_modules(
                 ResolvedVc::try_downcast::<Box<dyn ChunkableModuleReference>>(*reference)
             {
                 if let Some(chunking_type) = &*reference.chunking_type().await? {
+                    if !include_traced && matches!(chunking_type, ChunkingType::Traced) {
+                        return Ok(None);
+                    }
+
                     let resolved = reference
                         .resolve_reference()
                         .resolve()

@@ -1,24 +1,14 @@
-import { DevToolsInfo } from './dev-tools-info'
+import { DevToolsInfo, type DevToolsInfoPropsCore } from './dev-tools-info'
 import { CopyButton } from '../../../copy-button'
+import type { HTMLProps } from 'react'
 
-export function TurbopackInfo({
-  isOpen,
-  setIsOpen,
-  setPreviousOpen,
-  ...props
-}: {
-  isOpen: boolean
-  setIsOpen: (isOpen: boolean) => void
-  setPreviousOpen: (isOpen: boolean) => void
-  style?: React.CSSProperties
-  ref?: React.RefObject<HTMLElement | null>
-}) {
+export function TurbopackInfo(
+  props: DevToolsInfoPropsCore & HTMLProps<HTMLDivElement>
+) {
   return (
     <DevToolsInfo
       title="Turbopack"
       learnMoreLink="https://nextjs.org/docs/app/api-reference/turbopack"
-      setIsOpen={setIsOpen}
-      setPreviousOpen={setPreviousOpen}
       {...props}
     >
       <article className="dev-tools-info-article">

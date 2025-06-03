@@ -17,10 +17,14 @@ import {
   type PrerenderStoreModern,
 } from '../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { describeStringPropertyAccess, wellKnownProperties } from './utils'
+import {
+  describeStringPropertyAccess,
+  wellKnownProperties,
+} from '../../shared/lib/utils/reflect-utils'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { scheduleImmediate } from '../../lib/scheduler'
+import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
 
 export type ParamValue = string | Array<string> | undefined
 export type Params = Record<string, ParamValue>
@@ -61,6 +65,7 @@ export function createParamsFromClient(
   if (workUnitStore) {
     switch (workUnitStore.type) {
       case 'prerender':
+      case 'prerender-client':
       case 'prerender-ppr':
       case 'prerender-legacy':
         return createPrerenderParams(underlyingParams, workStore, workUnitStore)
@@ -84,6 +89,7 @@ export function createServerParamsForRoute(
   if (workUnitStore) {
     switch (workUnitStore.type) {
       case 'prerender':
+      case 'prerender-client':
       case 'prerender-ppr':
       case 'prerender-legacy':
         return createPrerenderParams(underlyingParams, workStore, workUnitStore)
@@ -102,6 +108,7 @@ export function createServerParamsForServerSegment(
   if (workUnitStore) {
     switch (workUnitStore.type) {
       case 'prerender':
+      case 'prerender-client':
       case 'prerender-ppr':
       case 'prerender-legacy':
         return createPrerenderParams(underlyingParams, workStore, workUnitStore)
@@ -117,7 +124,11 @@ export function createPrerenderParamsForClientSegment(
   workStore: WorkStore
 ): Promise<Params> {
   const prerenderStore = workUnitAsyncStorage.getStore()
-  if (prerenderStore && prerenderStore.type === 'prerender') {
+  if (
+    prerenderStore &&
+    (prerenderStore.type === 'prerender' ||
+      prerenderStore.type === 'prerender-client')
+  ) {
     const fallbackParams = workStore.fallbackRouteParams
     if (fallbackParams) {
       for (let key in underlyingParams) {
@@ -153,24 +164,23 @@ function createPrerenderParams(
 
     if (hasSomeFallbackParams) {
       // params need to be treated as dynamic because we have at least one fallback param
-      if (prerenderStore.type === 'prerender') {
-        // We are in a dynamicIO (PPR or otherwise) prerender
-        return makeAbortingExoticParams(
-          underlyingParams,
-          workStore.route,
-          prerenderStore
-        )
+      switch (prerenderStore.type) {
+        case 'prerender':
+        case 'prerender-client':
+          // We are in a dynamicIO prerender
+          return makeAbortingExoticParams(
+            underlyingParams,
+            workStore.route,
+            prerenderStore
+          )
+        default:
+          return makeErroringExoticParams(
+            underlyingParams,
+            fallbackParams,
+            workStore,
+            prerenderStore
+          )
       }
-      // remaining cases are prerender-ppr and prerender-legacy
-      // We aren't in a dynamicIO prerender but we do have fallback params at this
-      // level so we need to make an erroring exotic params object which will postpone
-      // if you access the fallback params
-      return makeErroringExoticParams(
-        underlyingParams,
-        fallbackParams,
-        workStore,
-        prerenderStore
-      )
     }
   }
 
@@ -195,6 +205,33 @@ function createRenderParams(
 interface CacheLifetime {}
 const CachedParams = new WeakMap<CacheLifetime, Promise<Params>>()
 
+const fallbackParamsProxyHandler: ProxyHandler<Promise<Params>> = {
+  get: function get(target, prop, receiver) {
+    if (prop === 'then' || prop === 'catch' || prop === 'finally') {
+      const originalMethod = ReflectAdapter.get(target, prop, receiver)
+
+      return {
+        [prop]: (...args: unknown[]) => {
+          const store = dynamicAccessAsyncStorage.getStore()
+
+          if (store) {
+            store.abortController.abort(
+              new Error(`Accessed fallback \`params\` during prerendering.`)
+            )
+          }
+
+          return new Proxy(
+            originalMethod.apply(target, args),
+            fallbackParamsProxyHandler
+          )
+        },
+      }[prop]
+    }
+
+    return ReflectAdapter.get(target, prop, receiver)
+  },
+}
+
 function makeAbortingExoticParams(
   underlyingParams: Params,
   route: string,
@@ -205,10 +242,11 @@ function makeAbortingExoticParams(
     return cachedParams
   }
 
-  const promise = makeHangingPromise<Params>(
-    prerenderStore.renderSignal,
-    '`params`'
+  const promise = new Proxy(
+    makeHangingPromise<Params>(prerenderStore.renderSignal, '`params`'),
+    fallbackParamsProxyHandler
   )
+
   CachedParams.set(underlyingParams, promise)
 
   Object.keys(underlyingParams).forEach((prop) => {

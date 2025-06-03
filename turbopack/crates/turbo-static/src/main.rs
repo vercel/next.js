@@ -3,8 +3,8 @@ use std::{
     fs,
     path::PathBuf,
     sync::{
-        atomic::{AtomicBool, Ordering},
         Arc,
+        atomic::{AtomicBool, Ordering},
     },
 };
 
@@ -194,6 +194,7 @@ fn resolve_concurrency(
 
     for (ident, references) in dep_tree {
         for reference in references {
+            #[allow(clippy::map_entry)] // This doesn't insert into dep_tree, so entry isn't useful
             if !dep_tree.contains_key(&reference.identifier) {
                 // this is a task that is not in the task list
                 // so we can't resolve it
@@ -280,7 +281,7 @@ fn write_dep_tree(
             ident.name,
             ident.path,
             ident.range.start.line,
-            tags.iter().map(|t| format!("\"{}\"", t)).join(",")
+            tags.iter().map(|t| format!("\"{t}\"")).join(",")
         );
         node_ids.insert(ident, counter);
     }
@@ -296,6 +297,6 @@ fn write_dep_tree(
         let src_id = *node_ids.get(src).unwrap();
         let dst_id = *node_ids.get(dest).unwrap();
 
-        _ = writeln!(file, "CREATE (n_{})-[:{}]->(n_{})", src_id, style, dst_id,);
+        _ = writeln!(file, "CREATE (n_{src_id})-[:{style}]->(n_{dst_id})",);
     }
 }

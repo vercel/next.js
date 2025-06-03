@@ -1,15 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 
-// TODO: remove this env once streaming metadata is available for ppr
-process.env.__NEXT_EXPERIMENTAL_PPR = 'true'
-
 describe('app-dir - metadata-streaming-config', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   it('should have the default streaming metadata config output in routes-manifest.json', async () => {
     const requiredServerFiles = JSON.parse(
@@ -17,7 +11,7 @@ describe('app-dir - metadata-streaming-config', () => {
     )
 
     expect(requiredServerFiles.config.htmlLimitedBots).toMatchInlineSnapshot(
-      `"Mediapartners-Google|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview"`
+      `"Mediapartners-Google|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview|Yeti"`
     )
 
     const prerenderManifest = JSON.parse(
@@ -44,7 +38,7 @@ describe('app-dir - metadata-streaming-config', () => {
        "/ppr": {
          "key": "user-agent",
          "type": "header",
-         "value": "Mediapartners-Google|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview",
+         "value": "Mediapartners-Google|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview|Yeti",
        },
      }
     `)

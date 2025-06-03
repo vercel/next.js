@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 use swc_core::{
     common::util::take::Take,
@@ -7,17 +7,17 @@ use swc_core::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, Value, ValueToString,
-    Vc,
+    NonLocalValue, ResolvedVc, Value, ValueToString, Vc, debug::ValueDebugFormat,
+    trace::TraceRawVcs,
 };
 use turbopack_core::{
     chunk::{ChunkableModule, ChunkableModuleReference, ChunkingContext},
-    issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity, IssueSource, StyledString},
+    issue::{IssueExt, IssueSeverity, IssueSource, StyledString, code_gen::CodeGenerationIssue},
     module::Module,
     module_graph::ModuleGraph,
     reference::ModuleReference,
     reference_type::{ReferenceType, WorkerReferenceSubType},
-    resolve::{origin::ResolveOrigin, parse::Request, url_resolve, ModuleResolveResult},
+    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request, url_resolve},
 };
 
 use crate::{

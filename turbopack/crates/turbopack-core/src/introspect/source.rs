@@ -2,7 +2,7 @@ use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 
-use super::{utils::content_to_details, Introspectable};
+use super::{Introspectable, utils::content_to_details};
 use crate::{asset::Asset, source::Source};
 
 #[turbo_tasks::value]

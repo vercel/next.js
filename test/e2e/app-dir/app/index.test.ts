@@ -13,10 +13,20 @@ describe('app dir - basic', () => {
     nextTestSetup({
       files: __dirname,
       buildCommand: process.env.NEXT_EXPERIMENTAL_COMPILE
-        ? `pnpm next build --experimental-build-mode=compile`
+        ? 'pnpm compile-mode'
         : undefined,
+      packageJson: {
+        scripts: {
+          'compile-mode': process.env.NEXT_EXPERIMENTAL_COMPILE
+            ? `next build --experimental-build-mode=compile && next build --experimental-build-mode=generate-env`
+            : undefined,
+        },
+      },
       dependencies: {
         nanoid: '4.0.1',
+      },
+      env: {
+        NEXT_PUBLIC_TEST_ID: Date.now() + '',
       },
     })
 
@@ -164,7 +174,7 @@ describe('app dir - basic', () => {
   }
 
   // Turbopack has different chunking in dev/production which results in the entrypoint name not being included in the outputs.
-  if (!process.env.TURBOPACK) {
+  if (!process.env.IS_TURBOPACK_TEST) {
     it('should encode chunk path correctly', async () => {
       await next.fetch('/dynamic-client/first/second')
       const browser = await next.browser('/')
@@ -385,7 +395,7 @@ describe('app dir - basic', () => {
       const html = await next.render('/dashboard/index')
       expect(html).toMatch(
         isTurbopack
-          ? /<script src="\/_next\/static\/chunks\/[\w-]*polyfill-nomodule\.js" noModule="">/
+          ? /<script src="\/_next\/static\/chunks\/([\w-]*polyfill-nomodule|[0-9a-f]+)\.js" noModule="">/
           : /<script src="\/_next\/static\/chunks\/polyfills(-\w+)?\.js" noModule="">/
       )
     })
@@ -1722,6 +1732,57 @@ describe('app dir - basic', () => {
       }
     })
 
+    it('should pass manual `nonce`', async () => {
+      const html = await next.render('/script-manual-nonce')
+      const $ = cheerio.load(html)
+      let scripts = $('script, link[rel="preload"][as="script"]')
+
+      scripts = scripts.filter((_, element) =>
+        (element.attribs.src || element.attribs.href)?.startsWith('/test')
+      )
+
+      expect(scripts.length).toBeGreaterThan(0)
+
+      scripts.each((_, element) => {
+        expect(element.attribs.nonce).toBeTruthy()
+      })
+
+      if (!isNextDev) {
+        const browser = await next.browser('/script-manual-nonce')
+
+        await retry(async () => {
+          await browser.elementByCss('#get-order').click()
+          const order = JSON.parse(await browser.elementByCss('#order').text())
+          expect(order?.length).toBe(2)
+        })
+      }
+    })
+
+    it('should pass manual `nonce` pages', async () => {
+      const html = await next.render('/pages-script-manual-nonce')
+      const $ = cheerio.load(html)
+      let scripts = $('script, link[rel="preload"][as="script"]')
+
+      scripts = scripts.filter((_, element) =>
+        (element.attribs.src || element.attribs.href)?.startsWith('/test')
+      )
+
+      expect(scripts.length).toBeGreaterThan(0)
+
+      scripts.each((_, element) => {
+        expect(element.attribs.nonce).toBeTruthy()
+      })
+
+      if (!isNextDev) {
+        await retry(async () => {
+          const browser = await next.browser('/pages-script-manual-nonce')
+          await browser.elementByCss('#get-order').click()
+          const order = JSON.parse(await browser.elementByCss('#order').text())
+          expect(order?.length).toBe(2)
+        })
+      }
+    })
+
     it('should pass nonce when using next/font', async () => {
       const html = await next.render('/script-nonce/with-next-font')
       const $ = cheerio.load(html)
@@ -1788,4 +1849,34 @@ describe('app dir - basic', () => {
       })
     }
   })
+
+  // this one comes at the end to not change behavior from above
+  // assertions with compile mode specifically
+  // consider breaking out into separate fixture if we expand this any more
+  if (process.env.NEXT_EXPERIMENTAL_COMPILE) {
+    it('should run generate command correctly', async () => {
+      await next.stop()
+
+      next.buildCommand = `pnpm next build --experimental-build-mode=generate`
+      await next.start()
+
+      let browser = await next.browser('/')
+
+      expect(await browser.elementByCss('#my-env').text()).toBe(
+        next.env.NEXT_PUBLIC_TEST_ID
+      )
+      expect(await browser.elementByCss('#my-other-env').text()).toBe(
+        `${next.env.NEXT_PUBLIC_TEST_ID}-suffix`
+      )
+
+      browser = await next.browser('/dashboard/deployments/123')
+
+      expect(await browser.elementByCss('#my-env').text()).toBe(
+        next.env.NEXT_PUBLIC_TEST_ID
+      )
+      expect(await browser.elementByCss('#my-other-env').text()).toBe(
+        `${next.env.NEXT_PUBLIC_TEST_ID}-suffix`
+      )
+    })
+  }
 })

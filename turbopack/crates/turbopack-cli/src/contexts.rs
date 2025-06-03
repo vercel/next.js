@@ -1,16 +1,16 @@
 use std::fmt;
 
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack::{
+    ModuleAssetContext,
     ecmascript::TreeShakingMode,
     module_options::{
         EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext, ModuleRule,
         ModuleRuleEffect, RuleCondition, TypescriptTransformOptions,
     },
-    ModuleAssetContext,
 };
 use turbopack_browser::react_refresh::assert_can_resolve_react_refresh;
 use turbopack_core::{
@@ -192,7 +192,7 @@ pub fn get_client_asset_context(
         compile_time_info,
         module_options_context,
         resolve_options_context,
-        Vc::cell("client".into()),
+        rcstr!("client"),
     ));
 
     asset_context

@@ -23,10 +23,19 @@ export function logStartInfo({
   experimentalFeatures?: ConfiguredExperimentalFeature[]
   maxExperimentalFeatures?: number
 }) {
+  let bundlerSuffix
+  if (process.env.TURBOPACK) {
+    bundlerSuffix = ' (Turbopack)'
+  } else if (process.env.NEXT_RSPACK) {
+    bundlerSuffix = ' (Rspack)'
+  } else {
+    bundlerSuffix = ''
+  }
+
   Log.bootstrap(
     `${bold(
       purple(`${Log.prefixes.ready} Next.js ${process.env.__NEXT_VERSION}`)
-    )}${process.env.TURBOPACK ? ' (Turbopack)' : ''}`
+    )}${bundlerSuffix}`
   )
   if (appUrl) {
     Log.bootstrap(`- Local:        ${appUrl}`)

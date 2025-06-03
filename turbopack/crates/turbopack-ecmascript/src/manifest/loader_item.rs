@@ -1,8 +1,8 @@
 use std::io::Write as _;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use indoc::writedoc;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
     chunk::{
@@ -18,16 +18,15 @@ use turbopack_core::{
 use super::chunk_asset::ManifestAsyncModule;
 use crate::{
     chunk::{
-        data::EcmascriptChunkData, EcmascriptChunkItem, EcmascriptChunkItemContent,
-        EcmascriptChunkPlaceable, EcmascriptChunkType,
+        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
+        EcmascriptChunkType, data::EcmascriptChunkData,
     },
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_LOAD, TURBOPACK_REQUIRE},
     utils::{StringifyJs, StringifyModuleId},
 };
 
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("loader".into())
+fn modifier() -> RcStr {
+    rcstr!("loader")
 }
 
 /// The manifest loader item is shipped in the same chunk that uses the dynamic

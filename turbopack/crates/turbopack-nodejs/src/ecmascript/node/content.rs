@@ -1,22 +1,16 @@
-use std::io::Write;
-
 use anyhow::Result;
 use indoc::writedoc;
-use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, Vc};
-use turbo_tasks_fs::File;
+use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks_fs::{File, rope::RopeBuilder};
 use turbopack_core::{
     asset::AssetContent,
-    chunk::{ChunkItemExt, ChunkingContext, MinifyType, ModuleId},
+    chunk::{ChunkingContext, MinifyType},
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
-    source_map::{GenerateSourceMap, OptionStringifiedSourceMap},
+    source_map::{GenerateSourceMap, OptionStringifiedSourceMap, SourceMapAsset},
     version::{Version, VersionedContent},
 };
-use turbopack_ecmascript::{
-    chunk::{EcmascriptChunkContent, EcmascriptChunkItemExt, EcmascriptChunkItemWithAsyncInfo},
-    minify::minify,
-    utils::StringifyJs,
-};
+use turbopack_ecmascript::{chunk::EcmascriptChunkContent, minify::minify, utils::StringifyJs};
 
 use super::{chunk::EcmascriptBuildNodeChunk, version::EcmascriptBuildNodeChunkVersion};
 use crate::NodeJsChunkingContext;
@@ -26,6 +20,7 @@ pub(super) struct EcmascriptBuildNodeChunkContent {
     pub(super) content: ResolvedVc<EcmascriptChunkContent>,
     pub(super) chunking_context: ResolvedVc<NodeJsChunkingContext>,
     pub(super) chunk: ResolvedVc<EcmascriptBuildNodeChunk>,
+    pub(super) source_map: ResolvedVc<SourceMapAsset>,
 }
 
 #[turbo_tasks::value_impl]
@@ -35,49 +30,28 @@ impl EcmascriptBuildNodeChunkContent {
         chunking_context: ResolvedVc<NodeJsChunkingContext>,
         chunk: ResolvedVc<EcmascriptBuildNodeChunk>,
         content: ResolvedVc<EcmascriptChunkContent>,
+        source_map: ResolvedVc<SourceMapAsset>,
     ) -> Vc<Self> {
         EcmascriptBuildNodeChunkContent {
             content,
             chunking_context,
             chunk,
+            source_map,
         }
         .cell()
     }
-}
-
-pub(super) async fn chunk_items(
-    content: Vc<EcmascriptChunkContent>,
-) -> Result<Vec<(ReadRef<ModuleId>, ReadRef<Code>)>> {
-    content
-        .await?
-        .chunk_items
-        .iter()
-        .map(
-            async |&EcmascriptChunkItemWithAsyncInfo {
-                       chunk_item,
-                       async_info,
-                       ..
-                   }| {
-                Ok((
-                    chunk_item.id().await?,
-                    chunk_item.code(async_info.map(|info| *info)).await?,
-                ))
-            },
-        )
-        .try_join()
-        .await
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptBuildNodeChunkContent {
     #[turbo_tasks::function]
     async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
+        use std::io::Write;
         let this = self.await?;
-        let source_maps = this
+        let source_maps = *this
             .chunking_context
-            .reference_chunk_source_maps(*ResolvedVc::upcast(this.chunk));
-        let chunk_path_vc = this.chunk.path();
-        let chunk_path = chunk_path_vc.await?;
+            .reference_chunk_source_maps(*ResolvedVc::upcast(this.chunk))
+            .await?;
 
         let mut code = CodeBuilder::default();
 
@@ -89,30 +63,25 @@ impl EcmascriptBuildNodeChunkContent {
             "#,
         )?;
 
-        for (id, item_code) in chunk_items(*this.content).await? {
-            write!(code, "{}: ", StringifyJs(&id))?;
-            code.push_code(&item_code);
-            writeln!(code, ",")?;
+        let content = this.content.await?;
+        let chunk_items = content.chunk_item_code_and_ids().await?;
+        for item in chunk_items {
+            for (id, item_code) in item {
+                write!(code, "{}: ", StringifyJs(&id))?;
+                code.push_code(item_code);
+                writeln!(code, ",")?;
+            }
         }
 
         write!(code, "\n}};")?;
 
-        if *source_maps.await? && code.has_source_map() {
-            let filename = chunk_path.file_name();
-            write!(
-                code,
-                "\n\n//# sourceMappingURL={}.map",
-                urlencoding::encode(filename)
-            )?;
-        }
-
-        let code = code.build().cell();
+        let mut code = code.build();
 
         if let MinifyType::Minify { mangle } = this.chunking_context.await?.minify_type() {
-            return Ok(minify(chunk_path_vc, code, source_maps, mangle));
+            code = minify(code, source_maps, mangle)?;
         }
 
-        Ok(code)
+        Ok(code.cell())
     }
 
     #[turbo_tasks::function]
@@ -138,10 +107,25 @@ impl GenerateSourceMap for EcmascriptBuildNodeChunkContent {
 impl VersionedContent for EcmascriptBuildNodeChunkContent {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
+        let this = self.await?;
         let code = self.code().await?;
-        Ok(AssetContent::file(
-            File::from(code.source_code().clone()).into(),
-        ))
+
+        let rope = if code.has_source_map() {
+            use std::io::Write;
+            let mut rope_builder = RopeBuilder::default();
+            rope_builder.concat(code.source_code());
+            let source_map_path = this.source_map.path().await?;
+            write!(
+                rope_builder,
+                "\n\n//# sourceMappingURL={}",
+                urlencoding::encode(source_map_path.file_name())
+            )?;
+            rope_builder.build()
+        } else {
+            code.source_code().clone()
+        };
+
+        Ok(AssetContent::file(File::from(rope).into()))
     }
 
     #[turbo_tasks::function]

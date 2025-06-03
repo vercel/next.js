@@ -69,7 +69,7 @@ async function main() {
   await octokit.rest.issues.addLabels({
     owner,
     repo,
-    issue_number: pullRequest.number,
+    issue_number: pullRequest.data.number,
     labels: ['run-react-18-tests'],
   })
 

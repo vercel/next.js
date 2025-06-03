@@ -1,5 +1,4 @@
 import { nextTestSetup } from 'e2e-utils'
-import type * as Playwright from 'playwright'
 import { createRouterAct } from '../router-act'
 
 describe('segment cache (incremental opt in)', () => {
@@ -25,9 +24,9 @@ describe('segment cache (incremental opt in)', () => {
 
     let act
     const browser = await next.browser('/', {
-      async beforePageLoad(page: Playwright.Page) {
+      async beforePageLoad(page) {
         act = createRouterAct(page)
-        await page.route('**/*', async (route: Playwright.Route) => {
+        await page.route('**/*', async (route) => {
           const request = route.request()
           const isPrefetch =
             request.headerValue('rsc') !== null &&
@@ -93,13 +92,156 @@ describe('segment cache (incremental opt in)', () => {
       testPrefetchDeduping('/ppr-disabled-with-loading-boundary'))
   })
 
+  it('prefetches a dynamic route when PPR is disabled if it has a loading.tsx boundary', async () => {
+    let act
+    const browser = await next.browser('/', {
+      beforePageLoad(p) {
+        act = createRouterAct(p)
+      },
+    })
+
+    // Initiate a prefetch for a dynamic page with no PPR, but with a
+    // loading.tsx boundary. We should be able to prefetch up to the
+    // loading boundary.
+    await act(async () => {
+      const checkbox = await browser.elementByCss(
+        `input[data-link-accordion="/ppr-disabled-with-loading-boundary"]`
+      )
+      await checkbox.click()
+    }, [
+      // Response includes the loading boundary
+      { includes: 'Loading...' },
+      // but it does not include the dynamic page content
+      { includes: 'Page content', block: 'reject' },
+    ])
+
+    // Navigate to the page
+    await act(
+      async () => {
+        await browser
+          .elementByCss(`a[href="/ppr-disabled-with-loading-boundary"]`)
+          .click()
+        // We can immediately render the loading boundary before the network
+        // responds, because it was prefetched
+        const loadingBoundary = await browser.elementById('loading-boundary')
+        expect(await loadingBoundary.text()).toBe('Loading...')
+      },
+      // The page content is fetched on navigation
+      { includes: 'Page content' }
+    )
+    const pageContent = await browser.elementById('page-content')
+    expect(await pageContent.text()).toBe('Page content')
+  })
+
+  it(
+    'skips prefetching a dynamic route when PPR is disabled if everything up ' +
+      'to its loading.tsx boundary is already cached',
+    async () => {
+      let act
+      const browser = await next.browser('/', {
+        beforePageLoad(p) {
+          act = createRouterAct(p)
+        },
+      })
+
+      // Initiate a prefetch for a dynamic page with no PPR, but with a
+      // loading.tsx boundary. We should be able to prefetch up to the
+      // loading boundary.
+      await act(async () => {
+        const checkbox = await browser.elementByCss(
+          `input[data-link-accordion="/ppr-disabled-with-loading-boundary"]`
+        )
+        await checkbox.click()
+      }, [
+        // Response includes the loading boundary
+        { includes: 'Loading...' },
+        // but it does not include the dynamic page content
+        { includes: 'Page content', block: 'reject' },
+      ])
+
+      // When prefetching a different page with the same loading boundary,
+      // we should not need to fetch the loading boundary again
+      await act(
+        async () => {
+          const checkbox = await browser.elementByCss(
+            `input[data-link-accordion="/ppr-disabled-with-loading-boundary/child"]`
+          )
+          await checkbox.click()
+        },
+        // This assertion will fail if more than one request includes the given
+        // string. Because the string appears in the FlightRouterState for the
+        // page, it effectively asserts that only one prefetch request is issued
+        // — the one for the route tree.
+        { includes: 'ppr-disabled-with-loading-boundary' }
+      )
+
+      // Navigate to the page
+      await act(async () => {
+        await browser
+          .elementByCss(`a[href="/ppr-disabled-with-loading-boundary/child"]`)
+          .click()
+        // We can immediately render the loading boundary before the network
+        // responds, because it was prefetched
+        const loadingBoundary = await browser.elementById('loading-boundary')
+        expect(await loadingBoundary.text()).toBe('Loading...')
+      }, [
+        // The page content is fetched on navigation
+        { includes: 'Child page content' },
+        // The loading boundary is not fetched on navigation, because it
+        // was already loaded into the cache during the prefetch for the
+        // other page.
+        { includes: 'Loading...', block: 'reject' },
+      ])
+      const pageContent = await browser.elementById('child-page-content')
+      expect(await pageContent.text()).toBe('Child page content')
+    }
+  )
+
+  it('skips prefetching a dynamic route when PPR is disabled if it has no loading.tsx boundary', async () => {
+    let act
+    const browser = await next.browser('/', {
+      beforePageLoad(p) {
+        act = createRouterAct(p)
+      },
+    })
+
+    // Initiate a prefetch for a dynamic page with no loading.tsx and no PPR.
+    // The route tree prefetch will tell the client that there is no loading
+    // boundary, and therefore the client can skip prefetching the data, since
+    // it would be an empty response, anyway.
+    await act(
+      async () => {
+        const checkbox = await browser.elementByCss(
+          `input[data-link-accordion="/ppr-disabled"]`
+        )
+        await checkbox.click()
+      },
+      // This assertion will fail if more than one request includes the given
+      // string. Because the string appears in the FlightRouterState for the
+      // page, it effectively asserts that only one prefetch request is issued
+      // — the one for the route tree.
+      { includes: 'ppr-disabled' }
+    )
+
+    // Navigate to the page
+    await act(
+      async () => {
+        await browser.elementByCss(`a[href="/ppr-disabled"]`).click()
+      },
+      // The page content is fetched on navigation
+      { includes: 'Page content' }
+    )
+    const pageContent = await browser.elementById('page-content')
+    expect(await pageContent.text()).toBe('Page content')
+  })
+
   it(
     'prefetches a shared layout on a PPR-enabled route that was previously ' +
       'omitted from a non-PPR-enabled route',
     async () => {
       let act
       const browser = await next.browser('/mixed-fetch-strategies', {
-        beforePageLoad(p: Playwright.Page) {
+        beforePageLoad(p) {
           act = createRouterAct(p)
         },
       })
@@ -138,7 +280,7 @@ describe('segment cache (incremental opt in)', () => {
     async () => {
       let act
       const browser = await next.browser('/mixed-fetch-strategies', {
-        beforePageLoad(p: Playwright.Page) {
+        beforePageLoad(p) {
           act = createRouterAct(p)
         },
       })
@@ -177,7 +319,7 @@ describe('segment cache (incremental opt in)', () => {
     async () => {
       let act
       const browser = await next.browser('/mixed-fetch-strategies', {
-        beforePageLoad(p: Playwright.Page) {
+        beforePageLoad(p) {
           act = createRouterAct(p)
         },
       })
@@ -238,7 +380,7 @@ describe('segment cache (incremental opt in)', () => {
 
       let act
       const browser = await next.browser('/mixed-fetch-strategies', {
-        beforePageLoad(p: Playwright.Page) {
+        beforePageLoad(p) {
           act = createRouterAct(p)
         },
       })

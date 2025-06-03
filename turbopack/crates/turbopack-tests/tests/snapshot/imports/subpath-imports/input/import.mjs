@@ -1,1 +1,1 @@
-export default "import";
+export default 'import'

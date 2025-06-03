@@ -27,6 +27,7 @@ use crate::{
         fonts::next_font_loaders,
         lint_codemod_comments::lint_codemod_comments,
         react_server_components,
+        server_actions::ServerActionsMode,
     },
 };
 
@@ -117,6 +118,12 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub lint_codemod_comments: bool,
+
+    #[serde(default)]
+    pub css_env: Option<swc_core::ecma::preset_env::Config>,
+
+    #[serde(default)]
+    pub track_dynamic_imports: bool,
 }
 
 pub fn custom_before_pass<'a, C>(
@@ -151,20 +158,21 @@ where
         }
     };
 
-    let target_browsers = opts
-        .swc
-        .config
-        .env
-        .as_ref()
-        .map(|env| targets_to_versions(env.targets.clone()).expect("failed to parse env.targets"))
-        .unwrap_or_default();
-
     let styled_jsx = {
         let cm = cm.clone();
         let file = file.clone();
 
         fn_pass(move |program| {
             if let Some(config) = opts.styled_jsx.to_option() {
+                let target_browsers = opts
+                    .css_env
+                    .as_ref()
+                    .map(|env| {
+                        targets_to_versions(env.targets.clone(), None)
+                            .expect("failed to parse env.targets")
+                    })
+                    .unwrap_or_default();
+
                 program.mutate(styled_jsx::visitor::styled_jsx(
                     cm.clone(),
                     &file.name,
@@ -319,11 +327,22 @@ where
             match &opts.server_actions {
                 Some(config) => Either::Left(crate::transforms::server_actions::server_actions(
                     &file.name,
+                    None,
                     config.clone(),
                     comments.clone(),
+                    cm.clone(),
                     use_cache_telemetry_tracker,
+                    ServerActionsMode::Webpack,
                 )),
                 None => Either::Right(noop_pass()),
+            },
+            match &opts.track_dynamic_imports {
+                true => Either::Left(
+                    crate::transforms::track_dynamic_imports::track_dynamic_imports(
+                        unresolved_mark,
+                    ),
+                ),
+                false => Either::Right(noop_pass()),
             },
             match &opts.cjs_require_optimizer {
                 Some(config) => Either::Left(visit_mut_pass(

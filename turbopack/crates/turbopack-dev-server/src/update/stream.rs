@@ -1,4 +1,4 @@
-use std::{ops::Deref, pin::Pin};
+use std::pin::Pin;
 
 use anyhow::Result;
 use futures::prelude::*;
@@ -8,6 +8,7 @@ use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     IntoTraitRef, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TransientInstance, Vc,
+    trace::{TraceRawVcs, TraceRawVcsContext},
 };
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::{
@@ -23,50 +24,66 @@ use turbopack_core::{
     },
 };
 
-use crate::source::{resolve::ResolveSourceRequestResult, ProxyResult};
+use crate::source::{ProxyResult, resolve::ResolveSourceRequestResult};
 
-/// A wrapper type returning
-/// [`OperationVc<ResolveSourceRequestResult>`][ResolveSourceRequestResult] that implements
-/// [`NonLocalValue`].
-pub struct GetContentFn(Box<dyn Fn() -> OperationVc<ResolveSourceRequestResult> + Send + Sync>);
+struct TypedGetContentFn<C> {
+    capture: C,
+    func: for<'a> fn(&'a C) -> OperationVc<ResolveSourceRequestResult>,
+}
 
-impl GetContentFn {
-    /// Wrap a function in `GetContentFn`.
-    ///
-    /// # Safety
-    ///
-    /// The closure must not include any types that aren't `NonLocalValue`, or that couldn't
-    /// otherwise safely implement `NonLocalValue`.
-    ///
-    /// In the future, `auto_traits` may be be able to implement `NonLocalValue` for us, and avoid
-    /// this wrapper type and unsafe constructor.
-    pub unsafe fn new(
-        func: impl Fn() -> OperationVc<ResolveSourceRequestResult> + Send + Sync + 'static,
-    ) -> Self {
-        Self::new_boxed(Box::new(func))
-    }
+// Manual (non-derive) impl required due to: https://github.com/rust-lang/rust/issues/70263
+// Safety: `capture` is `NonLocalValue`, `func` stores no data (is a static pointer to code)
+unsafe impl<C: NonLocalValue> NonLocalValue for TypedGetContentFn<C> {}
 
-    /// Wrap a boxed function in `GetContentFn`. This specialized version of [`GetContentFn::new`]
-    /// avoids double-boxing if you already have a boxed function.
-    ///
-    /// # Safety
-    ///
-    /// Same as [`GetContentFn::new`].
-    pub unsafe fn new_boxed(
-        func: Box<dyn Fn() -> OperationVc<ResolveSourceRequestResult> + Send + Sync>,
-    ) -> Self {
-        Self(func)
+// Manual (non-derive) impl required due to: https://github.com/rust-lang/rust/issues/70263
+impl<C: TraceRawVcs> TraceRawVcs for TypedGetContentFn<C> {
+    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
+        self.capture.trace_raw_vcs(trace_context);
     }
 }
 
-// Safety: It's up to the caller of `GetContentFn::new` to ensure this.
-unsafe impl NonLocalValue for GetContentFn {}
+trait TypedGetContentFnTrait: NonLocalValue + TraceRawVcs {
+    fn call(&self) -> OperationVc<ResolveSourceRequestResult>;
+}
 
-impl Deref for GetContentFn {
-    type Target = Box<dyn Fn() -> OperationVc<ResolveSourceRequestResult> + Send + Sync>;
+impl<C> TypedGetContentFnTrait for TypedGetContentFn<C>
+where
+    C: NonLocalValue + TraceRawVcs,
+{
+    fn call(&self) -> OperationVc<ResolveSourceRequestResult> {
+        (self.func)(&self.capture)
+    }
+}
 
-    fn deref(&self) -> &Self::Target {
-        &self.0
+/// A wrapper type returning [`OperationVc<ResolveSourceRequestResult>`][ResolveSourceRequestResult]
+/// that implements [`NonLocalValue`] and [`TraceRawVcs`].
+///
+/// The capture (e.g. moved values in a closure) and function pointer are stored separately to allow
+/// safe implementation of these desired traits.
+#[derive(NonLocalValue, TraceRawVcs)]
+pub struct GetContentFn {
+    inner: Box<dyn TypedGetContentFnTrait + Send + Sync>,
+}
+
+impl GetContentFn {
+    /// Wrap a function and an optional capture variable (used to simulate a closure) in
+    /// `GetContentFn`.
+    pub fn new<C>(
+        capture: C,
+        func: for<'a> fn(&'a C) -> OperationVc<ResolveSourceRequestResult>,
+    ) -> Self
+    where
+        C: NonLocalValue + TraceRawVcs + Send + Sync + 'static,
+    {
+        Self {
+            inner: Box::new(TypedGetContentFn { capture, func }),
+        }
+    }
+}
+
+impl GetContentFn {
+    fn call(&self) -> OperationVc<ResolveSourceRequestResult> {
+        self.inner.call()
     }
 }
 
@@ -100,7 +117,7 @@ async fn get_update_stream_item_operation(
     from: ResolvedVc<VersionState>,
     get_content: TransientInstance<GetContentFn>,
 ) -> Result<Vc<UpdateStreamItem>> {
-    let content_op = get_content();
+    let content_op = get_content.call();
     let content_result = content_op.read_strongly_consistent().await;
     let mut plain_issues = peek_issues(content_op).await?;
 
@@ -211,19 +228,32 @@ async fn get_update_stream_item_operation(
     }
 }
 
+#[derive(TraceRawVcs)]
+struct ComputeUpdateStreamSender(
+    // HACK: `trace_ignore`: It's not correct or safe to send `Vc`s across this mpsc channel, but
+    // (without nightly auto traits) there's no easy way for us to statically assert that
+    // `UpdateStreamItem` does not contain a `RawVc`.
+    //
+    // It could be safe (at least for the GC use-case) if we had some way of wrapping arbitrary
+    // objects in a GC root container.
+    #[turbo_tasks(trace_ignore)] Sender<Result<ReadRef<UpdateStreamItem>>>,
+);
+
+/// This function sends an [`UpdateStreamItem`] to `sender` every time it gets recomputed by
+/// turbo-tasks due to invalidation.
 #[turbo_tasks::function]
 async fn compute_update_stream(
     resource: RcStr,
     from: ResolvedVc<VersionState>,
     get_content: TransientInstance<GetContentFn>,
-    sender: TransientInstance<Sender<Result<ReadRef<UpdateStreamItem>>>>,
+    sender: TransientInstance<ComputeUpdateStreamSender>,
 ) -> Vc<()> {
     let item = get_update_stream_item_operation(resource, from, get_content)
         .read_strongly_consistent()
         .await;
 
     // Send update. Ignore channel closed error.
-    let _ = sender.send(item).await;
+    let _ = sender.0.send(item).await;
 
     Default::default()
 }
@@ -240,7 +270,7 @@ impl UpdateStream {
     ) -> Result<UpdateStream> {
         let (sx, rx) = tokio::sync::mpsc::channel(32);
 
-        let content = get_content();
+        let content = get_content.call();
         // We can ignore issues reported in content here since [compute_update_stream]
         // will handle them
         let version = match *content.connect().await? {
@@ -258,7 +288,7 @@ impl UpdateStream {
             resource,
             version_state,
             get_content,
-            TransientInstance::new(sx),
+            TransientInstance::new(ComputeUpdateStreamSender(sx)),
         );
 
         let mut last_had_issues = false;
@@ -365,5 +395,51 @@ impl Issue for FatalStreamIssue {
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
         Vc::cell(Some(self.description))
+    }
+}
+
+#[cfg(test)]
+pub mod test {
+    use std::sync::{
+        Arc,
+        atomic::{AtomicI32, Ordering},
+    };
+
+    use turbo_tasks::TurboTasks;
+    use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+
+    use super::*;
+
+    #[turbo_tasks::function(operation)]
+    pub fn noop_operation() -> Vc<ResolveSourceRequestResult> {
+        ResolveSourceRequestResult::NotFound.cell()
+    }
+
+    #[tokio::test]
+    async fn test_get_content_fn() {
+        crate::register();
+        let tt = TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            let number = Arc::new(AtomicI32::new(0));
+            fn func(number: &Arc<AtomicI32>) -> OperationVc<ResolveSourceRequestResult> {
+                number.store(42, Ordering::SeqCst);
+                noop_operation()
+            }
+            let wrapped_func = GetContentFn::new(number.clone(), func);
+            let return_value = wrapped_func
+                .call()
+                .read_strongly_consistent()
+                .await
+                .unwrap();
+            assert_eq!(number.load(Ordering::SeqCst), 42);
+            // ResolveSourceRequestResult doesn't impl Debug
+            assert!(*return_value == ResolveSourceRequestResult::NotFound);
+            Ok(())
+        })
+        .await
+        .unwrap();
     }
 }

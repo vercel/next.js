@@ -4,6 +4,7 @@ use std::{
     future::IntoFuture,
     hash::{Hash, Hasher},
     marker::PhantomData,
+    mem::transmute,
     ops::Deref,
 };
 
@@ -11,10 +12,10 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    RawVc, Upcast, VcRead, VcTransparentRead, VcValueTrait, VcValueType,
     debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString},
     trace::{TraceRawVcs, TraceRawVcsContext},
     vc::Vc,
-    Upcast, VcRead, VcTransparentRead, VcValueTrait, VcValueType,
 };
 
 /// A "subtype" (via [`Deref`]) of [`Vc`] that represents a specific [`Vc::cell`]/`.cell()` or
@@ -65,11 +66,11 @@ use crate::{
 /// [`ReadRef`]: crate::ReadRef
 #[derive(Serialize, Deserialize)]
 #[serde(transparent, bound = "")]
+#[repr(transparent)]
 pub struct ResolvedVc<T>
 where
     T: ?Sized,
 {
-    // no-resolved-vc(kdy1): This is a resolved Vc, so we don't need to resolve it again
     pub(crate) node: Vc<T>,
 }
 
@@ -205,6 +206,20 @@ where
             node: Vc::upcast(this.node),
         }
     }
+
+    /// Cheaply converts a Vec of resolved Vcs to a Vec of Vcs.
+    pub fn deref_vec(vec: Vec<ResolvedVc<T>>) -> Vec<Vc<T>> {
+        debug_assert!(size_of::<ResolvedVc<T>>() == size_of::<Vc<T>>());
+        // Safety: The memory layout of `ResolvedVc<T>` and `Vc<T>` is the same.
+        unsafe { transmute::<Vec<ResolvedVc<T>>, Vec<Vc<T>>>(vec) }
+    }
+
+    /// Cheaply converts a slice of resolved Vcs to a slice of Vcs.
+    pub fn deref_slice(slice: &[ResolvedVc<T>]) -> &[Vc<T>] {
+        debug_assert!(size_of::<ResolvedVc<T>>() == size_of::<Vc<T>>());
+        // Safety: The memory layout of `ResolvedVc<T>` and `Vc<T>` is the same.
+        unsafe { transmute::<&[ResolvedVc<T>], &[Vc<T>]>(slice) }
+    }
 }
 
 impl<T> ResolvedVc<T>
@@ -301,5 +316,21 @@ where
 {
     fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString {
         self.node.value_debug_format(depth)
+    }
+}
+
+impl<T> TryFrom<RawVc> for ResolvedVc<T>
+where
+    T: ?Sized,
+{
+    type Error = anyhow::Error;
+
+    fn try_from(raw: RawVc) -> Result<Self> {
+        if !matches!(raw, RawVc::TaskCell(..)) {
+            anyhow::bail!("Given RawVc {raw:?} is not a TaskCell");
+        }
+        Ok(Self {
+            node: Vc::from(raw),
+        })
     }
 }

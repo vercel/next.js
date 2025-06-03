@@ -2,9 +2,9 @@ import * as Bus from './bus'
 import { parseStack } from '../utils/parse-stack'
 import { parseComponentStack } from '../utils/parse-component-stack'
 import {
-  hydrationErrorState,
+  attachHydrationErrorState,
   storeHydrationErrorStateFromConsoleArgs,
-} from '../../errors/hydration-error-info'
+} from './hydration-error-state'
 import {
   ACTION_BEFORE_REFRESH,
   ACTION_BUILD_ERROR,
@@ -17,11 +17,10 @@ import {
   ACTION_VERSION_INFO,
 } from '../shared'
 import type { VersionInfo } from '../../../../server/dev/parse-version-info'
-import { attachHydrationErrorState } from '../../errors/attach-hydration-error-state'
+import { getComponentStack, getOwnerStack } from '../../errors/stitched-error'
 import type { DevIndicatorServerState } from '../../../../server/dev/dev-indicator-server-state'
 
 let isRegistered = false
-let stackTraceLimit: number | undefined = undefined
 
 function handleError(error: unknown) {
   if (!error || !(error instanceof Error) || typeof error.stack !== 'string') {
@@ -31,8 +30,8 @@ function handleError(error: unknown) {
 
   attachHydrationErrorState(error)
 
-  const componentStackTrace =
-    (error as any)._componentStack || hydrationErrorState.componentStack
+  const componentStackTrace = getComponentStack(error)
+  const ownerStack = getOwnerStack(error)
   const componentStackFrames =
     typeof componentStackTrace === 'string'
       ? parseComponentStack(componentStackTrace)
@@ -47,7 +46,7 @@ function handleError(error: unknown) {
     Bus.emit({
       type: ACTION_UNHANDLED_ERROR,
       reason: error,
-      frames: parseStack(error.stack),
+      frames: parseStack((error.stack || '') + (ownerStack || '')),
       componentStackFrames,
     })
   }
@@ -56,9 +55,10 @@ function handleError(error: unknown) {
 let origConsoleError = console.error
 function nextJsHandleConsoleError(...args: any[]) {
   // See https://github.com/facebook/react/blob/d50323eb845c5fde0d720cae888bf35dedd05506/packages/react-reconciler/src/ReactFiberErrorLogger.js#L78
-  const error = process.env.NODE_ENV !== 'production' ? args[1] : args[0]
+  const maybeError = process.env.NODE_ENV !== 'production' ? args[1] : args[0]
   storeHydrationErrorStateFromConsoleArgs(...args)
-  handleError(error)
+  // TODO: Surfaces non-errors logged via `console.error`.
+  handleError(maybeError)
   origConsoleError.apply(window.console, args)
 }
 
@@ -78,11 +78,12 @@ function onUnhandledRejection(ev: PromiseRejectionEvent) {
     return
   }
 
-  const e = reason
+  const error = reason
+  const ownerStack = getOwnerStack(error)
   Bus.emit({
     type: ACTION_UNHANDLED_REJECTION,
     reason: reason,
-    frames: parseStack(e.stack!),
+    frames: parseStack((error.stack || '') + (ownerStack || '')),
   })
 }
 
@@ -93,32 +94,12 @@ export function register() {
   isRegistered = true
 
   try {
-    const limit = Error.stackTraceLimit
     Error.stackTraceLimit = 50
-    stackTraceLimit = limit
   } catch {}
 
   window.addEventListener('error', onUnhandledError)
   window.addEventListener('unhandledrejection', onUnhandledRejection)
   window.console.error = nextJsHandleConsoleError
-}
-
-export function unregister() {
-  if (!isRegistered) {
-    return
-  }
-  isRegistered = false
-
-  if (stackTraceLimit !== undefined) {
-    try {
-      Error.stackTraceLimit = stackTraceLimit
-    } catch {}
-    stackTraceLimit = undefined
-  }
-
-  window.removeEventListener('error', onUnhandledError)
-  window.removeEventListener('unhandledrejection', onUnhandledRejection)
-  window.console.error = origConsoleError
 }
 
 export function onBuildOk() {

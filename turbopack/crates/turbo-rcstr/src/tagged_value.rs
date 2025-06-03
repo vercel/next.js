@@ -72,7 +72,7 @@ impl TaggedValue {
     }
 
     #[inline(always)]
-    pub fn new_tag(value: NonZeroU8) -> Self {
+    pub const fn new_tag(value: NonZeroU8) -> Self {
         let value = value.get() as RawTaggedValue;
         Self {
             value: unsafe { std::mem::transmute(value) },
@@ -129,15 +129,15 @@ impl TaggedValue {
     /// used when setting the untagged slice part of this value. If tag is
     /// zero and the slice is zeroed out, using this `TaggedValue` will be
     /// UB!
-    pub unsafe fn data_mut(&mut self) -> &mut [u8] {
+    pub const unsafe fn data_mut(&mut self) -> &mut [u8] {
         let x: *mut _ = &mut self.value;
         let mut data = x as *mut u8;
         // All except the lowest byte, which is first in little-endian, last in
         // big-endian.
         if cfg!(target_endian = "little") {
-            data = data.offset(1);
+            data = unsafe { data.offset(1) };
         }
         let len = std::mem::size_of::<TaggedValue>() - 1;
-        slice::from_raw_parts_mut(data, len)
+        unsafe { slice::from_raw_parts_mut(data, len) }
     }
 }

@@ -11,6 +11,7 @@ import {
   RSC_ACTION_ENCRYPTION_ALIAS,
   RSC_CACHE_WRAPPER_ALIAS,
   type WebpackLayerName,
+  RSC_DYNAMIC_IMPORT_WRAPPER_ALIAS,
 } from '../lib/constants'
 import type { NextConfigComplete } from '../server/config-shared'
 import { defaultOverrides } from '../server/require-hook'
@@ -139,6 +140,19 @@ export function createWebpackAliases({
     ...(pagesDir ? { [PAGES_DIR_ALIAS]: pagesDir } : {}),
     ...(appDir ? { [APP_DIR_ALIAS]: appDir } : {}),
     [ROOT_DIR_ALIAS]: dir,
+    ...(isClient
+      ? {
+          'private-next-instrumentation-client': [
+            path.join(dir, 'src', 'instrumentation-client'),
+            path.join(dir, 'instrumentation-client'),
+            'private-next-empty-module',
+          ],
+
+          // disable typechecker, webpack5 allows aliases to be set to false to create a no-op module
+          'private-next-empty-module': false as any,
+        }
+      : {}),
+
     [DOT_NEXT_ALIAS]: distDir,
     ...(isClient || isEdgeServer ? getOptimizedModuleAliases() : {}),
     ...(reactProductionProfiling ? getReactProfilingInProduction() : {}),
@@ -164,6 +178,8 @@ export function createWebpackAliases({
 
     [RSC_CACHE_WRAPPER_ALIAS]:
       'next/dist/build/webpack/loaders/next-flight-loader/cache-wrapper',
+    [RSC_DYNAMIC_IMPORT_WRAPPER_ALIAS]:
+      'next/dist/build/webpack/loaders/next-flight-loader/track-dynamic-import',
 
     ...(isClient || isEdgeServer
       ? {

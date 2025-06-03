@@ -1,5 +1,5 @@
 use std::{
-    any::{type_name, Any},
+    any::{Any, type_name},
     borrow::Cow,
     fmt::{
         Debug, Display, Formatter, {self},
@@ -13,12 +13,13 @@ use serde::{Deserialize, Serialize};
 use tracing::Span;
 
 use crate::{
+    RawVc, VcValueType,
     id::{FunctionId, TraitTypeId},
     magic_any::{AnyDeserializeSeed, MagicAny, MagicAnyDeserializeSeed, MagicAnySerializeSeed},
     registry::{register_trait_type, register_value_type},
     task::shared_reference::TypedSharedReference,
+    trace::TraceRawVcs,
     vc::VcCellMode,
-    RawVc, VcValueType,
 };
 
 type MagicSerializationFn = fn(&dyn MagicAny) -> &dyn erased_serde::Serialize;
@@ -116,7 +117,7 @@ impl ValueType {
 
     /// This is internally used by `#[turbo_tasks::value]`
     pub fn new_with_magic_serialization<
-        T: VcValueType + Debug + Eq + Hash + Serialize + for<'de> Deserialize<'de>,
+        T: VcValueType + Debug + Eq + Hash + Serialize + for<'de> Deserialize<'de> + TraceRawVcs,
     >() -> Self {
         Self {
             name: std::any::type_name::<T>().to_string(),
@@ -265,7 +266,15 @@ impl TraitType {
 
     pub fn register_trait_method<T>(&mut self, name: Cow<'static, str>)
     where
-        T: Serialize + for<'de> Deserialize<'de> + Debug + Eq + Hash + Send + Sync + 'static,
+        T: Serialize
+            + for<'de> Deserialize<'de>
+            + Debug
+            + Eq
+            + Hash
+            + Send
+            + Sync
+            + TraceRawVcs
+            + 'static,
     {
         self.methods.insert(
             name,
@@ -282,7 +291,15 @@ impl TraitType {
         name: Cow<'static, str>,
         native_fn: FunctionId,
     ) where
-        T: Serialize + for<'de> Deserialize<'de> + Debug + Eq + Hash + Send + Sync + 'static,
+        T: Serialize
+            + for<'de> Deserialize<'de>
+            + Debug
+            + Eq
+            + Hash
+            + Send
+            + Sync
+            + TraceRawVcs
+            + 'static,
     {
         self.methods.insert(
             name,

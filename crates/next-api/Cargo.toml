@@ -3,7 +3,7 @@ name = "next-api"
 version = "0.1.0"
 description = "TBD"
 license = "MIT"
-edition = "2021"
+edition = "2024"
 autobenches = false
 
 [lib]
@@ -24,7 +24,6 @@ regex = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-shadow-rs = { workspace = true }
 swc_core = { workspace = true }
 tracing = { workspace = true }
 turbo-rcstr = { workspace = true }
@@ -32,7 +31,6 @@ turbo-tasks = { workspace = true }
 turbo-tasks-env = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbo-tasks-hash = { workspace = true }
-turbo-tasks-memory = { workspace = true }
 turbopack = { workspace = true }
 turbopack-browser = { workspace = true }
 turbopack-cli-utils = { workspace = true }
@@ -41,8 +39,9 @@ turbopack-ecmascript = { workspace = true }
 turbopack-env = { workspace = true }
 turbopack-node = { workspace = true }
 turbopack-nodejs = { workspace = true }
+turbopack-wasm = { workspace = true }
 
 [build-dependencies]
-# It is not a mistake this dependency is specified in dep / build-dep both.
-shadow-rs = { workspace = true }
+anyhow = { workspace = true }
 turbo-tasks-build = { workspace = true }
+vergen = { workspace = true }

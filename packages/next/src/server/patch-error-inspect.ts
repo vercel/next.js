@@ -57,7 +57,7 @@ interface IgnoreableStackFrame extends StackFrame {
 
 type SourceMapCache = Map<
   string,
-  { map: SyncSourceMapConsumer; payload: ModernSourceMapPayload }
+  null | { map: SyncSourceMapConsumer; payload: ModernSourceMapPayload }
 >
 
 function frameToString(frame: StackFrame): string {
@@ -184,7 +184,6 @@ function getSourcemappedFrameIfPossible(
   inspectOptions: util.InspectOptions
 ): {
   stack: IgnoreableStackFrame
-  // DEV only
   code: string | null
 } {
   const sourceMapCacheEntry = sourceMapCache.get(frame.file)
@@ -192,8 +191,8 @@ function getSourcemappedFrameIfPossible(
   let sourceMapPayload: ModernSourceMapPayload
   if (sourceMapCacheEntry === undefined) {
     let sourceURL = frame.file
-    // e.g. "/APP/.next/server/chunks/ssr/[root of the server]__2934a0._.js"
-    // will be keyed by Node.js as "file:///APP/.next/server/chunks/ssr/[root%20of%20the%20server]__2934a0._.js".
+    // e.g. "/APP/.next/server/chunks/ssr/[root-of-the-server]__2934a0._.js"
+    // will be keyed by Node.js as "file:///APP/.next/server/chunks/ssr/[root-of-the-server]__2934a0._.js".
     // This is likely caused by `callsite.toString()` in `Error.prepareStackTrace converting file URLs to paths.
     if (sourceURL.startsWith('/')) {
       sourceURL = url.pathToFileURL(frame.file).toString()
@@ -208,6 +207,9 @@ function getSourcemappedFrameIfPossible(
       console.error(
         `${sourceURL}: Invalid source map. Only conformant source maps can be used to find the original code. Cause: ${cause}`
       )
+      // If loading fails once, it'll fail every time.
+      // So set the cache to avoid duplicate errors.
+      sourceMapCache.set(frame.file, null)
       // Don't even fall back to the bundler because it might be not as strict
       // with regards to parsing and then we fail later once we consume the
       // source map payload.
@@ -235,12 +237,20 @@ function getSourcemappedFrameIfPossible(
       console.error(
         `${sourceURL}: Invalid source map. Only conformant source maps can be used to find the original code. Cause: ${cause}`
       )
+      // If creating the consumer fails once, it'll fail every time.
+      // So set the cache to avoid duplicate errors.
+      sourceMapCache.set(frame.file, null)
       return createUnsourcemappedFrame(frame)
     }
     sourceMapCache.set(frame.file, {
       map: sourceMapConsumer,
       payload: sourceMapPayload,
     })
+  } else if (sourceMapCacheEntry === null) {
+    // We failed earlier getting the payload or consumer.
+    // Just return an unsourcemapped frame.
+    // Errors will already be logged.
+    return createUnsourcemappedFrame(frame)
   } else {
     sourceMapConsumer = sourceMapCacheEntry.map
     sourceMapPayload = sourceMapCacheEntry.payload
@@ -311,14 +321,11 @@ function getSourcemappedFrameIfPossible(
     ignored,
   }
 
-  const codeFrame =
-    process.env.NODE_ENV !== 'production'
-      ? getOriginalCodeFrame(
-          originalFrame,
-          sourceContent,
-          inspectOptions.colors
-        )
-      : null
+  const codeFrame = getOriginalCodeFrame(
+    originalFrame,
+    sourceContent,
+    inspectOptions.colors
+  )
 
   return {
     stack: originalFrame,
@@ -352,7 +359,7 @@ function parseAndSourceMap(
   const sourceMapCache: SourceMapCache = new Map()
 
   let sourceMappedStack = ''
-  let sourceFrameDEV: null | string = null
+  let sourceFrame: null | string = null
   for (const frame of unsourcemappedStack) {
     if (frame.file === null) {
       sourceMappedStack += '\n' + frameToString(frame)
@@ -365,13 +372,12 @@ function parseAndSourceMap(
       )
 
       if (
-        process.env.NODE_ENV !== 'production' &&
         sourcemappedFrame.code !== null &&
-        sourceFrameDEV === null &&
+        sourceFrame === null &&
         // TODO: Is this the right choice?
         !sourcemappedFrame.stack.ignored
       ) {
-        sourceFrameDEV = sourcemappedFrame.code
+        sourceFrame = sourcemappedFrame.code
       }
       if (!sourcemappedFrame.stack.ignored) {
         // TODO: Consider what happens if every frame is ignore listed.
@@ -389,7 +395,7 @@ function parseAndSourceMap(
     ': ' +
     error.message +
     sourceMappedStack +
-    (sourceFrameDEV !== null ? '\n' + sourceFrameDEV : '')
+    (sourceFrame !== null ? '\n' + sourceFrame : '')
   )
 }
 

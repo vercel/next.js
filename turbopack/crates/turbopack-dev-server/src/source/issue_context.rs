@@ -8,9 +8,9 @@ use turbopack_core::{
 };
 
 use super::{
-    route_tree::{MapGetContentSourceContent, RouteTree},
     ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataVary, ContentSources,
     GetContentSourceContent,
+    route_tree::{MapGetContentSourceContent, RouteTree},
 };
 
 #[turbo_tasks::value]

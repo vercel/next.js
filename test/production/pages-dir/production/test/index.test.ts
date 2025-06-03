@@ -216,7 +216,7 @@ describe('Production Usage', () => {
           /node_modules\/next/,
           /node_modules\/nanoid\/index\.js/,
           /node_modules\/nanoid\/url-alphabet\/index\.js/,
-          /node_modules\/es5-ext\/array\/#\/clear\.js/,
+          /node_modules\/es5-ext\/array\/from\/index\.js/,
         ],
         notTests: [/next\/dist\/pages\/_error\.js/, /\0/, /\?/, /!/],
       },
@@ -256,7 +256,10 @@ describe('Production Usage', () => {
       },
       {
         page: '/api/readfile-dirname',
-        tests: [/webpack-api-runtime\.js/, /static\/data\/item\.txt/],
+        tests: [
+          /(webpack-api-runtime\.js|\[turbopack\]_runtime\.js)/,
+          /static\/data\/item\.txt/,
+        ],
         notTests: [
           /next\/dist\/server\/next\.js/,
           /next\/dist\/bin/,
@@ -267,7 +270,10 @@ describe('Production Usage', () => {
       },
       {
         page: '/api/readfile-processcwd',
-        tests: [/webpack-api-runtime\.js/, /static\/data\/item\.txt/],
+        tests: [
+          /(webpack-api-runtime\.js|\[turbopack\]_runtime\.js)/,
+          /static\/data\/item\.txt/,
+        ],
         notTests: [
           /next\/dist\/server\/next\.js/,
           /next\/dist\/bin/,
@@ -314,7 +320,7 @@ describe('Production Usage', () => {
   })
 
   // This test checks webpack chunks in particular
-  ;(process.env.TURBOPACK ? it.skip : it)(
+  ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
     'should not contain currentScript usage for publicPath',
     async () => {
       const globResult = await glob('webpack-*.js', {
@@ -335,7 +341,7 @@ describe('Production Usage', () => {
   )
 
   // This test checks webpack chunks in particular
-  ;(process.env.TURBOPACK ? it.skip : it)(
+  ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
     'should not contain amp, rsc APIs in main chunk',
     async () => {
       const globResult = await glob('main-*.js', {
@@ -572,7 +578,7 @@ describe('Production Usage', () => {
     it('should set Cache-Control header', async () => {
       const buildManifest = await next.readJSON(`.next/${BUILD_MANIFEST}`)
       const reactLoadableManifest = await next.readJSON(
-        process.env.TURBOPACK
+        process.env.IS_TURBOPACK_TEST
           ? `.next/server/pages/dynamic/css/${REACT_LOADABLE_MANIFEST}`
           : `.next/${REACT_LOADABLE_MANIFEST}`
       )
@@ -581,7 +587,7 @@ describe('Production Usage', () => {
       const resources: Set<string> = new Set()
 
       let manifestKey: string
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         // the key is an arbitrary and changing number for Turbopack prod, but each page has its own manifest
         expect(Object.keys(reactLoadableManifest).length).toBe(1)
         manifestKey = Object.keys(reactLoadableManifest)[0]
@@ -609,7 +615,7 @@ describe('Production Usage', () => {
         { pathnameFilter: (f) => /\.css$/.test(f) }
       )
       expect(cssStaticAssets.length).toBeGreaterThanOrEqual(1)
-      if (!process.env.TURBOPACK) {
+      if (!process.env.IS_TURBOPACK_TEST) {
         expect(cssStaticAssets[0]).toMatch(/[\\/]css[\\/]/)
       }
       const mediaStaticAssets = await recursiveReadDir(
@@ -617,7 +623,7 @@ describe('Production Usage', () => {
         { pathnameFilter: (f) => /\.svg$/.test(f) }
       )
       expect(mediaStaticAssets.length).toBeGreaterThanOrEqual(1)
-      if (!process.env.TURBOPACK) {
+      if (!process.env.IS_TURBOPACK_TEST) {
         expect(mediaStaticAssets[0]).toMatch(/[\\/]media[\\/]/)
       }
       ;[...cssStaticAssets, ...mediaStaticAssets].forEach((asset) => {
@@ -1151,7 +1157,7 @@ describe('Production Usage', () => {
       expect(version).toBeTruthy()
       expect(version).toBe(
         (await next.readJSON('node_modules/next/package.json')).version +
-          (process.env.TURBOPACK ? '-turbo' : '')
+          (process.env.IS_TURBOPACK_TEST ? '-turbo' : '')
       )
     } finally {
       if (browser) {

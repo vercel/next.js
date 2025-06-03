@@ -49,16 +49,10 @@ import { CollapseIcon } from '../../icons/collapse-icon'
  *
  */
 export function PseudoHtmlDiff({
-  firstContent,
-  secondContent,
-  hydrationMismatchType,
   reactOutputComponentDiff,
   ...props
 }: {
-  firstContent: string
-  secondContent: string
   reactOutputComponentDiff: string
-  hydrationMismatchType: 'tag' | 'text' | 'text-in-tag'
 } & React.HTMLAttributes<HTMLPreElement>) {
   const [isDiffCollapsed, toggleCollapseHtml] = useState(true)
 

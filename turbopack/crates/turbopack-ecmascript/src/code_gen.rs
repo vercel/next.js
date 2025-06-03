@@ -1,16 +1,23 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use swc_core::ecma::{
-    ast::Stmt,
-    visit::{AstParentKind, VisitMut},
+use swc_core::{
+    base::SwcComments,
+    ecma::{
+        ast::{
+            BlockStmt, CallExpr, Expr, Lit, MemberExpr, ModuleDecl, ModuleItem, Pat, Program, Prop,
+            SimpleAssignTarget, Stmt, Str, SwitchCase,
+        },
+        visit::AstParentKind,
+    },
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, Vc};
+use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
 use turbopack_core::{
     chunk::ChunkingContext, module_graph::ModuleGraph, reference::ModuleReference,
 };
 
 use crate::references::{
+    AstPath,
     amd::AmdDefineWithDependenciesCodeGen,
     cjs::{
         CjsRequireAssetReferenceCodeGen, CjsRequireCacheAccess,
@@ -20,23 +27,24 @@ use crate::references::{
     constant_value::ConstantValueCodeGen,
     dynamic_expression::DynamicExpression,
     esm::{
+        EsmBinding, EsmModuleItem, ImportMetaBinding, ImportMetaRef,
         dynamic::EsmAsyncAssetReferenceCodeGen, module_id::EsmModuleIdAssetReferenceCodeGen,
-        url::UrlAssetReferenceCodeGen, EsmBinding, EsmModuleItem, ImportMetaBinding, ImportMetaRef,
+        url::UrlAssetReferenceCodeGen,
     },
     ident::IdentReplacement,
     member::MemberReplacement,
     require_context::RequireContextAssetReferenceCodeGen,
     unreachable::Unreachable,
     worker::WorkerAssetReferenceCodeGen,
-    AstPath,
 };
 
 #[derive(Default)]
 pub struct CodeGeneration {
     /// ast nodes matching the span will be visitor by the visitor
-    pub visitors: Vec<(Vec<AstParentKind>, Box<dyn VisitorFactory>)>,
+    pub visitors: Vec<(Vec<AstParentKind>, Box<dyn AstModifier>)>,
     pub hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
     pub early_hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
+    pub comments: Option<SwcComments>,
 }
 
 impl CodeGeneration {
@@ -47,7 +55,7 @@ impl CodeGeneration {
     }
 
     pub fn new(
-        visitors: Vec<(Vec<AstParentKind>, Box<dyn VisitorFactory>)>,
+        visitors: Vec<(Vec<AstParentKind>, Box<dyn AstModifier>)>,
         hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
         early_hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
     ) -> Self {
@@ -55,10 +63,22 @@ impl CodeGeneration {
             visitors,
             hoisted_stmts,
             early_hoisted_stmts,
+            ..Default::default()
         }
     }
 
-    pub fn visitors(visitors: Vec<(Vec<AstParentKind>, Box<dyn VisitorFactory>)>) -> Self {
+    pub fn visitors_with_comments(
+        visitors: Vec<(Vec<AstParentKind>, Box<dyn AstModifier>)>,
+        comments: SwcComments,
+    ) -> Self {
+        CodeGeneration {
+            visitors,
+            comments: Some(comments),
+            ..Default::default()
+        }
+    }
+
+    pub fn visitors(visitors: Vec<(Vec<AstParentKind>, Box<dyn AstModifier>)>) -> Self {
         CodeGeneration {
             visitors,
             ..Default::default()
@@ -92,9 +112,57 @@ impl CodeGenerationHoistedStmt {
     }
 }
 
-pub trait VisitorFactory: Send + Sync {
-    fn create<'a>(&'a self) -> Box<dyn VisitMut + Send + Sync + 'a>;
+macro_rules! method {
+    ($name:ident, $T:ty) => {
+        fn $name(&self, _node: &mut $T) {}
+    };
 }
+
+pub trait AstModifier: Send + Sync {
+    method!(visit_mut_prop, Prop);
+    method!(visit_mut_simple_assign_target, SimpleAssignTarget);
+    method!(visit_mut_expr, Expr);
+    method!(visit_mut_member_expr, MemberExpr);
+    method!(visit_mut_pat, Pat);
+    method!(visit_mut_stmt, Stmt);
+    method!(visit_mut_module_decl, ModuleDecl);
+    method!(visit_mut_module_item, ModuleItem);
+    method!(visit_mut_call_expr, CallExpr);
+    method!(visit_mut_lit, Lit);
+    method!(visit_mut_str, Str);
+    method!(visit_mut_block_stmt, BlockStmt);
+    method!(visit_mut_switch_case, SwitchCase);
+    method!(visit_mut_program, Program);
+}
+
+pub trait ModifiableAst {
+    fn modify(&mut self, modifier: &dyn AstModifier);
+}
+
+macro_rules! impl_modify {
+    ($visit_mut_name:ident, $T:ty) => {
+        impl ModifiableAst for $T {
+            fn modify(&mut self, modifier: &dyn AstModifier) {
+                modifier.$visit_mut_name(self)
+            }
+        }
+    };
+}
+
+impl_modify!(visit_mut_prop, Prop);
+impl_modify!(visit_mut_simple_assign_target, SimpleAssignTarget);
+impl_modify!(visit_mut_expr, Expr);
+impl_modify!(visit_mut_member_expr, MemberExpr);
+impl_modify!(visit_mut_pat, Pat);
+impl_modify!(visit_mut_stmt, Stmt);
+impl_modify!(visit_mut_module_decl, ModuleDecl);
+impl_modify!(visit_mut_module_item, ModuleItem);
+impl_modify!(visit_mut_call_expr, CallExpr);
+impl_modify!(visit_mut_lit, Lit);
+impl_modify!(visit_mut_str, Str);
+impl_modify!(visit_mut_block_stmt, BlockStmt);
+impl_modify!(visit_mut_switch_case, SwitchCase);
+impl_modify!(visit_mut_program, Program);
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 pub enum CodeGen {
@@ -153,6 +221,14 @@ impl CodeGen {
 #[turbo_tasks::value(transparent)]
 pub struct CodeGens(Vec<CodeGen>);
 
+#[turbo_tasks::value_impl]
+impl CodeGens {
+    #[turbo_tasks::function]
+    pub fn empty() -> Vc<Self> {
+        Vc::cell(Vec::new())
+    }
+}
+
 pub trait IntoCodeGenReference {
     fn into_code_gen_reference(
         self,
@@ -183,37 +259,6 @@ pub fn path_to(
 /// possible visit methods.
 #[macro_export]
 macro_rules! create_visitor {
-    // This rule needs to be first, otherwise we run into the following error:
-    // expected one of `!`, `)`, `,`, `.`, `::`, `?`, `{`, or an operator, found `:`
-    // This is a regression on nightly.
-    (visit_mut_program($arg:ident: &mut Program) $b:block) => {{
-        struct Visitor<T: Fn(&mut swc_core::ecma::ast::Program) + Send + Sync> {
-            visit_mut_program: T,
-        }
-
-        impl<T: Fn(&mut swc_core::ecma::ast::Program) + Send + Sync> $crate::code_gen::VisitorFactory
-            for Box<Visitor<T>>
-        {
-            fn create<'a>(&'a self) -> Box<dyn swc_core::ecma::visit::VisitMut + Send + Sync + 'a> {
-                Box::new(&**self)
-            }
-        }
-
-        impl<'a, T: Fn(&mut swc_core::ecma::ast::Program) + Send + Sync> swc_core::ecma::visit::VisitMut
-            for &'a Visitor<T>
-        {
-            fn visit_mut_program(&mut self, $arg: &mut swc_core::ecma::ast::Program) {
-                (self.visit_mut_program)($arg);
-            }
-        }
-
-        (
-            Vec::new(),
-            Box::new(Box::new(Visitor {
-                visit_mut_program: move |$arg: &mut swc_core::ecma::ast::Program| $b,
-            })) as Box<dyn $crate::code_gen::VisitorFactory>,
-        )
-    }};
     (exact $ast_path:expr, $name:ident($arg:ident: &mut $ty:ident) $b:block) => {
         $crate::create_visitor!(__ $ast_path.to_vec(), $name($arg: &mut $ty) $b)
     };
@@ -227,27 +272,26 @@ macro_rules! create_visitor {
             $name: T,
         }
 
-        impl<T: Fn(&mut swc_core::ecma::ast::$ty) + Send + Sync> $crate::code_gen::VisitorFactory
-            for Box<Visitor<T>>
+        impl<T: Fn(&mut swc_core::ecma::ast::$ty) + Send + Sync> $crate::code_gen::AstModifier
+            for Visitor<T>
         {
-            fn create<'a>(&'a self) -> Box<dyn swc_core::ecma::visit::VisitMut + Send + Sync + 'a> {
-                Box::new(&**self)
-            }
-        }
-
-        impl<'a, T: Fn(&mut swc_core::ecma::ast::$ty) + Send + Sync> swc_core::ecma::visit::VisitMut
-            for &'a Visitor<T>
-        {
-            fn $name(&mut self, $arg: &mut swc_core::ecma::ast::$ty) {
+            fn $name(&self, $arg: &mut swc_core::ecma::ast::$ty) {
                 (self.$name)($arg);
             }
         }
 
-        (
-            $ast_path,
-            Box::new(Box::new(Visitor {
-                $name: move |$arg: &mut swc_core::ecma::ast::$ty| $b,
-            })) as Box<dyn $crate::code_gen::VisitorFactory>,
-        )
+        {
+            #[cfg(debug_assertions)]
+            if $ast_path.is_empty() {
+                unreachable!("if the path is empty, the visitor should be a root visitor");
+            }
+
+            (
+                $ast_path,
+                Box::new(Visitor {
+                    $name: move |$arg: &mut swc_core::ecma::ast::$ty| $b,
+                }) as Box<dyn $crate::code_gen::AstModifier>,
+            )
+        }
     }};
 }

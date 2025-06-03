@@ -12,58 +12,53 @@
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-const devModuleCache: ModuleCache<HotModule> = Object.create(null);
+const devModuleCache: ModuleCache<HotModule> = Object.create(null)
 
 // This file must not use `import` and `export` statements. Otherwise, it
 // becomes impossible to augment interfaces declared in `<reference>`d files
 // (e.g. `Module`). Hence, the need for `import()` here.
 type RefreshRuntimeGlobals =
-  import("@next/react-refresh-utils/dist/runtime").RefreshRuntimeGlobals;
+  import('@next/react-refresh-utils/dist/runtime').RefreshRuntimeGlobals
 
-// Workers are loaded via blob object urls and aren't relative to the main context, this gets
-// prefixed to chunk urls in the worker.
-// declare var TURBOPACK_WORKER_LOCATION: string;
-// declare var CHUNK_BASE_PATH: string;
-declare var $RefreshHelpers$: RefreshRuntimeGlobals["$RefreshHelpers$"];
-declare var $RefreshReg$: RefreshRuntimeGlobals["$RefreshReg$"];
-declare var $RefreshSig$: RefreshRuntimeGlobals["$RefreshSig$"];
-declare var $RefreshInterceptModuleExecution$:
-  | RefreshRuntimeGlobals["$RefreshInterceptModuleExecution$"];
+declare var $RefreshHelpers$: RefreshRuntimeGlobals['$RefreshHelpers$']
+declare var $RefreshReg$: RefreshRuntimeGlobals['$RefreshReg$']
+declare var $RefreshSig$: RefreshRuntimeGlobals['$RefreshSig$']
+declare var $RefreshInterceptModuleExecution$: RefreshRuntimeGlobals['$RefreshInterceptModuleExecution$']
 
 type RefreshContext = {
-  register: RefreshRuntimeGlobals["$RefreshReg$"];
-  signature: RefreshRuntimeGlobals["$RefreshSig$"];
-  registerExports: typeof registerExportsAndSetupBoundaryForReactRefresh;
-};
+  register: RefreshRuntimeGlobals['$RefreshReg$']
+  signature: RefreshRuntimeGlobals['$RefreshSig$']
+  registerExports: typeof registerExportsAndSetupBoundaryForReactRefresh
+}
 
-type RefreshHelpers = RefreshRuntimeGlobals["$RefreshHelpers$"];
+type RefreshHelpers = RefreshRuntimeGlobals['$RefreshHelpers$']
 
 interface TurbopackDevBaseContext extends TurbopackBaseContext<Module> {
-  k: RefreshContext;
-  R: ResolvePathFromModule;
+  k: RefreshContext
+  R: ResolvePathFromModule
 }
 
 interface TurbopackDevContext extends TurbopackDevBaseContext {}
 
 type ModuleFactory = (
-  this: Module["exports"],
+  this: Module['exports'],
   context: TurbopackDevBaseContext
 ) => undefined
 
 interface DevRuntimeBackend {
-  reloadChunk?: (chunkPath: ChunkPath) => Promise<void>;
-  unloadChunk?: (chunkPath: ChunkPath) => void;
-  restart: () => void;
+  reloadChunk?: (chunkUrl: ChunkUrl) => Promise<void>
+  unloadChunk?: (chunkUrl: ChunkUrl) => void
+  restart: () => void
 }
 
 class UpdateApplyError extends Error {
-  name = "UpdateApplyError";
+  name = 'UpdateApplyError'
 
-  dependencyChain: string[];
+  dependencyChain: string[]
 
   constructor(message: string, dependencyChain: string[]) {
-    super(message);
-    this.dependencyChain = dependencyChain;
+    super(message)
+    this.dependencyChain = dependencyChain
   }
 }
 
@@ -71,15 +66,15 @@ class UpdateApplyError extends Error {
  * Maps module IDs to persisted data between executions of their hot module
  * implementation (`hot.data`).
  */
-const moduleHotData: Map<ModuleId, HotData> = new Map();
+const moduleHotData: Map<ModuleId, HotData> = new Map()
 /**
  * Maps module instances to their hot module state.
  */
-const moduleHotState: Map<Module, HotState> = new Map();
+const moduleHotState: Map<Module, HotState> = new Map()
 /**
  * Modules that call `module.hot.invalidate()` (while being updated).
  */
-const queuedInvalidatedModules: Set<ModuleId> = new Set();
+const queuedInvalidatedModules: Set<ModuleId> = new Set()
 
 /**
  * Gets or instantiates a runtime module.
@@ -87,99 +82,98 @@ const queuedInvalidatedModules: Set<ModuleId> = new Set();
 // @ts-ignore
 function getOrInstantiateRuntimeModule(
   moduleId: ModuleId,
-  chunkPath: ChunkPath,
+  chunkPath: ChunkPath
 ): Module {
-  const module = devModuleCache[moduleId];
+  const module = devModuleCache[moduleId]
   if (module) {
     if (module.error) {
-      throw module.error;
+      throw module.error
     }
-    return module;
+    return module
   }
 
   // @ts-ignore
-  return instantiateModule(moduleId, { type: SourceType.Runtime, chunkPath });
+  return instantiateModule(moduleId, { type: SourceType.Runtime, chunkPath })
 }
 
 /**
  * Retrieves a module from the cache, or instantiate it if it is not cached.
  */
 // @ts-ignore Defined in `runtime-utils.ts`
-const getOrInstantiateModuleFromParent: GetOrInstantiateModuleFromParent<HotModule> = (
-  id,
-  sourceModule,
-) => {
+const getOrInstantiateModuleFromParent: GetOrInstantiateModuleFromParent<
+  HotModule
+> = (id, sourceModule) => {
   if (!sourceModule.hot.active) {
     console.warn(
       `Unexpected import of module ${id} from module ${sourceModule.id}, which was deleted by an HMR update`
-    );
+    )
   }
 
-  const module = devModuleCache[id];
+  const module = devModuleCache[id]
 
   if (sourceModule.children.indexOf(id) === -1) {
-    sourceModule.children.push(id);
+    sourceModule.children.push(id)
   }
 
   if (module) {
     if (module.parents.indexOf(sourceModule.id) === -1) {
-      module.parents.push(sourceModule.id);
+      module.parents.push(sourceModule.id)
     }
 
-    return module;
+    return module
   }
 
   return instantiateModule(id, {
     type: SourceType.Parent,
     parentId: sourceModule.id,
-  });
-};
+  })
+}
 
 // @ts-ignore Defined in `runtime-base.ts`
 function instantiateModule(id: ModuleId, source: SourceInfo): Module {
-  const moduleFactory = moduleFactories[id];
-  if (typeof moduleFactory !== "function") {
+  const moduleFactory = moduleFactories[id]
+  if (typeof moduleFactory !== 'function') {
     // This can happen if modules incorrectly handle HMR disposes/updates,
     // e.g. when they keep a `setTimeout` around which still executes old code
     // and contains e.g. a `require("something")` call.
-    let instantiationReason;
+    let instantiationReason
     switch (source.type) {
       case SourceType.Runtime:
-        instantiationReason = `as a runtime entry of chunk ${source.chunkPath}`;
-        break;
+        instantiationReason = `as a runtime entry of chunk ${source.chunkPath}`
+        break
       case SourceType.Parent:
-        instantiationReason = `because it was required from module ${source.parentId}`;
-        break;
+        instantiationReason = `because it was required from module ${source.parentId}`
+        break
       case SourceType.Update:
-        instantiationReason = "because of an HMR update";
-        break;
+        instantiationReason = 'because of an HMR update'
+        break
       default:
-        invariant(source, (source) => `Unknown source type: ${source?.type}`);
+        invariant(source, (source) => `Unknown source type: ${source?.type}`)
     }
     throw new Error(
       `Module ${id} was instantiated ${instantiationReason}, but the module factory is not available. It might have been deleted in an HMR update.`
-    );
+    )
   }
 
-  const hotData = moduleHotData.get(id)!;
-  const { hot, hotState } = createModuleHot(id, hotData);
+  const hotData = moduleHotData.get(id)!
+  const { hot, hotState } = createModuleHot(id, hotData)
 
-  let parents: ModuleId[];
+  let parents: ModuleId[]
   switch (source.type) {
     case SourceType.Runtime:
-      runtimeModules.add(id);
-      parents = [];
-      break;
+      runtimeModules.add(id)
+      parents = []
+      break
     case SourceType.Parent:
       // No need to add this module as a child of the parent module here, this
       // has already been taken care of in `getOrInstantiateModuleFromParent`.
-      parents = [source.parentId];
-      break;
+      parents = [source.parentId]
+      break
     case SourceType.Update:
-      parents = source.parents || [];
-      break;
+      parents = source.parents || []
+      break
     default:
-      invariant(source, (source) => `Unknown source type: ${source?.type}`);
+      invariant(source, (source) => `Unknown source type: ${source?.type}`)
   }
 
   const module: HotModule = {
@@ -191,17 +185,17 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
     children: [],
     namespaceObject: undefined,
     hot,
-  };
+  }
 
-  devModuleCache[id] = module;
-  moduleHotState.set(module, hotState);
+  devModuleCache[id] = module
+  moduleHotState.set(module, hotState)
 
   // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
   try {
-    const sourceInfo: SourceInfo = { type: SourceType.Parent, parentId: id };
+    const sourceInfo: SourceInfo = { type: SourceType.Parent, parentId: id }
 
     runModuleExecutionHooks(module, (refresh) => {
-      const r = commonJsRequire.bind(null, module);
+      const r = commonJsRequire.bind(null, module)
       moduleFactory.call(
         module.exports,
         augmentContext({
@@ -219,31 +213,30 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
           c: devModuleCache,
           M: moduleFactories,
           l: loadChunk.bind(null, sourceInfo),
+          L: loadChunkByUrl.bind(null, sourceInfo),
           w: loadWebAssembly.bind(null, sourceInfo),
           u: loadWebAssemblyModule.bind(null, sourceInfo),
-          g: globalThis,
           P: resolveAbsolutePath,
           U: relativeURL,
           k: refresh,
           R: createResolvePathFromModule(r),
           b: getWorkerBlobURL,
           z: requireStub,
-          d: typeof module.id === "string" ? module.id.replace(/(^|\/)\/+$/, "") : module.id
         })
-      );
-    });
+      )
+    })
   } catch (error) {
-    module.error = error as any;
-    throw error;
+    module.error = error as any
+    throw error
   }
 
-  module.loaded = true;
+  module.loaded = true
   if (module.namespaceObject && module.exports !== module.namespaceObject) {
     // in case of a circular dependency: cjs1 -> esm2 -> cjs1
-    interopEsm(module.exports, module.namespaceObject);
+    interopEsm(module.exports, module.namespaceObject)
   }
 
-  return module;
+  return module
 }
 
 /**
@@ -255,22 +248,28 @@ function runModuleExecutionHooks(
   module: Module,
   executeModule: (ctx: RefreshContext) => void
 ) {
-  const cleanupReactRefreshIntercept =
-    typeof globalThis.$RefreshInterceptModuleExecution$ === "function"
-      ? globalThis.$RefreshInterceptModuleExecution$(module.id)
-      : () => {};
-
-  try {
+  if (typeof globalThis.$RefreshInterceptModuleExecution$ === 'function') {
+    const cleanupReactRefreshIntercept =
+      globalThis.$RefreshInterceptModuleExecution$(module.id)
+    try {
+      executeModule({
+        register: globalThis.$RefreshReg$,
+        signature: globalThis.$RefreshSig$,
+        registerExports: registerExportsAndSetupBoundaryForReactRefresh,
+      })
+    } finally {
+      // Always cleanup the intercept, even if module execution failed.
+      cleanupReactRefreshIntercept()
+    }
+  } else {
+    // If the react refresh hooks are not installed we need to bind dummy functions.
+    // This is expected when running in a Web Worker.  It is also common in some of
+    // our test environments.
     executeModule({
-      register: globalThis.$RefreshReg$,
-      signature: globalThis.$RefreshSig$,
-      registerExports: registerExportsAndSetupBoundaryForReactRefresh,
-    });
-  } catch (e) {
-    throw e;
-  } finally {
-    // Always cleanup the intercept, even if module execution failed.
-    cleanupReactRefreshIntercept();
+      register: (type, id) => {},
+      signature: () => (type) => {},
+      registerExports: (module, helpers) => {},
+    })
   }
 }
 
@@ -281,10 +280,10 @@ function registerExportsAndSetupBoundaryForReactRefresh(
   module: HotModule,
   helpers: RefreshHelpers
 ) {
-  const currentExports = module.exports;
-  const prevExports = module.hot.data.prevExports ?? null;
+  const currentExports = module.exports
+  const prevExports = module.hot.data.prevExports ?? null
 
-  helpers.registerExportsForReactRefresh(currentExports, module.id);
+  helpers.registerExportsForReactRefresh(currentExports, module.id)
 
   // A module can be accepted automatically based on its exports, e.g. when
   // it is a Refresh Boundary.
@@ -292,11 +291,11 @@ function registerExportsAndSetupBoundaryForReactRefresh(
     // Save the previous exports on update, so we can compare the boundary
     // signatures.
     module.hot.dispose((data) => {
-      data.prevExports = currentExports;
-    });
+      data.prevExports = currentExports
+    })
     // Unconditionally accept an update to this module, we'll check if it's
     // still a Refresh Boundary later.
-    module.hot.accept();
+    module.hot.accept()
 
     // This field is set when the previous version of this module was a
     // Refresh Boundary, letting us know we need to check for invalidation or
@@ -315,9 +314,9 @@ function registerExportsAndSetupBoundaryForReactRefresh(
           helpers.getRefreshBoundarySignature(currentExports)
         )
       ) {
-        module.hot.invalidate();
+        module.hot.invalidate()
       } else {
-        helpers.scheduleUpdate();
+        helpers.scheduleUpdate()
       }
     }
   } else {
@@ -325,93 +324,96 @@ function registerExportsAndSetupBoundaryForReactRefresh(
     // new exports made it ineligible for being a boundary.
     // We only care about the case when we were _previously_ a boundary,
     // because we already accepted this update (accidental side effect).
-    const isNoLongerABoundary = prevExports !== null;
+    const isNoLongerABoundary = prevExports !== null
     if (isNoLongerABoundary) {
-      module.hot.invalidate();
+      module.hot.invalidate()
     }
   }
 }
 
 function formatDependencyChain(dependencyChain: ModuleId[]): string {
-  return `Dependency chain: ${dependencyChain.join(" -> ")}`;
+  return `Dependency chain: ${dependencyChain.join(' -> ')}`
 }
 
 function computeOutdatedModules(
   added: Map<ModuleId, EcmascriptModuleEntry | undefined>,
   modified: Map<ModuleId, EcmascriptModuleEntry>
 ): {
-  outdatedModules: Set<ModuleId>;
-  newModuleFactories: Map<ModuleId, ModuleFactory>;
+  outdatedModules: Set<ModuleId>
+  newModuleFactories: Map<ModuleId, ModuleFactory>
 } {
-  const newModuleFactories = new Map<ModuleId, ModuleFactory>();
+  const newModuleFactories = new Map<ModuleId, ModuleFactory>()
 
   for (const [moduleId, entry] of added) {
     if (entry != null) {
-      newModuleFactories.set(moduleId, _eval(entry));
+      newModuleFactories.set(moduleId, _eval(entry))
     }
   }
 
-  const outdatedModules = computedInvalidatedModules(modified.keys());
+  const outdatedModules = computedInvalidatedModules(modified.keys())
 
   for (const [moduleId, entry] of modified) {
-    newModuleFactories.set(moduleId, _eval(entry));
+    newModuleFactories.set(moduleId, _eval(entry))
   }
 
-  return { outdatedModules, newModuleFactories };
+  return { outdatedModules, newModuleFactories }
 }
 
 function computedInvalidatedModules(
   invalidated: Iterable<ModuleId>
 ): Set<ModuleId> {
-  const outdatedModules = new Set<ModuleId>();
+  const outdatedModules = new Set<ModuleId>()
 
   for (const moduleId of invalidated) {
-    const effect = getAffectedModuleEffects(moduleId);
+    const effect = getAffectedModuleEffects(moduleId)
 
     switch (effect.type) {
-      case "unaccepted":
+      case 'unaccepted':
         throw new UpdateApplyError(
           `cannot apply update: unaccepted module. ${formatDependencyChain(
             effect.dependencyChain
           )}.`,
           effect.dependencyChain
-        );
-      case "self-declined":
+        )
+      case 'self-declined':
         throw new UpdateApplyError(
           `cannot apply update: self-declined module. ${formatDependencyChain(
             effect.dependencyChain
           )}.`,
           effect.dependencyChain
-        );
-      case "accepted":
+        )
+      case 'accepted':
         for (const outdatedModuleId of effect.outdatedModules) {
-          outdatedModules.add(outdatedModuleId);
+          outdatedModules.add(outdatedModuleId)
         }
-        break;
+        break
       // TODO(alexkirsz) Dependencies: handle dependencies effects.
       default:
-        invariant(effect, (effect) => `Unknown effect type: ${effect?.type}`);
+        invariant(effect, (effect) => `Unknown effect type: ${effect?.type}`)
     }
   }
 
-  return outdatedModules;
+  return outdatedModules
 }
 
 function computeOutdatedSelfAcceptedModules(
   outdatedModules: Iterable<ModuleId>
 ): { moduleId: ModuleId; errorHandler: true | Function }[] {
-  const outdatedSelfAcceptedModules: { moduleId: ModuleId; errorHandler: true | Function }[] = [];
+  const outdatedSelfAcceptedModules: {
+    moduleId: ModuleId
+    errorHandler: true | Function
+  }[] = []
   for (const moduleId of outdatedModules) {
-    const module = devModuleCache[moduleId];
-    const hotState = moduleHotState.get(module)!;
+    const module = devModuleCache[moduleId]
+    const hotState = moduleHotState.get(module)!
     if (module && hotState.selfAccepted && !hotState.selfInvalidated) {
       outdatedSelfAcceptedModules.push({
         moduleId,
         errorHandler: hotState.selfAccepted,
-      });
+      })
     }
   }
-  return outdatedSelfAcceptedModules;
+  return outdatedSelfAcceptedModules
 }
 
 /**
@@ -425,20 +427,20 @@ function updateChunksPhase(
 ): { disposedModules: Set<ModuleId> } {
   for (const [chunkPath, addedModuleIds] of chunksAddedModules) {
     for (const moduleId of addedModuleIds) {
-      addModuleToChunk(moduleId, chunkPath);
+      addModuleToChunk(moduleId, chunkPath)
     }
   }
 
-  const disposedModules: Set<ModuleId> = new Set();
+  const disposedModules: Set<ModuleId> = new Set()
   for (const [chunkPath, addedModuleIds] of chunksDeletedModules) {
     for (const moduleId of addedModuleIds) {
       if (removeModuleFromChunk(moduleId, chunkPath)) {
-        disposedModules.add(moduleId);
+        disposedModules.add(moduleId)
       }
     }
   }
 
-  return { disposedModules };
+  return { disposedModules }
 }
 
 function disposePhase(
@@ -446,26 +448,26 @@ function disposePhase(
   disposedModules: Iterable<ModuleId>
 ): { outdatedModuleParents: Map<ModuleId, Array<ModuleId>> } {
   for (const moduleId of outdatedModules) {
-    disposeModule(moduleId, "replace");
+    disposeModule(moduleId, 'replace')
   }
 
   for (const moduleId of disposedModules) {
-    disposeModule(moduleId, "clear");
+    disposeModule(moduleId, 'clear')
   }
 
   // Removing modules from the module cache is a separate step.
   // We also want to keep track of previous parents of the outdated modules.
-  const outdatedModuleParents = new Map();
+  const outdatedModuleParents = new Map()
   for (const moduleId of outdatedModules) {
-    const oldModule = devModuleCache[moduleId];
-    outdatedModuleParents.set(moduleId, oldModule?.parents);
-    delete devModuleCache[moduleId];
+    const oldModule = devModuleCache[moduleId]
+    outdatedModuleParents.set(moduleId, oldModule?.parents)
+    delete devModuleCache[moduleId]
   }
 
   // TODO(alexkirsz) Dependencies: remove outdated dependency from module
   // children.
 
-  return { outdatedModuleParents };
+  return { outdatedModuleParents }
 }
 
 /**
@@ -481,26 +483,26 @@ function disposePhase(
  * If this was done in this method, the following disposeModule calls won't find
  * the module from the module id in the cache.
  */
-function disposeModule(moduleId: ModuleId, mode: "clear" | "replace") {
-  const module = devModuleCache[moduleId];
+function disposeModule(moduleId: ModuleId, mode: 'clear' | 'replace') {
+  const module = devModuleCache[moduleId]
   if (!module) {
-    return;
+    return
   }
 
-  const hotState = moduleHotState.get(module)!;
-  const data = {};
+  const hotState = moduleHotState.get(module)!
+  const data = {}
 
   // Run the `hot.dispose` handler, if any, passing in the persistent
   // `hot.data` object.
   for (const disposeHandler of hotState.disposeHandlers) {
-    disposeHandler(data);
+    disposeHandler(data)
   }
 
   // This used to warn in `getOrInstantiateModuleFromParent` when a disposed
   // module is still importing other modules.
-  module.hot.active = false;
+  module.hot.active = false
 
-  moduleHotState.delete(module);
+  moduleHotState.delete(module)
 
   // TODO(alexkirsz) Dependencies: delete the module from outdated deps.
 
@@ -508,34 +510,34 @@ function disposeModule(moduleId: ModuleId, mode: "clear" | "replace") {
   // It will be added back once the module re-instantiates and imports its
   // children again.
   for (const childId of module.children) {
-    const child = devModuleCache[childId];
+    const child = devModuleCache[childId]
     if (!child) {
-      continue;
+      continue
     }
 
-    const idx = child.parents.indexOf(module.id);
+    const idx = child.parents.indexOf(module.id)
     if (idx >= 0) {
-      child.parents.splice(idx, 1);
+      child.parents.splice(idx, 1)
     }
   }
 
   switch (mode) {
-    case "clear":
-      delete devModuleCache[module.id];
-      moduleHotData.delete(module.id);
-      break;
-    case "replace":
-      moduleHotData.set(module.id, data);
-      break;
+    case 'clear':
+      delete devModuleCache[module.id]
+      moduleHotData.delete(module.id)
+      break
+    case 'replace':
+      moduleHotData.set(module.id, data)
+      break
     default:
-      invariant(mode, (mode) => `invalid mode: ${mode}`);
+      invariant(mode, (mode) => `invalid mode: ${mode}`)
   }
 }
 
 function applyPhase(
   outdatedSelfAcceptedModules: {
-    moduleId: ModuleId;
-    errorHandler: true | Function;
+    moduleId: ModuleId
+    errorHandler: true | Function
   }[],
   newModuleFactories: Map<ModuleId, ModuleFactory>,
   outdatedModuleParents: Map<ModuleId, Array<ModuleId>>,
@@ -543,7 +545,7 @@ function applyPhase(
 ) {
   // Update module factories.
   for (const [moduleId, factory] of newModuleFactories.entries()) {
-    moduleFactories[moduleId] = factory;
+    moduleFactories[moduleId] = factory
   }
 
   // TODO(alexkirsz) Run new runtime entries here.
@@ -556,17 +558,17 @@ function applyPhase(
       instantiateModule(moduleId, {
         type: SourceType.Update,
         parents: outdatedModuleParents.get(moduleId),
-      });
+      })
     } catch (err) {
-      if (typeof errorHandler === "function") {
+      if (typeof errorHandler === 'function') {
         try {
-          errorHandler(err, { moduleId, module: devModuleCache[moduleId] });
+          errorHandler(err, { moduleId, module: devModuleCache[moduleId] })
         } catch (err2) {
-          reportError(err2);
-          reportError(err);
+          reportError(err2)
+          reportError(err)
         }
       } else {
-        reportError(err);
+        reportError(err)
       }
     }
   }
@@ -574,11 +576,11 @@ function applyPhase(
 
 function applyUpdate(update: PartialUpdate) {
   switch (update.type) {
-    case "ChunkListUpdate":
-      applyChunkListUpdate(update);
-      break;
+    case 'ChunkListUpdate':
+      applyChunkListUpdate(update)
+      break
     default:
-      invariant(update, (update) => `Unknown update type: ${update.type}`);
+      invariant(update, (update) => `Unknown update type: ${update.type}`)
   }
 }
 
@@ -586,69 +588,73 @@ function applyChunkListUpdate(update: ChunkListUpdate) {
   if (update.merged != null) {
     for (const merged of update.merged) {
       switch (merged.type) {
-        case "EcmascriptMergedUpdate":
-          applyEcmascriptMergedUpdate(merged);
-          break;
+        case 'EcmascriptMergedUpdate':
+          applyEcmascriptMergedUpdate(merged)
+          break
         default:
-          invariant(merged, (merged) => `Unknown merged type: ${merged.type}`);
+          invariant(merged, (merged) => `Unknown merged type: ${merged.type}`)
       }
     }
   }
 
   if (update.chunks != null) {
-    for (const [chunkPath, chunkUpdate] of Object.entries(update.chunks)) {
+    for (const [chunkPath, chunkUpdate] of Object.entries(
+      update.chunks
+    ) as Array<[ChunkPath, ChunkUpdate]>) {
+      const chunkUrl = getChunkRelativeUrl(chunkPath)
+
       switch (chunkUpdate.type) {
-        case "added":
-          BACKEND.loadChunk(chunkPath, { type: SourceType.Update });
-          break;
-        case "total":
-          DEV_BACKEND.reloadChunk?.(chunkPath);
-          break;
-        case "deleted":
-          DEV_BACKEND.unloadChunk?.(chunkPath);
-          break;
-        case "partial":
+        case 'added':
+          BACKEND.loadChunk(chunkUrl, { type: SourceType.Update })
+          break
+        case 'total':
+          DEV_BACKEND.reloadChunk?.(chunkUrl)
+          break
+        case 'deleted':
+          DEV_BACKEND.unloadChunk?.(chunkUrl)
+          break
+        case 'partial':
           invariant(
             chunkUpdate.instruction,
             (instruction) =>
               `Unknown partial instruction: ${JSON.stringify(instruction)}.`
-          );
-          break;
+          )
+          break
         default:
           invariant(
             chunkUpdate,
             (chunkUpdate) => `Unknown chunk update type: ${chunkUpdate.type}`
-          );
+          )
       }
     }
   }
 }
 
 function applyEcmascriptMergedUpdate(update: EcmascriptMergedUpdate) {
-  const { entries = {}, chunks = {} } = update;
+  const { entries = {}, chunks = {} } = update
   const { added, modified, chunksAdded, chunksDeleted } = computeChangedModules(
     entries,
     chunks
-  );
+  )
   const { outdatedModules, newModuleFactories } = computeOutdatedModules(
     added,
     modified
-  );
-  const { disposedModules } = updateChunksPhase(chunksAdded, chunksDeleted);
+  )
+  const { disposedModules } = updateChunksPhase(chunksAdded, chunksDeleted)
 
-  applyInternal(outdatedModules, disposedModules, newModuleFactories);
+  applyInternal(outdatedModules, disposedModules, newModuleFactories)
 }
 
 function applyInvalidatedModules(outdatedModules: Set<ModuleId>) {
   if (queuedInvalidatedModules.size > 0) {
     computedInvalidatedModules(queuedInvalidatedModules).forEach((moduleId) => {
-      outdatedModules.add(moduleId);
-    });
+      outdatedModules.add(moduleId)
+    })
 
-    queuedInvalidatedModules.clear();
+    queuedInvalidatedModules.clear()
   }
 
-  return outdatedModules;
+  return outdatedModules
 }
 
 function applyInternal(
@@ -656,21 +662,21 @@ function applyInternal(
   disposedModules: Iterable<ModuleId>,
   newModuleFactories: Map<ModuleId, ModuleFactory>
 ) {
-  outdatedModules = applyInvalidatedModules(outdatedModules);
+  outdatedModules = applyInvalidatedModules(outdatedModules)
 
   const outdatedSelfAcceptedModules =
-    computeOutdatedSelfAcceptedModules(outdatedModules);
+    computeOutdatedSelfAcceptedModules(outdatedModules)
 
   const { outdatedModuleParents } = disposePhase(
     outdatedModules,
     disposedModules
-  );
+  )
 
   // we want to continue on error and only throw the error after we tried applying all updates
-  let error: any;
+  let error: any
 
   function reportError(err: any) {
-    if (!error) error = err;
+    if (!error) error = err
   }
 
   applyPhase(
@@ -678,14 +684,14 @@ function applyInternal(
     newModuleFactories,
     outdatedModuleParents,
     reportError
-  );
+  )
 
   if (error) {
-    throw error;
+    throw error
   }
 
   if (queuedInvalidatedModules.size > 0) {
-    applyInternal(new Set(), [], new Map());
+    applyInternal(new Set(), [], new Map())
   }
 }
 
@@ -693,56 +699,58 @@ function computeChangedModules(
   entries: Record<ModuleId, EcmascriptModuleEntry>,
   updates: Record<ChunkPath, EcmascriptMergedChunkUpdate>
 ): {
-  added: Map<ModuleId, EcmascriptModuleEntry | undefined>;
-  modified: Map<ModuleId, EcmascriptModuleEntry>;
-  deleted: Set<ModuleId>;
-  chunksAdded: Map<ChunkPath, Set<ModuleId>>;
-  chunksDeleted: Map<ChunkPath, Set<ModuleId>>;
+  added: Map<ModuleId, EcmascriptModuleEntry | undefined>
+  modified: Map<ModuleId, EcmascriptModuleEntry>
+  deleted: Set<ModuleId>
+  chunksAdded: Map<ChunkPath, Set<ModuleId>>
+  chunksDeleted: Map<ChunkPath, Set<ModuleId>>
 } {
-  const chunksAdded = new Map();
-  const chunksDeleted = new Map();
-  const added: Map<ModuleId, EcmascriptModuleEntry> = new Map();
-  const modified = new Map();
-  const deleted: Set<ModuleId> = new Set();
+  const chunksAdded = new Map()
+  const chunksDeleted = new Map()
+  const added: Map<ModuleId, EcmascriptModuleEntry> = new Map()
+  const modified = new Map()
+  const deleted: Set<ModuleId> = new Set()
 
-  for (const [chunkPath, mergedChunkUpdate] of Object.entries(updates)) {
+  for (const [chunkPath, mergedChunkUpdate] of Object.entries(updates) as Array<
+    [ChunkPath, EcmascriptMergedChunkUpdate]
+  >) {
     switch (mergedChunkUpdate.type) {
-      case "added": {
-        const updateAdded = new Set(mergedChunkUpdate.modules);
+      case 'added': {
+        const updateAdded = new Set(mergedChunkUpdate.modules)
         for (const moduleId of updateAdded) {
-          added.set(moduleId, entries[moduleId]);
+          added.set(moduleId, entries[moduleId])
         }
-        chunksAdded.set(chunkPath, updateAdded);
-        break;
+        chunksAdded.set(chunkPath, updateAdded)
+        break
       }
-      case "deleted": {
+      case 'deleted': {
         // We could also use `mergedChunkUpdate.modules` here.
-        const updateDeleted = new Set(chunkModulesMap.get(chunkPath));
+        const updateDeleted = new Set(chunkModulesMap.get(chunkPath))
         for (const moduleId of updateDeleted) {
-          deleted.add(moduleId);
+          deleted.add(moduleId)
         }
-        chunksDeleted.set(chunkPath, updateDeleted);
-        break;
+        chunksDeleted.set(chunkPath, updateDeleted)
+        break
       }
-      case "partial": {
-        const updateAdded = new Set(mergedChunkUpdate.added);
-        const updateDeleted = new Set(mergedChunkUpdate.deleted);
+      case 'partial': {
+        const updateAdded = new Set(mergedChunkUpdate.added)
+        const updateDeleted = new Set(mergedChunkUpdate.deleted)
         for (const moduleId of updateAdded) {
-          added.set(moduleId, entries[moduleId]);
+          added.set(moduleId, entries[moduleId])
         }
         for (const moduleId of updateDeleted) {
-          deleted.add(moduleId);
+          deleted.add(moduleId)
         }
-        chunksAdded.set(chunkPath, updateAdded);
-        chunksDeleted.set(chunkPath, updateDeleted);
-        break;
+        chunksAdded.set(chunkPath, updateAdded)
+        chunksDeleted.set(chunkPath, updateDeleted)
+        break
       }
       default:
         invariant(
           mergedChunkUpdate,
           (mergedChunkUpdate) =>
             `Unknown merged chunk update type: ${mergedChunkUpdate.type}`
-        );
+        )
     }
   }
 
@@ -751,8 +759,8 @@ function computeChangedModules(
   // AND has new code in a single update.
   for (const moduleId of added.keys()) {
     if (deleted.has(moduleId)) {
-      added.delete(moduleId);
-      deleted.delete(moduleId);
+      added.delete(moduleId)
+      deleted.delete(moduleId)
     }
   }
 
@@ -762,65 +770,65 @@ function computeChangedModules(
     // This needs to be under the previous loop, as we need it to get rid of modules
     // that were added and deleted in the same update.
     if (!added.has(moduleId)) {
-      modified.set(moduleId, entry);
+      modified.set(moduleId, entry)
     }
   }
 
-  return { added, deleted, modified, chunksAdded, chunksDeleted };
+  return { added, deleted, modified, chunksAdded, chunksDeleted }
 }
 
 type ModuleEffect =
   | {
-      type: "unaccepted";
-      dependencyChain: ModuleId[];
+      type: 'unaccepted'
+      dependencyChain: ModuleId[]
     }
   | {
-      type: "self-declined";
-      dependencyChain: ModuleId[];
-      moduleId: ModuleId;
+      type: 'self-declined'
+      dependencyChain: ModuleId[]
+      moduleId: ModuleId
     }
   | {
-      type: "accepted";
-      moduleId: ModuleId;
-      outdatedModules: Set<ModuleId>;
-    };
+      type: 'accepted'
+      moduleId: ModuleId
+      outdatedModules: Set<ModuleId>
+    }
 
 function getAffectedModuleEffects(moduleId: ModuleId): ModuleEffect {
-  const outdatedModules: Set<ModuleId> = new Set();
+  const outdatedModules: Set<ModuleId> = new Set()
 
-  type QueueItem = { moduleId?: ModuleId; dependencyChain: ModuleId[] };
+  type QueueItem = { moduleId?: ModuleId; dependencyChain: ModuleId[] }
 
   const queue: QueueItem[] = [
     {
       moduleId,
       dependencyChain: [],
     },
-  ];
+  ]
 
-  let nextItem;
+  let nextItem
   while ((nextItem = queue.shift())) {
-    const { moduleId, dependencyChain } = nextItem;
+    const { moduleId, dependencyChain } = nextItem
 
     if (moduleId != null) {
       if (outdatedModules.has(moduleId)) {
         // Avoid infinite loops caused by cycles between modules in the dependency chain.
-        continue;
+        continue
       }
 
-      outdatedModules.add(moduleId);
+      outdatedModules.add(moduleId)
     }
 
     // We've arrived at the runtime of the chunk, which means that nothing
     // else above can accept this update.
     if (moduleId === undefined) {
       return {
-        type: "unaccepted",
+        type: 'unaccepted',
         dependencyChain,
-      };
+      }
     }
 
-    const module = devModuleCache[moduleId];
-    const hotState = moduleHotState.get(module)!;
+    const module = devModuleCache[moduleId]
+    const hotState = moduleHotState.get(module)!
 
     if (
       // The module is not in the cache. Since this is a "modified" update,
@@ -829,31 +837,31 @@ function getAffectedModuleEffects(moduleId: ModuleId): ModuleEffect {
       // TODO is that right?
       (hotState.selfAccepted && !hotState.selfInvalidated)
     ) {
-      continue;
+      continue
     }
 
     if (hotState.selfDeclined) {
       return {
-        type: "self-declined",
+        type: 'self-declined',
         dependencyChain,
         moduleId,
-      };
+      }
     }
 
     if (runtimeModules.has(moduleId)) {
       queue.push({
         moduleId: undefined,
         dependencyChain: [...dependencyChain, moduleId],
-      });
-      continue;
+      })
+      continue
     }
 
     for (const parentId of module.parents) {
-      const parent = devModuleCache[parentId];
+      const parent = devModuleCache[parentId]
 
       if (!parent) {
         // TODO(alexkirsz) Is this even possible?
-        continue;
+        continue
       }
 
       // TODO(alexkirsz) Dependencies: check accepted and declined
@@ -862,45 +870,45 @@ function getAffectedModuleEffects(moduleId: ModuleId): ModuleEffect {
       queue.push({
         moduleId: parentId,
         dependencyChain: [...dependencyChain, moduleId],
-      });
+      })
     }
   }
 
   return {
-    type: "accepted",
+    type: 'accepted',
     moduleId,
     outdatedModules,
-  };
+  }
 }
 
-function handleApply(chunkListPath: ChunkPath, update: ServerMessage) {
+function handleApply(chunkListPath: ChunkListPath, update: ServerMessage) {
   switch (update.type) {
-    case "partial": {
+    case 'partial': {
       // This indicates that the update is can be applied to the current state of the application.
-      applyUpdate(update.instruction);
-      break;
+      applyUpdate(update.instruction)
+      break
     }
-    case "restart": {
+    case 'restart': {
       // This indicates that there is no way to apply the update to the
       // current state of the application, and that the application must be
       // restarted.
-      DEV_BACKEND.restart();
-      break;
+      DEV_BACKEND.restart()
+      break
     }
-    case "notFound": {
+    case 'notFound': {
       // This indicates that the chunk list no longer exists: either the dynamic import which created it was removed,
       // or the page itself was deleted.
       // If it is a dynamic import, we simply discard all modules that the chunk has exclusive access to.
       // If it is a runtime chunk list, we restart the application.
       if (runtimeChunkLists.has(chunkListPath)) {
-        DEV_BACKEND.restart();
+        DEV_BACKEND.restart()
       } else {
-        disposeChunkList(chunkListPath);
+        disposeChunkList(chunkListPath)
       }
-      break;
+      break
     }
     default:
-      throw new Error(`Unknown update type: ${update.type}`);
+      throw new Error(`Unknown update type: ${update.type}`)
   }
 }
 
@@ -913,7 +921,7 @@ function createModuleHot(
     selfDeclined: false,
     selfInvalidated: false,
     disposeHandlers: [],
-  };
+  }
 
   const hot: Hot = {
     // TODO(alexkirsz) This is not defined in the HMR API. It was used to
@@ -930,46 +938,46 @@ function createModuleHot(
       _errorHandler?: AcceptErrorHandler
     ) => {
       if (modules === undefined) {
-        hotState.selfAccepted = true;
-      } else if (typeof modules === "function") {
-        hotState.selfAccepted = modules;
+        hotState.selfAccepted = true
+      } else if (typeof modules === 'function') {
+        hotState.selfAccepted = modules
       } else {
-        throw new Error("unsupported `accept` signature");
+        throw new Error('unsupported `accept` signature')
       }
     },
 
     decline: (dep) => {
       if (dep === undefined) {
-        hotState.selfDeclined = true;
+        hotState.selfDeclined = true
       } else {
-        throw new Error("unsupported `decline` signature");
+        throw new Error('unsupported `decline` signature')
       }
     },
 
     dispose: (callback) => {
-      hotState.disposeHandlers.push(callback);
+      hotState.disposeHandlers.push(callback)
     },
 
     addDisposeHandler: (callback) => {
-      hotState.disposeHandlers.push(callback);
+      hotState.disposeHandlers.push(callback)
     },
 
     removeDisposeHandler: (callback) => {
-      const idx = hotState.disposeHandlers.indexOf(callback);
+      const idx = hotState.disposeHandlers.indexOf(callback)
       if (idx >= 0) {
-        hotState.disposeHandlers.splice(idx, 1);
+        hotState.disposeHandlers.splice(idx, 1)
       }
     },
 
     invalidate: () => {
-      hotState.selfInvalidated = true;
-      queuedInvalidatedModules.add(moduleId);
+      hotState.selfInvalidated = true
+      queuedInvalidatedModules.add(moduleId)
     },
 
     // NOTE(alexkirsz) This is part of the management API, which we don't
     // implement, but the Next.js React Refresh runtime uses this to decide
     // whether to schedule an update.
-    status: () => "idle",
+    status: () => 'idle',
 
     // NOTE(alexkirsz) Since we always return "idle" for now, these are no-ops.
     addStatusHandler: (_handler) => {},
@@ -979,9 +987,9 @@ function createModuleHot(
     // want the webpack code paths to ever update (the turbopack paths handle
     // this already).
     check: () => Promise.resolve(null),
-  };
+  }
 
-  return { hot, hotState };
+  return { hot, hotState }
 }
 
 /**
@@ -992,50 +1000,52 @@ function removeModuleFromChunk(
   moduleId: ModuleId,
   chunkPath: ChunkPath
 ): boolean {
-  const moduleChunks = moduleChunksMap.get(moduleId)!;
-  moduleChunks.delete(chunkPath);
+  const moduleChunks = moduleChunksMap.get(moduleId)!
+  moduleChunks.delete(chunkPath)
 
-  const chunkModules = chunkModulesMap.get(chunkPath)!;
-  chunkModules.delete(moduleId);
+  const chunkModules = chunkModulesMap.get(chunkPath)!
+  chunkModules.delete(moduleId)
 
-  const noRemainingModules = chunkModules.size === 0;
+  const noRemainingModules = chunkModules.size === 0
   if (noRemainingModules) {
-    chunkModulesMap.delete(chunkPath);
+    chunkModulesMap.delete(chunkPath)
   }
 
-  const noRemainingChunks = moduleChunks.size === 0;
+  const noRemainingChunks = moduleChunks.size === 0
   if (noRemainingChunks) {
-    moduleChunksMap.delete(moduleId);
+    moduleChunksMap.delete(moduleId)
   }
 
-  return noRemainingChunks;
+  return noRemainingChunks
 }
 
 /**
  * Disposes of a chunk list and its corresponding exclusive chunks.
  */
-function disposeChunkList(chunkListPath: ChunkPath): boolean {
-  const chunkPaths = chunkListChunksMap.get(chunkListPath);
+function disposeChunkList(chunkListPath: ChunkListPath): boolean {
+  const chunkPaths = chunkListChunksMap.get(chunkListPath)
   if (chunkPaths == null) {
-    return false;
+    return false
   }
-  chunkListChunksMap.delete(chunkListPath);
+  chunkListChunksMap.delete(chunkListPath)
 
   for (const chunkPath of chunkPaths) {
-    const chunkChunkLists = chunkChunkListsMap.get(chunkPath)!;
-    chunkChunkLists.delete(chunkListPath);
+    const chunkChunkLists = chunkChunkListsMap.get(chunkPath)!
+    chunkChunkLists.delete(chunkListPath)
 
     if (chunkChunkLists.size === 0) {
-      chunkChunkListsMap.delete(chunkPath);
-      disposeChunk(chunkPath);
+      chunkChunkListsMap.delete(chunkPath)
+      disposeChunk(chunkPath)
     }
   }
 
   // We must also dispose of the chunk list's chunk itself to ensure it may
   // be reloaded properly in the future.
-  DEV_BACKEND.unloadChunk?.(chunkListPath);
+  const chunkListUrl = getChunkRelativeUrl(chunkListPath)
 
-  return true;
+  DEV_BACKEND.unloadChunk?.(chunkListUrl)
+
+  return true
 }
 
 /**
@@ -1044,73 +1054,61 @@ function disposeChunkList(chunkListPath: ChunkPath): boolean {
  * @returns Whether the chunk was disposed of.
  */
 function disposeChunk(chunkPath: ChunkPath): boolean {
+  const chunkUrl = getChunkRelativeUrl(chunkPath)
   // This should happen whether the chunk has any modules in it or not.
   // For instance, CSS chunks have no modules in them, but they still need to be unloaded.
-  DEV_BACKEND.unloadChunk?.(chunkPath);
+  DEV_BACKEND.unloadChunk?.(chunkUrl)
 
-  const chunkModules = chunkModulesMap.get(chunkPath);
+  const chunkModules = chunkModulesMap.get(chunkPath)
   if (chunkModules == null) {
-    return false;
+    return false
   }
-  chunkModules.delete(chunkPath);
+  chunkModules.delete(chunkPath)
 
   for (const moduleId of chunkModules) {
-    const moduleChunks = moduleChunksMap.get(moduleId)!;
-    moduleChunks.delete(chunkPath);
+    const moduleChunks = moduleChunksMap.get(moduleId)!
+    moduleChunks.delete(chunkPath)
 
-    const noRemainingChunks = moduleChunks.size === 0;
+    const noRemainingChunks = moduleChunks.size === 0
     if (noRemainingChunks) {
-      moduleChunksMap.delete(moduleId);
-      disposeModule(moduleId, "clear");
-      availableModules.delete(moduleId);
+      moduleChunksMap.delete(moduleId)
+      disposeModule(moduleId, 'clear')
+      availableModules.delete(moduleId)
     }
   }
 
-  return true;
+  return true
 }
-
 
 /**
  * Subscribes to chunk list updates from the update server and applies them.
  */
-function registerChunkList(
-  chunkUpdateProvider: ChunkUpdateProvider,
-  chunkList: ChunkList
-) {
-  chunkUpdateProvider.push([
-    chunkList.path,
-    handleApply.bind(null, chunkList.path),
-  ]);
+function registerChunkList(chunkList: ChunkList) {
+  const chunkListScript = chunkList.script
+  const chunkListPath = getPathFromScript(chunkListScript)
+  // The "chunk" is also registered to finish the loading in the backend
+  BACKEND.registerChunk(chunkListPath as string as ChunkPath)
+  globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS!.push([
+    chunkListPath,
+    handleApply.bind(null, chunkListPath),
+  ])
 
   // Adding chunks to chunk lists and vice versa.
-  const chunks = new Set(chunkList.chunks.map(getChunkPath));
-  chunkListChunksMap.set(chunkList.path, chunks);
-  for (const chunkPath of chunks) {
-    let chunkChunkLists = chunkChunkListsMap.get(chunkPath);
+  const chunkPaths = new Set(chunkList.chunks.map(getChunkPath))
+  chunkListChunksMap.set(chunkListPath, chunkPaths)
+  for (const chunkPath of chunkPaths) {
+    let chunkChunkLists = chunkChunkListsMap.get(chunkPath)
     if (!chunkChunkLists) {
-      chunkChunkLists = new Set([chunkList.path]);
-      chunkChunkListsMap.set(chunkPath, chunkChunkLists);
+      chunkChunkLists = new Set([chunkListPath])
+      chunkChunkListsMap.set(chunkPath, chunkChunkLists)
     } else {
-      chunkChunkLists.add(chunkList.path);
+      chunkChunkLists.add(chunkListPath)
     }
   }
 
-  if (chunkList.source === "entry") {
-    markChunkListAsRuntime(chunkList.path);
+  if (chunkList.source === 'entry') {
+    markChunkListAsRuntime(chunkListPath)
   }
 }
 
-globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS ??= [];
-
-const chunkListsToRegister = globalThis.TURBOPACK_CHUNK_LISTS;
-if (Array.isArray(chunkListsToRegister)) {
-  for (const chunkList of chunkListsToRegister) {
-    registerChunkList(globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS, chunkList);
-  }
-}
-
-globalThis.TURBOPACK_CHUNK_LISTS = {
-  push: (chunkList) => {
-    registerChunkList(globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS!, chunkList);
-  },
-} satisfies ChunkListProvider;
+globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS ??= []

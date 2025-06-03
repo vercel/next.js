@@ -1,9 +1,9 @@
 import type { ParamValue, Params } from '../../server/request/params'
 import type { AppPageModule } from '../../server/route-modules/app-page/module'
 import type { AppSegment } from '../segment-config/app/app-segments'
-import type { StaticPathsResult } from './types'
+import type { PrerenderedRoute, StaticPathsResult } from './types'
 
-import path from 'path'
+import path from 'node:path'
 import { AfterRunner } from '../../server/after/run-with-after'
 import { createWorkStore } from '../../server/async-storage/work-store'
 import { FallbackMode } from '../../lib/fallback'
@@ -38,7 +38,7 @@ function areParamValuesEqual(a: ParamValue, b: ParamValue) {
       return false
     }
 
-    return a.every((item) => b.includes(item))
+    return a.every((item, index) => item === b[index])
   }
 
   // Otherwise, they're not equal.
@@ -52,39 +52,26 @@ function areParamValuesEqual(a: ParamValue, b: ParamValue) {
  * @param routeParams - The list of parameters to filter.
  * @returns The list of unique parameters.
  */
-function filterUniqueParams(
+export function filterUniqueParams(
   routeParamKeys: readonly string[],
   routeParams: readonly Params[]
 ): Params[] {
   const unique: Params[] = []
 
-  for (const params of routeParams) {
-    let i = 0
-    for (; i < unique.length; i++) {
-      const item = unique[i]
-      let j = 0
-      for (; j < routeParamKeys.length; j++) {
-        const key = routeParamKeys[j]
-
-        // If the param is not the same, then we need to break out of the loop.
+  paramsLoop: for (const params of routeParams) {
+    uniqueLoop: for (const item of unique) {
+      for (const key of routeParamKeys) {
+        // If the param is not the same, then we need to check the next item
         if (!areParamValuesEqual(item[key], params[key])) {
-          break
+          continue uniqueLoop
         }
       }
 
-      // If we got to the end of the paramKeys array, then it means that we
-      // found a duplicate. Skip it.
-      if (j === routeParamKeys.length) {
-        break
-      }
+      // If we got here, then all params matched and we found a duplicate
+      continue paramsLoop
     }
 
-    // If we didn't get to the end of the unique array, then it means that we
-    // found a duplicate. Skip it.
-    if (i < unique.length) {
-      continue
-    }
-
+    // If we got here, then we checked all items and found no duplicates
     unique.push(params)
   }
 
@@ -117,36 +104,29 @@ function filterUniqueParams(
  * @param routeParams - The list of parameters to filter.
  * @returns The list of combinations of root params.
  */
-function filterRootParamsCombinations(
+export function filterUniqueRootParamsCombinations(
   rootParamKeys: readonly string[],
   routeParams: readonly Params[]
 ): Params[] {
   const combinations: Params[] = []
 
-  for (const params of routeParams) {
+  paramsLoop: for (const params of routeParams) {
     const combination: Params = {}
 
     // Collect all root params. As soon as we don't find a root param, break.
-    let i = 0
-    for (; i < rootParamKeys.length; i++) {
-      const key = rootParamKeys[i]
+    for (const key of rootParamKeys) {
       if (params[key]) {
         combination[key] = params[key]
       } else {
-        break
+        // Skip this combination if we don't have all root params
+        continue paramsLoop
       }
-    }
-
-    // If we didn't find all root params, skip this combination. We only want to
-    // generate combinations that have all root params.
-    if (i < rootParamKeys.length) {
-      continue
     }
 
     combinations.push(combination)
   }
 
-  return combinations
+  return filterUniqueParams(rootParamKeys, combinations)
 }
 
 /**
@@ -244,6 +224,50 @@ function validateParams(
 }
 
 /**
+ * Assigns the throwOnEmptyStaticShell property to each of the prerendered routes.
+ *
+ * @param prerenderedRoutes - The prerendered routes.
+ * @param routeParamKeys - The keys of the route parameters.
+ */
+export function assignErrorIfEmpty(
+  prerenderedRoutes: readonly PrerenderedRoute[],
+  routeParamKeys: readonly string[]
+) {
+  // If we're rendering a more specific route, then we don't need to error
+  // if the route is empty.
+  for (const prerenderedRoute of prerenderedRoutes) {
+    let throwOnEmptyStaticShell: boolean = true
+
+    // If the route has fallbackRouteParams, then we need to check if the
+    // route is a more specific route.
+    const { fallbackRouteParams, params } = prerenderedRoute
+    if (fallbackRouteParams && fallbackRouteParams.length > 0) {
+      siblingLoop: for (const other of prerenderedRoutes) {
+        // Skip the current route.
+        if (other === prerenderedRoute) continue
+
+        for (const key of routeParamKeys) {
+          // If the key is a fallback route param, then we can skip it, because
+          // it always matches.
+          if (fallbackRouteParams.includes(key)) {
+            throwOnEmptyStaticShell = false
+            break siblingLoop
+          }
+
+          // If the param value is not equal, then we can break out of the loop
+          // because the route is not a more specific route.
+          if (!areParamValuesEqual(params[key], other.params[key])) {
+            continue siblingLoop
+          }
+        }
+      }
+    }
+
+    prerenderedRoute.throwOnEmptyStaticShell = throwOnEmptyStaticShell
+  }
+}
+
+/**
  * Builds the static paths for an app using `generateStaticParams`.
  *
  * @param params - The parameters for the build.
@@ -336,6 +360,7 @@ export async function buildAppStaticPaths({
       onAfterTaskError: afterRunner.context.onTaskError,
     },
     buildId,
+    previouslyRevalidatedTags: [],
   })
 
   const routeParams = await ComponentMod.workAsyncStorage.run(
@@ -394,6 +419,8 @@ export async function buildAppStaticPaths({
       return builtRouteParams()
     }
   )
+
+  await afterRunner.executeAfter()
 
   let lastDynamicSegmentHadGenerateStaticParams = false
   for (const segment of segments) {
@@ -469,11 +496,12 @@ export async function buildAppStaticPaths({
       // Discover all unique combinations of the rootParams so we can generate
       // shells for each of them if they're available.
       routeParams.unshift(
-        ...filterRootParamsCombinations(rootParamKeys, routeParams)
+        ...filterUniqueRootParamsCombinations(rootParamKeys, routeParams)
       )
 
       result.prerenderedRoutes ??= []
       result.prerenderedRoutes.push({
+        params: {},
         pathname: page,
         encodedPathname: page,
         fallbackRouteParams: routeParamKeys,
@@ -485,6 +513,8 @@ export async function buildAppStaticPaths({
             : fallbackMode
           : FallbackMode.NOT_FOUND,
         fallbackRootParams: rootParamKeys,
+        // This is set later after all the routes have been processed.
+        throwOnEmptyStaticShell: true,
       })
     }
 
@@ -502,7 +532,7 @@ export async function buildAppStaticPaths({
       let pathname: string = page
       let encodedPathname: string = page
 
-      const fallbackRouteParams: string[] = []
+      let fallbackRouteParams: string[] = []
 
       for (const key of routeParamKeys) {
         if (fallbackRouteParams.length > 0) {
@@ -549,6 +579,7 @@ export async function buildAppStaticPaths({
 
       result.prerenderedRoutes ??= []
       result.prerenderedRoutes.push({
+        params,
         pathname: normalizePathname(pathname),
         encodedPathname: normalizePathname(encodedPathname),
         fallbackRouteParams,
@@ -560,11 +591,16 @@ export async function buildAppStaticPaths({
             : fallbackMode
           : FallbackMode.NOT_FOUND,
         fallbackRootParams,
+        // This is set later after all the routes have been processed.
+        throwOnEmptyStaticShell: true,
       })
     })
   }
 
-  await afterRunner.executeAfter()
+  // Now we have to set the throwOnEmptyStaticShell for each of the routes.
+  if (result.prerenderedRoutes && dynamicIO) {
+    assignErrorIfEmpty(result.prerenderedRoutes, routeParamKeys)
+  }
 
   return result
 }

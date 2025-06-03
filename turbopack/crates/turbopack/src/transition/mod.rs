@@ -1,8 +1,6 @@
-pub(crate) mod context_transition;
 pub(crate) mod full_context_transition;
 
 use anyhow::Result;
-pub use context_transition::ContextTransition;
 pub use full_context_transition::FullContextTransition;
 use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
@@ -14,8 +12,8 @@ use turbopack_core::{
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 use crate::{
-    module_options::{transition_rule::TransitionRule, ModuleOptionsContext},
     ModuleAssetContext,
+    module_options::{ModuleOptionsContext, transition_rule::TransitionRule},
 };
 
 /// Some kind of operation that is executed during reference processing. e. g.
@@ -36,11 +34,6 @@ pub trait Transition {
         compile_time_info
     }
 
-    /// Apply modifications to the layer
-    fn process_layer(self: Vc<Self>, layer: Vc<RcStr>) -> Vc<RcStr> {
-        layer
-    }
-
     /// Apply modifications/wrapping to the module options context
     fn process_module_options_context(
         self: Vc<Self>,
@@ -55,6 +48,14 @@ pub trait Transition {
         resolve_options_context: Vc<ResolveOptionsContext>,
     ) -> Vc<ResolveOptionsContext> {
         resolve_options_context
+    }
+
+    /// Apply modifications/wrapping to the transition options
+    fn process_transition_options(
+        self: Vc<Self>,
+        transition_options: Vc<TransitionOptions>,
+    ) -> Vc<TransitionOptions> {
+        transition_options
     }
 
     /// Apply modifications/wrapping to the final asset
@@ -78,9 +79,10 @@ pub trait Transition {
             self.process_module_options_context(*module_asset_context.module_options_context);
         let resolve_options_context =
             self.process_resolve_options_context(*module_asset_context.resolve_options_context);
-        let layer = self.process_layer(*module_asset_context.layer);
+        let layer = module_asset_context.layer.clone();
+        let transition_options = self.process_transition_options(*module_asset_context.transitions);
         let module_asset_context = ModuleAssetContext::new(
-            *module_asset_context.transitions,
+            transition_options,
             compile_time_info,
             module_options_context,
             resolve_options_context,

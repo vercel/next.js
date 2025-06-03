@@ -11,9 +11,9 @@ use turbopack_core::{
     reference::{ModuleReference, ModuleReferences},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
+        ModuleResolveResult,
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
-        ModuleResolveResult,
     },
     source::Source,
 };
@@ -165,8 +165,8 @@ impl Module for TsConfigModuleAsset {
                         Request::module(
                             name,
                             Value::new(RcStr::default().into()),
-                            Vc::<RcStr>::default(),
-                            Vc::<RcStr>::default(),
+                            RcStr::default(),
+                            RcStr::default(),
                         ),
                     )
                     .to_resolved()

@@ -153,4 +153,32 @@ describe('app-dir - metadata-streaming', () => {
       expect(status).toBe(307)
     })
   })
+
+  describe('static', () => {
+    it('should render static metadata in the head', async () => {
+      const $ = await next.render$('/static/full')
+      expect($('title').length).toBe(1)
+      expect($('head title').text()).toBe('static page')
+    })
+
+    it('should determine dynamic metadata in build and render in the body', async () => {
+      const $ = await next.render$('/static/partial')
+      expect($('title').length).toBe(1)
+      expect($('body title').text()).toBe('partial static page')
+    })
+
+    it('should still render dynamic metadata in the head for html bots', async () => {
+      const $ = await next.render$(
+        '/static/partial',
+        {},
+        {
+          headers: {
+            'user-agent': 'Twitterbot',
+          },
+        }
+      )
+      expect($('title').length).toBe(1)
+      expect($('head title').text()).toBe('partial static page')
+    })
+  })
 })

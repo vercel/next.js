@@ -12,6 +12,7 @@ export type NapiRouteHas = {
   value?: string
   readonly __tag: unique symbol
 }
+export type RcStr = string
 
 export function lightningCssTransform(args: object): Promise<unknown>
 export function lightningCssTransformStyleAttribute(
@@ -37,6 +38,7 @@ export interface TransformOutput {
   code: string
   map?: string
   output?: string
+  diagnostics: Array<string>
 }
 export declare function mdxCompile(
   value: string,
@@ -75,13 +77,13 @@ export declare function endpointClientChangedSubscribe(
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }
 export interface NapiEnvVar {
-  name: string
-  value: string
+  name: RcStr
+  value: RcStr
 }
 export interface NapiDraftModeOptions {
-  previewModeId: string
-  previewModeEncryptionKey: string
-  previewModeSigningKey: string
+  previewModeId: RcStr
+  previewModeEncryptionKey: RcStr
+  previewModeSigningKey: RcStr
 }
 export interface NapiWatchOptions {
   /** Whether to watch the filesystem for file changes. */
@@ -97,20 +99,20 @@ export interface NapiProjectOptions {
    * A root path from which all files must be nested under. Trying to access
    * a file outside this root will fail. Think of this as a chroot.
    */
-  rootPath: string
+  rootPath: RcStr
   /** A path inside the root_path which contains the app/pages directories. */
-  projectPath: string
+  projectPath: RcStr
   /**
    * next.config's distDir. Project initialization occurs eariler than
    * deserializing next.config, so passing it as separate option.
    */
-  distDir: string
+  distDir: RcStr
   /** Filesystem watcher options. */
   watch: NapiWatchOptions
   /** The contents of next.config.js, serialized to JSON. */
-  nextConfig: string
+  nextConfig: RcStr
   /** The contents of ts/config read by load-jsconfig, serialized to JSON. */
-  jsConfig: string
+  jsConfig: RcStr
   /** A map of environment variables to use when compiling code. */
   env: Array<NapiEnvVar>
   /**
@@ -121,13 +123,13 @@ export interface NapiProjectOptions {
   /** The mode in which Next.js is running. */
   dev: boolean
   /** The server actions encryption key. */
-  encryptionKey: string
+  encryptionKey: RcStr
   /** The build id. */
-  buildId: string
+  buildId: RcStr
   /** Options for draft mode. */
   previewProps: NapiDraftModeOptions
   /** The browserslist query to use for targeting browsers. */
-  browserslistQuery: string
+  browserslistQuery: RcStr
   /**
    * When the code is minified, this opts out of the default mangling of
    * local names for variables, functions etc., which can be useful for
@@ -141,20 +143,20 @@ export interface NapiPartialProjectOptions {
    * A root path from which all files must be nested under. Trying to access
    * a file outside this root will fail. Think of this as a chroot.
    */
-  rootPath?: string
+  rootPath?: RcStr
   /** A path inside the root_path which contains the app/pages directories. */
-  projectPath?: string
+  projectPath?: RcStr
   /**
    * next.config's distDir. Project initialization occurs eariler than
    * deserializing next.config, so passing it as separate option.
    */
-  distDir?: string | undefined | null
+  distDir?: RcStr | undefined | null
   /** Filesystem watcher options. */
   watch?: NapiWatchOptions
   /** The contents of next.config.js, serialized to JSON. */
-  nextConfig?: string
+  nextConfig?: RcStr
   /** The contents of ts/config read by load-jsconfig, serialized to JSON. */
-  jsConfig?: string
+  jsConfig?: RcStr
   /** A map of environment variables to use when compiling code. */
   env?: Array<NapiEnvVar>
   /**
@@ -165,13 +167,13 @@ export interface NapiPartialProjectOptions {
   /** The mode in which Next.js is running. */
   dev?: boolean
   /** The server actions encryption key. */
-  encryptionKey?: string
+  encryptionKey?: RcStr
   /** The build id. */
-  buildId?: string
+  buildId?: RcStr
   /** Options for draft mode. */
   previewProps?: NapiDraftModeOptions
   /** The browserslist query to use for targeting browsers. */
-  browserslistQuery?: string
+  browserslistQuery?: RcStr
   /**
    * When the code is minified, this opts out of the default mangling of
    * local names for variables, functions etc., which can be useful for
@@ -191,6 +193,8 @@ export interface NapiTurboEngineOptions {
   memoryLimit?: number
   /** Track dependencies between tasks. If false, any change during build will error. */
   dependencyTracking?: boolean
+  /** Whether the project is running in a CI environment. */
+  isCi?: boolean
 }
 export declare function projectNew(
   options: NapiProjectOptions,
@@ -200,6 +204,13 @@ export declare function projectUpdate(
   project: { __napiType: 'Project' },
   options: NapiPartialProjectOptions
 ): Promise<void>
+/**
+ * Invalidates the persistent cache so that it will be deleted next time that a turbopack project
+ * is created with persistent caching enabled.
+ */
+export declare function projectInvalidatePersistentCache(project: {
+  __napiType: 'Project'
+}): Promise<void>
 /**
  * Runs exit handlers for the project registered using the [`ExitHandler`] API.
  *
@@ -221,7 +232,7 @@ export declare function projectShutdown(project: {
 }): Promise<void>
 export interface AppPageNapiRoute {
   /** The relative path from project_path to the route file */
-  originalName?: string
+  originalName?: RcStr
   htmlEndpoint?: ExternalObject<ExternalEndpoint>
   rscEndpoint?: ExternalObject<ExternalEndpoint>
 }
@@ -229,7 +240,7 @@ export interface NapiRoute {
   /** The router path */
   pathname: string
   /** The relative path from project_path to the route file */
-  originalName?: string
+  originalName?: RcStr
   /** The type of route, eg a Page or App */
   type: string
   pages?: Array<AppPageNapiRoute>
@@ -253,17 +264,21 @@ export interface NapiEntrypoints {
   pagesAppEndpoint: ExternalObject<ExternalEndpoint>
   pagesErrorEndpoint: ExternalObject<ExternalEndpoint>
 }
+export declare function projectWriteAllEntrypointsToDisk(
+  project: { __napiType: 'Project' },
+  appDirOnly: boolean
+): Promise<TurbopackResult>
 export declare function projectEntrypointsSubscribe(
   project: { __napiType: 'Project' },
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }
 export declare function projectHmrEvents(
   project: { __napiType: 'Project' },
-  identifier: string,
+  identifier: RcStr,
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }
 export interface HmrIdentifiers {
-  identifiers: Array<string>
+  identifiers: Array<RcStr>
 }
 export declare function projectHmrIdentifiersSubscribe(
   project: { __napiType: 'Project' },
@@ -295,14 +310,22 @@ export declare function projectUpdateInfoSubscribe(
   aggregationMs: number,
   func: (...args: any[]) => any
 ): void
+/** Subscribes to all compilation events that are not cached like timing and progress information. */
+export declare function projectCompilationEventsSubscribe(
+  project: { __napiType: 'Project' },
+  func: (...args: any[]) => any,
+  eventTypes?: Array<string> | undefined | null
+): void
 export interface StackFrame {
   isServer: boolean
   isInternal?: boolean
-  originalFile?: string
-  file: string
+  originalFile?: RcStr
+  file: RcStr
+  /** 1-indexed, unlike source map tokens */
   line?: number
+  /** 1-indexed, unlike source map tokens */
   column?: number
-  methodName?: string
+  methodName?: RcStr
 }
 export declare function projectTraceSource(
   project: { __napiType: 'Project' },
@@ -311,15 +334,15 @@ export declare function projectTraceSource(
 ): Promise<StackFrame | null>
 export declare function projectGetSourceForAsset(
   project: { __napiType: 'Project' },
-  filePath: string
+  filePath: RcStr
 ): Promise<string | null>
 export declare function projectGetSourceMap(
   project: { __napiType: 'Project' },
-  filePath: string
+  filePath: RcStr
 ): Promise<string | null>
 export declare function projectGetSourceMapSync(
   project: { __napiType: 'Project' },
-  filePath: string
+  filePath: RcStr
 ): string | null
 export declare function rootTaskDispose(rootTask: {
   __napiType: 'RootTask'
@@ -333,7 +356,6 @@ export interface NapiIssue {
   detail?: any
   source?: NapiIssueSource
   documentationLink: string
-  subIssues: Array<NapiIssue>
 }
 export interface NapiIssueSource {
   source: NapiSource
@@ -362,6 +384,10 @@ export declare function parse(
   filename?: string | undefined | null,
   signal?: AbortSignal | undefined | null
 ): Promise<string>
+export declare function isReactCompilerRequired(
+  filename: string,
+  signal?: AbortSignal | undefined | null
+): Promise<boolean>
 export declare function transform(
   src: string | Buffer | undefined,
   isModule: boolean,

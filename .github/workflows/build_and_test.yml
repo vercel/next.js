@@ -6,27 +6,13 @@ on:
   pull_request:
     types: [opened, synchronize]
 
+# NOTE: anything in `afterBuild` inherits environment variables defined in
+# `build_reusable.yml` (not these!) because that job executes within the context
+# of that workflow. Environment variables are not automatically passed to
+# reusable workflows.
 env:
-  NAPI_CLI_VERSION: 2.14.7
-  TURBO_VERSION: 2.3.3
   NODE_MAINTENANCE_VERSION: 18
   NODE_LTS_VERSION: 20
-  TEST_CONCURRENCY: 8
-  # disable backtrace for test snapshots
-  RUST_BACKTRACE: 0
-
-  TURBO_TEAM: 'vercel'
-  TURBO_CACHE: 'remote:rw'
-  NEXT_TELEMETRY_DISABLED: 1
-  # we build a dev binary for use in CI so skip downloading
-  # canary next-swc binaries in the monorepo
-  NEXT_SKIP_NATIVE_POSTINSTALL: 1
-  DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
-  NEXT_JUNIT_TEST_REPORT: 'true'
-  DD_ENV: 'ci'
-  TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
-  NEXT_TEST_JOB: 1
-  NEXT_TEST_PREFER_OFFLINE: 1
 
 jobs:
   optimize-ci:
@@ -53,7 +39,8 @@ jobs:
       - name: check for release
         id: is-release
         run: |
-          if [[ $(node ./scripts/check-is-release.js 2> /dev/null || :) = v* ]];
+          RELEASE_CHECK=$(node ./scripts/check-is-release.js 2> /dev/null || :)
+          if [[ $RELEASE_CHECK == "new-release" || $RELEASE_CHECK == v* ]];
             then
               echo "IS_RELEASE=true" >> $GITHUB_OUTPUT
             else
@@ -63,10 +50,17 @@ jobs:
     outputs:
       docs-only: ${{ steps.docs-change.outputs.DOCS_ONLY != 'false' }}
       is-release: ${{ steps.is-release.outputs.IS_RELEASE == 'true' }}
+      rspack: >-
+        ${{
+          github.event_name == 'pull_request' &&
+          contains(github.event.pull_request.labels.*.name, 'Rspack')
+        }}
 
   build-native:
     name: build-native
     uses: ./.github/workflows/build_reusable.yml
+    needs: ['changes']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
     with:
       skipInstallBuild: 'yes'
       stepName: 'build-native'
@@ -75,6 +69,8 @@ jobs:
   build-native-windows:
     name: build-native-windows
     uses: ./.github/workflows/build_reusable.yml
+    needs: ['changes']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
     with:
       skipInstallBuild: 'yes'
       stepName: 'build-native-windows'
@@ -93,11 +89,15 @@ jobs:
 
   lint:
     name: lint
-    needs: ['build-native', 'build-next']
-
+    needs: ['build-next']
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: pnpm lint-no-typescript && pnpm check-examples
+      skipNativeBuild: 'yes'
+      skipNativeInstall: 'yes'
+      afterBuild: |
+        pnpm lint-no-typescript
+        pnpm check-examples
+        pnpm validate-externals-doc
       stepName: 'lint'
     secrets: inherit
 
@@ -137,7 +137,7 @@ jobs:
       needsRust: 'yes'
       needsNextest: 'yes'
       skipNativeBuild: 'yes'
-      afterBuild: turbo run test-cargo-unit
+      afterBuild: pnpm dlx turbo@${TURBO_VERSION} run test-cargo-unit
       mold: 'yes'
       stepName: 'test-cargo-unit'
     secrets: inherit
@@ -160,7 +160,7 @@ jobs:
       needsRust: 'yes'
       skipInstallBuild: 'yes'
       skipNativeBuild: 'yes'
-      afterBuild: turbo run rust-check
+      afterBuild: pnpm dlx turbo@${TURBO_VERSION} run rust-check
       stepName: 'rust-check'
     secrets: inherit
 
@@ -207,7 +207,11 @@ jobs:
           - '--scenario=heavy-npm-deps-build-turbo-cache-enabled --page=homepage'
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: pnpm install && ./node_modules/.bin/devlow-bench ./scripts/devlow-bench.mjs --datadog=ubuntu-latest-16-core ${{ matrix.mode }} ${{ matrix.selector }}
+      afterBuild: |
+        ./node_modules/.bin/devlow-bench ./scripts/devlow-bench.mjs \
+          --datadog=ubuntu-latest-16-core \
+          ${{ matrix.mode }} \
+          ${{ matrix.selector }}
       stepName: 'devlow-bench-${{ matrix.mode }}-${{ matrix.selector }}'
     secrets: inherit
 
@@ -217,8 +221,10 @@ jobs:
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
     uses: ./.github/workflows/build_reusable.yml
     with:
+      skipNativeBuild: 'yes'
       stepName: 'test-devlow'
-      afterBuild: pnpm install && pnpm run --filter=devlow-bench test
+      afterBuild: |
+        pnpm run --filter=devlow-bench test
     secrets: inherit
 
   test-turbopack-dev:
@@ -237,7 +243,17 @@ jobs:
         react: ['', '18.3.1']
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-dev-tests-manifest.json" TURBOPACK=1 TURBOPACK_DEV=1  NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_MODE=dev NEXT_TEST_REACT_VERSION="${{ matrix.react }}" node run-tests.js --test-pattern '^(test\/(development|e2e))/.*\.test\.(js|jsx|ts|tsx)$' --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY}
+      afterBuild: |
+        export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-dev-tests-manifest.json"
+        export IS_TURBOPACK_TEST=1
+        export TURBOPACK_DEV=1
+        export NEXT_TEST_MODE=dev
+        export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
+
+        node run-tests.js \
+          --test-pattern '^(test\/(development|e2e))/.*\.test\.(js|jsx|ts|tsx)$' \
+          --timings \
+          -g ${{ matrix.group }}
       stepName: 'test-turbopack-dev-react-${{ matrix.react }}-${{ matrix.group }}'
     secrets: inherit
 
@@ -249,16 +265,26 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        exclude:
-          # Excluding React 18 tests unless on `canary` branch until budget is approved.
-          - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
         group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
         # Empty value uses default
+        # TODO: Run with React 18.
+        # Integration tests use the installed React version in next/package.json.include:
+        # We can't easily switch like we do for e2e tests.
+        # Skipping this dimensions until we can figure out a way to test multiple React versions.
         react: ['']
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 18.18.2
-      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-dev-tests-manifest.json" TURBOPACK=1 TURBOPACK_DEV=1 NEXT_TEST_REACT_VERSION="${{ matrix.react }}" node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
+      afterBuild: |
+        export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-dev-tests-manifest.json"
+        export IS_TURBOPACK_TEST=1
+        export TURBOPACK_DEV=1
+        export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
+
+        node run-tests.js \
+          --timings \
+          -g ${{ matrix.group }} \
+          --type integration
       stepName: 'test-turbopack-integration-react-${{ matrix.react }}-${{ matrix.group }}'
     secrets: inherit
 
@@ -283,7 +309,14 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 18.18.2
-      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-build-tests-manifest.json" TURBOPACK=1 TURBOPACK_BUILD=1 NEXT_TEST_MODE=start NEXT_TEST_REACT_VERSION="${{ matrix.react }}" node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type production
+      afterBuild: |
+        export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-build-tests-manifest.json"
+        export IS_TURBOPACK_TEST=1
+        export TURBOPACK_BUILD=1
+        export NEXT_TEST_MODE=start
+        export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
+
+        node run-tests.js --timings -g ${{ matrix.group }} --type production
       stepName: 'test-turbopack-production-react-${{ matrix.react }}-${{ matrix.group }}'
     secrets: inherit
 
@@ -299,8 +332,134 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 18.18.2
-      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-build-tests-manifest.json" TURBOPACK=1 TURBOPACK_BUILD=1 node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
+      afterBuild: |
+        export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-build-tests-manifest.json"
+        export IS_TURBOPACK_TEST=1
+        export TURBOPACK_BUILD=1
+
+        node run-tests.js \
+          --timings \
+          -g ${{ matrix.group }} \
+          --type integration
       stepName: 'test-turbopack-production-integration-${{ matrix.group }}'
+    secrets: inherit
+
+  test-rspack-dev:
+    name: test rspack dev
+    needs: ['optimize-ci', 'changes', 'build-next', 'build-native']
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.rspack == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1/5, 2/5, 3/5, 4/5, 5/5]
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      afterBuild: |
+        export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-dev-tests-manifest.json"
+        export NEXT_TEST_MODE=dev
+
+        # rspack flags
+        export NEXT_RSPACK=1
+        export NEXT_TEST_USE_RSPACK=1
+
+        # HACK: Despite the name, this environment variable is only used to gate
+        # tests, so it's applicable to rspack
+        export TURBOPACK_DEV=1
+
+        node run-tests.js \
+          --test-pattern '^(test\/(development|e2e))/.*\.test\.(js|jsx|ts|tsx)$' \
+          --timings \
+          -g ${{ matrix.group }}
+      stepName: 'test-rspack-dev-react-${{ matrix.react }}-${{ matrix.group }}'
+    secrets: inherit
+
+  test-rspack-integration:
+    name: test rspack development integration
+    needs: ['optimize-ci', 'changes', 'build-next', 'build-native']
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.rspack == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      nodeVersion: 18.18.2
+      afterBuild: |
+        export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-dev-tests-manifest.json"
+
+        # rspack flags
+        export NEXT_RSPACK=1
+        export NEXT_TEST_USE_RSPACK=1
+
+        # HACK: Despite the name, this environment variable is only used to gate
+        # tests, so it's applicable to rspack
+        export TURBOPACK_DEV=1
+
+        node run-tests.js \
+          --timings \
+          -g ${{ matrix.group }} \
+          --type integration
+      stepName: 'test-rspack-integration-react-${{ matrix.react }}-${{ matrix.group }}'
+    secrets: inherit
+
+  test-rspack-production:
+    name: test rspack production
+    needs: ['optimize-ci', 'changes', 'build-next', 'build-native']
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.rspack == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        exclude:
+          # Excluding React 18 tests unless on `canary` branch until budget is approved.
+          - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
+        group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
+        # Empty value uses default
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      nodeVersion: 18.18.2
+      afterBuild: |
+        export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-build-tests-manifest.json"
+        export NEXT_TEST_MODE=start
+
+        # rspack flags
+        export NEXT_RSPACK=1
+        export NEXT_TEST_USE_RSPACK=1
+
+        # HACK: Despite the name, this environment variable is only used to gate
+        # tests, so it's applicable to rspack
+        export TURBOPACK_BUILD=1
+
+        node run-tests.js --timings -g ${{ matrix.group }} --type production
+      stepName: 'test-rspack-production-react-${{ matrix.react }}-${{ matrix.group }}'
+    secrets: inherit
+
+  test-rspack-production-integration:
+    name: test rspack production integration
+    needs: ['optimize-ci', 'changes', 'build-next', 'build-native']
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.rspack == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      nodeVersion: 18.18.2
+      afterBuild: |
+        export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-build-tests-manifest.json"
+
+        # rspack flags
+        export NEXT_RSPACK=1
+        export NEXT_TEST_USE_RSPACK=1
+
+        # HACK: Despite the name, this environment variable is only used to gate
+        # tests, so it's applicable to rspack
+        export TURBOPACK_BUILD=1
+
+        node run-tests.js \
+          --timings \
+          -g ${{ matrix.group }} \
+          --type integration
+      stepName: 'test-rspack-production-integration-${{ matrix.group }}'
     secrets: inherit
 
   test-next-swc-wasm:
@@ -310,7 +469,22 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: rustup target add wasm32-unknown-unknown && curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh && node ./scripts/normalize-version-bump.js && turbo run build-wasm -- --target nodejs && git checkout . && mv crates/wasm/pkg crates/wasm/pkg-nodejs && node ./scripts/setup-wasm.mjs && NEXT_TEST_MODE=start TEST_WASM=true node run-tests.js test/production/pages-dir/production/test/index.test.ts test/e2e/streaming-ssr/index.test.ts
+      skipNativeBuild: 'yes'
+      skipNativeInstall: 'yes'
+      afterBuild: |
+        rustup target add wasm32-unknown-unknown
+        curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+        node ./scripts/normalize-version-bump.js
+        pnpm dlx turbo@${TURBO_VERSION} run build-wasm -- --target nodejs
+        git checkout .
+        mv crates/wasm/pkg crates/wasm/pkg-nodejs
+        node ./scripts/setup-wasm.mjs
+
+        export NEXT_TEST_MODE=start
+        export TEST_WASM=true
+        node run-tests.js \
+          test/production/pages-dir/production/test/index.test.ts \
+          test/e2e/streaming-ssr/index.test.ts
       stepName: 'test-next-swc-wasm'
     secrets: inherit
 
@@ -326,13 +500,17 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: rustup target add wasm32-wasip1-threads && turbo run build-native-wasi
+      skipNativeBuild: 'yes'
+      skipNativeInstall: 'yes'
+      afterBuild: |
+        rustup target add wasm32-wasip1-threads
+        pnpm dlx turbo@${TURBO_VERSION} run build-native-wasi
       stepName: 'test-next-swc-napi-wasi'
     secrets: inherit
 
   test-unit:
     name: test unit
-    needs: ['changes']
+    needs: ['changes', 'build-next', 'build-native']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
@@ -343,7 +521,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: ${{ matrix.node }}
-      afterBuild: node run-tests.js -c ${TEST_CONCURRENCY} --type unit
+      afterBuild: node run-tests.js --type unit
       stepName: 'test-unit-${{ matrix.node }}'
 
     secrets: inherit
@@ -361,7 +539,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: ${{ matrix.node }}
-      afterBuild: node run-tests.js -c ${TEST_CONCURRENCY} --type unit
+      afterBuild: node run-tests.js --type unit
       stepName: 'test-unit-windows-${{ matrix.node }}'
       runs_on_labels: '["windows","self-hosted","x64"]'
       buildNativeTarget: 'x86_64-pc-windows-msvc'
@@ -380,7 +558,11 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: node scripts/test-new-tests.mjs --flake-detection --mode dev --group ${{ matrix.group }}
+      afterBuild: |
+        node scripts/test-new-tests.mjs \
+          --flake-detection \
+          --mode dev \
+          --group ${{ matrix.group }}
       stepName: 'test-new-tests-dev-${{matrix.group}}'
       timeout_minutes: 60 # Increase the default timeout as tests are intentionally run multiple times to detect flakes
 
@@ -398,7 +580,11 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: node scripts/test-new-tests.mjs --flake-detection --mode start --group ${{ matrix.group }}
+      afterBuild: |
+        node scripts/test-new-tests.mjs \
+          --flake-detection \
+          --mode start \
+          --group ${{ matrix.group }}
       stepName: 'test-new-tests-start-${{matrix.group}}'
       timeout_minutes: 60 # Increase the default timeout as tests are intentionally run multiple times to detect flakes
 
@@ -408,7 +594,7 @@ jobs:
     name: Test new tests when deployed
     needs:
       ['optimize-ci', 'test-prod', 'test-new-tests-dev', 'test-new-tests-start']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && !github.event.pull_request.head.repo.fork }}
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' }}
 
     strategy:
       fail-fast: false
@@ -417,7 +603,12 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: NEXT_E2E_TEST_TIMEOUT=240000 node scripts/test-new-tests.mjs --mode deploy --group ${{ matrix.group }}
+      afterBuild: |
+        export NEXT_E2E_TEST_TIMEOUT=240000
+        export GH_PR_NUMBER=${{ github.event.pull_request && github.event.pull_request.number || '' }}
+        node scripts/test-new-tests.mjs \
+          --mode deploy \
+          --group ${{ matrix.group }}
       stepName: 'test-new-tests-deploy-${{matrix.group}}'
 
     secrets: inherit
@@ -438,7 +629,14 @@ jobs:
         react: ['', '18.3.1']
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: NEXT_TEST_MODE=dev NEXT_TEST_REACT_VERSION="${{ matrix.react }}" node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type development
+      afterBuild: |
+        export NEXT_TEST_MODE=dev
+        export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
+
+        node run-tests.js \
+          --timings \
+          -g ${{ matrix.group }} \
+          --type development
       stepName: 'test-dev-react-${{ matrix.react }}-${{ matrix.group }}'
     secrets: inherit
 
@@ -456,7 +654,12 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: NEXT_TEST_MODE=dev node run-tests.js -c ${TEST_CONCURRENCY} test/e2e/app-dir/app/index.test.ts test/e2e/app-dir/app-edge/app-edge.test.ts
+      afterBuild: |
+        export NEXT_TEST_MODE=dev
+
+        node run-tests.js \
+          test/e2e/app-dir/app/index.test.ts \
+          test/e2e/app-dir/app-edge/app-edge.test.ts
       stepName: 'test-dev-windows'
       runs_on_labels: '["windows","self-hosted","x64"]'
       buildNativeTarget: 'x86_64-pc-windows-msvc'
@@ -477,7 +680,14 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 18.18.2
-      afterBuild: node run-tests.js -c 4 test/production/pages-dir/production/test/index.test.ts test/integration/css-client-nav/test/index.test.js test/integration/rewrites-has-condition/test/index.test.js test/integration/create-next-app/index.test.ts test/integration/create-next-app/package-manager/pnpm.test.ts
+      afterBuild: |
+        node run-tests.js \
+          --concurrency 4 \
+          test/production/pages-dir/production/test/index.test.ts \
+          test/integration/css-client-nav/test/index.test.js \
+          test/integration/rewrites-has-condition/test/index.test.js \
+          test/integration/create-next-app/index.test.ts \
+          test/integration/create-next-app/package-manager/pnpm.test.ts
       stepName: 'test-integration-windows'
       runs_on_labels: '["windows","self-hosted","x64"]'
       buildNativeTarget: 'x86_64-pc-windows-msvc'
@@ -497,7 +707,13 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: NEXT_TEST_MODE=start node run-tests.js test/e2e/app-dir/app/index.test.ts test/e2e/app-dir/app-edge/app-edge.test.ts
+      afterBuild: |
+        export NEXT_TEST_MODE=start
+
+        node run-tests.js \
+          test/e2e/app-dir/app/index.test.ts \
+          test/e2e/app-dir/app-edge/app-edge.test.ts \
+          test/e2e/app-dir/metadata-edge/index.test.ts
       stepName: 'test-prod-windows'
       runs_on_labels: '["windows","self-hosted","x64"]'
       buildNativeTarget: 'x86_64-pc-windows-msvc'
@@ -519,7 +735,11 @@ jobs:
         react: ['', '18.3.1']
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: NEXT_TEST_MODE=start NEXT_TEST_REACT_VERSION="${{ matrix.react }}" node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type production
+      afterBuild: |
+        export NEXT_TEST_MODE=start
+        export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
+
+        node run-tests.js --timings -g ${{ matrix.group }} --type production
       stepName: 'test-prod-react-${{ matrix.react }}-${{ matrix.group }}'
     secrets: inherit
 
@@ -545,16 +765,22 @@ jobs:
           - 11/13
           - 12/13
           - 13/13
-          # Empty value uses default
-          # TODO: Run with React 18.
-          # Integration tests use the installed React version in next/package.json.include:
+        # Empty value uses default
+        # TODO: Run with React 18.
+        # Integration tests use the installed React version in next/package.json.include:
         # We can't easily switch like we do for e2e tests.
         # Skipping this dimensions until we can figure out a way to test multiple React versions.
         react: ['']
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 18.18.2
-      afterBuild: NEXT_TEST_REACT_VERSION="${{ matrix.react }}" node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
+      afterBuild: |
+        export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
+
+        node run-tests.js \
+          --timings \
+          -g ${{ matrix.group }} \
+          --type integration
       stepName: 'test-integration-${{ matrix.group }}-react-${{ matrix.react }}'
     secrets: inherit
 
@@ -565,11 +791,22 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: pnpm playwright install &&
-        BROWSER_NAME=firefox node run-tests.js test/production/pages-dir/production/test/index.test.ts &&
-        NEXT_TEST_MODE=start BROWSER_NAME=safari node run-tests.js -c 1 test/production/pages-dir/production/test/index.test.ts test/e2e/basepath.test.ts &&
-        BROWSER_NAME=safari DEVICE_NAME='iPhone XR' node run-tests.js -c 1 test/production/prerender-prefetch/index.test.ts
+      afterBuild: |
+        pnpm playwright install
 
+        # these all run without concurrency because they're heavier
+        export TEST_CONCURRENCY=1
+
+        BROWSER_NAME=firefox node run-tests.js \
+          test/production/pages-dir/production/test/index.test.ts
+
+        NEXT_TEST_MODE=start BROWSER_NAME=safari node run-tests.js \
+          test/production/pages-dir/production/test/index.test.ts \
+          test/e2e/basepath/basepath.test.ts \
+          test/e2e/basepath/error-pages.test.ts
+
+        BROWSER_NAME=safari DEVICE_NAME='iPhone XR' node run-tests.js \
+          test/production/prerender-prefetch/index.test.ts
       stepName: 'test-firefox-safari'
     secrets: inherit
 
@@ -583,7 +820,13 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 18.18.2
-      afterBuild: __NEXT_EXPERIMENTAL_PPR=true NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json" node run-tests.js --timings -c ${TEST_CONCURRENCY} --type integration
+      afterBuild: |
+        export __NEXT_EXPERIMENTAL_PPR=true
+        export NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json"
+
+        node run-tests.js \
+          --timings \
+          --type integration
       stepName: 'test-ppr-integration'
     secrets: inherit
 
@@ -598,7 +841,15 @@ jobs:
         group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: __NEXT_EXPERIMENTAL_PPR=true NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json" NEXT_TEST_MODE=dev node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type development
+      afterBuild: |
+        export __NEXT_EXPERIMENTAL_PPR=true
+        export NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json"
+        export NEXT_TEST_MODE=dev
+
+        node run-tests.js \
+          --timings \
+          -g ${{ matrix.group }} \
+          --type development
       stepName: 'test-ppr-dev-${{ matrix.group }}'
     secrets: inherit
 
@@ -613,7 +864,15 @@ jobs:
         group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: __NEXT_EXPERIMENTAL_PPR=true NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json" NEXT_TEST_MODE=start node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type production
+      afterBuild: |
+        export __NEXT_EXPERIMENTAL_PPR=true
+        export NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json"
+        export NEXT_TEST_MODE=start
+
+        node run-tests.js \
+          --timings \
+          -g ${{ matrix.group }} \
+          --type production
       stepName: 'test-ppr-prod-${{ matrix.group }}'
     secrets: inherit
 

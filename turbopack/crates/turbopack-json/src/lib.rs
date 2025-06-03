@@ -11,10 +11,10 @@
 
 use std::fmt::Write;
 
-use anyhow::{bail, Error, Result};
-use turbo_rcstr::RcStr;
+use anyhow::{Error, Result, bail};
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{FileContent, FileJsonContent};
+use turbo_tasks_fs::{FileContent, FileJsonContent, glob::Glob};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
@@ -30,11 +30,6 @@ use turbopack_ecmascript::{
     },
     runtime_functions::TURBOPACK_EXPORT_VALUE,
 };
-
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("json".into())
-}
 
 #[turbo_tasks::value]
 pub struct JsonModuleAsset {
@@ -53,7 +48,7 @@ impl JsonModuleAsset {
 impl Module for JsonModuleAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        self.source.ident().with_modifier(modifier())
+        self.source.ident().with_modifier(rcstr!("json"))
     }
 }
 
@@ -85,6 +80,11 @@ impl EcmascriptChunkPlaceable for JsonModuleAsset {
     #[turbo_tasks::function]
     fn get_exports(&self) -> Vc<EcmascriptExports> {
         EcmascriptExports::Value.cell()
+    }
+
+    #[turbo_tasks::function]
+    fn is_marked_as_side_effect_free(&self, _side_effect_free_packages: Vc<Glob>) -> Vc<bool> {
+        Vc::cell(true)
     }
 }
 
@@ -144,7 +144,7 @@ impl EcmascriptChunkItem for JsonChunkItem {
                     let text = content.content().to_str()?;
                     e.write_with_content(&mut message, text.as_ref())?;
                 } else {
-                    write!(message, "{}", e)?;
+                    write!(message, "{e}")?;
                 }
 
                 Err(Error::msg(message))

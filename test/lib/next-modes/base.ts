@@ -11,7 +11,7 @@ import webdriver from '../next-webdriver'
 import { renderViaHTTP, fetchViaHTTP, findPort } from 'next-test-utils'
 import cheerio from 'cheerio'
 import { once } from 'events'
-import { BrowserInterface } from '../browsers/base'
+import { Playwright } from 'next-webdriver'
 import escapeStringRegexp from 'escape-string-regexp'
 
 type Event = 'stdout' | 'stderr' | 'error' | 'destroy'
@@ -58,15 +58,15 @@ type OmitFirstArgument<F> = F extends (
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "^19.0.0";
+const nextjsReactPeerVersion = "19.1.0";
 
 export class NextInstance {
   protected files: ResolvedFileConfig
   protected overrideFiles: ResolvedFileConfig
   protected nextConfig?: NextConfig
   protected installCommand?: InstallCommand
-  protected buildCommand?: string
-  protected buildOptions?: string
+  public buildCommand?: string
+  public buildOptions?: string
   protected startCommand?: string
   protected startOptions?: string[]
   protected dependencies?: PackageJson['dependencies'] = {}
@@ -79,12 +79,12 @@ export class NextInstance {
   protected childProcess?: ChildProcess
   protected _url: string
   protected _parsedUrl: URL
-  protected packageJson?: PackageJson = {}
+  protected packageJson: PackageJson = {}
   protected basePath?: string
   public env: Record<string, string>
   public forcedPort?: string
   public dirSuffix: string = ''
-  public serverReadyPattern?: RegExp = / ✓ Ready in /
+  public serverReadyPattern: RegExp = / ✓ Ready in /
   patchFileDelay: number = 0
 
   constructor(opts: NextInstanceOpts) {
@@ -96,7 +96,8 @@ export class NextInstance {
         ...this.env,
         // remove node_modules/.bin repo path from env
         // to match CI $PATH value and isolate further
-        PATH: process.env.PATH.split(path.delimiter)
+        PATH: process.env
+          .PATH!.split(path.delimiter)
           .filter((part) => {
             return !part.includes(path.join('node_modules', '.bin'))
           })
@@ -122,6 +123,12 @@ export class NextInstance {
 
       await fs.cp(files.fsPath, testDir, {
         recursive: true,
+        // By default Node.js turns relative symlinks into absolute symlinks.
+        // We don't want absolute symlinks because the test directory is isolated
+        // and the symlink would turn into a path to the Next.js repo original file.
+        // Setting this option to `true` will keep the symlink relative. Ensuring it's isolated.
+        // See https://nodejs.org/api/fs.html#fscpsrc-dest-options-callback
+        verbatimSymlinks: true,
         filter(source) {
           // we don't copy a package.json as it's manually written
           // via the createNextInstall process
@@ -201,8 +208,8 @@ export class NextInstance {
         const finalDependencies = {
           react: reactVersion,
           'react-dom': reactVersion,
-          '@types/react': 'latest',
-          '@types/react-dom': 'latest',
+          '@types/react': '^19.1.1',
+          '@types/react-dom': '^19.1.2',
           typescript: 'latest',
           '@types/node': 'latest',
           ...this.dependencies,
@@ -273,7 +280,7 @@ export class NextInstance {
                 await this.beforeInstall(span)
               },
             })
-            this.tmpRepoDir = tmpRepoDir
+            this.tmpRepoDir = tmpRepoDir!
           }
         }
 
@@ -290,7 +297,7 @@ export class NextInstance {
         }
 
         if (this.nextConfig || (isNextDeploy && !nextConfigFile)) {
-          const functions = []
+          const functions: string[] = []
           const exportDeclare =
             this.packageJson?.type === 'module'
               ? 'export default'
@@ -302,7 +309,7 @@ export class NextInstance {
                 {
                   ...this.nextConfig,
                 } as NextConfig,
-                (key, val) => {
+                (key, val: unknown) => {
                   if (typeof val === 'function') {
                     functions.push(
                       val
@@ -318,7 +325,7 @@ export class NextInstance {
                 },
                 2
               ).replace(/"__func_[\d]{1,}"/g, function (str) {
-                return functions.shift()
+                return functions.shift()!
               })
           )
         }
@@ -422,7 +429,10 @@ export class NextInstance {
     await this.writeInitialFiles()
   }
 
-  public async build(): Promise<{ exitCode?: number; cliOutput?: string }> {
+  public async build(): Promise<{
+    exitCode: NodeJS.Signals | number | null
+    cliOutput: string
+  }> {
     throw new Error('Not implemented')
   }
 
@@ -449,7 +459,7 @@ export class NextInstance {
       this.isStopping = true
       const closePromise = once(this.childProcess, 'close')
       await new Promise<void>((resolve) => {
-        treeKill(this.childProcess.pid, signal, (err) => {
+        treeKill(this.childProcess!.pid!, signal, (err) => {
           if (err) {
             require('console').error('tree-kill', err)
           }
@@ -485,7 +495,7 @@ export class NextInstance {
               `${path
                 .relative(
                   path.join(__dirname, '../../'),
-                  process.env.TEST_FILE_PATH
+                  process.env.TEST_FILE_PATH!
                 )
                 .replace(/\//g, '-')}`,
               `next-trace`
@@ -535,6 +545,32 @@ export class NextInstance {
     return fs.readFile(path.join(this.testDir, filename), 'utf8')
   }
 
+  public async readFileBuffer(
+    filename: string
+  ): Promise<Buffer<ArrayBufferLike>> {
+    return fs.readFile(path.join(this.testDir, filename))
+  }
+
+  public async writeFileBuffer(filename: string, data: Buffer): Promise<void> {
+    return fs.writeFile(path.join(this.testDir, filename), data)
+  }
+
+  public async readFiles(
+    dirname: string,
+    predicate: (filename: string) => boolean
+  ) {
+    const absoluteDirname = path.join(this.testDir, dirname)
+    const filenames = await fs.readdir(absoluteDirname, 'utf-8')
+
+    return Promise.all(
+      filenames
+        .filter(predicate)
+        .map((filename) =>
+          fs.readFile(path.join(absoluteDirname, filename), 'utf8')
+        )
+    )
+  }
+
   public readFileSync(filename: string) {
     return readFileSync(path.join(this.testDir, filename), 'utf8')
   }
@@ -554,7 +590,7 @@ export class NextInstance {
 
   public async patchFile(
     filename: string,
-    content: string | ((content: string) => string),
+    content: string | ((content: string | undefined) => string),
     runWithTempContent?: (context: { newFile: boolean }) => Promise<void>
   ): Promise<{ newFile: boolean }> {
     const outputPath = path.join(this.testDir, filename)
@@ -594,6 +630,23 @@ export class NextInstance {
     )
   }
 
+  /**
+   * Makes `linkFilename` point to `targetFilename`.
+   *
+   * Performs an atomic update to the symlink:
+   * https://blog.moertel.com/posts/2005-08-22-how-to-change-symlinks-atomically.html
+   */
+  public async symlink(targetFilename: string, linkFilename: string) {
+    const tmpLinkPath = path.join(this.testDir, linkFilename + '.tmp')
+    try {
+      await fs.symlink(path.join(this.testDir, targetFilename), tmpLinkPath)
+      await fs.rename(tmpLinkPath, path.join(this.testDir, linkFilename))
+    } catch (e) {
+      await fs.unlink(tmpLinkPath)
+      throw e
+    }
+  }
+
   public async renameFolder(foldername: string, newFoldername: string) {
     await fs.rename(
       path.join(this.testDir, foldername),
@@ -613,7 +666,7 @@ export class NextInstance {
    */
   public async browser(
     ...args: Parameters<OmitFirstArgument<typeof webdriver>>
-  ): Promise<BrowserInterface> {
+  ): Promise<Playwright> {
     return webdriver(this.url, ...args)
   }
 

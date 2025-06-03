@@ -26,7 +26,7 @@ import {
   encodeSegment,
   ROOT_SEGMENT_KEY,
   type EncodedSegment,
-} from './segment-value-encoding'
+} from '../../shared/lib/segment-cache/segment-value-encoding'
 import { getDigestForWellKnownError } from './create-error-handler'
 import type { FallbackRouteParams } from '../request/fallback-params'
 
@@ -74,7 +74,6 @@ function onSegmentPrerenderError(error: unknown) {
 }
 
 export async function collectSegmentData(
-  shouldAssumePartialData: boolean,
   fullPageDataBuffer: Buffer,
   staleTime: number,
   clientModules: ManifestNode,
@@ -119,7 +118,6 @@ export async function collectSegmentData(
     // inside of it, the side effects are transferred to the new stream.
     // @ts-expect-error
     <PrefetchTreeData
-      shouldAssumePartialData={shouldAssumePartialData}
       fullPageDataBuffer={fullPageDataBuffer}
       fallbackRouteParams={fallbackRouteParams}
       serverConsumerManifest={serverConsumerManifest}
@@ -150,7 +148,6 @@ export async function collectSegmentData(
 }
 
 async function PrefetchTreeData({
-  shouldAssumePartialData,
   fullPageDataBuffer,
   fallbackRouteParams,
   serverConsumerManifest,
@@ -159,7 +156,6 @@ async function PrefetchTreeData({
   segmentTasks,
   onCompletedProcessingRouteTree,
 }: {
-  shouldAssumePartialData: boolean
   fullPageDataBuffer: Buffer
   serverConsumerManifest: any
   fallbackRouteParams: FallbackRouteParams | null
@@ -199,20 +195,16 @@ async function PrefetchTreeData({
   // walk the tree, we will also spawn a task to produce a prefetch response for
   // each segment.
   const tree = collectSegmentDataImpl(
-    shouldAssumePartialData,
     flightRouterState,
     buildId,
     seedData,
     fallbackRouteParams,
-    fullPageDataBuffer,
     clientModules,
-    serverConsumerManifest,
     ROOT_SEGMENT_KEY,
     segmentTasks
   )
 
-  const isHeadPartial =
-    shouldAssumePartialData || (await isPartialRSCData(head, clientModules))
+  const isHeadPartial = await isPartialRSCData(head, clientModules)
 
   // Notify the abort controller that we're done processing the route tree.
   // Anything async that happens after this point must be due to hanging
@@ -231,14 +223,11 @@ async function PrefetchTreeData({
 }
 
 function collectSegmentDataImpl(
-  shouldAssumePartialData: boolean,
   route: FlightRouterState,
   buildId: string,
   seedData: CacheNodeSeedData | null,
   fallbackRouteParams: FallbackRouteParams | null,
-  fullPageDataBuffer: Buffer,
   clientModules: ManifestNode,
-  serverConsumerManifest: any,
   key: string,
   segmentTasks: Array<Promise<[string, Buffer]>>
 ): TreePrefetch {
@@ -265,14 +254,11 @@ function collectSegmentDataImpl(
         : encodeSegment(childSegment)
     )
     const childTree = collectSegmentDataImpl(
-      shouldAssumePartialData,
       childRoute,
       buildId,
       childSeedData,
       fallbackRouteParams,
-      fullPageDataBuffer,
       clientModules,
-      serverConsumerManifest,
       childKey,
       segmentTasks
     )
@@ -288,13 +274,7 @@ function collectSegmentDataImpl(
       // Since we're already in the middle of a render, wait until after the
       // current task to escape the current rendering context.
       waitAtLeastOneReactRenderTask().then(() =>
-        renderSegmentPrefetch(
-          shouldAssumePartialData,
-          buildId,
-          seedData,
-          key,
-          clientModules
-        )
+        renderSegmentPrefetch(buildId, seedData, key, clientModules)
       )
     )
   } else {
@@ -344,7 +324,6 @@ function encodeSegmentWithPossibleFallbackParam(
 }
 
 async function renderSegmentPrefetch(
-  shouldAssumePartialData: boolean,
   buildId: string,
   seedData: CacheNodeSeedData,
   key: string,
@@ -359,8 +338,7 @@ async function renderSegmentPrefetch(
     buildId,
     rsc,
     loading,
-    isPartial:
-      shouldAssumePartialData || (await isPartialRSCData(rsc, clientModules)),
+    isPartial: await isPartialRSCData(rsc, clientModules),
   }
   // Since all we're doing is decoding and re-encoding a cached prerender, if
   // it takes longer than a microtask, it must because of hanging promises
@@ -403,6 +381,11 @@ async function isPartialRSCData(
   await prerender(rsc, clientModules, {
     signal: abortController.signal,
     onError() {},
+    onPostpone() {
+      // If something postponed, i.e. when Dynamic IO is not enabled, we can
+      // infer that the RSC data is partial.
+      isPartial = true
+    },
   })
   return isPartial
 }
