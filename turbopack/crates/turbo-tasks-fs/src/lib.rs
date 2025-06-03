@@ -1285,7 +1285,7 @@ impl FileSystemPath {
 
     #[turbo_tasks::function]
     pub fn extension(&self) -> Vc<RcStr> {
-        Vc::cell(self.extension_ref().unwrap_or("").into())
+        Vc::cell(self.extension_ref().map(RcStr::from).unwrap_or_default())
     }
 
     #[turbo_tasks::function]

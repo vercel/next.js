@@ -693,7 +693,7 @@ impl Project {
         Ok(self.client_root().join(
             format!(
                 "{}/_next",
-                next_config.base_path.clone().unwrap_or_else(|| rcstr!("")),
+                next_config.base_path.clone().unwrap_or_default(),
             )
             .into(),
         ))
