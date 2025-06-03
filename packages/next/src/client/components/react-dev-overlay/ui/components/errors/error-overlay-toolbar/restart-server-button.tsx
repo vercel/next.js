@@ -15,11 +15,7 @@ export function RestartServerButton({ error }: { error: Error }) {
   useEffect(() => {
     const ERROR_KEY = `error-overlay:${window.location.pathname}:${error.message}`
 
-    if (sessionStorage.getItem(ERROR_KEY) === '1') {
-      setShowButton(true)
-    } else {
-      setShowButton(false)
-    }
+    setShowButton(sessionStorage.getItem(ERROR_KEY) === '1')
 
     // When the user tries to reload, set the error key to the session storage.
     const handleBeforeUnload = () => {
