@@ -52,7 +52,7 @@ export default class EvalSourceMapDevToolPlugin {
   shouldIgnorePath: (modulePath: string) => boolean
 
   /**
-   * @param {SourceMapDevToolPluginOptions|string} inputOptions Options object
+   * @param inputOptions Options object
    */
   constructor(inputOptions: EvalSourceMapDevToolPluginOptions) {
     let options: EvalSourceMapDevToolPluginOptions
@@ -197,9 +197,7 @@ export default class EvalSourceMapDevToolPlugin {
               sourceMap.sourcesContent = undefined
             }
             sourceMap.sourceRoot = options.sourceRoot || ''
-            const moduleId =
-              /** @type {ModuleId} */
-              chunkGraph.getModuleId(m)
+            const moduleId = chunkGraph.getModuleId(m)
             if (moduleId) {
               sourceMap.file =
                 typeof moduleId === 'number' ? `${moduleId}.js` : moduleId

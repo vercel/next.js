@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use anyhow::{Result, bail};
 use indoc::formatdoc;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -24,11 +24,6 @@ use turbopack_ecmascript::{
 };
 
 use super::server_utility_reference::NextServerUtilityModuleReference;
-
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("Next.js server utility".into())
-}
 
 #[turbo_tasks::value(shared)]
 pub struct NextServerUtilityModule {
@@ -52,7 +47,9 @@ impl NextServerUtilityModule {
 impl Module for NextServerUtilityModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        self.module.ident().with_modifier(modifier())
+        self.module
+            .ident()
+            .with_modifier(rcstr!("Next.js server utility"))
     }
 
     #[turbo_tasks::function]

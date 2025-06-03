@@ -27,7 +27,7 @@ use rstest_reuse::{
 };
 use serde::{Deserialize, Serialize};
 use tokio::{process::Command, time::timeout};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     ResolvedVc, TurboTasks, Value, ValueToString, Vc, apply_effects, backend::Backend,
     trace::TraceRawVcs,
@@ -284,6 +284,7 @@ fn node_file_trace_persistent(#[case] input: CaseInput) {
                     describe: "test-unversioned",
                     dirty: false,
                 },
+                false,
             )
             .unwrap(),
         ))
@@ -364,7 +365,7 @@ async fn node_file_trace_operation(
             ..Default::default()
         }
         .cell(),
-        Vc::cell("test".into()),
+        rcstr!("test"),
     );
     let module = module_asset_context
         .process(Vc::upcast(source), Value::new(ReferenceType::Undefined))

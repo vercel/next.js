@@ -207,6 +207,10 @@ impl<B: BackingStorage> TurboTasksBackend<B> {
             backing_storage,
         )))
     }
+
+    pub fn invalidate_storage(&self) -> Result<()> {
+        self.0.backing_storage.invalidate()
+    }
 }
 
 impl<B: BackingStorage> TurboTasksBackendInner<B> {
@@ -909,6 +913,30 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 .take_snapshot(&preprocess, &process, &process_snapshot)
         };
 
+        #[cfg(feature = "print_cache_item_size")]
+        #[derive(Default)]
+        struct TaskCacheStats {
+            data: usize,
+            data_count: usize,
+            meta: usize,
+            meta_count: usize,
+        }
+        #[cfg(feature = "print_cache_item_size")]
+        impl TaskCacheStats {
+            fn add_data(&mut self, len: usize) {
+                self.data += len;
+                self.data_count += 1;
+            }
+
+            fn add_meta(&mut self, len: usize) {
+                self.meta += len;
+                self.meta_count += 1;
+            }
+        }
+        #[cfg(feature = "print_cache_item_size")]
+        let task_cache_stats: Mutex<FxHashMap<_, TaskCacheStats>> =
+            Mutex::new(FxHashMap::default());
+
         let task_snapshots = snapshot
             .into_iter()
             .filter_map(|iter| {
@@ -920,7 +948,15 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             Option<Result<SmallVec<_>>>,
                         )| {
                             let meta = match meta {
-                                Some(Ok(meta)) => Some(meta),
+                                Some(Ok(meta)) => {
+                                    #[cfg(feature = "print_cache_item_size")]
+                                    task_cache_stats
+                                        .lock()
+                                        .entry(self.get_task_description(task_id))
+                                        .or_default()
+                                        .add_meta(meta.len());
+                                    Some(meta)
+                                }
                                 None => None,
                                 Some(Err(err)) => {
                                     println!(
@@ -932,7 +968,15 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                 }
                             };
                             let data = match data {
-                                Some(Ok(data)) => Some(data),
+                                Some(Ok(data)) => {
+                                    #[cfg(feature = "print_cache_item_size")]
+                                    task_cache_stats
+                                        .lock()
+                                        .entry(self.get_task_description(task_id))
+                                        .or_default()
+                                        .add_data(data.len());
+                                    Some(data)
+                                }
                                 None => None,
                                 Some(Err(err)) => {
                                     println!(
@@ -965,6 +1009,36 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             ) {
                 println!("Persisting failed: {err:?}");
                 return None;
+            }
+            #[cfg(feature = "print_cache_item_size")]
+            {
+                let mut task_cache_stats = task_cache_stats
+                    .into_inner()
+                    .into_iter()
+                    .collect::<Vec<_>>();
+                if !task_cache_stats.is_empty() {
+                    task_cache_stats.sort_unstable_by(|(key_a, stats_a), (key_b, stats_b)| {
+                        (stats_b.data + stats_b.meta, key_b)
+                            .cmp(&(stats_a.data + stats_a.meta, key_a))
+                    });
+                    println!("Task cache stats:");
+                    for (task_desc, stats) in task_cache_stats {
+                        use std::ops::Div;
+
+                        use turbo_tasks::util::FormatBytes;
+
+                        println!(
+                            "  {} {task_desc} = {} meta ({} x {}), {} data ({} x {})",
+                            FormatBytes(stats.data + stats.meta),
+                            FormatBytes(stats.meta),
+                            stats.meta_count,
+                            FormatBytes(stats.meta.checked_div(stats.meta_count).unwrap_or(0)),
+                            FormatBytes(stats.data),
+                            stats.data_count,
+                            FormatBytes(stats.data.checked_div(stats.data_count).unwrap_or(0)),
+                        );
+                    }
+                }
             }
         }
 

@@ -108,7 +108,7 @@ async fn get_font_adjustment(
         FileContent::Content(file) => file.content(),
     };
 
-    let font_file_binary = font_file_rope.to_bytes()?;
+    let font_file_binary = font_file_rope.to_bytes();
     let scope = allsorts::binary::read::ReadScope::new(&font_file_binary);
     let mut font = Font::new(scope.read::<FontData>()?.table_provider(0)?)?.context(format!(
         "Unable to read font metrics from font file at {}",

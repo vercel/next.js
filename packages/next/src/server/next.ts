@@ -86,6 +86,8 @@ interface NextWrapperServer {
     ...args: Parameters<NextNodeServer['revalidate']>
   ): ReturnType<NextNodeServer['revalidate']>
 
+  logErrorWithOriginalStack(err: unknown, type: string): void
+
   render(
     ...args: Parameters<NextNodeServer['render']>
   ): ReturnType<NextNodeServer['render']>
@@ -162,6 +164,14 @@ export class NextServer implements NextWrapperServer {
   logError(...args: Parameters<NextWrapperServer['logError']>) {
     if (this.server) {
       this.server.logError(...args)
+    }
+  }
+
+  async logErrorWithOriginalStack(err: unknown, type: string) {
+    const server = await this.getServer()
+    // this is only available on dev server
+    if ((server as any).logErrorWithOriginalStack) {
+      return (server as any).logErrorWithOriginalStack(err, type)
     }
   }
 
@@ -450,6 +460,10 @@ class NextCustomServer implements NextWrapperServer {
 
   logError(...args: Parameters<NextWrapperServer['logError']>) {
     this.server.logError(...args)
+  }
+
+  logErrorWithOriginalStack(err: unknown, type: string) {
+    return this.server.logErrorWithOriginalStack(err, type)
   }
 
   async revalidate(...args: Parameters<NextWrapperServer['revalidate']>) {

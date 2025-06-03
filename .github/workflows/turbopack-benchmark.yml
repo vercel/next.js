@@ -32,7 +32,7 @@ env:
 jobs:
   benchmark-tiny:
     name: Benchmark Rust Crates (tiny)
-    runs-on: ubuntu-22.04
+    runs-on: ['self-hosted', 'linux', 'x64', 'metal']
     steps:
       - uses: actions/checkout@v4
 
@@ -45,7 +45,7 @@ jobs:
           tool: cargo-codspeed@2.10.1
 
       - name: Build the benchmark target(s)
-        run: cargo codspeed build -p turbo-rcstr -p turbopack-ecmascript
+        run: cargo codspeed build -p turbo-rcstr
 
       - name: Run the benchmarks
         uses: CodSpeedHQ/action@v3
@@ -55,7 +55,7 @@ jobs:
 
   benchmark-small-apps:
     name: Benchmark Rust Crates (small apps)
-    runs-on: ubuntu-22.04
+    runs-on: ['self-hosted', 'linux', 'x64', 'metal']
     steps:
       - uses: actions/checkout@v4
 
@@ -94,7 +94,7 @@ jobs:
     name: Benchmark Rust Crates (large)
     # If the task is triggered manually, we want to run the large benchmarks
     if: ${{ github.event_name == 'workflow_dispatch' }}
-    runs-on: ubuntu-22.04
+    runs-on: ['self-hosted', 'linux', 'x64', 'metal']
     steps:
       - uses: actions/checkout@v4
 

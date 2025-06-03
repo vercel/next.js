@@ -310,11 +310,23 @@ export default class DevServer extends Server {
         })
       )
 
+      // TODO: Improve passing of "is running with Turbopack"
+      const isTurbopack = !!process.env.TURBOPACK
       matchers.push(
-        new DevAppPageRouteMatcherProvider(appDir, extensions, fileReader)
+        new DevAppPageRouteMatcherProvider(
+          appDir,
+          extensions,
+          fileReader,
+          isTurbopack
+        )
       )
       matchers.push(
-        new DevAppRouteRouteMatcherProvider(appDir, extensions, fileReader)
+        new DevAppRouteRouteMatcherProvider(
+          appDir,
+          extensions,
+          fileReader,
+          isTurbopack
+        )
       )
     }
 

@@ -55,9 +55,7 @@
       },
       "env": {
         // Enable the following environment variables to use turbopack instead of webpack:
-        // "TURBOPACK": "1",
-        // "TURBOPACK_DEV": "1",
-        // "TURBOPACK_BUILD": "1",
+        // "IS_TURBOPACK_TEST": "1",
         "NEXT_PRIVATE_LOCAL_WEBPACK": "1",
         "NEXT_PRIVATE_SKIP_CANARY_CHECK": "1",
         "NEXT_TELEMETRY_DISABLED": "1"

@@ -73,6 +73,7 @@
   },
   "packages/font/src/local/loader.test.ts": {
     "passed": [
+      "next/font/local loader generated CSS Custom font-family in declarations",
       "next/font/local loader generated CSS Default CSS",
       "next/font/local loader generated CSS Multiple styles default weight",
       "next/font/local loader generated CSS Multiple weights default style",
@@ -105,7 +106,8 @@
       "validateLocalFontFunctionCall Invalid display value",
       "validateLocalFontFunctionCall Invalid file extension",
       "validateLocalFontFunctionCall Missing src",
-      "validateLocalFontFunctionCall Not using default export"
+      "validateLocalFontFunctionCall Not using default export",
+      "validateLocalFontFunctionCall Valid font-family declaration"
     ],
     "failed": [],
     "pending": [],
@@ -1394,10 +1396,16 @@
   },
   "packages/next/src/server/route-matcher-providers/dev/dev-app-page-route-matcher-provider.test.ts": {
     "passed": [
-      "DevAppPageRouteMatcher filename matching matches the '/(marketing)/about/page' route specified with the provided files",
-      "DevAppPageRouteMatcher filename matching matches the '/page' route specified with the provided files",
-      "DevAppPageRouteMatcher filename matching matches the '/some/other/page' route specified with the provided files",
-      "DevAppPageRouteMatcher returns no routes with an empty filesystem"
+      "DevAppPageRouteMatcher turbopack filename matching matches the '/(marketing)/about/page' route specified with the provided files",
+      "DevAppPageRouteMatcher turbopack filename matching matches the '/_notignored/page' route specified with the provided files",
+      "DevAppPageRouteMatcher turbopack filename matching matches the '/page' route specified with the provided files",
+      "DevAppPageRouteMatcher turbopack filename matching matches the '/some/other/page' route specified with the provided files",
+      "DevAppPageRouteMatcher turbopack returns no routes with an empty filesystem",
+      "DevAppPageRouteMatcher webpack filename matching matches the '/%5Fnotignored/page' route specified with the provided files",
+      "DevAppPageRouteMatcher webpack filename matching matches the '/(marketing)/about/page' route specified with the provided files",
+      "DevAppPageRouteMatcher webpack filename matching matches the '/page' route specified with the provided files",
+      "DevAppPageRouteMatcher webpack filename matching matches the '/some/other/page' route specified with the provided files",
+      "DevAppPageRouteMatcher webpack returns no routes with an empty filesystem"
     ],
     "failed": [],
     "pending": [],
@@ -1406,9 +1414,14 @@
   },
   "packages/next/src/server/route-matcher-providers/dev/dev-app-route-route-matcher-provider.test.ts": {
     "passed": [
-      "DevAppRouteRouteMatcher filename matching matches the '/route' route specified with the provided files",
-      "DevAppRouteRouteMatcher filename matching matches the '/some/other/route' route specified with the provided files",
-      "DevAppRouteRouteMatcher returns no routes with an empty filesystem"
+      "DevAppRouteRouteMatcher turbopack filename matching matches the '/_notignored/route' route specified with the provided files",
+      "DevAppRouteRouteMatcher turbopack filename matching matches the '/route' route specified with the provided files",
+      "DevAppRouteRouteMatcher turbopack filename matching matches the '/some/other/route' route specified with the provided files",
+      "DevAppRouteRouteMatcher turbopack returns no routes with an empty filesystem",
+      "DevAppRouteRouteMatcher webpack filename matching matches the '/%5Fnotignored/route' route specified with the provided files",
+      "DevAppRouteRouteMatcher webpack filename matching matches the '/route' route specified with the provided files",
+      "DevAppRouteRouteMatcher webpack filename matching matches the '/some/other/route' route specified with the provided files",
+      "DevAppRouteRouteMatcher webpack returns no routes with an empty filesystem"
     ],
     "failed": [],
     "pending": [],
@@ -2765,7 +2778,7 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/development/basic/allowed-dev-origins.test.ts": {
     "passed": [
@@ -5200,7 +5213,7 @@
       "app dir - basic server components client components should have consistent query and params handling",
       "app dir - basic server components dynamic routes should only pass params that apply to the layout",
       "app dir - basic server components middleware should strip internal query parameters from requests to middleware for redirect",
-      "app dir - basic server components next/router should support router.back and router.forward",
+      "app dir - basic server components middleware should strip internal query parameters from requests to middleware for rewrite",
       "app dir - basic server components should include client component layout with server component route should include it client-side",
       "app dir - basic server components should include client component layout with server component route should include it server-side",
       "app dir - basic server components should not serve .client.js as a path",
@@ -5244,7 +5257,7 @@
     ],
     "failed": [
       "app dir - basic <Link /> should navigate to pages dynamic route from pages page if it overlaps with an app page",
-      "app dir - basic server components middleware should strip internal query parameters from requests to middleware for rewrite"
+      "app dir - basic server components next/router should support router.back and router.forward"
     ],
     "pending": [
       "app dir - basic HMR should HMR correctly when changing the component type",
@@ -6319,10 +6332,10 @@
   "test/e2e/app-dir/error-on-next-codemod-comment/error-on-next-codemod-comment.test.ts": {
     "passed": [
       "app-dir - error-on-next-codemod-comment should disappear the error when you replace with bypass comment",
-      "app-dir - error-on-next-codemod-comment should disappear the error when you rre the codemod comment"
+      "app-dir - error-on-next-codemod-comment should disappear the error when you rre the codemod comment",
+      "app-dir - error-on-next-codemod-comment should error with inline comment as well"
     ],
     "failed": [
-      "app-dir - error-on-next-codemod-comment should error with inline comment as well",
       "app-dir - error-on-next-codemod-comment should error with swc if you have codemod comments left"
     ],
     "pending": [],
@@ -21205,17 +21218,17 @@
   },
   "test/integration/server-side-dev-errors/test/index.test.js": {
     "passed": [
-      "server-side dev errors should show server-side error for api route correctly",
       "server-side dev errors should show server-side error for dynamic gssp page correctly",
       "server-side dev errors should show server-side error for gsp page correctly",
-      "server-side dev errors should show server-side error for gssp page correctly"
-    ],
-    "failed": [
-      "server-side dev errors should show server-side error for dynamic api route correctly",
+      "server-side dev errors should show server-side error for gssp page correctly",
       "server-side dev errors should show server-side error for uncaught empty exception correctly",
       "server-side dev errors should show server-side error for uncaught empty rejection correctly",
       "server-side dev errors should show server-side error for uncaught exception correctly",
       "server-side dev errors should show server-side error for uncaught rejection correctly"
+    ],
+    "failed": [
+      "server-side dev errors should show server-side error for api route correctly",
+      "server-side dev errors should show server-side error for dynamic api route correctly"
     ],
     "pending": [],
     "flakey": [],
