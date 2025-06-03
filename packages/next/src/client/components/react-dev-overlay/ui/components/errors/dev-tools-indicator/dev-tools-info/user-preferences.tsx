@@ -83,6 +83,7 @@ export function UserPreferences({
 
   return (
     <DevToolsInfo title="Preferences" {...props}>
+      <h2 className="dev-tools-info-section-title">General</h2>
       <div className="preferences-container">
         <div className="preference-section">
           <div className="preference-header">
@@ -180,7 +181,7 @@ export function UserPreferences({
           </div>
         </div>
       </div>
-      <h1 className="dev-tools-info-title">Development Server</h1>
+      <h2 className="dev-tools-info-section-title">Development Server</h2>
       <div className="preferences-container">
         <div className="preference-section">
           <div className="preference-header">
