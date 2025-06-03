@@ -303,7 +303,7 @@ impl MetaFile {
             };
             let result =
                 entry
-                    .sst(&self)?
+                    .sst(self)?
                     .lookup(key_hash, key, key_block_cache, value_block_cache)?;
             if !matches!(result, SstLookupResult::NotFound) {
                 return Ok(MetaLookupResult::SstLookup(result));

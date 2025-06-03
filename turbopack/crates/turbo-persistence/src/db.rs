@@ -855,7 +855,7 @@ impl TurboPersistence {
                                 let index_in_meta = ssts_with_ranges[index].index_in_meta;
                                 let meta = &meta_files[meta_index];
                                 meta.entry(index_in_meta)
-                                    .sst(&meta)?
+                                    .sst(meta)?
                                     .iter(key_block_cache, value_block_cache)
                             })
                             .collect::<Result<Vec<_>>>()?;
