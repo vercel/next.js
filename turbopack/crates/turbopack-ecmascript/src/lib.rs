@@ -1677,7 +1677,7 @@ async fn process_parse_result(
     .await
 }
 
-/// Try to avoid cloning the AST and Globals by unwrapping the ReadRef.
+/// Try to avoid cloning the AST and Globals by unwrapping the ReadRef (and cloning otherwise).
 async fn with_consumed_parse_result<T>(
     parsed: ResolvedVc<ParseResult>,
     success: impl AsyncFnOnce(
@@ -1703,11 +1703,10 @@ async fn with_consumed_parse_result<T>(
                 }) => (
                     program.take(),
                     &*source_map,
-                    // TODO?
-                    // Arc::get_mut(globals)
-                    //     .take()
-                    //     .map_or_else(|| globals.clone_data(), |v| std::mem::take(v)),
-                    globals.clone_data(),
+                    match Arc::try_unwrap(take(globals)) {
+                        Ok(globals) => globals,
+                        Err(globals) => globals.clone_data(),
+                    },
                     &*eval_context,
                     match Arc::try_unwrap(take(comments)) {
                         Ok(comments) => Either::Left(comments),
