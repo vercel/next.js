@@ -139,18 +139,18 @@ Next.js `v14.1.3` fixed a memory issue when using the Edge runtime. Please updat
 
 ## Preloading Entries
 
-Since `v15`, when the Next.js server starts, it preloads page's JavaScript modules to memory, rather than at request time.
+Since `v15`, when the Next.js server starts, it preloads each page's JavaScript modules into memory, rather than at request time.
 
 This optimization allows for faster response times, in exchange for a larger initial memory footprint.
 
-To disable this optimization, use the `experimental.preloadEntries` flag, set to `false`. We will soon move this flag out of the `experimental` scope.
+To disable this optimization, set the `experimental.preloadEntriesOnStart` flag to `false`. We will soon move this flag out of the `experimental` scope.
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const config: NextConfig = {
   experimental: {
-    preloadEntries: false,
+    preloadEntriesOnStart: false,
   },
 }
 
@@ -161,11 +161,11 @@ export default config
 /** @type {import('next').NextConfig} */
 const config = {
   experimental: {
-    preloadEntries: false,
+    preloadEntriesOnStart: false,
   },
 }
 
 export default config
 ```
 
-Next.js does not ever unload these JavaScript modules, which means that, even with this optimization disabled, the memory footprint of your Next.js server will eventually be the same.
+Next.js does not ever unload these JavaScript modules, meaning that even with this optimization disabled, the memory footprint of your Next.js server will eventually be the same if all pages are eventually requested.
