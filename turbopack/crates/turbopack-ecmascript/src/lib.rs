@@ -58,7 +58,7 @@ use swc_core::{
     atoms::Atom,
     base::SwcComments,
     common::{
-        BytePos, DUMMY_SP, GLOBALS, Globals, Mark, SourceMap, SyntaxContext,
+        BytePos, DUMMY_SP, GLOBALS, Globals, Mark, SourceMap, Span, SyntaxContext,
         comments::{Comment, Comments},
         util::take::Take,
     },
@@ -121,7 +121,7 @@ use crate::{
     },
     side_effect_optimization::reference::EcmascriptModulePartReference,
     simple_tree_shake::{ModuleExportUsageInfo, get_module_export_usages},
-    swc_comments::ImmutableComments,
+    swc_comments::{CowComments, ImmutableComments},
     transform::remove_shebang,
 };
 
@@ -1228,12 +1228,13 @@ impl EcmascriptModuleContent {
 
         // TODO properly merge ASTs:
         // - somehow merge the SourceMap struct
-        let merged_ast = merge_modules(contents, &entries, &merged_ctxts, &globals_merged).await?;
+        let (merged_ast, comments) =
+            merge_modules(contents, &entries, &merged_ctxts, &globals_merged).await?;
         let content = CodeGenResult {
             program: merged_ast,
             source_map: Arc::new(SourceMap::default()),
+            comments: CodeGenResultComments::ScopeHoisting { comments },
             globals: Arc::new(globals_merged),
-            comments: Either::Left(Default::default()),
             is_esm: true,
             generate_source_map: false,
             original_source_map: None,
@@ -1244,7 +1245,6 @@ impl EcmascriptModuleContent {
                 .chunking_context
                 .minify_type()
                 .await?,
-            extra_comments: SwcComments::default(),
             scope_hoisting_syntax_contexts: None,
         };
 
@@ -1269,9 +1269,10 @@ async fn merge_modules(
     entries: &Vec<(ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, usize)>,
     merged_ctxts: &'_ FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, SyntaxContext>,
     globals_merged: &'_ Globals,
-) -> Result<Program> {
+) -> Result<(Program, Vec<CodeGenResultComments>)> {
     struct SetSyntaxContextVisitor<'a> {
         current_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+        current_module_idx: u32,
         /// A marker to quickly identify the special cross-module variable references
         export_mark: Mark,
         /// The syntax contexts in the merged AST (each module has its own)
@@ -1280,6 +1281,7 @@ async fn merge_modules(
         reverse_module_contexts:
             FxIndexMap<SyntaxContext, ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
     }
+
     impl VisitMut for SetSyntaxContextVisitor<'_> {
         fn visit_mut_syntax_context(&mut self, ctxt: &mut SyntaxContext) {
             let module = if ctxt.has_mark(self.export_mark) {
@@ -1290,7 +1292,16 @@ async fn merge_modules(
 
             *ctxt = *self.merged_ctxts.get(&module).unwrap();
         }
+        fn visit_mut_span(&mut self, span: &mut Span) {
+            span.lo = CodeGenResultComments::encode_bytepos(self.current_module_idx, span.lo);
+            span.hi = CodeGenResultComments::encode_bytepos(self.current_module_idx, span.hi);
+        }
     }
+
+    let comments = contents
+        .iter_mut()
+        .map(|(_, content)| content.comments.take())
+        .collect::<Vec<_>>();
 
     let prepare_module =
         |(module, content): &mut (ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, CodeGenResult)| {
@@ -1304,6 +1315,7 @@ async fn merge_modules(
                 GLOBALS.set(&*globals, || {
                     content.visit_mut_with(&mut SetSyntaxContextVisitor {
                         current_module: *module,
+                        current_module_idx: module_contexts.get_index_of(module).unwrap() as u32,
                         export_mark: *export_mark,
                         merged_ctxts,
                         reverse_module_contexts: module_contexts
@@ -1382,7 +1394,7 @@ async fn merge_modules(
         // merged_ast.visit_mut_with(&mut DisplayContextVisitor { postfix: "merged" });
     });
 
-    Ok(merged_ast)
+    Ok((merged_ast, comments))
 }
 
 // struct DisplayContextVisitor {
@@ -1456,8 +1468,7 @@ struct CodeGenResult {
     program: Program,
     source_map: Arc<SourceMap>,
     globals: Arc<Globals>,
-    comments: Either<ImmutableComments, Arc<ImmutableComments>>,
-    extra_comments: SwcComments,
+    comments: CodeGenResultComments,
     is_esm: bool,
     generate_source_map: bool,
     original_source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
@@ -1597,8 +1608,10 @@ async fn process_parse_result(
                 program,
                 source_map: source_map.clone(),
                 globals: Arc::new(globals),
-                comments,
-                extra_comments,
+                comments: CodeGenResultComments::Single {
+                    comments,
+                    extra_comments,
+                },
                 is_esm,
                 generate_source_map,
                 original_source_map,
@@ -1634,8 +1647,7 @@ async fn process_parse_result(
                         }),
                         source_map: Arc::new(SourceMap::default()),
                         globals: Arc::new(Globals::default()),
-                        comments: Either::Left(Default::default()),
-                        extra_comments: Default::default(),
+                        comments: CodeGenResultComments::Empty,
                         is_esm: false,
                         generate_source_map: false,
                         original_source_map: None,
@@ -1662,8 +1674,7 @@ async fn process_parse_result(
                         }),
                         source_map: Arc::new(SourceMap::default()),
                         globals: Arc::new(Globals::default()),
-                        comments: Either::Left(Default::default()),
-                        extra_comments: Default::default(),
+                        comments: CodeGenResultComments::Empty,
                         is_esm: false,
                         generate_source_map: false,
                         original_source_map: None,
@@ -1749,7 +1760,6 @@ async fn emit_content(
         program,
         source_map,
         comments,
-        extra_comments,
         is_esm,
         generate_source_map,
         original_source_map,
@@ -1765,20 +1775,6 @@ async fn emit_content(
     let mut mappings = vec![];
 
     {
-        let comments = match comments {
-            Either::Left(comments) => Either::Left(comments.into_consumable()),
-            Either::Right(ref comments) => Either::Right(comments.consumable()),
-        };
-        let comments: &dyn Comments = match &comments {
-            Either::Left(comments) => comments,
-            Either::Right(comments) => comments,
-        };
-
-        let comments = MergedComments {
-            baseline: comments,
-            mutable: extra_comments,
-        };
-
         let mut wr = JsWriter::new(
             source_map.clone(),
             "\n",
@@ -1788,6 +1784,8 @@ async fn emit_content(
         if matches!(minify, MinifyType::Minify { .. }) {
             wr.set_indent_str("");
         }
+
+        let comments = comments.consumable();
 
         let mut emitter = Emitter {
             cfg: swc_core::ecma::codegen::Config::default(),
@@ -1933,92 +1931,184 @@ fn hygiene_rename_only(
     )
 }
 
-struct MergedComments<A, B>
-where
-    A: Comments,
-    B: Comments,
-{
-    baseline: A,
-    mutable: B,
+enum CodeGenResultComments {
+    Single {
+        comments: Either<ImmutableComments, Arc<ImmutableComments>>,
+        extra_comments: SwcComments,
+    },
+    ScopeHoisting {
+        comments: Vec<CodeGenResultComments>,
+    },
+    Empty,
 }
 
-impl<A, B> Comments for MergedComments<A, B>
-where
-    A: Comments,
-    B: Comments,
-{
-    fn add_leading(&self, pos: BytePos, cmt: Comment) {
-        self.mutable.add_leading(pos, cmt);
+impl CodeGenResultComments {
+    fn take(&mut self) -> Self {
+        std::mem::replace(self, CodeGenResultComments::Empty)
     }
 
-    fn add_leading_comments(&self, pos: BytePos, comments: Vec<Comment>) {
-        self.mutable.add_leading_comments(pos, comments);
+    fn consumable(&self) -> CodeGenResultCommentsConsumable {
+        match self {
+            CodeGenResultComments::Single {
+                comments,
+                extra_comments,
+            } => CodeGenResultCommentsConsumable::Single {
+                comments: match comments {
+                    Either::Left(comments) => comments.consumable(),
+                    Either::Right(comments) => comments.consumable(),
+                },
+                extra_comments,
+            },
+            CodeGenResultComments::ScopeHoisting { comments } => {
+                CodeGenResultCommentsConsumable::ScopeHoisting {
+                    comments: comments.iter().map(|c| c.consumable()).collect(),
+                }
+            }
+            CodeGenResultComments::Empty => CodeGenResultCommentsConsumable::Empty,
+        }
+    }
+
+    fn encode_bytepos(module: u32, pos: BytePos) -> BytePos {
+        debug_assert!(module < 2u32.pow(SPAN_BITS_FOR_MODULE_ID));
+        debug_assert!(pos.0 < 2u32.pow(SPAN_BITS_FOR_POS));
+        BytePos((pos.0 & !(0b111111u32 << SPAN_BITS_FOR_POS)) | (module << SPAN_BITS_FOR_POS))
+    }
+    fn decode_bytepos(pos: BytePos) -> (usize, BytePos) {
+        let module = pos.0 >> SPAN_BITS_FOR_POS;
+        let pos = BytePos(pos.0 & !(0b111111u32 << SPAN_BITS_FOR_POS));
+        (module as usize, pos)
+    }
+}
+enum CodeGenResultCommentsConsumable<'a> {
+    Single {
+        comments: CowComments<'a>,
+        extra_comments: &'a SwcComments,
+    },
+    ScopeHoisting {
+        comments: Vec<CodeGenResultCommentsConsumable<'a>>,
+    },
+    Empty,
+}
+
+unsafe impl Send for CodeGenResultComments {}
+unsafe impl Sync for CodeGenResultComments {}
+
+const SPAN_BITS_FOR_MODULE_ID: u32 = 6;
+const SPAN_BITS_FOR_POS: u32 = 32 - SPAN_BITS_FOR_MODULE_ID;
+impl Comments for CodeGenResultCommentsConsumable<'_> {
+    fn add_leading(&self, _pos: BytePos, _cmt: Comment) {
+        unimplemented!()
+    }
+
+    fn add_leading_comments(&self, _pos: BytePos, _comments: Vec<Comment>) {
+        unimplemented!()
     }
 
     fn has_leading(&self, pos: BytePos) -> bool {
-        self.baseline.has_leading(pos) || self.mutable.has_leading(pos)
+        match self {
+            Self::Single {
+                comments,
+                extra_comments,
+            } => comments.has_leading(pos) || extra_comments.has_leading(pos),
+            Self::ScopeHoisting { comments } => {
+                let (module, pos) = CodeGenResultComments::decode_bytepos(pos);
+                comments[module].has_leading(pos)
+            }
+            Self::Empty => false,
+        }
     }
 
-    fn move_leading(&self, from: BytePos, to: BytePos) {
-        self.baseline.move_leading(from, to);
-        self.mutable.move_leading(from, to);
+    fn move_leading(&self, _from: BytePos, _to: BytePos) {
+        unimplemented!()
     }
 
     fn take_leading(&self, pos: BytePos) -> Option<Vec<Comment>> {
-        let (v1, v2) = (
-            self.baseline.take_leading(pos),
-            self.mutable.take_leading(pos),
-        );
-
-        merge_option_vec(v1, v2)
+        match self {
+            Self::Single {
+                comments,
+                extra_comments,
+            } => merge_option_vec(comments.take_leading(pos), extra_comments.take_leading(pos)),
+            Self::ScopeHoisting { comments } => {
+                let (module, pos) = CodeGenResultComments::decode_bytepos(pos);
+                comments[module].take_leading(pos)
+            }
+            Self::Empty => None,
+        }
     }
 
     fn get_leading(&self, pos: BytePos) -> Option<Vec<Comment>> {
-        let (v1, v2) = (
-            self.baseline.get_leading(pos),
-            self.mutable.get_leading(pos),
-        );
-
-        merge_option_vec(v1, v2)
+        match self {
+            Self::Single {
+                comments,
+                extra_comments,
+            } => merge_option_vec(comments.get_leading(pos), extra_comments.get_leading(pos)),
+            Self::ScopeHoisting { comments } => {
+                let (module, pos) = CodeGenResultComments::decode_bytepos(pos);
+                comments[module].get_leading(pos)
+            }
+            Self::Empty => None,
+        }
     }
 
-    fn add_trailing(&self, pos: BytePos, cmt: Comment) {
-        self.mutable.add_trailing(pos, cmt);
+    fn add_trailing(&self, _pos: BytePos, _cmt: Comment) {
+        unimplemented!()
     }
 
-    fn add_trailing_comments(&self, pos: BytePos, comments: Vec<Comment>) {
-        self.mutable.add_trailing_comments(pos, comments);
+    fn add_trailing_comments(&self, _pos: BytePos, _comments: Vec<Comment>) {
+        unimplemented!()
     }
 
     fn has_trailing(&self, pos: BytePos) -> bool {
-        self.baseline.has_trailing(pos) || self.mutable.has_trailing(pos)
+        match self {
+            Self::Single {
+                comments,
+                extra_comments,
+            } => comments.has_trailing(pos) || extra_comments.has_trailing(pos),
+            Self::ScopeHoisting { comments } => {
+                let (module, pos) = CodeGenResultComments::decode_bytepos(pos);
+                comments[module].has_trailing(pos)
+            }
+            Self::Empty => false,
+        }
     }
 
-    fn move_trailing(&self, from: BytePos, to: BytePos) {
-        self.baseline.move_trailing(from, to);
-        self.mutable.move_trailing(from, to);
+    fn move_trailing(&self, _from: BytePos, _to: BytePos) {
+        unimplemented!()
     }
 
     fn take_trailing(&self, pos: BytePos) -> Option<Vec<Comment>> {
-        let (v1, v2) = (
-            self.baseline.take_trailing(pos),
-            self.mutable.take_trailing(pos),
-        );
-
-        merge_option_vec(v1, v2)
+        match self {
+            Self::Single {
+                comments,
+                extra_comments,
+            } => merge_option_vec(
+                comments.take_trailing(pos),
+                extra_comments.take_trailing(pos),
+            ),
+            Self::ScopeHoisting { comments } => {
+                let (module, pos) = CodeGenResultComments::decode_bytepos(pos);
+                comments[module].take_trailing(pos)
+            }
+            Self::Empty => None,
+        }
     }
 
     fn get_trailing(&self, pos: BytePos) -> Option<Vec<Comment>> {
-        let (v1, v2) = (
-            self.baseline.get_trailing(pos),
-            self.mutable.get_trailing(pos),
-        );
-
-        merge_option_vec(v1, v2)
+        match self {
+            Self::Single {
+                comments,
+                extra_comments,
+            } => merge_option_vec(comments.get_leading(pos), extra_comments.get_leading(pos)),
+            Self::ScopeHoisting { comments } => {
+                let (module, pos) = CodeGenResultComments::decode_bytepos(pos);
+                comments[module].get_leading(pos)
+            }
+            Self::Empty => None,
+        }
     }
 
-    fn add_pure_comment(&self, pos: BytePos) {
-        self.mutable.add_pure_comment(pos);
+    fn add_pure_comment(&self, _pos: BytePos) {
+        unimplemented!()
     }
 }
 
