@@ -27,6 +27,7 @@ mod next_image;
 mod next_import_map;
 pub mod next_manifests;
 pub mod next_pages;
+mod next_root_params;
 mod next_route_matcher;
 pub mod next_server;
 pub mod next_server_component;

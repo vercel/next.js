@@ -1307,6 +1307,7 @@ impl Project {
                 self.next_mode(),
                 self.next_config(),
                 self.execution_context(),
+                None, // root params can't be used in middleware
             ),
             rcstr!("middleware-edge"),
         )))
@@ -1362,6 +1363,7 @@ impl Project {
                 self.next_mode(),
                 self.next_config(),
                 self.execution_context(),
+                None, // root params can't be used in middleware
             ),
             rcstr!("middleware"),
         )))
@@ -1474,6 +1476,7 @@ impl Project {
                 self.next_mode(),
                 self.next_config(),
                 self.execution_context(),
+                None, // root params can't be used in instrumentation
             ),
             rcstr!("instrumentation"),
         )))
@@ -1529,6 +1532,7 @@ impl Project {
                 self.next_mode(),
                 self.next_config(),
                 self.execution_context(),
+                None, // root params can't be used in instrumentation
             ),
             rcstr!("instrumentation-edge"),
         )))

@@ -20,6 +20,7 @@ use turbopack_core::{
 use turbopack_node::execution_context::ExecutionContext;
 
 use crate::{
+    app_structure::CollectedRootParams,
     embed_js::{VIRTUAL_PACKAGE_NAME, next_js_fs},
     mode::NextMode,
     next_client::context::ClientContextType,
@@ -29,6 +30,7 @@ use crate::{
         GOOGLE_FONTS_INTERNAL_PREFIX, NextFontGoogleCssModuleReplacer,
         NextFontGoogleFontFileReplacer, NextFontGoogleReplacer,
     },
+    next_root_params::get_next_root_params_mapping,
     next_server::context::ServerContextType,
     util::NextRuntime,
 };
@@ -290,6 +292,7 @@ pub async fn get_next_server_import_map(
     ty: Value<ServerContextType>,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
+    collected_root_params: Option<Vc<CollectedRootParams>>,
 ) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
 
@@ -372,6 +375,7 @@ pub async fn get_next_server_import_map(
         ty,
         NextRuntime::NodeJs,
         next_config,
+        collected_root_params,
     )
     .await?;
 
@@ -385,6 +389,7 @@ pub async fn get_next_edge_import_map(
     ty: Value<ServerContextType>,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
+    collected_root_params: Option<Vc<CollectedRootParams>>,
 ) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
 
@@ -483,6 +488,7 @@ pub async fn get_next_edge_import_map(
         ty,
         NextRuntime::Edge,
         next_config,
+        collected_root_params,
     )
     .await?;
 
@@ -565,6 +571,7 @@ async fn insert_next_server_special_aliases(
     ty: ServerContextType,
     runtime: NextRuntime,
     next_config: Vc<NextConfig>,
+    collected_root_params: Option<Vc<CollectedRootParams>>,
 ) -> Result<()> {
     let external_cjs_if_node =
         move |context_dir: ResolvedVc<FileSystemPath>, request: &str| match runtime {
@@ -674,6 +681,18 @@ async fn insert_next_server_special_aliases(
         }
     }
 
+    match ty {
+        ServerContextType::AppRSC { .. } | ServerContextType::AppRoute { .. } => {
+            import_map.insert_exact_alias(
+                "next/root-params",
+                get_next_root_params_mapping(collected_root_params)
+                    .to_resolved()
+                    .await?,
+            );
+        }
+        _ => {}
+    }
+
     import_map.insert_exact_alias(
         "@vercel/og",
         external_cjs_if_node(project_path, "next/dist/server/og/image-response"),
@@ -681,6 +700,46 @@ async fn insert_next_server_special_aliases(
 
     Ok(())
 }
+
+// #[turbo_tasks::function]
+// async fn get_next_root_params_mapping(
+//     collected_root_params: Option<Vc<CollectedRootParams>>,
+// ) -> Result<Vc<ImportMapping>> {
+//     let module_content = match collected_root_params {
+//         // If there's no root params, export nothing.
+//         None => "export {}".to_string(),
+//         Some(collected_root_params_vc) => {
+//             let collected_root_params = collected_root_params_vc.to_resolved().await?.await?;
+//             iter::once(formatdoc!(
+//                 r#"
+//                     import {{ getRootParam }} from 'next/dist/server/request/root-params';
+//                 "#,
+//             ))
+//             .chain(collected_root_params.iter().map(|param_name| {
+//                 formatdoc!(
+//                     r#"
+//                         /** Reads the '{param_name}' root param. */
+//                         export async function {param_name}() {{
+//                             return getRootParam("{param_name}");
+//                         }}
+//                     "#,
+//                     param_name = param_name,
+//                 )
+//             }))
+//             .join("\n")
+//         }
+//     };
+
+//     let js_asset = VirtualSource::new(
+//         next_js_file_path("root-params.js".into()),
+//         AssetContent::file(FileContent::Content(module_content.into()).cell()),
+//     )
+//     .to_resolved()
+//     .await?;
+
+//     let mapping = ImportMapping::Direct(ResolveResult::source(ResolvedVc::upcast(js_asset)));
+//     Ok(mapping.cell())
+// }
 
 async fn get_react_client_package(next_config: Vc<NextConfig>) -> Result<&'static str> {
     let react_production_profiling = *next_config.enable_react_production_profiling().await?;

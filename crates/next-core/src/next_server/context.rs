@@ -44,6 +44,7 @@ use super::{
     transforms::{get_next_server_internal_transforms_rules, get_next_server_transforms_rules},
 };
 use crate::{
+    app_structure::CollectedRootParams,
     mode::NextMode,
     next_build::get_postcss_package_mapping,
     next_client::RuntimeEntries,
@@ -132,11 +133,18 @@ pub async fn get_server_resolve_options_context(
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
+    collected_root_params: Option<Vc<CollectedRootParams>>,
 ) -> Result<Vc<ResolveOptionsContext>> {
-    let next_server_import_map =
-        get_next_server_import_map(*project_path, ty, next_config, execution_context)
-            .to_resolved()
-            .await?;
+    let next_server_import_map: ResolvedVc<turbopack_core::resolve::options::ImportMap> =
+        get_next_server_import_map(
+            *project_path,
+            ty,
+            next_config,
+            execution_context,
+            collected_root_params,
+        )
+        .to_resolved()
+        .await?;
     let foreign_code_context_condition =
         foreign_code_context_condition(next_config, project_path).await?;
     let root_dir = project_path.root().to_resolved().await?;

@@ -692,5 +692,10 @@
   "691": "Accessed fallback \\`params\\` during prerendering.",
   "692": "Expected clientReferenceManifest to be defined.",
   "693": "%s must not be used within a client component. Next.js should be preventing %s from being included in client components statically, but did not in this case.",
-  "694": "createPrerenderPathname was called inside a client component scope."
+  "694": "createPrerenderPathname was called inside a client component scope.",
+  "695": "Route %s used %s inside \\`\"use cache\"\\` or \\`unstable_cache\\`. Support for this API inside cache scopes is planned for a future version of Next.js.",
+  "696": "Route %s used %s in Pages Router. This API is only available within App Router.",
+  "697": "Missing workStore in %s",
+  "698": "%s must not be used within a client component. Next.js should be preventing it from being included in client components statically, but did not in this case.",
+  "699": "\\`unstable_rootParams\\` must not be used within a client component. Next.js should be preventing it from being included in client components statically, but did not in this case."
 }
