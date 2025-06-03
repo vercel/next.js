@@ -314,7 +314,7 @@ You can opt out of the Full Route Cache, or in other words, dynamically render c
 
 Next.js has an in-memory client-side router cache that stores the RSC payload of route segments, split by layouts, loading states, and pages.
 
-When a user navigates between routes, Next.js caches the visited route segments and [prefetches](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching) the routes the user is likely to navigate to. This results in instant back/forward navigation, no full-page reload between navigations, and preservation of React state and browser state.
+When a user navigates between routes, Next.js caches the visited route segments and [prefetches](/docs/app/getting-started/linking-and-navigating#prefetching) the routes the user is likely to navigate to. This results in instant back/forward navigation, no full-page reload between navigations, and preservation of React state and browser state.
 
 With the Router Cache:
 
@@ -352,7 +352,7 @@ There are two ways you can invalidate the Router Cache:
 
 As of Next.js 15, page segments are opted out by default.
 
-> **Good to know:** You can also opt out of [prefetching](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching) by setting the `prefetch` prop of the `<Link>` component to `false`.
+> **Good to know:** You can also opt out of [prefetching](/docs/app/getting-started/linking-and-navigating#prefetching) by setting the `prefetch` prop of the `<Link>` component to `false`.
 
 ## Cache Interactions
 

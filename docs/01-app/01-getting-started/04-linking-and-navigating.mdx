@@ -29,7 +29,7 @@ There are two types of server rendering, based on _when_ it happens:
 - **Static Rendering (or Prerendering)** happens at build time or during [revalidation](/docs/app/getting-started/caching-and-revalidating) and the result is cached.
 - **Dynamic Rendering** happens at request time in response to a client request.
 
-The trade-off of server rendering is that the client must wait for the server to respond before the new route can be shown. Next.js addresses this delay by [pretching](#what-is-prefetching) routes the user is likely to visit and performing [client-side transitions](#what-is-client-side-transition).
+The trade-off of server rendering is that the client must wait for the server to respond before the new route can be shown. Next.js addresses this delay by [pretching](#prefetching) routes the user is likely to visit and performing [client-side transitions](#client-side-transitions).
 
 > **Good to know**: HTML is also generated for the initial visit.
 
@@ -201,6 +201,22 @@ Client-side transitions are what makes a server-rendered apps _feel_ like client
 
 These Next.js optimizations make navigation fast and responsive. However, under certain conditions, transitions can still _feel_ slow. Here is how you can measure it, common causes, and how to improve the user experience:
 
+### Measuring transitions
+
+A _slow_ transition can be relative depending on who you ask. You can these metrics and tools to measure it and identify bottlenecks:
+
+TODO:
+
+- [Core Web Vitals](https://web.dev/learn-core-web-vitals/): Aim for <100ms for [Largest Contentful Paint (LCP)](https://web.dev/lcp/).
+
+- What metrics can be used?
+  - INP
+  - FID is also probably important given this context
+- What range is considered bad/slow?
+  - INP around 100ms, at worst under 200ms
+- The Performance tab in Chrome DevTools has built in web-vitals measurement
+  - Good to throttle Network and CPU separately first
+
 ### Dynamic routes without loading.js
 
 Without [`loading.tsx`](/docs/app/api-reference/file-conventions/loading), dynamic routes will block until the server responds. This becomes more apparent with slow data requests.
@@ -331,3 +347,444 @@ React mitigates this with Selective Hydration and you can further improve this b
 
 - Using the [`@next/bundle-analyzer`](/docs/app/guides/package-bundling#analyzing-javascript-bundles) plugin to identify and reduce bundle size by removing large dependencies.
 - Moving logic from the client to the server where possible. See the [Server and Client Components](/docs/app/getting-started/server-and-client-components) docs for guidance.
+
+---
+
+## Linking between routes
+
+`<Link>` is a Next.js component that extends the HTML `<a>` tag to provide [client-side navigation](#what-is-client-side-navigation) and [prefetching](#prefetching) for [server-rendered](#what-is-prerendering) routes.
+
+You can use it by importing it from `next/link`, and passing a `href` prop to the component:
+
+```tsx filename="app/blog/layout.tsx" switcher
+import Link from 'next/link'
+
+export default function Layout({ children }: { children: React.ReactNode }) {
+  return <Link href="/home">Home</Link>
+}
+```
+
+```jsx filename="app/blog/page.js" switcher
+import Link from 'next/link'
+
+export default function Layout() {
+  return <Link href="/home">Home</Link>
+}
+```
+
+> **Good to know**: `<Link>` is the primary way to navigate between routes in Next.js. You can also use the [`useRouter` hook](/docs/app/api-reference/functions/use-router) for programmatic navigation.
+
+## `redirect` function
+
+For [Server Components](/docs/app/getting-started/server-and-client-components), use the `redirect` function instead.
+
+```tsx filename="app/team/[id]/page.tsx" switcher
+import { redirect } from 'next/navigation'
+
+async function fetchTeam(id: string) {
+  const res = await fetch('https://...')
+  if (!res.ok) return undefined
+  return res.json()
+}
+
+export default async function Profile({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = await params
+  if (!id) {
+    redirect('/login')
+  }
+
+  const team = await fetchTeam(id)
+  if (!team) {
+    redirect('/join')
+  }
+
+  // ...
+}
+```
+
+```jsx filename="app/team/[id]/page.js" switcher
+import { redirect } from 'next/navigation'
+
+async function fetchTeam(id) {
+  const res = await fetch('https://...')
+  if (!res.ok) return undefined
+  return res.json()
+}
+
+export default async function Profile({ params }) {
+  const { id } = await params
+  if (!id) {
+    redirect('/login')
+  }
+
+  const team = await fetchTeam(id)
+  if (!team) {
+    redirect('/join')
+  }
+
+  // ...
+}
+```
+
+> **Good to know**:
+>
+> - `redirect` returns a 307 (Temporary Redirect) status code by default. When used in a Server Action, it returns a 303 (See Other), which is commonly used for redirecting to a success page as a result of a POST request.
+> - `redirect` internally throws an error so it should be called outside of `try/catch` blocks.
+> - `redirect` can be called in Client Components during the rendering process but not in event handlers. You can use the [`useRouter` hook](#userouter-hook) instead.
+> - `redirect` also accepts absolute URLs and can be used to redirect to external links.
+> - If you'd like to redirect before the render process, use [`next.config.js`](/docs/app/guides/redirecting#redirects-in-nextconfigjs) or [Middleware](/docs/app/guides/redirecting#nextresponseredirect-in-middleware).
+
+See the [`redirect` API reference](/docs/app/api-reference/functions/redirect) for more information.
+
+## Using the native History API
+
+Next.js allows you to use the native [`window.history.pushState`](https://developer.mozilla.org/en-US/docs/Web/API/History/pushState) and [`window.history.replaceState`](https://developer.mozilla.org/en-US/docs/Web/API/History/replaceState) methods to update the browser's history stack without reloading the page.
+
+`pushState` and `replaceState` calls integrate into the Next.js Router, allowing you to sync with [`usePathname`](/docs/app/api-reference/functions/use-pathname) and [`useSearchParams`](/docs/app/api-reference/functions/use-search-params).
+
+### `window.history.pushState`
+
+Use it to add a new entry to the browser's history stack. The user can navigate back to the previous state. For example, to sort a list of products:
+
+```tsx fileName="app/ui/sort-products.tsx" switcher
+'use client'
+
+import { useSearchParams } from 'next/navigation'
+
+export default function SortProducts() {
+  const searchParams = useSearchParams()
+
+  function updateSorting(sortOrder: string) {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('sort', sortOrder)
+    window.history.pushState(null, '', `?${params.toString()}`)
+  }
+
+  return (
+    <>
+      <button onClick={() => updateSorting('asc')}>Sort Ascending</button>
+      <button onClick={() => updateSorting('desc')}>Sort Descending</button>
+    </>
+  )
+}
+```
+
+```jsx fileName="app/ui/sort-products.js" switcher
+'use client'
+
+import { useSearchParams } from 'next/navigation'
+
+export default function SortProducts() {
+  const searchParams = useSearchParams()
+
+  function updateSorting(sortOrder) {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('sort', sortOrder)
+    window.history.pushState(null, '', `?${params.toString()}`)
+  }
+
+  return (
+    <>
+      <button onClick={() => updateSorting('asc')}>Sort Ascending</button>
+      <button onClick={() => updateSorting('desc')}>Sort Descending</button>
+    </>
+  )
+}
+```
+
+### `window.history.replaceState`
+
+Use it to replace the current entry on the browser's history stack. The user is not able to navigate back to the previous state. For example, to switch the application's locale:
+
+```tsx fileName="app/ui/locale-switcher.tsx" switcher
+'use client'
+
+import { usePathname } from 'next/navigation'
+
+export function LocaleSwitcher() {
+  const pathname = usePathname()
+
+  function switchLocale(locale: string) {
+    // e.g. '/en/about' or '/fr/contact'
+    const newPath = `/${locale}${pathname}`
+    window.history.replaceState(null, '', newPath)
+  }
+
+  return (
+    <>
+      <button onClick={() => switchLocale('en')}>English</button>
+      <button onClick={() => switchLocale('fr')}>French</button>
+    </>
+  )
+}
+```
+
+```jsx fileName="app/ui/locale-switcher.js" switcher
+'use client'
+
+import { usePathname } from 'next/navigation'
+
+export function LocaleSwitcher() {
+  const pathname = usePathname()
+
+  function switchLocale(locale) {
+    // e.g. '/en/about' or '/fr/contact'
+    const newPath = `/${locale}${pathname}`
+    window.history.replaceState(null, '', newPath)
+  }
+
+  return (
+    <>
+      <button onClick={() => switchLocale('en')}>English</button>
+      <button onClick={() => switchLocale('fr')}>French</button>
+    </>
+  )
+}
+```
+
+### 1. Code Splitting
+
+Code splitting allows you to split your application code into smaller bundles to be downloaded and executed by the browser. This reduces the amount of data transferred and execution time for each request, leading to improved performance.
+
+[Server Components](/docs/app/getting-started/server-and-client-components) allow your application code to be automatically code-split by route segments. This means only the code needed for the current route is loaded on navigation.
+
+### 2. Prefetching
+
+Prefetching is a way to preload a route in the background before the user visits it.
+
+There are two ways routes are prefetched in Next.js:
+
+- **`<Link>` component**: Routes are automatically prefetched as they become visible in the user's viewport. Prefetching happens when the page first loads or when it comes into view through scrolling.
+- **`router.prefetch()`**: The `useRouter` hook can be used to prefetch routes programmatically.
+
+The `<Link>`'s default prefetching behavior (i.e. when the `prefetch` prop is left unspecified or set to `null`) is different depending on your usage of [`loading.js`](/docs/app/api-reference/file-conventions/loading). Only the shared layout, down the rendered "tree" of components until the first `loading.js` file, is prefetched and cached for `30s`. This reduces the cost of fetching an entire dynamic route, and it means you can show an [instant loading state](/docs/app/building-your-application/routing/loading-ui-and-streaming#instant-loading-states) for better visual feedback to users.
+
+You can disable prefetching by setting the `prefetch` prop to `false`. Alternatively, you can prefetch the full page data beyond the loading boundaries by setting the `prefetch` prop to `true`.
+
+See the [`<Link>` API reference](/docs/app/api-reference/components/link) for more information.
+
+> **Good to know**:
+>
+> - Prefetching is not enabled in development, only in production.
+
+### 3. Caching
+
+Next.js has an **in-memory client-side cache** called the [Router Cache](/docs/app/deep-dive/caching#client-side-router-cache). As users navigate around the app, the React Server Component Payload of [prefetched](#2-prefetching) route segments and visited routes are stored in the cache.
+
+This means on navigation, the cache is reused as much as possible, instead of making a new request to the server - improving performance by reducing the number of requests and data transferred.
+
+Learn more about how the [Router Cache](/docs/app/deep-dive/caching#client-side-router-cache) works and how to configure it.
+
+### 4. Partial Rendering
+
+Partial rendering means only the route segments that change on navigation re-render on the client, and any shared segments are preserved.
+
+For example, when navigating between two sibling routes, `/dashboard/settings` and `/dashboard/analytics`, the `settings` page will be unmounted, the `analytics` page will be mounted with fresh state, and the shared `dashboard` layout will be preserved. This behavior is also present between two routes on the same dynamic segment e.g. with `/blog/[slug]/page` and navigating from `/blog/first` to `/blog/second`.
+
+<Image
+  alt="How partial rendering works"
+  srcLight="/docs/light/partial-rendering.png"
+  srcDark="/docs/dark/partial-rendering.png"
+  width="1600"
+  height="945"
+/>
+
+Without partial rendering, each navigation would cause the full page to re-render on the client. Rendering only the segment that changes reduces the amount of data transferred and execution time, leading to improved performance.
+
+### 5. Soft Navigation
+
+Browsers perform a "hard navigation" when navigating between pages. The Next.js App Router enables "soft navigation" between pages, ensuring only the route segments that have changed are re-rendered (partial rendering). This enables client React state to be preserved during navigation.
+
+### 6. Back and Forward Navigation
+
+By default, Next.js will maintain the scroll position for backwards and forwards navigation, and re-use route segments in the [Router Cache](/docs/app/deep-dive/caching#client-side-router-cache).
+
+### 7. Routing between `pages/` and `app/`
+
+When incrementally migrating from `pages/` to `app/`, the Next.js router will automatically handle hard navigation between the two. To detect transitions from `pages/` to `app/`, there is a client router filter that leverages probabilistic checking of app routes, which can occasionally result in false positives. By default, such occurrences should be very rare, as we configure the false positive likelihood to be 0.01%. This likelihood can be customized via the `experimental.clientRouterFilterAllowedRate` option in `next.config.js`. It's important to note that lowering the false positive rate will increase the size of the generated filter in the client bundle.
+
+Alternatively, if you prefer to disable this handling completely and manage the routing between `pages/` and `app/` manually, you can set `experimental.clientRouterFilter` to false in `next.config.js`. When this feature is disabled, any dynamic routes in pages that overlap with app routes won't be navigated to properly by default.
+
+Prefetching makes navigating between different routes in your application feel instant. Next.js tries to intelligently prefetch by default, based on the links used in your application code.
+
+This guide will explain how prefetching works and show common implementation patterns:
+
+- Automatic prefetch _(these will be hash links)_
+- Manual prefetch
+- Hover-triggered prefetch
+- Ejected link
+- Disabled prefetch
+
+## How does prefetching work?
+
+When navigating between routes, the browser requests assets for the page like HTML and JavaScript files. Prefetching is the process of fetching these resources _ahead_ of time, before you navigate to a new route.
+
+Next.js understands which routes you are [likely going to navigate to](https://www.notion.so/Prefetching-in-Next-js-1dfe06b059c48068b551eed1a2d53736?pvs=21), so it's able to prefetch the new route in the background. By the time you click the link, the resources for the new route have already been loaded into the browser cache.
+
+When navigating to the new page, there's not a browser loading spinner. Instead, Next.js can transition the application to the new route on the client, making the page navigation feel instant.
+
+### Single-Page Applications
+
+Next.js can be used to build [Single-Page Applications (SPAs)](https://nextjs.org/docs/app/guides/single-page-applications). Unlike traditional SPAs, Next.js splits application code into smaller chunks which conditionally load based on the route you are navigating to. Rather than downloading all the application code at once, you load it incrementally.
+
+This approach prevents blocking the page from being interactive while waiting for one large JavaScript file to load and execute.
+
+## Prefetching static vs. dynamic routes
+
+|                               | **Static page** | **Dynamic page**           |
+| ----------------------------- | --------------- | -------------------------- |
+| **Prefetched**                | Full HTML + JS  | Shared layouts + JS chunk  |
+| **Router Cache TTL**          | 5 min (default) | Off unless enabled         |
+| **Server roundtrip on click** | No              | Yes (streamed after shell) |
+
+## Automatic prefetch
+
+```tsx
+import Link from 'next/link'
+;<Link href="/about">About</Link>
+```
+
+| **Context**       | **Prefetched payload**           | **Cache TTL**      |
+| ----------------- | -------------------------------- | ------------------ |
+| No `loading.js`   | Entire page                      | Until app reload   |
+| With `loading.js` | Layout to first loading boundary | 30s (configurable) |
+
+Automatic prefetching runs only in production. Disable with `prefetch={false}` or use the wrapper in [Disabled Prefetch](https://chatgpt.com/c/680aafde-6590-800e-a5ac-91e20ae3ff0d#disabled-prefetch).
+
+## Manual prefetch
+
+```tsx
+'use client'
+
+import { useRouter } from 'next/navigation'
+
+const router = useRouter()
+router.prefetch('/pricing')
+```
+
+Call `router.prefetch()` to warm routes outside the viewport or in response to analytics, hover, scroll, etc.
+
+## Hover-triggered prefetch
+
+> **Proceed with caution:** Extending `Link` opts you into maintaining prefetching, cache invalidation, and accessibility concerns. Proceed only if defaults are insufficient.
+
+Next.js tries to do the right prefetching by default and power users can tweak the knobs to do more/less prefetching based on their needs. You have the control between performance and resource consumption.
+
+For example, you might have to only trigger prefetches on hover, instead of when entering the viewport (the default behavior):
+
+```tsx
+'use client'
+
+import Link from 'next/link'
+import { useState } from 'react'
+
+function HoverPrefetchLink({
+  href,
+  children,
+}: {
+  href: string
+  children: React.ReactNode
+}) {
+  const [active, setActive] = useState(false)
+
+  return (
+    <Link
+      href={href}
+      prefetch={active ? null : false}
+      onMouseEnter={() => setActive(true)}
+    >
+      {children}
+    </Link>
+  )
+}
+```
+
+`prefetch={null}` restores default (static) prefetching once the user shows intent.
+
+## Ejected link
+
+> **Proceed with caution:** Extending `Link` opts you into maintaining prefetching, cache invalidation, and accessibility concerns. Proceed only if defaults are insufficient.
+
+```tsx
+'use client'
+
+import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
+
+function ManualPrefetchLink({
+  href,
+  children,
+}: {
+  href: string
+  children: React.ReactNode
+}) {
+  const router = useRouter()
+
+  useEffect(() => {
+    let cancelled = false
+    const poll = () => {
+      if (!cancelled) router.prefetch(href, { onInvalidate: poll })
+    }
+    poll()
+    return () => {
+      cancelled = true
+    }
+  }, [href, router])
+
+  return <a href={href}>{children}</a>
+}
+```
+
+`onInvalidate` is invoked when Next.js suspects cached data is stale, allowing you to refresh the prefetch.
+
+## Disabled prefetch
+
+You can fully disable prefetching for certain routes for more fine-grained control over resource consumption.
+
+```tsx
+'use client'
+
+import Link, { LinkProps } from 'next/link'
+
+function NoPrefetchLink({
+  prefetch,
+  ...rest
+}: LinkProps & { children: React.ReactNode }) {
+  return <Link {...rest} prefetch={false} />
+}
+```
+
+For example, you may still want to have consistent usage of `<Link>` in your application, but links if your footer might not need to be prefetched when entering the viewport.
+
+## Prefetching optimizations
+
+### Layout deduplication
+
+Shared layouts download once per session, even if several prefetches request the same component tree. This reduces network traffic and speeds up subsequent navigations that reuse the layout.
+
+### Prefetch scheduling
+
+Next.js maintains a small task queue, which prefetches in the following order:
+
+1. Links in the viewport
+2. Links showing user intent (hover or touch)
+3. Newer links replace older ones
+4. Links scrolled off-screen are discarded
+
+The scheduler prioritizes likely navigations while minimizing unused downloads.
+
+### Partial Prerendering (PPR)
+
+With PPR is enabled, a page is divided into a static shell and a streamed dynamic section:
+
+- The shell, which can be prefetched, streams immediately
+- Dynamic data streams when ready
+- Data invalidations (`revalidateTag`, `revalidatePath`) silently refresh associated prefetches
+
+### Router cache
+
+Prefetched React Server Component payloads are stored in memory and keyed by route segments. Navigating between sibling routes—e.g. `/dashboard/settings` → `/dashboard/analytics`—reuses parent payloads and fetches only the changed leaf.

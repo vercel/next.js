@@ -1028,7 +1028,7 @@ There are some cases where you may want to use [Middleware](/docs/app/building-y
 - To perform optimistic checks. Since Middleware runs on every route, it's a good way to centralize redirect logic and pre-filter unauthorized users.
 - To protect static routes that share data between users (e.g. content behind a paywall).
 
-However, since Middleware runs on every route, including [prefetched](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching) routes, it's important to only read the session from the cookie (optimistic checks), and avoid database checks to prevent performance issues.
+However, since Middleware runs on every route, including [prefetched](/docs/app/getting-started/linking-and-navigating#prefetching) routes, it's important to only read the session from the cookie (optimistic checks), and avoid database checks to prevent performance issues.
 
 For example:
 
