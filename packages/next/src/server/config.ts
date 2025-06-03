@@ -624,6 +624,13 @@ function assignDefaults(
     configFileName,
     silent
   )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'preloadEntriesOnStart',
+    'preloadEntriesOnStart',
+    configFileName,
+    silent
+  )
 
   if ((result.experimental as any).outputStandalone) {
     if (!silent) {
