@@ -102,6 +102,10 @@ function useOverlayReducer() {
   }, initialState)
 }
 
+function getNoSquashedHydrationErrorDetails() {
+  return null
+}
+
 export const Default: Story = {
   render: function DevOverlayStory() {
     const [state, dispatch] = useOverlayReducer()
@@ -115,7 +119,14 @@ export const Default: Story = {
             objectFit: 'contain',
           }}
         />
-        <DevOverlay state={state} dispatch={dispatch} />
+        <DevOverlay
+          state={state}
+          dispatch={dispatch}
+          getSquashedHydrationErrorDetails={
+            // Testing like App Router where we no longer quash hydration errors
+            getNoSquashedHydrationErrorDetails
+          }
+        />
       </>
     )
   },
