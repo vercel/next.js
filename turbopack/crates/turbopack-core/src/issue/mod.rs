@@ -635,13 +635,13 @@ pub struct OptionStyledString(Option<ResolvedVc<StyledString>>);
 #[serde(rename_all = "camelCase")]
 pub struct PlainTraceItem {
     // The name of the filesystem
-    pub fs_name: String,
+    pub fs_name: RcStr,
     // The root path of the filesystem, for constructing links
-    pub root_path: String,
+    pub root_path: RcStr,
     // The path of the file, relative to the filesystem root
-    pub path: String,
+    pub path: RcStr,
     // An optional label attached to the module that clarifies where in the module grpah it is.
-    pub layer: Option<String>,
+    pub layer: Option<RcStr>,
 }
 
 impl PlainTraceItem {
@@ -649,14 +649,10 @@ impl PlainTraceItem {
         // TODO(lukesandberg): How should we display paths? it would be good to display all paths
         // relative to the cwd or the project root.
         let fs_path = asset.path.await?;
-        let fs_name = fs_path.fs.to_string().await?.to_string();
-        let root_path = fs_path.fs.root().await?.path.to_string();
-
-        let path = fs_path.path.to_string();
-        let layer = match asset.layer {
-            Some(layer) => Some(layer.await?.to_string()),
-            None => None,
-        };
+        let fs_name = fs_path.fs.to_string().owned().await?;
+        let root_path = fs_path.fs.root().await?.path.clone();
+        let path = fs_path.path.clone();
+        let layer = asset.layer.clone();
         Ok(Self {
             fs_name,
             root_path,
@@ -712,12 +708,7 @@ async fn into_plain(traces: Vec<Vec<ReadRef<AssetIdent>>>) -> Result<Vec<PlainTr
     // stability
     plain_traces.sort_by(|a, b| {
         // Sort by length first, so that shorter traces come first.
-        let ordering = a.len().cmp(&b.len());
-        if ordering.is_eq() {
-            // If the lengths are equal, sort by the trace itself to ensure stability.
-            return a.cmp(b);
-        }
-        ordering
+        a.len().cmp(&b.len()).then_with(|| a.cmp(b))
     });
     // trim any empty traces and traces that only contain 1 item.  Showing a trace that points to
     // the file with the issue is not useful.  Due to the sort these are all at the beginning so we
