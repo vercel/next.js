@@ -82,7 +82,7 @@ jobs:
           pnpm install --loglevel error
 
       - name: Build app build benchmarks
-        run: cargo codspeed build -p turbopack-cli small_apps
+        run: cargo codspeed build -p turbopack-cli small_apps hmr
 
       - name: Run the benchmarks
         uses: CodSpeedHQ/action@v3
