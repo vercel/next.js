@@ -13,7 +13,7 @@ use next_core::{
     next_edge::route_regex::get_named_middleware_regex,
     next_manifests::{
         BuildManifest, EdgeFunctionDefinition, MiddlewareMatcher, MiddlewaresManifestV2,
-        PagesManifest,
+        PagesManifest, Regions,
     },
     next_pages::create_page_ssr_entry_module,
     next_server::{
@@ -27,7 +27,7 @@ use next_core::{
 };
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, Value, ValueToString, Vc,
     fxindexmap, fxindexset, trace::TraceRawVcs,
@@ -84,11 +84,6 @@ use crate::{
 #[turbo_tasks::value]
 pub struct PagesProject {
     project: ResolvedVc<Project>,
-}
-
-#[turbo_tasks::function]
-fn client_layer() -> Vc<RcStr> {
-    Vc::cell("client".into())
 }
 
 #[turbo_tasks::value_impl]
@@ -373,7 +368,7 @@ impl PagesProject {
             self.project().client_compile_time_info(),
             self.client_module_options_context(),
             self.client_resolve_options_context(),
-            client_layer(),
+            rcstr!("client"),
         )
     }
 
@@ -384,7 +379,7 @@ impl PagesProject {
             self.project().server_compile_time_info(),
             self.ssr_module_options_context(),
             self.ssr_resolve_options_context(),
-            Vc::cell("ssr".into()),
+            rcstr!("ssr"),
         )
     }
 
@@ -397,7 +392,7 @@ impl PagesProject {
             self.project().server_compile_time_info(),
             self.api_module_options_context(),
             self.ssr_resolve_options_context(),
-            Vc::cell("api".into()),
+            rcstr!("api"),
         )
     }
 
@@ -408,7 +403,7 @@ impl PagesProject {
             self.project().server_compile_time_info(),
             self.ssr_data_module_options_context(),
             self.ssr_resolve_options_context(),
-            Vc::cell("ssr-data".into()),
+            rcstr!("ssr-data"),
         )
     }
 
@@ -419,7 +414,7 @@ impl PagesProject {
             self.project().edge_compile_time_info(),
             self.edge_ssr_module_options_context(),
             self.edge_ssr_resolve_options_context(),
-            Vc::cell("edge-ssr".into()),
+            rcstr!("edge-ssr"),
         )
     }
 
@@ -430,7 +425,7 @@ impl PagesProject {
             self.project().edge_compile_time_info(),
             self.edge_api_module_options_context(),
             self.edge_ssr_resolve_options_context(),
-            Vc::cell("edge-api".into()),
+            rcstr!("edge-api"),
         )
     }
 
@@ -441,7 +436,7 @@ impl PagesProject {
             self.project().edge_compile_time_info(),
             self.edge_ssr_data_module_options_context(),
             self.edge_ssr_resolve_options_context(),
-            Vc::cell("edge-ssr-data".into()),
+            rcstr!("edge-ssr-data"),
         )
     }
 
@@ -921,6 +916,7 @@ impl PageEndpoint {
                     // /_app and /_document are always rendered for Node.js for this case. For edge
                     // they're included in the page bundle.
                     runtime: NextRuntime::NodeJs,
+                    regions: config.regions.clone(),
                 }
             } else if config.runtime == NextRuntime::Edge {
                 let modules = create_page_ssr_entry_module(
@@ -941,6 +937,7 @@ impl PageEndpoint {
                     app_module: modules.app_module,
                     document_module: modules.document_module,
                     runtime: config.runtime,
+                    regions: config.regions.clone(),
                 }
             } else {
                 let modules = create_page_ssr_entry_module(
@@ -960,6 +957,7 @@ impl PageEndpoint {
                     app_module: modules.app_module,
                     document_module: modules.document_module,
                     runtime: config.runtime,
+                    regions: config.regions.clone(),
                 }
             }
             .cell(),
@@ -984,6 +982,7 @@ impl PageEndpoint {
                 app_module,
                 document_module,
                 runtime,
+                ref regions,
             } = *self.internal_ssr_chunk_module().await?;
 
             let project = this.pages_project.project();
@@ -1079,6 +1078,7 @@ impl PageEndpoint {
                 Ok(SsrChunk::Edge {
                     files: current_chunks.concatenate(edge_files).to_resolved().await?,
                     dynamic_import_entries,
+                    regions: regions.clone(),
                 }
                 .cell())
             } else {
@@ -1353,6 +1353,7 @@ impl PageEndpoint {
             SsrChunk::Edge {
                 files,
                 dynamic_import_entries,
+                ref regions,
             } => {
                 let node_root = this.pages_project.project().node_root();
                 if emit_manifests {
@@ -1403,6 +1404,18 @@ impl PageEndpoint {
                         original_source: pathname.clone(),
                         ..Default::default()
                     };
+                    let regions = if let Some(regions) = regions.as_ref() {
+                        if regions.len() == 1 {
+                            regions
+                                .first()
+                                .map(|region| Regions::Single(region.clone()))
+                        } else {
+                            Some(Regions::Multiple(regions.clone()))
+                        }
+                    } else {
+                        None
+                    };
+
                     let original_name = this.original_name.owned().await?;
                     let edge_function_definition = EdgeFunctionDefinition {
                         files: file_paths_from_root,
@@ -1410,7 +1423,7 @@ impl PageEndpoint {
                         assets: paths_to_bindings(all_assets),
                         name: pathname.clone(),
                         page: original_name.clone(),
-                        regions: None,
+                        regions,
                         matchers: vec![matchers],
                         env: this.pages_project.project().edge_env().owned().await?,
                     };
@@ -1469,6 +1482,7 @@ pub struct InternalSsrChunkModule {
     pub app_module: Option<ResolvedVc<Box<dyn Module>>>,
     pub document_module: Option<ResolvedVc<Box<dyn Module>>>,
     pub runtime: NextRuntime,
+    pub regions: Option<Vec<RcStr>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -1658,5 +1672,6 @@ pub enum SsrChunk {
     Edge {
         files: ResolvedVc<OutputAssets>,
         dynamic_import_entries: ResolvedVc<DynamicImportedChunks>,
+        regions: Option<Vec<RcStr>>,
     },
 }

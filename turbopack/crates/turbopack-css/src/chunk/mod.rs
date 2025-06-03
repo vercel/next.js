@@ -5,7 +5,7 @@ use std::fmt::Write;
 
 use anyhow::{Result, bail};
 use swc_core::common::pass::Either;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, ValueDefault, ValueToString,
     Vc,
@@ -182,7 +182,7 @@ impl CssChunk {
             .iter()
             .map(|chunk_item| async move {
                 Ok((
-                    chunk_item_key,
+                    rcstr!("chunk item"),
                     chunk_item.content_ident().to_resolved().await?,
                 ))
             })
@@ -195,8 +195,8 @@ impl CssChunk {
             } else {
                 ServerFileSystem::new().root().to_resolved().await?
             },
-            query: ResolvedVc::cell(RcStr::default()),
-            fragment: ResolvedVc::cell(RcStr::default()),
+            query: RcStr::default(),
+            fragment: RcStr::default(),
             assets,
             modifiers: Vec::new(),
             parts: Vec::new(),
@@ -317,11 +317,6 @@ impl OutputChunk for CssChunk {
     }
 }
 
-#[turbo_tasks::function]
-fn chunk_item_key() -> Vc<RcStr> {
-    Vc::cell("chunk item".into())
-}
-
 #[turbo_tasks::value_impl]
 impl OutputAsset for CssChunk {
     #[turbo_tasks::function]
@@ -331,7 +326,7 @@ impl OutputAsset for CssChunk {
         Ok(self
             .await?
             .chunking_context
-            .chunk_path(Some(Vc::upcast(self)), ident, ".css".into()))
+            .chunk_path(Some(Vc::upcast(self)), ident, rcstr!(".css")))
     }
 
     #[turbo_tasks::function]

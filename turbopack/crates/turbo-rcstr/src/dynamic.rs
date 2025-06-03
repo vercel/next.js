@@ -1,9 +1,9 @@
-use std::ptr::NonNull;
+use std::{num::NonZeroU8, ptr::NonNull};
 
 use triomphe::Arc;
 
 use crate::{
-    INLINE_TAG_INIT, LEN_OFFSET, RcStr, TAG_MASK,
+    INLINE_TAG, INLINE_TAG_INIT, LEN_OFFSET, RcStr, TAG_MASK,
     tagged_value::{MAX_INLINE_LEN, TaggedValue},
 };
 
@@ -47,4 +47,27 @@ pub(crate) fn new_atom<T: AsRef<str> + Into<String>>(text: T) -> RcStr {
     RcStr {
         unsafe_data: TaggedValue::new_ptr(ptr),
     }
+}
+
+/// Attempts to construct an RcStr but only if it can be constructed inline.
+/// This is primarily useful in constant contexts.
+#[doc(hidden)]
+pub(crate) const fn inline_atom(text: &str) -> Option<RcStr> {
+    let len = text.len();
+    if len < MAX_INLINE_LEN {
+        let tag = INLINE_TAG | ((len as u8) << LEN_OFFSET);
+        let mut unsafe_data = TaggedValue::new_tag(NonZeroU8::new(tag).unwrap());
+
+        // This odd pattern is needed because we cannot create slices from ranges in constant
+        // context.
+        unsafe {
+            unsafe_data
+                .data_mut()
+                .split_at_mut(len)
+                .0
+                .copy_from_slice(text.as_bytes());
+        }
+        return Some(RcStr { unsafe_data });
+    }
+    None
 }
