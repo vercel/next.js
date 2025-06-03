@@ -196,7 +196,7 @@ impl CodeGen {
         &self,
         g: Vc<ModuleGraph>,
         ctx: Vc<Box<dyn ChunkingContext>>,
-        scope_hoisting_context: Option<ScopeHoistingContext<'_>>,
+        scope_hoisting_context: ScopeHoistingContext<'_>,
     ) -> Result<CodeGeneration> {
         match self {
             Self::AmdDefineWithDependenciesCodeGen(v) => v.code_generation(g, ctx).await,

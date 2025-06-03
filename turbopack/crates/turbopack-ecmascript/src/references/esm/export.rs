@@ -553,11 +553,11 @@ impl EsmExports {
     pub async fn code_generation(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-        scope_hoisting_context: Option<ScopeHoistingContext<'_>>,
+        scope_hoisting_context: ScopeHoistingContext<'_>,
         parsed: Option<Vc<ParseResult>>,
         export_usage_info: Option<ResolvedVc<ModuleExportUsageInfo>>,
     ) -> Result<CodeGeneration> {
-        if scope_hoisting_context.is_some_and(|ctx| !*ctx.modules.get(&ctx.module).unwrap()) {
+        if scope_hoisting_context.skip_module_exports() {
             // If the current module is not exposed, no need to generate exports
             return Ok(CodeGeneration::empty());
         }
@@ -571,15 +571,10 @@ impl EsmExports {
 
         let mut dynamic_exports = Vec::<Box<Expr>>::new();
         {
-            let id = if let Some(scope_hoisting_context) = scope_hoisting_context
+            let id = if let Some(module) = scope_hoisting_context.module()
                 && !expanded.dynamic_exports.is_empty()
             {
-                Some(
-                    scope_hoisting_context
-                        .module
-                        .chunk_item_id(Vc::upcast(chunking_context))
-                        .await?,
-                )
+                Some(module.chunk_item_id(Vc::upcast(chunking_context)).await?)
             } else {
                 None
             };
@@ -729,11 +724,8 @@ impl EsmExports {
 
         let early_hoisted_stmts = vec![CodeGenerationHoistedStmt::new(
             rcstr!("__turbopack_esm__"),
-            if let Some(scope_hoisting_context) = scope_hoisting_context {
-                let id = scope_hoisting_context
-                    .module
-                    .chunk_item_id(Vc::upcast(chunking_context))
-                    .await?;
+            if let Some(module) = scope_hoisting_context.module() {
+                let id = module.chunk_item_id(Vc::upcast(chunking_context)).await?;
                 quote!("$turbopack_esm($getters, $id);" as Stmt,
                     turbopack_esm: Expr = TURBOPACK_ESM.into(),
                     getters: Expr = getters,

@@ -43,7 +43,7 @@ impl EsmBinding {
         &self,
         _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-        scope_hoisting_context: Option<ScopeHoistingContext<'_>>,
+        scope_hoisting_context: ScopeHoistingContext<'_>,
     ) -> Result<CodeGeneration> {
         let mut visitors = vec![];
 
