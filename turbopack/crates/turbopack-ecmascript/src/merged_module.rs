@@ -50,7 +50,7 @@ impl Module for MergedEcmascriptModule {
     fn ident(&self) -> Vc<AssetIdent> {
         // This purposely reuses the module's ident as it has replaced the original module, thus
         // there can never be a collision.
-        self.modules.last().unwrap().0.ident()
+        self.entries.first().unwrap().ident()
     }
 
     #[turbo_tasks::function]
