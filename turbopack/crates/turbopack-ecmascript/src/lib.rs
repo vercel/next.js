@@ -1277,18 +1277,13 @@ async fn merge_modules(
         /// The syntax contexts in the merged AST (each module has its own)
         merged_ctxts: &'a FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, SyntaxContext>,
         /// The export syntax contexts in the current AST, which will be mapped to merged_ctxts
-        current_module_contexts:
-            &'a FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, SyntaxContext>,
+        reverse_module_contexts:
+            FxIndexMap<SyntaxContext, ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
     }
     impl VisitMut for SetSyntaxContextVisitor<'_> {
         fn visit_mut_syntax_context(&mut self, ctxt: &mut SyntaxContext) {
             let module = if ctxt.has_mark(self.export_mark) {
-                *self
-                    .current_module_contexts
-                    .iter()
-                    .find(|(_, module_ctxt)| *ctxt == **module_ctxt)
-                    .unwrap()
-                    .0
+                *self.reverse_module_contexts.get(ctxt).unwrap()
             } else {
                 self.current_module
             };
@@ -1311,7 +1306,10 @@ async fn merge_modules(
                         current_module: *module,
                         export_mark: *export_mark,
                         merged_ctxts,
-                        current_module_contexts: module_contexts,
+                        reverse_module_contexts: module_contexts
+                            .iter()
+                            .map(|(m, ctxt)| (*ctxt, *m))
+                            .collect(),
                     });
                 });
 
