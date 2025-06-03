@@ -91,7 +91,7 @@ jobs:
 
   benchmark-large:
     name: Benchmark Rust Crates (large)
-    if: ${{ github.event.label.name == 'codspeed' }}
+    if: ${{ github.event.label.name == 'benchmark' }}
     runs-on: ['self-hosted', 'linux', 'x64', 'metal']
     steps:
       - uses: actions/checkout@v4
