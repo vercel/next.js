@@ -384,9 +384,8 @@ impl CapturedIssues {
             // Merge the maps
             let mut issue_to_traces: FxHashMap<ResolvedVc<Box<dyn Issue>>, Vec<ImportTrace>> =
                 FxHashMap::with_capacity_and_hasher(self.issues.len(), Default::default());
-            for graph in graphs.iter_mut() {
-                // Drain so we can transfer ownership into the new map.
-                for (issue, mut traces) in graph.drain() {
+            for graph in graphs {
+                for (issue, mut traces) in graph {
                     match issue_to_traces.entry(issue) {
                         Entry::Occupied(mut entry) => {
                             entry.get_mut().append(&mut traces);

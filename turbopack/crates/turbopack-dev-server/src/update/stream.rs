@@ -367,7 +367,6 @@ pub enum UpdateStreamItem {
     NotFound,
     Found {
         update: ReadRef<Update>,
-        #[turbo_tasks(trace_ignore)]
         issues: Vec<PlainIssue>,
     },
 }
