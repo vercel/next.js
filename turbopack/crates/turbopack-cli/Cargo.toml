@@ -22,6 +22,10 @@ harness = false
 name = "small_apps"
 harness = false
 
+[[bench]]
+name = "hmr"
+harness = false
+
 [features]
 default = ["custom_allocator"]
 serializable = []
