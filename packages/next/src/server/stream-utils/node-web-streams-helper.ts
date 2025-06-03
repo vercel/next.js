@@ -209,24 +209,25 @@ function createMetadataTransformStream(
         controller.enqueue(chunk)
         return
       }
+      let iconMarkLength = 0
       // Only search for the closed head tag once
       if (iconMarkIndex === -1) {
         iconMarkIndex = indexOfUint8Array(chunk, ENCODED_TAGS.META.ICON_MARK)
-      }
-      if (iconMarkIndex === -1) {
-        controller.enqueue(chunk)
-        return
-      }
-
-      // When we found the `<meta name="«nxt-icon»"` tag prefix, we will remove it from the chunk.
-      // Its close tag could either be `/>` or `>`, checking the next char to ensure we cover both cases.
-      let replaceLength = ENCODED_TAGS.META.ICON_MARK.length
-      // Check if next char is /, this is for xml mode.
-      if (chunk[iconMarkIndex + replaceLength] === 47) {
-        replaceLength += 2
-      } else {
-        // The last char is `>`
-        replaceLength++
+        if (iconMarkIndex === -1) {
+          controller.enqueue(chunk)
+          return
+        } else {
+          // When we found the `<meta name="«nxt-icon»"` tag prefix, we will remove it from the chunk.
+          // Its close tag could either be `/>` or `>`, checking the next char to ensure we cover both cases.
+          iconMarkLength = ENCODED_TAGS.META.ICON_MARK.length
+          // Check if next char is /, this is for xml mode.
+          if (chunk[iconMarkIndex + iconMarkLength] === 47) {
+            iconMarkLength += 2
+          } else {
+            // The last char is `>`
+            iconMarkLength++
+          }
+        }
       }
 
       // Check if icon mark is inside <head> tag in the first chunk.
@@ -235,14 +236,16 @@ function createMetadataTransformStream(
         // The mark icon is located in the 1st chunk before the head tag.
         // We do not need to insert the script tag in this case because it's in the head.
         // Just remove the icon mark from the chunk.
-        if (iconMarkIndex < closedHeadIndex) {
-          const replaced = new Uint8Array(chunk.length)
+        if (iconMarkIndex < closedHeadIndex && iconMarkIndex !== -1) {
+          const replaced = new Uint8Array(chunk.length - iconMarkLength)
+
+          // Remove the icon mark from the chunk.
           replaced.set(chunk.subarray(0, iconMarkIndex))
           replaced.set(
-            chunk.subarray(iconMarkIndex + replaceLength),
+            chunk.subarray(iconMarkIndex + iconMarkLength),
             iconMarkIndex
           )
-          controller.enqueue(replaced)
+          chunk = replaced
           isMarkRemoved = true
         }
       } else {
@@ -253,21 +256,22 @@ function createMetadataTransformStream(
         const insertionLength = encodedInsertion.length
         // Replace the icon mark with the hoist script or empty string.
         const replaced = new Uint8Array(
-          chunk.length - replaceLength + insertionLength
+          chunk.length - iconMarkLength + insertionLength
         )
         // Set the first part of the chunk, before the icon mark.
-        replaced.set(chunk.slice(0, iconMarkIndex))
+        replaced.set(chunk.subarray(0, iconMarkIndex))
         // Set the insertion after the icon mark.
         replaced.set(encodedInsertion, iconMarkIndex)
 
         // Set the rest of the chunk after the icon mark.
         replaced.set(
-          chunk.subarray(iconMarkIndex + replaceLength),
+          chunk.subarray(iconMarkIndex + iconMarkLength),
           iconMarkIndex + insertionLength
         )
-        controller.enqueue(replaced)
+        chunk = replaced
         isMarkRemoved = true
       }
+      controller.enqueue(chunk)
     },
   })
 }
