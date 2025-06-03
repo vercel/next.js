@@ -10208,11 +10208,11 @@
   },
   "test/integration/css-features/test/css-modules.test.js": {
     "passed": [
-      "CSS Modules: Import Global CSS production mode should've emitted a single CSS file"
+      "CSS Modules: Import Global CSS production mode should've emitted a single CSS file",
+      "Custom Properties: Fail for global element in CSS Modules production mode should fail to build"
     ],
     "failed": [
-      "CSS Modules: Importing Invalid Global CSS production mode should fail to build",
-      "Custom Properties: Fail for global element in CSS Modules production mode should fail to build"
+      "CSS Modules: Importing Invalid Global CSS production mode should fail to build"
     ],
     "pending": [
       "CSS Modules: Import Exports production mode should've emitted a single CSS file",

@@ -132,6 +132,7 @@ import {
   createDynamicValidationState,
   trackAllowedDynamicAccess,
   throwIfDisallowedDynamic,
+  PreludeState,
   consumeDynamicAccess,
   type DynamicAccess,
 } from './dynamic-rendering'
@@ -2611,7 +2612,8 @@ async function spawnDynamicValidationInDev(
                     trackAllowedDynamicAccess(
                       workStore.route,
                       componentStack,
-                      dynamicValidation
+                      dynamicValidation,
+                      clientDynamicTracking
                     )
                   }
                   return
@@ -2629,16 +2631,14 @@ async function spawnDynamicValidationInDev(
       )
 
     const { preludeIsEmpty } = await processPrelude(unprocessedPrelude)
-
     resolveValidation(
       <LogSafely
         fn={throwIfDisallowedDynamic.bind(
           null,
           workStore,
-          preludeIsEmpty,
+          preludeIsEmpty ? PreludeState.Empty : PreludeState.Full,
           dynamicValidation,
-          serverDynamicTracking,
-          clientDynamicTracking
+          serverDynamicTracking
         )}
       />
     )
@@ -2646,14 +2646,12 @@ async function spawnDynamicValidationInDev(
     // Even if the root errors we still want to report any dynamic IO errors
     // that were discovered before the root errored.
 
-    const preludeIsEmpty = true
     let loggingFunction = throwIfDisallowedDynamic.bind(
       null,
       workStore,
-      preludeIsEmpty,
+      PreludeState.Errored,
       dynamicValidation,
-      serverDynamicTracking,
-      clientDynamicTracking
+      serverDynamicTracking
     )
 
     if (process.env.NEXT_DEBUG_BUILD || process.env.__NEXT_VERBOSE_LOGGING) {
@@ -3222,7 +3220,8 @@ async function prerenderToStream(
                       trackAllowedDynamicAccess(
                         workStore.route,
                         componentStack,
-                        dynamicValidation
+                        dynamicValidation,
+                        clientDynamicTracking
                       )
                     }
                     return
@@ -3253,10 +3252,9 @@ async function prerenderToStream(
       if (!allowEmptyStaticShell) {
         throwIfDisallowedDynamic(
           workStore,
-          preludeIsEmpty,
+          preludeIsEmpty ? PreludeState.Empty : PreludeState.Full,
           dynamicValidation,
-          serverDynamicTracking,
-          clientDynamicTracking
+          serverDynamicTracking
         )
       }
 
