@@ -1,7 +1,6 @@
 name: Turbopack Benchmark
 
 on:
-  workflow_dispatch:
   push:
     branches:
       - canary
@@ -10,7 +9,7 @@ on:
       - '**/Cargo.toml'
       - '**/Cargo.lock'
   pull_request:
-    types: ['opened', 'reopened', 'synchronize']
+    types: ['opened', 'reopened', 'synchronize', 'labeled']
     paths:
       - '**/crates/**'
       - '**/Cargo.toml'
@@ -92,8 +91,7 @@ jobs:
 
   benchmark-large:
     name: Benchmark Rust Crates (large)
-    # If the task is triggered manually, we want to run the large benchmarks
-    if: ${{ github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.event.label.name == 'codspeed' }}
     runs-on: ['self-hosted', 'linux', 'x64', 'metal']
     steps:
       - uses: actions/checkout@v4
