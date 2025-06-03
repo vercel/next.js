@@ -11,6 +11,7 @@ use anyhow::{Context, Result};
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use tokio::time::timeout;
 use turbopack_cli::register;
+use turbopack_core::target;
 use turbopack_create_test_app::test_app_builder::{
     EffectMode, PackageJsonConfig, TestApp, TestAppBuilder,
 };
@@ -19,7 +20,17 @@ use turbopack_create_test_app::test_app_builder::{
 /// This is inspired by the HMR testing logic in next-rs-api.test.ts
 pub struct HmrBenchmark {
     test_app: TestApp,
-    runtime: tokio::runtime::Runtime,
+}
+
+fn runtime() -> tokio::runtime::Runtime {
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .on_thread_stop(|| {
+            turbo_tasks_malloc::TurboMalloc::thread_stop();
+        })
+        .build()
+        .context("Failed to build tokio runtime")
+        .unwrap()
 }
 
 impl HmrBenchmark {
@@ -37,15 +48,7 @@ impl HmrBenchmark {
         .build()
         .context("Failed to build test app")?;
 
-        let runtime = tokio::runtime::Builder::new_multi_thread()
-            .enable_all()
-            .on_thread_stop(|| {
-                turbo_tasks_malloc::TurboMalloc::thread_stop();
-            })
-            .build()
-            .context("Failed to build tokio runtime")?;
-
-        Ok(Self { test_app, runtime })
+        Ok(Self { test_app })
     }
 
     /// Simulate file changes for HMR testing
@@ -54,7 +57,7 @@ impl HmrBenchmark {
             std::fs::read_to_string(file_path).context("Failed to read file content")?;
 
         // Add a comment with a unique identifier to trigger HMR
-        let change_marker = format!("// HMR_CHANGE_{}\n", change_id);
+        let change_marker = format!("// HMR_CHANGE_{change_id}\n");
         content.push_str(&change_marker);
 
         std::fs::write(file_path, content).context("Failed to write modified content")?;
@@ -130,13 +133,13 @@ pub fn bench_hmr_single_update(c: &mut Criterion) {
 
     for module_count in module_counts {
         g.bench_function(
-            BenchmarkId::new("single_update", format!("{}_modules", module_count)),
+            BenchmarkId::new("single_update", format!("{module_count}_modules")),
             |b| {
-                let benchmark = HmrBenchmark::new(module_count).unwrap();
-                let target_file = benchmark.test_app.path().join("src").join("index.tsx");
+                b.to_async(&runtime()).iter_custom({
+                    |iters| async move {
+                        let benchmark = HmrBenchmark::new(module_count).unwrap();
+                        let target_file = benchmark.test_app.path().join("src").join("index.tsx");
 
-                b.to_async(&benchmark.runtime)
-                    .iter_custom(|iters| async move {
                         let mut total_duration = Duration::ZERO;
                         let mut change_counter = 0;
 
@@ -150,7 +153,8 @@ pub fn bench_hmr_single_update(c: &mut Criterion) {
                         }
 
                         total_duration
-                    });
+                    }
+                });
             },
         );
     }
@@ -177,30 +181,28 @@ pub fn bench_hmr_burst_updates(c: &mut Criterion) {
         g.bench_function(
             BenchmarkId::new(
                 "burst_updates",
-                format!("{}_modules_{}_updates", module_count, update_count),
+                format!("{module_count}_modules_{update_count}_updates"),
             ),
             |b| {
-                let benchmark = HmrBenchmark::new(module_count).unwrap();
+                b.to_async(&runtime()).iter_custom(move |iters| async move {
+                    let benchmark = HmrBenchmark::new(module_count).unwrap();
 
-                b.to_async(&benchmark.runtime)
-                    .iter_custom(|iters| async move {
-                        let mut total_duration = Duration::ZERO;
+                    let mut total_duration = Duration::ZERO;
 
-                        for _ in 0..iters {
-                            // Perform warmup
-                            benchmark.warmup(3).await.unwrap();
+                    for _ in 0..iters {
+                        // Perform warmup
+                        benchmark.warmup(3).await.unwrap();
 
-                            // Measure burst of updates
-                            let start = Instant::now();
-                            let _durations =
-                                benchmark.bench_many_updates(update_count).await.unwrap();
-                            let burst_duration = start.elapsed();
+                        // Measure burst of updates
+                        let start = Instant::now();
+                        let _durations = benchmark.bench_many_updates(update_count).await.unwrap();
+                        let burst_duration = start.elapsed();
 
-                            total_duration += burst_duration;
-                        }
+                        total_duration += burst_duration;
+                    }
 
-                        total_duration
-                    });
+                    total_duration
+                });
             },
         );
     }
@@ -221,47 +223,46 @@ pub fn bench_hmr_throughput(c: &mut Criterion) {
 
     for module_count in module_counts {
         g.bench_function(
-            BenchmarkId::new("throughput", format!("{}_modules", module_count)),
+            BenchmarkId::new("throughput", format!("{module_count}_modules")),
             |b| {
-                let benchmark = HmrBenchmark::new(module_count).unwrap();
+                b.to_async(&runtime()).iter_custom(move |iters| async move {
+                    let benchmark = HmrBenchmark::new(module_count).unwrap();
 
-                b.to_async(&benchmark.runtime)
-                    .iter_custom(|iters| async move {
-                        let mut total_updates = 0;
-                        let overall_start = Instant::now();
+                    let mut total_updates = 0;
+                    let overall_start = Instant::now();
 
-                        for _ in 0..iters {
-                            // Perform warmup
-                            benchmark.warmup(2).await.unwrap();
+                    for _ in 0..iters {
+                        // Perform warmup
+                        benchmark.warmup(2).await.unwrap();
 
-                            // Measure throughput over 1 second
-                            let throughput_start = Instant::now();
-                            let mut updates_in_window = 0;
-                            let mut change_counter = 0;
+                        // Measure throughput over 1 second
+                        let throughput_start = Instant::now();
+                        let mut updates_in_window = 0;
+                        let mut change_counter = 0;
 
-                            while throughput_start.elapsed() < Duration::from_secs(1) {
-                                change_counter += 1;
-                                let target_file =
-                                    benchmark.test_app.path().join("src").join("index.tsx");
-                                let _duration = benchmark
-                                    .measure_hmr_update(&target_file, change_counter)
-                                    .await
-                                    .unwrap();
-                                updates_in_window += 1;
-                            }
-
-                            total_updates += updates_in_window;
+                        while throughput_start.elapsed() < Duration::from_secs(1) {
+                            change_counter += 1;
+                            let target_file =
+                                benchmark.test_app.path().join("src").join("index.tsx");
+                            let _duration = benchmark
+                                .measure_hmr_update(&target_file, change_counter)
+                                .await
+                                .unwrap();
+                            updates_in_window += 1;
                         }
 
-                        let overall_duration = overall_start.elapsed();
+                        total_updates += updates_in_window;
+                    }
 
-                        // Return average time per update
-                        if total_updates > 0 {
-                            overall_duration / total_updates
-                        } else {
-                            overall_duration
-                        }
-                    });
+                    let overall_duration = overall_start.elapsed();
+
+                    // Return average time per update
+                    if total_updates > 0 {
+                        overall_duration / total_updates
+                    } else {
+                        overall_duration
+                    }
+                });
             },
         );
     }

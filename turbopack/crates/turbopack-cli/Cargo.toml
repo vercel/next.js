@@ -80,6 +80,7 @@ webbrowser = { workspace = true }
 criterion = { workspace = true, features = ["async_tokio"] }
 regex = { workspace = true }
 turbopack-bench = { workspace = true }
+turbopack-create-test-app = { workspace = true }
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }
