@@ -168,7 +168,7 @@ pub fn bench_hmr_burst_updates(c: &mut Criterion) {
     register();
 
     let mut g = c.benchmark_group("hmr_burst_updates");
-    g.sample_size(5);
+    g.sample_size(10);
     g.measurement_time(Duration::from_secs(60));
 
     let test_cases = vec![
@@ -216,7 +216,7 @@ pub fn bench_hmr_throughput(c: &mut Criterion) {
     register();
 
     let mut g = c.benchmark_group("hmr_throughput");
-    g.sample_size(5);
+    g.sample_size(10);
     g.measurement_time(Duration::from_secs(60));
 
     let module_counts = vec![100, 500, 1000];
