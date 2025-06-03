@@ -66,6 +66,7 @@ impl StyleSheetLike<'_, '_> {
         minify_type: MinifyType,
         enable_srcmap: bool,
         handle_nesting: bool,
+        mut origin_source_map: Option<parcel_sourcemap::SourceMap>,
     ) -> Result<CssOutput> {
         let ss = &self.0;
         let mut srcmap = if enable_srcmap {
@@ -94,8 +95,12 @@ impl StyleSheetLike<'_, '_> {
         if let Some(srcmap) = &mut srcmap {
             debug_assert_eq!(ss.sources.len(), 1);
 
-            srcmap.add_sources(ss.sources.clone());
-            srcmap.set_source_content(0, code)?;
+            if let Some(origin_source_map) = origin_source_map.as_mut() {
+                let _ = srcmap.extends(origin_source_map);
+            } else {
+                srcmap.add_sources(ss.sources.clone());
+                srcmap.set_source_content(0, code)?;
+            }
         }
 
         let srcmap = match srcmap {
@@ -193,7 +198,7 @@ pub async fn process_css_with_placeholder(
 
             // We use NoMinify because this is not a final css. We need to replace url references,
             // and we do final codegen with proper minification.
-            let (result, _) = stylesheet.to_css(&code, MinifyType::NoMinify, false, false)?;
+            let (result, _) = stylesheet.to_css(&code, MinifyType::NoMinify, false, false, None)?;
 
             let exports = result.exports.map(|exports| {
                 let mut exports = exports.into_iter().collect::<FxIndexMap<_, _>>();
@@ -222,6 +227,7 @@ pub async fn finalize_css(
     result: Vc<CssWithPlaceholderResult>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     minify_type: MinifyType,
+    origin_source_map: Vc<OptionStringifiedSourceMap>,
 ) -> Result<Vc<FinalCssResult>> {
     let result = result.await?;
     match &*result {
@@ -259,7 +265,15 @@ pub async fn finalize_css(
                 FileContent::Content(v) => v.content().to_str()?,
                 _ => bail!("this case should be filtered out while parsing"),
             };
-            let (result, srcmap) = stylesheet.to_css(&code, minify_type, true, true)?;
+
+            let origin_source_map = if let Some(rope) = &*origin_source_map.await? {
+                Some(parcel_sourcemap::SourceMap::from_json("", &rope.to_str()?)?)
+            } else {
+                None
+            };
+
+            let (result, srcmap) =
+                stylesheet.to_css(&code, minify_type, true, true, origin_source_map)?;
 
             Ok(FinalCssResult::Ok {
                 output_code: result.code,
