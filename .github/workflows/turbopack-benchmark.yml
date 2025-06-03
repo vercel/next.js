@@ -1,6 +1,7 @@
 name: Turbopack Benchmark
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - canary
@@ -91,7 +92,7 @@ jobs:
 
   benchmark-large:
     name: Benchmark Rust Crates (large)
-    if: ${{ github.event.label.name == 'benchmark' }}
+    if: ${{ github.event.label.name == 'benchmark' || github.event_name == 'workflow_dispatch' }}
     runs-on: ['self-hosted', 'linux', 'x64', 'metal']
     steps:
       - uses: actions/checkout@v4
