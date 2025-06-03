@@ -67,64 +67,6 @@ In addition to `loading.js`, you can also manually create Suspense Boundaries fo
 >
 > - [Some browsers](https://bugs.webkit.org/show_bug.cgi?id=252413) buffer a streaming response. You may not see the streamed response until the response exceeds 1024 bytes. This typically only affects “hello world” applications, but not real applications.
 
-### What is Streaming?
-
-To learn how Streaming works in React and Next.js, it's helpful to understand **Server-Side Rendering (SSR)** and its limitations.
-
-With SSR, there's a series of steps that need to be completed before a user can see and interact with a page:
-
-1. First, all data for a given page is fetched on the server.
-2. The server then renders the HTML for the page.
-3. The HTML, CSS, and JavaScript for the page are sent to the client.
-4. A non-interactive user interface is shown using the generated HTML, and CSS.
-5. Finally, React [hydrates](https://react.dev/reference/react-dom/client/hydrateRoot#hydrating-server-rendered-html) the user interface to make it interactive.
-
-<Image
-  alt="Chart showing Server Rendering without Streaming"
-  srcLight="/docs/light/server-rendering-without-streaming-chart.png"
-  srcDark="/docs/dark/server-rendering-without-streaming-chart.png"
-  width="1600"
-  height="612"
-/>
-
-These steps are sequential and blocking, meaning the server can only render the HTML for a page once all the data has been fetched. And, on the client, React can only hydrate the UI once the code for all components in the page has been downloaded.
-
-SSR with React and Next.js helps improve the perceived loading performance by showing a non-interactive page to the user as soon as possible.
-
-<Image
-  alt="Server Rendering without Streaming"
-  srcLight="/docs/light/server-rendering-without-streaming.png"
-  srcDark="/docs/dark/server-rendering-without-streaming.png"
-  width="1600"
-  height="748"
-/>
-
-However, it can still be slow as all data fetching on server needs to be completed before the page can be shown to the user.
-
-**Streaming** allows you to break down the page's HTML into smaller chunks and progressively send those chunks from the server to the client.
-
-<Image
-  alt="How Server Rendering with Streaming Works"
-  srcLight="/docs/light/server-rendering-with-streaming.png"
-  srcDark="/docs/dark/server-rendering-with-streaming.png"
-  width="1600"
-  height="785"
-/>
-
-This enables parts of the page to be displayed sooner, without waiting for all the data to load before any UI can be rendered.
-
-Streaming works well with React's component model because each component can be considered a chunk. Components that have higher priority (e.g. product information) or that don't rely on data can be sent first (e.g. layout), and React can start hydration earlier. Components that have lower priority (e.g. reviews, related products) can be sent in the same server request after their data has been fetched.
-
-<Image
-  alt="Chart showing Server Rendering with Streaming"
-  srcLight="/docs/light/server-rendering-with-streaming-chart.png"
-  srcDark="/docs/dark/server-rendering-with-streaming-chart.png"
-  width="1600"
-  height="730"
-/>
-
-Streaming is particularly beneficial when you want to prevent long data requests from blocking the page from rendering as it can reduce the [Time To First Byte (TTFB)](https://web.dev/ttfb/) and [First Contentful Paint (FCP)](https://web.dev/first-contentful-paint/). It also helps improve [Time to Interactive (TTI)](https://developer.chrome.com/en/docs/lighthouse/performance/interactive/), especially on slower devices.
-
 ### Example
 
 `<Suspense>` works by wrapping a component that performs an asynchronous action (e.g. fetch data), showing fallback UI (e.g. skeleton, spinner) while it's happening, and then swapping in your component once the action completes.
