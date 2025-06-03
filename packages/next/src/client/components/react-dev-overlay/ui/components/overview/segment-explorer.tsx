@@ -3,7 +3,6 @@ import { css } from '../../../utils/css'
 import type { DevToolsInfoPropsCore } from '../errors/dev-tools-indicator/dev-tools-info/dev-tools-info'
 import { DevToolsInfo } from '../errors/dev-tools-indicator/dev-tools-info/dev-tools-info'
 import { cx } from '../../utils/cx'
-import { LeftArrow } from '../../icons/left-arrow'
 import {
   useSegmentTreeClientState,
   type SegmentNode,
@@ -126,21 +125,7 @@ export function SegmentsExplorer(
   }
 
   return (
-    <DevToolsInfo
-      title={
-        <>
-          <button
-            className="segment-explorer-back-button"
-            onClick={props.close}
-          >
-            <LeftArrow />
-          </button>
-          {'Segment Explorer'}
-        </>
-      }
-      closeButton={false}
-      {...props}
-    >
+    <DevToolsInfo title="Segment Explorer" {...props}>
       <PageSegmentTree tree={ctx.tree} />
     </DevToolsInfo>
   )
