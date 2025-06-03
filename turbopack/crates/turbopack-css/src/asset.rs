@@ -14,6 +14,7 @@ use turbopack_core::{
     reference_type::ImportContext,
     resolve::origin::ResolveOrigin,
     source::Source,
+    source_map::GenerateSourceMap,
 };
 
 use crate::{
@@ -91,14 +92,24 @@ impl ProcessCss for CssModuleAsset {
     }
 
     #[turbo_tasks::function]
-    fn finalize_css(
+    async fn finalize_css(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         minify_type: MinifyType,
-    ) -> Vc<FinalCssResult> {
+    ) -> Result<Vc<FinalCssResult>> {
         let process_result = self.get_css_with_placeholder();
 
-        finalize_css(process_result, chunking_context, minify_type)
+        let origin_source_map =
+            match ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(self.await?.source) {
+                Some(gsm) => gsm.generate_source_map(),
+                None => Vc::cell(None),
+            };
+        Ok(finalize_css(
+            process_result,
+            chunking_context,
+            minify_type,
+            origin_source_map,
+        ))
     }
 }
 
