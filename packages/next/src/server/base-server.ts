@@ -155,7 +155,7 @@ import {
   getBuiltinRequestContext,
   type WaitUntil,
 } from './after/builtin-request-context'
-import { ENCODED_TAGS } from './stream-utils/encodedTags'
+import { ENCODED_TAGS } from './stream-utils/encoded-tags'
 import { NextRequestHint } from './web/adapter'
 import { getRevalidateReason } from './instrumentation/utils'
 import { RouteKind } from './route-kind'
