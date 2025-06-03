@@ -2,7 +2,7 @@
 //!
 //! See `next/src/build/webpack/loaders/next-metadata-route-loader`
 
-use anyhow::{bail, Ok, Result};
+use anyhow::{Ok, Result, bail};
 use base64::{display::Base64Display, engine::general_purpose::STANDARD};
 use indoc::{formatdoc, indoc};
 use turbo_tasks::{ValueToString, Vc};
@@ -18,7 +18,7 @@ use crate::{
     app_structure::MetadataItem,
     mode::NextMode,
     next_app::{
-        app_entry::AppEntry, app_route_entry::get_app_route_entry, AppPage, PageSegment, PageType,
+        AppPage, PageSegment, PageType, app_entry::AppEntry, app_route_entry::get_app_route_entry,
     },
     next_config::NextConfig,
     parse_segment_config_from_source,
@@ -117,7 +117,7 @@ async fn get_base64_file_content(path: Vc<FileSystemPath>) -> Result<String> {
 
     Ok(match &*original_file_content {
         FileContent::Content(content) => {
-            let content = content.content().to_bytes()?;
+            let content = content.content().to_bytes();
             Base64Display::new(&content, &STANDARD).to_string()
         }
         FileContent::NotFound => {
@@ -240,7 +240,7 @@ async fn dynamic_text_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<dy
               }})
             }}
         "#,
-        resource_path = StringifyJs(&format!("./{}.{}", stem, ext)),
+        resource_path = StringifyJs(&format!("./{stem}.{ext}")),
         content_type = StringifyJs(&content_type),
         file_type = StringifyJs(&stem),
         cache_control = StringifyJs(CACHE_HEADER_REVALIDATE),
@@ -332,7 +332,7 @@ async fn dynamic_site_map_route_source(
 
             {static_generation_code}
         "#,
-        resource_path = StringifyJs(&format!("./{}.{}", stem, ext)),
+        resource_path = StringifyJs(&format!("./{stem}.{ext}")),
         content_type = StringifyJs(&content_type),
         file_type = StringifyJs(&stem),
         cache_control = StringifyJs(CACHE_HEADER_REVALIDATE),
@@ -396,7 +396,7 @@ async fn dynamic_image_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<d
                 return handler({{ params: restParams, id }})
             }}
         "#,
-        resource_path = StringifyJs(&format!("./{}.{}", stem, ext)),
+        resource_path = StringifyJs(&format!("./{stem}.{ext}")),
     };
 
     let file = File::from(code);

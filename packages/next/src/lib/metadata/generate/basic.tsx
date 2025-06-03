@@ -157,6 +157,18 @@ export function FacebookMeta({
   ])
 }
 
+export function PinterestMeta({
+  pinterest,
+}: {
+  pinterest: ResolvedMetadata['pinterest']
+}) {
+  if (!pinterest || !pinterest.richPin) return null
+
+  const { richPin } = pinterest
+
+  return <meta property="pinterest-rich-pin" content={richPin.toString()} />
+}
+
 const formatDetectionKeys = [
   'telephone',
   'date',

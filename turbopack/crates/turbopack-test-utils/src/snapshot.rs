@@ -1,6 +1,6 @@
-use std::{env, fs, path::PathBuf};
+use std::{env, path::PathBuf};
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -8,11 +8,10 @@ use similar::TextDiff;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ReadRef, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{
-    DirectoryContent, DirectoryEntry, DiskFileSystem, File, FileContent, FileSystemEntryType,
-    FileSystemPath,
+    DirectoryContent, DirectoryEntry, File, FileContent, FileSystemEntryType, FileSystemPath,
 };
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
-use turbopack_cli_utils::issue::{format_issue, LogOptions};
+use turbopack_cli_utils::issue::{LogOptions, format_issue};
 use turbopack_core::{
     asset::AssetContent,
     issue::{IssueSeverity, PlainIssue, StyledString},
@@ -110,7 +109,7 @@ pub async fn matches_expected(
         let p = &path.await?.path;
         if *UPDATE {
             remove_file(path).await?;
-            println!("removed file {}", p);
+            println!("removed file {p}");
         } else {
             bail!("expected file {}, but it was not emitted", p);
         }
@@ -130,7 +129,7 @@ pub async fn diff(path: Vc<FileSystemPath>, actual: Vc<AssetContent>) -> Result<
             if *UPDATE {
                 let content = File::from(RcStr::from(actual)).into();
                 path.write(content).await?;
-                println!("updated contents of {}", path_str);
+                println!("updated contents of {path_str}");
             } else {
                 if expected.is_none() {
                     eprintln!("new file {path_str} detected:");
@@ -173,26 +172,20 @@ async fn get_contents(file: Vc<AssetContent>, path: Vc<FileSystemPath>) -> Resul
                         Ok(str) => Some(str.trim().to_string()),
                         Err(_) => {
                             let hash = hash_xxh3_hash64(rope);
-                            Some(format!("Binary content {:016x}", hash))
+                            Some(format!("Binary content {hash:016x}"))
                         }
                     }
                 }
             },
             AssetContent::Redirect { target, link_type } => Some(format!(
-                "Redirect {{ target: {target}, link_type: {:?} }}",
-                link_type
+                "Redirect {{ target: {target}, link_type: {link_type:?} }}"
             )),
         },
     )
 }
 
 async fn remove_file(path: Vc<FileSystemPath>) -> Result<()> {
-    let fs = Vc::try_resolve_downcast_type::<DiskFileSystem>(path.fs())
-        .await?
-        .context(anyhow!("unexpected fs type"))?
-        .await?;
-    let sys_path = fs.to_sys_path(path).await?;
-    fs::remove_file(&sys_path).context(format!("remove file {} error", sys_path.display()))?;
+    path.write(FileContent::NotFound.cell()).await?;
     Ok(())
 }
 
@@ -239,7 +232,7 @@ fn styled_string_to_file_safe_string(styled_string: &StyledString) -> String {
             string
         }
         StyledString::Text(string) => string.to_string(),
-        StyledString::Code(string) => format!("__c_{}__", string),
-        StyledString::Strong(string) => format!("__{}__", string),
+        StyledString::Code(string) => format!("__c_{string}__"),
+        StyledString::Strong(string) => format!("__{string}__"),
     }
 }

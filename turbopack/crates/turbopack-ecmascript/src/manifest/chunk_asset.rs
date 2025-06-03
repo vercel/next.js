@@ -1,15 +1,15 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext, ChunkingContextExt,
+        ChunkableModule, ChunkingContext, ChunkingContextExt, availability_info::AvailabilityInfo,
     },
     ident::AssetIdent,
     module::Module,
     module_graph::{
-        chunk_group_info::ChunkGroup, module_batch::ChunkableModuleOrBatch, ModuleGraph,
+        ModuleGraph, chunk_group_info::ChunkGroup, module_batch::ChunkableModuleOrBatch,
     },
     output::OutputAssets,
     reference::{ModuleReferences, SingleOutputAssetReference},
@@ -17,11 +17,6 @@ use turbopack_core::{
 
 use super::chunk_item::ManifestChunkItem;
 use crate::chunk::{EcmascriptChunkPlaceable, EcmascriptExports};
-
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("manifest chunk".into())
-}
 
 /// The manifest module is deferred until requested by the manifest loader
 /// item when the dynamic `import()` expression is reached.
@@ -104,8 +99,7 @@ impl ManifestAsyncModule {
     pub async fn content_ident(&self) -> Result<Vc<AssetIdent>> {
         let mut ident = self.inner.ident();
         if let Some(available_modules) = self.availability_info.available_modules() {
-            ident =
-                ident.with_modifier(Vc::cell(available_modules.hash().await?.to_string().into()));
+            ident = ident.with_modifier(available_modules.hash().await?.to_string().into());
         }
         Ok(ident)
     }
@@ -120,7 +114,7 @@ fn manifest_chunk_reference_description() -> Vc<RcStr> {
 impl Module for ManifestAsyncModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        self.inner.ident().with_modifier(modifier())
+        self.inner.ident().with_modifier(rcstr!("manifest chunk"))
     }
 
     #[turbo_tasks::function]
@@ -152,7 +146,7 @@ impl Module for ManifestAsyncModule {
 impl Asset for ManifestAsyncModule {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
-        todo!()
+        panic!("content() should not be called");
     }
 }
 

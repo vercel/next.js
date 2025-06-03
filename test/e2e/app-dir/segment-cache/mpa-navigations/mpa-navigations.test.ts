@@ -10,13 +10,16 @@ describe('segment cache (MPA navigations)', () => {
     return
   }
 
+  type ElementWithExpando = Element & { __expando?: boolean }
+
   it('triggers MPA navigation when navigating to a different root layout', async () => {
     const browser = await next.browser('/')
 
     // Set an expando on the html element so we can detect if the page
     // gets unloaded.
     const html = await browser.elementByCss('html')
-    await html.evaluate((el) => (el.__expando = true))
+
+    await html.evaluate((el) => ((el as ElementWithExpando).__expando = true))
 
     // Navigate to a page with a different root layout.
     const link = await browser.elementByCss(`a[href="/foo"]`)
@@ -24,7 +27,9 @@ describe('segment cache (MPA navigations)', () => {
 
     // The expando should not be present because we did a full-page navigation.
     const htmlAfterNav = await browser.elementByCss('html')
-    expect(await htmlAfterNav.evaluate((el) => el.__expando)).toBe(undefined)
+    expect(
+      await htmlAfterNav.evaluate((el) => (el as ElementWithExpando).__expando)
+    ).toBe(undefined)
   })
 
   it(
@@ -41,7 +46,7 @@ describe('segment cache (MPA navigations)', () => {
       // Set an expando on the html element so we can detect if the page
       // gets unloaded.
       const html = await browser.elementByCss('html')
-      await html.evaluate((el) => (el.__expando = true))
+      await html.evaluate((el) => ((el as ElementWithExpando).__expando = true))
 
       // Navigate to a page with a different root layout.
       const link = await browser.elementByCss(`a[href="/bar/inner"]`)
@@ -49,7 +54,11 @@ describe('segment cache (MPA navigations)', () => {
 
       // The expando should not be present because we did a full-page navigation.
       const htmlAfterNav = await browser.elementByCss('html')
-      expect(await htmlAfterNav.evaluate((el) => el.__expando)).toBe(undefined)
+      expect(
+        await htmlAfterNav.evaluate(
+          (el) => (el as ElementWithExpando).__expando
+        )
+      ).toBe(undefined)
     }
   )
 })

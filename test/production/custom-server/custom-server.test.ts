@@ -1,8 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
 const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
-// TODO(new-dev-overlay): Remove this once new dev overlay is stable
-const isExperimentalReact = Boolean(process.env.__NEXT_EXPERIMENTAL_PPR)
 
 describe('custom server', () => {
   const { next } = nextTestSetup({
@@ -25,20 +23,29 @@ describe('custom server', () => {
   })
 
   describe('with app dir', () => {
-    if (!isExperimentalReact) {
-      it('should render app with react canary', async () => {
-        const $ = await next.render$(`/1`)
-        expect($('body').text()).toMatch(/app: .+-canary/)
-      })
-    }
+    it('should render app with react canary', async () => {
+      const $ = await next.render$(`/1`)
+      expect($('body').text()).toMatch(/app: .+-canary/)
+    })
 
     it('should render pages with installed react', async () => {
       const $ = await next.render$(`/2`)
       if (isReact18) {
         expect($('body').text()).toMatch(/pages: 18\.\d+\.\d+\{/)
       } else {
-        expect($('body').text()).toMatch(/pages: 19.0.0/)
+        expect($('body').text()).toMatch(/pages: 19\.\d+\.\d+/)
       }
+    })
+
+    describe('when using "use cache" with a custom cache handler', () => {
+      it("should not unset the custom server's ALS context", async () => {
+        const cliOutputLength = next.cliOutput.length
+        const $ = await next.render$('/use-cache')
+        expect($('p').text()).toBe('inner cache')
+        const cliOutput = next.cliOutput.slice(cliOutputLength)
+        expect(cliOutput).toMatch(createCacheSetLogRegExp('outer'))
+        expect(cliOutput).toMatch(createCacheSetLogRegExp('inner'))
+      })
     })
   })
 })
@@ -59,3 +66,11 @@ describe('custom server with quiet setting', () => {
     expect(next.cliOutput).not.toInclude('Server side error')
   })
 })
+
+function createCacheSetLogRegExp(id: string) {
+  // Expect a requestId, that's provided through ALS, to be present in the log
+  // message for the cache handler set call.
+  return new RegExp(
+    `set cache \\["[A-Za-z0-9_-]{21}","(?:[0-9a-f]{2})+",\\[{"id":"${id}"},"\\$undefined"\\]\\] requestId: \\d+`
+  )
+}

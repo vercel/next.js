@@ -2,7 +2,7 @@ use std::{fs, path::PathBuf, sync::Arc, time::Duration};
 
 use criterion::{Bencher, BenchmarkId, Criterion};
 use swc_core::{
-    common::{FilePathMapping, Mark, SourceMap, GLOBALS},
+    common::{FilePathMapping, GLOBALS, Mark, SourceMap},
     ecma::{
         ast::{EsVersion, Program},
         parser::parse_file_as_program,
@@ -18,7 +18,7 @@ use turbopack_core::{
     target::CompileTarget,
 };
 use turbopack_ecmascript::analyzer::{
-    graph::{create_graph, EvalContext, VarGraph},
+    graph::{EvalContext, VarGraph, create_graph},
     imports::ImportAttributes,
     linker::link,
     test_utils::{early_visitor, visitor},
@@ -56,8 +56,14 @@ pub fn benchmark(c: &mut Criterion) {
                 let top_level_mark = Mark::new();
                 program.visit_mut_with(&mut resolver(unresolved_mark, top_level_mark, false));
 
-                let eval_context =
-                    EvalContext::new(&program, unresolved_mark, top_level_mark, None, None);
+                let eval_context = EvalContext::new(
+                    &program,
+                    unresolved_mark,
+                    top_level_mark,
+                    Default::default(),
+                    None,
+                    None,
+                );
                 let var_graph = create_graph(&program, &eval_context);
 
                 let input = BenchInput {

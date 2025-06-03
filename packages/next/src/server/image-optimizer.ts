@@ -418,7 +418,6 @@ export class ImageOptimizerCache {
             Date.now(),
           cacheControl: { revalidate: maxAge, expire: undefined },
           isStale: now > expireAt,
-          isFallback: false,
         }
       }
     } catch (_) {
@@ -435,6 +434,10 @@ export class ImageOptimizerCache {
       cacheControl?: CacheControl
     }
   ) {
+    if (!this.nextConfig.experimental.isrFlushToDisk) {
+      return
+    }
+
     if (value?.kind !== CachedRouteKind.IMAGE) {
       throw new Error('invariant attempted to set non-image to image-cache')
     }

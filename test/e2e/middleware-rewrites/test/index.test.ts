@@ -7,7 +7,6 @@ import { NextInstance } from 'e2e-utils'
 import { check, fetchViaHTTP, retry } from 'next-test-utils'
 import { createNext, FileRef } from 'e2e-utils'
 import escapeStringRegexp from 'escape-string-regexp'
-import { Request, Response } from 'playwright'
 
 describe('Middleware Rewrite', () => {
   let next: NextInstance
@@ -25,15 +24,19 @@ describe('Middleware Rewrite', () => {
 
   function tests() {
     it('should handle catch-all rewrite correctly', async () => {
-      const browser = await next.browser('/', { waitHydration: false })
+      let requests: string[] = []
+
+      const browser = await next.browser('/', {
+        waitHydration: false,
+        beforePageLoad(page) {
+          page.on('request', (request) => {
+            const url = new URL(request.url())
+            requests.push(url.pathname)
+          })
+        },
+      })
 
       if (!(global as any).isNextDev) {
-        let requests = []
-
-        browser.on('request', (req: Request) => {
-          requests.push(new URL(req.url()).pathname)
-        })
-
         browser.elementByCss('#to-article-rewrite').moveTo()
 
         await retry(async () => {
@@ -369,7 +372,7 @@ describe('Middleware Rewrite', () => {
         await browser.waitForIdleNetwork()
         let hasResolvedPrefetch = false
 
-        browser.on('response', async (res: Response) => {
+        browser.on('response', async (res) => {
           const req = res.request()
           const headers = await req.allHeaders()
           if (

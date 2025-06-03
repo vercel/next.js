@@ -1,10 +1,12 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 
 interface Options {
   enterDelay?: number
   exitDelay?: number
   onUnmount?: () => void
 }
+
+type Timeout = ReturnType<typeof setTimeout>
 
 /**
  * Useful to perform CSS transitions on React components without
@@ -34,31 +36,18 @@ interface Options {
 export function useDelayedRender(active = false, options: Options = {}) {
   const [mounted, setMounted] = useState(active)
   const [rendered, setRendered] = useState(false)
-  const renderTimerRef = useRef<number | null>(null)
-  const unmountTimerRef = useRef<number | null>(null)
 
-  const clearTimers = useCallback(() => {
-    if (renderTimerRef.current !== null) {
-      window.clearTimeout(renderTimerRef.current)
-      renderTimerRef.current = null
-    }
-    if (unmountTimerRef.current !== null) {
-      window.clearTimeout(unmountTimerRef.current)
-      unmountTimerRef.current = null
-    }
-  }, [])
-
+  const { enterDelay = 1, exitDelay = 0 } = options
   useEffect(() => {
-    const { enterDelay = 1, exitDelay = 0 } = options
-
-    clearTimers()
+    let renderTimeout: Timeout | undefined
+    let unmountTimeout: Timeout | undefined
 
     if (active) {
       setMounted(true)
       if (enterDelay <= 0) {
         setRendered(true)
       } else {
-        renderTimerRef.current = window.setTimeout(() => {
+        renderTimeout = setTimeout(() => {
           setRendered(true)
         }, enterDelay)
       }
@@ -67,14 +56,17 @@ export function useDelayedRender(active = false, options: Options = {}) {
       if (exitDelay <= 0) {
         setMounted(false)
       } else {
-        unmountTimerRef.current = window.setTimeout(() => {
+        unmountTimeout = setTimeout(() => {
           setMounted(false)
         }, exitDelay)
       }
     }
 
-    return clearTimers
-  }, [active, options, clearTimers])
+    return () => {
+      clearTimeout(renderTimeout)
+      clearTimeout(unmountTimeout)
+    }
+  }, [active, enterDelay, exitDelay])
 
   return { mounted, rendered }
 }

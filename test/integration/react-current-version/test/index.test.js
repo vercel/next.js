@@ -58,7 +58,7 @@ describe('Basics', () => {
         if (env === 'dev') {
           expect(
             dynamicIds.find((id) =>
-              process.env.TURBOPACK
+              process.env.IS_TURBOPACK_TEST
                 ? id.endsWith(
                     'app/components/foo.js [client] (ecmascript, next/dynamic entry)'
                   )

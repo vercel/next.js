@@ -3,16 +3,16 @@ import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc
 let a, f;
 export const // FIXME: invalid transformation of hoisted functions (https://github.com/vercel/next.js/issues/57392)
 // (remove output.js from `tsconfig.json#exclude` to see the error)
-/*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_0 = async function action2($$ACTION_CLOSURE_BOUND, e) {
+$$RSC_SERVER_ACTION_0 = async function action2($$ACTION_CLOSURE_BOUND, e) {
     var [$$ACTION_ARG_0, $$ACTION_ARG_1, $$ACTION_ARG_2, $$ACTION_ARG_3] = await decryptActionBoundArgs("606a88810ecce4a4e8b59d53b8327d7e98bbf251d7", $$ACTION_CLOSURE_BOUND);
     console.log(a, $$ACTION_ARG_0, $$ACTION_ARG_1, e, $$ACTION_ARG_2, $$ACTION_ARG_3);
 };
-export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_1 = async function action3($$ACTION_CLOSURE_BOUND, e) {
+export const $$RSC_SERVER_ACTION_1 = async function action3($$ACTION_CLOSURE_BOUND, e) {
     var [$$ACTION_ARG_0, $$ACTION_ARG_1, $$ACTION_ARG_2] = await decryptActionBoundArgs("6090b5db271335765a4b0eab01f044b381b5ebd5cd", $$ACTION_CLOSURE_BOUND);
     $$ACTION_ARG_0(e);
     console.log(a, $$ACTION_ARG_1, $$ACTION_ARG_2, e);
 };
-export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_2 = async function action1($$ACTION_CLOSURE_BOUND, d) {
+export const $$RSC_SERVER_ACTION_2 = async function action1($$ACTION_CLOSURE_BOUND, d) {
     var [$$ACTION_ARG_0, $$ACTION_ARG_1, $$ACTION_ARG_2] = await decryptActionBoundArgs("601c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", $$ACTION_CLOSURE_BOUND);
     let f;
     // @ts-expect-error: window is not iterable
@@ -26,7 +26,7 @@ export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_2 = a
         registerServerReference($$RSC_SERVER_ACTION_1, "6090b5db271335765a4b0eab01f044b381b5ebd5cd", null).bind(null, encryptActionBoundArgs("6090b5db271335765a4b0eab01f044b381b5ebd5cd", action2, $$ACTION_ARG_1, d))
     ];
 };
-export async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ action0(b, c, ...g) {
+export async function action0(b, c, ...g) {
     return registerServerReference($$RSC_SERVER_ACTION_2, "601c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", null).bind(null, encryptActionBoundArgs("601c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", b, c, g));
 }
 import { ensureServerEntryExports } from "private-next-rsc-action-validate";

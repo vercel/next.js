@@ -843,10 +843,11 @@ function serializeReadableStream(request, task, stream) {
   function progress(entry) {
     if (!aborted)
       if (entry.done)
-        request.abortListeners.delete(abortStream),
-          (entry = streamTask.id.toString(16) + ":C\n"),
+        (entry = streamTask.id.toString(16) + ":C\n"),
           request.completedRegularChunks.push(entry),
           enqueueFlush(request),
+          request.abortListeners.delete(abortStream),
+          callOnAllReadyIfReady(request),
           (aborted = !0);
       else
         try {
@@ -903,7 +904,6 @@ function serializeAsyncIterable(request, task, iterable, iterator) {
   function progress(entry) {
     if (!aborted)
       if (entry.done) {
-        request.abortListeners.delete(abortIterable);
         if (void 0 === entry.value)
           var endStreamRow = streamTask.id.toString(16) + ":C\n";
         else
@@ -920,6 +920,8 @@ function serializeAsyncIterable(request, task, iterable, iterator) {
           }
         request.completedRegularChunks.push(endStreamRow);
         enqueueFlush(request);
+        request.abortListeners.delete(abortIterable);
+        callOnAllReadyIfReady(request);
         aborted = !0;
       } else
         try {
@@ -1716,10 +1718,11 @@ function emitChunk(request, task, value) {
                                 emitModelChunk(request, task.id, value));
 }
 function erroredTask(request, task, error) {
-  request.abortableTasks.delete(task);
   task.status = 4;
   error = logRecoverableError(request, error, task);
   emitErrorChunk(request, task.id, error);
+  request.abortableTasks.delete(task);
+  callOnAllReadyIfReady(request);
 }
 var emptyRoot = {};
 function retryTask(request, task) {
@@ -1744,8 +1747,9 @@ function retryTask(request, task) {
         var json = stringify(resolvedModel);
         emitModelChunk(request, task.id, json);
       }
-      request.abortableTasks.delete(task);
       task.status = 1;
+      request.abortableTasks.delete(task);
+      callOnAllReadyIfReady(request);
     } catch (thrownValue) {
       if (12 === request.status) {
         request.abortableTasks.delete(task);
@@ -1777,7 +1781,6 @@ function performWork(request) {
   ReactSharedInternalsServer.H = HooksDispatcher;
   var prevRequest = currentRequest;
   currentRequest$1 = currentRequest = request;
-  var hadAbortableTasks = 0 < request.abortableTasks.size;
   try {
     var pingedTasks = request.pingedTasks;
     request.pingedTasks = [];
@@ -1785,10 +1788,6 @@ function performWork(request) {
       retryTask(request, pingedTasks[i]);
     null !== request.destination &&
       flushCompletedChunks(request, request.destination);
-    if (hadAbortableTasks && 0 === request.abortableTasks.size) {
-      var onAllReady = request.onAllReady;
-      onAllReady();
-    }
   } catch (error) {
     logRecoverableError(request, error, null), fatalError(request, error);
   } finally {
@@ -1879,6 +1878,10 @@ function enqueueFlush(request) {
       destination && flushCompletedChunks(request, destination);
     }));
 }
+function callOnAllReadyIfReady(request) {
+  if (0 === request.abortableTasks.size && 0 === request.abortListeners.size)
+    request.onAllReady();
+}
 function startFlowing(request, destination) {
   if (13 === request.status)
     (request.status = 14), destination.destroy(request.fatalError);
@@ -1918,8 +1921,7 @@ function abort(request, reason) {
         }
       });
       abortableTasks.clear();
-      var onAllReady = request.onAllReady;
-      onAllReady();
+      callOnAllReadyIfReady(request);
     }
     var abortListeners = request.abortListeners;
     if (0 < abortListeners.size) {
@@ -1935,6 +1937,7 @@ function abort(request, reason) {
         return callback(error$22);
       });
       abortListeners.clear();
+      callOnAllReadyIfReady(request);
     }
     null !== request.destination &&
       flushCompletedChunks(request, request.destination);

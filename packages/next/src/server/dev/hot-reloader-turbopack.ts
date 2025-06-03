@@ -37,7 +37,7 @@ import {
 } from '../../client/components/react-dev-overlay/server/middleware-turbopack'
 import { PageNotFoundError } from '../../shared/lib/utils'
 import { debounce } from '../utils'
-import { deleteAppClientCache, deleteCache } from './require-cache'
+import { deleteCache, deleteFromRequireCache } from './require-cache'
 import {
   clearAllModuleContexts,
   clearModuleContext,
@@ -97,6 +97,7 @@ import {
 import { getDevOverlayFontMiddleware } from '../../client/components/react-dev-overlay/font/get-dev-overlay-font-middleware'
 import { devIndicatorServerState } from './dev-indicator-server-state'
 import { getDisableDevIndicatorMiddleware } from './dev-indicator-middleware'
+import { getRestartDevServerMiddleware } from '../../client/components/react-dev-overlay/server/restart-dev-server-middleware'
 // import { getSupportedBrowsers } from '../../build/utils'
 
 const wsServer = new ws.Server({ noServer: true })
@@ -170,7 +171,7 @@ export async function createHotReloaderTurbopack(
 
   // For the debugging purpose, check if createNext or equivalent next instance setup in test cases
   // works correctly. Normally `run-test` hides output so only will be visible when `--debug` flag is used.
-  if (process.env.TURBOPACK && isTestMode) {
+  if (isTestMode) {
     require('console').log('Creating turbopack project', {
       dir: projectPath,
       testMode: isTestMode,
@@ -209,7 +210,7 @@ export async function createHotReloaderTurbopack(
     {
       projectPath: projectPath,
       rootPath:
-        opts.nextConfig.experimental.turbo?.root ||
+        opts.nextConfig.turbopack?.root ||
         opts.nextConfig.outputFileTracingRoot ||
         projectPath,
       distDir,
@@ -227,6 +228,7 @@ export async function createHotReloaderTurbopack(
         config: nextConfig,
         dev,
         distDir,
+        projectPath,
         fetchCacheKeyPrefix: opts.nextConfig.experimental.fetchCacheKeyPrefix,
         hasRewrites,
         // TODO: Implement
@@ -240,7 +242,7 @@ export async function createHotReloaderTurbopack(
     },
     {
       persistentCaching: isPersistentCachingEnabled(opts.nextConfig),
-      memoryLimit: opts.nextConfig.experimental.turbo?.memoryLimit,
+      memoryLimit: opts.nextConfig.experimental?.turbopackMemoryLimit,
     }
   )
   setBundlerFindSourceMapImplementation(
@@ -296,7 +298,7 @@ export async function createHotReloaderTurbopack(
       // Always clear the cache, don't check if files have changed
       force?: boolean
     } = {}
-  ): void {
+  ): boolean {
     if (force) {
       for (const { path, contentHash } of writtenEndpoint.serverPaths) {
         serverPathState.set(path, contentHash)
@@ -328,7 +330,7 @@ export async function createHotReloaderTurbopack(
       }
 
       if (!hasChange) {
-        return
+        return false
       }
     }
 
@@ -339,7 +341,16 @@ export async function createHotReloaderTurbopack(
     )
 
     if (hasAppPaths) {
-      deleteAppClientCache()
+      deleteFromRequireCache(
+        require.resolve(
+          'next/dist/compiled/next-server/app-page-turbo.runtime.dev.js'
+        )
+      )
+      deleteFromRequireCache(
+        require.resolve(
+          'next/dist/compiled/next-server/app-page-turbo-experimental.runtime.dev.js'
+        )
+      )
     }
 
     const serverPaths = writtenEndpoint.serverPaths.map(({ path: p }) =>
@@ -351,7 +362,7 @@ export async function createHotReloaderTurbopack(
       deleteCache(file)
     }
 
-    return
+    return true
   }
 
   const buildingIds = new Set()
@@ -601,9 +612,9 @@ export async function createHotReloaderTurbopack(
           serverFields,
 
           hooks: {
-            handleWrittenEndpoint: (id, result) => {
+            handleWrittenEndpoint: (id, result, forceDeleteCache) => {
               currentWrittenEntrypoints.set(id, result)
-              clearRequireCache(id, result)
+              return clearRequireCache(id, result, { force: forceDeleteCache })
             },
             propagateServerField: propagateServerField.bind(null, opts),
             sendHmr,
@@ -639,6 +650,10 @@ export async function createHotReloaderTurbopack(
     getNextErrorFeedbackMiddleware(opts.telemetry),
     getDevOverlayFontMiddleware(),
     getDisableDevIndicatorMiddleware(),
+    getRestartDevServerMiddleware({
+      telemetry: opts.telemetry,
+      turbopackProject: project,
+    }),
   ]
 
   const versionInfoPromise = getVersionInfo()
@@ -939,6 +954,15 @@ export async function createHotReloaderTurbopack(
       isApp,
       url: requestUrl,
     }) {
+      // When there is no route definition this is an internal file not a route the user added.
+      // Middleware and instrumentation are handled in turbpack-utils.ts handleEntrypoints instead.
+      if (!definition) {
+        if (inputPage === '/middleware') return
+        if (inputPage === '/src/middleware') return
+        if (inputPage === '/instrumentation') return
+        if (inputPage === '/src/instrumentation') return
+      }
+
       return hotReloaderSpan
         .traceChild('ensure-page', {
           inputPage,
@@ -961,7 +985,8 @@ export async function createHotReloaderTurbopack(
               inputPage,
               nextConfig.pageExtensions,
               opts.pagesDir,
-              opts.appDir
+              opts.appDir,
+              !!nextConfig.experimental.globalNotFound
             ))
 
           // If the route is actually an app page route, then we should have access
@@ -997,10 +1022,12 @@ export async function createHotReloaderTurbopack(
                 logErrors: true,
                 hooks: {
                   subscribeToChanges,
-                  handleWrittenEndpoint: (id, result) => {
-                    clearRequireCache(id, result)
+                  handleWrittenEndpoint: (id, result, forceDeleteCache) => {
                     currentWrittenEntrypoints.set(id, result)
                     assetMapper.setPathsForKey(id, result.clientPaths)
+                    return clearRequireCache(id, result, {
+                      force: forceDeleteCache,
+                    })
                   },
                 },
               })
@@ -1061,10 +1088,12 @@ export async function createHotReloaderTurbopack(
 
               hooks: {
                 subscribeToChanges,
-                handleWrittenEndpoint: (id, result) => {
+                handleWrittenEndpoint: (id, result, forceDeleteCache) => {
                   currentWrittenEntrypoints.set(id, result)
-                  clearRequireCache(id, result)
                   assetMapper.setPathsForKey(id, result.clientPaths)
+                  return clearRequireCache(id, result, {
+                    force: forceDeleteCache,
+                  })
                 },
               },
             })

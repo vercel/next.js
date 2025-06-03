@@ -4,8 +4,8 @@
 
 use std::sync::Mutex;
 
-use turbo_tasks::{debug::ValueDebug, ResolvedVc, Vc};
-use turbo_tasks_testing::{register, run, Registration};
+use turbo_tasks::{ResolvedVc, Vc, debug::ValueDebug};
+use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 

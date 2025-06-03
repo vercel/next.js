@@ -1,7 +1,8 @@
-import { forwardRef, useEffect, useMemo, useRef, useState } from 'react'
+import { forwardRef, useEffect, useRef, useState } from 'react'
 import { css } from '../../../../utils/css'
 import mergeRefs from '../../../utils/merge-refs'
 import { useMinimumLoadingTimeMultiple } from './use-minimum-loading-time-multiple'
+import type { DevToolsScale } from './dev-tools-info/preferences'
 
 interface Props extends React.ComponentProps<'button'> {
   issueCount: number
@@ -10,10 +11,9 @@ interface Props extends React.ComponentProps<'button'> {
   isBuildError: boolean
   onTriggerClick: () => void
   toggleErrorOverlay: () => void
+  scale: DevToolsScale
 }
 
-const SIZE = '2.25rem' // 36px in 16px base
-const SIZE_PX = 36
 const SHORT_DURATION_MS = 150
 
 export const NextLogo = forwardRef(function NextLogo(
@@ -25,10 +25,13 @@ export const NextLogo = forwardRef(function NextLogo(
     isBuildError,
     onTriggerClick,
     toggleErrorOverlay,
+    scale = 1,
     ...props
   }: Props,
   propRef: React.Ref<HTMLButtonElement>
 ) {
+  const SIZE = 36 / scale
+
   const hasError = issueCount > 0
   const [isErrorExpanded, setIsErrorExpanded] = useState(hasError)
   const [dismissed, setDismissed] = useState(false)
@@ -36,22 +39,13 @@ export const NextLogo = forwardRef(function NextLogo(
 
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   const ref = useRef<HTMLDivElement | null>(null)
-  const [measuredWidth, pristine] = useMeasureWidth(ref)
+  const measuredWidth = useMeasureWidth(ref)
 
   const isLoading = useMinimumLoadingTimeMultiple(
     isDevBuilding || isDevRendering
   )
   const isExpanded = isErrorExpanded || disabled
-
-  const style = useMemo(() => {
-    let width: number | string = SIZE
-    // Animates the badge, if expanded
-    if (measuredWidth > SIZE_PX) width = measuredWidth
-    // No animations on page load, assume the intrinsic width immediately
-    if (pristine && hasError) width = 'auto'
-    // Default state, collapsed
-    return { width }
-  }, [measuredWidth, pristine, hasError])
+  const width = measuredWidth === 0 ? 'auto' : measuredWidth
 
   useEffect(() => {
     setIsErrorExpanded(hasError)
@@ -62,7 +56,7 @@ export const NextLogo = forwardRef(function NextLogo(
       data-next-badge-root
       style={
         {
-          '--size': SIZE,
+          '--size': `${SIZE}px`,
           '--duration-short': `${SHORT_DURATION_MS}ms`,
           // if the indicator is disabled, hide the badge
           // also allow the "disabled" state be dismissed, as long as there are no build errors
@@ -190,18 +184,23 @@ export const NextLogo = forwardRef(function NextLogo(
           }
 
           [data-issues] {
+            --padding-left: 8px;
             display: flex;
             gap: 2px;
             align-items: center;
             padding-left: 8px;
-            padding-right: ${isBuildError ? '8px' : 'calc(2px * 2)'};
+            padding-right: 8px;
             height: var(--size-32);
-            margin: 0 2px;
+            margin-right: 2px;
             border-radius: var(--rounded-full);
             transition: background var(--duration-short) ease;
 
             &:has([data-issues-open]:hover) {
               background: var(--color-hover-alpha-error);
+            }
+
+            &:has([data-issues-collapse]) {
+              padding-right: calc(var(--padding-left) / 2);
             }
 
             [data-cross] {
@@ -248,7 +247,7 @@ export const NextLogo = forwardRef(function NextLogo(
           [data-next-mark] {
             width: var(--mark-size);
             height: var(--mark-size);
-            margin-left: 2px;
+            margin: 0 2px;
             display: flex;
             align-items: center;
             border-radius: var(--rounded-full);
@@ -392,7 +391,7 @@ export const NextLogo = forwardRef(function NextLogo(
         data-error={hasError}
         data-error-expanded={isExpanded}
         data-animate={newErrorDetected}
-        style={style}
+        style={{ width }}
       >
         <div ref={ref}>
           {/* Children */}
@@ -488,11 +487,8 @@ function AnimateCount({
   )
 }
 
-function useMeasureWidth(
-  ref: React.RefObject<HTMLDivElement | null>
-): [number, boolean] {
+function useMeasureWidth(ref: React.RefObject<HTMLDivElement | null>): number {
   const [width, setWidth] = useState<number>(0)
-  const [pristine, setPristine] = useState(true)
 
   useEffect(() => {
     const el = ref.current
@@ -501,21 +497,15 @@ function useMeasureWidth(
       return
     }
 
-    const observer = new ResizeObserver(() => {
-      const { width: w } = el.getBoundingClientRect()
-      setWidth((prevWidth) => {
-        if (prevWidth !== 0) {
-          setPristine(false)
-        }
-        return w
-      })
+    const observer = new ResizeObserver(([{ contentRect }]) => {
+      setWidth(contentRect.width)
     })
 
     observer.observe(el)
     return () => observer.disconnect()
   }, [ref])
 
-  return [width, pristine]
+  return width
 }
 
 function useUpdateAnimation(issueCount: number, animationDurationMs = 0) {

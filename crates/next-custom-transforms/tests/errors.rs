@@ -6,9 +6,7 @@ use next_custom_transforms::transforms::{
     fonts::{next_font_loaders, Config as FontLoaderConfig},
     next_ssg::next_ssg,
     react_server_components::server_components,
-    server_actions::{
-        server_actions, {self},
-    },
+    server_actions::{self, server_actions, ServerActionsMode},
     strip_page_exports::{next_transform_strip_page_exports, ExportFilter},
 };
 use rustc_hash::FxHashSet;
@@ -163,6 +161,7 @@ fn react_server_actions_errors(input: PathBuf) {
                 ),
                 server_actions(
                     &FileName::Real("/app/item.js".into()),
+                    None,
                     server_actions::Config {
                         is_react_server_layer,
                         is_development: true,
@@ -171,7 +170,9 @@ fn react_server_actions_errors(input: PathBuf) {
                         cache_kinds: FxHashSet::default(),
                     },
                     tr.comments.as_ref().clone(),
+                    tr.cm.clone(),
                     Default::default(),
+                    ServerActionsMode::Webpack,
                 ),
             )
         },
@@ -224,6 +225,7 @@ fn use_cache_not_allowed(input: PathBuf) {
                 ),
                 server_actions(
                     &FileName::Real("/app/item.js".into()),
+                    None,
                     server_actions::Config {
                         is_react_server_layer: true,
                         is_development: true,
@@ -232,7 +234,9 @@ fn use_cache_not_allowed(input: PathBuf) {
                         cache_kinds: FxHashSet::from_iter(["x".into()]),
                     },
                     tr.comments.as_ref().clone(),
+                    tr.cm.clone(),
                     Default::default(),
+                    ServerActionsMode::Webpack,
                 ),
             )
         },

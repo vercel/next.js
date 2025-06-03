@@ -21,7 +21,7 @@ use wasm_bindgen_futures::future_to_promise;
 pub mod mdx;
 
 fn convert_err(err: Error) -> JsValue {
-    format!("{:?}", err).into()
+    format!("{err:?}").into()
 }
 
 #[wasm_bindgen(js_name = "minifySync")]
@@ -49,6 +49,7 @@ pub fn minify_sync(s: JsString, opts: JsValue) -> Result<JsValue, JsValue> {
             })
         },
     )
+    .map_err(|e| e.to_pretty_error())
     .map_err(convert_err)?;
 
     Ok(serde_wasm_bindgen::to_value(&value)?)
@@ -125,6 +126,7 @@ pub fn transform_sync(s: JsValue, opts: JsValue) -> Result<JsValue, JsValue> {
             })
         },
     )
+    .map_err(|e| e.to_pretty_error())
     .map_err(convert_err)?;
 
     Ok(serde_wasm_bindgen::to_value(&out)?)
@@ -178,6 +180,7 @@ pub fn parse_sync(s: JsString, opts: JsValue) -> Result<JsValue, JsValue> {
             })
         },
     )
+    .map_err(|e| e.to_pretty_error())
     .map_err(convert_err)
 }
 

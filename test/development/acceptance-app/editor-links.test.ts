@@ -83,7 +83,7 @@ describe('Error overlay - editor links', () => {
     await clickSourceFile(browser)
     await check(() => editorRequestsCount, /1/)
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)(
+  ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
     'opening links in import traces',
     () => {
       it('should be possible to open import trace files on RSC parse error', async () => {

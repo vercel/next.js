@@ -20,7 +20,7 @@ describe('default', () => {
     try {
       const app = await launchApp(appDir, port)
       await renderViaHTTP(port, '/')
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         const ssrPath = join(appDir, '.next/server/chunks/ssr')
         const pageBundleBasenames = (await fs.readdir(ssrPath)).filter((p) =>
           p.match(/\.js$/)

@@ -1,5 +1,11 @@
 import type { CSSProperties, Dispatch, SetStateAction } from 'react'
-import { STORAGE_KEY_POSITION, type OverlayState } from '../../../../shared'
+import {
+  ACTION_ERROR_OVERLAY_OPEN,
+  ACTION_ERROR_OVERLAY_TOGGLE,
+  STORAGE_KEY_POSITION,
+  type OverlayDispatch,
+  type OverlayState,
+} from '../../../../shared'
 
 import { useState, useEffect, useRef, createContext, useContext } from 'react'
 import { Toast } from '../../toast'
@@ -11,34 +17,34 @@ import { TurbopackInfo } from './dev-tools-info/turbopack-info'
 import { RouteInfo } from './dev-tools-info/route-info'
 import GearIcon from '../../../icons/gear-icon'
 import { UserPreferences } from './dev-tools-info/user-preferences'
+import { SegmentsExplorer } from '../../overview/segment-explorer'
 import {
   MENU_CURVE,
   MENU_DURATION_MS,
   useClickOutside,
   useFocusTrap,
 } from './utils'
+import {
+  getInitialPosition,
+  type DevToolsScale,
+} from './dev-tools-info/preferences'
+import { Draggable } from './draggable'
 
 // TODO: add E2E tests to cover different scenarios
-
-const INDICATOR_POSITION =
-  (process.env
-    .__NEXT_DEV_INDICATOR_POSITION as typeof window.__NEXT_DEV_INDICATOR_POSITION) ||
-  'bottom-left'
-
-export type DevToolsIndicatorPosition = typeof INDICATOR_POSITION
 
 export function DevToolsIndicator({
   state,
   errorCount,
   isBuildError,
-  setIsErrorOverlayOpen,
+  ...props
 }: {
   state: OverlayState
+  dispatch: OverlayDispatch
   errorCount: number
   isBuildError: boolean
-  setIsErrorOverlayOpen: (
-    isErrorOverlayOpen: boolean | ((prev: boolean) => boolean)
-  ) => void
+
+  scale: DevToolsScale
+  setScale: (value: DevToolsScale) => void
 }) {
   const [isDevToolsIndicatorVisible, setIsDevToolsIndicatorVisible] =
     useState(true)
@@ -55,10 +61,10 @@ export function DevToolsIndicator({
           method: 'POST',
         })
       }}
-      setIsErrorOverlayOpen={setIsErrorOverlayOpen}
       isTurbopack={!!process.env.TURBOPACK}
       disabled={state.disableDevIndicator || !isDevToolsIndicatorVisible}
       isBuildError={isBuildError}
+      {...props}
     />
   )
 }
@@ -73,27 +79,17 @@ interface C {
 
 const Context = createContext({} as C)
 
-function getInitialPosition() {
-  if (
-    typeof localStorage !== 'undefined' &&
-    localStorage.getItem(STORAGE_KEY_POSITION)
-  ) {
-    return localStorage.getItem(
-      STORAGE_KEY_POSITION
-    ) as DevToolsIndicatorPosition
-  }
-
-  return INDICATOR_POSITION
-}
-
 const OVERLAYS = {
   Root: 'root',
   Turbo: 'turbo',
   Route: 'route',
   Preferences: 'preferences',
+  SegmentExplorer: 'segment-explorer',
 } as const
 
 export type Overlays = (typeof OVERLAYS)[keyof typeof OVERLAYS]
+
+const INDICATOR_PADDING = 20
 
 function DevToolsPopover({
   routerType,
@@ -103,7 +99,9 @@ function DevToolsPopover({
   isTurbopack,
   isBuildError,
   hide,
-  setIsErrorOverlayOpen,
+  dispatch,
+  scale,
+  setScale,
 }: {
   routerType: 'pages' | 'app'
   disabled: boolean
@@ -113,9 +111,9 @@ function DevToolsPopover({
   isTurbopack: boolean
   isBuildError: boolean
   hide: () => void
-  setIsErrorOverlayOpen: (
-    isOverlayOpen: boolean | ((prev: boolean) => boolean)
-  ) => void
+  dispatch: OverlayDispatch
+  scale: DevToolsScale
+  setScale: (value: DevToolsScale) => void
 }) {
   const menuRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement | null>(null)
@@ -128,6 +126,7 @@ function DevToolsPopover({
   const isTurbopackInfoOpen = open === OVERLAYS.Turbo
   const isRouteInfoOpen = open === OVERLAYS.Route
   const isPreferencesOpen = open === OVERLAYS.Preferences
+  const isSegmentExplorerOpen = open === OVERLAYS.SegmentExplorer
 
   const { mounted: menuMounted, rendered: menuRendered } = useDelayedRender(
     isMenuOpen,
@@ -212,12 +211,12 @@ function DevToolsPopover({
   function openErrorOverlay() {
     setOpen(null)
     if (issueCount > 0) {
-      setIsErrorOverlayOpen(true)
+      dispatch({ type: ACTION_ERROR_OVERLAY_OPEN })
     }
   }
 
   function toggleErrorOverlay() {
-    setIsErrorOverlayOpen((prev) => !prev)
+    dispatch({ type: ACTION_ERROR_OVERLAY_TOGGLE })
   }
 
   function openRootMenu() {
@@ -266,30 +265,38 @@ function DevToolsPopover({
           '--animate-out-timing-function': MENU_CURVE,
           boxShadow: 'none',
           zIndex: 2147483647,
-          // Reset the toast component's default positions.
-          bottom: 'initial',
-          left: 'initial',
-          [vertical]: '20px',
-          [horizontal]: '20px',
+          [vertical]: `${INDICATOR_PADDING}px`,
+          [horizontal]: `${INDICATOR_PADDING}px`,
         } as CSSProperties
       }
     >
-      {/* Trigger */}
-      <NextLogo
-        ref={triggerRef}
-        aria-haspopup="menu"
-        aria-expanded={isMenuOpen}
-        aria-controls="nextjs-dev-tools-menu"
-        aria-label={`${isMenuOpen ? 'Close' : 'Open'} Next.js Dev Tools`}
-        data-nextjs-dev-tools-button
-        disabled={disabled}
-        issueCount={issueCount}
-        onTriggerClick={onTriggerClick}
-        toggleErrorOverlay={toggleErrorOverlay}
-        isDevBuilding={useIsDevBuilding()}
-        isDevRendering={useIsDevRendering()}
-        isBuildError={isBuildError}
-      />
+      <Draggable
+        padding={INDICATOR_PADDING}
+        onDragStart={() => setOpen(null)}
+        position={position}
+        setPosition={(p) => {
+          localStorage.setItem(STORAGE_KEY_POSITION, p)
+          setPosition(p)
+        }}
+      >
+        {/* Trigger */}
+        <NextLogo
+          ref={triggerRef}
+          aria-haspopup="menu"
+          aria-expanded={isMenuOpen}
+          aria-controls="nextjs-dev-tools-menu"
+          aria-label={`${isMenuOpen ? 'Close' : 'Open'} Next.js Dev Tools`}
+          data-nextjs-dev-tools-button
+          disabled={disabled}
+          issueCount={issueCount}
+          onTriggerClick={onTriggerClick}
+          toggleErrorOverlay={toggleErrorOverlay}
+          isDevBuilding={useIsDevBuilding()}
+          isDevRendering={useIsDevRendering()}
+          isBuildError={isBuildError}
+          scale={scale}
+        />
+      </Draggable>
 
       {/* Route Info */}
       <RouteInfo
@@ -318,7 +325,19 @@ function DevToolsPopover({
         hide={handleHideDevtools}
         setPosition={setPosition}
         position={position}
+        scale={scale}
+        setScale={setScale}
       />
+
+      {/* Page Segment Explorer */}
+      {process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER ? (
+        <SegmentsExplorer
+          isOpen={isSegmentExplorerOpen}
+          close={openRootMenu}
+          triggerRef={triggerRef}
+          style={popover}
+        />
+      ) : null}
 
       {/* Dropdown Menu */}
       {menuMounted && (
@@ -385,6 +404,15 @@ function DevToolsPopover({
                 onClick={() => setOpen(OVERLAYS.Preferences)}
                 index={isTurbopack ? 2 : 3}
               />
+              {process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER ? (
+                <MenuItem
+                  data-rendered-files
+                  label="Segment Explorer"
+                  value={<ChevronRight />}
+                  onClick={() => setOpen(OVERLAYS.SegmentExplorer)}
+                  index={isTurbopack ? 3 : 4}
+                />
+              ) : null}
             </div>
           </Context.Provider>
         </div>
@@ -615,6 +643,14 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
       text-align: center;
       font-size: var(--size-12);
       line-height: var(--size-16);
+    }
+  }
+
+  .dev-tools-grabbing {
+    cursor: grabbing;
+
+    > * {
+      pointer-events: none;
     }
   }
 `

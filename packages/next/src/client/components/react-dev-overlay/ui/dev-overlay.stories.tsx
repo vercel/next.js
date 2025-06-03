@@ -1,9 +1,17 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import type { OverlayState } from '../shared'
+import type { BusEvent, OverlayState } from '../shared'
 
-import { useState } from 'react'
+// @ts-expect-error
+import imgApp from './app.png'
+
+import { useReducer } from 'react'
 import { DevOverlay } from './dev-overlay'
-import { ACTION_UNHANDLED_ERROR } from '../shared'
+import {
+  ACTION_ERROR_OVERLAY_CLOSE,
+  ACTION_ERROR_OVERLAY_OPEN,
+  ACTION_ERROR_OVERLAY_TOGGLE,
+  ACTION_UNHANDLED_ERROR,
+} from '../shared'
 
 const meta: Meta<typeof DevOverlay> = {
   component: DevOverlay,
@@ -15,11 +23,12 @@ const meta: Meta<typeof DevOverlay> = {
 export default meta
 type Story = StoryObj<typeof DevOverlay>
 
-const state: OverlayState = {
+const initialState: OverlayState = {
   nextId: 0,
   routerType: 'app',
   buildError: null,
   disableDevIndicator: false,
+  showIndicator: true,
   errors: [
     {
       id: 1,
@@ -70,7 +79,6 @@ const state: OverlayState = {
     },
   ],
   refreshState: { type: 'idle' },
-  rootLayoutMissingTags: [],
   notFound: false,
   staticIndicator: false,
   debugInfo: { devtoolsFrontendUrl: undefined },
@@ -78,17 +86,44 @@ const state: OverlayState = {
     installed: '15.2.0',
     staleness: 'fresh',
   },
+  isErrorOverlayOpen: true,
+}
+
+function useOverlayReducer() {
+  return useReducer<OverlayState, [BusEvent]>((state, action): OverlayState => {
+    switch (action.type) {
+      case ACTION_ERROR_OVERLAY_CLOSE: {
+        return { ...state, isErrorOverlayOpen: false }
+      }
+      case ACTION_ERROR_OVERLAY_OPEN: {
+        return { ...state, isErrorOverlayOpen: true }
+      }
+      case ACTION_ERROR_OVERLAY_TOGGLE: {
+        return { ...state, isErrorOverlayOpen: !state.isErrorOverlayOpen }
+      }
+      default: {
+        return state
+      }
+    }
+    return state
+  }, initialState)
 }
 
 export const Default: Story = {
   render: function DevOverlayStory() {
-    const [isErrorOverlayOpen, setIsErrorOverlayOpen] = useState(true)
+    const [state, dispatch] = useOverlayReducer()
     return (
-      <DevOverlay
-        state={state}
-        isErrorOverlayOpen={isErrorOverlayOpen}
-        setIsErrorOverlayOpen={setIsErrorOverlayOpen}
-      />
+      <>
+        <img
+          src={imgApp}
+          style={{
+            width: '100%',
+            height: '100vh',
+            objectFit: 'contain',
+          }}
+        />
+        <DevOverlay state={state} dispatch={dispatch} />
+      </>
     )
   },
 }

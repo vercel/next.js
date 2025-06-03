@@ -88,40 +88,6 @@ describe('app-dir - metadata-streaming', () => {
     expect((await browser.elementsByCss('body meta')).length).toBe(9)
   })
 
-  it('should only insert metadata once for parallel routes when slots match', async () => {
-    const browser = await next.browser('/parallel-routes')
-
-    expect((await browser.elementsByCss('head title')).length).toBe(1)
-    expect((await browser.elementsByCss('body title')).length).toBe(0)
-
-    const $ = await next.render$('/parallel-routes')
-    expect($('title').length).toBe(1)
-
-    // validate behavior remains the same on client navigations
-    await browser.elementByCss('[href="/parallel-routes/test-page"]').click()
-
-    await retry(async () => {
-      expect(await browser.elementByCss('title').text()).toContain(
-        'Dynamic api'
-      )
-    })
-
-    expect((await browser.elementsByCss('title')).length).toBe(1)
-  })
-
-  it('should only insert metadata once for parallel routes when there is a missing slot', async () => {
-    const browser = await next.browser('/parallel-routes')
-    await browser.elementByCss('[href="/parallel-routes/no-bar"]').click()
-
-    await retry(async () => {
-      expect(await browser.elementByCss('title').text()).toContain(
-        'Dynamic api'
-      )
-    })
-
-    expect((await browser.elementsByCss('title')).length).toBe(1)
-  })
-
   describe('dynamic api', () => {
     it('should render metadata to body', async () => {
       const $ = await next.render$('/dynamic-api')
@@ -185,6 +151,34 @@ describe('app-dir - metadata-streaming', () => {
         redirect: 'manual',
       })
       expect(status).toBe(307)
+    })
+  })
+
+  describe('static', () => {
+    it('should render static metadata in the head', async () => {
+      const $ = await next.render$('/static/full')
+      expect($('title').length).toBe(1)
+      expect($('head title').text()).toBe('static page')
+    })
+
+    it('should determine dynamic metadata in build and render in the body', async () => {
+      const $ = await next.render$('/static/partial')
+      expect($('title').length).toBe(1)
+      expect($('body title').text()).toBe('partial static page')
+    })
+
+    it('should still render dynamic metadata in the head for html bots', async () => {
+      const $ = await next.render$(
+        '/static/partial',
+        {},
+        {
+          headers: {
+            'user-agent': 'Twitterbot',
+          },
+        }
+      )
+      expect($('title').length).toBe(1)
+      expect($('head title').text()).toBe('partial static page')
     })
   })
 })

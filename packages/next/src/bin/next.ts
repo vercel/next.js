@@ -129,13 +129,14 @@ program
   .option('--no-mangling', 'Disables mangling.')
   .option('--profile', 'Enables production profiling for React.')
   .option('--experimental-app-only', 'Builds only App Router routes.')
-  .addOption(new Option('--experimental-turbo').hideHelp())
+  .option('--turbo', 'Starts development mode using Turbopack.')
+  .option('--turbopack', 'Starts development mode using Turbopack.')
   .addOption(
     new Option(
       '--experimental-build-mode [mode]',
       'Uses an experimental build mode.'
     )
-      .choices(['compile', 'generate'])
+      .choices(['compile', 'generate', 'generate-env'])
       .default('default')
   )
   .option(
@@ -418,7 +419,8 @@ const internal = program
   )
 
 internal
-  .command('turbo-trace-server')
+  .command('trace')
+  .alias('turbo-trace-server')
   .argument('[file]', 'Trace file to serve.')
   .action((file: string) => {
     return import('../cli/internal/turbo-trace-server.js').then((mod) =>

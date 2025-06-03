@@ -1,6 +1,6 @@
 use std::hash::{BuildHasherDefault, Hash};
 
-use auto_hash_map::{map::Entry, AutoMap};
+use auto_hash_map::{AutoMap, map::Entry};
 use rustc_hash::FxHasher;
 
 pub trait Storage {
@@ -17,7 +17,7 @@ pub trait Storage {
     fn get(&self, key: &Self::K) -> Option<&Self::V>;
     fn get_mut(&mut self, key: &Self::K) -> Option<&mut Self::V>;
     fn get_mut_or_insert_with(&mut self, key: Self::K, f: impl FnOnce() -> Self::V)
-        -> &mut Self::V;
+    -> &mut Self::V;
     fn extract_if<'l, F>(&'l mut self, f: F) -> impl Iterator<Item = (Self::K, Self::V)>
     where
         F: for<'a, 'b> FnMut(&'a Self::K, &'b mut Self::V) -> bool + 'l;
@@ -32,7 +32,7 @@ fn value_to_key_value<V>(value: &V) -> (&(), &V) {
     (&(), value)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct OptionStorage<V> {
     value: Option<V>,
 }
@@ -93,11 +93,7 @@ impl<V> Storage for OptionStorage<V> {
     }
 
     fn len(&self) -> usize {
-        if self.value.is_some() {
-            1
-        } else {
-            0
-        }
+        if self.value.is_some() { 1 } else { 0 }
     }
 
     fn iter(&self) -> Self::Iterator<'_> {
@@ -121,7 +117,7 @@ impl<V> Storage for OptionStorage<V> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AutoMapStorage<K, V> {
     map: AutoMap<K, V, BuildHasherDefault<FxHasher>, 1>,
 }

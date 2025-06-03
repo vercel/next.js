@@ -88,6 +88,15 @@ export const Turbopack: Story = {
     versionInfo: {
       ...mockVersionInfo.fresh,
     },
-    isTurbopack: true,
+    bundlerName: 'Turbopack',
+  },
+}
+
+export const Rspack: Story = {
+  args: {
+    versionInfo: {
+      ...mockVersionInfo.fresh,
+    },
+    bundlerName: 'Rspack',
   },
 }

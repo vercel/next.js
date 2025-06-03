@@ -76,10 +76,19 @@ export const cancelPrefetchTask: typeof import('./segment-cache-impl/scheduler')
       }
     : notEnabled
 
-export const bumpPrefetchTask: typeof import('./segment-cache-impl/scheduler').bumpPrefetchTask =
+export const reschedulePrefetchTask: typeof import('./segment-cache-impl/scheduler').reschedulePrefetchTask =
   process.env.__NEXT_CLIENT_SEGMENT_CACHE
     ? function (...args) {
-        return require('./segment-cache-impl/scheduler').bumpPrefetchTask(
+        return require('./segment-cache-impl/scheduler').reschedulePrefetchTask(
+          ...args
+        )
+      }
+    : notEnabled
+
+export const isPrefetchTaskDirty: typeof import('./segment-cache-impl/scheduler').isPrefetchTaskDirty =
+  process.env.__NEXT_CLIENT_SEGMENT_CACHE
+    ? function (...args) {
+        return require('./segment-cache-impl/scheduler').isPrefetchTaskDirty(
           ...args
         )
       }
@@ -109,9 +118,10 @@ export const enum NavigationResultTag {
  */
 export const enum PrefetchPriority {
   /**
-   * Assigned to any visible link that was hovered/touched at some point. This
-   * is not removed on mouse exit, because a link that was momentarily
-   * hovered is more likely to to be interacted with than one that was not.
+   * Assigned to the most recently hovered/touched link. Special network
+   * bandwidth is reserved for this task only. There's only ever one Intent-
+   * priority task at a time; when a new Intent task is scheduled, the previous
+   * one is bumped down to Default.
    */
   Intent = 2,
   /**

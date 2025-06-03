@@ -14,6 +14,7 @@ plugin = [
 workspace = true
 
 [dependencies]
+base64 = "0.21.0"
 chrono = "0.4"
 easy-error = "1.0.0"
 either = "1"
@@ -35,9 +36,9 @@ dashmap = "6.1.0"
 
 swc_core = { workspace = true, features = [
   "base",
-  "cached",
   "common_concurrent",
   "ecma_ast",
+  "ecma_codegen",
   "ecma_loader_lru",
   "ecma_loader_node",
   "ecma_minifier",
@@ -59,10 +60,11 @@ swc_emotion = { workspace = true }
 swc_relay = { workspace = true }
 turbopack-ecmascript-plugins = { workspace = true, optional = true }
 turbo-rcstr = { workspace = true }
+urlencoding = { workspace = true }
 
-react_remove_properties = "0.33.0"
-remove_console = "0.34.0"
-preset_env_base = "2.0.1"
+react_remove_properties = "0.40.0"
+remove_console = "0.41.0"
+preset_env_base = "3.0.1"
 
 [dev-dependencies]
 swc_core = { workspace = true, features = ["testing_transform"]}

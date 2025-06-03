@@ -11,21 +11,16 @@ Middleware runs before cached content and routes are matched. See [Matching Path
 
 ## Use Cases
 
-Integrating Middleware into your application can lead to significant improvements in performance, security, and user experience. Some common scenarios where Middleware is particularly effective include:
+Some common scenarios where Middleware is effective include:
 
-- Authentication and Authorization: Ensure user identity and check session cookies before granting access to specific pages or API routes.
-- Server-Side Redirects: Redirect users at the server level based on certain conditions (e.g., locale, user role).
-- Path Rewriting: Support A/B testing, feature rollouts, or legacy paths by dynamically rewriting paths to API routes or pages based on request properties.
-- Bot Detection: Protect your resources by detecting and blocking bot traffic.
-- Logging and Analytics: Capture and analyze request data for insights before processing by the page or API.
-- Feature Flagging: Enable or disable features dynamically for seamless feature rollouts or testing.
+- Quick redirects after reading parts of the incoming request
+- Rewriting to different pages based on A/B tests or experiments
+- Modifying headers for all pages or a subset of pages
 
-Recognizing situations where middleware may not be the optimal approach is just as crucial. Here are some scenarios to be mindful of:
+Middleware is _not_ a good fit for:
 
-- Complex Data Fetching and Manipulation: Middleware is not designed for direct data fetching or manipulation, this should be done within Route Handlers or server-side utilities instead.
-- Heavy Computational Tasks: Middleware should be lightweight and respond quickly or it can cause delays in page load. Heavy computational tasks or long-running processes should be done within dedicated Route Handlers.
-- Extensive Session Management: While Middleware can manage basic session tasks, extensive session management should be managed by dedicated authentication services or within Route Handlers.
-- Direct Database Operations: Performing direct database operations within Middleware is not recommended. Database interactions should be done within Route Handlers or server-side utilities.
+- Slow data fetching
+- Session management
 
 ## Convention
 
@@ -642,6 +637,17 @@ export const config = {
 ```
 
 > **Note**: This feature is not yet recommended for production use. Therefore, Next.js will throw an error unless you are using the next@canary release instead of the stable release.
+
+## Platform Support
+
+| Deployment Option                                                   | Supported         |
+| ------------------------------------------------------------------- | ----------------- |
+| [Node.js server](/docs/app/getting-started/deploying#nodejs-server) | Yes               |
+| [Docker container](/docs/app/getting-started/deploying#docker)      | Yes               |
+| [Static export](/docs/app/getting-started/deploying#static-export)  | No                |
+| [Adapters](/docs/app/getting-started/deploying#adapters)            | Platform-specific |
+
+Learn how to [configure Middleware](/docs/app/guides/self-hosting#middleware) when self-hosting Next.js.
 
 ## Version History
 

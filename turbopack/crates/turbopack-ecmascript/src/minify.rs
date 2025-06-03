@@ -1,40 +1,47 @@
-use std::{io::Write, sync::Arc};
+use std::sync::Arc;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use swc_core::{
     base::try_with_handler,
     common::{
+        BytePos, FileName, FilePathMapping, GLOBALS, LineCol, Mark, SourceMap as SwcSourceMap,
         comments::{Comments, SingleThreadedComments},
-        BytePos, FileName, FilePathMapping, LineCol, Mark, SourceMap as SwcSourceMap, GLOBALS,
     },
     ecma::{
         self,
         ast::{EsVersion, Program},
         codegen::{
-            text_writer::{self, JsWriter, WriteJs},
             Emitter,
+            text_writer::{self, JsWriter, WriteJs},
         },
         minifier::option::{CompressOptions, ExtraOptions, MangleOptions, MinifyOptions},
-        parser::{lexer::Lexer, Parser, StringInput, Syntax},
-        transforms::base::fixer::paren_remover,
+        parser::{Parser, StringInput, Syntax, lexer::Lexer},
+        transforms::base::{
+            fixer::paren_remover,
+            hygiene::{self, hygiene_with_config},
+        },
     },
 };
-use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::code_builder::{Code, CodeBuilder};
+use tracing::{Level, instrument};
+use turbopack_core::{
+    chunk::MangleType,
+    code_builder::{Code, CodeBuilder},
+};
 
 use crate::parse::generate_js_source_map;
 
-pub fn minify(path: &FileSystemPath, code: &Code, source_maps: bool, mangle: bool) -> Result<Code> {
+#[instrument(level = Level::INFO, skip_all)]
+pub fn minify(code: Code, source_maps: bool, mangle: Option<MangleType>) -> Result<Code> {
     let source_maps = source_maps
         .then(|| code.generate_source_map_ref())
         .transpose()?;
 
+    let source_code = code.into_source_code().into_bytes().into();
+    let source_code = String::from_utf8(source_code)?;
+
     let cm = Arc::new(SwcSourceMap::new(FilePathMapping::empty()));
     let (src, mut src_map_buf) = {
-        let fm = cm.new_source_file(
-            FileName::Custom(path.path.to_string()).into(),
-            code.source_code().to_str()?.into_owned(),
-        );
+        let fm = cm.new_source_file(FileName::Anon.into(), source_code);
 
         let lexer = Lexer::new(
             Syntax::default(),
@@ -50,10 +57,7 @@ pub fn minify(path: &FileSystemPath, code: &Code, source_maps: bool, mangle: boo
                     Ok(program) => program,
                     Err(err) => {
                         err.into_diagnostic(handler).emit();
-                        bail!(
-                            "failed to parse source code\n{}",
-                            code.source_code().to_str()?
-                        )
+                        bail!("failed to parse source code\n{}", fm.src)
                     }
                 };
                 let comments = SingleThreadedComments::default();
@@ -78,16 +82,24 @@ pub fn minify(path: &FileSystemPath, code: &Code, source_maps: bool, mangle: boo
                             // Only run 2 passes, this is a tradeoff between performance and
                             // compression size. Default is 3 passes.
                             passes: 2,
+                            keep_classnames: mangle.is_none(),
+                            keep_fnames: mangle.is_none(),
                             ..Default::default()
                         }),
-                        mangle: if mangle {
-                            Some(MangleOptions {
-                                reserved: vec!["AbortSignal".into()],
-                                ..Default::default()
-                            })
-                        } else {
-                            None
-                        },
+                        mangle: mangle.map(|mangle| {
+                            let reserved = vec!["AbortSignal".into()];
+                            match mangle {
+                                MangleType::OptimalSize => MangleOptions {
+                                    reserved,
+                                    ..Default::default()
+                                },
+                                MangleType::Deterministic => MangleOptions {
+                                    reserved,
+                                    disable_char_freq: true,
+                                    ..Default::default()
+                                },
+                            }
+                        }),
                         ..Default::default()
                     },
                     &ExtraOptions {
@@ -97,30 +109,38 @@ pub fn minify(path: &FileSystemPath, code: &Code, source_maps: bool, mangle: boo
                     },
                 );
 
+                if mangle.is_none() {
+                    program.mutate(hygiene_with_config(hygiene::Config {
+                        top_level_mark,
+                        ..Default::default()
+                    }));
+                }
+
                 Ok(program.apply(ecma::transforms::base::fixer::fixer(Some(
                     &comments as &dyn Comments,
                 ))))
             })
-        })?;
+        })
+        .map_err(|e| e.to_pretty_error())?;
 
         print_program(cm.clone(), program, source_maps.is_some())?
     };
 
-    let mut builder = CodeBuilder::default();
+    let mut builder = CodeBuilder::new(source_maps.is_some());
     if let Some(original_map) = source_maps.as_ref() {
         src_map_buf.shrink_to_fit();
         builder.push_source(
             &src.into(),
-            Some(generate_js_source_map(cm, src_map_buf, Some(original_map))?),
+            Some(generate_js_source_map(
+                cm,
+                src_map_buf,
+                Some(original_map),
+                // We do not inline source contents.
+                // We provide a synthesized value to `cm.new_source_file` above, so it cannot be
+                // the value user expect anyway.
+                false,
+            )?),
         );
-
-        write!(
-            builder,
-            // findSourceMapURL assumes this co-located sourceMappingURL,
-            // and needs to be adjusted in case this is ever changed.
-            "\n//# sourceMappingURL={}.map",
-            urlencoding::encode(path.file_name())
-        )?;
     } else {
         builder.push_source(&src.into(), None);
     }
@@ -155,10 +175,6 @@ fn print_program(
             emitter
                 .emit_program(&program)
                 .context("failed to emit module")?;
-        }
-        if source_maps {
-            // end with a new line when we have a source map comment
-            buf.push(b'\n');
         }
         // Invalid utf8 is valid in javascript world.
         // SAFETY: SWC generates valid utf8.

@@ -1,9 +1,12 @@
-import type { OverlayState } from '../../../../shared'
+import {
+  ACTION_ERROR_OVERLAY_CLOSE,
+  type OverlayDispatch,
+  type OverlayState,
+} from '../../../../shared'
 
 import { Suspense } from 'react'
 import { BuildError } from '../../../container/build-error'
 import { Errors } from '../../../container/errors'
-import { RootLayoutMissingTagsError } from '../../../container/root-layout-missing-tags-error'
 import { useDelayedRender } from '../../../hooks/use-delayed-render'
 import type { ReadyRuntimeError } from '../../../../utils/get-error-by-type'
 
@@ -14,23 +17,24 @@ export interface ErrorBaseProps {
   transitionDurationMs: number
   isTurbopack: boolean
   versionInfo: OverlayState['versionInfo']
+  errorCount: number
 }
 
 export function ErrorOverlay({
   state,
+  dispatch,
   runtimeErrors,
-  isErrorOverlayOpen,
-  setIsErrorOverlayOpen,
+  errorCount,
 }: {
   state: OverlayState
+  dispatch: OverlayDispatch
   runtimeErrors: ReadyRuntimeError[]
-  isErrorOverlayOpen: boolean
-  setIsErrorOverlayOpen: (value: boolean) => void
+  errorCount: number
 }) {
   const isTurbopack = !!process.env.TURBOPACK
 
   // This hook lets us do an exit animation before unmounting the component
-  const { mounted, rendered } = useDelayedRender(isErrorOverlayOpen, {
+  const { mounted, rendered } = useDelayedRender(state.isErrorOverlayOpen, {
     exitDelay: transitionDurationMs,
   })
 
@@ -39,17 +43,7 @@ export function ErrorOverlay({
     transitionDurationMs,
     isTurbopack,
     versionInfo: state.versionInfo,
-  }
-
-  if (!!state.rootLayoutMissingTags?.length) {
-    return (
-      <RootLayoutMissingTagsError
-        {...commonProps}
-        // This is not a runtime error, forcedly display error overlay
-        rendered
-        missingTags={state.rootLayoutMissingTags}
-      />
-    )
+    errorCount,
   }
 
   if (state.buildError !== null) {
@@ -82,7 +76,7 @@ export function ErrorOverlay({
       debugInfo={state.debugInfo}
       runtimeErrors={runtimeErrors}
       onClose={() => {
-        setIsErrorOverlayOpen(false)
+        dispatch({ type: ACTION_ERROR_OVERLAY_CLOSE })
       }}
     />
   )

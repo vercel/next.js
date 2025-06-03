@@ -106,7 +106,7 @@ describe('middleware can use wasm files', () => {
         '.next/server/middleware-manifest.json'
       )
       const manifest = await fs.readJSON(manifestPath)
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         expect(manifest.middleware['/'].wasm).toEqual(
           expect.arrayContaining([
             expect.objectContaining({

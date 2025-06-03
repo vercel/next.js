@@ -15,10 +15,9 @@ describe('app dir - global-error - error-in-global-error', () => {
       await assertHasRedbox(browser)
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error: error in page",
+         "description": "error in page",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": "app/page.js (7:11) @ Page.useEffect
        >  7 |     throw new Error('error in page')
             |           ^",
@@ -40,19 +39,31 @@ describe('app dir - global-error - error-in-global-error', () => {
     if (isNextDev) {
       await assertHasRedbox(browser)
       await expect(browser).toDisplayRedbox(`
-       {
-         "count": 2,
-         "description": "Error: error in global error",
-         "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
-         "source": "app/global-error.js (10:11) @ InnerGlobalError
+       [
+         {
+           "description": "error in global error",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "app/global-error.js (10:11) @ InnerGlobalError
        > 10 |     throw new Error('error in global error')
             |           ^",
-         "stack": [
-           "InnerGlobalError app/global-error.js (10:11)",
-           "GlobalError app/global-error.js (26:7)",
-         ],
-       }
+           "stack": [
+             "InnerGlobalError app/global-error.js (10:11)",
+             "GlobalError app/global-error.js (26:7)",
+           ],
+         },
+         {
+           "description": "error in page",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "app/page.js (7:11) @ Page.useEffect
+       >  7 |     throw new Error('error in page')
+            |           ^",
+           "stack": [
+             "Page.useEffect app/page.js (7:11)",
+           ],
+         },
+       ]
       `)
     }
   })

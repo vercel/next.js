@@ -901,7 +901,7 @@ describe('parallel-routes-and-interception-conflicting-pages', () => {
 
     // before adding this file, the page would have matched `/app/parallel/(new)/@baz/nested-2/page`
     // but we've added a more specific page, so it should match that instead
-    if (process.env.TURBOPACK) {
+    if (process.env.IS_TURBOPACK_TEST) {
       // TODO: this matches differently in Turbopack because the Webpack loader does some sorting on the paths
       // Investigate the discrepancy in a follow-up. For now, since no errors are being thrown (and since this test was previously ignored in Turbopack),
       // we'll just verify that the page is rendered and some content was matched.

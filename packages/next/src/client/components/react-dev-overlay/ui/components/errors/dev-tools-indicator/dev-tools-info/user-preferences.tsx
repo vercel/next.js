@@ -7,30 +7,30 @@ import DarkIcon from '../../../../icons/dark-icon'
 import SystemIcon from '../../../../icons/system-icon'
 import type { DevToolsInfoPropsCore } from './dev-tools-info'
 import { DevToolsInfo } from './dev-tools-info'
-import type { DevToolsIndicatorPosition } from '../dev-tools-indicator'
-
-function getInitialPreference() {
-  if (typeof localStorage === 'undefined') {
-    return 'system'
-  }
-
-  const theme = localStorage.getItem(STORAGE_KEY_THEME)
-  return theme === 'dark' || theme === 'light' ? theme : 'system'
-}
+import {
+  getInitialTheme,
+  NEXT_DEV_TOOLS_SCALE,
+  type DevToolsIndicatorPosition,
+  type DevToolsScale,
+} from './preferences'
 
 export function UserPreferences({
   setPosition,
   position,
   hide,
+  scale,
+  setScale,
   ...props
 }: {
   setPosition: (position: DevToolsIndicatorPosition) => void
   position: DevToolsIndicatorPosition
+  scale: DevToolsScale
+  setScale: (value: DevToolsScale) => void
   hide: () => void
 } & DevToolsInfoPropsCore &
-  HTMLProps<HTMLDivElement>) {
+  Omit<HTMLProps<HTMLDivElement>, 'size'>) {
   // derive initial theme from system preference
-  const [theme, setTheme] = useState(getInitialPreference())
+  const [theme, setTheme] = useState(getInitialTheme())
 
   const handleThemeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const portal = document.querySelector('nextjs-portal')
@@ -61,6 +61,11 @@ export function UserPreferences({
     localStorage.setItem(STORAGE_KEY_POSITION, e.target.value)
   }
 
+  function handleSizeChange({ target }: React.ChangeEvent<HTMLSelectElement>) {
+    const value = Number(target.value) as DevToolsScale
+    setScale(value)
+  }
+
   return (
     <DevToolsInfo title="Preferences" {...props}>
       <div className="preferences-container">
@@ -71,22 +76,17 @@ export function UserPreferences({
               Select your theme preference.
             </p>
           </div>
-          <div className="preference-control-select">
-            <div className="preference-icon">
-              <ThemeIcon theme={theme as 'dark' | 'light' | 'system'} />
-            </div>
-            <select
-              id="theme"
-              name="theme"
-              className="select-button"
-              value={theme}
-              onChange={handleThemeChange}
-            >
-              <option value="system">System</option>
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
-            </select>
-          </div>
+          <Select
+            id="theme"
+            name="theme"
+            prefix={<ThemeIcon theme={theme as 'dark' | 'light' | 'system'} />}
+            value={theme}
+            onChange={handleThemeChange}
+          >
+            <option value="system">System</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </Select>
         </div>
 
         <div className="preference-section">
@@ -96,42 +96,58 @@ export function UserPreferences({
               Adjust the placement of your dev tools.
             </p>
           </div>
-          <div className="preference-control-select">
-            <select
-              id="position"
-              name="position"
-              className="select-button"
-              value={position}
-              onChange={handlePositionChange}
-            >
-              <option value="bottom-left">Bottom Left</option>
-              <option value="bottom-right">Bottom Right</option>
-              <option value="top-left">Top Left</option>
-              <option value="top-right">Top Right</option>
-            </select>
-          </div>
+          <Select
+            id="position"
+            name="position"
+            value={position}
+            onChange={handlePositionChange}
+          >
+            <option value="bottom-left">Bottom Left</option>
+            <option value="bottom-right">Bottom Right</option>
+            <option value="top-left">Top Left</option>
+            <option value="top-right">Top Right</option>
+          </Select>
         </div>
 
         <div className="preference-section">
           <div className="preference-header">
-            <label htmlFor="hide-dev-tools">
-              Hide Dev Tools for this session
-            </label>
+            <label htmlFor="size">Size</label>
+            <p className="preference-description">
+              Adjust the size of your dev tools.
+            </p>
+          </div>
+          <Select
+            id="size"
+            name="size"
+            value={scale}
+            onChange={handleSizeChange}
+          >
+            {Object.entries(NEXT_DEV_TOOLS_SCALE).map(([key, value]) => {
+              return (
+                <option value={value} key={key}>
+                  {key}
+                </option>
+              )
+            })}
+          </Select>
+        </div>
+
+        <div className="preference-section">
+          <div className="preference-header">
+            <label id="hide-dev-tools">Hide Dev Tools for this session</label>
             <p className="preference-description">
               Hide Dev Tools until you restart your dev server, or 1 day.
             </p>
           </div>
           <div className="preference-control">
             <button
-              id="hide-dev-tools"
+              aria-describedby="hide-dev-tools"
               name="hide-dev-tools"
               data-hide-dev-tools
               className="action-button"
               onClick={hide}
             >
-              <div className="preference-icon">
-                <EyeIcon />
-              </div>
+              <EyeIcon />
               <span>Hide</span>
             </button>
           </div>
@@ -150,6 +166,22 @@ export function UserPreferences({
         </div>
       </div>
     </DevToolsInfo>
+  )
+}
+
+function Select({
+  children,
+  prefix,
+  ...props
+}: {
+  prefix?: React.ReactNode
+} & Omit<React.HTMLProps<HTMLSelectElement>, 'prefix'>) {
+  return (
+    <div className="select-button">
+      {prefix}
+      <select {...props}>{children}</select>
+      <ChevronDownIcon />
+    </div>
   )
 }
 
@@ -213,13 +245,6 @@ export const DEV_TOOLS_INFO_USER_PREFERENCES_STYLES = css`
     margin: 0;
   }
 
-  .preference-icon {
-    display: flex;
-    align-items: center;
-    width: 16px;
-    height: 16px;
-  }
-
   .select-button,
   .action-button {
     display: flex;
@@ -238,31 +263,14 @@ export const DEV_TOOLS_INFO_USER_PREFERENCES_STYLES = css`
     }
   }
 
-  .preference-control-select {
-    padding: 6px 8px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    border-radius: var(--rounded-lg);
-    border: 1px solid var(--color-gray-400);
-
-    &:hover {
-      background: var(--color-gray-100);
-    }
-
+  .select-button {
     &:focus-within {
       outline: var(--focus-ring);
     }
-  }
 
-  .preference-control-select select {
-    font-size: var(--size-14);
-    font-weight: 400;
-    border: none;
-    padding: 0 6px 0 0;
-    border-radius: 0;
-    outline: none;
-    background: none;
+    select {
+      all: unset;
+    }
   }
 
   :global(.icon) {
@@ -271,3 +279,16 @@ export const DEV_TOOLS_INFO_USER_PREFERENCES_STYLES = css`
     color: #666;
   }
 `
+
+function ChevronDownIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden>
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M14.0607 5.49999L13.5303 6.03032L8.7071 10.8535C8.31658 11.2441 7.68341 11.2441 7.29289 10.8535L2.46966 6.03032L1.93933 5.49999L2.99999 4.43933L3.53032 4.96966L7.99999 9.43933L12.4697 4.96966L13 4.43933L14.0607 5.49999Z"
+        fill="currentColor"
+      />
+    </svg>
+  )
+}

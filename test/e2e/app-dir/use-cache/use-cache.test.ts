@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry, waitFor } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 import { format } from 'util'
-import { BrowserInterface } from 'next-webdriver'
+import { Playwright } from 'next-webdriver'
 import {
   createRenderResumeDataCache,
   RenderResumeDataCache,
@@ -13,9 +13,16 @@ const GENERIC_RSC_ERROR =
   'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
 
 describe('use-cache', () => {
-  const { next, isNextDev, isNextDeploy, isNextStart } = nextTestSetup({
-    files: __dirname,
-  })
+  const { next, isNextDev, isNextDeploy, isNextStart, skipped } = nextTestSetup(
+    {
+      files: __dirname,
+      skipDeployment: true,
+    }
+  )
+
+  if (skipped) {
+    return
+  }
 
   it('should cache results', async () => {
     const browser = await next.browser(`/?n=1`)
@@ -165,6 +172,38 @@ describe('use-cache', () => {
     expect(rand1).toEqual(rand2)
   })
 
+  it('should revalidate before redirecting in a route handlers', async () => {
+    const initialValues = await next.fetch('/api').then((res) => res.json())
+
+    const values = await next
+      .fetch('/api/revalidate-redirect')
+      .then((res) => res.json())
+
+    if (isNextDeploy) {
+      try {
+        expect(values).not.toEqual(initialValues)
+      } catch {
+        // When deployed, we currently don't have a strong guarantee that the
+        // revalidations are propagated fully (as we do for redirecting server
+        // actions). This is because, for route handlers, the redirect occurs
+        // client-side, which prevents us from using the same technique as for
+        // server actions, which involves sending a revalidate token as a
+        // request header. This token must not leak to the client. However,
+        // eventually the revalidation will be propagated, and a refresh should
+        // show fresh data.
+        await retry(async () => {
+          const refreshedValues = await next
+            .fetch('/api')
+            .then((res) => res.json())
+
+          expect(refreshedValues).not.toEqual(initialValues)
+        })
+      }
+    } else {
+      expect(values).not.toEqual(initialValues)
+    }
+  })
+
   it('should cache results for cached functions imported from client components', async () => {
     const browser = await next.browser('/imported-from-client')
     expect(await browser.elementByCss('p').text()).toBe('0 0 0')
@@ -209,112 +248,172 @@ describe('use-cache', () => {
     })
   })
 
-  // TODO: pending tags handling on deploy
-  if (!isNextDeploy) {
-    it('should update after unstable_expireTag correctly', async () => {
-      const browser = await next.browser('/cache-tag')
-      const initial = await browser.elementByCss('#a').text()
+  it('should update after unstable_expireTag correctly', async () => {
+    const browser = await next.browser('/cache-tag')
+    const initial = await browser.elementByCss('#a').text()
 
+    if (!isNextDev) {
       // Bust the ISR cache first, to populate the in-memory cache for the
       // subsequent unstable_expireTag calls.
       await browser.elementByCss('#revalidate-path').click()
       await retry(async () => {
         expect(await browser.elementByCss('#a').text()).not.toBe(initial)
       })
+    }
 
-      let valueA = await browser.elementByCss('#a').text()
-      let valueB = await browser.elementByCss('#b').text()
-      let valueF1 = await browser.elementByCss('#f1').text()
-      let valueF2 = await browser.elementByCss('#f2').text()
-      let valueR1 = await browser.elementByCss('#r1').text()
-      let valueR2 = await browser.elementByCss('#r2').text()
+    let valueA = await browser.elementByCss('#a').text()
+    let valueB = await browser.elementByCss('#b').text()
+    let valueF1 = await browser.elementByCss('#f1').text()
+    let valueF2 = await browser.elementByCss('#f2').text()
+    let valueR1 = await browser.elementByCss('#r1').text()
+    let valueR2 = await browser.elementByCss('#r2').text()
 
-      await browser.elementByCss('#revalidate-a').click()
-      await retry(async () => {
-        expect(await browser.elementByCss('#a').text()).not.toBe(valueA)
-        expect(await browser.elementByCss('#b').text()).toBe(valueB)
-        expect(await browser.elementByCss('#f1').text()).toBe(valueF1)
-        expect(await browser.elementByCss('#f2').text()).toBe(valueF2)
-        expect(await browser.elementByCss('#r1').text()).toBe(valueR1)
-        expect(await browser.elementByCss('#r2').text()).toBe(valueR2)
-      })
-
-      valueA = await browser.elementByCss('#a').text()
-
-      await browser.elementByCss('#revalidate-b').click()
-      await retry(async () => {
-        expect(await browser.elementByCss('#a').text()).toBe(valueA)
-        expect(await browser.elementByCss('#b').text()).not.toBe(valueB)
-        expect(await browser.elementByCss('#f1').text()).toBe(valueF1)
-        expect(await browser.elementByCss('#f2').text()).toBe(valueF2)
-        expect(await browser.elementByCss('#r1').text()).toBe(valueR1)
-        expect(await browser.elementByCss('#r2').text()).toBe(valueR2)
-      })
-
-      valueB = await browser.elementByCss('#b').text()
-
-      await browser.elementByCss('#revalidate-c').click()
-      await retry(async () => {
-        expect(await browser.elementByCss('#a').text()).not.toBe(valueA)
-        expect(await browser.elementByCss('#b').text()).not.toBe(valueB)
-        expect(await browser.elementByCss('#f1').text()).not.toBe(valueF1)
-        expect(await browser.elementByCss('#f2').text()).toBe(valueF2)
-        expect(await browser.elementByCss('#r1').text()).not.toBe(valueR1)
-        expect(await browser.elementByCss('#r2').text()).toBe(valueR2)
-      })
-
-      valueA = await browser.elementByCss('#a').text()
-      valueB = await browser.elementByCss('#b').text()
-      valueF1 = await browser.elementByCss('#f1').text()
-      valueR1 = await browser.elementByCss('#r1').text()
-
-      await browser.elementByCss('#revalidate-f').click()
-      await retry(async () => {
-        expect(await browser.elementByCss('#a').text()).toBe(valueA)
-        expect(await browser.elementByCss('#b').text()).toBe(valueB)
-        expect(await browser.elementByCss('#f1').text()).not.toBe(valueF1)
-        expect(await browser.elementByCss('#f2').text()).toBe(valueF2)
-        expect(await browser.elementByCss('#r1').text()).toBe(valueR1)
-        expect(await browser.elementByCss('#r2').text()).toBe(valueR2)
-      })
-
-      valueF1 = await browser.elementByCss('#f1').text()
-
-      await browser.elementByCss('#revalidate-r').click()
-      await retry(async () => {
-        expect(await browser.elementByCss('#a').text()).toBe(valueA)
-        expect(await browser.elementByCss('#b').text()).toBe(valueB)
-        expect(await browser.elementByCss('#f1').text()).toBe(valueF1)
-        expect(await browser.elementByCss('#f2').text()).toBe(valueF2)
-        expect(await browser.elementByCss('#r1').text()).not.toBe(valueR1)
-        expect(await browser.elementByCss('#r2').text()).toBe(valueR2)
-      })
-
-      valueR1 = await browser.elementByCss('#r1').text()
-
-      await browser.elementByCss('#revalidate-path').click()
-      await retry(async () => {
-        expect(await browser.elementByCss('#a').text()).not.toBe(valueA)
-        expect(await browser.elementByCss('#b').text()).not.toBe(valueB)
-        expect(await browser.elementByCss('#f1').text()).not.toBe(valueF1)
-        expect(await browser.elementByCss('#f2').text()).not.toBe(valueF2)
-        expect(await browser.elementByCss('#r1').text()).not.toBe(valueR1)
-        expect(await browser.elementByCss('#r2').text()).not.toBe(valueR2)
-      })
+    await browser.elementByCss('#revalidate-a').click()
+    await retry(async () => {
+      expect(await browser.elementByCss('#a').text()).not.toBe(valueA)
+      expect(await browser.elementByCss('#b').text()).toBe(valueB)
+      expect(await browser.elementByCss('#f1').text()).toBe(valueF1)
+      expect(await browser.elementByCss('#f2').text()).toBe(valueF2)
+      expect(await browser.elementByCss('#r1').text()).toBe(valueR1)
+      expect(await browser.elementByCss('#r2').text()).toBe(valueR2)
     })
-  }
+
+    valueA = await browser.elementByCss('#a').text()
+
+    await browser.elementByCss('#revalidate-b').click()
+    await retry(async () => {
+      expect(await browser.elementByCss('#a').text()).toBe(valueA)
+      expect(await browser.elementByCss('#b').text()).not.toBe(valueB)
+      expect(await browser.elementByCss('#f1').text()).toBe(valueF1)
+      expect(await browser.elementByCss('#f2').text()).toBe(valueF2)
+      expect(await browser.elementByCss('#r1').text()).toBe(valueR1)
+      expect(await browser.elementByCss('#r2').text()).toBe(valueR2)
+    })
+
+    valueB = await browser.elementByCss('#b').text()
+
+    await browser.elementByCss('#revalidate-c').click()
+    await retry(async () => {
+      expect(await browser.elementByCss('#a').text()).not.toBe(valueA)
+      expect(await browser.elementByCss('#b').text()).not.toBe(valueB)
+      expect(await browser.elementByCss('#f1').text()).not.toBe(valueF1)
+      expect(await browser.elementByCss('#f2').text()).toBe(valueF2)
+      expect(await browser.elementByCss('#r1').text()).not.toBe(valueR1)
+      expect(await browser.elementByCss('#r2').text()).toBe(valueR2)
+    })
+
+    valueA = await browser.elementByCss('#a').text()
+    valueB = await browser.elementByCss('#b').text()
+    valueF1 = await browser.elementByCss('#f1').text()
+    valueR1 = await browser.elementByCss('#r1').text()
+
+    await browser.elementByCss('#revalidate-f').click()
+    await retry(async () => {
+      expect(await browser.elementByCss('#a').text()).toBe(valueA)
+      expect(await browser.elementByCss('#b').text()).toBe(valueB)
+      expect(await browser.elementByCss('#f1').text()).not.toBe(valueF1)
+      expect(await browser.elementByCss('#f2').text()).toBe(valueF2)
+      expect(await browser.elementByCss('#r1').text()).toBe(valueR1)
+      expect(await browser.elementByCss('#r2').text()).toBe(valueR2)
+    })
+
+    valueF1 = await browser.elementByCss('#f1').text()
+
+    await browser.elementByCss('#revalidate-r').click()
+    await retry(async () => {
+      expect(await browser.elementByCss('#a').text()).toBe(valueA)
+      expect(await browser.elementByCss('#b').text()).toBe(valueB)
+      expect(await browser.elementByCss('#f1').text()).toBe(valueF1)
+      expect(await browser.elementByCss('#f2').text()).toBe(valueF2)
+      expect(await browser.elementByCss('#r1').text()).not.toBe(valueR1)
+      expect(await browser.elementByCss('#r2').text()).toBe(valueR2)
+    })
+
+    valueR1 = await browser.elementByCss('#r1').text()
+
+    await browser.elementByCss('#revalidate-path').click()
+    await retry(async () => {
+      expect(await browser.elementByCss('#a').text()).not.toBe(valueA)
+      expect(await browser.elementByCss('#b').text()).not.toBe(valueB)
+      expect(await browser.elementByCss('#f1').text()).not.toBe(valueF1)
+      expect(await browser.elementByCss('#f2').text()).not.toBe(valueF2)
+      expect(await browser.elementByCss('#r1').text()).not.toBe(valueR1)
+      expect(await browser.elementByCss('#r2').text()).not.toBe(valueR2)
+    })
+  })
+
+  it('should revalidate caches after redirect', async () => {
+    const browser = await next.browser('/revalidate-and-redirect')
+    const valueA = await browser.elementById('a').text()
+    const valueB = await browser.elementById('b').text()
+
+    expect(valueA).toBe(valueB)
+
+    await browser
+      .elementByCss('a[href="/revalidate-and-redirect/redirect"]')
+      .click()
+
+    await browser.elementById('revalidate-tag-redirect').click()
+
+    const newValueA = await browser.elementById('a').text()
+    const newValueB = await browser.elementById('b').text()
+
+    expect(newValueA).toBe(newValueB)
+    expect(newValueA).not.toBe(valueA)
+    expect(newValueB).toBe(newValueB)
+
+    await browser
+      .elementByCss('a[href="/revalidate-and-redirect/redirect"]')
+      .click()
+    await browser.elementById('revalidate-path-redirect').click()
+
+    const finalValueA = await browser.elementById('a').text()
+    const finalValueB = await browser.elementById('b').text()
+
+    expect(finalValueA).not.toBe(newValueA)
+    expect(finalValueB).not.toBe(newValueB)
+    expect(finalValueB).toBe(finalValueB)
+  })
+
+  it('should revalidate caches nested in unstable_cache', async () => {
+    const browser = await next.browser('/nested-in-unstable-cache')
+    const initial = await browser.elementByCss('p').text()
+
+    if (!isNextDev) {
+      // Bust the ISR cache first to populate the "use cache" in-memory cache for
+      // the subsequent revalidations.
+      await browser.elementByCss('button').click()
+
+      await retry(async () => {
+        expect(await browser.elementByCss('p').text()).not.toBe(initial)
+      })
+    }
+
+    const value = await browser.elementByCss('p').text()
+
+    await browser.refresh()
+    expect(await browser.elementByCss('p').text()).toBe(value)
+
+    await browser.elementByCss('button').click()
+
+    await retry(async () => {
+      expect(await browser.elementByCss('p').text()).not.toBe(value)
+    })
+  })
 
   it('should revalidate caches during on-demand revalidation', async () => {
     const browser = await next.browser('/on-demand-revalidate')
     const initial = await browser.elementById('value').text()
 
-    // Bust the ISR cache first to populate the "use cache" in-memory cache for
-    // the subsequent on-demand revalidation.
-    await browser.elementById('revalidate-path').click()
+    if (!isNextDev) {
+      // Bust the ISR cache first to populate the "use cache" in-memory cache
+      // for the subsequent on-demand revalidation.
+      await browser.elementById('revalidate-path').click()
 
-    await retry(async () => {
-      expect(await browser.elementById('value').text()).not.toBe(initial)
-    })
+      await retry(async () => {
+        expect(await browser.elementById('value').text()).not.toBe(initial)
+      })
+    }
 
     const value = await browser.elementById('value').text()
 
@@ -325,6 +424,49 @@ describe('use-cache', () => {
       await browser.refresh()
       expect(await browser.elementById('value').text()).not.toBe(value)
     })
+  })
+
+  it('should not use stale caches in server actions that have revalidated', async () => {
+    const browser = await next.browser('/revalidate-and-use')
+    const useCacheValue1 = await browser.elementById('use-cache-value-1').text()
+    const useCacheValue2 = await browser.elementById('use-cache-value-2').text()
+    const fetchedValue = await browser.elementById('fetched-value').text()
+
+    expect(useCacheValue1).toEqual(useCacheValue2)
+
+    await browser.elementById('revalidate-tag').click()
+    await browser.waitForElementByCss('#revalidate-tag:enabled')
+
+    const useCacheValueBeforeRevalidation = await browser
+      .elementById('use-cache-value-1')
+      .text()
+    const useCacheValueAfterRevalidation = await browser
+      .elementById('use-cache-value-2')
+      .text()
+    const newFetchedValue = await browser.elementById('fetched-value').text()
+
+    expect(useCacheValueBeforeRevalidation).toBe(useCacheValue1)
+    expect(useCacheValueBeforeRevalidation).toBe(useCacheValue2)
+    expect(useCacheValueBeforeRevalidation).not.toBe(
+      useCacheValueAfterRevalidation
+    )
+    expect(newFetchedValue).not.toBe(fetchedValue)
+
+    await browser.elementById('revalidate-path').click()
+    await browser.waitForElementByCss('#revalidate-path:enabled')
+
+    expect(await browser.elementById('use-cache-value-1').text()).not.toBe(
+      useCacheValueBeforeRevalidation
+    )
+    expect(await browser.elementById('use-cache-value-2').text()).not.toBe(
+      useCacheValueAfterRevalidation
+    )
+    expect(await browser.elementById('use-cache-value-1').text()).not.toBe(
+      await browser.elementById('use-cache-value-2').text()
+    )
+    expect(await browser.elementById('fetched-value').text()).not.toBe(
+      newFetchedValue
+    )
   })
 
   if (isNextStart) {
@@ -355,15 +497,20 @@ describe('use-cache', () => {
         '/cache-fetch-no-store',
         '/cache-life',
         '/cache-tag',
+        '/directive-in-node-modules/with-handler',
+        '/directive-in-node-modules/without-handler',
+        '/draft-mode',
         '/form',
         '/imported-from-client',
         '/logs',
         '/method-props',
+        '/nested-in-unstable-cache',
         '/not-found',
         '/on-demand-revalidate',
         '/passed-to-client',
         '/react-cache',
         '/referential-equality',
+        '/revalidate-and-redirect/redirect',
         '/rsc-payload',
         '/static-class-method',
         '/use-action-state',
@@ -438,33 +585,30 @@ describe('use-cache', () => {
     })
   })
 
-  // TODO(useCache): Re-activate for deploy tests when NAR-85 is resolved.
-  if (!isNextDeploy) {
-    it('should be able to revalidate a page using unstable_expireTag', async () => {
-      const browser = await next.browser(`/form`)
-      const time1 = await browser.waitForElementByCss('#t').text()
+  it('should be able to revalidate a page using unstable_expireTag', async () => {
+    const browser = await next.browser(`/form`)
+    const time1 = await browser.waitForElementByCss('#t').text()
 
-      await browser.loadPage(new URL(`/form`, next.url).toString())
+    await browser.loadPage(new URL(`/form`, next.url).toString())
 
-      const time2 = await browser.waitForElementByCss('#t').text()
+    const time2 = await browser.waitForElementByCss('#t').text()
 
-      expect(time1).toBe(time2)
+    expect(time1).toBe(time2)
 
-      await browser.elementByCss('#refresh').click()
+    await browser.elementByCss('#refresh').click()
 
-      await waitFor(500)
+    await waitFor(500)
 
-      const time3 = await browser.waitForElementByCss('#t').text()
+    const time3 = await browser.waitForElementByCss('#t').text()
 
-      expect(time3).not.toBe(time2)
+    expect(time3).not.toBe(time2)
 
-      // Reloading again should ideally be the same value but because the Action seeds
-      // the cache with real params as the argument it has a different cache key.
-      // await browser.loadPage(new URL(`/form?c`, next.url).toString())
-      // const time4 = await browser.waitForElementByCss('#t').text()
-      // expect(time4).toBe(time3);
-    })
-  }
+    // Reloading again should ideally be the same value but because the Action seeds
+    // the cache with real params as the argument it has a different cache key.
+    // await browser.loadPage(new URL(`/form?c`, next.url).toString())
+    // const time4 = await browser.waitForElementByCss('#t').text()
+    // expect(time4).toBe(time3);
+  })
 
   it('should use revalidate config in fetch', async () => {
     const browser = await next.browser('/fetch-revalidate')
@@ -492,6 +636,28 @@ describe('use-cache', () => {
 
     expect(await browser.elementByCss('#random').text()).toBe(initialValue)
   })
+
+  if (isNextStart) {
+    // TODO: This is an SSG optimization to share fetch responses during SSG
+    // (see #68546). Decide whether we want to keep this feature in the context
+    // of "use cache". Alternatively, instead of de-opting entirely, we might
+    // want a similar optimization using a build-specific default "use cache"
+    // cache handler that utilizes the file system, instead of piggybacking on
+    // the incremental cache handler for inner fetches.
+    it('should store a fetch response without no-store in the incremental cache handler during build', async () => {
+      expect(next.cliOutput).toContain(
+        'cache-handler set fetch cache https://next-data-api-endpoint.vercel.app/api/random'
+      )
+    })
+
+    // The no-store fetch cache option opts the response out of the SSG
+    // optimization to share fetch responses within an export worker.
+    it('should not store a fetch response with no-store in the incremental cache handler during build', async () => {
+      expect(next.cliOutput).not.toContain(
+        'cache-handler set fetch cache https://next-data-api-endpoint.vercel.app/api/random?no-store'
+      )
+    })
+  }
 
   it('should override fetch with cookies/auth in use cache properly', async () => {
     const browser = await next.browser('/cache-fetch-auth-header')
@@ -587,6 +753,130 @@ describe('use-cache', () => {
     expect(text).toBe('This page could not be found.')
   })
 
+  describe('should not read nor write cached data when draft mode is enabled', () => {
+    if (isNextDeploy) {
+      // Wait for the background revalidation after the deployment to settle.
+      beforeAll(async () => {
+        const browser = await next.browser('/draft-mode')
+        try {
+          const initialTopLevelValue = await browser
+            .elementById('top-level')
+            .text()
+          await retry(async () => {
+            await browser.refresh()
+
+            expect(await browser.elementById('top-level').text()).not.toBe(
+              initialTopLevelValue
+            )
+          })
+        } finally {
+          // we're not in a test, so the browser won't get cleaned up automatically.
+          await browser.close()
+        }
+      })
+    }
+
+    it.each([
+      { description: 'js enabled', disableJavaScript: false },
+      { description: 'js disabled', disableJavaScript: true },
+    ])('$description', async ({ disableJavaScript }) => {
+      const browser = await next.browser('/draft-mode', {
+        // This test relies on a server action to set draft mode.
+        // To ensure that it works for both fetch actions and MPA actions,
+        // we test it with javascript disabled too.
+        // (this is because of a bug where draft mode status was not correctly propagated to the workStore for MPA actions)
+        disableJavaScript,
+      })
+
+      const refreshAfterServerAction = async () => {
+        if (disableJavaScript) {
+          // browser.refresh() seems to automatically resubmit POST requests,
+          // so if we submitted an MPA action, it'll trigger the action again,
+          // which in this case will toggle draftMode again.
+          await browser.get(new URL('/draft-mode', next.url).href)
+        } else {
+          await browser.refresh()
+        }
+      }
+
+      expect(await browser.elementByCss('button#toggle').text()).toBe(
+        'Enable Draft Mode'
+      )
+
+      const initialTopLevelValue = await browser.elementById('top-level').text()
+
+      // Draft mode is disabled, cached data should be returned on refresh.
+
+      const initialClosureValue = await browser.elementById('closure').text()
+
+      await browser.refresh()
+
+      expect(await browser.elementById('top-level').text()).toBe(
+        initialTopLevelValue
+      )
+      expect(await browser.elementById('closure').text()).toBe(
+        initialClosureValue
+      )
+
+      await browser.elementByCss('button#toggle').click()
+      await browser.waitForElementByCss('button#toggle:enabled')
+
+      expect(await browser.elementByCss('button#toggle').text()).toBe(
+        'Disable Draft Mode'
+      )
+
+      // Draft mode is now enabled, no cached data should be returned on refresh.
+
+      const newTopLevelValue = await browser.elementById('top-level').text()
+      const newClosureValue = await browser.elementById('closure').text()
+      console.log(await browser.elementById('top-level').text())
+
+      expect(newTopLevelValue).not.toBe(initialTopLevelValue)
+      expect(newClosureValue).not.toBe(initialClosureValue)
+
+      await refreshAfterServerAction()
+
+      expect(await browser.elementById('top-level').text()).not.toBe(
+        newTopLevelValue
+      )
+      console.log(await browser.elementById('top-level').text())
+
+      expect(await browser.elementById('closure').text()).not.toBe(
+        newClosureValue
+      )
+
+      // Accessing request-scoped data should still not be allowed.
+      expect(
+        await browser
+          .elementById('is-accessing-request-scoped-data-allowed-in-use-cache')
+          .text()
+      ).toBe('false')
+
+      await browser.elementByCss('button#toggle').click()
+      await browser.waitForElementByCss('button#toggle:enabled')
+
+      expect(await browser.elementByCss('button#toggle').text()).toBe(
+        'Enable Draft Mode'
+      )
+
+      // Draft mode is disabled again, the initially cached data should be
+      // returned again.
+
+      console.log(await browser.elementById('top-level').text())
+
+      await refreshAfterServerAction()
+
+      console.log(await browser.elementById('top-level').text())
+
+      expect(await browser.elementById('top-level').text()).toBe(
+        initialTopLevelValue
+      )
+      expect(await browser.elementById('closure').text()).toBe(
+        initialClosureValue
+      )
+    })
+  })
+
   if (isNextDev) {
     it('should not have unhandled rejection of Request data promises when use cache is enabled without dynamicIO', async () => {
       await next.render('/unhandled-promise-regression')
@@ -671,9 +961,28 @@ describe('use-cache', () => {
       ])
     })
   }
+
+  describe('usage in node_modules', () => {
+    it('should cache results when using a directive without a handler', async () => {
+      const browser = await next.browser(
+        '/directive-in-node-modules/without-handler'
+      )
+      const randomOne = await browser.elementByCss('#one').text()
+      const randomTwo = await browser.elementByCss('#two').text()
+      expect(randomOne).toBe(randomTwo)
+    })
+    it('should cache results when using a directive with a handler', async () => {
+      const browser = await next.browser(
+        '/directive-in-node-modules/with-handler'
+      )
+      const randomOne = await browser.elementByCss('#one').text()
+      const randomTwo = await browser.elementByCss('#two').text()
+      expect(randomOne).toBe(randomTwo)
+    })
+  })
 })
 
-async function getSanitizedLogs(browser: BrowserInterface): Promise<string[]> {
+async function getSanitizedLogs(browser: Playwright): Promise<string[]> {
   const logs = await browser.log({ includeArgs: true })
 
   return logs.map(({ args }) =>

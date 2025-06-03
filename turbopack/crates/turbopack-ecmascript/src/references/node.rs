@@ -9,8 +9,8 @@ use turbopack_core::{
     raw_module::RawModule,
     reference::ModuleReference,
     resolve::{
-        pattern::{read_matches, Pattern, PatternMatch},
         ModuleResolveResult, RequestKey,
+        pattern::{Pattern, PatternMatch, read_matches},
     },
     source::Source,
 };

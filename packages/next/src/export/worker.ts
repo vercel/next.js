@@ -19,7 +19,6 @@ import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { trace } from '../trace'
 import { setHttpClientAndAgentOptions } from '../server/setup-http-agent-env'
-import isError from '../lib/is-error'
 import { addRequestMeta } from '../server/request-meta'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
@@ -27,7 +26,7 @@ import { createRequestResponseMocks } from '../server/lib/mock-request'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { hasNextSupport } from '../server/ci-info'
 import { exportAppRoute } from './routes/app-route'
-import { exportAppPage, prospectiveRenderAppPage } from './routes/app-page'
+import { exportAppPage } from './routes/app-page'
 import { exportPagesPage } from './routes/pages'
 import { getParams } from './helpers/get-params'
 import { createIncrementalCache } from './helpers/create-incremental-cache'
@@ -105,9 +104,9 @@ async function exportPageImpl(
     // the renderOpts.
     _isRoutePPREnabled: isRoutePPREnabled,
 
-    // If this is a prospective render, we don't actually want to persist the
-    // result, we just want to use it to error the build if there's a problem.
-    _isProspectiveRender: isProspectiveRender = false,
+    // Configure the rendering of the page to allow that an empty static shell
+    // is generated while rendering using PPR and Dynamic IO.
+    _allowEmptyStaticShell: allowEmptyStaticShell = false,
 
     // Pull the original query out.
     query: originalQuery = {},
@@ -253,11 +252,6 @@ async function exportPageImpl(
     )
   }
 
-  // During the export phase in next build, if it's using PPR we can serve streaming metadata
-  // when it's available. When we're building the PPR rendering result, we don't need to rely
-  // on the user agent. The result can be determined to serve streaming on infrastructure level.
-  const serveStreamingMetadata = !!isRoutePPREnabled
-
   const renderOpts: WorkerRenderOpts = {
     ...components,
     ...input.renderOpts,
@@ -267,7 +261,12 @@ async function exportPageImpl(
     disableOptimizedLoading,
     locale,
     supportsDynamicResponse: false,
-    serveStreamingMetadata,
+    // During the export phase in next build, we always enable the streaming metadata since if there's
+    // any dynamic access in metadata we can determine it in the build phase.
+    // If it's static, then it won't affect anything.
+    // If it's dynamic, then it can be handled when request hits the route.
+    serveStreamingMetadata: true,
+    allowEmptyStaticShell,
     experimental: {
       ...input.renderOpts.experimental,
       isRoutePPREnabled,
@@ -282,21 +281,6 @@ async function exportPageImpl(
   if (isAppDir) {
     const sharedContext: AppSharedContext = {
       buildId: input.buildId,
-    }
-
-    // If this is a prospective render, don't return any metrics or revalidate
-    // timings as we aren't persisting this render (it was only to error).
-    if (isProspectiveRender) {
-      return prospectiveRenderAppPage(
-        req,
-        res,
-        page,
-        pathname,
-        query,
-        fallbackRouteParams,
-        renderOpts,
-        sharedContext
-      )
     }
 
     return exportAppPage(
@@ -371,6 +355,15 @@ export async function exportPages(
     options,
   } = input
 
+  if (nextConfig.experimental.enablePrerenderSourceMaps) {
+    try {
+      // Same as `next dev`
+      // Limiting the stack trace to a useful amount of frames is handled by ignore-listing.
+      // TODO: How high can we go without severely impacting CPU/memory?
+      Error.stackTraceLimit = 50
+    } catch {}
+  }
+
   // If the fetch cache was enabled, we need to create an incremental
   // cache instance for this page.
   const incrementalCache = await createIncrementalCache({
@@ -398,6 +391,10 @@ export async function exportPages(
     let attempt = 0
     let result
 
+    const hasDebuggerAttached =
+      // Also tests for `inspect-brk`
+      process.env.NODE_OPTIONS?.includes('--inspect')
+
     while (attempt < maxAttempts) {
       try {
         result = await Promise.race<ExportPageResult | undefined>([
@@ -424,12 +421,15 @@ export async function exportPages(
             sriEnabled: Boolean(nextConfig.experimental.sri?.algorithm),
             buildId: input.buildId,
           }),
-          // If exporting the page takes longer than the timeout, reject the promise.
-          new Promise((_, reject) => {
-            setTimeout(() => {
-              reject(new TimeoutError())
-            }, nextConfig.staticPageGenerationTimeout * 1000)
-          }),
+          hasDebuggerAttached
+            ? // With a debugger attached, exporting can take infinitely if we paused script execution.
+              new Promise(() => {})
+            : // If exporting the page takes longer than the timeout, reject the promise.
+              new Promise((_, reject) => {
+                setTimeout(() => {
+                  reject(new TimeoutError())
+                }, nextConfig.staticPageGenerationTimeout * 1000)
+              }),
         ])
 
         // If there was an error in the export, throw it immediately. In the catch block, we might retry the export,
@@ -567,12 +567,11 @@ async function exportPage(
       // A static generation bailout error is a framework signal to fail static generation but
       // and will encode a reason in the error message. If there is a message, we'll print it.
       // Otherwise there's nothing to show as we don't want to leak an error internal error stack to the user.
+      // TODO: Always log the full error. ignore-listing will take care of hiding internal stacks.
       if (isStaticGenBailoutError(err)) {
         if (err.message) {
           console.error(`Error: ${err.message}`)
         }
-      } else if (isError(err) && err.stack) {
-        console.error(err.stack)
       } else {
         console.error(err)
       }
@@ -591,7 +590,7 @@ async function exportPage(
     cacheControl: result.cacheControl,
     metadata: result.metadata,
     ssgNotFound: result.ssgNotFound,
-    hasEmptyPrelude: result.hasEmptyPrelude,
+    hasEmptyStaticShell: result.hasEmptyStaticShell,
     hasPostponed: result.hasPostponed,
     turborepoAccessTraceResult: turborepoAccessTraceResult.serialize(),
     fetchMetrics: result.fetchMetrics,

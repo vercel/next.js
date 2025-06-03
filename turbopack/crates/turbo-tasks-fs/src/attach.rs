@@ -1,6 +1,6 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{Completion, ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 
 use crate::{FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent, RawDirectoryContent};
 
@@ -134,11 +134,6 @@ impl FileSystem for AttachedFileSystem {
     }
 
     #[turbo_tasks::function(fs)]
-    fn track(self: Vc<Self>, path: Vc<FileSystemPath>) -> Vc<Completion> {
-        self.get_inner_fs_path(path).track()
-    }
-
-    #[turbo_tasks::function(fs)]
     fn write(self: Vc<Self>, path: Vc<FileSystemPath>, content: Vc<FileContent>) -> Vc<()> {
         self.get_inner_fs_path(path).write(content)
     }
@@ -161,7 +156,7 @@ impl ValueToString for AttachedFileSystem {
         let root_fs_str = self.root_fs.to_string().await?;
         let child_fs_str = self.child_fs.to_string().await?;
         Ok(Vc::cell(
-            format!("{}-with-{}", root_fs_str, child_fs_str).into(),
+            format!("{root_fs_str}-with-{child_fs_str}").into(),
         ))
     }
 }

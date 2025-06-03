@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use turbo_tasks::{ResolvedVc, Value, Vc};
-use turbopack::{css::chunk::CssChunkPlaceable, transition::Transition, ModuleAssetContext};
+use turbopack::{ModuleAssetContext, css::chunk::CssChunkPlaceable, transition::Transition};
 use turbopack_core::{context::ProcessResult, reference_type::ReferenceType, source::Source};
 
 use crate::next_client_reference::css_client_reference::css_client_reference_module::CssClientReferenceModule;

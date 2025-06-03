@@ -8,12 +8,14 @@ description: Create a new Next.js application with the `create-next-app` CLI, an
 
 ## System requirements
 
+Before you begin, make sure your system meets the following requirements:
+
 - [Node.js 18.18](https://nodejs.org/) or later.
-- macOS, Windows (including WSL), and Linux are supported.
+- macOS, Windows (including WSL), or Linux.
 
 ## Automatic installation
 
-We recommend starting a new Next.js app using [`create-next-app`](/docs/app/api-reference/cli/create-next-app), which sets up everything automatically for you. To create a project, run:
+The quickest way to create a new Next.js app is using [`create-next-app`](/docs/app/api-reference/cli/create-next-app), which sets up everything automatically for you. To create a project, run:
 
 ```bash filename="Terminal"
 npx create-next-app@latest
@@ -43,7 +45,7 @@ To manually create a new Next.js app, install the required packages:
 npm install next@latest react@latest react-dom@latest
 ```
 
-Open your `package.json` file and add the following `scripts`:
+Then, add the following scripts to your `package.json` file:
 
 ```json filename="package.json"
 {
@@ -58,10 +60,10 @@ Open your `package.json` file and add the following `scripts`:
 
 These scripts refer to the different stages of developing an application:
 
-- `dev`: runs [`next dev`](/docs/app/api-reference/cli/next#next-dev-options) to start Next.js in development mode.
-- `build`: runs [`next build`](/docs/app/api-reference/cli/next#next-build-options) to build the application for production usage.
-- `start`: runs [`next start`](/docs/app/api-reference/cli/next#next-start-options) to start a Next.js production server.
-- `lint`: runs [`next lint`](/docs/app/api-reference/cli/next#next-lint-options) to set up Next.js' built-in ESLint configuration.
+- `next dev`: Starts the development server.
+- `next build`: Builds the application for production.
+- `next start`: Starts the production server.
+- `next lint`: Runs ESLint.
 
 <AppOnly>
 
@@ -69,17 +71,7 @@ These scripts refer to the different stages of developing an application:
 
 Next.js uses file-system routing, which means the routes in your application are determined by how you structure your files.
 
-Create an `app` folder, then add a `layout.tsx` and `page.tsx` file. These will be rendered when the user visits the root of your application (`/`).
-
-<Image
-  alt="App Folder Structure"
-  srcLight="/docs/light/app-getting-started.png"
-  srcDark="/docs/dark/app-getting-started.png"
-  width="1600"
-  height="363"
-/>
-
-Create a [root layout](/docs/app/building-your-application/routing/layouts-and-templates#root-layout-required) inside `app/layout.tsx` with the required `<html>` and `<body>` tags:
+Create an `app` folder. Then, inside `app`, create a `layout.tsx` file. This file is the [root layout](/docs/app/api-reference/file-conventions/layout#root-layout). It's required and must contain the `<html>` and `<body>` tags.
 
 ```tsx filename="app/layout.tsx" switcher
 export default function RootLayout({
@@ -105,7 +97,7 @@ export default function RootLayout({ children }) {
 }
 ```
 
-Finally, create a home page `app/page.tsx` with some initial content:
+Create a home page `app/page.tsx` with some initial content:
 
 ```tsx filename="app/page.tsx" switcher
 export default function Page() {
@@ -119,10 +111,20 @@ export default function Page() {
 }
 ```
 
+Both `layout.tsx` and `page.tsx` will be rendered when the user visits the root of your application (`/`).
+
+<Image
+  alt="App Folder Structure"
+  srcLight="/docs/light/app-getting-started.png"
+  srcDark="/docs/dark/app-getting-started.png"
+  width="1600"
+  height="363"
+/>
+
 > **Good to know**:
 >
-> - If you forget to create `layout.tsx`, Next.js will automatically create this file when running the development server with `next dev`.
-> - You can optionally use a [`src` directory](/docs/app/building-your-application/configuring/src-directory) in the root of your project to separate your application's code from configuration files.
+> - If you forget to create the root layout, Next.js will automatically create this file when running the development server with `next dev`.
+> - You can optionally use a [`src` folder](/docs/app/api-reference/file-conventions/src-folder) in the root of your project to separate your application's code from configuration files.
 
 </AppOnly>
 
@@ -200,19 +202,37 @@ export default function Document() {
 
 ### Create the `public` folder (optional)
 
-You can optionally create a [`public` folder](/docs/app/building-your-application/optimizing/static-assets) at the root of your project to store static assets such as images, fonts, etc. Files inside `public` can then be referenced by your code starting from the base URL (`/`).
+Create a [`public` folder](/docs/app/api-reference/file-conventions/public-folder) at the root of your project to store static assets such as images, fonts, etc. Files inside `public` can then be referenced by your code starting from the base URL (`/`).
+
+You can then reference these assets using the root path (`/`). For example, `public/profile.png` can be referenced as `/profile.png`:
+
+```tsx filename="app/page.tsx" highlight={4} switcher
+import Image from 'next/image'
+
+export default function Page() {
+  return <Image src="/profile.png" alt="Profile" width={100} height={100} />
+}
+```
+
+```jsx filename="app/page.js" highlight={4} switcher
+import Image from 'next/image'
+
+export default function Page() {
+  return <Image src="/profile.png" alt="Profile" width={100} height={100} />
+}
+```
 
 ## Run the development server
 
 1. Run `npm run dev` to start the development server.
 2. Visit `http://localhost:3000` to view your application.
-3. Edit the<AppOnly>`app/page.tsx`</AppOnly> <PagesOnly>`pages/index.tsx`</PagesOnly> file and save it to see the updated result in your browser.
+3. Edit the <AppOnly>`app/page.tsx`</AppOnly><PagesOnly>`pages/index.tsx`</PagesOnly> file and save it to see the updated result in your browser.
 
 ## Set up TypeScript
 
 > Minimum TypeScript version: `v4.5.2`
 
-Next.js comes with built-in TypeScript support. To add TypeScript to your project, rename a file to `.ts` / `.tsx`. Run `next dev`, Next.js will automatically install the necessary dependencies and add a `tsconfig.json` file with the recommended config options.
+Next.js comes with built-in TypeScript support. To add TypeScript to your project, rename a file to `.ts` / `.tsx` and run `next dev`. Next.js will automatically install the necessary dependencies and add a `tsconfig.json` file with the recommended config options.
 
 <AppOnly>
 
@@ -234,17 +254,15 @@ You can enable the plugin in VS Code by:
   height="637"
 />
 
-Now, when editing files, the custom plugin will be enabled. When running `next build`, the custom type checker will be used.
-
 </AppOnly>
 
-See the [TypeScript configuration](/docs/app/api-reference/config/next-config-js/typescript) page for more information on how to use TypeScript in your project.
+See the [TypeScript reference](/docs/app/api-reference/config/next-config-js/typescript) page for more information.
 
 ## Set up ESLint
 
-Next.js comes with built-in ESLint, automatically installing the necessary packages and configuring the proper settings when you create a new project with `create-next-app`.
+Next.js comes with built-in ESLint. It automatically installs the necessary packages and configures the proper settings when you create a new project with `create-next-app`.
 
-To add ESLint to an existing project, add `next lint` as a script to `package.json`:
+To manually add ESLint to an existing project, add `next lint` as a script to `package.json`:
 
 ```json filename="package.json"
 {
@@ -270,17 +288,19 @@ You'll see a prompt like this:
 
 - **Strict**: Includes Next.js' base ESLint configuration along with a stricter Core Web Vitals rule-set. This is the recommended configuration for developers setting up ESLint for the first time.
 - **Base**: Includes Next.js' base ESLint configuration.
-- **Cancel**: Does not include any ESLint configuration. Only select this option if you plan on setting up your own custom ESLint configuration.
+- **Cancel**: Skip configuration. Select this option if you plan on setting up your own custom ESLint configuration.
 
-If either of the two configuration options are selected, Next.js will automatically install `eslint` and `eslint-config-next` as dependencies in your application and create an `.eslintrc.json` file in the root of your project that includes your selected configuration.
+If `Strict` or `Base` are selected, Next.js will automatically install `eslint` and `eslint-config-next` as dependencies in your application and create an `.eslintrc.json` file in the root of your project that includes your selected configuration.
 
 You can now run `next lint` every time you want to run ESLint to catch errors. Once ESLint has been set up, it will also automatically run during every build (`next build`). Errors will fail the build, while warnings will not.
 
-See the [ESLint Plugin](/docs/app/api-reference/config/next-config-js/eslint) page for more information on how to configure ESLint in your project.
+See the [ESLint Plugin](/docs/app/api-reference/config/next-config-js/eslint) page for more information.
 
 ## Set up Absolute Imports and Module Path Aliases
 
-Next.js has in-built support for the `"paths"` and `"baseUrl"` options of `tsconfig.json` and `jsconfig.json` files. These options allow you to alias project directories to absolute paths, making it easier to import modules. For example:
+Next.js has in-built support for the `"paths"` and `"baseUrl"` options of `tsconfig.json` and `jsconfig.json` files.
+
+These options allow you to alias project directories to absolute paths, making it easier and cleaner to import modules. For example:
 
 ```jsx
 // Before
@@ -316,32 +336,4 @@ For example, the following configuration maps `@/components/*` to `components/*`
 }
 ```
 
-Each of the `"paths"` are relative to the `baseUrl` location. For example:
-
-```tsx filename="src/app/page.tsx" switcher
-import Button from '@/components/button'
-import '@/styles/styles.css'
-
-export default function HomePage() {
-  return (
-    <div>
-      <h1>Hello World</h1>
-      <Button />
-    </div>
-  )
-}
-```
-
-```jsx filename="src/app/page.js" switcher
-import Button from '@/components/button'
-import '@/styles/styles.css'
-
-export default function HomePage() {
-  return (
-    <div>
-      <h1>Hello World</h1>
-      <Button />
-    </div>
-  )
-}
-```
+Each of the `"paths"` are relative to the `baseUrl` location.

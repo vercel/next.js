@@ -1,12 +1,12 @@
 use std::{fmt::Write, sync::Arc};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use indoc::formatdoc;
 use lightningcss::css_modules::CssModuleReference;
 use swc_core::common::{BytePos, FileName, LineCol, SourceMap};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, Value, ValueToString, Vc};
-use turbo_tasks_fs::{rope::Rope, FileSystemPath};
+use turbo_tasks_fs::{FileSystemPath, rope::Rope};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt},
@@ -35,11 +35,6 @@ use crate::{
     references::{compose::CssModuleComposeReference, internal::InternalCssAssetReference},
 };
 
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("css module".into())
-}
-
 #[turbo_tasks::value]
 #[derive(Clone)]
 pub struct ModuleCssAsset {
@@ -64,11 +59,12 @@ impl ModuleCssAsset {
 #[turbo_tasks::value_impl]
 impl Module for ModuleCssAsset {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        self.source
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(self
+            .source
             .ident()
-            .with_modifier(modifier())
-            .with_layer(self.asset_context.layer())
+            .with_modifier(rcstr!("css module"))
+            .with_layer(self.asset_context.layer().owned().await?))
     }
 
     #[turbo_tasks::function]
@@ -432,7 +428,7 @@ fn generate_minimal_source_map(filename: String, source: String) -> Result<Rope>
     }
     let sm: Arc<SourceMap> = Default::default();
     sm.new_source_file(FileName::Custom(filename).into(), source);
-    let map = generate_js_source_map(sm, mappings, None)?;
+    let map = generate_js_source_map(sm, mappings, None, true)?;
     Ok(map)
 }
 

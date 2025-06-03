@@ -2,22 +2,22 @@
 #![feature(arbitrary_self_types_pointers)]
 #![allow(clippy::needless_return)] // clippy bug causes false positive
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{emit, CollectiblesSource, ResolvedVc, State, ValueToString, Vc};
-use turbo_tasks_testing::{register, run, Registration};
+use turbo_tasks::{CollectiblesSource, ResolvedVc, State, ValueToString, Vc, emit};
+use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 
 #[tokio::test]
 async fn recompute() {
     run(&REGISTRATION, || async {
-        let input = ChangingInput {
-            state: State::new(1),
-        }
-        .cell();
-        let output = compute(input, 100);
-        let read = output.await?;
+        let input = ChangingInput::new(1).resolve().await?;
+        let input2 = ChangingInput::new(2).resolve().await?;
+        input.await?.state.set(1);
+        input2.await?.state.set(1000);
+        let output = compute(input, input2, 1);
+        let read = output.strongly_consistent().await?;
         assert_eq!(read.value, 42);
         assert_eq!(read.collectible, "1");
 
@@ -26,6 +26,13 @@ async fn recompute() {
             let read = output.strongly_consistent().await?;
             assert_eq!(read.value, 42);
             assert_eq!(read.collectible, i.to_string());
+        }
+
+        for i in 0..100 {
+            input2.await?.state.set(i);
+            let read = output.strongly_consistent().await?;
+            assert_eq!(read.value, 42);
+            assert_eq!(read.collectible, "99");
         }
         anyhow::Ok(())
     })
@@ -36,6 +43,18 @@ async fn recompute() {
 #[turbo_tasks::value]
 struct ChangingInput {
     state: State<u32>,
+}
+
+#[turbo_tasks::value_impl]
+impl ChangingInput {
+    #[turbo_tasks::function]
+    fn new(key: u32) -> Vc<Self> {
+        let _ = key;
+        Self {
+            state: State::new(1),
+        }
+        .cell()
+    }
 }
 
 #[turbo_tasks::value]
@@ -58,32 +77,39 @@ impl ValueToString for Collectible {
 }
 
 #[turbo_tasks::function(operation)]
-fn inner_compute(input: ResolvedVc<ChangingInput>) -> Vc<u32> {
-    inner_compute2(*input, 1000)
+async fn inner_compute(
+    input: ResolvedVc<ChangingInput>,
+    input2: ResolvedVc<ChangingInput>,
+) -> Result<Vc<u32>> {
+    println!("inner_compute()");
+    Ok(inner_compute2(*input, *input2.await?.state.get()))
 }
 
 #[turbo_tasks::function]
 async fn inner_compute2(input: Vc<ChangingInput>, innerness: u32) -> Result<Vc<u32>> {
+    println!("inner_compute2({innerness})");
     if innerness > 0 {
         return Ok(inner_compute2(input, innerness - 1));
     }
-    let collectible: ResolvedVc<Box<dyn ValueToString>> = ResolvedVc::upcast(
-        Collectible {
-            value: *input.await?.state.get(),
-        }
-        .resolved_cell(),
-    );
+    let value = *input.await?.state.get();
+    let collectible: ResolvedVc<Box<dyn ValueToString>> =
+        ResolvedVc::upcast(Collectible { value }.resolved_cell());
     emit(collectible);
 
     Ok(Vc::cell(42))
 }
 
 #[turbo_tasks::function]
-async fn compute(input: ResolvedVc<ChangingInput>, innerness: u32) -> Result<Vc<Output>> {
+async fn compute(
+    input: ResolvedVc<ChangingInput>,
+    input2: ResolvedVc<ChangingInput>,
+    innerness: u32,
+) -> Result<Vc<Output>> {
+    println!("compute({innerness})");
     if innerness > 0 {
-        return Ok(compute(*input, innerness - 1));
+        return Ok(compute(*input, *input2, innerness - 1));
     }
-    let operation = inner_compute(input);
+    let operation = inner_compute(input, input2);
     let value = *operation.connect().await?;
     let collectibles = operation.peek_collectibles::<Box<dyn ValueToString>>();
     if collectibles.len() != 1 {

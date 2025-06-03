@@ -21,7 +21,7 @@ import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import {
   interpolateDynamicPath,
-  normalizeVercelUrl,
+  normalizeCdnUrl,
   normalizeDynamicRouteParams,
 } from './server-utils'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
@@ -186,7 +186,7 @@ export default class NextWebServer extends BaseServer<
           normalizedParams,
           routeRegex
         )
-        normalizeVercelUrl(req, Object.keys(routeRegex.routeKeys), routeRegex)
+        normalizeCdnUrl(req, Object.keys(routeRegex.routeKeys), routeRegex)
       }
     }
 

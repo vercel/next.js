@@ -14,7 +14,7 @@ function getClassNameRegex(className: string): RegExp {
 }
 
 function hrefMatchesFontWithSizeAdjust(href: string) {
-  if (process.env.TURBOPACK) {
+  if (process.env.IS_TURBOPACK_TEST) {
     expect(href).toMatch(
       // Turbopack includes the file hash
       /\/_next\/static\/media\/(.*)-s\.p\.(.*)\.woff2/
@@ -25,7 +25,7 @@ function hrefMatchesFontWithSizeAdjust(href: string) {
 }
 
 function hrefMatchesFontWithoutSizeAdjust(href: string) {
-  if (process.env.TURBOPACK) {
+  if (process.env.IS_TURBOPACK_TEST) {
     expect(href).toMatch(
       // Turbopack includes the file hash
       /\/_next\/static\/media\/(.*)\.p\.(.*)\.woff2/
@@ -410,6 +410,10 @@ describe('next/font', () => {
         .sort()
 
       for (const href of hrefs) {
+        // Check that font file path is not too long for Windows systems.
+        // Windows allows up to 256 characters but we check for 100 here
+        // because if it's over 100 it's already way too much.
+        expect(href.length).toBeLessThan(100)
         hrefMatchesFontWithSizeAdjust(href)
       }
 

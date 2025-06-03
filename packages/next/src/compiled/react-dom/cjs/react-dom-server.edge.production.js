@@ -1,3 +1,12 @@
+// This is a patch added by Next.js
+const setTimeoutOrImmediate =
+  typeof globalThis["set" + "Immediate"] === "function" &&
+  // edge runtime sandbox defines a stub for setImmediate
+  // (see 'addStub' in packages/next/src/server/web/sandbox/context.ts)
+  // but it's made non-enumerable, so we can detect it
+  globalThis.propertyIsEnumerable("setImmediate")
+    ? globalThis["set" + "Immediate"]
+    : (callback, ...args) => setTimeout(callback, 0, ...args);
 /**
  * @license React
  * react-dom-server.edge.production.js
@@ -49,7 +58,7 @@ var React = require("next/dist/compiled/react"),
   REACT_MEMO_TYPE = Symbol.for("react.memo"),
   REACT_LAZY_TYPE = Symbol.for("react.lazy"),
   REACT_SCOPE_TYPE = Symbol.for("react.scope"),
-  REACT_OFFSCREEN_TYPE = Symbol.for("react.offscreen"),
+  REACT_ACTIVITY_TYPE = Symbol.for("react.activity"),
   REACT_LEGACY_HIDDEN_TYPE = Symbol.for("react.legacy_hidden"),
   REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"),
   REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
@@ -581,12 +590,7 @@ function createResumableState(
   };
 }
 function createPreambleState() {
-  return {
-    htmlChunks: null,
-    headChunks: null,
-    bodyChunks: null,
-    contribution: 0
-  };
+  return { htmlChunks: null, headChunks: null, bodyChunks: null };
 }
 function createFormatContext(insertionMode, selectedValue, tagScope) {
   return {
@@ -1141,6 +1145,10 @@ function pushTitleImpl(target, props) {
   target.push(endChunkForTag("title"));
   return null;
 }
+var headPreambleContributionChunk =
+    stringToPrecomputedChunk("\x3c!--head--\x3e"),
+  bodyPreambleContributionChunk = stringToPrecomputedChunk("\x3c!--body--\x3e"),
+  htmlPreambleContributionChunk = stringToPrecomputedChunk("\x3c!--html--\x3e");
 function pushScriptImpl(target, props) {
   target.push(startChunkForTag("script"));
   var children = null,
@@ -2159,6 +2167,8 @@ function pushStartInstance(
         var preamble = preambleState || renderState.preamble;
         if (preamble.headChunks)
           throw Error("The `<head>` tag may only be rendered once.");
+        null !== preambleState &&
+          target$jscomp$0.push(headPreambleContributionChunk);
         preamble.headChunks = [];
         var JSCompiler_inline_result$jscomp$9 = pushStartSingletonElement(
           preamble.headChunks,
@@ -2177,6 +2187,8 @@ function pushStartInstance(
         var preamble$jscomp$0 = preambleState || renderState.preamble;
         if (preamble$jscomp$0.bodyChunks)
           throw Error("The `<body>` tag may only be rendered once.");
+        null !== preambleState &&
+          target$jscomp$0.push(bodyPreambleContributionChunk);
         preamble$jscomp$0.bodyChunks = [];
         var JSCompiler_inline_result$jscomp$10 = pushStartSingletonElement(
           preamble$jscomp$0.bodyChunks,
@@ -2195,6 +2207,8 @@ function pushStartInstance(
         var preamble$jscomp$1 = preambleState || renderState.preamble;
         if (preamble$jscomp$1.htmlChunks)
           throw Error("The `<html>` tag may only be rendered once.");
+        null !== preambleState &&
+          target$jscomp$0.push(htmlPreambleContributionChunk);
         preamble$jscomp$1.htmlChunks = [doctypeChunk];
         var JSCompiler_inline_result$jscomp$11 = pushStartSingletonElement(
           preamble$jscomp$1.htmlChunks,
@@ -2274,16 +2288,13 @@ function hoistPreambleState(renderState, preambleState) {
   renderState = renderState.preamble;
   null === renderState.htmlChunks &&
     preambleState.htmlChunks &&
-    ((renderState.htmlChunks = preambleState.htmlChunks),
-    (preambleState.contribution |= 1));
+    (renderState.htmlChunks = preambleState.htmlChunks);
   null === renderState.headChunks &&
     preambleState.headChunks &&
-    ((renderState.headChunks = preambleState.headChunks),
-    (preambleState.contribution |= 4));
+    (renderState.headChunks = preambleState.headChunks);
   null === renderState.bodyChunks &&
     preambleState.bodyChunks &&
-    ((renderState.bodyChunks = preambleState.bodyChunks),
-    (preambleState.contribution |= 2));
+    (renderState.bodyChunks = preambleState.bodyChunks);
 }
 function writeBootstrap(destination, renderState) {
   renderState = renderState.bootstrapChunks;
@@ -2297,6 +2308,8 @@ function writeBootstrap(destination, renderState) {
 }
 var placeholder1 = stringToPrecomputedChunk('<template id="'),
   placeholder2 = stringToPrecomputedChunk('"></template>'),
+  startActivityBoundary = stringToPrecomputedChunk("\x3c!--&--\x3e"),
+  endActivityBoundary = stringToPrecomputedChunk("\x3c!--/&--\x3e"),
   startCompletedSuspenseBoundary = stringToPrecomputedChunk("\x3c!--$--\x3e"),
   startPendingSuspenseBoundary1 = stringToPrecomputedChunk(
     '\x3c!--$?--\x3e<template id="'
@@ -2324,16 +2337,6 @@ function writeStartPendingSuspenseBoundary(destination, renderState, id) {
   writeChunk(destination, renderState.boundaryPrefix);
   writeChunk(destination, stringToChunk(id.toString(16)));
   return writeChunkAndReturn(destination, startPendingSuspenseBoundary2);
-}
-var boundaryPreambleContributionChunkStart =
-    stringToPrecomputedChunk("\x3c!--"),
-  boundaryPreambleContributionChunkEnd = stringToPrecomputedChunk("--\x3e");
-function writePreambleContribution(destination, preambleState) {
-  preambleState = preambleState.contribution;
-  0 !== preambleState &&
-    (writeChunk(destination, boundaryPreambleContributionChunkStart),
-    writeChunk(destination, stringToChunk("" + preambleState)),
-    writeChunk(destination, boundaryPreambleContributionChunkEnd));
 }
 var startSegmentHTML = stringToPrecomputedChunk('<div hidden id="'),
   startSegmentHTML2 = stringToPrecomputedChunk('">'),
@@ -2452,11 +2455,11 @@ var completeSegmentScript1Full = stringToPrecomputedChunk(
 stringToPrecomputedChunk('<template data-rsi="" data-sid="');
 stringToPrecomputedChunk('" data-pid="');
 var completeBoundaryScript1Full = stringToPrecomputedChunk(
-    '$RC=function(b,c,e){c=document.getElementById(c);c.parentNode.removeChild(c);var a=document.getElementById(b);if(a){b=a.previousSibling;if(e)b.data="$!",a.setAttribute("data-dgst",e);else{e=b.parentNode;a=b.nextSibling;var f=0;do{if(a&&8===a.nodeType){var d=a.data;if("/$"===d)if(0===f)break;else f--;else"$"!==d&&"$?"!==d&&"$!"!==d||f++}d=a.nextSibling;e.removeChild(a);a=d}while(a);for(;c.firstChild;)e.insertBefore(c.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}};$RC("'
+    '$RC=function(b,d,e){d=document.getElementById(d);d.parentNode.removeChild(d);var a=document.getElementById(b);if(a){b=a.previousSibling;if(e)b.data="$!",a.setAttribute("data-dgst",e);else{e=b.parentNode;a=b.nextSibling;var f=0;do{if(a&&8===a.nodeType){var c=a.data;if("/$"===c||"/&"===c)if(0===f)break;else f--;else"$"!==c&&"$?"!==c&&"$!"!==c&&"&"!==c||f++}c=a.nextSibling;e.removeChild(a);a=c}while(a);for(;d.firstChild;)e.insertBefore(d.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}};$RC("'
   ),
   completeBoundaryScript1Partial = stringToPrecomputedChunk('$RC("'),
   completeBoundaryWithStylesScript1FullBoth = stringToPrecomputedChunk(
-    '$RC=function(b,c,e){c=document.getElementById(c);c.parentNode.removeChild(c);var a=document.getElementById(b);if(a){b=a.previousSibling;if(e)b.data="$!",a.setAttribute("data-dgst",e);else{e=b.parentNode;a=b.nextSibling;var f=0;do{if(a&&8===a.nodeType){var d=a.data;if("/$"===d)if(0===f)break;else f--;else"$"!==d&&"$?"!==d&&"$!"!==d||f++}d=a.nextSibling;e.removeChild(a);a=d}while(a);for(;c.firstChild;)e.insertBefore(c.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}};$RM=new Map;\n$RR=function(t,u,y){function v(n){this._p=null;n()}for(var w=$RC,p=$RM,q=new Map,r=document,g,b,h=r.querySelectorAll("link[data-precedence],style[data-precedence]"),x=[],k=0;b=h[k++];)"not all"===b.getAttribute("media")?x.push(b):("LINK"===b.tagName&&p.set(b.getAttribute("href"),b),q.set(b.dataset.precedence,g=b));b=0;h=[];var l,a;for(k=!0;;){if(k){var e=y[b++];if(!e){k=!1;b=0;continue}var c=!1,m=0;var d=e[m++];if(a=p.get(d)){var f=a._p;c=!0}else{a=r.createElement("link");a.href=\nd;a.rel="stylesheet";for(a.dataset.precedence=l=e[m++];f=e[m++];)a.setAttribute(f,e[m++]);f=a._p=new Promise(function(n,z){a.onload=v.bind(a,n);a.onerror=v.bind(a,z)});p.set(d,a)}d=a.getAttribute("media");!f||d&&!matchMedia(d).matches||h.push(f);if(c)continue}else{a=x[b++];if(!a)break;l=a.getAttribute("data-precedence");a.removeAttribute("media")}c=q.get(l)||g;c===g&&(g=a);q.set(l,a);c?c.parentNode.insertBefore(a,c.nextSibling):(c=r.head,c.insertBefore(a,c.firstChild))}Promise.all(h).then(w.bind(null,\nt,u,""),w.bind(null,t,u,"Resource failed to load"))};$RR("'
+    '$RC=function(b,d,e){d=document.getElementById(d);d.parentNode.removeChild(d);var a=document.getElementById(b);if(a){b=a.previousSibling;if(e)b.data="$!",a.setAttribute("data-dgst",e);else{e=b.parentNode;a=b.nextSibling;var f=0;do{if(a&&8===a.nodeType){var c=a.data;if("/$"===c||"/&"===c)if(0===f)break;else f--;else"$"!==c&&"$?"!==c&&"$!"!==c&&"&"!==c||f++}c=a.nextSibling;e.removeChild(a);a=c}while(a);for(;d.firstChild;)e.insertBefore(d.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}};$RM=new Map;\n$RR=function(t,u,y){function v(n){this._p=null;n()}for(var w=$RC,p=$RM,q=new Map,r=document,g,b,h=r.querySelectorAll("link[data-precedence],style[data-precedence]"),x=[],k=0;b=h[k++];)"not all"===b.getAttribute("media")?x.push(b):("LINK"===b.tagName&&p.set(b.getAttribute("href"),b),q.set(b.dataset.precedence,g=b));b=0;h=[];var l,a;for(k=!0;;){if(k){var e=y[b++];if(!e){k=!1;b=0;continue}var c=!1,m=0;var d=e[m++];if(a=p.get(d)){var f=a._p;c=!0}else{a=r.createElement("link");a.href=\nd;a.rel="stylesheet";for(a.dataset.precedence=l=e[m++];f=e[m++];)a.setAttribute(f,e[m++]);f=a._p=new Promise(function(n,z){a.onload=v.bind(a,n);a.onerror=v.bind(a,z)});p.set(d,a)}d=a.getAttribute("media");!f||d&&!matchMedia(d).matches||h.push(f);if(c)continue}else{a=x[b++];if(!a)break;l=a.getAttribute("data-precedence");a.removeAttribute("media")}c=q.get(l)||g;c===g&&(g=a);q.set(l,a);c?c.parentNode.insertBefore(a,c.nextSibling):(c=r.head,c.insertBefore(a,c.firstChild))}Promise.all(h).then(w.bind(null,\nt,u,""),w.bind(null,t,u,"Resource failed to load"))};$RR("'
   ),
   completeBoundaryWithStylesScript1FullPartial = stringToPrecomputedChunk(
     '$RM=new Map;\n$RR=function(t,u,y){function v(n){this._p=null;n()}for(var w=$RC,p=$RM,q=new Map,r=document,g,b,h=r.querySelectorAll("link[data-precedence],style[data-precedence]"),x=[],k=0;b=h[k++];)"not all"===b.getAttribute("media")?x.push(b):("LINK"===b.tagName&&p.set(b.getAttribute("href"),b),q.set(b.dataset.precedence,g=b));b=0;h=[];var l,a;for(k=!0;;){if(k){var e=y[b++];if(!e){k=!1;b=0;continue}var c=!1,m=0;var d=e[m++];if(a=p.get(d)){var f=a._p;c=!0}else{a=r.createElement("link");a.href=\nd;a.rel="stylesheet";for(a.dataset.precedence=l=e[m++];f=e[m++];)a.setAttribute(f,e[m++]);f=a._p=new Promise(function(n,z){a.onload=v.bind(a,n);a.onerror=v.bind(a,z)});p.set(d,a)}d=a.getAttribute("media");!f||d&&!matchMedia(d).matches||h.push(f);if(c)continue}else{a=x[b++];if(!a)break;l=a.getAttribute("data-precedence");a.removeAttribute("media")}c=q.get(l)||g;c===g&&(g=a);q.set(l,a);c?c.parentNode.insertBefore(a,c.nextSibling):(c=r.head,c.insertBefore(a,c.firstChild))}Promise.all(h).then(w.bind(null,\nt,u,""),w.bind(null,t,u,"Resource failed to load"))};$RR("'
@@ -3176,8 +3179,6 @@ function getComponentNameFromType(type) {
   switch (type) {
     case REACT_FRAGMENT_TYPE:
       return "Fragment";
-    case REACT_PORTAL_TYPE:
-      return "Portal";
     case REACT_PROFILER_TYPE:
       return "Profiler";
     case REACT_STRICT_MODE_TYPE:
@@ -3186,9 +3187,13 @@ function getComponentNameFromType(type) {
       return "Suspense";
     case REACT_SUSPENSE_LIST_TYPE:
       return "SuspenseList";
+    case REACT_ACTIVITY_TYPE:
+      return "Activity";
   }
   if ("object" === typeof type)
     switch (type.$$typeof) {
+      case REACT_PORTAL_TYPE:
+        return "Portal";
       case REACT_CONTEXT_TYPE:
         return (type.displayName || "Context") + ".Provider";
       case REACT_CONSUMER_TYPE:
@@ -4082,7 +4087,7 @@ function pingTask(request, task) {
         })
       : setTimeoutOrImmediate(function () {
           return performWork(request);
-        }, 0));
+        }));
 }
 function createSuspenseBoundary(
   request,
@@ -4541,12 +4546,23 @@ function renderElement(request, task, keyPath, type, props, ref) {
         renderNodeDestructive(request, task, props.children, -1);
         task.keyPath = type;
         return;
-      case REACT_OFFSCREEN_TYPE:
-        "hidden" !== props.mode &&
-          ((type = task.keyPath),
-          (task.keyPath = keyPath),
-          renderNodeDestructive(request, task, props.children, -1),
-          (task.keyPath = type));
+      case REACT_ACTIVITY_TYPE:
+        type = task.blockedSegment;
+        null === type
+          ? "hidden" !== props.mode &&
+            ((type = task.keyPath),
+            (task.keyPath = keyPath),
+            renderNode(request, task, props.children, -1),
+            (task.keyPath = type))
+          : "hidden" !== props.mode &&
+            (type.chunks.push(startActivityBoundary),
+            (type.lastPushedText = !1),
+            (newProps = task.keyPath),
+            (task.keyPath = keyPath),
+            renderNode(request, task, props.children, -1),
+            (task.keyPath = newProps),
+            type.chunks.push(endActivityBoundary),
+            (type.lastPushedText = !1));
         return;
       case REACT_SUSPENSE_LIST_TYPE:
         type = task.keyPath;
@@ -5276,15 +5292,15 @@ function renderNode(request, task, node, childIndex) {
       chunkLength = segment.chunks.length;
     try {
       return renderNodeDestructive(request, task, node, childIndex);
-    } catch (thrownValue$48) {
+    } catch (thrownValue$50) {
       if (
         (resetHooksState(),
         (segment.children.length = childrenLength),
         (segment.chunks.length = chunkLength),
         (node =
-          thrownValue$48 === SuspenseException
+          thrownValue$50 === SuspenseException
             ? getSuspendedThenable()
-            : thrownValue$48),
+            : thrownValue$50),
         "object" === typeof node && null !== node)
       ) {
         if ("function" === typeof node.then) {
@@ -5853,27 +5869,21 @@ function flushSegment(request, destination, segment, hoistableState) {
   if (null === boundary)
     return flushSubtree(request, destination, segment, hoistableState);
   boundary.parentFlushed = !0;
-  if (4 === boundary.status) {
-    var errorDigest = boundary.errorDigest;
-    writeChunkAndReturn(destination, startClientRenderedSuspenseBoundary);
-    writeChunk(destination, clientRenderedSuspenseBoundaryError1);
-    errorDigest &&
-      (writeChunk(destination, clientRenderedSuspenseBoundaryError1A),
-      writeChunk(destination, stringToChunk(escapeTextForBrowser(errorDigest))),
-      writeChunk(
-        destination,
-        clientRenderedSuspenseBoundaryErrorAttrInterstitial
-      ));
-    writeChunkAndReturn(destination, clientRenderedSuspenseBoundaryError2);
-    flushSubtree(request, destination, segment, hoistableState);
-    (request = boundary.fallbackPreamble) &&
-      writePreambleContribution(destination, request);
-    return writeChunkAndReturn(destination, endSuspenseBoundary);
-  }
-  if (1 !== boundary.status)
-    return (
-      0 === boundary.status &&
-        (boundary.rootSegmentID = request.nextSegmentId++),
+  if (4 === boundary.status)
+    (boundary = boundary.errorDigest),
+      writeChunkAndReturn(destination, startClientRenderedSuspenseBoundary),
+      writeChunk(destination, clientRenderedSuspenseBoundaryError1),
+      boundary &&
+        (writeChunk(destination, clientRenderedSuspenseBoundaryError1A),
+        writeChunk(destination, stringToChunk(escapeTextForBrowser(boundary))),
+        writeChunk(
+          destination,
+          clientRenderedSuspenseBoundaryErrorAttrInterstitial
+        )),
+      writeChunkAndReturn(destination, clientRenderedSuspenseBoundaryError2),
+      flushSubtree(request, destination, segment, hoistableState);
+  else if (1 !== boundary.status)
+    0 === boundary.status && (boundary.rootSegmentID = request.nextSegmentId++),
       0 < boundary.completedSegments.length &&
         request.partialBoundaries.push(boundary),
       writeStartPendingSuspenseBoundary(
@@ -5888,34 +5898,29 @@ function flushSegment(request, destination, segment, hoistableState) {
           hoistStylesheetDependency,
           hoistableState
         )),
-      flushSubtree(request, destination, segment, hoistableState),
-      writeChunkAndReturn(destination, endSuspenseBoundary)
-    );
-  if (boundary.byteSize > request.progressiveChunkSize)
-    return (
-      (boundary.rootSegmentID = request.nextSegmentId++),
+      flushSubtree(request, destination, segment, hoistableState);
+  else if (boundary.byteSize > request.progressiveChunkSize)
+    (boundary.rootSegmentID = request.nextSegmentId++),
       request.completedBoundaries.push(boundary),
       writeStartPendingSuspenseBoundary(
         destination,
         request.renderState,
         boundary.rootSegmentID
       ),
-      flushSubtree(request, destination, segment, hoistableState),
-      writeChunkAndReturn(destination, endSuspenseBoundary)
-    );
-  hoistableState &&
-    ((segment = boundary.contentState),
-    segment.styles.forEach(hoistStyleQueueDependency, hoistableState),
-    segment.stylesheets.forEach(hoistStylesheetDependency, hoistableState));
-  writeChunkAndReturn(destination, startCompletedSuspenseBoundary);
-  segment = boundary.completedSegments;
-  if (1 !== segment.length)
-    throw Error(
-      "A previously unvisited boundary must have exactly one root segment. This is a bug in React."
-    );
-  flushSegment(request, destination, segment[0], hoistableState);
-  (request = boundary.contentPreamble) &&
-    writePreambleContribution(destination, request);
+      flushSubtree(request, destination, segment, hoistableState);
+  else {
+    hoistableState &&
+      ((segment = boundary.contentState),
+      segment.styles.forEach(hoistStyleQueueDependency, hoistableState),
+      segment.stylesheets.forEach(hoistStylesheetDependency, hoistableState));
+    writeChunkAndReturn(destination, startCompletedSuspenseBoundary);
+    segment = boundary.completedSegments;
+    if (1 !== segment.length)
+      throw Error(
+        "A previously unvisited boundary must have exactly one root segment. This is a bug in React."
+      );
+    flushSegment(request, destination, segment[0], hoistableState);
+  }
   return writeChunkAndReturn(destination, endSuspenseBoundary);
 }
 function flushSegmentContainer(request, destination, segment, hoistableState) {
@@ -6183,11 +6188,11 @@ function flushCompletedQueues(request, destination) {
       writtenBytes = 0;
       var partialBoundaries = request.partialBoundaries;
       for (i = 0; i < partialBoundaries.length; i++) {
-        var boundary$51 = partialBoundaries[i];
+        var boundary$53 = partialBoundaries[i];
         a: {
           clientRenderedBoundaries = request;
           boundary = destination;
-          var completedSegments = boundary$51.completedSegments;
+          var completedSegments = boundary$53.completedSegments;
           for (
             JSCompiler_inline_result = 0;
             JSCompiler_inline_result < completedSegments.length;
@@ -6197,7 +6202,7 @@ function flushCompletedQueues(request, destination) {
               !flushPartiallyCompletedSegment(
                 clientRenderedBoundaries,
                 boundary,
-                boundary$51,
+                boundary$53,
                 completedSegments[JSCompiler_inline_result]
               )
             ) {
@@ -6209,7 +6214,7 @@ function flushCompletedQueues(request, destination) {
           completedSegments.splice(0, JSCompiler_inline_result);
           JSCompiler_inline_result$jscomp$0 = writeHoistablesForBoundary(
             boundary,
-            boundary$51.contentState,
+            boundary$53.contentState,
             clientRenderedBoundaries.renderState
           );
         }
@@ -6266,7 +6271,7 @@ function startWork(request) {
             request
           )
         : enqueueEarlyPreloadsAfterInitialWork(request));
-  }, 0);
+  });
 }
 function enqueueEarlyPreloadsAfterInitialWork(request) {
   safelyEmitEarlyPreloads(request, 0 === request.pendingRootTasks);
@@ -6281,7 +6286,7 @@ function enqueueFlush(request) {
       destination
         ? flushCompletedQueues(request, destination)
         : (request.flushScheduled = !1);
-    }, 0));
+    }));
 }
 function startFlowing(request, destination) {
   if (13 === request.status)
@@ -6316,17 +6321,17 @@ function abort(request, reason) {
     }
     null !== request.destination &&
       flushCompletedQueues(request, request.destination);
-  } catch (error$53) {
-    logRecoverableError(request, error$53, {}), fatalError(request, error$53);
+  } catch (error$55) {
+    logRecoverableError(request, error$55, {}), fatalError(request, error$55);
   }
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.1.0-canary-e03ac20f-20250305" !== isomorphicReactPackageVersion)
+  if ("19.2.0-canary-197d6a04-20250424" !== isomorphicReactPackageVersion)
     throw Error(
       'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
         (isomorphicReactPackageVersion +
-          "\n  - react-dom:  19.1.0-canary-e03ac20f-20250305\nLearn more: https://react.dev/warnings/version-mismatch")
+          "\n  - react-dom:  19.2.0-canary-197d6a04-20250424\nLearn more: https://react.dev/warnings/version-mismatch")
     );
 }
 ensureCorrectIsomorphicReactVersion();
@@ -6472,15 +6477,4 @@ exports.renderToReadableStream = function (children, options) {
     startWork(request);
   });
 };
-
-// This is a patch added by Next.js
-const setTimeoutOrImmediate =
-  typeof globalThis['set' + 'Immediate'] === 'function' &&
-  // edge runtime sandbox defines a stub for setImmediate
-  // (see 'addStub' in packages/next/src/server/web/sandbox/context.ts)
-  // but it's made non-enumerable, so we can detect it
-  globalThis.propertyIsEnumerable('setImmediate')
-    ? globalThis['set' + 'Immediate']
-    : setTimeout;
-
-exports.version = "19.1.0-canary-e03ac20f-20250305";
+exports.version = "19.2.0-canary-197d6a04-20250424";

@@ -113,7 +113,7 @@ export type ImageConfigComplete = {
   contentDispositionType: 'inline' | 'attachment'
 
   /** @see [Remote Patterns](https://nextjs.org/docs/api-reference/next/image#remotepatterns) */
-  remotePatterns: RemotePattern[]
+  remotePatterns: Array<URL | RemotePattern>
 
   /** @see [Remote Patterns](https://nextjs.org/docs/api-reference/next/image#localPatterns) */
   localPatterns: LocalPattern[] | undefined

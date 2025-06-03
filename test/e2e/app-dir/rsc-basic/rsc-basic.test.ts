@@ -19,10 +19,6 @@ async function resolveStreamResponse(response: any, onData?: any) {
   return result
 }
 
-function stripHTMLComments(html: string): string {
-  return html.replace(/<!--[\s\S]*?-->/g, '')
-}
-
 describe('app dir - rsc basics', () => {
   const { next, isNextDev, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
@@ -74,39 +70,39 @@ describe('app dir - rsc basics', () => {
   })
 
   it('should correctly render page returning null', async () => {
-    const homeHTML = await next.render('/return-null/page')
-    const $ = cheerio.load(homeHTML)
-    expect(stripHTMLComments($('#return-null-layout').html())).toBeEmpty()
+    const browser = await next.browser('/return-null/page')
+    expect(await browser.elementByCss('#return-null-layout').text()).toBeEmpty()
   })
 
   it('should correctly render component returning null', async () => {
-    const homeHTML = await next.render('/return-null/component')
-    const $ = cheerio.load(homeHTML)
-    expect(stripHTMLComments($('#return-null-layout').html())).toBeEmpty()
+    const browser = await next.browser('/return-null/component')
+    expect(await browser.elementByCss('#return-null-layout').text()).toBeEmpty()
   })
 
   it('should correctly render layout returning null', async () => {
-    const homeHTML = await next.render('/return-null/layout')
-    const $ = cheerio.load(homeHTML)
-    expect($('#return-null-layout').html()).toBeEmpty()
+    const browser = await next.browser('/return-null/layout')
+    expect(await browser.elementByCss('#return-null-layout').text()).toBeEmpty()
   })
 
   it('should correctly render page returning undefined', async () => {
-    const homeHTML = await next.render('/return-undefined/page')
-    const $ = cheerio.load(homeHTML)
-    expect(stripHTMLComments($('#return-undefined-layout').html())).toBeEmpty()
+    const browser = await next.browser('/return-undefined/page')
+    expect(
+      await browser.elementByCss('#return-undefined-layout').text()
+    ).toBeEmpty()
   })
 
   it('should correctly render component returning undefined', async () => {
-    const homeHTML = await next.render('/return-undefined/component')
-    const $ = cheerio.load(homeHTML)
-    expect(stripHTMLComments($('#return-undefined-layout').html())).toBeEmpty()
+    const browser = await next.browser('/return-undefined/component')
+    expect(
+      await browser.elementByCss('#return-undefined-layout').text()
+    ).toBeEmpty()
   })
 
   it('should correctly render layout returning undefined', async () => {
-    const homeHTML = await next.render('/return-undefined/layout')
-    const $ = cheerio.load(homeHTML)
-    expect($('#return-undefined-layout').html()).toBeEmpty()
+    const browser = await next.browser('/return-undefined/layout')
+    expect(
+      await browser.elementByCss('#return-undefined-layout').text()
+    ).toBeEmpty()
   })
 
   it('should handle named client components imported as page', async () => {
@@ -161,27 +157,28 @@ describe('app dir - rsc basics', () => {
   })
 
   it('should reuse the inline flight response without sending extra requests', async () => {
-    let hasFlightRequest = false
+    const flightRequests: string[] = []
     let requestsCount = 0
-    await next.browser('/root', {
+    const browser = await next.browser('/root', {
       beforePageLoad(page) {
         page.on('request', (request) => {
           requestsCount++
-          return request.allHeaders().then((headers) => {
-            if (
-              headers['RSC'.toLowerCase()] === '1' &&
-              // Prefetches also include `RSC`
-              headers['Next-Router-Prefetch'.toLowerCase()] !== '1'
-            ) {
-              hasFlightRequest = true
-            }
-          })
+          const headers = request.headers()
+          if (
+            headers['RSC'.toLowerCase()] === '1' &&
+            // Prefetches also include `RSC`
+            headers['Next-Router-Prefetch'.toLowerCase()] !== '1'
+          ) {
+            flightRequests.push(request.url())
+          }
         })
       },
     })
 
+    await browser.waitForIdleNetwork()
+
     expect(requestsCount).toBeGreaterThan(0)
-    expect(hasFlightRequest).toBe(false)
+    expect(flightRequests).toEqual([])
   })
 
   it('should support multi-level server component imports', async () => {
@@ -374,7 +371,6 @@ describe('app dir - rsc basics', () => {
 
     await browser.loadPage(`${next.url}/edge/dynamic/123`, {
       disableCache: false,
-      beforePageLoad: null,
     })
 
     const dynamicRouteUrl = await browser.url()
@@ -619,84 +615,4 @@ describe('app dir - rsc basics', () => {
       await Promise.all(promises)
     })
   }
-
-  describe('react@experimental', () => {
-    it.each([{ flag: 'ppr' }, { flag: 'taint' }])(
-      'should opt into the react@experimental when enabling $flag',
-      async ({ flag }) => {
-        await next.stop()
-        await next.patchFile(
-          'next.config.js',
-          `
-          module.exports = {
-            experimental: {
-              ${flag}: true
-            }
-          }
-          `,
-          async () => {
-            await next.start()
-            const resPages$ = await next.render$('/app-react')
-            const [
-              ssrReact,
-              ssrReactDOM,
-              ssrClientReact,
-              ssrClientReactDOM,
-              ssrClientReactDOMServer,
-            ] = [
-              resPages$('#react').text(),
-              resPages$('#react-dom').text(),
-              resPages$('#client-react').text(),
-              resPages$('#client-react-dom').text(),
-              resPages$('#client-react-dom-server').text(),
-            ]
-            expect({
-              ssrReact,
-              ssrReactDOM,
-              ssrClientReact,
-              ssrClientReactDOM,
-              ssrClientReactDOMServer,
-            }).toEqual({
-              ssrReact: expect.stringMatching('-experimental-'),
-              ssrReactDOM: expect.stringMatching('-experimental-'),
-              ssrClientReact: expect.stringMatching('-experimental-'),
-              ssrClientReactDOM: expect.stringMatching('-experimental-'),
-              ssrClientReactDOMServer: expect.stringMatching('-experimental-'),
-            })
-
-            const browser = await next.browser('/app-react')
-            const [
-              browserReact,
-              browserReactDOM,
-              browserClientReact,
-              browserClientReactDOM,
-              browserClientReactDOMServer,
-            ] = await browser.eval(`
-              [
-                document.querySelector('#react').innerText,
-                document.querySelector('#react-dom').innerText,
-                document.querySelector('#client-react').innerText,
-                document.querySelector('#client-react-dom').innerText,
-                document.querySelector('#client-react-dom-server').innerText,
-              ]
-            `)
-            expect({
-              browserReact,
-              browserReactDOM,
-              browserClientReact,
-              browserClientReactDOM,
-              browserClientReactDOMServer,
-            }).toEqual({
-              browserReact: expect.stringMatching('-experimental-'),
-              browserReactDOM: expect.stringMatching('-experimental-'),
-              browserClientReact: expect.stringMatching('-experimental-'),
-              browserClientReactDOM: expect.stringMatching('-experimental-'),
-              browserClientReactDOMServer:
-                expect.stringMatching('-experimental-'),
-            })
-          }
-        )
-      }
-    )
-  })
 })

@@ -274,8 +274,7 @@ describe('GS(S)P Server-Side Change Reloading', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error: Additional keys were returned from \`getStaticProps\`. Properties intended for your component must be nested under the \`props\` key, e.g.:
+         "description": "Additional keys were returned from \`getStaticProps\`. Properties intended for your component must be nested under the \`props\` key, e.g.:
 
        	return { props: { title: 'My Title', content: '...' } }
 
@@ -316,8 +315,7 @@ describe('GS(S)P Server-Side Change Reloading', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error: custom oops",
+         "description": "custom oops",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "pages/index.js (18:9) @ getStaticProps

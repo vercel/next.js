@@ -39,6 +39,10 @@ export interface Binding {
       transformStyleAttr(transformAttrOptions: any): Promise<any>
     }
   }
+
+  reactCompiler: {
+    isReactCompilerRequired(filename: string): Promise<boolean>
+  }
 }
 
 export type StyledString =
@@ -91,7 +95,6 @@ export interface Issue {
     }
   }
   documentationLink: string
-  subIssues: Issue[]
 }
 
 export interface Diagnostics {
@@ -178,6 +181,13 @@ export type UpdateMessage =
       value: UpdateInfo
     }
 
+export type CompilationEvent = {
+  typeName: string
+  message: string
+  severity: string
+  eventData: any
+}
+
 export interface UpdateInfo {
   duration: number
   tasks: number
@@ -185,6 +195,10 @@ export interface UpdateInfo {
 
 export interface Project {
   update(options: Partial<ProjectOptions>): Promise<void>
+
+  writeAllEntrypointsToDisk(
+    appDirOnly: boolean
+  ): Promise<TurbopackResult<RawEntrypoints>>
 
   entrypointsSubscribe(): AsyncIterableIterator<TurbopackResult<RawEntrypoints>>
 
@@ -207,6 +221,12 @@ export interface Project {
   updateInfoSubscribe(
     aggregationMs: number
   ): AsyncIterableIterator<TurbopackResult<UpdateMessage>>
+
+  compilationEventsSubscribe(): AsyncIterableIterator<
+    TurbopackResult<CompilationEvent>
+  >
+
+  invalidatePersistentCache(): Promise<void>
 
   shutdown(): Promise<void>
 

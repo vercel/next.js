@@ -24,15 +24,15 @@ function runTests({ isDev }) {
       const browser = await webdriver(appPort, '/')
       await assertHasRedbox(browser)
       const description = await getRedboxDescription(browser)
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         expect(description).toMatchInlineSnapshot(`"Processing image failed"`)
       } else {
         expect(description).toMatchInlineSnapshot(
-          `"Error: Image import "../public/invalid.svg" is not a valid image file. The image may be corrupted or an unsupported format."`
+          `"Image import "../public/invalid.svg" is not a valid image file. The image may be corrupted or an unsupported format."`
         )
       }
       const source = await getRedboxSource(browser)
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         expect(source).toMatchInlineSnapshot(`
           "./test/integration/next-image-new/invalid-image-import/public/invalid.svg
           Processing image failed
@@ -49,7 +49,7 @@ function runTests({ isDev }) {
       }
     } else {
       const output = stripAnsi(stderr)
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         expect(output).toContain(
           `./test/integration/next-image-new/invalid-image-import/public/invalid.svg
 Processing image failed

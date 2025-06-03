@@ -1,19 +1,25 @@
 use std::{
     borrow::Cow,
+    error::Error,
     fmt::{self, Debug, Display},
     future::Future,
     hash::{BuildHasherDefault, Hash},
     pin::Pin,
+    sync::Arc,
     time::Duration,
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use auto_hash_map::AutoMap;
 use rustc_hash::FxHasher;
+use serde::{Deserialize, Serialize};
 use tracing::Span;
+use turbo_rcstr::RcStr;
 
 pub use crate::id::BackendJobId;
 use crate::{
+    FunctionId, RawVc, ReadCellOptions, ReadRef, SharedReference, TaskId, TaskIdSet, TraitRef,
+    TraitTypeId, TurboTasksPanic, ValueTypeId, VcRead, VcValueTrait, VcValueType,
     event::EventListener,
     magic_any::MagicAny,
     manager::{ReadConsistency, TurboTasksBackendApi},
@@ -22,8 +28,6 @@ use crate::{
     task::shared_reference::TypedSharedReference,
     task_statistics::TaskStatisticsApi,
     triomphe_utils::unchecked_sidecast_triomphe_arc,
-    FunctionId, RawVc, ReadCellOptions, ReadRef, SharedReference, TaskId, TaskIdSet, TraitRef,
-    TraitTypeId, ValueTypeId, VcRead, VcValueTrait, VcValueType,
 };
 
 pub type TransientTaskRoot =
@@ -68,6 +72,8 @@ pub struct CachedTaskType {
 }
 
 impl CachedTaskType {
+    /// Get the name of the function from the registry. Equivalent to the
+    /// [`Display`]/[`ToString::to_string`] implementation, but does not allocate a [`String`].
     pub fn get_name(&self) -> &'static str {
         &registry::get_function(self.fn_type).name
     }
@@ -92,7 +98,7 @@ impl Hash for CachedTaskType {
     }
 }
 
-impl fmt::Display for CachedTaskType {
+impl Display for CachedTaskType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.get_name())
     }
@@ -102,9 +108,9 @@ mod ser {
     use std::any::Any;
 
     use serde::{
+        Deserialize, Deserializer, Serialize, Serializer,
         de::{self},
         ser::{SerializeSeq, SerializeTuple},
-        Deserialize, Deserializer, Serialize, Serializer,
     };
 
     use super::*;
@@ -115,7 +121,7 @@ mod ser {
             S: Serializer,
         {
             let value_type = registry::get_value_type(self.0);
-            let serializable = if let Some(value) = &self.1 .0 {
+            let serializable = if let Some(value) = &self.1.0 {
                 value_type.any_as_serializable(&value.0)
             } else {
                 None
@@ -312,7 +318,7 @@ impl Display for CellContent {
 
 impl TypedCellContent {
     pub fn cast<T: VcValueType>(self) -> Result<ReadRef<T>> {
-        let data = self.1 .0.ok_or_else(|| anyhow!("Cell is empty"))?;
+        let data = self.1.0.ok_or_else(|| anyhow!("Cell is empty"))?;
         let data = data
             .downcast::<<T::Read as VcRead<T>>::Repr>()
             .map_err(|_err| anyhow!("Unexpected type in cell"))?;
@@ -332,7 +338,7 @@ impl TypedCellContent {
     {
         let shared_reference = self
             .1
-             .0
+            .0
             .ok_or_else(|| anyhow!("Cell is empty"))?
             .into_typed(self.0);
         Ok(
@@ -396,6 +402,101 @@ impl TryFrom<CellContent> for SharedReference {
 
 pub type TaskCollectiblesMap = AutoMap<RawVc, i32, BuildHasherDefault<FxHasher>, 1>;
 
+// Structurally and functionally similar to Cow<&'static, str> but explicitly notes the importance
+// of non-static strings potentially containing PII (Personal Identifiable Information).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub enum TurboTasksExecutionErrorMessage {
+    PIISafe(Cow<'static, str>),
+    NonPIISafe(String),
+}
+
+impl Display for TurboTasksExecutionErrorMessage {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TurboTasksExecutionErrorMessage::PIISafe(msg) => write!(f, "{msg}"),
+            TurboTasksExecutionErrorMessage::NonPIISafe(msg) => write!(f, "{msg}"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct TurboTasksError {
+    pub message: TurboTasksExecutionErrorMessage,
+    pub source: Option<TurboTasksExecutionError>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct TurboTaskContextError {
+    pub task: RcStr,
+    pub source: Option<TurboTasksExecutionError>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub enum TurboTasksExecutionError {
+    Panic(Arc<TurboTasksPanic>),
+    Error(Arc<TurboTasksError>),
+    TaskContext(Arc<TurboTaskContextError>),
+}
+
+impl TurboTasksExecutionError {
+    pub fn task_context(&self, task: impl Display) -> Self {
+        TurboTasksExecutionError::TaskContext(Arc::new(TurboTaskContextError {
+            task: RcStr::from(task.to_string()),
+            source: Some(self.clone()),
+        }))
+    }
+}
+
+impl Error for TurboTasksExecutionError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            TurboTasksExecutionError::Panic(_panic) => None,
+            TurboTasksExecutionError::Error(error) => {
+                error.source.as_ref().map(|s| s as &dyn Error)
+            }
+            TurboTasksExecutionError::TaskContext(context_error) => {
+                context_error.source.as_ref().map(|s| s as &dyn Error)
+            }
+        }
+    }
+}
+
+impl Display for TurboTasksExecutionError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TurboTasksExecutionError::Panic(panic) => write!(f, "{}", &panic),
+            TurboTasksExecutionError::Error(error) => {
+                write!(f, "{}", error.message)
+            }
+            TurboTasksExecutionError::TaskContext(context_error) => {
+                write!(f, "Execution of {} failed", context_error.task)
+            }
+        }
+    }
+}
+
+impl<'l> From<&'l (dyn std::error::Error + 'static)> for TurboTasksExecutionError {
+    fn from(err: &'l (dyn std::error::Error + 'static)) -> Self {
+        if let Some(err) = err.downcast_ref::<TurboTasksExecutionError>() {
+            return err.clone();
+        }
+        let message = err.to_string();
+        let source = err.source().map(|source| source.into());
+
+        TurboTasksExecutionError::Error(Arc::new(TurboTasksError {
+            message: TurboTasksExecutionErrorMessage::NonPIISafe(message),
+            source,
+        }))
+    }
+}
+
+impl From<anyhow::Error> for TurboTasksExecutionError {
+    fn from(err: anyhow::Error) -> Self {
+        let current: &(dyn std::error::Error + 'static) = err.as_ref();
+        current.into()
+    }
+}
+
 pub trait Backend: Sync + Send {
     #[allow(unused_variables)]
     fn startup(&self, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {}
@@ -457,8 +558,8 @@ pub trait Backend: Sync + Send {
 
     fn task_execution_result(
         &self,
-        task: TaskId,
-        result: Result<Result<RawVc>, Option<Cow<'static, str>>>,
+        task_id: TaskId,
+        result: Result<RawVc, TurboTasksExecutionError>,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     );
 
@@ -576,8 +677,8 @@ pub trait Backend: Sync + Send {
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId;
 
-    /// For persistent tasks with associated [`NativeFunction`][turbo_tasks::NativeFunction]s,
-    /// return the [`FunctionId`].
+    /// For persistent tasks with associated
+    /// [`NativeFunction`][crate::native_function::NativeFunction]s, return the [`FunctionId`].
     fn try_get_function_id(&self, task_id: TaskId) -> Option<FunctionId>;
 
     fn connect_task(

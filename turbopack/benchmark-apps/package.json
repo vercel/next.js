@@ -1,0 +1,32 @@
+{
+  "dependencies": {
+    "@emotion/cache": "11.14.0",
+    "@emotion/react": "11.14.0",
+    "@emotion/styled": "11.14.0",
+    "@iconify-icons/material-symbols": "1.2.58",
+    "@iconify/react": "5.1.0",
+    "@mui/icons-material": "6.2.1",
+    "@mui/joy": "5.0.0-beta.51",
+    "@mui/material": "6.2.1",
+    "@next/react-refresh-utils": "15.1.2",
+    "@types/react": "19.0.2",
+    "@types/react-dom": "19.0.2",
+    "date-fns": "^4.1.0",
+    "file-loader": "^6.2.0",
+    "framer-motion": "^12.0.0",
+    "lucide-react": "^0.471.1",
+    "markdown-table": "3.0.4",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "react-refresh": "0.16.0",
+    "react-router-dom": "7.0.2",
+    "shiki": "^1.27.2",
+    "typescript": "5.7.2",
+    "vega-lite": "5.23.0"
+  },
+  "devDependencies": {
+    "buffer": "^5.5.0||^6.0.0",
+    "process": "0.11.10"
+  },
+  "packageManager": "pnpm@9.6.0"
+}

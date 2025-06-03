@@ -1,11 +1,12 @@
 use std::io::Write;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
+use either::Either;
 use indoc::writedoc;
 use serde::Serialize;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
-use turbo_tasks_fs::{File, FileSystemPath};
+use turbo_tasks_fs::{File, FileSystemPath, rope::RopeBuilder};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
@@ -26,7 +27,10 @@ use turbopack_ecmascript::{
 };
 use turbopack_ecmascript_runtime::RuntimeType;
 
-use crate::BrowserChunkingContext;
+use crate::{
+    BrowserChunkingContext,
+    chunking_context::{CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR, CurrentChunkMethod},
+};
 
 /// An Ecmascript chunk that:
 /// * Contains the Turbopack browser runtime code; and
@@ -74,22 +78,32 @@ impl EcmascriptBrowserEvaluateChunk {
         let chunking_context = this.chunking_context.await?;
         let environment = this.chunking_context.environment();
 
-        let output_root = this.chunking_context.output_root().await?;
         let output_root_to_root_path = this.chunking_context.output_root_to_root_path();
         let source_maps = *this
             .chunking_context
             .reference_chunk_source_maps(Vc::upcast(self))
             .await?;
-        let chunk_path_vc = self.path();
-        let chunk_path = chunk_path_vc.await?;
-        let chunk_public_path = if let Some(path) = output_root.get_path_to(&chunk_path) {
-            path
-        } else {
-            bail!(
-                "chunk path {} is not in output root {}",
-                chunk_path.to_string(),
-                output_root.to_string()
-            );
+        // Lifetime hack to pull out the var into this scope
+        let chunk_path;
+        let script_or_path = match *this.chunking_context.current_chunk_method().await? {
+            CurrentChunkMethod::StringLiteral => {
+                let output_root = this.chunking_context.output_root().await?;
+                let chunk_path_vc = self.path();
+                chunk_path = chunk_path_vc.await?;
+                let chunk_server_path = if let Some(path) = output_root.get_path_to(&chunk_path) {
+                    path
+                } else {
+                    bail!(
+                        "chunk path {} is not in output root {}",
+                        chunk_path.to_string(),
+                        output_root.to_string()
+                    );
+                };
+                Either::Left(StringifyJs(chunk_server_path))
+            }
+            CurrentChunkMethod::DocumentCurrentScript => {
+                Either::Right(CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR)
+            }
         };
 
         let other_chunks_data = self.chunks_data().await?;
@@ -130,7 +144,7 @@ impl EcmascriptBrowserEvaluateChunk {
             runtime_module_ids,
         };
 
-        let mut code = CodeBuilder::default();
+        let mut code = CodeBuilder::new(source_maps);
 
         // We still use the `TURBOPACK` global variable to store the chunk here,
         // as there may be another runtime already loaded in the page.
@@ -139,12 +153,11 @@ impl EcmascriptBrowserEvaluateChunk {
             code,
             r#"
                 (globalThis.TURBOPACK = globalThis.TURBOPACK || []).push([
-                    {},
+                    {script_or_path},
                     {{}},
                     {}
                 ]);
             "#,
-            StringifyJs(&chunk_public_path),
             StringifyJs(&params),
         )?;
 
@@ -153,6 +166,7 @@ impl EcmascriptBrowserEvaluateChunk {
                 let runtime_code = turbopack_ecmascript_runtime::get_browser_runtime_code(
                     environment,
                     chunking_context.chunk_base_path(),
+                    chunking_context.chunk_suffix_path(),
                     Value::new(chunking_context.runtime_type()),
                     output_root_to_root_path,
                     source_maps,
@@ -163,6 +177,7 @@ impl EcmascriptBrowserEvaluateChunk {
                 let runtime_code = turbopack_ecmascript_runtime::get_browser_runtime_code(
                     environment,
                     chunking_context.chunk_base_path(),
+                    chunking_context.chunk_suffix_path(),
                     Value::new(chunking_context.runtime_type()),
                     output_root_to_root_path,
                     source_maps,
@@ -176,24 +191,50 @@ impl EcmascriptBrowserEvaluateChunk {
             }
         }
 
-        if source_maps && code.has_source_map() {
-            let filename = chunk_path.file_name();
-            write!(
-                code,
-                // findSourceMapURL assumes this co-located sourceMappingURL,
-                // and needs to be adjusted in case this is ever changed.
-                "\n\n//# sourceMappingURL={}.map",
-                urlencoding::encode(filename)
-            )?;
-        }
-
         let mut code = code.build();
 
         if let MinifyType::Minify { mangle } = this.chunking_context.await?.minify_type() {
-            code = minify(&*chunk_path_vc.await?, &code, source_maps, mangle)?;
+            code = minify(code, source_maps, mangle)?;
         }
 
         Ok(code.cell())
+    }
+
+    #[turbo_tasks::function]
+    async fn ident_for_path(&self) -> Result<Vc<AssetIdent>> {
+        let mut ident = self.ident.owned().await?;
+
+        ident.add_modifier(rcstr!("ecmascript browser evaluate chunk"));
+
+        let evaluatable_assets = self.evaluatable_assets.await?;
+        ident.modifiers.extend(
+            evaluatable_assets
+                .iter()
+                .map(|entry| async move { Ok((*entry.ident().to_string().await?).clone()) })
+                .try_join()
+                .await?,
+        );
+
+        ident.modifiers.extend(
+            self.other_chunks
+                .await?
+                .iter()
+                .map(|chunk| async move { Ok((*chunk.path().to_string().await?).clone()) })
+                .try_join()
+                .await?,
+        );
+
+        Ok(AssetIdent::new(Value::new(ident)))
+    }
+
+    #[turbo_tasks::function]
+    async fn source_map(self: Vc<Self>) -> Result<Vc<SourceMapAsset>> {
+        let this = self.await?;
+        Ok(SourceMapAsset::new(
+            Vc::upcast(*this.chunking_context),
+            self.ident_for_path(),
+            Vc::upcast(self),
+        ))
     }
 }
 
@@ -205,39 +246,15 @@ impl ValueToString for EcmascriptBrowserEvaluateChunk {
     }
 }
 
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("ecmascript browser evaluate chunk".into())
-}
-
 #[turbo_tasks::value_impl]
 impl OutputAsset for EcmascriptBrowserEvaluateChunk {
     #[turbo_tasks::function]
-    async fn path(&self) -> Result<Vc<FileSystemPath>> {
-        let mut ident = self.ident.owned().await?;
-
-        ident.add_modifier(modifier().to_resolved().await?);
-
-        let evaluatable_assets = self.evaluatable_assets.await?;
-        ident.modifiers.extend(
-            evaluatable_assets
-                .iter()
-                .map(|entry| entry.ident().to_string().to_resolved())
-                .try_join()
-                .await?,
-        );
-
-        ident.modifiers.extend(
-            self.other_chunks
-                .await?
-                .iter()
-                .map(|chunk| chunk.path().to_string().to_resolved())
-                .try_join()
-                .await?,
-        );
-
-        let ident = AssetIdent::new(Value::new(ident));
-        Ok(self.chunking_context.chunk_path(ident, ".js".into()))
+    async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+        let this = self.await?;
+        let ident = self.ident_for_path();
+        Ok(this
+            .chunking_context
+            .chunk_path(Some(Vc::upcast(self)), ident, ".js".into()))
     }
 
     #[turbo_tasks::function]
@@ -251,9 +268,7 @@ impl OutputAsset for EcmascriptBrowserEvaluateChunk {
             .await?;
 
         if include_source_map {
-            references.push(ResolvedVc::upcast(
-                SourceMapAsset::new(Vc::upcast(self)).to_resolved().await?,
-            ));
+            references.push(ResolvedVc::upcast(self.source_map().to_resolved().await?));
         }
 
         for chunk_data in &*self.chunks_data().await? {
@@ -269,9 +284,22 @@ impl Asset for EcmascriptBrowserEvaluateChunk {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let code = self.code().await?;
-        Ok(AssetContent::file(
-            File::from(code.source_code().clone()).into(),
-        ))
+
+        let rope = if code.has_source_map() {
+            let mut rope_builder = RopeBuilder::default();
+            rope_builder.concat(code.source_code());
+            let source_map_path = self.source_map().path().await?;
+            write!(
+                rope_builder,
+                "\n\n//# sourceMappingURL={}",
+                urlencoding::encode(source_map_path.file_name())
+            )?;
+            rope_builder.build()
+        } else {
+            code.source_code().clone()
+        };
+
+        Ok(AssetContent::file(File::from(rope).into()))
     }
 }
 

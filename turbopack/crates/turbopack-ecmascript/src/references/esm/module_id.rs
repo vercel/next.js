@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use swc_core::quote;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, ValueToString, Vc,
+    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext, ChunkingTypeOption, ModuleChunkItemIdExt},
@@ -12,7 +12,7 @@ use turbopack_core::{
     resolve::ModuleResolveResult,
 };
 
-use super::{base::ReferencedAsset, EsmAssetReference};
+use super::{EsmAssetReference, base::ReferencedAsset};
 use crate::{
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,

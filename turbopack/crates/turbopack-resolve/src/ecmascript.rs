@@ -4,14 +4,14 @@ use turbopack_core::{
     issue::IssueSource,
     reference_type::{CommonJsReferenceSubType, EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::{
-        handle_resolve_error, handle_resolve_source_error,
+        ModuleResolveResult, ResolveResult, handle_resolve_error, handle_resolve_source_error,
         options::{
             ConditionValue, ResolutionConditions, ResolveInPackage, ResolveIntoPackage,
             ResolveOptions,
         },
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
-        resolve, ModuleResolveResult, ResolveResult,
+        resolve,
     },
 };
 /// Retrieves the [ResolutionConditions] of the "into" and "in" package resolution options, so that
@@ -70,6 +70,8 @@ async fn apply_esm_specific_options_internal(
     if clear_extensions {
         options.extensions.clear();
     }
+
+    options.parse_data_uris = true;
 
     Ok(options.cell())
 }

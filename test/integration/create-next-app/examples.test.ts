@@ -28,7 +28,12 @@ describe('create-next-app --example', () => {
     await useTempDir(async (cwd) => {
       const projectName = 'valid-example'
       const res = await run(
-        [projectName, '--example', 'basic-css'],
+        [
+          projectName,
+          '--example',
+          'basic-css',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
+        ],
         nextTgzFilename,
         {
           cwd,
@@ -53,7 +58,12 @@ describe('create-next-app --example', () => {
     await useTempDir(async (cwd) => {
       const projectName = 'github-url'
       const res = await run(
-        [projectName, '--example', FULL_EXAMPLE_PATH],
+        [
+          projectName,
+          '--example',
+          FULL_EXAMPLE_PATH,
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
+        ],
         nextTgzFilename,
         {
           cwd,
@@ -85,6 +95,7 @@ describe('create-next-app --example', () => {
           // since vercel/examples is not a template repo, we use the following
           // GH#39665
           'https://github.com/vercel/nextjs-portfolio-starter/',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
         nextTgzFilename,
         {
@@ -119,6 +130,7 @@ describe('create-next-app --example', () => {
           EXAMPLE_REPO,
           '--example-path',
           EXAMPLE_PATH,
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
         nextTgzFilename,
         {
@@ -154,6 +166,7 @@ describe('create-next-app --example', () => {
           FULL_EXAMPLE_PATH,
           '--example-path',
           EXAMPLE_PATH,
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
         nextTgzFilename,
         {
@@ -192,6 +205,7 @@ describe('create-next-app --example', () => {
             '--example',
             '__internal-testing-retry',
             '--import-alias=@/*',
+            ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
           ],
           nextTgzFilename,
           {
@@ -224,6 +238,7 @@ describe('create-next-app --example', () => {
           '--example',
           'default',
           '--import-alias=@/*',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
         nextTgzFilename,
         {
@@ -245,7 +260,12 @@ describe('create-next-app --example', () => {
     await useTempDir(async (cwd) => {
       const projectName = 'invalid-example'
       const res = await run(
-        [projectName, '--example', 'not a real example'],
+        [
+          projectName,
+          '--example',
+          'not a real example',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
+        ],
         nextTgzFilename,
         {
           cwd,
@@ -274,6 +294,7 @@ describe('create-next-app --example', () => {
           '--no-src-dir',
           '--no-tailwind',
           '--example',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
         nextTgzFilename,
         {

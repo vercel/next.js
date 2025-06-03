@@ -10,4 +10,4 @@
 declare function getOrInstantiateModuleFromParent<M>(
   id: ModuleId,
   sourceModule: M
-): M;
+): M
