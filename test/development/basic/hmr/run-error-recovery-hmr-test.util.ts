@@ -616,11 +616,11 @@ export function runErrorRecoveryHmrTest(nextConfig: {
          Example import traces:
            #1:
              ./components/parse-error.js [client]
-             ./pages/hmr/about9.js [client] [entrypoint]
+             ./pages/hmr/about9.js [client]
 
            #2:
              ./components/parse-error.js [ssr]
-             ./pages/hmr/about9.js [ssr] [entrypoint]"
+             ./pages/hmr/about9.js [ssr]"
         `)
       } else if (process.env.NEXT_RSPACK) {
         expect(trimEndMultiline(next.normalizeTestDirContent(redboxSource)))

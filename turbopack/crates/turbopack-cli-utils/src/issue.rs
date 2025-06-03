@@ -12,6 +12,7 @@ use anyhow::{Result, anyhow};
 use crossterm::style::{StyledContent, Stylize};
 use owo_colors::{OwoColorize as _, Style};
 use rustc_hash::{FxHashMap, FxHashSet};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{RawVc, ReadRef, TransientInstance, TransientValue, Vc};
 use turbo_tasks_fs::{FileLinesContent, source_context::get_source_context};
 use turbopack_core::issue::{
@@ -172,9 +173,29 @@ pub fn format_issue(
     }
     let traces = &*plain_issue.import_traces;
     if !traces.is_empty() {
-        fn format_trace_items(out: &mut String, indent: &'static str, items: &[PlainTraceItem]) {
-            let mut it = items.iter().peekable();
-            while let Some(item) = it.next() {
+        /// Returns the layer used by all items in the trace if it is unique.
+        /// Returns None, if there are multiple different layers (or no layers)
+        fn get_layer(items: &[PlainTraceItem]) -> Option<RcStr> {
+            let (unique, value) = items
+                .iter()
+                .map(|i| (true, &i.layer))
+                .reduce(|(unique, prev), (_, next)| {
+                    if unique && prev == next {
+                        (true, prev)
+                    } else {
+                        (false, prev)
+                    }
+                })
+                .expect("traces are never empty");
+            if unique { value.clone() } else { None }
+        }
+        fn format_trace_items(
+            out: &mut String,
+            indent: &'static str,
+            print_layers: bool,
+            items: &[PlainTraceItem],
+        ) {
+            for item in items {
                 out.push_str(indent);
                 // We want to format the filepath but with a few caveats
                 // - if it is part of the `[project]` filesystem, omit the fs name
@@ -186,31 +207,60 @@ pub fn format_issue(
                 if item.fs_name != "project" {
                     out.push('[');
                     out.push_str(&item.fs_name);
-                    out.push(']');
+                    out.push_str("]/");
                 } else {
                     // This is consistent with webpack's output
                     out.push_str("./");
                 }
                 out.push_str(&item.path);
-                if let Some(ref label) = item.layer {
+                if let Some(ref label) = item.layer
+                    && print_layers
+                {
                     out.push_str(" [");
                     out.push_str(label);
                     out.push(']');
-                }
-                if it.peek().is_none() {
-                    out.push_str(" [entrypoint]");
                 }
                 out.push('\n');
             }
         }
         if traces.len() == 1 {
+            let trace = &traces[0];
+            // We don't put the layer in the header for the single case. Either they are all the
+            // same in which case it should be clear from the filename or they are different and we
+            // need to print them on the items anyway.
             writeln!(styled_issue, "Example import trace:").unwrap();
-            format_trace_items(&mut styled_issue, "  ", &traces[0]);
+            format_trace_items(&mut styled_issue, "  ", get_layer(trace).is_none(), trace);
         } else {
+            // When there are multiple traces we:
+            // * display the layer in the header if the trace has a consistent layer
+            // * label the traces with their index, unless the layer is sufficiently unique.
             styled_issue.push_str("Example import traces:\n");
-            for (index, trace) in traces.iter().enumerate() {
-                writeln!(styled_issue, "#{}:", index + 1).unwrap();
-                format_trace_items(&mut styled_issue, "    ", trace);
+            let traces_and_layers: Vec<_> = traces.iter().map(|t| (get_layer(t), t)).collect();
+            let every_trace_has_a_distinct_layer = traces_and_layers
+                .iter()
+                .filter_map(|t| t.0.clone())
+                .collect::<FxHashSet<_>>()
+                .len()
+                == traces_and_layers.len();
+            if every_trace_has_a_distinct_layer {
+                for (layer, trace) in traces_and_layers {
+                    writeln!(styled_issue, "  [{}]:", layer.unwrap()).unwrap();
+                    format_trace_items(&mut styled_issue, "    ", false, trace);
+                }
+            } else {
+                for (index, (layer, trace)) in traces_and_layers.iter().enumerate() {
+                    let print_layers = match layer {
+                        Some(layer) => {
+                            writeln!(styled_issue, "  #{} [{layer}]:", index + 1).unwrap();
+                            false
+                        }
+                        None => {
+                            writeln!(styled_issue, "  #{}:", index + 1).unwrap();
+                            true
+                        }
+                    };
+                    format_trace_items(&mut styled_issue, "    ", print_layers, trace);
+                }
             }
         }
     }

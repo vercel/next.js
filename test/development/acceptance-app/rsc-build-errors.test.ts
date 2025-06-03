@@ -188,7 +188,7 @@ describe('Error overlay - RSC build errors', () => {
 
        Example import trace:
          ./app/server-with-errors/client-only-in-server/client-only-lib.js [app-rsc]
-         ./app/server-with-errors/client-only-in-server/page.js [app-rsc] [entrypoint]"
+         ./app/server-with-errors/client-only-in-server/page.js [app-rsc]"
       `)
     } else {
       expect(await session.getRedboxSource()).toInclude(

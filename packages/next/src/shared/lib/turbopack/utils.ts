@@ -213,38 +213,65 @@ export function formatIssue(issue: Issue) {
     // This is the same logic as in turbopack/crates/turbopack-cli-utils/src/issue.rs
     if (importTraces.length > 1) {
       // We end up with multiple traces when the file with the error is reachable from multiple different entry points (e.g. ssr, client)
+
       message += 'Example import traces:\n'
-      for (let i = 0; i < importTraces.length; i++) {
-        message += `  #${i + 1}:\n${formatIssueTrace(importTraces[i], '    ')}`
+      const tracesAndLayers: Array<[string | undefined, PlainTraceItem[]]> =
+        importTraces.map((trace) => [getLayer(trace), trace])
+      const everyTraceHasADistinctLayer =
+        new Set(tracesAndLayers.map(([layer, _trace]) => layer).filter(Boolean))
+          .size === tracesAndLayers.length
+      for (let i = 0; i < tracesAndLayers.length; i++) {
+        const [layer, trace] = tracesAndLayers[i]
+        if (everyTraceHasADistinctLayer) {
+          message += `  [${layer}]:\n`
+        } else {
+          message += `  #${i + 1}`
+          if (layer) {
+            message += ` [${layer}]`
+          }
+          message += ':\n'
+        }
+        message += formatIssueTrace(trace, '    ', layer === undefined)
       }
     } else {
-      message += `Example import trace:\n${formatIssueTrace(importTraces[0], '  ')}`
+      const trace = importTraces[0]
+      // We only display the layer if there is more than one for the trace
+      message += `Example import trace:\n${formatIssueTrace(trace, '  ', getLayer(trace) === undefined)}`
     }
   }
   if (documentationLink) {
     message += documentationLink + '\n\n'
   }
-
   return message
 }
 
-function formatIssueTrace(items: PlainTraceItem[], indent: string): string {
+/** Returns the layer shared by all the items, or undefined if there isn't a unique one. */
+function getLayer(items: PlainTraceItem[]): string | undefined {
+  let array = Array.from(new Set(items.map((i) => i.layer)))
+  if (array.length === 1) {
+    return array[0]
+  }
+  return undefined
+}
+
+function formatIssueTrace(
+  items: PlainTraceItem[],
+  indent: string,
+  printLayers: boolean
+): string {
   return (
     items
-      .map((item, index, array) => {
+      .map((item) => {
         let r = indent
         if (item.fsName !== 'project') {
-          r += `[${item.fsName}]`
+          r += `[${item.fsName}]/`
         } else {
           // This is consistent with webpack's output
           r += './'
         }
         r += item.path
-        if (item.layer) {
+        if (printLayers && item.layer) {
           r += ` [${item.layer}]`
-        }
-        if (index === array.length - 1) {
-          r += ' [entrypoint]'
         }
         return r
       })

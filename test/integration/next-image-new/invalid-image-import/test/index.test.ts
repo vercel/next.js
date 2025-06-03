@@ -44,11 +44,11 @@ function runTests({ isDev }) {
          Example import traces:
            #1:
              ./test/integration/next-image-new/invalid-image-import/public/invalid.svg
-             ./test/integration/next-image-new/invalid-image-import/pages/index.js [client] [entrypoint]
+             ./test/integration/next-image-new/invalid-image-import/pages/index.js [client]
 
            #2:
              ./test/integration/next-image-new/invalid-image-import/public/invalid.svg
-             ./test/integration/next-image-new/invalid-image-import/pages/index.js [ssr] [entrypoint]"
+             ./test/integration/next-image-new/invalid-image-import/pages/index.js [ssr]"
         `)
       } else {
         expect(source).toMatchInlineSnapshot(`

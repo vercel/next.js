@@ -41,7 +41,7 @@ describe('app dir - css', () => {
            Example import trace:
              ./app/global.scss.css [app-client]
              ./app/layout.js [app-client]
-             ./app/layout.js [app-rsc] [entrypoint]"
+             ./app/layout.js [app-rsc]"
           `)
         })
       }

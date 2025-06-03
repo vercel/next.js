@@ -67,12 +67,12 @@ describe('Error Overlay for server components compiler errors in pages', () => {
        Example import traces:
          #1:
            ./components/Comp.js [ssr]
-           ./pages/index.js [ssr] [entrypoint]
+           ./pages/index.js [ssr]
 
          #2:
            ./components/Comp.js [client]
            ./pages/index.js [client]
-           ./pages/index [entrypoint]"
+           ./pages/index"
       `)
     } else if (isRspack) {
       expect(
@@ -153,12 +153,12 @@ describe('Error Overlay for server components compiler errors in pages', () => {
        Example import traces:
          #1:
            ./components/Comp.js [ssr]
-           ./pages/index.js [ssr] [entrypoint]
+           ./pages/index.js [ssr]
 
          #2:
            ./components/Comp.js [client]
            ./pages/index.js [client]
-           ./pages/index [entrypoint]"
+           ./pages/index"
       `)
     } else if (isRspack) {
       expect(
@@ -241,12 +241,12 @@ describe('Error Overlay for server components compiler errors in pages', () => {
        Example import traces:
          #1:
            ./components/Comp.js [ssr]
-           ./pages/index.js [ssr] [entrypoint]
+           ./pages/index.js [ssr]
 
          #2:
            ./components/Comp.js [client]
            ./pages/index.js [client]
-           ./pages/index [entrypoint]"
+           ./pages/index"
       `)
     } else if (isRspack) {
       expect(

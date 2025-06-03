@@ -3,6 +3,6 @@ warning - [analysis] [project]/turbopack/crates/turbopack-tests/tests/execution/
   Exports made by CommonJs syntax will lead to a runtime error, since the module is in EcmaScript mode. Either change the "type" field in the package.json or replace CommonJs syntax with EcmaScript import/export syntax in the source file.
   
   Example import trace:
-    ./turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/node-default-import/input/node_modules/esm-package/invalid-exports.js [test]
-    ./turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/node-default-import/input/node_modules/esm-package/index.js [test]
-    ./turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/node-default-import/input/index.js [test] [entrypoint]
+    ./turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/node-default-import/input/node_modules/esm-package/invalid-exports.js
+    ./turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/node-default-import/input/node_modules/esm-package/index.js
+    ./turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/node-default-import/input/index.js

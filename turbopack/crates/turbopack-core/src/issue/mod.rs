@@ -678,7 +678,6 @@ async fn into_plain_trace(traces: Vec<Vec<ReadRef<AssetIdent>>>) -> Result<Vec<P
             // ./[project]/app/layout.js [app-rsc] (client reference proxy) [app-rsc]
             // ./[project]/app/layout.js [app-rsc] (ecmascript) [app-rsc]
             // ./[project]/app/layout.js [app-rsc] (ecmascript, Next.js Server Component) [app-rsc]
-            // [entrypoint]"
             //
             // In that case, there are an number of 'shim modules' that are inserted by next with
             // different `modifiers` that are used to model the server->client hand off.  The

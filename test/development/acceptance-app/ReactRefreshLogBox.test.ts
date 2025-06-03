@@ -470,12 +470,12 @@ describe('ReactRefreshLogBox app', () => {
            ./index.module.css [app-client]
            ./index.js [app-client]
            ./app/page.js [app-client]
-           ./app/page.js [app-rsc] [entrypoint]
+           ./app/page.js [app-rsc]
          #2:
            ./index.module.css [app-ssr]
            ./index.js [app-ssr]
            ./app/page.js [app-ssr]
-           ./app/page.js [app-rsc] [entrypoint]",
+           ./app/page.js [app-rsc]",
          "stack": [],
        }
       `)

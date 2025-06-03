@@ -19,5 +19,5 @@ error - [bindings] [project]/turbopack/crates/turbopack-tests/tests/execution/tu
   | Abd, Eef, a, b, c
   | 
   Example import trace:
-    ./turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export/input/invalid-export/index.js [test]
-    ./turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export/input/index.js [test] [entrypoint]
+    ./turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export/input/invalid-export/index.js
+    ./turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export/input/index.js
