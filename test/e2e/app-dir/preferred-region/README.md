@@ -21,7 +21,7 @@ This test demonstrates the successful implementation of `preferredRegion` config
     }
   }
   ```
-- Deployment platforms can now read `preferredRegion` for Node.js runtime
+- Deployment platforms can now read `regions` for Node.js runtime
 
 ### ✅ Edge Runtime (CONTINUES TO WORK)
 
@@ -29,21 +29,3 @@ This test demonstrates the successful implementation of `preferredRegion` config
 - Gets processed and stored in both manifests:
   - `functions-config-manifest.json` under `functions["/api/test-edge"]`
   - `middleware-manifest.json` under `functions["/api/test-edge/route"]`
-
-## Implementation Details
-
-The fix was implemented by:
-
-1. **Updated `FunctionsConfigManifest` interface** in `packages/next/src/build/index.ts` to include `regions` field
-2. **Enhanced build logic** to check for `preferredRegion` configuration and convert it to `regions` array format
-3. **Ensured consistency** with Edge runtime behavior for deployment platform compatibility
-
-## Test Results
-
-✅ All 3 tests pass:
-
-- Node.js API route returns expected response
-- Edge API route returns expected response
-- **Both runtimes now correctly include `preferredRegion` in their respective manifests**
-
-This resolves the original issue where `preferredRegion` was ignored for Node.js runtime functions.
