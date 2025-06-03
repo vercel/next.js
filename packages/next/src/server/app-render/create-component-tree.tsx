@@ -395,7 +395,10 @@ async function createComponentTreeInternal({
   // Use the same condition to render metadataOutlet as metadata
   const metadataOutlet = StreamingMetadataOutlet ? (
     <StreamingMetadataOutlet />
-  ) : undefined
+  ) : (
+    // Blocking metadata outlet
+    <MetadataOutlet ready={getMetadataReady} />
+  )
 
   const notFoundElement = NotFound ? (
     <>
@@ -716,9 +719,6 @@ async function createComponentTreeInternal({
         {layerAssets}
         <OutletBoundary>
           <MetadataOutlet ready={getViewportReady} />
-          {/* Blocking metadata outlet */}
-          <MetadataOutlet ready={getMetadataReady} />
-          {/* Streaming metadata outlet */}
           {metadataOutlet}
         </OutletBoundary>
       </React.Fragment>,
