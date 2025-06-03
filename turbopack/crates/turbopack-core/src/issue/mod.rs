@@ -714,7 +714,6 @@ async fn into_plain(traces: Vec<Vec<ReadRef<AssetIdent>>>) -> Result<Vec<PlainTr
     // the file with the issue is not useful.  Due to the sort these are all at the beginning so we
     // just remove all until the first one with a length greater than 1.
     plain_traces.retain(|t| t.len() > 1);
-    }
 
     // Now see if there are any overlaps
     // If two of the traces overlap that means one is a suffix of another one.  Because we are

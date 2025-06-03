@@ -1170,6 +1170,8 @@ impl Pattern {
 
 impl Pattern {
     pub fn new(pattern: Pattern) -> Vc<Self> {
+        let mut pattern = pattern;
+        pattern.normalize();
         Pattern::new_internal(Value::new(pattern))
     }
 }
@@ -1178,9 +1180,7 @@ impl Pattern {
 impl Pattern {
     #[turbo_tasks::function]
     fn new_internal(pattern: Value<Pattern>) -> Vc<Self> {
-        let mut pattern = pattern.into_value();
-        pattern.normalize();
-        Self::cell(pattern)
+        Self::cell(pattern.into_value())
     }
 }
 
