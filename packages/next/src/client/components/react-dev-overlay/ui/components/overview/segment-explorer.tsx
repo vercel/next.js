@@ -132,15 +132,6 @@ export function SegmentsExplorer(
 }
 
 export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
-  .segment-explorer-back-button {
-    margin-right: 12px;
-    color: var(--color-gray-1000);
-  }
-  .segment-explorer-back-button svg {
-    width: 20px;
-    height: 20px;
-  }
-
   .segment-explorer-content {
     overflow-y: auto;
     padding: 0 12px;
