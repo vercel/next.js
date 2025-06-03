@@ -113,7 +113,7 @@ function _eval({ code, url, map }: EcmascriptModuleEntry): ModuleFactory {
   code += `\n\n//# sourceURL=${encodeURI(
     location.origin +
       NORMALIZED_CHUNK_BASE_PATH +
-      normalizeChunPath(url) +
+      normalizeChunkPath(url) +
       NORMALIZED_CHUNK_SUFFIX_PATH
   )}`
   if (map) {
