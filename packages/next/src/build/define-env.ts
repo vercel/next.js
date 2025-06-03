@@ -286,6 +286,8 @@ export function getDefineEnv({
       : {}),
     'process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER':
       config.experimental.devtoolSegmentExplorer ?? false,
+    'process.env.__NEXT_TURBOPACK_PERSISTENT_CACHE':
+      config.experimental.turbopackPersistentCaching ?? false,
   }
 
   const userDefines = config.compiler?.define ?? {}

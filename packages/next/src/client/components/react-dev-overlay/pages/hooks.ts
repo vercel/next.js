@@ -3,12 +3,14 @@ import * as Bus from './bus'
 import { useErrorOverlayReducer } from '../shared'
 import { Router } from '../../../router'
 import { getComponentStack, getOwnerStack } from '../../errors/stitched-error'
+import { isRecoverableError } from '../../../react-client-callbacks/on-recoverable-error'
 
 export const usePagesDevOverlay = () => {
   const [state, dispatch] = useErrorOverlayReducer(
     'pages',
     getComponentStack,
-    getOwnerStack
+    getOwnerStack,
+    isRecoverableError
   )
 
   React.useEffect(() => {

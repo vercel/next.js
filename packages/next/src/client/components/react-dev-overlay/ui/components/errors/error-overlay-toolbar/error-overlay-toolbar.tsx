@@ -2,6 +2,7 @@ import type { DebugInfo } from '../../../../types'
 import { NodejsInspectorButton } from './nodejs-inspector-button'
 import { CopyStackTraceButton } from './copy-stack-trace-button'
 import { DocsLinkButton } from './docs-link-button'
+import { RestartServerButton } from './restart-server-button'
 
 type ErrorOverlayToolbarProps = {
   error: Error
@@ -14,6 +15,7 @@ export function ErrorOverlayToolbar({
 }: ErrorOverlayToolbarProps) {
   return (
     <span className="error-overlay-toolbar">
+      <RestartServerButton error={error} />
       <CopyStackTraceButton error={error} />
       <DocsLinkButton errorMessage={error.message} />
       <NodejsInspectorButton
