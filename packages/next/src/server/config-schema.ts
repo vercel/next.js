@@ -323,7 +323,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         after: z.boolean().optional(),
         appDocumentPreloading: z.boolean().optional(),
         appNavFailHandling: z.boolean().optional(),
-        preloadEntriesOnStart: z.boolean().optional(),
         allowedRevalidateHeaderKeys: z.array(z.string()).optional(),
         amp: z
           .object({
@@ -657,6 +656,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .optional(),
     pageExtensions: z.array(z.string()).min(1).optional(),
     poweredByHeader: z.boolean().optional(),
+    preloadEntriesOnStart: z.boolean().optional(),
     productionBrowserSourceMaps: z.boolean().optional(),
     publicRuntimeConfig: z.record(z.string(), z.any()).optional(),
     reactProductionProfiling: z.boolean().optional(),

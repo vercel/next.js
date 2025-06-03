@@ -319,7 +319,7 @@ export default class NextNodeServer extends BaseServer<
     if (
       !options.dev &&
       !this.minimalMode &&
-      this.nextConfig.experimental.preloadEntriesOnStart
+      this.nextConfig.preloadEntriesOnStart
     ) {
       this.unstable_preloadEntries()
     }
