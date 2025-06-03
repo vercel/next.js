@@ -13,7 +13,7 @@ export function RestartServerButton({ error }: { error: Error }) {
   const [showButton, setShowButton] = useState(false)
 
   useEffect(() => {
-    const ERROR_KEY = `error-overlay:${window.location.pathname}:${error.message}`
+    const ERROR_KEY = `__next_error_overlay:${window.location.pathname}:${error.message}`
 
     setShowButton(sessionStorage.getItem(ERROR_KEY) === '1')
 
