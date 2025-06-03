@@ -48,7 +48,6 @@ import {
 import { onRecoverableError } from './react-client-callbacks/on-recoverable-error'
 import tracer from './tracing/tracer'
 import { isNextRouterError } from './components/is-next-router-error'
-import type { PagesDevOverlayType } from './components/react-dev-overlay/pages/pages-dev-overlay'
 
 /// <reference types="react-dom/experimental" />
 
@@ -182,7 +181,7 @@ class Container extends React.Component<{
     } else {
       const PagesDevOverlay =
         require('./components/react-dev-overlay/pages/pages-dev-overlay')
-          .PagesDevOverlay as PagesDevOverlayType
+          .PagesDevOverlay as typeof import('./components/react-dev-overlay/pages/pages-dev-overlay').PagesDevOverlay
       return <PagesDevOverlay>{this.props.children}</PagesDevOverlay>
     }
   }
