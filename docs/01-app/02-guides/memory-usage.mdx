@@ -143,15 +143,15 @@ Since `v15`, when the Next.js server starts, it preloads each page's JavaScript
 
 This optimization allows for faster response times, in exchange for a larger initial memory footprint.
 
-To disable this optimization, set the `experimental.preloadEntriesOnStart` flag to `false`. We will soon move this flag out of the `experimental` scope.
+To disable this optimization, set the `preloadEntriesOnStart` flag to `false`.
+
+> **Good to know**: Use `experimental.preloadEntriesOnStart` for `v15.3.3` and earlier.
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const config: NextConfig = {
-  experimental: {
-    preloadEntriesOnStart: false,
-  },
+  preloadEntriesOnStart: false,
 }
 
 export default config
@@ -160,9 +160,7 @@ export default config
 ```js filename="next.config.mjs" switcher
 /** @type {import('next').NextConfig} */
 const config = {
-  experimental: {
-    preloadEntriesOnStart: false,
-  },
+  preloadEntriesOnStart: false,
 }
 
 export default config
