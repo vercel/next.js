@@ -613,7 +613,7 @@ impl Module for EcmascriptModuleAsset {
         }
         ident.add_modifier(rcstr!("ecmascript"));
         ident.layer = Some(self.asset_context.layer().owned().await?);
-        Ok(AssetIdent::new(Value::new(ident)))
+        Ok(AssetIdent::new(ident))
     }
 
     #[turbo_tasks::function]

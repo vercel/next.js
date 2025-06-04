@@ -4,14 +4,14 @@ use anyhow::Result;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, TaskInput, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher, encode_hex, hash_xxh3_hash64};
 
 use crate::resolve::ModulePart;
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Clone, Debug, Hash)]
+#[derive(Clone, Debug, Hash, TaskInput)]
 pub struct AssetIdent {
     /// The primary path of the asset
     pub path: ResolvedVc<FileSystemPath>,
@@ -119,7 +119,7 @@ impl ValueToString for AssetIdent {
 #[turbo_tasks::value_impl]
 impl AssetIdent {
     #[turbo_tasks::function]
-    pub async fn new(ident: Value<AssetIdent>) -> Result<Vc<Self>> {
+    pub async fn new(ident: AssetIdent) -> Result<Vc<Self>> {
         debug_assert!(
             ident.query.is_empty() || ident.query.starts_with("?"),
             "query should be empty or start with a `?`"
@@ -128,13 +128,13 @@ impl AssetIdent {
             ident.fragment.is_empty() || ident.fragment.starts_with("#"),
             "query should be empty or start with a `?`"
         );
-        Ok(ident.into_value().cell())
+        Ok(ident.cell())
     }
 
     /// Creates an [AssetIdent] from a [Vc<FileSystemPath>]
     #[turbo_tasks::function]
     pub fn from_path(path: ResolvedVc<FileSystemPath>) -> Vc<Self> {
-        Self::new(Value::new(AssetIdent {
+        Self::new(AssetIdent {
             path,
             query: RcStr::default(),
             fragment: RcStr::default(),
@@ -143,42 +143,42 @@ impl AssetIdent {
             parts: Vec::new(),
             layer: None,
             content_type: None,
-        }))
+        })
     }
 
     #[turbo_tasks::function]
     pub fn with_query(&self, query: RcStr) -> Vc<Self> {
         let mut this = self.clone();
         this.query = query;
-        Self::new(Value::new(this))
+        Self::new(this)
     }
 
     #[turbo_tasks::function]
     pub fn with_fragment(&self, fragment: RcStr) -> Vc<Self> {
         let mut this = self.clone();
         this.fragment = fragment;
-        Self::new(Value::new(this))
+        Self::new(this)
     }
 
     #[turbo_tasks::function]
     pub fn with_modifier(&self, modifier: RcStr) -> Vc<Self> {
         let mut this = self.clone();
         this.add_modifier(modifier);
-        Self::new(Value::new(this))
+        Self::new(this)
     }
 
     #[turbo_tasks::function]
     pub fn with_part(&self, part: ModulePart) -> Vc<Self> {
         let mut this = self.clone();
         this.parts.push(part);
-        Self::new(Value::new(this))
+        Self::new(this)
     }
 
     #[turbo_tasks::function]
     pub fn with_path(&self, path: ResolvedVc<FileSystemPath>) -> Vc<Self> {
         let mut this = self.clone();
         this.path = path;
-        Self::new(Value::new(this))
+        Self::new(this)
     }
 
     #[turbo_tasks::function]
@@ -186,14 +186,14 @@ impl AssetIdent {
         let mut this = self.clone();
         debug_assert!(!layer.is_empty(), "cannot set empty layers names");
         this.layer = Some(layer);
-        Self::new(Value::new(this))
+        Self::new(this)
     }
 
     #[turbo_tasks::function]
     pub fn with_content_type(&self, content_type: RcStr) -> Vc<Self> {
         let mut this = self.clone();
         this.content_type = Some(content_type);
-        Self::new(Value::new(this))
+        Self::new(this)
     }
 
     #[turbo_tasks::function]
@@ -207,7 +207,7 @@ impl AssetIdent {
     pub async fn rename_as(&self, pattern: RcStr) -> Result<Vc<Self>> {
         let mut this = self.clone();
         this.rename_as_ref(&pattern).await?;
-        Ok(Self::new(Value::new(this)))
+        Ok(Self::new(this))
     }
 
     #[turbo_tasks::function]
