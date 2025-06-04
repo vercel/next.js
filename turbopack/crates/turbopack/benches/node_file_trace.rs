@@ -3,7 +3,7 @@ use std::{fs, path::PathBuf};
 use criterion::{Bencher, BenchmarkId, Criterion};
 use regex::Regex;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ReadConsistency, ResolvedVc, TurboTasks, Value, Vc, apply_effects};
+use turbo_tasks::{ReadConsistency, ResolvedVc, TurboTasks, Vc, apply_effects};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, NullFileSystem};
 use turbopack::{
@@ -87,9 +87,9 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
 
                 let source = FileSource::new(input);
                 let compile_time_info = CompileTimeInfo::builder(
-                    Environment::new(Value::new(ExecutionEnvironment::NodeJsLambda(
+                    Environment::new(ExecutionEnvironment::NodeJsLambda(
                         NodeJsEnvironment::default().resolved_cell(),
-                    )))
+                    ))
                     .to_resolved()
                     .await?,
                 )
