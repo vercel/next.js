@@ -10097,6 +10097,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "bitvec",
  "codspeed-criterion-compat",
  "data-encoding",
  "either",
