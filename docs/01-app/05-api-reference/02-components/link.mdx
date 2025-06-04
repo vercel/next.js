@@ -299,7 +299,7 @@ Prefetching happens when a `<Link />` component enters the user's viewport (init
 
 The following values can be passed to the `prefetch` prop:
 
-- **`null` (default)**: Prefetch behavior depends on whether the route is static or dynamic. For static routes, the full route will be prefetched (including all its data). For dynamic routes, the partial route down to the nearest segment with a [`loading.js`](/docs/app/building-your-application/routing/loading-ui-and-streaming#instant-loading-states) boundary will be prefetched.
+- **`null` (default)**: Prefetch behavior depends on whether the route is static or dynamic. For static routes, the full route will be prefetched (including all its data). For dynamic routes, the partial route down to the nearest segment with a [`loading.js`](/docs/app/api-reference/file-conventions/loading#instant-loading-states) boundary will be prefetched.
 - `true`: The full route will be prefetched for both static and dynamic routes.
 - `false`: Prefetching will never happen both on entering the viewport and on hover.
 
