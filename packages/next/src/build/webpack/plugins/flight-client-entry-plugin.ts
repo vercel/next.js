@@ -109,7 +109,7 @@ const pluginState = getProxiedPluginState({
 })
 
 const POSSIBLE_SHARED_CONVENTIONS = ['template', 'layout']
-const STANDALONE_BUNDLE_CONVENTIONS = new Set(['global-not-found'])
+const STANDALONE_BUNDLE_CONVENTION = 'global-not-found'
 
 function deduplicateCSSImportsForEntry(mergedCSSimports: CssImports) {
   // If multiple entry module connections are having the same CSS import,
@@ -160,9 +160,10 @@ function deduplicateCSSImportsForEntry(mergedCSSimports: CssImports) {
       // Or if it's any standalone entry such as `global-not-found`, it won't share any resources with other entry, skip it.
       if (
         trackedCSSImports.has(cssImport) &&
-        !STANDALONE_BUNDLE_CONVENTIONS.has(entryConventionName)
-      )
+        STANDALONE_BUNDLE_CONVENTION !== entryConventionName
+      ) {
         continue
+      }
 
       // Only track CSS imports that are in files that can inherit CSS.
       if (POSSIBLE_SHARED_CONVENTIONS.includes(entryConventionName)) {
