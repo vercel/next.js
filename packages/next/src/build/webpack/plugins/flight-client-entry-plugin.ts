@@ -151,7 +151,6 @@ function deduplicateCSSImportsForEntry(mergedCSSimports: CssImports) {
 
   const dedupedCSSImports: CssImports = {}
   const trackedCSSImports = new Set<string>()
-  const possibleSharedConventionSet = new Set(POSSIBLE_SHARED_CONVENTIONS)
 
   for (const [entryFilePath, cssImports] of sortedCSSImports) {
     const entryConventionName = path.parse(entryFilePath).name
@@ -166,7 +165,7 @@ function deduplicateCSSImportsForEntry(mergedCSSimports: CssImports) {
         continue
 
       // Only track CSS imports that are in files that can inherit CSS.
-      if (possibleSharedConventionSet.has(entryConventionName)) {
+      if (POSSIBLE_SHARED_CONVENTIONS.includes(entryConventionName)) {
         trackedCSSImports.add(cssImport)
       }
 
