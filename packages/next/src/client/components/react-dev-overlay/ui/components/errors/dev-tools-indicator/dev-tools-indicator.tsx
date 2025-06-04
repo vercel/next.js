@@ -219,18 +219,21 @@ function DevToolsPopover({
     dispatch({ type: ACTION_ERROR_OVERLAY_TOGGLE })
   }
 
-  function openRootMenu() {
-    setOpen((prevOpen) => {
-      if (prevOpen === null) select('first')
-      return OVERLAYS.Root
-    })
+  function closeToRootMenu() {
+    setOpen(OVERLAYS.Root)
+    // We wait for the menu animation to complete
+    setTimeout(() => {
+      // This places focus again on the selected item
+      // so you can press Enter to trigger the selected item again
+      select(selectedIndex)
+    }, MENU_DURATION_MS)
   }
 
   function onTriggerClick() {
     if (open === OVERLAYS.Root) {
       setOpen(null)
     } else {
-      openRootMenu()
+      setOpen(OVERLAYS.Root)
       setTimeout(() => {
         select('first')
       })
@@ -301,7 +304,7 @@ function DevToolsPopover({
       {/* Route Info */}
       <RouteInfo
         isOpen={isRouteInfoOpen}
-        close={openRootMenu}
+        close={closeToRootMenu}
         triggerRef={triggerRef}
         style={popover}
         routerType={routerType}
@@ -311,7 +314,7 @@ function DevToolsPopover({
       {/* Turbopack Info */}
       <TurbopackInfo
         isOpen={isTurbopackInfoOpen}
-        close={openRootMenu}
+        close={closeToRootMenu}
         triggerRef={triggerRef}
         style={popover}
       />
@@ -319,7 +322,7 @@ function DevToolsPopover({
       {/* Preferences */}
       <UserPreferences
         isOpen={isPreferencesOpen}
-        close={openRootMenu}
+        close={closeToRootMenu}
         triggerRef={triggerRef}
         style={popover}
         hide={handleHideDevtools}
@@ -333,7 +336,7 @@ function DevToolsPopover({
       {process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER ? (
         <SegmentsExplorer
           isOpen={isSegmentExplorerOpen}
-          close={openRootMenu}
+          close={closeToRootMenu}
           triggerRef={triggerRef}
           style={popover}
         />
@@ -406,7 +409,7 @@ function DevToolsPopover({
               />
               {process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER ? (
                 <MenuItem
-                  data-rendered-files
+                  data-segment-explorer
                   label="Segment Explorer"
                   value={<ChevronRight />}
                   onClick={() => setOpen(OVERLAYS.SegmentExplorer)}

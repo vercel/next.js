@@ -2,6 +2,7 @@ use std::io::Write;
 
 use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
+use turbo_rcstr::rcstr;
 use turbo_tasks::{
     NonLocalValue, ResolvedVc, TaskInput, Upcast, ValueToString, Vc, trace::TraceRawVcs,
 };
@@ -271,7 +272,7 @@ async fn module_factory_with_code_generation_issue(
                 CodeGenerationIssue {
                     severity: IssueSeverity::Error.resolved_cell(),
                     path: chunk_item.asset_ident().path().to_resolved().await?,
-                    title: StyledString::Text("Code generation for chunk item errored".into())
+                    title: StyledString::Text(rcstr!("Code generation for chunk item errored"))
                         .resolved_cell(),
                     message: StyledString::Text(error_message).resolved_cell(),
                 }

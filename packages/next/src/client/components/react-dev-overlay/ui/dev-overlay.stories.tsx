@@ -10,7 +10,6 @@ import {
   ACTION_ERROR_OVERLAY_CLOSE,
   ACTION_ERROR_OVERLAY_OPEN,
   ACTION_ERROR_OVERLAY_TOGGLE,
-  ACTION_UNHANDLED_ERROR,
 } from '../shared'
 
 const meta: Meta<typeof DevOverlay> = {
@@ -32,50 +31,44 @@ const initialState: OverlayState = {
   errors: [
     {
       id: 1,
-      event: {
-        type: ACTION_UNHANDLED_ERROR,
-        reason: Object.assign(new Error('First error message'), {
-          __NEXT_ERROR_CODE: 'E001',
-        }),
-        componentStackFrames: [
-          {
-            file: 'app/page.tsx',
-            component: 'Home',
-            lineNumber: 10,
-            column: 5,
-            canOpenInEditor: true,
-          },
-        ],
-        frames: [
-          {
-            file: 'app/page.tsx',
-            methodName: 'Home',
-            arguments: [],
-            lineNumber: 10,
-            column: 5,
-          },
-        ],
-      },
+      error: Object.assign(new Error('First error message'), {
+        __NEXT_ERROR_CODE: 'E001',
+      }),
+      componentStackFrames: [
+        {
+          file: 'app/page.tsx',
+          component: 'Home',
+          lineNumber: 10,
+          column: 5,
+          canOpenInEditor: true,
+        },
+      ],
+      frames: [
+        {
+          file: 'app/page.tsx',
+          methodName: 'Home',
+          arguments: [],
+          lineNumber: 10,
+          column: 5,
+        },
+      ],
+      type: 'runtime',
     },
     {
       id: 2,
-      event: {
-        type: ACTION_UNHANDLED_ERROR,
-        reason: Object.assign(new Error('Second error message'), {
-          __NEXT_ERROR_CODE: 'E002',
-        }),
-        frames: [],
-      },
+      error: Object.assign(new Error('Second error message'), {
+        __NEXT_ERROR_CODE: 'E002',
+      }),
+      frames: [],
+      type: 'runtime',
     },
     {
       id: 3,
-      event: {
-        type: ACTION_UNHANDLED_ERROR,
-        reason: Object.assign(new Error('Third error message'), {
-          __NEXT_ERROR_CODE: 'E003',
-        }),
-        frames: [],
-      },
+      error: Object.assign(new Error('Third error message'), {
+        __NEXT_ERROR_CODE: 'E003',
+      }),
+      frames: [],
+      type: 'runtime',
     },
   ],
   refreshState: { type: 'idle' },
@@ -109,6 +102,10 @@ function useOverlayReducer() {
   }, initialState)
 }
 
+function getNoSquashedHydrationErrorDetails() {
+  return null
+}
+
 export const Default: Story = {
   render: function DevOverlayStory() {
     const [state, dispatch] = useOverlayReducer()
@@ -122,7 +119,14 @@ export const Default: Story = {
             objectFit: 'contain',
           }}
         />
-        <DevOverlay state={state} dispatch={dispatch} />
+        <DevOverlay
+          state={state}
+          dispatch={dispatch}
+          getSquashedHydrationErrorDetails={
+            // Testing like App Router where we no longer quash hydration errors
+            getNoSquashedHydrationErrorDetails
+          }
+        />
       </>
     )
   },

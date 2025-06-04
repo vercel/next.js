@@ -5,7 +5,6 @@ import { RuntimeError } from './runtime-error'
 import { getErrorSource } from '../../../../../shared/lib/error-source'
 import { HotlinkedText } from '../components/hot-linked-text'
 import { PseudoHtmlDiff } from './runtime-error/component-stack-pseudo-html'
-import { isConsoleError } from '../../../errors/console-error'
 import { extractNextErrorCode } from '../../../../../lib/error-telemetry-utils'
 import {
   ErrorOverlayLayout,
@@ -18,10 +17,10 @@ import {
 } from '../../../react-19-hydration-error'
 import type { ReadyRuntimeError } from '../../utils/get-error-by-type'
 import type { ErrorBaseProps } from '../components/errors/error-overlay/error-overlay'
-import { getSquashedHydrationErrorDetails } from '../../pages/hydration-error-state'
-import { isRecoverableError } from '../../../../react-client-callbacks/on-recoverable-error'
+import type { HydrationErrorState } from '../../pages/hydration-error-state'
 
 export interface ErrorsProps extends ErrorBaseProps {
+  getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
   runtimeErrors: ReadyRuntimeError[]
   debugInfo: DebugInfo
   onClose: () => void
@@ -56,11 +55,14 @@ function GenericErrorDescription({ error }: { error: Error }) {
   )
 }
 
-function getErrorType(error: Error): ErrorOverlayLayoutProps['errorType'] {
-  if (isRecoverableError(error)) {
+function getErrorTypeLabel(
+  error: Error,
+  type: ReadyRuntimeError['type']
+): ErrorOverlayLayoutProps['errorType'] {
+  if (type === 'recoverable') {
     return `Recoverable ${error.name}`
   }
-  if (isConsoleError(error)) {
+  if (type === 'console') {
     return `Console ${error.name}`
   }
   return `Runtime ${error.name}`
@@ -71,7 +73,10 @@ const noErrorDetails = {
   notes: null,
   reactOutputComponentDiff: null,
 }
-function useErrorDetails(error: Error | undefined): {
+function useErrorDetails(
+  error: Error | undefined,
+  getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
+): {
   hydrationWarning: string | null
   notes: string | null
   reactOutputComponentDiff: string | null
@@ -105,10 +110,11 @@ function useErrorDetails(error: Error | undefined): {
       notes,
       reactOutputComponentDiff: diff,
     }
-  }, [error])
+  }, [error, getSquashedHydrationErrorDetails])
 }
 
 export function Errors({
+  getSquashedHydrationErrorDetails,
   runtimeErrors,
   debugInfo,
   onClose,
@@ -126,7 +132,10 @@ export function Errors({
     () => runtimeErrors[activeIdx] ?? null,
     [activeIdx, runtimeErrors]
   )
-  const errorDetails = useErrorDetails(activeError?.error)
+  const errorDetails = useErrorDetails(
+    activeError?.error,
+    getSquashedHydrationErrorDetails
+  )
 
   if (isLoading) {
     // TODO: better loading state
@@ -141,7 +150,7 @@ export function Errors({
   const isServerError = ['server', 'edge-server'].includes(
     getErrorSource(error) || ''
   )
-  const errorType = getErrorType(error)
+  const errorType = getErrorTypeLabel(error, activeError.type)
   // TOOD: May be better to always treat everything past the first blank line as notes
   // We're currently only special casing hydration error messages.
   const notes = errorDetails.notes

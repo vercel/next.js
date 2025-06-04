@@ -80,7 +80,7 @@ impl ChunkableModuleReference for CssClientReference {
     fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
         Vc::cell(Some(ChunkingType::Isolated {
             _ty: ChunkGroupType::Evaluated,
-            merge_tag: Some("client".into()),
+            merge_tag: Some(rcstr!("client")),
         }))
     }
 }
@@ -97,6 +97,6 @@ impl ModuleReference for CssClientReference {
 impl ValueToString for CssClientReference {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell("css client reference to client".into())
+        Vc::cell(rcstr!("css client reference to client"))
     }
 }

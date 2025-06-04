@@ -15,7 +15,9 @@ describe('app-dir - metadata-streaming', () => {
 
     const $ = await next.render$('/parallel-routes')
     expect($('title').length).toBe(1)
-    expect($('head title').text()).toBe('parallel title')
+    // We can't ensure if it's inserted into  head or body since it's a race condition,
+    // where sometimes the metadata can be suspended.
+    expect($('title').text()).toBe('parallel title')
 
     // validate behavior remains the same on client navigations
     await browser.elementByCss('[href="/parallel-routes/test-page"]').click()

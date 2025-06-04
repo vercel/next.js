@@ -1,7 +1,7 @@
 use anyhow::{Ok, Result};
 use lazy_static::lazy_static;
 use regex::Regex;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
 
 use super::pattern::Pattern;
@@ -124,7 +124,7 @@ impl Request {
                 path: Pattern::Constant(path),
                 ..
             } => path.clone(),
-            Request::Empty => "".into(),
+            Request::Empty => rcstr!(""),
             Request::PackageInternal {
                 path: Pattern::Constant(path),
                 ..
@@ -158,7 +158,7 @@ impl Request {
 
         if let Some(remainder) = r.strip_prefix("//") {
             return Ok(Request::Uri {
-                protocol: "//".into(),
+                protocol: rcstr!("//"),
                 remainder: remainder.into(),
                 query: RcStr::default(),
                 fragment: RcStr::default(),
@@ -380,12 +380,12 @@ impl Request {
                 Self::parse(Value::new(pat))
             }
             Request::PackageInternal { path } => {
-                let mut pat = Pattern::Constant("./".into());
+                let mut pat = Pattern::Constant(rcstr!("./"));
                 pat.push(path.clone());
                 Self::parse(Value::new(pat))
             }
             Request::Unknown { path } => {
-                let mut pat = Pattern::Constant("./".into());
+                let mut pat = Pattern::Constant(rcstr!("./"));
                 pat.push(path.clone());
                 Self::parse(Value::new(pat))
             }
@@ -717,7 +717,7 @@ impl Request {
             }
             Request::ServerRelative { path, .. } => path.clone(),
             Request::Windows { path, .. } => path.clone(),
-            Request::Empty => Pattern::Constant("".into()),
+            Request::Empty => Pattern::Constant(rcstr!("")),
             Request::PackageInternal { path } => path.clone(),
             Request::DataUri {
                 media_type,
@@ -785,7 +785,7 @@ impl ValueToString for Request {
             }
             Request::ServerRelative { path, .. } => format!("server relative {path}").into(),
             Request::Windows { path, .. } => format!("windows {path}").into(),
-            Request::Empty => "empty".into(),
+            Request::Empty => rcstr!("empty"),
             Request::PackageInternal { path } => format!("package internal {path}").into(),
             Request::DataUri {
                 media_type,
@@ -802,7 +802,7 @@ impl ValueToString for Request {
                 ..
             } => format!("uri \"{protocol}\" \"{remainder}\"").into(),
             Request::Unknown { path } => format!("unknown {path}").into(),
-            Request::Dynamic => "dynamic".into(),
+            Request::Dynamic => rcstr!("dynamic"),
             Request::Alternatives { requests } => {
                 let vec = requests.iter().map(|i| i.to_string()).try_join().await?;
                 vec.iter()
@@ -835,7 +835,7 @@ mod tests {
     fn test_split_query_fragment() {
         assert_eq!(
             (
-                Pattern::Constant("foo".into()),
+                Pattern::Constant(rcstr!("foo")),
                 RcStr::default(),
                 RcStr::default()
             ),
@@ -845,42 +845,42 @@ mod tests {
         // from `import './foo'`, ditto for fragments.
         assert_eq!(
             (
-                Pattern::Constant("foo".into()),
-                RcStr::from("?"),
+                Pattern::Constant(rcstr!("foo")),
+                rcstr!("?"),
                 RcStr::default()
             ),
             split_off_query_fragment("foo?")
         );
         assert_eq!(
             (
-                Pattern::Constant("foo".into()),
+                Pattern::Constant(rcstr!("foo")),
                 RcStr::default(),
-                RcStr::from("#")
+                rcstr!("#")
             ),
             split_off_query_fragment("foo#")
         );
         assert_eq!(
             (
-                Pattern::Constant("foo".into()),
-                RcStr::from("?bar=baz"),
+                Pattern::Constant(rcstr!("foo")),
+                rcstr!("?bar=baz"),
                 RcStr::default()
             ),
             split_off_query_fragment("foo?bar=baz")
         );
         assert_eq!(
             (
-                Pattern::Constant("foo".into()),
+                Pattern::Constant(rcstr!("foo")),
                 RcStr::default(),
-                RcStr::from("#stuff?bar=baz")
+                rcstr!("#stuff?bar=baz")
             ),
             split_off_query_fragment("foo#stuff?bar=baz")
         );
 
         assert_eq!(
             (
-                Pattern::Constant("foo".into()),
-                RcStr::from("?bar=baz"),
-                RcStr::from("#stuff")
+                Pattern::Constant(rcstr!("foo")),
+                rcstr!("?bar=baz"),
+                rcstr!("#stuff")
             ),
             split_off_query_fragment("foo?bar=baz#stuff")
         );

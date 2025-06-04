@@ -586,11 +586,6 @@ export interface ExperimentalConfig {
   useLightningcss?: boolean
 
   /**
-   * Enables early import feature for app router modules
-   */
-  useEarlyImport?: boolean
-
-  /**
    * Enables view transitions by using the {@link https://github.com/facebook/react/pull/31975 unstable_ViewTransition} Component.
    */
   viewTransition?: boolean
@@ -1373,7 +1368,6 @@ export const defaultConfig = {
     webpackBuildWorker: undefined,
     webpackMemoryOptimizations: false,
     optimizeServerReact: true,
-    useEarlyImport: false,
     viewTransition: false,
     routerBFCache: false,
     removeUncaughtErrorAndRejectionListeners: false,
