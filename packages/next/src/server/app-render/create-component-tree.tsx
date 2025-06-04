@@ -42,7 +42,7 @@ export function createComponentTree(props: {
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
-  StreamingMetadataOutlet: React.ComponentType
+  StreamingMetadataOutlet: React.ComponentType | null
 }): Promise<CacheNodeSeedData> {
   return getTracer().trace(
     NextNodeServerSpan.createComponentTree,
@@ -395,7 +395,9 @@ async function createComponentTreeInternal({
   // Use the same condition to render metadataOutlet as metadata
   const metadataOutlet = StreamingMetadataOutlet ? (
     <StreamingMetadataOutlet />
-  ) : undefined
+  ) : (
+    <MetadataOutlet ready={getMetadataReady} />
+  )
 
   const notFoundElement = NotFound ? (
     <>
@@ -716,9 +718,6 @@ async function createComponentTreeInternal({
         {layerAssets}
         <OutletBoundary>
           <MetadataOutlet ready={getViewportReady} />
-          {/* Blocking metadata outlet */}
-          <MetadataOutlet ready={getMetadataReady} />
-          {/* Streaming metadata outlet */}
           {metadataOutlet}
         </OutletBoundary>
       </React.Fragment>,
