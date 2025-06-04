@@ -43,7 +43,7 @@ export function generateInterceptionRoutesRewrites(
       // to the format that Next/the proxy expects
       let interceptingRouteRegex = pathToRegexp(normalizedInterceptingRoute)
         .toString()
-        .slice(2, -3)
+        .slice(2, -11)
 
       rewrites.push({
         source: `${basePath}${normalizedInterceptedRoute}`,
