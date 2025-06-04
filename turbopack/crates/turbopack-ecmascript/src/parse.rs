@@ -41,7 +41,6 @@ use super::EcmascriptModuleAssetType;
 use crate::{
     EcmascriptInputTransform,
     analyzer::{ImportMap, graph::EvalContext},
-    raw_sourcemap,
     swc_comments::ImmutableComments,
     transform::{EcmascriptInputTransforms, TransformContext},
 };

@@ -19,7 +19,6 @@ pub mod manifest;
 pub mod minify;
 pub mod parse;
 mod path_visitor;
-mod raw_sourcemap;
 pub mod references;
 pub mod runtime_functions;
 pub mod side_effect_optimization;
