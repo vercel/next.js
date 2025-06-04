@@ -297,6 +297,7 @@ export interface ExperimentalConfig {
   clientSegmentCache?: boolean | 'client-only'
   dynamicOnHover?: boolean
   appDocumentPreloading?: boolean
+  preloadEntriesOnStart?: boolean
   /** @default true */
   strictNextHead?: boolean
   clientRouterFilter?: boolean
@@ -1191,11 +1192,6 @@ export interface NextConfig extends Record<string, any> {
    * /Mediapartners-Google|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview/i
    */
   htmlLimitedBots?: RegExp
-  /**
-   * Enables preloading each page's JavaScript modules into memory, when the Next.js server starts, rather than at request time.
-   * @see https://nextjs.org/docs/app/guides/memory-usage#preloading-entries
-   */
-  preloadEntriesOnStart?: boolean
 }
 
 export const defaultConfig = {
@@ -1314,6 +1310,7 @@ export const defaultConfig = {
     clientSegmentCache: false,
     dynamicOnHover: false,
     appDocumentPreloading: undefined,
+    preloadEntriesOnStart: true,
     clientRouterFilter: true,
     clientRouterFilterRedirects: false,
     fetchCacheKeyPrefix: '',
@@ -1390,7 +1387,6 @@ export const defaultConfig = {
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
-  preloadEntriesOnStart: true,
 } satisfies NextConfig
 
 export async function normalizeConfig(phase: string, config: any) {
