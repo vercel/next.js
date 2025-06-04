@@ -3033,7 +3033,7 @@ dependencies = [
  "httpdate",
  "itoa",
  "pin-project-lite",
- "socket2 0.5.8",
+ "socket2 0.4.9",
  "tokio",
  "tower-service",
  "tracing",
@@ -7461,9 +7461,9 @@ dependencies = [
 
 [[package]]
 name = "swc_common"
-version = "11.0.2"
+version = "11.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "07eee3b76576a59386a0245cdf6ecc37b837da5d515c965f34362b338fa99141"
+checksum = "406a9d24fdd093e7d529233309f1b0514bb5ce4dff7a952ad6c3de04990647ff"
 dependencies = [
  "anyhow",
  "ast_node",
@@ -7554,9 +7554,9 @@ dependencies = [
 
 [[package]]
 name = "swc_core"
-version = "26.3.3"
+version = "26.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a31930a468e3178fe8ac7f47bd1fcccdd1d97d11abf6ffec7d7b8800196c36bf"
+checksum = "94ab2ee5cd6285e9a2ab41aa4e1ff58497ad9ac0054917a04b191d9af33f730d"
 dependencies = [
  "binding_macros",
  "par-core",
@@ -7995,9 +7995,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_lexer"
-version = "14.0.3"
+version = "14.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b232a4ba5106d7bfa4da9cb4a22c3f3fdac64d656cf45c60a349f8ded133462"
+checksum = "bb339d30ba6ee93da5d5638982faaa79586cd429fe331648abf42afa0eb0a7b5"
 dependencies = [
  "arrayvec 0.7.4",
  "bitflags 2.9.0",
@@ -8063,9 +8063,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_minifier"
-version = "20.0.3"
+version = "20.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c43654113e9a75edf05fbe2c66b5232e149f563c97bef58ff1a896daa288092"
+checksum = "9c38b93f633ff58a9607c0002da2f99c91b7c55a42ff6b6dd90806bb51ccd670"
 dependencies = [
  "arrayvec 0.7.4",
  "bitflags 2.9.0",
@@ -8101,9 +8101,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_parser"
-version = "14.0.1"
+version = "14.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b59cd2d4c1989c38eae5cd5888f3a3120ecbe2e53b939e586d340b12de7c1e2"
+checksum = "60e07e6ecd47f748988902976d09c4022b1147772f88ad8a95852a20722ac7dc"
 dependencies = [
  "arrayvec 0.7.4",
  "bitflags 2.9.0",
