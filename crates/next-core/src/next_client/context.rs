@@ -139,7 +139,7 @@ pub async fn get_client_compile_time_info(
     .await
 }
 
-#[turbo_tasks::value(shared, serialization = "auto_for_input")]
+#[turbo_tasks::value(shared)]
 #[derive(Debug, Copy, Clone, Hash, TaskInput)]
 pub enum ClientContextType {
     Pages {
