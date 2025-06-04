@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, hash::Hash, mem::replace, ops::DerefMut};
 
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{NonLocalValue, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
 
 /// A parsed query string from a http request
 #[derive(
@@ -10,9 +10,17 @@ use turbo_tasks::{NonLocalValue, trace::TraceRawVcs};
 #[serde(transparent)]
 pub struct Headers(BTreeMap<String, HeaderValue>);
 
+impl TaskInput for Headers {
+    fn is_transient(&self) -> bool {
+        // This is correct because Headers implements NonLocalValue
+        false
+    }
+}
 /// The value of an http header. HTTP headers might contain non-utf-8 bytes. An
 /// header might also occur multiple times.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
+#[derive(
+    Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Serialize, Deserialize, NonLocalValue, TaskInput,
+)]
 #[serde(untagged)]
 pub enum HeaderValue {
     SingleString(String),

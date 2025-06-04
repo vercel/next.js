@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath};
 use turbopack_core::{
     asset::Asset,
@@ -98,7 +98,7 @@ impl StaticAssetsContentSourceItem {
 #[turbo_tasks::value_impl]
 impl GetContentSourceContent for StaticAssetsContentSourceItem {
     #[turbo_tasks::function]
-    fn get(&self, _path: RcStr, _data: Value<ContentSourceData>) -> Vc<ContentSourceContent> {
+    fn get(&self, _path: RcStr, _data: ContentSourceData) -> Vc<ContentSourceContent> {
         let content = Vc::upcast::<Box<dyn Asset>>(FileSource::new(*self.path)).content();
         ContentSourceContent::static_content(content.versioned())
     }

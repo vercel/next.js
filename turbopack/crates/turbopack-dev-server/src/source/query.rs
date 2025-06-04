@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, hash::Hash, ops::DerefMut};
 
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{NonLocalValue, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
 
 use super::ContentSourceDataFilter;
 
@@ -11,6 +11,12 @@ use super::ContentSourceDataFilter;
 )]
 #[serde(transparent)]
 pub struct Query(BTreeMap<String, QueryValue>);
+
+impl TaskInput for Query {
+    fn is_transient(&self) -> bool {
+        false
+    }
+}
 
 impl Query {
     pub fn filter_with(&mut self, filter: &ContentSourceDataFilter) {

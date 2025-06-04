@@ -46,7 +46,8 @@ impl_task_input! {
     RcStr,
     TaskId,
     ValueTypeId,
-    Duration
+    Duration,
+    String
 }
 
 impl<T> TaskInput for Vec<T>
