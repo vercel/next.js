@@ -1924,8 +1924,7 @@ async fn resolve_internal_inline(
             } => {
                 let mut new_pat = path.clone();
                 new_pat.push_front(rcstr!(".").into());
-                let relative =
-                    Request::relative(Value::new(new_pat), query.clone(), fragment.clone(), true);
+                let relative = Request::relative(new_pat, query.clone(), fragment.clone(), true);
 
                 if !has_alias {
                     ResolvingIssue {
@@ -2113,9 +2112,7 @@ async fn resolve_into_folder(
                     {
                         continue;
                     }
-                    let request = Request::parse(Value::new(normalized_request.into()))
-                        .to_resolved()
-                        .await?;
+                    let request = Request::parse_string(normalized_request);
 
                     // main field will always resolve not fully specified
                     let options = if options_value.fully_specified {
@@ -2123,7 +2120,7 @@ async fn resolve_into_folder(
                     } else {
                         options
                     };
-                    let result = &*resolve_internal_inline(*package_path, *request, options)
+                    let result = &*resolve_internal_inline(*package_path, request, options)
                         .await?
                         .await?;
                     // we are not that strict when a main field fails to resolve
@@ -2158,7 +2155,7 @@ async fn resolve_into_folder(
         ),
     };
 
-    let request = Request::parse(Value::new(pattern));
+    let request = Request::parse(pattern);
 
     Ok(resolve_internal_inline(*package_path, request, options)
         .await?
@@ -2438,7 +2435,7 @@ async fn apply_in_package(
             return Ok(Some(
                 resolve_internal(
                     package_path,
-                    Request::parse(Value::new(Pattern::Constant(value.into())))
+                    Request::parse(Pattern::Constant(value.into()))
                         .with_query(query.clone())
                         .with_fragment(fragment.clone()),
                     options,
@@ -2452,7 +2449,7 @@ async fn apply_in_package(
             severity: error_severity(options).await?,
             file_path: *package_json_path,
             request_type: format!("alias field ({field})"),
-            request: Request::parse(Value::new(Pattern::Constant(request)))
+            request: Request::parse(Pattern::Constant(request))
                 .to_resolved()
                 .await?,
             resolve_options: options.to_resolved().await?,
@@ -2537,7 +2534,7 @@ async fn resolve_module_request(
         && name == module
     {
         let result = resolve_into_package(
-            Value::new(path.clone()),
+            path.clone(),
             **package_path,
             query.clone(),
             fragment.clone(),
@@ -2572,7 +2569,7 @@ async fn resolve_module_request(
         match *item {
             FindPackageItem::PackageDirectory(package_path) => {
                 results.push(resolve_into_package(
-                    Value::new(path.clone()),
+                    path.clone(),
                     *package_path,
                     query.clone(),
                     fragment.clone(),
@@ -2609,7 +2606,7 @@ async fn resolve_module_request(
             rcstr!("/").into(),
             path.clone(),
         ]);
-        let relative = Request::relative(Value::new(pattern), query, fragment, true)
+        let relative = Request::relative(pattern, query, fragment, true)
             .to_resolved()
             .await?;
         let relative_result =
@@ -2625,13 +2622,12 @@ async fn resolve_module_request(
 
 #[turbo_tasks::function]
 async fn resolve_into_package(
-    path: Value<Pattern>,
+    path: Pattern,
     package_path: ResolvedVc<FileSystemPath>,
     query: RcStr,
     fragment: RcStr,
     options: ResolvedVc<ResolveOptions>,
 ) -> Result<Vc<ResolveResult>> {
-    let path = path.into_value();
     let options_value = options.await?;
     let mut results = Vec::new();
 
@@ -2696,7 +2692,7 @@ async fn resolve_into_package(
         let mut new_pat = path.clone();
         new_pat.push_front(rcstr!(".").into());
 
-        let relative = Request::relative(Value::new(new_pat), query, fragment, true)
+        let relative = Request::relative(new_pat, query, fragment, true)
             .to_resolved()
             .await?;
         results.push(resolve_internal_inline(*package_path, *relative, *options).await?);
@@ -2904,10 +2900,10 @@ async fn handle_exports_imports_field(
     let mut resolved_results = Vec::new();
     for (result_path, conditions) in results {
         if let Some(result_path) = result_path.with_normalized_path() {
-            let request = Request::parse(Value::new(Pattern::Concatenation(vec![
+            let request = Request::parse(Pattern::Concatenation(vec![
                 Pattern::Constant(rcstr!("./")),
                 result_path,
-            ])))
+            ]))
             .to_resolved()
             .await?;
 

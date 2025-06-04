@@ -629,13 +629,12 @@ impl PagesProject {
                 client_module_context,
                 self.project().project_path().join(rcstr!("_")),
             )),
-            Request::parse(Value::new(Pattern::Constant(
+            Request::parse(Pattern::Constant(
                 match *self.project().next_mode().await? {
-                    NextMode::Development => "next/dist/client/next-dev-turbopack.js",
-                    NextMode::Build => "next/dist/client/next-turbopack.js",
-                }
-                .into(),
-            ))),
+                    NextMode::Development => rcstr!("next/dist/client/next-dev-turbopack.js"),
+                    NextMode::Build => rcstr!("next/dist/client/next-turbopack.js"),
+                },
+            )),
             Value::new(EcmaScriptModulesReferenceSubType::Undefined),
             false,
             None,

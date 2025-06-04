@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    NonLocalValue, ResolvedVc, Value, ValueToString, Vc, debug::ValueDebugFormat,
+    NonLocalValue, ResolvedVc, TaskInput, ValueToString, Vc, debug::ValueDebugFormat,
     trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{
@@ -28,6 +28,16 @@ pub enum Pattern {
     Dynamic,
     Alternatives(Vec<Pattern>),
     Concatenation(Vec<Pattern>),
+}
+
+/// manually implement TaskInput to avoid recursion in the implementation of `resolve_input` in the
+/// derived implementation.  We can instead use the default implementation since `Pattern` contains
+/// no VCs.
+impl TaskInput for Pattern {
+    fn is_transient(&self) -> bool {
+        // We contain no vcs so they cannot be transient.
+        false
+    }
 }
 
 fn concatenation_push_or_merge_item(list: &mut Vec<Pattern>, pat: Pattern) {
@@ -1178,8 +1188,8 @@ impl Pattern {
 #[turbo_tasks::value_impl]
 impl Pattern {
     #[turbo_tasks::function]
-    fn new_internal(pattern: Value<Pattern>) -> Vc<Self> {
-        Self::cell(pattern.into_value())
+    fn new_internal(pattern: Pattern) -> Vc<Self> {
+        Self::cell(pattern)
     }
 }
 

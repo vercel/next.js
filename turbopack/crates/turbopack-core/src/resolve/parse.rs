@@ -2,7 +2,7 @@ use anyhow::{Ok, Result};
 use lazy_static::lazy_static;
 use regex::Regex;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 
 use super::pattern::Pattern;
 
@@ -295,7 +295,6 @@ impl Request {
         Ok(Request::Alternatives {
             requests: list
                 .into_iter()
-                .map(Value::new)
                 .map(Request::parse)
                 .map(|v| async move { v.to_resolved().await })
                 .try_join()
@@ -307,8 +306,8 @@ impl Request {
 #[turbo_tasks::value_impl]
 impl Request {
     #[turbo_tasks::function]
-    pub async fn parse(request: Value<Pattern>) -> Result<Vc<Self>> {
-        Ok(Self::cell(Request::parse_ref(request.into_value()).await?))
+    pub async fn parse(request: Pattern) -> Result<Vc<Self>> {
+        Ok(Self::cell(Request::parse_ref(request).await?))
     }
 
     #[turbo_tasks::function]
@@ -318,13 +317,13 @@ impl Request {
 
     #[turbo_tasks::function]
     pub fn raw(
-        request: Value<Pattern>,
+        request: Pattern,
         query: RcStr,
         fragment: RcStr,
         force_in_lookup_dir: bool,
     ) -> Vc<Self> {
         Self::cell(Request::Raw {
-            path: request.into_value(),
+            path: request,
             force_in_lookup_dir,
             query,
             fragment,
@@ -333,13 +332,13 @@ impl Request {
 
     #[turbo_tasks::function]
     pub fn relative(
-        request: Value<Pattern>,
+        request: Pattern,
         query: RcStr,
         fragment: RcStr,
         force_in_lookup_dir: bool,
     ) -> Vc<Self> {
         Self::cell(Request::Relative {
-            path: request.into_value(),
+            path: request,
             force_in_lookup_dir,
             query,
             fragment,
@@ -347,10 +346,10 @@ impl Request {
     }
 
     #[turbo_tasks::function]
-    pub fn module(module: RcStr, path: Value<Pattern>, query: RcStr, fragment: RcStr) -> Vc<Self> {
+    pub fn module(module: RcStr, path: Pattern, query: RcStr, fragment: RcStr) -> Vc<Self> {
         Self::cell(Request::Module {
             module,
-            path: path.into_value(),
+            path,
             query,
             fragment,
         })
@@ -377,17 +376,17 @@ impl Request {
                 let mut pat = Pattern::Constant(format!("./{module}").into());
                 pat.push(path.clone());
                 // TODO add query
-                Self::parse(Value::new(pat))
+                Self::parse(pat)
             }
             Request::PackageInternal { path } => {
                 let mut pat = Pattern::Constant(rcstr!("./"));
                 pat.push(path.clone());
-                Self::parse(Value::new(pat))
+                Self::parse(pat)
             }
             Request::Unknown { path } => {
                 let mut pat = Pattern::Constant(rcstr!("./"));
                 pat.push(path.clone());
-                Self::parse(Value::new(pat))
+                Self::parse(pat)
             }
             Request::Alternatives { requests } => {
                 let requests = requests
@@ -411,34 +410,19 @@ impl Request {
                 query: _,
                 force_in_lookup_dir,
                 fragment,
-            } => Request::raw(
-                Value::new(path.clone()),
-                query,
-                fragment.clone(),
-                *force_in_lookup_dir,
-            ),
+            } => Request::raw(path.clone(), query, fragment.clone(), *force_in_lookup_dir),
             Request::Relative {
                 path,
                 query: _,
                 force_in_lookup_dir,
                 fragment,
-            } => Request::relative(
-                Value::new(path.clone()),
-                query,
-                fragment.clone(),
-                *force_in_lookup_dir,
-            ),
+            } => Request::relative(path.clone(), query, fragment.clone(), *force_in_lookup_dir),
             Request::Module {
                 module,
                 path,
                 query: _,
                 fragment,
-            } => Request::module(
-                module.clone(),
-                Value::new(path.clone()),
-                query,
-                fragment.clone(),
-            ),
+            } => Request::module(module.clone(), path.clone(), query, fragment.clone()),
             Request::ServerRelative {
                 path,
                 query: _,
@@ -567,12 +551,7 @@ impl Request {
             } => {
                 let mut pat = Pattern::concat([path.clone(), suffix.into()]);
                 pat.normalize();
-                Self::raw(
-                    Value::new(pat),
-                    query.clone(),
-                    fragment.clone(),
-                    *force_in_lookup_dir,
-                )
+                Self::raw(pat, query.clone(), fragment.clone(), *force_in_lookup_dir)
             }
             Request::Relative {
                 path,
@@ -582,12 +561,7 @@ impl Request {
             } => {
                 let mut pat = Pattern::concat([path.clone(), suffix.into()]);
                 pat.normalize();
-                Self::relative(
-                    Value::new(pat),
-                    query.clone(),
-                    fragment.clone(),
-                    *force_in_lookup_dir,
-                )
+                Self::relative(pat, query.clone(), fragment.clone(), *force_in_lookup_dir)
             }
             Request::Module {
                 module,
@@ -597,12 +571,7 @@ impl Request {
             } => {
                 let mut pat = Pattern::concat([path.clone(), suffix.into()]);
                 pat.normalize();
-                Self::module(
-                    module.clone(),
-                    Value::new(pat),
-                    query.clone(),
-                    fragment.clone(),
-                )
+                Self::module(module.clone(), pat, query.clone(), fragment.clone())
             }
             Request::ServerRelative {
                 path,
@@ -632,7 +601,7 @@ impl Request {
                 }
                 .cell()
             }
-            Request::Empty => Self::parse(Value::new(suffix.into())),
+            Request::Empty => Self::parse(suffix.into()),
             Request::PackageInternal { path } => {
                 let mut pat = Pattern::concat([path.clone(), suffix.into()]);
                 pat.normalize();
