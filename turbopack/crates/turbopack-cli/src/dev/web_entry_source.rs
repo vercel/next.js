@@ -1,6 +1,6 @@
 use anyhow::{Result, anyhow};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, Vc};
+use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_browser::{BrowserChunkingContext, react_refresh::assert_can_resolve_react_refresh};
@@ -131,7 +131,7 @@ pub async fn create_web_entry_source(
     let entries = entry_requests
         .into_iter()
         .map(|request| async move {
-            let ty = Value::new(ReferenceType::Entry(EntryReferenceSubType::Web));
+            let ty = ReferenceType::Entry(EntryReferenceSubType::Web);
             Ok(origin
                 .resolve_asset(request, origin.resolve_options(ty.clone()), ty)
                 .await?

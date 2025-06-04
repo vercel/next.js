@@ -7,8 +7,7 @@ use swc_core::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    NonLocalValue, ResolvedVc, Value, ValueToString, Vc, debug::ValueDebugFormat,
-    trace::TraceRawVcs,
+    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
     chunk::{ChunkableModule, ChunkableModuleReference, ChunkingContext},
@@ -61,7 +60,7 @@ impl WorkerAssetReference {
             *self.origin,
             *self.request,
             // TODO support more worker types
-            Value::new(ReferenceType::Worker(WorkerReferenceSubType::WebWorker)),
+            ReferenceType::Worker(WorkerReferenceSubType::WebWorker),
             Some(self.issue_source.clone()),
             self.in_try,
         );

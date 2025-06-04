@@ -77,7 +77,7 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
     async fn before_resolve(
         self: Vc<Self>,
         lookup_path: Vc<FileSystemPath>,
-        _reference_type: Value<ReferenceType>,
+        _reference_type: ReferenceType,
         request_vc: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
         let this = &*self.await?;

@@ -151,16 +151,16 @@ async fn resolve_extends(
         Request::Empty => {
             let request = Request::parse_string(rcstr!("./tsconfig"));
             Ok(resolve(parent_dir,
-                Value::new(ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined)), request, resolve_options).first_source())
+                ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined), request, resolve_options).first_source())
         }
 
         // All other types are treated as module imports, and potentially joined with
         // "tsconfig.json". This includes "relative" imports like '.' and '..'.
         _ => {
-            let mut result = resolve(parent_dir, Value::new(ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined)), request, resolve_options).first_source();
+            let mut result = resolve(parent_dir, ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined), request, resolve_options).first_source();
             if result.await?.is_none() {
                 let request = Request::parse_string(format!("{extends}/tsconfig").into());
-                result = resolve(parent_dir, Value::new(ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined)), request, resolve_options).first_source();
+                result = resolve(parent_dir, ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined), request, resolve_options).first_source();
             }
             Ok(result)
         }
@@ -175,9 +175,7 @@ async fn resolve_extends_rooted_or_relative(
 ) -> Result<Vc<OptionSource>> {
     let mut result = resolve(
         lookup_path,
-        Value::new(ReferenceType::TypeScript(
-            TypeScriptReferenceSubType::Undefined,
-        )),
+        ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined),
         request,
         resolve_options,
     )
@@ -190,9 +188,7 @@ async fn resolve_extends_rooted_or_relative(
         let request = Request::parse_string(format!("{path}.json").into());
         result = resolve(
             lookup_path,
-            Value::new(ReferenceType::TypeScript(
-                TypeScriptReferenceSubType::Undefined,
-            )),
+            ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined),
             request,
             resolve_options,
         )
@@ -387,9 +383,7 @@ pub async fn type_resolve(
     origin: Vc<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
 ) -> Result<Vc<ModuleResolveResult>> {
-    let ty = Value::new(ReferenceType::TypeScript(
-        TypeScriptReferenceSubType::Undefined,
-    ));
+    let ty = ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined);
     let context_path = origin.origin_path().parent();
     let options = origin.resolve_options(ty.clone());
     let options = apply_typescript_types_options(options);
@@ -418,9 +412,7 @@ pub async fn type_resolve(
     let result = if let Some(types_request) = types_request {
         let result1 = resolve(
             context_path,
-            Value::new(ReferenceType::TypeScript(
-                TypeScriptReferenceSubType::Undefined,
-            )),
+            ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined),
             request,
             options,
         );
@@ -429,9 +421,7 @@ pub async fn type_resolve(
         } else {
             resolve(
                 context_path,
-                Value::new(ReferenceType::TypeScript(
-                    TypeScriptReferenceSubType::Undefined,
-                )),
+                ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined),
                 types_request,
                 options,
             )
@@ -439,9 +429,7 @@ pub async fn type_resolve(
     } else {
         resolve(
             context_path,
-            Value::new(ReferenceType::TypeScript(
-                TypeScriptReferenceSubType::Undefined,
-            )),
+            ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined),
             request,
             options,
         )

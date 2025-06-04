@@ -282,7 +282,7 @@ async fn build_internal(
         entry_requests
             .into_iter()
             .map(|request_vc| async move {
-                let ty = Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined));
+                let ty = ReferenceType::Entry(EntryReferenceSubType::Undefined);
                 let request = request_vc.await?;
                 origin
                     .resolve_asset(request_vc, origin.resolve_options(ty.clone()), ty)

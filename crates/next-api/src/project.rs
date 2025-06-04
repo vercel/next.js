@@ -1381,7 +1381,7 @@ impl Project {
         let module = edge_module_context
             .process(
                 source,
-                Value::new(ReferenceType::Entry(EntryReferenceSubType::Middleware)),
+                ReferenceType::Entry(EntryReferenceSubType::Middleware),
             )
             .module();
 

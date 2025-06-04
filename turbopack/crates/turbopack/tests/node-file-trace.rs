@@ -368,7 +368,7 @@ async fn node_file_trace_operation(
         rcstr!("test"),
     );
     let module = module_asset_context
-        .process(Vc::upcast(source), Value::new(ReferenceType::Undefined))
+        .process(Vc::upcast(source), ReferenceType::Undefined)
         .module();
 
     let rebased = RebasedAsset::new(Vc::upcast(module), *input_dir, *output_dir)

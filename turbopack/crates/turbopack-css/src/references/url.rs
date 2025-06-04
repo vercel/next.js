@@ -8,7 +8,7 @@ use lightningcss::{
 };
 use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
     issue::IssueSource,
@@ -77,7 +77,7 @@ impl ModuleReference for UrlAssetReference {
         url_resolve(
             *self.origin,
             *self.request,
-            Value::new(ReferenceType::Url(UrlReferenceSubType::CssUrl)),
+            ReferenceType::Url(UrlReferenceSubType::CssUrl),
             Some(self.issue_source.clone()),
             false,
         )
