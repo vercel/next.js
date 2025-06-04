@@ -851,8 +851,11 @@ export async function assertHasRedbox(browser: Playwright) {
   }
 }
 
-export async function assertNoRedbox(browser: Playwright) {
-  await waitFor(5000)
+export async function assertNoRedbox(
+  browser: Playwright,
+  { waitInMs = 5000 }: { waitInMs?: number } = {}
+) {
+  await waitFor(waitInMs)
   const redbox = browser.locateRedbox()
 
   if (await redbox.isVisible()) {
@@ -870,6 +873,26 @@ export async function assertNoRedbox(browser: Playwright) {
     )
     Error.captureStackTrace(error, assertNoRedbox)
     throw error
+  }
+}
+
+export async function assertNoErrorToast(browser: Playwright): Promise<void> {
+  let didOpenRedbox = false
+
+  try {
+    await browser.waitForElementByCss('[data-issues]').click()
+    didOpenRedbox = true
+  } catch {
+    // We expect this to fail.
+  }
+
+  if (didOpenRedbox) {
+    // If a redbox was opened unexpectedly, we use the `assertNoRedbox` helper
+    // to print a useful error message containing the redbox contents.
+    await assertNoRedbox(browser, {
+      // We already know the redbox is open, so we can skip waiting for it.
+      waitInMs: 0,
+    })
   }
 }
 

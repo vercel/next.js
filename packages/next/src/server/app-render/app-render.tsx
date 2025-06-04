@@ -3780,25 +3780,32 @@ async function prerenderToStream(
     )
 
     try {
-      const fizzStream = await renderToInitialFizzStream({
-        ReactDOMServer: require('react-dom/server.edge'),
-        element: (
-          <ErrorApp
-            reactServerStream={errorServerStream}
-            ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-            preinitScripts={errorPreinitScripts}
-            clientReferenceManifest={clientReferenceManifest}
-            gracefullyDegrade={!!botType}
-            nonce={nonce}
-          />
-        ),
-        streamOptions: {
-          nonce,
-          // Include hydration scripts in the HTML
-          bootstrapScripts: [errorBootstrapScript],
-          formState,
-        },
-      })
+      // TODO we should use the same prerender semantics that we initially rendered
+      // with in this case too. The only reason why this is ok atm is because it's essentially
+      // an empty page and no user code runs.
+      const fizzStream = await workUnitAsyncStorage.run(
+        prerenderLegacyStore,
+        renderToInitialFizzStream,
+        {
+          ReactDOMServer: require('react-dom/server.edge'),
+          element: (
+            <ErrorApp
+              reactServerStream={errorServerStream}
+              ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+              preinitScripts={errorPreinitScripts}
+              clientReferenceManifest={clientReferenceManifest}
+              gracefullyDegrade={!!botType}
+              nonce={nonce}
+            />
+          ),
+          streamOptions: {
+            nonce,
+            // Include hydration scripts in the HTML
+            bootstrapScripts: [errorBootstrapScript],
+            formState,
+          },
+        }
+      )
 
       if (shouldGenerateStaticFlightData(workStore)) {
         const flightData = await streamToBuffer(
