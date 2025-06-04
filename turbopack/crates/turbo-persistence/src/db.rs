@@ -333,7 +333,7 @@ impl TurboPersistence {
             .collect::<Result<Vec<MetaFile>>>()?;
 
         let mut sst_filter = SstFilter::new();
-        for meta_file in meta_files.iter_mut() {
+        for meta_file in meta_files.iter_mut().rev() {
             sst_filter.apply_filter(meta_file);
         }
 
@@ -468,7 +468,7 @@ impl TurboPersistence {
             .collect::<Result<Vec<_>>>()?;
 
         let mut sst_filter = SstFilter::new();
-        for meta_file in new_meta_files.iter_mut() {
+        for meta_file in new_meta_files.iter_mut().rev() {
             sst_filter.apply_filter(meta_file);
         }
 
@@ -501,7 +501,7 @@ impl TurboPersistence {
 
         {
             let mut inner = self.inner.write();
-            for meta_file in inner.meta_files.iter_mut() {
+            for meta_file in inner.meta_files.iter_mut().rev() {
                 sst_filter.apply_filter(meta_file);
             }
             inner.meta_files.append(&mut new_meta_files);
