@@ -842,7 +842,7 @@ impl PageEndpoint {
                 AssetIdent::from_path(*this.page.await?.base_path),
                 ChunkGroup::Entry(evaluatable_assets),
                 module_graph,
-                Value::new(AvailabilityInfo::Root),
+                AvailabilityInfo::Root,
             );
 
             Ok(client_chunk_group)
@@ -1038,7 +1038,7 @@ impl PageEndpoint {
                             layout.ident(),
                             ChunkGroup::Shared(layout),
                             ssr_module_graph,
-                            Value::new(current_availability_info),
+                            current_availability_info,
                         )
                         .await?;
 
@@ -1068,7 +1068,7 @@ impl PageEndpoint {
                     ssr_module.ident(),
                     ChunkGroup::Entry(evaluatable_assets.collect()),
                     ssr_module_graph,
-                    Value::new(current_availability_info),
+                    current_availability_info,
                 );
 
                 Ok(SsrChunk::Edge {
@@ -1090,7 +1090,7 @@ impl PageEndpoint {
                         runtime_entries.with_entry(*ssr_module_evaluatable),
                         ssr_module_graph,
                         current_chunks,
-                        Value::new(current_availability_info),
+                        current_availability_info,
                     )
                     .to_resolved()
                     .await?;

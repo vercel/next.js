@@ -1256,7 +1256,7 @@ impl AppEndpoint {
             *client_references,
             *module_graphs.full,
             *client_chunking_context,
-            Value::new(client_shared_availability_info),
+            client_shared_availability_info,
             ssr_chunking_context.map(|ctx| *ctx),
         )
         .to_resolved()
@@ -1724,7 +1724,7 @@ impl AppEndpoint {
                                 .collect(),
                         ),
                         module_graph,
-                        Value::new(AvailabilityInfo::Root),
+                        AvailabilityInfo::Root,
                     )
                     .await?;
 
@@ -1740,7 +1740,7 @@ impl AppEndpoint {
                             app_entry.rsc_entry.ident(),
                             ChunkGroup::Entry(evaluatable_assets.collect()),
                             module_graph,
-                            Value::new(availability_info),
+                            availability_info,
                         )
                         .resolve()
                         .await?,
@@ -1776,7 +1776,7 @@ impl AppEndpoint {
                                 // TODO this should be ChunkGroup::Shared
                                 ChunkGroup::Entry(server_utils),
                                 module_graph,
-                                Value::new(current_availability_info),
+                                current_availability_info,
                             )
                             .await?;
 
@@ -1814,7 +1814,7 @@ impl AppEndpoint {
                                         server_component.await?.module,
                                     )]),
                                     module_graph,
-                                    Value::new(current_availability_info),
+                                    current_availability_info,
                                 )
                                 .await?;
 
@@ -1843,7 +1843,7 @@ impl AppEndpoint {
                                 Vc::cell(evaluatable_assets),
                                 module_graph,
                                 current_chunks,
-                                Value::new(current_availability_info),
+                                current_availability_info,
                             )
                             .to_resolved()
                             .await?,

@@ -125,7 +125,7 @@ impl InstrumentationEndpoint {
             module.ident(),
             ChunkGroup::Entry(evaluatable_assets),
             module_graph,
-            Value::new(AvailabilityInfo::Root),
+            AvailabilityInfo::Root,
         );
 
         Ok(edge_files)
@@ -162,7 +162,7 @@ impl InstrumentationEndpoint {
                 .with_entry(*module),
                 module_graph,
                 OutputAssets::empty(),
-                Value::new(AvailabilityInfo::Root),
+                AvailabilityInfo::Root,
             )
             .await?;
         Ok(*chunk)
