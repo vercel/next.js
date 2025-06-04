@@ -1,12 +1,10 @@
 'use client'
 
-import { useCallback, type FormEvent, useContext } from 'react'
+import { useCallback, type FormEvent } from 'react'
 import { addBasePath } from '../add-base-path'
+import { useRouter } from '../components/navigation'
 import { useMergedRef } from '../use-merged-ref'
-import {
-  AppRouterContext,
-  type AppRouterInstance,
-} from '../../shared/lib/app-router-context.shared-runtime'
+import type { AppRouterInstance } from '../../shared/lib/app-router-context.shared-runtime'
 import { PrefetchKind } from '../components/router-reducer/router-reducer-types'
 import {
   checkFormActionUrl,
@@ -30,7 +28,7 @@ export default function Form({
   ref: externalRef,
   ...props
 }: FormProps) {
-  const router = useContext(AppRouterContext)
+  const router = useRouter()
 
   const actionProp = props.action
   const isNavigatingForm = typeof actionProp === 'string'
