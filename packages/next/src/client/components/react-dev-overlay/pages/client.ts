@@ -5,8 +5,10 @@ import {
 } from './hydration-error-state'
 import {
   ACTION_BEFORE_REFRESH,
+  ACTION_BUILDING_INDICATOR_HIDE,
   ACTION_BUILD_ERROR,
   ACTION_BUILD_OK,
+  ACTION_BUILDING_INDICATOR_SHOW,
   ACTION_DEV_INDICATOR,
   ACTION_REFRESH,
   ACTION_STATIC_INDICATOR,
@@ -113,6 +115,14 @@ export function onStaticIndicator(isStatic: boolean) {
 
 export function onDevIndicator(devIndicatorsState: DevIndicatorServerState) {
   Bus.emit({ type: ACTION_DEV_INDICATOR, devIndicator: devIndicatorsState })
+}
+
+export function buildingIndicatorShow() {
+  Bus.emit({ type: ACTION_BUILDING_INDICATOR_SHOW })
+}
+
+export function buildingIndicatorHide() {
+  Bus.emit({ type: ACTION_BUILDING_INDICATOR_HIDE })
 }
 
 export { getErrorByType } from '../utils/get-error-by-type'

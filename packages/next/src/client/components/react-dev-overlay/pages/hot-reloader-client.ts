@@ -41,6 +41,8 @@ import {
   onVersionInfo,
   onStaticIndicator,
   onDevIndicator,
+  buildingIndicatorHide,
+  buildingIndicatorShow,
 } from './client'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { addMessageListener, sendMessage } from './websocket'
@@ -272,6 +274,8 @@ function processMessage(obj: HMR_ACTION_TYPES) {
       break
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.BUILDING: {
+      buildingIndicatorShow()
+
       if (process.env.TURBOPACK) {
         turbopackHmr!.onBuilding()
       } else {
@@ -282,6 +286,8 @@ function processMessage(obj: HMR_ACTION_TYPES) {
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.BUILT:
     case HMR_ACTIONS_SENT_TO_BROWSER.SYNC: {
+      buildingIndicatorHide()
+
       if (obj.hash) handleAvailableHash(obj.hash)
 
       const { errors, warnings } = obj
