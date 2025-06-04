@@ -108,11 +108,7 @@ pub fn generate_js_source_map(
 ) -> Result<Rope> {
     let original_source_map = original_source_map.map(|x| x.to_bytes());
     let input_map = if let Some(original_source_map) = original_source_map {
-        Some(match raw_sourcemap::decode(&original_source_map)? {
-            raw_sourcemap::DecodedMap::Regular(source_map) => source_map,
-            // swc only accepts flattened sourcemaps as input
-            raw_sourcemap::DecodedMap::Index(source_map_index) => source_map_index.flatten()?,
-        })
+        Some(raw_sourcemap::decode(&original_source_map)?.into_source_map()?)
     } else {
         None
     };
@@ -131,6 +127,13 @@ pub fn generate_js_source_map(
         },
     );
 
+    let map = {
+        let mut buf = vec![];
+        map.to_writer(&mut buf)?;
+        buf
+    };
+    let map = raw_sourcemap::decode(&map)?.into_source_map()?;
+
     let mut map = match input_map {
         Some(mut input_map) => {
             input_map.adjust_mappings(map);
@@ -138,7 +141,8 @@ pub fn generate_js_source_map(
         }
         None => map,
     };
-    add_default_ignore_list(&mut map);
+    // TODO: Enable this when we have a way to handle the ignore list
+    // add_default_ignore_list(&mut map);
 
     let mut result = vec![];
     map.to_writer(&mut result)?;

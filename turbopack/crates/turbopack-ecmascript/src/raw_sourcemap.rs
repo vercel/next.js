@@ -59,6 +59,15 @@ pub enum DecodedMap<'a> {
     Index(SourceMapIndex<'a>),
 }
 
+impl<'a> DecodedMap<'a> {
+    pub fn into_source_map(self) -> sourcemap::Result<SourceMap<'a>> {
+        match self {
+            DecodedMap::Regular(source_map) => Ok(source_map),
+            DecodedMap::Index(source_map_index) => source_map_index.flatten(),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum MaybeRawValue<'a, T> {
