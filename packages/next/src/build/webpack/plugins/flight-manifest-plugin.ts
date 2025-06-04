@@ -9,21 +9,15 @@ import path from 'path'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
   APP_CLIENT_INTERNALS,
-  BARREL_OPTIMIZATION_PREFIX,
   CLIENT_REFERENCE_MANIFEST,
   SYSTEM_ENTRYPOINTS,
 } from '../../../shared/lib/constants'
-import { relative } from 'path'
 import { getProxiedPluginState } from '../../build-context'
-
 import { WEBPACK_LAYERS } from '../../../lib/constants'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
 import { CLIENT_STATIC_FILES_RUNTIME_MAIN_APP } from '../../../shared/lib/constants'
 import { getDeploymentIdQueryOrEmptyString } from '../../deployment-id'
-import {
-  formatBarrelOptimizedResource,
-  getModuleReferencesInOrder,
-} from '../utils'
+import { getModuleReferencesInOrder, getModuleResourceKey } from '../utils'
 import type { ChunkGroup } from 'webpack'
 import { encodeURIPath } from '../../../shared/lib/encode-uri-path'
 import type { ModuleInfo } from './flight-client-entry-plugin'
@@ -322,88 +316,42 @@ export class ClientReferenceManifestPlugin {
 
       const requiredChunks = getAppPathRequiredChunks(entrypoint, rootMainFiles)
       const recordModule = (modId: ModuleId, mod: webpack.NormalModule) => {
-        let resource =
-          mod.type === 'css/mini-extract'
-            ? mod.identifier().slice(mod.identifier().lastIndexOf('!') + 1)
-            : mod.resource
-
-        if (!resource) {
-          return
-        }
-
         const moduleReferences = manifest.clientModules
         const moduleIdMapping = manifest.ssrModuleMapping
         const edgeModuleIdMapping = manifest.edgeSSRModuleMapping
-
         const rscIdMapping = manifest.rscModuleMapping
         const edgeRscIdMapping = manifest.edgeRscModuleMapping
 
-        // Note that this isn't that reliable as webpack is still possible to assign
-        // additional queries to make sure there's no conflict even using the `named`
-        // module ID strategy.
-        let ssrNamedModuleId = relative(
-          context,
-          mod.resourceResolveData?.path || resource
-        )
-
-        const rscNamedModuleId = relative(
-          context,
-          mod.resourceResolveData?.path || resource
-        )
-
-        if (!ssrNamedModuleId.startsWith('.'))
-          ssrNamedModuleId = `./${ssrNamedModuleId.replace(/\\/g, '/')}`
-
-        // The client compiler will always use the CJS Next.js build, so here we
-        // also add the mapping for the ESM build (Edge runtime) to consume.
-        const esmResource = /[\\/]next[\\/]dist[\\/]/.test(resource)
-          ? resource.replace(
-              /[\\/]next[\\/]dist[\\/]/,
-              '/next/dist/esm/'.replace(/\//g, path.sep)
-            )
-          : null
-
-        // An extra query param is added to the resource key when it's optimized
-        // through the Barrel Loader. That's because the same file might be created
-        // as multiple modules (depending on what you import from it).
-        // See also: webpack/loaders/next-flight-loader/index.ts.
-        if (mod.matchResource?.startsWith(BARREL_OPTIMIZATION_PREFIX)) {
-          ssrNamedModuleId = formatBarrelOptimizedResource(
-            ssrNamedModuleId,
-            mod.matchResource
-          )
-          resource = formatBarrelOptimizedResource(resource, mod.matchResource)
-        }
+        const modKey = getModuleResourceKey(context, mod)
 
         function addClientReference() {
           const isAsync = Boolean(
             compilation.moduleGraph.isAsync(mod) ||
-              pluginState.ssrModules[ssrNamedModuleId]?.async ||
-              pluginState.edgeSsrModules[ssrNamedModuleId]?.async
+              pluginState.ssrModules[modKey]?.async ||
+              pluginState.edgeSsrModules[modKey]?.async
           )
 
-          const exportName = resource
-          manifest.clientModules[exportName] = {
+          manifest.clientModules[modKey] = {
             id: modId,
             name: '*',
             chunks: requiredChunks,
             async: isAsync,
           }
-          if (esmResource) {
-            const edgeExportName = esmResource
-            manifest.clientModules[edgeExportName] =
-              manifest.clientModules[exportName]
-          }
+
+          // The client compiler will always use the CommonJS Next.js build, so
+          // here we also add an alias for the ESM build (Edge runtime)
+          manifest.clientModules[
+            modKey.replace('/next/dist/', '/next/dist/esm/')
+          ] = manifest.clientModules[modKey]
         }
 
         function addSSRIdMapping() {
-          const exportName = resource
-          const moduleInfo = pluginState.ssrModules[ssrNamedModuleId]
+          const moduleInfo = pluginState.ssrModules[modKey]
 
           if (moduleInfo) {
             moduleIdMapping[modId] = moduleIdMapping[modId] || {}
             moduleIdMapping[modId]['*'] = {
-              ...manifest.clientModules[exportName],
+              ...manifest.clientModules[modKey],
               // During SSR, we don't have external chunks to load on the server
               // side with our architecture of Webpack / Turbopack. We can keep
               // this field empty to save some bytes.
@@ -413,12 +361,12 @@ export class ClientReferenceManifestPlugin {
             }
           }
 
-          const edgeModuleInfo = pluginState.edgeSsrModules[ssrNamedModuleId]
+          const edgeModuleInfo = pluginState.edgeSsrModules[modKey]
 
           if (edgeModuleInfo) {
             edgeModuleIdMapping[modId] = edgeModuleIdMapping[modId] || {}
             edgeModuleIdMapping[modId]['*'] = {
-              ...manifest.clientModules[exportName],
+              ...manifest.clientModules[modKey],
               // During SSR, we don't have external chunks to load on the server
               // side with our architecture of Webpack / Turbopack. We can keep
               // this field empty to save some bytes.
@@ -430,13 +378,12 @@ export class ClientReferenceManifestPlugin {
         }
 
         function addRSCIdMapping() {
-          const exportName = resource
-          const moduleInfo = pluginState.rscModules[rscNamedModuleId]
+          const moduleInfo = pluginState.rscModules[modKey]
 
           if (moduleInfo) {
             rscIdMapping[modId] = rscIdMapping[modId] || {}
             rscIdMapping[modId]['*'] = {
-              ...manifest.clientModules[exportName],
+              ...manifest.clientModules[modKey],
               // During SSR, we don't have external chunks to load on the server
               // side with our architecture of Webpack / Turbopack. We can keep
               // this field empty to save some bytes.
@@ -446,12 +393,12 @@ export class ClientReferenceManifestPlugin {
             }
           }
 
-          const edgeModuleInfo = pluginState.ssrModules[rscNamedModuleId]
+          const edgeModuleInfo = pluginState.edgeRscModules[modKey]
 
           if (edgeModuleInfo) {
             edgeRscIdMapping[modId] = edgeRscIdMapping[modId] || {}
             edgeRscIdMapping[modId]['*'] = {
-              ...manifest.clientModules[exportName],
+              ...manifest.clientModules[modKey],
               // During SSR, we don't have external chunks to load on the server
               // side with our architecture of Webpack / Turbopack. We can keep
               // this field empty to save some bytes.

@@ -1,17 +1,14 @@
 import type { NormalModule, webpack } from 'next/dist/compiled/webpack/webpack'
 import { RSC_MOD_REF_PROXY_ALIAS } from '../../../../lib/constants'
-import {
-  BARREL_OPTIMIZATION_PREFIX,
-  RSC_MODULE_TYPES,
-} from '../../../../shared/lib/constants'
+import { RSC_MODULE_TYPES } from '../../../../shared/lib/constants'
 import { warnOnce } from '../../../../shared/lib/utils/warn-once'
 import { getRSCModuleInformation } from '../../../analysis/get-page-static-info'
-import { formatBarrelOptimizedResource } from '../../utils'
 import { getModuleBuildInfo } from '../get-module-build-info'
 import type {
   javascript,
   LoaderContext,
 } from 'next/dist/compiled/webpack/webpack'
+import { getModuleResourceKey } from '../../utils'
 
 type SourceType = javascript.JavascriptParser['sourceType'] | 'commonjs'
 
@@ -73,26 +70,6 @@ export default function transformSource(
     source = prefix + source
   }
 
-  // Resource key is the unique identifier for the resource. When RSC renders
-  // a client module, that key is used to identify that module across all compiler
-  // layers.
-  //
-  // Usually it's the module's file path + the export name (e.g. `foo.js#bar`).
-  // But with Barrel Optimizations, one file can be splitted into multiple modules,
-  // so when you import `foo.js#bar` and `foo.js#baz`, they are actually different
-  // "foo.js" being created by the Barrel Loader (one only exports `bar`, the other
-  // only exports `baz`).
-  //
-  // Because of that, we must add another query param to the resource key to
-  // differentiate them.
-  let resourceKey: string = this.resourcePath
-  if (module.matchResource?.startsWith(BARREL_OPTIMIZATION_PREFIX)) {
-    resourceKey = formatBarrelOptimizedResource(
-      resourceKey,
-      module.matchResource
-    )
-  }
-
   // A client boundary.
   if (buildInfo.rsc?.type === RSC_MODULE_TYPES.client) {
     const assumedSourceType = getAssumedSourceType(
@@ -101,7 +78,9 @@ export default function transformSource(
     )
 
     const clientRefs = buildInfo.rsc.clientRefs!
-    const stringifiedResourceKey = JSON.stringify(resourceKey)
+    const modKey = JSON.stringify(
+      getModuleResourceKey(this.rootContext, module)
+    )
 
     if (assumedSourceType === 'module') {
       if (clientRefs.length === 0) {
@@ -126,10 +105,10 @@ import { registerClientReference } from "react-server-dom-webpack/server.edge";
         if (ref === 'default') {
           esmSource += `export default registerClientReference(
 function() { throw new Error(${JSON.stringify(`Attempted to call the default \
-export of ${stringifiedResourceKey} from the server, but it's on the client. \
+export of ${modKey} from the server, but it's on the client. \
 It's not possible to invoke a client function from the server, it can only be \
 rendered as a Component or passed to props of a Client Component.`)}); },
-${stringifiedResourceKey},
+${modKey},
 "default",
 );\n`
         } else {
@@ -138,7 +117,7 @@ function() { throw new Error(${JSON.stringify(`Attempted to call ${ref}() from \
 the server but ${ref} is on the client. It's not possible to invoke a client \
 function from the server, it can only be rendered as a Component or passed to \
 props of a Client Component.`)}); },
-${stringifiedResourceKey},
+${modKey},
 ${JSON.stringify(ref)},
 );`
         }
@@ -151,7 +130,7 @@ ${JSON.stringify(ref)},
         `\
 const { createProxy } = require("${MODULE_PROXY_PATH}")
 
-module.exports = createProxy(${stringifiedResourceKey})
+module.exports = createProxy(${modKey})
 `
       return this.callback(null, cjsSource, sourceMap)
     }

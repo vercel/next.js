@@ -24,7 +24,10 @@ impl CustomTransformer for ClientDirectiveTransformer {
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         if is_client_module(program) {
             let transition_name = &*self.transition_name.await?;
-            *program = create_proxy_module(transition_name, &format!("./{}", ctx.file_name_str));
+            *program = create_proxy_module(
+                transition_name,
+                &format!("./{}{}", ctx.file_name_str, ctx.query_str),
+            );
             program.visit_mut_with(&mut resolver(
                 ctx.unresolved_mark,
                 ctx.top_level_mark,
