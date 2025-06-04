@@ -43,18 +43,3 @@ export const NoErrorCode: Story = {
     errorCode: undefined,
   },
 }
-
-export const WithLongFooterMessage: Story = {
-  args: {
-    ...Default.args,
-    footerMessage:
-      'This is a very long footer message that demonstrates how the footer handles lengthy text. It could contain important information about the error or additional context for debugging.',
-  },
-}
-
-export const WithShortFooterMessage: Story = {
-  args: {
-    ...Default.args,
-    footerMessage: 'A brief error description.',
-  },
-}
