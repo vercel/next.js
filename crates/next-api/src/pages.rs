@@ -443,9 +443,9 @@ impl PagesProject {
         Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
-            Value::new(ServerContextType::Pages {
+            ServerContextType::Pages {
                 pages_dir: self.pages_dir().to_resolved().await?,
-            }),
+            },
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::NodeJs,
@@ -458,9 +458,9 @@ impl PagesProject {
         Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
-            Value::new(ServerContextType::Pages {
+            ServerContextType::Pages {
                 pages_dir: self.pages_dir().to_resolved().await?,
-            }),
+            },
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::Edge,
@@ -473,9 +473,9 @@ impl PagesProject {
         Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
-            Value::new(ServerContextType::PagesApi {
+            ServerContextType::PagesApi {
                 pages_dir: self.pages_dir().to_resolved().await?,
-            }),
+            },
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::NodeJs,
@@ -488,9 +488,9 @@ impl PagesProject {
         Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
-            Value::new(ServerContextType::PagesApi {
+            ServerContextType::PagesApi {
                 pages_dir: self.pages_dir().to_resolved().await?,
-            }),
+            },
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::Edge,
@@ -503,9 +503,9 @@ impl PagesProject {
         Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
-            Value::new(ServerContextType::PagesData {
+            ServerContextType::PagesData {
                 pages_dir: self.pages_dir().to_resolved().await?,
-            }),
+            },
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::NodeJs,
@@ -520,9 +520,9 @@ impl PagesProject {
         Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
-            Value::new(ServerContextType::PagesData {
+            ServerContextType::PagesData {
                 pages_dir: self.pages_dir().to_resolved().await?,
-            }),
+            },
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::Edge,
@@ -537,9 +537,9 @@ impl PagesProject {
             // NOTE(alexkirsz) This could be `PagesData` for the data endpoint, but it doesn't
             // matter (for now at least) because `get_server_resolve_options_context` doesn't
             // differentiate between the two.
-            Value::new(ServerContextType::Pages {
+            ServerContextType::Pages {
                 pages_dir: self.pages_dir().to_resolved().await?,
-            }),
+            },
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
@@ -553,9 +553,9 @@ impl PagesProject {
             // NOTE(alexkirsz) This could be `PagesData` for the data endpoint, but it doesn't
             // matter (for now at least) because `get_server_resolve_options_context` doesn't
             // differentiate between the two.
-            Value::new(ServerContextType::Pages {
+            ServerContextType::Pages {
                 pages_dir: self.pages_dir().to_resolved().await?,
-            }),
+            },
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
@@ -579,9 +579,9 @@ impl PagesProject {
     #[turbo_tasks::function]
     async fn runtime_entries(self: Vc<Self>) -> Result<Vc<RuntimeEntries>> {
         Ok(get_server_runtime_entries(
-            Value::new(ServerContextType::Pages {
+            ServerContextType::Pages {
                 pages_dir: self.pages_dir().to_resolved().await?,
-            }),
+            },
             self.project().next_mode(),
         ))
     }
@@ -589,9 +589,9 @@ impl PagesProject {
     #[turbo_tasks::function]
     async fn data_runtime_entries(self: Vc<Self>) -> Result<Vc<RuntimeEntries>> {
         Ok(get_server_runtime_entries(
-            Value::new(ServerContextType::PagesData {
+            ServerContextType::PagesData {
                 pages_dir: self.pages_dir().to_resolved().await?,
-            }),
+            },
             self.project().next_mode(),
         ))
     }
