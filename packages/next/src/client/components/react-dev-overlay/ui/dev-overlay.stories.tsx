@@ -52,6 +52,7 @@ const initialState: OverlayState = {
           column: 5,
         },
       ],
+      type: 'runtime',
     },
     {
       id: 2,
@@ -59,6 +60,7 @@ const initialState: OverlayState = {
         __NEXT_ERROR_CODE: 'E002',
       }),
       frames: [],
+      type: 'runtime',
     },
     {
       id: 3,
@@ -66,6 +68,7 @@ const initialState: OverlayState = {
         __NEXT_ERROR_CODE: 'E003',
       }),
       frames: [],
+      type: 'runtime',
     },
   ],
   refreshState: { type: 'idle' },
@@ -99,6 +102,10 @@ function useOverlayReducer() {
   }, initialState)
 }
 
+function getNoSquashedHydrationErrorDetails() {
+  return null
+}
+
 export const Default: Story = {
   render: function DevOverlayStory() {
     const [state, dispatch] = useOverlayReducer()
@@ -112,7 +119,14 @@ export const Default: Story = {
             objectFit: 'contain',
           }}
         />
-        <DevOverlay state={state} dispatch={dispatch} />
+        <DevOverlay
+          state={state}
+          dispatch={dispatch}
+          getSquashedHydrationErrorDetails={
+            // Testing like App Router where we no longer quash hydration errors
+            getNoSquashedHydrationErrorDetails
+          }
+        />
       </>
     )
   },

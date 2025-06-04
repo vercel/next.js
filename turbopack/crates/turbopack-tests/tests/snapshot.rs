@@ -188,7 +188,7 @@ async fn run_inner_operation(resource: RcStr) -> Result<()> {
         .try_join()
         .await?;
 
-    snapshot_issues(plain_issues, out_vc.join("issues".into()), &REPO_ROOT)
+    snapshot_issues(plain_issues, out_vc.join(rcstr!("issues")), &REPO_ROOT)
         .await
         .context("Unable to handle issues")?;
 
@@ -210,7 +210,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         Err(_) => SnapshotOptions::default(),
         Ok(options_str) => parse_json_with_source_context(&options_str).unwrap(),
     };
-    let project_fs = DiskFileSystem::new("project".into(), REPO_ROOT.clone(), vec![]);
+    let project_fs = DiskFileSystem::new(rcstr!("project"), REPO_ROOT.clone(), vec![]);
     let project_root = project_fs.root().to_resolved().await?;
 
     let relative_path = test_path.strip_prefix(&*REPO_ROOT)?;
@@ -342,15 +342,15 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         .await?
         .map(|asset| EvaluatableAssets::one(asset.to_evaluatable(asset_context)));
 
-    let chunk_root_path = project_path.join("output".into()).to_resolved().await?;
-    let static_root_path = project_path.join("static".into()).to_resolved().await?;
+    let chunk_root_path = project_path.join(rcstr!("output")).to_resolved().await?;
+    let static_root_path = project_path.join(rcstr!("static")).to_resolved().await?;
 
     let chunking_context: Vc<Box<dyn ChunkingContext>> = match options.runtime {
         Runtime::Browser => Vc::upcast(
             BrowserChunkingContext::builder(
                 project_root,
                 project_path,
-                ResolvedVc::cell(project_path_to_project_root),
+                project_path_to_project_root,
                 project_path,
                 chunk_root_path,
                 static_root_path,
@@ -363,7 +363,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             NodeJsChunkingContext::builder(
                 project_root,
                 project_path,
-                ResolvedVc::cell(project_path_to_project_root),
+                project_path_to_project_root,
                 project_path,
                 chunk_root_path,
                 static_root_path,
@@ -430,7 +430,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                                         .unwrap()
                                         .into(),
                                 )
-                                .with_extension("entry.js".into()),
+                                .with_extension(rcstr!("entry.js")),
                             evaluatable_assets,
                             module_graph,
                             OutputAssets::empty(),
@@ -503,7 +503,7 @@ async fn maybe_load_env(
     _context: Vc<Box<dyn AssetContext>>,
     path: Vc<FileSystemPath>,
 ) -> Result<Option<Vc<Box<dyn Source>>>> {
-    let dotenv_path = path.join("input/.env".into());
+    let dotenv_path = path.join(rcstr!("input/.env"));
 
     if !dotenv_path.read().await?.is_content() {
         return Ok(None);

@@ -51,7 +51,7 @@ use swc_core::{
     },
 };
 use tracing::Instrument;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Upcast,
     Value, ValueToString, Vc, trace::TraceRawVcs,
@@ -979,8 +979,8 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             AnalyzeIssue::new(
                 IssueSeverity::Error,
                 source.ident(),
-                Vc::cell("unexpected top level await".into()),
-                StyledString::Text("top level await is only supported in ESM modules.".into())
+                Vc::cell(rcstr!("unexpected top level await")),
+                StyledString::Text(rcstr!("top level await is only supported in ESM modules."))
                     .cell(),
                 None,
                 Some(issue_source(source, span)),
@@ -1468,34 +1468,34 @@ async fn compile_time_info_for_module_type(
     };
     free_var_references
         .entry(vec![
-            DefineableNameSegment::Name("import".into()),
-            DefineableNameSegment::Name("meta".into()),
+            DefineableNameSegment::Name(rcstr!("import")),
+            DefineableNameSegment::Name(rcstr!("meta")),
             DefineableNameSegment::TypeOf,
         ])
         .or_insert("object".into());
     free_var_references
         .entry(vec![
-            DefineableNameSegment::Name("exports".into()),
+            DefineableNameSegment::Name(rcstr!("exports")),
             DefineableNameSegment::TypeOf,
         ])
         .or_insert(typeof_exports.into());
     free_var_references
         .entry(vec![
-            DefineableNameSegment::Name("module".into()),
+            DefineableNameSegment::Name(rcstr!("module")),
             DefineableNameSegment::TypeOf,
         ])
         .or_insert(typeof_module.into());
     free_var_references
         .entry(vec![
-            DefineableNameSegment::Name("require".into()),
+            DefineableNameSegment::Name(rcstr!("require")),
             DefineableNameSegment::TypeOf,
         ])
         .or_insert("function".into());
     free_var_references
-        .entry(vec![DefineableNameSegment::Name("require".into())])
+        .entry(vec![DefineableNameSegment::Name(rcstr!("require"))])
         .or_insert(require.into());
 
-    let dir_name: RcStr = "__dirname".into();
+    let dir_name: RcStr = rcstr!("__dirname");
     free_var_references
         .entry(vec![
             DefineableNameSegment::Name(dir_name.clone()),
@@ -1507,7 +1507,7 @@ async fn compile_time_info_for_module_type(
         .or_insert(FreeVarReference::InputRelative(
             InputRelativeConstant::DirName,
         ));
-    let file_name: RcStr = "__filename".into();
+    let file_name: RcStr = rcstr!("__filename");
 
     free_var_references
         .entry(vec![
@@ -1522,7 +1522,7 @@ async fn compile_time_info_for_module_type(
         ));
 
     // Compiletime rewrite the nodejs `global` to `globalThis`
-    let global: RcStr = "global".into();
+    let global: RcStr = rcstr!("global");
     free_var_references
         .entry(vec![
             DefineableNameSegment::Name(global.clone()),
@@ -3349,7 +3349,7 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
         self.esm_exports.insert(
-            "default".into(),
+            rcstr!("default"),
             EsmExport::LocalBinding(magic_identifier::mangle("default export").into(), false),
         );
         self.analysis
@@ -3365,7 +3365,7 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
         match &export.decl {
             DefaultDecl::Class(ClassExpr { ident, .. }) | DefaultDecl::Fn(FnExpr { ident, .. }) => {
                 self.esm_exports.insert(
-                    "default".into(),
+                    rcstr!("default"),
                     EsmExport::LocalBinding(
                         ident
                             .as_ref()

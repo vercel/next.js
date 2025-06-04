@@ -7745,8 +7745,8 @@
     "runtimeError": false
   },
   "test/e2e/next-font/google-fetch-error.test.ts": {
-    "passed": [],
-    "failed": ["next/font/google fetch error should error when not in dev"],
+    "passed": ["next/font/google fetch error should error when not in dev"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false

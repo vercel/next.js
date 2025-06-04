@@ -1,4 +1,5 @@
 use anyhow::Result;
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, Vc};
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob};
 use turbopack_core::{
@@ -150,7 +151,7 @@ impl Issue for SideEffectsInPackageJsonIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Invalid value for sideEffects in package.json".into()).cell()
+        StyledString::Text(rcstr!("Invalid value for sideEffects in package.json")).cell()
     }
 
     #[turbo_tasks::function]

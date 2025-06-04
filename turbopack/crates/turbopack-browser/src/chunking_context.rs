@@ -97,17 +97,17 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
-    pub fn asset_base_path(mut self, asset_base_path: ResolvedVc<Option<RcStr>>) -> Self {
+    pub fn asset_base_path(mut self, asset_base_path: Option<RcStr>) -> Self {
         self.chunking_context.asset_base_path = asset_base_path;
         self
     }
 
-    pub fn chunk_base_path(mut self, chunk_base_path: ResolvedVc<Option<RcStr>>) -> Self {
+    pub fn chunk_base_path(mut self, chunk_base_path: Option<RcStr>) -> Self {
         self.chunking_context.chunk_base_path = chunk_base_path;
         self
     }
 
-    pub fn chunk_suffix_path(mut self, chunk_suffix_path: ResolvedVc<Option<RcStr>>) -> Self {
+    pub fn chunk_suffix_path(mut self, chunk_suffix_path: Option<RcStr>) -> Self {
         self.chunking_context.chunk_suffix_path = chunk_suffix_path;
         self
     }
@@ -182,7 +182,7 @@ pub struct BrowserChunkingContext {
     /// This path is used to compute the url to request chunks from
     output_root: ResolvedVc<FileSystemPath>,
     /// The relative path from the output_root to the root_path.
-    output_root_to_root_path: ResolvedVc<RcStr>,
+    output_root_to_root_path: RcStr,
     /// This path is used to compute the url to request assets from
     client_root: ResolvedVc<FileSystemPath>,
     /// Chunks are placed at this path
@@ -191,13 +191,13 @@ pub struct BrowserChunkingContext {
     asset_root_path: ResolvedVc<FileSystemPath>,
     /// Base path that will be prepended to all chunk URLs when loading them.
     /// This path will not appear in chunk paths or chunk data.
-    chunk_base_path: ResolvedVc<Option<RcStr>>,
+    chunk_base_path: Option<RcStr>,
     /// Suffix path that will be appended to all chunk URLs when loading them.
     /// This path will not appear in chunk paths or chunk data.
-    chunk_suffix_path: ResolvedVc<Option<RcStr>>,
+    chunk_suffix_path: Option<RcStr>,
     /// URL prefix that will be prepended to all static asset URLs when loading
     /// them.
-    asset_base_path: ResolvedVc<Option<RcStr>>,
+    asset_base_path: Option<RcStr>,
     /// Enable HMR for this chunking
     enable_hot_module_replacement: bool,
     /// Enable tracing for this chunking
@@ -226,7 +226,7 @@ impl BrowserChunkingContext {
     pub fn builder(
         root_path: ResolvedVc<FileSystemPath>,
         output_root: ResolvedVc<FileSystemPath>,
-        output_root_to_root_path: ResolvedVc<RcStr>,
+        output_root_to_root_path: RcStr,
         client_root: ResolvedVc<FileSystemPath>,
         chunk_root_path: ResolvedVc<FileSystemPath>,
         asset_root_path: ResolvedVc<FileSystemPath>,
@@ -243,9 +243,9 @@ impl BrowserChunkingContext {
                 chunk_root_path,
                 should_use_file_source_map_uris: false,
                 asset_root_path,
-                chunk_base_path: ResolvedVc::cell(None),
-                chunk_suffix_path: ResolvedVc::cell(None),
-                asset_base_path: ResolvedVc::cell(None),
+                chunk_base_path: None,
+                chunk_suffix_path: None,
+                asset_base_path: None,
                 enable_hot_module_replacement: false,
                 enable_tracing: false,
                 environment,
@@ -272,13 +272,13 @@ impl BrowserChunkingContext {
     }
 
     /// Returns the asset base path.
-    pub fn chunk_base_path(&self) -> Vc<Option<RcStr>> {
-        *self.chunk_base_path
+    pub fn chunk_base_path(&self) -> Option<RcStr> {
+        self.chunk_base_path.clone()
     }
 
     /// Returns the asset suffix path.
-    pub fn chunk_suffix_path(&self) -> Vc<Option<RcStr>> {
-        *self.chunk_suffix_path
+    pub fn chunk_suffix_path(&self) -> Option<RcStr> {
+        self.chunk_suffix_path.clone()
     }
 
     /// Returns the source map type.
@@ -367,7 +367,7 @@ impl ChunkingContext for BrowserChunkingContext {
         if let Some(name) = &self.name {
             Vc::cell(name.clone())
         } else {
-            Vc::cell("unknown".into())
+            Vc::cell(rcstr!("unknown"))
         }
     }
 
@@ -383,7 +383,7 @@ impl ChunkingContext for BrowserChunkingContext {
 
     #[turbo_tasks::function]
     fn output_root_to_root_path(&self) -> Vc<RcStr> {
-        *self.output_root_to_root_path
+        Vc::cell(self.output_root_to_root_path.clone())
     }
 
     #[turbo_tasks::function]
@@ -446,7 +446,6 @@ impl ChunkingContext for BrowserChunkingContext {
             format!(
                 "{}{}",
                 self.asset_base_path
-                    .await?
                     .as_ref()
                     .map(|s| s.as_str())
                     .unwrap_or("/"),
