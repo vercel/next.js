@@ -1,12 +1,12 @@
 /* eslint-env jest */
 
 import {
-  check,
+  assertHasRedbox,
   findPort,
   getRedboxSource,
-  hasRedbox,
   killApp,
   launchApp,
+  retry,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
@@ -14,7 +14,7 @@ import { join } from 'path'
 const appDir = join(__dirname, '../')
 
 // Webpack specific config tests.
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'devtool set in development mode in next config',
   () => {
     it('should warn and revert when a devtool is set in development mode', async () => {
@@ -28,19 +28,17 @@ const appDir = join(__dirname, '../')
         },
       })
 
-      const found = await check(
-        () => stderr,
-        /Reverting webpack devtool to /,
-        false
-      )
+      await retry(async () => {
+        expect(stderr).toMatch(/Reverting webpack devtool to /)
+      })
 
       const browser = await webdriver(appPort, '/')
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
       if (process.platform === 'win32') {
         // TODO: add win32 snapshot
       } else {
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-          "pages/index.js (5:11) @ eval
+          "pages/index.js (5:11) @ Index.useEffect
 
             3 | export default function Index(props) {
             4 |   useEffect(() => {
@@ -54,7 +52,6 @@ const appDir = join(__dirname, '../')
       await browser.close()
 
       await killApp(app)
-      expect(found).toBeTruthy()
     })
   }
 )

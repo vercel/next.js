@@ -10,6 +10,7 @@ import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import escapeRegex from 'escape-string-regexp'
 import {
+  assertNoRedbox,
   launchApp,
   killApp,
   findPort,
@@ -21,7 +22,6 @@ import {
   getBrowserBodyText,
   waitFor,
   normalizeRegEx,
-  hasRedbox,
   check,
 } from 'next-test-utils'
 
@@ -296,7 +296,7 @@ const runTests = (isDev = false) => {
     expect(await browser.eval('window.beforeNav')).toBe(1)
 
     if (isDev) {
-      expect(await hasRedbox(browser)).toBe(false)
+      await assertNoRedbox(browser)
     }
   })
 
@@ -2097,6 +2097,10 @@ const runTests = (isDev = false) => {
             source: '/has-header-4',
           },
         ],
+        rewriteHeaders: {
+          pathHeader: 'x-nextjs-rewritten-path',
+          queryHeader: 'x-nextjs-rewritten-query',
+        },
         rewrites: {
           beforeFiles: [
             {
@@ -2558,8 +2562,12 @@ const runTests = (isDev = false) => {
           header: 'RSC',
           contentTypeHeader: 'text/x-component',
           didPostponeHeader: 'x-nextjs-postponed',
-          varyHeader: 'RSC, Next-Router-State-Tree, Next-Router-Prefetch',
+          varyHeader:
+            'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Router-Segment-Prefetch',
           prefetchHeader: 'Next-Router-Prefetch',
+          prefetchSegmentDirSuffix: '.segments',
+          prefetchSegmentHeader: 'Next-Router-Segment-Prefetch',
+          prefetchSegmentSuffix: '.segment.rsc',
           prefetchSuffix: '.prefetch.rsc',
           suffix: '.rsc',
         },

@@ -1,0 +1,89 @@
+id: resolved-vc-in-return-type
+snapshots:
+  ? |
+    #[turbo_tasks::function]
+    pub async fn flag_this(x: ResolvedVc<MyType>) -> ResolvedVc<MyType> {}
+  : fixed: |
+      #[turbo_tasks::function]
+      pub async fn flag_this(x: ResolvedVc<MyType>) -> Vc<MyType> {}
+    labels:
+      - source: ResolvedVc<MyType>
+        style: primary
+        start: 74
+        end: 92
+      - source: flag_this
+        style: secondary
+        start: 38
+        end: 47
+      - source: '#[turbo_tasks::function]'
+        style: secondary
+        start: 0
+        end: 24
+      - source: 'pub async fn flag_this(x: ResolvedVc<MyType>) -> ResolvedVc<MyType> {}'
+        style: secondary
+        start: 25
+        end: 95
+  ? |
+    #[turbo_tasks::function]
+    pub async fn flag_this_too(x: ResolvedVc<MyType>) -> Result<ResolvedVc<MyType>> {}
+  : fixed: |
+      #[turbo_tasks::function]
+      pub async fn flag_this_too(x: ResolvedVc<MyType>) -> Result<Vc<MyType>> {}
+    labels:
+      - source: ResolvedVc<MyType>
+        style: primary
+        start: 85
+        end: 103
+      - source: flag_this_too
+        style: secondary
+        start: 38
+        end: 51
+      - source: '#[turbo_tasks::function]'
+        style: secondary
+        start: 0
+        end: 24
+      - source: 'pub async fn flag_this_too(x: ResolvedVc<MyType>) -> Result<ResolvedVc<MyType>> {}'
+        style: secondary
+        start: 25
+        end: 107
+  ? |
+    #[turbo_tasks::value_trait]
+    pub trait ValueTrait() {
+        fn flag_this() -> ResolvedVc<MyType>;
+    }
+  : fixed: |
+      #[turbo_tasks::value_trait]
+      pub trait ValueTrait() {
+          fn flag_this() -> Vc<MyType>;
+      }
+    labels:
+      - source: ResolvedVc<MyType>
+        style: primary
+        start: 75
+        end: 93
+      - source: '#[turbo_tasks::value_trait]'
+        style: secondary
+        start: 0
+        end: 27
+      - source: |-
+          pub trait ValueTrait() {
+              fn flag_this() -> ResolvedVc<MyType>;
+          }
+        style: secondary
+        start: 28
+        end: 96
+      - source: |-
+          pub trait ValueTrait() {
+              fn flag_this() -> ResolvedVc<MyType>;
+          }
+        style: secondary
+        start: 28
+        end: 96
+      - source: flag_this
+        style: secondary
+        start: 60
+        end: 69
+      - source: fn flag_this() -> ResolvedVc<MyType>;
+        style: secondary
+        start: 57
+        end: 94

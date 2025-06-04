@@ -6,12 +6,12 @@ name: Generate Pull Request Stats
 
 env:
   NAPI_CLI_VERSION: 2.14.7
-  TURBO_VERSION: 1.13.3-canary.2
+  TURBO_VERSION: 2.3.3
   NODE_LTS_VERSION: 20
   TEST_CONCURRENCY: 6
 
   TURBO_TEAM: 'vercel'
-  TURBO_REMOTE_ONLY: 'true'
+  TURBO_CACHE: 'remote:rw'
   NEXT_TELEMETRY_DISABLED: 1
   # we build a dev binary for use in CI so skip downloading
   # canary next-swc binaries in the monorepo

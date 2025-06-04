@@ -11,34 +11,38 @@ describe('with-exported-function-config', () => {
         await next.readFile('.next/server/functions-config-manifest.json')
       )
 
-      expect(functionsConfigManifest).toMatchInlineSnapshot(`
-        {
-          "functions": {
-            "/api/page-route": {
-              "maxDuration": 1,
-            },
-            "/app-route": {
-              "maxDuration": 1,
-            },
-            "/app-route-edge": {
-              "maxDuration": 2,
-            },
-            "/app-ssr": {
-              "maxDuration": 3,
-            },
-            "/app-ssr-edge": {
-              "maxDuration": 4,
-            },
-            "/page": {
-              "maxDuration": 2,
-            },
-            "/page-ssr": {
-              "maxDuration": 3,
-            },
+      expect(functionsConfigManifest).toEqual({
+        functions: {
+          '/api/page-route': {
+            maxDuration: 1,
           },
-          "version": 1,
-        }
-      `)
+          '/app-layout': {
+            maxDuration: 1,
+          },
+          '/app-layout/inner': {
+            maxDuration: 2,
+          },
+          '/app-route': {
+            maxDuration: 1,
+          },
+          '/app-route-edge': {
+            maxDuration: 2,
+          },
+          '/app-ssr': {
+            maxDuration: 3,
+          },
+          '/app-ssr-edge': {
+            maxDuration: 4,
+          },
+          '/page': {
+            maxDuration: 2,
+          },
+          '/page-ssr': {
+            maxDuration: 3,
+          },
+        },
+        version: 1,
+      })
     }
   })
 })

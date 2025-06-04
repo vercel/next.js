@@ -25,7 +25,7 @@ describe('find config', () => {
       eol +
       '// NOTE: This file should not be edited' +
       eol +
-      '// see https://nextjs.org/docs/basic-features/typescript for more information.' +
+      '// see https://nextjs.org/docs/pages/api-reference/config/typescript for more information.' +
       eol
 
     await fs.writeFile(declarationFile, content)
@@ -50,7 +50,7 @@ describe('find config', () => {
       eol +
       '// NOTE: This file should not be edited' +
       eol +
-      '// see https://nextjs.org/docs/basic-features/typescript for more information.' +
+      '// see https://nextjs.org/docs/pages/api-reference/config/typescript for more information.' +
       eol
 
     await fs.writeFile(declarationFile, content)
@@ -75,7 +75,7 @@ describe('find config', () => {
       eol +
       '// NOTE: This file should not be edited' +
       eol +
-      '// see https://nextjs.org/docs/basic-features/typescript for more information.' +
+      '// see https://nextjs.org/docs/pages/api-reference/config/typescript for more information.' +
       eol
 
     await writeAppTypeDeclarations({

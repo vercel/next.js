@@ -13,8 +13,14 @@ export type FieldResolverExtraArgs<
   ResolvedData = ResolvedMetadata,
 > = (T: Data[Key], ...args: ExtraArgs) => ResolvedData[Key]
 
+export type AsyncFieldResolverExtraArgs<
+  Key extends keyof Data & keyof ResolvedData,
+  ExtraArgs extends unknown[] = any[],
+  Data = Metadata,
+  ResolvedData = ResolvedMetadata,
+> = (T: Data[Key], ...args: ExtraArgs) => Promise<ResolvedData[Key]>
+
 export type MetadataContext = {
-  pathname: string
   trailingSlash: boolean
-  isStandaloneMode: boolean
+  isStaticMetadataRouteFile: boolean
 }

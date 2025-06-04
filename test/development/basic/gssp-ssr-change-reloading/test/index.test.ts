@@ -3,16 +3,16 @@
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { createNext, FileRef } from 'e2e-utils'
-import { check, getRedboxHeader, hasRedbox } from 'next-test-utils'
+import { assertNoRedbox, check } from 'next-test-utils'
 import { NextInstance } from 'e2e-utils'
 
 const installCheckVisible = (browser) => {
   return browser.eval(`(function() {
-    window.checkInterval = setInterval(function() {
-      let watcherDiv = document.querySelector('#__next-build-watcher')
-      watcherDiv = watcherDiv.shadowRoot || watcherDiv
+      window.checkInterval = setInterval(function() {
+      const root = document.querySelector('nextjs-portal').shadowRoot;
+      const indicator = root.querySelector('[data-next-mark]')
       window.showedBuilder = window.showedBuilder || (
-        watcherDiv.querySelector('div').className.indexOf('visible') > -1
+        indicator.getAttribute('data-next-mark-loading') === 'true'
       )
       if (window.showedBuilder) clearInterval(window.checkInterval)
     }, 50)
@@ -271,13 +271,24 @@ describe('GS(S)P Server-Side Change Reloading', () => {
 
     try {
       await next.patchFile(page, originalContent.replace('props:', 'propss:'))
-      expect(await hasRedbox(browser)).toBe(true)
-      expect(await getRedboxHeader(browser)).toContain(
-        'Additional keys were returned from'
-      )
+
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "Additional keys were returned from \`getStaticProps\`. Properties intended for your component must be nested under the \`props\` key, e.g.:
+
+       	return { props: { title: 'My Title', content: '...' } }
+
+       Keys that need to be moved: propss.
+       Read more: https://nextjs.org/docs/messages/invalid-getstaticprops-value",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": null,
+         "stack": [],
+       }
+      `)
 
       await next.patchFile(page, originalContent)
-      expect(await hasRedbox(browser)).toBe(false)
+      await assertNoRedbox(browser)
     } finally {
       await next.patchFile(page, originalContent)
     }
@@ -301,11 +312,24 @@ describe('GS(S)P Server-Side Change Reloading', () => {
           'throw new Error("custom oops"); const count'
         )
       )
-      expect(await hasRedbox(browser)).toBe(true)
-      expect(await getRedboxHeader(browser)).toContain('custom oops')
+
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "custom oops",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": "pages/index.js (18:9) @ getStaticProps
+       > 18 |   throw new Error("custom oops"); const count = 1
+            |         ^",
+         "stack": [
+           "getStaticProps pages/index.js (18:9)",
+         ],
+       }
+      `)
+      expect(next.cliOutput).toMatch(/custom oops/)
 
       await next.patchFile(page, originalContent)
-      expect(await hasRedbox(browser)).toBe(false)
+      await assertNoRedbox(browser)
     } finally {
       await next.patchFile(page, originalContent)
     }

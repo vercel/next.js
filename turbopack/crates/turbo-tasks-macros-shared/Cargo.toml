@@ -1,0 +1,17 @@
+[package]
+name = "turbo-tasks-macros-shared"
+version = "0.1.0"
+description = "TBD"
+license = "MIT"
+edition = "2024"
+
+[lib]
+bench = false
+
+[lints]
+workspace = true
+
+[dependencies]
+proc-macro2 = { workspace = true }
+quote = { workspace = true }
+syn = { workspace = true, features = ["full", "extra-traits", "visit"] }

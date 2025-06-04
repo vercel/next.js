@@ -1,5 +1,3 @@
-import { trace } from 'next/dist/trace'
-import { createNextInstall } from '../../lib/create-next-install'
 import {
   EXAMPLE_PATH,
   EXAMPLE_REPO,
@@ -11,20 +9,32 @@ import {
   useTempDir,
 } from './utils'
 
-describe.skip('create-next-app --example', () => {
-  let nextInstall: Awaited<ReturnType<typeof createNextInstall>>
-  beforeAll(async () => {
-    nextInstall = await createNextInstall({
-      parentSpan: trace('test'),
-      keepRepoDir: Boolean(process.env.NEXT_TEST_SKIP_CLEANUP),
-    })
+describe('create-next-app --example', () => {
+  let nextTgzFilename: string
+
+  beforeAll(() => {
+    if (!process.env.NEXT_TEST_PKG_PATHS) {
+      throw new Error('This test needs to be run with `node run-tests.js`.')
+    }
+
+    const pkgPaths = new Map<string, string>(
+      JSON.parse(process.env.NEXT_TEST_PKG_PATHS)
+    )
+
+    nextTgzFilename = pkgPaths.get('next')
   })
+
   it('should create on valid Next.js example name', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'valid-example'
       const res = await run(
-        [projectName, '--example', 'basic-css'],
-        nextInstall.installDir,
+        [
+          projectName,
+          '--example',
+          'basic-css',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
+        ],
+        nextTgzFilename,
         {
           cwd,
         }
@@ -48,8 +58,13 @@ describe.skip('create-next-app --example', () => {
     await useTempDir(async (cwd) => {
       const projectName = 'github-url'
       const res = await run(
-        [projectName, '--example', FULL_EXAMPLE_PATH],
-        nextInstall.installDir,
+        [
+          projectName,
+          '--example',
+          FULL_EXAMPLE_PATH,
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
+        ],
+        nextTgzFilename,
         {
           cwd,
         }
@@ -80,8 +95,9 @@ describe.skip('create-next-app --example', () => {
           // since vercel/examples is not a template repo, we use the following
           // GH#39665
           'https://github.com/vercel/nextjs-portfolio-starter/',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
-        nextInstall.installDir,
+        nextTgzFilename,
         {
           cwd,
         }
@@ -114,8 +130,9 @@ describe.skip('create-next-app --example', () => {
           EXAMPLE_REPO,
           '--example-path',
           EXAMPLE_PATH,
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
-        nextInstall.installDir,
+        nextTgzFilename,
         {
           cwd,
         }
@@ -149,8 +166,9 @@ describe.skip('create-next-app --example', () => {
           FULL_EXAMPLE_PATH,
           '--example-path',
           EXAMPLE_PATH,
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
-        nextInstall.installDir,
+        nextTgzFilename,
         {
           cwd,
         }
@@ -187,8 +205,9 @@ describe.skip('create-next-app --example', () => {
             '--example',
             '__internal-testing-retry',
             '--import-alias=@/*',
+            ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
           ],
-          nextInstall.installDir,
+          nextTgzFilename,
           {
             cwd,
             input: '\n', // 'Yes' to retry
@@ -219,8 +238,9 @@ describe.skip('create-next-app --example', () => {
           '--example',
           'default',
           '--import-alias=@/*',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
-        nextInstall.installDir,
+        nextTgzFilename,
         {
           cwd,
         }
@@ -240,8 +260,13 @@ describe.skip('create-next-app --example', () => {
     await useTempDir(async (cwd) => {
       const projectName = 'invalid-example'
       const res = await run(
-        [projectName, '--example', 'not a real example'],
-        nextInstall.installDir,
+        [
+          projectName,
+          '--example',
+          'not a real example',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
+        ],
+        nextTgzFilename,
         {
           cwd,
           reject: false,
@@ -269,8 +294,9 @@ describe.skip('create-next-app --example', () => {
           '--no-src-dir',
           '--no-tailwind',
           '--example',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
-        nextInstall.installDir,
+        nextTgzFilename,
         {
           cwd,
           reject: false,

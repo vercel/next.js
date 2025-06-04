@@ -2,7 +2,7 @@ import path from 'path'
 import fs from 'fs'
 ;(async function () {
   try {
-    let wasmDir = path.join(process.cwd(), 'packages/next-swc/crates/wasm')
+    let wasmDir = path.join(process.cwd(), 'crates/wasm')
     let wasmTarget = 'nodejs'
 
     // CI restores artifact at pkg-${wasmTarget}

@@ -40,11 +40,13 @@ It is not possible to use `getServerSideProps` without a server, so you'll need 
    }
    ```
 
-> **Note**: Removing export does not mean your entire application is no longer static.
-> Pages that use `getStaticProps` or [no lifecycle](/docs/pages/building-your-application/rendering/automatic-static-optimization) **will still be static**!
+> **Note**:
+>
+> - Removing export does not mean your entire application is no longer static.
+> - Pages that use `getStaticProps` or [no lifecycle](/docs/pages/building-your-application/rendering/automatic-static-optimization) **will still be static**!
 
 ## Useful Links
 
 - [Automatic Static Optimization](/docs/pages/building-your-application/rendering/automatic-static-optimization)
 - [`getStaticProps` documentation](/docs/pages/building-your-application/data-fetching/get-static-props)
-- [`exportPathMap` documentation](/docs/pages/api-reference/next-config-js/exportPathMap)
+- [`exportPathMap` documentation](/docs/pages/api-reference/config/next-config-js/exportPathMap)

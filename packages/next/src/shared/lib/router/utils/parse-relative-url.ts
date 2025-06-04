@@ -8,6 +8,7 @@ export interface ParsedRelativeUrl {
   pathname: string
   query: ParsedUrlQuery
   search: string
+  slashes: undefined
 }
 
 /**
@@ -18,8 +19,19 @@ export interface ParsedRelativeUrl {
  */
 export function parseRelativeUrl(
   url: string,
-  base?: string
-): ParsedRelativeUrl {
+  base?: string,
+  parseQuery?: true
+): ParsedRelativeUrl
+export function parseRelativeUrl(
+  url: string,
+  base: string | undefined,
+  parseQuery: false
+): Omit<ParsedRelativeUrl, 'query'>
+export function parseRelativeUrl(
+  url: string,
+  base?: string,
+  parseQuery = true
+): ParsedRelativeUrl | Omit<ParsedRelativeUrl, 'query'> {
   const globalBase = new URL(
     typeof window === 'undefined' ? 'http://n' : getLocationOrigin()
   )
@@ -36,14 +48,19 @@ export function parseRelativeUrl(
     url,
     resolvedBase
   )
+
   if (origin !== globalBase.origin) {
     throw new Error(`invariant: invalid relative URL, router received ${url}`)
   }
+
   return {
     pathname,
-    query: searchParamsToUrlQuery(searchParams),
+    query: parseQuery ? searchParamsToUrlQuery(searchParams) : undefined,
     search,
     hash,
-    href: href.slice(globalBase.origin.length),
+    href: href.slice(origin.length),
+    // We don't know for relative URLs at this point since we set a custom, internal
+    // base that isn't surfaced to users.
+    slashes: undefined,
   }
 }

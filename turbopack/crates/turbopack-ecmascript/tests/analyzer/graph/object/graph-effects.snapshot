@@ -1,0 +1,1044 @@
+[
+    Member {
+        obj: Variable(
+            (
+                "object",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "a",
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    1,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 75..83,
+        in_try: false,
+    },
+    Member {
+        obj: Variable(
+            (
+                "object",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "a",
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    2,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 96..107,
+        in_try: false,
+    },
+    Member {
+        obj: Variable(
+            (
+                "object",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "b",
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    3,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 120..128,
+        in_try: false,
+    },
+    Member {
+        obj: Variable(
+            (
+                "object",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "b",
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    4,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 141..152,
+        in_try: false,
+    },
+    Member {
+        obj: Variable(
+            (
+                "object",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "c",
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    5,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 165..173,
+        in_try: false,
+    },
+    Member {
+        obj: Variable(
+            (
+                "object",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "c",
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    6,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 186..197,
+        in_try: false,
+    },
+    Member {
+        obj: Variable(
+            (
+                "object",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "d",
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    7,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 210..218,
+        in_try: false,
+    },
+    Member {
+        obj: Variable(
+            (
+                "object",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "d",
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    8,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 231..242,
+        in_try: false,
+    },
+    Member {
+        obj: Variable(
+            (
+                "object_spread",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "a",
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    10,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 308..323,
+        in_try: false,
+    },
+    Member {
+        obj: Variable(
+            (
+                "object_spread",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "b",
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    11,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 336..351,
+        in_try: false,
+    },
+    Member {
+        obj: Variable(
+            (
+                "object_spread",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "c",
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    12,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 364..379,
+        in_try: false,
+    },
+    Member {
+        obj: Variable(
+            (
+                "object_spread",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "d",
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    13,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 392..407,
+        in_try: false,
+    },
+    FreeVar {
+        var: FreeVar(
+            "global",
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    16,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Object,
+            ),
+            ObjectLit(
+                Props(
+                    1,
+                ),
+            ),
+            PropOrSpread(
+                Spread,
+            ),
+            SpreadElement(
+                Expr,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 548..554,
+        in_try: false,
+    },
+    Member {
+        obj: Variable(
+            (
+                "unknown_spread",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "a",
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    17,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 576..592,
+        in_try: false,
+    },
+    Member {
+        obj: Variable(
+            (
+                "unknown_spread",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "b",
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    18,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 605..621,
+        in_try: false,
+    },
+    Member {
+        obj: Variable(
+            (
+                "unknown_spread",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "c",
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    19,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 634..650,
+        in_try: false,
+    },
+    FreeVar {
+        var: FreeVar(
+            "global",
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    20,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Object,
+            ),
+            ObjectLit(
+                Props(
+                    1,
+                ),
+            ),
+            PropOrSpread(
+                Prop,
+            ),
+            Prop(
+                KeyValue,
+            ),
+            KeyValueProp(
+                Key,
+            ),
+            PropName(
+                Computed,
+            ),
+            ComputedPropName(
+                Expr,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 678..684,
+        in_try: false,
+    },
+    FreeVar {
+        var: FreeVar(
+            "global",
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    20,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Object,
+            ),
+            ObjectLit(
+                Props(
+                    3,
+                ),
+            ),
+            PropOrSpread(
+                Prop,
+            ),
+            Prop(
+                KeyValue,
+            ),
+            KeyValueProp(
+                Key,
+            ),
+            PropName(
+                Computed,
+            ),
+            ComputedPropName(
+                Expr,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 697..703,
+        in_try: false,
+    },
+    Member {
+        obj: Variable(
+            (
+                "object2",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "a",
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    21,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 728..737,
+        in_try: false,
+    },
+    Member {
+        obj: Variable(
+            (
+                "object2",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "b",
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    22,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 750..759,
+        in_try: false,
+    },
+    Member {
+        obj: Variable(
+            (
+                "object2",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "c",
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    23,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 772..781,
+        in_try: false,
+    },
+    Member {
+        obj: Variable(
+            (
+                "object2",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "d",
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    24,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 794..803,
+        in_try: false,
+    },
+    Member {
+        obj: Variable(
+            (
+                "object2",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "e",
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    25,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 816..825,
+        in_try: false,
+    },
+]

@@ -24,8 +24,8 @@ interface Options {
   basePath: string
 }
 
-// [NOTE] For turbopack
-// refer loader_tree's write_static|dynamic_metadata for corresponding features
+// [NOTE] For turbopack, refer to app_page_loader_tree's write_metadata_item for
+// corresponding features.
 async function nextMetadataImageLoader(
   this: webpack.LoaderContext<Options>,
   content: Buffer
@@ -88,7 +88,7 @@ async function nextMetadataImageLoader(
     }
 
     export default async function (props) {
-      const { __metadata_id__: _, ...params } = props.params
+      const { __metadata_id__: _, ...params } = await props.params
       const imageUrl = fillMetadataSegment(${JSON.stringify(
         pathnamePrefix
       )}, params, ${JSON.stringify(pageSegment)})
@@ -168,11 +168,11 @@ async function nextMetadataImageLoader(
   return `\
   import { fillMetadataSegment } from 'next/dist/lib/metadata/get-metadata-route'
 
-  export default (props) => {
+  export default async (props) => {
     const imageData = ${JSON.stringify(imageData)}
     const imageUrl = fillMetadataSegment(${JSON.stringify(
       pathnamePrefix
-    )}, props.params, ${JSON.stringify(pageSegment)})
+    )}, await props.params, ${JSON.stringify(pageSegment)})
 
     return [{
       ...imageData,

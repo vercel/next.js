@@ -19,6 +19,7 @@ function SubmitButton() {
 }
 
 export function AddForm() {
+  // useActionState is available with React 19 (Next.js App Router)
   const [state, formAction] = useActionState(createTodo, initialState);
 
   return (

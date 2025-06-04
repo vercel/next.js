@@ -1,10 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
-for (const type of [
-  'with-mdx-rs',
-  // only mdx-rs should work with turbopack
-  ...(process.env.TURBOPACK ? [] : ['without-mdx-rs']),
-]) {
+for (const type of ['with-mdx-rs', 'without-mdx-rs']) {
   describe(`mdx ${type}`, () => {
     const { next } = nextTestSetup({
       files: __dirname,
@@ -12,6 +8,7 @@ for (const type of [
         '@next/mdx': 'canary',
         '@mdx-js/loader': '^2.2.1',
         '@mdx-js/react': '^2.2.1',
+        'rehype-katex': '7.0.1',
       },
       env: {
         WITH_MDX_RS: type === 'with-mdx-rs' ? 'true' : 'false',
@@ -63,6 +60,14 @@ for (const type of [
           '/_next/image?url=%2Ftest.jpg&w=384&q=75'
         )
       })
+
+      if (type === 'without-mdx-rs') {
+        it('should run plugins', async () => {
+          const html = await next.render('/rehype-plugin')
+          expect(html.includes('<mi>C</mi>')).toBe(true)
+          expect(html.includes('<mi>L</mi>')).toBe(true)
+        })
+      }
     })
 
     describe('pages directory', () => {

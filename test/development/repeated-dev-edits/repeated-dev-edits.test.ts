@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import fs from 'fs-extra'
-import { hasRedbox } from 'next-test-utils'
+import { assertNoRedbox } from 'next-test-utils'
 import path from 'path'
 
 describe('repeated-dev-edits', () => {
@@ -25,7 +25,7 @@ describe('repeated-dev-edits', () => {
     expect(await browser.elementByCss('p').text()).toBe('version-2')
 
     // Verify no hydration mismatch:
-    expect(await hasRedbox(browser)).toBeFalse()
+    await assertNoRedbox(browser)
 
     await next.patchFile(
       pagePath,
@@ -35,11 +35,11 @@ describe('repeated-dev-edits', () => {
     expect(await browser.elementByCss('p').text()).toBe('version-3')
 
     // Verify no hydration mismatch:
-    expect(await hasRedbox(browser)).toBeFalse()
+    await assertNoRedbox(browser)
 
     await browser.refresh()
 
     // Verify no hydration mismatch:
-    expect(await hasRedbox(browser)).toBeFalse()
+    await assertNoRedbox(browser)
   })
 })

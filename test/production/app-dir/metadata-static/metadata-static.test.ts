@@ -12,7 +12,7 @@ describe('app dir - metadata', () => {
 
     for (const key of [
       '/robots.txt',
-      '/sitemap',
+      '/sitemap.xml',
       '/opengraph-image',
       '/manifest.webmanifest',
     ]) {

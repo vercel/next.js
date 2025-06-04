@@ -1,0 +1,390 @@
+[
+    TypeOf {
+        arg: FreeVar(
+            "EdgeRuntime",
+        ),
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    2,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Cond,
+            ),
+            CondExpr(
+                Test,
+            ),
+            Expr(
+                Bin,
+            ),
+            BinExpr(
+                Left,
+            ),
+            Expr(
+                Unary,
+            ),
+        ],
+        span: 95..113,
+    },
+    FreeVar {
+        var: FreeVar(
+            "EdgeRuntime",
+        ),
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    2,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Cond,
+            ),
+            CondExpr(
+                Test,
+            ),
+            Expr(
+                Bin,
+            ),
+            BinExpr(
+                Left,
+            ),
+            Expr(
+                Unary,
+            ),
+            UnaryExpr(
+                Arg,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 102..113,
+        in_try: false,
+    },
+    Conditional {
+        condition: Binary(
+            4,
+            TypeOf(
+                2,
+                FreeVar(
+                    "EdgeRuntime",
+                ),
+            ),
+            StrictEqual,
+            Constant(
+                Str(
+                    Atom(
+                        "undefined",
+                    ),
+                ),
+            ),
+        ),
+        kind: Ternary {
+            then: EffectsBlock {
+                effects: [
+                    FreeVar {
+                        var: FreeVar(
+                            "require",
+                        ),
+                        ast_path: [
+                            Program(
+                                Module,
+                            ),
+                            Module(
+                                Body(
+                                    2,
+                                ),
+                            ),
+                            ModuleItem(
+                                Stmt,
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Var,
+                            ),
+                            VarDecl(
+                                Decls(
+                                    0,
+                                ),
+                            ),
+                            VarDeclarator(
+                                Init,
+                            ),
+                            Expr(
+                                Cond,
+                            ),
+                            CondExpr(
+                                Cons,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Callee,
+                            ),
+                            Callee(
+                                Expr,
+                            ),
+                            Expr(
+                                Ident,
+                            ),
+                        ],
+                        span: 132..139,
+                        in_try: false,
+                    },
+                    Call {
+                        func: FreeVar(
+                            "require",
+                        ),
+                        args: [
+                            Value(
+                                Constant(
+                                    Str(
+                                        Atom(
+                                            "ioredis",
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ],
+                        ast_path: [
+                            Program(
+                                Module,
+                            ),
+                            Module(
+                                Body(
+                                    2,
+                                ),
+                            ),
+                            ModuleItem(
+                                Stmt,
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Var,
+                            ),
+                            VarDecl(
+                                Decls(
+                                    0,
+                                ),
+                            ),
+                            VarDeclarator(
+                                Init,
+                            ),
+                            Expr(
+                                Cond,
+                            ),
+                            CondExpr(
+                                Cons,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                        ],
+                        span: 132..150,
+                        in_try: false,
+                        new: false,
+                    },
+                ],
+                range: Exact(
+                    [
+                        Program(
+                            Module,
+                        ),
+                        Module(
+                            Body(
+                                2,
+                            ),
+                        ),
+                        ModuleItem(
+                            Stmt,
+                        ),
+                        Stmt(
+                            Decl,
+                        ),
+                        Decl(
+                            Var,
+                        ),
+                        VarDecl(
+                            Decls(
+                                0,
+                            ),
+                        ),
+                        VarDeclarator(
+                            Init,
+                        ),
+                        Expr(
+                            Cond,
+                        ),
+                        CondExpr(
+                            Cons,
+                        ),
+                    ],
+                ),
+            },
+            else: EffectsBlock {
+                effects: [
+                    ImportedBinding {
+                        esm_reference_index: 2,
+                        export: Some(
+                            "Redis",
+                        ),
+                        ast_path: [
+                            Program(
+                                Module,
+                            ),
+                            Module(
+                                Body(
+                                    2,
+                                ),
+                            ),
+                            ModuleItem(
+                                Stmt,
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Var,
+                            ),
+                            VarDecl(
+                                Decls(
+                                    0,
+                                ),
+                            ),
+                            VarDeclarator(
+                                Init,
+                            ),
+                            Expr(
+                                Cond,
+                            ),
+                            CondExpr(
+                                Alt,
+                            ),
+                            Expr(
+                                Ident,
+                            ),
+                        ],
+                        span: 153..165,
+                        in_try: false,
+                    },
+                ],
+                range: Exact(
+                    [
+                        Program(
+                            Module,
+                        ),
+                        Module(
+                            Body(
+                                2,
+                            ),
+                        ),
+                        ModuleItem(
+                            Stmt,
+                        ),
+                        Stmt(
+                            Decl,
+                        ),
+                        Decl(
+                            Var,
+                        ),
+                        VarDecl(
+                            Decls(
+                                0,
+                            ),
+                        ),
+                        VarDeclarator(
+                            Init,
+                        ),
+                        Expr(
+                            Cond,
+                        ),
+                        CondExpr(
+                            Alt,
+                        ),
+                    ],
+                ),
+            },
+        },
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    2,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Cond,
+            ),
+            CondExpr(
+                Test,
+            ),
+        ],
+        span: 95..165,
+        in_try: false,
+    },
+]

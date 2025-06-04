@@ -3,7 +3,7 @@ import { cookies } from 'next/headers'
 
 export default async function Page() {
   try {
-    cookies()
+    await cookies()
   } catch (err) {}
   return <div>Hello World</div>
 }

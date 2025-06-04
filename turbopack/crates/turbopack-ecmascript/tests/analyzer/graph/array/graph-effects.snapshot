@@ -1,0 +1,414 @@
+[
+    Member {
+        obj: Array {
+            total_nodes: 3,
+            items: [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            1.0,
+                        ),
+                    ),
+                ),
+                Constant(
+                    Str(
+                        Atom(
+                            "foo",
+                        ),
+                    ),
+                ),
+            ],
+            mutable: true,
+        },
+        prop: Member(
+            3,
+            FreeVar(
+                "global",
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "index",
+                    ),
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    1,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 39..63,
+        in_try: false,
+    },
+    Member {
+        obj: FreeVar(
+            "global",
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "index",
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    1,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+            MemberExpr(
+                Prop,
+            ),
+            MemberProp(
+                Computed,
+            ),
+            ComputedPropName(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 50..62,
+        in_try: false,
+    },
+    FreeVar {
+        var: FreeVar(
+            "global",
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    1,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+            MemberExpr(
+                Prop,
+            ),
+            MemberProp(
+                Computed,
+            ),
+            ComputedPropName(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+            MemberExpr(
+                Obj,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 50..56,
+        in_try: false,
+    },
+    Member {
+        obj: Variable(
+            (
+                "d1",
+                #2,
+            ),
+        ),
+        prop: Member(
+            3,
+            FreeVar(
+                "global",
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "index",
+                    ),
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    3,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 100..116,
+        in_try: false,
+    },
+    Member {
+        obj: FreeVar(
+            "global",
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "index",
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    3,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+            MemberExpr(
+                Prop,
+            ),
+            MemberProp(
+                Computed,
+            ),
+            ComputedPropName(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 103..115,
+        in_try: false,
+    },
+    FreeVar {
+        var: FreeVar(
+            "global",
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    3,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+            MemberExpr(
+                Prop,
+            ),
+            MemberProp(
+                Computed,
+            ),
+            ComputedPropName(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+            MemberExpr(
+                Obj,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 103..109,
+        in_try: false,
+    },
+    Member {
+        obj: Variable(
+            (
+                "d1",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Num(
+                ConstantNumber(
+                    1.0,
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    4,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 129..134,
+        in_try: false,
+    },
+    Member {
+        obj: Variable(
+            (
+                "d1",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Num(
+                ConstantNumber(
+                    2.0,
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    5,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 147..152,
+        in_try: false,
+    },
+]

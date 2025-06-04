@@ -2,11 +2,11 @@
 title: Missing Suspense boundary with useSearchParams
 ---
 
-#### Why This Error Occurred
+## Why This Error Occurred
 
 Reading search parameters through `useSearchParams()` without a Suspense boundary will opt the entire page into client-side rendering. This could cause your page to be blank until the client-side JavaScript has loaded.
 
-#### Possible Ways to Fix It
+## Possible Ways to Fix It
 
 Ensure that calls to `useSearchParams()` are wrapped in a Suspense boundary.
 
@@ -56,9 +56,9 @@ export function Searchbar() {
 
 This will ensure the page does not de-opt to client-side rendering.
 
-#### Disabling
+## Disabling
 
-> Note: This is only available with Next.js version 14.x. If you're in versions above 15 please fix it with the approach above.
+> **Note**: This is only available with Next.js version 14.x. If you're in versions above 14 please fix it with the approach above.
 
 We don't recommend disabling this rule. However, if you need to, you can disable it by setting the `missingSuspenseWithCSRBailout` option to `false` in your `next.config.js`:
 
@@ -72,6 +72,6 @@ module.exports = {
 
 This configuration option will be removed in a future major version.
 
-### Useful Links
+## Useful Links
 
-- [`useSearchParams`](https://nextjs.org/docs/app/api-reference/functions/use-search-params)
+- [`useSearchParams`](/docs/app/api-reference/functions/use-search-params)

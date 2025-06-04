@@ -1,5 +1,5 @@
 import type { DomainLocale, I18NConfig } from '../config-shared'
-import type { NextParsedUrlQuery } from '../request-meta'
+import { getRequestMeta, type NextIncomingMessage } from '../request-meta'
 
 /**
  * The result of matching a locale aware route.
@@ -99,15 +99,15 @@ export class I18NProvider {
    * Pulls the pre-computed locale and inference results from the query
    * object.
    *
+   * @param req the request object
    * @param pathname the pathname that could contain a locale prefix
-   * @param query the query object
    * @returns the locale analysis result
    */
-  public fromQuery(
-    pathname: string,
-    query: NextParsedUrlQuery
+  public fromRequest(
+    req: NextIncomingMessage,
+    pathname: string
   ): LocaleAnalysisResult {
-    const detectedLocale = query.__nextLocale
+    const detectedLocale = getRequestMeta(req, 'locale')
 
     // If a locale was detected on the query, analyze the pathname to ensure
     // that the locale matches.
@@ -130,7 +130,8 @@ export class I18NProvider {
     return {
       pathname,
       detectedLocale,
-      inferredFromDefault: query.__nextInferredLocaleFromDefault === '1',
+      inferredFromDefault:
+        getRequestMeta(req, 'localeInferredFromDefault') ?? false,
     }
   }
 

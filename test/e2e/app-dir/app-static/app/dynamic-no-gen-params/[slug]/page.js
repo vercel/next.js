@@ -1,8 +1,10 @@
 'use client'
+import { use } from 'react'
 
 import Link from 'next/link'
 
-export default function Page({ params }) {
+export default function Page(props) {
+  const params = use(props.params)
   return (
     <>
       <p id="page">/dynamic-no-gen-params</p>

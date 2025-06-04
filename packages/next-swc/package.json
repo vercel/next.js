@@ -1,7 +1,10 @@
 {
   "name": "@next/swc",
-  "version": "15.0.0-canary.14",
+  "version": "15.4.0-canary.65",
   "private": true,
+  "files": [
+    "native/"
+  ],
   "scripts": {
     "clean": "node ../../scripts/rm.mjs native",
     "build-native": "napi build --platform -p next-swc-napi --cargo-cwd ../../ --cargo-name next_swc_napi --features plugin,image-extended --js false native",
@@ -9,12 +12,12 @@
     "build-native-no-plugin": "napi build --platform -p next-swc-napi --cargo-cwd ../../ --cargo-name next_swc_napi --features image-webp --js false native",
     "build-native-no-plugin-release": "napi build --platform -p next-swc-napi --cargo-cwd ../../ --cargo-name next_swc_napi --release --features image-webp,tracing/release_max_level_info --js false native",
     "build-native-wasi": "npx --package=@napi-rs/cli@3.0.0-alpha.45 napi build --platform --target wasm32-wasip1-threads -p next-swc-napi --cwd ../../ --output-dir packages/next-swc/native --no-default-features",
-    "build-wasm": "wasm-pack build crates/wasm --scope=next",
+    "build-wasm": "wasm-pack build ../../crates/wasm --scope=next",
     "cache-build-native": "[ -d native ] && echo $(ls native)",
     "rust-check-fmt": "cd ../..; cargo fmt -- --check",
     "rust-check-clippy": "cargo clippy --workspace --all-targets -- -D warnings -A deprecated",
-    "rust-check-napi-rustls": "cargo check -p next-swc-napi",
-    "test-cargo-unit": "cargo nextest run --workspace --exclude next-swc-napi --release --no-fail-fast --features rustls-tls"
+    "rust-check-napi": "cargo check -p next-swc-napi",
+    "test-cargo-unit": "cargo nextest run --workspace --exclude next-swc-napi --exclude turbo-tasks-macros --release --no-fail-fast"
   },
   "napi": {
     "name": "next-swc",
@@ -33,6 +36,7 @@
   },
   "devDependencies": {
     "@napi-rs/cli": "2.18.0",
-    "cross-env": "6.0.3"
+    "cross-env": "6.0.3",
+    "wasm-pack": "0.13.1"
   }
 }

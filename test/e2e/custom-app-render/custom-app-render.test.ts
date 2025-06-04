@@ -5,6 +5,7 @@ describe('custom-app-render', () => {
     files: __dirname,
     skipDeployment: true,
     startCommand: 'node server.js',
+    serverReadyPattern: /Next mode: (production|development)/,
     dependencies: {
       'get-port': '5.1.1',
     },

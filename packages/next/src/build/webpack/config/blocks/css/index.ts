@@ -14,6 +14,7 @@ import {
 import { getPostCssPlugins } from './plugins'
 import { nonNullable } from '../../../../../lib/non-nullable'
 import { WEBPACK_LAYERS } from '../../../../../lib/constants'
+import { getRspackCore } from '../../../../../shared/lib/get-rspack'
 
 // RegExps for all Style Sheet variants
 export const regexLikeCss = /\.(css|scss|sass)$/
@@ -147,9 +148,11 @@ export const css = curry(async function css(
   ctx: ConfigurationContext,
   config: webpack.Configuration
 ) {
+  const isRspack = Boolean(process.env.NEXT_RSPACK)
   const {
     prependData: sassPrependData,
     additionalData: sassAdditionalData,
+    implementation: sassImplementation,
     ...sassOptions
   } = ctx.sassOptions
 
@@ -167,6 +170,7 @@ export const css = curry(async function css(
     {
       loader: require.resolve('next/dist/compiled/sass-loader'),
       options: {
+        implementation: sassImplementation,
         // Source maps are required so that `resolve-url-loader` can locate
         // files original to their source directory.
         sourceMap: true,
@@ -179,6 +183,8 @@ export const css = curry(async function css(
           // Since it's optional and not required, we'll disable it by default
           // to avoid the confusion.
           fibers: false,
+          // TODO: Remove this once we upgrade to sass-loader 16
+          silenceDeprecations: ['legacy-js-api'],
           ...sassOptions,
         },
         additionalData: sassPrependData || sassAdditionalData,
@@ -588,8 +594,10 @@ export const css = curry(async function css(
   // Enable full mini-css-extract-plugin hmr for prod mode pages or app dir
   if (ctx.isClient && (ctx.isProduction || ctx.hasAppDir)) {
     // Extract CSS as CSS file(s) in the client-side production bundle.
-    const MiniCssExtractPlugin =
-      require('../../../plugins/mini-css-extract-plugin').default
+    const MiniCssExtractPlugin = isRspack
+      ? getRspackCore().CssExtractRspackPlugin
+      : require('../../../plugins/mini-css-extract-plugin').default
+
     fns.push(
       plugin(
         // @ts-ignore webpack 5 compat
@@ -615,7 +623,11 @@ export const css = curry(async function css(
           insert: function (linkTag: HTMLLinkElement) {
             if (typeof _N_E_STYLE_LOAD === 'function') {
               const { href, onload, onerror } = linkTag
-              _N_E_STYLE_LOAD(new URL(href).pathname).then(
+              _N_E_STYLE_LOAD(
+                href.indexOf(window.location.origin) === 0
+                  ? new URL(href).pathname
+                  : href
+              ).then(
                 () => onload?.call(linkTag, { type: 'load' } as Event),
                 () => onerror?.call(linkTag, {} as Event)
               )

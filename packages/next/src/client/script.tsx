@@ -209,8 +209,11 @@ function Script(props: ScriptProps): JSX.Element | null {
   } = props
 
   // Context is available only during SSR
-  const { updateScripts, scripts, getIsSsr, appDir, nonce } =
+  let { updateScripts, scripts, getIsSsr, appDir, nonce } =
     useContext(HeadManagerContext)
+
+  // if a nonce is explicitly passed to the script tag, favor that over the automatic handling
+  nonce = restProps.nonce || nonce
 
   /**
    * - First mount:
@@ -276,6 +279,7 @@ function Script(props: ScriptProps): JSX.Element | null {
           onReady,
           onError,
           ...restProps,
+          nonce,
         },
       ])
       updateScripts(scripts)
@@ -283,7 +287,10 @@ function Script(props: ScriptProps): JSX.Element | null {
       // Script has already loaded during SSR
       LoadCache.add(id || src)
     } else if (getIsSsr && !getIsSsr()) {
-      loadScript(props)
+      loadScript({
+        ...props,
+        nonce,
+      })
     }
   }
 
@@ -332,8 +339,13 @@ function Script(props: ScriptProps): JSX.Element | null {
         ReactDOM.preload(
           src,
           restProps.integrity
-            ? { as: 'script', integrity: restProps.integrity, nonce }
-            : { as: 'script', nonce }
+            ? {
+                as: 'script',
+                integrity: restProps.integrity,
+                nonce,
+                crossOrigin: restProps.crossOrigin,
+              }
+            : { as: 'script', nonce, crossOrigin: restProps.crossOrigin }
         )
         return (
           <script
@@ -353,8 +365,13 @@ function Script(props: ScriptProps): JSX.Element | null {
         ReactDOM.preload(
           src,
           restProps.integrity
-            ? { as: 'script', integrity: restProps.integrity, nonce }
-            : { as: 'script', nonce }
+            ? {
+                as: 'script',
+                integrity: restProps.integrity,
+                nonce,
+                crossOrigin: restProps.crossOrigin,
+              }
+            : { as: 'script', nonce, crossOrigin: restProps.crossOrigin }
         )
       }
     }

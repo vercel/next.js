@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import { sandbox } from 'development-sandbox'
+import { createSandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import { outdent } from 'outdent'
@@ -15,7 +15,7 @@ describe('Error Overlay invalid imports', () => {
   })
 
   it('should show error when using styled-jsx in server component', async () => {
-    const { session, cleanup } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -57,14 +57,14 @@ describe('Error Overlay invalid imports', () => {
         ],
       ])
     )
-
+    const { session } = sandbox
     const pageFile = 'app/page.js'
     const content = await next.readFile(pageFile)
     const withoutUseClient = content.replace("'use client'", '')
     await session.patch(pageFile, withoutUseClient)
 
-    expect(await session.hasRedbox()).toBe(true)
-    if (process.env.TURBOPACK) {
+    await session.assertHasRedbox()
+    if (process.env.IS_TURBOPACK_TEST) {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
         "./app
         Invalid import
@@ -84,12 +84,10 @@ describe('Error Overlay invalid imports', () => {
               ./app/page.js"
           `)
     }
-
-    await cleanup()
   })
 
   it('should show error when external package imports client-only in server component', async () => {
-    const { session, cleanup } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -141,14 +139,14 @@ describe('Error Overlay invalid imports', () => {
         ],
       ])
     )
-
+    const { session } = sandbox
     const pageFile = 'app/page.js'
     const content = await next.readFile(pageFile)
     const withoutUseClient = content.replace("'use client'", '')
     await session.patch(pageFile, withoutUseClient)
 
-    expect(await session.hasRedbox()).toBe(true)
-    if (process.env.TURBOPACK) {
+    await session.assertHasRedbox()
+    if (process.env.IS_TURBOPACK_TEST) {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
         "./node_modules/client-only-package
         Invalid import
@@ -168,12 +166,10 @@ describe('Error Overlay invalid imports', () => {
         ./app/page.js"
       `)
     }
-
-    await cleanup()
   })
 
   it('should show error when external package imports server-only in client component', async () => {
-    const { session, cleanup } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -224,13 +220,13 @@ describe('Error Overlay invalid imports', () => {
         ],
       ])
     )
-
+    const { session } = sandbox
     const file = 'app/page.js'
     const content = await next.readFile(file)
     await session.patch(file, "'use client'\n" + content)
 
-    expect(await session.hasRedbox()).toBe(true)
-    if (process.env.TURBOPACK) {
+    await session.assertHasRedbox()
+    if (process.env.IS_TURBOPACK_TEST) {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
         "./node_modules/server-only-package
         Invalid import
@@ -250,7 +246,5 @@ describe('Error Overlay invalid imports', () => {
         ./app/page.js"
       `)
     }
-
-    await cleanup()
   })
 })

@@ -119,7 +119,7 @@ const runTests = (isDev) => {
   it('should add a blur placeholder a statically imported jpg', async () => {
     const style = $('#basic-static').attr('style')
     if (isDev) {
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         expect(style).toContain(
           `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml`
         )
@@ -129,7 +129,7 @@ const runTests = (isDev) => {
         )
       }
     } else {
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         expect(style).toContain(
           `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml`
         )
@@ -144,7 +144,7 @@ const runTests = (isDev) => {
   it('should add a blur placeholder a statically imported png', async () => {
     const style = $('#blur-png').attr('style')
     if (isDev) {
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         expect(style).toContain(
           `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml`
         )
@@ -154,7 +154,7 @@ const runTests = (isDev) => {
         )
       }
     } else {
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         expect(style).toContain(
           `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml`
         )
@@ -184,7 +184,11 @@ describe('Build Error Tests', () => {
           "Module not found: Can't resolve '../public/foo/test-rect-broken.jpg"
         )
         // should contain the importing module
-        expect(stderr).toContain('./pages/static-img.js')
+        if (process.env.IS_TURBOPACK_TEST) {
+          expect(stderr).toContain('/pages/static-img.js')
+        } else {
+          expect(stderr).toContain('./pages/static-img.js')
+        }
         // should contain a import trace
         expect(stderr).not.toContain('Import trace for requested module')
       })
@@ -203,8 +207,8 @@ describe('Static Image Component Tests for basePath', () => {
         $ = cheerio.load(html)
         browser = await webdriver(appPort, '/docs/static-img')
       })
-      afterAll(() => {
-        killApp(app)
+      afterAll(async () => {
+        await killApp(app)
       })
       runTests(false)
     }
@@ -219,8 +223,8 @@ describe('Static Image Component Tests for basePath', () => {
         $ = cheerio.load(html)
         browser = await webdriver(appPort, '/docs/static-img')
       })
-      afterAll(() => {
-        killApp(app)
+      afterAll(async () => {
+        await killApp(app)
       })
       runTests(true)
     }

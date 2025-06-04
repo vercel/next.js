@@ -1,9 +1,7 @@
+/// <reference types="webpack/module.d.ts" />
+
 import React, { type JSX } from 'react'
-import type { ReactElement, ReactNode } from 'react'
-import {
-  OPTIMIZED_FONT_PROVIDERS,
-  NEXT_BUILTIN_DOCUMENT,
-} from '../shared/lib/constants'
+import { NEXT_BUILTIN_DOCUMENT } from '../shared/lib/constants'
 import type {
   DocumentContext,
   DocumentInitialProps,
@@ -26,6 +24,8 @@ import {
 import type { HtmlProps } from '../shared/lib/html-context.shared-runtime'
 import { encodeURIPath } from '../shared/lib/encode-uri-path'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
+import { getTracer } from '../server/lib/trace/tracer'
+import { getTracedMetadata } from '../server/lib/trace/utils'
 
 export type { DocumentContext, DocumentInitialProps, DocumentProps }
 
@@ -216,10 +216,10 @@ function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
   if (!nextScriptWorkers || process.env.NEXT_RUNTIME === 'edge') return null
 
   try {
-    let {
-      partytownSnippet,
-      // @ts-ignore: Prevent webpack from processing this require
-    } = __non_webpack_require__('@builder.io/partytown/integration'!)
+    // @ts-expect-error: Prevent webpack from processing this require
+    let { partytownSnippet } = __non_webpack_require__(
+      '@builder.io/partytown/integration'!
+    )
 
     const children = Array.isArray(props.children)
       ? props.children
@@ -330,7 +330,7 @@ function getPreNextScripts(context: HtmlProps, props: OriginProps) {
           {...scriptProps}
           key={scriptProps.src || index}
           defer={scriptProps.defer ?? !disableOptimizedLoading}
-          nonce={props.nonce}
+          nonce={scriptProps.nonce || props.nonce}
           data-nscript="beforeInteractive"
           crossOrigin={props.crossOrigin || crossOrigin}
         />
@@ -431,31 +431,33 @@ export class Head extends React.Component<HeadProps> {
       assetPrefix,
       assetQueryString,
       dynamicImports,
+      dynamicCssManifest,
       crossOrigin,
       optimizeCss,
-      optimizeFonts,
     } = this.context
     const cssFiles = files.allFiles.filter((f) => f.endsWith('.css'))
     const sharedFiles: Set<string> = new Set(files.sharedFiles)
 
     // Unmanaged files are CSS files that will be handled directly by the
     // webpack runtime (`mini-css-extract-plugin`).
-    let unmangedFiles: Set<string> = new Set([])
-    let dynamicCssFiles = Array.from(
+    let unmanagedFiles: Set<string> = new Set([])
+    let localDynamicCssFiles = Array.from(
       new Set(dynamicImports.filter((file) => file.endsWith('.css')))
     )
-    if (dynamicCssFiles.length) {
+    if (localDynamicCssFiles.length) {
       const existing = new Set(cssFiles)
-      dynamicCssFiles = dynamicCssFiles.filter(
+      localDynamicCssFiles = localDynamicCssFiles.filter(
         (f) => !(existing.has(f) || sharedFiles.has(f))
       )
-      unmangedFiles = new Set(dynamicCssFiles)
-      cssFiles.push(...dynamicCssFiles)
+      unmanagedFiles = new Set(localDynamicCssFiles)
+      cssFiles.push(...localDynamicCssFiles)
     }
 
     let cssLinkElements: JSX.Element[] = []
     cssFiles.forEach((file) => {
       const isSharedFile = sharedFiles.has(file)
+      const isUnmanagedFile = unmanagedFiles.has(file)
+      const isFileInDynamicCssManifest = dynamicCssManifest.has(file)
 
       if (!optimizeCss) {
         cssLinkElements.push(
@@ -472,7 +474,6 @@ export class Head extends React.Component<HeadProps> {
         )
       }
 
-      const isUnmanagedFile = unmangedFiles.has(file)
       cssLinkElements.push(
         <link
           key={file}
@@ -483,16 +484,14 @@ export class Head extends React.Component<HeadProps> {
           )}${assetQueryString}`}
           crossOrigin={this.props.crossOrigin || crossOrigin}
           data-n-g={isUnmanagedFile ? undefined : isSharedFile ? '' : undefined}
-          data-n-p={isUnmanagedFile ? undefined : isSharedFile ? undefined : ''}
+          data-n-p={
+            isSharedFile || isUnmanagedFile || isFileInDynamicCssManifest
+              ? undefined
+              : ''
+          }
         />
       )
     })
-
-    if (process.env.NODE_ENV !== 'development' && optimizeFonts) {
-      cssLinkElements = this.makeStylesheetInert(
-        cssLinkElements
-      ) as ReactElement[]
-    }
 
     return cssLinkElements.length === 0 ? null : cssLinkElements
   }
@@ -623,36 +622,6 @@ export class Head extends React.Component<HeadProps> {
     return getPolyfillScripts(this.context, this.props)
   }
 
-  makeStylesheetInert(node: ReactNode[]): ReactNode[] {
-    return React.Children.map(node, (c: any) => {
-      if (
-        c?.type === 'link' &&
-        c?.props?.href &&
-        OPTIMIZED_FONT_PROVIDERS.some(({ url }) =>
-          c?.props?.href?.startsWith(url)
-        )
-      ) {
-        const newProps = {
-          ...(c.props || {}),
-          'data-href': c.props.href,
-          href: undefined,
-        }
-
-        return React.cloneElement(c, newProps)
-      } else if (c?.props?.children) {
-        const newProps = {
-          ...(c.props || {}),
-          children: this.makeStylesheetInert(c.props.children),
-        }
-
-        return React.cloneElement(c, newProps)
-      }
-
-      return c
-      // @types/react bug. Returned value from .map will not be `null` if you pass in `[null]`
-    })!.filter(Boolean)
-  }
-
   render() {
     const {
       styles,
@@ -667,7 +636,6 @@ export class Head extends React.Component<HeadProps> {
       unstable_JsPreload,
       disableOptimizedLoading,
       optimizeCss,
-      optimizeFonts,
       assetPrefix,
       nextFontManifest,
     } = this.context
@@ -740,14 +708,6 @@ export class Head extends React.Component<HeadProps> {
         )
     }
 
-    if (
-      process.env.NODE_ENV !== 'development' &&
-      optimizeFonts &&
-      !(process.env.NEXT_RUNTIME !== 'edge' && inAmpMode)
-    ) {
-      children = this.makeStylesheetInert(children)
-    }
-
     let hasAmphtmlRel = false
     let hasCanonicalRel = false
 
@@ -808,6 +768,17 @@ export class Head extends React.Component<HeadProps> {
       assetPrefix
     )
 
+    const tracingMetadata = getTracedMetadata(
+      getTracer().getTracePropagationData(),
+      this.context.experimentalClientTraceMetadata
+    )
+
+    const traceMetaTags = (tracingMetadata || []).map(
+      ({ key, value }, index) => (
+        <meta key={`next-trace-data-${index}`} name={key} content={value} />
+      )
+    )
+
     return (
       <head {...getHeadHTMLProps(this.props)}>
         {this.context.isDevelopment && (
@@ -848,7 +819,6 @@ export class Head extends React.Component<HeadProps> {
         )}
 
         {children}
-        {optimizeFonts && <meta name="next-font-preconnect" />}
 
         {nextFontLinkTags.preconnect}
         {nextFontLinkTags.preload}
@@ -933,6 +903,7 @@ export class Head extends React.Component<HeadProps> {
               // (by default, style-loader injects at the bottom of <head />)
               <noscript id="__next_css__DO_NOT_USE__" />
             )}
+            {traceMetaTags}
             {styles || null}
           </>
         )}
@@ -1229,10 +1200,10 @@ export default class Document<P = {}> extends React.Component<
   render() {
     return (
       <Html>
-        <Head />
+        <Head nonce={this.props.nonce} />
         <body>
           <Main />
-          <NextScript />
+          <NextScript nonce={this.props.nonce} />
         </body>
       </Html>
     )

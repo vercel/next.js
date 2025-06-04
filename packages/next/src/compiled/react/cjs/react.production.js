@@ -72,15 +72,15 @@ pureComponentPrototype.constructor = PureComponent;
 assign(pureComponentPrototype, Component.prototype);
 pureComponentPrototype.isPureReactComponent = !0;
 var isArrayImpl = Array.isArray,
-  ReactSharedInternals = { H: null, A: null, T: null },
+  ReactSharedInternals = { H: null, A: null, T: null, S: null },
   hasOwnProperty = Object.prototype.hasOwnProperty;
-function ReactElement(type, key, _ref, self, source, owner, props) {
-  _ref = props.ref;
+function ReactElement(type, key, self, source, owner, props) {
+  self = props.ref;
   return {
     $$typeof: REACT_ELEMENT_TYPE,
     type: type,
     key: key,
-    ref: void 0 !== _ref ? _ref : null,
+    ref: void 0 !== self ? self : null,
     props: props
   };
 }
@@ -88,7 +88,6 @@ function cloneAndReplaceKey(oldElement, newKey) {
   return ReactElement(
     oldElement.type,
     newKey,
-    null,
     void 0,
     void 0,
     void 0,
@@ -199,7 +198,8 @@ function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
             (callback = cloneAndReplaceKey(
               callback,
               escapedPrefix +
-                (!callback.key || (children && children.key === callback.key)
+                (null == callback.key ||
+                (children && children.key === callback.key)
                   ? ""
                   : ("" + callback.key).replace(
                       userProvidedKeyEscapeRegex,
@@ -357,8 +357,11 @@ exports.StrictMode = REACT_STRICT_MODE_TYPE;
 exports.Suspense = REACT_SUSPENSE_TYPE;
 exports.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE =
   ReactSharedInternals;
-exports.act = function () {
-  throw Error("act(...) is not supported in production builds of React.");
+exports.__COMPILER_RUNTIME = {
+  __proto__: null,
+  c: function (size) {
+    return ReactSharedInternals.H.useMemoCache(size);
+  }
 };
 exports.cache = function (fn) {
   return function () {
@@ -390,7 +393,7 @@ exports.cloneElement = function (element, config, children) {
       childArray[i] = arguments[i + 2];
     props.children = childArray;
   }
-  return ReactElement(element.type, key, null, void 0, void 0, owner, props);
+  return ReactElement(element.type, key, void 0, void 0, owner, props);
 };
 exports.createContext = function (defaultValue) {
   defaultValue = {
@@ -430,7 +433,7 @@ exports.createElement = function (type, config, children) {
     for (propName in ((childrenLength = type.defaultProps), childrenLength))
       void 0 === props[propName] &&
         (props[propName] = childrenLength[propName]);
-  return ReactElement(type, key, null, void 0, void 0, null, props);
+  return ReactElement(type, key, void 0, void 0, null, props);
 };
 exports.createRef = function () {
   return { current: null };
@@ -455,22 +458,24 @@ exports.memo = function (type, compare) {
 };
 exports.startTransition = function (scope) {
   var prevTransition = ReactSharedInternals.T,
-    callbacks = new Set();
-  ReactSharedInternals.T = { _callbacks: callbacks };
-  var currentTransition = ReactSharedInternals.T;
+    currentTransition = {};
+  ReactSharedInternals.T = currentTransition;
   try {
-    var returnValue = scope();
+    var returnValue = scope(),
+      onStartTransitionFinish = ReactSharedInternals.S;
+    null !== onStartTransitionFinish &&
+      onStartTransitionFinish(currentTransition, returnValue);
     "object" === typeof returnValue &&
       null !== returnValue &&
       "function" === typeof returnValue.then &&
-      (callbacks.forEach(function (callback) {
-        return callback(currentTransition, returnValue);
-      }),
-      returnValue.then(noop, reportGlobalError));
+      returnValue.then(noop, reportGlobalError);
   } catch (error) {
     reportGlobalError(error);
   } finally {
-    ReactSharedInternals.T = prevTransition;
+    null !== prevTransition &&
+      null !== currentTransition.types &&
+      (prevTransition.types = currentTransition.types),
+      (ReactSharedInternals.T = prevTransition);
   }
 };
 exports.unstable_useCacheRefresh = function () {
@@ -536,4 +541,4 @@ exports.useSyncExternalStore = function (
 exports.useTransition = function () {
   return ReactSharedInternals.H.useTransition();
 };
-exports.version = "19.0.0-rc-f994737d14-20240522";
+exports.version = "19.2.0-canary-197d6a04-20250424";

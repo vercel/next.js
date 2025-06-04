@@ -1,33 +1,16 @@
 'use client'
 
 import React, { type JSX } from 'react'
-import { usePathname } from './navigation'
+import { useUntrackedPathname } from './navigation-untracked'
 import { isNextRouterError } from './is-next-router-error'
-import { staticGenerationAsyncStorage } from './static-generation-async-storage.external'
-
-const styles = {
-  error: {
-    // https://github.com/sindresorhus/modern-normalize/blob/main/modern-normalize.css#L38-L52
-    fontFamily:
-      'system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
-    height: '100vh',
-    textAlign: 'center',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  text: {
-    fontSize: '14px',
-    fontWeight: 400,
-    lineHeight: '28px',
-    margin: '0 8px',
-  },
-} as const
+import { handleHardNavError } from './nav-failure-handler'
+import { HandleISRError } from './handle-isr-error'
 
 export type ErrorComponent = React.ComponentType<{
   error: Error
-  reset: () => void
+  // global-error, there's no `reset` function;
+  // regular error boundary, there's a `reset` function.
+  reset?: () => void
 }>
 
 export interface ErrorBoundaryProps {
@@ -38,26 +21,13 @@ export interface ErrorBoundaryProps {
 }
 
 interface ErrorBoundaryHandlerProps extends ErrorBoundaryProps {
-  pathname: string
+  pathname: string | null
   errorComponent: ErrorComponent
 }
 
 interface ErrorBoundaryHandlerState {
   error: Error | null
-  previousPathname: string
-}
-
-// if we are revalidating we want to re-throw the error so the
-// function crashes so we can maintain our previous cache
-// instead of caching the error page
-function HandleISRError({ error }: { error: any }) {
-  const store = staticGenerationAsyncStorage.getStore()
-  if (store?.isRevalidate || store?.isStaticGeneration) {
-    console.error(error)
-    throw error
-  }
-
-  return null
+  previousPathname: string | null
 }
 
 export class ErrorBoundaryHandler extends React.Component<
@@ -83,6 +53,22 @@ export class ErrorBoundaryHandler extends React.Component<
     props: ErrorBoundaryHandlerProps,
     state: ErrorBoundaryHandlerState
   ): ErrorBoundaryHandlerState | null {
+    const { error } = state
+
+    // if we encounter an error while
+    // a navigation is pending we shouldn't render
+    // the error boundary and instead should fallback
+    // to a hard navigation to attempt recovering
+    if (process.env.__NEXT_APP_NAV_FAIL_HANDLING) {
+      if (error && handleHardNavError(error)) {
+        // clear error so we don't render anything
+        return {
+          error: null,
+          previousPathname: props.pathname,
+        }
+      }
+    }
+
     /**
      * Handles reset of the error boundary when a navigation happens.
      * Ensures the error boundary does not stay enabled when navigating to a new page.
@@ -105,7 +91,7 @@ export class ErrorBoundaryHandler extends React.Component<
     this.setState({ error: null })
   }
 
-  // Explicit type is needed to avoid the generated `.d.ts` having a wide return type that could be specific the the `@types/react` version.
+  // Explicit type is needed to avoid the generated `.d.ts` having a wide return type that could be specific to the `@types/react` version.
   render(): React.ReactNode {
     if (this.state.error) {
       return (
@@ -125,34 +111,6 @@ export class ErrorBoundaryHandler extends React.Component<
   }
 }
 
-export function GlobalError({ error }: { error: any }) {
-  const digest: string | undefined = error?.digest
-  return (
-    <html id="__next_error__">
-      <head></head>
-      <body>
-        <HandleISRError error={error} />
-        <div style={styles.error}>
-          <div>
-            <h2 style={styles.text}>
-              {`Application error: a ${
-                digest ? 'server' : 'client'
-              }-side exception has occurred (see the ${
-                digest ? 'server logs' : 'browser console'
-              } for more information).`}
-            </h2>
-            {digest ? <p style={styles.text}>{`Digest: ${digest}`}</p> : null}
-          </div>
-        </div>
-      </body>
-    </html>
-  )
-}
-
-// Exported so that the import signature in the loaders can be identical to user
-// supplied custom global error signatures.
-export default GlobalError
-
 /**
  * Handles errors through `getDerivedStateFromError`.
  * Renders the provided error component and provides a way to `reset` the error boundary state.
@@ -167,8 +125,14 @@ export function ErrorBoundary({
   errorStyles,
   errorScripts,
   children,
-}: ErrorBoundaryProps & { children: React.ReactNode }): JSX.Element {
-  const pathname = usePathname()
+}: ErrorBoundaryProps & {
+  children: React.ReactNode
+}): JSX.Element {
+  // When we're rendering the missing params shell, this will return null. This
+  // is because we won't be rendering any not found boundaries or error
+  // boundaries for the missing params shell. When this runs on the client
+  // (where these errors can occur), we will get the correct pathname.
+  const pathname = useUntrackedPathname()
   if (errorComponent) {
     return (
       <ErrorBoundaryHandler

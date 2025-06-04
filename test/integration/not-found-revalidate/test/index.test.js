@@ -81,9 +81,9 @@ const runTests = () => {
     let res = await fetchViaHTTP(appPort, '/fallback-blocking/hello')
     let $ = cheerio.load(await res.text())
 
-    const privateCache =
-      'private, no-cache, no-store, max-age=0, must-revalidate'
-    expect(res.headers.get('cache-control')).toBe(privateCache)
+    expect(res.headers.get('cache-control')).toBe(
+      `s-maxage=1, stale-while-revalidate=31535999`
+    )
     expect(res.status).toBe(404)
     expect(JSON.parse($('#props').text()).notFound).toBe(true)
 
@@ -91,7 +91,9 @@ const runTests = () => {
     res = await fetchViaHTTP(appPort, '/fallback-blocking/hello')
     $ = cheerio.load(await res.text())
 
-    expect(res.headers.get('cache-control')).toBe(privateCache)
+    expect(res.headers.get('cache-control')).toBe(
+      `s-maxage=1, stale-while-revalidate=31535999`
+    )
     expect(res.status).toBe(404)
     expect(JSON.parse($('#props').text()).notFound).toBe(true)
 
@@ -101,7 +103,7 @@ const runTests = () => {
 
     const props = JSON.parse($('#props').text())
     expect(res.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate'
+      's-maxage=1, stale-while-revalidate=31535999'
     )
     expect(res.status).toBe(200)
     expect(props.found).toBe(true)
@@ -114,7 +116,7 @@ const runTests = () => {
 
     const props2 = JSON.parse($('#props').text())
     expect(res.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate'
+      's-maxage=1, stale-while-revalidate=31535999'
     )
     expect(res.status).toBe(200)
     expect(props2.found).toBe(true)
@@ -127,7 +129,7 @@ const runTests = () => {
 
     const props3 = JSON.parse($('#props').text())
     expect(res.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate'
+      's-maxage=1, stale-while-revalidate=31535999'
     )
     expect(res.status).toBe(200)
     expect(props3.found).toBe(true)
@@ -146,7 +148,7 @@ const runTests = () => {
     let $ = cheerio.load(await res.text())
 
     expect(res.headers.get('cache-control')).toBe(
-      'private, no-cache, no-store, max-age=0, must-revalidate'
+      `s-maxage=1, stale-while-revalidate=31535999`
     )
     expect(res.status).toBe(404)
     expect(JSON.parse($('#props').text()).notFound).toBe(true)
@@ -157,7 +159,7 @@ const runTests = () => {
 
     const props = JSON.parse($('#props').text())
     expect(res.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate'
+      's-maxage=1, stale-while-revalidate=31535999'
     )
     expect(res.status).toBe(200)
     expect(props.found).toBe(true)
@@ -170,7 +172,7 @@ const runTests = () => {
 
     const props2 = JSON.parse($('#props').text())
     expect(res.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate'
+      's-maxage=1, stale-while-revalidate=31535999'
     )
     expect(res.status).toBe(200)
     expect(props2.found).toBe(true)
@@ -183,7 +185,7 @@ const runTests = () => {
 
     const props3 = JSON.parse($('#props').text())
     expect(res.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate'
+      's-maxage=1, stale-while-revalidate=31535999'
     )
     expect(res.status).toBe(200)
     expect(props3.found).toBe(true)

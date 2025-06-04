@@ -1,0 +1,69 @@
+name: Turbopack Rust testing benchmarks
+on:
+  workflow_call:
+    inputs:
+      runner:
+        type: string
+        default: '["self-hosted", "linux", "x64", "metal"]'
+      os:
+        type: string
+        default: 'linux'
+      all:
+        type: boolean
+        default: false
+
+env:
+  TURBOPACK_BENCH_COUNTS: '100'
+  TURBOPACK_BENCH_PROGRESS: '1'
+
+  NODE_LTS_VERSION: 20
+
+jobs:
+  test:
+    name: Test
+    runs-on: ${{ fromJSON(inputs.runner) }}
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+        if: inputs.os == 'windows'
+
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
+
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_LTS_VERSION }}
+          check-latest: true
+      - run: corepack enable
+
+      # We need to install the dependencies for the benchmark apps
+      - run: pnpm install
+        working-directory: turbopack/benchmark-apps
+
+      - name: Build benchmarks for tests
+        timeout-minutes: 120
+        run: |
+          cargo test --benches --workspace --release --no-fail-fast --exclude turbopack-bench --exclude next-swc-napi --no-run
+
+      - name: Run cargo test on benchmarks
+        timeout-minutes: 120
+        run: |
+          cargo test --benches --workspace --release --no-fail-fast --exclude turbopack-bench --exclude next-swc-napi
+
+      - name: Build benchmarks for tests for other bundlers
+        if: inputs.all
+        timeout-minutes: 120
+        run: |
+          cargo test --benches --release -p turbopack-bench --no-run
+
+      - name: Run cargo test on benchmarks for other bundlers
+        if: inputs.all
+        timeout-minutes: 120
+        run: |
+          cargo test --benches --release -p turbopack-bench

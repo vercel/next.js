@@ -2,7 +2,8 @@ import Link from 'next/link'
 
 export const dynamicParams = false
 
-export default function Page({ params }) {
+export default async function Page(props) {
+  const params = await props.params
   return (
     <>
       <Link

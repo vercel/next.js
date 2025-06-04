@@ -1,7 +1,8 @@
 /* eslint-disable import/no-extraneous-dependencies */
-import tar from 'tar'
-import { Readable } from 'stream'
-import { pipeline } from 'stream/promises'
+import { Readable } from 'node:stream'
+import { sep, posix } from 'node:path'
+import { pipeline } from 'node:stream/promises'
+import { x } from 'tar'
 
 export type RepoInfo = {
   username: string
@@ -99,19 +100,31 @@ export async function downloadAndExtractRepo(
   root: string,
   { username, name, branch, filePath }: RepoInfo
 ) {
+  let rootPath: string | null = null
   await pipeline(
     await downloadTarStream(
       `https://codeload.github.com/${username}/${name}/tar.gz/${branch}`
     ),
-    tar.x({
+    x({
       cwd: root,
       strip: filePath ? filePath.split('/').length + 1 : 1,
-      filter: (p) =>
-        p.startsWith(
-          `${name}-${branch.replace(/\//g, '-')}${
-            filePath ? `/${filePath}/` : '/'
-          }`
-        ),
+      filter: (p: string) => {
+        // Convert Windows path separators to POSIX style
+        const posixPath = p.split(sep).join(posix.sep)
+
+        // Determine the unpacked root path dynamically instead of hardcoding to the fetched repo's name / branch.
+        // This avoids the condition when the repository has been renamed, and the old repository name is used to fetch the example.
+        // The tar download will work as it is redirected automatically, but the root directory of the extracted
+        // example will be the new, renamed name instead of the name used to fetch the example, breaking the filter.
+        if (rootPath === null) {
+          const pathSegments = posixPath.split(posix.sep)
+          rootPath = pathSegments.length ? pathSegments[0] : null
+        }
+
+        return posixPath.startsWith(
+          `${rootPath}${filePath ? `/${filePath}/` : '/'}`
+        )
+      },
     })
   )
 }
@@ -125,7 +138,7 @@ export async function downloadAndExtractExample(root: string, name: string) {
     await downloadTarStream(
       'https://codeload.github.com/vercel/next.js/tar.gz/canary'
     ),
-    tar.x({
+    x({
       cwd: root,
       strip: 2 + name.split('/').length,
       filter: (p) => p.includes(`next.js-canary/examples/${name}/`),

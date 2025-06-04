@@ -12,7 +12,7 @@ export default () => (
       <meta name="viewport" content="width=500" key="viewport" />
     </Head>
     <Head>
-      {/* this will override the the above */}
+      {/* this will override the above */}
       <meta charSet="iso-8859-1" key="charSet" />
     </Head>
     <h1>Meta tags with same keys as default get deduped</h1>

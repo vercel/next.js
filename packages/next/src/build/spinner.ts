@@ -33,9 +33,20 @@ export default function createSpinner(
     const origStopAndPersist = spinner.stopAndPersist.bind(spinner)
 
     const logHandle = (method: any, args: any[]) => {
-      origStop()
+      // Enter a new line before logging new message, to avoid
+      // the new message shows up right after the spinner in the same line.
+      const isInProgress = spinner?.isSpinning
+      if (spinner && isInProgress) {
+        // Reset the current running spinner to empty line by `\r`
+        spinner.prefixText = '\r'
+        spinner.text = '\r'
+        spinner.clear()
+        origStop()
+      }
       method(...args)
-      spinner!.start()
+      if (spinner && isInProgress) {
+        spinner.start()
+      }
     }
 
     console.log = (...args: any) => logHandle(origLog, args)

@@ -2,6 +2,8 @@ import React from 'react'
 import { clearCacheNodeDataForSegmentPath } from './clear-cache-node-data-for-segment-path'
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 
+const navigatedAt = -1
+
 describe('clearCacheNodeDataForSegmentPath', () => {
   it('should clear the data property', () => {
     const pathname = '/dashboard/settings'
@@ -13,26 +15,22 @@ describe('clearCacheNodeDataForSegmentPath', () => {
       .flat()
 
     const cache: CacheNode = {
+      navigatedAt,
       lazyData: null,
       rsc: null,
       prefetchRsc: null,
       head: null,
-      layerAssets: null,
-      prefetchLayerAssets: null,
       prefetchHead: null,
       parallelRoutes: new Map(),
-      lazyDataResolved: false,
       loading: null,
     }
     const existingCache: CacheNode = {
+      navigatedAt,
       lazyData: null,
       rsc: <>Root layout</>,
       prefetchRsc: null,
       head: null,
-      layerAssets: null,
-      prefetchLayerAssets: null,
       prefetchHead: null,
-      lazyDataResolved: false,
       loading: null,
       parallelRoutes: new Map([
         [
@@ -41,13 +39,11 @@ describe('clearCacheNodeDataForSegmentPath', () => {
             [
               'linking',
               {
+                navigatedAt,
                 lazyData: null,
                 rsc: <>Linking</>,
                 prefetchRsc: null,
-                lazyDataResolved: false,
                 head: null,
-                layerAssets: null,
-                prefetchLayerAssets: null,
                 prefetchHead: null,
                 loading: null,
                 parallelRoutes: new Map([
@@ -57,15 +53,13 @@ describe('clearCacheNodeDataForSegmentPath', () => {
                       [
                         '',
                         {
+                          navigatedAt,
                           lazyData: null,
                           rsc: <>Page</>,
                           prefetchRsc: null,
                           head: null,
-                          layerAssets: null,
-                          prefetchLayerAssets: null,
                           prefetchHead: null,
                           parallelRoutes: new Map(),
-                          lazyDataResolved: false,
                           loading: null,
                         },
                       ],
@@ -82,64 +76,56 @@ describe('clearCacheNodeDataForSegmentPath', () => {
     clearCacheNodeDataForSegmentPath(cache, existingCache, flightSegmentPath)
 
     expect(cache).toMatchInlineSnapshot(`
-      {
-        "head": null,
-        "layerAssets": null,
-        "lazyData": null,
-        "lazyDataResolved": false,
-        "loading": null,
-        "parallelRoutes": Map {
-          "children" => Map {
-            "linking" => {
-              "head": null,
-              "layerAssets": null,
-              "lazyData": null,
-              "lazyDataResolved": false,
-              "loading": null,
-              "parallelRoutes": Map {
-                "children" => Map {
-                  "" => {
-                    "head": null,
-                    "layerAssets": null,
-                    "lazyData": null,
-                    "lazyDataResolved": false,
-                    "loading": null,
-                    "parallelRoutes": Map {},
-                    "prefetchHead": null,
-                    "prefetchLayerAssets": null,
-                    "prefetchRsc": null,
-                    "rsc": <React.Fragment>
-                      Page
-                    </React.Fragment>,
-                  },
-                },
-              },
-              "prefetchHead": null,
-              "prefetchLayerAssets": null,
-              "prefetchRsc": null,
-              "rsc": <React.Fragment>
-                Linking
-              </React.Fragment>,
-            },
-            "dashboard" => {
-              "head": null,
-              "layerAssets": null,
-              "lazyData": null,
-              "lazyDataResolved": false,
-              "loading": null,
-              "parallelRoutes": Map {},
-              "prefetchHead": null,
-              "prefetchLayerAssets": null,
-              "prefetchRsc": null,
-              "rsc": null,
-            },
-          },
-        },
-        "prefetchHead": null,
-        "prefetchLayerAssets": null,
-        "prefetchRsc": null,
-        "rsc": null,
-      }
+     {
+       "head": null,
+       "lazyData": null,
+       "loading": null,
+       "navigatedAt": -1,
+       "parallelRoutes": Map {
+         "children" => Map {
+           "linking" => {
+             "head": null,
+             "lazyData": null,
+             "loading": null,
+             "navigatedAt": -1,
+             "parallelRoutes": Map {
+               "children" => Map {
+                 "" => {
+                   "head": null,
+                   "lazyData": null,
+                   "loading": null,
+                   "navigatedAt": -1,
+                   "parallelRoutes": Map {},
+                   "prefetchHead": null,
+                   "prefetchRsc": null,
+                   "rsc": <React.Fragment>
+                     Page
+                   </React.Fragment>,
+                 },
+               },
+             },
+             "prefetchHead": null,
+             "prefetchRsc": null,
+             "rsc": <React.Fragment>
+               Linking
+             </React.Fragment>,
+           },
+           "dashboard" => {
+             "head": null,
+             "lazyData": null,
+             "loading": null,
+             "navigatedAt": -1,
+             "parallelRoutes": Map {},
+             "prefetchHead": null,
+             "prefetchRsc": null,
+             "rsc": null,
+           },
+         },
+       },
+       "prefetchHead": null,
+       "prefetchRsc": null,
+       "rsc": null,
+     }
     `)
   })
 })

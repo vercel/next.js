@@ -1,0 +1,17 @@
+[profile.tp-test-linux.junit]
+path = "junit.xml"
+report-name = "Turbopack tests (Linux)"
+store-success-output = true
+store-failure-output = true
+
+[profile.tp-test-mac.junit]
+path = "junit.xml"
+report-name = "Turbopack tests (Mac)"
+store-success-output = true
+store-failure-output = true
+
+[profile.tp-test-win.junit]
+path = "junit.xml"
+report-name = "Turbopack tests (Windows)"
+store-success-output = true
+store-failure-output = true

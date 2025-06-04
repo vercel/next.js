@@ -2,16 +2,12 @@ import { bold, red, yellow } from '../../lib/picocolors'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import textTable from 'next/dist/compiled/text-table'
 import createStore from 'next/dist/compiled/unistore'
-import formatWebpackMessages from '../../client/components/react-dev-overlay/internal/helpers/format-webpack-messages'
+import formatWebpackMessages from '../../client/components/react-dev-overlay/utils/format-webpack-messages'
 import { store as consoleStore } from './store'
 import type { OutputState } from './store'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { COMPILER_NAMES } from '../../shared/lib/constants'
 import type { CompilerNameValues } from '../../shared/lib/constants'
-
-export function startedDevelopmentServer(appUrl: string, bindAddr: string) {
-  consoleStore.setState({ appUrl, bindAddr })
-}
 
 type CompilerDiagnostics = {
   totalModulesCount: number

@@ -79,6 +79,21 @@ export default function UI({
           setCookieAndRedirect
         </button>
       </form>
+      <form>
+        <button
+          id="setCookieAndRedirectReplace"
+          formAction={async () => {
+            await setCookieAndRedirect(
+              'redirect',
+              Math.random().toString(36).substring(7),
+              '/redirect-target',
+              'replace'
+            )
+          }}
+        >
+          setCookieAndRedirectReplace
+        </button>
+      </form>
     </div>
   )
 }

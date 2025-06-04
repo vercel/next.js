@@ -33,15 +33,14 @@ describe('app-dir build size', () => {
       const index = result['/']
       const foo = result['/foo']
 
-      // index route has a page, so it should not be 0
-      expect(sizeToBytes(index.size)).toBeGreaterThan(0)
       expect(sizeToBytes(index.firstLoadJS)).toBeGreaterThan(0)
-
-      // foo route has a page, so it should not be 0
-      expect(sizeToBytes(foo.size)).toBeGreaterThan(0)
       expect(sizeToBytes(foo.firstLoadJS)).toBeGreaterThan(0)
 
-      // foo is a client component, so it should be larger than index
+      // index route is a page with no client JS, so it could serve zero additional JS (size = 0)
+      // foo route is a page with client references, so it has to serve additional non-shared JS
+      expect(sizeToBytes(foo.size)).toBeGreaterThan(0)
+
+      // foo has a client component, so it should be larger than index
       expect(sizeToBytes(foo.size)).toBeGreaterThan(sizeToBytes(index.size))
     })
   } else {

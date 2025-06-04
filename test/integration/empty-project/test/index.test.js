@@ -13,15 +13,16 @@ describe('Empty Project', () => {
     context.server = await launchApp(join(__dirname, '../'), context.appPort)
   })
 
-  const fetch = (p, q) => fetchViaHTTP(context.appPort, p, q, { timeout: 5000 })
+  const fetch = (p, q) =>
+    fetchViaHTTP(context.appPort, p, q, { timeout: 10_000 })
 
   it('Should not time out and return 404', async () => {
     const res = await fetch('/')
     expect(res.status).toBe(404)
   })
 
-  afterAll(() => {
-    killApp(context.server)
+  afterAll(async () => {
+    await killApp(context.server)
     fs.closeSync(fs.openSync(join(__dirname, '..', 'pages', '.gitkeep'), 'w'))
   })
 })

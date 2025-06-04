@@ -40,7 +40,7 @@ describe('next-dynamic-css', () => {
     })
   }
 
-  it('should have correct order of styles on next/dymamic loaded component', async () => {
+  it('should have correct order of styles on next/dynamic loaded component', async () => {
     const browser = await next.browser('/page')
     expect(await browser.waitForElementByCss('#component').text()).toBe(
       'Hello Component'

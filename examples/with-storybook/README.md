@@ -8,8 +8,6 @@ As of v6.0, Storybook has built-in TypeScript support, so no configuration is ne
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-storybook)
-
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-storybook&project-name=with-storybook&repository-name=with-storybook)
 
 ## How to use
@@ -34,6 +32,8 @@ pnpm create next-app --example with-storybook with-storybook-app
 npm run storybook
 # or
 yarn storybook
+# or
+pnpm storybook
 ```
 
 ### Build Static Storybook
@@ -42,6 +42,8 @@ yarn storybook
 npm run build-storybook
 # or
 yarn build-storybook
+# or
+pnpm build-storybook
 ```
 
 You can use [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy Storybook. Specify `storybook-static` as the output directory.

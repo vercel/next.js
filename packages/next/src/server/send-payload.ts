@@ -1,11 +1,11 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type RenderResult from './render-result'
-import type { Revalidate, SwrDelta } from './lib/revalidate'
+import type { CacheControl } from './lib/cache-control'
 
 import { isResSent } from '../shared/lib/utils'
 import { generateETag } from './lib/etag'
 import fresh from 'next/dist/compiled/fresh'
-import { formatRevalidate } from './lib/revalidate'
+import { getCacheControlHeader } from './lib/cache-control'
 import { RSC_CONTENT_TYPE_HEADER } from '../client/components/app-router-headers'
 
 export function sendEtagResponse(
@@ -39,8 +39,7 @@ export async function sendRenderResult({
   type,
   generateEtags,
   poweredByHeader,
-  revalidate,
-  swrDelta,
+  cacheControl,
 }: {
   req: IncomingMessage
   res: ServerResponse
@@ -48,8 +47,7 @@ export async function sendRenderResult({
   type: 'html' | 'json' | 'rsc'
   generateEtags: boolean
   poweredByHeader: boolean
-  revalidate: Revalidate | undefined
-  swrDelta: SwrDelta | undefined
+  cacheControl: CacheControl | undefined
 }): Promise<void> {
   if (isResSent(res)) {
     return
@@ -59,61 +57,16 @@ export async function sendRenderResult({
     res.setHeader('X-Powered-By', 'Next.js')
   }
 
-  if (typeof revalidate !== 'undefined') {
-    res.setHeader(
-      'Cache-Control',
-      formatRevalidate({
-        revalidate,
-        swrDelta,
-      })
-    )
+  // If cache control is already set on the response we don't
+  // override it to allow users to customize it via next.config
+  if (cacheControl && !res.getHeader('Cache-Control')) {
+    res.setHeader('Cache-Control', getCacheControlHeader(cacheControl))
   }
 
   const payload = result.isDynamic ? null : result.toUnchunkedString()
 
-  if (payload !== null) {
-    let etagPayload = payload
-    if (type === 'rsc') {
-      // ensure etag generation is deterministic as
-      // ordering can differ even if underlying content
-      // does not differ
-      etagPayload = payload.split('\n').sort().join('\n')
-    } else if (type === 'html' && payload.includes('__next_f')) {
-      const { parse } =
-        require('next/dist/compiled/node-html-parser') as typeof import('next/dist/compiled/node-html-parser')
-
-      try {
-        // Parse the HTML
-        let root = parse(payload)
-
-        // Get script tags in the body element
-        let scriptTags = root
-          .querySelector('body')
-          ?.querySelectorAll('script')
-          .filter(
-            (node) =>
-              !node.hasAttribute('src') && node.innerHTML?.includes('__next_f')
-          )
-
-        // Sort the script tags by their inner text
-        scriptTags?.sort((a, b) => a.innerHTML.localeCompare(b.innerHTML))
-
-        // Remove the original script tags
-        scriptTags?.forEach((script: any) => script.remove())
-
-        // Append the sorted script tags to the body
-        scriptTags?.forEach((script: any) =>
-          root.querySelector('body')?.appendChild(script)
-        )
-
-        // Stringify back to HTML
-        etagPayload = root.toString()
-      } catch (err) {
-        console.error(`Error parsing HTML payload`, err)
-      }
-    }
-
-    const etag = generateEtags ? generateETag(etagPayload) : undefined
+  if (generateEtags && payload !== null) {
+    const etag = generateETag(payload)
     if (sendEtagResponse(req, res, etag)) {
       return
     }

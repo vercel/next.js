@@ -16,6 +16,9 @@ if (!(globalThis as any).isNextStart) {
     const { next, skipped } = nextTestSetup({
       files: __dirname,
       skipStart: true,
+      dependencies: {
+        nanoid: '4.0.1',
+      },
     })
 
     if (skipped) {

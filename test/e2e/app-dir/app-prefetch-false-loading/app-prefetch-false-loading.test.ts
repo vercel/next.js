@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
 describe('app-prefetch-false-loading', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
 
@@ -28,12 +28,17 @@ describe('app-prefetch-false-loading', () => {
 
     expect(initialRandomNumber).toBe(newRandomNumber)
 
-    await check(() => {
-      const logOccurrences =
-        next.cliOutput.slice(logStartIndex).split('re-fetching in layout')
-          .length - 1
+    // Deploy doesn't have access to runtime logs. This assertion is also redundant since if
+    // the layout was re-fetched, the `no-store` on the random number would have resulted in a new value.
+    // Keeping this here for consistency with the original test.
+    if (!isNextDeploy) {
+      await check(() => {
+        const logOccurrences =
+          next.cliOutput.slice(logStartIndex).split('re-fetching in layout')
+            .length - 1
 
-      return logOccurrences
-    }, 1)
+        return logOccurrences
+      }, 1)
+    }
   })
 })

@@ -31,7 +31,6 @@ export function restoreReducer(
     : oldCache
 
   return {
-    buildId: state.buildId,
     // Set canonical url
     canonicalUrl: href,
     pushRef: {

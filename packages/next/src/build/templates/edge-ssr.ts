@@ -2,6 +2,7 @@ import '../../server/web/globals'
 import { adapter } from '../../server/web/adapter'
 import { getRender } from '../webpack/loaders/next-edge-ssr-loader/render'
 import { IncrementalCache } from '../../server/lib/incremental-cache'
+import { initializeCacheHandlers } from '../../server/use-cache/handlers'
 
 import Document from 'VAR_MODULE_DOCUMENT'
 import * as appMod from 'VAR_MODULE_APP'
@@ -39,6 +40,9 @@ declare const user500RouteModuleOptions: any
 // INJECT:pageRouteModuleOptions
 // INJECT:errorRouteModuleOptions
 // INJECT:user500RouteModuleOptions
+
+// Initialize the cache handlers interface.
+initializeCacheHandlers()
 
 const pageMod = {
   ...userlandPage,
@@ -82,8 +86,8 @@ const error500Mod = userland500Page
 const maybeJSONParse = (str?: string) => (str ? JSON.parse(str) : undefined)
 
 const buildManifest: BuildManifest = self.__BUILD_MANIFEST as any
-const prerenderManifest = maybeJSONParse(self.__PRERENDER_MANIFEST)
 const reactLoadableManifest = maybeJSONParse(self.__REACT_LOADABLE_MANIFEST)
+const dynamicCssManifest = maybeJSONParse(self.__DYNAMIC_CSS_MANIFEST)
 const subresourceIntegrityManifest = sriEnabled
   ? maybeJSONParse(self.__SUBRESOURCE_INTEGRITY_MANIFEST)
   : undefined
@@ -99,9 +103,9 @@ const render = getRender({
   error500Mod,
   Document,
   buildManifest,
-  prerenderManifest,
   renderToHTML,
   reactLoadableManifest,
+  dynamicCssManifest,
   subresourceIntegrityManifest,
   config: nextConfig,
   buildId: process.env.__NEXT_BUILD_ID!,

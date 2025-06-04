@@ -47,7 +47,23 @@ declare module 'next/dist/compiled/superstruct' {
   export type Describe<T> = any
 }
 
+declare module 'next/dist/compiled/jest-worker' {
+  export class Worker {
+    constructor(...args: any[])
+    end(): any
+  }
+}
+
+declare module 'next/dist/compiled/amphtml-validator' {
+  export type Validator = {
+    validateString(html: string): Promise<any>
+  }
+  export function getInstance(validatorPath: string): Promise<Validator>
+  export type ValidationError = any
+}
+
 declare module 'react-server-dom-webpack/server.edge'
+declare module 'react-server-dom-webpack/static.edge'
 
 declare module 'VAR_MODULE_GLOBAL_ERROR'
 declare module 'VAR_USERLAND'

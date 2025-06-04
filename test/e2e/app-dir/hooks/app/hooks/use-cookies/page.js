@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers'
 
-export default function Page() {
-  const cookiesList = cookies()
+export default async function Page() {
+  const cookiesList = await cookies()
   const hasCookie = cookiesList.has('use-cookies')
 
   return (

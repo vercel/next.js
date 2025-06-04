@@ -1,16 +1,37 @@
 import { nextTestSetup } from 'e2e-utils'
-import { getRedboxDescription, hasRedbox, retry } from 'next-test-utils'
+import {
+  assertHasRedbox,
+  assertNoRedbox,
+  getToastErrorCount,
+  hasErrorToast,
+  retry,
+} from 'next-test-utils'
 
 describe('app-dir - missing required html tags', () => {
   const { next } = nextTestSetup({ files: __dirname })
 
+  it('should display correct error count in dev indicator', async () => {
+    const browser = await next.browser('/')
+    await assertHasRedbox(browser)
+    retry(async () => {
+      expect(await hasErrorToast(browser)).toBe(true)
+    })
+    expect(await getToastErrorCount(browser)).toBe(1)
+  })
+
   it('should show error overlay', async () => {
     const browser = await next.browser('/')
 
-    expect(await hasRedbox(browser)).toBe(true)
-    expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(`
-      "The following tags are missing in the Root Layout: <html>, <body>.
-      Read more at https://nextjs.org/docs/messages/missing-root-layout-tags"
+    await assertHasRedbox(browser)
+    await expect(browser).toDisplayRedbox(`
+     {
+       "description": "Missing <html> and <body> tags in the root layout.
+     Read more at https://nextjs.org/docs/messages/missing-root-layout-tags",
+       "environmentLabel": null,
+       "label": "Runtime Error",
+       "source": null,
+       "stack": [],
+     }
     `)
   })
 
@@ -21,10 +42,17 @@ describe('app-dir - missing required html tags', () => {
       code.replace('return children', 'return <body>{children}</body>')
     )
 
-    expect(await hasRedbox(browser)).toBe(true)
-    expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(`
-      "The following tags are missing in the Root Layout: <html>.
-      Read more at https://nextjs.org/docs/messages/missing-root-layout-tags"
+    await assertHasRedbox(browser)
+
+    await expect(browser).toDisplayRedbox(`
+     {
+       "description": "Missing <html> tags in the root layout.
+     Read more at https://nextjs.org/docs/messages/missing-root-layout-tags",
+       "environmentLabel": null,
+       "label": "Runtime Error",
+       "source": null,
+       "stack": [],
+     }
     `)
 
     await next.patchFile('app/layout.js', (code) =>
@@ -34,7 +62,7 @@ describe('app-dir - missing required html tags', () => {
       )
     )
 
-    expect(await hasRedbox(browser)).toBe(false)
+    await assertNoRedbox(browser)
     expect(await browser.elementByCss('p').text()).toBe('hello world')
 
     // Reintroduce the bug, but only missing html tag
@@ -45,20 +73,7 @@ describe('app-dir - missing required html tags', () => {
       )
     )
 
-    await retry(async () => {
-      expect(await hasRedbox(browser)).toBe(true)
-    })
-
-    // Fix the issue again
-    await next.patchFile('app/layout.js', (code) =>
-      code.replace(
-        'return children',
-        'return <html><body>{children}</body></html>'
-      )
-    )
-
-    await retry(async () => {
-      expect(await hasRedbox(browser)).toBe(false)
-    })
+    // TODO(NDX-768): Should show "missing tags" error
+    await assertNoRedbox(browser)
   })
 })

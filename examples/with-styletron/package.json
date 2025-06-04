@@ -1,15 +1,20 @@
 {
   "private": true,
   "scripts": {
-    "dev": "next",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
     "next": "latest",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "styletron-engine-atomic": "1.4.6",
-    "styletron-react": "6.1.0"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "styletron-engine-atomic": "^1.6.2",
+    "styletron-react": "^6.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^18.3.12",
+    "typescript": "^5.7.2"
   }
 }

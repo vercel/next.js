@@ -1,4 +1,5 @@
 import type { API, FileInfo, JSXElement, Options } from 'jscodeshift'
+import { createParserFromPath } from '../parser'
 
 export const indexContext = {
   multipleRenderRoots: false,
@@ -7,10 +8,10 @@ export const indexContext = {
 
 export default function transformer(
   file: FileInfo,
-  api: API,
+  _api: API,
   options: Options
 ) {
-  const j = api.jscodeshift.withParser('tsx')
+  const j = createParserFromPath(file.path)
   const root = j(file.source)
   let hasModifications = false
   let foundReactRender = 0

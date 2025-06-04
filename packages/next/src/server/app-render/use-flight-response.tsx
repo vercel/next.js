@@ -3,6 +3,8 @@ import type { BinaryStreamOf } from './app-render'
 
 import { htmlEscapeJsonString } from '../htmlescape'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
+import { workUnitAsyncStorage } from './work-unit-async-storage.external'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -30,53 +32,42 @@ export function useFlightStream<T>(
   }
 
   // react-server-dom-webpack/client.edge must not be hoisted for require cache clearing to work correctly
-  let createFromReadableStream
-  // @TODO: investigate why the aliasing for turbopack doesn't pick this up, requiring this runtime check
-  if (process.env.TURBOPACK) {
-    createFromReadableStream =
-      // eslint-disable-next-line import/no-extraneous-dependencies
-      require('react-server-dom-turbopack/client.edge').createFromReadableStream
-  } else {
-    createFromReadableStream =
-      // eslint-disable-next-line import/no-extraneous-dependencies
-      require('react-server-dom-webpack/client.edge').createFromReadableStream
-  }
+  const { createFromReadableStream } =
+    // eslint-disable-next-line import/no-extraneous-dependencies
+    require('react-server-dom-webpack/client.edge') as typeof import('react-server-dom-webpack/client.edge')
 
-  const newResponse = createFromReadableStream(flightStream, {
-    ssrManifest: {
+  const newResponse = createFromReadableStream<T>(flightStream, {
+    serverConsumerManifest: {
       moduleLoading: clientReferenceManifest.moduleLoading,
       moduleMap: isEdgeRuntime
         ? clientReferenceManifest.edgeSSRModuleMapping
         : clientReferenceManifest.ssrModuleMapping,
+      serverModuleMap: null,
     },
     nonce,
   })
 
+  // Edge pages are never prerendered so they necessarily cannot have a workUnitStore type
+  // that requires the nextTick behavior. This is why it is safe to access a node only API here
+  if (process.env.NEXT_RUNTIME !== 'edge') {
+    const workUnitStore = workUnitAsyncStorage.getStore()
+    if (!workUnitStore) {
+      throw new InvariantError('Expected workUnitAsyncStorage to have a store.')
+    }
+    if (workUnitStore.type === 'prerender-client') {
+      const responseOnNextTick = new Promise<T>((r) => {
+        process.nextTick(() => {
+          r(newResponse)
+        })
+      })
+      flightResponses.set(flightStream, responseOnNextTick)
+      return responseOnNextTick
+    }
+  }
+
   flightResponses.set(flightStream, newResponse)
 
   return newResponse
-}
-
-/**
- * There are times when an SSR render may be finished but the RSC render
- * is ongoing and we need to wait for it to complete to make some determination
- * about how to handle the render. This function will drain the RSC reader and
- * resolve when completed. This will generally require teeing the RSC stream and it
- * should be noted that it will cause all the RSC chunks to queue in the underlying
- * ReadableStream however given Flight currently is a push stream that doesn't respond
- * to backpressure this shouldn't change how much memory is maximally consumed
- */
-export async function flightRenderComplete(
-  flightStream: ReadableStream<Uint8Array>
-): Promise<void> {
-  const flightReader = flightStream.getReader()
-
-  while (true) {
-    const { done } = await flightReader.read()
-    if (done) {
-      return
-    }
-  }
 }
 
 /**
@@ -150,15 +141,25 @@ function writeInitialInstructions(
   scriptStart: string,
   formState: unknown | null
 ) {
-  controller.enqueue(
-    encoder.encode(
-      `${scriptStart}(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
-        JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
-      )});self.__next_f.push(${htmlEscapeJsonString(
-        JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
-      )})</script>`
+  if (formState != null) {
+    controller.enqueue(
+      encoder.encode(
+        `${scriptStart}(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
+          JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
+        )});self.__next_f.push(${htmlEscapeJsonString(
+          JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
+        )})</script>`
+      )
     )
-  )
+  } else {
+    controller.enqueue(
+      encoder.encode(
+        `${scriptStart}(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
+          JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
+        )})</script>`
+      )
+    )
+  }
 }
 
 function writeFlightDataInstruction(

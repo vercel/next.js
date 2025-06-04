@@ -120,6 +120,50 @@ describe('500 Page Support', () => {
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode 2',
     () => {
+      it('should have correct cache control for 500 page with getStaticProps', async () => {
+        const orig500 = await fs.readFile(pages500, 'utf8')
+
+        try {
+          await fs.writeFile(
+            pages500,
+            `
+            export default function Page() {
+              return (
+                <p>custom 500</p>
+              )
+            }
+            
+            export function getStaticProps() {
+              return {
+                props: {
+                  now: Date.now(),
+                }
+              }
+            }
+          `
+          )
+
+          await fs.remove(join(appDir, '.next'))
+          const { code } = await nextBuild(appDir, [], {
+            stderr: true,
+            stdout: true,
+          })
+          expect(code).toBe(0)
+
+          const appPort = await findPort()
+          const app = await nextStart(appDir, appPort)
+          const res = await fetchViaHTTP(appPort, '/err')
+
+          await killApp(app)
+          expect(res.status).toBe(500)
+          expect(res.headers.get('cache-control')).toBe(
+            'private, no-cache, no-store, max-age=0, must-revalidate'
+          )
+        } finally {
+          await fs.writeFile(pages500, orig500)
+        }
+      })
+
       it('does not build 500 statically with getInitialProps in _app', async () => {
         await fs.writeFile(
           pagesApp,

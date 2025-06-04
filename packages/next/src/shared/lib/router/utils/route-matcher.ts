@@ -1,41 +1,46 @@
-import type { RouteRegex } from './route-regex'
+import type { Group } from './route-regex'
 import { DecodeError } from '../../utils'
+import type { Params } from '../../../../server/request/params'
 
 export interface RouteMatchFn {
-  (pathname: string | null | undefined): false | Params
+  (pathname: string): false | Params
 }
 
-export interface Params {
-  [param: string]: any
+type RouteMatcherOptions = {
+  // We only use the exec method of the RegExp object. This helps us avoid using
+  // type assertions that the passed in properties are of the correct type.
+  re: Pick<RegExp, 'exec'>
+  groups: Record<string, Group>
 }
 
-export function getRouteMatcher({ re, groups }: RouteRegex): RouteMatchFn {
-  return (pathname: string | null | undefined) => {
-    const routeMatch = re.exec(pathname!)
-    if (!routeMatch) {
-      return false
-    }
+export function getRouteMatcher({
+  re,
+  groups,
+}: RouteMatcherOptions): RouteMatchFn {
+  return (pathname: string) => {
+    const routeMatch = re.exec(pathname)
+    if (!routeMatch) return false
 
     const decode = (param: string) => {
       try {
         return decodeURIComponent(param)
-      } catch (_) {
+      } catch {
         throw new DecodeError('failed to decode param')
       }
     }
-    const params: { [paramName: string]: string | string[] } = {}
 
-    Object.keys(groups).forEach((slugName: string) => {
-      const g = groups[slugName]
-      const m = routeMatch[g.pos]
-      if (m !== undefined) {
-        params[slugName] = ~m.indexOf('/')
-          ? m.split('/').map((entry) => decode(entry))
-          : g.repeat
-            ? [decode(m)]
-            : decode(m)
+    const params: Params = {}
+    for (const [key, group] of Object.entries(groups)) {
+      const match = routeMatch[group.pos]
+      if (match !== undefined) {
+        if (group.repeat) {
+          params[key] = match.split('/').map((entry) => decode(entry))
+        } else {
+          params[key] = decode(match)
+        }
       }
-    })
+    }
+
     return params
   }
 }

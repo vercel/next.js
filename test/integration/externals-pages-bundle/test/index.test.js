@@ -15,7 +15,7 @@ describe('bundle pages externals with config.bundlePagesRouterDependencies', () 
       })
 
       it('should have no externals with the config set', async () => {
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           const ssrPath = join(appDir, '.next/server/chunks/ssr')
           const pageBundleBasenames = (await fs.readdir(ssrPath)).filter((p) =>
             p.match(/\.js$/)
@@ -27,8 +27,8 @@ describe('bundle pages externals with config.bundlePagesRouterDependencies', () 
             allBundles += output
           }
 
-          // we don't know the name of the minified `__turbopack_external_require__`, so we just check the arguments.
-          expect(allBundles).not.toContain('("external-package",!0)')
+          // we don't know the name of the minified `__turbopack_external_require__`, so we just check the content.
+          expect(allBundles).toContain('"external-package content"')
         } else {
           const output = await fs.readFile(
             join(appDir, '.next/server/pages/index.js'),
@@ -39,7 +39,7 @@ describe('bundle pages externals with config.bundlePagesRouterDependencies', () 
       })
 
       it('should respect the serverExternalPackages config', async () => {
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           const ssrPath = join(appDir, '.next/server/chunks/ssr')
           const pageBundleBasenames = (await fs.readdir(ssrPath)).filter((p) =>
             p.match(/\.js$/)
@@ -51,8 +51,10 @@ describe('bundle pages externals with config.bundlePagesRouterDependencies', () 
             allBundles += output
           }
 
-          // we don't know the name of the minified `__turbopack_external_require__`, so we just check the arguments.
-          expect(allBundles).toContain('("opted-out-external-package",!0)')
+          // we don't know the name of the minified `__turbopack_external_require__`, so we just check the content.
+          expect(allBundles).not.toContain(
+            '"opted-out-external-package content"'
+          )
         } else {
           const output = await fs.readFile(
             join(appDir, '.next/server/pages/index.js'),

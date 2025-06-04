@@ -21,9 +21,13 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWAR
 // Implementation of this PR: https://github.com/jamiebuilds/react-loadable/pull/132
 // Modified to strip out unneeded results for Next's specific use case
 
-import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
-
+import type {
+  DynamicCssManifest,
+  ReactLoadableManifest,
+} from '../../../server/load-components'
 import path from 'path'
+import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
+import { DYNAMIC_CSS_MANIFEST } from '../../../shared/lib/constants'
 
 function getModuleId(compilation: any, module: any): string | number {
   return compilation.chunkGraph.getModuleId(module)
@@ -54,12 +58,20 @@ function buildManifest(
   _compiler: webpack.Compiler,
   compilation: webpack.Compilation,
   projectSrcDir: string | undefined,
-  dev: boolean
-) {
+  dev: boolean,
+  shouldCreateDynamicCssManifest: boolean
+): {
+  reactLoadableManifest: ReactLoadableManifest
+  dynamicCssManifest: DynamicCssManifest
+} {
   if (!projectSrcDir) {
-    return {}
+    return {
+      reactLoadableManifest: {},
+      dynamicCssManifest: [],
+    }
   }
-  let manifest: { [k: string]: { id: string | number; files: string[] } } = {}
+  const dynamicCssManifestSet = new Set<string>()
+  let manifest: ReactLoadableManifest = {}
 
   // This is allowed:
   // import("./module"); <- ImportDependency
@@ -119,6 +131,10 @@ function buildManifest(
                 file.match(/^static\/(chunks|css)\//)
               ) {
                 files.add(file)
+
+                if (shouldCreateDynamicCssManifest && file.endsWith('.css')) {
+                  dynamicCssManifestSet.add(file)
+                }
               }
             })
           }
@@ -143,12 +159,16 @@ function buildManifest(
     // eslint-disable-next-line no-sequences
     .reduce((a, c) => ((a[c] = manifest[c]), a), {} as any)
 
-  return manifest
+  return {
+    reactLoadableManifest: manifest,
+    dynamicCssManifest: Array.from(dynamicCssManifestSet),
+  }
 }
 
 export class ReactLoadablePlugin {
   private filename: string
   private pagesOrAppDir: string | undefined
+  private isPagesDir: boolean
   private runtimeAsset?: string
   private dev: boolean
 
@@ -161,32 +181,59 @@ export class ReactLoadablePlugin {
   }) {
     this.filename = opts.filename
     this.pagesOrAppDir = opts.pagesDir || opts.appDir
+    this.isPagesDir = Boolean(opts.pagesDir)
     this.runtimeAsset = opts.runtimeAsset
     this.dev = opts.dev
   }
 
-  createAssets(compiler: any, compilation: any, assets: any) {
+  createAssets(compiler: any, compilation: any) {
     const projectSrcDir = this.pagesOrAppDir
       ? path.dirname(this.pagesOrAppDir)
       : undefined
-    const manifest = buildManifest(
+    const shouldCreateDynamicCssManifest = !this.dev && this.isPagesDir
+    const { reactLoadableManifest, dynamicCssManifest } = buildManifest(
       compiler,
       compilation,
       projectSrcDir,
-      this.dev
+      this.dev,
+      shouldCreateDynamicCssManifest
     )
 
-    assets[this.filename] = new sources.RawSource(
-      JSON.stringify(manifest, null, 2)
+    compilation.emitAsset(
+      this.filename,
+      new sources.RawSource(JSON.stringify(reactLoadableManifest, null, 2))
     )
+
     if (this.runtimeAsset) {
-      assets[this.runtimeAsset] = new sources.RawSource(
-        `self.__REACT_LOADABLE_MANIFEST=${JSON.stringify(
-          JSON.stringify(manifest)
-        )}`
+      compilation.emitAsset(
+        this.runtimeAsset,
+        new sources.RawSource(
+          `self.__REACT_LOADABLE_MANIFEST=${JSON.stringify(
+            JSON.stringify(reactLoadableManifest)
+          )}`
+        )
       )
     }
-    return assets
+
+    // This manifest prevents removing server rendered <link> tags after client
+    // navigation. This is only needed under Pages dir && Production && Webpack.
+    // x-ref: https://github.com/vercel/next.js/pull/72959
+    if (shouldCreateDynamicCssManifest) {
+      compilation.emitAsset(
+        `${DYNAMIC_CSS_MANIFEST}.json`,
+        new sources.RawSource(JSON.stringify(dynamicCssManifest, null, 2))
+      )
+
+      // This is for edge runtime.
+      compilation.emitAsset(
+        `server/${DYNAMIC_CSS_MANIFEST}.js`,
+        new sources.RawSource(
+          `self.__DYNAMIC_CSS_MANIFEST=${JSON.stringify(
+            JSON.stringify(dynamicCssManifest)
+          )}`
+        )
+      )
+    }
   }
 
   apply(compiler: webpack.Compiler) {
@@ -196,8 +243,8 @@ export class ReactLoadablePlugin {
           name: 'ReactLoadableManifest',
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
-        (assets: any) => {
-          this.createAssets(compiler, compilation, assets)
+        () => {
+          this.createAssets(compiler, compilation)
         }
       )
     })

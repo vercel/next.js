@@ -25,13 +25,14 @@ const variables = [
   'NEW_ENV_LOCAL_KEY',
   'NEW_ENV_DEV_KEY',
   'NEXT_PUBLIC_HELLO_WORLD',
+  'NEXT_PUBLIC_EMPTY_ENV_VAR',
 ]
 
 export async function getStaticProps() {
   const items = {}
 
   variables.forEach((variable) => {
-    if (process.env[variable]) {
+    if (typeof process.env[variable] !== 'undefined') {
       items[variable] = process.env[variable]
     }
   })
@@ -52,6 +53,9 @@ export default function Page({ env }) {
       <div id="nextConfigPublicEnv">{process.env.nextConfigPublicEnv}</div>
       <div id="nextConfigNewPublicEnv">
         {process.env.NEXT_PUBLIC_NEW_NEXT_CONFIG_VALUE}
+      </div>
+      <div id="nextPublicEmptyEnvVar">
+        {`${process.env.NEXT_PUBLIC_EMPTY_ENV_VAR}`}
       </div>
     </>
   )

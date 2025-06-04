@@ -16,6 +16,13 @@ runs:
         rustflags: ''
         cache: false
 
+    - name: 'Install LLD (LLVM Linker) for Linux'
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo apt-get -y -o DPkg::Lock::Timeout=60 update
+        sudo apt-get -o DPkg::Lock::Timeout=60 -y install lld
+
     - name: 'Add cargo problem matchers'
       shell: bash
       run: echo "::add-matcher::${{ github.action_path }}/matchers.json"

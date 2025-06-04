@@ -1,5 +1,5 @@
 import type { FlightRouterState } from '../../../../server/app-render/types'
-import { isInterceptionRouteAppPath } from '../../../../server/lib/interception-routes'
+import { isInterceptionRouteAppPath } from '../../../../shared/lib/router/utils/interception-routes'
 
 export function hasInterceptionRouteInCurrentTree([
   segment,

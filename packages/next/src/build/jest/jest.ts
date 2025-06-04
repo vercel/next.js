@@ -9,6 +9,8 @@ import { loadBindings, lockfilePatchPromise } from '../swc'
 import type { JestTransformerConfig } from '../swc/jest-transformer'
 import type { Config } from '@jest/types'
 
+const DEFAULT_TRANSPILED_PACKAGES: string[] = require('../../lib/default-transpiled-packages.json')
+
 async function getConfig(dir: string) {
   const conf = await loadConfig(PHASE_TEST, dir)
   return conf
@@ -100,7 +102,9 @@ export default function nextJest(options: { dir?: string } = {}) {
         await lockfilePatchPromise.cur
       }
 
-      const transpiled = (nextConfig?.transpilePackages ?? []).join('|')
+      const transpiled = (nextConfig?.transpilePackages ?? [])
+        .concat(DEFAULT_TRANSPILED_PACKAGES)
+        .join('|')
 
       const jestTransformerConfig: JestTransformerConfig = {
         modularizeImports: nextConfig?.modularizeImports,
@@ -137,7 +141,7 @@ export default function nextJest(options: { dir?: string } = {}) {
           // Handle next/font
           'next/font/(.*)': require.resolve('./__mocks__/nextFontMock.js'),
           // Disable server-only
-          'server-only': require.resolve('./__mocks__/empty.js'),
+          '^server-only$': require.resolve('./__mocks__/empty.js'),
 
           // custom config comes last to ensure the above rules are matched,
           // fixes the case where @pages/(.*) -> src/pages/$! doesn't break

@@ -1,17 +1,15 @@
 import { streamToString } from '../stream-utils/node-web-streams-helper'
-import { AppRenderSpan } from '../lib/trace/constants'
-import { getTracer } from '../lib/trace/tracer'
 
 export async function renderToString({
-  ReactDOMServer,
+  renderToReadableStream,
   element,
 }: {
-  ReactDOMServer: typeof import('react-dom/server.edge')
+  // `renderToReadableStream()` method could come from different react-dom/server implementations
+  // such as `react-dom/server.edge` or `react-dom/server.node`, etc.
+  renderToReadableStream: typeof import('react-dom/server.edge').renderToReadableStream
   element: React.ReactElement
-}) {
-  return getTracer().trace(AppRenderSpan.renderToString, async () => {
-    const renderStream = await ReactDOMServer.renderToReadableStream(element)
-    await renderStream.allReady
-    return streamToString(renderStream)
-  })
+}): Promise<string> {
+  const renderStream = await renderToReadableStream(element)
+  await renderStream.allReady
+  return streamToString(renderStream)
 }

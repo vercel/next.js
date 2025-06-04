@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 
-export default async function Page({ params: { id } }) {
+export default async function Page({ params }) {
+  const id = (await params).id
   if (id === 'source') redirect('/dynamic/dest')
 
   return (

@@ -6,6 +6,7 @@ describe('app-dir action handling - next export', () => {
     skipStart: true,
     skipDeployment: true,
     dependencies: {
+      nanoid: '4.0.1',
       'server-only': 'latest',
     },
   })
@@ -26,6 +27,8 @@ describe('app-dir action handling - next export', () => {
       }
       `
     )
+    // interception routes are also not supported with export
+    await next.remove('app/interception-routes')
     try {
       await next.start()
     } catch {}

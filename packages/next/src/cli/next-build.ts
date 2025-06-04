@@ -11,21 +11,23 @@ import { getProjectDir } from '../lib/get-project-dir'
 import { enableMemoryDebuggingMode } from '../lib/memory/startup'
 import { disableMemoryDebuggingMode } from '../lib/memory/shutdown'
 
-type NextBuildOptions = {
+export type NextBuildOptions = {
   debug?: boolean
   profile?: boolean
   lint: boolean
   mangling: boolean
+  turbo?: boolean
+  turbopack?: boolean
   experimentalDebugMemoryUsage: boolean
   experimentalAppOnly?: boolean
   experimentalTurbo?: boolean
-  experimentalBuildMode: 'default' | 'compile' | 'generate'
+  experimentalBuildMode: 'default' | 'compile' | 'generate' | 'generate-env'
   experimentalUploadTrace?: string
 }
 
 const nextBuild = (options: NextBuildOptions, directory?: string) => {
-  process.on('SIGTERM', () => process.exit(0))
-  process.on('SIGINT', () => process.exit(0))
+  process.on('SIGTERM', () => process.exit(143))
+  process.on('SIGINT', () => process.exit(130))
 
   const {
     debug,
@@ -34,7 +36,6 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     lint,
     mangling,
     experimentalAppOnly,
-    experimentalTurbo,
     experimentalBuildMode,
     experimentalUploadTrace,
   } = options
@@ -67,12 +68,14 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
 
   const dir = getProjectDir(directory)
 
-  // Check if the provided directory exists
   if (!existsSync(dir)) {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
-  if (experimentalTurbo) {
+  const isTurbopack = Boolean(
+    options.turbo || options.turbopack || process.env.IS_TURBOPACK_TEST
+  )
+  if (isTurbopack) {
     process.env.TURBOPACK = '1'
   }
 
@@ -83,7 +86,7 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     lint,
     !mangling,
     experimentalAppOnly,
-    !!process.env.TURBOPACK,
+    isTurbopack,
     experimentalBuildMode,
     traceUploadUrl
   )

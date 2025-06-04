@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check, getRedboxDescription, hasRedbox } from 'next-test-utils'
+import { assertNoRedbox } from 'next-test-utils'
 
 describe('app dir - not found with default 404 page', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
@@ -17,13 +17,16 @@ describe('app dir - not found with default 404 page', () => {
     await browser.elementByCss('#trigger-not-found').click()
 
     if (isNextDev) {
-      await check(async () => {
-        expect(await hasRedbox(browser)).toBe(true)
-        expect(await getRedboxDescription(browser)).toMatch(
-          /notFound\(\) is not allowed to use in root layout/
-        )
-        return 'success'
-      }, /success/)
+      // TODO: Either allow or include original stack
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "notFound() is not allowed to use in root layout",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": null,
+         "stack": [],
+       }
+      `)
     }
   })
 
@@ -45,10 +48,16 @@ describe('app dir - not found with default 404 page', () => {
     const browser = await next.browser('/?root-not-found=1')
 
     if (isNextDev) {
-      expect(await hasRedbox(browser)).toBe(true)
-      expect(await getRedboxDescription(browser)).toBe(
-        'Error: notFound() is not allowed to use in root layout'
-      )
+      // TODO: Either allow or include original stack
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "notFound() is not allowed to use in root layout",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": null,
+         "stack": [],
+       }
+      `)
     }
   })
 
@@ -83,9 +92,8 @@ describe('app dir - not found with default 404 page', () => {
     )
 
     await browser.loadPage(next.url + '/group-dynamic/404')
+    await assertNoRedbox(browser)
+    await browser.waitForElementByCss('.group-root-layout')
     expect(await browser.elementByCss('.next-error-h1').text()).toBe('404')
-    expect(await browser.elementByCss('html').getAttribute('class')).toBe(
-      'group-root-layout'
-    )
   })
 })

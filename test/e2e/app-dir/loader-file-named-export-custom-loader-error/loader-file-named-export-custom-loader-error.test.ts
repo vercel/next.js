@@ -1,11 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
-import { getRedboxHeader, hasRedbox } from 'next-test-utils'
+import { assertHasRedbox, getRedboxHeader } from 'next-test-utils'
 
 const errorMessage =
   'images.loaderFile detected but the file is missing default export.\nRead more: https://nextjs.org/docs/messages/invalid-images-config'
 
 async function testDev(browser, errorRegex) {
-  expect(await hasRedbox(browser)).toBe(true)
+  await assertHasRedbox(browser)
   expect(await getRedboxHeader(browser)).toMatch(errorRegex)
 }
 
@@ -36,18 +36,13 @@ describe('Error test if the loader file export a named function', () => {
       files: __dirname,
     })
 
-    // next build doesn't support turbopack yet
-    // see https://nextjs.org/docs/architecture/turbopack#unsupported-features
-    ;(isNextStart && !process.env.TURBOPACK ? describe : describe.skip)(
-      'build and start only',
-      () => {
-        it('should show the build error', async () => {
-          await expect(next.start()).rejects.toThrow(
-            'next build failed with code/signal 1'
-          )
-          expect(next.cliOutput).toContain(errorMessage)
-        })
-      }
-    )
+    ;(isNextStart ? describe : describe.skip)('build and start only', () => {
+      it('should show the build error', async () => {
+        await expect(next.start()).rejects.toThrow(
+          'next build failed with code/signal 1'
+        )
+        expect(next.cliOutput).toContain(errorMessage)
+      })
+    })
   })
 })

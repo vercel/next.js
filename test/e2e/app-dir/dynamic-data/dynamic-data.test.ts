@@ -1,24 +1,16 @@
 import { nextTestSetup } from 'e2e-utils'
-import { getRedboxHeader, hasRedbox } from 'next-test-utils'
 
-process.env.__TEST_SENTINEL = 'build'
+process.env.__TEST_SENTINEL = 'at buildtime'
 
 describe('dynamic-data', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname + '/fixtures/main',
-    skipStart: true,
     skipDeployment: true,
   })
 
   if (skipped) {
     return
   }
-
-  beforeAll(async () => {
-    await next.start()
-    // This will update the __TEST_SENTINEL value to "run"
-    await next.render('/setenv?value=run')
-  })
 
   it('should render the dynamic apis dynamically when used in a top-level scope', async () => {
     const $ = await next.render$(
@@ -33,22 +25,16 @@ describe('dynamic-data', () => {
     )
     if (isNextDev) {
       // in dev we expect the entire page to be rendered at runtime
-      expect($('#layout').text()).toBe('run')
-      expect($('#page').text()).toBe('run')
-      // we expect there to be no suspense boundary in fallback state
-      expect($('#boundary').html()).toBeNull()
+      expect($('#layout').text()).toBe('at runtime')
+      expect($('#page').text()).toBe('at runtime')
     } else if (process.env.__NEXT_EXPERIMENTAL_PPR) {
       // in PPR we expect the shell to be rendered at build and the page to be rendered at runtime
-      expect($('#layout').text()).toBe('build')
-      expect($('#page').text()).toBe('run')
-      // we expect there to be a suspense boundary in fallback state
-      expect($('#boundary').html()).not.toBeNull()
+      expect($('#layout').text()).toBe('at buildtime')
+      expect($('#page').text()).toBe('at runtime')
     } else {
       // in static generation we expect the entire page to be rendered at runtime
-      expect($('#layout').text()).toBe('run')
-      expect($('#page').text()).toBe('run')
-      // we expect there to be no suspense boundary in fallback state
-      expect($('#boundary').html()).toBeNull()
+      expect($('#layout').text()).toBe('at runtime')
+      expect($('#page').text()).toBe('at runtime')
     }
 
     expect($('#headers .fooheader').text()).toBe('foo header value')
@@ -69,23 +55,17 @@ describe('dynamic-data', () => {
     )
     if (isNextDev) {
       // in dev we expect the entire page to be rendered at runtime
-      expect($('#layout').text()).toBe('run')
-      expect($('#page').text()).toBe('run')
-      // we expect there to be no suspense boundary in fallback state
-      expect($('#boundary').html()).toBeNull()
+      expect($('#layout').text()).toBe('at runtime')
+      expect($('#page').text()).toBe('at runtime')
     } else if (process.env.__NEXT_EXPERIMENTAL_PPR) {
       // @TODO this should actually be build but there is a bug in how we do segment level dynamic in PPR at the moment
       // see note in create-component-tree
-      expect($('#layout').text()).toBe('run')
-      expect($('#page').text()).toBe('run')
-      // we expect there to be a suspense boundary in fallback state
-      expect($('#boundary').html()).toBeNull()
+      expect($('#layout').text()).toBe('at runtime')
+      expect($('#page').text()).toBe('at runtime')
     } else {
       // in static generation we expect the entire page to be rendered at runtime
-      expect($('#layout').text()).toBe('run')
-      expect($('#page').text()).toBe('run')
-      // we expect there to be no suspense boundary in fallback state
-      expect($('#boundary').html()).toBeNull()
+      expect($('#layout').text()).toBe('at runtime')
+      expect($('#page').text()).toBe('at runtime')
     }
 
     expect($('#headers .fooheader').text()).toBe('foo header value')
@@ -106,20 +86,18 @@ describe('dynamic-data', () => {
     )
     if (isNextDev) {
       // in dev we expect the entire page to be rendered at runtime
-      expect($('#layout').text()).toBe('run')
-      expect($('#page').text()).toBe('run')
-      // we expect there to be no suspense boundary in fallback state
-      expect($('#boundary').html()).toBeNull()
+      expect($('#layout').text()).toBe('at runtime')
+      expect($('#page').text()).toBe('at runtime')
     } else if (process.env.__NEXT_EXPERIMENTAL_PPR) {
       // in PPR we expect the shell to be rendered at build and the page to be rendered at runtime
-      expect($('#layout').text()).toBe('build')
-      expect($('#page').text()).toBe('build')
+      expect($('#layout').text()).toBe('at buildtime')
+      expect($('#page').text()).toBe('at buildtime')
       // we expect there to be a suspense boundary in fallback state
       expect($('#boundary').html()).toBeNull()
     } else {
       // in static generation we expect the entire page to be rendered at runtime
-      expect($('#layout').text()).toBe('build')
-      expect($('#page').text()).toBe('build')
+      expect($('#layout').text()).toBe('at buildtime')
+      expect($('#page').text()).toBe('at buildtime')
       // we expect there to be no suspense boundary in fallback state
       expect($('#boundary').html()).toBeNull()
     }
@@ -142,20 +120,20 @@ describe('dynamic-data', () => {
     )
     if (isNextDev) {
       // in dev we expect the entire page to be rendered at runtime
-      expect($('#layout').text()).toBe('run')
-      expect($('#page').text()).toBe('run')
+      expect($('#layout').text()).toBe('at runtime')
+      expect($('#page').text()).toBe('at runtime')
       // we don't assert the state of the fallback because it can depend on the timing
       // of when streaming starts and how fast the client references resolve
     } else if (process.env.__NEXT_EXPERIMENTAL_PPR) {
       // in PPR we expect the shell to be rendered at build and the page to be rendered at runtime
-      expect($('#layout').text()).toBe('build')
-      expect($('#page').text()).toBe('run')
+      expect($('#layout').text()).toBe('at buildtime')
+      expect($('#page').text()).toBe('at runtime')
       // we expect there to be a suspense boundary in fallback state
       expect($('#boundary').html()).not.toBeNull()
     } else {
       // in static generation we expect the entire page to be rendered at runtime
-      expect($('#layout').text()).toBe('run')
-      expect($('#page').text()).toBe('run')
+      expect($('#layout').text()).toBe('at runtime')
+      expect($('#page').text()).toBe('at runtime')
       // we don't assert the state of the fallback because it can depend on the timing
       // of when streaming starts and how fast the client references resolve
     }
@@ -198,30 +176,76 @@ describe('dynamic-data with dynamic = "error"', () => {
     it('displays redbox when `dynamic = "error"` and dynamic data is read in dev', async () => {
       let browser = await next.browser('/cookies?foo=foosearch')
       try {
-        expect(await hasRedbox(browser)).toBe(true)
-        expect(await getRedboxHeader(browser)).toMatch(
-          'Error: Route /cookies with `dynamic = "error"` couldn\'t be rendered statically because it used `cookies`'
-        )
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "Route /cookies with \`dynamic = "error"\` couldn't be rendered statically because it used \`cookies\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering",
+           "environmentLabel": "Server",
+           "label": "Runtime Error",
+           "source": "app/cookies/page.js (14:24) @ Page
+         > 14 |         {(await cookies()).getAll().map((cookie) => {
+              |                        ^",
+           "stack": [
+             "Page app/cookies/page.js (14:24)",
+           ],
+         }
+        `)
+      } finally {
+        await browser.close()
+      }
+
+      browser = await next.browser('/connection')
+      try {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "Route /connection with \`dynamic = "error"\` couldn't be rendered statically because it used \`connection\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering",
+           "environmentLabel": "Server",
+           "label": "Runtime Error",
+           "source": "app/connection/page.js (6:19) @ Page
+         > 6 |   await connection()
+             |                   ^",
+           "stack": [
+             "Page app/connection/page.js (6:19)",
+           ],
+         }
+        `)
       } finally {
         await browser.close()
       }
 
       browser = await next.browser('/headers?foo=foosearch')
       try {
-        expect(await hasRedbox(browser)).toBe(true)
-        expect(await getRedboxHeader(browser)).toMatch(
-          'Error: Route /headers with `dynamic = "error"` couldn\'t be rendered statically because it used `headers`'
-        )
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "Route /headers with \`dynamic = "error"\` couldn't be rendered statically because it used \`headers\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering",
+           "environmentLabel": "Server",
+           "label": "Runtime Error",
+           "source": "app/headers/page.js (14:35) @ Page
+         > 14 |         {Array.from((await headers()).entries()).map(([key, value]) => {
+              |                                   ^",
+           "stack": [
+             "Page app/headers/page.js (14:35)",
+           ],
+         }
+        `)
       } finally {
         await browser.close()
       }
 
       browser = await next.browser('/search?foo=foosearch')
       try {
-        expect(await hasRedbox(browser)).toBe(true)
-        expect(await getRedboxHeader(browser)).toMatch(
-          'Error: Route /search with `dynamic = "error"` couldn\'t be rendered statically because it used `searchParams`'
-        )
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "Route /search with \`dynamic = "error"\` couldn't be rendered statically because it used \`searchParams.then\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering",
+           "environmentLabel": "Server",
+           "label": "Runtime Error",
+           "source": "app/search/page.js (12:31) @ Page
+         > 12 |         {Object.entries(await searchParams).map(([key, value]) => {
+              |                               ^",
+           "stack": [
+             "Page app/search/page.js (12:31)",
+           ],
+         }
+        `)
       } finally {
         await browser.close()
       }
@@ -238,26 +262,31 @@ describe('dynamic-data with dynamic = "error"', () => {
         'Error: Route /cookies with `dynamic = "error"` couldn\'t be rendered statically because it used `cookies`'
       )
       expect(next.cliOutput).toMatch(
+        'Error: Route /connection with `dynamic = "error"` couldn\'t be rendered statically because it used `connection`'
+      )
+      expect(next.cliOutput).toMatch(
         'Error: Route /headers with `dynamic = "error"` couldn\'t be rendered statically because it used `headers`'
       )
       expect(next.cliOutput).toMatch(
-        'Error: Route /search with `dynamic = "error"` couldn\'t be rendered statically because it used `searchParams`.'
+        'Error: Route /search with `dynamic = "error"` couldn\'t be rendered statically because it used `await searchParams`, `searchParams.then`, or similar'
       )
       expect(next.cliOutput).toMatch(
-        'Error: Route /routes/form-data/error with `dynamic = "error"` couldn\'t be rendered statically because it used `request.formData`.'
+        'Error: Route /routes/form-data/error with `dynamic = "error"` couldn\'t be rendered statically because it used `request.formData`'
       )
       expect(next.cliOutput).toMatch(
-        'Error: Route /routes/next-url/error with `dynamic = "error"` couldn\'t be rendered statically because it used `nextUrl.toString`.'
+        'Error: Route /routes/next-url/error with `dynamic = "error"` couldn\'t be rendered statically because it used `nextUrl.toString`'
       )
     })
   }
 })
 
 describe('dynamic-data inside cache scope', () => {
-  const { next, isNextDev, isNextDeploy, skipped } = nextTestSetup({
-    files: __dirname + '/fixtures/cache-scoped',
-    skipStart: true,
-  })
+  const { isTurbopack, next, isNextDev, isNextDeploy, skipped } = nextTestSetup(
+    {
+      files: __dirname + '/fixtures/cache-scoped',
+      skipStart: true,
+    }
+  )
 
   if (skipped) {
     return
@@ -276,20 +305,60 @@ describe('dynamic-data inside cache scope', () => {
     it('displays redbox when accessing dynamic data inside a cache scope', async () => {
       let browser = await next.browser('/cookies')
       try {
-        expect(await hasRedbox(browser)).toBe(true)
-        expect(await getRedboxHeader(browser)).toMatch(
-          'Error: Route /cookies used "cookies" inside a function cached with "unstable_cache(...)".'
-        )
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "Route /cookies used "cookies" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache",
+           "environmentLabel": "Server",
+           "label": "Runtime Error",
+           "source": "app/cookies/page.js (4:40) @ ${isTurbopack ? '<anonymous>' : 'eval'}
+         > 4 | const cookies = cache(() => nextCookies())
+             |                                        ^",
+           "stack": [
+             "${isTurbopack ? '<anonymous>' : 'eval'} app/cookies/page.js (4:40)",
+             "async Page app/cookies/page.js (15:11)",
+           ],
+         }
+        `)
+      } finally {
+        await browser.close()
+      }
+
+      browser = await next.browser('/connection')
+      try {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "Route /connection used "connection" inside a function cached with "unstable_cache(...)". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual Request, but caches must be able to be produced before a Request so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache",
+           "environmentLabel": "Server",
+           "label": "Runtime Error",
+           "source": "app/connection/page.js (4:54) @ ${isTurbopack ? '<anonymous>' : 'eval'}
+         > 4 | const cachedConnection = cache(async () => connection())
+             |                                                      ^",
+           "stack": [
+             "${isTurbopack ? '<anonymous>' : 'eval'} app/connection/page.js (4:54)",
+             "async Page app/connection/page.js (7:3)",
+           ],
+         }
+        `)
       } finally {
         await browser.close()
       }
 
       browser = await next.browser('/headers')
       try {
-        expect(await hasRedbox(browser)).toBe(true)
-        expect(await getRedboxHeader(browser)).toMatch(
-          'Error: Route /headers used "headers" inside a function cached with "unstable_cache(...)".'
-        )
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "Route /headers used "headers" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache",
+           "environmentLabel": "Server",
+           "label": "Runtime Error",
+           "source": "app/headers/page.js (4:40) @ ${isTurbopack ? '<anonymous>' : 'eval'}
+         > 4 | const headers = cache(() => nextHeaders())
+             |                                        ^",
+           "stack": [
+             "${isTurbopack ? '<anonymous>' : 'eval'} app/headers/page.js (4:40)",
+             "async Page app/headers/page.js (15:21)",
+           ],
+         }
+        `)
       } finally {
         await browser.close()
       }
@@ -303,6 +372,9 @@ describe('dynamic-data inside cache scope', () => {
       }
       expect(next.cliOutput).toMatch(
         'Error: Route /cookies used "cookies" inside a function cached with "unstable_cache(...)".'
+      )
+      expect(next.cliOutput).toMatch(
+        'Error: Route /connection used "connection" inside a function cached with "unstable_cache(...)".'
       )
       expect(next.cliOutput).toMatch(
         'Error: Route /headers used "headers" inside a function cached with "unstable_cache(...)".'

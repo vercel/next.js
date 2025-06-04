@@ -14,7 +14,7 @@ declare global {
 let currDataLayerName: string | undefined = undefined
 
 export function GoogleAnalytics(props: GAParams) {
-  const { gaId, dataLayerName = 'dataLayer' } = props
+  const { gaId, debugMode, dataLayerName = 'dataLayer', nonce } = props
 
   if (currDataLayerName === undefined) {
     currDataLayerName = dataLayerName
@@ -43,12 +43,14 @@ export function GoogleAnalytics(props: GAParams) {
           function gtag(){window['${dataLayerName}'].push(arguments);}
           gtag('js', new Date());
 
-          gtag('config', '${gaId}');`,
+          gtag('config', '${gaId}' ${debugMode ? ",{ 'debug_mode': true }" : ''});`,
         }}
+        nonce={nonce}
       />
       <Script
         id="_next-ga"
         src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
+        nonce={nonce}
       />
     </>
   )

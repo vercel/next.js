@@ -1,0 +1,297 @@
+*anonymous function 181* = (...) => crypt["endian"]([a, b, c, d])
+
+*anonymous function 5013* = (...) => (???*0* + b)
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+*anonymous function 5163* = (...) => (???*0* + b)
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+*anonymous function 5313* = (...) => (???*0* + b)
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+*anonymous function 5454* = (...) => (???*0* + b)
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+*anonymous function 5685* = (...) => ((options && options["asBytes"]) ? digestbytes : ((options && options["asString"]) ? bin["bytesToString"](digestbytes) : crypt["bytesToHex"](digestbytes)))
+
+FF = (...) => crypt["endian"]([a, b, c, d])["_ff"]
+
+GG = (...) => crypt["endian"]([a, b, c, d])["_gg"]
+
+HH = (...) => crypt["endian"]([a, b, c, d])["_hh"]
+
+II = (...) => crypt["endian"]([a, b, c, d])["_ii"]
+
+a#10 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+a#4 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+a#7 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+a#8 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+a#9 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+aa = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+b#10 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+b#4 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+b#7 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+b#8 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+b#9 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+bb = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+bin = module<charenc, {}>["bin"]
+
+c#10 = ???*0*
+- *0* arguments[2]
+  ⚠️  function calls are not analysed yet
+
+c#4 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+c#7 = ???*0*
+- *0* arguments[2]
+  ⚠️  function calls are not analysed yet
+
+c#8 = ???*0*
+- *0* arguments[2]
+  ⚠️  function calls are not analysed yet
+
+c#9 = ???*0*
+- *0* arguments[2]
+  ⚠️  function calls are not analysed yet
+
+cc = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+crypt = module<crypt, {}>
+
+d#10 = ???*0*
+- *0* arguments[3]
+  ⚠️  function calls are not analysed yet
+
+d#4 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+d#7 = ???*0*
+- *0* arguments[3]
+  ⚠️  function calls are not analysed yet
+
+d#8 = ???*0*
+- *0* arguments[3]
+  ⚠️  function calls are not analysed yet
+
+d#9 = ???*0*
+- *0* arguments[3]
+  ⚠️  function calls are not analysed yet
+
+dd = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+digestbytes = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+i = (0 | ???*0* | (???*1* + 16))
+- *0* updated with update expression
+  ⚠️  This value might have side effects
+- *1* i
+  ⚠️  circular variable reference
+
+isBuffer = module<is-buffer, {}>
+
+l = ???*0*
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+m = module<crypt, {}>["bytesToWords"]((???*0* | ???*1* | ???*3*))
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* module<charenc, {}>["bin"]["stringToBytes"](???*2*)
+  ⚠️  nested operation
+- *2* message
+  ⚠️  circular variable reference
+- *3* ???*4*["call"](message, 0)
+  ⚠️  unknown callee object
+  ⚠️  This value might have side effects
+- *4* ???*5*["slice"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *5* ???*6*["prototype"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *6* FreeVar(Array)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+md5 = (...) => crypt["endian"]([a, b, c, d])
+
+message#11 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+message#4 = (
+  | ???*0*
+  | module<charenc, {}>["bin"]["stringToBytes"](???*1*)
+  | module<charenc, {}>["utf8"]["stringToBytes"](???*2*)
+  | ???*3*
+  | ???*7*()
+)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* message
+  ⚠️  circular variable reference
+- *2* message
+  ⚠️  circular variable reference
+- *3* ???*4*["call"](message, 0)
+  ⚠️  unknown callee object
+  ⚠️  This value might have side effects
+- *4* ???*5*["slice"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *5* ???*6*["prototype"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *6* FreeVar(Array)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *7* ???*8*["toString"]
+  ⚠️  unknown object
+- *8* message
+  ⚠️  circular variable reference
+
+n#10 = (???*0* + ???*1* + ???*2* + ???*3*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* unsupported expression
+  ⚠️  This value might have side effects
+- *2* unsupported expression
+  ⚠️  This value might have side effects
+- *3* arguments[6]
+  ⚠️  function calls are not analysed yet
+
+n#7 = (???*0* + ???*1* + ???*2* + ???*3*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* unsupported expression
+  ⚠️  This value might have side effects
+- *2* unsupported expression
+  ⚠️  This value might have side effects
+- *3* arguments[6]
+  ⚠️  function calls are not analysed yet
+
+n#8 = (???*0* + ???*1* + ???*2* + ???*3*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* unsupported expression
+  ⚠️  This value might have side effects
+- *2* unsupported expression
+  ⚠️  This value might have side effects
+- *3* arguments[6]
+  ⚠️  function calls are not analysed yet
+
+n#9 = (???*0* + ???*1* + ???*2* + ???*3*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* unsupported expression
+  ⚠️  This value might have side effects
+- *2* unsupported expression
+  ⚠️  This value might have side effects
+- *3* arguments[6]
+  ⚠️  function calls are not analysed yet
+
+options#11 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+options#4 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+s#10 = ???*0*
+- *0* arguments[5]
+  ⚠️  function calls are not analysed yet
+
+s#7 = ???*0*
+- *0* arguments[5]
+  ⚠️  function calls are not analysed yet
+
+s#8 = ???*0*
+- *0* arguments[5]
+  ⚠️  function calls are not analysed yet
+
+s#9 = ???*0*
+- *0* arguments[5]
+  ⚠️  function calls are not analysed yet
+
+t#10 = ???*0*
+- *0* arguments[6]
+  ⚠️  function calls are not analysed yet
+
+t#7 = ???*0*
+- *0* arguments[6]
+  ⚠️  function calls are not analysed yet
+
+t#8 = ???*0*
+- *0* arguments[6]
+  ⚠️  function calls are not analysed yet
+
+t#9 = ???*0*
+- *0* arguments[6]
+  ⚠️  function calls are not analysed yet
+
+utf8 = module<charenc, {}>["utf8"]
+
+x#10 = ???*0*
+- *0* arguments[4]
+  ⚠️  function calls are not analysed yet
+
+x#7 = ???*0*
+- *0* arguments[4]
+  ⚠️  function calls are not analysed yet
+
+x#8 = ???*0*
+- *0* arguments[4]
+  ⚠️  function calls are not analysed yet
+
+x#9 = ???*0*
+- *0* arguments[4]
+  ⚠️  function calls are not analysed yet

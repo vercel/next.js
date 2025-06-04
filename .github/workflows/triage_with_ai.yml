@@ -1,0 +1,22 @@
+name: Triage Issues with AI
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
+      - name: 'Send report to Slack (AI-powered)'
+        run: node ./.github/actions/next-repo-actions/dist/triage-issues-with-ai/index.js
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
+      VERCEL_PROTECTION_BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}

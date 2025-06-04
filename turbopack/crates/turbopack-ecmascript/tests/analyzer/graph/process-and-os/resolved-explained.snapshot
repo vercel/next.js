@@ -1,0 +1,25 @@
+arch = os.arch*0*
+- *0* os.arch: The Node.js os.arch method: https://nodejs.org/api/os.html#os_os_arch
+
+binding1 = module<esbuild-x64-linux-LE, {}>
+
+binding2 = module<esbuild-x64-linux-LE, {}>
+
+binding3 = module<esbuild-x64-linux-LE, {}>
+
+binding4 = module<esbuild-x64-linux-LE, {}>
+
+binding5 = module<esbuild-x64-linux-LE, {}>
+
+binding6 = module<esbuild-x64-linux-LE, {}>
+
+endianness = os.endianness*0*
+- *0* os.endianness: The Node.js os.endianness method: https://nodejs.org/api/os.html#os_os_endianness
+
+p = process*0*
+- *0* process: The Node.js process module: https://nodejs.org/api/process.html
+
+platform = os.process*0*
+- *0* os.process: The Node.js os.process method: https://nodejs.org/api/os.html#os_os_process
+
+processPlatform = "linux"

@@ -4,8 +4,6 @@ The goal of this example is to illustrate how you can use [Algolia React Instant
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
-
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-algolia-react-instantsearch&project-name=with-algolia-react-instantsearch&repository-name=with-algolia-react-instantsearch)
 
 ## How to use
@@ -25,7 +23,7 @@ pnpm create next-app --example with-algolia-react-instantsearch with-algolia-rea
 ```
 
 ```bash
-bun create next-app --example with-algolia-react-instantsearch with-algolia-react-instantsearch-app
+bunx create-next-app --example with-algolia-react-instantsearch with-algolia-react-instantsearch-app
 ```
 
 This example is already configured with an e-commerce index, but you can easily customize it by:

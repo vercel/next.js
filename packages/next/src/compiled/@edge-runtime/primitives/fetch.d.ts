@@ -1,8 +1,3 @@
-declare class Headers extends globalThis.Headers {
-  /** @deprecated Use [`.getSetCookie()`](https://developer.mozilla.org/en-US/docs/Web/API/Headers/getSetCookie) instead. */
-  getAll?(key: 'set-cookie'): string[]
-}
-
 declare class Request extends globalThis.Request {
   readonly headers: Headers
   readonly duplex: string
@@ -23,5 +18,6 @@ declare const fetchImplementation: (
 declare const FileConstructor: typeof File
 declare const FormDataConstructor: typeof FormData
 declare const WebSocketConstructor: typeof WebSocket
+declare const HeadersConstructor: typeof Headers
 
-export { FileConstructor as File, FormDataConstructor as FormData, Headers, Request, type RequestInfo, type RequestInit, Response, WebSocketConstructor as WebSocket, fetchImplementation as fetch };
+export { FileConstructor as File, FormDataConstructor as FormData, HeadersConstructor as Headers, Request, type RequestInfo, type RequestInit, Response, WebSocketConstructor as WebSocket, fetchImplementation as fetch };

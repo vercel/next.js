@@ -1,6 +1,5 @@
 //@ts-check
 
-const os = require('os')
 const path = require('path')
 const _glob = require('glob')
 const { existsSync } = require('fs')
@@ -18,6 +17,10 @@ const exec = promisify(execOrig)
 const core = require('@actions/core')
 const { getTestFilter } = require('./test/get-test-filter')
 
+// Do not rename or format. sync-react script relies on this line.
+// prettier-ignore
+const nextjsReactPeerVersion = "19.1.0";
+
 let argv = require('yargs/yargs')(process.argv.slice(2))
   .string('type')
   .string('test-pattern')
@@ -29,6 +32,8 @@ let argv = require('yargs/yargs')(process.argv.slice(2))
   .alias('g', 'group')
   .number('c')
   .boolean('related')
+  .boolean('dry')
+  .boolean('local')
   .alias('r', 'related')
   .alias('c', 'concurrency').argv
 
@@ -46,7 +51,7 @@ const ENDGROUP = process.env.CI ? '##[endgroup]' : ''
 const externalTestsFilter = getTestFilter()
 
 const timings = []
-const DEFAULT_NUM_RETRIES = os.platform() === 'win32' ? 2 : 1
+const DEFAULT_NUM_RETRIES = 2
 const DEFAULT_CONCURRENCY = 2
 const RESULTS_EXT = `.results.json`
 const isTestJob = !!process.env.NEXT_TEST_JOB
@@ -70,7 +75,7 @@ const TIMINGS_API_HEADERS = {
 
 const testFilters = {
   development: new RegExp(
-    '^(test/(development|e2e)|packages/.*/src/.*)/.*\\.test\\.(js|jsx|ts|tsx)$'
+    '^(test/(development|e2e)|packages/.*/src/.*|packages/next-codemod/.*)/.*\\.test\\.(js|jsx|ts|tsx)$'
   ),
   production: new RegExp(
     '^(test/(production|e2e))/.*\\.test\\.(js|jsx|ts|tsx)$'
@@ -195,8 +200,13 @@ async function main() {
   // Ensure we have the arguments awaited from yargs.
   argv = await argv
 
+  // `.github/workflows/build_reusable.yml` sets this, we should use it unless
+  // it's overridden by an explicit `--concurrency` argument.
+  const envConcurrency =
+    process.env.TEST_CONCURRENCY && parseInt(process.env.TEST_CONCURRENCY, 10)
+
   const options = {
-    concurrency: argv.concurrency || DEFAULT_CONCURRENCY,
+    concurrency: argv.concurrency ?? envConcurrency ?? DEFAULT_CONCURRENCY,
     debug: argv.debug ?? false,
     timings: argv.timings ?? false,
     writeTimings: argv.writeTimings ?? false,
@@ -205,9 +215,11 @@ async function main() {
     type: argv.type ?? false,
     related: argv.related ?? false,
     retries: argv.retries ?? DEFAULT_NUM_RETRIES,
+    dry: argv.dry ?? false,
+    local: argv.local ?? false,
   }
   let numRetries = options.retries
-  const hideOutput = !options.debug
+  const hideOutput = !options.debug && !options.dry
 
   let filterTestsBy
 
@@ -227,7 +239,12 @@ async function main() {
     }
   }
 
-  console.log('Running tests with concurrency:', options.concurrency)
+  console.log(
+    'Running tests with concurrency:',
+    options.concurrency,
+    'in test mode',
+    process.env.NEXT_TEST_MODE
+  )
 
   /** @type TestFile[] */
   let tests = argv._.filter((arg) =>
@@ -369,9 +386,9 @@ async function main() {
         Math.round(groupTimes[curGroupIdx]) + 's'
       )
     } else {
-      const numPerGroup = Math.ceil(tests.length / groupTotal)
-      let offset = (groupPos - 1) * numPerGroup
-      tests = tests.slice(offset, offset + numPerGroup)
+      // assign every nth test "round-robin" to the group, so that similar slow
+      // tests tend not to get clustered together
+      tests = tests.filter((_value, idx) => idx % groupTotal === groupPos - 1)
       console.log('Splitting without timings')
     }
   }
@@ -389,24 +406,18 @@ ${tests.map((t) => t.file).join('\n')}
 ${ENDGROUP}`)
   console.log(`total: ${tests.length}`)
 
-  const hasIsolatedTests = tests.some((test) => {
-    return configuredTestTypes.some(
-      (type) =>
-        type !== testFilters.unit && test.file.startsWith(`test/${type}`)
-    )
-  })
-
   if (
-    process.platform !== 'win32' &&
+    !options.dry &&
     process.env.NEXT_TEST_MODE !== 'deploy' &&
-    ((options.type && options.type !== 'unit') || hasIsolatedTests)
+    ((options.type && options.type !== 'unit') ||
+      tests.some((test) => !testFilters.unit.test(test.file)))
   ) {
-    // for isolated next tests: e2e, dev, prod we create
-    // a starter Next.js install to re-use to speed up tests
-    // to avoid having to run yarn each time
-    console.log(`${GROUP}Creating Next.js install for isolated tests`)
+    // For isolated next tests (e2e, dev, prod) and integration tests we create
+    // a starter Next.js install to re-use to speed up tests to avoid having to
+    // run `pnpm install` each time.
+    console.log(`${GROUP}Creating shared Next.js install`)
     const reactVersion =
-      process.env.NEXT_TEST_REACT_VERSION || '19.0.0-rc-f994737d14-20240522'
+      process.env.NEXT_TEST_REACT_VERSION || nextjsReactPeerVersion
     const { installDir, pkgPaths, tmpRepoDir } = await createNextInstall({
       parentSpan: mockTrace(),
       dependencies: {
@@ -444,12 +455,7 @@ ${ENDGROUP}`)
       const start = new Date().getTime()
       let outputChunks = []
 
-      const shouldRecordTestWithReplay = process.env.RECORD_REPLAY && isRetry
-
       const args = [
-        ...(shouldRecordTestWithReplay
-          ? [`--config=jest.replay.config.js`]
-          : []),
         ...(process.env.CI ? ['--ci'] : []),
         '--runInBand',
         '--forceExit',
@@ -467,36 +473,45 @@ ${ENDGROUP}`)
             ]),
       ]
       const env = {
-        IS_RETRY: isRetry ? 'true' : undefined,
-        RECORD_REPLAY: shouldRecordTestWithReplay,
         // run tests in headless mode by default
         HEADLESS: 'true',
-        TRACE_PLAYWRIGHT: 'true',
         NEXT_TELEMETRY_DISABLED: '1',
         // unset CI env so CI behavior is only explicitly
         // tested when enabled
         CI: '',
-        CIRCLECI: '',
-        GITHUB_ACTIONS: '',
-        CONTINUOUS_INTEGRATION: '',
-        RUN_ID: '',
-        BUILD_NUMBER: '',
-        // Format the output of junit report to include the test name
-        // For the debugging purpose to compare actual run list to the generated reports
-        // [NOTE]: This won't affect if junit reporter is not enabled
-        // @ts-expect-error .replaceAll() does exist. Follow-up why TS is not recognizing it
-        JEST_JUNIT_OUTPUT_NAME: test.file.replaceAll('/', '_'),
-        // Specify suite name for the test to avoid unexpected merging across different env / grouped tests
-        // This is not individual suites name (corresponding 'describe'), top level suite name which have redundant names by default
-        // [NOTE]: This won't affect if junit reporter is not enabled
-        JEST_SUITE_NAME: [
-          `${process.env.NEXT_TEST_MODE ?? 'default'}`,
-          options.group,
-          options.type,
-          test.file,
-        ]
-          .filter(Boolean)
-          .join(':'),
+        // But some tests need to fork based on machine? CI? behavior differences
+        // Only use this in tests.
+        // For implementation forks, use `process.env.CI` instead
+        NEXT_TEST_CI: process.env.CI,
+
+        ...(options.local
+          ? {}
+          : {
+              IS_RETRY: isRetry ? 'true' : undefined,
+              TRACE_PLAYWRIGHT:
+                process.env.NEXT_TEST_MODE === 'deploy' ? undefined : 'true',
+              CIRCLECI: '',
+              GITHUB_ACTIONS: '',
+              CONTINUOUS_INTEGRATION: '',
+              RUN_ID: '',
+              BUILD_NUMBER: '',
+              // Format the output of junit report to include the test name
+              // For the debugging purpose to compare actual run list to the generated reports
+              // [NOTE]: This won't affect if junit reporter is not enabled
+              // @ts-expect-error .replaceAll() does exist. Follow-up why TS is not recognizing it
+              JEST_JUNIT_OUTPUT_NAME: test.file.replaceAll('/', '_'),
+              // Specify suite name for the test to avoid unexpected merging across different env / grouped tests
+              // This is not individual suites name (corresponding 'describe'), top level suite name which have redundant names by default
+              // [NOTE]: This won't affect if junit reporter is not enabled
+              JEST_SUITE_NAME: [
+                `${process.env.NEXT_TEST_MODE ?? 'default'}`,
+                options.group,
+                options.type,
+                test.file,
+              ]
+                .filter(Boolean)
+                .join(':'),
+            }),
         ...(isFinalRun
           ? {
               // Events can be finicky in CI. This switches to a more
@@ -523,6 +538,11 @@ ${ENDGROUP}`)
           ...args.map((a) => `'${a}'`),
         ].join(' ') + '\n'
       )
+
+      // Don't execute tests when in dry run mode
+      if (options.dry) {
+        return resolve(new Date().getTime() - start)
+      }
 
       const child = spawn(jestPath, args, {
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -693,6 +713,7 @@ ${ENDGROUP}`)
       }
 
       // Emit test output if test failed or if we're continuing tests on error
+      // This is parsed by the commenter webhook to notify about failing tests
       if ((!passed || shouldContinueTestsOnError) && isTestJob) {
         try {
           const testsOutput = await fsp.readFile(

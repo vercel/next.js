@@ -79,43 +79,5 @@ describe.each([[''], ['/docs']])(
         expect(text).toEqual(basePath + '/%2fexample.com')
       })
     })
-
-    async function getLogs$(path) {
-      let foundLog = false
-      let browser
-      try {
-        browser = await webdriver(next.url, path)
-        const browserLogs = await browser.log()
-
-        browserLogs.forEach((log) => {
-          if (log.message.includes('Next.js auto-prefetches automatically')) {
-            foundLog = true
-          }
-        })
-      } finally {
-        if (browser) {
-          await browser.close()
-        }
-      }
-      return foundLog
-    }
-    describe('Development Logs', () => {
-      it('should warn when prefetch is true', async () => {
-        const foundLog = await getLogs$(basePath + '/development-logs')
-        expect(foundLog).toBe(true)
-      })
-      it('should not warn when prefetch is false', async () => {
-        const foundLog = await getLogs$(
-          basePath + '/development-logs/link-with-prefetch-false'
-        )
-        expect(foundLog).toBe(false)
-      })
-      it('should not warn when prefetch is not specified', async () => {
-        const foundLog = await getLogs$(
-          basePath + '/development-logs/link-with-no-prefetch'
-        )
-        expect(foundLog).toBe(false)
-      })
-    })
   }
 )

@@ -1,5 +1,5 @@
 import { nextTestSetup, FileRef } from 'e2e-utils'
-import { getRedboxSource, hasRedbox } from 'next-test-utils'
+import { assertHasRedbox, getRedboxSource } from 'next-test-utils'
 import { join } from 'path'
 import cheerio from 'cheerio'
 
@@ -47,10 +47,10 @@ describe('app dir - next/font', () => {
         // layout
         expect(JSON.parse($('#root-layout').text())).toEqual({
           className: expect.stringMatching(
-            process.env.TURBOPACK ? /.*_className$/ : /^__className_.*/
+            process.env.IS_TURBOPACK_TEST ? /.*_className$/ : /^__className_.*/
           ),
           variable: expect.stringMatching(
-            process.env.TURBOPACK ? /.*_variable$/ : /^__variable_.*/
+            process.env.IS_TURBOPACK_TEST ? /.*_variable$/ : /^__variable_.*/
           ),
           style: {
             fontFamily: expect.stringMatching(/^'font1', 'font1 Fallback'$/),
@@ -59,10 +59,10 @@ describe('app dir - next/font', () => {
         // page
         expect(JSON.parse($('#root-page').text())).toEqual({
           className: expect.stringMatching(
-            process.env.TURBOPACK ? /.*_className$/ : /^__className_.*/
+            process.env.IS_TURBOPACK_TEST ? /.*_className$/ : /^__className_.*/
           ),
           variable: expect.stringMatching(
-            process.env.TURBOPACK ? /.*_variable$/ : /^__variable_.*/
+            process.env.IS_TURBOPACK_TEST ? /.*_variable$/ : /^__variable_.*/
           ),
           style: {
             fontFamily: expect.stringMatching(/^'font2', 'font2 Fallback'$/),
@@ -71,7 +71,7 @@ describe('app dir - next/font', () => {
         // Comp
         expect(JSON.parse($('#root-comp').text())).toEqual({
           className: expect.stringMatching(
-            process.env.TURBOPACK ? /.*_className$/ : /^__className_.*/
+            process.env.IS_TURBOPACK_TEST ? /.*_className$/ : /^__className_.*/
           ),
           style: {
             fontFamily: expect.stringMatching(/^'font3', 'font3 Fallback'$/),
@@ -87,10 +87,10 @@ describe('app dir - next/font', () => {
         // root layout
         expect(JSON.parse($('#root-layout').text())).toEqual({
           className: expect.stringMatching(
-            process.env.TURBOPACK ? /.*_className$/ : /^__className_.*/
+            process.env.IS_TURBOPACK_TEST ? /.*_className$/ : /^__className_.*/
           ),
           variable: expect.stringMatching(
-            process.env.TURBOPACK ? /.*_variable$/ : /^__variable_.*/
+            process.env.IS_TURBOPACK_TEST ? /.*_variable$/ : /^__variable_.*/
           ),
           style: {
             fontFamily: expect.stringMatching(/^'font1', 'font1 Fallback'$/),
@@ -100,7 +100,7 @@ describe('app dir - next/font', () => {
         // layout
         expect(JSON.parse($('#client-layout').text())).toEqual({
           className: expect.stringMatching(
-            process.env.TURBOPACK ? /.*_className$/ : /^__className_.*/
+            process.env.IS_TURBOPACK_TEST ? /.*_className$/ : /^__className_.*/
           ),
           style: {
             fontFamily: expect.stringMatching(/^'font4', 'font4 Fallback'$/),
@@ -110,7 +110,7 @@ describe('app dir - next/font', () => {
         // page
         expect(JSON.parse($('#client-page').text())).toEqual({
           className: expect.stringMatching(
-            process.env.TURBOPACK ? /.*_className$/ : /^__className_.*/
+            process.env.IS_TURBOPACK_TEST ? /.*_className$/ : /^__className_.*/
           ),
           style: {
             fontFamily: expect.stringMatching(/^'font5', 'font5 Fallback'$/),
@@ -120,7 +120,7 @@ describe('app dir - next/font', () => {
         // Comp
         expect(JSON.parse($('#client-comp').text())).toEqual({
           className: expect.stringMatching(
-            process.env.TURBOPACK ? /.*_className$/ : /^__className_.*/
+            process.env.IS_TURBOPACK_TEST ? /.*_className$/ : /^__className_.*/
           ),
           style: {
             fontFamily: expect.stringMatching(/^'font6', 'font6 Fallback'$/),
@@ -132,13 +132,13 @@ describe('app dir - next/font', () => {
         const $ = await next.render$('/third-party')
         expect(JSON.parse($('#third-party-page').text())).toEqual({
           className: expect.stringMatching(
-            process.env.TURBOPACK ? /.*_className$/ : /^__className_.*/
+            process.env.IS_TURBOPACK_TEST ? /.*_className$/ : /^__className_.*/
           ),
           style: {
             fontFamily: expect.stringMatching(/^'font1', 'font1 Fallback'$/),
           },
           variable: expect.stringMatching(
-            process.env.TURBOPACK ? /.*_variable$/ : /^__variable_.*/
+            process.env.IS_TURBOPACK_TEST ? /.*_variable$/ : /^__variable_.*/
           ),
         })
       })
@@ -313,7 +313,7 @@ describe('app dir - next/font', () => {
           for (const link of links) {
             expect(link.as).toBe('font')
             expect(link.crossorigin).toBe('')
-            if (process.env.TURBOPACK) {
+            if (process.env.IS_TURBOPACK_TEST) {
               expect(link.href).toMatch(
                 /\/_next\/static\/media\/(.*)-s.p.(.*)\.woff2/
               )
@@ -338,7 +338,32 @@ describe('app dir - next/font', () => {
           for (const link of links) {
             expect(link.as).toBe('font')
             expect(link.crossorigin).toBe('')
-            if (process.env.TURBOPACK) {
+            if (process.env.IS_TURBOPACK_TEST) {
+              expect(link.href).toMatch(
+                /\/_next\/static\/media\/(.*)-s.p.(.*)\.woff2/
+              )
+            } else {
+              expect(link.href).toMatch(
+                /\/_next\/static\/media\/(.*)-s.p.woff2/
+              )
+            }
+            expect(link.rel).toBe('preload')
+            expect(link.type).toBe('font/woff2')
+          }
+        })
+
+        it('should preload correctly with template using fonts', async () => {
+          const $ = await next.render$('/template-with-fonts')
+
+          // Preconnect
+          expect($('link[rel="preconnect"]').length).toBe(0)
+
+          const links = getAttrs($('link[as="font"]'))
+
+          for (const link of links) {
+            expect(link.as).toBe('font')
+            expect(link.crossorigin).toBe('')
+            if (process.env.IS_TURBOPACK_TEST) {
               expect(link.href).toMatch(
                 /\/_next\/static\/media\/(.*)-s.p.(.*)\.woff2/
               )
@@ -363,7 +388,7 @@ describe('app dir - next/font', () => {
           for (const link of links) {
             expect(link.as).toBe('font')
             expect(link.crossorigin).toBe('')
-            if (process.env.TURBOPACK) {
+            if (process.env.IS_TURBOPACK_TEST) {
               expect(link.href).toMatch(
                 /\/_next\/static\/media\/(.*)-s.p.(.*)\.woff2/
               )
@@ -379,7 +404,7 @@ describe('app dir - next/font', () => {
       })
 
       describe('preconnect', () => {
-        it.each([['page'], ['layout'], ['component']])(
+        it.each([['page'], ['layout'], ['component'], ['template']])(
           'should add preconnect when preloading is disabled in %s',
           async (type: string) => {
             const $ = await next.render$(`/preconnect-${type}`)
@@ -416,7 +441,7 @@ describe('app dir - next/font', () => {
           await browser.elementsByCss('link[as="font"]')
         expect(preloadBeforeNavigation.length).toBe(1)
         const href = await preloadBeforeNavigation[0].getAttribute('href')
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           expect(href).toMatch(/\/_next\/static\/media\/(.*)-s\.p\.(.*)\.woff2/)
         } else {
           expect(href).toMatch(/\/_next\/static\/media\/(.*)-s\.p\.woff2/)
@@ -432,7 +457,7 @@ describe('app dir - next/font', () => {
         expect(preloadAfterNavigation.length).toBe(1)
 
         const href2 = await preloadAfterNavigation[0].getAttribute('href')
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           expect(href2).toMatch(
             /\/_next\/static\/media\/(.*)-s\.p\.(.*)\.woff2/
           )
@@ -456,7 +481,7 @@ describe('app dir - next/font', () => {
               './does-not-exist.woff2'
             )
           )
-          expect(await hasRedbox(browser)).toBeTrue()
+          await assertHasRedbox(browser)
           expect(await getRedboxSource(browser)).toInclude(
             "Can't resolve './does-not-exist.woff2'"
           )

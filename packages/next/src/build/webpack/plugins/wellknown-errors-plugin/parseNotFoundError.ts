@@ -1,6 +1,9 @@
 import { bold, cyan, green, red, yellow } from '../../../../lib/picocolors'
 import { SimpleWebpackError } from './simpleWebpackError'
-import { createOriginalStackFrame } from '../../../../client/components/react-dev-overlay/server/middleware'
+import {
+  createOriginalStackFrame,
+  getIgnoredSources,
+} from '../../../../client/components/react-dev-overlay/server/middleware-webpack'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 
 // Based on https://github.com/webpack/webpack/blob/fcdd04a833943394bbb0a9eeb54a962a24cc7e41/lib/stats/DefaultStatsFactoryPlugin.js#L422-L431
@@ -51,29 +54,42 @@ async function getSourceFrame(
   try {
     const loc =
       input.loc || input.dependencies.map((d: any) => d.loc).filter(Boolean)[0]
-    const originalSource = input.module.originalSource()
+    const module = input.module as webpack.Module
+    const originalSource = module.originalSource()
+    const sourceMap = originalSource?.map() ?? undefined
 
-    const result = await createOriginalStackFrame({
-      source: originalSource,
-      rootDirectory: compilation.options.context!,
-      modulePath: fileName,
-      frame: {
-        arguments: [],
-        file: fileName,
-        methodName: '',
-        lineNumber: loc.start.line,
-        column: loc.start.column,
-      },
-    })
+    if (sourceMap) {
+      const moduleId = compilation.chunkGraph.getModuleId(module)
 
-    return {
-      frame: result?.originalCodeFrame ?? '',
-      lineNumber: result?.originalStackFrame?.lineNumber?.toString() ?? '',
-      column: result?.originalStackFrame?.column?.toString() ?? '',
+      const result = await createOriginalStackFrame({
+        source: {
+          type: 'bundle',
+          sourceMap,
+          ignoredSources: getIgnoredSources(sourceMap),
+          compilation,
+          moduleId,
+          moduleURL: fileName,
+        },
+        rootDirectory: compilation.options.context!,
+        frame: {
+          arguments: [],
+          file: fileName,
+          methodName: '',
+          lineNumber: loc.start.line,
+          // loc is 0-based but columns in stack frames are 1-based.
+          column: (loc.start.column ?? 0) + 1,
+        },
+      })
+
+      return {
+        frame: result?.originalCodeFrame ?? '',
+        lineNumber: result?.originalStackFrame?.lineNumber?.toString() ?? '',
+        column: result?.originalStackFrame?.column?.toString() ?? '',
+      }
     }
-  } catch {
-    return { frame: '', lineNumber: '', column: '' }
-  }
+  } catch {}
+
+  return { frame: '', lineNumber: '', column: '' }
 }
 
 function getFormattedFileName(
@@ -135,10 +151,9 @@ export async function getNotFoundError(
         .filter(
           (name) =>
             name &&
-            !/next-(app|middleware|client-pages|route|flight-(client|server|client-entry))-loader\.js/.test(
+            !/next-(app|middleware|client-pages|route|flight-(client|server|client-entry))-loader/.test(
               name
             ) &&
-            !/next-route-loader\/index\.js/.test(name) &&
             !/css-loader.+\.js/.test(name)
         )
       if (moduleTrace.length === 0) return ''

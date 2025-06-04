@@ -1,0 +1,58 @@
+[
+    (
+        "Redis",
+        Tenary(
+            11,
+            Binary(
+                4,
+                TypeOf(
+                    2,
+                    FreeVar(
+                        "EdgeRuntime",
+                    ),
+                ),
+                StrictEqual,
+                Constant(
+                    Str(
+                        Atom(
+                            "undefined",
+                        ),
+                    ),
+                ),
+            ),
+            Call(
+                3,
+                FreeVar(
+                    "require",
+                ),
+                [
+                    Constant(
+                        Str(
+                            Atom(
+                                "ioredis",
+                            ),
+                        ),
+                    ),
+                ],
+            ),
+            Member(
+                3,
+                Module(
+                    ModuleValue {
+                        module: "@upstash/redis",
+                        annotations: ImportAnnotations {
+                            map: {},
+                        },
+                    },
+                ),
+                Constant(
+                    Str(
+                        Atom(
+                            "Redis",
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    ),
+]

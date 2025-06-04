@@ -8,6 +8,7 @@ describe('multi-zone', () => {
     skipDeployment: true,
     buildCommand: 'pnpm build',
     startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
+    serverReadyPattern: /Next mode: (production|development)/,
     packageJson: {
       scripts: {
         dev: 'node server.js',

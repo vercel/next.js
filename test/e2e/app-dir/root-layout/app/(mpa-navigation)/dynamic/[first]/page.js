@@ -1,6 +1,7 @@
 import Link from 'next/link'
 
-export default function Page({ params }) {
+export default async function Page(props) {
+  const params = await props.params
   return (
     <>
       <Link href="/dynamic/first/second">To inner dynamic</Link>

@@ -26,13 +26,13 @@ export class NextStartInstance extends NextInstance {
   private handleStdio = (childProcess) => {
     childProcess.stdout.on('data', (chunk) => {
       const msg = chunk.toString()
-      if (!process.env.CI) process.stdout.write(chunk)
+      process.stdout.write(chunk)
       this._cliOutput += msg
       this.emit('stdout', [msg])
     })
     childProcess.stderr.on('data', (chunk) => {
       const msg = chunk.toString()
-      if (!process.env.CI) process.stderr.write(chunk)
+      process.stderr.write(chunk)
       this._cliOutput += msg
       this.emit('stderr', [msg])
     })
@@ -42,6 +42,7 @@ export class NextStartInstance extends NextInstance {
     if (this.childProcess) {
       throw new Error('next already started')
     }
+
     this._cliOutput = ''
     this.spawnOpts = {
       cwd: this.testDir,
@@ -69,8 +70,16 @@ export class NextStartInstance extends NextInstance {
       buildArgs = this.buildCommand.split(' ')
     }
 
+    if (this.buildOptions) {
+      buildArgs.push(...this.buildOptions)
+    }
+
     if (this.startCommand) {
       startArgs = this.startCommand.split(' ')
+    }
+
+    if (this.startOptions) {
+      startArgs.push(...this.startOptions)
     }
 
     if (process.env.NEXT_SKIP_ISOLATE) {
@@ -93,7 +102,7 @@ export class NextStartInstance extends NextInstance {
         )
         this.handleStdio(this.childProcess)
         this.childProcess.on('exit', (code, signal) => {
-          this.childProcess = null
+          this.childProcess = undefined
           if (code || signal)
             reject(
               new Error(`next build failed with code/signal ${code || signal}`)
@@ -120,7 +129,7 @@ export class NextStartInstance extends NextInstance {
     ).trim()
 
     console.log('running', startArgs.join(' '))
-    await new Promise<void>((resolve) => {
+    await new Promise<void>((resolve, reject) => {
       try {
         this.childProcess = spawn(
           startArgs[0],
@@ -140,6 +149,8 @@ export class NextStartInstance extends NextInstance {
           }
         })
 
+        const serverReadyTimeoutId = this.setServerReadyTimeout(reject)
+
         const readyCb = (msg) => {
           const colorStrippedMsg = stripAnsi(msg)
           if (colorStrippedMsg.includes('- Local:')) {
@@ -150,8 +161,12 @@ export class NextStartInstance extends NextInstance {
               .pop()
               .trim()
             this._parsedUrl = new URL(this._url)
-            this.off('stdout', readyCb)
+          }
+
+          if (this.serverReadyPattern!.test(colorStrippedMsg)) {
+            clearTimeout(serverReadyTimeoutId)
             resolve()
+            this.off('stdout', readyCb)
           }
         }
         this.on('stdout', readyCb)
@@ -175,9 +190,16 @@ export class NextStartInstance extends NextInstance {
         __NEXT_TEST_MODE: 'e2e',
       },
     }
-    return new Promise((resolve) => {
+    return new Promise<{
+      exitCode: NodeJS.Signals | number | null
+      cliOutput: string
+    }>((resolve) => {
       const curOutput = this._cliOutput.length
       const exportArgs = ['pnpm', 'next', 'build']
+
+      if (this.buildOptions) {
+        exportArgs.push(...this.buildOptions)
+      }
 
       if (this.childProcess) {
         throw new Error(

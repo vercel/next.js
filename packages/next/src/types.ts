@@ -1,8 +1,8 @@
-/// <reference types="node" />
-/// <reference types="react" />
-/// <reference types="react/experimental" />
-/// <reference types="react-dom" />
-/// <reference types="react-dom/experimental" />
+/// <reference types="node" preserve="true" />
+/// <reference types="react" preserve="true" />
+/// <reference types="react/experimental" preserve="true" />
+/// <reference types="react-dom" preserve="true" />
+/// <reference types="react-dom/experimental" preserve="true" />
 
 import type { Agent as HttpAgent } from 'http'
 import type { Agent as HttpsAgent } from 'https'
@@ -18,6 +18,7 @@ import type {
   NextApiRequest,
   NextApiHandler,
 } from './shared/lib/utils'
+import type { GetStaticPathsFallback } from './lib/fallback'
 
 import type { NextApiRequestCookies } from './server/api-utils'
 
@@ -38,9 +39,11 @@ export type {
   ResolvedViewport,
 } from './lib/metadata/types/metadata-interface'
 
+export type { Instrumentation } from './server/instrumentation/types'
+
 /**
  * Stub route type for typedRoutes before `next dev` or `next build` is run
- * @link https://nextjs.org/docs/app/building-your-application/configuring/typescript#statically-typed-links
+ * @link https://nextjs.org/docs/app/api-reference/config/typescript#statically-typed-links
  * @example
  * ```ts
  * import type { Route } from 'next'
@@ -183,8 +186,8 @@ export type GetStaticPropsResult<Props> =
 
 /**
  * Static Site Generation feature for Next.js.
- * @link https://nextjs.org/docs/basic-features/data-fetching/get-static-props
- * @link https://nextjs.org/docs/basic-features/typescript#static-generation-and-server-side-rendering
+ * @link https://nextjs.org/docs/pages/building-your-application/data-fetching/get-static-props
+ * @link https://nextjs.org/docs/pages/api-reference/config/typescript#static-generation-and-server-side-rendering
  * @example
  * ```ts
  * export const getStaticProps: GetStaticProps = async (context) => {
@@ -218,13 +221,13 @@ export type GetStaticPathsResult<
   Params extends ParsedUrlQuery = ParsedUrlQuery,
 > = {
   paths: Array<string | { params: Params; locale?: string }>
-  fallback: boolean | 'blocking'
+  fallback: GetStaticPathsFallback
 }
 
 /**
  * Define a list of paths to be statically generated if dynamic routes exist.
- * @link https://nextjs.org/docs/basic-features/data-fetching/get-static-paths
- * @link https://nextjs.org/docs/basic-features/typescript#static-generation-and-server-side-rendering
+ * @link https://nextjs.org/docs/pages/building-your-application/data-fetching/get-static-paths
+ * @link https://nextjs.org/docs/pages/api-reference/config/typescript#static-generation-and-server-side-rendering
  * @example
  * ```ts
  * export const getStaticPaths: GetStaticPaths = async () => {
@@ -238,7 +241,7 @@ export type GetStaticPaths<Params extends ParsedUrlQuery = ParsedUrlQuery> = (
 
 /**
  * Context object passed into `getServerSideProps`.
- * @link https://nextjs.org/docs/api-reference/data-fetching/get-server-side-props#context-parameter
+ * @link https://nextjs.org/docs/pages/api-reference/functions/get-server-side-props#context-parameter
  */
 export type GetServerSidePropsContext<
   Params extends ParsedUrlQuery = ParsedUrlQuery,
@@ -270,8 +273,8 @@ export type GetServerSidePropsResult<Props> =
 
 /**
  * Server-side Rendering feature for Next.js.
- * @link https://nextjs.org/docs/basic-features/data-fetching/get-server-side-props
- * @link https://nextjs.org/docs/basic-features/typescript#static-generation-and-server-side-rendering
+ * @link https://nextjs.org/docs/pages/building-your-application/data-fetching/get-server-side-props
+ * @link https://nextjs.org/docs/pages/api-reference/config/typescript#static-generation-and-server-side-rendering
  * @example
  * ```ts
  * export const getServerSideProps: GetServerSideProps = async (context) => {

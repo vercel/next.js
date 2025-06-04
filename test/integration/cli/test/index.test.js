@@ -6,6 +6,7 @@ import {
   killApp,
   launchApp,
   nextBuild,
+  retry,
   runNextCommand,
   runNextCommandDev,
 } from 'next-test-utils'
@@ -17,6 +18,8 @@ import stripAnsi from 'strip-ansi'
 
 const dirBasic = join(__dirname, '../basic')
 const dirDuplicateSass = join(__dirname, '../duplicate-sass')
+
+const itCI = process.env.NEXT_TEST_CI ? it : it.skip
 
 const runAndCaptureOutput = async ({ port }) => {
   let stdout = ''
@@ -52,7 +55,8 @@ const runAndCaptureOutput = async ({ port }) => {
 const testExitSignal = async (
   killSignal = '',
   args = [],
-  readyRegex = /Creating an optimized production/
+  readyRegex = /Creating an optimized production/,
+  expectedCode = 0
 ) => {
   let instance
   const killSigint = (inst) => {
@@ -76,7 +80,7 @@ const testExitSignal = async (
   // See: https://nodejs.org/api/process.html#process_signal_events
   const expectedExitSignal = process.platform === `win32` ? killSignal : null
   expect(signal).toBe(expectedExitSignal)
-  expect(code).toBe(0)
+  expect(code).toBe(expectedCode)
 }
 
 describe('CLI Usage', () => {
@@ -342,11 +346,11 @@ describe('CLI Usage', () => {
         })
 
         test('should exit when SIGINT is signalled', async () => {
-          await testExitSignal('SIGINT', ['build', dirBasic])
+          await testExitSignal('SIGINT', ['build', dirBasic], undefined, 130)
         })
 
         test('should exit when SIGTERM is signalled', async () => {
-          await testExitSignal('SIGTERM', ['build', dirBasic])
+          await testExitSignal('SIGTERM', ['build', dirBasic], undefined, 143)
         })
 
         test('invalid directory', async () => {
@@ -475,6 +479,10 @@ describe('CLI Usage', () => {
       )
       try {
         await check(() => output, new RegExp(`http://localhost:${port}`))
+        await check(
+          () => output,
+          /Network:\s*http:\/\/[\d]{1,}\.[\d]{1,}\.[\d]{1,}/
+        )
       } finally {
         await killApp(app)
       }
@@ -494,6 +502,10 @@ describe('CLI Usage', () => {
       )
       try {
         await check(() => output, new RegExp(`http://localhost:${port}`))
+        await check(
+          () => output,
+          /Network:\s*http:\/\/[\d]{1,}\.[\d]{1,}\.[\d]{1,}/
+        )
       } finally {
         await killApp(app)
       }
@@ -647,7 +659,6 @@ describe('CLI Usage', () => {
       expect(stdout).not.toMatch(/ready/i)
       expect(stdout).not.toMatch('started')
       expect(stdout).not.toMatch(`${port}`)
-      expect(stripAnsi(stdout).trim()).toBeFalsy()
     })
 
     test('Allow retry if default port is already in use', async () => {
@@ -667,7 +678,9 @@ describe('CLI Usage', () => {
         await killApp(appTwo).catch(console.error)
       }
 
-      expect(output).toMatch('⚠ Port 3000 is in use, trying 3001 instead.')
+      expect(output).toMatch(
+        '⚠ Port 3000 is in use, using available port 3001 instead.'
+      )
     })
 
     test('-p reserved', async () => {
@@ -728,16 +741,8 @@ describe('CLI Usage', () => {
       }
     })
 
-    // only runs on CI as it requires administrator privileges
-    test('--experimental-https', async () => {
-      if (!process.env.CI) {
-        console.warn(
-          '--experimental-https only runs on CI as it requires administrator privileges'
-        )
-
-        return
-      }
-
+    itCI('--experimental-https', async () => {
+      // only runs on CI as it requires administrator privileges
       const port = await findPort()
       let output = ''
       const app = await runNextCommandDev(
@@ -750,9 +755,11 @@ describe('CLI Usage', () => {
         }
       )
       try {
-        await check(() => output, /Network:\s*http:\/\/\[::\]:(\d+)/)
-        await check(() => output, /https:\/\/localhost:(\d+)/)
-        await check(() => output, /Certificates created in/)
+        await retry(() => {
+          expect(output).toMatch(/Network:\s*https:\/\//)
+        })
+        expect(output).toMatch(/Local:\s*https:\/\/localhost:(\d+)/)
+        expect(output).toContain('Certificates created in')
       } finally {
         await killApp(app)
       }
@@ -891,7 +898,7 @@ Relevant Packages:
   eslint-config-next: .*
   react: .*
   react-dom: .*
-  typescript: .*
+  typescript: .*${process.env.NEXT_RSPACK ? '\n  next-rspack: .*' : ''}
 Next.js Config:
   output: ${nextConfigOutput}
 `)

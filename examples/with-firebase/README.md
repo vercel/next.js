@@ -8,8 +8,6 @@ The React Context API is used to provide user state.
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
-
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-firebase&project-name=with-firebase&repository-name=with-firebase)
 
 ## How to use

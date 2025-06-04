@@ -98,10 +98,11 @@ const runTests = (isDev = false) => {
   }
 }
 
-describe('AMP SSG Support', () => {
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
+// Turbopack does not support AMP rendering.
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
+  'AMP SSG Support',
+  () => {
+    describe('production mode', () => {
       beforeAll(async () => {
         await nextBuild(appDir)
         appPort = await findPort()
@@ -111,23 +112,19 @@ describe('AMP SSG Support', () => {
       })
       afterAll(() => killApp(app))
       runTests()
-    }
-  )
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
-    'development mode',
-    () => {
+    })
+
+    describe('development mode', () => {
       beforeAll(async () => {
         appPort = await findPort()
         app = await launchApp(appDir, appPort)
       })
       afterAll(() => killApp(app))
       runTests(true)
-    }
-  )
-  describe('export mode', () => {
-    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-      'production mode',
-      () => {
+    })
+
+    describe('export mode', () => {
+      describe('production mode', () => {
         let buildId
 
         beforeAll(async () => {
@@ -157,7 +154,7 @@ describe('AMP SSG Support', () => {
             await fsExists(outFile(join('_next/data', buildId, 'hybrid.json')))
           ).toBe(true)
         })
-      }
-    )
-  })
-})
+      })
+    })
+  }
+)

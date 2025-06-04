@@ -1,27 +1,27 @@
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
-import type { FlightDataPath } from '../../../server/app-render/types'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 import { fillCacheWithNewSubTreeData } from './fill-cache-with-new-subtree-data'
 import type { PrefetchCacheEntry } from './router-reducer-types'
+import type { NormalizedFlightData } from '../../flight-data-helpers'
 
 export function applyFlightData(
+  navigatedAt: number,
   existingCache: CacheNode,
   cache: CacheNode,
-  flightDataPath: FlightDataPath,
+  flightData: NormalizedFlightData,
   prefetchEntry?: PrefetchCacheEntry
 ): boolean {
   // The one before last item is the router state tree patch
-  const [treePatch, cacheNodeSeedData, head, layerAssets] =
-    flightDataPath.slice(-4)
+  const { tree: treePatch, seedData, head, isRootRender } = flightData
 
   // Handles case where prefetch only returns the router tree patch without rendered components.
-  if (cacheNodeSeedData === null) {
+  if (seedData === null) {
     return false
   }
 
-  if (flightDataPath.length === 4) {
-    const rsc = cacheNodeSeedData[2]
-    const loading = cacheNodeSeedData[3]
+  if (isRootRender) {
+    const rsc = seedData[1]
+    const loading = seedData[3]
     cache.loading = loading
     cache.rsc = rsc
     // This is a PPR-only field. When PPR is enabled, we shouldn't hit
@@ -31,12 +31,12 @@ export function applyFlightData(
     // old behavior — no PPR value.
     cache.prefetchRsc = null
     fillLazyItemsTillLeafWithHead(
+      navigatedAt,
       cache,
       existingCache,
       treePatch,
-      cacheNodeSeedData,
+      seedData,
       head,
-      layerAssets,
       prefetchEntry
     )
   } else {
@@ -50,9 +50,10 @@ export function applyFlightData(
     cache.loading = existingCache.loading
     // Create a copy of the existing cache with the rsc applied.
     fillCacheWithNewSubTreeData(
+      navigatedAt,
       cache,
       existingCache,
-      flightDataPath,
+      flightData,
       prefetchEntry
     )
   }

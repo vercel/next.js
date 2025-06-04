@@ -1,7 +1,11 @@
-import type { API, FileInfo } from 'jscodeshift'
+// It might insert extra parnes for JSX components
+// x-ref: https://github.com/facebook/jscodeshift/issues/534
 
-export default function transformer(file: FileInfo, api: API) {
-  const j = api.jscodeshift.withParser('tsx')
+import type { API, FileInfo } from 'jscodeshift'
+import { createParserFromPath } from '../lib/parser'
+
+export default function transformer(file: FileInfo, _api: API) {
+  const j = createParserFromPath(file.path)
 
   const $j = j(file.source)
 
@@ -45,7 +49,7 @@ export default function transformer(file: FileInfo, api: API) {
         }
 
         // If file has <style jsx> enable legacyBehavior
-        // and keep <a> to  stay on the safe side
+        // and keep <a> to stay on the safe side
         if (hasStylesJSX) {
           $link
             .get('attributes')

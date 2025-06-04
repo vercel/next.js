@@ -8,7 +8,7 @@
     // Append -bullseye or -buster to pin to an OS version.
     // Use -bullseye variants on local arm64/Apple Silicon.
     "args": {
-      "VARIANT": "16-bullseye"
+      "VARIANT": "20-bullseye"
     }
   },
   // Configure tool-specific properties.

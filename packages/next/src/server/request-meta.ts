@@ -6,6 +6,8 @@ import type { BaseNextRequest } from './base-http'
 import type { CloneableBody } from './body-streams'
 import type { RouteMatch } from './route-matches/route-match'
 import type { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
+import type { ServerComponentsHmrCache } from './response-cache'
+import type { PagesDevOverlayType } from '../client/components/react-dev-overlay/pages/pages-dev-overlay'
 
 // FIXME: (wyattjoh) this is a temporary solution to allow us to pass data between bundled modules
 export const NEXT_REQUEST_META = Symbol.for('NextInternalRequestMeta')
@@ -69,6 +71,16 @@ export interface RequestMeta {
   incrementalCache?: any
 
   /**
+   * The server components HMR cache, only for dev.
+   */
+  serverComponentsHmrCache?: ServerComponentsHmrCache
+
+  /**
+   * Equals the segment path that was used for the prefetch RSC request.
+   */
+  segmentPrefetchRSCRequest?: string
+
+  /**
    * True when the request is for the prefetch flight data.
    */
   isPrefetchRSCRequest?: true
@@ -77,6 +89,23 @@ export interface RequestMeta {
    * True when the request is for the flight data.
    */
   isRSCRequest?: true
+
+  /**
+   * A search param set by the Next.js client when performing RSC requests.
+   * Because some CDNs do not vary their cache entries on our custom headers,
+   * this search param represents a hash of the header values. For any cached
+   * RSC request, we should verify that the hash matches before responding.
+   * Otherwise this can lead to cache poisoning.
+   * TODO: Consider not using custom request headers at all, and instead encode
+   * everything into the search param.
+   */
+  cacheBustingSearchParam?: string
+
+  /**
+   * True when the request is for the `/_next/data` route using the pages
+   * router.
+   */
+  isNextDataReq?: true
 
   /**
    * Postponed state to use for resumption. If present it's assumed that the
@@ -94,6 +123,108 @@ export interface RequestMeta {
     cacheEntry: any,
     requestMeta: any
   ) => Promise<boolean | void> | boolean | void
+
+  /**
+   * The previous revalidate before rendering 404 page for notFound: true
+   */
+  notFoundRevalidate?: number | false
+
+  /**
+   * In development, the original source page that returned a 404.
+   */
+  developmentNotFoundSourcePage?: string
+
+  /**
+   * The path we routed to and should be invoked
+   */
+  invokePath?: string
+
+  /**
+   * The specific page output we should be matching
+   */
+  invokeOutput?: string
+
+  /**
+   * The status we are invoking the request with from routing
+   */
+  invokeStatus?: number
+
+  /**
+   * The routing error we are invoking with
+   */
+  invokeError?: Error
+
+  /**
+   * The query parsed for the invocation
+   */
+  invokeQuery?: Record<string, undefined | string | string[]>
+
+  /**
+   * Whether the request is a middleware invocation
+   */
+  middlewareInvoke?: boolean
+
+  /**
+   * Whether the request should render the fallback shell or not.
+   */
+  renderFallbackShell?: boolean
+
+  /**
+   * Whether the request is for the custom error page.
+   */
+  customErrorRender?: true
+
+  /**
+   * Whether to bubble up the NoFallbackError to the caller when a 404 is
+   * returned.
+   */
+  bubbleNoFallback?: true
+
+  /**
+   * True when the request had locale information inferred from the default
+   * locale.
+   */
+  localeInferredFromDefault?: true
+
+  /**
+   * The locale that was inferred or explicitly set for the request.
+   */
+  locale?: string
+
+  /**
+   * The default locale that was inferred or explicitly set for the request.
+   */
+  defaultLocale?: string
+
+  /**
+   * The project dir the server is running in
+   */
+  projectDir?: string
+
+  /**
+   * Whether we are generating the fallback version of the page in dev mode
+   */
+  isIsrFallback?: boolean
+
+  /**
+   * The query after resolving routes
+   */
+  query?: ParsedUrlQuery
+
+  /**
+   * The params after resolving routes
+   */
+  params?: ParsedUrlQuery
+
+  /**
+   * The AMP validator to use in development
+   */
+  ampValidator?: (html: string, pathname: string) => Promise<void>
+
+  /**
+   * ErrorOverlay component to use in development for pages router
+   */
+  PagesErrorDebug?: PagesDevOverlayType
 }
 
 /**
@@ -167,35 +298,10 @@ export function removeRequestMeta<K extends keyof RequestMeta>(
 }
 
 type NextQueryMetadata = {
-  __nextNotFoundSrcPage?: string
-  __nextDefaultLocale?: string
-  __nextFallback?: 'true'
-
   /**
-   * The locale that was inferred or explicitly set for the request.
-   *
-   * When this property is mutated, it's important to also update the request
-   * metadata for `_nextInferredDefaultLocale` to ensure that the correct
-   * behavior is applied.
+   * The `_rsc` query parameter used for cache busting to ensure that the RSC
+   * requests do not get cached by the browser explicitly.
    */
-  __nextLocale?: string
-
-  /**
-   * `1` when the request did not have a locale in the pathname part of the
-   * URL but the default locale was inferred from either the domain or the
-   * configuration.
-   */
-  __nextInferredLocaleFromDefault?: '1'
-
-  __nextSsgPath?: string
-  _nextBubbleNoFallback?: '1'
-
-  /**
-   * When set to `1`, the request is for the `/_next/data` route using the pages
-   * router.
-   */
-  __nextDataReq?: '1'
-  __nextCustomErrorRender?: '1'
   [NEXT_RSC_UNION_QUERY]?: string
 }
 
@@ -206,28 +312,4 @@ export type NextParsedUrlQuery = ParsedUrlQuery &
 
 export interface NextUrlWithParsedQuery extends UrlWithParsedQuery {
   query: NextParsedUrlQuery
-}
-
-export function getNextInternalQuery(
-  query: NextParsedUrlQuery
-): NextQueryMetadata {
-  const keysToInclude: (keyof NextQueryMetadata)[] = [
-    '__nextDefaultLocale',
-    '__nextFallback',
-    '__nextLocale',
-    '__nextSsgPath',
-    '_nextBubbleNoFallback',
-    '__nextDataReq',
-    '__nextInferredLocaleFromDefault',
-  ]
-  const nextInternalQuery: NextQueryMetadata = {}
-
-  for (const key of keysToInclude) {
-    if (key in query) {
-      // @ts-ignore this can't be typed correctly
-      nextInternalQuery[key] = query[key]
-    }
-  }
-
-  return nextInternalQuery
 }

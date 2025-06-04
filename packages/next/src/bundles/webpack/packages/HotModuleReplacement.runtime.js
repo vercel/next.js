@@ -1,3 +1,4 @@
+// @ts-nocheck
 /*
 	MIT License http://www.opensource.org/licenses/mit-license.php
 	Author Tobias Koppers @sokra
@@ -201,7 +202,7 @@ module.exports = function () {
 				if (idx >= 0) registeredStatusHandlers.splice(idx, 1);
 			},
 
-			//inherit from previous dispose call
+			// inherit from previous dispose call
 			data: currentModuleData[moduleId]
 		};
 		currentChildModule = undefined;
@@ -215,7 +216,7 @@ module.exports = function () {
 		for (var i = 0; i < registeredStatusHandlers.length; i++)
 			results[i] = registeredStatusHandlers[i].call(null, newStatus);
 
-		return Promise.all(results);
+		return Promise.all(results).then(function () {});
 	}
 
 	function unblock() {
@@ -293,11 +294,10 @@ module.exports = function () {
 						return waitForBlockingPromises(function () {
 							if (applyOnUpdate) {
 								return internalApply(applyOnUpdate);
-							} else {
-								return setStatus("ready").then(function () {
-									return updatedModules;
-								});
 							}
+							return setStatus("ready").then(function () {
+								return updatedModules;
+							});
 						});
 					});
 				});

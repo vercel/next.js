@@ -1,12 +1,14 @@
 'use client'
 
+import type { FetchServerResponseResult } from '../../client/components/router-reducer/fetch-server-response'
 import type {
   FocusAndScrollRef,
   PrefetchKind,
-  RouterChangeByServerResponse,
 } from '../../client/components/router-reducer/router-reducer-types'
-import type { FetchServerResponseResult } from '../../client/components/router-reducer/fetch-server-response'
-import type { FlightRouterState } from '../../server/app-render/types'
+import type {
+  FlightRouterState,
+  FlightSegmentPath,
+} from '../../server/app-render/types'
 import React from 'react'
 
 export type ChildSegmentMap = Map<string, CacheNode>
@@ -20,12 +22,10 @@ export type LoadingModuleData =
   | [React.JSX.Element, React.ReactNode, React.ReactNode]
   | null
 
+/** viewport metadata node */
+export type HeadData = React.ReactNode
+
 export type LazyCacheNode = {
-  /**
-   * Whether the lazy cache node data promise has been resolved.
-   * This value is only true after we've called `use` on the promise (and applied the data to the tree).
-   */
-  lazyDataResolved: boolean
   /**
    * When rsc is null, this is a lazily-initialized cache node.
    *
@@ -55,25 +55,26 @@ export type LazyCacheNode = {
    */
   lazyData: Promise<FetchServerResponseResult> | null
 
-  prefetchHead: React.ReactNode
-  head: React.ReactNode
-  prefetchLayerAssets: React.ReactNode
-  layerAssets: React.ReactNode
+  prefetchHead: HeadData | null
 
-  loading: LoadingModuleData
+  head: HeadData
+
+  loading: LoadingModuleData | Promise<LoadingModuleData>
 
   /**
    * Child parallel routes.
    */
   parallelRoutes: Map<string, ChildSegmentMap>
+
+  /**
+   * The timestamp of the navigation that last updated the CacheNode's data. If
+   * a CacheNode is reused from a previous navigation, this value is not
+   * updated. Used to track the staleness of the data.
+   */
+  navigatedAt: number
 }
 
 export type ReadyCacheNode = {
-  /**
-   * Whether the lazy cache node data promise has been resolved.
-   * This value is only true after we've called `use` on the promise (and applied the data to the tree).
-   */
-  lazyDataResolved: boolean
   /**
    * When rsc is not null, it represents the RSC data for the
    * corresponding segment.
@@ -104,14 +105,15 @@ export type ReadyCacheNode = {
    * There should never be a lazy data request in this case.
    */
   lazyData: null
-  prefetchHead: React.ReactNode
-  head: React.ReactNode
-  prefetchLayerAssets: React.ReactNode
-  layerAssets: React.ReactNode
+  prefetchHead: HeadData | null
 
-  loading: LoadingModuleData
+  head: HeadData
+
+  loading: LoadingModuleData | Promise<LoadingModuleData>
 
   parallelRoutes: Map<string, ChildSegmentMap>
+
+  navigatedAt: number
 }
 
 export interface NavigateOptions {
@@ -120,6 +122,7 @@ export interface NavigateOptions {
 
 export interface PrefetchOptions {
   kind: PrefetchKind
+  onInvalidate?: () => void
 }
 
 export interface AppRouterInstance {
@@ -139,7 +142,7 @@ export interface AppRouterInstance {
    * Refresh the current page. Use in development only.
    * @internal
    */
-  fastRefresh(): void
+  hmrRefresh(): void
   /**
    * Navigate to the provided href.
    * Pushes a new history entry.
@@ -160,16 +163,14 @@ export const AppRouterContext = React.createContext<AppRouterInstance | null>(
   null
 )
 export const LayoutRouterContext = React.createContext<{
-  childNodes: CacheNode['parallelRoutes']
-  tree: FlightRouterState
+  parentTree: FlightRouterState
+  parentCacheNode: CacheNode
+  parentSegmentPath: FlightSegmentPath | null
   url: string
-  loading: LoadingModuleData
 } | null>(null)
 
 export const GlobalLayoutRouterContext = React.createContext<{
-  buildId: string
   tree: FlightRouterState
-  changeByServerResponse: RouterChangeByServerResponse
   focusAndScrollRef: FocusAndScrollRef
   nextUrl: string | null
 }>(null as any)

@@ -2,7 +2,7 @@ import path from 'path'
 import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
 import { createNext, FileRef, type NextInstance } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { check, retry } from 'next-test-utils'
 
 const pathnames = {
   '/404': ['/not/a/real/page?with=query', '/not/a/real/page'],
@@ -43,7 +43,7 @@ describe('404-page-router', () => {
       pages: new FileRef(path.join(__dirname, 'app/pages')),
       components: new FileRef(path.join(__dirname, 'app/components')),
     }
-    next = await createNext({ files, skipStart: true })
+    next = await createNext({ files, skipStart: true, patchFileDelay: 500 })
   })
   afterAll(() => next.destroy())
 
@@ -149,7 +149,10 @@ describe('404-page-router', () => {
           () => browser.eval('next.router.isReady ? "yes" : "no"'),
           'yes'
         )
-        expect(await browser.elementById('query').text()).toEqual('test=1')
+
+        await retry(async () => {
+          expect(await browser.elementById('query').text()).toEqual('test=1')
+        })
       })
     }
   )

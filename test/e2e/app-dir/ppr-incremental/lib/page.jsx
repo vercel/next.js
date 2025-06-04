@@ -14,6 +14,7 @@ export default function Page() {
         <Link href="/">Root</Link>
         <Link href="/enabled">Enabled</Link>
         <Link href="/disabled">Disabled</Link>
+        <Link href="/static">Static</Link>
       </li>
       <Suspense fallback={<div id="fallback">Loading...</div>}>
         <Dynamic />

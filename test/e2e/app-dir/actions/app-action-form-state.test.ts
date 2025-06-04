@@ -1,10 +1,19 @@
 /* eslint-disable jest/no-standalone-expect */
-import { nextTestSetup } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
+import { join } from 'path'
 
 describe('app-dir action useActionState', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    overrideFiles: process.env.TEST_NODE_MIDDLEWARE
+      ? {
+          'middleware.js': new FileRef(join(__dirname, 'middleware-node.js')),
+        }
+      : {},
+    dependencies: {
+      nanoid: '4.0.1',
+    },
   })
   it('should support submitting form state with JS', async () => {
     const browser = await next.browser('/client/form-state')

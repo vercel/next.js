@@ -43,6 +43,8 @@ import { isBot } from './utils/is-bot'
 import { omit } from './utils/omit'
 import { interpolateAs } from './utils/interpolate-as'
 import { handleSmoothScroll } from './utils/handle-smooth-scroll'
+import type { Params } from '../../../server/request/params'
+import { MATCHED_PATH_HEADER } from '../../../lib/constants'
 
 declare global {
   interface Window {
@@ -173,7 +175,7 @@ function getMiddlewareData<T extends FetchDataOutput>(
   let rewriteTarget =
     rewriteHeader || response.headers.get('x-nextjs-matched-path')
 
-  const matchedPath = response.headers.get('x-matched-path')
+  const matchedPath = response.headers.get(MATCHED_PATH_HEADER)
 
   if (
     matchedPath &&
@@ -346,9 +348,9 @@ export type BaseRouter = {
   asPath: string
   basePath: string
   locale?: string | undefined
-  locales?: string[] | undefined
+  locales?: readonly string[] | undefined
   defaultLocale?: string | undefined
-  domainLocales?: DomainLocale[] | undefined
+  domainLocales?: readonly DomainLocale[] | undefined
   isLocaleDomain: boolean
 }
 
@@ -496,7 +498,10 @@ function fetchNextData({
       headers: Object.assign(
         {} as HeadersInit,
         isPrefetch ? { purpose: 'prefetch' } : {},
-        isPrefetch && hasMiddleware ? { 'x-middleware-prefetch': '1' } : {}
+        isPrefetch && hasMiddleware ? { 'x-middleware-prefetch': '1' } : {},
+        process.env.NEXT_DEPLOYMENT_ID
+          ? { 'x-deployment-id': process.env.NEXT_DEPLOYMENT_ID }
+          : {}
       ),
       method: params?.method ?? 'GET',
     })
@@ -588,7 +593,11 @@ function fetchNextData({
   // without blocking navigation when stale data is available
   if (unstable_skipClientCache && persistCache) {
     return getData({}).then((data) => {
-      inflightCache[cacheKey] = Promise.resolve(data)
+      if (data.response.headers.get('x-middleware-cache') !== 'no-cache') {
+        // only update cache if not marked as no-cache
+        inflightCache[cacheKey] = Promise.resolve(data)
+      }
+
       return data
     })
   }
@@ -675,9 +684,9 @@ export default class Router implements BaseRouter {
   isSsr: boolean
   _inFlightRoute?: string | undefined
   _shallow?: boolean | undefined
-  locales?: string[] | undefined
+  locales?: readonly string[] | undefined
   defaultLocale?: string | undefined
-  domainLocales?: DomainLocale[] | undefined
+  domainLocales?: readonly DomainLocale[] | undefined
   isReady: boolean
   isLocaleDomain: boolean
   isFirstPopStateEvent = true
@@ -729,9 +738,9 @@ export default class Router implements BaseRouter {
       err?: Error
       isFallback: boolean
       locale?: string
-      locales?: string[]
+      locales?: readonly string[]
       defaultLocale?: string
-      domainLocales?: DomainLocale[]
+      domainLocales?: readonly DomainLocale[]
       isPreview?: boolean
     }
   ) {
@@ -759,45 +768,6 @@ export default class Router implements BaseRouter {
       styleSheets: [
         /* /_app does not need its stylesheets managed */
       ],
-    }
-
-    if (process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED) {
-      const { BloomFilter } =
-        require('../../lib/bloom-filter') as typeof import('../../lib/bloom-filter')
-
-      type Filter = ReturnType<
-        import('../../lib/bloom-filter').BloomFilter['export']
-      >
-
-      const routerFilterSValue: Filter | false = process.env
-        .__NEXT_CLIENT_ROUTER_S_FILTER as any
-
-      const staticFilterData: Filter | undefined = routerFilterSValue
-        ? routerFilterSValue
-        : undefined
-
-      const routerFilterDValue: Filter | false = process.env
-        .__NEXT_CLIENT_ROUTER_D_FILTER as any
-
-      const dynamicFilterData: Filter | undefined = routerFilterDValue
-        ? routerFilterDValue
-        : undefined
-
-      if (staticFilterData?.numHashes) {
-        this._bfl_s = new BloomFilter(
-          staticFilterData.numItems,
-          staticFilterData.errorRate
-        )
-        this._bfl_s.import(staticFilterData)
-      }
-
-      if (dynamicFilterData?.numHashes) {
-        this._bfl_d = new BloomFilter(
-          dynamicFilterData.numItems,
-          dynamicFilterData.errorRate
-        )
-        this._bfl_d.import(dynamicFilterData)
-      }
     }
 
     // Backwards compat for Router.router.events
@@ -1056,10 +1026,79 @@ export default class Router implements BaseRouter {
     skipNavigate?: boolean
   ) {
     if (process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED) {
+      if (!this._bfl_s && !this._bfl_d) {
+        const { BloomFilter } =
+          require('../../lib/bloom-filter') as typeof import('../../lib/bloom-filter')
+
+        type Filter = ReturnType<
+          import('../../lib/bloom-filter').BloomFilter['export']
+        >
+        let staticFilterData: Filter | undefined
+        let dynamicFilterData: Filter | undefined
+
+        try {
+          ;({
+            __routerFilterStatic: staticFilterData,
+            __routerFilterDynamic: dynamicFilterData,
+          } = (await getClientBuildManifest()) as any as {
+            __routerFilterStatic?: Filter
+            __routerFilterDynamic?: Filter
+          })
+        } catch (err) {
+          // failed to load build manifest hard navigate
+          // to be safe
+          console.error(err)
+          if (skipNavigate) {
+            return true
+          }
+          handleHardNavigation({
+            url: addBasePath(
+              addLocale(as, locale || this.locale, this.defaultLocale)
+            ),
+            router: this,
+          })
+          return new Promise(() => {})
+        }
+
+        const routerFilterSValue: Filter | false = process.env
+          .__NEXT_CLIENT_ROUTER_S_FILTER as any
+
+        if (!staticFilterData && routerFilterSValue) {
+          staticFilterData = routerFilterSValue ? routerFilterSValue : undefined
+        }
+
+        const routerFilterDValue: Filter | false = process.env
+          .__NEXT_CLIENT_ROUTER_D_FILTER as any
+
+        if (!dynamicFilterData && routerFilterDValue) {
+          dynamicFilterData = routerFilterDValue
+            ? routerFilterDValue
+            : undefined
+        }
+
+        if (staticFilterData?.numHashes) {
+          this._bfl_s = new BloomFilter(
+            staticFilterData.numItems,
+            staticFilterData.errorRate
+          )
+          this._bfl_s.import(staticFilterData)
+        }
+
+        if (dynamicFilterData?.numHashes) {
+          this._bfl_d = new BloomFilter(
+            dynamicFilterData.numItems,
+            dynamicFilterData.errorRate
+          )
+          this._bfl_d.import(dynamicFilterData)
+        }
+      }
+
       let matchesBflStatic = false
       let matchesBflDynamic = false
+      const pathsToCheck: Array<{ as?: string; allowMatchCurrent?: boolean }> =
+        [{ as }, { as: resolvedAs }]
 
-      for (const curAs of [as, resolvedAs]) {
+      for (const { as: curAs, allowMatchCurrent } of pathsToCheck) {
         if (curAs) {
           const asNoSlash = removeTrailingSlash(
             new URL(curAs, 'http://n').pathname
@@ -1069,8 +1108,9 @@ export default class Router implements BaseRouter {
           )
 
           if (
+            allowMatchCurrent ||
             asNoSlash !==
-            removeTrailingSlash(new URL(this.asPath, 'http://n').pathname)
+              removeTrailingSlash(new URL(this.asPath, 'http://n').pathname)
           ) {
             matchesBflStatic =
               matchesBflStatic ||
@@ -1444,7 +1484,7 @@ export default class Router implements BaseRouter {
     resolvedAs = removeLocale(removeBasePath(resolvedAs), nextState.locale)
 
     route = removeTrailingSlash(pathname)
-    let routeMatch: { [paramName: string]: string | string[] } | false = false
+    let routeMatch: Params | false = false
 
     if (isDynamicRoute(route)) {
       const parsedAs = parseRelativeUrl(resolvedAs)
@@ -1850,8 +1890,6 @@ export default class Router implements BaseRouter {
     routeProps: RouteProperties,
     loadErrorFail?: boolean
   ): Promise<CompletePrivateRouteInfo> {
-    console.error(err)
-
     if (err.cancelled) {
       // bubble up cancellation errors
       throw err
@@ -1875,6 +1913,8 @@ export default class Router implements BaseRouter {
       // So let's throw a cancellation error stop the routing logic.
       throw buildCancellationError()
     }
+
+    console.error(err)
 
     try {
       let props: Record<string, any> | undefined
@@ -2499,18 +2539,6 @@ export default class Router implements BaseRouter {
 
       return data
     })
-  }
-
-  _getFlightData(dataHref: string) {
-    // Do not cache RSC flight response since it's not a static resource
-    return fetchNextData({
-      dataHref,
-      isServerRender: true,
-      parseJSON: false,
-      inflightCache: this.sdc,
-      persistCache: false,
-      isPrefetch: false,
-    }).then(({ text }) => ({ data: text }))
   }
 
   getInitialProps(

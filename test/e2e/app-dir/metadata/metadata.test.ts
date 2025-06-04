@@ -1,161 +1,20 @@
-import type { BrowserInterface } from 'next-webdriver'
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import {
+  check,
+  getTitle,
+  createDomMatcher,
+  createMultiHtmlMatcher,
+  createMultiDomMatcher,
+  checkMetaNameContentPair,
+  checkLink,
+} from 'next-test-utils'
 import fs from 'fs/promises'
 import path from 'path'
-import cheerio from 'cheerio'
 
 describe('app dir - metadata', () => {
   const { next, isNextDev, isNextStart, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
-
-  const getTitle = (browser: BrowserInterface) =>
-    browser.elementByCss('title').text()
-
-  async function checkMeta(
-    browser: BrowserInterface,
-    queryValue: string,
-    expected: RegExp | string | string[] | undefined | null,
-    queryKey: string = 'property',
-    tag: string = 'meta',
-    domAttributeField: string = 'content'
-  ) {
-    const values = await browser.eval(
-      `[...document.querySelectorAll('${tag}[${queryKey}="${queryValue}"]')].map((el) => el.getAttribute("${domAttributeField}"))`
-    )
-    if (expected instanceof RegExp) {
-      expect(values[0]).toMatch(expected)
-    } else {
-      if (Array.isArray(expected)) {
-        expect(values).toEqual(expected)
-      } else {
-        // If expected is undefined, then it should not exist.
-        // Otherwise, it should exist in the matched values.
-        if (expected === undefined) {
-          expect(values).not.toContain(undefined)
-        } else {
-          expect(values).toContain(expected)
-        }
-      }
-    }
-  }
-
-  function createDomMatcher(browser: BrowserInterface) {
-    /**
-     * @param tag - tag name, e.g. 'meta'
-     * @param query - query string, e.g. 'name="description"'
-     * @param expectedObject - expected object, e.g. { content: 'my description' }
-     * @returns {Promise<void>} - promise that resolves when the check is done
-     *
-     * @example
-     * const matchDom = createDomMatcher(browser)
-     * await matchDom('meta', 'name="description"', { content: 'description' })
-     */
-    return async (
-      tag: string,
-      query: string,
-      expectedObject: Record<string, string | null | undefined>
-    ) => {
-      const props = await browser.eval(`
-        const el = document.querySelector('${tag}[${query}]');
-        const res = {}
-        const keys = ${JSON.stringify(Object.keys(expectedObject))}
-        for (const k of keys) {
-          res[k] = el?.getAttribute(k)
-        }
-        res
-      `)
-      expect(props).toEqual(expectedObject)
-    }
-  }
-
-  function createMultiHtmlMatcher($: ReturnType<typeof cheerio.load>) {
-    /**
-     * @param tag - tag name, e.g. 'meta'
-     * @param queryKey - query key, e.g. 'property'
-     * @param domAttributeField - dom attribute field, e.g. 'content'
-     * @param expected - expected object, e.g. { description: 'my description' }
-     * @returns {void} - void when the check is done
-     *
-     * @example
-     *
-     * const $ = await next.render$('html')
-     * const matchHtml = createMultiHtmlMatcher($)
-     * matchHtml('meta', 'name', 'property', {
-     *   description: 'description',
-     *   og: 'og:description'
-     * })
-     *
-     */
-    return (
-      tag: string,
-      queryKey: string,
-      domAttributeField: string,
-      expected: Record<string, string | string[] | undefined>
-    ) => {
-      const res = {}
-      for (const key of Object.keys(expected)) {
-        const el = $(`${tag}[${queryKey}="${key}"]`)
-        if (el.length > 1) {
-          res[key] = el.toArray().map((el) => el.attribs[domAttributeField])
-        } else {
-          res[key] = el.attr(domAttributeField)
-        }
-      }
-      expect(res).toEqual(expected)
-    }
-  }
-
-  function createMultiDomMatcher(browser: BrowserInterface) {
-    /**
-     * @param tag - tag name, e.g. 'meta'
-     * @param queryKey - query key, e.g. 'property'
-     * @param domAttributeField - dom attribute field, e.g. 'content'
-     * @param expected - expected object, e.g. { description: 'my description' }
-     * @returns {Promise<void>} - promise that resolves when the check is done
-     *
-     * @example
-     * const matchMultiDom = createMultiDomMatcher(browser)
-     * await matchMultiDom('meta', 'property', 'content', {
-     *   description: 'description',
-     *   'og:title': 'title',
-     *   'twitter:title': 'title'
-     * })
-     *
-     */
-    return async (
-      tag: string,
-      queryKey: string,
-      domAttributeField: string,
-      expected: Record<string, string | string[] | undefined | null>
-    ) => {
-      await Promise.all(
-        Object.keys(expected).map(async (key) => {
-          return checkMeta(
-            browser,
-            key,
-            expected[key],
-            queryKey,
-            tag,
-            domAttributeField
-          )
-        })
-      )
-    }
-  }
-
-  const checkMetaNameContentPair = (
-    browser: BrowserInterface,
-    name: string,
-    content: string | string[]
-  ) => checkMeta(browser, name, content, 'name')
-
-  const checkLink = (
-    browser: BrowserInterface,
-    rel: string,
-    content: string | string[]
-  ) => checkMeta(browser, rel, content, 'rel', 'link', 'href')
 
   describe('basic', () => {
     it('should support title and description', async () => {
@@ -223,6 +82,8 @@ describe('app dir - metadata', () => {
         preconnect: '/preconnect-url',
         preload: '/api/preload',
         'dns-prefetch': '/dns-prefetch-url',
+        prev: '/basic?page=1',
+        next: '/basic?page=3',
       })
 
       // Manifest link should have crossOrigin attribute
@@ -258,6 +119,8 @@ describe('app dir - metadata', () => {
         preconnect: '/preconnect-url',
         preload: '/api/preload',
         'dns-prefetch': '/dns-prefetch-url',
+        prev: '/basic?page=1',
+        next: '/basic?page=3',
       })
 
       // Manifest link should have crossOrigin attribute
@@ -273,7 +136,7 @@ describe('app dir - metadata', () => {
 
       await matchMultiDom('meta', 'name', 'content', {
         'apple-itunes-app': 'app-id=myAppStoreID, app-argument=myAppArgument',
-        'apple-mobile-web-app-capable': 'yes',
+        'mobile-web-app-capable': 'yes',
         'apple-mobile-web-app-title': 'Apple Web App',
         'apple-mobile-web-app-status-bar-style': 'black-translucent',
       })
@@ -297,6 +160,17 @@ describe('app dir - metadata', () => {
           media: '(device-width: 768px) and (device-height: 1024px)',
         }
       )
+    })
+
+    it('should support socials related tags like facebook and pinterest', async () => {
+      const browser = await next.browser('/socials')
+      const matchMultiDom = createMultiDomMatcher(browser)
+
+      await matchMultiDom('meta', 'property', 'content', {
+        'fb:app_id': '12345678',
+        'fb:admins': ['120', '122', '124'],
+        'pinterest-rich-pin': 'true',
+      })
     })
 
     it('should support alternate tags', async () => {
@@ -423,13 +297,13 @@ describe('app dir - metadata', () => {
       expect(await getTitle(browser)).toBe('this is the page title')
     })
 
-    it('should support generateMetadata export', async () => {
-      const browser = await next.browser('/async/slug')
+    it('should support generateMetadata dynamic props', async () => {
+      const browser = await next.browser('/dynamic/slug')
       expect(await getTitle(browser)).toBe('params - slug')
 
       await checkMetaNameContentPair(browser, 'keywords', 'parent,child')
 
-      await browser.loadPage(next.url + '/async/blog?q=xxx')
+      await browser.loadPage(next.url + '/dynamic/blog?q=xxx')
       await check(
         () => browser.elementByCss('p').text(),
         /params - blog query - xxx/
@@ -471,6 +345,10 @@ describe('app dir - metadata', () => {
         'og:image:width': ['800', '1800'],
         'og:image:height': ['600', '1600'],
         'og:image:alt': 'My custom alt',
+        'og:video': 'https://example.com/video.mp4',
+        'og:video:width': '800',
+        'og:video:height': '450',
+        'og:audio': 'https://example.com/audio.mp3',
       })
 
       await matchMultiDom('meta', 'name', 'content', {
@@ -559,75 +437,22 @@ describe('app dir - metadata', () => {
         'twitter:title': 'no-tw-image',
       })
 
-      // icon should be overridden
-      expect($('link[rel="icon"]').attr('href')).toBe(
-        'https://custom-icon-1.png'
-      )
-    })
-  })
+      // icon should be overridden and contain favicon.ico
+      const [favicon, ...icons] = $('link[rel="icon"]')
+        .toArray()
+        .map((i) => $(i).attr('href'))
 
-  describe('navigation', () => {
-    it('should render root not-found with default metadata', async () => {
-      const $ = await next.render$('/does-not-exist')
-
-      // Should contain default metadata and noindex tag
-      const matchHtml = createMultiHtmlMatcher($)
-      expect($('meta[charset="utf-8"]').length).toBe(1)
-      matchHtml('meta', 'name', 'content', {
-        viewport: 'width=device-width, initial-scale=1',
-        robots: 'noindex',
-        // not found metadata
-        description: 'Root not found description',
-      })
-      expect(await $('title').text()).toBe('Root not found')
+      expect(favicon).toMatch('/favicon.ico')
+      expect(icons).toEqual(['https://custom-icon-1.png'])
     })
 
-    it('should support notFound in generateMetadata', async () => {
-      const res = await next.fetch('/async/not-found')
-      expect(res.status).toBe(404)
-      const html = await res.text()
-      const $ = cheerio.load(html)
-
-      // TODO-APP: support render custom not-found in SSR for generateMetadata.
-      // Check contains root not-found payload in flight response for now.
-      let hasRootNotFoundFlight = false
-      for (const el of $('script').toArray()) {
-        const text = $(el).text()
-        if (text.includes('Local found boundary')) {
-          hasRootNotFoundFlight = true
-        }
-      }
-      expect(hasRootNotFoundFlight).toBe(true)
-
-      // Should contain default metadata and noindex tag
-      const matchHtml = createMultiHtmlMatcher($)
-      expect($('meta[charset="utf-8"]').length).toBe(1)
-      matchHtml('meta', 'name', 'content', {
-        viewport: 'width=device-width, initial-scale=1',
-        robots: 'noindex',
-      })
-
-      const browser = await next.browser('/async/not-found')
-      expect(await browser.elementByCss('h2').text()).toBe(
-        'Local found boundary'
-      )
-
+    it('metadataBase should override fallback base for resolving OG images', async () => {
+      const browser = await next.browser('/metadata-base/opengraph')
       const matchMultiDom = createMultiDomMatcher(browser)
-      await matchMultiDom('meta', 'name', 'content', {
-        viewport: 'width=device-width, initial-scale=1',
-        keywords: 'parent',
-        robots: 'noindex',
-        // not found metadata
-        description: 'Local not found description',
-      })
-      expect(await getTitle(browser)).toBe('Local not found')
-    })
 
-    it('should support redirect in generateMetadata', async () => {
-      const res = await next.fetch('/async/redirect', {
-        redirect: 'manual',
+      await matchMultiDom('meta', 'property', 'content', {
+        'og:image': 'https://acme.com/og-image.png',
       })
-      expect(res.status).toBe(307)
     })
   })
 
@@ -652,6 +477,7 @@ describe('app dir - metadata', () => {
 
       await checkLink(browser, 'shortcut icon', '/shortcut-icon.png')
       await checkLink(browser, 'icon', [
+        expect.stringMatching(/favicon\.ico/),
         '/icon.png',
         'https://example.com/icon.png',
       ])
@@ -723,8 +549,8 @@ describe('app dir - metadata', () => {
     it('should render icon and apple touch icon meta if their images are specified', async () => {
       const $ = await next.render$('/icons/static/nested')
 
-      const $icon = $('head > link[rel="icon"][type!="image/x-icon"]')
-      const $appleIcon = $('head > link[rel="apple-touch-icon"]')
+      const $icon = $('link[rel="icon"][type!="image/x-icon"]')
+      const $appleIcon = $('link[rel="apple-touch-icon"]')
 
       expect($icon.attr('href')).toMatch(/\/icons\/static\/nested\/icon1/)
       expect($icon.attr('sizes')).toBe('32x32')
@@ -739,17 +565,17 @@ describe('app dir - metadata', () => {
     it('should not render if image file is not specified', async () => {
       const $ = await next.render$('/icons/static')
 
-      const $icon = $('head > link[rel="icon"][type!="image/x-icon"]')
+      const $icon = $('link[rel="icon"][type!="image/x-icon"]')
 
       expect($icon.attr('href')).toMatch(/\/icons\/static\/icon/)
       expect($icon.attr('sizes')).toBe('114x114')
 
       // No apple icon if it's not provided
-      const $appleIcon = $('head > link[rel="apple-touch-icon"]')
+      const $appleIcon = $('link[rel="apple-touch-icon"]')
       expect($appleIcon.length).toBe(0)
 
       const $dynamic = await next.render$('/icons/static/dynamic-routes/123')
-      const $dynamicIcon = $dynamic('head > link[rel="icon"]')
+      const $dynamicIcon = $dynamic('link[rel="icon"][type!="image/x-icon"]')
       const dynamicIconHref = $dynamicIcon.attr('href')
       expect(dynamicIconHref).toMatch(
         /\/icons\/static\/dynamic-routes\/123\/icon/
@@ -757,31 +583,6 @@ describe('app dir - metadata', () => {
       const dynamicIconRes = await next.fetch(dynamicIconHref)
       expect(dynamicIconRes.status).toBe(200)
     })
-
-    if (isNextDev) {
-      // This test frequently causes a compilation error when run in Turbopack
-      // which also causes all subsequent tests to fail. Disabled while we investigate to reduce flakes.
-      ;(process.env.TURBOPACK ? it.skip : it)(
-        'should handle updates to the file icon name and order',
-        async () => {
-          await next.renameFile(
-            'app/icons/static/icon.png',
-            'app/icons/static/icon2.png'
-          )
-
-          await check(async () => {
-            const $ = await next.render$('/icons/static')
-            const $icon = $('head > link[rel="icon"][type!="image/x-icon"]')
-            return $icon.attr('href')
-          }, /\/icons\/static\/icon2/)
-
-          await next.renameFile(
-            'app/icons/static/icon2.png',
-            'app/icons/static/icon.png'
-          )
-        }
-      )
-    }
   })
 
   describe('twitter', () => {
@@ -958,7 +759,7 @@ describe('app dir - metadata', () => {
         ).toBe(true)
         expect(
           await next.hasFile(
-            '.next/server/app/opengraph/static/opengraph-image.png/[[...__metadata_id__]]/route.js'
+            '.next/server/app/opengraph/static/opengraph-image.png/[__metadata_id__]/route.js'
           )
         ).toBe(false)
       })
@@ -971,6 +772,14 @@ describe('app dir - metadata', () => {
       const matchMultiDom = createMultiDomMatcher(browser)
       await matchMultiDom('meta', 'name', 'content', {
         'theme-color': '#000',
+      })
+    })
+
+    it('should skip initial-scale from viewport if it is set to undefined', async () => {
+      const browser = await next.browser('/viewport/skip-initial-scale')
+      const matchMultiDom = createMultiDomMatcher(browser)
+      await matchMultiDom('meta', 'name', 'content', {
+        viewport: 'width=device-width',
       })
     })
   })
@@ -1020,8 +829,30 @@ describe('app dir - metadata', () => {
     expect(ogHtml).toContain('pages-opengraph-image-page')
   })
 
-  it('should not crash from error thrown during preloading nested generateMetadata', async () => {
-    const res = await next.fetch('/dynamic-meta')
-    expect(res.status).toBe(404)
+  describe('hmr', () => {
+    if (isNextDev) {
+      // This test frequently causes a compilation error when run in Turbopack
+      // which also causes all subsequent tests to fail. Disabled while we investigate to reduce flakes.
+      ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
+        'should handle updates to the file icon name and order',
+        async () => {
+          await next.renameFile(
+            'app/icons/static/icon.png',
+            'app/icons/static/icon2.png'
+          )
+
+          await check(async () => {
+            const $ = await next.render$('/icons/static')
+            const $icon = $('link[rel="icon"][type!="image/x-icon"]')
+            return $icon.attr('href')
+          }, /\/icons\/static\/icon2/)
+
+          await next.renameFile(
+            'app/icons/static/icon2.png',
+            'app/icons/static/icon.png'
+          )
+        }
+      )
+    }
   })
 })

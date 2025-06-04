@@ -4,7 +4,7 @@
  * This file contains utilities for  `create-next-app` testing.
  */
 
-import { ChildProcess, execSync, spawn, SpawnOptions } from 'child_process'
+import { execSync, spawn, SpawnOptions } from 'child_process'
 import { existsSync } from 'fs'
 import { join, resolve } from 'path'
 import glob from 'glob'
@@ -55,24 +55,6 @@ export const createNextApp = (
       ...cloneEnv,
       ...options.env,
     },
-  })
-}
-
-/**
- * Return a Promise that resolves when the process exits with code 0 and rejects
- * otherwise.
- */
-export const spawnExitPromise = (childProcess: ChildProcess) => {
-  return new Promise((resolve, reject) => {
-    childProcess
-      .on('exit', (code) => {
-        if (code === 0) {
-          resolve(code)
-        } else {
-          reject(code)
-        }
-      })
-      .on('error', reject)
   })
 }
 
@@ -156,7 +138,7 @@ export const shouldBeTemplateProject = ({
     files: getProjectSetting({ template, mode, setting: 'files', srcDir }),
   })
 
-  // Tailwind templates share the same files (tailwind.config.js, postcss.config.mjs)
+  // Tailwind templates share the same files (tailwind.config.mjs, postcss.config.mjs)
   if (
     !['app-tw', 'app-tw-empty', 'default-tw', 'default-tw-empty'].includes(
       template

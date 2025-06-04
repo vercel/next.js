@@ -55,6 +55,11 @@ describe('build-spinners', () => {
       dependencies: {
         'node-pty': '0.10.1',
       },
+      packageJson: {
+        pnpm: {
+          onlyBuiltDependencies: ['node-pty'],
+        },
+      },
     })
   })
 
@@ -108,11 +113,10 @@ describe('build-spinners', () => {
 
     const appDir = next.testDir
 
-    const nextBin = resolveFrom(appDir, 'next/dist/bin/next')
     const ptyPath = resolveFrom(appDir, 'node-pty')
     const pty = require(ptyPath)
     const output = []
-    const ptyProcess = pty.spawn(process.execPath, [nextBin, 'build'], {
+    const ptyProcess = pty.spawn('pnpm', ['next', 'build'], {
       name: 'xterm-color',
       cols: 80,
       rows: 30,

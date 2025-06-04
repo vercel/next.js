@@ -1,7 +1,8 @@
 {
   "$schema": "https://turborepo.org/schema.json",
-  "experimentalUI": true,
-  "pipeline": {
+  "globalEnv": ["NEXT_CI_RUNNER"],
+  "daemon": false,
+  "tasks": {
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]
@@ -10,11 +11,20 @@
       "dependsOn": ["^dev"],
       "outputs": ["dist/**"]
     },
+    "storybook": {},
+    "build-storybook": {
+      "dependsOn": ["^build-storybook"],
+      "outputs": ["storybook-static/**"]
+    },
+    "test-storybook": {
+      "dependsOn": ["^test-storybook"]
+    },
     "typescript": {},
     "//#typescript": {},
     "//#get-test-timings": {
       "inputs": ["run-tests.js"],
       "outputs": ["test-timings.json"]
     }
-  }
+  },
+  "ui": "tui"
 }

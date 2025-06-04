@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
-import { revalidateTag } from 'next/cache'
+import { unstable_expireTag } from 'next/cache'
 
 export async function GET(req) {
-  revalidateTag('thankyounext')
+  unstable_expireTag('thankyounext')
   return NextResponse.json({ revalidated: true, now: Date.now() })
 }

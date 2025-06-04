@@ -21,28 +21,28 @@ describe('set-cookies', () => {
     return
   }
 
-  describe.each(['edge', 'experimental-edge', 'node'])(
-    'for %s runtime',
-    (runtime) => {
-      describe.each(['pages', 'app'])('for /%s', (dir) => {
-        it('should set two set-cookie headers', async () => {
-          let res = await next.fetch(`/api/${dir}/${runtime}`)
+  describe.each([
+    { dir: 'pages', runtimes: ['edge', 'experimental-edge', 'node'] },
+    { dir: 'app', runtimes: ['edge', 'node'] },
+  ])('for /$dir', ({ dir, runtimes }) => {
+    describe.each(runtimes)('for %s runtime', (runtime) => {
+      it('should set two set-cookie headers', async () => {
+        let res = await next.fetch(`/api/${dir}/${runtime}`)
 
-          let headers = getSetCookieHeaders(res)
+        let headers = getSetCookieHeaders(res)
 
-          expect(headers).toHaveLength(2)
-          expect(headers).toEqual(cookies)
+        expect(headers).toHaveLength(2)
+        expect(headers).toEqual(cookies)
 
-          res = await next.fetch(
-            `/api/${dir}/${runtime}?next-config-headers=true`
-          )
+        res = await next.fetch(
+          `/api/${dir}/${runtime}?next-config-headers=true`
+        )
 
-          headers = getSetCookieHeaders(res)
+        headers = getSetCookieHeaders(res)
 
-          expect(headers).toHaveLength(4)
-          expect(headers).toEqual([...nextConfigHeaders, ...cookies])
-        })
+        expect(headers).toHaveLength(4)
+        expect(headers).toEqual([...nextConfigHeaders, ...cookies])
       })
-    }
-  )
+    })
+  })
 })

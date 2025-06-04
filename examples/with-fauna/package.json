@@ -10,9 +10,9 @@
     "classnames": "2.3.1",
     "date-fns": "2.28.0",
     "fauna": "^1.2.0",
-    "next": "latest",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
+    "next": "canary",
+    "react": "rc",
+    "react-dom": "rc",
     "server-only": "^0.0.1"
   },
   "devDependencies": {

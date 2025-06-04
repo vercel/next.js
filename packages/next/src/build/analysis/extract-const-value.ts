@@ -12,6 +12,7 @@ import type {
   RegExpLiteral,
   StringLiteral,
   TemplateLiteral,
+  TsSatisfiesExpression,
   VariableDeclaration,
 } from '@swc/core'
 
@@ -63,6 +64,10 @@ function isRegExpLiteral(node: Node): node is RegExpLiteral {
 
 function isTemplateLiteral(node: Node): node is TemplateLiteral {
   return node.type === 'TemplateLiteral'
+}
+
+function isTsSatisfiesExpression(node: Node): node is TsSatisfiesExpression {
+  return node.type === 'TsSatisfiesExpression'
 }
 
 export class UnsupportedValueError extends Error {
@@ -194,6 +199,8 @@ function extractValue(node: Node, path?: string[]): any {
     const [{ cooked, raw }] = node.quasis
 
     return cooked ?? raw
+  } else if (isTsSatisfiesExpression(node)) {
+    return extractValue(node.expression)
   } else {
     throw new UnsupportedValueError(
       `Unsupported node type "${node.type}"`,

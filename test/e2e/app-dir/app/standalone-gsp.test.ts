@@ -18,6 +18,7 @@ if (!(globalThis as any).isNextStart) {
       skipStart: true,
       dependencies: {
         swr: 'latest',
+        nanoid: '4.0.1',
       },
     })
 

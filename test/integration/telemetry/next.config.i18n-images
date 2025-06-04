@@ -5,6 +5,8 @@ module.exports = phase => {
       imageSizes: [64, 128, 256, 512, 1024],
       domains: ['example.com', 'another.com'],
       remotePatterns: [{ protocol: 'https', hostname: '**.example.com' }],
+      localPatterns: [{ pathname: '/assets/**', search: '' }],
+      qualities: [25, 50, 75],
     },
     i18n: {
       locales: ['en','nl','fr'],

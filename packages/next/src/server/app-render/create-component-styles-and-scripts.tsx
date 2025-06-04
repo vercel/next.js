@@ -4,6 +4,7 @@ import { getLinkAndScriptTags } from './get-css-inlined-link-tags'
 import type { AppRenderContext } from './app-render'
 import { getAssetQueryString } from './get-asset-query-string'
 import { encodeURIPath } from '../../shared/lib/encode-uri-path'
+import { renderCssResource } from './render-css-resource'
 
 export async function createComponentStylesAndScripts({
   filePath,
@@ -18,48 +19,23 @@ export async function createComponentStylesAndScripts({
   injectedJS: Set<string>
   ctx: AppRenderContext
 }): Promise<[React.ComponentType<any>, React.ReactNode, React.ReactNode]> {
-  const { styles: cssHrefs, scripts: jsHrefs } = getLinkAndScriptTags(
+  const { styles: entryCssFiles, scripts: jsHrefs } = getLinkAndScriptTags(
     ctx.clientReferenceManifest,
     filePath,
     injectedCSS,
     injectedJS
   )
 
-  const styles = cssHrefs
-    ? cssHrefs.map((href, index) => {
-        const fullHref = `${ctx.assetPrefix}/_next/${encodeURIPath(
-          href
-        )}${getAssetQueryString(ctx, true)}`
-
-        // `Precedence` is an opt-in signal for React to handle resource
-        // loading and deduplication, etc. It's also used as the key to sort
-        // resources so they will be injected in the correct order.
-        // During HMR, it's critical to use different `precedence` values
-        // for different stylesheets, so their order will be kept.
-        // https://github.com/facebook/react/pull/25060
-        const precedence =
-          process.env.NODE_ENV === 'development' ? 'next_' + href : 'next'
-
-        return (
-          <link
-            rel="stylesheet"
-            href={fullHref}
-            // @ts-ignore
-            precedence={precedence}
-            crossOrigin={ctx.renderOpts.crossOrigin}
-            key={index}
-          />
-        )
-      })
-    : null
+  const styles = renderCssResource(entryCssFiles, ctx)
 
   const scripts = jsHrefs
-    ? jsHrefs.map((href) => (
+    ? jsHrefs.map((href, index) => (
         <script
           src={`${ctx.assetPrefix}/_next/${encodeURIPath(
             href
           )}${getAssetQueryString(ctx, true)}`}
           async={true}
+          key={`script-${index}`}
         />
       ))
     : null

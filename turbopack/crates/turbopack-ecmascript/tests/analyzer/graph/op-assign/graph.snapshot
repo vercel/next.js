@@ -1,0 +1,197 @@
+[
+    (
+        "*arrow function 173*",
+        Function(
+            4,
+            173,
+            Alternatives {
+                total_nodes: 3,
+                values: [
+                    Constant(
+                        Undefined,
+                    ),
+                    Unknown {
+                        original_value: None,
+                        reason: "spread in function calls is not supported",
+                        has_side_effects: true,
+                    },
+                ],
+                logical_property: None,
+            },
+        ),
+    ),
+    (
+        "ComponentMod",
+        Argument(
+            95,
+            0,
+        ),
+    ),
+    (
+        "args",
+        Unknown {
+            original_value: Some(
+                Variable(
+                    (
+                        "args",
+                        #4,
+                    ),
+                ),
+            ),
+            reason: "pattern without value",
+            has_side_effects: false,
+        },
+    ),
+    (
+        "clientComponentLoadTimes",
+        Alternatives {
+            total_nodes: 5,
+            values: [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            0.0,
+                        ),
+                    ),
+                ),
+                Add(
+                    3,
+                    [
+                        Variable(
+                            (
+                                "clientComponentLoadTimes",
+                                #2,
+                            ),
+                        ),
+                        Unknown {
+                            original_value: None,
+                            reason: "unsupported expression",
+                            has_side_effects: true,
+                        },
+                    ],
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "getClientComponentLoaderMetrics",
+        Function(
+            2,
+            415,
+            Variable(
+                (
+                    "metrics",
+                    #7,
+                ),
+            ),
+        ),
+    ),
+    (
+        "metrics",
+        Tenary(
+            8,
+            Binary(
+                3,
+                Variable(
+                    (
+                        "clientComponentLoadTimes",
+                        #2,
+                    ),
+                ),
+                StrictEqual,
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            0.0,
+                        ),
+                    ),
+                ),
+            ),
+            FreeVar(
+                "undefined",
+            ),
+            Object {
+                total_nodes: 3,
+                parts: [
+                    KeyValue(
+                        Constant(
+                            Str(
+                                Atom(
+                                    "clientComponentLoadTimes",
+                                ),
+                            ),
+                        ),
+                        Variable(
+                            (
+                                "clientComponentLoadTimes",
+                                #2,
+                            ),
+                        ),
+                    ),
+                ],
+                mutable: true,
+            },
+        ),
+    ),
+    (
+        "options",
+        Unknown {
+            original_value: Some(
+                Variable(
+                    (
+                        "options",
+                        #7,
+                    ),
+                ),
+            ),
+            reason: "pattern without value",
+            has_side_effects: false,
+        },
+    ),
+    (
+        "startTime",
+        MemberCall(
+            3,
+            FreeVar(
+                "performance",
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "now",
+                    ),
+                ),
+            ),
+            [],
+        ),
+    ),
+    (
+        "wrapClientComponentLoader",
+        Function(
+            4,
+            95,
+            Object {
+                total_nodes: 3,
+                parts: [
+                    KeyValue(
+                        Constant(
+                            Str(
+                                Atom(
+                                    "loadChunk",
+                                ),
+                            ),
+                        ),
+                        Variable(
+                            (
+                                "*arrow function 173*",
+                                #0,
+                            ),
+                        ),
+                    ),
+                ],
+                mutable: true,
+            },
+        ),
+    ),
+]

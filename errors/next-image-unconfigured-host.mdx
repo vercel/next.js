@@ -13,19 +13,35 @@ Add the protocol, hostname, port, and pathname to the `images.remotePatterns` co
 ```js filename="next.config.js"
 module.exports = {
   images: {
+    remotePatterns: [new URL('https://assets.example.com/account123/**')],
+  },
+}
+```
+
+### Fixing older versions of Next.js
+
+<details>
+  <summary>Using Next.js prior to 15.3.0?</summary>
+  
+Older versions of Next.js can configure `images.remotePatterns` using the object:
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
     remotePatterns: [
       {
         protocol: 'https',
         hostname: 'assets.example.com',
         port: '',
         pathname: '/account123/**',
+        search: '',
       },
     ],
   },
 }
 ```
 
-#### Fixing older versions of Next.js
+</details>
 
 <details>
   <summary>Using Next.js prior to 12.3.0?</summary>
@@ -44,5 +60,5 @@ module.exports = {
 
 ## Useful Links
 
-- [Image Optimization Documentation](/docs/pages/building-your-application/optimizing/images)
+- [Image Optimization Documentation](/docs/pages/api-reference/components/image)
 - [Remote Patterns Documentation](/docs/pages/api-reference/components/image#remotepatterns)

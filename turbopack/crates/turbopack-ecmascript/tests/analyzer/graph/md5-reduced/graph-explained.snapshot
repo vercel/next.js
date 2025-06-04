@@ -1,0 +1,121 @@
+a#3 = (
+  | 1732584193
+  | md5ff(a, b, c, d, x[i], 7, ???*0*)
+  | md5ff(a, b, c, d, x[(i + 4)], 7, ???*1*)
+  | md5ff(a, b, c, d, x[(i + 8)], 7, 1770035416)
+  | md5ff(a, b, c, d, x[(i + 12)], 7, 1804603682)
+)
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+- *1* unsupported expression
+  ⚠️  This value might have side effects
+
+a#5 = arguments[1]
+
+a#6 = arguments[0]
+
+b#3 = (
+  | ???*0*
+  | md5ff(b, c, d, a, x[(i + 3)], 22, ???*1*)
+  | md5ff(b, c, d, a, x[(i + 7)], 22, ???*2*)
+  | md5ff(b, c, d, a, x[(i + 11)], 22, ???*3*)
+  | md5ff(b, c, d, a, x[(i + 15)], 22, 1236535329)
+)
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+- *1* unsupported expression
+  ⚠️  This value might have side effects
+- *2* unsupported expression
+  ⚠️  This value might have side effects
+- *3* unsupported expression
+  ⚠️  This value might have side effects
+
+b#5 = arguments[2]
+
+b#6 = arguments[1]
+
+c#3 = (
+  | ???*0*
+  | md5ff(c, d, a, b, x[(i + 2)], 17, 606105819)
+  | md5ff(c, d, a, b, x[(i + 6)], 17, ???*1*)
+  | md5ff(c, d, a, b, x[(i + 10)], 17, ???*2*)
+  | md5ff(c, d, a, b, x[(i + 14)], 17, ???*3*)
+)
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+- *1* unsupported expression
+  ⚠️  This value might have side effects
+- *2* unsupported expression
+  ⚠️  This value might have side effects
+- *3* unsupported expression
+  ⚠️  This value might have side effects
+
+c#6 = arguments[2]
+
+d#3 = (
+  | 271733878
+  | md5ff(d, a, b, c, x[(i + 1)], 12, ???*0*)
+  | md5ff(d, a, b, c, x[(i + 5)], 12, 1200080426)
+  | md5ff(d, a, b, c, x[(i + 9)], 12, ???*1*)
+  | md5ff(d, a, b, c, x[(i + 13)], 12, ???*2*)
+)
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+- *1* unsupported expression
+  ⚠️  This value might have side effects
+- *2* unsupported expression
+  ⚠️  This value might have side effects
+
+d#6 = arguments[3]
+
+i = (???*0* | 0 | (i + 16))
+- *0* i
+  ⚠️  pattern without value
+
+len = arguments[1]
+
+md5cmn = (...) => FreeVar(safeAdd)(
+    FreeVar(bitRotateLeft)(
+        FreeVar(safeAdd)(FreeVar(safeAdd)(a, q), FreeVar(safeAdd)(x, t)),
+        s
+    ),
+    b
+)
+
+md5ff = (...) => md5cmn(???*0*, a, b, x, s, t)
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+olda = (???*0* | a)
+- *0* olda
+  ⚠️  pattern without value
+
+oldb = (???*0* | b)
+- *0* oldb
+  ⚠️  pattern without value
+
+oldc = (???*0* | c)
+- *0* oldc
+  ⚠️  pattern without value
+
+oldd = (???*0* | d)
+- *0* oldd
+  ⚠️  pattern without value
+
+q = arguments[0]
+
+s#5 = arguments[4]
+
+s#6 = arguments[5]
+
+t#5 = arguments[5]
+
+t#6 = arguments[6]
+
+wordsToMd5 = (...) => [a, b, c, d]
+
+x#3 = arguments[0]
+
+x#5 = arguments[3]
+
+x#6 = arguments[4]

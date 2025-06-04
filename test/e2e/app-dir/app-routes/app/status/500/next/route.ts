@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 export async function GET() {
   if (process.env.NEXT_PHASE === 'phase-production-build') {
     // don't error during build
-    cookies()
+    await cookies()
   } else {
     return NextResponse.next()
   }

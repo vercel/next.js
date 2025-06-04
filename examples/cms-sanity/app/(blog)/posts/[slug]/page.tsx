@@ -1,5 +1,6 @@
+import { defineQuery } from "next-sanity";
 import type { Metadata, ResolvingMetadata } from "next";
-import { groq, type PortableTextBlock } from "next-sanity";
+import { type PortableTextBlock } from "next-sanity";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
@@ -10,36 +11,32 @@ import DateComponent from "../../date";
 import MoreStories from "../../more-stories";
 import PortableText from "../../portable-text";
 
-import type {
-  PostQueryResult,
-  PostSlugsResult,
-  SettingsQueryResult,
-} from "@/sanity.types";
 import * as demo from "@/sanity/lib/demo";
 import { sanityFetch } from "@/sanity/lib/fetch";
 import { postQuery, settingsQuery } from "@/sanity/lib/queries";
 import { resolveOpenGraphImage } from "@/sanity/lib/utils";
 
 type Props = {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 };
 
-const postSlugs = groq`*[_type == "post"]{slug}`;
+const postSlugs = defineQuery(
+  `*[_type == "post" && defined(slug.current)]{"slug": slug.current}`,
+);
 
 export async function generateStaticParams() {
-  const params = await sanityFetch<PostSlugsResult>({
+  return await sanityFetch({
     query: postSlugs,
     perspective: "published",
     stega: false,
   });
-  return params.map(({ slug }) => ({ slug: slug?.current }));
 }
 
 export async function generateMetadata(
   { params }: Props,
   parent: ResolvingMetadata,
 ): Promise<Metadata> {
-  const post = await sanityFetch<PostQueryResult>({
+  const post = await sanityFetch({
     query: postQuery,
     params,
     stega: false,
@@ -59,13 +56,8 @@ export async function generateMetadata(
 
 export default async function PostPage({ params }: Props) {
   const [post, settings] = await Promise.all([
-    sanityFetch<PostQueryResult>({
-      query: postQuery,
-      params,
-    }),
-    sanityFetch<SettingsQueryResult>({
-      query: settingsQuery,
-    }),
+    sanityFetch({ query: postQuery, params }),
+    sanityFetch({ query: settingsQuery }),
   ]);
 
   if (!post?._id) {

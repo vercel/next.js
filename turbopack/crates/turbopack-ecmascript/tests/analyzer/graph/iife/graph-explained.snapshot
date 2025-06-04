@@ -1,0 +1,13 @@
+a = FreeVar(require)
+
+b = a
+
+c = b
+
+d = a
+
+e = d
+
+f = a
+
+g = f

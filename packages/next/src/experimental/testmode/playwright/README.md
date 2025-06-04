@@ -35,7 +35,7 @@ import { defineConfig } from 'next/experimental/testmode/playwright'
 
 export default defineConfig({
   webServer: {
-    command: 'npm dev',
+    command: 'npm run dev',
     url: 'http://localhost:3000',
   },
 })
@@ -44,9 +44,16 @@ export default defineConfig({
 ### Use the `next/experimental/testmode/playwright` to create tests
 
 ```javascript
+// Place this file in the `app` directory and name it with `.spec.ts`.
+// To customize where to put tests, add `testMatch` to `playwright.config.ts`.
+
 import { test, expect } from 'next/experimental/testmode/playwright'
 
 test('/product/shoe', async ({ page, next }) => {
+  // NOTE: `next.onFetch` only intercepts external `fetch` requests (for both client and server).
+  // For example, if you `fetch` a relative URL (e.g. `/api/hello`) from the client
+  // that's handled by a Next.js route handler (e.g. `app/api/hello/route.ts`),
+  // it won't be intercepted.
   next.onFetch((request) => {
     if (request.url === 'http://my-db/product/shoe') {
       return new Response(
@@ -72,30 +79,37 @@ test('/product/shoe', async ({ page, next }) => {
 ### Or use the `next/experimental/testmode/playwright/msw`
 
 ```javascript
-import { test, expect, rest } from 'next/experimental/testmode/playwright/msw'
+import {
+  test,
+  expect,
+  http,
+  HttpResponse,
+  passthrough,
+} from 'next/experimental/testmode/playwright/msw'
 
 test.use({
   mswHandlers: [
-    rest.get('http://my-db/product/shoe', (req, res, ctx) => {
-      return res(
-        ctx.status(200),
-        ctx.json({
+    [
+      http.get('http://my-db/product/shoe', () => {
+        return HttpResponse.json({
           title: 'A shoe',
         })
-      )
-    }),
+      }),
+      // allow all non-mocked routes to pass through
+      http.all('*', () => {
+        return passthrough()
+      }),
+    ],
+    { scope: 'test' }, // or 'worker'
   ],
 })
 
 test('/product/shoe', async ({ page, msw }) => {
   msw.use(
-    rest.get('http://my-db/product/boot', (req, res, ctx) => {
-      return res.once(
-        ctx.status(200),
-        ctx.json({
-          title: 'A boot',
-        })
-      )
+    http.get('http://my-db/product/boot', () => {
+      return HttpResponse.json({
+        title: 'A boot',
+      })
     })
   )
 

@@ -3,16 +3,19 @@
 import cheerio from 'cheerio'
 import validateHTML from 'html-validator'
 import {
+  assertHasRedbox,
+  assertNoRedbox,
   check,
   fetchViaHTTP,
   findPort,
+  getImagesManifest,
   getRedboxHeader,
-  hasRedbox,
   killApp,
   launchApp,
   nextBuild,
   nextStart,
   renderViaHTTP,
+  retry,
   waitFor,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
@@ -70,7 +73,7 @@ function getRatio(width, height) {
   return height / width
 }
 
-function runTests(mode) {
+function runTests(mode: 'dev' | 'server') {
   it('should load the images', async () => {
     let browser
     try {
@@ -142,7 +145,7 @@ function runTests(mode) {
             '/_next/image?url=%2Ftest.webp&w=640&q=75 1x, /_next/image?url=%2Ftest.webp&w=828&q=75 2x'
         )
       ).toEqual({
-        fetchpriority: 'high',
+        fetchpriority: '',
         imagesizes: '',
         imagesrcset:
           '/_next/image?url=%2Ftest.webp&w=640&q=75 1x, /_next/image?url=%2Ftest.webp&w=828&q=75 2x',
@@ -157,7 +160,7 @@ function runTests(mode) {
             '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w'
         )
       ).toEqual({
-        fetchpriority: 'high',
+        fetchpriority: '',
         imagesizes: '100vw',
         imagesrcset:
           '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w',
@@ -172,7 +175,7 @@ function runTests(mode) {
             '/_next/image?url=%2Ftest.png&w=640&q=75 1x, /_next/image?url=%2Ftest.png&w=828&q=75 2x'
         )
       ).toEqual({
-        fetchpriority: 'high',
+        fetchpriority: '',
         imagesizes: '',
         imagesrcset:
           '/_next/image?url=%2Ftest.png&w=640&q=75 1x, /_next/image?url=%2Ftest.png&w=828&q=75 2x',
@@ -187,7 +190,7 @@ function runTests(mode) {
             '/_next/image?url=%2Ftest.tiff&w=640&q=75 1x, /_next/image?url=%2Ftest.tiff&w=828&q=75 2x'
         )
       ).toEqual({
-        fetchpriority: 'high',
+        fetchpriority: '',
         imagesizes: '',
         imagesrcset:
           '/_next/image?url=%2Ftest.tiff&w=640&q=75 1x, /_next/image?url=%2Ftest.tiff&w=828&q=75 2x',
@@ -209,19 +212,19 @@ function runTests(mode) {
         await browser.elementById('responsive2').getAttribute('loading')
       ).toBe(null)
 
-      // When priority={true}, we should set fetchpriority="high"
+      // When priority={true}, we should not set fetchpriority="high"
       expect(
         await browser.elementById('basic-image').getAttribute('fetchpriority')
-      ).toBe('high')
+      ).toBe(null)
       expect(
         await browser.elementById('load-eager').getAttribute('fetchpriority')
       ).toBe(null)
       expect(
         await browser.elementById('responsive1').getAttribute('fetchpriority')
-      ).toBe('high')
+      ).toBe(null)
       expect(
         await browser.elementById('responsive2').getAttribute('fetchpriority')
-      ).toBe('high')
+      ).toBe(null)
 
       // Setting fetchPriority="low" directly should pass-through to <img>
       expect(
@@ -233,7 +236,7 @@ function runTests(mode) {
 
       expect(
         await browser.elementById('belowthefold').getAttribute('fetchpriority')
-      ).toBe('high')
+      ).toBe(null)
       expect(
         await browser.elementById('belowthefold').getAttribute('loading')
       ).toBe(null)
@@ -798,7 +801,7 @@ function runTests(mode) {
       'position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;object-fit:cover;object-position:10% 10%;color:transparent'
     )
     if (mode === 'dev') {
-      expect(await hasRedbox(browser)).toBe(false)
+      await assertNoRedbox(browser)
       const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
@@ -830,7 +833,7 @@ function runTests(mode) {
       'color:transparent;width:100%;height:auto'
     )
     if (mode === 'dev') {
-      expect(await hasRedbox(browser)).toBe(false)
+      await assertNoRedbox(browser)
       const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
@@ -859,7 +862,7 @@ function runTests(mode) {
     expect(await img.getAttribute('alt')).toBe('Hero')
     expect(await img.getAttribute('width')).toBe('400')
     expect(await img.getAttribute('height')).toBe('400')
-    expect(await img.getAttribute('fetchPriority')).toBe('high')
+    expect(await img.getAttribute('fetchPriority')).toBeNull()
     expect(await img.getAttribute('sizes')).toBeNull()
     expect(await img.getAttribute('src')).toBe(
       '/_next/image?url=%2Ftest_light.png&w=828&q=75'
@@ -880,7 +883,7 @@ function runTests(mode) {
     it('should show missing src error', async () => {
       const browser = await webdriver(appPort, '/missing-src')
 
-      expect(await hasRedbox(browser)).toBe(false)
+      await assertNoRedbox(browser)
 
       await check(async () => {
         return (await browser.log()).map((log) => log.message).join('\n')
@@ -890,17 +893,29 @@ function runTests(mode) {
     it('should show empty string src error', async () => {
       const browser = await webdriver(appPort, '/empty-string-src')
 
-      expect(await hasRedbox(browser)).toBe(false)
+      await assertNoRedbox(browser)
 
       await check(async () => {
         return (await browser.log()).map((log) => log.message).join('\n')
       }, /Image is missing required "src" property/gm)
     })
 
+    it('should show null src error', async () => {
+      const browser = await webdriver(appPort, '/invalid-src-null')
+
+      await assertNoRedbox(browser)
+
+      await retry(async () => {
+        expect(
+          (await browser.log()).map((log) => log.message).join('\n')
+        ).toMatch(/Image is missing required "src" property/gm)
+      })
+    })
+
     it('should show invalid src error', async () => {
       const browser = await webdriver(appPort, '/invalid-src')
 
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         'Invalid src prop (https://google.com/test.png) on `next/image`, hostname "google.com" is not configured under images in your `next.config.js`'
       )
@@ -909,7 +924,7 @@ function runTests(mode) {
     it('should show invalid src error when protocol-relative', async () => {
       const browser = await webdriver(appPort, '/invalid-src-proto-relative')
 
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         'Failed to parse src "//assets.example.com/img.jpg" on `next/image`, protocol-relative URL (//) must be changed to an absolute URL (http:// or https://)'
       )
@@ -917,7 +932,7 @@ function runTests(mode) {
 
     it('should show invalid src with leading space', async () => {
       const browser = await webdriver(appPort, '/invalid-src-leading-space')
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         'Image with src " /test.jpg" cannot start with a space or control character.'
       )
@@ -925,7 +940,7 @@ function runTests(mode) {
 
     it('should show invalid src with trailing space', async () => {
       const browser = await webdriver(appPort, '/invalid-src-trailing-space')
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         'Image with src "/test.png " cannot end with a space or control character.'
       )
@@ -934,7 +949,7 @@ function runTests(mode) {
     it('should show error when string src and placeholder=blur and blurDataURL is missing', async () => {
       const browser = await webdriver(appPort, '/invalid-placeholder-blur')
 
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         `Image with src "/test.png" has "placeholder='blur'" property but is missing the "blurDataURL" property.`
       )
@@ -943,7 +958,7 @@ function runTests(mode) {
     it('should show error when invalid width prop', async () => {
       const browser = await webdriver(appPort, '/invalid-width')
 
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         `Image with src "/test.jpg" has invalid "width" property. Expected a numeric value in pixels but received "100%".`
       )
@@ -952,7 +967,7 @@ function runTests(mode) {
     it('should show error when invalid Infinity width prop', async () => {
       const browser = await webdriver(appPort, '/invalid-Infinity-width')
 
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         `Image with src "/test.jpg" has invalid "width" property. Expected a numeric value in pixels but received "Infinity".`
       )
@@ -961,7 +976,7 @@ function runTests(mode) {
     it('should show error when invalid height prop', async () => {
       const browser = await webdriver(appPort, '/invalid-height')
 
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         `Image with src "/test.jpg" has invalid "height" property. Expected a numeric value in pixels but received "50vh".`
       )
@@ -970,7 +985,7 @@ function runTests(mode) {
     it('should show missing alt error', async () => {
       const browser = await webdriver(appPort, '/missing-alt')
 
-      expect(await hasRedbox(browser)).toBe(false)
+      await assertNoRedbox(browser)
 
       await check(async () => {
         return (await browser.log()).map((log) => log.message).join('\n')
@@ -980,7 +995,7 @@ function runTests(mode) {
     it('should show error when missing width prop', async () => {
       const browser = await webdriver(appPort, '/missing-width')
 
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         `Image with src "/test.jpg" is missing required "width" property.`
       )
@@ -989,7 +1004,7 @@ function runTests(mode) {
     it('should show error when missing height prop', async () => {
       const browser = await webdriver(appPort, '/missing-height')
 
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         `Image with src "/test.jpg" is missing required "height" property.`
       )
@@ -998,7 +1013,7 @@ function runTests(mode) {
     it('should show error when width prop on fill image', async () => {
       const browser = await webdriver(appPort, '/invalid-fill-width')
 
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         `Image with src "/wide.png" has both "width" and "fill" properties.`
       )
@@ -1007,7 +1022,7 @@ function runTests(mode) {
     it('should show error when CSS position changed on fill image', async () => {
       const browser = await webdriver(appPort, '/invalid-fill-position')
 
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         `Image with src "/wide.png" has both "fill" and "style.position" properties. Images with "fill" always use position absolute - it cannot be modified.`
       )
@@ -1019,7 +1034,7 @@ function runTests(mode) {
         '/invalid-placeholder-blur-static'
       )
 
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toMatch(
         /Image with src "(.*)bmp" has "placeholder='blur'" property but is missing the "blurDataURL" property/
       )
@@ -1031,7 +1046,7 @@ function runTests(mode) {
       const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
-      expect(await hasRedbox(browser)).toBe(false)
+      await assertNoRedbox(browser)
       expect(warnings).toMatch(
         /Image with src (.*)jpg(.*) is smaller than 40x40. Consider removing(.*)/gm
       )
@@ -1043,7 +1058,7 @@ function runTests(mode) {
       const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
-      expect(await hasRedbox(browser)).toBe(false)
+      await assertNoRedbox(browser)
       expect(warnings).not.toMatch(
         /Expected server HTML to contain a matching/gm
       )
@@ -1067,7 +1082,7 @@ function runTests(mode) {
         const warnings = (await browser.log())
           .map((log) => log.message)
           .join('\n')
-        expect(await hasRedbox(browser)).toBe(false)
+        await assertNoRedbox(browser)
         expect(warnings).toMatch(
           /Image with src (.*)test(.*) was detected as the Largest Contentful Paint/gm
         )
@@ -1082,7 +1097,7 @@ function runTests(mode) {
       const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
-      expect(await hasRedbox(browser)).toBe(false)
+      await assertNoRedbox(browser)
       expect(warnings).toMatch(
         /Image with src (.*)png(.*) has a "loader" property that does not implement width/gm
       )
@@ -1105,7 +1120,7 @@ function runTests(mode) {
       const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
-      expect(await hasRedbox(browser)).toBe(false)
+      await assertNoRedbox(browser)
       expect(warnings).not.toMatch(
         /Image with src (.*) has "fill" but is missing "sizes" prop. Please add it to improve page performance/gm
       )
@@ -1117,7 +1132,7 @@ function runTests(mode) {
       const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
-      expect(await hasRedbox(browser)).toBe(false)
+      await assertNoRedbox(browser)
       expect(warnings).not.toMatch(
         /Image with src (.*) has a "loader" property that does not implement width/gm
       )
@@ -1482,7 +1497,7 @@ function runTests(mode) {
     )
 
     expect($('#data-url-placeholder-fit-fill')[0].attribs.style).toBe(
-      `position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;object-fit:fill;color:transparent;background-size:fill;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;base64,Cjxzdmcgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiAgPGRlZnM+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImciPgogICAgICA8c3RvcCBzdG9wLWNvbG9yPSIjMzMzIiBvZmZzZXQ9IjIwJSIgLz4KICAgICAgPHN0b3Agc3RvcC1jb2xvcj0iIzIyMiIgb2Zmc2V0PSI1MCUiIC8+CiAgICAgIDxzdG9wIHN0b3AtY29sb3I9IiMzMzMiIG9mZnNldD0iNzAlIiAvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICA8L2RlZnM+CiAgPHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiMzMzMiIC8+CiAgPHJlY3QgaWQ9InIiIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiBmaWxsPSJ1cmwoI2cpIiAvPgogIDxhbmltYXRlIHhsaW5rOmhyZWY9IiNyIiBhdHRyaWJ1dGVOYW1lPSJ4IiBmcm9tPSItMjAwIiB0bz0iMjAwIiBkdXI9IjFzIiByZXBlYXRDb3VudD0iaW5kZWZpbml0ZSIgIC8+Cjwvc3ZnPg==")`
+      `position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;object-fit:fill;color:transparent;background-size:100% 100%;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;base64,Cjxzdmcgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiAgPGRlZnM+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImciPgogICAgICA8c3RvcCBzdG9wLWNvbG9yPSIjMzMzIiBvZmZzZXQ9IjIwJSIgLz4KICAgICAgPHN0b3Agc3RvcC1jb2xvcj0iIzIyMiIgb2Zmc2V0PSI1MCUiIC8+CiAgICAgIDxzdG9wIHN0b3AtY29sb3I9IiMzMzMiIG9mZnNldD0iNzAlIiAvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICA8L2RlZnM+CiAgPHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiMzMzMiIC8+CiAgPHJlY3QgaWQ9InIiIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiBmaWxsPSJ1cmwoI2cpIiAvPgogIDxhbmltYXRlIHhsaW5rOmhyZWY9IiNyIiBhdHRyaWJ1dGVOYW1lPSJ4IiBmcm9tPSItMjAwIiB0bz0iMjAwIiBkdXI9IjFzIiByZXBlYXRDb3VudD0iaW5kZWZpbml0ZSIgIC8+Cjwvc3ZnPg==")`
     )
   })
 
@@ -1548,7 +1563,7 @@ function runTests(mode) {
     )
 
     expect($('#fit-fill')[0].attribs.style).toBe(
-      `position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;object-fit:fill;color:transparent;background-size:fill;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' %3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3CfeColorMatrix values='1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 100 -1' result='s'/%3E%3CfeFlood x='0' y='0' width='100%25' height='100%25'/%3E%3CfeComposite operator='out' in='s'/%3E%3CfeComposite in2='SourceGraphic'/%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3C/filter%3E%3Cimage width='100%25' height='100%25' x='0' y='0' preserveAspectRatio='none' style='filter: url(%23b);' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAFCAAAAABd+vKJAAAANklEQVR42mNg4GRwdWBgZ2BgUGI4dYhBmYFBgiHy308PBlEGKYbr//9fYJBlYDBYv3nzGkUGANGMDBq2MCnBAAAAAElFTkSuQmCC'/%3E%3C/svg%3E")`
+      `position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;object-fit:fill;color:transparent;background-size:100% 100%;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' %3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3CfeColorMatrix values='1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 100 -1' result='s'/%3E%3CfeFlood x='0' y='0' width='100%25' height='100%25'/%3E%3CfeComposite operator='out' in='s'/%3E%3CfeComposite in2='SourceGraphic'/%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3C/filter%3E%3Cimage width='100%25' height='100%25' x='0' y='0' preserveAspectRatio='none' style='filter: url(%23b);' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAFCAAAAABd+vKJAAAANklEQVR42mNg4GRwdWBgZ2BgUGI4dYhBmYFBgiHy308PBlEGKYbr//9fYJBlYDBYv3nzGkUGANGMDBq2MCnBAAAAAElFTkSuQmCC'/%3E%3C/svg%3E")`
     )
   })
 
@@ -1573,6 +1588,51 @@ function runTests(mode) {
       }
     }
   })
+
+  it('should call callback ref cleanups when unmounting', async () => {
+    const browser = await webdriver(appPort, '/ref-cleanup')
+    const getLogs = async () => (await browser.log()).map((log) => log.message)
+
+    await retry(async () => {
+      expect(await getLogs()).toContain('callback ref was cleaned up')
+    })
+
+    expect(await getLogs()).not.toContain(
+      'callback refs that returned a cleanup should never be called with null'
+    )
+  })
+
+  if (mode === 'server') {
+    it('should build correct images-manifest.json', async () => {
+      const manifest = getImagesManifest(appDir)
+      expect(manifest).toEqual({
+        version: 1,
+        images: {
+          contentDispositionType: 'attachment',
+          contentSecurityPolicy:
+            "script-src 'none'; frame-src 'none'; sandbox;",
+          dangerouslyAllowSVG: false,
+          deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+          disableStaticImages: false,
+          domains: [],
+          formats: ['image/webp'],
+          imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+          loader: 'default',
+          loaderFile: '',
+          remotePatterns: [],
+          localPatterns: undefined,
+          minimumCacheTTL: 60,
+          path: '/_next/image',
+          qualities: undefined,
+          sizes: [
+            640, 750, 828, 1080, 1200, 1920, 2048, 3840, 16, 32, 48, 64, 96,
+            128, 256, 384,
+          ],
+          unoptimized: false,
+        },
+      })
+    })
+  }
 }
 
 describe('Image Component Default Tests', () => {

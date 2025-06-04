@@ -1,4 +1,8 @@
-export default function DynamicLayout({ children, params }) {
+export default async function DynamicLayout(props) {
+  const params = await props.params
+
+  const { children } = props
+
   return (
     <>
       <h1>

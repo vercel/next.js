@@ -1,6 +1,7 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { relative } from 'path'
 import { SimpleWebpackError } from './simpleWebpackError'
+import { getAppLoader } from '../../../entries'
 
 export function getNextAppLoaderError(
   err: Error,
@@ -8,7 +9,7 @@ export function getNextAppLoaderError(
   compiler: webpack.Compiler
 ): SimpleWebpackError | false {
   try {
-    if (!module.loaders[0].loader.includes('next-app-loader.js')) {
+    if (!module.loaders[0].loader.includes(getAppLoader())) {
       return false
     }
 

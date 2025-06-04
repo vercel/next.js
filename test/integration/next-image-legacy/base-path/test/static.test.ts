@@ -69,7 +69,7 @@ const runTests = (isDev = false) => {
     expect(html).not.toContain('width:400px;height:400px')
   })
   it('Should add a blur placeholder to statically imported jpg', async () => {
-    if (process.env.TURBOPACK) {
+    if (process.env.IS_TURBOPACK_TEST) {
       expect(html).toContain(
         `style="position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%;background-size:cover;background-position:0% 0%;filter:blur(20px);background-image:url(&quot;data:image/jpeg;base64`
       )
@@ -84,7 +84,7 @@ const runTests = (isDev = false) => {
     }
   })
   it('Should add a blur placeholder to statically imported png', async () => {
-    if (process.env.TURBOPACK) {
+    if (process.env.IS_TURBOPACK_TEST) {
       expect(html).toContain(
         `style="position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%;background-size:cover;background-position:0% 0%;filter:blur(20px);background-image:url(&quot;data:image/png;base64`
       )
@@ -117,7 +117,7 @@ describe('Build Error Tests for basePath', () => {
           "Module not found: Can't resolve '../public/foo/test-rect-broken.jpg"
         )
         // should contain the importing module
-        expect(stderr).toContain('./pages/static-img.js')
+        expect(stderr).toContain('pages/static-img.js')
       })
     }
   )
@@ -133,8 +133,8 @@ describe('Static Image Component Tests for basePath', () => {
         html = await renderViaHTTP(appPort, '/docs/static-img')
         browser = await webdriver(appPort, '/docs/static-img')
       })
-      afterAll(() => {
-        killApp(app)
+      afterAll(async () => {
+        await killApp(app)
       })
       runTests()
     }
@@ -148,8 +148,8 @@ describe('Static Image Component Tests for basePath', () => {
         html = await renderViaHTTP(appPort, '/docs/static-img')
         browser = await webdriver(appPort, '/docs/static-img')
       })
-      afterAll(() => {
-        killApp(app)
+      afterAll(async () => {
+        await killApp(app)
       })
       runTests(true)
     }

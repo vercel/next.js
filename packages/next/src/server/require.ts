@@ -1,6 +1,5 @@
 import path from 'path'
 import {
-  AUTOMATIC_FONT_OPTIMIZATION_MANIFEST,
   PAGES_MANIFEST,
   SERVER_DIRECTORY,
   APP_PATHS_MANIFEST,
@@ -10,22 +9,17 @@ import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { PageNotFoundError, MissingStaticPage } from '../shared/lib/utils'
-import LRUCache from 'next/dist/compiled/lru-cache'
-import { loadManifest } from './load-manifest'
+import { LRUCache } from '../server/lib/lru-cache'
+import { loadManifest } from './load-manifest.external'
 import { promises } from 'fs'
-import type { FontManifest } from './font-utils'
 
 const isDev = process.env.NODE_ENV === 'development'
-const pagePathCache = !isDev
-  ? new LRUCache<string, string | null>({
-      max: 1000,
-    })
-  : null
+const pagePathCache = !isDev ? new LRUCache<string | null>(1000) : null
 
 export function getMaybePagePath(
   page: string,
   distDir: string,
-  locales: string[] | undefined,
+  locales: readonly string[] | undefined,
   isAppPath: boolean
 ): string | null {
   const cacheKey = `${page}:${distDir}:${locales}:${isAppPath}`
@@ -117,24 +111,9 @@ export async function requirePage(
     })
   }
 
-  // since require is synchronous we can set the specific runtime
-  // we are requiring for the require-hook and then clear after
-  try {
-    process.env.__NEXT_PRIVATE_RUNTIME_TYPE = isAppPath ? 'app' : 'pages'
-    const mod = process.env.NEXT_MINIMAL
-      ? // @ts-ignore
-        __non_webpack_require__(pagePath)
-      : require(pagePath)
-    return mod
-  } finally {
-    process.env.__NEXT_PRIVATE_RUNTIME_TYPE = ''
-  }
-}
-
-export function requireFontManifest(distDir: string) {
-  const serverBuildPath = path.join(distDir, SERVER_DIRECTORY)
-  const fontManifest = loadManifest(
-    path.join(serverBuildPath, AUTOMATIC_FONT_OPTIMIZATION_MANIFEST)
-  ) as FontManifest
-  return fontManifest
+  const mod = process.env.NEXT_MINIMAL
+    ? // @ts-ignore
+      __non_webpack_require__(pagePath)
+    : require(pagePath)
+  return mod
 }

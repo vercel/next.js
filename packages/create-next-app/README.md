@@ -31,7 +31,7 @@ You can also pass command line arguments to set up a new project
 non-interactively. See `create-next-app --help`:
 
 ```bash
-Usage: create-next-app <project-directory> [options]
+Usage: create-next-app [project-directory] [options]
 
 Options:
   -V, --version                        output the version number
@@ -59,7 +59,7 @@ Options:
 
     Initialize inside a `src/` directory.
 
-  --turbo
+  --turbopack
 
     Enable Turbopack by default for development.
 
@@ -67,26 +67,30 @@ Options:
 
     Specify import alias to use (default "@/*").
 
+  --empty
+
+    Initialize an empty project.
+
   --use-npm
 
-    Explicitly tell the CLI to bootstrap the app using npm
+    Explicitly tell the CLI to bootstrap the application using npm
 
   --use-pnpm
 
-    Explicitly tell the CLI to bootstrap the app using pnpm
+    Explicitly tell the CLI to bootstrap the application using pnpm
 
   --use-yarn
 
-    Explicitly tell the CLI to bootstrap the app using Yarn
+    Explicitly tell the CLI to bootstrap the application using Yarn
 
   --use-bun
 
-    Explicitly tell the CLI to bootstrap the app using Bun
+    Explicitly tell the CLI to bootstrap the application using Bun
 
   -e, --example [name]|[github-url]
 
     An example to bootstrap the app with. You can use an example name
-    from the official Next.js repo or a public GitHub URL. The URL can use
+    from the official Next.js repo or a GitHub URL. The URL can use
     any branch and/or subdirectory
 
   --example-path <path-to-example>
@@ -100,7 +104,20 @@ Options:
 
     Explicitly tell the CLI to reset any stored preferences
 
-  -h, --help                           output usage information
+  --skip-install
+
+    Explicitly tell the CLI to skip installing packages
+
+  --disable-git
+
+    Explicitly tell the CLI to skip initializing a git repository.
+
+  --yes
+
+    Use previous preferences or defaults for all options that were not
+    explicitly specified, without prompting.
+
+  -h, --help                           display help for command
 ```
 
 ### Why use Create Next App?
@@ -110,5 +127,5 @@ Options:
 - **Interactive Experience**: Running `npx create-next-app@latest` (with no arguments) launches an interactive experience that guides you through setting up a project.
 - **Zero Dependencies**: Initializing a project is as quick as one second. Create Next App has zero dependencies.
 - **Offline Support**: Create Next App will automatically detect if you're offline and bootstrap your project using your local package cache.
-- **Support for Examples**: Create Next App can bootstrap your application using an example from the Next.js examples collection (e.g. `npx create-next-app --example api-routes`).
+- **Support for Examples**: Create Next App can bootstrap your application using an example from the Next.js examples collection (e.g. `npx create-next-app --example route-handlers`).
 - **Tested**: The package is part of the Next.js monorepo and tested using the same integration test suite as Next.js itself, ensuring it works as expected with every release.

@@ -1,23 +1,14 @@
 /* eslint-env jest */
 import { nextTestSetup, isNextDev } from 'e2e-utils'
-import { getRedboxSource, hasRedbox, retry } from 'next-test-utils'
-import * as fs from 'fs'
-import * as path from 'path'
-import * as os from 'os'
+import { assertHasRedbox, getRedboxSource, retry } from 'next-test-utils'
 import * as Log from './utils/log'
 
-// using unstable_after is a compile-time error in build mode.
+// using after is a compile-time error in build mode.
 const _describe = isNextDev ? describe : describe.skip
 
-_describe('unstable_after() - pages', () => {
-  const logFileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'logs-'))
-  const logFile = path.join(logFileDir, 'logs.jsonl')
-
+_describe('after() - pages', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    env: {
-      PERSISTENT_LOG_FILE: logFile,
-    },
   })
 
   let currentCliOutputIndex = 0
@@ -69,9 +60,9 @@ _describe('unstable_after() - pages', () => {
       ])('$title', async ({ path }) => {
         const browser = await next.browser(path)
 
-        expect(await hasRedbox(browser)).toBe(true)
+        await assertHasRedbox(browser)
         expect(await getRedboxSource(browser)).toMatch(
-          /You're importing a component that needs "?unstable_after"?\. That only works in a Server Component which is not supported in the pages\/ directory\./
+          /You're importing a component that needs "?after"?\. That only works in a Server Component which is not supported in the pages\/ directory\./
         )
         expect(getLogs()).toHaveLength(0)
       })

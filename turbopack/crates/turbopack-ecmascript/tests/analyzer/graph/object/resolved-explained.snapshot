@@ -1,0 +1,157 @@
+a = (1 | ???*0*)
+- *0* unknown mutation
+  ⚠️  This value might have side effects
+
+a1 = (1 | ???*0*)
+- *0* unknown mutation
+  ⚠️  This value might have side effects
+
+a2 = (1 | ???*0*)
+- *0* unknown mutation
+  ⚠️  This value might have side effects
+
+a3 = (1 | ???*0*)
+- *0* unknown mutation
+  ⚠️  This value might have side effects
+
+a4 = (1 | ???*0*)
+- *0* unknown mutation
+  ⚠️  This value might have side effects
+
+a5 = ???*0*
+- *0* {"a": 1, ...???*1*, "b": 2}["a"]
+  ⚠️  spread object
+  ⚠️  This value might have side effects
+- *1* FreeVar(global)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+a6 = (1 | 2 | 4 | ???*0*)
+- *0* unknown mutation
+  ⚠️  This value might have side effects
+
+b = (2 | ???*0*)
+- *0* unknown mutation
+  ⚠️  This value might have side effects
+
+b1 = (2 | ???*0*)
+- *0* unknown mutation
+  ⚠️  This value might have side effects
+
+b2 = (2 | ???*0*)
+- *0* unknown mutation
+  ⚠️  This value might have side effects
+
+b3 = (22 | ???*0*)
+- *0* unknown mutation
+  ⚠️  This value might have side effects
+
+b4 = (2 | ???*0*)
+- *0* unknown mutation
+  ⚠️  This value might have side effects
+
+b5 = (2 | ???*0*)
+- *0* unknown mutation
+  ⚠️  This value might have side effects
+
+b6 = (2 | 4 | ???*0* | ???*1*)
+- *0* {}["b"]
+  ⚠️  unknown object prototype methods or values
+  ⚠️  This value might have side effects
+- *1* unknown mutation
+  ⚠️  This value might have side effects
+
+c = (3 | ???*0*)
+- *0* unknown mutation
+  ⚠️  This value might have side effects
+
+c1 = (3 | ???*0*)
+- *0* unknown mutation
+  ⚠️  This value might have side effects
+
+c2 = (3 | ???*0*)
+- *0* unknown mutation
+  ⚠️  This value might have side effects
+
+c3 = (3 | ???*0*)
+- *0* unknown mutation
+  ⚠️  This value might have side effects
+
+c4 = (3 | ???*0*)
+- *0* unknown mutation
+  ⚠️  This value might have side effects
+
+c5 = ???*0*
+- *0* {"a": 1, ...???*1*, "b": 2}["c"]
+  ⚠️  spread object
+  ⚠️  This value might have side effects
+- *1* FreeVar(global)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+c6 = (3 | 4 | ???*0*)
+- *0* unknown mutation
+  ⚠️  This value might have side effects
+
+d = (???*0* | ???*1*)
+- *0* FreeVar(undefined)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *1* unknown mutation
+  ⚠️  This value might have side effects
+
+d1 = (???*0* | ???*1*)
+- *0* FreeVar(undefined)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *1* unknown mutation
+  ⚠️  This value might have side effects
+
+d2 = (???*0* | ???*1*)
+- *0* FreeVar(undefined)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *1* unknown mutation
+  ⚠️  This value might have side effects
+
+d3 = (???*0* | ???*1*)
+- *0* FreeVar(undefined)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *1* unknown mutation
+  ⚠️  This value might have side effects
+
+d4 = (???*0* | ???*1*)
+- *0* FreeVar(undefined)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *1* unknown mutation
+  ⚠️  This value might have side effects
+
+d6 = (2 | 4 | ???*0* | ???*1*)
+- *0* {}["d"]
+  ⚠️  unknown object prototype methods or values
+  ⚠️  This value might have side effects
+- *1* unknown mutation
+  ⚠️  This value might have side effects
+
+e6 = (5 | ???*0*)
+- *0* unknown mutation
+  ⚠️  This value might have side effects
+
+object = {"a": 1, "b": 2, "c": 3}
+
+object2 = {"a": 1, ???*0*: 2, "c": 3, ???*1*: 4, "e": 5}
+- *0* FreeVar(global)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *1* FreeVar(global)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+object_spread = {"a": 11, "a": 1, "b": 2, "c": 3, "b": 22}
+
+unknown_spread = {"a": 1, ...???*0*, "b": 2}
+- *0* FreeVar(global)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects

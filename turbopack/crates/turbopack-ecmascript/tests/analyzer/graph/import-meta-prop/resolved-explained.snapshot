@@ -1,0 +1,2 @@
+x = import.meta*0*["prop"]
+- *0* import.meta: The import.meta object

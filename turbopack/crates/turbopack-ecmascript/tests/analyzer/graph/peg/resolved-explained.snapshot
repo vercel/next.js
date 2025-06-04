@@ -1,0 +1,3747 @@
+*anonymous function 10064* = (...) => "OR"
+
+*anonymous function 10192* = (...) => "NOT"
+
+*anonymous function 10796* = (...) => {"type": "identifier", "name": name}
+
+*anonymous function 11187* = (...) => (head + tail["join"](""))
+
+*anonymous function 11339* = (...) => {"type": "parameter_name", "name": text()}
+
+*anonymous function 11668* = (...) => text()
+
+*anonymous function 11725* = (...) => seq
+
+*anonymous function 11890* = (...) => "\b"
+
+*anonymous function 12016* = (...) => "\f"
+
+*anonymous function 12142* = (...) => "\n"
+
+*anonymous function 12268* = (...) => "\r"
+
+*anonymous function 12394* = (...) => "\t"
+
+*anonymous function 12449* = (...) => text()
+
+*anonymous function 12577* = (...) => FreeVar(String)["fromCharCode"](FreeVar(parseInt)(digits, 16))
+
+*anonymous function 1271* = (...) => "any character"
+
+*anonymous function 12829* = (...) => v
+
+*anonymous function 12892* = (...) => {"property": property, "alias": alias}
+
+*anonymous function 12977* = (...) => expression
+
+*anonymous function 13048* = (...) => {"type": "array_subquery_expression", "expression": expression}
+
+*anonymous function 13181* = (...) => {"type": "exists_subquery_expression", "expression": expression}
+
+*anonymous function 13315* = (...) => {"type": "scalar_subquery_expression", "expression": expression}
+
+*anonymous function 1343* = (...) => "end of input"
+
+*anonymous function 13449* = (...) => {"property": property, "computed": false}
+
+*anonymous function 13543* = (...) => {"property": property, "computed": true}
+
+*anonymous function 13636* = (...) => tail["reduce"](*arrow function 13694*, head)
+
+*anonymous function 13891* = (...) => {"type": "scalar_unary_expression", "operator": operator, "argument": argument}
+
+*anonymous function 1416* = (...) => expectation["description"]
+
+*anonymous function 14188* = (...) => {
+    "type": "scalar_conditional_expression",
+    "test": test,
+    "consequent": consequent,
+    "alternate": alternate
+}
+
+*anonymous function 14448* = (...) => buildBinaryExpression(head, tail)
+
+*anonymous function 15047* = (...) => {"type": "scalar_in_expression", "value": value, "list": list}
+
+*anonymous function 15185* = (...) => {"type": "scalar_between_expression", "value": value, "begin": begin, "end": end}
+
+*anonymous function 15997* = (...) => {"key": key, "value": value}
+
+*anonymous function 16072* = (...) => {"type": "collection_expression", "expression": expression}
+
+*anonymous function 16201* = (...) => tail["reduce"](*arrow function 16259*, head)
+
+*anonymous function 16460* = (...) => {"type": "collection_subquery_expression", "expression": expression}
+
+*anonymous function 16598* = (...) => {"type": "top_specification", "value": value}
+
+*anonymous function 16713* = (...) => {"type": "number_constant", "value": FreeVar(Number)(text())}
+
+*anonymous function 16837* = (...) => (head ? ???*0* : [])
+- *0* spread is not supported
+  ⚠️  This value might have side effects
+
+*anonymous function 16925* = (...) => subquery
+
+*anonymous function 1822* = (...) => `\x0${hex(ch)}`
+
+*anonymous function 1920* = (...) => `\x${hex(ch)}`
+
+*anonymous function 2287* = (...) => `\x0${hex(ch)}`
+
+*anonymous function 2385* = (...) => `\x${hex(ch)}`
+
+*anonymous function 3852* = (...) => {"type": "sql", "body": body}
+
+*anonymous function 3949* = (...) => v
+
+*anonymous function 4000* = (...) => v
+
+*anonymous function 4064* = (...) => v
+
+*anonymous function 4134* = (...) => v
+
+*anonymous function 4211* = (...) => {
+    "type": "select_query",
+    "top": top,
+    "select": select,
+    "from": from,
+    "where": where,
+    "orderBy": orderBy
+}
+
+*anonymous function 4474* = (...) => {"type": "select_specification", "*": true}
+
+*anonymous function 4589* = (...) => {"type": "select_specification", "properties": properties}
+
+*anonymous function 4716* = (...) => {"type": "select_specification", "value": value}
+
+*anonymous function 4902* = (...) => v
+
+*anonymous function 4960* = (...) => {"type": "object_property_list", "properties": ???*0*}
+- *0* spread is not supported
+  ⚠️  This value might have side effects
+
+*anonymous function 5104* = (...) => v
+
+*anonymous function 5164* = (...) => {"type": "from_specification", "source": source, "joins": joins}
+
+*anonymous function 5303* = (...) => {"type": "from_source", "expression": expression, "alias": alias, "iteration": true}
+
+*anonymous function 5468* = (...) => v
+
+*anonymous function 5532* = (...) => {"type": "from_source", "expression": expression, "alias": alias}
+
+*anonymous function 5672* = (...) => {"type": "filter_condition", "condition": condition}
+
+*anonymous function 5793* = (...) => {"type": "sort_specification", "expressions": ???*0*}
+- *0* spread is not supported
+  ⚠️  This value might have side effects
+
+*anonymous function 5936* = (...) => {"type": "sort_expression", "expression": expression, "order": order}
+
+*anonymous function 625* = (...) => `Expected ${describeExpected(expected)} but ${describeFound(found)} found.`
+
+*anonymous function 6287* = (...) => {"type": "scalar_function_expression", "name": name, "arguments": args, "udf": true}
+
+*anonymous function 6458* = (...) => {"type": "scalar_function_expression", "name": name, "arguments": args}
+
+*anonymous function 6748* = (...) => {"type": "scalar_object_expression", "properties": (head ? ???*0* : [])}
+- *0* spread is not supported
+  ⚠️  This value might have side effects
+
+*anonymous function 702* = (...) => `"${literalEscape(expectation["text"])}"`
+
+*anonymous function 7046* = (...) => {"type": "scalar_array_expression", "elements": elements}
+
+*anonymous function 7257* = (...) => {"type": "undefined_constant"}
+
+*anonymous function 7337* = (...) => {"type": "null_constant"}
+
+*anonymous function 7412* = (...) => {"type": "boolean_constant", "value": false}
+
+*anonymous function 7527* = (...) => {"type": "boolean_constant", "value": true}
+
+*anonymous function 7869* = (...) => {
+    "type": "number_constant",
+    "value": (hex ? FreeVar(parseInt)(text(), 16) : FreeVar(parseFloat)(text()))
+}
+
+*anonymous function 804* = (...) => `[${(expectation["inverted"] ? "^" : "")}${escapedParts}]`
+
+*anonymous function 8139* = (...) => {"type": "string_constant", "value": chars["join"]("")}
+
+*anonymous function 8336* = (...) => {"type": "array_constant", "elements": ???*0*}
+- *0* spread is not supported
+  ⚠️  This value might have side effects
+
+*anonymous function 8472* = (...) => {"type": "object_constant", "properties": ???*0*}
+- *0* spread is not supported
+  ⚠️  This value might have side effects
+
+*anonymous function 9682* = (...) => "ASC"
+
+*anonymous function 9811* = (...) => "DESC"
+
+*anonymous function 9939* = (...) => "AND"
+
+*arrow function 13694* = (...) => {"type": "scalar_member_expression", "object": object, "property": property, "computed": computed}
+
+*arrow function 16259* = (...) => {
+    "type": "collection_member_expression",
+    "object": object,
+    "property": property,
+    "computed": computed
+}
+
+*arrow function 169161* = (...) => {"type": "scalar_binary_expression", "left": left, "operator": operator, "right": right}
+
+DESCRIBE_EXPECTATION_FNS = {
+    "literal": (...) => `"${literalEscape(expectation["text"])}"`,
+    "class": (...) => `[${(expectation["inverted"] ? "^" : "")}${escapedParts}]`,
+    "any": (...) => "any character",
+    "end": (...) => "end of input",
+    "other": (...) => expectation["description"]
+}
+
+alias#42 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+alias#44 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+alias#78 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+alternate = ???*0*
+- *0* arguments[2]
+  ⚠️  function calls are not analysed yet
+
+args#48 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+args#49 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+argument = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+begin = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+body = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+buildBinaryExpression = (...) => tail["reduce"](*arrow function 169161*, head)
+
+ch#14 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+ch#16 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+ch#17 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+ch#19 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+ch#20 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+chars = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+child = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+classEscape = (...) => ...[...](..., ...)["replace"](/\]/g, "\\]")["replace"](/\^/g, "\\^")["replace"](/-/g, "\\-")["replace"](/\0/g, "\\0")["replace"](/\t/g, "\\t")["replace"](/\n/g, "\\n")["replace"](/\r/g, "\\r")["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
+
+computed#86 = ???*0*
+- *0* ???*1*["computed"]
+  ⚠️  unknown object
+- *1* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+computed#95 = ???*0*
+- *0* ???*1*["computed"]
+  ⚠️  unknown object
+- *1* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+condition = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+consequent = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+ctor = (...) => undefined
+
+describeExpectation = (...) => DESCRIBE_EXPECTATION_FNS[expectation["type"]](expectation)
+
+describeExpected = (...) => (
+  | undefined
+  | descriptions[0]
+  | `${descriptions[0]} or ${descriptions[1]}`
+  | `${descriptions["slice"](0, ???*0*)["join"](", ")}, or ${descriptions[???*1*]}`
+)
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+- *1* unsupported expression
+  ⚠️  This value might have side effects
+
+describeFound = (...) => (found ? `"${literalEscape(found)}"` : "end of input")
+
+description#105 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+description#111 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+descriptions = new ???*0*(???*1*)
+- *0* FreeVar(Array)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *1* ???*2*["length"]
+  ⚠️  unknown object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+details = ({"line": 1, "column": 1} | ???*0* | {"line": ???*2*, "column": ???*4*})
+- *0* [][???*1*]
+  ⚠️  unknown array prototype methods or values
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *2* ???*3*["line"]
+  ⚠️  unknown object
+- *3* details
+  ⚠️  circular variable reference
+- *4* ???*5*["column"]
+  ⚠️  unknown object
+- *5* details
+  ⚠️  circular variable reference
+
+digits = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+elements = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+end = ???*0*
+- *0* arguments[2]
+  ⚠️  function calls are not analysed yet
+
+endPos = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+endPosDetails = (undefined | {"line": 1, "column": 1} | ???*0* | {"line": ???*2*, "column": ???*4*})
+- *0* [][???*1*]
+  ⚠️  unknown array prototype methods or values
+- *1* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *2* ???*3*["line"]
+  ⚠️  unknown object
+- *3* details
+  ⚠️  circular variable reference
+- *4* ???*5*["column"]
+  ⚠️  unknown object
+- *5* details
+  ⚠️  circular variable reference
+
+error = (...) => undefined
+
+escapedParts = ("" | (???*0* + ???*1*))
+- *0* escapedParts
+  ⚠️  circular variable reference
+- *1* (???*2* ? ???*3* : ???*10*)
+  ⚠️  nested operation
+- *2* unsupported expression
+  ⚠️  This value might have side effects
+- *3* `${???*4*}-${???*7*}`
+  ⚠️  nested operation
+- *4* ???*5*["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
+  ⚠️  unknown callee object
+- *5* ???*6*["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)
+  ⚠️  unknown callee object
+- *6* ???["replace"](/\r/g, "\\r")
+  ⚠️  unknown callee object
+- *7* ???*8*["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
+  ⚠️  unknown callee object
+- *8* ???*9*["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)
+  ⚠️  unknown callee object
+- *9* ???["replace"](/\r/g, "\\r")
+  ⚠️  unknown callee object
+- *10* ???*11*["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
+  ⚠️  unknown callee object
+- *11* ???*12*["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)
+  ⚠️  unknown callee object
+- *12* ???*13*["replace"](/\r/g, "\\r")
+  ⚠️  unknown callee object
+- *13* ???["replace"](/\n/g, "\\n")
+  ⚠️  unknown callee object
+
+expectation#11 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+expectation#12 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+expectation#13 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+expectation#21 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+expectation#8 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+expectation#9 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+expected#120 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+expected#124 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+expected#22 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+expected#28 = (...) => undefined
+
+expected#5 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+expected#7 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+expression#42 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+expression#43 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+expression#44 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+expression#47 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+expression#79 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+expression#80 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+expression#81 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+expression#82 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+expression#93 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+expression#96 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+found#124 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+found#27 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+found#5 = ???*0*
+- *0* arguments[2]
+  ⚠️  function calls are not analysed yet
+
+found#7 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+from#32 = ???*0*
+- *0* arguments[2]
+  ⚠️  function calls are not analysed yet
+
+from#33 = ???*0*
+- *0* arguments[2]
+  ⚠️  function calls are not analysed yet
+
+from#34 = ???*0*
+- *0* arguments[2]
+  ⚠️  function calls are not analysed yet
+
+head#1801 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+head#38 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+head#39 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+head#46 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+head#50 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+head#58 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+head#59 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+head#66 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+head#83 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+head#84 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+head#85 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+head#89 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+head#94 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+head#99 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+hex#56 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+hex#7 = (...) => ch["charCodeAt"](0)["toString"](16)["toUpperCase"]()
+
+i#22 = (???*0* | 0 | ???*1* | 1)
+- *0* i
+  ⚠️  pattern without value
+- *1* updated with update expression
+  ⚠️  This value might have side effects
+
+i#9 = (???*0* | 0 | ???*1*)
+- *0* i
+  ⚠️  pattern without value
+- *1* updated with update expression
+  ⚠️  This value might have side effects
+
+ignoreCase#107 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+ignoreCase#108 = ???*0*
+- *0* arguments[2]
+  ⚠️  function calls are not analysed yet
+
+input = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+inverted = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+j = (???*0* | 1 | ???*1*)
+- *0* j
+  ⚠️  pattern without value
+- *1* updated with update expression
+  ⚠️  This value might have side effects
+
+joins = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+key = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+left = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+list = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+literalEscape = (...) => s["replace"](/\\/g, "\\\\")["replace"](/"/g, "\\\"")["replace"](/\0/g, "\\0")["replace"](/\t/g, "\\t")["replace"](/\n/g, "\\n")["replace"](/\r/g, "\\r")["replace"](/[\x00-\x0F]/g, *anonymous function 1822*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 1920*)
+
+location#105 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+location#106 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+location#123 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+location#124 = ???*0*
+- *0* arguments[2]
+  ⚠️  function calls are not analysed yet
+
+location#28 = (...) => peg$computeLocation(peg$savedPos, peg$currPos)
+
+location#5 = ???*0*
+- *0* arguments[3]
+  ⚠️  function calls are not analysed yet
+
+message#106 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+message#123 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+message#5 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+name#48 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+name#49 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+name#65 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+object#86 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+object#95 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+operator#1802 = ???*0*
+- *0* ???*1*[1]
+  ⚠️  unknown object
+- *1* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+operator#87 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+options = (???*0* | (???*1* ? ???*4* : {}))
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *1* (???*2* !== ???*3*)
+  ⚠️  nested operation
+- *2* options
+  ⚠️  circular variable reference
+- *3* unsupported expression
+  ⚠️  This value might have side effects
+- *4* options
+  ⚠️  circular variable reference
+
+order = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+orderBy = ???*0*
+- *0* arguments[4]
+  ⚠️  function calls are not analysed yet
+
+p = (???*0* | ???*1* | ???*2*)
+- *0* p
+  ⚠️  pattern without value
+- *1* unsupported expression
+  ⚠️  This value might have side effects
+- *2* updated with update expression
+  ⚠️  This value might have side effects
+
+parent = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+parts = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+peg$FAILED = {}
+
+peg$SyntaxError = (...) => undefined
+
+peg$anyExpectation = (...) => {"type": "any"}
+
+peg$buildSimpleError = (...) => new peg$SyntaxError(message, null, null, location)
+
+peg$buildStructuredError = (...) => new peg$SyntaxError(peg$SyntaxError["buildMessage"](expected, found), expected, found, location)
+
+peg$c0 = (...) => {"type": "sql", "body": body}
+
+peg$c1 = (...) => v
+
+peg$c10 = (...) => {"type": "select_specification", "value": value}
+
+peg$c100 = {"type": "literal", "text": "NOT", "ignoreCase": true}
+
+peg$c101 = (...) => "NOT"
+
+peg$c102 = "between"
+
+peg$c103 = {"type": "literal", "text": "BETWEEN", "ignoreCase": true}
+
+peg$c104 = "exists"
+
+peg$c105 = {"type": "literal", "text": "EXISTS", "ignoreCase": true}
+
+peg$c106 = "array"
+
+peg$c107 = {"type": "literal", "text": "ARRAY", "ignoreCase": true}
+
+peg$c108 = "null"
+
+peg$c109 = {"type": "literal", "text": "null", "ignoreCase": false}
+
+peg$c11 = ","
+
+peg$c110 = "true"
+
+peg$c111 = {"type": "literal", "text": "true", "ignoreCase": false}
+
+peg$c112 = "false"
+
+peg$c113 = {"type": "literal", "text": "false", "ignoreCase": false}
+
+peg$c114 = "udf"
+
+peg$c115 = {"type": "literal", "text": "udf", "ignoreCase": false}
+
+peg$c116 = (...) => {"type": "identifier", "name": name}
+
+peg$c117 = /^[a-zA-Z_]/
+
+peg$c118 = {"type": "class", "parts": [["a", "z"], ["A", "Z"], "_"], "inverted": false, "ignoreCase": false}
+
+peg$c119 = /^[a-zA-Z0-9_]/
+
+peg$c12 = {"type": "literal", "text": ",", "ignoreCase": false}
+
+peg$c120 = {
+    "type": "class",
+    "parts": [["a", "z"], ["A", "Z"], ["0", "9"], "_"],
+    "inverted": false,
+    "ignoreCase": false
+}
+
+peg$c121 = (...) => (head + tail["join"](""))
+
+peg$c122 = "@"
+
+peg$c123 = {"type": "literal", "text": "@", "ignoreCase": false}
+
+peg$c124 = (...) => {"type": "parameter_name", "name": text()}
+
+peg$c125 = "+"
+
+peg$c126 = {"type": "literal", "text": "+", "ignoreCase": false}
+
+peg$c127 = "~"
+
+peg$c128 = {"type": "literal", "text": "~", "ignoreCase": false}
+
+peg$c129 = "\\"
+
+peg$c13 = (...) => v
+
+peg$c130 = {"type": "literal", "text": "\\", "ignoreCase": false}
+
+peg$c131 = (...) => text()
+
+peg$c132 = (...) => seq
+
+peg$c133 = {"type": "any"}
+
+peg$c134 = "b"
+
+peg$c135 = {"type": "literal", "text": "b", "ignoreCase": false}
+
+peg$c136 = (...) => "\b"
+
+peg$c137 = "f"
+
+peg$c138 = {"type": "literal", "text": "f", "ignoreCase": false}
+
+peg$c139 = (...) => "\f"
+
+peg$c14 = (...) => {"type": "object_property_list", "properties": ???*0*}
+- *0* spread is not supported
+  ⚠️  This value might have side effects
+
+peg$c140 = "n"
+
+peg$c141 = {"type": "literal", "text": "n", "ignoreCase": false}
+
+peg$c142 = (...) => "\n"
+
+peg$c143 = "r"
+
+peg$c144 = {"type": "literal", "text": "r", "ignoreCase": false}
+
+peg$c145 = (...) => "\r"
+
+peg$c146 = "t"
+
+peg$c147 = {"type": "literal", "text": "t", "ignoreCase": false}
+
+peg$c148 = (...) => "\t"
+
+peg$c149 = (...) => text()
+
+peg$c15 = (...) => v
+
+peg$c150 = "u"
+
+peg$c151 = {"type": "literal", "text": "u", "ignoreCase": false}
+
+peg$c152 = (...) => FreeVar(String)["fromCharCode"](FreeVar(parseInt)(digits, 16))
+
+peg$c153 = /^[0-9a-f]/i
+
+peg$c154 = {"type": "class", "parts": [["0", "9"], ["a", "f"]], "inverted": false, "ignoreCase": true}
+
+peg$c155 = (...) => v
+
+peg$c156 = (...) => {"property": property, "alias": alias}
+
+peg$c157 = (...) => expression
+
+peg$c158 = (...) => {"type": "array_subquery_expression", "expression": expression}
+
+peg$c159 = (...) => {"type": "exists_subquery_expression", "expression": expression}
+
+peg$c16 = (...) => {"type": "from_specification", "source": source, "joins": joins}
+
+peg$c160 = (...) => {"type": "scalar_subquery_expression", "expression": expression}
+
+peg$c161 = (...) => {"property": property, "computed": false}
+
+peg$c162 = (...) => {"property": property, "computed": true}
+
+peg$c163 = (...) => tail["reduce"](*arrow function 13694*, head)
+
+peg$c164 = (...) => {"type": "scalar_unary_expression", "operator": operator, "argument": argument}
+
+peg$c165 = "?"
+
+peg$c166 = {"type": "literal", "text": "?", "ignoreCase": false}
+
+peg$c167 = ":"
+
+peg$c168 = {"type": "literal", "text": ":", "ignoreCase": false}
+
+peg$c169 = (...) => {
+    "type": "scalar_conditional_expression",
+    "test": test,
+    "consequent": consequent,
+    "alternate": alternate
+}
+
+peg$c17 = (...) => {"type": "from_source", "expression": expression, "alias": alias, "iteration": true}
+
+peg$c170 = "??"
+
+peg$c171 = {"type": "literal", "text": "??", "ignoreCase": false}
+
+peg$c172 = (...) => buildBinaryExpression(head, tail)
+
+peg$c173 = "="
+
+peg$c174 = {"type": "literal", "text": "=", "ignoreCase": false}
+
+peg$c175 = "!="
+
+peg$c176 = {"type": "literal", "text": "!=", "ignoreCase": false}
+
+peg$c177 = "<>"
+
+peg$c178 = {"type": "literal", "text": "<>", "ignoreCase": false}
+
+peg$c179 = "<="
+
+peg$c18 = (...) => v
+
+peg$c180 = {"type": "literal", "text": "<=", "ignoreCase": false}
+
+peg$c181 = ">="
+
+peg$c182 = {"type": "literal", "text": ">=", "ignoreCase": false}
+
+peg$c183 = "<"
+
+peg$c184 = {"type": "literal", "text": "<", "ignoreCase": false}
+
+peg$c185 = ">"
+
+peg$c186 = {"type": "literal", "text": ">", "ignoreCase": false}
+
+peg$c187 = (...) => {"type": "scalar_in_expression", "value": value, "list": list}
+
+peg$c188 = (...) => {"type": "scalar_between_expression", "value": value, "begin": begin, "end": end}
+
+peg$c189 = "|"
+
+peg$c19 = (...) => {"type": "from_source", "expression": expression, "alias": alias}
+
+peg$c190 = {"type": "literal", "text": "|", "ignoreCase": false}
+
+peg$c191 = "^"
+
+peg$c192 = {"type": "literal", "text": "^", "ignoreCase": false}
+
+peg$c193 = "&"
+
+peg$c194 = {"type": "literal", "text": "&", "ignoreCase": false}
+
+peg$c195 = "<<"
+
+peg$c196 = {"type": "literal", "text": "<<", "ignoreCase": false}
+
+peg$c197 = ">>>"
+
+peg$c198 = {"type": "literal", "text": ">>>", "ignoreCase": false}
+
+peg$c199 = ">>"
+
+peg$c2 = (...) => v
+
+peg$c20 = (...) => {"type": "filter_condition", "condition": condition}
+
+peg$c200 = {"type": "literal", "text": ">>", "ignoreCase": false}
+
+peg$c201 = "||"
+
+peg$c202 = {"type": "literal", "text": "||", "ignoreCase": false}
+
+peg$c203 = "/"
+
+peg$c204 = {"type": "literal", "text": "/", "ignoreCase": false}
+
+peg$c205 = "%"
+
+peg$c206 = {"type": "literal", "text": "%", "ignoreCase": false}
+
+peg$c207 = (...) => {"key": key, "value": value}
+
+peg$c208 = (...) => {"type": "collection_expression", "expression": expression}
+
+peg$c209 = (...) => tail["reduce"](*arrow function 16259*, head)
+
+peg$c21 = (...) => {"type": "sort_specification", "expressions": ???*0*}
+- *0* spread is not supported
+  ⚠️  This value might have side effects
+
+peg$c210 = (...) => {"type": "collection_subquery_expression", "expression": expression}
+
+peg$c211 = (...) => {"type": "top_specification", "value": value}
+
+peg$c212 = (...) => {"type": "number_constant", "value": FreeVar(Number)(text())}
+
+peg$c213 = (...) => (head ? ???*0* : [])
+- *0* spread is not supported
+  ⚠️  This value might have side effects
+
+peg$c214 = (...) => subquery
+
+peg$c22 = (...) => {"type": "sort_expression", "expression": expression, "order": order}
+
+peg$c23 = "."
+
+peg$c24 = {"type": "literal", "text": ".", "ignoreCase": false}
+
+peg$c25 = "("
+
+peg$c26 = {"type": "literal", "text": "(", "ignoreCase": false}
+
+peg$c27 = ")"
+
+peg$c28 = {"type": "literal", "text": ")", "ignoreCase": false}
+
+peg$c29 = (...) => {"type": "scalar_function_expression", "name": name, "arguments": args, "udf": true}
+
+peg$c3 = (...) => v
+
+peg$c30 = (...) => {"type": "scalar_function_expression", "name": name, "arguments": args}
+
+peg$c31 = "{"
+
+peg$c32 = {"type": "literal", "text": "{", "ignoreCase": false}
+
+peg$c33 = "}"
+
+peg$c34 = {"type": "literal", "text": "}", "ignoreCase": false}
+
+peg$c35 = (...) => {"type": "scalar_object_expression", "properties": (head ? ???*0* : [])}
+- *0* spread is not supported
+  ⚠️  This value might have side effects
+
+peg$c36 = "["
+
+peg$c37 = {"type": "literal", "text": "[", "ignoreCase": false}
+
+peg$c38 = "]"
+
+peg$c39 = {"type": "literal", "text": "]", "ignoreCase": false}
+
+peg$c4 = (...) => v
+
+peg$c40 = (...) => {"type": "scalar_array_expression", "elements": elements}
+
+peg$c41 = "undefined"
+
+peg$c42 = {"type": "literal", "text": "undefined", "ignoreCase": false}
+
+peg$c43 = (...) => {"type": "undefined_constant"}
+
+peg$c44 = (...) => {"type": "null_constant"}
+
+peg$c45 = (...) => {"type": "boolean_constant", "value": false}
+
+peg$c46 = (...) => {"type": "boolean_constant", "value": true}
+
+peg$c47 = "-"
+
+peg$c48 = {"type": "literal", "text": "-", "ignoreCase": false}
+
+peg$c49 = "0x"
+
+peg$c5 = (...) => {
+    "type": "select_query",
+    "top": top,
+    "select": select,
+    "from": from,
+    "where": where,
+    "orderBy": orderBy
+}
+
+peg$c50 = {"type": "literal", "text": "0x", "ignoreCase": false}
+
+peg$c51 = /^[0-9]/
+
+peg$c52 = {"type": "class", "parts": [["0", "9"]], "inverted": false, "ignoreCase": false}
+
+peg$c53 = (...) => {
+    "type": "number_constant",
+    "value": (hex ? FreeVar(parseInt)(text(), 16) : FreeVar(parseFloat)(text()))
+}
+
+peg$c54 = "\""
+
+peg$c55 = {"type": "literal", "text": "\"", "ignoreCase": false}
+
+peg$c56 = (...) => {"type": "string_constant", "value": chars["join"]("")}
+
+peg$c57 = "'"
+
+peg$c58 = {"type": "literal", "text": "'", "ignoreCase": false}
+
+peg$c59 = (...) => {"type": "array_constant", "elements": ???*0*}
+- *0* spread is not supported
+  ⚠️  This value might have side effects
+
+peg$c6 = "*"
+
+peg$c60 = (...) => {"type": "object_constant", "properties": ???*0*}
+- *0* spread is not supported
+  ⚠️  This value might have side effects
+
+peg$c61 = /^[ \t\n\r]/
+
+peg$c62 = {"type": "class", "parts": [" ", "\t", "\n", "\r"], "inverted": false, "ignoreCase": false}
+
+peg$c63 = "--"
+
+peg$c64 = {"type": "literal", "text": "--", "ignoreCase": false}
+
+peg$c65 = /^[\n\r]/
+
+peg$c66 = {"type": "class", "parts": ["\n", "\r"], "inverted": false, "ignoreCase": false}
+
+peg$c67 = "select"
+
+peg$c68 = {"type": "literal", "text": "SELECT", "ignoreCase": true}
+
+peg$c69 = "top"
+
+peg$c7 = {"type": "literal", "text": "*", "ignoreCase": false}
+
+peg$c70 = {"type": "literal", "text": "TOP", "ignoreCase": true}
+
+peg$c71 = "from"
+
+peg$c72 = {"type": "literal", "text": "FROM", "ignoreCase": true}
+
+peg$c73 = "where"
+
+peg$c74 = {"type": "literal", "text": "WHERE", "ignoreCase": true}
+
+peg$c75 = "order"
+
+peg$c76 = {"type": "literal", "text": "ORDER", "ignoreCase": true}
+
+peg$c77 = "by"
+
+peg$c78 = {"type": "literal", "text": "BY", "ignoreCase": true}
+
+peg$c79 = "as"
+
+peg$c8 = (...) => {"type": "select_specification", "*": true}
+
+peg$c80 = {"type": "literal", "text": "AS", "ignoreCase": true}
+
+peg$c81 = "join"
+
+peg$c82 = {"type": "literal", "text": "JOIN", "ignoreCase": true}
+
+peg$c83 = "in"
+
+peg$c84 = {"type": "literal", "text": "IN", "ignoreCase": true}
+
+peg$c85 = "value"
+
+peg$c86 = {"type": "literal", "text": "VALUE", "ignoreCase": true}
+
+peg$c87 = "asc"
+
+peg$c88 = {"type": "literal", "text": "ASC", "ignoreCase": true}
+
+peg$c89 = (...) => "ASC"
+
+peg$c9 = (...) => {"type": "select_specification", "properties": properties}
+
+peg$c90 = "desc"
+
+peg$c91 = {"type": "literal", "text": "DESC", "ignoreCase": true}
+
+peg$c92 = (...) => "DESC"
+
+peg$c93 = "and"
+
+peg$c94 = {"type": "literal", "text": "AND", "ignoreCase": true}
+
+peg$c95 = (...) => "AND"
+
+peg$c96 = "or"
+
+peg$c97 = {"type": "literal", "text": "OR", "ignoreCase": true}
+
+peg$c98 = (...) => "OR"
+
+peg$c99 = "not"
+
+peg$classExpectation = (...) => {"type": "class", "parts": parts, "inverted": inverted, "ignoreCase": ignoreCase}
+
+peg$computeLocation = (...) => {
+    "start": {"offset": startPos, "line": startPosDetails["line"], "column": startPosDetails["column"]},
+    "end": {"offset": endPos, "line": endPosDetails["line"], "column": endPosDetails["column"]}
+}
+
+peg$computePosDetails = (...) => (undefined | details)
+
+peg$currPos = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+peg$endExpectation = (...) => {"type": "end"}
+
+peg$fail = (...) => (undefined | FreeVar(undefined))
+
+peg$literalExpectation = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+
+peg$maxFailExpected = []
+
+peg$maxFailPos = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+peg$otherExpectation = (...) => {"type": "other", "description": description}
+
+peg$parse = (...) => (undefined | peg$result)
+
+peg$parse_ = (...) => s0
+
+peg$parseand = (...) => s0
+
+peg$parsearray = (...) => s0
+
+peg$parsearray_constant = (...) => s0
+
+peg$parsearray_subquery_expression = (...) => s0
+
+peg$parseas = (...) => s0
+
+peg$parseasc = (...) => s0
+
+peg$parsebetween = (...) => s0
+
+peg$parseboolean_constant = (...) => s0
+
+peg$parseby = (...) => s0
+
+peg$parsecharactor_escape_sequence = (...) => s0
+
+peg$parsecollection_expression = (...) => s0
+
+peg$parsecollection_member_expression = (...) => s0
+
+peg$parsecollection_primary_expression = (...) => s0
+
+peg$parsecollection_subquery_expression = (...) => s0
+
+peg$parsecomment = (...) => s0
+
+peg$parseconstant = (...) => s0
+
+peg$parsedesc = (...) => s0
+
+peg$parsedouble_string_character = (...) => s0
+
+peg$parseescape_character = (...) => s0
+
+peg$parseescape_sequence = (...) => s0
+
+peg$parseexists = (...) => s0
+
+peg$parseexists_subquery_expression = (...) => s0
+
+peg$parsefalse = (...) => s0
+
+peg$parsefilter_condition = (...) => s0
+
+peg$parsefrom = (...) => s0
+
+peg$parsefrom_source = (...) => s0
+
+peg$parsefrom_specification = (...) => s0
+
+peg$parsehex_digit = (...) => s0
+
+peg$parseidentifier = (...) => s0
+
+peg$parseidentifier_name = (...) => s0
+
+peg$parseidentifier_start = (...) => s0
+
+peg$parsein = (...) => s0
+
+peg$parsejoin = (...) => s0
+
+peg$parsenon_escape_character = (...) => s0
+
+peg$parsenot = (...) => s0
+
+peg$parsenull = (...) => s0
+
+peg$parsenull_constant = (...) => s0
+
+peg$parsenumber_constant = (...) => s0
+
+peg$parseobject_constant = (...) => s0
+
+peg$parseobject_constant_property = (...) => s0
+
+peg$parseobject_property = (...) => s0
+
+peg$parseobject_property_list = (...) => s0
+
+peg$parseor = (...) => s0
+
+peg$parseorder = (...) => s0
+
+peg$parseparameter_name = (...) => s0
+
+peg$parsereserved = (...) => s0
+
+peg$parsescalar_array_expression = (...) => s0
+
+peg$parsescalar_between_expression = (...) => s0
+
+peg$parsescalar_binary_additive_expression = (...) => s0
+
+peg$parsescalar_binary_and_expression = (...) => s0
+
+peg$parsescalar_binary_bitwise_and_expression = (...) => s0
+
+peg$parsescalar_binary_bitwise_or_expression = (...) => s0
+
+peg$parsescalar_binary_bitwise_xor_expression = (...) => s0
+
+peg$parsescalar_binary_equality_expression = (...) => s0
+
+peg$parsescalar_binary_multiplicative_expression = (...) => s0
+
+peg$parsescalar_binary_or_expression = (...) => s0
+
+peg$parsescalar_binary_relational_expression = (...) => s0
+
+peg$parsescalar_binary_shift_expression = (...) => s0
+
+peg$parsescalar_conditional_expression = (...) => s0
+
+peg$parsescalar_expression_list = (...) => s0
+
+peg$parsescalar_function_expression = (...) => s0
+
+peg$parsescalar_in_expression = (...) => s0
+
+peg$parsescalar_member_expression = (...) => s0
+
+peg$parsescalar_object_element_property = (...) => s0
+
+peg$parsescalar_object_expression = (...) => s0
+
+peg$parsescalar_primary_expression = (...) => s0
+
+peg$parsescalar_subquery_expression = (...) => s0
+
+peg$parsescalar_unary_expression = (...) => s0
+
+peg$parseselect = (...) => s0
+
+peg$parseselect_query = (...) => s0
+
+peg$parseselect_specification = (...) => s0
+
+peg$parsesingle_escape_character = (...) => s0
+
+peg$parsesingle_string_character = (...) => s0
+
+peg$parsesort_expression = (...) => s0
+
+peg$parsesort_specification = (...) => s0
+
+peg$parsesource_character = (...) => s0
+
+peg$parsesql = (...) => s0
+
+peg$parsestring_constant = (...) => s0
+
+peg$parsesubquery = (...) => s0
+
+peg$parsesubquery_expression = (...) => s0
+
+peg$parsetop = (...) => s0
+
+peg$parsetop_specification = (...) => s0
+
+peg$parsetrue = (...) => s0
+
+peg$parseudf = (...) => s0
+
+peg$parseunary_operator = (...) => s0
+
+peg$parseundefined_constant = (...) => s0
+
+peg$parseunicode_escape_sequence = (...) => s0
+
+peg$parseunsigned_integer = (...) => s0
+
+peg$parsevalue = (...) => s0
+
+peg$parsewhere = (...) => s0
+
+peg$parsewhitespace = (...) => s0
+
+peg$posDetailsCache = [{"line": 1, "column": 1}]
+
+peg$result = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+peg$savedPos = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+peg$silentFails = (0 | ???*0*)
+- *0* updated with update expression
+  ⚠️  This value might have side effects
+
+peg$startRuleFunction = ((...) => s0 | ???*0*)
+- *0* {}[???*1*]
+  ⚠️  unknown object prototype methods or values
+  ⚠️  This value might have side effects
+- *1* ???*2*["startRule"]
+  ⚠️  unknown object
+- *2* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+peg$startRuleFunctions = {"sql": (...) => s0}
+
+peg$subclass = (...) => undefined
+
+pos = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+properties = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+property#77 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+property#78 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+property#83 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+property#84 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+property#86 = ???*0*
+- *0* ???*1*["property"]
+  ⚠️  unknown object
+- *1* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+property#95 = ???*0*
+- *0* ???*1*["property"]
+  ⚠️  unknown object
+- *1* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+right = ???*0*
+- *0* ???*1*[3]
+  ⚠️  unknown object
+- *1* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+s#15 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s#18 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s0#1019 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#1026 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#1031 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#1049 = (???*0* | ???*1* | {})
+- *0* s0
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s0#1053 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#1070 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#1093 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#1096 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#1103 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#1110 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#1112 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#1186 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#1195 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#1221 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#125 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#1251 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#1273 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#1317 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#132 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#1369 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#1395 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#1415 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#1443 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#1471 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#1499 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#1543 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#1587 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#1631 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#1646 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#1661 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#1663 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#1739 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#1741 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#1744 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#1755 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#1784 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#187 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#201 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#229 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#251 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#279 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#282 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#284 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#312 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#323 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#376 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#419 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#436 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#443 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#448 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#450 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#454 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#497 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#525 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#567 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#609 = (???*0* | [])
+- *0* s0
+  ⚠️  pattern without value
+
+s0#613 = (???*0* | ???*1* | {})
+- *0* s0
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s0#617 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#644 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#654 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#664 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#674 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#684 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#694 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#704 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#714 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#724 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#734 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#744 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#754 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#764 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#774 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#784 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#794 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#804 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#814 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#824 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#834 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#844 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#854 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#864 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#886 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#893 = (???*0* | ???*1* | {})
+- *0* s0
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s0#897 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#909 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#917 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#930 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#952 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#974 = (???*0* | ???*1* | {})
+- *0* s0
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s0#978 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#980 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#982 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#1019 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#1031 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#1053 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#1070 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#1096 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#1103 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#1110 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#1112 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#1186 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#1195 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#1221 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#125 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#1251 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#1273 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#1317 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#132 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#1369 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#1395 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#1415 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#1443 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#1471 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#1499 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#1543 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#1587 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#1631 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#1646 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#1661 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#1663 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#1739 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#1741 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#1744 = (???*0* | [] | {} | {"type": "number_constant", "value": ???*1*})
+- *0* s1
+  ⚠️  pattern without value
+- *1* ???*2*(text())
+  ⚠️  unknown callee
+  ⚠️  This value might have side effects
+- *2* FreeVar(Number)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+s1#1755 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#1784 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#187 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#201 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#229 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#251 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#282 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#284 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#312 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#323 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#376 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#419 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#443 = (???*0* | "undefined" | {} | {"type": "undefined_constant"})
+- *0* s1
+  ⚠️  pattern without value
+
+s1#448 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#450 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#454 = (
+  | ???*0*
+  | "-"
+  | {}
+  | null
+  | {
+        "type": "number_constant",
+        "value": ((???*1* | "0x" | {} | null) ? ???*2* : ???*4*)
+    }
+)
+- *0* s1
+  ⚠️  pattern without value
+- *1* s2
+  ⚠️  pattern without value
+- *2* ???*3*(text(), 16)
+  ⚠️  unknown callee
+  ⚠️  This value might have side effects
+- *3* FreeVar(parseInt)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *4* ???*5*(text())
+  ⚠️  unknown callee
+  ⚠️  This value might have side effects
+- *5* FreeVar(parseFloat)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+s1#497 = (
+  | ???*0*
+  | "\""
+  | {}
+  | {"type": "string_constant", "value": (???*1* | ???*3*)}
+  | "'"
+)
+- *0* s1
+  ⚠️  pattern without value
+- *1* ???*2*["join"]("")
+  ⚠️  unknown callee object
+- *2* s2
+  ⚠️  pattern without value
+- *3* ???*4*("")
+  ⚠️  unknown callee
+- *4* []["join"]
+  ⚠️  non-num constant property on array
+
+s1#525 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#567 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#609 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#617 = (???*0* | "--" | {} | [???*1*, (???*2* | [])])
+- *0* s1
+  ⚠️  pattern without value
+- *1* s1
+  ⚠️  circular variable reference
+- *2* s2
+  ⚠️  pattern without value
+
+s1#644 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#654 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#664 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#674 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#684 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#694 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#704 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#714 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#724 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#734 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#744 = (???*0* | ???*1* | {} | "ASC")
+- *0* s1
+  ⚠️  pattern without value
+- *1* ???*2*["substr"](peg$currPos, 3)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s1#754 = (???*0* | ???*1* | {} | "DESC")
+- *0* s1
+  ⚠️  pattern without value
+- *1* ???*2*["substr"](peg$currPos, 4)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s1#764 = (???*0* | ???*1* | {} | "AND")
+- *0* s1
+  ⚠️  pattern without value
+- *1* ???*2*["substr"](peg$currPos, 3)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s1#774 = (???*0* | ???*1* | {} | "OR")
+- *0* s1
+  ⚠️  pattern without value
+- *1* ???*2*["substr"](peg$currPos, 2)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s1#784 = (???*0* | ???*1* | {} | "NOT")
+- *0* s1
+  ⚠️  pattern without value
+- *1* ???*2*["substr"](peg$currPos, 3)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s1#794 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#804 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#814 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#824 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#834 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#844 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#854 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#886 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#897 = (???*0* | ???*1* | {} | (???*3* + (???*4* | ???*6*)))
+- *0* s1
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *3* s1
+  ⚠️  circular variable reference
+- *4* ???*5*["join"]("")
+  ⚠️  unknown callee object
+- *5* s2
+  ⚠️  pattern without value
+- *6* ???*7*("")
+  ⚠️  unknown callee
+- *7* []["join"]
+  ⚠️  non-num constant property on array
+
+s1#909 = (???*0* | "@" | {} | {"type": "parameter_name", "name": ???*1*})
+- *0* s1
+  ⚠️  pattern without value
+- *1* ???*2*["substring"](peg$savedPos, peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s1#930 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#952 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#982 = (???*0* | "b" | {} | "\b" | "f" | "\f" | "n" | "\n" | "r" | "\r" | "t" | "\t")
+- *0* s1
+  ⚠️  pattern without value
+
+s10#132 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s10#323 = (???*0* | [])
+- *0* s10
+  ⚠️  pattern without value
+
+s11#132 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s11#323 = (???*0* | ")" | {})
+- *0* s11
+  ⚠️  pattern without value
+
+s12 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s13 = (???*0* | [])
+- *0* s13
+  ⚠️  pattern without value
+
+s14 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s15 = (???*0* | [])
+- *0* s15
+  ⚠️  pattern without value
+
+s16 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s2#1019 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s2#1031 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s2#1053 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s2#1070 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#1096 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#1103 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#1112 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#1186 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#1195 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#1221 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#125 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s2#1251 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#1273 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#1317 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#132 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#1369 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#1395 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#1415 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#1443 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#1471 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#1499 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#1543 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#1587 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#1631 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#1646 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#1663 = (???*0* | [] | {})
+- *0* s2
+  ⚠️  pattern without value
+
+s2#1744 = (???*0* | ???*1* | {})
+- *0* s2
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s2#1755 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#1784 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#187 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#201 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#229 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#251 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s2#284 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#312 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s2#323 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#376 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#419 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#454 = (???*0* | "0x" | {} | null)
+- *0* s2
+  ⚠️  pattern without value
+
+s2#497 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#525 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#567 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#617 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#644 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s2#654 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s2#664 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s2#674 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s2#684 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s2#694 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s2#704 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s2#714 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s2#724 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s2#734 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s2#744 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s2#754 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s2#764 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s2#774 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s2#784 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s2#794 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s2#804 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s2#814 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s2#824 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s2#834 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s2#844 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s2#854 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s2#886 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s2#897 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#909 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s2#930 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s2#952 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s3#1031 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s3#1053 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s3#1070 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s3#1096 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s3#1103 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s3#1112 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s3#1186 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s3#1195 = (???*0* | "?" | {})
+- *0* s3
+  ⚠️  pattern without value
+
+s3#1221 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s3#125 = (???*0* | [])
+- *0* s3
+  ⚠️  pattern without value
+
+s3#1251 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s3#1273 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s3#1317 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s3#132 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s3#1369 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s3#1395 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s3#1415 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s3#1443 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s3#1471 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s3#1499 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s3#1543 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s3#1587 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s3#1631 = (???*0* | ":" | {})
+- *0* s3
+  ⚠️  pattern without value
+
+s3#1646 = (???*0* | ":" | {})
+- *0* s3
+  ⚠️  pattern without value
+
+s3#1663 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s3#1755 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s3#1784 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s3#187 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s3#201 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s3#229 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s3#251 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s3#284 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s3#312 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s3#323 = (???*0* | "." | {} | "(")
+- *0* s3
+  ⚠️  pattern without value
+
+s3#376 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s3#419 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s3#454 = (???*0* | [] | {})
+- *0* s3
+  ⚠️  pattern without value
+
+s3#497 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s3#525 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s3#567 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s3#617 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s3#644 = (???*0* | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s3#654 = (???*0* | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s3#664 = (???*0* | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s3#674 = (???*0* | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s3#684 = (???*0* | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s3#694 = (???*0* | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s3#704 = (???*0* | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s3#714 = (???*0* | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s3#724 = (???*0* | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s3#734 = (???*0* | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s3#744 = (???*0* | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s3#754 = (???*0* | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s3#764 = (???*0* | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s3#774 = (???*0* | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s3#784 = (???*0* | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s3#794 = (???*0* | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s3#804 = (???*0* | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s3#814 = (???*0* | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s3#824 = (???*0* | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s3#834 = (???*0* | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s3#844 = (???*0* | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s3#854 = (???*0* | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s3#897 = (???*0* | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s4#1031 = (
+  | ???*0*
+  | ???*1*
+  | {}
+  | [???*3*, (???*4* | ???*5* | {}), (???*7* | ???*8* | {}), (???*10* | ???*11* | {})]
+)
+- *0* s4
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *3* s4
+  ⚠️  circular variable reference
+- *4* s5
+  ⚠️  pattern without value
+- *5* ???*6*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *6* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *7* s6
+  ⚠️  pattern without value
+- *8* ???*9*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *9* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *10* s7
+  ⚠️  pattern without value
+- *11* ???*12*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *12* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s4#1053 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s4#1070 = (???*0* | [])
+- *0* s4
+  ⚠️  pattern without value
+
+s4#1112 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s4#1195 = (???*0* | [])
+- *0* s4
+  ⚠️  pattern without value
+
+s4#1221 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s4#1251 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s4#1273 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s4#1317 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s4#132 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s4#1369 = (???*0* | [])
+- *0* s4
+  ⚠️  pattern without value
+
+s4#1395 = (???*0* | [])
+- *0* s4
+  ⚠️  pattern without value
+
+s4#1415 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s4#1443 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s4#1471 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s4#1499 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s4#1543 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s4#1587 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s4#1631 = (???*0* | [])
+- *0* s4
+  ⚠️  pattern without value
+
+s4#1646 = (???*0* | [])
+- *0* s4
+  ⚠️  pattern without value
+
+s4#1663 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s4#1755 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s4#1784 = (???*0* | [])
+- *0* s4
+  ⚠️  pattern without value
+
+s4#201 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s4#229 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s4#251 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s4#284 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s4#312 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s4#323 = (???*0* | [])
+- *0* s4
+  ⚠️  pattern without value
+
+s4#376 = (???*0* | [])
+- *0* s4
+  ⚠️  pattern without value
+
+s4#419 = (???*0* | [])
+- *0* s4
+  ⚠️  pattern without value
+
+s4#454 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s4#525 = (???*0* | [])
+- *0* s4
+  ⚠️  pattern without value
+
+s4#567 = (???*0* | [])
+- *0* s4
+  ⚠️  pattern without value
+
+s4#617 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s5#1031 = (???*0* | ???*1* | {})
+- *0* s5
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s5#1053 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s5#1070 = (???*0* | ")" | {})
+- *0* s5
+  ⚠️  pattern without value
+
+s5#1112 = (???*0* | "." | {} | "[")
+- *0* s5
+  ⚠️  pattern without value
+
+s5#1195 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s5#1221 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s5#1251 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s5#1273 = (???*0* | "=" | {} | "!=" | "<>")
+- *0* s5
+  ⚠️  pattern without value
+
+s5#1317 = (???*0* | "<=" | {} | ">=" | "<" | ">")
+- *0* s5
+  ⚠️  pattern without value
+
+s5#132 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s5#1369 = (???*0* | "(" | {})
+- *0* s5
+  ⚠️  pattern without value
+
+s5#1395 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s5#1415 = (???*0* | "|" | {})
+- *0* s5
+  ⚠️  pattern without value
+
+s5#1443 = (???*0* | "^" | {})
+- *0* s5
+  ⚠️  pattern without value
+
+s5#1471 = (???*0* | "&" | {})
+- *0* s5
+  ⚠️  pattern without value
+
+s5#1499 = (???*0* | "<<" | {} | ">>>" | ">>")
+- *0* s5
+  ⚠️  pattern without value
+
+s5#1543 = (???*0* | "+" | {} | "-" | "||")
+- *0* s5
+  ⚠️  pattern without value
+
+s5#1587 = (???*0* | "*" | {} | "/" | "%")
+- *0* s5
+  ⚠️  pattern without value
+
+s5#1631 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s5#1646 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s5#1663 = (???*0* | "." | {} | "[")
+- *0* s5
+  ⚠️  pattern without value
+
+s5#1755 = (???*0* | "," | {})
+- *0* s5
+  ⚠️  pattern without value
+
+s5#1784 = (???*0* | ")" | {})
+- *0* s5
+  ⚠️  pattern without value
+
+s5#201 = (???*0* | "," | {})
+- *0* s5
+  ⚠️  pattern without value
+
+s5#229 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s5#251 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s5#284 = (???*0* | "," | {})
+- *0* s5
+  ⚠️  pattern without value
+
+s5#323 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s5#376 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s5#419 = (???*0* | "]" | {})
+- *0* s5
+  ⚠️  pattern without value
+
+s5#454 = (???*0* | "." | {} | [???*1*, (???*2* | [] | {})])
+- *0* s5
+  ⚠️  pattern without value
+- *1* s5
+  ⚠️  circular variable reference
+- *2* s6
+  ⚠️  pattern without value
+
+s5#525 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s5#567 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s5#617 = (???*0* | ???*1* | {})
+- *0* s5
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s6#1031 = (???*0* | ???*1* | {})
+- *0* s6
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s6#1112 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#1195 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#1221 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#1251 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#1273 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#1317 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#132 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s6#1369 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#1395 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#1415 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#1443 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#1471 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#1499 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#1543 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#1587 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#1663 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#1755 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#201 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#229 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#284 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#323 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#376 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s6#454 = (???*0* | [] | {})
+- *0* s6
+  ⚠️  pattern without value
+
+s6#525 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s6#567 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s7#1031 = (???*0* | ???*1* | {})
+- *0* s7
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s7#1112 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s7#1195 = (???*0* | ":" | {})
+- *0* s7
+  ⚠️  pattern without value
+
+s7#1221 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s7#1251 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s7#1273 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s7#1317 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s7#132 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s7#1369 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s7#1395 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s7#1415 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s7#1443 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s7#1471 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s7#1499 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s7#1543 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s7#1587 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s7#1663 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s7#1755 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s7#201 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s7#229 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s7#284 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s7#323 = (???*0* | "(" | {} | ")")
+- *0* s7
+  ⚠️  pattern without value
+
+s7#376 = (???*0* | "," | {})
+- *0* s7
+  ⚠️  pattern without value
+
+s7#454 = (???*0* | ???*1* | {})
+- *0* s7
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+s7#525 = (???*0* | "," | {})
+- *0* s7
+  ⚠️  pattern without value
+
+s7#567 = (???*0* | "," | {})
+- *0* s7
+  ⚠️  pattern without value
+
+s8#1112 = (???*0* | [])
+- *0* s8
+  ⚠️  pattern without value
+
+s8#1195 = (???*0* | [])
+- *0* s8
+  ⚠️  pattern without value
+
+s8#132 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s8#1369 = (???*0* | [])
+- *0* s8
+  ⚠️  pattern without value
+
+s8#1395 = (???*0* | [])
+- *0* s8
+  ⚠️  pattern without value
+
+s8#1663 = (???*0* | [])
+- *0* s8
+  ⚠️  pattern without value
+
+s8#323 = (???*0* | [])
+- *0* s8
+  ⚠️  pattern without value
+
+s8#376 = (???*0* | [])
+- *0* s8
+  ⚠️  pattern without value
+
+s8#525 = (???*0* | [])
+- *0* s8
+  ⚠️  pattern without value
+
+s8#567 = (???*0* | [])
+- *0* s8
+  ⚠️  pattern without value
+
+s9#1112 = (???*0* | "]" | {})
+- *0* s9
+  ⚠️  pattern without value
+
+s9#1195 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s9#132 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s9#1369 = (???*0* | ")" | {})
+- *0* s9
+  ⚠️  pattern without value
+
+s9#1395 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s9#1663 = (???*0* | "]" | {})
+- *0* s9
+  ⚠️  pattern without value
+
+s9#323 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s9#376 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s9#525 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s9#567 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+select#31 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+select#32 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+select#33 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+select#34 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+seq = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+source#40 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+source#41 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+startPos = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+startPosDetails = (undefined | {"line": 1, "column": 1} | ???*0* | {"line": ???*2*, "column": ???*4*})
+- *0* [][???*1*]
+  ⚠️  unknown array prototype methods or values
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *2* ???*3*["line"]
+  ⚠️  unknown object
+- *3* details
+  ⚠️  circular variable reference
+- *4* ???*5*["column"]
+  ⚠️  unknown object
+- *5* details
+  ⚠️  circular variable reference
+
+subquery = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+tail#1801 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+tail#39 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+tail#46 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+tail#50 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+tail#58 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+tail#59 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+tail#66 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+tail#85 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+tail#89 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+tail#94 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+tail#99 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+test = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+text#107 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+text#28 = (...) => input["substring"](peg$savedPos, peg$currPos)
+
+top#31 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+top#32 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+top#33 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+top#34 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+v#30 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+v#31 = ???*0*
+- *0* arguments[2]
+  ⚠️  function calls are not analysed yet
+
+v#32 = ???*0*
+- *0* arguments[3]
+  ⚠️  function calls are not analysed yet
+
+v#33 = ???*0*
+- *0* arguments[4]
+  ⚠️  function calls are not analysed yet
+
+v#38 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+v#40 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+v#43 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+v#77 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+value#37 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+value#90 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+value#91 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+value#92 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+value#97 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+where#33 = ???*0*
+- *0* arguments[3]
+  ⚠️  function calls are not analysed yet
+
+where#34 = ???*0*
+- *0* arguments[3]
+  ⚠️  function calls are not analysed yet

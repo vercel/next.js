@@ -7,7 +7,7 @@ import type {
   ImageLoaderPropsWithConfig,
 } from './image-config'
 
-import type { JSX } from 'react'
+import type { CSSProperties, JSX } from 'react'
 
 export interface StaticImageData {
   src: string
@@ -69,7 +69,7 @@ export type ImageProps = Omit<
   lazyRoot?: string
 }
 
-export type ImgProps = Omit<ImageProps, 'src' | 'alt' | 'loader'> & {
+export type ImgProps = Omit<ImageProps, 'src' | 'loader'> & {
   loading: LoadingValue
   width: number | undefined
   height: number | undefined
@@ -80,6 +80,15 @@ export type ImgProps = Omit<ImageProps, 'src' | 'alt' | 'loader'> & {
 }
 
 const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
+
+// Object-fit values that are not valid background-size values
+const INVALID_BACKGROUND_SIZE_VALUES = [
+  '-moz-initial',
+  'fill',
+  'none',
+  'scale-down',
+  undefined,
+]
 type LoadingValue = (typeof VALID_LOADING_VALUES)[number]
 type ImageConfig = ImageConfigComplete & {
   allSizes: number[]
@@ -97,6 +106,16 @@ export type PlaceholderValue = 'blur' | 'empty' | `data:image/${string}`
 export type OnLoad = React.ReactEventHandler<HTMLImageElement> | undefined
 export type OnLoadingComplete = (img: HTMLImageElement) => void
 
+export type PlaceholderStyle = Partial<
+  Pick<
+    CSSProperties,
+    | 'backgroundSize'
+    | 'backgroundPosition'
+    | 'backgroundRepeat'
+    | 'backgroundImage'
+  >
+>
+
 function isStaticRequire(
   src: StaticRequire | StaticImageData
 ): src is StaticRequire {
@@ -111,6 +130,7 @@ function isStaticImageData(
 
 function isStaticImport(src: string | StaticImport): src is StaticImport {
   return (
+    !!src &&
     typeof src === 'object' &&
     (isStaticRequire(src as StaticImport) ||
       isStaticImageData(src as StaticImport))
@@ -254,6 +274,7 @@ export function getImgProps(
     placeholder = 'empty',
     blurDataURL,
     fetchPriority,
+    decoding = 'async',
     layout,
     objectFit,
     objectPosition,
@@ -284,7 +305,8 @@ export function getImgProps(
   } else {
     const allSizes = [...c.deviceSizes, ...c.imageSizes].sort((a, b) => a - b)
     const deviceSizes = c.deviceSizes.sort((a, b) => a - b)
-    config = { ...c, allSizes, deviceSizes }
+    const qualities = c.qualities?.sort((a, b) => a - b)
+    config = { ...c, allSizes, deviceSizes, qualities }
   }
 
   if (typeof defaultLoader === 'undefined') {
@@ -395,13 +417,14 @@ export function getImgProps(
   if (config.unoptimized) {
     unoptimized = true
   }
-  if (isDefaultLoader && src.endsWith('.svg') && !config.dangerouslyAllowSVG) {
+  if (
+    isDefaultLoader &&
+    !config.dangerouslyAllowSVG &&
+    src.split('?', 1)[0].endsWith('.svg')
+  ) {
     // Special case to make svg serve as-is to avoid proxying
     // through the built-in Image Optimization API.
     unoptimized = true
-  }
-  if (priority) {
-    fetchPriority = 'high'
   }
 
   const qualityInt = getInt(quality)
@@ -637,9 +660,17 @@ export function getImgProps(
         : `url("${placeholder}")` // assume `data:image/`
       : null
 
-  let placeholderStyle = backgroundImage
+  const backgroundSize = !INVALID_BACKGROUND_SIZE_VALUES.includes(
+    imgStyle.objectFit
+  )
+    ? imgStyle.objectFit
+    : imgStyle.objectFit === 'fill'
+      ? '100% 100%' // the background-size equivalent of `fill`
+      : 'cover'
+
+  let placeholderStyle: PlaceholderStyle = backgroundImage
     ? {
-        backgroundSize: imgStyle.objectFit || 'cover',
+        backgroundSize,
         backgroundPosition: imgStyle.objectPosition || '50% 50%',
         backgroundRepeat: 'no-repeat',
         backgroundImage,
@@ -687,7 +718,7 @@ export function getImgProps(
     fetchPriority,
     width: widthInt,
     height: heightInt,
-    decoding: 'async',
+    decoding,
     className,
     style: { ...imgStyle, ...placeholderStyle },
     sizes: imgAttributes.sizes,

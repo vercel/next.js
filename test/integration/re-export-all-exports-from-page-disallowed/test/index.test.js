@@ -11,15 +11,17 @@ describe('Re-export all exports from page is disallowed', () => {
       it('shows error when a page re-export all exports', async () => {
         const { code, stderr } = await nextBuild(appDir, undefined, {
           stderr: true,
+          cwd: appDir,
         })
         expect(code).toBe(1)
-        expect(stderr).toMatch(/\/export-all-in-page/)
-
-        expect(stderr.split('\n\n')[1]).toMatchInlineSnapshot(`
-      "./pages/contact.js:3:1
-      Syntax error: Using \`export * from '...'\` in a page is disallowed. Please use \`export { default } from '...'\` instead.
-      Read more: https://nextjs.org/docs/messages/export-all-in-page"
-    `)
+        expect(stderr).toInclude('pages/contact.js')
+        expect(stderr).toInclude('3:1')
+        expect(stderr).toInclude(
+          "Using `export * from '...'` in a page is disallowed. Please use `export { default } from '...'` instead."
+        )
+        expect(stderr).toInclude(
+          'Read more: https://nextjs.org/docs/messages/export-all-in-page'
+        )
       })
 
       it('builds without error when no `export * from "..."` is used in pages', async () => {
@@ -28,6 +30,7 @@ describe('Re-export all exports from page is disallowed', () => {
         try {
           const { code, stderr } = await nextBuild(appDir, undefined, {
             stderr: true,
+            cwd: appDir,
           })
           expect(code).toBe(0)
           expect(stderr).not.toMatch(/\/export-all-in-page/)

@@ -1,6 +1,12 @@
 # top level version field is required
 version: 2
 
+githubApp:
+  enabled: true
+  pullRequestAlertsEnabled: false
+  dependencyOverviewEnabled: false
+  projectReportsEnabled: true
+
 triggerPaths:
   - 'packages/*/package.json'
   - 'package.json'

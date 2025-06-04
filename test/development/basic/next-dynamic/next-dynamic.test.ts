@@ -2,7 +2,7 @@ import { join } from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import { createNext, FileRef } from 'e2e-utils'
-import { renderViaHTTP, check, hasRedbox } from 'next-test-utils'
+import { assertNoRedbox, renderViaHTTP, check } from 'next-test-utils'
 import { NextInstance } from 'e2e-utils'
 
 const customDocumentGipContent = `\
@@ -40,7 +40,7 @@ describe('next/dynamic', () => {
           [`${srcPrefix}/pages/_document.js`]: customDocumentGipContent,
         }),
         // When it's not turbopack and babel is enabled, we add a .babelrc file.
-        ...(!process.env.TURBOPACK &&
+        ...(!process.env.IS_TURBOPACK_TEST &&
           process.env.TEST_BABEL === '1' && {
             '.babelrc': `{ "presets": ["next/babel"] }`,
           }),
@@ -58,7 +58,7 @@ describe('next/dynamic', () => {
   }
 
   // Turbopack doesn't support babel.
-  ;(process.env.TURBOPACK && process.env.TEST_BABEL === '1'
+  ;(process.env.IS_TURBOPACK_TEST && process.env.TEST_BABEL === '1'
     ? describe.skip
     : describe)('Dynamic import', () => {
     describe('default behavior', () => {
@@ -66,7 +66,9 @@ describe('next/dynamic', () => {
         const $ = await get$(basePath + '/dynamic/ssr')
         // Make sure the client side knows it has to wait for the bundle
         expect(JSON.parse($('#__NEXT_DATA__').html()).dynamicIds).toContain(
-          'pages/dynamic/ssr.js -> ../../components/hello1'
+          process.env.IS_TURBOPACK_TEST
+            ? '[project]/components/hello1.js [client] (ecmascript, next/dynamic entry)'
+            : 'pages/dynamic/ssr.js -> ../../components/hello1'
         )
         expect($('body').text()).toMatch(/Hello World 1/)
       })
@@ -75,7 +77,9 @@ describe('next/dynamic', () => {
         const $ = await get$(basePath + '/dynamic/function')
         // Make sure the client side knows it has to wait for the bundle
         expect(JSON.parse($('#__NEXT_DATA__').html()).dynamicIds).toContain(
-          'pages/dynamic/function.js -> ../../components/hello1'
+          process.env.IS_TURBOPACK_TEST
+            ? '[project]/components/hello1.js [client] (ecmascript, next/dynamic entry)'
+            : 'pages/dynamic/function.js -> ../../components/hello1'
         )
         expect($('body').text()).toMatch(/Hello World 1/)
       })
@@ -166,7 +170,7 @@ describe('next/dynamic', () => {
         try {
           browser = await webdriver(next.url, basePath + '/dynamic/no-ssr')
           await check(() => browser.elementByCss('body').text(), /navigator/)
-          expect(await hasRedbox(browser)).toBe(false)
+          await assertNoRedbox(browser)
         } finally {
           if (browser) {
             await browser.close()
@@ -179,7 +183,7 @@ describe('next/dynamic', () => {
         try {
           browser = await webdriver(next.url, basePath + '/dynamic/no-ssr-esm')
           await check(() => browser.elementByCss('body').text(), /esm.mjs/)
-          expect(await hasRedbox(browser)).toBe(false)
+          await assertNoRedbox(browser)
         } finally {
           if (browser) {
             await browser.close()
@@ -220,7 +224,7 @@ describe('next/dynamic', () => {
       }
     })
     // Turbopack doesn't have this feature.
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
       'custom chunkfilename',
       () => {
         it('should render the correct filename', async () => {
@@ -275,7 +279,7 @@ describe('next/dynamic', () => {
     })
 
     // TODO: Make this test work with Turbopack. Currently the test relies on `chunkFileName` which is not supported by Turbopack.
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
       'Multiple modules',
       () => {
         it('should only include the rendered module script tag', async () => {

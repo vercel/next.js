@@ -1,17 +1,19 @@
 import React from 'react'
 
-export default function Layout({
+export default async function Layout({
   children,
-  params: { layoutPaddingHeight, layoutPaddingWidth, pageWidth, pageHeight },
+  params,
 }: {
   children: React.ReactNode
-  params: {
+  params: Promise<{
     layoutPaddingWidth: string
     layoutPaddingHeight: string
     pageWidth: string
     pageHeight: string
-  }
+  }>
 }) {
+  const { layoutPaddingHeight, layoutPaddingWidth, pageWidth, pageHeight } =
+    await params
   return (
     <div
       style={{
