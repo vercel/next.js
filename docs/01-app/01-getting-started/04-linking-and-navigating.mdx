@@ -152,8 +152,8 @@ Traditionally, navigation to a server-rendered page triggers a full page load. T
 
 Next.js avoids this with client-side transitions using the `<Link>` component. Instead of reloading the page, it updates the content dynamically by:
 
-- Keeps any shared layouts and UI.
-- Replaces the current page with the prefetched loading state or a new page if available.
+- Keeping any shared layouts and UI.
+- Replacing the current page with the prefetched loading state or a new page if available.
 
 Client-side transitions are what makes a server-rendered apps _feel_ like client-rendered apps. And when paired with [prefetching](#prefetching) and [streaming](#streaming), it enables fast transitions, even for dynamic routes.
 
@@ -173,7 +173,7 @@ In development mode, you can use the Next.js Devtools to identify if the route i
 
 {/* TODO: Add a screenshot of the Devtools */}
 
-We recommend adding `loading.tsx` to enable partial prefetching, trigger immediate navigation, and display a loading UI while the route renders.
+We recommend adding `loading.tsx` to dynamic routes to enable partial prefetching, trigger immediate navigation, and display a loading UI while the route renders.
 
 ```tsx filename="app/blog/[slug]/loading.tsx" switcher
 export default function Loading() {
