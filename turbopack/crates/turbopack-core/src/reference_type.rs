@@ -2,11 +2,11 @@ use std::fmt::Display;
 
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ResolvedVc, TaskInput, Vc};
+use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 
 use crate::{module::Module, resolve::ModulePart};
 
-/// Named references to inner assets. Modules can used them to allow to
+/// Named references to inner assets. Modules can use them to allow to
 /// per-module aliases of some requests to already created module assets.
 ///
 /// Name is usually in UPPER_CASE to make it clear that this is an inner asset.
@@ -27,22 +27,54 @@ impl InnerAssets {
 // TODO when plugins are supported, replace u8 with a trait that defines the
 // behavior.
 
-#[turbo_tasks::value()]
-#[derive(Debug, Default, Clone, Hash, TaskInput)]
+#[derive(
+    PartialEq,
+    Eq,
+    TraceRawVcs,
+    NonLocalValue,
+    serde::Serialize,
+    serde::Deserialize,
+    Debug,
+    Default,
+    Clone,
+    Hash,
+    TaskInput,
+)]
 pub enum CommonJsReferenceSubType {
     Custom(u8),
     #[default]
     Undefined,
 }
 
-#[turbo_tasks::value()]
-#[derive(Debug, Clone, Hash, TaskInput)]
+#[derive(
+    PartialEq,
+    Eq,
+    TraceRawVcs,
+    NonLocalValue,
+    serde::Serialize,
+    serde::Deserialize,
+    Debug,
+    Clone,
+    Hash,
+    TaskInput,
+)]
 pub enum ImportWithType {
     Json,
 }
 
-#[turbo_tasks::value()]
-#[derive(Debug, Default, Clone, Hash, TaskInput)]
+#[derive(
+    PartialEq,
+    Eq,
+    TraceRawVcs,
+    NonLocalValue,
+    serde::Serialize,
+    serde::Deserialize,
+    Debug,
+    Default,
+    Clone,
+    Hash,
+    TaskInput,
+)]
 pub enum EcmaScriptModulesReferenceSubType {
     ImportPart(ModulePart),
     Import,
@@ -170,8 +202,19 @@ impl ImportContext {
     }
 }
 
-#[turbo_tasks::value()]
-#[derive(Debug, Default, Clone, Hash, TaskInput)]
+#[derive(
+    PartialEq,
+    Eq,
+    TraceRawVcs,
+    NonLocalValue,
+    serde::Serialize,
+    serde::Deserialize,
+    Debug,
+    Default,
+    Clone,
+    Hash,
+    TaskInput,
+)]
 pub enum CssReferenceSubType {
     AtImport(Option<ResolvedVc<ImportContext>>),
     /// Reference from ModuleCssAsset to an imported ModuleCssAsset for retrieving the composed
@@ -186,8 +229,19 @@ pub enum CssReferenceSubType {
     Undefined,
 }
 
-#[turbo_tasks::value()]
-#[derive(Debug, Default, Clone, Hash, TaskInput)]
+#[derive(
+    PartialEq,
+    Eq,
+    TraceRawVcs,
+    NonLocalValue,
+    serde::Serialize,
+    serde::Deserialize,
+    Debug,
+    Default,
+    Clone,
+    Hash,
+    TaskInput,
+)]
 pub enum UrlReferenceSubType {
     EcmaScriptNewUrl,
     CssUrl,
@@ -196,15 +250,35 @@ pub enum UrlReferenceSubType {
     Undefined,
 }
 
-#[turbo_tasks::value()]
-#[derive(Debug, Clone, Hash, TaskInput)]
+#[derive(
+    PartialEq,
+    Eq,
+    TraceRawVcs,
+    NonLocalValue,
+    serde::Serialize,
+    serde::Deserialize,
+    Debug,
+    Clone,
+    Hash,
+    TaskInput,
+)]
 pub enum TypeScriptReferenceSubType {
     Custom(u8),
     Undefined,
 }
 
-#[turbo_tasks::value()]
-#[derive(Debug, Clone, Hash, TaskInput)]
+#[derive(
+    PartialEq,
+    Eq,
+    TraceRawVcs,
+    NonLocalValue,
+    serde::Serialize,
+    serde::Deserialize,
+    Debug,
+    Clone,
+    Hash,
+    TaskInput,
+)]
 pub enum WorkerReferenceSubType {
     WebWorker,
     SharedWorker,
@@ -215,8 +289,18 @@ pub enum WorkerReferenceSubType {
 
 // TODO(sokra) this was next.js specific values. We want to solve this in a
 // different way.
-#[turbo_tasks::value()]
-#[derive(Debug, Clone, Hash, TaskInput)]
+#[derive(
+    PartialEq,
+    Eq,
+    TraceRawVcs,
+    NonLocalValue,
+    serde::Serialize,
+    serde::Deserialize,
+    Debug,
+    Clone,
+    Hash,
+    TaskInput,
+)]
 pub enum EntryReferenceSubType {
     Web,
     Page,
@@ -231,8 +315,19 @@ pub enum EntryReferenceSubType {
     Undefined,
 }
 
-#[turbo_tasks::value()]
-#[derive(Debug, Default, Clone, Hash, TaskInput)]
+#[derive(
+    PartialEq,
+    Eq,
+    TraceRawVcs,
+    NonLocalValue,
+    serde::Serialize,
+    serde::Deserialize,
+    Debug,
+    Default,
+    Clone,
+    Hash,
+    TaskInput,
+)]
 pub enum ReferenceType {
     CommonJs(CommonJsReferenceSubType),
     EcmaScriptModules(EcmaScriptModulesReferenceSubType),
