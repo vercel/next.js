@@ -187,8 +187,8 @@ describe('Error overlay - RSC build errors', () => {
        Learn more: https://nextjs.org/docs/app/building-your-application/rendering
 
        Example import trace:
-         ./app/server-with-errors/client-only-in-server/client-only-lib.js [app-rsc]
-         ./app/server-with-errors/client-only-in-server/page.js [app-rsc]"
+         ./app/server-with-errors/client-only-in-server/client-only-lib.js
+         ./app/server-with-errors/client-only-in-server/page.js"
       `)
     } else {
       expect(await session.getRedboxSource()).toInclude(

@@ -212,8 +212,8 @@ export function formatIssue(issue: Issue) {
   if (importTraces?.length) {
     // This is the same logic as in turbopack/crates/turbopack-cli-utils/src/issue.rs
     if (importTraces.length > 1) {
-      // We end up with multiple traces when the file with the error is reachable from multiple different entry points (e.g. ssr, client)
-
+      // We end up with multiple traces when the file with the error is reachable from multiple
+      // different entry points (e.g. ssr, client)
       message += 'Example import traces:\n'
       const tracesAndLayers: Array<[string | undefined, PlainTraceItem[]]> =
         importTraces.map((trace) => [getLayer(trace), trace])
