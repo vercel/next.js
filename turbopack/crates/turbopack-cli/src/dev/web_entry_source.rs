@@ -1,5 +1,5 @@
 use anyhow::{Result, anyhow};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, Vc};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
@@ -36,7 +36,7 @@ use crate::{
 pub async fn get_client_chunking_context(
     root_path: ResolvedVc<FileSystemPath>,
     server_root: ResolvedVc<FileSystemPath>,
-    server_root_to_root_path: ResolvedVc<RcStr>,
+    server_root_to_root_path: RcStr,
     environment: ResolvedVc<Environment>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
     Ok(Vc::upcast(
@@ -45,8 +45,8 @@ pub async fn get_client_chunking_context(
             server_root,
             server_root_to_root_path,
             server_root,
-            server_root.join("/_chunks".into()).to_resolved().await?,
-            server_root.join("/_assets".into()).to_resolved().await?,
+            server_root.join(rcstr!("/_chunks")).to_resolved().await?,
+            server_root.join(rcstr!("/_assets")).to_resolved().await?,
             environment,
             RuntimeType::Development,
         )
@@ -76,7 +76,7 @@ pub async fn get_client_runtime_entries(
         runtime_entries.push(
             RuntimeEntry::Request(
                 request.to_resolved().await?,
-                project_path.join("_".into()).to_resolved().await?,
+                project_path.join(rcstr!("_")).to_resolved().await?,
             )
             .resolved_cell(),
         )
@@ -84,7 +84,7 @@ pub async fn get_client_runtime_entries(
 
     runtime_entries.push(
         RuntimeEntry::Source(ResolvedVc::upcast(
-            FileSource::new(embed_file_path("entry/bootstrap.ts".into()))
+            FileSource::new(embed_file_path(rcstr!("entry/bootstrap.ts")))
                 .to_resolved()
                 .await?,
         ))
@@ -100,7 +100,7 @@ pub async fn create_web_entry_source(
     execution_context: Vc<ExecutionContext>,
     entry_requests: Vec<Vc<Request>>,
     server_root: Vc<FileSystemPath>,
-    server_root_to_root_path: ResolvedVc<RcStr>,
+    server_root_to_root_path: RcStr,
     _env: Vc<Box<dyn ProcessEnv>>,
     eager_compile: bool,
     node_env: Vc<NodeEnv>,
@@ -118,7 +118,7 @@ pub async fn create_web_entry_source(
     let chunking_context = get_client_chunking_context(
         root_path,
         server_root,
-        *server_root_to_root_path,
+        server_root_to_root_path,
         compile_time_info.environment(),
     )
     .to_resolved()
@@ -127,7 +127,7 @@ pub async fn create_web_entry_source(
 
     let runtime_entries = entries.resolve_entries(asset_context);
 
-    let origin = PlainResolveOrigin::new(asset_context, root_path.join("_".into()));
+    let origin = PlainResolveOrigin::new(asset_context, root_path.join(rcstr!("_")));
     let entries = entry_requests
         .into_iter()
         .map(|request| async move {
@@ -196,7 +196,7 @@ pub async fn create_web_entry_source(
         .await?;
 
     let entry_asset = Vc::upcast(DevHtmlAsset::new(
-        server_root.join("index.html".into()).to_resolved().await?,
+        server_root.join(rcstr!("index.html")).to_resolved().await?,
         entries,
     ));
 

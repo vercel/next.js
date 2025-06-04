@@ -7,7 +7,7 @@ import type { DebugInfo } from './types'
 import type { DevIndicatorServerState } from '../../../server/dev/dev-indicator-server-state'
 import type { HMR_ACTION_TYPES } from '../../../server/dev/hot-reloader-types'
 import { parseStack } from './utils/parse-stack'
-import { getComponentStack, getOwnerStack } from '../errors/stitched-error'
+import { isConsoleError } from '../errors/console-error'
 
 type FastRefreshState =
   /** No refresh in progress. */
@@ -130,38 +130,6 @@ function getStackIgnoringStrictMode(stack: string | undefined) {
   return stack?.split(REACT_ERROR_STACK_BOTTOM_FRAME_REGEX)[0]
 }
 
-function pushErrorFilterDuplicates(
-  events: SupportedErrorEvent[],
-  id: number,
-  error: Error
-): SupportedErrorEvent[] {
-  const componentStack = getComponentStack(error)
-  const componentStackFrames =
-    componentStack === undefined
-      ? undefined
-      : parseComponentStack(componentStack)
-  const ownerStack = getOwnerStack(error)
-  const frames = parseStack((error.stack || '') + (ownerStack || ''))
-  const pendingEvent: SupportedErrorEvent = {
-    id,
-    error,
-    frames,
-    componentStackFrames,
-  }
-  const pendingEvents = events.filter((event) => {
-    // Filter out duplicate errors
-    return (
-      (event.error.stack !== pendingEvent.error.stack &&
-        // TODO: Let ReactDevTools control deduping instead?
-        getStackIgnoringStrictMode(event.error.stack) !==
-          getStackIgnoringStrictMode(pendingEvent.error.stack)) ||
-      getOwnerStack(event.error) !== getOwnerStack(pendingEvent.error)
-    )
-  })
-  pendingEvents.push(pendingEvent)
-  return pendingEvents
-}
-
 const shouldDisableDevIndicator =
   process.env.__NEXT_DEV_INDICATOR?.toString() === 'false'
 
@@ -199,7 +167,49 @@ function getInitialState(
   }
 }
 
-export function useErrorOverlayReducer(routerType: 'pages' | 'app') {
+export function useErrorOverlayReducer(
+  routerType: 'pages' | 'app',
+  getComponentStack: (error: Error) => string | undefined,
+  getOwnerStack: (error: Error) => string | null | undefined,
+  isRecoverableError: (error: Error) => boolean
+) {
+  function pushErrorFilterDuplicates(
+    events: SupportedErrorEvent[],
+    id: number,
+    error: Error
+  ): SupportedErrorEvent[] {
+    const componentStack = getComponentStack(error)
+    const componentStackFrames =
+      componentStack === undefined
+        ? undefined
+        : parseComponentStack(componentStack)
+    const ownerStack = getOwnerStack(error)
+    const frames = parseStack((error.stack || '') + (ownerStack || ''))
+    const pendingEvent: SupportedErrorEvent = {
+      id,
+      error,
+      frames,
+      componentStackFrames,
+      type: isRecoverableError(error)
+        ? 'recoverable'
+        : isConsoleError(error)
+          ? 'console'
+          : 'runtime',
+    }
+    const pendingEvents = events.filter((event) => {
+      // Filter out duplicate errors
+      return (
+        (event.error.stack !== pendingEvent.error.stack &&
+          // TODO: Let ReactDevTools control deduping instead?
+          getStackIgnoringStrictMode(event.error.stack) !==
+            getStackIgnoringStrictMode(pendingEvent.error.stack)) ||
+        getOwnerStack(event.error) !== getOwnerStack(pendingEvent.error)
+      )
+    })
+    pendingEvents.push(pendingEvent)
+    return pendingEvents
+  }
+
   return useReducer((state: OverlayState, action: BusEvent): OverlayState => {
     switch (action.type) {
       case ACTION_DEBUG_INFO: {

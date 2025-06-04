@@ -13,6 +13,7 @@ export type SupportedErrorEvent = {
   error: Error
   frames: StackFrame[]
   componentStackFrames?: ComponentStackFrame[]
+  type: 'runtime' | 'recoverable' | 'console'
 }
 
 type Props = {

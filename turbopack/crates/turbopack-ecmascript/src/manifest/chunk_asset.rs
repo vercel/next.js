@@ -105,16 +105,17 @@ impl ManifestAsyncModule {
     }
 }
 
-#[turbo_tasks::function]
-fn manifest_chunk_reference_description() -> Vc<RcStr> {
-    Vc::cell("manifest chunk".into())
+fn manifest_chunk_reference_description() -> RcStr {
+    rcstr!("manifest chunk")
 }
 
 #[turbo_tasks::value_impl]
 impl Module for ManifestAsyncModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        self.inner.ident().with_modifier(rcstr!("manifest chunk"))
+        self.inner
+            .ident()
+            .with_modifier(manifest_chunk_reference_description())
     }
 
     #[turbo_tasks::function]

@@ -17,6 +17,7 @@ use image::{
 use mime::Mime;
 use serde::{Deserialize, Serialize};
 use serde_with::{DisplayFromStr, serde_as};
+use turbo_rcstr::rcstr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
@@ -171,7 +172,7 @@ fn load_image_internal(
                     .into(),
             )
             .resolved_cell(),
-            title: Some(StyledString::Text("AVIF image not supported".into()).resolved_cell()),
+            title: Some(StyledString::Text(rcstr!("AVIF image not supported")).resolved_cell()),
             issue_severity: Some(IssueSeverity::Warning.resolved_cell()),
         }
         .resolved_cell()
@@ -189,7 +190,7 @@ fn load_image_internal(
                     .into(),
             )
             .resolved_cell(),
-            title: Some(StyledString::Text("WEBP image not supported".into()).resolved_cell()),
+            title: Some(StyledString::Text(rcstr!("WEBP image not supported")).resolved_cell()),
             issue_severity: Some(IssueSeverity::Warning.resolved_cell()),
         }
         .resolved_cell()
@@ -515,7 +516,7 @@ impl Issue for ImageProcessingIssue {
     fn title(&self) -> Vc<StyledString> {
         *self
             .title
-            .unwrap_or(StyledString::Text("Processing image failed".into()).resolved_cell())
+            .unwrap_or(StyledString::Text(rcstr!("Processing image failed")).resolved_cell())
     }
 
     #[turbo_tasks::function]

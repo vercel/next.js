@@ -2,7 +2,7 @@ use std::{collections::HashMap, fmt::Write, mem::take};
 
 use anyhow::Result;
 use serde_json::Value as JsonValue;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Value, ValueDefault, Vc, fxindexset};
 use turbo_tasks_fs::{FileContent, FileJsonContent, FileSystemPath};
 use turbopack_core::{
@@ -39,7 +39,7 @@ pub struct TsConfigIssue {
 #[turbo_tasks::function]
 async fn json_only(resolve_options: Vc<ResolveOptions>) -> Result<Vc<ResolveOptions>> {
     let mut opts = resolve_options.owned().await?;
-    opts.extensions = vec![".json".into()];
+    opts.extensions = vec![rcstr!(".json")];
     Ok(opts.cell())
 }
 
@@ -83,7 +83,7 @@ pub async fn read_tsconfigs(
                 TsConfigIssue {
                     severity: IssueSeverity::Error.resolved_cell(),
                     source_ident: tsconfig.ident().to_resolved().await?,
-                    message: "tsconfig not found".into(),
+                    message: rcstr!("tsconfig not found"),
                 }
                 .resolved_cell()
                 .emit();
@@ -149,7 +149,7 @@ async fn resolve_extends(
 
         // An empty extends is treated as "./tsconfig"
         Request::Empty => {
-            let request = Request::parse_string("./tsconfig".into());
+            let request = Request::parse_string(rcstr!("./tsconfig"));
             Ok(resolve(parent_dir,
                 Value::new(ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined)), request, resolve_options).first_source())
         }
@@ -344,7 +344,7 @@ pub async fn tsconfig_resolve_options(
 
 #[turbo_tasks::function]
 pub fn tsconfig() -> Vc<Vec<RcStr>> {
-    Vc::cell(vec!["tsconfig.json".into(), "jsconfig.json".into()])
+    Vc::cell(vec![rcstr!("tsconfig.json"), rcstr!("jsconfig.json")])
 }
 
 #[turbo_tasks::function]
@@ -362,7 +362,7 @@ pub async fn apply_tsconfig_resolve_options(
             ResolveModules::Path {
                 dir: base_url,
                 // tsconfig basepath doesn't apply to json requests
-                excluded_extensions: ResolvedVc::cell(fxindexset![".json".into()]),
+                excluded_extensions: ResolvedVc::cell(fxindexset![rcstr!(".json")]),
             },
         );
     }
@@ -480,7 +480,7 @@ async fn apply_typescript_types_options(
     resolve_options: Vc<ResolveOptions>,
 ) -> Result<Vc<ResolveOptions>> {
     let mut resolve_options = resolve_options.owned().await?;
-    resolve_options.extensions = vec![".tsx".into(), ".ts".into(), ".d.ts".into()];
+    resolve_options.extensions = vec![rcstr!(".tsx"), rcstr!(".ts"), rcstr!(".d.ts")];
     resolve_options.into_package = resolve_options
         .into_package
         .drain(..)
@@ -490,7 +490,7 @@ async fn apply_typescript_types_options(
                 unspecified_conditions,
             } = into
             {
-                conditions.insert("types".into(), ConditionValue::Set);
+                conditions.insert(rcstr!("types"), ConditionValue::Set);
                 Some(ResolveIntoPackage::ExportsField {
                     conditions,
                     unspecified_conditions,
@@ -503,10 +503,10 @@ async fn apply_typescript_types_options(
     resolve_options
         .into_package
         .push(ResolveIntoPackage::MainField {
-            field: "types".into(),
+            field: rcstr!("types"),
         });
     for conditions in get_condition_maps(&mut resolve_options) {
-        conditions.insert("types".into(), ConditionValue::Set);
+        conditions.insert(rcstr!("types"), ConditionValue::Set);
     }
     Ok(resolve_options.into())
 }
@@ -520,7 +520,10 @@ impl Issue for TsConfigIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("An issue occurred while parsing a tsconfig.json file.".into()).cell()
+        StyledString::Text(rcstr!(
+            "An issue occurred while parsing a tsconfig.json file."
+        ))
+        .cell()
     }
 
     #[turbo_tasks::function]

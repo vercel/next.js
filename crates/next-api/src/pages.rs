@@ -110,8 +110,8 @@ impl PagesProject {
             routes: &mut FxIndexMap<RcStr, Route>,
             page: Vc<PagesStructureItem>,
             make_route: impl Fn(
-                Vc<RcStr>,
-                Vc<RcStr>,
+                RcStr,
+                RcStr,
                 Vc<PagesStructureItem>,
             ) -> BoxFuture<'static, Result<Route>>,
         ) -> Result<()> {
@@ -121,9 +121,8 @@ impl PagesProject {
                 ..
             } = *page.await?;
             let pathname: RcStr = format!("/{}", next_router_path.await?.path).into();
-            let pathname_vc = Vc::cell(pathname.clone());
-            let original_name = Vc::cell(format!("/{}", original_path.await?.path).into());
-            let route = make_route(pathname_vc, original_name, page).await?;
+            let original_name = format!("/{}", original_path.await?.path).into();
+            let route = make_route(pathname.clone(), original_name, page).await?;
             routes.insert(pathname, route);
             Ok(())
         }
@@ -132,8 +131,8 @@ impl PagesProject {
             routes: &mut FxIndexMap<RcStr, Route>,
             dir: Vc<PagesDirectoryStructure>,
             make_route: impl Fn(
-                Vc<RcStr>,
-                Vc<RcStr>,
+                RcStr,
+                RcStr,
                 Vc<PagesStructureItem>,
             ) -> BoxFuture<'static, Result<Route>>,
         ) -> Result<()> {
@@ -177,15 +176,15 @@ impl PagesProject {
             .await?;
         }
 
-        let make_page_route = |pathname, original_name, page| -> BoxFuture<_> {
+        let make_page_route = |pathname: RcStr, original_name: RcStr, page| -> BoxFuture<_> {
             Box::pin(async move {
                 Ok(Route::Page {
                     html_endpoint: ResolvedVc::upcast(
                         PageEndpoint::new(
                             PageEndpointType::Html,
                             self,
-                            pathname,
-                            original_name,
+                            pathname.clone(),
+                            original_name.clone(),
                             page,
                             pages_structure,
                         )
@@ -227,12 +226,11 @@ impl PagesProject {
             ..
         } = *item.await?;
         let pathname: RcStr = format!("/{}", next_router_path.await?.path).into();
-        let pathname_vc = Vc::cell(pathname.clone());
-        let original_name = Vc::cell(format!("/{}", original_path.await?.path).into());
+        let original_name = format!("/{}", original_path.await?.path).into();
         let endpoint = Vc::upcast(PageEndpoint::new(
             ty,
             self,
-            pathname_vc,
+            pathname,
             original_name,
             item,
             self.pages_structure(),
@@ -279,7 +277,7 @@ impl PagesProject {
         Ok(if let Some(pages) = self.pages_structure().await?.pages {
             pages.project_path()
         } else {
-            self.project().project_path().join("pages".into())
+            self.project().project_path().join(rcstr!("pages"))
         })
     }
 
@@ -288,11 +286,11 @@ impl PagesProject {
         Ok(TransitionOptions {
             named_transitions: [
                 (
-                    "next-dynamic".into(),
+                    rcstr!("next-dynamic"),
                     ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
                 ),
                 (
-                    "next-dynamic-client".into(),
+                    rcstr!("next-dynamic-client"),
                     ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
                 ),
             ]
@@ -308,11 +306,11 @@ impl PagesProject {
         Ok(TransitionOptions {
             named_transitions: [
                 (
-                    "next-dynamic".into(),
+                    rcstr!("next-dynamic"),
                     ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
                 ),
                 (
-                    "next-dynamic-client".into(),
+                    rcstr!("next-dynamic-client"),
                     ResolvedVc::upcast(
                         NextDynamicTransition::new_client(Vc::upcast(self.client_transition()))
                             .to_resolved()
@@ -629,7 +627,7 @@ impl PagesProject {
         let client_main_module = esm_resolve(
             Vc::upcast(PlainResolveOrigin::new(
                 client_module_context,
-                self.project().project_path().join("_".into()),
+                self.project().project_path().join(rcstr!("_")),
             )),
             Request::parse(Value::new(Pattern::Constant(
                 match *self.project().next_mode().await? {
@@ -655,8 +653,8 @@ impl PagesProject {
 struct PageEndpoint {
     ty: PageEndpointType,
     pages_project: ResolvedVc<PagesProject>,
-    pathname: ResolvedVc<RcStr>,
-    original_name: ResolvedVc<RcStr>,
+    pathname: RcStr,
+    original_name: RcStr,
     page: ResolvedVc<PagesStructureItem>,
     pages_structure: ResolvedVc<PagesStructure>,
 }
@@ -706,8 +704,8 @@ impl PageEndpoint {
     fn new(
         ty: PageEndpointType,
         pages_project: ResolvedVc<PagesProject>,
-        pathname: ResolvedVc<RcStr>,
-        original_name: ResolvedVc<RcStr>,
+        pathname: RcStr,
+        original_name: RcStr,
         page: ResolvedVc<PagesStructureItem>,
         pages_structure: ResolvedVc<PagesStructure>,
     ) -> Vc<Self> {
@@ -733,7 +731,7 @@ impl PageEndpoint {
         let page_loader = create_page_loader_entry_module(
             Vc::upcast(this.pages_project.client_module_context()),
             self.source(),
-            *this.pathname,
+            this.pathname.clone(),
         );
         if matches!(
             *this.pages_project.project().next_mode().await?,
@@ -865,7 +863,7 @@ impl PageEndpoint {
         let client_relative_path = self.client_relative_path();
         let page_loader = PageLoaderAsset::new(
             node_root,
-            *this.pathname,
+            this.pathname.clone(),
             client_relative_path,
             client_chunks,
         );
@@ -902,13 +900,12 @@ impl PageEndpoint {
             .module();
 
         let config = parse_config_from_source(ssr_module, NextRuntime::default()).await?;
-        let pathname = &**this.pathname.await?;
 
         Ok(
             // `/_app` and `/_document` never get rendered directly so they don't need to be
             // wrapped in the route module, and don't need to be handled as edge runtime as the
             // rendering for edge is part of the page bundle.
-            if pathname == "/_app" || pathname == "/_document" {
+            if this.pathname == "/_app" || this.pathname == "/_document" {
                 InternalSsrChunkModule {
                     ssr_module: ssr_module.to_resolved().await?,
                     app_module: None,
@@ -920,12 +917,12 @@ impl PageEndpoint {
                 }
             } else if config.runtime == NextRuntime::Edge {
                 let modules = create_page_ssr_entry_module(
-                    *this.pathname,
+                    this.pathname.clone(),
                     reference_type,
                     project_root,
                     Vc::upcast(edge_module_context),
                     self.source(),
-                    *this.original_name,
+                    this.original_name.clone(),
                     *this.pages_structure,
                     config.runtime,
                     this.pages_project.project().next_config(),
@@ -941,12 +938,12 @@ impl PageEndpoint {
                 }
             } else {
                 let modules = create_page_ssr_entry_module(
-                    *this.pathname,
+                    this.pathname.clone(),
                     reference_type,
                     project_root,
                     Vc::upcast(module_context),
                     self.source(),
-                    *this.original_name,
+                    this.original_name.clone(),
                     *this.pages_structure,
                     config.runtime,
                     this.pages_project.project().next_config(),
@@ -1082,7 +1079,7 @@ impl PageEndpoint {
                 }
                 .cell())
             } else {
-                let pathname = &**this.pathname.await?;
+                let pathname = &this.pathname;
 
                 let asset_path = get_asset_path_from_pathname(pathname, ".js");
 
@@ -1151,7 +1148,7 @@ impl PageEndpoint {
             this.pages_project
                 .project()
                 .node_root()
-                .join("server".into()),
+                .join(rcstr!("server")),
             project.server_chunking_context(true),
             project.edge_chunking_context(true),
             this.pages_project.ssr_runtime_entries(),
@@ -1167,7 +1164,7 @@ impl PageEndpoint {
             this.pages_project
                 .project()
                 .node_root()
-                .join("server/data".into()),
+                .join(rcstr!("server/data")),
             this.pages_project.project().server_chunking_context(true),
             this.pages_project.project().edge_chunking_context(true),
             this.pages_project.ssr_data_runtime_entries(),
@@ -1183,7 +1180,7 @@ impl PageEndpoint {
             this.pages_project
                 .project()
                 .node_root()
-                .join("server".into()),
+                .join(rcstr!("server")),
             this.pages_project.project().server_chunking_context(false),
             this.pages_project.project().edge_chunking_context(false),
             this.pages_project.ssr_runtime_entries(),
@@ -1200,17 +1197,17 @@ impl PageEndpoint {
         let chunk_path = entry_chunk.path().await?;
 
         let asset_path = node_root
-            .join("server".into())
+            .join(rcstr!("server"))
             .await?
             .get_path_to(&chunk_path)
             .context("ssr chunk entry path must be inside the node root")?;
 
         let pages_manifest = PagesManifest {
-            pages: [(self.pathname.owned().await?, asset_path.into())]
+            pages: [(self.pathname.clone(), asset_path.into())]
                 .into_iter()
                 .collect(),
         };
-        let manifest_path_prefix = get_asset_prefix_from_pathname(&self.pathname.await?);
+        let manifest_path_prefix = get_asset_prefix_from_pathname(&self.pathname);
         let asset = Vc::upcast(VirtualOutputAsset::new(
             node_root
                 .join(format!("server/pages{manifest_path_prefix}/pages-manifest.json",).into()),
@@ -1227,7 +1224,7 @@ impl PageEndpoint {
     ) -> Result<Vc<OutputAssets>> {
         let node_root = self.pages_project.project().node_root();
         let client_relative_path = self.pages_project.project().client_relative_path();
-        let loadable_path_prefix = get_asset_prefix_from_pathname(&self.pathname.await?);
+        let loadable_path_prefix = get_asset_prefix_from_pathname(&self.pathname);
         Ok(create_react_loadable_manifest(
             dynamic_import_entries,
             client_relative_path,
@@ -1245,10 +1242,10 @@ impl PageEndpoint {
         let node_root = self.pages_project.project().node_root();
         let client_relative_path = self.pages_project.project().client_relative_path();
         let build_manifest = BuildManifest {
-            pages: fxindexmap!(self.pathname.owned().await? => client_chunks),
+            pages: fxindexmap!(self.pathname.clone() => client_chunks),
             ..Default::default()
         };
-        let manifest_path_prefix = get_asset_prefix_from_pathname(&self.pathname.await?);
+        let manifest_path_prefix = get_asset_prefix_from_pathname(&self.pathname);
         Ok(Vc::upcast(
             build_manifest
                 .build_output(
@@ -1284,12 +1281,12 @@ impl PageEndpoint {
         };
         let emit_manifests = !matches!(this.ty, PageEndpointType::Data);
 
-        let pathname = this.pathname.owned().await?;
-        let original_name = &*this.original_name.await?;
+        let pathname = &this.pathname;
+        let original_name = &this.original_name;
 
         let client_assets = OutputAssets::new(client_assets).to_resolved().await?;
 
-        let manifest_path_prefix = get_asset_prefix_from_pathname(&pathname);
+        let manifest_path_prefix = get_asset_prefix_from_pathname(pathname);
         let node_root = this.pages_project.project().node_root();
         let next_font_manifest_output = create_font_manifest(
             this.pages_project.project().client_root(),
@@ -1297,7 +1294,7 @@ impl PageEndpoint {
             this.pages_project.pages_dir(),
             original_name,
             &manifest_path_prefix,
-            &pathname,
+            pathname,
             *client_assets,
             false,
         )
@@ -1374,9 +1371,9 @@ impl PageEndpoint {
                     //
                     // they are created in `setup-dev-bundler.ts`
                     let mut file_paths_from_root = vec![
-                        "server/server-reference-manifest.js".into(),
-                        "server/middleware-build-manifest.js".into(),
-                        "server/next-font-manifest.js".into(),
+                        rcstr!("server/server-reference-manifest.js"),
+                        rcstr!("server/middleware-build-manifest.js"),
+                        rcstr!("server/next-font-manifest.js"),
                     ];
                     let mut wasm_paths_from_root = fxindexset![];
 
@@ -1398,7 +1395,7 @@ impl PageEndpoint {
                     let all_assets =
                         get_asset_paths_from_root(&node_root_value, &all_output_assets).await?;
 
-                    let named_regex = get_named_middleware_regex(&pathname).into();
+                    let named_regex = get_named_middleware_regex(pathname).into();
                     let matchers = MiddlewareMatcher {
                         regexp: Some(named_regex),
                         original_source: pathname.clone(),
@@ -1416,13 +1413,12 @@ impl PageEndpoint {
                         None
                     };
 
-                    let original_name = this.original_name.owned().await?;
                     let edge_function_definition = EdgeFunctionDefinition {
                         files: file_paths_from_root,
                         wasm: wasm_paths_to_bindings(wasm_paths_from_root).await?,
                         assets: paths_to_bindings(all_assets),
                         name: pathname.clone(),
-                        page: original_name.clone(),
+                        page: this.original_name.clone(),
                         regions,
                         matchers: vec![matchers],
                         env: this.pages_project.project().edge_env().owned().await?,
@@ -1434,8 +1430,7 @@ impl PageEndpoint {
                             .collect(),
                         ..Default::default()
                     };
-                    let manifest_path_prefix =
-                        get_asset_prefix_from_pathname(&this.pathname.await?);
+                    let manifest_path_prefix = get_asset_prefix_from_pathname(&this.pathname);
                     let middleware_manifest_v2 = VirtualOutputAsset::new(
                         node_root.join(
                             format!("server/pages{manifest_path_prefix}/middleware-manifest.json")
@@ -1489,10 +1484,10 @@ pub struct InternalSsrChunkModule {
 impl Endpoint for PageEndpoint {
     #[turbo_tasks::function]
     async fn output(self: ResolvedVc<Self>) -> Result<Vc<EndpointOutput>> {
-        let this = self.await?;
-        let original_name = this.original_name.await?;
+        let this = &*self.await?;
+        let original_name = &this.original_name;
         let span = {
-            match this.ty {
+            match &this.ty {
                 PageEndpointType::Html => {
                     tracing::info_span!("page endpoint HTML", name = original_name.to_string())
                 }
