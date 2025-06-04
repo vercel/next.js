@@ -8,16 +8,19 @@ import type { Rewrite } from './load-custom-routes'
 
 // a function that converts normalised paths (e.g. /foo/[bar]/[baz]) to the format expected by pathToRegexp (e.g. /foo/:bar/:baz)
 function toPathToRegexpPath(path: string): string {
-  return path.replace(/\[\[?([^\]]+)\]\]?/g, (_, capture) => {
-    // path-to-regexp only supports word characters, so we replace any non-word characters with underscores
+  console.log('DEBUG: Converting path:', path)
+  const result = path.replace(/\[\[?([^\]]+)\]\]?/g, (match, capture) => {
+    console.log('DEBUG: Match found:', match, 'Capture:', capture)
     const paramName = capture.replace(/\W+/g, '_')
+    console.log('DEBUG: Param name:', paramName)
 
-    // handle catch-all segments (e.g. /foo/bar/[...baz] or /foo/bar/[[...baz]])
     if (capture.startsWith('...')) {
       return `:${capture.slice(3)}*`
     }
     return ':' + paramName
   })
+  console.log('DEBUG: Final result:', result)
+  return result
 }
 
 export function generateInterceptionRoutesRewrites(
