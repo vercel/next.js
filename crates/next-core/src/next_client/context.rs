@@ -2,7 +2,7 @@ use std::iter::once;
 
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, OptionVcExt, ResolvedVc, Value, Vc};
+use turbo_tasks::{FxIndexMap, OptionVcExt, ResolvedVc, TaskInput, Value, Vc};
 use turbo_tasks_env::EnvMap;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
@@ -140,7 +140,7 @@ pub async fn get_client_compile_time_info(
 }
 
 #[turbo_tasks::value(shared, serialization = "auto_for_input")]
-#[derive(Debug, Copy, Clone, Hash)]
+#[derive(Debug, Copy, Clone, Hash, TaskInput)]
 pub enum ClientContextType {
     Pages {
         pages_dir: ResolvedVc<FileSystemPath>,
@@ -155,7 +155,7 @@ pub enum ClientContextType {
 #[turbo_tasks::function]
 pub async fn get_client_resolve_options_context(
     project_path: ResolvedVc<FileSystemPath>,
-    ty: Value<ClientContextType>,
+    ty: ClientContextType,
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
@@ -231,7 +231,7 @@ pub async fn get_client_module_options_context(
     project_path: ResolvedVc<FileSystemPath>,
     execution_context: ResolvedVc<ExecutionContext>,
     env: ResolvedVc<Environment>,
-    ty: Value<ClientContextType>,
+    ty: ClientContextType,
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     encryption_key: ResolvedVc<RcStr>,
@@ -291,11 +291,9 @@ pub async fn get_client_module_options_context(
     let target_browsers = env.runtime_versions();
 
     let mut next_client_rules =
-        get_next_client_transforms_rules(next_config, ty.into_value(), mode, false, encryption_key)
-            .await?;
+        get_next_client_transforms_rules(next_config, ty, mode, false, encryption_key).await?;
     let foreign_next_client_rules =
-        get_next_client_transforms_rules(next_config, ty.into_value(), mode, true, encryption_key)
-            .await?;
+        get_next_client_transforms_rules(next_config, ty, mode, true, encryption_key).await?;
     let additional_rules: Vec<ModuleRule> = vec![
         get_swc_ecma_transform_plugin_rule(next_config, project_path).await?,
         get_relay_transform_rule(next_config, project_path).await?,
@@ -500,7 +498,7 @@ pub fn get_client_assets_path(client_root: Vc<FileSystemPath>) -> Vc<FileSystemP
 #[turbo_tasks::function]
 pub async fn get_client_runtime_entries(
     project_root: Vc<FileSystemPath>,
-    ty: Value<ClientContextType>,
+    ty: ClientContextType,
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
@@ -529,7 +527,7 @@ pub async fn get_client_runtime_entries(
         };
     }
 
-    if matches!(*ty, ClientContextType::App { .. },) {
+    if matches!(ty, ClientContextType::App { .. },) {
         runtime_entries.push(
             RuntimeEntry::Request(
                 Request::parse(Value::new(Pattern::Constant(rcstr!(
