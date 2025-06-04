@@ -655,7 +655,7 @@ impl TurboPersistence {
         max_merge_sequence: usize,
         max_merge_size: u64,
     ) -> Result<()> {
-        if !self.read_only {
+        if self.read_only {
             bail!("Compaction is not allowed on a read only database");
         }
         let _span = tracing::info_span!("compact database").entered();
