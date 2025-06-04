@@ -8,18 +8,19 @@ import type { Rewrite } from './load-custom-routes'
 
 // a function that converts normalised paths (e.g. /foo/[bar]/[baz]) to the format expected by pathToRegexp (e.g. /foo/:bar/:baz)
 function toPathToRegexpPath(path: string): string {
-  console.log('DEBUG: Converting path:', path)
-  const result = path.replace(/\[\[?([^\]]+)\]\]?/g, (match, capture) => {
-    console.log('DEBUG: Match found:', match, 'Capture:', capture)
+  let result = path.replace(/\(\.\)\[([^\]]+)\]/g, (_match, capture) => {
     const paramName = capture.replace(/\W+/g, '_')
-    console.log('DEBUG: Param name:', paramName)
+    return `(.)_${paramName}`
+  })
+
+  result = result.replace(/\[\[?([^\]]+)\]\]?/g, (_match, capture) => {
+    const paramName = capture.replace(/\W+/g, '_')
 
     if (capture.startsWith('...')) {
       return `:${capture.slice(3)}*`
     }
     return ':' + paramName
   })
-  console.log('DEBUG: Final result:', result)
   return result
 }
 
