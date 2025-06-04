@@ -78,7 +78,7 @@ export function createMetadataComponents({
   ViewportTree: React.ComponentType
   getMetadataReady: () => Promise<void>
   getViewportReady: () => Promise<void>
-  StreamingMetadataOutlet: React.ComponentType
+  StreamingMetadataOutlet: React.ComponentType | null
 } {
   const searchParams = createServerSearchParamsForMetadata(
     parsedQuery,
@@ -243,12 +243,13 @@ export function createMetadataComponents({
     return undefined
   }
 
-  function StreamingMetadataOutlet() {
-    if (serveStreamingMetadata) {
-      return <AsyncMetadataOutlet promise={resolveFinalMetadata()} />
-    }
-    return null
+  function StreamingMetadataOutletImpl() {
+    return <AsyncMetadataOutlet promise={resolveFinalMetadata()} />
   }
+
+  const StreamingMetadataOutlet = serveStreamingMetadata
+    ? StreamingMetadataOutletImpl
+    : null
 
   return {
     ViewportTree,
