@@ -1,7 +1,7 @@
 use anyhow::{Context, Result, bail};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Upcast, Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, TaskInput, TryJoinIterExt, Upcast, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::Asset,
@@ -91,13 +91,13 @@ impl NodeJsChunkingContextBuilder {
 
     /// Builds the chunking context.
     pub fn build(self) -> Vc<NodeJsChunkingContext> {
-        NodeJsChunkingContext::new(Value::new(self.chunking_context))
+        NodeJsChunkingContext::new(self.chunking_context)
     }
 }
 
 /// A chunking context for build mode.
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, TaskInput)]
 pub struct NodeJsChunkingContext {
     /// The root path of the project
     root_path: ResolvedVc<FileSystemPath>,
@@ -192,8 +192,8 @@ impl NodeJsChunkingContext {
 #[turbo_tasks::value_impl]
 impl NodeJsChunkingContext {
     #[turbo_tasks::function]
-    fn new(this: Value<NodeJsChunkingContext>) -> Vc<Self> {
-        this.into_value().cell()
+    fn new(this: NodeJsChunkingContext) -> Vc<Self> {
+        this.cell()
     }
 
     #[turbo_tasks::function]
