@@ -76,13 +76,13 @@ impl MetaEntry {
 
     pub fn deserialize_aqmf(&self, meta: &MetaFile) -> Result<qfilter::Filter> {
         let aqmf = self.raw_aqmf(meta.aqmf_data());
-        Ok(pot::from_slice(aqmf).with_context(|| {
+        pot::from_slice(aqmf).with_context(|| {
             format!(
                 "Failed to deserialize AQMF from {:08}.meta for {:08}.sst",
                 meta.sequence_number,
                 self.sequence_number()
             )
-        })?)
+        })
     }
 
     pub fn aqmf(
