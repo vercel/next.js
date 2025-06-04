@@ -2638,6 +2638,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/segment-explorer/segment-explorer.test.ts": {
+    "passed": ["segment-explorer should render the segment explorer"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-dir/serialize-circular-error/serialize-circular-error.test.ts": {
     "passed": [
       "serialize-circular-error should serialize the object from client component in console correctly",
@@ -3123,7 +3130,8 @@
   },
   "test/development/basic/legacy-decorators.test.ts": {
     "passed": [
-      "Legacy decorators SWC option should compile with legacy decorators enabled"
+      "Legacy decorators SWC option with base config should compile with legacy decorators enabled",
+      "Legacy decorators SWC option with extended tsconfig should compile with legacy decorators enabled from extended config"
     ],
     "failed": [],
     "pending": [],
@@ -5199,7 +5207,6 @@
       "app dir - basic searchParams prop server component should have the correct search params on middleware rewrite",
       "app dir - basic searchParams prop server component should have the correct search params on rewrite",
       "app dir - basic server components Loading should render loading.js in browser for slow layout",
-      "app dir - basic server components Loading should render loading.js in browser for slow layout and page",
       "app dir - basic server components Loading should render loading.js in browser for slow page",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout and page",
@@ -5214,6 +5221,7 @@
       "app dir - basic server components dynamic routes should only pass params that apply to the layout",
       "app dir - basic server components middleware should strip internal query parameters from requests to middleware for redirect",
       "app dir - basic server components middleware should strip internal query parameters from requests to middleware for rewrite",
+      "app dir - basic server components next/router should support router.back and router.forward",
       "app dir - basic server components should include client component layout with server component route should include it client-side",
       "app dir - basic server components should include client component layout with server component route should include it server-side",
       "app dir - basic server components should not serve .client.js as a path",
@@ -5257,7 +5265,7 @@
     ],
     "failed": [
       "app dir - basic <Link /> should navigate to pages dynamic route from pages page if it overlaps with an app page",
-      "app dir - basic server components next/router should support router.back and router.forward"
+      "app dir - basic server components Loading should render loading.js in browser for slow layout and page"
     ],
     "pending": [
       "app dir - basic HMR should HMR correctly when changing the component type",
@@ -5906,11 +5914,11 @@
   },
   "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.sync-attribution.test.ts": {
     "passed": [
-      "Dynamic IO Errors - With Minification Error Attribution with Sync IO - Guarded RSC with guarded Client sync IO does not run in dev",
+      "Dynamic IO Errors - With Minification Error Attribution with Sync IO - Guarded RSC with guarded Client sync IO does not show a validation error in the dev overlay",
       "Dynamic IO Errors - With Minification Error Attribution with Sync IO - Guarded RSC with unguarded Client sync IO does not run in dev",
       "Dynamic IO Errors - With Minification Error Attribution with Sync IO - Unguarded RSC with guarded Client sync IO does not run in dev",
       "Dynamic IO Errors - With Minification Error Attribution with Sync IO - unguarded RSC with unguarded Client sync IO does not run in dev",
-      "Dynamic IO Errors - Without Minification Error Attribution with Sync IO - Guarded RSC with guarded Client sync IO does not run in dev",
+      "Dynamic IO Errors - Without Minification Error Attribution with Sync IO - Guarded RSC with guarded Client sync IO does not show a validation error in the dev overlay",
       "Dynamic IO Errors - Without Minification Error Attribution with Sync IO - Guarded RSC with unguarded Client sync IO does not run in dev",
       "Dynamic IO Errors - Without Minification Error Attribution with Sync IO - Unguarded RSC with guarded Client sync IO does not run in dev",
       "Dynamic IO Errors - Without Minification Error Attribution with Sync IO - unguarded RSC with unguarded Client sync IO does not run in dev"
@@ -6923,6 +6931,8 @@
   },
   "test/e2e/app-dir/metadata-icons/metadata-icons.test.ts": {
     "passed": [
+      "app-dir - metadata-icons should not contain icon insertion script when metadata is rendered in head",
+      "app-dir - metadata-icons should not contain icon replacement mark in html or after hydration",
       "app-dir - metadata-icons should only have 1 favicon link in nested page",
       "app-dir - metadata-icons should only have 1 favicon link in root page",
       "app-dir - metadata-icons should re-insert the apple icons into the head after navigation",
@@ -7054,7 +7064,7 @@
   },
   "test/e2e/app-dir/metadata-suspense/index.test.ts": {
     "passed": [
-      "app dir - metadata dynamic routes suspense should render metadata in head even root layout is wrapped with Suspense"
+      "app dir - metadata dynamic routes suspense should render metadata in head when root layout is wrapped with Suspense for bot requests"
     ],
     "failed": [],
     "pending": [],
