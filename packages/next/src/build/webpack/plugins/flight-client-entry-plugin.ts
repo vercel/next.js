@@ -108,6 +108,9 @@ const pluginState = getProxiedPluginState({
   injectedClientEntries: {} as Record<string, string>,
 })
 
+const POSSIBLE_SHARED_CONVENTIONS = ['template', 'layout']
+const STANDALONE_BUNDLE_CONVENTIONS = new Set(['global-not-found'])
+
 function deduplicateCSSImportsForEntry(mergedCSSimports: CssImports) {
   // If multiple entry module connections are having the same CSS import,
   // we only need to have one module to keep track of that CSS import.
@@ -138,8 +141,8 @@ function deduplicateCSSImportsForEntry(mergedCSSimports: CssImports) {
     const aName = path.parse(aPath).name
     const bName = path.parse(bPath).name
 
-    const indexA = ['template', 'layout'].indexOf(aName)
-    const indexB = ['template', 'layout'].indexOf(bName)
+    const indexA = POSSIBLE_SHARED_CONVENTIONS.indexOf(aName)
+    const indexB = POSSIBLE_SHARED_CONVENTIONS.indexOf(bName)
 
     if (indexA === -1) return 1
     if (indexB === -1) return -1
@@ -148,20 +151,29 @@ function deduplicateCSSImportsForEntry(mergedCSSimports: CssImports) {
 
   const dedupedCSSImports: CssImports = {}
   const trackedCSSImports = new Set<string>()
-  for (const [entryName, cssImports] of sortedCSSImports) {
+  const possibleSharedConventionSet = new Set(POSSIBLE_SHARED_CONVENTIONS)
+
+  for (const [entryFilePath, cssImports] of sortedCSSImports) {
+    const entryConventionName = path.parse(entryFilePath).name
+
     for (const cssImport of cssImports) {
-      if (trackedCSSImports.has(cssImport)) continue
+      // If the CSS import is already tracked, we can skip it.
+      // Or if it's any standalone entry such as `global-not-found`, it won't share any resources with other entry, skip it.
+      if (
+        trackedCSSImports.has(cssImport) &&
+        !STANDALONE_BUNDLE_CONVENTIONS.has(entryConventionName)
+      )
+        continue
 
       // Only track CSS imports that are in files that can inherit CSS.
-      const filename = path.parse(entryName).name
-      if (['template', 'layout'].includes(filename)) {
+      if (possibleSharedConventionSet.has(entryConventionName)) {
         trackedCSSImports.add(cssImport)
       }
 
-      if (!dedupedCSSImports[entryName]) {
-        dedupedCSSImports[entryName] = []
+      if (!dedupedCSSImports[entryFilePath]) {
+        dedupedCSSImports[entryFilePath] = []
       }
-      dedupedCSSImports[entryName].push(cssImport)
+      dedupedCSSImports[entryFilePath].push(cssImport)
     }
   }
 
