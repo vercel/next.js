@@ -90,7 +90,7 @@ where
 }
 
 #[derive(Debug)]
-struct SourceMap<'a> {
+pub(crate) struct SourceMap<'a> {
     file: Option<&'a RawValue>,
     tokens: Vec<RawToken>,
     names: MaybeRawValue<'a, Vec<&'a RawValue>>,
@@ -405,7 +405,7 @@ pub fn decode_regular(rsm: RawSourceMap) -> sourcemap::Result<SourceMap> {
         }
     }
 
-    let mut sm = SourceMap {
+    let sm = SourceMap {
         file: rsm.file,
         tokens,
         names: MaybeRawValue::RawValue(rsm.names),

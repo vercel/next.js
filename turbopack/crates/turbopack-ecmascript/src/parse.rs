@@ -41,6 +41,7 @@ use super::EcmascriptModuleAssetType;
 use crate::{
     EcmascriptInputTransform,
     analyzer::{ImportMap, graph::EvalContext},
+    raw_sourcemap,
     swc_comments::ImmutableComments,
     transform::{EcmascriptInputTransforms, TransformContext},
 };
@@ -105,12 +106,12 @@ pub fn generate_js_source_map(
     original_source_map: Option<&Rope>,
     inline_sources_content: bool,
 ) -> Result<Rope> {
+    let original_source_map = original_source_map.map(|x| x.to_bytes());
     let input_map = if let Some(original_source_map) = original_source_map {
-        Some(match sourcemap::decode(original_source_map.read())? {
-            sourcemap::DecodedMap::Regular(source_map) => source_map,
+        Some(match raw_sourcemap::decode(&original_source_map)? {
+            raw_sourcemap::DecodedMap::Regular(source_map) => source_map,
             // swc only accepts flattened sourcemaps as input
-            sourcemap::DecodedMap::Index(source_map_index) => source_map_index.flatten()?,
-            _ => return Err(sourcemap::Error::IncompatibleSourceMap.into()),
+            raw_sourcemap::DecodedMap::Index(source_map_index) => source_map_index.flatten()?,
         })
     } else {
         None
@@ -132,7 +133,7 @@ pub fn generate_js_source_map(
 
     let mut map = match input_map {
         Some(mut input_map) => {
-            input_map.adjust_mappings(&map);
+            input_map.adjust_mappings(map);
             input_map
         }
         None => map,
