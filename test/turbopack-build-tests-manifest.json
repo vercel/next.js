@@ -5320,10 +5320,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/webpack-error/webpack-error.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "SCSS Support Friendly Webpack Error should be a friendly error successfully"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
