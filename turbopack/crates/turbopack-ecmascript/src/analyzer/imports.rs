@@ -11,7 +11,7 @@ use swc_core::{
         visit::{Visit, VisitWith},
     },
 };
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc};
 use turbopack_core::{issue::IssueSource, source::Source};
 
@@ -658,7 +658,7 @@ impl Visit for Analyzer<'_> {
     fn visit_export_default_specifier(&mut self, n: &ExportDefaultSpecifier) {
         self.data
             .exports
-            .insert("default".into(), n.exported.to_id());
+            .insert(rcstr!("default"), n.exported.to_id());
     }
 
     fn visit_export_namespace_specifier(&mut self, n: &ExportNamespaceSpecifier) {

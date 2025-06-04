@@ -14,7 +14,7 @@ use swc_core::{
     quote, quote_expr,
 };
 use turbo_esregex::EsRegex;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, NonLocalValue, ResolvedVc, Value, ValueToString, Vc, debug::ValueDebugFormat,
     trace::TraceRawVcs,
@@ -355,7 +355,7 @@ impl ModuleReference for ResolvedModuleReference {
 impl ValueToString for ResolvedModuleReference {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell("resolved reference".into())
+        Vc::cell(rcstr!("resolved reference"))
     }
 }
 

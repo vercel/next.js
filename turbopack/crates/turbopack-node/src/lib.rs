@@ -7,7 +7,7 @@ use std::{iter::once, thread::available_parallelism};
 use anyhow::{Result, bail};
 pub use node_entry::{NodeEntry, NodeRenderingEntries, NodeRenderingEntry};
 use rustc_hash::FxHashMap;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexSet, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
     graph::{AdjacencyMap, GraphTraversal},
@@ -189,7 +189,7 @@ async fn separate_assets_operation(
 fn emit_package_json(dir: Vc<FileSystemPath>) -> Vc<()> {
     emit(
         Vc::upcast(VirtualOutputAsset::new(
-            dir.join("package.json".into()),
+            dir.join(rcstr!("package.json")),
             AssetContent::file(File::from("{\"type\": \"commonjs\"}").into()),
         )),
         dir,
@@ -255,7 +255,7 @@ pub async fn get_intermediate_asset(
     other_entries: Vc<EvaluatableAssets>,
 ) -> Result<Vc<Box<dyn OutputAsset>>> {
     Ok(Vc::upcast(chunking_context.root_entry_chunk_group_asset(
-        chunking_context.chunk_path(None, main_entry.ident(), ".js".into()),
+        chunking_context.chunk_path(None, main_entry.ident(), rcstr!(".js")),
         other_entries.with_entry(*main_entry),
         ModuleGraph::from_modules(
             Vc::cell(vec![ChunkGroupEntry::Entry(

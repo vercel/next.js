@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -156,7 +156,7 @@ impl Introspectable for IssueFilePathContentSource {
             if let Some(source) = ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.source) {
                 source.ty()
             } else {
-                Vc::cell("IssueContextContentSource".into())
+                Vc::cell(rcstr!("IssueContextContentSource"))
             },
         )
     }

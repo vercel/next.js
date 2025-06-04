@@ -5,7 +5,7 @@ use futures::FutureExt;
 use indoc::formatdoc;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{Completion, FxIndexMap, ResolvedVc, Value, Vc};
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::{CommandLineProcessEnv, ProcessEnv};
@@ -96,8 +96,8 @@ impl NextFontGoogleReplacer {
         let fallback = get_font_fallback(*self.project_path, options);
         let properties = get_font_css_properties(options, fallback).await?;
         let js_asset = VirtualSource::new(
-            next_js_file_path("internal/font/google".into())
-                .join(format!("{}.js", get_request_id(options.font_family(), request_hash).await?).into()),
+            next_js_file_path(rcstr!("internal/font/google"))
+                .join(format!("{}.js", get_request_id(options.font_family().await?, request_hash)).into()),
             AssetContent::file(FileContent::Content(
                 formatdoc!(
                     r#"
@@ -203,28 +203,28 @@ impl NextFontGoogleCssModuleReplacer {
         let request_hash = get_request_hash(&query);
         let font_data = load_font_data(*self.project_path);
         let options = font_options_from_query_map(query, font_data);
-        let stylesheet_url = get_stylesheet_url_from_options(options, font_data);
+        let stylesheet_url = get_stylesheet_url_from_options(options, font_data)
+            .owned()
+            .await?;
+        let font_family = options.font_family().await?;
         let scoped_font_family =
-            get_scoped_font_family(FontFamilyType::WebFont.cell(), options.font_family());
-        let css_virtual_path = next_js_file_path("internal/font/google".into()).join(
-            format!(
-                "/{}.module.css",
-                get_request_id(options.font_family(), request_hash).await?
-            )
-            .into(),
-        );
+            get_scoped_font_family(FontFamilyType::WebFont, font_family.clone());
+        let css_virtual_path = next_js_file_path(rcstr!("internal/font/google"))
+            .join(format!("/{}.module.css", get_request_id(font_family, request_hash)).into());
 
         // When running Next.js integration tests, use the mock data available in
         // process.env.NEXT_FONT_GOOGLE_MOCKED_RESPONSES instead of making real
         // requests to Google Fonts.
         let env = Vc::upcast::<Box<dyn ProcessEnv>>(CommandLineProcessEnv::new());
-        let mocked_responses_path = &*env.read("NEXT_FONT_GOOGLE_MOCKED_RESPONSES".into()).await?;
+        let mocked_responses_path = &*env
+            .read(rcstr!("NEXT_FONT_GOOGLE_MOCKED_RESPONSES"))
+            .await?;
 
         let stylesheet_str = mocked_responses_path
             .as_ref()
             .map_or_else(
-                || fetch_real_stylesheet(stylesheet_url, css_virtual_path).boxed(),
-                |p| get_mock_stylesheet(stylesheet_url, p, *self.execution_context).boxed(),
+                || fetch_real_stylesheet(stylesheet_url.clone(), css_virtual_path).boxed(),
+                |p| get_mock_stylesheet(stylesheet_url.clone(), p, *self.execution_context).boxed(),
             )
             .await?;
 
@@ -416,12 +416,11 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
         }
 
         let font_virtual_path =
-            next_js_file_path("internal/font/google".into()).join(format!("/{name}.{ext}").into());
+            next_js_file_path(rcstr!("internal/font/google")).join(format!("/{name}.{ext}").into());
 
         // doesn't seem ideal to download the font into a string, but probably doesn't
         // really matter either.
-        let Some(font) = fetch_from_google_fonts(Vc::cell(url.into()), font_virtual_path).await?
-        else {
+        let Some(font) = fetch_from_google_fonts(url.into(), font_virtual_path).await? else {
             return Ok(ImportMapResult::Result(ResolveResult::unresolvable()).cell());
         };
 
@@ -440,7 +439,7 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
 async fn load_font_data(project_root: ResolvedVc<FileSystemPath>) -> Result<Vc<FontData>> {
     let data: FontData = load_next_js_templateon(
         project_root,
-        "dist/compiled/@next/font/dist/google/font-data.json".into(),
+        rcstr!("dist/compiled/@next/font/dist/google/font-data.json"),
     )
     .await?;
 
@@ -453,7 +452,7 @@ async fn load_font_data(project_root: ResolvedVc<FileSystemPath>) -> Result<Vc<F
 async fn update_google_stylesheet(
     stylesheet: Vc<RcStr>,
     options: Vc<NextFontGoogleOptions>,
-    scoped_font_family: Vc<RcStr>,
+    scoped_font_family: RcStr,
     has_size_adjust: Vc<bool>,
 ) -> Result<Vc<RcStr>> {
     let options = &*options.await?;
@@ -462,7 +461,7 @@ async fn update_google_stylesheet(
     // TODO: Do this more resiliently, e.g. transforming an swc ast
     let mut stylesheet = stylesheet.await?.replace(
         &format!("font-family: '{}';", &options.font_family),
-        &format!("font-family: '{}';", &*scoped_font_family.await?),
+        &format!("font-family: '{scoped_font_family}';"),
     );
 
     let font_files = find_font_files_in_css(
@@ -541,7 +540,7 @@ async fn get_stylesheet_url_from_options(
         use turbo_tasks_env::{CommandLineProcessEnv, ProcessEnv};
 
         let env = CommandLineProcessEnv::new();
-        if let Some(url) = &*env.read("TURBOPACK_TEST_ONLY_MOCK_SERVER".into()).await? {
+        if let Some(url) = &*env.read(rcstr!("TURBOPACK_TEST_ONLY_MOCK_SERVER")).await? {
             css_url = Some(format!("{url}/css2"));
         }
     }
@@ -571,7 +570,7 @@ async fn get_font_css_properties(
 ) -> Result<Vc<FontCssProperties>> {
     let options = &*options_vc.await?;
     let scoped_font_family =
-        &*get_scoped_font_family(FontFamilyType::WebFont.cell(), options_vc.font_family()).await?;
+        get_scoped_font_family(FontFamilyType::WebFont, options_vc.font_family().await?);
 
     let mut font_families = vec![format!("'{}'", scoped_font_family.clone()).into()];
     let font_fallback = &*font_fallback.await?;
@@ -580,7 +579,7 @@ async fn get_font_css_properties(
             font_families.extend_from_slice(fonts);
         }
         FontFallback::Automatic(fallback) => {
-            font_families.push(format!("'{}'", *fallback.scoped_font_family.await?).into());
+            font_families.push(format!("'{}'", fallback.scoped_font_family).into());
         }
         FontFallback::Error => {}
     }
@@ -642,7 +641,7 @@ fn font_file_options_from_query_map(query: &RcStr) -> Result<NextFontGoogleFontF
 }
 
 async fn fetch_real_stylesheet(
-    stylesheet_url: Vc<RcStr>,
+    stylesheet_url: RcStr,
     css_virtual_path: Vc<FileSystemPath>,
 ) -> Result<Option<Vc<RcStr>>> {
     let body = fetch_from_google_fonts(stylesheet_url, css_virtual_path).await?;
@@ -651,12 +650,12 @@ async fn fetch_real_stylesheet(
 }
 
 async fn fetch_from_google_fonts(
-    url: Vc<RcStr>,
+    url: RcStr,
     virtual_path: Vc<FileSystemPath>,
 ) -> Result<Option<Vc<HttpResponseBody>>> {
     let result = fetch(
         url,
-        Vc::cell(Some(USER_AGENT_FOR_GOOGLE_FONTS.into())),
+        Some(rcstr!(USER_AGENT_FOR_GOOGLE_FONTS)),
         Vc::cell(None),
     )
     .await?;
@@ -675,13 +674,13 @@ async fn fetch_from_google_fonts(
 }
 
 async fn get_mock_stylesheet(
-    stylesheet_url: Vc<RcStr>,
+    stylesheet_url: RcStr,
     mocked_responses_path: &str,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Option<Vc<RcStr>>> {
     let response_path = Path::new(&mocked_responses_path);
     let mock_fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(
-        "mock".into(),
+        rcstr!("mock"),
         response_path
             .parent()
             .context("Must be valid path")?
@@ -697,8 +696,8 @@ async fn get_mock_stylesheet(
         chunking_context,
     } = *execution_context.await?;
     let asset_context =
-        node_evaluate_asset_context(execution_context, None, None, "next_font".into(), false);
-    let loader_path = mock_fs.root().join("loader.js".into());
+        node_evaluate_asset_context(execution_context, None, None, rcstr!("next_font"), false);
+    let loader_path = mock_fs.root().join(rcstr!("loader.js"));
     let mocked_response_asset = asset_context
         .process(
             Vc::upcast(VirtualSource::new(
@@ -741,7 +740,7 @@ async fn get_mock_stylesheet(
             let val: FxHashMap<RcStr, Option<RcStr>> =
                 parse_json_with_source_context(val.to_str()?)?;
             Ok(val
-                .get(&*stylesheet_url.await?)
+                .get(&stylesheet_url)
                 .context("url not found")?
                 .clone()
                 .map(Vc::cell))

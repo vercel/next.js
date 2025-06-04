@@ -143,7 +143,7 @@ impl ModuleReference for WebpackEntryAssetReference {
 impl ValueToString for WebpackEntryAssetReference {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell("webpack entry".into())
+        Vc::cell(rcstr!("webpack entry"))
     }
 }
 

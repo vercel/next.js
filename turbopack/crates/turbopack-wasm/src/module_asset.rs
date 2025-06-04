@@ -74,7 +74,7 @@ impl WebAssemblyModuleAsset {
         let module = this.asset_context.process(
             loader_source,
             Value::new(ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
-                "WASM_PATH".into() => ResolvedVc::upcast(RawWebAssemblyModuleAsset::new(*this.source, *this.asset_context).to_resolved().await?),
+                rcstr!("WASM_PATH") => ResolvedVc::upcast(RawWebAssemblyModuleAsset::new(*this.source, *this.asset_context).to_resolved().await?),
             }))),
         ).module();
 
@@ -108,12 +108,9 @@ impl WebAssemblyModuleAsset {
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
         Ok(Vc::cell(vec![ResolvedVc::upcast(
-            SingleChunkableModuleReference::new(
-                Vc::upcast(self.loader()),
-                Vc::cell("wasm loader".into()),
-            )
-            .to_resolved()
-            .await?,
+            SingleChunkableModuleReference::new(Vc::upcast(self.loader()), rcstr!("wasm loader"))
+                .to_resolved()
+                .await?,
         )]))
     }
 }

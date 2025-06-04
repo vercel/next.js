@@ -1,4 +1,5 @@
 use anyhow::Result;
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -12,12 +13,14 @@ use turbopack_resolve::{
 
 #[turbo_tasks::function]
 fn react_refresh_request() -> Vc<Request> {
-    Request::parse_string("@next/react-refresh-utils/dist/runtime".into())
+    Request::parse_string(rcstr!("@next/react-refresh-utils/dist/runtime"))
 }
 
 #[turbo_tasks::function]
 fn react_refresh_request_in_next() -> Vc<Request> {
-    Request::parse_string("next/dist/compiled/@next/react-refresh-utils/dist/runtime".into())
+    Request::parse_string(rcstr!(
+        "next/dist/compiled/@next/react-refresh-utils/dist/runtime"
+    ))
 }
 
 #[turbo_tasks::value]
@@ -84,7 +87,7 @@ impl Issue for ReactRefreshResolvingIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Could not resolve React Refresh runtime".into()).cell()
+        StyledString::Text(rcstr!("Could not resolve React Refresh runtime")).cell()
     }
 
     #[turbo_tasks::function]
@@ -101,13 +104,13 @@ impl Issue for ReactRefreshResolvingIssue {
     fn description(&self) -> Vc<OptionStyledString> {
         Vc::cell(Some(
             StyledString::Line(vec![
-                StyledString::Text(
-                    "React Refresh will be disabled.\nTo enable React Refresh, install the ".into(),
-                ),
-                StyledString::Code("react-refresh".into()),
-                StyledString::Text(" and ".into()),
-                StyledString::Code("@next/react-refresh-utils".into()),
-                StyledString::Text(" modules.".into()),
+                StyledString::Text(rcstr!(
+                    "React Refresh will be disabled.\nTo enable React Refresh, install the "
+                )),
+                StyledString::Code(rcstr!("react-refresh")),
+                StyledString::Text(rcstr!(" and ")),
+                StyledString::Code(rcstr!("@next/react-refresh-utils")),
+                StyledString::Text(rcstr!(" modules.")),
             ])
             .resolved_cell(),
         ))
