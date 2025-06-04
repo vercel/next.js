@@ -2374,7 +2374,7 @@ function pushCompletedShellIdAttribute(target, resumableState) {
     ((resumableState.instructions |= 32),
     target.push(
       ' id="',
-      escapeTextForBrowser("\u00ab" + resumableState.idPrefix + "R\u00bb"),
+      escapeTextForBrowser("_" + resumableState.idPrefix + "R_"),
       '"'
     ));
 }
@@ -3393,9 +3393,9 @@ var HooksDispatcher = {
         );
       overflow = localIdCounter++;
       JSCompiler_inline_result =
-        "\u00ab" + resumableState.idPrefix + "R" + JSCompiler_inline_result;
+        "_" + resumableState.idPrefix + "R_" + JSCompiler_inline_result;
       0 < overflow && (JSCompiler_inline_result += "H" + overflow.toString(32));
-      return JSCompiler_inline_result + "\u00bb";
+      return JSCompiler_inline_result + "_";
     },
     useSyncExternalStore: function (subscribe, getSnapshot, getServerSnapshot) {
       if (void 0 === getServerSnapshot)
@@ -4027,7 +4027,11 @@ function renderSuspenseListRows(request, task, keyPath, rows, revealOrder) {
     var resumeSlots = task.replay.slots;
     if (null !== resumeSlots && "object" === typeof resumeSlots)
       for (var n = 0; n < keyPath; n++) {
-        var i = "backwards" !== revealOrder ? n : keyPath - 1 - n,
+        var i =
+            "backwards" !== revealOrder &&
+            "unstable_legacy-backwards" !== revealOrder
+              ? n
+              : keyPath - 1 - n,
           node = rows[i];
         task.row = previousSuspenseListRow = createSuspenseListRow(
           previousSuspenseListRow
@@ -4044,7 +4048,8 @@ function renderSuspenseListRows(request, task, keyPath, rows, revealOrder) {
     else
       for (resumeSlots = 0; resumeSlots < keyPath; resumeSlots++)
         (n =
-          "backwards" !== revealOrder
+          "backwards" !== revealOrder &&
+          "unstable_legacy-backwards" !== revealOrder
             ? resumeSlots
             : keyPath - 1 - resumeSlots),
           (i = rows[n]),
@@ -4054,7 +4059,10 @@ function renderSuspenseListRows(request, task, keyPath, rows, revealOrder) {
           renderNode(request, task, i, n),
           0 === --previousSuspenseListRow.pendingTasks &&
             finishSuspenseListRow(request, previousSuspenseListRow);
-  } else if ("backwards" !== revealOrder)
+  } else if (
+    "backwards" !== revealOrder &&
+    "unstable_legacy-backwards" !== revealOrder
+  )
     for (revealOrder = 0; revealOrder < keyPath; revealOrder++)
       (resumeSlots = rows[revealOrder]),
         (task.row = previousSuspenseListRow =
@@ -4413,7 +4421,11 @@ function renderElement(request, task, keyPath, type, props, ref) {
         a: {
           type = props.children;
           props = props.revealOrder;
-          if ("forwards" === props || "backwards" === props) {
+          if (
+            "forwards" === props ||
+            "backwards" === props ||
+            "unstable_legacy-backwards" === props
+          ) {
             if (isArrayImpl(type)) {
               renderSuspenseListRows(request, task, keyPath, type, props);
               break a;
@@ -6201,7 +6213,7 @@ function flushCompletedQueues(request, destination) {
             writeChunk(destination, renderState$jscomp$0.startInlineScript);
             if (0 === (resumableState.instructions & 32)) {
               resumableState.instructions |= 32;
-              var shellId = "\u00ab" + resumableState.idPrefix + "R\u00bb";
+              var shellId = "_" + resumableState.idPrefix + "R_";
               writeChunk(destination, ' id="');
               writeChunk(destination, escapeTextForBrowser(shellId));
               writeChunk(destination, '"');
@@ -6437,13 +6449,13 @@ function addToReplayParent(node, parentKeyPath, trackedPostpones) {
 }
 var isomorphicReactPackageVersion$jscomp$inline_812 = React.version;
 if (
-  "19.2.0-canary-14094f80-20250529" !==
+  "19.2.0-canary-37054867-20250604" !==
   isomorphicReactPackageVersion$jscomp$inline_812
 )
   throw Error(
     'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
       (isomorphicReactPackageVersion$jscomp$inline_812 +
-        "\n  - react-dom:  19.2.0-canary-14094f80-20250529\nLearn more: https://react.dev/warnings/version-mismatch")
+        "\n  - react-dom:  19.2.0-canary-37054867-20250604\nLearn more: https://react.dev/warnings/version-mismatch")
   );
 exports.renderToReadableStream = function (children, options) {
   return new Promise(function (resolve, reject) {
@@ -6534,4 +6546,4 @@ exports.renderToReadableStream = function (children, options) {
     startWork(request);
   });
 };
-exports.version = "19.2.0-canary-14094f80-20250529";
+exports.version = "19.2.0-canary-37054867-20250604";

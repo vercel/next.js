@@ -3163,7 +3163,7 @@
         ((resumableState.instructions |= SentCompletedShellId),
         target.push(
           completedShellIdAttributeStart,
-          escapeTextForBrowser("\u00ab" + resumableState.idPrefix + "R\u00bb"),
+          escapeTextForBrowser("_" + resumableState.idPrefix + "R_"),
           attributeEnd
         ));
     }
@@ -4874,7 +4874,11 @@
         var resumeSlots = task.replay.slots;
         if (null !== resumeSlots && "object" === typeof resumeSlots)
           for (var n = 0; n < keyPath; n++) {
-            var i = "backwards" !== revealOrder ? n : keyPath - 1 - n,
+            var i =
+                "backwards" !== revealOrder &&
+                "unstable_legacy-backwards" !== revealOrder
+                  ? n
+                  : keyPath - 1 - n,
               node = rows[i];
             task.row = previousSuspenseListRow = createSuspenseListRow(
               previousSuspenseListRow
@@ -4891,7 +4895,8 @@
         else
           for (resumeSlots = 0; resumeSlots < keyPath; resumeSlots++)
             (n =
-              "backwards" !== revealOrder
+              "backwards" !== revealOrder &&
+              "unstable_legacy-backwards" !== revealOrder
                 ? resumeSlots
                 : keyPath - 1 - resumeSlots),
               (i = rows[n]),
@@ -4902,7 +4907,10 @@
               renderNode(request, task, i, n),
               0 === --previousSuspenseListRow.pendingTasks &&
                 finishSuspenseListRow(request, previousSuspenseListRow);
-      } else if ("backwards" !== revealOrder)
+      } else if (
+        "backwards" !== revealOrder &&
+        "unstable_legacy-backwards" !== revealOrder
+      )
         for (revealOrder = 0; revealOrder < keyPath; revealOrder++)
           (resumeSlots = rows[revealOrder]),
             warnForMissingKey(request, task, resumeSlots),
@@ -5630,7 +5638,11 @@
             a: {
               var children$jscomp$0 = props.children,
                 revealOrder = props.revealOrder;
-              if ("forwards" === revealOrder || "backwards" === revealOrder) {
+              if (
+                "forwards" === revealOrder ||
+                "backwards" === revealOrder ||
+                "unstable_legacy-backwards" === revealOrder
+              ) {
                 if (isArrayImpl(children$jscomp$0)) {
                   renderSuspenseListRows(
                     request,
@@ -7829,7 +7841,7 @@
                   NothingSent
                 ) {
                   resumableState.instructions |= SentCompletedShellId;
-                  var shellId = "\u00ab" + resumableState.idPrefix + "R\u00bb";
+                  var shellId = "_" + resumableState.idPrefix + "R_";
                   destination.push(completedShellIdAttributeStart);
                   var chunk$jscomp$1 = escapeTextForBrowser(shellId);
                   destination.push(chunk$jscomp$1);
@@ -8088,7 +8100,17 @@
                 : reason;
           request.fatalError = error;
           abortableTasks.forEach(function (task) {
-            return abortTask(task, request, error);
+            var prevTaskInDEV = currentTaskInDEV,
+              prevGetCurrentStackImpl = ReactSharedInternals.getCurrentStack;
+            currentTaskInDEV = task;
+            ReactSharedInternals.getCurrentStack = getCurrentStackInDEV;
+            try {
+              abortTask(task, request, error);
+            } finally {
+              (currentTaskInDEV = prevTaskInDEV),
+                (ReactSharedInternals.getCurrentStack =
+                  prevGetCurrentStackImpl);
+            }
           });
           abortableTasks.clear();
         }
@@ -9497,9 +9519,9 @@
               "Invalid hook call. Hooks can only be called inside of the body of a function component."
             );
           overflow = localIdCounter++;
-          treeId = "\u00ab" + resumableState.idPrefix + "R" + treeId;
+          treeId = "_" + resumableState.idPrefix + "R_" + treeId;
           0 < overflow && (treeId += "H" + overflow.toString(32));
-          return treeId + "\u00bb";
+          return treeId + "_";
         },
         useSyncExternalStore: function (
           subscribe,
@@ -9626,5 +9648,5 @@
         'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToReadableStream" which supports Suspense on the server'
       );
     };
-    exports.version = "19.2.0-canary-14094f80-20250529";
+    exports.version = "19.2.0-canary-37054867-20250604";
   })();

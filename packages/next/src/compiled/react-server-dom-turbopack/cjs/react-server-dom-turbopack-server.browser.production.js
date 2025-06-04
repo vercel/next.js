@@ -554,13 +554,7 @@ function useId() {
   if (null === currentRequest$1)
     throw Error("useId can only be used while React is rendering");
   var id = currentRequest$1.identifierCount++;
-  return (
-    "\u00ab" +
-    currentRequest$1.identifierPrefix +
-    "S" +
-    id.toString(32) +
-    "\u00bb"
-  );
+  return "_" + currentRequest$1.identifierPrefix + "S_" + id.toString(32) + "_";
 }
 function use(usable) {
   if (
@@ -838,8 +832,8 @@ function serializeReadableStream(request, task, stream) {
             tryStreamTask(request, streamTask),
             enqueueFlush(request),
             reader.read().then(progress, error);
-        } catch (x$10) {
-          error(x$10);
+        } catch (x$9) {
+          error(x$9);
         }
   }
   function error(reason) {
@@ -912,8 +906,8 @@ function serializeAsyncIterable(request, task, iterable, iterator) {
             tryStreamTask(request, streamTask),
             enqueueFlush(request),
             iterator.next().then(progress, error);
-        } catch (x$11) {
-          error(x$11);
+        } catch (x$10) {
+          error(x$10);
         }
   }
   function error(reason) {
@@ -1919,7 +1913,7 @@ function abort(request, reason) {
     }
     var abortListeners = request.abortListeners;
     if (0 < abortListeners.size) {
-      var error$25 =
+      var error$24 =
         void 0 === reason
           ? Error("The render was aborted by the server without a reason.")
           : "object" === typeof reason &&
@@ -1928,15 +1922,15 @@ function abort(request, reason) {
             ? Error("The render was aborted by the server with a promise.")
             : reason;
       abortListeners.forEach(function (callback) {
-        return callback(error$25);
+        return callback(error$24);
       });
       abortListeners.clear();
       callOnAllReadyIfReady(request);
     }
     null !== request.destination &&
       flushCompletedChunks(request, request.destination);
-  } catch (error$26) {
-    logRecoverableError(request, error$26, null), fatalError(request, error$26);
+  } catch (error$25) {
+    logRecoverableError(request, error$25, null), fatalError(request, error$25);
   }
 }
 function resolveServerReference(bundlerConfig, id) {
@@ -2382,8 +2376,8 @@ function parseReadableStream(response, reference, type) {
             (previousBlockedChunk = chunk));
       } else {
         chunk = previousBlockedChunk;
-        var chunk$29 = createPendingChunk(response);
-        chunk$29.then(
+        var chunk$28 = createPendingChunk(response);
+        chunk$28.then(
           function (v) {
             return controller.enqueue(v);
           },
@@ -2391,10 +2385,10 @@ function parseReadableStream(response, reference, type) {
             return controller.error(e);
           }
         );
-        previousBlockedChunk = chunk$29;
+        previousBlockedChunk = chunk$28;
         chunk.then(function () {
-          previousBlockedChunk === chunk$29 && (previousBlockedChunk = null);
-          resolveModelChunk(chunk$29, json, -1);
+          previousBlockedChunk === chunk$28 && (previousBlockedChunk = null);
+          resolveModelChunk(chunk$28, json, -1);
         });
       }
     },

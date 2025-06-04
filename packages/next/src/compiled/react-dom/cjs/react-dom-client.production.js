@@ -4282,7 +4282,13 @@ function findFirstSuspended(row) {
           isSuspenseInstanceFallback(state))
       )
         return node;
-    } else if (19 === node.tag && void 0 !== node.memoizedProps.revealOrder) {
+    } else if (
+      19 === node.tag &&
+      ("forwards" === node.memoizedProps.revealOrder ||
+        "backwards" === node.memoizedProps.revealOrder ||
+        "unstable_legacy-backwards" === node.memoizedProps.revealOrder ||
+        "together" === node.memoizedProps.revealOrder)
+    ) {
       if (0 !== (node.flags & 128)) return node;
     } else if (null !== node.child) {
       node.child.return = node;
@@ -5589,19 +5595,19 @@ var ContextOnlyDispatcher = {
             idWithLeadingBit & ~(1 << (32 - clz32(idWithLeadingBit) - 1))
           ).toString(32) + JSCompiler_inline_result;
         identifierPrefix =
-          "\u00ab" + identifierPrefix + "R" + JSCompiler_inline_result;
+          "_" + identifierPrefix + "R_" + JSCompiler_inline_result;
         JSCompiler_inline_result = localIdCounter++;
         0 < JSCompiler_inline_result &&
           (identifierPrefix += "H" + JSCompiler_inline_result.toString(32));
-        identifierPrefix += "\u00bb";
+        identifierPrefix += "_";
       } else
         (JSCompiler_inline_result = globalClientIdCounter++),
           (identifierPrefix =
-            "\u00ab" +
+            "_" +
             identifierPrefix +
-            "r" +
+            "r_" +
             JSCompiler_inline_result.toString(32) +
-            "\u00bb");
+            "_");
       return (hook.memoizedState = identifierPrefix);
     },
     useHostTransitionStatus: useHostTransitionStatus,
@@ -7039,6 +7045,7 @@ function updateSuspenseListComponent(current, workInProgress, renderLanes) {
       );
       break;
     case "backwards":
+    case "unstable_legacy-backwards":
       renderLanes = null;
       revealOrder = workInProgress.child;
       for (workInProgress.child = null; null !== revealOrder; ) {
@@ -15686,14 +15693,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_1851 = React.version;
 if (
-  "19.2.0-canary-14094f80-20250529" !==
+  "19.2.0-canary-37054867-20250604" !==
   isomorphicReactPackageVersion$jscomp$inline_1851
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_1851,
-      "19.2.0-canary-14094f80-20250529"
+      "19.2.0-canary-37054867-20250604"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -15715,10 +15722,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 };
 var internals$jscomp$inline_2344 = {
   bundleType: 0,
-  version: "19.2.0-canary-14094f80-20250529",
+  version: "19.2.0-canary-37054867-20250604",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.2.0-canary-14094f80-20250529"
+  reconcilerVersion: "19.2.0-canary-37054867-20250604"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
   var hook$jscomp$inline_2345 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -15816,4 +15823,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.2.0-canary-14094f80-20250529";
+exports.version = "19.2.0-canary-37054867-20250604";

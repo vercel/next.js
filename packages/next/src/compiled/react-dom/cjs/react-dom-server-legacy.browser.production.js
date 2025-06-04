@@ -2199,7 +2199,7 @@ function pushCompletedShellIdAttribute(target, resumableState) {
     ((resumableState.instructions |= 32),
     target.push(
       ' id="',
-      escapeTextForBrowser("\u00ab" + resumableState.idPrefix + "R\u00bb"),
+      escapeTextForBrowser("_" + resumableState.idPrefix + "R_"),
       '"'
     ));
 }
@@ -3368,9 +3368,9 @@ var HooksDispatcher = {
       if (null === resumableState) throw Error(formatProdErrorMessage(404));
       overflow = localIdCounter++;
       JSCompiler_inline_result =
-        "\u00ab" + resumableState.idPrefix + "R" + JSCompiler_inline_result;
+        "_" + resumableState.idPrefix + "R_" + JSCompiler_inline_result;
       0 < overflow && (JSCompiler_inline_result += "H" + overflow.toString(32));
-      return JSCompiler_inline_result + "\u00bb";
+      return JSCompiler_inline_result + "_";
     },
     useSyncExternalStore: function (subscribe, getSnapshot, getServerSnapshot) {
       if (void 0 === getServerSnapshot)
@@ -3985,7 +3985,11 @@ function renderSuspenseListRows(request, task, keyPath, rows, revealOrder) {
     var resumeSlots = task.replay.slots;
     if (null !== resumeSlots && "object" === typeof resumeSlots)
       for (var n = 0; n < keyPath; n++) {
-        var i = "backwards" !== revealOrder ? n : keyPath - 1 - n,
+        var i =
+            "backwards" !== revealOrder &&
+            "unstable_legacy-backwards" !== revealOrder
+              ? n
+              : keyPath - 1 - n,
           node = rows[i];
         task.row = previousSuspenseListRow = createSuspenseListRow(
           previousSuspenseListRow
@@ -4002,7 +4006,8 @@ function renderSuspenseListRows(request, task, keyPath, rows, revealOrder) {
     else
       for (resumeSlots = 0; resumeSlots < keyPath; resumeSlots++)
         (n =
-          "backwards" !== revealOrder
+          "backwards" !== revealOrder &&
+          "unstable_legacy-backwards" !== revealOrder
             ? resumeSlots
             : keyPath - 1 - resumeSlots),
           (i = rows[n]),
@@ -4012,7 +4017,10 @@ function renderSuspenseListRows(request, task, keyPath, rows, revealOrder) {
           renderNode(request, task, i, n),
           0 === --previousSuspenseListRow.pendingTasks &&
             finishSuspenseListRow(request, previousSuspenseListRow);
-  } else if ("backwards" !== revealOrder)
+  } else if (
+    "backwards" !== revealOrder &&
+    "unstable_legacy-backwards" !== revealOrder
+  )
     for (revealOrder = 0; revealOrder < keyPath; revealOrder++)
       (resumeSlots = rows[revealOrder]),
         (task.row = previousSuspenseListRow =
@@ -4372,7 +4380,11 @@ function renderElement(request, task, keyPath, type, props, ref) {
         a: {
           type = props.children;
           props = props.revealOrder;
-          if ("forwards" === props || "backwards" === props) {
+          if (
+            "forwards" === props ||
+            "backwards" === props ||
+            "unstable_legacy-backwards" === props
+          ) {
             if (isArrayImpl(type)) {
               renderSuspenseListRows(request, task, keyPath, type, props);
               break a;
@@ -6109,7 +6121,7 @@ function flushCompletedQueues(request, destination) {
             destination.push(renderState$jscomp$0.startInlineScript);
             if (0 === (resumableState.instructions & 32)) {
               resumableState.instructions |= 32;
-              var shellId = "\u00ab" + resumableState.idPrefix + "R\u00bb";
+              var shellId = "_" + resumableState.idPrefix + "R_";
               destination.push(' id="');
               var chunk$jscomp$1 = escapeTextForBrowser(shellId);
               destination.push(chunk$jscomp$1);
@@ -6406,4 +6418,4 @@ exports.renderToString = function (children, options) {
     'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToReadableStream" which supports Suspense on the server'
   );
 };
-exports.version = "19.2.0-canary-14094f80-20250529";
+exports.version = "19.2.0-canary-37054867-20250604";
