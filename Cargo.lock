@@ -7461,9 +7461,9 @@ dependencies = [
 
 [[package]]
 name = "swc_common"
-version = "11.1.1"
+version = "11.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75a7f469e8da44aa8b5f351b0f17171bde70730677d9090befb6f8d781f19a82"
+checksum = "d3155396ace6598e8a0fa08a02131ad65f8ec4494bf7f9481f66523348bb0114"
 dependencies = [
  "anyhow",
  "ast_node",
@@ -7554,9 +7554,9 @@ dependencies = [
 
 [[package]]
 name = "swc_core"
-version = "26.4.2"
+version = "26.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a3081532971b0e444602712e9209d3a3835b883b806fc99da6e8f524a5845055"
+checksum = "6b36f6c0fb2815a8a72a2db539804431284f6c35c21a140a226755c028ad1f52"
 dependencies = [
  "binding_macros",
  "par-core",
