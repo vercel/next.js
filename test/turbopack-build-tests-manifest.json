@@ -1949,11 +1949,10 @@
   "test/e2e/app-dir/dynamic-in-generate-params/index.test.ts": {
     "passed": [
       "app-dir - dynamic in generate params should be able to call fetch while generating multiple dynamic pages",
-      "app-dir - dynamic in generate params should be able to call while generating multiple dynamic sitemaps"
-    ],
-    "failed": [
+      "app-dir - dynamic in generate params should be able to call while generating multiple dynamic sitemaps",
       "app-dir - dynamic in generate params should render sitemap with generateSitemaps in force-dynamic config dynamically"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2974,11 +2973,10 @@
       "app dir - metadata dynamic routes social image routes should render og image with opengraph-image dynamic routes",
       "app dir - metadata dynamic routes social image routes should render og image with twitter-image dynamic routes",
       "app dir - metadata dynamic routes social image routes should support generate multi images with generateImageMetadata",
-      "app dir - metadata dynamic routes social image routes should support params as argument in dynamic routes"
-    ],
-    "failed": [
+      "app dir - metadata dynamic routes social image routes should support params as argument in dynamic routes",
       "app dir - metadata dynamic routes route segment config should generate dynamic route if dynamic config is force-dynamic"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -18500,10 +18498,10 @@
     "runtimeError": false
   },
   "test/production/app-dir/metadata-revalidate/metadata-revalidate.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "app-dir - metadata-revalidate should contain the routes in prerender manifest"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
