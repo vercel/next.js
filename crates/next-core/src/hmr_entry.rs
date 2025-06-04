@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{glob::Glob, rope::RopeBuilder};
 use turbopack_core::{
@@ -25,11 +25,6 @@ use turbopack_ecmascript::{
     utils::StringifyJs,
 };
 
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("hmr-entry".into())
-}
-
 #[turbo_tasks::value(shared)]
 pub struct HmrEntryModule {
     pub ident: ResolvedVc<AssetIdent>,
@@ -51,7 +46,7 @@ impl HmrEntryModule {
 impl Module for HmrEntryModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        self.ident.with_modifier(modifier())
+        self.ident.with_modifier(rcstr!("hmr-entry"))
     }
 
     #[turbo_tasks::function]
@@ -124,7 +119,7 @@ impl HmrEntryModuleReference {
 impl ValueToString for HmrEntryModuleReference {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell("entry".into())
+        Vc::cell(rcstr!("entry"))
     }
 }
 

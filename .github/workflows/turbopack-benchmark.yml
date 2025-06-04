@@ -10,7 +10,7 @@ on:
       - '**/Cargo.toml'
       - '**/Cargo.lock'
   pull_request:
-    types: ['opened', 'reopened', 'synchronize']
+    types: ['opened', 'reopened', 'synchronize', 'labeled']
     paths:
       - '**/crates/**'
       - '**/Cargo.toml'
@@ -45,7 +45,7 @@ jobs:
           tool: cargo-codspeed@2.10.1
 
       - name: Build the benchmark target(s)
-        run: cargo codspeed build -p turbo-rcstr -p turbopack-ecmascript
+        run: cargo codspeed build -p turbo-rcstr
 
       - name: Run the benchmarks
         uses: CodSpeedHQ/action@v3
@@ -92,8 +92,7 @@ jobs:
 
   benchmark-large:
     name: Benchmark Rust Crates (large)
-    # If the task is triggered manually, we want to run the large benchmarks
-    if: ${{ github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.event.label.name == 'benchmark' || github.event_name == 'workflow_dispatch' }}
     runs-on: ['self-hosted', 'linux', 'x64', 'metal']
     steps:
       - uses: actions/checkout@v4

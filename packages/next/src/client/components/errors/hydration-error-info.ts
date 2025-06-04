@@ -1,16 +1,4 @@
-export type HydrationErrorState = {
-  // Hydration warning template format: <message> <serverContent> <clientContent>
-  warning?: [string, string, string]
-  serverContent?: string
-  clientContent?: string
-  // React 19 hydration diff format: <notes> <link> <component diff?>
-  notes?: string
-  reactOutputComponentDiff?: string
-}
-
 type NullableText = string | null | undefined
-
-export const hydrationErrorState: HydrationErrorState = {}
 
 // https://github.com/facebook/react/blob/main/packages/react-dom/src/__tests__/ReactDOMHydrationDiff-test.js used as a reference
 const htmlTagsWarnings = new Set([

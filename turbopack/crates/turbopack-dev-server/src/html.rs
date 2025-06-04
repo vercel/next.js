@@ -40,11 +40,6 @@ pub struct DevHtmlAsset {
     body: Option<RcStr>,
 }
 
-#[turbo_tasks::function]
-fn dev_html_chunk_reference_description() -> Vc<RcStr> {
-    Vc::cell("dev html chunk".into())
-}
-
 #[turbo_tasks::value_impl]
 impl OutputAsset for DevHtmlAsset {
     #[turbo_tasks::function]

@@ -333,7 +333,7 @@ impl TurboPersistence {
             .collect::<Result<Vec<MetaFile>>>()?;
 
         let mut sst_filter = SstFilter::new();
-        for meta_file in meta_files.iter_mut() {
+        for meta_file in meta_files.iter_mut().rev() {
             sst_filter.apply_filter(meta_file);
         }
 
@@ -468,7 +468,7 @@ impl TurboPersistence {
             .collect::<Result<Vec<_>>>()?;
 
         let mut sst_filter = SstFilter::new();
-        for meta_file in new_meta_files.iter_mut() {
+        for meta_file in new_meta_files.iter_mut().rev() {
             sst_filter.apply_filter(meta_file);
         }
 
@@ -501,10 +501,12 @@ impl TurboPersistence {
 
         {
             let mut inner = self.inner.write();
-            for meta_file in inner.meta_files.iter_mut() {
+            for meta_file in inner.meta_files.iter_mut().rev() {
                 sst_filter.apply_filter(meta_file);
             }
             inner.meta_files.append(&mut new_meta_files);
+            // apply_and_get_remove need to run in reverse order
+            inner.meta_files.reverse();
             inner.meta_files.retain(|meta| {
                 if sst_filter.apply_and_get_remove(meta) {
                     meta_seq_numbers_to_delete.push(meta.sequence_number());
@@ -513,6 +515,7 @@ impl TurboPersistence {
                     true
                 }
             });
+            inner.meta_files.reverse();
             has_delete_file = !sst_seq_numbers_to_delete.is_empty()
                 || !blob_seq_numbers_to_delete.is_empty()
                 || !meta_seq_numbers_to_delete.is_empty();
@@ -652,7 +655,8 @@ impl TurboPersistence {
                 max_coverage,
                 max_merge_sequence,
                 max_merge_size,
-            )?;
+            )
+            .context("Failed to compact database")?;
         }
 
         if !new_meta_files.is_empty() {
@@ -664,7 +668,8 @@ impl TurboPersistence {
                 blob_seq_numbers_to_delete,
                 sequence_number: *sequence_number.get_mut(),
                 keys_written,
-            })?;
+            })
+            .context("Failed to commit the database compaction")?;
         }
 
         self.active_write_operation.store(false, Ordering::Release);
@@ -853,7 +858,7 @@ impl TurboPersistence {
                                 let index_in_meta = ssts_with_ranges[index].index_in_meta;
                                 let meta = &meta_files[meta_index];
                                 meta.entry(index_in_meta)
-                                    .sst(&self.path)?
+                                    .sst(meta)?
                                     .iter(key_block_cache, value_block_cache)
                             })
                             .collect::<Result<Vec<_>>>()?;
@@ -983,7 +988,10 @@ impl TurboPersistence {
                             keys_written,
                         })
                     })
-                    .collect::<Result<Vec<_>>>()?;
+                    .collect::<Result<Vec<_>>>()
+                    .with_context(|| {
+                        format!("Failed to merge database files for family {family}")
+                    })?;
 
                 let mut meta_file_builder = meta_file_builder.into_inner();
 
@@ -1017,8 +1025,7 @@ impl TurboPersistence {
 
                 let span = tracing::trace_span!("write meta file").entered();
                 let seq = sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
-                let meta_file =
-                    meta_file_builder.write(&self.path.join(format!("{seq:08}.meta")))?;
+                let meta_file = meta_file_builder.write(&self.path, seq)?;
                 drop(span);
 
                 let mut new_sst_files = Vec::with_capacity(

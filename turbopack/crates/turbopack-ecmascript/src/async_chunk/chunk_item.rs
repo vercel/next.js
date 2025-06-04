@@ -1,6 +1,5 @@
 use anyhow::Result;
 use indoc::formatdoc;
-use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, Vc};
 use turbopack_core::{
     chunk::{
@@ -152,11 +151,6 @@ impl EcmascriptChunkItem for AsyncLoaderChunkItem {
     }
 }
 
-#[turbo_tasks::function]
-fn chunk_reference_description() -> Vc<RcStr> {
-    Vc::cell("chunk".into())
-}
-
 #[turbo_tasks::value_impl]
 impl ChunkItem for AsyncLoaderChunkItem {
     #[turbo_tasks::function]
@@ -168,9 +162,7 @@ impl ChunkItem for AsyncLoaderChunkItem {
     async fn content_ident(self: Vc<Self>) -> Result<Vc<AssetIdent>> {
         let ident = self.module().ident();
 
-        Ok(ident.with_modifier(Vc::cell(
-            self.chunks_data().hash().await?.to_string().into(),
-        )))
+        Ok(ident.with_modifier(self.chunks_data().hash().await?.to_string().into()))
     }
 
     #[turbo_tasks::function]

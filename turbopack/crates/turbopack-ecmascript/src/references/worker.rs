@@ -5,7 +5,7 @@ use swc_core::{
     ecma::ast::{Expr, ExprOrSpread, Lit, NewExpr},
     quote_expr,
 };
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     NonLocalValue, ResolvedVc, Value, ValueToString, Vc, debug::ValueDebugFormat,
     trace::TraceRawVcs,
@@ -72,8 +72,8 @@ impl WorkerAssetReference {
         let Some(chunkable) = ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(module) else {
             CodeGenerationIssue {
                 severity: IssueSeverity::Bug.resolved_cell(),
-                title: StyledString::Text("non-ecmascript placeable asset".into()).resolved_cell(),
-                message: StyledString::Text("asset is not placeable in ESM chunks".into())
+                title: StyledString::Text(rcstr!("non-ecmascript placeable asset")).resolved_cell(),
+                message: StyledString::Text(rcstr!("asset is not placeable in ESM chunks"))
                     .resolved_cell(),
                 path: self.origin.origin_path().to_resolved().await?,
             }

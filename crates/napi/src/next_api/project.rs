@@ -1,4 +1,4 @@
-use std::{io::Write, path::PathBuf, sync::Arc, thread, time::Duration};
+use std::{borrow::Cow, io::Write, path::PathBuf, sync::Arc, thread, time::Duration};
 
 use anyhow::{Context, Result, anyhow, bail};
 use napi::{
@@ -24,14 +24,16 @@ use next_core::tracing_presets::{
 };
 use once_cell::sync::Lazy;
 use rand::Rng;
+use serde::{Deserialize, Serialize};
 use tokio::{io::AsyncWriteExt, time::Instant};
 use tracing::Instrument;
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, Effects, FxIndexSet, OperationVc, ReadRef, ResolvedVc, TransientInstance,
-    TryJoinIterExt, UpdateInfo, Vc, get_effects,
-    message_queue::{CompilationEvent, DiagnosticEvent, Severity, TimingEvent},
+    Completion, Effects, FxIndexSet, NonLocalValue, OperationValue, OperationVc, ReadRef,
+    ResolvedVc, TaskInput, TransientInstance, TryJoinIterExt, UpdateInfo, Vc, get_effects,
+    message_queue::{CompilationEvent, Severity, TimingEvent},
+    trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{
     DiskFileSystem, FileContent, FileSystem, FileSystemPath, get_relative_path_to,
@@ -43,7 +45,7 @@ use turbopack_core::{
     error::PrettyPrintError,
     issue::PlainIssue,
     output::{OutputAsset, OutputAssets},
-    source_map::{OptionSourceMap, OptionStringifiedSourceMap, SourceMap, Token},
+    source_map::{OptionStringifiedSourceMap, SourceMap, Token},
     version::{PartialUpdate, TotalUpdate, Update, VersionState},
 };
 use turbopack_ecmascript_hmr_protocol::{ClientUpdateInstruction, ResourceIdentifier};
@@ -405,11 +407,6 @@ pub async fn project_new(
         is_ci,
     )?;
 
-    turbo_tasks.send_compilation_event(Arc::new(DiagnosticEvent::new(
-        Severity::Info,
-        "Starting the compilation events server ...".to_owned(),
-    )));
-
     let stats_path = std::env::var_os("NEXT_TURBOPACK_TASK_STATISTICS");
     if let Some(stats_path) = stats_path {
         let task_stats = turbo_tasks.task_statistics().enable().clone();
@@ -429,7 +426,7 @@ pub async fn project_new(
     let options: ProjectOptions = options.into();
     let container = turbo_tasks
         .run_once(async move {
-            let project = ProjectContainer::new("next.js".into(), options.dev);
+            let project = ProjectContainer::new(rcstr!("next.js"), options.dev);
             let project = project.to_resolved().await?;
             project.initialize(options).await?;
             Ok(project)
@@ -453,7 +450,7 @@ pub async fn project_new(
     ))
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, Serialize)]
 struct SlowFilesystemEvent {
     directory: String,
     duration_ms: u128,
@@ -869,7 +866,7 @@ pub async fn project_write_all_entrypoints_to_disk(
 
             // Send a compilation event to indicate that the files have been written to disk
             compilation_event_sender.send_compilation_event(Arc::new(TimingEvent::new(
-                "Finished writing all entrypoints to disk".to_owned(),
+                "Finished writing to disk".to_owned(),
                 now.elapsed(),
             )));
 
@@ -1331,20 +1328,35 @@ pub fn project_compilation_events_subscribe(
     Ok(())
 }
 
-#[turbo_tasks::value]
-#[derive(Debug)]
 #[napi(object)]
+#[derive(
+    Clone,
+    Debug,
+    Deserialize,
+    Eq,
+    Hash,
+    NonLocalValue,
+    OperationValue,
+    PartialEq,
+    Serialize,
+    TaskInput,
+    TraceRawVcs,
+)]
 pub struct StackFrame {
     pub is_server: bool,
     pub is_internal: Option<bool>,
-    pub original_file: Option<String>,
+    pub original_file: Option<RcStr>,
     pub file: RcStr,
-    // 1-indexed, unlike source map tokens
+    /// 1-indexed, unlike source map tokens
     pub line: Option<u32>,
-    // 1-indexed, unlike source map tokens
+    /// 1-indexed, unlike source map tokens
     pub column: Option<u32>,
     pub method_name: Option<RcStr>,
 }
+
+#[turbo_tasks::value(transparent)]
+#[derive(Clone)]
+pub struct OptionStackFrame(Option<StackFrame>);
 
 #[turbo_tasks::function]
 pub async fn get_source_map_rope(
@@ -1412,12 +1424,97 @@ pub fn get_source_map_rope_operation(
 }
 
 #[turbo_tasks::function(operation)]
-pub fn get_source_map_operation(
+pub async fn project_trace_source_operation(
     container: ResolvedVc<ProjectContainer>,
-    file_path: RcStr,
-) -> Vc<OptionSourceMap> {
-    let map = get_source_map_rope(*container, file_path);
-    SourceMap::new_from_rope_cached(map)
+    frame: StackFrame,
+    current_directory_file_url: RcStr,
+) -> Result<Vc<OptionStackFrame>> {
+    let Some(map) =
+        &*SourceMap::new_from_rope_cached(get_source_map_rope(*container, frame.file)).await?
+    else {
+        return Ok(Vc::cell(None));
+    };
+
+    let Some(line) = frame.line else {
+        return Ok(Vc::cell(None));
+    };
+
+    let token = map
+        .lookup_token(
+            line.saturating_sub(1),
+            frame.column.unwrap_or(1).saturating_sub(1),
+        )
+        .await?;
+
+    let (original_file, line, column, method_name) = match token {
+        Token::Original(token) => (
+            match urlencoding::decode(&token.original_file)? {
+                Cow::Borrowed(_) => token.original_file,
+                Cow::Owned(original_file) => RcStr::from(original_file),
+            },
+            // JS stack frames are 1-indexed, source map tokens are 0-indexed
+            Some(token.original_line + 1),
+            Some(token.original_column + 1),
+            token.name,
+        ),
+        Token::Synthetic(token) => {
+            let Some(original_file) = token.guessed_original_file else {
+                return Ok(Vc::cell(None));
+            };
+            (original_file, None, None, None)
+        }
+    };
+
+    let project_root_uri =
+        uri_from_file(container.project().project_root_path(), None).await? + "/";
+    let (file, original_file, is_internal) =
+        if let Some(source_file) = original_file.strip_prefix(&project_root_uri) {
+            // Client code uses file://
+            (
+                RcStr::from(
+                    get_relative_path_to(&current_directory_file_url, &original_file)
+                        // TODO(sokra) remove this to include a ./ here to make it a relative path
+                        .trim_start_matches("./"),
+                ),
+                Some(RcStr::from(source_file)),
+                false,
+            )
+        } else if let Some(source_file) = original_file.strip_prefix(&*SOURCE_MAP_PREFIX_PROJECT) {
+            // Server code uses turbopack:///[project]
+            // TODO should this also be file://?
+            (
+                RcStr::from(
+                    get_relative_path_to(
+                        &current_directory_file_url,
+                        &format!("{project_root_uri}{source_file}"),
+                    )
+                    // TODO(sokra) remove this to include a ./ here to make it a relative path
+                    .trim_start_matches("./"),
+                ),
+                Some(RcStr::from(source_file)),
+                false,
+            )
+        } else if let Some(source_file) = original_file.strip_prefix(&*SOURCE_MAP_PREFIX) {
+            // All other code like turbopack:///[turbopack] is internal code
+            // TODO(veil): Should the protocol be preserved?
+            (RcStr::from(source_file), None, true)
+        } else {
+            bail!(
+                "Original file ({}) outside project ({})",
+                original_file,
+                project_root_uri
+            )
+        };
+
+    Ok(Vc::cell(Some(StackFrame {
+        file,
+        original_file,
+        method_name,
+        line,
+        column,
+        is_server: frame.is_server,
+        is_internal: Some(is_internal),
+    })))
 }
 
 #[napi]
@@ -1430,98 +1527,17 @@ pub async fn project_trace_source(
     let container = project.container;
     let traced_frame = turbo_tasks
         .run_once(async move {
-            let Some(map) = &*get_source_map_operation(container, frame.file)
-                .read_strongly_consistent()
-                .await?
-            else {
-                return Ok(None);
-            };
-
-            let Some(line) = frame.line else {
-                return Ok(None);
-            };
-
-            let token = map
-                .lookup_token(
-                    line.saturating_sub(1),
-                    frame.column.unwrap_or(1).saturating_sub(1),
-                )
-                .await?;
-
-            let (original_file, line, column, name) = match token {
-                Token::Original(token) => (
-                    urlencoding::decode(&token.original_file)?.into_owned(),
-                    // JS stack frames are 1-indexed, source map tokens are 0-indexed
-                    Some(token.original_line + 1),
-                    Some(token.original_column + 1),
-                    token.name.clone(),
-                ),
-                Token::Synthetic(token) => {
-                    let Some(file) = &token.guessed_original_file else {
-                        return Ok(None);
-                    };
-                    (file.to_owned(), None, None, None)
-                }
-            };
-
-            let project_root_uri =
-                uri_from_file(project.container.project().project_root_path(), None).await? + "/";
-            let (file, original_file, is_internal) = if let Some(source_file) =
-                original_file.strip_prefix(&project_root_uri)
-            {
-                // Client code uses file://
-                (
-                    RcStr::from(
-                        get_relative_path_to(&current_directory_file_url, &original_file)
-                            // TODO(sokra) remove this to include a ./ here to make it a relative
-                            // path
-                            .trim_start_matches("./"),
-                    ),
-                    Some(source_file.to_string()),
-                    false,
-                )
-            } else if let Some(source_file) =
-                original_file.strip_prefix(&*SOURCE_MAP_PREFIX_PROJECT)
-            {
-                // Server code uses turbopack:///[project]
-                // TODO should this also be file://?
-                (
-                    RcStr::from(
-                        get_relative_path_to(
-                            &current_directory_file_url,
-                            &format!("{project_root_uri}{source_file}"),
-                        )
-                        // TODO(sokra) remove this to include a ./ here to make it a relative path
-                        .trim_start_matches("./"),
-                    ),
-                    Some(source_file.to_string()),
-                    false,
-                )
-            } else if let Some(source_file) = original_file.strip_prefix(&*SOURCE_MAP_PREFIX) {
-                // All other code like turbopack:///[turbopack] is internal code
-                // TODO(veil): Should the protocol be preserved?
-                (RcStr::from(source_file), None, true)
-            } else {
-                bail!(
-                    "Original file ({}) outside project ({})",
-                    original_file,
-                    project_root_uri
-                )
-            };
-
-            Ok(Some(StackFrame {
-                file,
-                original_file,
-                method_name: name,
-                line,
-                column,
-                is_server: frame.is_server,
-                is_internal: Some(is_internal),
-            }))
+            project_trace_source_operation(
+                container,
+                frame,
+                RcStr::from(current_directory_file_url),
+            )
+            .read_strongly_consistent()
+            .await
         })
         .await
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
-    Ok(traced_frame)
+    Ok(ReadRef::into_owned(traced_frame))
 }
 
 #[napi]
