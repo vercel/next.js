@@ -9,7 +9,7 @@ use swc_core::{
         BytePos, FileName, GLOBALS, Globals, LineCol, Mark, SyntaxContext,
         errors::{HANDLER, Handler},
         input::StringInput,
-        source_map::SourceMapGenConfig,
+        source_map::{Files, SourceMapGenConfig, build_source_map},
         util::take::Take,
     },
     ecma::{
@@ -101,7 +101,7 @@ impl ParseResult {
 
 #[instrument(level = Level::INFO, skip_all)]
 pub fn generate_js_source_map(
-    files_map: Arc<swc_core::common::SourceMap>,
+    files_map: &impl Files,
     mappings: Vec<(BytePos, LineCol)>,
     original_source_map: Option<&Rope>,
     inline_sources_content: bool,
@@ -113,10 +113,11 @@ pub fn generate_js_source_map(
         None
     };
 
-    let new_mappings = files_map.build_source_map(
+    let new_mappings = build_source_map(
+        files_map,
         &mappings,
         None,
-        InlineSourcesContentConfig {
+        &InlineSourcesContentConfig {
             // If we are going to adjust the source map, we are going to throw the source contents
             // of this source map away regardless.
             //

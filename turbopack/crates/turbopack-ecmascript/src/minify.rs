@@ -132,7 +132,7 @@ pub fn minify(code: Code, source_maps: bool, mangle: Option<MangleType>) -> Resu
         builder.push_source(
             &src.into(),
             Some(generate_js_source_map(
-                cm,
+                &*cm,
                 src_map_buf,
                 Some(original_map),
                 // We do not inline source contents.
