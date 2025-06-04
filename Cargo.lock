@@ -4552,12 +4552,10 @@ name = "next-api"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "auto-hash-map",
  "either",
  "futures",
  "indexmap 2.7.1",
  "next-core",
- "petgraph 0.6.3",
  "regex",
  "rustc-hash 2.1.1",
  "serde",
@@ -4569,13 +4567,10 @@ dependencies = [
  "turbo-tasks-build",
  "turbo-tasks-env",
  "turbo-tasks-fs",
- "turbo-tasks-hash",
  "turbopack",
  "turbopack-browser",
- "turbopack-cli-utils",
  "turbopack-core",
  "turbopack-ecmascript",
- "turbopack-env",
  "turbopack-node",
  "turbopack-nodejs",
  "turbopack-wasm",
@@ -4611,18 +4606,7 @@ dependencies = [
  "turbo-tasks",
  "turbo-tasks-backend",
  "turbo-tasks-build",
- "turbo-tasks-env",
- "turbo-tasks-fs",
  "turbo-tasks-malloc",
- "turbopack",
- "turbopack-browser",
- "turbopack-cli-utils",
- "turbopack-core",
- "turbopack-ecmascript",
- "turbopack-ecmascript-runtime",
- "turbopack-env",
- "turbopack-node",
- "turbopack-nodejs",
  "turbopack-trace-utils",
 ]
 
@@ -4633,7 +4617,6 @@ dependencies = [
  "allsorts",
  "anyhow",
  "async-trait",
- "auto-hash-map",
  "base64 0.21.4",
  "either",
  "futures",
@@ -4656,7 +4639,6 @@ dependencies = [
  "serde_json",
  "serde_path_to_error",
  "swc_core",
- "swc_relay",
  "thiserror 1.0.69",
  "tracing",
  "turbo-esregex",
@@ -4674,12 +4656,10 @@ dependencies = [
  "turbopack-ecmascript",
  "turbopack-ecmascript-plugins",
  "turbopack-ecmascript-runtime",
- "turbopack-env",
  "turbopack-image",
  "turbopack-node",
  "turbopack-nodejs",
  "turbopack-static",
- "turbopack-trace-server",
  "turbopack-trace-utils",
 ]
 
@@ -4690,7 +4670,6 @@ dependencies = [
  "anyhow",
  "base64 0.21.4",
  "chrono",
- "dashmap 6.1.0",
  "easy-error",
  "either",
  "hex",
@@ -4704,7 +4683,6 @@ dependencies = [
  "react_remove_properties",
  "regex",
  "remove_console",
- "rustc-hash 1.1.0",
  "rustc-hash 2.1.1",
  "serde",
  "serde_json",
@@ -4719,7 +4697,6 @@ dependencies = [
  "turbo-rcstr",
  "turbopack-ecmascript-plugins",
  "urlencoding",
- "walkdir",
 ]
 
 [[package]]
@@ -4727,13 +4704,10 @@ name = "next-swc-napi"
 version = "0.0.0"
 dependencies = [
  "anyhow",
- "backtrace",
  "console-subscriber",
- "dashmap 6.1.0",
  "dhat",
  "getrandom 0.2.15",
  "iana-time-zone",
- "indexmap 2.7.1",
  "lightningcss-napi",
  "mdxjs",
  "napi",
@@ -4745,7 +4719,6 @@ dependencies = [
  "next-custom-transforms",
  "once_cell",
  "owo-colors 3.5.0",
- "par-core",
  "rand 0.9.0",
  "rustc-hash 2.1.1",
  "serde",
@@ -4763,7 +4736,6 @@ dependencies = [
  "turbo-tasks-build",
  "turbo-tasks-fs",
  "turbo-tasks-malloc",
- "turbopack",
  "turbopack-core",
  "turbopack-ecmascript-hmr-protocol",
  "turbopack-ecmascript-plugins",
@@ -7568,6 +7540,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a31930a468e3178fe8ac7f47bd1fcccdd1d97d11abf6ffec7d7b8800196c36bf"
 dependencies = [
  "binding_macros",
+ "par-core",
  "swc",
  "swc_allocator",
  "swc_atoms",
@@ -9127,16 +9100,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tokio-scoped"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e4beb8ba13bc53ac53ce1d52b42f02e5d8060f0f42138862869beb769722b256"
-dependencies = [
- "tokio",
- "tokio-stream",
-]
-
-[[package]]
 name = "tokio-socks"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9531,7 +9494,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "byteorder",
- "either",
  "jiff",
  "lzzzz",
  "memmap2 0.9.5",
@@ -9542,7 +9504,6 @@ dependencies = [
  "rand 0.9.0",
  "rayon",
  "rustc-hash 2.1.1",
- "serde",
  "smallvec",
  "tempfile",
  "thread_local",
@@ -9588,7 +9549,6 @@ dependencies = [
  "syn 2.0.100",
  "tracing",
  "tracing-subscriber",
- "walkdir",
 ]
 
 [[package]]
@@ -9636,7 +9596,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "arc-swap",
- "async-trait",
  "auto-hash-map",
  "bitfield",
  "byteorder",
@@ -9659,15 +9618,11 @@ dependencies = [
  "smallvec",
  "thread_local",
  "tokio",
- "tokio-scoped",
  "tracing",
  "turbo-persistence",
- "turbo-prehash",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
- "turbo-tasks-hash",
- "turbo-tasks-malloc",
  "turbo-tasks-testing",
 ]
 
@@ -9704,8 +9659,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "dotenvs",
- "indexmap 2.7.1",
- "serde",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
@@ -9719,7 +9672,6 @@ dependencies = [
  "anyhow",
  "httpmock",
  "reqwest 0.11.17",
- "serde",
  "tokio",
  "turbo-rcstr",
  "turbo-tasks",
@@ -9769,8 +9721,6 @@ dependencies = [
  "turbo-tasks-build",
  "turbo-tasks-hash",
  "turbo-tasks-testing",
- "unicode-segmentation",
- "unsize",
  "urlencoding",
 ]
 
@@ -9847,11 +9797,9 @@ name = "turbo-tasks-testing"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "auto-hash-map",
  "futures",
  "rustc-hash 2.1.1",
  "tokio",
- "turbo-rcstr",
  "turbo-tasks",
 ]
 
@@ -9862,8 +9810,6 @@ dependencies = [
  "anyhow",
  "codspeed-criterion-compat",
  "difference",
- "futures",
- "indexmap 2.7.1",
  "lazy_static",
  "regex",
  "rstest",
@@ -9927,9 +9873,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "either",
- "indexmap 2.7.1",
  "indoc",
- "rustc-hash 2.1.1",
  "serde",
  "serde_json",
  "serde_qs",
@@ -9956,7 +9900,6 @@ dependencies = [
  "console-subscriber",
  "dunce",
  "futures",
- "mime",
  "owo-colors 3.5.0",
  "regex",
  "rustc-hash 2.1.1",
@@ -9969,7 +9912,6 @@ dependencies = [
  "turbo-tasks-backend",
  "turbo-tasks-build",
  "turbo-tasks-env",
- "turbo-tasks-fetch",
  "turbo-tasks-fs",
  "turbo-tasks-malloc",
  "turbopack",
@@ -10062,13 +10004,10 @@ name = "turbopack-css"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "indexmap 2.7.1",
  "indoc",
  "lightningcss",
- "once_cell",
  "parcel_selectors",
  "parcel_sourcemap",
- "regex",
  "rustc-hash 2.1.1",
  "serde",
  "smallvec",
@@ -10079,10 +10018,8 @@ dependencies = [
  "turbo-tasks",
  "turbo-tasks-build",
  "turbo-tasks-fs",
- "turbo-tasks-hash",
  "turbopack-core",
  "turbopack-ecmascript",
- "turbopack-swc-utils",
  "urlencoding",
 ]
 
@@ -10096,7 +10033,6 @@ dependencies = [
  "futures",
  "hyper 0.14.28",
  "hyper-tungstenite",
- "indexmap 2.7.1",
  "mime",
  "mime_guess",
  "parking_lot",
@@ -10139,7 +10075,6 @@ dependencies = [
  "num-bigint",
  "num-traits",
  "once_cell",
- "par-core",
  "parking_lot",
  "petgraph 0.6.3",
  "regex",
@@ -10155,7 +10090,6 @@ dependencies = [
  "turbo-esregex",
  "turbo-rcstr",
  "turbo-tasks",
- "turbo-tasks-backend",
  "turbo-tasks-build",
  "turbo-tasks-fs",
  "turbo-tasks-hash",
@@ -10165,7 +10099,6 @@ dependencies = [
  "turbopack-resolve",
  "turbopack-swc-utils",
  "url",
- "urlencoding",
 ]
 
 [[package]]
@@ -10186,7 +10119,6 @@ dependencies = [
  "anyhow",
  "async-trait",
  "indexmap 2.7.1",
- "lightningcss",
  "modularize_imports",
  "rustc-hash 2.1.1",
  "serde",
@@ -10226,8 +10158,6 @@ name = "turbopack-env"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "indexmap 2.7.1",
- "serde",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
@@ -10261,7 +10191,6 @@ name = "turbopack-json"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "serde",
  "serde_json",
  "turbo-rcstr",
  "turbo-tasks",
@@ -10278,7 +10207,6 @@ dependencies = [
  "anyhow",
  "markdown",
  "mdxjs",
- "serde",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
@@ -10299,9 +10227,7 @@ dependencies = [
  "either",
  "futures",
  "futures-retry",
- "indexmap 2.7.1",
  "indoc",
- "mime",
  "once_cell",
  "owo-colors 3.5.0",
  "parking_lot",
@@ -10330,12 +10256,7 @@ name = "turbopack-nodejs"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "either",
- "indexmap 2.7.1",
  "indoc",
- "rustc-hash 2.1.1",
- "serde",
- "smallvec",
  "tracing",
  "turbo-rcstr",
  "turbo-tasks",
@@ -10353,7 +10274,6 @@ name = "turbopack-resolve"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "indexmap 2.7.1",
  "lazy_static",
  "regex",
  "serde",
@@ -10371,7 +10291,6 @@ name = "turbopack-static"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "serde",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
@@ -10420,15 +10339,12 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "dunce",
- "futures",
- "indexmap 2.7.1",
  "once_cell",
  "rustc-hash 2.1.1",
  "serde",
  "serde_json",
  "testing",
  "tokio",
- "tracing",
  "tracing-subscriber",
  "turbo-rcstr",
  "turbo-tasks",
@@ -10439,7 +10355,6 @@ dependencies = [
  "turbo-tasks-fs",
  "turbopack",
  "turbopack-browser",
- "turbopack-cli-utils",
  "turbopack-core",
  "turbopack-ecmascript-plugins",
  "turbopack-ecmascript-runtime",
@@ -10496,7 +10411,6 @@ name = "turbopack-wasm"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "indexmap 2.7.1",
  "indoc",
  "serde",
  "turbo-rcstr",
