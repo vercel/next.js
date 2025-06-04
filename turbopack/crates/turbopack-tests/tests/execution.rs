@@ -13,8 +13,8 @@ use serde::{Deserialize, Serialize};
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, NonLocalValue, OperationVc, ResolvedVc, TurboTasks, Value, Vc, apply_effects,
-    debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs,
+    Completion, NonLocalValue, OperationVc, ResolvedVc, TaskInput, TryJoinIterExt, TurboTasks,
+    Value, Vc, apply_effects, debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs,
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_bytes::stream::SingleValue;
@@ -74,7 +74,7 @@ struct JsResult {
 }
 
 #[turbo_tasks::value]
-#[derive(Copy, Clone, Debug, Hash)]
+#[derive(Copy, Clone, Debug, Hash, TaskInput)]
 enum IssueSnapshotMode {
     Snapshots,
     NoSnapshots,
@@ -200,8 +200,7 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
     ));
     let result = tt
         .run_once(async move {
-            let emit_op =
-                run_inner_operation(resource.to_str().unwrap().into(), Value::new(snapshot_mode));
+            let emit_op = run_inner_operation(resource.to_str().unwrap().into(), snapshot_mode);
             let result = emit_op.read_strongly_consistent().owned().await?;
             apply_effects(emit_op).await?;
 
@@ -217,11 +216,11 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
 #[turbo_tasks::function(operation)]
 async fn run_inner_operation(
     resource: RcStr,
-    snapshot_mode: Value<IssueSnapshotMode>,
+    snapshot_mode: IssueSnapshotMode,
 ) -> Result<Vc<JsResult>> {
     let prepared_test = prepare_test(resource).to_resolved().await?;
     let run_result_op = run_test_operation(prepared_test);
-    if *snapshot_mode == IssueSnapshotMode::Snapshots {
+    if snapshot_mode == IssueSnapshotMode::Snapshots {
         snapshot_issues(*prepared_test, run_result_op).await?;
     }
 

@@ -3,7 +3,7 @@ use std::{fmt::Display, str::FromStr};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, Value, Vc, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, TaskInput, Vc, trace::TraceRawVcs};
 
 use super::request::{
     AdjustFontFallback, NextFontLocalRequest, NextFontLocalRequestArguments, SrcDescriptor,
@@ -13,7 +13,7 @@ use super::request::{
 /// A normalized, Vc-friendly struct derived from validating and transforming
 /// [[NextFontLocalRequest]]
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Clone, Debug, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, PartialOrd, Ord, Hash, TaskInput)]
 pub(super) struct NextFontLocalOptions {
     pub fonts: FontDescriptors,
     pub default_weight: Option<FontWeight>,
@@ -43,8 +43,8 @@ impl NextFontLocalOptions {
 #[turbo_tasks::value_impl]
 impl NextFontLocalOptions {
     #[turbo_tasks::function]
-    pub fn new(options: Value<NextFontLocalOptions>) -> Vc<NextFontLocalOptions> {
-        Self::cell(options.into_value())
+    pub fn new(options: NextFontLocalOptions) -> Vc<NextFontLocalOptions> {
+        Self::cell(options)
     }
 }
 
@@ -62,6 +62,7 @@ impl NextFontLocalOptions {
     Serialize,
     TraceRawVcs,
     NonLocalValue,
+    TaskInput,
 )]
 pub(super) struct FontDescriptor {
     pub weight: Option<FontWeight>,
@@ -103,6 +104,7 @@ impl FontDescriptor {
     Serialize,
     TraceRawVcs,
     NonLocalValue,
+    TaskInput,
 )]
 pub(super) enum FontDescriptors {
     /// `One` is a special case when the user did not provide a `src` field and
@@ -125,6 +127,7 @@ pub(super) enum FontDescriptors {
     Hash,
     TraceRawVcs,
     NonLocalValue,
+    TaskInput,
 )]
 pub(super) enum FontWeight {
     Variable(RcStr, RcStr),
