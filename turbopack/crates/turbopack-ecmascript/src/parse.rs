@@ -107,8 +107,8 @@ pub fn generate_js_source_map(
     inline_sources_content: bool,
 ) -> Result<Rope> {
     let original_source_map = original_source_map.map(|x| x.to_bytes());
-    let input_map = if let Some(original_source_map) = original_source_map {
-        Some(raw_sourcemap::decode(&original_source_map)?.into_source_map()?)
+    let input_map = if let Some(original_source_map) = &original_source_map {
+        Some(raw_sourcemap::decode(original_source_map)?.into_source_map()?)
     } else {
         None
     };

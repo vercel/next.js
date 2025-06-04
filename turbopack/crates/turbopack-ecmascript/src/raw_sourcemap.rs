@@ -16,26 +16,25 @@ use sourcemap::{RawToken, vlq::parse_vlq_segment};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RawSourceMap<'a> {
-    #[serde(borrow)]
-    pub version: &'a RawValue,
+    pub version: Option<u32>,
     #[serde(default, borrow)]
     pub file: Option<&'a RawValue>,
     #[serde(borrow)]
-    pub sources: &'a RawValue,
+    pub sources: MaybeRawValue<'a, Vec<&'a RawValue>>,
     #[serde(default, borrow)]
     pub source_root: Option<&'a RawValue>,
     #[serde(borrow)]
-    pub sources_content: &'a RawValue,
+    pub sources_content: MaybeRawValue<'a, Vec<Option<&'a RawValue>>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sections: Option<Vec<RawSection<'a>>>,
     #[serde(borrow)]
-    pub names: &'a RawValue,
+    pub names: MaybeRawValue<'a, Vec<&'a RawValue>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub range_mappings: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mappings: Option<String>,
     #[serde(default, borrow)]
-    pub ignore_list: Option<&'a RawValue>,
+    pub ignore_list: Option<MaybeRawValue<'a, BTreeSet<u32>>>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Copy)]
@@ -417,12 +416,12 @@ pub fn decode_regular(rsm: RawSourceMap) -> sourcemap::Result<SourceMap> {
     let sm = SourceMap {
         file: rsm.file,
         tokens,
-        names: MaybeRawValue::RawValue(rsm.names),
+        names: rsm.names,
         source_root: rsm.source_root,
-        sources: MaybeRawValue::RawValue(rsm.sources),
+        sources: rsm.sources,
         sources_prefixed: None,
-        sources_content: MaybeRawValue::RawValue(rsm.sources_content),
-        ignore_list: rsm.ignore_list.map(MaybeRawValue::RawValue),
+        sources_content: rsm.sources_content,
+        ignore_list: rsm.ignore_list,
     };
 
     Ok(sm)
@@ -579,6 +578,21 @@ impl<'a> SourceMap<'a> {
 
         self.tokens
             .sort_unstable_by_key(|t| (t.dst_line, t.dst_col));
+    }
+
+    pub fn into_raw_sourcemap(self) -> RawSourceMap<'a> {
+        RawSourceMap {
+            version: Some(3),
+            file: self.file,
+            sources: self.sources,
+            source_root: self.source_root,
+            sources_content: self.sources_content,
+            sections: None,
+            names: self.names,
+            range_mappings: self.range_mappings,
+            mappings: self.mappings,
+            ignore_list: self.ignore_list,
+        }
     }
 }
 
