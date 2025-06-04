@@ -505,6 +505,8 @@ impl TurboPersistence {
                 sst_filter.apply_filter(meta_file);
             }
             inner.meta_files.append(&mut new_meta_files);
+            // apply_and_get_remove need to run in reverse order
+            inner.meta_files.reverse();
             inner.meta_files.retain(|meta| {
                 if sst_filter.apply_and_get_remove(meta) {
                     meta_seq_numbers_to_delete.push(meta.sequence_number());
@@ -513,6 +515,7 @@ impl TurboPersistence {
                     true
                 }
             });
+            inner.meta_files.reverse();
             has_delete_file = !sst_seq_numbers_to_delete.is_empty()
                 || !blob_seq_numbers_to_delete.is_empty()
                 || !meta_seq_numbers_to_delete.is_empty();
