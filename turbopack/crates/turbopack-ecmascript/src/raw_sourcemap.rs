@@ -9,7 +9,7 @@ use std::{
     io,
 };
 
-use bitvec::{field::BitField, order::Lsb0, vec::BitVec};
+use bitvec::{field::BitField, order::Lsb0, vec::BitVec, view::BitView};
 use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
 use sourcemap::{RawToken, vlq::parse_vlq_segment};
@@ -317,8 +317,8 @@ fn decode_index(rsm: RawSourceMap) -> sourcemap::Result<SourceMapIndex> {
     for raw_section in rsm.sections.unwrap_or_default() {
         sections.push(SourceMapSection::new(
             (raw_section.offset.line, raw_section.offset.column),
-            raw_section.url.map(|v| MaybeRawValue::RawValue(v)),
-            raw_section.map.map(|v| MaybeRawValue::RawValue(v)),
+            raw_section.url.map(MaybeRawValue::RawValue),
+            raw_section.map.map(MaybeRawValue::RawValue),
         ));
     }
 
@@ -583,14 +583,14 @@ impl<'a> SourceMap<'a> {
     pub fn into_raw_sourcemap(self) -> RawSourceMap<'a> {
         RawSourceMap {
             version: Some(3),
+            range_mappings: serialize_range_mappings(&self),
+            mappings: Some(serialize_mappings(&self)),
             file: self.file,
             sources: self.sources,
             source_root: self.source_root,
             sources_content: self.sources_content,
             sections: None,
             names: self.names,
-            range_mappings: self.range_mappings,
-            mappings: self.mappings,
             ignore_list: self.ignore_list,
         }
     }
@@ -738,4 +738,148 @@ fn decode_rmi(rmi_str: &str, val: &mut BitVec<u8, Lsb0>) -> sourcemap::Result<()
     }
 
     Ok(())
+}
+
+const B64_CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+pub(crate) fn encode_vlq(out: &mut String, num: i64) {
+    let mut num = if num < 0 { ((-num) << 1) + 1 } else { num << 1 };
+
+    loop {
+        let mut digit = num & 0b11111;
+        num >>= 5;
+        if num > 0 {
+            digit |= 1 << 5;
+        }
+        out.push(B64_CHARS[digit as usize] as char);
+        if num == 0 {
+            break;
+        }
+    }
+}
+
+fn encode_vlq_diff(out: &mut String, a: u32, b: u32) {
+    encode_vlq(out, i64::from(a) - i64::from(b))
+}
+
+fn encode_rmi(out: &mut Vec<u8>, data: &[u8]) {
+    fn encode_byte(b: u8) -> u8 {
+        match b {
+            0..=25 => b + b'A',
+            26..=51 => b + b'a' - 26,
+            52..=61 => b + b'0' - 52,
+            62 => b'+',
+            63 => b'/',
+            _ => panic!("invalid byte"),
+        }
+    }
+
+    let bits = data.view_bits::<Lsb0>();
+
+    // trim zero at the end
+    let mut last = 0;
+    for (idx, bit) in bits.iter().enumerate() {
+        if *bit {
+            last = idx;
+        }
+    }
+    let bits = &bits[..last + 1];
+
+    for byte in bits.chunks(6) {
+        let byte = byte.load::<u8>();
+
+        let encoded = encode_byte(byte);
+
+        out.push(encoded);
+    }
+}
+
+fn serialize_range_mappings(sm: &SourceMap) -> Option<String> {
+    let mut buf = Vec::new();
+    let mut prev_line = 0;
+    let mut had_rmi = false;
+    let mut empty = true;
+
+    let mut idx_of_first_in_line = 0;
+
+    let mut rmi_data = Vec::<u8>::new();
+
+    for (idx, token) in sm.tokens.iter().enumerate() {
+        if token.is_range {
+            had_rmi = true;
+            empty = false;
+
+            let num = idx - idx_of_first_in_line;
+
+            rmi_data.resize(rmi_data.len() + 2, 0);
+
+            let rmi_bits = rmi_data.view_bits_mut::<Lsb0>();
+            rmi_bits.set(num, true);
+        }
+
+        while token.dst_line != prev_line {
+            if had_rmi {
+                encode_rmi(&mut buf, &rmi_data);
+                rmi_data.clear();
+            }
+
+            buf.push(b';');
+            prev_line += 1;
+            had_rmi = false;
+            idx_of_first_in_line = idx;
+        }
+    }
+    if empty {
+        return None;
+    }
+
+    if had_rmi {
+        encode_rmi(&mut buf, &rmi_data);
+    }
+
+    Some(String::from_utf8(buf).expect("invalid utf8"))
+}
+
+fn serialize_mappings(sm: &SourceMap) -> String {
+    let mut rv = String::new();
+    // dst == minified == generated
+    let mut prev_dst_line = 0;
+    let mut prev_dst_col = 0;
+    let mut prev_src_line = 0;
+    let mut prev_src_col = 0;
+    let mut prev_name_id = 0;
+    let mut prev_src_id = 0;
+
+    for (idx, token) in sm.tokens.iter().enumerate() {
+        if token.dst_line != prev_dst_line {
+            prev_dst_col = 0;
+            while token.dst_line != prev_dst_line {
+                rv.push(';');
+                prev_dst_line += 1;
+            }
+        } else if idx > 0 {
+            if Some(&token) == sm.tokens.get(idx - 1).as_ref() {
+                continue;
+            }
+            rv.push(',');
+        }
+
+        encode_vlq_diff(&mut rv, token.dst_col, prev_dst_col);
+        prev_dst_col = token.dst_col;
+
+        if token.src_id != !0 {
+            encode_vlq_diff(&mut rv, token.src_id, prev_src_id);
+            prev_src_id = token.src_id;
+            encode_vlq_diff(&mut rv, token.src_line, prev_src_line);
+            prev_src_line = token.src_line;
+            encode_vlq_diff(&mut rv, token.src_col, prev_src_col);
+            prev_src_col = token.src_col;
+            if token.name_id != !0 {
+                encode_vlq_diff(&mut rv, token.name_id, prev_name_id);
+                prev_name_id = token.name_id;
+            }
+        }
+    }
+
+    rv
 }
