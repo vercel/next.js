@@ -1,0 +1,204 @@
+---
+title: Prefetching
+description: Learn how to configure prefetching in Next.js
+---
+
+Prefetching makes navigating between different routes in your application feel instant. Next.js tries to intelligently prefetch by default, based on the links used in your application code.
+
+This guide will explain how prefetching works and show common implementation patterns:
+
+- [Automatic prefetch](#automatic-prefetch)
+- [Manual prefetch](#manual-prefetch)
+- [Hover-triggered prefetch](#hover-triggered-prefetch)
+- [Ejected link](#ejected-link)
+- [Disabled prefetch](#disabled-prefetch)
+
+## How does prefetching work?
+
+When navigating between routes, the browser requests assets for the page like HTML and JavaScript files. Prefetching is the process of fetching these resources _ahead_ of time, before you navigate to a new route.
+
+Next.js understands which routes you are [likely going to navigate to](https://www.notion.so/Prefetching-in-Next-js-1dfe06b059c48068b551eed1a2d53736?pvs=21), so it's able to prefetch the new route in the background. By the time you click the link, the resources for the new route have already been loaded into the browser cache.
+
+When navigating to the new page, there's not a browser loading spinner. Instead, Next.js can transition the application to the new route on the client, making the page navigation feel instant.
+
+### Single-Page Applications
+
+Next.js can be used to build [Single-Page Applications (SPAs)](https://nextjs.org/docs/app/guides/single-page-applications). Unlike traditional SPAs, Next.js splits application code into smaller chunks which conditionally load based on the route you are navigating to. Rather than downloading all the application code at once, you load it incrementally.
+
+This approach prevents blocking the page from being interactive while waiting for one large JavaScript file to load and execute.
+
+## Prefetching static vs. dynamic routes
+
+|                                                                      | **Static page** | **Dynamic page**                             |
+| -------------------------------------------------------------------- | --------------- | -------------------------------------------- |
+| **Prefetched**                                                       | Full Route      | Skipped or shared layouts and loading states |
+| [**Client Cache TTL**](/docs/app/deep-dive/caching#full-route-cache) | 5 min (default) | Off unless enabled                           |
+| **Server roundtrip on click**                                        | No              | Yes (streamed after shell)                   |
+
+> **Good to know:** During the initial navigation, the browser fetches the HTML, RSC Payload, and JS Bundle. For subsequent navigations, the browser will the RSC Payload for Server Components and JS bundle for Client Components.
+
+## Automatic prefetch
+
+```tsx
+import Link from 'next/link'
+;<Link href="/about">About</Link>
+```
+
+| **Context**       | **Prefetched payload**           | **Cache TTL**      |
+| ----------------- | -------------------------------- | ------------------ |
+| No `loading.js`   | Entire page                      | Until app reload   |
+| With `loading.js` | Layout to first loading boundary | 30s (configurable) |
+
+Automatic prefetching runs only in production. Disable with `prefetch={false}` or use the wrapper in [Disabled Prefetch](https://chatgpt.com/c/680aafde-6590-800e-a5ac-91e20ae3ff0d#disabled-prefetch).
+
+## Manual prefetch
+
+```tsx
+'use client'
+
+import { useRouter } from 'next/navigation'
+
+const router = useRouter()
+router.prefetch('/pricing')
+```
+
+Call `router.prefetch()` to warm routes outside the viewport or in response to analytics, hover, scroll, etc.
+
+## Hover-triggered prefetch
+
+> **Proceed with caution:** Extending `Link` opts you into maintaining prefetching, cache invalidation, and accessibility concerns. Proceed only if defaults are insufficient.
+
+Next.js tries to do the right prefetching by default and power users can tweak the knobs to do more/less prefetching based on their needs. You have the control between performance and resource consumption.
+
+For example, you might have to only trigger prefetches on hover, instead of when entering the viewport (the default behavior):
+
+```tsx
+'use client'
+
+import Link from 'next/link'
+import { useState } from 'react'
+
+function HoverPrefetchLink({
+  href,
+  children,
+}: {
+  href: string
+  children: React.ReactNode
+}) {
+  const [active, setActive] = useState(false)
+
+  return (
+    <Link
+      href={href}
+      prefetch={active ? null : false}
+      onMouseEnter={() => setActive(true)}
+    >
+      {children}
+    </Link>
+  )
+}
+```
+
+`prefetch={null}` restores default (static) prefetching once the user shows intent.
+
+## Ejected link
+
+> **Proceed with caution:** Extending `Link` opts you into maintaining prefetching, cache invalidation, and accessibility concerns. Proceed only if defaults are insufficient.
+
+```tsx
+'use client'
+
+import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
+
+function ManualPrefetchLink({
+  href,
+  children,
+}: {
+  href: string
+  children: React.ReactNode
+}) {
+  const router = useRouter()
+
+  useEffect(() => {
+    let cancelled = false
+    const poll = () => {
+      if (!cancelled) router.prefetch(href, { onInvalidate: poll })
+    }
+    poll()
+    return () => {
+      cancelled = true
+    }
+  }, [href, router])
+
+  return <a href={href}>{children}</a>
+}
+```
+
+`onInvalidate` is invoked when Next.js suspects cached data is stale, allowing you to refresh the prefetch.
+
+> **Good to know:** Using an `a` tag will cause a full page navigation to the destination route, you can use `onClick` to prevent...
+
+## Disabled prefetch
+
+You can fully disable prefetching for certain routes for more fine-grained control over resource consumption.
+
+```tsx
+'use client'
+
+import Link, { LinkProps } from 'next/link'
+
+function NoPrefetchLink({
+  prefetch,
+  ...rest
+}: LinkProps & { children: React.ReactNode }) {
+  return <Link {...rest} prefetch={false} />
+}
+```
+
+For example, you may still want to have consistent usage of `<Link>` in your application, but links if your footer might not need to be prefetched when entering the viewport.
+
+## Prefetching optimizations
+
+### Layout deduplication
+
+Shared layouts download once per session, even if several prefetches request the same component tree. This reduces network traffic and speeds up subsequent navigations that reuse the layout.
+
+### Prefetch scheduling
+
+Next.js maintains a small task queue, which prefetches in the following order:
+
+1. Links in the viewport
+2. Links showing user intent (hover or touch)
+3. Newer links replace older ones
+4. Links scrolled off-screen are discarded
+
+The scheduler prioritizes likely navigations while minimizing unused downloads.
+
+### Partial Prerendering (PPR)
+
+With PPR is enabled, a page is divided into a static shell and a streamed dynamic section:
+
+- The shell, which can be prefetched, streams immediately
+- Dynamic data streams when ready
+- Data invalidations (`revalidateTag`, `revalidatePath`) silently refresh associated prefetches
+
+### Router cache
+
+Prefetched React Server Component payloads are stored in memory and keyed by route segments. Navigating between sibling routes—e.g. `/dashboard/settings` → `/dashboard/analytics`—reuses parent payloads and fetches only the changed leaf.
+
+## Troubleshooting
+
+### Triggering unwanted side-effects during prefetching
+
+- Server Actions and Client Components
+
+### Preventing too many prefetches
+
+- What is the problem with prefetching too much? Unnecessary server load. Especially for routes users might never visit.
+- Hover-trigger the prefetch or use manual prefetching
+
+### Disabling prefetching on hover
+
+- How do you disable prefetch on hover? https://github.com/vercel/next.js/discussions/24437
+- Use your own Ejected Link component
