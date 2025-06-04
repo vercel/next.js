@@ -113,7 +113,7 @@ pub fn generate_js_source_map(
         None
     };
 
-    let map = files_map.build_source_map(
+    let new_mappings = files_map.build_source_map(
         &mappings,
         None,
         InlineSourcesContentConfig {
@@ -127,26 +127,37 @@ pub fn generate_js_source_map(
         },
     );
 
-    let map = {
-        let mut buf = vec![];
-        map.to_writer(&mut buf)?;
-        buf
-    };
-    let map = raw_sourcemap::decode(&map)?.into_source_map()?;
+    match input_map {
+        Some(mut map) => {
+            let new_mappings = {
+                let mut result = vec![];
+                new_mappings.to_writer(&mut result)?;
+                drop(new_mappings);
+                result
+            };
+            // TODO: Make this more efficient
+            let new_mappings = raw_sourcemap::decode(&new_mappings)?.into_source_map()?;
+            map.adjust_mappings(new_mappings);
+            let map = map.into_raw_sourcemap();
 
-    let mut map = match input_map {
-        Some(mut input_map) => {
-            input_map.adjust_mappings(map);
-            input_map
+            // TODO: Enable this when we have a way to handle the ignore list
+            // add_default_ignore_list(&mut map);
+
+            let result = serde_json::to_vec(&map)?;
+            Ok(Rope::from(result))
         }
-        None => map,
-    };
-    // TODO: Enable this when we have a way to handle the ignore list
-    // add_default_ignore_list(&mut map);
+        None => {
+            // We don't convert sourcemap::SourceMap into raw_sourcemap::SourceMap because we don't
+            // need to adjust mappings
+            let mut map = new_mappings;
 
-    let mut result = vec![];
-    map.to_writer(&mut result)?;
-    Ok(Rope::from(result))
+            add_default_ignore_list(&mut map);
+
+            let mut result = vec![];
+            map.to_writer(&mut result)?;
+            Ok(Rope::from(result))
+        }
+    }
 }
 
 /// A config to generate a source map which includes the source content of every
