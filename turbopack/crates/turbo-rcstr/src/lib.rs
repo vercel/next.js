@@ -50,6 +50,11 @@ mod tagged_value;
 /// assert_eq!(rc_s1, rc_s2);
 /// ```
 ///
+/// Generally speaking you should
+///  * use `rcstr!` when converting a `const`-compatible `str`
+///  * use `RcStr::from` for readability
+///  * use `.into()` when context makes it clear.
+///
 /// Converting from an [`RcStr`] to a `&str` should be done with [`RcStr::as_str`]. Converting to a
 /// `String` should be done with [`RcStr::into_owned`].
 ///
