@@ -110,7 +110,7 @@ describe('app dir - basepath', () => {
 
       const browser = await next.browser(initialPagePath)
 
-      browser.on('request', (req: Request) => {
+      browser.on('request', (req) => {
         const url = req.url()
 
         if (
@@ -121,7 +121,7 @@ describe('app dir - basepath', () => {
         }
       })
 
-      browser.on('response', (res: Response) => {
+      browser.on('response', (res) => {
         const url = res.url()
 
         if (
@@ -163,7 +163,7 @@ describe('app dir - basepath', () => {
 
     const browser = await next.browser(initialPagePath)
 
-    browser.on('request', (req: Request) => {
+    browser.on('request', (req) => {
       const url = req.url()
 
       if (!url.includes('_next')) {
@@ -171,7 +171,7 @@ describe('app dir - basepath', () => {
       }
     })
 
-    browser.on('response', (res: Response) => {
+    browser.on('response', (res) => {
       const url = res.url()
 
       if (!url.includes('_next')) {

@@ -1,36 +1,36 @@
 use std::{fmt, hash::Hash};
 
 use petgraph::{
+    Direction, Graph,
     algo::{condensation, has_path_connecting},
     graph::NodeIndex,
     graphmap::GraphMap,
     prelude::DiGraphMap,
     visit::EdgeRef,
-    Direction, Graph,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
-    common::{comments::Comments, util::take::Take, BytePos, Spanned, SyntaxContext, DUMMY_SP},
+    common::{BytePos, DUMMY_SP, Spanned, SyntaxContext, comments::Comments, util::take::Take},
     ecma::{
         ast::{
-            op, ClassDecl, Decl, DefaultDecl, EsReserved, ExportAll, ExportDecl,
-            ExportNamedSpecifier, ExportSpecifier, Expr, ExprStmt, FnDecl, Id, Ident, IdentName,
-            ImportDecl, ImportNamedSpecifier, ImportSpecifier, ImportStarAsSpecifier, KeyValueProp,
-            Lit, Module, ModuleDecl, ModuleExportName, ModuleItem, NamedExport, ObjectLit, Prop,
-            PropName, PropOrSpread, Stmt, Str, VarDecl, VarDeclKind, VarDeclarator,
+            ClassDecl, Decl, DefaultDecl, EsReserved, ExportAll, ExportDecl, ExportNamedSpecifier,
+            ExportSpecifier, Expr, ExprStmt, FnDecl, Id, Ident, IdentName, ImportDecl,
+            ImportNamedSpecifier, ImportSpecifier, ImportStarAsSpecifier, KeyValueProp, Lit,
+            Module, ModuleDecl, ModuleExportName, ModuleItem, NamedExport, ObjectLit, Prop,
+            PropName, PropOrSpread, Stmt, Str, VarDecl, VarDeclKind, VarDeclarator, op,
         },
         atoms::Atom,
-        utils::{find_pat_ids, private_ident, quote_ident, ExprCtx, ExprExt},
+        utils::{ExprCtx, ExprExt, find_pat_ids, private_ident, quote_ident},
     },
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::FxIndexSet;
 
 use super::{
-    util::{
-        collect_top_level_decls, ids_captured_by, ids_used_by, ids_used_by_ignoring_nested, Vars,
-    },
     Key, TURBOPACK_PART_IMPORT_SOURCE,
+    util::{
+        Vars, collect_top_level_decls, ids_captured_by, ids_used_by, ids_used_by_ignoring_nested,
+    },
 };
 use crate::{magic_identifier, tree_shake::optimizations::GraphOptimizer};
 
@@ -56,18 +56,40 @@ pub(crate) enum ItemIdItemKind {
 
     ImportOfModule,
     /// Imports are split as multiple items.
+    ///
+    /// Note that this item is not actually present in the module, and rather a phantom node.
+    /// We only need this node to create an unique identifier for each binding in an import
+    /// declaration.
     ImportBinding(u32),
+    /// Reexport of a binding
+    ReexportBinding(u32),
     VarDeclarator(u32),
+}
+
+impl ItemId {
+    /// Returns true if this item is a phantom node.
+    ///
+    /// A phantom node is a node that is not actually present in the module, and rather a
+    /// placeholder to create an unique identifier.
+    pub fn is_phantom(&self) -> bool {
+        matches!(
+            self,
+            ItemId::Item {
+                kind: ItemIdItemKind::ImportBinding(..),
+                ..
+            }
+        )
+    }
 }
 
 impl fmt::Debug for ItemId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ItemId::Group(kind) => {
-                write!(f, "ItemId({:?})", kind)
+                write!(f, "ItemId({kind:?})")
             }
             ItemId::Item { index, kind } => {
-                write!(f, "ItemId({}, {:?})", index, kind)
+                write!(f, "ItemId({index}, {kind:?})")
             }
         }
     }
@@ -353,6 +375,10 @@ impl DepGraph {
                 .collect::<FxIndexSet<_>>();
 
             for id in group {
+                if id.is_phantom() {
+                    continue;
+                }
+
                 let data = data.get(id).unwrap();
 
                 for var in data.var_decls.iter() {
@@ -609,6 +635,10 @@ impl DepGraph {
             }
 
             for g in group {
+                if g.is_phantom() {
+                    continue;
+                }
+
                 // Skip directives, as we copy them to each modules.
                 if let ModuleItem::Stmt(Stmt::Expr(ExprStmt {
                     expr: box Expr::Lit(Lit::Str(s)),
@@ -640,6 +670,10 @@ impl DepGraph {
             }
 
             for g in group {
+                if g.is_phantom() {
+                    continue;
+                }
+
                 let data = data.get(g).unwrap();
 
                 // Emit `export { foo }`
@@ -679,6 +713,10 @@ impl DepGraph {
                 }
             }
 
+            if chunk.body.is_empty() {
+                continue;
+            }
+
             modules.push(chunk);
         }
 
@@ -716,6 +754,19 @@ impl DepGraph {
                     with: None,
                 },
             )));
+
+        if !star_reexports.is_empty() {
+            let mut module = Module::dummy();
+            outputs.insert(Key::StarExports, modules.len() as u32);
+
+            for star in &star_reexports {
+                module
+                    .body
+                    .push(ModuleItem::ModuleDecl(ModuleDecl::ExportAll(star.clone())));
+            }
+
+            modules.push(module);
+        }
 
         SplitModuleResult {
             entrypoints: outputs,
@@ -911,7 +962,7 @@ impl DepGraph {
                             if let Some(src) = &item.src {
                                 let id = ItemId::Item {
                                     index,
-                                    kind: ItemIdItemKind::ImportBinding(si as _),
+                                    kind: ItemIdItemKind::ReexportBinding(si as _),
                                 };
                                 ids.push(id.clone());
 
@@ -1608,11 +1659,7 @@ pub(crate) fn create_turbopack_part_id_assert(dep: PartId) -> ObjectLit {
                 PartId::Export(e) => format!("export {e}").into(),
                 PartId::Internal(dep, is_for_eval) => {
                     let v = dep as f64;
-                    if is_for_eval {
-                        v
-                    } else {
-                        -v
-                    }
+                    if is_for_eval { v } else { -v }
                 }
                 .into(),
             },

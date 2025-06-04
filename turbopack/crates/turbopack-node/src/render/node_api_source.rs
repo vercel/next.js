@@ -1,20 +1,20 @@
 use anyhow::Result;
 use serde_json::Value as JsonValue;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexSet, ResolvedVc, Value, Vc};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::introspect::{
-    module::IntrospectableModule, output_asset::IntrospectableOutputAsset, Introspectable,
-    IntrospectableChildren,
+    Introspectable, IntrospectableChildren, module::IntrospectableModule,
+    output_asset::IntrospectableOutputAsset,
 };
 use turbopack_dev_server::source::{
-    route_tree::{BaseSegment, RouteTree, RouteType},
     ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataVary,
     GetContentSourceContent,
+    route_tree::{BaseSegment, RouteTree, RouteType},
 };
 
-use super::{render_proxy::render_proxy_operation, RenderData};
+use super::{RenderData, render_proxy::render_proxy_operation};
 use crate::{get_intermediate_asset, node_entry::NodeEntry, route_matcher::RouteMatcher};
 
 /// Creates a [NodeApiContentSource].
@@ -145,7 +145,7 @@ impl GetContentSourceContent for NodeApiContentSource {
                 original_url: original_url.clone(),
                 raw_query: raw_query.clone(),
                 raw_headers: raw_headers.clone(),
-                path: format!("/{}", path).into(),
+                path: format!("/{path}").into(),
                 data: Some(self.render_data.await?),
             }
             .resolved_cell(),
@@ -156,16 +156,11 @@ impl GetContentSourceContent for NodeApiContentSource {
     }
 }
 
-#[turbo_tasks::function]
-fn introspectable_type() -> Vc<RcStr> {
-    Vc::cell("node api content source".into())
-}
-
 #[turbo_tasks::value_impl]
 impl Introspectable for NodeApiContentSource {
     #[turbo_tasks::function]
     fn ty(&self) -> Vc<RcStr> {
-        introspectable_type()
+        Vc::cell(rcstr!("node api content source"))
     }
 
     #[turbo_tasks::function]
@@ -190,13 +185,13 @@ impl Introspectable for NodeApiContentSource {
         for &entry in self.entry.entries().await?.iter() {
             let entry = entry.await?;
             set.insert((
-                ResolvedVc::cell("module".into()),
+                rcstr!("module"),
                 IntrospectableModule::new(Vc::upcast(*entry.module))
                     .to_resolved()
                     .await?,
             ));
             set.insert((
-                ResolvedVc::cell("intermediate asset".into()),
+                rcstr!("intermediate asset"),
                 IntrospectableOutputAsset::new(get_intermediate_asset(
                     *entry.chunking_context,
                     Vc::upcast(*entry.module),

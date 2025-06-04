@@ -12,10 +12,10 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    RawVc, Upcast, VcRead, VcTransparentRead, VcValueTrait, VcValueType,
     debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString},
     trace::{TraceRawVcs, TraceRawVcsContext},
     vc::Vc,
-    Upcast, VcRead, VcTransparentRead, VcValueTrait, VcValueType,
 };
 
 /// A "subtype" (via [`Deref`]) of [`Vc`] that represents a specific [`Vc::cell`]/`.cell()` or
@@ -66,6 +66,7 @@ use crate::{
 /// [`ReadRef`]: crate::ReadRef
 #[derive(Serialize, Deserialize)]
 #[serde(transparent, bound = "")]
+#[repr(transparent)]
 pub struct ResolvedVc<T>
 where
     T: ?Sized,
@@ -315,5 +316,21 @@ where
 {
     fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString {
         self.node.value_debug_format(depth)
+    }
+}
+
+impl<T> TryFrom<RawVc> for ResolvedVc<T>
+where
+    T: ?Sized,
+{
+    type Error = anyhow::Error;
+
+    fn try_from(raw: RawVc) -> Result<Self> {
+        if !matches!(raw, RawVc::TaskCell(..)) {
+            anyhow::bail!("Given RawVc {raw:?} is not a TaskCell");
+        }
+        Ok(Self {
+            node: Vc::from(raw),
+        })
     }
 }

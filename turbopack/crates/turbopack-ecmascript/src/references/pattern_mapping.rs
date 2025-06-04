@@ -12,18 +12,18 @@ use swc_core::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, NonLocalValue, ResolvedVc, TaskInput,
-    TryJoinIterExt, Vc,
+    FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Vc, debug::ValueDebugFormat,
+    trace::TraceRawVcs,
 };
 use turbopack_core::{
     chunk::{ChunkableModule, ChunkingContext, ModuleChunkItemIdExt, ModuleId},
     issue::{
-        code_gen::CodeGenerationIssue, module::emit_unknown_module_type_error, IssueExt,
-        IssueSeverity, StyledString,
+        IssueExt, IssueSeverity, StyledString, code_gen::CodeGenerationIssue,
+        module::emit_unknown_module_type_error,
     },
     resolve::{
-        origin::ResolveOrigin, parse::Request, ExternalType, ModuleResolveResult,
-        ModuleResolveResultItem,
+        ExternalType, ModuleResolveResult, ModuleResolveResultItem, origin::ResolveOrigin,
+        parse::Request,
     },
 };
 
@@ -139,7 +139,7 @@ impl SinglePatternMapping {
             ),
             Self::External(request, ty) => throw_module_not_found_error_expr(
                 request,
-                &format!("Unsupported external type {:?} for commonjs reference", ty),
+                &format!("Unsupported external type {ty:?} for commonjs reference"),
             ),
         }
     }
@@ -205,10 +205,7 @@ impl SinglePatternMapping {
             #[allow(unreachable_patterns)]
             Self::External(request, ty) => throw_module_not_found_error_expr(
                 request,
-                &format!(
-                    "Unsupported external type {:?} for dynamic import reference",
-                    ty
-                ),
+                &format!("Unsupported external type {ty:?} for dynamic import reference"),
             ),
             Self::ModuleLoader(module_id) => {
                 quote!("($turbopack_require($id))($turbopack_import)" as Expr,
@@ -337,7 +334,7 @@ async fn to_single_pattern_mapping(
             ));
         }
         ModuleResolveResultItem::Error(str) => {
-            return Ok(SinglePatternMapping::Unresolvable(str.await?.to_string()))
+            return Ok(SinglePatternMapping::Unresolvable(str.await?.to_string()));
         }
         ModuleResolveResultItem::OutputAsset(_)
         | ModuleResolveResultItem::Empty
@@ -352,8 +349,7 @@ async fn to_single_pattern_mapping(
                 message: StyledString::Text(
                     format!(
                         "the reference resolves to a non-trivial result, which is not supported \
-                         yet: {:?}",
-                        resolve_item
+                         yet: {resolve_item:?}"
                     )
                     .into(),
                 )
@@ -410,7 +406,7 @@ impl PatternMapping {
                 request_to_string(request).await?.to_string(),
             ))
             .cell()),
-            1 => {
+            1 if !request.request_pattern().await?.has_dynamic_parts() => {
                 let resolve_item = &result.primary.first().unwrap().1;
                 let single_pattern_mapping =
                     to_single_pattern_mapping(origin, chunking_context, resolve_item, resolve_type)

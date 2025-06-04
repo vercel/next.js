@@ -1,1 +1,1 @@
-process.env.TURBOPACK = '1'
+process.env.IS_TURBOPACK_TEST = '1'

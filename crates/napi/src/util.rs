@@ -42,7 +42,7 @@ use once_cell::sync::Lazy;
 use owo_colors::OwoColorize;
 use terminal_hyperlink::Hyperlink;
 use tracing_chrome::{ChromeLayerBuilder, FlushGuard};
-use tracing_subscriber::{filter, prelude::*, util::SubscriberInitExt, Layer};
+use tracing_subscriber::{Layer, filter, prelude::*, util::SubscriberInitExt};
 use turbopack_core::error::PrettyPrintError;
 
 static LOG_THROTTLE: Mutex<Option<Instant>> = Mutex::new(None);
@@ -108,7 +108,7 @@ pub fn log_internal_error_and_inform(internal_error: &anyhow::Error) {
             for line in new_lines {
                 match line {
                     Ok(line) => {
-                        writeln!(log_write, "{}", line).unwrap();
+                        writeln!(log_write, "{line}").unwrap();
                     }
                     Err(_) => {
                         break;
@@ -131,7 +131,11 @@ pub fn log_internal_error_and_inform(internal_error: &anyhow::Error) {
         "Turbopack Error: {}",
         internal_error_str.lines().next().unwrap_or("Unknown")
     );
-    let version_str = format!("Turbopack version: `{}`", env!("VERGEN_GIT_DESCRIBE"));
+    let version_str = format!(
+        "Turbopack version: `{}`\nNext.js version: `{}`",
+        env!("VERGEN_GIT_DESCRIBE"),
+        env!("NEXTJS_VERSION")
+    );
     let new_discussion_url = if supports_hyperlinks::supports_hyperlinks() {
         "clicking here.".hyperlink(
             format!(
@@ -165,7 +169,7 @@ pub fn get_target_triple() -> &'static str {
 pub trait MapErr<T>: Into<Result<T, anyhow::Error>> {
     fn convert_err(self) -> napi::Result<T> {
         self.into()
-            .map_err(|err| napi::Error::new(Status::GenericFailure, format!("{:?}", err)))
+            .map_err(|err| napi::Error::new(Status::GenericFailure, format!("{err:?}")))
     }
 }
 

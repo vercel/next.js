@@ -99,59 +99,62 @@ const runTests = (isDev = false) => {
 }
 
 // Turbopack does not support AMP rendering.
-;(process.env.TURBOPACK ? describe.skip : describe)('AMP SSG Support', () => {
-  describe('production mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-      // TODO: use browser instead to do checks that now need filesystem access
-      builtServerPagesDir = join(appDir, '.next', 'server', 'pages')
-    })
-    afterAll(() => killApp(app))
-    runTests()
-  })
-
-  describe('development mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
-    runTests(true)
-  })
-
-  describe('export mode', () => {
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
+  'AMP SSG Support',
+  () => {
     describe('production mode', () => {
-      let buildId
-
       beforeAll(async () => {
-        nextConfig.write(`module.exports = { output: 'export' }`)
         await nextBuild(appDir)
-        buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+        // TODO: use browser instead to do checks that now need filesystem access
+        builtServerPagesDir = join(appDir, '.next', 'server', 'pages')
       })
+      afterAll(() => killApp(app))
+      runTests()
+    })
 
-      afterAll(() => nextConfig.delete())
+    describe('development mode', () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
+      runTests(true)
+    })
 
-      it('should have copied SSG files correctly', async () => {
-        const outFile = (file) => join(appDir, 'out', file)
+    describe('export mode', () => {
+      describe('production mode', () => {
+        let buildId
 
-        expect(await fsExists(outFile('amp.html'))).toBe(true)
-        expect(await fsExists(outFile('index.html'))).toBe(true)
-        expect(await fsExists(outFile('hybrid.html'))).toBe(true)
-        expect(await fsExists(outFile('amp.amp.html'))).toBe(false)
-        expect(await fsExists(outFile('hybrid.amp.html'))).toBe(true)
-        expect(await fsExists(outFile('blog/post-1.html'))).toBe(true)
-        expect(await fsExists(outFile('blog/post-1.amp.html'))).toBe(true)
+        beforeAll(async () => {
+          nextConfig.write(`module.exports = { output: 'export' }`)
+          await nextBuild(appDir)
+          buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+        })
 
-        expect(
-          await fsExists(outFile(join('_next/data', buildId, 'amp.json')))
-        ).toBe(true)
+        afterAll(() => nextConfig.delete())
 
-        expect(
-          await fsExists(outFile(join('_next/data', buildId, 'hybrid.json')))
-        ).toBe(true)
+        it('should have copied SSG files correctly', async () => {
+          const outFile = (file) => join(appDir, 'out', file)
+
+          expect(await fsExists(outFile('amp.html'))).toBe(true)
+          expect(await fsExists(outFile('index.html'))).toBe(true)
+          expect(await fsExists(outFile('hybrid.html'))).toBe(true)
+          expect(await fsExists(outFile('amp.amp.html'))).toBe(false)
+          expect(await fsExists(outFile('hybrid.amp.html'))).toBe(true)
+          expect(await fsExists(outFile('blog/post-1.html'))).toBe(true)
+          expect(await fsExists(outFile('blog/post-1.amp.html'))).toBe(true)
+
+          expect(
+            await fsExists(outFile(join('_next/data', buildId, 'amp.json')))
+          ).toBe(true)
+
+          expect(
+            await fsExists(outFile(join('_next/data', buildId, 'hybrid.json')))
+          ).toBe(true)
+        })
       })
     })
-  })
-})
+  }
+)

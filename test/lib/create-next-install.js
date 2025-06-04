@@ -31,6 +31,19 @@ async function installDependencies(cwd, tmpDir) {
   })
 }
 
+/**
+ *
+ * @param {object} param0
+ * @param {import('@next/telemetry').Span} param0.parentSpan
+ * @param {object} [param0.dependencies]
+ * @param {object | null} [param0.resolutions]
+ * @param { ((ctx: { dependencies: { [key: string]: string } }) => string) | string | null} [param0.installCommand]
+ * @param {object} [param0.packageJson]
+ * @param {string} [param0.dirSuffix]
+ * @param {boolean} [param0.keepRepoDir]
+ * @param {(span: import('@next/telemetry').Span, installDir: string) => Promise<void>} param0.beforeInstall
+ * @returns {Promise<{installDir: string, pkgPaths: Map<string, string>, tmpRepoDir: string | undefined}>}
+ */
 async function createNextInstall({
   parentSpan,
   dependencies = {},
@@ -139,6 +152,7 @@ async function createNextInstall({
 
       const scripts = {
         debug: `NEXT_PRIVATE_SKIP_CANARY_CHECK=1 NEXT_TELEMETRY_DISABLED=1 NEXT_TEST_NATIVE_DIR=${process.env.NEXT_TEST_NATIVE_DIR} node --inspect --trace-deprecation --enable-source-maps node_modules/next/dist/bin/next`,
+        'debug-brk': `NEXT_PRIVATE_SKIP_CANARY_CHECK=1 NEXT_TELEMETRY_DISABLED=1 NEXT_TEST_NATIVE_DIR=${process.env.NEXT_TEST_NATIVE_DIR} node --inspect-brk --trace-deprecation --enable-source-maps node_modules/next/dist/bin/next`,
         ...packageJson.scripts,
       }
 

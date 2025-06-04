@@ -9,11 +9,11 @@ use serde::{Deserialize, Serialize};
 use turbo_tasks_hash::DeterministicHash;
 
 use crate::{
+    SharedReference, Vc, VcRead, VcValueType,
     debug::{ValueDebugFormat, ValueDebugFormatString},
     trace::{TraceRawVcs, TraceRawVcsContext},
     triomphe_utils::unchecked_sidecast_triomphe_arc,
     vc::VcCellMode,
-    SharedReference, Vc, VcRead, VcValueType,
 };
 
 type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
@@ -266,6 +266,9 @@ impl<T> ReadRef<T>
 where
     T: VcValueType,
 {
+    /// Returns the inner value, if this [`ReadRef`] has exactly one strong reference.
+    ///
+    /// Otherwise, an [`Err`] is returned with the same [`ReadRef`] that was passed in.
     pub fn try_unwrap(this: Self) -> Result<VcReadTarget<T>, Self> {
         match triomphe::Arc::try_unwrap(this.0) {
             Ok(value) => Ok(T::Read::value_to_target(value)),

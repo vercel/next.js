@@ -11,20 +11,22 @@ use std::{
     sync::{Arc, Mutex, Weak},
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use futures::FutureExt;
 use rustc_hash::FxHashMap;
+use tokio::sync::mpsc::Receiver;
 use turbo_tasks::{
+    CellId, ExecutionId, InvalidationReason, LocalTaskId, MagicAny, RawVc, ReadCellOptions,
+    ReadConsistency, TaskId, TaskPersistence, TraitTypeId, TurboTasksApi, TurboTasksCallApi,
     backend::{CellContent, TaskCollectiblesMap, TypedCellContent},
     event::{Event, EventListener},
+    message_queue::CompilationEvent,
     registry,
     test_helpers::with_turbo_tasks_for_testing,
     util::{SharedError, StaticOrArc},
-    CellId, InvalidationReason, LocalTaskId, MagicAny, RawVc, ReadCellOptions, ReadConsistency,
-    TaskId, TaskPersistence, TraitTypeId, TurboTasksApi, TurboTasksCallApi,
 };
 
-pub use crate::run::{run, run_with_tt, run_without_cache_check, Registration};
+pub use crate::run::{Registration, run, run_with_tt, run_without_cache_check};
 
 enum Task {
     Spawned(Event),
@@ -56,10 +58,12 @@ impl VcStorage {
             })));
             i
         };
-        let task_id = TaskId::from(i as u32 + 1);
+        let task_id = TaskId::try_from(u32::try_from(i + 1).unwrap()).unwrap();
+        let execution_id = ExecutionId::try_from(u16::try_from(i + 1).unwrap()).unwrap();
         handle.spawn(with_turbo_tasks_for_testing(
             this.clone(),
             task_id,
+            execution_id,
             async move {
                 let result = AssertUnwindSafe(future).catch_unwind().await;
 
@@ -230,7 +234,7 @@ impl TurboTasksApi for VcStorage {
 
     fn try_read_local_output(
         &self,
-        _parent_task_id: TaskId,
+        _execution_id: ExecutionId,
         _local_task_id: LocalTaskId,
     ) -> Result<Result<RawVc, EventListener>> {
         unimplemented!()
@@ -312,6 +316,21 @@ impl TurboTasksApi for VcStorage {
     fn stop_and_wait(&self) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'static>> {
         Box::pin(async {})
     }
+
+    /// Should not be called on the testing VcStorage. These methods are only implemented for
+    /// structs with access to a `MessageQueue` like `TurboTasks`.
+    fn subscribe_to_compilation_events(
+        &self,
+        _event_types: Option<Vec<String>>,
+    ) -> Receiver<Arc<dyn CompilationEvent>> {
+        unimplemented!()
+    }
+
+    /// Should not be called on the testing VcStorage. These methods are only implemented for
+    /// structs with access to a `MessageQueue` like `TurboTasks`.
+    fn send_compilation_event(&self, _event: Arc<dyn CompilationEvent>) {
+        unimplemented!()
+    }
 }
 
 impl VcStorage {
@@ -321,7 +340,8 @@ impl VcStorage {
                 this: weak.clone(),
                 ..Default::default()
             }),
-            TaskId::from(u32::MAX),
+            TaskId::MAX,
+            ExecutionId::MIN,
             f,
         )
     }

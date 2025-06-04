@@ -2,18 +2,18 @@ use anyhow::Result;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc, TaskInput, Upcast, Value, Vc};
+use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Upcast, Value, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
 
-use super::{availability_info::AvailabilityInfo, ChunkableModule, EvaluatableAssets};
+use super::{ChunkableModule, EvaluatableAssets, availability_info::AvailabilityInfo};
 use crate::{
     asset::Asset,
     chunk::{ChunkItem, ChunkType, ModuleId},
     environment::Environment,
     ident::AssetIdent,
     module::Module,
-    module_graph::{chunk_group_info::ChunkGroup, module_batches::BatchingConfig, ModuleGraph},
+    module_graph::{ModuleGraph, chunk_group_info::ChunkGroup, module_batches::BatchingConfig},
     output::{OutputAsset, OutputAssets},
 };
 
@@ -31,14 +31,26 @@ use crate::{
     DeterministicHash,
     NonLocalValue,
 )]
+#[serde(rename_all = "kebab-case")]
+pub enum MangleType {
+    OptimalSize,
+    Deterministic,
+}
+
+#[turbo_tasks::value(shared)]
+#[derive(Debug, TaskInput, Clone, Copy, Hash, DeterministicHash)]
 pub enum MinifyType {
-    Minify { mangle: bool },
+    // TODO instead of adding a new property here,
+    // refactor that to Minify(MinifyOptions) to allow defaults on MinifyOptions
+    Minify { mangle: Option<MangleType> },
     NoMinify,
 }
 
 impl Default for MinifyType {
     fn default() -> Self {
-        Self::Minify { mangle: true }
+        Self::Minify {
+            mangle: Some(MangleType::OptimalSize),
+        }
     }
 }
 
@@ -183,6 +195,10 @@ pub trait ChunkingContext {
 
     fn is_tracing_enabled(self: Vc<Self>) -> Vc<bool> {
         Vc::cell(false)
+    }
+
+    fn minify_type(self: Vc<Self>) -> Vc<MinifyType> {
+        MinifyType::NoMinify.cell()
     }
 
     fn async_loader_chunk_item(

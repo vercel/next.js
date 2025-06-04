@@ -50,7 +50,7 @@ bitRotateLeft = (...) => ???*0*
 - *0* unsupported expression
   ⚠️  This value might have side effects
 
-bytes = (???*0* | new ???*1*(???*2*))
+bytes = (???*0* | new ???*1*((???*2* | undefined["length"])))
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* FreeVar(Array)
@@ -131,7 +131,7 @@ hex = (???*0* | ???*1*)
 
 hexTab = "0123456789abcdef"
 
-i#3 = (0 | ???*0*)
+i#3 = (0 | undefined | ???*0*)
 - *0* updated with update expression
   ⚠️  This value might have side effects
 
@@ -208,7 +208,7 @@ md5ii = (...) => md5cmn(???*0*, a, b, x, s, t)
 - *0* unsupported expression
   ⚠️  This value might have side effects
 
-msg = ???*0*
+msg = (???*0* | undefined)
 - *0* ???*1*(FreeVar(encodeURIComponent)(bytes))
   ⚠️  unknown callee
   ⚠️  This value might have side effects

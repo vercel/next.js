@@ -13,7 +13,7 @@ import {
 const appDir = path.join(__dirname, '..')
 
 // Skip webpack specific test in Turbopack
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'Handles Webpack Require Hook',
   () => {
     describe('build', () => {

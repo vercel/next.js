@@ -2,14 +2,14 @@ use std::{fs, path::PathBuf};
 
 use criterion::{Bencher, BenchmarkId, Criterion};
 use regex::Regex;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{apply_effects, ReadConsistency, ResolvedVc, TurboTasks, Value, Vc};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{ReadConsistency, ResolvedVc, TurboTasks, Value, Vc, apply_effects};
+use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, NullFileSystem};
-use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
-    emit_with_completion_operation,
+    ModuleAssetContext, emit_with_completion_operation,
     module_options::{EcmascriptOptionsContext, ModuleOptionsContext},
-    register, ModuleAssetContext,
+    register,
 };
 use turbopack_core::{
     compile_time_info::CompileTimeInfo,
@@ -70,7 +70,10 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
         .unwrap();
 
     b.to_async(rt).iter(move || {
-        let tt = TurboTasks::new(MemoryBackend::default());
+        let tt = TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
         let tests_root: RcStr = bench_input.tests_root.clone().into();
         let input: RcStr = bench_input.input.clone().into();
         async move {
@@ -110,7 +113,7 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
                         ..Default::default()
                     }
                     .cell(),
-                    Vc::cell("node_file_trace".into()),
+                    rcstr!("node_file_trace"),
                 );
                 let module = module_asset_context
                     .process(Vc::upcast(source), Value::new(ReferenceType::Undefined))

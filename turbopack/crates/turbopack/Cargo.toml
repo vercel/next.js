@@ -3,7 +3,7 @@ name = "turbopack"
 version = "0.1.0"
 description = "TBD"
 license = "MIT"
-edition = "2021"
+edition = "2024"
 autobenches = false
 
 [lib]
@@ -18,7 +18,6 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-indexmap = { workspace = true, features = ["serde"] }
 lazy_static = { workspace = true }
 regex = { workspace = true }
 rustc-hash = { workspace = true }
@@ -29,6 +28,7 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 
 turbo-rcstr = { workspace = true }
+turbo-esregex = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-env = { workspace = true }
 turbo-tasks-fs = { workspace = true }
@@ -47,12 +47,11 @@ turbopack-wasm = { workspace = true }
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
 difference = "2.0"
-futures = { workspace = true }
 rstest = { workspace = true }
 rstest_reuse = "0.5.0"
 tokio = { workspace = true }
 turbo-tasks-malloc = { workspace = true, default-features = false }
-turbo-tasks-memory = { workspace = true }
+turbo-tasks-backend = { workspace = true }
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }

@@ -207,7 +207,7 @@ export function createMutableActionQueue(
     state: initialState,
     dispatch: (payload: ReducerActions, setState: DispatchStatePromise) =>
       dispatchAction(actionQueue, payload, setState),
-    action: (state: AppRouterState, action: ReducerActions) => {
+    action: async (state: AppRouterState, action: ReducerActions) => {
       const result = reducer(state, action)
       return result
     },
@@ -321,7 +321,8 @@ export const publicAppRouterInstance: AppRouterInstance = {
           href,
           actionQueue.state.nextUrl,
           actionQueue.state.tree,
-          options?.kind === PrefetchKind.FULL
+          options?.kind === PrefetchKind.FULL,
+          options?.onInvalidate ?? null
         )
       }
     : (href: string, options?: PrefetchOptions) => {

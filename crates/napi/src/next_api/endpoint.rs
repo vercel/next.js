@@ -1,12 +1,13 @@
 use std::{ops::Deref, sync::Arc};
 
 use anyhow::Result;
-use napi::{bindgen_prelude::External, JsFunction};
+use napi::{JsFunction, bindgen_prelude::External};
 use next_api::{
+    operation::OptionEndpoint,
     paths::ServerPath,
     route::{
-        endpoint_server_changed_operation, endpoint_write_to_disk_operation, Endpoint,
-        EndpointOutputPaths,
+        EndpointOutputPaths, endpoint_client_changed_operation, endpoint_server_changed_operation,
+        endpoint_write_to_disk_operation,
     },
 };
 use tracing::Instrument;
@@ -14,8 +15,8 @@ use turbo_tasks::{Completion, Effects, OperationVc, ReadRef, Vc};
 use turbopack_core::{diagnostics::PlainDiagnostic, error::PrettyPrintError, issue::PlainIssue};
 
 use super::utils::{
-    strongly_consistent_catch_collectables, subscribe, NapiDiagnostic, NapiIssue, RootTask,
-    TurbopackResult, VcArc,
+    NapiDiagnostic, NapiIssue, RootTask, TurbopackResult, VcArc,
+    strongly_consistent_catch_collectables, subscribe,
 };
 
 #[napi(object)]
@@ -71,7 +72,7 @@ impl From<Option<EndpointOutputPaths>> for NapiWrittenEndpoint {
                 server_paths: server_paths.into_iter().map(From::from).collect(),
                 ..Default::default()
             },
-            None => Self {
+            Some(EndpointOutputPaths::NotFound) | None => Self {
                 r#type: "none".to_string(),
                 ..Default::default()
             },
@@ -85,10 +86,10 @@ impl From<Option<EndpointOutputPaths>> for NapiWrittenEndpoint {
 //    some async functions (in this case `endpoint_write_to_disk`) can cause
 //    higher-ranked lifetime errors. See https://github.com/rust-lang/rust/issues/102211
 // 2. the type_complexity clippy lint.
-pub struct ExternalEndpoint(pub VcArc<Box<dyn Endpoint>>);
+pub struct ExternalEndpoint(pub VcArc<OptionEndpoint>);
 
 impl Deref for ExternalEndpoint {
-    type Target = VcArc<Box<dyn Endpoint>>;
+    type Target = VcArc<OptionEndpoint>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -105,7 +106,7 @@ struct WrittenEndpointWithIssues {
 
 #[turbo_tasks::function(operation)]
 async fn get_written_endpoint_with_issues_operation(
-    endpoint_op: OperationVc<Box<dyn Endpoint>>,
+    endpoint_op: OperationVc<OptionEndpoint>,
 ) -> Result<Vc<WrittenEndpointWithIssues>> {
     let write_to_disk_op = endpoint_write_to_disk_operation(endpoint_op);
     let (written, issues, diagnostics, effects) =
@@ -214,7 +215,7 @@ impl Eq for EndpointIssuesAndDiags {}
 
 #[turbo_tasks::function(operation)]
 async fn subscribe_issues_and_diags_operation(
-    endpoint_op: OperationVc<Box<dyn Endpoint>>,
+    endpoint_op: OperationVc<OptionEndpoint>,
     should_include_issues: bool,
 ) -> Result<Vc<EndpointIssuesAndDiags>> {
     let changed_op = endpoint_server_changed_operation(endpoint_op);
@@ -239,13 +240,6 @@ async fn subscribe_issues_and_diags_operation(
         }
         .cell())
     }
-}
-
-#[turbo_tasks::function(operation)]
-fn endpoint_client_changed_operation(
-    endpoint_op: OperationVc<Box<dyn Endpoint>>,
-) -> Vc<Completion> {
-    endpoint_op.connect().client_changed()
 }
 
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]

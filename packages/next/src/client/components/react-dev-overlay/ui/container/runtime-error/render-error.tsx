@@ -1,33 +1,19 @@
-import type {
-  OverlayState,
-  UnhandledErrorAction,
-  UnhandledRejectionAction,
-} from '../../../shared'
+import type { OverlayState } from '../../../shared'
 
 import { useMemo, useState, useEffect } from 'react'
-import {
-  ACTION_UNHANDLED_ERROR,
-  ACTION_UNHANDLED_REJECTION,
-} from '../../../shared'
 import {
   getErrorByType,
   type ReadyRuntimeError,
 } from '../../../utils/get-error-by-type'
+import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
+import type { ComponentStackFrame } from '../../../utils/parse-component-stack'
 
 export type SupportedErrorEvent = {
   id: number
-  event: UnhandledErrorAction | UnhandledRejectionAction
-}
-
-function getErrorSignature(ev: SupportedErrorEvent): string {
-  const { event } = ev
-  // eslint-disable-next-line default-case -- TypeScript checks this
-  switch (event.type) {
-    case ACTION_UNHANDLED_ERROR:
-    case ACTION_UNHANDLED_REJECTION: {
-      return `${event.reason.name}::${event.reason.message}::${event.reason.stack}`
-    }
-  }
+  error: Error
+  frames: StackFrame[]
+  componentStackFrames?: ComponentStackFrame[]
+  type: 'runtime' | 'recoverable' | 'console'
 }
 
 type Props = {
@@ -72,14 +58,6 @@ const RenderRuntimeError = ({ children, state, isAppDir }: Props) => {
         continue
       }
 
-      // Check for duplicate errors
-      if (idx > 0) {
-        const prev = errors[idx - 1]
-        if (getErrorSignature(prev) === getErrorSignature(e)) {
-          continue
-        }
-      }
-
       next = e
       break
     }
@@ -108,12 +86,7 @@ const RenderRuntimeError = ({ children, state, isAppDir }: Props) => {
     }
   }, [nextError, isAppDir])
 
-  const totalErrorCount = errors.filter((err, idx) => {
-    const prev = errors[idx - 1]
-    // Check for duplicates
-    if (idx > 0) return getErrorSignature(prev) !== getErrorSignature(err)
-    return true
-  }).length
+  const totalErrorCount = errors.length
 
   return children({ runtimeErrors, totalErrorCount })
 }

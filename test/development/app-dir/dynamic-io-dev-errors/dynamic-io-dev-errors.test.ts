@@ -14,8 +14,7 @@ describe('Dynamic IO Dev Errors', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "count": 1,
-         "description": "Error: Route "/error" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
+         "description": "Route "/error" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
          "environmentLabel": "Server",
          "label": "Console Error",
          "source": "app/error/page.tsx (2:23) @ Page
@@ -24,7 +23,7 @@ describe('Dynamic IO Dev Errors', () => {
          "stack": [
            "Page app/error/page.tsx (2:23)",
            "JSON.parse <anonymous> (0:0)",
-           "<unknown> <anonymous> (0:0)",
+           "LogSafely <anonymous> (0:0)",
          ],
        }
       `)
@@ -41,8 +40,7 @@ describe('Dynamic IO Dev Errors', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "count": 1,
-         "description": "Error: Route "/error" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
+         "description": "Route "/error" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
          "environmentLabel": "Server",
          "label": "Console Error",
          "source": "app/error/page.tsx (2:23) @ Page
@@ -51,7 +49,7 @@ describe('Dynamic IO Dev Errors', () => {
          "stack": [
            "Page app/error/page.tsx (2:23)",
            "JSON.parse <anonymous> (0:0)",
-           "<unknown> <anonymous> (0:0)",
+           "LogSafely <anonymous> (0:0)",
          ],
        }
       `)
@@ -102,8 +100,7 @@ describe('Dynamic IO Dev Errors', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "count": 1,
-         "description": "Error: Route "/no-accessed-data": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
+         "description": "Route "/no-accessed-data": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
          "environmentLabel": "Server",
          "label": "Console Error",
          "source": null,
@@ -114,7 +111,7 @@ describe('Dynamic IO Dev Errors', () => {
            "html <anonymous> (2:1)",
            "Root [Server] <anonymous> (2:1)",
            "JSON.parse <anonymous> (0:0)",
-           "<unknown> <anonymous> (0:0)",
+           "LogSafely <anonymous> (0:0)",
          ],
        }
       `)
@@ -141,7 +138,6 @@ describe('Dynamic IO Dev Errors', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
          {
-           "count": 1,
            "description": "Ecmascript file had an error",
            "environmentLabel": null,
            "label": "Build Error",
@@ -155,8 +151,7 @@ describe('Dynamic IO Dev Errors', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error:   x Route segment config "revalidate" is not compatible with \`nextConfig.experimental.dynamicIO\`. Please remove it.",
+         "description": "  x Route segment config "revalidate" is not compatible with \`nextConfig.experimental.dynamicIO\`. Please remove it.",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./app/page.tsx

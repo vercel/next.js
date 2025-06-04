@@ -1,28 +1,26 @@
-import { useState, useMemo, useEffect, useRef, Suspense } from 'react'
+import { useState, useMemo, useRef, Suspense } from 'react'
 import type { DebugInfo } from '../../types'
 import { Overlay } from '../components/overlay'
 import { RuntimeError } from './runtime-error'
 import { getErrorSource } from '../../../../../shared/lib/error-source'
 import { HotlinkedText } from '../components/hot-linked-text'
 import { PseudoHtmlDiff } from './runtime-error/component-stack-pseudo-html'
-import {
-  type HydrationErrorState,
-  getHydrationWarningType,
-} from '../../../errors/hydration-error-info'
-import {
-  isConsoleError,
-  getConsoleErrorType,
-} from '../../../errors/console-error'
 import { extractNextErrorCode } from '../../../../../lib/error-telemetry-utils'
 import {
   ErrorOverlayLayout,
   type ErrorOverlayLayoutProps,
 } from '../components/errors/error-overlay-layout/error-overlay-layout'
-import { NEXTJS_HYDRATION_ERROR_LINK } from '../../../is-hydration-error'
+import {
+  getHydrationErrorStackInfo,
+  isHydrationError,
+  NEXTJS_HYDRATION_ERROR_LINK,
+} from '../../../react-19-hydration-error'
 import type { ReadyRuntimeError } from '../../utils/get-error-by-type'
 import type { ErrorBaseProps } from '../components/errors/error-overlay/error-overlay'
+import type { HydrationErrorState } from '../../pages/hydration-error-state'
 
 export interface ErrorsProps extends ErrorBaseProps {
+  getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
   runtimeErrors: ReadyRuntimeError[]
   debugInfo: DebugInfo
   onClose: () => void
@@ -34,24 +32,11 @@ function isNextjsLink(text: string): boolean {
   return text.startsWith('https://nextjs.org')
 }
 
-function ErrorDescription({
-  error,
-  hydrationWarning,
-}: {
-  error: Error
-  hydrationWarning: string | null
-}) {
-  const unhandledErrorType = isConsoleError(error)
-    ? getConsoleErrorType(error)
-    : null
-  const isConsoleErrorStringMessage = unhandledErrorType === 'string'
-  // If the error is:
-  // - hydration warning
-  // - captured console error or unhandled rejection
-  // skip displaying the error name
-  const title =
-    isConsoleErrorStringMessage || hydrationWarning ? '' : error.name + ': '
+function HydrationErrorDescription({ message }: { message: string }) {
+  return <HotlinkedText text={message} matcher={isNextjsLink} />
+}
 
+function GenericErrorDescription({ error }: { error: Error }) {
   const environmentName =
     'environmentName' in error ? error.environmentName : ''
   const envPrefix = environmentName ? `[ ${environmentName} ] ` : ''
@@ -65,41 +50,77 @@ function ErrorDescription({
 
   return (
     <>
-      {title}
-      <HotlinkedText
-        text={hydrationWarning || message}
-        matcher={isNextjsLink}
-      />
+      <HotlinkedText text={message} matcher={isNextjsLink} />
     </>
   )
 }
 
-function getErrorType(error: Error): ErrorOverlayLayoutProps['errorType'] {
-  if (isConsoleError(error)) {
-    return 'Console Error'
+function getErrorTypeLabel(
+  error: Error,
+  type: ReadyRuntimeError['type']
+): ErrorOverlayLayoutProps['errorType'] {
+  if (type === 'recoverable') {
+    return `Recoverable ${error.name}`
   }
-  return 'Runtime Error'
+  if (type === 'console') {
+    return `Console ${error.name}`
+  }
+  return `Runtime ${error.name}`
+}
+
+const noErrorDetails = {
+  hydrationWarning: null,
+  notes: null,
+  reactOutputComponentDiff: null,
+}
+function useErrorDetails(
+  error: Error | undefined,
+  getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
+): {
+  hydrationWarning: string | null
+  notes: string | null
+  reactOutputComponentDiff: string | null
+} {
+  return useMemo(() => {
+    if (error === undefined) {
+      return noErrorDetails
+    }
+
+    const pagesRouterErrorDetails = getSquashedHydrationErrorDetails(error)
+    if (pagesRouterErrorDetails !== null) {
+      return {
+        hydrationWarning: pagesRouterErrorDetails.warning ?? null,
+        notes: null,
+        reactOutputComponentDiff:
+          pagesRouterErrorDetails.reactOutputComponentDiff ?? null,
+      }
+    }
+
+    if (!isHydrationError(error)) {
+      return noErrorDetails
+    }
+
+    const { message, notes, diff } = getHydrationErrorStackInfo(error)
+    if (message === null) {
+      return noErrorDetails
+    }
+
+    return {
+      hydrationWarning: message,
+      notes,
+      reactOutputComponentDiff: diff,
+    }
+  }, [error, getSquashedHydrationErrorDetails])
 }
 
 export function Errors({
+  getSquashedHydrationErrorDetails,
   runtimeErrors,
   debugInfo,
   onClose,
   ...props
 }: ErrorsProps) {
   const dialogResizerRef = useRef<HTMLDivElement | null>(null)
-
-  useEffect(() => {
-    // Close the error overlay when pressing escape
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        onClose()
-      }
-    }
-
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [onClose])
 
   const isLoading = useMemo<boolean>(() => {
     return runtimeErrors.length < 1
@@ -110,6 +131,10 @@ export function Errors({
   const activeError = useMemo<ReadyErrorEvent | null>(
     () => runtimeErrors[activeIdx] ?? null,
     [activeIdx, runtimeErrors]
+  )
+  const errorDetails = useErrorDetails(
+    activeError?.error,
+    getSquashedHydrationErrorDetails
   )
 
   if (isLoading) {
@@ -125,23 +150,11 @@ export function Errors({
   const isServerError = ['server', 'edge-server'].includes(
     getErrorSource(error) || ''
   )
-  const errorType = getErrorType(error)
-  const errorDetails: HydrationErrorState = (error as any).details || {}
-  const notes = errorDetails.notes || ''
-  const [warningTemplate, serverContent, clientContent] =
-    errorDetails.warning || [null, '', '']
-
-  const hydrationErrorType = getHydrationWarningType(warningTemplate)
-  const hydrationWarning = warningTemplate
-    ? warningTemplate
-        .replace('%s', serverContent)
-        .replace('%s', clientContent)
-        .replace('%s', '') // remove the %s for stack
-        .replace(/%s$/, '') // If there's still a %s at the end, remove it
-        .replace(/^Warning: /, '')
-        .replace(/^Error: /, '')
-    : null
-
+  const errorType = getErrorTypeLabel(error, activeError.type)
+  // TOOD: May be better to always treat everything past the first blank line as notes
+  // We're currently only special casing hydration error messages.
+  const notes = errorDetails.notes
+  const hydrationWarning = errorDetails.hydrationWarning
   const errorCode = extractNextErrorCode(error)
 
   const footerMessage = isServerError
@@ -153,7 +166,11 @@ export function Errors({
       errorCode={errorCode}
       errorType={errorType}
       errorMessage={
-        <ErrorDescription error={error} hydrationWarning={hydrationWarning} />
+        hydrationWarning ? (
+          <HydrationErrorDescription message={hydrationWarning} />
+        ) : (
+          <GenericErrorDescription error={error} />
+        )
       }
       onClose={isServerError ? undefined : onClose}
       debugInfo={debugInfo}
@@ -188,14 +205,9 @@ export function Errors({
         ) : null}
       </div>
 
-      {hydrationWarning &&
-      (activeError.componentStackFrames?.length ||
-        !!errorDetails.reactOutputComponentDiff) ? (
+      {errorDetails.reactOutputComponentDiff ? (
         <PseudoHtmlDiff
           className="nextjs__container_errors__component-stack"
-          hydrationMismatchType={hydrationErrorType}
-          firstContent={serverContent}
-          secondContent={clientContent}
           reactOutputComponentDiff={errorDetails.reactOutputComponentDiff || ''}
         />
       ) : null}
@@ -256,17 +268,6 @@ export const styles = `
   }
   .nextjs-toast-hide-button:hover {
     opacity: 1;
-  }
-  .nextjs__container_errors_inspect_copy_button {
-    cursor: pointer;
-    background: none;
-    border: none;
-    color: var(--color-ansi-bright-white);
-    font-size: var(--size-24);
-    padding: 0;
-    margin: 0;
-    margin-left: 8px;
-    transition: opacity 0.25s ease;
   }
   .nextjs__container_errors__error_title {
     display: flex;

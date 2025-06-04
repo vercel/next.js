@@ -71,15 +71,15 @@ export class NextDevInstance extends NextInstance {
 
         this._cliOutput = ''
 
-        this.childProcess.stdout.on('data', (chunk) => {
+        this.childProcess.stdout!.on('data', (chunk) => {
           const msg = chunk.toString()
-          if (!process.env.CI) process.stdout.write(chunk)
+          process.stdout.write(chunk)
           this._cliOutput += msg
           this.emit('stdout', [msg])
         })
-        this.childProcess.stderr.on('data', (chunk) => {
+        this.childProcess.stderr!.on('data', (chunk) => {
           const msg = chunk.toString()
-          if (!process.env.CI) process.stderr.write(chunk)
+          process.stderr.write(chunk)
           this._cliOutput += msg
           this.emit('stderr', [msg])
         })
@@ -136,7 +136,7 @@ export class NextDevInstance extends NextInstance {
     // This is a temporary workaround for turbopack starting watching too late.
     // So we delay file changes by 500ms to give it some time
     // to connect the WebSocket and start watching.
-    if (process.env.TURBOPACK) {
+    if (process.env.IS_TURBOPACK_TEST) {
       require('console').log('fs dev delay before', filename)
       await waitFor(500)
     }

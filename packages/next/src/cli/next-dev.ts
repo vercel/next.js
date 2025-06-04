@@ -237,10 +237,7 @@ const nextDev = async (
   }
 
   const isTurbopack = Boolean(
-    options.turbo ||
-      options.turbopack ||
-      // TODO: Used for Testing in Next.js CI. Rename to something better like `NEXT_TEST_TURBOPACK`.
-      process.env.TURBOPACK
+    options.turbo || options.turbopack || process.env.IS_TURBOPACK_TEST
   )
   if (isTurbopack) {
     process.env.TURBOPACK = '1'

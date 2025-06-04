@@ -28,17 +28,20 @@ const runTests = () => {
 }
 
 // Skip as it runs `next build`, seems that is a bug.
-;(process.env.TURBOPACK ? describe.skip : describe)('development mode', () => {
-  beforeAll(async () => {
-    // TODO: This look like a bug, `nextBuild` shouldn't be required here.
-    await nextBuild(appDir)
-    appPort = await findPort()
-    buildId = 'development'
-    app = await launchApp(appDir, appPort)
-  })
-  afterAll(() => killApp(app))
-  runTests()
-})
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
+  'development mode',
+  () => {
+    beforeAll(async () => {
+      // TODO: This look like a bug, `nextBuild` shouldn't be required here.
+      await nextBuild(appDir)
+      appPort = await findPort()
+      buildId = 'development'
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
+    runTests()
+  }
+)
 ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
   'production mode',
   () => {

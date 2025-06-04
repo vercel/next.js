@@ -3,7 +3,7 @@ name = "next-core"
 version = "0.1.0"
 description = "TBD"
 license = "MIT"
-edition = "2021"
+edition = "2024"
 
 [lib]
 bench = false
@@ -32,15 +32,14 @@ lazy_static = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 rustc-hash = { workspace = true }
-react_remove_properties = "0.34.0"
-remove_console = "0.35.0"
+react_remove_properties = "0.40.0"
+remove_console = "0.41.0"
 itertools = { workspace = true }
-auto-hash-map = { workspace = true }
 percent-encoding = "2.3.1"
+serde_path_to_error = { workspace = true }
 
 swc_core = { workspace = true, features = [
   "base",
-  "cached",
   "common_concurrent",
   "ecma_ast",
   "ecma_loader_lru",
@@ -57,9 +56,9 @@ swc_core = { workspace = true, features = [
   "ecma_visit",
 ] }
 modularize_imports = { workspace = true }
-swc_relay = { workspace = true }
 
 turbo-rcstr = { workspace = true }
+turbo-esregex = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-bytes = { workspace = true }
 turbo-tasks-env = { workspace = true }
@@ -72,12 +71,10 @@ turbopack-core = { workspace = true }
 turbopack-ecmascript = { workspace = true }
 turbopack-ecmascript-plugins = { workspace = true, features = ["transform_emotion"] }
 turbopack-ecmascript-runtime = { workspace = true }
-turbopack-env = { workspace = true }
 turbopack-image = { workspace = true }
 turbopack-node = { workspace = true }
 turbopack-nodejs = { workspace = true }
 turbopack-static = { workspace = true }
-turbopack-trace-server = { workspace = true }
 turbopack-trace-utils = { workspace = true }
 
 [build-dependencies]

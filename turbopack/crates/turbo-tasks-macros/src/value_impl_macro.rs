@@ -1,27 +1,26 @@
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, TokenStream as TokenStream2};
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use syn::{
+    Attribute, Error, Expr, ExprLit, Generics, ImplItem, ImplItemFn, ItemImpl, Lit, LitStr, Meta,
+    MetaNameValue, Path, Token, Type,
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote,
-    punctuated::Punctuated,
     spanned::Spanned,
-    Attribute, Error, Generics, ImplItem, ImplItemMethod, ItemImpl, Lit, LitStr, Meta,
-    MetaNameValue, Path, Result, Token, Type,
 };
 use turbo_tasks_macros_shared::{
     get_inherent_impl_function_id_ident, get_inherent_impl_function_ident, get_path_ident,
     get_register_trait_methods_ident, get_trait_impl_function_id_ident,
-    get_trait_impl_function_ident, get_type_ident,
+    get_trait_impl_function_ident, get_type_ident, is_self_used,
 };
 
 use crate::func::{
-    filter_inline_attributes, DefinitionContext, FunctionArguments, MaybeParenthesized, NativeFn,
-    TurboFn,
+    DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes,
+    parse_with_optional_parens,
 };
 
 fn is_attribute(attr: &Attribute, name: &str) -> bool {
-    let path = &attr.path;
+    let path = &attr.path();
     if path.leading_colon.is_some() {
         return false;
     }
@@ -45,8 +44,7 @@ fn split_function_attributes<'a>(
         .partition(|attr| is_attribute(attr, "function"));
     let func_args = if let Some(func_attr) = func_attrs_vec.first() {
         if func_attrs_vec.len() == 1 {
-            syn::parse2::<MaybeParenthesized<FunctionArguments>>(func_attr.tokens.clone())
-                .map(|a| a.parenthesized.map(|a| a.inner).unwrap_or_default())
+            parse_with_optional_parens::<FunctionArguments>(func_attr)
         } else {
             Err(syn::Error::new(
                 func_attr.span(),
@@ -67,9 +65,9 @@ struct ValueImplArguments {
 }
 
 impl Parse for ValueImplArguments {
-    fn parse(input: ParseStream) -> Result<Self> {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
         let mut result = ValueImplArguments { ident: None };
-        let punctuated: Punctuated<Meta, Token![,]> = input.parse_terminated(Meta::parse)?;
+        let punctuated = input.parse_terminated(Meta::parse, Token![,])?;
         for meta in punctuated {
             match (
                 meta.path()
@@ -82,7 +80,11 @@ impl Parse for ValueImplArguments {
                 (
                     "ident",
                     Meta::NameValue(MetaNameValue {
-                        lit: Lit::Str(lit), ..
+                        value:
+                            Expr::Lit(ExprLit {
+                                lit: Lit::Str(lit), ..
+                            }),
+                        ..
                     }),
                 ) => {
                     result.ident = Some(lit);
@@ -90,8 +92,8 @@ impl Parse for ValueImplArguments {
                 (_, meta) => {
                     return Err(Error::new_spanned(
                         &meta,
-                        format!("unexpected {:?}, expected \"ident\"", meta),
-                    ))
+                        format!("unexpected {meta:?}, expected \"ident\""),
+                    ));
                 }
             }
         }
@@ -109,7 +111,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
         let mut errors = Vec::new();
 
         for item in items.iter() {
-            if let ImplItem::Method(ImplItemMethod {
+            if let ImplItem::Fn(ImplItemFn {
                 attrs,
                 vis,
                 defaultness: _,
@@ -123,6 +125,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     .inspect_err(|err| errors.push(err.to_compile_error()))
                     .unwrap_or_default();
                 let local = func_args.local.is_some();
+                let is_self_used = func_args.operation.is_some() || is_self_used(block);
 
                 let Some(turbo_fn) =
                     TurboFn::new(sig, DefinitionContext::ValueInherentImpl, func_args)
@@ -131,14 +134,17 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         // An error occurred while parsing the function signature.
                     };
                 };
+
                 let inline_function_ident = turbo_fn.inline_ident();
-                let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(block);
+                let (inline_signature, inline_block) =
+                    turbo_fn.inline_signature_and_block(block, is_self_used);
                 let inline_attrs = filter_inline_attributes(attrs.iter().copied());
 
                 let native_fn = NativeFn {
                     function_path_string: format!("{ty}::{ident}", ty = ty.to_token_stream()),
                     function_path: parse_quote! { <#ty>::#inline_function_ident },
                     is_method: turbo_fn.is_method(),
+                    is_self_used,
                     filter_trait_call_args: None, // not a trait method
                     local,
                 };
@@ -212,7 +218,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
         let mut errors = Vec::new();
 
         for item in items.iter() {
-            if let ImplItem::Method(ImplItemMethod {
+            if let ImplItem::Fn(ImplItemFn {
                 sig, attrs, block, ..
             }) = item
             {
@@ -223,6 +229,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     .inspect_err(|err| errors.push(err.to_compile_error()))
                     .unwrap_or_default();
                 let local = func_args.local.is_some();
+                let is_self_used = func_args.operation.is_some() || is_self_used(block);
 
                 let Some(turbo_fn) =
                     TurboFn::new(sig, DefinitionContext::ValueTraitImpl, func_args)
@@ -234,10 +241,11 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
 
                 let inline_function_ident = turbo_fn.inline_ident();
                 let inline_extension_trait_ident = Ident::new(
-                    &format!("{}_{}_{}_inline", ty_ident, trait_ident, ident),
+                    &format!("{ty_ident}_{trait_ident}_{ident}_inline"),
                     ident.span(),
                 );
-                let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(block);
+                let (inline_signature, inline_block) =
+                    turbo_fn.inline_signature_and_block(block, is_self_used);
                 let inline_attrs = filter_inline_attributes(attrs.iter().copied());
 
                 let native_fn = NativeFn {
@@ -250,6 +258,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         <#ty as #inline_extension_trait_ident>::#inline_function_ident
                     },
                     is_method: turbo_fn.is_method(),
+                    is_self_used,
                     filter_trait_call_args: turbo_fn.filter_trait_call_args(),
                     local,
                 };

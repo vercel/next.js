@@ -269,7 +269,7 @@ describe('config telemetry', () => {
       })
 
       // Turbopack intentionally does not support these events
-      ;(process.env.TURBOPACK ? it.skip : it)(
+      ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
         'emits telemery for usage of image, script & dynamic',
         async () => {
           const { stderr } = await nextBuild(appDir, [], {
@@ -304,7 +304,7 @@ describe('config telemetry', () => {
       )
 
       // Turbopack intentionally does not support these events
-      ;(process.env.TURBOPACK ? it.skip : it)(
+      ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
         'emits telemetry for usage of swc',
         async () => {
           await fs.remove(path.join(appDir, 'next.config.js'))
@@ -520,7 +520,7 @@ describe('config telemetry', () => {
       })
 
       // Turbopack intentionally does not support these events
-      ;(process.env.TURBOPACK ? it.skip : it)(
+      ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
         'emits telemetry for usage of next/legacy/image',
         async () => {
           const { stderr } = await nextBuild(appDir, [], {
@@ -547,7 +547,7 @@ describe('config telemetry', () => {
       )
 
       // Turbopack intentionally does not support these events
-      ;(process.env.TURBOPACK ? it.skip : it)(
+      ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
         'emits telemetry for usage of @vercel/og',
         async () => {
           const { stderr } = await nextBuild(appDir, [], {
@@ -567,7 +567,7 @@ describe('config telemetry', () => {
       )
 
       // Turbopack intentionally does not support these events
-      ;(process.env.TURBOPACK ? it.skip : it)(
+      ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
         'emits telemetry for transpilePackages',
         async () => {
           await fs.rename(
@@ -598,7 +598,7 @@ describe('config telemetry', () => {
       )
 
       // Turbopack intentionally does not support these events
-      ;(process.env.TURBOPACK ? it.skip : it)(
+      ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
         'emits telemetry for middleware related options',
         async () => {
           await fs.rename(
@@ -718,7 +718,7 @@ describe('config telemetry', () => {
       })
 
       // TODO: support use cache tracking in Turbopack
-      ;(process.env.TURBOPACK ? it.skip : it)(
+      ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
         'emits telemetry for useCache directive',
         async () => {
           // use cache depends on dynamicIO flag

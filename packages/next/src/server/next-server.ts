@@ -11,14 +11,13 @@ import {
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
-import type { PrerenderManifest } from '../build'
+import type { PrerenderManifest, RoutesManifest } from '../build'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { Params } from './request/params'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { RouteMatch } from './route-matches/route-match'
 import type { IncomingMessage, ServerResponse } from 'http'
-import type { PagesAPIRouteModule } from './route-modules/pages-api/module'
 import type { UrlWithParsedQuery } from 'url'
 import type { ParsedUrlQuery } from 'querystring'
 import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
@@ -26,7 +25,7 @@ import type { CacheControl } from './lib/cache-control'
 import type { WaitUntil } from './after/builtin-request-context'
 
 import fs from 'fs'
-import { join, resolve } from 'path'
+import { join } from 'path'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 import {
@@ -39,7 +38,6 @@ import {
   APP_PATHS_MANIFEST,
   SERVER_DIRECTORY,
   NEXT_FONT_MANIFEST,
-  PHASE_PRODUCTION_BUILD,
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
   FUNCTIONS_CONFIG_MANIFEST,
 } from '../shared/lib/constants'
@@ -87,7 +85,6 @@ import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
 import { isPagesAPIRouteMatch } from './route-matches/pages-api-route-match'
 import type { PagesAPIRouteMatch } from './route-matches/pages-api-route-match'
 import type { MatchOptions } from './route-matcher-managers/route-matcher-manager'
-import { INSTRUMENTATION_HOOK_FILENAME } from '../lib/constants'
 import { BubbledError, getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
 import { nodeFs } from './lib/node-fs-methods'
@@ -96,8 +93,7 @@ import { pipeToNodeResponse } from './pipe-readable'
 import { createRequestResponseMocks } from './lib/mock-request'
 import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 import { signalFromNodeResponse } from './web/spec-extension/adapters/next-request'
-import { RouteModuleLoader } from './lib/module-loader/route-module-loader'
-import { loadManifest } from './load-manifest'
+import { loadManifest } from './load-manifest.external'
 import { lazyRenderAppPage } from './route-modules/app-page/module.render'
 import { lazyRenderPagesPage } from './route-modules/pages/module.render'
 import { interopDefault } from '../lib/interop-default'
@@ -112,6 +108,12 @@ import { AsyncCallbackSet } from './lib/async-callback-set'
 import { initializeCacheHandlers, setCacheHandler } from './use-cache/handlers'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 import { populateStaticEnv } from '../lib/static-env'
+import { isPostpone } from './lib/router-utils/is-postpone'
+import { NodeModuleLoader } from './lib/module-loader/node-module-loader'
+import {
+  ensureInstrumentationRegistered,
+  getInstrumentationModule,
+} from './lib/router-utils/instrumentation-globals.external'
 
 export * from './base-server'
 
@@ -122,11 +124,6 @@ const dynamicImportEsmDefault = process.env.NEXT_MINIMAL
   ? (id: string) =>
       import(/* webpackIgnore: true */ id).then((mod) => mod.default || mod)
   : (id: string) => import(id).then((mod) => mod.default || mod)
-
-// For module that will be compiled to CJS, e.g. instrument
-const dynamicRequire = process.env.NEXT_MINIMAL
-  ? __non_webpack_require__
-  : require
 
 export type NodeRequestHandler = BaseRequestHandler<
   IncomingMessage | NodeNextRequest,
@@ -157,6 +154,88 @@ function getMiddlewareMatcher(
   const matcher = getMiddlewareRouteMatcher(info.matchers)
   MiddlewareMatcherCache.set(info, matcher)
   return matcher
+}
+
+function installProcessErrorHandlers(
+  shouldRemoveUncaughtErrorAndRejectionListeners: boolean
+) {
+  // The conventional wisdom of Node.js and other runtimes is to treat
+  // unhandled errors as fatal and exit the process.
+  //
+  // But Next.js is not a generic JS runtime — it's a specialized runtime for
+  // React Server Components.
+  //
+  // Many unhandled rejections are due to the late-awaiting pattern for
+  // prefetching data. In Next.js it's OK to call an async function without
+  // immediately awaiting it, to start the request as soon as possible
+  // without blocking unncessarily on the result. These can end up
+  // triggering an "unhandledRejection" if it later turns out that the
+  // data is not needed to render the page. Example:
+  //
+  //     const promise = fetchData()
+  //     const shouldShow = await checkCondition()
+  //     if (shouldShow) {
+  //       return <Component promise={promise} />
+  //     }
+  //
+  // In this example, `fetchData` is called immediately to start the request
+  // as soon as possible, but if `shouldShow` is false, then it will be
+  // discarded without unwrapping its result. If it errors, it will trigger
+  // an "unhandledRejection" event.
+  //
+  // Ideally, we would suppress these rejections completely without warning,
+  // because we don't consider them real errors. (TODO: Currently we do warn.)
+  //
+  // But regardless of whether we do or don't warn, we definitely shouldn't
+  // crash the entire process.
+  //
+  // Even a "legit" unhandled error unrelated to prefetching shouldn't
+  // prevent the rest of the page from rendering.
+  //
+  // So, we're going to intentionally override the default error handling
+  // behavior of the outer JS runtime to be more forgiving
+
+  // Remove any existing "unhandledRejection" and "uncaughtException" handlers.
+  // This is gated behind an experimental flag until we've considered the impact
+  // in various deployment environments. It's possible this may always need to
+  // be configurable.
+  if (shouldRemoveUncaughtErrorAndRejectionListeners) {
+    process.removeAllListeners('uncaughtException')
+    process.removeAllListeners('unhandledRejection')
+  }
+
+  // Install a new handler to prevent the process from crashing.
+  process.on('unhandledRejection', (reason: unknown) => {
+    if (isPostpone(reason)) {
+      // React postpones that are unhandled might end up logged here but they're
+      // not really errors. They're just part of rendering.
+      return
+    }
+    // Immediately log the error.
+    // TODO: Ideally, if we knew that this error was triggered by application
+    // code, we would suppress it entirely without logging. We can't reliably
+    // detect all of these, but when dynamicIO is enabled, we could suppress
+    // at least some of them by waiting to log the error until after all in-
+    // progress renders have completed. Then, only log errors for which there
+    // was not a corresponding "rejectionHandled" event.
+    console.error(reason)
+  })
+
+  process.on('rejectionHandled', () => {
+    // TODO: See note in the unhandledRejection handler above. In the future,
+    // we may use the "rejectionHandled" event to de-queue an error from
+    // being logged.
+  })
+
+  // Unhandled exceptions are errors triggered by non-async functions, so this
+  // is unrelated to the late-awaiting pattern. However, for similar reasons,
+  // we still shouldn't crash the process. Just log it.
+  process.on('uncaughtException', (reason: unknown) => {
+    if (isPostpone(reason)) {
+      return
+    }
+    console.error(reason)
+  })
 }
 
 export default class NextNodeServer extends BaseServer<
@@ -203,7 +282,9 @@ export default class NextNodeServer extends BaseServer<
     if (this.renderOpts.nextScriptWorkers) {
       process.env.__NEXT_SCRIPT_WORKERS = JSON.stringify(true)
     }
-    process.env.NEXT_DEPLOYMENT_ID = this.nextConfig.deploymentId || ''
+    process.env.NEXT_DEPLOYMENT_ID = this.nextConfig.experimental.useSkewCookie
+      ? ''
+      : this.nextConfig.deploymentId || ''
 
     if (!this.minimalMode) {
       this.imageResponseCache = new ResponseCache(this.minimalMode)
@@ -264,9 +345,8 @@ export default class NextNodeServer extends BaseServer<
     // Intercept fetch and other testmode apis.
     if (this.serverOptions.experimentalTestProxy) {
       process.env.NEXT_PRIVATE_TEST_PROXY = 'true'
-      const {
-        interceptTestApis,
-      } = require('next/dist/experimental/testmode/server')
+      const { interceptTestApis } =
+        require('next/dist/experimental/testmode/server') as typeof import('../experimental/testmode/server')
       interceptTestApis()
     }
 
@@ -287,9 +367,17 @@ export default class NextNodeServer extends BaseServer<
     if (this.renderOpts.isExperimentalCompile) {
       populateStaticEnv(this.nextConfig)
     }
+
+    const shouldRemoveUncaughtErrorAndRejectionListeners = Boolean(
+      options.conf.experimental?.removeUncaughtErrorAndRejectionListeners
+    )
+    installProcessErrorHandlers(shouldRemoveUncaughtErrorAndRejectionListeners)
   }
 
   public async unstable_preloadEntries(): Promise<void> {
+    // Ensure prepare process will be finished before preloading entries.
+    await this.prepare()
+
     const appPathsManifest = this.getAppPathsManifest()
     const pagesManifest = this.getPagesManifest()
 
@@ -338,13 +426,9 @@ export default class NextNodeServer extends BaseServer<
   protected async loadInstrumentationModule() {
     if (!this.serverOptions.dev) {
       try {
-        this.instrumentation = await dynamicRequire(
-          resolve(
-            this.serverOptions.dir || '.',
-            this.serverOptions.conf.distDir!,
-            'server',
-            INSTRUMENTATION_HOOK_FILENAME
-          )
+        this.instrumentation = await getInstrumentationModule(
+          this.dir,
+          this.nextConfig.distDir
         )
       } catch (err: any) {
         if (err.code !== 'MODULE_NOT_FOUND') {
@@ -364,9 +448,7 @@ export default class NextNodeServer extends BaseServer<
   }
 
   protected async runInstrumentationHookIfAvailable() {
-    if (this.registeredInstrumentation) return
-    this.registeredInstrumentation = true
-    await this.instrumentation?.register?.()
+    await ensureInstrumentationRegistered(this.dir, this.nextConfig.distDir)
   }
 
   protected loadEnvConfig({
@@ -566,30 +648,25 @@ export default class NextNodeServer extends BaseServer<
         }
       }
     }
-
     // The module supports minimal mode, load the minimal module.
-    const module = await RouteModuleLoader.load<PagesAPIRouteModule>(
-      match.definition.filename
-    )
+    // Restore original URL as the handler handles it's own parsing
+    const parsedInitUrl = parseUrl(getRequestMeta(req, 'initURL') || req.url)
+    req.url = `${parsedInitUrl.pathname}${parsedInitUrl.search || ''}`
 
-    query = { ...query, ...match.params }
-
-    await module.render(req.originalRequest, res.originalResponse, {
-      previewProps: this.renderOpts.previewProps,
-      revalidate: this.revalidate.bind(this),
-      trustHostHeader: this.nextConfig.experimental.trustHostHeader,
-      allowedRevalidateHeaderKeys:
-        this.nextConfig.experimental.allowedRevalidateHeaderKeys,
-      hostname: this.fetchHostname,
-      minimalMode: this.minimalMode,
-      dev: this.renderOpts.dev === true,
-      query,
-      params: match.params,
-      page: match.definition.pathname,
-      onError: this.instrumentationOnRequestError.bind(this),
-      multiZoneDraftMode: this.nextConfig.experimental.multiZoneDraftMode,
+    const loader = new NodeModuleLoader()
+    const module = (await loader.load(match.definition.filename)) as {
+      handler: (
+        req: IncomingMessage,
+        res: ServerResponse,
+        ctx: {
+          waitUntil: ReturnType<BaseServer['getWaitUntil']>
+        }
+      ) => Promise<void>
+    }
+    addRequestMeta(req.originalRequest, 'projectDir', this.dir)
+    await module.handler(req.originalRequest, res.originalResponse, {
+      waitUntil: this.getWaitUntil(),
     })
-
     return true
   }
 
@@ -964,7 +1041,6 @@ export default class NextNodeServer extends BaseServer<
                 extension: getExtension(contentType) as string,
                 upstreamEtag,
               },
-              isFallback: false,
               cacheControl: { revalidate: maxAge, expire: undefined },
             }
           },
@@ -1173,9 +1249,8 @@ export default class NextNodeServer extends BaseServer<
   public getRequestHandler(): NodeRequestHandler {
     const handler = this.makeRequestHandler()
     if (this.serverOptions.experimentalTestProxy) {
-      const {
-        wrapRequestHandlerNode,
-      } = require('next/dist/experimental/testmode/server')
+      const { wrapRequestHandlerNode } =
+        require('next/dist/experimental/testmode/server') as typeof import('../experimental/testmode/server')
       return wrapRequestHandlerNode(handler)
     }
     return handler
@@ -1444,26 +1519,31 @@ export default class NextNodeServer extends BaseServer<
   }
 
   private async loadNodeMiddleware() {
-    if (!this.nextConfig.experimental.nodeMiddleware) {
-      return
-    }
-
-    try {
-      const functionsConfig = this.renderOpts.dev
-        ? {}
-        : require(join(this.distDir, 'server', FUNCTIONS_CONFIG_MANIFEST))
-
-      if (this.renderOpts.dev || functionsConfig?.functions?.['/_middleware']) {
-        // if used with top level await, this will be a promise
-        return require(join(this.distDir, 'server', 'middleware.js'))
+    if (!process.env.NEXT_MINIMAL) {
+      if (!this.nextConfig.experimental.nodeMiddleware) {
+        return
       }
-    } catch (err) {
-      if (
-        isError(err) &&
-        err.code !== 'ENOENT' &&
-        err.code !== 'MODULE_NOT_FOUND'
-      ) {
-        throw err
+
+      try {
+        const functionsConfig = this.renderOpts.dev
+          ? {}
+          : require(join(this.distDir, 'server', FUNCTIONS_CONFIG_MANIFEST))
+
+        if (
+          this.renderOpts.dev ||
+          functionsConfig?.functions?.['/_middleware']
+        ) {
+          // if used with top level await, this will be a promise
+          return require(join(this.distDir, 'server', 'middleware.js'))
+        }
+      } catch (err) {
+        if (
+          isError(err) &&
+          err.code !== 'ENOENT' &&
+          err.code !== 'MODULE_NOT_FOUND'
+        ) {
+          throw err
+        }
       }
     }
   }
@@ -1604,11 +1684,26 @@ export default class NextNodeServer extends BaseServer<
       const adapterFn: typeof import('./web/adapter').adapter =
         middlewareModule.default || middlewareModule
 
-      result = await adapterFn({
-        handler: middlewareModule.middleware || middlewareModule,
-        request: requestData,
-        page: 'middleware',
-      })
+      const hasRequestBody =
+        !['HEAD', 'GET'].includes(params.request.method) &&
+        Boolean(requestData.body)
+
+      try {
+        result = await adapterFn({
+          handler: middlewareModule.middleware || middlewareModule,
+          request: {
+            ...requestData,
+            body: hasRequestBody
+              ? requestData.body.cloneBodyStream()
+              : undefined,
+          },
+          page: 'middleware',
+        })
+      } finally {
+        if (hasRequestBody) {
+          requestData.body.finalize()
+        }
+      }
     } else {
       const { run } = require('./web/sandbox') as typeof import('./web/sandbox')
 
@@ -1688,7 +1783,20 @@ export default class NextNodeServer extends BaseServer<
 
     parsedUrl.pathname = pathnameInfo.pathname
     const normalizedPathname = removeTrailingSlash(parsed.pathname || '')
-    if (!middleware.match(normalizedPathname, req, parsedUrl.query)) {
+    let maybeDecodedPathname = normalizedPathname
+
+    try {
+      maybeDecodedPathname = decodeURIComponent(normalizedPathname)
+    } catch {
+      /* non-fatal we can't decode so can't match it */
+    }
+
+    if (
+      !(
+        middleware.match(normalizedPathname, req, parsedUrl.query) ||
+        middleware.match(maybeDecodedPathname, req, parsedUrl.query)
+      )
+    ) {
       return handleFinished()
     }
 
@@ -1761,29 +1869,6 @@ export default class NextNodeServer extends BaseServer<
     if (this._cachedPreviewManifest) {
       return this._cachedPreviewManifest
     }
-    if (
-      this.renderOpts?.dev ||
-      this.serverOptions?.dev ||
-      process.env.NODE_ENV === 'development' ||
-      process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD
-    ) {
-      this._cachedPreviewManifest = {
-        version: 4,
-        routes: {},
-        dynamicRoutes: {},
-        notFoundRoutes: [],
-        preview: {
-          previewModeId: require('crypto').randomBytes(16).toString('hex'),
-          previewModeSigningKey: require('crypto')
-            .randomBytes(32)
-            .toString('hex'),
-          previewModeEncryptionKey: require('crypto')
-            .randomBytes(32)
-            .toString('hex'),
-        },
-      }
-      return this._cachedPreviewManifest
-    }
 
     this._cachedPreviewManifest = loadManifest(
       join(this.distDir, PRERENDER_MANIFEST)
@@ -1793,25 +1878,10 @@ export default class NextNodeServer extends BaseServer<
   }
 
   protected getRoutesManifest(): NormalizedRouteManifest | undefined {
-    return getTracer().trace(NextNodeServerSpan.getRoutesManifest, () => {
-      const manifest = loadManifest(join(this.distDir, ROUTES_MANIFEST)) as any
-
-      let rewrites = manifest.rewrites ?? {
-        beforeFiles: [],
-        afterFiles: [],
-        fallback: [],
-      }
-
-      if (Array.isArray(rewrites)) {
-        rewrites = {
-          beforeFiles: [],
-          afterFiles: rewrites,
-          fallback: [],
-        }
-      }
-
-      return { ...manifest, rewrites }
-    })
+    return getTracer().trace(
+      NextNodeServerSpan.getRoutesManifest,
+      () => loadManifest(join(this.distDir, ROUTES_MANIFEST)) as RoutesManifest
+    )
   }
 
   protected attachRequestMeta(

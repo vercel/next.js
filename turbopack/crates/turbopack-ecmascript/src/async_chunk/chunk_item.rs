@@ -1,6 +1,5 @@
 use anyhow::Result;
 use indoc::formatdoc;
-use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, Vc};
 use turbopack_core::{
     chunk::{
@@ -10,7 +9,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::Module,
     module_graph::{
-        chunk_group_info::ChunkGroup, module_batch::ChunkableModuleOrBatch, ModuleGraph,
+        ModuleGraph, chunk_group_info::ChunkGroup, module_batch::ChunkableModuleOrBatch,
     },
     output::OutputAssets,
 };
@@ -18,8 +17,8 @@ use turbopack_core::{
 use crate::{
     async_chunk::module::AsyncLoaderModule,
     chunk::{
-        data::EcmascriptChunkData, EcmascriptChunkItem, EcmascriptChunkItemContent,
-        EcmascriptChunkPlaceable, EcmascriptChunkType,
+        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
+        EcmascriptChunkType, data::EcmascriptChunkData,
     },
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_LOAD},
     utils::{StringifyJs, StringifyModuleId},
@@ -152,11 +151,6 @@ impl EcmascriptChunkItem for AsyncLoaderChunkItem {
     }
 }
 
-#[turbo_tasks::function]
-fn chunk_reference_description() -> Vc<RcStr> {
-    Vc::cell("chunk".into())
-}
-
 #[turbo_tasks::value_impl]
 impl ChunkItem for AsyncLoaderChunkItem {
     #[turbo_tasks::function]
@@ -165,16 +159,10 @@ impl ChunkItem for AsyncLoaderChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn content_ident(&self) -> Result<Vc<AssetIdent>> {
-        let mut ident = self.module.ident();
-        if let Some(available_chunk_items) =
-            self.module.await?.availability_info.available_modules()
-        {
-            ident = ident.with_modifier(Vc::cell(
-                available_chunk_items.hash().await?.to_string().into(),
-            ));
-        }
-        Ok(ident)
+    async fn content_ident(self: Vc<Self>) -> Result<Vc<AssetIdent>> {
+        let ident = self.module().ident();
+
+        Ok(ident.with_modifier(self.chunks_data().hash().await?.to_string().into()))
     }
 
     #[turbo_tasks::function]

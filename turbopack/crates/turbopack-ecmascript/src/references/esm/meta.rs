@@ -7,7 +7,8 @@ use swc_core::{
     ecma::ast::{Expr, Ident},
     quote,
 };
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, Vc};
+use turbo_rcstr::rcstr;
+use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{chunk::ChunkingContext, module_graph::ModuleGraph};
 
@@ -62,7 +63,7 @@ impl ImportMetaBinding {
         );
 
         Ok(CodeGeneration::hoisted_stmt(
-            "import.meta".into(),
+            rcstr!("import.meta"),
             // [NOTE] url property is lazy-evaluated, as it should be computed once
             // turbopack_runtime injects a function to calculate an absolute path.
             quote!(
@@ -119,7 +120,7 @@ impl From<ImportMetaRef> for CodeGen {
 fn encode_path(path: &'_ str) -> Cow<'_, str> {
     let mut encoded = String::new();
     let mut start = 0;
-    for (i, c) in path.chars().enumerate() {
+    for (i, c) in path.char_indices() {
         let mapping = match c {
             '%' => "%25",
             '\\' => "%5C",

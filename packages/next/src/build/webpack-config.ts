@@ -5,14 +5,16 @@ import crypto from 'crypto'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import path from 'path'
 
+import { getDefineEnv } from './define-env'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import { WEBPACK_LAYERS, WEBPACK_RESOURCE_QUERIES } from '../lib/constants'
 import type { WebpackLayerName } from '../lib/constants'
 import {
   isWebpackBundledLayer,
   isWebpackClientOnlyLayer,
-  isWebpackDefaultLayer,
   isWebpackServerOnlyLayer,
+  isWebpackDefaultLayer,
+  RSPACK_DEFAULT_LAYERS_REGEX,
 } from './utils'
 import type { CustomRoutes } from '../lib/load-custom-routes.js'
 import {
@@ -68,7 +70,6 @@ import { getSupportedBrowsers } from './utils'
 import { MemoryWithGcCachePlugin } from './webpack/plugins/memory-with-gc-cache-plugin'
 import { getBabelConfigFile } from './get-babel-config-file'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
-import { getDefineEnvPlugin } from './webpack/plugins/define-env-plugin'
 import type { SWCLoaderOptions } from './webpack/loaders/next-swc-loader'
 import { isResourceInPackages, makeExternalHandler } from './handle-externals'
 import {
@@ -96,6 +97,7 @@ import {
 import { getRspackCore, getRspackReactRefresh } from '../shared/lib/get-rspack'
 import { RspackProfilingPlugin } from './webpack/plugins/rspack-profiling-plugin'
 import getWebpackBundler from '../shared/lib/get-webpack-bundler'
+import type { NextBuildContext } from './build-context'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -131,7 +133,7 @@ const browserNonTranspileModules = [
 const precompileRegex = /[\\/]next[\\/]dist[\\/]compiled[\\/]/
 
 const asyncStoragesRegex =
-  /next[\\/]dist[\\/](esm[\\/])?server[\\/]app-render[\\/](work-async-storage|action-async-storage|work-unit-async-storage)/
+  /next[\\/]dist[\\/](esm[\\/])?server[\\/]app-render[\\/](work-async-storage|action-async-storage|dynamic-access-async-storage|work-unit-async-storage)/
 
 // Support for NODE_PATH
 const nodePathList = (process.env.NODE_PATH || '')
@@ -312,9 +314,10 @@ export default async function getBaseWebpackConfig(
     supportedBrowsers,
     clientRouterFilters,
     fetchCacheKeyPrefix,
-    edgePreviewProps,
     isCompileMode,
+    previewProps,
   }: {
+    previewProps: NonNullable<(typeof NextBuildContext)['previewProps']>
     isCompileMode?: boolean
     buildId: string
     encryptionKey: string
@@ -336,7 +339,6 @@ export default async function getBaseWebpackConfig(
     jsConfigPath?: string
     resolvedBaseUrl: ResolvedBaseUrl
     supportedBrowsers: string[] | undefined
-    edgePreviewProps?: Record<string, string>
     clientRouterFilters?: {
       staticFilter: ReturnType<
         import('../shared/lib/bloom-filter').BloomFilter['export']
@@ -533,6 +535,7 @@ export default async function getBaseWebpackConfig(
       loader: 'next-swc-loader',
       options: {
         isServer: isNodeOrEdgeCompilation,
+        compilerType,
         rootDir: dir,
         pagesDir,
         appDir,
@@ -671,15 +674,19 @@ export default async function getBaseWebpackConfig(
     '...',
   ]
 
+  const reactRefreshEntry = isRspack
+    ? getRspackReactRefresh().entry
+    : require.resolve(
+        `next/dist/compiled/@next/react-refresh-utils/dist/runtime`
+      )
+
   const clientEntries = isClient
     ? ({
         // Backwards compatibility
         'main.js': [],
         ...(dev
           ? {
-              [CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH]: require.resolve(
-                `next/dist/compiled/@next/react-refresh-utils/dist/runtime`
-              ),
+              [CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH]: reactRefreshEntry,
               [CLIENT_STATIC_FILES_RUNTIME_AMP]:
                 `./` +
                 path
@@ -705,9 +712,7 @@ export default async function getBaseWebpackConfig(
           ? {
               [CLIENT_STATIC_FILES_RUNTIME_MAIN_APP]: dev
                 ? [
-                    require.resolve(
-                      `next/dist/compiled/@next/react-refresh-utils/dist/runtime`
-                    ),
+                    reactRefreshEntry,
                     `./` +
                       path
                         .relative(
@@ -774,6 +779,8 @@ export default async function getBaseWebpackConfig(
     ].filter(Boolean) as webpack.ResolvePluginInstance[],
     ...((isRspack && jsConfigPath
       ? {
+          // Skip paths that are routed to a .d.ts file
+          restrictions: [/^(?!.*\.d\.ts$).*$/],
           tsConfig: {
             configFile: jsConfigPath,
           },
@@ -1153,9 +1160,25 @@ export default async function getBaseWebpackConfig(
             : (chunk: any) =>
                 !/^(polyfills|main|pages\/_app)$/.test(chunk.name),
 
-          // TODO: investigate these cache groups with rspack
           cacheGroups: isRspack
-            ? {}
+            ? {
+                framework: {
+                  chunks: 'all' as const,
+                  name: 'framework',
+                  layer: RSPACK_DEFAULT_LAYERS_REGEX,
+                  test: /[/]node_modules[/](react|react-dom|next[/]dist[/]compiled[/](react|react-dom)(-experimental)?)[/]/,
+                  priority: 40,
+                  enforce: true,
+                },
+                lib: {
+                  test: /[/]node_modules[/](?!.*\.(css|scss|sass|less|styl)$)/,
+                  name: 'lib',
+                  chunks: 'all',
+                  priority: 30,
+                  minChunks: 1,
+                  reuseExistingChunk: true,
+                },
+              }
             : {
                 framework: frameworkCacheGroup,
                 lib: libCacheGroup,
@@ -1185,7 +1208,10 @@ export default async function getBaseWebpackConfig(
                     'process.env.__NEXT_PRIVATE_MINIMIZE_MACRO_FALSE': false,
                   },
                 },
-                mangle: !noMangling && { reserved: ['AbortSignal'] },
+                mangle: !noMangling && {
+                  reserved: ['AbortSignal'],
+                  disableCharFreq: !isClient,
+                },
               },
             }),
             new (getRspackCore().LightningCssMinimizerRspackPlugin)({
@@ -1201,7 +1227,10 @@ export default async function getBaseWebpackConfig(
               // @ts-ignore No typings yet
               const { MinifyPlugin } =
                 require('./webpack/plugins/minify-webpack-plugin/src/index.js') as typeof import('./webpack/plugins/minify-webpack-plugin/src')
-              new MinifyPlugin({ noMangling }).apply(compiler)
+              new MinifyPlugin({
+                noMangling,
+                disableCharFreq: !isClient,
+              }).apply(compiler)
             },
             // Minify CSS
             (compiler: webpack.Compiler) => {
@@ -1252,7 +1281,7 @@ export default async function getBaseWebpackConfig(
           ? `[name].js`
           : `../[name].js`
         : `static/chunks/${isDevFallback ? 'fallback/' : ''}[name]${
-            dev ? '' : appDir ? '-[chunkhash]' : '-[contenthash]'
+            dev ? '' : '-[contenthash]'
           }.js`,
       library: isClient || isEdgeServer ? '_N_E' : undefined,
       libraryTarget: isClient || isEdgeServer ? 'assign' : 'commonjs2',
@@ -1902,7 +1931,11 @@ export default async function getBaseWebpackConfig(
         isClient &&
         (isRspack
           ? // eslint-disable-next-line
-            new (getRspackReactRefresh() as any)({ injectLoader: false })
+            new (getRspackReactRefresh() as any)({
+              injectLoader: false,
+              injectEntry: false,
+              overlay: false,
+            })
           : new ReactRefreshWebpackPlugin(webpack)),
       // Makes sure `Buffer` and `process` are polyfilled in client and flight bundles (same behavior as webpack 4)
       (isClient || isEdgeServer) &&
@@ -1912,20 +1945,23 @@ export default async function getBaseWebpackConfig(
           // Avoid process being overridden when in web run time
           ...(isClient && { process: [require.resolve('process')] }),
         }),
-      getDefineEnvPlugin({
-        isTurbopack: false,
-        config,
-        dev,
-        distDir,
-        fetchCacheKeyPrefix,
-        hasRewrites,
-        isClient,
-        isEdgeServer,
-        isNodeOrEdgeCompilation,
-        isNodeServer,
-        middlewareMatchers,
-        omitNonDeterministic: isCompileMode,
-      }),
+
+      new (getWebpackBundler().DefinePlugin)(
+        getDefineEnv({
+          isTurbopack: false,
+          config,
+          dev,
+          distDir,
+          projectPath: dir,
+          fetchCacheKeyPrefix,
+          hasRewrites,
+          isClient,
+          isEdgeServer,
+          isNodeServer,
+          middlewareMatchers,
+          omitNonDeterministic: isCompileMode,
+        })
+      ),
       isClient &&
         new ReactLoadablePlugin({
           filename: REACT_LOADABLE_MANIFEST,
@@ -1949,6 +1985,7 @@ export default async function getBaseWebpackConfig(
             appDirEnabled: hasAppDir,
             traceIgnores: [],
             compilerType,
+            swcLoaderConfig: swcDefaultLoader,
           }
         ),
       // Moment.js is an extremely popular library that bundles large locale files
@@ -2001,7 +2038,10 @@ export default async function getBaseWebpackConfig(
           edgeEnvironments: {
             __NEXT_BUILD_ID: buildId,
             NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: encryptionKey,
-            ...edgePreviewProps,
+            __NEXT_PREVIEW_MODE_ID: previewProps.previewModeId,
+            __NEXT_PREVIEW_MODE_SIGNING_KEY: previewProps.previewModeSigningKey,
+            __NEXT_PREVIEW_MODE_ENCRYPTION_KEY:
+              previewProps.previewModeEncryptionKey,
           },
         }),
       isClient &&
@@ -2065,11 +2105,17 @@ export default async function getBaseWebpackConfig(
         new NextFontManifestPlugin({
           appDir,
         }),
-      !isRspack &&
-        !dev &&
+      !dev &&
         isClient &&
         config.experimental.cssChunking &&
-        new CssChunkingPlugin(config.experimental.cssChunking === 'strict'),
+        (isRspack
+          ? new (getRspackCore().experiments.CssChunkingPlugin)({
+              strict: config.experimental.cssChunking === 'strict',
+              nextjs: true,
+            })
+          : new CssChunkingPlugin(
+              config.experimental.cssChunking === 'strict'
+            )),
       telemetryPlugin,
       !dev &&
         isNodeServer &&

@@ -3,7 +3,7 @@ use std::{fmt::Display, str::FromStr};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, Value, Vc};
+use turbo_tasks::{NonLocalValue, Value, Vc, trace::TraceRawVcs};
 
 use super::request::{
     AdjustFontFallback, NextFontLocalRequest, NextFontLocalRequestArguments, SrcDescriptor,
@@ -34,16 +34,17 @@ pub(super) struct NextFontLocalOptions {
     pub variable_name: RcStr,
 }
 
+impl NextFontLocalOptions {
+    pub async fn font_family(self: Vc<Self>) -> Result<RcStr> {
+        Ok(self.await?.variable_name.clone())
+    }
+}
+
 #[turbo_tasks::value_impl]
 impl NextFontLocalOptions {
     #[turbo_tasks::function]
     pub fn new(options: Value<NextFontLocalOptions>) -> Vc<NextFontLocalOptions> {
         Self::cell(options.into_value())
-    }
-
-    #[turbo_tasks::function]
-    pub fn font_family(&self) -> Vc<RcStr> {
-        Vc::cell(self.variable_name.clone())
     }
 }
 
@@ -149,7 +150,7 @@ impl Display for FontWeight {
             f,
             "{}",
             match self {
-                Self::Variable(start, end) => format!("{} {}", start, end),
+                Self::Variable(start, end) => format!("{start} {end}"),
                 Self::Fixed(val) => val.to_string(),
             }
         )
@@ -204,9 +205,10 @@ pub(super) fn options_from_request(request: &NextFontLocalRequest) -> Result<Nex
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
+    use turbo_rcstr::rcstr;
     use turbo_tasks_fs::json::parse_json_with_source_context;
 
-    use super::{options_from_request, NextFontLocalOptions};
+    use super::{NextFontLocalOptions, options_from_request};
     use crate::next_font::local::{
         options::{FontDescriptor, FontDescriptors, FontWeight},
         request::{AdjustFontFallback, NextFontLocalRequest},
@@ -231,19 +233,19 @@ mod tests {
             options_from_request(&request)?,
             NextFontLocalOptions {
                 fonts: FontDescriptors::One(FontDescriptor {
-                    path: "./Roboto-Regular.ttf".into(),
+                    path: rcstr!("./Roboto-Regular.ttf"),
                     weight: None,
                     style: None,
-                    ext: "ttf".into(),
+                    ext: rcstr!("ttf"),
                 }),
                 default_style: None,
                 default_weight: None,
-                display: "swap".into(),
+                display: rcstr!("swap"),
                 preload: true,
                 fallback: None,
                 adjust_font_fallback: AdjustFontFallback::Arial,
                 variable: None,
-                variable_name: "myFont".into()
+                variable_name: rcstr!("myFont")
             },
         );
 
@@ -279,26 +281,26 @@ mod tests {
             NextFontLocalOptions {
                 fonts: FontDescriptors::Many(vec![
                     FontDescriptor {
-                        path: "./Roboto-Regular.ttf".into(),
-                        weight: Some(FontWeight::Fixed("400".into())),
-                        style: Some("normal".into()),
-                        ext: "ttf".into(),
+                        path: rcstr!("./Roboto-Regular.ttf"),
+                        weight: Some(FontWeight::Fixed(rcstr!("400"))),
+                        style: Some(rcstr!("normal")),
+                        ext: rcstr!("ttf"),
                     },
                     FontDescriptor {
-                        path: "./Roboto-Italic.ttf".into(),
-                        weight: Some(FontWeight::Fixed("400".into())),
+                        path: rcstr!("./Roboto-Italic.ttf"),
+                        weight: Some(FontWeight::Fixed(rcstr!("400"))),
                         style: None,
-                        ext: "ttf".into(),
+                        ext: rcstr!("ttf"),
                     }
                 ]),
-                default_weight: Some(FontWeight::Fixed("300".into())),
-                default_style: Some("italic".into()),
-                display: "swap".into(),
+                default_weight: Some(FontWeight::Fixed(rcstr!("300"))),
+                default_style: Some(rcstr!("italic")),
+                display: rcstr!("swap"),
                 preload: true,
                 fallback: None,
                 adjust_font_fallback: AdjustFontFallback::Arial,
                 variable: None,
-                variable_name: "myFont".into()
+                variable_name: rcstr!("myFont")
             },
         );
 
@@ -322,11 +324,12 @@ mod tests {
         );
 
         match request {
-            Ok(r) => panic!("Expected failure, received {:?}", r),
+            Ok(r) => panic!("Expected failure, received {r:?}"),
             Err(err) => {
-                assert!(err
-                    .to_string()
-                    .contains("expected Expected string or `false`. Received `true`"),)
+                assert!(
+                    err.to_string()
+                        .contains("expected Expected string or `false`. Received `true`"),
+                )
             }
         }
 
@@ -359,19 +362,19 @@ mod tests {
             options_from_request(&request)?,
             NextFontLocalOptions {
                 fonts: FontDescriptors::One(FontDescriptor {
-                    path: "./Roboto-Regular.woff".into(),
-                    weight: Some(FontWeight::Fixed("500".into())),
-                    style: Some("italic".into()),
-                    ext: "woff".into(),
+                    path: rcstr!("./Roboto-Regular.woff"),
+                    weight: Some(FontWeight::Fixed(rcstr!("500"))),
+                    style: Some(rcstr!("italic")),
+                    ext: rcstr!("woff"),
                 }),
-                default_style: Some("italic".into()),
-                default_weight: Some(FontWeight::Fixed("500".into())),
-                display: "optional".into(),
+                default_style: Some(rcstr!("italic")),
+                default_weight: Some(FontWeight::Fixed(rcstr!("500"))),
+                display: rcstr!("optional"),
                 preload: false,
-                fallback: Some(vec!["Fallback".into()]),
+                fallback: Some(vec![rcstr!("Fallback")]),
                 adjust_font_fallback: AdjustFontFallback::TimesNewRoman,
-                variable: Some("myvar".into()),
-                variable_name: "myFont".into()
+                variable: Some(rcstr!("myvar")),
+                variable_name: rcstr!("myFont")
             },
         );
 

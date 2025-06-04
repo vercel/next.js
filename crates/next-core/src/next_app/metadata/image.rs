@@ -2,7 +2,7 @@
 //!
 //! See `next/src/build/webpack/loaders/next-metadata-image-loader`
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use indoc::formatdoc;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ValueToString, Vc};
@@ -29,7 +29,7 @@ async fn hash_file_content(path: Vc<FileSystemPath>) -> Result<u64> {
 
     Ok(match &*original_file_content {
         FileContent::Content(content) => {
-            let content = content.content().to_bytes()?;
+            let content = content.content().to_bytes();
             hash_xxh3_hash64(&*content)
         }
         FileContent::NotFound => {
@@ -53,9 +53,22 @@ pub async fn dynamic_image_metadata_source(
 
     let use_numeric_sizes = ty == "twitter" || ty == "openGraph";
     let sizes = if use_numeric_sizes {
-        "data.width = size.width; data.height = size.height;"
+        "data.width = size.width; data.height = size.height;".to_string()
     } else {
-        "data.sizes = size.width + \"x\" + size.height;"
+        // Note: This case seemingly can never happen because this code runs for dynamic metadata
+        // which has e.g. a `.js` or `.ts` extension not `.svg`. Branching code is still here to
+        // match the static implementation
+        //
+        // For SVGs, skip sizes and use "any" to let it scale automatically based on viewport,
+        // For the images doesn't provide the size properly, use "any" as well.
+        // If the size is presented, use the actual size for the image.
+        let sizes = if ext == "svg" {
+            "any"
+        } else {
+            "${size.width}x${size.height}"
+        };
+
+        format!("data.sizes = `{sizes}`;")
     };
 
     let source = Vc::upcast(FileSource::new(path));
@@ -113,7 +126,7 @@ pub async fn dynamic_image_metadata_source(
             }}
         "#,
         exported_fields_excluding_default = exported_fields_excluding_default,
-        resource_path = StringifyJs(&format!("./{}.{}", stem, ext)),
+        resource_path = StringifyJs(&format!("./{stem}.{ext}")),
         pathname_prefix = StringifyJs(&page.to_string()),
         page_segment = StringifyJs(stem),
         sizes = sizes,

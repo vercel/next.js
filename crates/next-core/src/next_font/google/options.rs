@@ -1,8 +1,8 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    fxindexset, trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, Value, Vc,
+    FxIndexMap, FxIndexSet, NonLocalValue, Value, Vc, fxindexset, trace::TraceRawVcs,
 };
 
 use super::request::{NextFontRequest, OneOrManyStrings};
@@ -29,16 +29,17 @@ pub(super) struct NextFontGoogleOptions {
     pub subsets: Option<Vec<RcStr>>,
 }
 
+impl NextFontGoogleOptions {
+    pub async fn font_family(self: Vc<Self>) -> Result<RcStr> {
+        Ok(self.await?.font_family.clone())
+    }
+}
+
 #[turbo_tasks::value_impl]
 impl NextFontGoogleOptions {
     #[turbo_tasks::function]
     pub fn new(options: Value<NextFontGoogleOptions>) -> Vc<NextFontGoogleOptions> {
         Self::cell(options.into_value())
-    }
-
-    #[turbo_tasks::function]
-    pub fn font_family(&self) -> Vc<RcStr> {
-        Vc::cell((*self.font_family).into())
     }
 }
 
@@ -155,7 +156,7 @@ pub(super) fn options_from_request(
         if font_data.styles.len() == 1 {
             styles.push(font_data.styles[0].clone());
         } else {
-            styles.push("normal".into());
+            styles.push(rcstr!("normal"));
         }
     }
 
@@ -170,7 +171,7 @@ pub(super) fn options_from_request(
         }
     }
 
-    let display = argument.display.unwrap_or_else(|| "swap".into());
+    let display = argument.display.unwrap_or_else(|| rcstr!("swap"));
 
     if !ALLOWED_DISPLAY_VALUES.contains(&display.as_str()) {
         anyhow::bail!(
@@ -213,11 +214,11 @@ pub(super) fn options_from_request(
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use turbo_rcstr::RcStr;
+    use turbo_rcstr::{RcStr, rcstr};
     use turbo_tasks::FxIndexMap;
     use turbo_tasks_fs::json::parse_json_with_source_context;
 
-    use super::{options_from_request, FontDataEntry, NextFontGoogleOptions};
+    use super::{FontDataEntry, NextFontGoogleOptions, options_from_request};
     use crate::next_font::google::{options::FontWeights, request::NextFontRequest};
 
     #[test]
@@ -280,10 +281,10 @@ mod tests {
         assert_eq!(
             options_from_request(&request, &data)?,
             NextFontGoogleOptions {
-                font_family: "ABeeZee".into(),
+                font_family: rcstr!("ABeeZee"),
                 weights: FontWeights::Variable,
-                styles: vec!["normal".into()],
-                display: "swap".into(),
+                styles: vec![rcstr!("normal")],
+                display: rcstr!("swap"),
                 preload: true,
                 selected_variable_axes: None,
                 fallback: None,
@@ -436,7 +437,7 @@ mod tests {
         )?;
 
         let options = options_from_request(&request, &data)?;
-        assert_eq!(options.styles, vec![RcStr::from("italic")]);
+        assert_eq!(options.styles, vec![rcstr!("italic")]);
 
         Ok(())
     }
@@ -468,7 +469,7 @@ mod tests {
         )?;
 
         let options = options_from_request(&request, &data)?;
-        assert_eq!(options.styles, vec![RcStr::from("normal")]);
+        assert_eq!(options.styles, vec![rcstr!("normal")]);
 
         Ok(())
     }

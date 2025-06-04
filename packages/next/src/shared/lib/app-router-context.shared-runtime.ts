@@ -122,6 +122,7 @@ export interface NavigateOptions {
 
 export interface PrefetchOptions {
   kind: PrefetchKind
+  onInvalidate?: () => void
 }
 
 export interface AppRouterInstance {

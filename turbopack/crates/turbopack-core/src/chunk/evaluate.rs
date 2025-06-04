@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use turbo_tasks::{ResolvedVc, Upcast, Value, ValueToString, Vc};
 
 use super::ChunkableModule;

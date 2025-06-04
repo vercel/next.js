@@ -6,14 +6,12 @@ use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 
 use crate::{
-    trace::TraceRawVcs, MagicAny, ResolvedVc, TaskId, TransientInstance, TransientValue, Value,
-    ValueTypeId, Vc,
+    MagicAny, ResolvedVc, TaskId, TransientInstance, TransientValue, Value, ValueTypeId, Vc,
+    trace::TraceRawVcs,
 };
 
 /// Trait to implement in order for a type to be accepted as a
 /// [`#[turbo_tasks::function]`][crate::function] argument.
-///
-/// See also [`ConcreteTaskInput`].
 pub trait TaskInput: Send + Sync + Clone + Debug + PartialEq + Eq + Hash + TraceRawVcs {
     fn resolve_input(&self) -> impl Future<Output = Result<Self>> + Send + '_ {
         async { Ok(self.clone()) }
@@ -141,7 +139,7 @@ where
     }
 
     fn is_transient(&self) -> bool {
-        self.node.get_task_id().is_transient()
+        self.node.is_transient()
     }
 
     async fn resolve_input(&self) -> Result<Self> {
@@ -324,6 +322,7 @@ tuple_impls! { A B C D E F G H I J K L }
 
 #[cfg(test)]
 mod tests {
+    use turbo_rcstr::rcstr;
     use turbo_tasks_macros::TaskInput;
 
     use super::*;
@@ -366,7 +365,7 @@ mod tests {
         )]
         struct MultipleUnnamedFields(u32, RcStr);
 
-        assert_task_input(MultipleUnnamedFields(42, "42".into()));
+        assert_task_input(MultipleUnnamedFields(42, rcstr!("42")));
         Ok(())
     }
 
@@ -395,7 +394,7 @@ mod tests {
 
         assert_task_input(MultipleNamedFields {
             named: 42,
-            other: "42".into(),
+            other: rcstr!("42"),
         });
         Ok(())
     }
@@ -408,7 +407,7 @@ mod tests {
         struct GenericField<T>(T);
 
         assert_task_input(GenericField(42));
-        assert_task_input(GenericField(RcStr::from("42")));
+        assert_task_input(GenericField(rcstr!("42")));
         Ok(())
     }
 
@@ -450,7 +449,7 @@ mod tests {
     fn test_multiple_variants_and_heterogeneous_fields() -> Result<()> {
         assert_task_input(MultipleVariantsAndHeterogeneousFields::Variant5 {
             named: 42,
-            other: "42".into(),
+            other: rcstr!("42"),
         });
         Ok(())
     }
@@ -470,12 +469,12 @@ mod tests {
 
         assert_task_input(NestedVariants::Variant5 {
             named: OneVariant::Variant,
-            other: "42".into(),
+            other: rcstr!("42"),
         });
         assert_task_input(NestedVariants::Variant2(
             MultipleVariantsAndHeterogeneousFields::Variant5 {
                 named: 42,
-                other: "42".into(),
+                other: rcstr!("42"),
             },
         ));
         Ok(())

@@ -12,7 +12,7 @@ import {
 const appDir = path.join(__dirname, '..')
 
 describe('page features telemetry', () => {
-  if (process.env.TURBOPACK) {
+  if (process.env.IS_TURBOPACK_TEST) {
     it('detects --turbo correctly for `next dev`', async () => {
       let port = await findPort()
       let stderr = ''

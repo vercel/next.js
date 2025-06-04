@@ -64,7 +64,7 @@ describe('Error Overlay invalid imports', () => {
     await session.patch(pageFile, withoutUseClient)
 
     await session.assertHasRedbox()
-    if (process.env.TURBOPACK) {
+    if (process.env.IS_TURBOPACK_TEST) {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
         "./app
         Invalid import
@@ -146,7 +146,7 @@ describe('Error Overlay invalid imports', () => {
     await session.patch(pageFile, withoutUseClient)
 
     await session.assertHasRedbox()
-    if (process.env.TURBOPACK) {
+    if (process.env.IS_TURBOPACK_TEST) {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
         "./node_modules/client-only-package
         Invalid import
@@ -226,7 +226,7 @@ describe('Error Overlay invalid imports', () => {
     await session.patch(file, "'use client'\n" + content)
 
     await session.assertHasRedbox()
-    if (process.env.TURBOPACK) {
+    if (process.env.IS_TURBOPACK_TEST) {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
         "./node_modules/server-only-package
         Invalid import

@@ -54,6 +54,7 @@ export function eventLintCheckCompleted(event: EventLintCheckCompleted): {
 
 const EVENT_BUILD_COMPLETED = 'NEXT_BUILD_COMPLETED'
 type EventBuildCompleted = {
+  bundler: 'webpack' | 'rspack' | 'turbopack'
   durationInSeconds: number
   totalPageCount: number
   hasDunderPages: boolean
@@ -82,6 +83,20 @@ export function eventBuildCompleted(
       ),
       totalAppPagesCount: event.totalAppPagesCount,
     },
+  }
+}
+
+const EVENT_BUILD_FAILED = 'NEXT_BUILD_FAILED'
+type EventBuildFailed = {
+  bundler: 'webpack' | 'rspack' | 'turbopack'
+  errorCode: string
+  durationInSeconds: number
+}
+
+export function eventBuildFailed(event: EventBuildFailed) {
+  return {
+    eventName: EVENT_BUILD_FAILED,
+    payload: event,
   }
 }
 
@@ -180,6 +195,7 @@ export type EventBuildFeatureUsage = {
     | 'webpackPlugins'
     | UseCacheTrackerKey
     | 'turbopackPersistentCaching'
+    | 'runAfterProductionCompile'
   invocationCount: number
 }
 export function eventBuildFeatureUsage(

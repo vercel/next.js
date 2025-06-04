@@ -14,7 +14,7 @@ let appPort
 const appDir = join(__dirname, '../')
 
 // Turbopack does not support AMP rendering.
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'AMP Custom Optimizer',
   () => {
     describe('production mode', () => {

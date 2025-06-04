@@ -1,7 +1,7 @@
 # next-rspack (EXPERIMENTAL)
 
 > [!WARNING]
-> This package is currently experimental and actively developed and supported in Next.js’ `canary` branch. To use this, you must be using a published canary build of Next.js.
+> This package is currently experimental. It's not an official Next.js plugin, and is supported by the Rspack team in partnership with Next.js. Help improve Next.js and Rspack by providing feedback at https://github.com/vercel/next.js/discussions/77800
 
 This plugin allows you to use [Rspack](https://rspack.dev) in place of webpack with Next.js.
 

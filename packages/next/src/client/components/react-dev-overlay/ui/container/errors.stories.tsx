@@ -96,6 +96,7 @@ const runtimeErrors: ReadyRuntimeError[] = [
         },
         ...Array(20).fill(ignoredFrame),
       ]),
+    type: 'runtime',
   },
   {
     id: 2,
@@ -113,6 +114,7 @@ const runtimeErrors: ReadyRuntimeError[] = [
           originalCodeFrame: originalCodeFrame('Second error message'),
         },
       ]),
+    type: 'runtime',
   },
   {
     id: 3,
@@ -130,23 +132,25 @@ const runtimeErrors: ReadyRuntimeError[] = [
           originalCodeFrame: originalCodeFrame('Third error message'),
         },
       ]),
+    type: 'runtime',
   },
   {
     id: 4,
     runtime: true,
-    error: new Error('Fourth error message'),
+    error: new Error('typeof window !== undefined'),
     frames: () =>
       Promise.resolve([
         {
           error: true,
-          reason: 'Fourth error message',
+          reason: 'typeof window !== undefined',
           external: false,
           ignored: false,
           sourceStackFrame,
           originalStackFrame,
-          originalCodeFrame: originalCodeFrame('Fourth error message'),
+          originalCodeFrame: originalCodeFrame('typeof window !== undefined'),
         },
       ]),
+    type: 'runtime',
   },
 ]
 
@@ -232,6 +236,7 @@ export const WithHydrationWarning: Story = {
               },
             },
           ]),
+        type: 'runtime',
       },
     ],
     debugInfo: { devtoolsFrontendUrl: undefined },

@@ -2,6 +2,7 @@ import type {
   FlightRouterState,
   Segment as FlightRouterStateSegment,
 } from '../../../server/app-render/types'
+import { HasLoadingBoundary } from '../../../server/app-render/types'
 import { matchSegment } from '../match-segments'
 import {
   readOrCreateRouteCacheEntry,
@@ -26,7 +27,7 @@ import {
   getSegmentKeypathForTask,
 } from './cache'
 import type { RouteCacheKey } from './cache-key'
-import { PrefetchPriority } from '../segment-cache'
+import { getCurrentCacheVersion, PrefetchPriority } from '../segment-cache'
 
 const scheduleMicrotask =
   typeof queueMicrotask === 'function'
@@ -49,6 +50,12 @@ export type PrefetchTask = {
    * the first loading boundary.
    */
   treeAtTimeOfPrefetch: FlightRouterState
+
+  /**
+   * The cache version at the time the task was initiated. This is used to
+   * determine if the cache was invalidated since the task was initiated.
+   */
+  cacheVersion: number
 
   /**
    * Whether to prefetch dynamic data, in addition to static data. This is
@@ -106,6 +113,11 @@ export type PrefetchTask = {
   isCanceled: boolean
 
   /**
+   * The callback passed to `router.prefetch`, if given.
+   */
+  onInvalidate: null | (() => void)
+
+  /**
    * The index of the task in the heap's backing array. Used to efficiently
    * change the priority of a task by re-sifting it, which requires knowing
    * where it is in the array. This is only used internally by the heap
@@ -158,13 +170,15 @@ export type PrefetchSubtaskResult<T> = {
 
 const taskHeap: Array<PrefetchTask> = []
 
-// This is intentionally low so that when a navigation happens, the browser's
-// internal network queue is not already saturated with prefetch requests.
-const MAX_CONCURRENT_PREFETCH_REQUESTS = 3
 let inProgressRequests = 0
 
 let sortIdCounter = 0
 let didScheduleMicrotask = false
+
+// The most recently hovered (or touched, etc) link, i.e. the most recent task
+// scheduled at Intent priority. There's only ever a single task at Intent
+// priority at a time. We reserve special network bandwidth for this task only.
+let mostRecentlyHoveredLink: PrefetchTask | null = null
 
 /**
  * Initiates a prefetch task for the given URL. If a prefetch for the same URL
@@ -182,20 +196,26 @@ export function schedulePrefetchTask(
   key: RouteCacheKey,
   treeAtTimeOfPrefetch: FlightRouterState,
   includeDynamicData: boolean,
-  priority: PrefetchPriority
+  priority: PrefetchPriority,
+  onInvalidate: null | (() => void)
 ): PrefetchTask {
   // Spawn a new prefetch task
   const task: PrefetchTask = {
     key,
     treeAtTimeOfPrefetch,
+    cacheVersion: getCurrentCacheVersion(),
     priority,
     phase: PrefetchPhase.RouteTree,
     hasBackgroundWork: false,
     includeDynamicData,
     sortId: sortIdCounter++,
     isCanceled: false,
+    onInvalidate,
     _heapIndex: -1,
   }
+
+  trackMostRecentlyHoveredLink(task)
+
   heapPush(taskHeap, task)
 
   // Schedule an async task to process the queue.
@@ -240,10 +260,15 @@ export function reschedulePrefetchTask(
   // Assign a new sort ID to move it ahead of all other tasks at the same
   // priority level. (Higher sort IDs are processed first.)
   task.sortId = sortIdCounter++
-  task.priority = priority
+  task.priority =
+    // If this task is the most recently hovered link, maintain its
+    // Intent priority, even if the rescheduled priority is lower.
+    task === mostRecentlyHoveredLink ? PrefetchPriority.Intent : priority
 
   task.treeAtTimeOfPrefetch = treeAtTimeOfPrefetch
   task.includeDynamicData = includeDynamicData
+
+  trackMostRecentlyHoveredLink(task)
 
   if (task._heapIndex !== -1) {
     // The task is already in the queue.
@@ -254,11 +279,45 @@ export function reschedulePrefetchTask(
   ensureWorkIsScheduled()
 }
 
+export function isPrefetchTaskDirty(
+  task: PrefetchTask,
+  nextUrl: string | null,
+  tree: FlightRouterState
+): boolean {
+  // This is used to quickly bail out of a prefetch task if the result is
+  // guaranteed to not have changed since the task was initiated. This is
+  // strictly an optimization — theoretically, if it always returned true, no
+  // behavior should change because a full prefetch task will effectively
+  // perform the same checks.
+  const currentCacheVersion = getCurrentCacheVersion()
+  return (
+    task.cacheVersion !== currentCacheVersion ||
+    task.treeAtTimeOfPrefetch !== tree ||
+    task.key.nextUrl !== nextUrl
+  )
+}
+
+function trackMostRecentlyHoveredLink(task: PrefetchTask) {
+  // Track the mostly recently hovered link, i.e. the most recently scheduled
+  // task at Intent priority. There must only be one such task at a time.
+  if (
+    task.priority === PrefetchPriority.Intent &&
+    task !== mostRecentlyHoveredLink
+  ) {
+    if (mostRecentlyHoveredLink !== null) {
+      // Bump the previously hovered link's priority down to Default.
+      if (mostRecentlyHoveredLink.priority !== PrefetchPriority.Background) {
+        mostRecentlyHoveredLink.priority = PrefetchPriority.Default
+        heapResift(taskHeap, mostRecentlyHoveredLink)
+      }
+    }
+    mostRecentlyHoveredLink = task
+  }
+}
+
 function ensureWorkIsScheduled() {
-  if (didScheduleMicrotask || !hasNetworkBandwidth()) {
-    // Either we already scheduled a task to process the queue, or there are
-    // too many concurrent requests in progress. In the latter case, the
-    // queue will resume processing once more bandwidth is available.
+  if (didScheduleMicrotask) {
+    // Already scheduled a task to process the queue
     return
   }
   didScheduleMicrotask = true
@@ -271,12 +330,28 @@ function ensureWorkIsScheduled() {
  * cooperative limit — prefetch tasks should check this before issuing
  * new requests.
  */
-function hasNetworkBandwidth(): boolean {
+function hasNetworkBandwidth(task: PrefetchTask): boolean {
   // TODO: Also check if there's an in-progress navigation. We should never
   // add prefetch requests to the network queue if an actual navigation is
   // taking place, to ensure there's sufficient bandwidth for render-blocking
   // data and resources.
-  return inProgressRequests < MAX_CONCURRENT_PREFETCH_REQUESTS
+
+  // TODO: Consider reserving some amount of bandwidth for static prefetches.
+
+  if (task.priority === PrefetchPriority.Intent) {
+    // The most recently hovered link is allowed to exceed the default limit.
+    //
+    // The goal is to always have enough bandwidth to start a new prefetch
+    // request when hovering over a link.
+    //
+    // However, because we don't abort in-progress requests, it's still possible
+    // we'll run out of bandwidth. When links are hovered in quick succession,
+    // there could be multiple hover requests running simultaneously.
+    return inProgressRequests < 12
+  }
+
+  // The default limit is lower than the limit for a hovered link.
+  return inProgressRequests < 4
 }
 
 function spawnPrefetchSubtask<T>(
@@ -343,7 +418,9 @@ function processQueueInMicrotask() {
 
   // Process the task queue until we run out of network bandwidth.
   let task = heapPeek(taskHeap)
-  while (task !== null && hasNetworkBandwidth()) {
+  while (task !== null && hasNetworkBandwidth(task)) {
+    task.cacheVersion = getCurrentCacheVersion()
+
     const route = readOrCreateRouteCacheEntry(now, task)
     const exitStatus = pingRootRouteTree(now, task, route)
 
@@ -462,7 +539,7 @@ function pingRootRouteTree(
         return PrefetchTaskExitStatus.Done
       }
       // Recursively fill in the segment tree.
-      if (!hasNetworkBandwidth()) {
+      if (!hasNetworkBandwidth(task)) {
         // Stop prefetching segments until there's more bandwidth.
         return PrefetchTaskExitStatus.InProgress
       }
@@ -531,7 +608,7 @@ function pingPPRRouteTree(
   const segment = readOrCreateSegmentCacheEntry(now, task, route, tree.key)
   pingPerSegment(now, task, route, segment, task.key, tree.key)
   if (tree.slots !== null) {
-    if (!hasNetworkBandwidth()) {
+    if (!hasNetworkBandwidth(task)) {
       // Stop prefetching segments until there's more bandwidth.
       return PrefetchTaskExitStatus.InProgress
     }
@@ -608,20 +685,23 @@ function diffRouteTreeAgainstCurrent(
             // conservative about which segments to include in the request.
             //
             // The server will only render up to the first loading boundary
-            // inside new part of the tree. If there's no loading boundary, the
-            // server will never return any data. TODO: When we prefetch the
-            // route tree, the server should indicate whether there's a loading
-            // boundary so the client doesn't send a second request for no
-            // reason.
-            const requestTreeChild =
-              pingPPRDisabledRouteTreeUpToLoadingBoundary(
-                now,
-                task,
-                route,
-                newTreeChild,
-                null,
-                spawnedEntries
-              )
+            // inside new part of the tree. If there's no loading boundary
+            // anywhere in the tree, the server will never return any data, so
+            // we can skip the request.
+            const subtreeHasLoadingBoundary =
+              newTreeChild.hasLoadingBoundary !==
+              HasLoadingBoundary.SubtreeHasNoLoadingBoundary
+            const requestTreeChild = subtreeHasLoadingBoundary
+              ? pingPPRDisabledRouteTreeUpToLoadingBoundary(
+                  now,
+                  task,
+                  route,
+                  newTreeChild,
+                  null,
+                  spawnedEntries
+                )
+              : // There's no loading boundary within this tree. Bail out.
+                convertRouteTreeToFlightRouterState(newTreeChild)
             requestTreeChildren[parallelRouteKey] = requestTreeChild
             break
           }
@@ -724,9 +804,9 @@ function pingPPRDisabledRouteTreeUpToLoadingBoundary(
     }
     case EntryStatus.Fulfilled: {
       // The segment is already cached.
-      // TODO: The server should include a `hasLoading` field as part of the
-      // route tree prefetch.
-      if (segment.loading !== null) {
+      const segmentHasLoadingBoundary =
+        tree.hasLoadingBoundary === HasLoadingBoundary.SegmentHasLoadingBoundary
+      if (segmentHasLoadingBoundary) {
         // This segment has a loading boundary, which means the server won't
         // render its children. So there's nothing left to prefetch along this
         // path. We can bail out.

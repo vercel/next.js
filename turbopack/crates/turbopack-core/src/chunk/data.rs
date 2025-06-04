@@ -1,7 +1,7 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_hash::Xxh3Hash64Hasher;
 
 use crate::{
     chunk::{ModuleId, OutputChunk, OutputChunkRuntimeInfo},
@@ -27,13 +27,40 @@ pub struct ChunkDataOption(Option<ResolvedVc<ChunkData>>);
 #[turbo_tasks::value(transparent)]
 pub struct ChunksData(Vec<ResolvedVc<ChunkData>>);
 
-#[turbo_tasks::function]
-fn module_chunk_reference_description() -> Vc<RcStr> {
-    Vc::cell("module chunk".into())
+#[turbo_tasks::value_impl]
+impl ChunksData {
+    #[turbo_tasks::function]
+    pub async fn hash(&self) -> Result<Vc<u64>> {
+        let mut hasher = Xxh3Hash64Hasher::new();
+        for chunk in self.0.iter() {
+            hasher.write_value(chunk.await?.path.as_str());
+        }
+        Ok(Vc::cell(hasher.finish()))
+    }
 }
 
 #[turbo_tasks::value_impl]
 impl ChunkData {
+    #[turbo_tasks::function]
+    pub async fn hash(&self) -> Result<Vc<u64>> {
+        let mut hasher = Xxh3Hash64Hasher::new();
+        hasher.write_value(self.path.as_str());
+        for module in &self.included {
+            hasher.write_value(module);
+        }
+        for module in &self.excluded {
+            hasher.write_value(module);
+        }
+        for module_chunk in &self.module_chunks {
+            hasher.write_value(module_chunk.as_str());
+        }
+        for reference in self.references.await?.iter() {
+            hasher.write_value(reference.path().to_string().await?);
+        }
+
+        Ok(Vc::cell(hasher.finish()))
+    }
+
     #[turbo_tasks::function]
     pub async fn from_asset(
         output_root: Vc<FileSystemPath>,

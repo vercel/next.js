@@ -10,16 +10,13 @@ import { patchIncorrectLockfile } from '../../lib/patch-incorrect-lockfile'
 import { downloadNativeNextSwc, downloadWasmSwc } from '../../lib/download-swc'
 import type {
   NextConfigComplete,
-  TurboLoaderItem,
-  TurboRuleConfigItem,
-  TurboRuleConfigItemOptions,
-  TurboRuleConfigItemOrShortcut,
+  TurbopackLoaderItem,
+  TurbopackRuleConfigItem,
+  TurbopackRuleConfigItemOptions,
+  TurbopackRuleConfigItemOrShortcut,
 } from '../../server/config-shared'
 import { isDeepStrictEqual } from 'util'
-import {
-  type DefineEnvPluginOptions,
-  getDefineEnv,
-} from '../webpack/plugins/define-env-plugin'
+import { type DefineEnvOptions, getDefineEnv } from '../define-env'
 import { getReactCompilerLoader } from '../get-babel-loader-config'
 import type {
   NapiPartialProjectOptions,
@@ -27,6 +24,7 @@ import type {
 } from './generated-native'
 import type {
   Binding,
+  CompilationEvent,
   DefineEnv,
   Endpoint,
   HmrIdentifiers,
@@ -388,11 +386,12 @@ export function createDefineEnv({
   config,
   dev,
   distDir,
+  projectPath,
   fetchCacheKeyPrefix,
   hasRewrites,
   middlewareMatchers,
 }: Omit<
-  DefineEnvPluginOptions,
+  DefineEnvOptions,
   'isClient' | 'isNodeOrEdgeCompilation' | 'isEdgeServer' | 'isNodeServer'
 >): DefineEnv {
   let defineEnv: DefineEnv = {
@@ -409,11 +408,11 @@ export function createDefineEnv({
         config,
         dev,
         distDir,
+        projectPath,
         fetchCacheKeyPrefix,
         hasRewrites,
         isClient: variant === 'client',
         isEdgeServer: variant === 'edge',
-        isNodeOrEdgeCompilation: variant === 'nodejs' || variant === 'edge',
         isNodeServer: variant === 'nodejs',
         middlewareMatchers,
       })
@@ -712,6 +711,22 @@ function bindingToApi(
       )
     }
 
+    compilationEventsSubscribe() {
+      return subscribe<TurbopackResult<CompilationEvent>>(
+        true,
+        async (callback) => {
+          binding.projectCompilationEventsSubscribe(
+            this._nativeProject,
+            callback
+          )
+        }
+      )
+    }
+
+    invalidatePersistentCache(): Promise<void> {
+      return binding.projectInvalidatePersistentCache(this._nativeProject)
+    }
+
     shutdown(): Promise<void> {
       return binding.projectShutdown(this._nativeProject)
     }
@@ -786,24 +801,24 @@ function bindingToApi(
     if (reactCompilerOptions) {
       const ruleKeys = ['*.ts', '*.js', '*.jsx', '*.tsx']
       if (
-        Object.keys(nextConfig?.experimental?.turbo?.rules ?? []).some((key) =>
+        Object.keys(nextConfig?.turbopack?.rules ?? []).some((key) =>
           ruleKeys.includes(key)
         )
       ) {
         Log.warn(
-          `The React Compiler cannot be enabled automatically because 'experimental.turbo' contains a rule for '*.ts', '*.js', '*.jsx', and '*.tsx'. Remove this rule, or add 'babel-loader' and 'babel-plugin-react-compiler' to the Turbopack configuration manually.`
+          `The React Compiler cannot be enabled automatically because 'turbopack.rules' contains a rule for '*.ts', '*.js', '*.jsx', and '*.tsx'. Remove this rule, or add 'babel-loader' and 'babel-plugin-react-compiler' to the Turbopack configuration manually.`
         )
       } else {
-        if (!nextConfig.experimental.turbo) {
-          nextConfig.experimental.turbo = {}
+        if (!nextConfig.turbopack) {
+          nextConfig.turbopack = {}
         }
 
-        if (!nextConfig.experimental.turbo.rules) {
-          nextConfig.experimental.turbo.rules = {}
+        if (!nextConfig.turbopack.rules) {
+          nextConfig.turbopack.rules = {}
         }
 
         for (const key of ['*.ts', '*.js', '*.jsx', '*.tsx']) {
-          nextConfig.experimental.turbo.rules[key] = {
+          nextConfig.turbopack.rules[key] = {
             browser: {
               foreign: false,
               loaders: [
@@ -840,7 +855,7 @@ function bindingToApi(
 
     if (nextConfigSerializable.experimental?.turbo?.rules) {
       ensureLoadersHaveSerializableOptions(
-        nextConfigSerializable.experimental.turbo?.rules
+        nextConfigSerializable.turbopack?.rules
       )
     }
 
@@ -874,11 +889,38 @@ function bindingToApi(
       }
     }
 
+    const conditions: (typeof nextConfig)['turbopack']['conditions'] =
+      nextConfigSerializable.turbopack?.conditions
+    if (conditions) {
+      type SerializedConditions = {
+        [key: string]: {
+          path:
+            | { type: 'regex'; value: { source: string; flags: string } }
+            | { type: 'glob'; value: string }
+        }
+      }
+
+      const serializedConditions: SerializedConditions = {}
+      for (const [key, value] of Object.entries(conditions)) {
+        serializedConditions[key] = {
+          ...value,
+          path:
+            value.path instanceof RegExp
+              ? {
+                  type: 'regex',
+                  value: { source: value.path.source, flags: value.path.flags },
+                }
+              : { type: 'glob', value: value.path },
+        }
+      }
+      nextConfigSerializable.turbopack.conditions = serializedConditions
+    }
+
     return JSON.stringify(nextConfigSerializable, null, 2)
   }
 
   function ensureLoadersHaveSerializableOptions(
-    turbopackRules: Record<string, TurboRuleConfigItemOrShortcut>
+    turbopackRules: Record<string, TurbopackRuleConfigItemOrShortcut>
   ) {
     for (const [glob, rule] of Object.entries(turbopackRules)) {
       if (Array.isArray(rule)) {
@@ -888,10 +930,10 @@ function bindingToApi(
       }
     }
 
-    function checkConfigItem(rule: TurboRuleConfigItem, glob: string) {
+    function checkConfigItem(rule: TurbopackRuleConfigItem, glob: string) {
       if (!rule) return
       if ('loaders' in rule) {
-        checkLoaderItems((rule as TurboRuleConfigItemOptions).loaders, glob)
+        checkLoaderItems((rule as TurbopackRuleConfigItemOptions).loaders, glob)
       } else {
         for (const key in rule) {
           const inner = rule[key]
@@ -902,7 +944,10 @@ function bindingToApi(
       }
     }
 
-    function checkLoaderItems(loaderItems: TurboLoaderItem[], glob: string) {
+    function checkLoaderItems(
+      loaderItems: TurbopackLoaderItem[],
+      glob: string
+    ) {
       for (const loaderItem of loaderItems) {
         if (
           typeof loaderItem !== 'string' &&
@@ -1101,6 +1146,11 @@ async function loadWasm(importPath = '') {
             return bindings.mdxCompileSync(src, getMdxOptions(options))
           },
         },
+        reactCompiler: {
+          isReactCompilerRequired(_filename: string) {
+            return Promise.resolve(true)
+          },
+        },
       }
       return wasmBindings
     } catch (e: any) {
@@ -1247,7 +1297,7 @@ function loadNative(importPath?: string) {
         createProject: bindingToApi(customBindings ?? bindings, false),
         startTurbopackTraceServer(traceFilePath) {
           Log.warn(
-            'Turbopack trace server started. View trace at https://turbo-trace-viewer.vercel.app/'
+            'Turbopack trace server started. View trace at https://trace.nextjs.org'
           )
           ;(customBindings ?? bindings).startTurbopackTraceServer(traceFilePath)
         },
@@ -1270,6 +1320,11 @@ function loadNative(importPath?: string) {
               transformAttrOptions
             )
           },
+        },
+      },
+      reactCompiler: {
+        isReactCompilerRequired: (filename: string) => {
+          return bindings.isReactCompilerRequired(filename)
         },
       },
     }
@@ -1315,6 +1370,13 @@ export async function minify(
 ): Promise<{ code: string; map: any }> {
   let bindings = await loadBindings()
   return bindings.minify(src, options)
+}
+
+export async function isReactCompilerRequired(
+  filename: string
+): Promise<boolean> {
+  let bindings = await loadBindings()
+  return bindings.reactCompiler.isReactCompilerRequired(filename)
 }
 
 export async function parse(src: string, options: any): Promise<any> {

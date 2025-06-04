@@ -14,14 +14,16 @@ import {
 export type CodeFrameProps = { stackFrame: StackFrame; codeFrame: string }
 
 export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
-  const formattedFrame = useMemo<string>(
-    () => formatCodeFrame(codeFrame),
-    [codeFrame]
-  )
-  const decodedLines = useMemo(
-    () => groupCodeFrameLines(formattedFrame),
-    [formattedFrame]
-  )
+  const parsedLineStates = useMemo(() => {
+    const decodedLines = groupCodeFrameLines(formatCodeFrame(codeFrame))
+
+    return decodedLines.map((line) => {
+      return {
+        line,
+        parsedLine: parseLineNumberFromCodeFrameLine(line, stackFrame),
+      }
+    })
+  }, [codeFrame, stackFrame])
 
   const open = useOpenInEditor({
     file: stackFrame.file,
@@ -60,41 +62,42 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
         </p>
       </div>
       <pre className="code-frame-pre">
-        {decodedLines.map((line, lineIndex) => {
-          const { lineNumber, isErroredLine } =
-            parseLineNumberFromCodeFrameLine(line, stackFrame)
+        <div className="code-frame-lines">
+          {parsedLineStates.map(({ line, parsedLine }, lineIndex) => {
+            const { lineNumber, isErroredLine } = parsedLine
 
-          const lineNumberProps: Record<string, string | boolean> = {}
-          if (lineNumber) {
-            lineNumberProps['data-nextjs-codeframe-line'] = lineNumber
-          }
-          if (isErroredLine) {
-            lineNumberProps['data-nextjs-codeframe-line--errored'] = true
-          }
+            const lineNumberProps: Record<string, string | boolean> = {}
+            if (lineNumber) {
+              lineNumberProps['data-nextjs-codeframe-line'] = lineNumber
+            }
+            if (isErroredLine) {
+              lineNumberProps['data-nextjs-codeframe-line--errored'] = true
+            }
 
-          return (
-            <div key={`line-${lineIndex}`} {...lineNumberProps}>
-              {line.map((entry, entryIndex) => (
-                <span
-                  key={`frame-${entryIndex}`}
-                  style={{
-                    color: entry.fg ? `var(--color-${entry.fg})` : undefined,
-                    ...(entry.decoration === 'bold'
-                      ? // TODO(jiwon): This used to be 800, but the symbols like `─┬─` are
-                        // having longer width than expected on Geist Mono font-weight
-                        // above 600, hence a temporary fix is to use 500 for bold.
-                        { fontWeight: 500 }
-                      : entry.decoration === 'italic'
-                        ? { fontStyle: 'italic' }
-                        : undefined),
-                  }}
-                >
-                  {entry.content}
-                </span>
-              ))}
-            </div>
-          )
-        })}
+            return (
+              <div key={`line-${lineIndex}`} {...lineNumberProps}>
+                {line.map((entry, entryIndex) => (
+                  <span
+                    key={`frame-${entryIndex}`}
+                    style={{
+                      color: entry.fg ? `var(--color-${entry.fg})` : undefined,
+                      ...(entry.decoration === 'bold'
+                        ? // TODO(jiwon): This used to be 800, but the symbols like `─┬─` are
+                          // having longer width than expected on Geist Mono font-weight
+                          // above 600, hence a temporary fix is to use 500 for bold.
+                          { fontWeight: 500 }
+                        : entry.decoration === 'italic'
+                          ? { fontStyle: 'italic' }
+                          : undefined),
+                    }}
+                  >
+                    {entry.content}
+                  </span>
+                ))}
+              </div>
+            )
+          })}
+        </div>
       </pre>
     </div>
   )
@@ -128,6 +131,10 @@ export const CODE_FRAME_STYLES = `
 
   .code-frame-link svg {
     flex-shrink: 0;
+  }
+
+  .code-frame-lines {
+    min-width: max-content;
   }
 
   .code-frame-link [data-text] {

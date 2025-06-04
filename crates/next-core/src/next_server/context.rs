@@ -1,7 +1,7 @@
 use std::iter::once;
 
-use anyhow::{bail, Result};
-use turbo_rcstr::RcStr;
+use anyhow::{Result, bail};
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, OptionVcExt, ResolvedVc, Value, Vc};
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::FileSystemPath;
@@ -15,7 +15,10 @@ use turbopack::{
     transition::Transition,
 };
 use turbopack_core::{
-    chunk::{module_id_strategies::ModuleIdStrategy, ChunkingConfig, MinifyType, SourceMapsType},
+    chunk::{
+        ChunkingConfig, MangleType, MinifyType, SourceMapsType,
+        module_id_strategies::ModuleIdStrategy,
+    },
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
         FreeVarReferences,
@@ -50,9 +53,9 @@ use crate::{
     next_server::resolve::ExternalPredicate,
     next_shared::{
         resolve::{
-            get_invalid_client_only_resolve_plugin, get_invalid_styled_jsx_resolve_plugin,
             ModuleFeatureReportResolvePlugin, NextExternalResolvePlugin,
-            NextNodeSharedRuntimeResolvePlugin,
+            NextNodeSharedRuntimeResolvePlugin, get_invalid_client_only_resolve_plugin,
+            get_invalid_styled_jsx_resolve_plugin,
         },
         transforms::{
             emotion::get_emotion_transform_rule, get_ecma_transform_rule,
@@ -70,13 +73,13 @@ use crate::{
         get_typescript_transform_options,
     },
     util::{
-        foreign_code_context_condition, get_transpiled_packages, internal_assets_conditions,
-        load_next_js_templateon, NextRuntime,
+        NextRuntime, foreign_code_context_condition, get_transpiled_packages,
+        internal_assets_conditions, load_next_js_templateon,
     },
 };
 
 #[turbo_tasks::value(shared, serialization = "auto_for_input")]
-#[derive(Debug, Copy, Clone, Hash)]
+#[derive(Debug, Clone, Hash)]
 pub enum ServerContextType {
     Pages {
         pages_dir: ResolvedVc<FileSystemPath>,
@@ -92,20 +95,20 @@ pub enum ServerContextType {
     },
     AppRSC {
         app_dir: ResolvedVc<FileSystemPath>,
-        ecmascript_client_reference_transition_name: Option<ResolvedVc<RcStr>>,
+        ecmascript_client_reference_transition_name: Option<RcStr>,
         client_transition: Option<ResolvedVc<Box<dyn Transition>>>,
     },
     AppRoute {
         app_dir: ResolvedVc<FileSystemPath>,
-        ecmascript_client_reference_transition_name: Option<ResolvedVc<RcStr>>,
+        ecmascript_client_reference_transition_name: Option<RcStr>,
     },
     Middleware {
         app_dir: Option<ResolvedVc<FileSystemPath>>,
-        ecmascript_client_reference_transition_name: Option<ResolvedVc<RcStr>>,
+        ecmascript_client_reference_transition_name: Option<RcStr>,
     },
     Instrumentation {
         app_dir: Option<ResolvedVc<FileSystemPath>>,
-        ecmascript_client_reference_transition_name: Option<ResolvedVc<RcStr>>,
+        ecmascript_client_reference_transition_name: Option<RcStr>,
     },
 }
 
@@ -130,10 +133,15 @@ pub async fn get_server_resolve_options_context(
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ResolveOptionsContext>> {
-    let next_server_import_map =
-        get_next_server_import_map(*project_path, ty, next_config, execution_context)
-            .to_resolved()
-            .await?;
+    let next_server_import_map = get_next_server_import_map(
+        *project_path,
+        ty.clone(),
+        next_config,
+        mode,
+        execution_context,
+    )
+    .to_resolved()
+    .await?;
     let foreign_code_context_condition =
         foreign_code_context_condition(next_config, project_path).await?;
     let root_dir = project_path.root().to_resolved().await?;
@@ -151,7 +159,7 @@ pub async fn get_server_resolve_options_context(
     // Always load these predefined packages as external.
     let mut external_packages: Vec<RcStr> = load_next_js_templateon(
         project_path,
-        "dist/lib/server-external-packages.json".into(),
+        rcstr!("dist/lib/server-external-packages.json"),
     )
     .await?;
 
@@ -206,7 +214,7 @@ pub async fn get_server_resolve_options_context(
     );
 
     if ty.supports_react_server() {
-        custom_conditions.push("react-server".into());
+        custom_conditions.push(rcstr!("react-server"));
     };
 
     let external_cjs_modules_plugin = if *next_config.bundle_pages_router_dependencies().await? {
@@ -226,11 +234,11 @@ pub async fn get_server_resolve_options_context(
         .to_resolved()
         .await?;
     let next_node_shared_runtime_plugin =
-        NextNodeSharedRuntimeResolvePlugin::new(*project_path, Value::new(ty))
+        NextNodeSharedRuntimeResolvePlugin::new(*project_path, Value::new(ty.clone()))
             .to_resolved()
             .await?;
 
-    let mut before_resolve_plugins = match ty {
+    let mut before_resolve_plugins = match &ty {
         ServerContextType::Pages { .. }
         | ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. } => {
@@ -412,7 +420,7 @@ pub async fn get_server_module_options_context(
     let next_mode = mode.await?;
     let mut next_server_rules = get_next_server_transforms_rules(
         next_config,
-        ty.into_value(),
+        ty.clone().into_value(),
         mode,
         false,
         next_runtime,
@@ -421,7 +429,7 @@ pub async fn get_server_module_options_context(
     .await?;
     let mut foreign_next_server_rules = get_next_server_transforms_rules(
         next_config,
-        ty.into_value(),
+        ty.clone().into_value(),
         mode,
         true,
         next_runtime,
@@ -429,7 +437,7 @@ pub async fn get_server_module_options_context(
     )
     .await?;
     let mut internal_custom_rules = get_next_server_internal_transforms_rules(
-        ty.into_value(),
+        ty.clone().into_value(),
         next_config.mdx_rs().await?.is_some(),
     )
     .await?;
@@ -475,7 +483,7 @@ pub async fn get_server_module_options_context(
         conditions
             .iter()
             .cloned()
-            .chain(once("foreign".into()))
+            .chain(once(rcstr!("foreign")))
             .collect(),
     )
     .await?;
@@ -533,25 +541,22 @@ pub async fn get_server_module_options_context(
         get_styled_components_transform_rule(next_config).await?;
     let styled_jsx_transform_rule = get_styled_jsx_transform_rule(next_config, versions).await?;
 
+    let source_maps = if *next_config.server_source_maps().await? {
+        SourceMapsType::Full
+    } else {
+        SourceMapsType::None
+    };
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
             enable_typeof_window_inlining: Some(TypeofWindow::Undefined),
             import_externals: *next_config.import_externals().await?,
             ignore_dynamic_requests: true,
-            source_maps: if *next_config.turbo_source_maps().await? {
-                SourceMapsType::Full
-            } else {
-                SourceMapsType::None
-            },
+            source_maps,
             ..Default::default()
         },
         execution_context: Some(execution_context),
         css: CssOptionsContext {
-            source_maps: if *next_config.turbo_source_maps().await? {
-                SourceMapsType::Full
-            } else {
-                SourceMapsType::None
-            },
+            source_maps,
             ..Default::default()
         },
         tree_shaking_mode: tree_shaking_mode_for_user_code,
@@ -983,9 +988,9 @@ pub async fn get_server_chunking_context_with_client_assets(
     mode: Vc<NextMode>,
     root_path: ResolvedVc<FileSystemPath>,
     node_root: ResolvedVc<FileSystemPath>,
-    node_root_to_root_path: ResolvedVc<RcStr>,
+    node_root_to_root_path: RcStr,
     client_root: ResolvedVc<FileSystemPath>,
-    asset_prefix: ResolvedVc<Option<RcStr>>,
+    asset_prefix: Option<RcStr>,
     environment: ResolvedVc<Environment>,
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     turbo_minify: Vc<bool>,
@@ -1002,11 +1007,11 @@ pub async fn get_server_chunking_context_with_client_assets(
         node_root_to_root_path,
         client_root,
         node_root
-            .join("server/chunks/ssr".into())
+            .join(rcstr!("server/chunks/ssr"))
             .to_resolved()
             .await?,
         client_root
-            .join("static/media".into())
+            .join(rcstr!("static/media"))
             .to_resolved()
             .await?,
         environment,
@@ -1015,7 +1020,8 @@ pub async fn get_server_chunking_context_with_client_assets(
     .asset_prefix(asset_prefix)
     .minify_type(if *turbo_minify.await? {
         MinifyType::Minify {
-            mangle: !*no_mangling.await?,
+            // React needs deterministic function names to work correctly.
+            mangle: (!*no_mangling.await?).then_some(MangleType::Deterministic),
         }
     } else {
         MinifyType::NoMinify
@@ -1057,7 +1063,7 @@ pub async fn get_server_chunking_context(
     mode: Vc<NextMode>,
     root_path: ResolvedVc<FileSystemPath>,
     node_root: ResolvedVc<FileSystemPath>,
-    node_root_to_root_path: ResolvedVc<RcStr>,
+    node_root_to_root_path: RcStr,
     environment: ResolvedVc<Environment>,
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     turbo_minify: Vc<bool>,
@@ -1073,14 +1079,20 @@ pub async fn get_server_chunking_context(
         node_root,
         node_root_to_root_path,
         node_root,
-        node_root.join("server/chunks".into()).to_resolved().await?,
-        node_root.join("server/assets".into()).to_resolved().await?,
+        node_root
+            .join(rcstr!("server/chunks"))
+            .to_resolved()
+            .await?,
+        node_root
+            .join(rcstr!("server/assets"))
+            .to_resolved()
+            .await?,
         environment,
         next_mode.runtime_type(),
     )
     .minify_type(if *turbo_minify.await? {
         MinifyType::Minify {
-            mangle: !*no_mangling.await?,
+            mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),
         }
     } else {
         MinifyType::NoMinify

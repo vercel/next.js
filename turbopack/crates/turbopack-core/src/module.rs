@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc, Vc};
+use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
 
 use crate::{asset::Asset, ident::AssetIdent, reference::ModuleReferences};
 

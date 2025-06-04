@@ -51,7 +51,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
       /That only works in a Server Component/
     )
 
-    if (process.env.TURBOPACK) {
+    if (process.env.IS_TURBOPACK_TEST) {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
         .toMatchInlineSnapshot(`
        "./components/Comp.js (1:1)
@@ -89,10 +89,9 @@ describe('Error Overlay for server components compiler errors in pages', () => {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
         .toMatchInlineSnapshot(`
        "./components/Comp.js
-       Error:   x You're importing a component that needs "next/headers". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-
-         | your-application/rendering/server-components
-         | 
-         | 
+       Error:   x You're importing a component that needs "next/headers". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+         |
+
           ,-[1:1]
         1 | import { cookies } from 'next/headers'
           : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -128,7 +127,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
       /That only works in a Server Component/
     )
 
-    if (process.env.TURBOPACK) {
+    if (process.env.IS_TURBOPACK_TEST) {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
         .toMatchInlineSnapshot(`
        "./components/Comp.js (1:1)
@@ -170,10 +169,9 @@ describe('Error Overlay for server components compiler errors in pages', () => {
         )
       ).toMatchInlineSnapshot(`
        "./components/Comp.js
-       Error:   x You're importing a component that needs "server-only". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-
-         | application/rendering/server-components
-         | 
-         | 
+       Error:   x You're importing a component that needs "server-only". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+         |
+
           ,-[1:1]
         1 | import 'server-only'
           : ^^^^^^^^^^^^^^^^^^^^
@@ -207,7 +205,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
       /That only works in a Server Component/
     )
 
-    if (process.env.TURBOPACK) {
+    if (process.env.IS_TURBOPACK_TEST) {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
         .toMatchInlineSnapshot(`
        "./components/Comp.js (1:10)
@@ -249,10 +247,9 @@ describe('Error Overlay for server components compiler errors in pages', () => {
         )
       ).toMatchInlineSnapshot(`
        "./components/Comp.js
-       Error:   x You're importing a component that needs "after". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-
-         | application/rendering/server-components
-         | 
-         | 
+       Error:   x You're importing a component that needs "after". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+         |
+
           ,-[1:1]
         1 | import { after } from 'next/server'
           :          ^^^^^

@@ -51,7 +51,7 @@ import {
   type ActionStore,
 } from '../../app-render/action-async-storage.external'
 import * as sharedModules from './shared-modules'
-import { getIsServerAction } from '../../lib/server-action-request-meta'
+import { getIsPossibleServerAction } from '../../lib/server-action-request-meta'
 import { RequestCookies } from 'next/dist/compiled/@edge-runtime/cookies'
 import { cleanURL } from './helpers/clean-url'
 import { StaticGenBailoutError } from '../../../client/components/static-generation-bailout'
@@ -83,6 +83,7 @@ import {
 import { RedirectStatusCode } from '../../../client/components/redirect-status-code'
 import { INFINITE_CACHE } from '../../../lib/constants'
 import { executeRevalidates } from '../../revalidation-utils'
+import { trackPendingModules } from '../../app-render/module-loading/track-module-loading.external'
 
 export class WrappedNextRouterError {
   constructor(
@@ -214,10 +215,12 @@ export class AppRouteRouteModule extends RouteModule<
   constructor({
     userland,
     definition,
+    distDir,
+    projectDir,
     resolvedPagePath,
     nextConfigOutput,
   }: AppRouteRouteModuleOptions) {
-    super({ userland, definition })
+    super({ userland, definition, distDir, projectDir })
 
     this.resolvedPagePath = resolvedPagePath
     this.nextConfigOutput = nextConfigOutput
@@ -439,6 +442,8 @@ export class AppRouteRouteModule extends RouteModule<
               }
             )
           }
+
+          trackPendingModules(cacheSignal)
           await cacheSignal.cacheReady()
 
           if (prospectiveRenderIsDynamic) {
@@ -669,7 +674,7 @@ export class AppRouteRouteModule extends RouteModule<
 
     const actionStore: ActionStore = {
       isAppRoute: true,
-      isAction: getIsServerAction(req),
+      isAction: getIsPossibleServerAction(req),
     }
 
     const implicitTags = await getImplicitTags(
@@ -1127,7 +1132,7 @@ function createDynamicIOError(route: string) {
   )
 }
 
-export function trackDynamic(
+function trackDynamic(
   store: WorkStore,
   workUnitStore: undefined | WorkUnitStore,
   expression: string

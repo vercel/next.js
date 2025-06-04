@@ -25,6 +25,7 @@ import type { InitialRSCPayload } from '../server/app-render/types'
 import { createInitialRouterState } from './components/router-reducer/create-initial-router-state'
 import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runtime'
 import { setAppBuildId } from './app-build-id'
+import { isBot } from '../shared/lib/router/utils/is-bot'
 
 /// <reference types="react-dom/experimental" />
 
@@ -169,6 +170,7 @@ function ServerRoot({
 
   const router = (
     <AppRouter
+      gracefullyDegrade={isBot(window.navigator.userAgent)}
       actionQueue={actionQueue}
       globalErrorComponentAndStyles={initialRSCPayload.G}
       assetPrefix={initialRSCPayload.p}

@@ -320,13 +320,13 @@ module.exports = {
 
 <AppOnly>
 
-When leveraging [`i18n` support](/docs/app/building-your-application/routing/internationalization) with headers each `source` is automatically prefixed to handle the configured `locales` unless you add `locale: false` to the header. If `locale: false` is used you must prefix the `source` with a locale for it to be matched correctly.
+When leveraging [`i18n` support](/docs/app/guides/internationalization) with headers each `source` is automatically prefixed to handle the configured `locales` unless you add `locale: false` to the header. If `locale: false` is used you must prefix the `source` with a locale for it to be matched correctly.
 
 </AppOnly>
 
 <PagesOnly>
 
-When leveraging [`i18n` support](/docs/pages/building-your-application/routing/internationalization) with headers each `source` is automatically prefixed to handle the configured `locales` unless you add `locale: false` to the header. If `locale: false` is used you must prefix the `source` with a locale for it to be matched correctly.
+When leveraging [`i18n` support](/docs/pages/guides/internationalization) with headers each `source` is automatically prefixed to handle the configured `locales` unless you add `locale: false` to the header. If `locale: false` is used you must prefix the `source` with a locale for it to be matched correctly.
 
 </PagesOnly>
 
@@ -388,13 +388,13 @@ module.exports = {
 
 ## Cache-Control
 
-Next.js sets the `Cache-Control` header of `public, max-age=31536000, immutable` for truly immutable assets. It cannot be overridden. These immutable files contain a SHA-hash in the file name, so they can be safely cached indefinitely. For example, [Static Image Imports](/docs/app/building-your-application/optimizing/images#local-images). You cannot set `Cache-Control` headers in `next.config.js` for these assets.
+Next.js sets the `Cache-Control` header of `public, max-age=31536000, immutable` for truly immutable assets. It cannot be overridden. These immutable files contain a SHA-hash in the file name, so they can be safely cached indefinitely. For example, [Static Image Imports](/docs/app/getting-started/images#local-images). You cannot set `Cache-Control` headers in `next.config.js` for these assets.
 
 However, you can set `Cache-Control` headers for other responses or data.
 
 <AppOnly>
 
-Learn more about [caching](/docs/app/building-your-application/caching) with the App Router.
+Learn more about [caching](/docs/app/deep-dive/caching) with the App Router.
 
 </AppOnly>
 
@@ -518,8 +518,6 @@ async headers() {
 
 [This header](https://developer.mozilla.org/docs/Web/HTTP/Headers/Strict-Transport-Security) informs browsers it should only be accessed using HTTPS, instead of using HTTP. Using the configuration below, all present and future subdomains will use HTTPS for a `max-age` of 2 years. This blocks access to pages or subdomains that can only be served over HTTP.
 
-If you're deploying to [Vercel](https://vercel.com/docs/concepts/edge-network/headers#strict-transport-security?utm_source=next-site&utm_medium=docs&utm_campaign=next-website), this header is not necessary as it's automatically added to all deployments unless you declare `headers` in your `next.config.js`.
-
 ```js
 {
   key: 'Strict-Transport-Security',
@@ -531,7 +529,7 @@ If you're deploying to [Vercel](https://vercel.com/docs/concepts/edge-network/he
 
 [This header](https://developer.mozilla.org/docs/Web/HTTP/Headers/X-Frame-Options) indicates whether the site should be allowed to be displayed within an `iframe`. This can prevent against clickjacking attacks.
 
-**This header has been superseded by CSP's `frame-ancestors` option**, which has better support in modern browsers (see [Content Security Policy](/docs/app/building-your-application/configuring/content-security-policy) for configuration details).
+**This header has been superseded by CSP's `frame-ancestors` option**, which has better support in modern browsers (see [Content Security Policy](/docs/app/guides/content-security-policy) for configuration details).
 
 ```js
 {
@@ -577,7 +575,7 @@ For example, a user trying to download an image, but having it treated as a diff
 
 ### Content-Security-Policy
 
-Learn more about adding a [Content Security Policy](/docs/app/building-your-application/configuring/content-security-policy) to your application.
+Learn more about adding a [Content Security Policy](/docs/app/guides/content-security-policy) to your application.
 
 ## Version History
 

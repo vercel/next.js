@@ -374,7 +374,7 @@ describe('app dir - css', () => {
       })
 
       // Turbopack doesn't preload styles
-      if (!process.env.TURBOPACK) {
+      if (!process.env.IS_TURBOPACK_TEST) {
         it('should not preload styles twice during HMR', async () => {
           const filePath = 'app/hmr/page.js'
           const origContent = await next.readFile(filePath)
@@ -482,7 +482,7 @@ describe('app dir - css', () => {
         it('should only include the same style once in the flight data', async () => {
           const initialHtml = await next.render('/css/css-duplicate-2/server')
 
-          if (process.env.TURBOPACK) {
+          if (process.env.IS_TURBOPACK_TEST) {
             expect(
               initialHtml.match(/app_css_css-duplicate-2_[\w]+\.css/g).length
             ).toBe(5)
@@ -491,6 +491,12 @@ describe('app dir - css', () => {
 
             const matches = initialHtml
               .match(/\/_next\/static\/css\/.+?\.css/g)
+              // The same css chunk could be split into 2 RSC script
+              // normalize "/_next/static/css/app/\"])</script><script>self.__next_f.push([1,\"not-found.css"
+              // to "/_next/static/css/app/not-found.css"
+              .map((href) =>
+                href.replace('"])</script><script>self.__next_f.push([1,"', '')
+              )
               .sort()
 
             // Heavy on testing React implementation details.

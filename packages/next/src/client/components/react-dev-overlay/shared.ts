@@ -1,12 +1,13 @@
 import { useReducer } from 'react'
 
-import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import type { VersionInfo } from '../../../server/dev/parse-version-info'
 import type { SupportedErrorEvent } from './ui/container/runtime-error/render-error'
-import type { ComponentStackFrame } from './utils/parse-component-stack'
+import { parseComponentStack } from './utils/parse-component-stack'
 import type { DebugInfo } from './types'
 import type { DevIndicatorServerState } from '../../../server/dev/dev-indicator-server-state'
 import type { HMR_ACTION_TYPES } from '../../../server/dev/hot-reloader-types'
+import { parseStack } from './utils/parse-stack'
+import { isConsoleError } from '../errors/console-error'
 
 type FastRefreshState =
   /** No refresh in progress. */
@@ -26,7 +27,9 @@ export interface OverlayState {
   disableDevIndicator: boolean
   debugInfo: DebugInfo
   routerType: 'pages' | 'app'
+  isErrorOverlayOpen: boolean
 }
+export type OverlayDispatch = React.Dispatch<BusEvent>
 
 export const ACTION_STATIC_INDICATOR = 'static-indicator'
 export const ACTION_BUILD_OK = 'build-ok'
@@ -38,6 +41,9 @@ export const ACTION_UNHANDLED_ERROR = 'unhandled-error'
 export const ACTION_UNHANDLED_REJECTION = 'unhandled-rejection'
 export const ACTION_DEBUG_INFO = 'debug-info'
 export const ACTION_DEV_INDICATOR = 'dev-indicator'
+export const ACTION_ERROR_OVERLAY_OPEN = 'error-overlay-open'
+export const ACTION_ERROR_OVERLAY_CLOSE = 'error-overlay-close'
+export const ACTION_ERROR_OVERLAY_TOGGLE = 'error-overlay-toggle'
 
 export const STORAGE_KEY_THEME = '__nextjs-dev-tools-theme'
 export const STORAGE_KEY_POSITION = '__nextjs-dev-tools-position'
@@ -65,13 +71,10 @@ interface FastRefreshAction {
 export interface UnhandledErrorAction {
   type: typeof ACTION_UNHANDLED_ERROR
   reason: Error
-  frames: StackFrame[]
-  componentStackFrames?: ComponentStackFrame[]
 }
 export interface UnhandledRejectionAction {
   type: typeof ACTION_UNHANDLED_REJECTION
   reason: Error
-  frames: StackFrame[]
 }
 
 export interface DebugInfoAction {
@@ -89,6 +92,16 @@ interface DevIndicatorAction {
   devIndicator: DevIndicatorServerState
 }
 
+export interface ErrorOverlayOpenAction {
+  type: typeof ACTION_ERROR_OVERLAY_OPEN
+}
+export interface ErrorOverlayCloseAction {
+  type: typeof ACTION_ERROR_OVERLAY_CLOSE
+}
+export interface ErrorOverlayToggleAction {
+  type: typeof ACTION_ERROR_OVERLAY_TOGGLE
+}
+
 export type BusEvent =
   | BuildOkAction
   | BuildErrorAction
@@ -100,24 +113,30 @@ export type BusEvent =
   | StaticIndicatorAction
   | DebugInfoAction
   | DevIndicatorAction
+  | ErrorOverlayOpenAction
+  | ErrorOverlayCloseAction
+  | ErrorOverlayToggleAction
 
-function pushErrorFilterDuplicates(
-  errors: SupportedErrorEvent[],
-  err: SupportedErrorEvent
-): SupportedErrorEvent[] {
-  return [
-    ...errors.filter((e) => {
-      // Filter out duplicate errors
-      return e.event.reason.stack !== err.event.reason.stack
-    }),
-    err,
-  ]
+const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX =
+  // 1st group: v8
+  // 2nd group: SpiderMonkey, JavaScriptCore
+  /\s+(at react-stack-bottom-frame.*)|(react-stack-bottom-frame@.*)/
+
+// React calls user code starting from a special stack frame.
+// The basic stack will be different if the same error location is hit again
+// due to StrictMode.
+// This gets only the stack after React which is unaffected by StrictMode.
+function getStackIgnoringStrictMode(stack: string | undefined) {
+  return stack?.split(REACT_ERROR_STACK_BOTTOM_FRAME_REGEX)[0]
 }
 
 const shouldDisableDevIndicator =
   process.env.__NEXT_DEV_INDICATOR?.toString() === 'false'
 
-export const INITIAL_OVERLAY_STATE: Omit<OverlayState, 'routerType'> = {
+export const INITIAL_OVERLAY_STATE: Omit<
+  OverlayState,
+  'isErrorOverlayOpen' | 'routerType'
+> = {
   nextId: 1,
   buildError: null,
   errors: [],
@@ -140,11 +159,57 @@ function getInitialState(
 ): OverlayState & { routerType: 'pages' | 'app' } {
   return {
     ...INITIAL_OVERLAY_STATE,
+    // Pages Router only listenes to thrown errors which
+    // always open the overlay.
+    // TODO: Should be the same default as App Router once we surface console.error in Pages Router.
+    isErrorOverlayOpen: routerType === 'pages',
     routerType,
   }
 }
 
-export function useErrorOverlayReducer(routerType: 'pages' | 'app') {
+export function useErrorOverlayReducer(
+  routerType: 'pages' | 'app',
+  getComponentStack: (error: Error) => string | undefined,
+  getOwnerStack: (error: Error) => string | null | undefined,
+  isRecoverableError: (error: Error) => boolean
+) {
+  function pushErrorFilterDuplicates(
+    events: SupportedErrorEvent[],
+    id: number,
+    error: Error
+  ): SupportedErrorEvent[] {
+    const componentStack = getComponentStack(error)
+    const componentStackFrames =
+      componentStack === undefined
+        ? undefined
+        : parseComponentStack(componentStack)
+    const ownerStack = getOwnerStack(error)
+    const frames = parseStack((error.stack || '') + (ownerStack || ''))
+    const pendingEvent: SupportedErrorEvent = {
+      id,
+      error,
+      frames,
+      componentStackFrames,
+      type: isRecoverableError(error)
+        ? 'recoverable'
+        : isConsoleError(error)
+          ? 'console'
+          : 'runtime',
+    }
+    const pendingEvents = events.filter((event) => {
+      // Filter out duplicate errors
+      return (
+        (event.error.stack !== pendingEvent.error.stack &&
+          // TODO: Let ReactDevTools control deduping instead?
+          getStackIgnoringStrictMode(event.error.stack) !==
+            getStackIgnoringStrictMode(pendingEvent.error.stack)) ||
+        getOwnerStack(event.error) !== getOwnerStack(pendingEvent.error)
+      )
+    })
+    pendingEvents.push(pendingEvent)
+    return pendingEvents
+  }
+
   return useReducer((state: OverlayState, action: BusEvent): OverlayState => {
     switch (action.type) {
       case ACTION_DEBUG_INFO: {
@@ -186,10 +251,11 @@ export function useErrorOverlayReducer(routerType: 'pages' | 'app') {
             return {
               ...state,
               nextId: state.nextId + 1,
-              errors: pushErrorFilterDuplicates(state.errors, {
-                id: state.nextId,
-                event: action,
-              }),
+              errors: pushErrorFilterDuplicates(
+                state.errors,
+                state.nextId,
+                action.reason
+              ),
             }
           }
           case 'pending': {
@@ -198,10 +264,11 @@ export function useErrorOverlayReducer(routerType: 'pages' | 'app') {
               nextId: state.nextId + 1,
               refreshState: {
                 ...state.refreshState,
-                errors: pushErrorFilterDuplicates(state.refreshState.errors, {
-                  id: state.nextId,
-                  event: action,
-                }),
+                errors: pushErrorFilterDuplicates(
+                  state.errors,
+                  state.nextId,
+                  action.reason
+                ),
               },
             }
           }
@@ -219,6 +286,15 @@ export function useErrorOverlayReducer(routerType: 'pages' | 'app') {
           disableDevIndicator:
             shouldDisableDevIndicator || !!action.devIndicator.disabledUntil,
         }
+      }
+      case ACTION_ERROR_OVERLAY_OPEN: {
+        return { ...state, isErrorOverlayOpen: true }
+      }
+      case ACTION_ERROR_OVERLAY_CLOSE: {
+        return { ...state, isErrorOverlayOpen: false }
+      }
+      case ACTION_ERROR_OVERLAY_TOGGLE: {
+        return { ...state, isErrorOverlayOpen: !state.isErrorOverlayOpen }
       }
       default: {
         return state
