@@ -206,10 +206,15 @@ function Root({ children }: React.PropsWithChildren<{}>) {
   return children
 }
 
+function onDefaultTransitionIndicator() {
+  // TODO: Compose default with user-configureable (e.g. nprogress)
+  // TODO: Use React's default once we figure out hanging indicators: https://codesandbox.io/p/sandbox/charming-moon-hktkp6?file=%2Fsrc%2Findex.js%3A106%2C30
+  return () => {}
+}
+
 const reactRootOptions: ReactDOMClient.RootOptions = {
-  // // TODO: Compose default with user-configureable (e.g. nprogress)
   // @ts-expect-error: Should pass on `@types/react` bump.
-  onDefaultTransitionIndicator: undefined,
+  onDefaultTransitionIndicator: onDefaultTransitionIndicator,
   onRecoverableError,
   onCaughtError,
   onUncaughtError,
