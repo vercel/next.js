@@ -27,6 +27,7 @@ import {
   type ResponseGenerator,
   CachedRouteKind,
   type CachedRedirectValue,
+  IncrementalCacheKind,
 } from './response-cache'
 import type { UrlWithParsedQuery } from 'url'
 import {
@@ -3034,9 +3035,7 @@ export default abstract class Server<
           fallbackResponse = await this.responseCache.get(
             isProduction ? (locale ? `/${locale}${pathname}` : pathname) : null,
             // This is the response generator for the fallback shell.
-            async ({
-              previousCacheEntry: previousFallbackCacheEntry = null,
-            }) => {
+            ({ previousCacheEntry: previousFallbackCacheEntry = null }) => {
               // For the pages router, fallbacks cannot be revalidated or
               // generated in production. In the case of a missing fallback,
               // we return null, but if it's being revalidated, we just return
@@ -3077,7 +3076,7 @@ export default abstract class Server<
           fallbackResponse = await this.responseCache.get(
             isProduction ? pathname : null,
             // This is the response generator for the fallback shell.
-            async () =>
+            () =>
               doRender({
                 // We pass `undefined` as rendering a fallback isn't resumed
                 // here.
@@ -3107,7 +3106,7 @@ export default abstract class Server<
         if (fallbackResponse) {
           // Remove the cache control from the response to prevent it from being
           // used in the surrounding cache.
-          delete fallbackResponse.cacheControl
+          fallbackResponse.cacheControl = undefined
 
           return fallbackResponse
         }
@@ -3115,10 +3114,41 @@ export default abstract class Server<
 
       // Only requests that aren't revalidating can be resumed. If we have the
       // minimal postponed data, then we should resume the render with it.
-      const postponed =
+      let postponed =
         !isOnDemandRevalidate && !isRevalidating && minimalPostponed
           ? minimalPostponed
           : undefined
+
+      // If this is a dynamic RSC request, we should resume the render with the
+      // postponed data from the cache. This will enable the resume data cache
+      // to be reused from the static render (if available). If the cache entry
+      // is not found, then we don't use the postponed state or regenerate it,
+      // that's the responsibility of the static prefetch.
+      if (
+        process.env.NEXT_RUNTIME !== 'edge' &&
+        !this.minimalMode &&
+        isDynamicRSCRequest &&
+        isAppPageRouteModule(components.routeModule)
+      ) {
+        const cachedEntry = await incrementalCache.get(
+          decodePathParams(resolvedUrlPathname),
+          {
+            kind: IncrementalCacheKind.APP_PAGE,
+            isRoutePPREnabled: true,
+            isFallback: false,
+          }
+        )
+
+        // If the cache entry is found, we should use the postponed data from
+        // the cache.
+        if (
+          cachedEntry &&
+          cachedEntry.value &&
+          cachedEntry.value.kind === CachedRouteKind.APP_PAGE
+        ) {
+          postponed = cachedEntry.value.postponed
+        }
+      }
 
       // When we're in minimal mode, if we're trying to debug the static shell,
       // we should just return nothing instead of resuming the dynamic render.
@@ -3238,15 +3268,9 @@ export default abstract class Server<
       cacheControl = { revalidate: 0, expire: undefined }
     }
 
-    // If this is in minimal mode and this is a flight request that isn't a
-    // prefetch request while PPR is enabled, it cannot be cached as it contains
-    // dynamic content.
-    else if (
-      this.minimalMode &&
-      isRSCRequest &&
-      !isPrefetchRSCRequest &&
-      isRoutePPREnabled
-    ) {
+    // If this is a flight request that isn't a pre-fetch request while PPR is
+    // enabled, it cannot be cached as it contains dynamic content.
+    else if (isDynamicRSCRequest) {
       cacheControl = { revalidate: 0, expire: undefined }
     } else if (!this.renderOpts.dev || (hasServerProps && !isNextDataRequest)) {
       // If this is a preview mode request, we shouldn't cache it
@@ -3510,7 +3534,7 @@ export default abstract class Server<
       }
 
       // Mark that the request did postpone.
-      if (didPostpone) {
+      if (didPostpone && !isDynamicRSCRequest) {
         res.setHeader(NEXT_DID_POSTPONE_HEADER, '1')
       }
 
@@ -3528,14 +3552,7 @@ export default abstract class Server<
           return {
             type: 'rsc',
             body: cachedData.html,
-            // Dynamic RSC responses cannot be cached, even if they're
-            // configured with `force-static` because we have no way of
-            // distinguishing between `force-static` and pages that have no
-            // postponed state.
-            // TODO: distinguish `force-static` from pages with no postponed state (static)
-            cacheControl: isDynamicRSCRequest
-              ? { revalidate: 0, expire: undefined }
-              : cacheEntry.cacheControl,
+            cacheControl: cacheEntry.cacheControl,
           }
         }
 
@@ -3603,12 +3620,12 @@ export default abstract class Server<
       })
         .then(async (result) => {
           if (!result) {
-            throw new Error('Invariant: expected a result to be returned')
+            throw new InvariantError('expected a result to be returned')
           }
 
           if (result.value?.kind !== CachedRouteKind.APP_PAGE) {
-            throw new Error(
-              `Invariant: expected a page response, got ${result.value?.kind}`
+            throw new InvariantError(
+              `expected a page response, got ${result.value?.kind}`
             )
           }
 
