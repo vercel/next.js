@@ -12,7 +12,7 @@ use swc_core::{
         visit::{Visit, VisitWith},
     },
 };
-use turbo_tasks::{ResolvedVc, Value, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::source::Source;
 
@@ -190,12 +190,7 @@ pub async fn webpack_runtime(
     source: Vc<Box<dyn Source>>,
     transforms: Vc<EcmascriptInputTransforms>,
 ) -> Result<Vc<WebpackRuntime>> {
-    let parsed = parse(
-        source,
-        Value::new(EcmascriptModuleAssetType::Ecmascript),
-        transforms,
-    )
-    .await?;
+    let parsed = parse(source, EcmascriptModuleAssetType::Ecmascript, transforms).await?;
     match &*parsed {
         ParseResult::Ok {
             program,

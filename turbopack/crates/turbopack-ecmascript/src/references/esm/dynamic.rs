@@ -7,8 +7,7 @@ use swc_core::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    NonLocalValue, ResolvedVc, Value, ValueToString, Vc, debug::ValueDebugFormat,
-    trace::TraceRawVcs,
+    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext, ChunkingType, ChunkingTypeOption},
@@ -59,7 +58,7 @@ impl EsmAsyncAssetReference {
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
         issue_source: IssueSource,
-        annotations: Value<ImportAnnotations>,
+        annotations: ImportAnnotations,
         in_try: bool,
         import_externals: bool,
     ) -> Self {
@@ -67,7 +66,7 @@ impl EsmAsyncAssetReference {
             origin,
             request,
             issue_source,
-            annotations: annotations.into_value(),
+            annotations,
             in_try,
             import_externals,
         }
@@ -81,7 +80,7 @@ impl ModuleReference for EsmAsyncAssetReference {
         esm_resolve(
             self.get_origin().resolve().await?,
             *self.request,
-            Value::new(EcmaScriptModulesReferenceSubType::DynamicImport),
+            EcmaScriptModulesReferenceSubType::DynamicImport,
             self.in_try,
             Some(self.issue_source.clone()),
         )

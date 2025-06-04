@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use swc_core::quote;
-use turbo_tasks::{NonLocalValue, Value, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, TaskInput, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
 use turbopack_core::{
     chunk::ChunkingContext, compile_time_info::CompileTimeDefineValue, module_graph::ModuleGraph,
 };
@@ -12,18 +12,27 @@ use crate::{
     create_visitor,
 };
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    ValueDebugFormat,
+    NonLocalValue,
+    TaskInput,
+)]
 pub struct ConstantValueCodeGen {
     value: CompileTimeDefineValue,
     path: AstPath,
 }
 
 impl ConstantValueCodeGen {
-    pub fn new(value: Value<CompileTimeDefineValue>, path: AstPath) -> Self {
-        ConstantValueCodeGen {
-            value: value.into_value(),
-            path,
-        }
+    pub fn new(value: CompileTimeDefineValue, path: AstPath) -> Self {
+        ConstantValueCodeGen { value, path }
     }
     pub async fn code_generation(
         &self,

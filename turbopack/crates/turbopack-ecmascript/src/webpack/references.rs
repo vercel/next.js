@@ -7,7 +7,7 @@ use swc_core::{
     },
 };
 use turbo_rcstr::rcstr;
-use turbo_tasks::{ResolvedVc, Value, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     reference::{ModuleReference, ModuleReferences},
     source::Source,
@@ -26,12 +26,7 @@ pub async fn module_references(
     runtime: ResolvedVc<WebpackRuntime>,
     transforms: ResolvedVc<EcmascriptInputTransforms>,
 ) -> Result<Vc<ModuleReferences>> {
-    let parsed = parse(
-        *source,
-        Value::new(EcmascriptModuleAssetType::Ecmascript),
-        *transforms,
-    )
-    .await?;
+    let parsed = parse(*source, EcmascriptModuleAssetType::Ecmascript, *transforms).await?;
     match &*parsed {
         ParseResult::Ok {
             program,

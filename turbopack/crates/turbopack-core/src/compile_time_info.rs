@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
+use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::environment::Environment;
@@ -102,7 +102,7 @@ macro_rules! free_var_references {
 // TODO: replace with just a `serde_json::Value`
 // https://linear.app/vercel/issue/WEB-1641/compiletimedefinevalue-should-just-use-serde-jsonvalue
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, TaskInput)]
 pub enum CompileTimeDefineValue {
     Bool(bool),
     String(RcStr),
