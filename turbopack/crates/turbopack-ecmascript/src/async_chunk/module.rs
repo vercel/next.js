@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -11,11 +11,6 @@ use turbopack_core::{
 };
 
 use crate::async_chunk::chunk_item::AsyncLoaderChunkItem;
-
-#[turbo_tasks::function]
-fn async_loader_modifier() -> Vc<RcStr> {
-    Vc::cell("async loader".into())
-}
 
 /// The AsyncLoaderModule is a module that loads another module async, by
 /// putting it into a separate chunk group.
@@ -43,13 +38,8 @@ impl AsyncLoaderModule {
 
     #[turbo_tasks::function]
     pub fn asset_ident_for(module: Vc<Box<dyn ChunkableModule>>) -> Vc<AssetIdent> {
-        module.ident().with_modifier(async_loader_modifier())
+        module.ident().with_modifier(rcstr!("async loader"))
     }
-}
-
-#[turbo_tasks::function]
-fn inner_module_reference_description() -> Vc<RcStr> {
-    Vc::cell("async module".into())
 }
 
 #[turbo_tasks::value_impl]
@@ -64,7 +54,7 @@ impl Module for AsyncLoaderModule {
         Ok(Vc::cell(vec![ResolvedVc::upcast(
             SingleModuleReference::new(
                 *ResolvedVc::upcast(self.await?.inner),
-                inner_module_reference_description(),
+                rcstr!("async module"),
             )
             .to_resolved()
             .await?,

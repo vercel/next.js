@@ -1,0 +1,201 @@
+---
+title: Cannot access current time from a Client Component without a fallback UI defined
+---
+
+## Why This Error Occurred
+
+A Client Component is accessing the current time with `Date.now()`, `Date()`, or `new Date()`.
+
+Client Components primarily run in the browser however on an initial page visit, Next.js will serve an HTML page produced by simulating the client environment on the server. This process is called Server Side Rendering or SSR. Next.js will attempt to prerender this HTML ahead of time however if a Client Component accesses the current time during this prerender, it cannot include this component in the prerendered HTML, otherwise it might contain content based on a time very different from when the HTML is sent to a user. Next.js will use the nearest Suspense boundary around this component to prerender a fallback instead however in this instance there was no Suspense boundary.
+
+There are a number of ways you might fix this issue depending on the specifics of your use case.
+
+## Possible Ways to Fix It
+
+### Provide Fallback UI
+
+If you want the time value to be part of the server rendered HTML you can add a Suspense boundary around the component which allows Next.js to prerender a fallback UI ahead of a user's request and fill in the actual content when the user request occurs.
+
+Before:
+
+```jsx filename="app/article.js"
+'use client'
+
+export function RelativeTime({ timestamp }) {
+  const now = Date.now()
+  return (
+    <span suppressHydrationWarning>{computeTimeAgo({ timestamp, now })}</span>
+  )
+}
+
+export default function Article({ articleData }) {
+  return (
+    <article>
+      <h1>...</h1>
+      <RelativeTime timestamp={articleData.publishedAt} />
+    </article>
+  )
+}
+```
+
+After:
+
+```jsx filename="app/article.js"
+'use client'
+
+import { Suspense } from 'react'
+
+export function RelativeTime({ timestamp }) {
+  const now = Date.now()
+  return <span>{computeTimeAgo({ timestamp, now })}</span>
+}
+
+export default function Article({ articleData }) {
+  return (
+    <article>
+      <h1>...</h1>
+      <Suspense fallback={<span>...</span>}>
+        <RelativeTime timestamp={articleData.publishedAt} />
+      </Suspense>
+    </article>
+  )
+}
+```
+
+### Only access the time in the browser
+
+If you do not want to provide a fallback UI you may be able to move the time access into an effect. React does not run effects during server rendering so the time access will only occur in the browser.
+
+Before:
+
+```jsx filename="app/article.js"
+'use client'
+
+export function RelativeTime({ timestamp }) {
+  const now = Date.now()
+  return (
+    <span suppressHydrationWarning>{computeTimeAgo({ timestamp, now })}</span>
+  )
+}
+
+export default function Article({ articleData }) {
+  return (
+    <article>
+      <h1>...</h1>
+      <RelativeTime timestamp={articleData.publishedAt} />
+    </article>
+  )
+}
+```
+
+After:
+
+```jsx filename="app/article.js"
+'use client'
+
+import { useState, useEffect } from 'react'
+
+export function RelativeTime({ timestamp }) {
+  const [timeAgo, setTimeAgo] = useState('')
+  useEffect(() => {
+    // The effect won't run while rendering on the server
+    const now = Date.now()
+    setTimeAgo(computeTimeAgo({ timestamp, now }))
+  }, [timestamp])
+  return <span>{timeAgo}</span>
+}
+
+export default function Article({ articleData }) {
+  return (
+    <article>
+      <h1>...</h1>
+      <RelativeTime timestamp={articleData.publishedAt} />
+    </article>
+  )
+}
+```
+
+### Cache the time in a Server Component
+
+While Next.js will treat reading the current time in a Server Component the same as in a Client Component, you have the additional option of caching the time read using `"use cache"`. With this approach the time value can be included in the prerendered HTML because you are explicitly indicating the value does not need to reflect the time of the user's request.
+
+Before:
+
+```jsx filename="app/home/layout.js"
+'use client'
+
+export default function Layout({ children }) {
+  return (
+    <>
+      <main>{children}</main>
+      <footer>
+        <span>Copyright {new Date().getFullYear()}</span>
+      </footer>
+    </>
+  )
+}
+```
+
+After:
+
+```jsx filename="app/home/layout.js"
+async function getCurrentYear() {
+  'use cache'
+  return new Date().getFullYear()
+}
+
+export default async function Layout({ children }) {
+  return (
+    <>
+      <main>{children}</main>
+      <footer>
+        <span>Copyright {await getCurrentYear()}</span>
+      </footer>
+    </>
+  )
+}
+```
+
+### Performance use case
+
+If you are using the current time for performance tracking with elapsed time, use `performance.now()`.
+
+Before:
+
+```jsx filename="app/page.js"
+"use client"
+
+export default function Page() {
+  const start = Date.now();
+  const data = computeDataSlowly(...);
+  const end = Date.now();
+  console.log(`computeDataSlowly took ${end - start} milliseconds to complete`)
+
+  return ...
+}
+```
+
+After:
+
+```jsx filename="app/page.js"
+"use client"
+
+export default async function Page() {
+  const start = performance.now();
+  const data = computeDataSlowly(...);
+  const end = performance.now();
+  console.log(`computeDataSlowly took ${end - start} milliseconds to complete`)
+  return ...
+}
+```
+
+> **Note**: If you need report an absolute time to an observability tool you can also use `performance.timeOrigin + performance.now()`.
+
+## Useful Links
+
+- [`Date.now` API](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now)
+- [`Date constructor` API](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/Date)
+- [`"use cache"`](/docs/app/api-reference/directives/use-cache)
+- [`performance` Web API](https://developer.mozilla.org/en-US/docs/Web/API/Performance)
+- [`Suspense` React API](https://react.dev/reference/react/Suspense)
+- [`useEffect` React Hook](https://react.dev/reference/react/useEffect)

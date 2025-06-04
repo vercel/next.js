@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use anyhow::{Result, bail};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, Vc, fxindexmap};
 use turbo_tasks_fs::{
     self, File, FileContent, FileSystemPath, FileSystemPathOption, rope::RopeBuilder,
@@ -25,16 +25,12 @@ use crate::{embed_js::next_js_file_path, util::get_asset_path_from_pathname};
 pub async fn create_page_loader_entry_module(
     client_context: Vc<Box<dyn AssetContext>>,
     entry_asset: Vc<Box<dyn Source>>,
-    pathname: Vc<RcStr>,
+    pathname: RcStr,
 ) -> Result<Vc<Box<dyn Module>>> {
     let mut result = RopeBuilder::default();
-    writeln!(
-        result,
-        "const PAGE_PATH = {};\n",
-        StringifyJs(&*pathname.await?)
-    )?;
+    writeln!(result, "const PAGE_PATH = {};\n", StringifyJs(&pathname))?;
 
-    let page_loader_path = next_js_file_path("entry/page-loader.ts".into());
+    let page_loader_path = next_js_file_path(rcstr!("entry/page-loader.ts"));
     let base_code = page_loader_path.read();
     if let FileContent::Content(base_file) = &*base_code.await? {
         result += base_file.content()
@@ -62,7 +58,7 @@ pub async fn create_page_loader_entry_module(
         .process(
             virtual_source,
             Value::new(ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
-                "PAGE".into() => module,
+                rcstr!("PAGE") => module,
             }))),
         )
         .module();
@@ -72,7 +68,7 @@ pub async fn create_page_loader_entry_module(
 #[turbo_tasks::value(shared)]
 pub struct PageLoaderAsset {
     pub server_root: ResolvedVc<FileSystemPath>,
-    pub pathname: ResolvedVc<RcStr>,
+    pub pathname: RcStr,
     pub rebase_prefix_path: ResolvedVc<FileSystemPathOption>,
     pub page_chunks: ResolvedVc<OutputAssets>,
 }
@@ -82,7 +78,7 @@ impl PageLoaderAsset {
     #[turbo_tasks::function]
     pub fn new(
         server_root: ResolvedVc<FileSystemPath>,
-        pathname: ResolvedVc<RcStr>,
+        pathname: RcStr,
         rebase_prefix_path: ResolvedVc<FileSystemPathOption>,
         page_chunks: ResolvedVc<OutputAssets>,
     ) -> Vc<Self> {
@@ -125,11 +121,6 @@ impl PageLoaderAsset {
     }
 }
 
-#[turbo_tasks::function]
-fn page_loader_chunk_reference_description() -> Vc<RcStr> {
-    Vc::cell("page loader chunk".into())
-}
-
 #[turbo_tasks::value_impl]
 impl OutputAsset for PageLoaderAsset {
     #[turbo_tasks::function]
@@ -141,7 +132,7 @@ impl OutputAsset for PageLoaderAsset {
         Ok(root.join(
             format!(
                 "static/chunks/pages{}",
-                get_asset_path_from_pathname(&self.pathname.await?, ".js")
+                get_asset_path_from_pathname(&self.pathname, ".js")
             )
             .into(),
         ))
@@ -181,7 +172,7 @@ impl Asset for PageLoaderAsset {
 
         let content = format!(
             "__turbopack_load_page_chunks__({}, {:#})\n",
-            StringifyJs(&this.pathname.await?),
+            StringifyJs(&this.pathname),
             StringifyJs(&chunks_data)
         );
 

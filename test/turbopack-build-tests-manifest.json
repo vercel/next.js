@@ -33,12 +33,12 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/_allow-underscored-root-directory/_allow-underscored-root-directory.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "_allow-underscored-root-directory should not serve app path with underscore",
       "_allow-underscored-root-directory should pages path with a underscore at the root",
       "_allow-underscored-root-directory should serve app path with %5F"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3652,11 +3652,13 @@
       "app dir - next/font app dir - next-font preconnect should add preconnect when preloading is disabled in component",
       "app dir - next/font app dir - next-font preconnect should add preconnect when preloading is disabled in layout",
       "app dir - next/font app dir - next-font preconnect should add preconnect when preloading is disabled in page",
+      "app dir - next/font app dir - next-font preconnect should add preconnect when preloading is disabled in template",
       "app dir - next/font app dir - next-font preconnect should not preconnect when css is used but no fonts",
       "app dir - next/font app dir - next-font preload should preload correctly with client components",
       "app dir - next/font app dir - next-font preload should preload correctly with layout using fonts",
       "app dir - next/font app dir - next-font preload should preload correctly with page using fonts",
-      "app dir - next/font app dir - next-font preload should preload correctly with server components"
+      "app dir - next/font app dir - next-font preload should preload correctly with server components",
+      "app dir - next/font app dir - next-font preload should preload correctly with template using fonts"
     ],
     "failed": [],
     "pending": [],
@@ -5810,12 +5812,12 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/underscore-ignore-app-paths/underscore-ignore-app-paths.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "underscore-ignore-app-paths should not serve app path with underscore",
       "underscore-ignore-app-paths should serve app path with %5F",
       "underscore-ignore-app-paths should serve pages path with underscore"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -7141,12 +7143,11 @@
       "Middleware custom matchers i18n should not match /en/about",
       "Middleware custom matchers i18n should not match /hello/invalid",
       "Middleware custom matchers i18n should not match /invalid/hello",
-      "Middleware custom matchers with root should not match"
-    ],
-    "failed": [
+      "Middleware custom matchers with root should not match",
       "Middleware custom matchers i18n should match /nl-NL/about",
       "Middleware custom matchers i18n should match has query on client routing nl-NL_about"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -7305,12 +7306,11 @@
       "Middleware Runtime without i18n should validate & parse request url from any route",
       "Middleware Runtime without i18n should warn when using NextResponse.redirect with a relative URL",
       "Middleware Runtime without i18n should warn when using Response.redirect with a relative URL",
-      "Middleware Runtime without i18n should work with notFound: true correctly"
-    ],
-    "failed": [
+      "Middleware Runtime without i18n should work with notFound: true correctly",
       "Middleware Runtime with i18n should have the custom config in the manifest",
       "Middleware Runtime without i18n should have the custom config in the manifest"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -7745,8 +7745,8 @@
     "runtimeError": false
   },
   "test/e2e/next-font/google-fetch-error.test.ts": {
-    "passed": [],
-    "failed": ["next/font/google fetch error should error when not in dev"],
+    "passed": ["next/font/google fetch error should error when not in dev"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -7767,15 +7767,14 @@
       "next/font import values page with font",
       "next/font import values page with local fonts",
       "next/font preload page with fonts",
-      "next/font should not have deprecation warning"
-    ],
-    "failed": [
+      "next/font should not have deprecation warning",
       "next/font preload font without preloadable subsets",
       "next/font preload font without size adjust",
       "next/font preload google fonts with multiple weights/styles",
       "next/font preload page with local fonts",
       "next/font preload page without fonts"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10208,11 +10207,11 @@
   },
   "test/integration/css-features/test/css-modules.test.js": {
     "passed": [
-      "CSS Modules: Import Global CSS production mode should've emitted a single CSS file"
+      "CSS Modules: Import Global CSS production mode should've emitted a single CSS file",
+      "Custom Properties: Fail for global element in CSS Modules production mode should fail to build"
     ],
     "failed": [
-      "CSS Modules: Importing Invalid Global CSS production mode should fail to build",
-      "Custom Properties: Fail for global element in CSS Modules production mode should fail to build"
+      "CSS Modules: Importing Invalid Global CSS production mode should fail to build"
     ],
     "pending": [
       "CSS Modules: Import Exports production mode should've emitted a single CSS file",

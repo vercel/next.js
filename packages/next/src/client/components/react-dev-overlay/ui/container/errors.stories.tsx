@@ -96,6 +96,7 @@ const runtimeErrors: ReadyRuntimeError[] = [
         },
         ...Array(20).fill(ignoredFrame),
       ]),
+    type: 'runtime',
   },
   {
     id: 2,
@@ -113,6 +114,7 @@ const runtimeErrors: ReadyRuntimeError[] = [
           originalCodeFrame: originalCodeFrame('Second error message'),
         },
       ]),
+    type: 'runtime',
   },
   {
     id: 3,
@@ -130,6 +132,7 @@ const runtimeErrors: ReadyRuntimeError[] = [
           originalCodeFrame: originalCodeFrame('Third error message'),
         },
       ]),
+    type: 'runtime',
   },
   {
     id: 4,
@@ -147,6 +150,7 @@ const runtimeErrors: ReadyRuntimeError[] = [
           originalCodeFrame: originalCodeFrame('typeof window !== undefined'),
         },
       ]),
+    type: 'runtime',
   },
 ]
 
@@ -232,6 +236,7 @@ export const WithHydrationWarning: Story = {
               },
             },
           ]),
+        type: 'runtime',
       },
     ],
     debugInfo: { devtoolsFrontendUrl: undefined },

@@ -267,7 +267,7 @@ describe('ReactRefreshLogBox', () => {
       `export default function FunctionDefault() { throw new Error('no'); }`
     )
 
-    if (isReact18) {
+    if (isReact18 && isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        [
          {
@@ -280,8 +280,8 @@ describe('ReactRefreshLogBox', () => {
            "stack": [
              "FunctionDefault FunctionDefault.js (1:51)",
              "Set.forEach <anonymous> (0:0)",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
+             "<FIXME-file-protocol>",
+             "<FIXME-file-protocol>",
            ],
          },
          {
@@ -294,8 +294,8 @@ describe('ReactRefreshLogBox', () => {
            "stack": [
              "FunctionDefault FunctionDefault.js (1:51)",
              "Set.forEach <anonymous> (0:0)",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
+             "<FIXME-file-protocol>",
+             "<FIXME-file-protocol>",
            ],
          },
        ]
@@ -468,7 +468,7 @@ describe('ReactRefreshLogBox', () => {
 
     // TODO(veil): ignore-list Webpack runtime (https://linear.app/vercel/issue/NDX-945)
     // TODO(veil): Don't bail in Turbopack for sources outside of the project (https://linear.app/vercel/issue/NDX-944)
-    if (isReact18) {
+    if (isReact18 && isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        [
          {
@@ -481,8 +481,8 @@ describe('ReactRefreshLogBox', () => {
            "stack": [
              "ClickCount.render Child.js (4:11)",
              "Set.forEach <anonymous> (0:0)",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
+             "<FIXME-file-protocol>",
+             "<FIXME-file-protocol>",
            ],
          },
          {
@@ -495,8 +495,8 @@ describe('ReactRefreshLogBox', () => {
            "stack": [
              "ClickCount.render Child.js (4:11)",
              "Set.forEach <anonymous> (0:0)",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
+             "<FIXME-file-protocol>",
+             "<FIXME-file-protocol>",
            ],
          },
        ]

@@ -3,7 +3,7 @@ use rustc_hash::FxHashSet;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value as JsonValue;
 use turbo_esregex::EsRegex;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, NonLocalValue, OperationValue, ResolvedVc, TaskInput, Vc, debug::ValueDebugFormat,
     trace::TraceRawVcs,
@@ -1655,7 +1655,7 @@ impl Issue for OutdatedConfigIssue {
     fn title(&self) -> Vc<StyledString> {
         StyledString::Line(vec![
             StyledString::Code(self.old_name.clone()),
-            StyledString::Text(" has been replaced by ".into()),
+            StyledString::Text(rcstr!(" has been replaced by ")),
             StyledString::Code(self.new_name.clone()),
         ])
         .cell()

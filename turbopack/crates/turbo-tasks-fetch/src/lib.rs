@@ -3,7 +3,7 @@
 #![feature(arbitrary_self_types_pointers)]
 
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc, duration_span, mark_session_dependent};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString};
@@ -50,12 +50,10 @@ pub struct OptionProxyConfig(Option<ProxyConfig>);
 
 #[turbo_tasks::function(network)]
 pub async fn fetch(
-    url: Vc<RcStr>,
-    user_agent: Vc<Option<RcStr>>,
+    url: RcStr,
+    user_agent: Option<RcStr>,
     proxy_option: Vc<OptionProxyConfig>,
 ) -> Result<Vc<FetchResult>> {
-    let url = &*url.await?;
-    let user_agent = &*user_agent.await?;
     let proxy_option = &*proxy_option.await?;
 
     let client_builder = reqwest::Client::builder();
@@ -96,7 +94,7 @@ pub async fn fetch(
         Err(err) => {
             mark_session_dependent();
             Ok(Vc::cell(Err(
-                FetchError::from_reqwest_error(&err, url).resolved_cell()
+                FetchError::from_reqwest_error(&err, &url).resolved_cell()
             )))
         }
     }
@@ -181,7 +179,7 @@ impl Issue for FetchIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Error while requesting resource".into()).cell()
+        StyledString::Text(rcstr!("Error while requesting resource")).cell()
     }
 
     #[turbo_tasks::function]

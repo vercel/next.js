@@ -43,12 +43,20 @@ tokio-console = ["dep:console-subscriber"]
 [lints]
 workspace = true
 
+[package.metadata.cargo-shear]
+ignored = [
+  # we need to set features on these packages when building for WASM, but we don't directly use them
+  "getrandom",
+  "iana-time-zone",
+  # the plugins feature needs to set a feature on this transitively depended-on package, we never
+  # directly import it
+  "turbopack-ecmascript-plugins",
+]
+
 [dependencies]
 anyhow = "1.0.66"
-backtrace = "0.3"
 console-subscriber = { workspace = true, optional = true }
 dhat = { workspace = true, optional = true }
-indexmap = { workspace = true }
 owo-colors = { workspace = true }
 napi = { workspace = true }
 napi-derive = "2"
@@ -65,7 +73,6 @@ tracing-chrome = "0.5.0"
 url = { workspace = true }
 urlencoding = { workspace = true }
 once_cell = { workspace = true }
-dashmap = { workspace = true }
 
 swc_core = { workspace = true, features = [
     "base_concurrent",
@@ -86,7 +93,6 @@ swc_core = { workspace = true, features = [
     "ecma_utils",
     "ecma_visit",
 ] }
-par-core = { workspace = true, features = ["rayon"] }
 
 # Dependencies for the native, non-wasm32 build.
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
@@ -106,7 +112,6 @@ turbo-tasks-malloc = { workspace = true, default-features = false, features = [
     "custom_allocator"
 ] }
 
-turbopack = { workspace = true }
 turbopack-core = { workspace = true }
 turbopack-ecmascript-hmr-protocol = { workspace = true }
 turbopack-trace-utils = { workspace = true }

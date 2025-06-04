@@ -8,7 +8,7 @@ use std::{
 use anyhow::{Context, Result, bail};
 use rustc_hash::FxHashSet;
 use tracing::Instrument;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     ReadConsistency, ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks, Value, Vc,
     apply_effects,
@@ -199,7 +199,7 @@ async fn build_internal(
     target: Target,
 ) -> Result<Vc<()>> {
     let output_fs = output_fs(project_dir.clone());
-    let project_fs = project_fs(root_dir.clone());
+    let project_fs = project_fs(root_dir.clone(), /* watch= */ false);
     let project_relative = project_dir.strip_prefix(&*root_dir).unwrap();
     let project_relative: RcStr = project_relative
         .strip_prefix(MAIN_SEPARATOR)
@@ -208,12 +208,12 @@ async fn build_internal(
         .into();
     let root_path = project_fs.root().to_resolved().await?;
     let project_path = root_path.join(project_relative).to_resolved().await?;
-    let build_output_root = output_fs.root().join("dist".into()).to_resolved().await?;
+    let build_output_root = output_fs.root().join(rcstr!("dist")).to_resolved().await?;
 
     let node_env = NodeEnv::Production.cell();
 
     let build_output_root_to_root_path = project_path
-        .join("dist".into())
+        .join(rcstr!("dist"))
         .await?
         .get_relative_path_to(&*root_path.await?)
         .context("Project path is in root path")?;
@@ -230,7 +230,7 @@ async fn build_internal(
             NodeJsChunkingContext::builder(
                 project_path,
                 build_output_root,
-                ResolvedVc::cell(build_output_root_to_root_path.clone()),
+                build_output_root_to_root_path.clone(),
                 build_output_root,
                 build_output_root,
                 build_output_root,
@@ -276,7 +276,7 @@ async fn build_internal(
         .await?)
         .to_vec();
 
-    let origin = PlainResolveOrigin::new(asset_context, project_fs.root().join("_".into()));
+    let origin = PlainResolveOrigin::new(asset_context, project_fs.root().join(rcstr!("_")));
     let project_dir = &project_dir;
     let entries = async move {
         entry_requests
@@ -318,7 +318,7 @@ async fn build_internal(
             let mut builder = BrowserChunkingContext::builder(
                 project_path,
                 build_output_root,
-                ResolvedVc::cell(build_output_root_to_root_path),
+                build_output_root_to_root_path,
                 build_output_root,
                 build_output_root,
                 build_output_root,
@@ -369,7 +369,7 @@ async fn build_internal(
             let mut builder = NodeJsChunkingContext::builder(
                 project_path,
                 build_output_root,
-                ResolvedVc::cell(build_output_root_to_root_path),
+                build_output_root_to_root_path,
                 build_output_root,
                 build_output_root,
                 build_output_root,
@@ -433,7 +433,7 @@ async fn build_internal(
                                                     .unwrap()
                                                     .into(),
                                             )
-                                            .with_extension("entry.js".into()),
+                                            .with_extension(rcstr!("entry.js")),
                                     ),
                                     ChunkGroup::Entry(
                                         [ResolvedVc::upcast(ecmascript)].into_iter().collect(),
@@ -458,7 +458,7 @@ async fn build_internal(
                                                 .unwrap()
                                                 .into(),
                                         )
-                                        .with_extension("entry.js".into()),
+                                        .with_extension(rcstr!("entry.js")),
                                     EvaluatableAssets::one(*ResolvedVc::upcast(ecmascript)),
                                     module_graph,
                                     OutputAssets::empty(),

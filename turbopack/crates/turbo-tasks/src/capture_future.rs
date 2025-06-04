@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     cell::RefCell,
     fmt::Display,
     future::Future,
@@ -10,6 +11,7 @@ use std::{
 
 use anyhow::Result;
 use pin_project_lite::pin_project;
+use serde::{Deserialize, Serialize};
 use turbo_tasks_malloc::{AllocationInfo, TurboMalloc};
 
 use crate::{LAST_ERROR_LOCATION, backend::TurboTasksExecutionErrorMessage};
@@ -69,7 +71,7 @@ pub fn add_allocation_info(alloc_info: AllocationInfo) {
     });
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TurboTasksPanic {
     pub message: TurboTasksExecutionErrorMessage,
     pub location: Option<String>,
@@ -101,7 +103,7 @@ impl<T, F: Future<Output = T>> Future for CaptureFuture<T, F> {
         let result =
             panic::catch_unwind(panic::AssertUnwindSafe(|| this.future.poll(cx))).map_err(|err| {
                 let message = match err.downcast_ref::<&'static str>() {
-                    Some(s) => TurboTasksExecutionErrorMessage::PIISafe(s),
+                    Some(s) => TurboTasksExecutionErrorMessage::PIISafe(Cow::Borrowed(s)),
                     None => match err.downcast_ref::<String>() {
                         Some(s) => TurboTasksExecutionErrorMessage::NonPIISafe(s.clone()),
                         None => {

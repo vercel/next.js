@@ -245,6 +245,7 @@ export async function handler(
             locale,
             locales,
             defaultLocale,
+            setIsrStatus: routerServerContext?.setIsrStatus,
 
             isNextDataRequest:
               isNextDataRequest && (hasServerProps || hasStaticProps),

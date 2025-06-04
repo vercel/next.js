@@ -6,6 +6,7 @@ use swc_core::{
         visit::{Visit, VisitWith},
     },
 };
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbopack_core::{
     reference::{ModuleReference, ModuleReferences},
@@ -46,7 +47,7 @@ pub async fn module_references(
             let (emitter, collector) = IssueEmitter::new(
                 source,
                 source_map.clone(),
-                Some("Parsing webpack bundle failed".into()),
+                Some(rcstr!("Parsing webpack bundle failed")),
             );
             let handler = Handler::with_emitter(true, false, Box::new(emitter));
             HANDLER.set(&handler, || {

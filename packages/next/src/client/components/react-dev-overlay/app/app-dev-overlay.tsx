@@ -72,6 +72,11 @@ function ReplaySsrOnlyErrors({
   return null
 }
 
+function getSquashedHydrationErrorDetails() {
+  // We don't squash hydration errors in the App Router.
+  return null
+}
+
 export function AppDevOverlay({
   state,
   dispatch,
@@ -99,7 +104,11 @@ export function AppDevOverlay({
       <>
         {/* Fonts can only be loaded outside the Shadow DOM. */}
         <FontStyles />
-        <DevOverlay state={state} dispatch={dispatch} />
+        <DevOverlay
+          state={state}
+          dispatch={dispatch}
+          getSquashedHydrationErrorDetails={getSquashedHydrationErrorDetails}
+        />
       </>
     </>
   )
