@@ -301,6 +301,10 @@ impl Request {
                 .await?,
         })
     }
+
+    pub fn parse_string(request: RcStr) -> Vc<Self> {
+        Self::parse(request.into())
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -308,11 +312,6 @@ impl Request {
     #[turbo_tasks::function]
     pub async fn parse(request: Pattern) -> Result<Vc<Self>> {
         Ok(Self::cell(Request::parse_ref(request).await?))
-    }
-
-    #[turbo_tasks::function]
-    pub async fn parse_string(request: RcStr) -> Result<Vc<Self>> {
-        Ok(Self::cell(Request::parse_ref(request.into()).await?))
     }
 
     #[turbo_tasks::function]
