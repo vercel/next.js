@@ -2084,6 +2084,8 @@ export default abstract class Server<
     // TODO: Consider not using custom request headers at all, and instead fully
     // encode everything into the search param.
     if (
+      !this.minimalMode &&
+      this.nextConfig.experimental.validateRSCRequestHeaders &&
       this.isAppSegmentPrefetchEnabled &&
       getRequestMeta(req, 'segmentPrefetchRSCRequest')
     ) {
@@ -3746,11 +3748,17 @@ export default abstract class Server<
     let page = pathname
     const bubbleNoFallback =
       getRequestMeta(ctx.req, 'bubbleNoFallback') ?? false
-    addRequestMeta(
-      ctx.req,
-      'cacheBustingSearchParam',
-      query[NEXT_RSC_UNION_QUERY]
-    )
+
+    if (
+      !this.minimalMode &&
+      this.nextConfig.experimental.validateRSCRequestHeaders
+    ) {
+      addRequestMeta(
+        ctx.req,
+        'cacheBustingSearchParam',
+        query[NEXT_RSC_UNION_QUERY]
+      )
+    }
     delete query[NEXT_RSC_UNION_QUERY]
 
     const options: MatchOptions = {
