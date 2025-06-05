@@ -2,8 +2,6 @@
 
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle2/input/1.css [test] (css, async loader)": ((__turbopack_context__) => {
 
-var { g: global, __dirname } = __turbopack_context__;
-{
 __turbopack_context__.v((parentImport) => {
     return Promise.all([
   {
@@ -41,11 +39,9 @@ __turbopack_context__.v((parentImport) => {
   }
 ].map((chunk) => __turbopack_context__.l(chunk))).then(() => {});
 });
-}}),
+}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle2/input/2.css [test] (css, async loader)": ((__turbopack_context__) => {
 
-var { g: global, __dirname } = __turbopack_context__;
-{
 __turbopack_context__.v((parentImport) => {
     return Promise.all([
   {
@@ -82,5 +78,5 @@ __turbopack_context__.v((parentImport) => {
   }
 ].map((chunk) => __turbopack_context__.l(chunk))).then(() => {});
 });
-}}),
+}),
 }]);

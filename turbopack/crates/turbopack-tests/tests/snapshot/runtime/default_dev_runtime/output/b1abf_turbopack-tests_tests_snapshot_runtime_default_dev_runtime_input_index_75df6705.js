@@ -496,11 +496,11 @@ async function loadChunkPath(source, chunkPath) {
 /**
  * Returns a blob URL for the worker.
  * @param chunks list of chunks to load
- * @param beforeLoad code to run before code is loaded. Used in dev for HMR setup.
- */ function getWorkerBlobURL(chunks, beforeLoad) {
+ */ function getWorkerBlobURL(chunks) {
+    // It is important to reverse the array so when bootstrapping we can infer what chunk is being
+    // evaluated by poping urls off of this array.  See `getPathFromScript`
     let bootstrap = `self.TURBOPACK_WORKER_LOCATION = ${JSON.stringify(location.origin)};
 self.TURBOPACK_NEXT_CHUNK_URLS = ${JSON.stringify(chunks.reverse().map(getChunkRelativeUrl), null, 2)};
-${beforeLoad || ''}
 importScripts(...self.TURBOPACK_NEXT_CHUNK_URLS.map(c => self.TURBOPACK_WORKER_LOCATION + c).reverse());`;
     let blob = new Blob([
         bootstrap
@@ -660,11 +660,6 @@ const getOrInstantiateModuleFromParent = (id, sourceModule)=>{
         parentId: sourceModule.id
     });
 };
-function getDevWorkerBlobURL(chunks) {
-    return getWorkerBlobURL(chunks, `// noop fns to prevent runtime errors during initialization
-self.$RefreshReg$ = function() {};
-self.$RefreshSig$ = function() {};`);
-}
 // @ts-ignore Defined in `runtime-base.ts`
 function instantiateModule(id, source) {
     const moduleFactory = moduleFactories[id];
@@ -747,14 +742,12 @@ function instantiateModule(id, source) {
                 L: loadChunkByUrl.bind(null, sourceInfo),
                 w: loadWebAssembly.bind(null, sourceInfo),
                 u: loadWebAssemblyModule.bind(null, sourceInfo),
-                g: globalThis,
                 P: resolveAbsolutePath,
                 U: relativeURL,
                 k: refresh,
                 R: createResolvePathFromModule(r),
-                b: getDevWorkerBlobURL,
-                z: requireStub,
-                d: typeof module.id === 'string' ? module.id.replace(/(^|\/)\/+$/, '') : module.id
+                b: getWorkerBlobURL,
+                z: requireStub
             }));
         });
     } catch (error) {
@@ -773,18 +766,27 @@ function instantiateModule(id, source) {
  * Next.js' React Refresh runtime hooks into to add module context to the
  * refresh registry.
  */ function runModuleExecutionHooks(module, executeModule) {
-    const cleanupReactRefreshIntercept = typeof globalThis.$RefreshInterceptModuleExecution$ === 'function' ? globalThis.$RefreshInterceptModuleExecution$(module.id) : ()=>{};
-    try {
+    if (typeof globalThis.$RefreshInterceptModuleExecution$ === 'function') {
+        const cleanupReactRefreshIntercept = globalThis.$RefreshInterceptModuleExecution$(module.id);
+        try {
+            executeModule({
+                register: globalThis.$RefreshReg$,
+                signature: globalThis.$RefreshSig$,
+                registerExports: registerExportsAndSetupBoundaryForReactRefresh
+            });
+        } finally{
+            // Always cleanup the intercept, even if module execution failed.
+            cleanupReactRefreshIntercept();
+        }
+    } else {
+        // If the react refresh hooks are not installed we need to bind dummy functions.
+        // This is expected when running in a Web Worker.  It is also common in some of
+        // our test environments.
         executeModule({
-            register: globalThis.$RefreshReg$,
-            signature: globalThis.$RefreshSig$,
-            registerExports: registerExportsAndSetupBoundaryForReactRefresh
+            register: (type, id)=>{},
+            signature: ()=>(type)=>{},
+            registerExports: (module, helpers)=>{}
         });
-    } catch (e) {
-        throw e;
-    } finally{
-        // Always cleanup the intercept, even if module execution failed.
-        cleanupReactRefreshIntercept();
     }
 }
 /**

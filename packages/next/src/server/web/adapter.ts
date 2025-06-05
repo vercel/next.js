@@ -87,10 +87,8 @@ function ensureTestApisIntercepted() {
   if (!testApisIntercepted) {
     testApisIntercepted = true
     if (process.env.NEXT_PRIVATE_TEST_PROXY === 'true') {
-      const {
-        interceptTestApis,
-        wrapRequestHandler,
-      } = require('next/dist/experimental/testmode/server-edge')
+      const { interceptTestApis, wrapRequestHandler } =
+        require('next/dist/experimental/testmode/server-edge') as typeof import('../../experimental/testmode/server-edge')
       interceptTestApis()
       propagator = wrapRequestHandler(propagator)
     }
@@ -186,7 +184,10 @@ export async function adapter(
   }
 
   if (
-    !(globalThis as any).__incrementalCache &&
+    // If we are inside of the next start sandbox
+    // leverage the shared instance if not we need
+    // to create a fresh cache instance each time
+    !(globalThis as any).__incrementalCacheShared &&
     (params as any).IncrementalCache
   ) {
     ;(globalThis as any).__incrementalCache = new (

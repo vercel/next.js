@@ -97,6 +97,7 @@ import {
 import { getDevOverlayFontMiddleware } from '../../client/components/react-dev-overlay/font/get-dev-overlay-font-middleware'
 import { devIndicatorServerState } from './dev-indicator-server-state'
 import { getDisableDevIndicatorMiddleware } from './dev-indicator-middleware'
+import { getRestartDevServerMiddleware } from '../../client/components/react-dev-overlay/server/restart-dev-server-middleware'
 // import { getSupportedBrowsers } from '../../build/utils'
 
 const wsServer = new ws.Server({ noServer: true })
@@ -227,6 +228,7 @@ export async function createHotReloaderTurbopack(
         config: nextConfig,
         dev,
         distDir,
+        projectPath,
         fetchCacheKeyPrefix: opts.nextConfig.experimental.fetchCacheKeyPrefix,
         hasRewrites,
         // TODO: Implement
@@ -648,6 +650,10 @@ export async function createHotReloaderTurbopack(
     getNextErrorFeedbackMiddleware(opts.telemetry),
     getDevOverlayFontMiddleware(),
     getDisableDevIndicatorMiddleware(),
+    getRestartDevServerMiddleware({
+      telemetry: opts.telemetry,
+      turbopackProject: project,
+    }),
   ]
 
   const versionInfoPromise = getVersionInfo()
@@ -979,7 +985,8 @@ export async function createHotReloaderTurbopack(
               inputPage,
               nextConfig.pageExtensions,
               opts.pagesDir,
-              opts.appDir
+              opts.appDir,
+              !!nextConfig.experimental.globalNotFound
             ))
 
           // If the route is actually an app page route, then we should have access

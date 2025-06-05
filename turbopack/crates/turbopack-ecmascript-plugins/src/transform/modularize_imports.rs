@@ -2,10 +2,10 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use modularize_imports::{modularize_imports, Config, PackageConfig};
+use modularize_imports::{Config, PackageConfig, modularize_imports};
 use serde::{Deserialize, Serialize};
 use swc_core::ecma::ast::Program;
-use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, NonLocalValue};
+use turbo_tasks::{FxIndexMap, NonLocalValue, trace::TraceRawVcs};
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]

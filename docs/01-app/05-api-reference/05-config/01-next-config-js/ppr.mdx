@@ -5,16 +5,16 @@ version: experimental
 related:
   title: Learn more about Partial Prerendering
   links:
-    - app/building-your-application/rendering/partial-prerendering
+    - app/getting-started/partial-prerendering
 ---
 
-Partial Prerendering (PPR) enables you to combine static and dynamic components together in the same route. Learn more about [PPR](/docs/app/building-your-application/rendering/partial-prerendering).
+Partial Prerendering (PPR) enables you to combine static and dynamic components together in the same route. Learn more about [PPR](/docs/app/getting-started/partial-prerendering).
 
 ## Using Partial Prerendering
 
 ### Incremental Adoption (Version 15)
 
-In Next.js 15, you can incrementally adopt Partial Prerendering in [layouts](/docs/app/building-your-application/routing/layouts-and-templates) and [pages](/docs/app/api-reference/file-conventions/page) by setting the [`ppr`](/docs/app/api-reference/config/next-config-js/ppr) option in `next.config.js` to `incremental`, and exporting the `experimental_ppr` [route config option](/docs/app/api-reference/file-conventions/route-segment-config) at the top of the file:
+In Next.js 15, you can incrementally adopt Partial Prerendering in [layouts](/docs/app/api-reference/file-conventions/layout) and [pages](/docs/app/api-reference/file-conventions/page) by setting the [`ppr`](/docs/app/api-reference/config/next-config-js/ppr) option in `next.config.js` to `incremental`, and exporting the `experimental_ppr` [route config option](/docs/app/api-reference/file-conventions/route-segment-config) at the top of the file:
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'

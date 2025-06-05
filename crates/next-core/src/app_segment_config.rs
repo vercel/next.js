@@ -1,16 +1,16 @@
 use std::{future::Future, ops::Deref};
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use swc_core::{
-    common::{source_map::SmallPos, Span, Spanned, GLOBALS},
+    common::{GLOBALS, Span, Spanned, source_map::SmallPos},
     ecma::ast::{Decl, Expr, FnExpr, Ident, Program},
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, util::WrapFuture, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueDefault,
-    Vc,
+    NonLocalValue, ResolvedVc, TryJoinIterExt, ValueDefault, Vc, trace::TraceRawVcs,
+    util::WrapFuture,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -23,9 +23,9 @@ use turbopack_core::{
     source::Source,
 };
 use turbopack_ecmascript::{
-    analyzer::{graph::EvalContext, ConstantNumber, ConstantValue, JsValue},
-    parse::{parse, ParseResult},
     EcmascriptInputTransforms, EcmascriptModuleAssetType,
+    analyzer::{ConstantNumber, ConstantValue, JsValue, graph::EvalContext},
+    parse::{ParseResult, parse},
 };
 
 use crate::{app_structure::AppPageLoaderTree, util::NextRuntime};
@@ -206,7 +206,8 @@ impl Issue for NextSegmentConfigParsingIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Unable to parse config export in source file".into()).cell()
+        StyledString::Text("Next.js can't recognize the exported `config` field in route".into())
+            .cell()
     }
 
     #[turbo_tasks::function]
@@ -394,7 +395,7 @@ async fn parse_config_value(
                     invalid_config(
                         source,
                         span,
-                        &format!("`dynamic` has an invalid value: {}", err),
+                        &format!("`dynamic` has an invalid value: {err}"),
                         &value,
                     )
                     .await?;
@@ -455,7 +456,7 @@ async fn parse_config_value(
                     return invalid_config(
                         source,
                         span,
-                        &format!("`fetchCache` has an invalid value: {}", err),
+                        &format!("`fetchCache` has an invalid value: {err}"),
                         &value,
                     )
                     .await;
@@ -480,7 +481,7 @@ async fn parse_config_value(
                     return invalid_config(
                         source,
                         span,
-                        &format!("`runtime` has an invalid value: {}", err),
+                        &format!("`runtime` has an invalid value: {err}"),
                         &value,
                     )
                     .await;

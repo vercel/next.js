@@ -1079,6 +1079,7 @@ export async function fetchRouteOnCacheMiss(
         // TODO: Consider moving the build ID to a response header so we can check
         // it before decoding the response, and so there's one way of checking
         // across all response types.
+        // TODO: We should cache the fact that this is an MPA navigation.
         rejectRouteCacheEntry(entry, Date.now() + 10 * 1000)
         return null
       }
@@ -1110,6 +1111,16 @@ export async function fetchRouteOnCacheMiss(
       const serverData = await (createFromNextReadableStream(
         prefetchStream
       ) as Promise<NavigationFlightResponse>)
+      if (serverData.b !== getAppBuildId()) {
+        // The server build does not match the client. Treat as a 404. During
+        // an actual navigation, the router will trigger an MPA navigation.
+        // TODO: Consider moving the build ID to a response header so we can check
+        // it before decoding the response, and so there's one way of checking
+        // across all response types.
+        // TODO: We should cache the fact that this is an MPA navigation.
+        rejectRouteCacheEntry(entry, Date.now() + 10 * 1000)
+        return null
+      }
 
       writeDynamicTreeResponseIntoCache(
         Date.now(),
@@ -1368,15 +1379,6 @@ function writeDynamicTreeResponseIntoCache(
   canonicalUrl: string,
   routeIsPPREnabled: boolean
 ) {
-  if (serverData.b !== getAppBuildId()) {
-    // The server build does not match the client. Treat as a 404. During
-    // an actual navigation, the router will trigger an MPA navigation.
-    // TODO: Consider moving the build ID to a response header so we can check
-    // it before decoding the response, and so there's one way of checking
-    // across all response types.
-    rejectRouteCacheEntry(entry, now + 10 * 1000)
-    return
-  }
   const normalizedFlightDataResult = normalizeFlightData(serverData.f)
   if (
     // A string result means navigating to this route will result in an

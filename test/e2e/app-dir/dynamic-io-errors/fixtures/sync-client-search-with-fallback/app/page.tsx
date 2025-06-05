@@ -71,8 +71,8 @@ function LongRunningComponent() {
 function ShortRunningComponent() {
   return (
     <div>
-      This component runs quickly (in a microtask). It should be finished before
-      the sync searchParams access happens.
+      This component renders synchronously. It should be finished before sync IO
+      is accessed in the other component.
     </div>
   )
 }

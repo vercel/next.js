@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use auto_hash_map::AutoMap;
 use include_dir::{Dir, DirEntry};
 use turbo_rcstr::RcStr;

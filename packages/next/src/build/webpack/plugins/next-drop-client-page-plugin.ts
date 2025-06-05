@@ -1,6 +1,5 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { STRING_LITERAL_DROP_BUNDLE } from '../../../shared/lib/constants'
-import { extname } from 'path'
 
 export const ampFirstEntryNamesMap: WeakMap<webpack.Compilation, string[]> =
   new WeakMap()
@@ -9,36 +8,9 @@ const PLUGIN_NAME = 'DropAmpFirstPagesPlugin'
 
 // Prevents outputting client pages when they are not needed
 export class DropClientPage implements webpack.WebpackPluginInstance {
-  ampPages = new Set<string>()
+  ampPages = new Set()
 
   apply(compiler: webpack.Compiler) {
-    const isRspack = !!(compiler as any).rspack
-
-    if (isRspack) {
-      // For Rspack, use a simpler emit hook-based approach
-      compiler.hooks.emit.tap(PLUGIN_NAME, (compilation: any) => {
-        Object.keys(compilation.assets).forEach((assetKey) => {
-          const asset = compilation.assets[assetKey]
-
-          if (asset?._value?.includes?.(STRING_LITERAL_DROP_BUNDLE)) {
-            const cleanAssetKey = assetKey.replace(/\\/g, '/')
-            const page = '/' + cleanAssetKey.split('pages/')[1]
-            const pageNoExt = page.split(extname(page))[0]
-
-            delete compilation.assets[assetKey]
-
-            // Detect being re-ran through a child compiler and don't re-mark the
-            // page as AMP
-            if (!pageNoExt.endsWith('.module')) {
-              this.ampPages.add(pageNoExt.replace(/\/index$/, '') || '/')
-            }
-          }
-        })
-      })
-
-      return
-    }
-
     compiler.hooks.compilation.tap(
       PLUGIN_NAME,
       (compilation: any, { normalModuleFactory }: any) => {
@@ -67,7 +39,6 @@ export class DropClientPage implements webpack.WebpackPluginInstance {
             }
 
             // @ts-ignore buildInfo exists on Module
-            entryModule.buildInfo = entryModule.buildInfo || {}
             entryModule.buildInfo.NEXT_ampFirst = true
           }
 

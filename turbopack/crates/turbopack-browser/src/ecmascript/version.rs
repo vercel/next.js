@@ -1,8 +1,8 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ReadRef, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbo_tasks_hash::{encode_hex, Xxh3Hash64Hasher};
+use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_hex};
 use turbopack_core::{chunk::ModuleId, version::Version};
 use turbopack_ecmascript::chunk::EcmascriptChunkContent;
 

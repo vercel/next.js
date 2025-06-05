@@ -26,6 +26,13 @@ export type NextConfigComplete = Required<NextConfig> & {
   experimental: Omit<ExperimentalConfig, 'turbo'>
 }
 
+export interface NextAdapter {
+  name: string
+  modifyConfig(
+    config: NextConfigComplete
+  ): Promise<NextConfigComplete> | NextConfigComplete
+}
+
 export type I18NDomains = readonly DomainLocale[]
 
 export interface I18NConfig {
@@ -273,6 +280,7 @@ export interface LoggingConfig {
 }
 
 export interface ExperimentalConfig {
+  adapterPath?: string
   useSkewCookie?: boolean
   nodeMiddleware?: boolean
   cacheHandlers?: {
@@ -531,6 +539,12 @@ export interface ExperimentalConfig {
    */
   removeUncaughtErrorAndRejectionListeners?: boolean
 
+  /**
+   * During an RSC request, validates that the request headers match the
+   * cache-busting search parameter sent by the client.
+   */
+  validateRSCRequestHeaders?: boolean
+
   serverActions?: {
     /**
      * Allows adjusting body parser size limit for server actions.
@@ -552,6 +566,12 @@ export interface ExperimentalConfig {
   serverMinification?: boolean
 
   /**
+   * Enables source maps while generating static pages.
+   * Helps with errors during the prerender phase in `next build`.
+   */
+  enablePrerenderSourceMaps?: boolean
+
+  /**
    * Enables source maps generation for the server production bundle.
    */
   serverSourceMaps?: boolean
@@ -560,6 +580,10 @@ export interface ExperimentalConfig {
    * @internal Used by the Next.js internals only.
    */
   trustHostHeader?: boolean
+  /**
+   * @internal Used by the Next.js internals only.
+   */
+  isExperimentalCompile?: boolean
 
   useWasmBinary?: boolean
 
@@ -567,11 +591,6 @@ export interface ExperimentalConfig {
    * Use lightningcss instead of postcss-loader
    */
   useLightningcss?: boolean
-
-  /**
-   * Enables early import feature for app router modules
-   */
-  useEarlyImport?: boolean
 
   /**
    * Enables view transitions by using the {@link https://github.com/facebook/react/pull/31975 unstable_ViewTransition} Component.
@@ -629,8 +648,10 @@ export interface ExperimentalConfig {
   serverComponentsHmrCache?: boolean
 
   /**
-   * When enabled will cause IO in App Router to be excluded from prerenders
-   * unless explicitly cached.
+   * When enabled, will cause IO in App Router to be excluded from prerenders,
+   * unless explicitly cached. This also enables the experimental Partial
+   * Prerendering feature of Next.js, and it enables `react@experimental` being
+   * used for the `app` directory.
    */
   dynamicIO?: boolean
 
@@ -664,13 +685,15 @@ export interface ExperimentalConfig {
   }
 
   /**
-   * Enables the client instrumentation hook.
-   * Loads the instrumentation-client.ts file from the project root
-   * and executes it on the client side before hydration.
+   * Enables using the global-not-found.js file in the app directory
    *
-   * Note: Use with caution as this can negatively impact page loading performance.
    */
-  clientInstrumentationHook?: boolean
+  globalNotFound?: boolean
+
+  /**
+   * Enable segment viewer for the app directory in dev tool.
+   */
+  devtoolSegmentExplorer?: boolean
 }
 
 export type ExportPathMap = {
@@ -723,23 +746,15 @@ export type ExportPathMap = {
     _isRoutePPREnabled?: boolean
 
     /**
-     * When true, it indicates that this page is being rendered in an attempt to
-     * discover if the page will be safe to generate with PPR. This is only
-     * enabled when the app has `experimental.dynamicIO` enabled but does not
-     * have `experimental.ppr` enabled.
+     * When true, the page is prerendered as a fallback shell, while allowing
+     * any dynamic accesses to result in an empty shell. This is the case when
+     * the app has `experimental.ppr` and `experimental.dynamicIO` enabled, and
+     * there are also routes prerendered with a more complete set of params.
+     * Prerendering those routes would catch any invalid dynamic accesses.
      *
      * @internal
      */
-    _isProspectiveRender?: boolean
-
-    /**
-     * When true, it indicates that the diagnostic render for this page is
-     * disabled. This is only used when the app has `experimental.ppr` and
-     * `experimental.dynamicIO` enabled.
-     *
-     * @internal
-     */
-    _doNotThrowOnEmptyStaticShell?: boolean
+    _allowEmptyStaticShell?: boolean
   }
 }
 
@@ -1069,6 +1084,12 @@ export interface NextConfig extends Record<string, any> {
     define?: Record<string, string>
 
     /**
+     * Replaces server-only (Node.js and Edge) variables in your code during compile time.
+     * Each key will be replaced with the respective values.
+     */
+    defineServer?: Record<string, string>
+
+    /**
      * A hook function that executes after production build compilation finishes,
      * but before running post-compilation tasks such as type checking and
      * static page generation.
@@ -1179,7 +1200,7 @@ export interface NextConfig extends Record<string, any> {
   htmlLimitedBots?: RegExp
 }
 
-export const defaultConfig: NextConfig = {
+export const defaultConfig = {
   env: {},
   webpack: null,
   eslint: {
@@ -1238,6 +1259,7 @@ export const defaultConfig: NextConfig = {
   outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
   allowedDevOrigins: undefined,
   experimental: {
+    adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
     useSkewCookie: false,
     nodeMiddleware: false,
     cacheLife: {
@@ -1287,6 +1309,7 @@ export const defaultConfig: NextConfig = {
     appNavFailHandling: false,
     prerenderEarlyExit: true,
     serverMinification: true,
+    enablePrerenderSourceMaps: false,
     serverSourceMaps: false,
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
@@ -1348,10 +1371,10 @@ export const defaultConfig: NextConfig = {
     webpackBuildWorker: undefined,
     webpackMemoryOptimizations: false,
     optimizeServerReact: true,
-    useEarlyImport: false,
     viewTransition: false,
     routerBFCache: false,
     removeUncaughtErrorAndRejectionListeners: false,
+    validateRSCRequestHeaders: false,
     staleTimes: {
       dynamic: 0,
       static: 300,
@@ -1366,10 +1389,12 @@ export const defaultConfig: NextConfig = {
     inlineCss: false,
     useCache: undefined,
     slowModuleDetection: undefined,
+    globalNotFound: false,
+    devtoolSegmentExplorer: false,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
-}
+} satisfies NextConfig
 
 export async function normalizeConfig(phase: string, config: any) {
   if (typeof config === 'function') {

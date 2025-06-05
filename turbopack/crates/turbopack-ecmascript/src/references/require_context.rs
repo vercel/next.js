@@ -1,6 +1,6 @@
 use std::{borrow::Cow, collections::VecDeque, sync::Arc};
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 use swc_core::{
     common::DUMMY_SP,
@@ -9,46 +9,46 @@ use swc_core::{
             Expr, ExprStmt, KeyValueProp, Lit, ModuleItem, ObjectLit, Prop, PropName, PropOrSpread,
             Stmt, {self},
         },
-        codegen::{text_writer::JsWriter, Emitter},
+        codegen::{Emitter, text_writer::JsWriter},
     },
     quote, quote_expr,
 };
 use turbo_esregex::EsRegex;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, NonLocalValue, ResolvedVc, Value,
-    ValueToString, Vc,
+    FxIndexMap, NonLocalValue, ResolvedVc, Value, ValueToString, Vc, debug::ValueDebugFormat,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
         ChunkItem, ChunkType, ChunkableModule, ChunkableModuleReference, ChunkingContext,
-        ModuleChunkItemIdExt,
+        MinifyType, ModuleChunkItemIdExt,
     },
     ident::AssetIdent,
     issue::IssueSource,
     module::Module,
     module_graph::ModuleGraph,
     reference::{ModuleReference, ModuleReferences},
-    resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
+    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
     source::Source,
 };
 use turbopack_resolve::ecmascript::cjs_resolve;
 
 use crate::{
+    EcmascriptChunkPlaceable,
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkType, EcmascriptExports,
     },
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
     references::{
-        pattern_mapping::{PatternMapping, ResolveType},
         AstPath,
+        pattern_mapping::{PatternMapping, ResolveType},
     },
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_MODULE_CONTEXT, TURBOPACK_REQUIRE},
     utils::module_id_to_lit,
-    EcmascriptChunkPlaceable,
 };
 
 #[turbo_tasks::value]
@@ -355,7 +355,7 @@ impl ModuleReference for ResolvedModuleReference {
 impl ValueToString for ResolvedModuleReference {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell("resolved reference".into())
+        Vc::cell(rcstr!("resolved reference"))
     }
 }
 
@@ -373,16 +373,13 @@ pub struct RequireContextAsset {
     include_subdirs: bool,
 }
 
-#[turbo_tasks::function]
-fn modifier(dir: RcStr, include_subdirs: bool) -> Vc<RcStr> {
-    Vc::cell(
-        format!(
-            "require.context {}/{}",
-            dir,
-            if include_subdirs { "**" } else { "*" },
-        )
-        .into(),
+fn modifier(dir: &RcStr, include_subdirs: bool) -> RcStr {
+    format!(
+        "require.context {}/{}",
+        dir,
+        if include_subdirs { "**" } else { "*" },
     )
+    .into()
 }
 
 #[turbo_tasks::value_impl]
@@ -391,7 +388,7 @@ impl Module for RequireContextAsset {
     fn ident(&self) -> Vc<AssetIdent> {
         self.source
             .ident()
-            .with_modifier(modifier(self.dir.clone(), self.include_subdirs))
+            .with_modifier(modifier(&self.dir, self.include_subdirs))
     }
 
     #[turbo_tasks::function]
@@ -462,6 +459,7 @@ impl EcmascriptChunkItem for RequireContextChunkItem {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
         let map = &*self.map.await?;
+        let minify = self.chunking_context.minify_type().await?;
 
         let mut context_map = ObjectLit {
             span: DUMMY_SP,
@@ -516,12 +514,19 @@ impl EcmascriptChunkItem for RequireContextChunkItem {
         };
 
         let source_map: Arc<swc_core::common::SourceMap> = Default::default();
+
         let mut bytes: Vec<u8> = vec![];
+        let mut wr: JsWriter<'_, &mut Vec<u8>> =
+            JsWriter::new(source_map.clone(), "\n", &mut bytes, None);
+        if matches!(*minify, MinifyType::Minify { .. }) {
+            wr.set_indent_str("");
+        }
+
         let mut emitter = Emitter {
             cfg: swc_core::ecma::codegen::Config::default(),
             cm: source_map.clone(),
             comments: None,
-            wr: JsWriter::new(source_map, "\n", &mut bytes, None),
+            wr,
         };
 
         emitter.emit_module(&module)?;

@@ -21,7 +21,10 @@ import type { LoadingModuleData } from '../../shared/lib/app-router-context.shar
 import type { Params } from '../request/params'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import { OUTLET_BOUNDARY_NAME } from '../../lib/metadata/metadata-constants'
-import type { UseCachePageComponentProps } from '../use-cache/use-cache-wrapper'
+import type {
+  UseCacheLayoutComponentProps,
+  UseCachePageComponentProps,
+} from '../use-cache/use-cache-wrapper'
 
 /**
  * Use the provided loader tree to create the React Component tree.
@@ -39,7 +42,7 @@ export function createComponentTree(props: {
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
-  StreamingMetadataOutlet: React.ComponentType
+  StreamingMetadataOutlet: React.ComponentType | null
 }): Promise<CacheNodeSeedData> {
   return getTracer().trace(
     NextNodeServerSpan.createComponentTree,
@@ -95,6 +98,7 @@ async function createComponentTreeInternal({
     renderOpts: { nextConfigOutput, experimental },
     workStore,
     componentMod: {
+      SegmentViewNode,
       HTTPAccessFallbackBoundary,
       LayoutRouter,
       RenderFromTemplateContext,
@@ -391,7 +395,9 @@ async function createComponentTreeInternal({
   // Use the same condition to render metadataOutlet as metadata
   const metadataOutlet = StreamingMetadataOutlet ? (
     <StreamingMetadataOutlet />
-  ) : undefined
+  ) : (
+    <MetadataOutlet ready={getMetadataReady} />
+  )
 
   const notFoundElement = NotFound ? (
     <>
@@ -621,8 +627,26 @@ async function createComponentTreeInternal({
     )
   }
 
+  const dir = ctx.renderOpts.dir || process.cwd()
+  const isSegmentViewEnabled =
+    process.env.NODE_ENV === 'development' &&
+    ctx.renderOpts.devtoolSegmentExplorer
+  const nodeName = modType ?? 'page'
+
   if (isPage) {
-    const PageComponent = Component
+    const PageComponent = isSegmentViewEnabled
+      ? (pageProps: any) => {
+          return (
+            <SegmentViewNode
+              type={nodeName}
+              pagePath={normalizePageOrLayoutFilePath(dir, layoutOrPagePath)}
+            >
+              <Component {...pageProps} />
+            </SegmentViewNode>
+          )
+        }
+      : Component
+
     // Assign searchParams to props if this is a page
     let pageElement: React.ReactNode
     if (isClientComponent) {
@@ -658,16 +682,21 @@ async function createComponentTreeInternal({
         workStore
       )
 
-      // TODO(useCache): Should we use this trick also if dynamicIO is enabled,
-      // instead of relying on the searchParams being a hanging promise?
-      if (!experimental.dynamicIO && isUseCacheFunction(PageComponent)) {
+      // If we are passing searchParams to a server component Page we need to
+      // track their usage in case the current render mode tracks dynamic API
+      // usage.
+      let searchParams = createServerSearchParamsForServerPage(query, workStore)
+
+      if (isUseCacheFunction(PageComponent)) {
         const UseCachePageComponent: React.ComponentType<UseCachePageComponentProps> =
           PageComponent
 
-        // The "use cache" wrapper takes care of converting this into an
-        // erroring search params promise when passing it to the original
-        // function.
-        const searchParams = Promise.resolve({})
+        if (!experimental.dynamicIO) {
+          // The "use cache" wrapper takes care of converting this into an
+          // erroring search params promise when passing it to the original
+          // function.
+          searchParams = Promise.resolve({})
+        }
 
         pageElement = (
           <UseCachePageComponent
@@ -677,14 +706,6 @@ async function createComponentTreeInternal({
           />
         )
       } else {
-        // If we are passing searchParams to a server component Page we need to
-        // track their usage in case the current render mode tracks dynamic API
-        // usage.
-        const searchParams = createServerSearchParamsForServerPage(
-          query,
-          workStore
-        )
-
         pageElement = (
           <PageComponent params={params} searchParams={searchParams} />
         )
@@ -697,9 +718,6 @@ async function createComponentTreeInternal({
         {layerAssets}
         <OutletBoundary>
           <MetadataOutlet ready={getViewportReady} />
-          {/* Blocking metadata outlet */}
-          <MetadataOutlet ready={getMetadataReady} />
-          {/* Streaming metadata outlet */}
           {metadataOutlet}
         </OutletBoundary>
       </React.Fragment>,
@@ -708,7 +726,18 @@ async function createComponentTreeInternal({
       isPossiblyPartialResponse,
     ]
   } else {
-    const SegmentComponent = Component
+    const SegmentComponent = isSegmentViewEnabled
+      ? (segmentProps: any) => {
+          return (
+            <SegmentViewNode
+              type={nodeName}
+              pagePath={normalizePageOrLayoutFilePath(dir, layoutOrPagePath)}
+            >
+              <Component {...segmentProps} />
+            </SegmentViewNode>
+          )
+        }
+      : Component
 
     const isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot =
       rootLayoutAtThisLevel &&
@@ -815,9 +844,24 @@ async function createComponentTreeInternal({
         workStore
       )
 
-      let serverSegment = (
-        <SegmentComponent {...parallelRouteProps} params={params} />
-      )
+      let serverSegment: React.ReactNode
+
+      if (isUseCacheFunction(SegmentComponent)) {
+        const UseCacheLayoutComponent: React.ComponentType<UseCacheLayoutComponentProps> =
+          SegmentComponent
+
+        serverSegment = (
+          <UseCacheLayoutComponent
+            {...parallelRouteProps}
+            params={params}
+            $$isLayoutComponent
+          />
+        )
+      } else {
+        serverSegment = (
+          <SegmentComponent {...parallelRouteProps} params={params} />
+        )
+      }
 
       if (isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot) {
         // TODO-APP: This is a hack to support unmatched parallel routes, which will throw `notFound()`.
@@ -963,4 +1007,21 @@ function getRootParamsImpl(
       getDynamicParamFromSegment
     )
   }
+}
+
+function normalizePageOrLayoutFilePath(
+  projectDir: string,
+  layoutOrPagePath: string | undefined
+) {
+  const relativePath = (layoutOrPagePath || '')
+    // remove turbopack [project] prefix
+    .replace(/^\[project\][\\/]/, '')
+    // remove the process.cwd() prefix
+    .replace(process.cwd() + '/', '')
+    // remove the project root from the path
+    .replace(projectDir, '')
+    // remove /(src/)?app/ dir prefix
+    .replace(/^[\\/](src[\\/])?app[\\/]/, '')
+
+  return relativePath
 }

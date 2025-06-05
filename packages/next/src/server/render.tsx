@@ -104,6 +104,7 @@ import { getCacheControlHeader } from './lib/cache-control'
 import { getErrorSource } from '../shared/lib/error-source'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import type { PagesDevOverlayType } from '../client/components/react-dev-overlay/pages/pages-dev-overlay'
+import { getScriptNonceFromHeader } from './app-render/get-script-nonce-from-header'
 
 let tryGetPreviewData: typeof import('./api-utils/node/try-get-preview-data').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -740,6 +741,13 @@ export async function renderToHTMLImpl(
       .map((script: any) => script.props)
   }
 
+  const csp =
+    req.headers['content-security-policy'] ||
+    req.headers['content-security-policy-report-only']
+
+  const nonce =
+    typeof csp === 'string' ? getScriptNonceFromHeader(csp) : undefined
+
   const AppContainer = ({ children }: { children: JSX.Element }) => (
     <AppRouterContext.Provider value={appRouter}>
       <SearchParamsContext.Provider value={adaptForSearchParams(router)}>
@@ -760,6 +768,7 @@ export async function renderToHTMLImpl(
                     },
                     scripts: initialScripts,
                     mountedInstances: new Set(),
+                    nonce,
                   }}
                 >
                   <LoadableContext.Provider
@@ -843,7 +852,7 @@ export async function renderToHTMLImpl(
       const { html, head: renderPageHead } = await docCtx.renderPage({
         enhanceApp,
       })
-      const styles = jsxStyleRegistry.styles({ nonce: options.nonce })
+      const styles = jsxStyleRegistry.styles({ nonce: options.nonce || nonce })
       jsxStyleRegistry.flush()
       return { html, head: renderPageHead, styles }
     },
@@ -1504,6 +1513,7 @@ export async function renderToHTMLImpl(
       isPreview: isPreview === true ? true : undefined,
       notFoundSrcPage: notFoundSrcPage && dev ? notFoundSrcPage : undefined,
     },
+    nonce,
     strictNextHead: renderOpts.strictNextHead,
     buildManifest: filteredBuildManifest,
     docComponentsRendered,

@@ -21,15 +21,6 @@ declare module 'next/dist/compiled/react-server-dom-turbopack/client.browser'
 declare module 'next/dist/compiled/react-server-dom-turbopack/server.browser'
 declare module 'next/dist/compiled/react-server-dom-turbopack/server.edge'
 declare module 'next/dist/compiled/react-server-dom-turbopack/static.edge'
-declare module 'next/dist/client/app-call-server' {
-  export function callServer(
-    actionId: string,
-    actionArgs: unknown[]
-  ): Promise<unknown>
-}
-declare module 'next/dist/client/app-find-source-map-url' {
-  export function findSourceMapURL(filename: string): string | null
-}
 declare module 'next/dist/compiled/react-dom/server'
 declare module 'next/dist/compiled/react-dom/server.edge'
 declare module 'next/dist/compiled/browserslist'
@@ -337,6 +328,7 @@ declare module 'react-server-dom-webpack/client.edge' {
 }
 
 declare module 'VAR_MODULE_GLOBAL_ERROR'
+declare module 'VAR_MODULE_GLOBAL_NOT_FOUND'
 declare module 'VAR_USERLAND'
 declare module 'VAR_MODULE_DOCUMENT'
 declare module 'VAR_MODULE_APP'

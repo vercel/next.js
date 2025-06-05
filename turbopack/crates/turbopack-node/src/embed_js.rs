@@ -1,6 +1,6 @@
 use turbo_rcstr::RcStr;
 use turbo_tasks::Vc;
-use turbo_tasks_fs::{embed_directory, FileContent, FileSystem, FileSystemPath};
+use turbo_tasks_fs::{FileContent, FileSystem, FileSystemPath, embed_directory};
 
 #[turbo_tasks::function]
 pub fn embed_fs() -> Vc<Box<dyn FileSystem>> {

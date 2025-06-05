@@ -1,14 +1,14 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    fxindexmap, trace::TraceRawVcs, Completion, Completions, NonLocalValue, ResolvedVc, TaskInput,
-    TryFlatJoinIterExt, Value, Vc,
+    Completion, Completions, NonLocalValue, ResolvedVc, TaskInput, TryFlatJoinIterExt, Value, Vc,
+    fxindexmap, trace::TraceRawVcs,
 };
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_fs::{
-    json::parse_json_with_source_context, File, FileContent, FileSystemEntryType, FileSystemPath,
+    File, FileContent, FileSystemEntryType, FileSystemPath, json::parse_json_with_source_context,
 };
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -20,7 +20,7 @@ use turbopack_core::{
         Issue, IssueDescriptionExt, IssueSeverity, IssueStage, OptionStyledString, StyledString,
     },
     reference_type::{EntryReferenceSubType, InnerAssets, ReferenceType},
-    resolve::{find_context_file_or_package_key, options::ImportMapping, FindContextFileResult},
+    resolve::{FindContextFileResult, find_context_file_or_package_key, options::ImportMapping},
     source::Source,
     source_map::{GenerateSourceMap, OptionStringifiedSourceMap},
     source_transform::SourceTransform,
@@ -29,7 +29,7 @@ use turbopack_core::{
 use turbopack_ecmascript::runtime_functions::TURBOPACK_EXTERNAL_IMPORT;
 
 use super::{
-    util::{emitted_assets_to_virtual_sources, EmittedAsset},
+    util::{EmittedAsset, emitted_assets_to_virtual_sources},
     webpack::WebpackLoaderContext,
 };
 use crate::{
@@ -224,9 +224,9 @@ async fn extra_configs_changed(
     let parent_path = postcss_config_path.parent();
 
     let config_paths = [
-        parent_path.join("tailwind.config.js".into()),
-        parent_path.join("tailwind.config.mjs".into()),
-        parent_path.join("tailwind.config.ts".into()),
+        parent_path.join(rcstr!("tailwind.config.js")),
+        parent_path.join(rcstr!("tailwind.config.mjs")),
+        parent_path.join(rcstr!("tailwind.config.ts")),
     ];
 
     let configs = config_paths
@@ -291,11 +291,11 @@ impl Source for JsonSource {
         match &*self.key.await? {
             Some(key) => Ok(AssetIdent::from_path(
                 self.path
-                    .append(".".into())
+                    .append(rcstr!("."))
                     .append(key.clone())
-                    .append(".json".into()),
+                    .append(rcstr!(".json")),
             )),
-            None => Ok(AssetIdent::from_path(self.path.append(".json".into()))),
+            None => Ok(AssetIdent::from_path(self.path.append(rcstr!(".json")))),
         }
     }
 }
@@ -342,7 +342,7 @@ pub(crate) async fn config_loader_source(
     if postcss_config_path_filename == "package.json" {
         return Ok(Vc::upcast(JsonSource::new(
             postcss_config_path,
-            Vc::cell(Some("postcss".into())),
+            Vc::cell(Some(rcstr!("postcss"))),
             false,
         )));
     }
@@ -389,7 +389,7 @@ pub(crate) async fn config_loader_source(
     };
 
     Ok(Vc::upcast(VirtualSource::new(
-        postcss_config_path.append("_.loader.mjs".into()),
+        postcss_config_path.append(rcstr!("_.loader.mjs")),
         AssetContent::file(File::from(code).into()),
     )))
 }
@@ -410,11 +410,11 @@ async fn postcss_executor(
         .await?;
 
     Ok(asset_context.process(
-        Vc::upcast(FileSource::new(embed_file_path(
-            "transforms/postcss.ts".into(),
-        ))),
+        Vc::upcast(FileSource::new(embed_file_path(rcstr!(
+            "transforms/postcss.ts"
+        )))),
         Value::new(ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
-            "CONFIG".into() => config_asset
+            rcstr!("CONFIG") => config_asset
         }))),
     ))
 }
@@ -427,7 +427,7 @@ async fn find_config_in_location(
     if let FindContextFileResult::Found(config_path, _) = *find_context_file_or_package_key(
         project_path,
         postcss_configs(),
-        Value::new("postcss".into()),
+        Value::new(rcstr!("postcss")),
     )
     .await?
     {
@@ -438,7 +438,7 @@ async fn find_config_in_location(
         if let FindContextFileResult::Found(config_path, _) = *find_context_file_or_package_key(
             source.ident().path().parent(),
             postcss_configs(),
-            Value::new("postcss".into()),
+            Value::new(rcstr!("postcss")),
         )
         .await?
         {

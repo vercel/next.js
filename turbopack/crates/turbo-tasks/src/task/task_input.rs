@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 
 use crate::{
-    trace::TraceRawVcs, MagicAny, ResolvedVc, TaskId, TransientInstance, TransientValue, Value,
-    ValueTypeId, Vc,
+    MagicAny, ResolvedVc, TaskId, TransientInstance, TransientValue, Value, ValueTypeId, Vc,
+    trace::TraceRawVcs,
 };
 
 /// Trait to implement in order for a type to be accepted as a
@@ -322,6 +322,7 @@ tuple_impls! { A B C D E F G H I J K L }
 
 #[cfg(test)]
 mod tests {
+    use turbo_rcstr::rcstr;
     use turbo_tasks_macros::TaskInput;
 
     use super::*;
@@ -364,7 +365,7 @@ mod tests {
         )]
         struct MultipleUnnamedFields(u32, RcStr);
 
-        assert_task_input(MultipleUnnamedFields(42, "42".into()));
+        assert_task_input(MultipleUnnamedFields(42, rcstr!("42")));
         Ok(())
     }
 
@@ -393,7 +394,7 @@ mod tests {
 
         assert_task_input(MultipleNamedFields {
             named: 42,
-            other: "42".into(),
+            other: rcstr!("42"),
         });
         Ok(())
     }
@@ -406,7 +407,7 @@ mod tests {
         struct GenericField<T>(T);
 
         assert_task_input(GenericField(42));
-        assert_task_input(GenericField(RcStr::from("42")));
+        assert_task_input(GenericField(rcstr!("42")));
         Ok(())
     }
 
@@ -448,7 +449,7 @@ mod tests {
     fn test_multiple_variants_and_heterogeneous_fields() -> Result<()> {
         assert_task_input(MultipleVariantsAndHeterogeneousFields::Variant5 {
             named: 42,
-            other: "42".into(),
+            other: rcstr!("42"),
         });
         Ok(())
     }
@@ -468,12 +469,12 @@ mod tests {
 
         assert_task_input(NestedVariants::Variant5 {
             named: OneVariant::Variant,
-            other: "42".into(),
+            other: rcstr!("42"),
         });
         assert_task_input(NestedVariants::Variant2(
             MultipleVariantsAndHeterogeneousFields::Variant5 {
                 named: 42,
-                other: "42".into(),
+                other: rcstr!("42"),
             },
         ));
         Ok(())

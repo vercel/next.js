@@ -1,6 +1,9 @@
 import type { LoadComponentsReturnType } from '../load-components'
 import type { ServerRuntime, SizeLimit } from '../../types'
-import type { NextConfigComplete } from '../../server/config-shared'
+import type {
+  ExperimentalConfig,
+  NextConfigComplete,
+} from '../../server/config-shared'
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 import type { ParsedUrlQuery } from 'querystring'
@@ -179,6 +182,7 @@ export type ServerOnInstrumentationRequestError = (
 ) => void | Promise<void>
 
 export interface RenderOptsPartial {
+  dir?: string
   previewProps: __ApiPreviewProps | undefined
   err?: Error | null
   dev?: boolean
@@ -227,6 +231,7 @@ export interface RenderOptsPartial {
      */
     isRoutePPREnabled?: boolean
     expireTime: number | undefined
+    staleTimes: ExperimentalConfig['staleTimes'] | undefined
     clientTraceMetadata: string[] | undefined
     dynamicIO: boolean
     clientSegmentCache: boolean | 'client-only'
@@ -264,11 +269,17 @@ export interface RenderOptsPartial {
   isStaticGeneration?: boolean
 
   /**
-   * When true, the page will be rendered using the static rendering to detect
-   * any dynamic API's that would have stopped the page from being fully
-   * statically generated.
+   * When true, the page is prerendered as a fallback shell, while allowing any
+   * dynamic accesses to result in an empty shell. This is the case when there
+   * are also routes prerendered with a more complete set of params.
+   * Prerendering those routes would catch any invalid dynamic accesses.
    */
-  doNotThrowOnEmptyStaticShell?: boolean
+  allowEmptyStaticShell?: boolean
+
+  /**
+   * next config experimental.devtoolSegmentExplorer
+   */
+  devtoolSegmentExplorer?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType<AppPageModule> &

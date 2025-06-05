@@ -1,11 +1,11 @@
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use strsim::jaro;
 use swc_core::{
-    common::{BytePos, Span, DUMMY_SP},
+    common::{BytePos, DUMMY_SP, Span},
     ecma::ast::{Decl, Expr, ExprStmt, Ident, Stmt},
     quote,
 };
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -22,24 +22,24 @@ use turbopack_core::{
     reference::ModuleReference,
     reference_type::{EcmaScriptModulesReferenceSubType, ImportWithType},
     resolve::{
+        ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem, RequestKey,
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
-        ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem, RequestKey,
     },
 };
 use turbopack_resolve::ecmascript::esm_resolve;
 
 use super::export::{all_known_export_names, is_export_missing};
 use crate::{
+    TreeShakingMode,
     analyzer::imports::ImportAnnotations,
     chunk::EcmascriptChunkPlaceable,
     code_gen::CodeGeneration,
     magic_identifier,
     references::util::{request_to_string, throw_module_not_found_expr},
     runtime_functions::{TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE, TURBOPACK_IMPORT},
-    tree_shake::{asset::EcmascriptModulePartAsset, TURBOPACK_PART_IMPORT_SOURCE},
+    tree_shake::{TURBOPACK_PART_IMPORT_SOURCE, asset::EcmascriptModulePartAsset},
     utils::module_id_to_lit,
-    TreeShakingMode,
 };
 
 #[turbo_tasks::value]
@@ -71,7 +71,7 @@ impl ReferencedAsset {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<String> {
         let id = asset.chunk_item_id(Vc::upcast(chunking_context)).await?;
-        Ok(magic_identifier::mangle(&format!("imported module {}", id)))
+        Ok(magic_identifier::mangle(&format!("imported module {id}")))
     }
 }
 
@@ -273,12 +273,18 @@ impl ChunkableModuleReference for EsmAssetReference {
         Ok(Vc::cell(
             if let Some(chunking_type) = self.annotations.chunking_type() {
                 match chunking_type {
-                    "parallel" => Some(ChunkingType::ParallelInheritAsync),
+                    "parallel" => Some(ChunkingType::Parallel {
+                        inherit_async: true,
+                        hoisted: true,
+                    }),
                     "none" => None,
                     _ => return Err(anyhow!("unknown chunking_type: {}", chunking_type)),
                 }
             } else {
-                Some(ChunkingType::ParallelInheritAsync)
+                Some(ChunkingType::Parallel {
+                    inherit_async: true,
+                    hoisted: true,
+                })
             },
         ))
     }
@@ -447,9 +453,9 @@ impl Issue for InvalidExport {
     #[turbo_tasks::function]
     async fn title(&self) -> Result<Vc<StyledString>> {
         Ok(StyledString::Line(vec![
-            StyledString::Text("Export ".into()),
+            StyledString::Text(rcstr!("Export ")),
             StyledString::Code(self.export.clone()),
-            StyledString::Text(" doesn't exist in target module".into()),
+            StyledString::Text(rcstr!(" doesn't exist in target module")),
         ])
         .cell())
     }
@@ -475,20 +481,20 @@ impl Issue for InvalidExport {
         Ok(Vc::cell(Some(
             StyledString::Stack(vec![
                 StyledString::Line(vec![
-                    StyledString::Text("The export ".into()),
+                    StyledString::Text(rcstr!("The export ")),
                     StyledString::Code(self.export.clone()),
-                    StyledString::Text(" was not found in module ".into()),
+                    StyledString::Text(rcstr!(" was not found in module ")),
                     StyledString::Strong(self.module.ident().to_string().owned().await?),
-                    StyledString::Text(".".into()),
+                    StyledString::Text(rcstr!(".")),
                 ]),
                 if let Some(did_you_mean) = did_you_mean {
                     StyledString::Line(vec![
-                        StyledString::Text("Did you mean to import ".into()),
+                        StyledString::Text(rcstr!("Did you mean to import ")),
                         StyledString::Code(did_you_mean.clone()),
-                        StyledString::Text("?".into()),
+                        StyledString::Text(rcstr!("?")),
                     ])
                 } else {
-                    StyledString::Strong("The module has no exports at all.".into())
+                    StyledString::Strong(rcstr!("The module has no exports at all."))
                 },
                 StyledString::Text(
                     "All exports of the module are statically known (It doesn't have dynamic \
@@ -505,7 +511,7 @@ impl Issue for InvalidExport {
         let export_names = all_known_export_names(*self.module).await?;
         Ok(Vc::cell(Some(
             StyledString::Line(vec![
-                StyledString::Text("These are the exports of the module:\n".into()),
+                StyledString::Text(rcstr!("These are the exports of the module:\n")),
                 StyledString::Code(
                     export_names
                         .iter()

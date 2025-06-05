@@ -538,18 +538,26 @@ fn next_font_loaders_fixture(input: PathBuf) {
     );
 }
 
-#[fixture("tests/fixture/server-actions/**/input.js")]
+#[fixture("tests/fixture/server-actions/**/input.*")]
 fn server_actions_fixture(input: PathBuf) {
-    let output = input.parent().unwrap().join("output.js");
+    let (input_syntax, extension) = if input.extension() == Some("ts".as_ref()) {
+        (Syntax::Typescript(Default::default()), "ts")
+    } else {
+        (syntax(), "js")
+    };
+
+    let output = input.parent().unwrap().join(format!("output.{extension}"));
     let is_react_server_layer = input.iter().any(|s| s.to_str() == Some("server-graph"));
     let is_development = input.iter().any(|s| s.to_str() == Some("development"));
+
     let mode = if input.iter().any(|s| s.to_str() == Some("turbopack")) {
         ServerActionsMode::Turbopack
     } else {
         ServerActionsMode::Webpack
     };
+
     test_fixture(
-        syntax(),
+        input_syntax,
         &|tr| {
             (
                 resolver(Mark::new(), Mark::new(), false),

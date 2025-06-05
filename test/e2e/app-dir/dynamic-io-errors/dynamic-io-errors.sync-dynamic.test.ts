@@ -1,42 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
-const WITH_PPR = !!process.env.__NEXT_EXPERIMENTAL_PPR
-
-const stackStart = /\s+at /
-
-function createExpectError(cliOutput: string) {
-  let cliIndex = 0
-  return function expectError(
-    containing: string,
-    withStackContaining?: string
-  ) {
-    const initialCliIndex = cliIndex
-    let lines = cliOutput.slice(cliIndex).split('\n')
-
-    let i = 0
-    while (i < lines.length) {
-      let line = lines[i++] + '\n'
-      cliIndex += line.length
-      if (line.includes(containing)) {
-        if (typeof withStackContaining !== 'string') {
-          return
-        } else {
-          while (i < lines.length) {
-            let stackLine = lines[i++] + '\n'
-            if (!stackStart.test(stackLine)) {
-              expect(stackLine).toContain(withStackContaining)
-            }
-            if (stackLine.includes(withStackContaining)) {
-              return
-            }
-          }
-        }
-      }
-    }
-
-    expect(cliOutput.slice(initialCliIndex)).toContain(containing)
-  }
-}
+import { createExpectError } from './utils'
 
 function runTests(options: { withMinification: boolean }) {
   const { withMinification } = options
@@ -75,15 +39,9 @@ function runTests(options: { withMinification: boolean }) {
           throw new Error('expected build not to fail for fully static project')
         }
 
-        if (WITH_PPR) {
-          expect(next.cliOutput).toContain('◐ / ')
-          const $ = await next.render$('/')
-          expect($('[data-fallback]').length).toBe(2)
-        } else {
-          expect(next.cliOutput).toContain('ƒ / ')
-          const $ = await next.render$('/')
-          expect($('[data-fallback]').length).toBe(2)
-        }
+        expect(next.cliOutput).toContain('◐ / ')
+        const $ = await next.render$('/')
+        expect($('[data-fallback]').length).toBe(2)
       })
     })
 
@@ -122,7 +80,11 @@ function runTests(options: { withMinification: boolean }) {
         }
         const expectError = createExpectError(next.cliOutput)
 
-        expectError('Route "/" used `searchParams.foo`')
+        // TODO we need to figure out a way to improve this error message. This is the rare case where the sync IO is escaping out of it's parent Suspense because something is rendering too slowly in the root. At the moment we don't have a way of discriminating between this and something like Request data access in the server.
+        // expectError('Route "/" used `searchParams.foo`')
+        expectError(
+          'Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it.'
+        )
         expectError('Error occurred prerendering page "/"')
         expectError('exiting the build.')
       })
@@ -162,15 +124,9 @@ function runTests(options: { withMinification: boolean }) {
           throw new Error('expected build not to fail for fully static project')
         }
 
-        if (WITH_PPR) {
-          expect(next.cliOutput).toContain('◐ / ')
-          const $ = await next.render$('/')
-          expect($('[data-fallback]').length).toBe(2)
-        } else {
-          expect(next.cliOutput).toContain('ƒ / ')
-          const $ = await next.render$('/')
-          expect($('[data-fallback]').length).toBe(0)
-        }
+        expect(next.cliOutput).toContain('◐ / ')
+        const $ = await next.render$('/')
+        expect($('[data-fallback]').length).toBe(2)
       })
     })
 
@@ -249,15 +205,9 @@ function runTests(options: { withMinification: boolean }) {
           throw new Error('expected build not to fail for fully static project')
         }
 
-        if (WITH_PPR) {
-          expect(next.cliOutput).toContain('◐ / ')
-          const $ = await next.render$('/')
-          expect($('[data-fallback]').length).toBe(2)
-        } else {
-          expect(next.cliOutput).toContain('ƒ / ')
-          const $ = await next.render$('/')
-          expect($('[data-fallback]').length).toBe(0)
-        }
+        expect(next.cliOutput).toContain('◐ / ')
+        const $ = await next.render$('/')
+        expect($('[data-fallback]').length).toBe(2)
       })
     })
 

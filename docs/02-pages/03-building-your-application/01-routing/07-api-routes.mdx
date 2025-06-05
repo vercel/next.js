@@ -13,7 +13,7 @@ description: Next.js supports API Routes, which allow you to build your API with
 
 </details>
 
-> **Good to know**: If you are using the App Router, you can use [Server Components](/docs/app/building-your-application/rendering/server-components) or [Route Handlers](/docs/app/building-your-application/routing/route-handlers) instead of API Routes.
+> **Good to know**: If you are using the App Router, you can use [Server Components](/docs/app/getting-started/server-and-client-components) or [Route Handlers](/docs/app/building-your-application/routing/route-handlers) instead of API Routes.
 
 API routes provide a solution to build a **public API** with Next.js.
 
@@ -177,7 +177,7 @@ The included helpers are:
 - `res.json(body)` - Sends a JSON response. `body` must be a [serializable object](https://developer.mozilla.org/docs/Glossary/Serialization)
 - `res.send(body)` - Sends the HTTP response. `body` can be a `string`, an `object` or a `Buffer`
 - `res.redirect([status,] path)` - Redirects to a specified path or URL. `status` must be a valid [HTTP status code](https://en.wikipedia.org/wiki/List_of_HTTP_status_codes). If not specified, `status` defaults to "307" "Temporary redirect".
-- `res.revalidate(urlPath)` - [Revalidate a page on demand](/docs/pages/building-your-application/data-fetching/incremental-static-regeneration#on-demand-revalidation-with-revalidatepath) using `getStaticProps`. `urlPath` must be a `string`.
+- `res.revalidate(urlPath)` - [Revalidate a page on demand](/docs/pages/guides/incremental-static-regeneration#on-demand-revalidation-with-revalidatepath) using `getStaticProps`. `urlPath` must be a `string`.
 
 ### Setting the status code of a response
 
@@ -416,8 +416,29 @@ The `query` objects are as follows:
   - `pages/api/post/[pid].js` - Will match `/api/post/1`, `/api/post/abc`, etc. But not `/api/post/create`
   - `pages/api/post/[...slug].js` - Will match `/api/post/1/2`, `/api/post/a/b/c`, etc. But not `/api/post/create`, `/api/post/abc`
 
-## Edge API Routes
+## Streaming responses
 
-If you would like to use API Routes with the Edge Runtime, we recommend incrementally adopting the App Router and using [Route Handlers](/docs/app/building-your-application/routing/route-handlers) instead.
+While the Pages Router does support streaming responses with API Routes, we recommend incrementally adopting the App Router and using [Route Handlers](/docs/app/building-your-application/routing/route-handlers) if you are on Next.js 14+.
 
-The Route Handlers function signature is isomorphic, meaning you can use the same function for both Edge and Node.js runtimes.
+Here's how you can stream a response from an API Route with `writeHead`:
+
+```js filename="pages/api/hello.js"
+import { NextApiRequest, NextApiResponse } from 'next'
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': "no-store",
+  })
+  let i = 0
+  while (i < 10) {
+    res.write(`data: ${i}\n\n`)
+    i++
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+  }
+  res.end()
+}
+```

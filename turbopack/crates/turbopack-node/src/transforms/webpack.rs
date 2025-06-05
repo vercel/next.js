@@ -1,22 +1,22 @@
 use std::mem::take;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use async_trait::async_trait;
 use base64::Engine;
 use either::Either;
 use futures::try_join;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Map as JsonMap, Value as JsonValue};
+use serde_json::{Map as JsonMap, Value as JsonValue, json};
 use serde_with::serde_as;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    trace::TraceRawVcs, Completion, NonLocalValue, OperationValue, OperationVc, ResolvedVc,
-    TaskInput, TryJoinIterExt, Value, ValueToString, Vc,
+    Completion, NonLocalValue, OperationValue, OperationVc, ResolvedVc, TaskInput, TryJoinIterExt,
+    Value, ValueToString, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{
-    glob::Glob, json::parse_json_with_source_context, rope::Rope, File, FileContent, FileSystemPath,
+    File, FileContent, FileSystemPath, glob::Glob, json::parse_json_with_source_context, rope::Rope,
 };
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -35,7 +35,7 @@ use turbopack_core::{
     },
     source::Source,
     source_map::{
-        utils::resolve_source_map_sources, GenerateSourceMap, OptionStringifiedSourceMap,
+        GenerateSourceMap, OptionStringifiedSourceMap, utils::resolve_source_map_sources,
     },
     source_transform::SourceTransform,
     virtual_source::VirtualSource,
@@ -45,18 +45,18 @@ use turbopack_resolve::{
     resolve_options_context::ResolveOptionsContext,
 };
 
-use super::util::{emitted_assets_to_virtual_sources, EmittedAsset};
+use super::util::{EmittedAsset, emitted_assets_to_virtual_sources};
 use crate::{
+    AssetsForSourceMapping,
     debug::should_debug,
     embed_js::embed_file_path,
     evaluate::{
-        compute, custom_evaluate, get_evaluate_pool, EnvVarTracking, EvaluateContext,
-        EvaluationIssue, JavaScriptEvaluation, JavaScriptStreamSender,
+        EnvVarTracking, EvaluateContext, EvaluationIssue, JavaScriptEvaluation,
+        JavaScriptStreamSender, compute, custom_evaluate, get_evaluate_pool,
     },
     execution_context::ExecutionContext,
     pool::{FormattingMode, NodeJsPool},
     source_map::{StackFrame, StructuredError},
-    AssetsForSourceMapping,
 };
 
 #[serde_as]
@@ -188,9 +188,9 @@ async fn webpack_loaders_executor(
     evaluate_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<ProcessResult>> {
     Ok(evaluate_context.process(
-        Vc::upcast(FileSource::new(embed_file_path(
-            "transforms/webpack-loaders.ts".into(),
-        ))),
+        Vc::upcast(FileSource::new(embed_file_path(rcstr!(
+            "transforms/webpack-loaders.ts"
+        )))),
         Value::new(ReferenceType::Internal(
             InnerAssets::empty().to_resolved().await?,
         )),
@@ -230,7 +230,7 @@ impl WebpackLoadersProcessedAsset {
                 "binary".to_string(),
                 JsonValue::from(
                     base64::engine::general_purpose::STANDARD
-                        .encode(file_content.content().to_bytes().unwrap()),
+                        .encode(file_content.content().to_bytes()),
                 ),
             )))),
         };
@@ -266,7 +266,7 @@ impl WebpackLoadersProcessedAsset {
                 ResolvedVc::cell(content),
                 // We need to pass the query string to the loader
                 ResolvedVc::cell(resource_path.to_string().into()),
-                ResolvedVc::cell(this.source.ident().query().await?.to_string().into()),
+                ResolvedVc::cell(this.source.ident().await?.query.to_string().into()),
                 ResolvedVc::cell(json!(*loaders)),
                 ResolvedVc::cell(transform.source_maps.into()),
             ],
@@ -742,7 +742,7 @@ impl Issue for BuildDependencyIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Build dependencies are not yet supported".into()).cell()
+        StyledString::Text(rcstr!("Build dependencies are not yet supported")).cell()
     }
 
     #[turbo_tasks::function]
@@ -759,7 +759,7 @@ impl Issue for BuildDependencyIssue {
     async fn description(&self) -> Result<Vc<OptionStyledString>> {
         Ok(Vc::cell(Some(
             StyledString::Line(vec![
-                StyledString::Text("The file at ".into()),
+                StyledString::Text(rcstr!("The file at ")),
                 StyledString::Code(self.path.await?.to_string().into()),
                 StyledString::Text(
                     " is a build dependency, which is not yet implemented.
@@ -802,7 +802,7 @@ impl Issue for EvaluateEmittedErrorIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Issue while running loader".into()).cell()
+        StyledString::Text(rcstr!("Issue while running loader")).cell()
     }
 
     #[turbo_tasks::function]
@@ -854,7 +854,7 @@ impl Issue for EvaluateErrorLoggingIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Error logging while running loader".into()).cell()
+        StyledString::Text(rcstr!("Error logging while running loader")).cell()
     }
 
     #[turbo_tasks::function]
@@ -886,7 +886,7 @@ impl Issue for EvaluateErrorLoggingIssue {
                 LogType::Warn => StyledString::Text(fmt_args("<w> ".to_string(), &log.args).into()),
                 LogType::Info => StyledString::Text(fmt_args("<i> ".to_string(), &log.args).into()),
                 LogType::Log => StyledString::Text(fmt_args("<l> ".to_string(), &log.args).into()),
-                LogType::Clear => StyledString::Strong("---".into()),
+                LogType::Clear => StyledString::Strong(rcstr!("---")),
                 _ => {
                     unimplemented!("{:?} is not implemented", log.log_type)
                 }

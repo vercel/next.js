@@ -2,10 +2,10 @@
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 
-use anyhow::{bail, Result};
-use turbo_rcstr::RcStr;
+use anyhow::{Result, bail};
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
-use turbo_tasks_testing::{register, run, Registration};
+use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 
@@ -93,7 +93,7 @@ impl ValueToString for MyEnumValue {
     fn to_string(&self) -> Vc<RcStr> {
         match self {
             MyEnumValue::Yeah(value) => Vc::cell(value.to_string().into()),
-            MyEnumValue::Nah => Vc::cell("nah".into()),
+            MyEnumValue::Nah => Vc::cell(rcstr!("nah")),
             MyEnumValue::More(more) => more.to_string(),
         }
     }

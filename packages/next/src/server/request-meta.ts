@@ -7,6 +7,7 @@ import type { CloneableBody } from './body-streams'
 import type { RouteMatch } from './route-matches/route-match'
 import type { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 import type { ServerComponentsHmrCache } from './response-cache'
+import type { PagesDevOverlayType } from '../client/components/react-dev-overlay/pages/pages-dev-overlay'
 
 // FIXME: (wyattjoh) this is a temporary solution to allow us to pass data between bundled modules
 export const NEXT_REQUEST_META = Symbol.for('NextInternalRequestMeta')
@@ -90,6 +91,17 @@ export interface RequestMeta {
   isRSCRequest?: true
 
   /**
+   * A search param set by the Next.js client when performing RSC requests.
+   * Because some CDNs do not vary their cache entries on our custom headers,
+   * this search param represents a hash of the header values. For any cached
+   * RSC request, we should verify that the hash matches before responding.
+   * Otherwise this can lead to cache poisoning.
+   * TODO: Consider not using custom request headers at all, and instead encode
+   * everything into the search param.
+   */
+  cacheBustingSearchParam?: string
+
+  /**
    * True when the request is for the `/_next/data` route using the pages
    * router.
    */
@@ -153,9 +165,9 @@ export interface RequestMeta {
   middlewareInvoke?: boolean
 
   /**
-   * Whether the default route matches were set on the request during routing.
+   * Whether the request should render the fallback shell or not.
    */
-  didSetDefaultRouteMatches?: boolean
+  renderFallbackShell?: boolean
 
   /**
    * Whether the request is for the custom error page.
@@ -183,6 +195,36 @@ export interface RequestMeta {
    * The default locale that was inferred or explicitly set for the request.
    */
   defaultLocale?: string
+
+  /**
+   * The project dir the server is running in
+   */
+  projectDir?: string
+
+  /**
+   * Whether we are generating the fallback version of the page in dev mode
+   */
+  isIsrFallback?: boolean
+
+  /**
+   * The query after resolving routes
+   */
+  query?: ParsedUrlQuery
+
+  /**
+   * The params after resolving routes
+   */
+  params?: ParsedUrlQuery
+
+  /**
+   * The AMP validator to use in development
+   */
+  ampValidator?: (html: string, pathname: string) => Promise<void>
+
+  /**
+   * ErrorOverlay component to use in development for pages router
+   */
+  PagesErrorDebug?: PagesDevOverlayType
 }
 
 /**

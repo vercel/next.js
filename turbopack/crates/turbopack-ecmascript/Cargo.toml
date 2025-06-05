@@ -3,7 +3,7 @@ name = "turbopack-ecmascript"
 version = "0.1.0"
 description = "TBD"
 license = "MIT"
-edition = "2021"
+edition = "2024"
 autobenches = false
 
 [lib]
@@ -43,7 +43,6 @@ turbopack-core = { workspace = true }
 turbopack-resolve = { workspace = true }
 turbopack-swc-utils = { workspace = true }
 url = { workspace = true }
-urlencoding = { workspace = true }
 
 swc_core = { workspace = true, features = [
   "ecma_ast",
@@ -72,12 +71,10 @@ swc_core = { workspace = true, features = [
   "testing",
   "base",
 ] }
-par-core = { workspace = true, features = ["rayon"] }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
-#rstest = { workspace = true }
-turbo-tasks-memory = { workspace = true }
+turbo-tasks-malloc = { workspace = true }
 turbo-tasks-testing = { workspace = true }
 
 [build-dependencies]

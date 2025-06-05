@@ -32,7 +32,7 @@ The `<Image />` component requires the following properties.
 
 Must be one of the following:
 
-- A [statically imported](/docs/pages/building-your-application/optimizing/images#local-images) image file
+- A [statically imported](/docs/pages/api-reference/components/image#src) image file
 - A path string. This can be either an absolute external URL, or an internal path depending on the [loader](#loader) prop or [loader configuration](#loader-configuration).
 
 When using the default [loader](#loader), also consider the following for source images:
@@ -49,7 +49,7 @@ When using `layout="intrinsic"` or `layout="fixed"` the `width` property represe
 
 When using `layout="responsive"`, `layout="fill"`, the `width` property represents the _original_ width in pixels, so it will only affect the aspect ratio.
 
-The `width` property is required, except for [statically imported images](/docs/pages/building-your-application/optimizing/images#local-images), or those with `layout="fill"`.
+The `width` property is required, except for [statically imported images](/docs/pages/api-reference/components/image#src), or those with `layout="fill"`.
 
 ### height
 
@@ -59,7 +59,7 @@ When using `layout="intrinsic"` or `layout="fixed"` the `height` property repres
 
 When using `layout="responsive"`, `layout="fill"`, the `height` property represents the _original_ height in pixels, so it will only affect the aspect ratio.
 
-The `height` property is required, except for [statically imported images](/docs/pages/building-your-application/optimizing/images#local-images), or those with `layout="fill"`.
+The `height` property is required, except for [statically imported images](/docs/pages/api-reference/components/image#src), or those with `layout="fill"`.
 
 ## Optional Props
 
@@ -172,7 +172,7 @@ Should only be used when the image is visible above the fold. Defaults to `false
 
 A placeholder to use while the image is loading. Possible values are `blur` or `empty`. Defaults to `empty`.
 
-When `blur`, the [`blurDataURL`](#blurdataurl) property will be used as the placeholder. If `src` is an object from a [static import](/docs/pages/building-your-application/optimizing/images#local-images) and the imported image is `.jpg`, `.png`, `.webp`, or `.avif`, then `blurDataURL` will be automatically populated.
+When `blur`, the [`blurDataURL`](#blurdataurl) property will be used as the placeholder. If `src` is an object from a [static import](/docs/pages/api-reference/components/image#src) and the imported image is `.jpg`, `.png`, `.webp`, or `.avif`, then `blurDataURL` will be automatically populated.
 
 For dynamic images, you must provide the [`blurDataURL`](#blurdataurl) property. Solutions such as [Plaiceholder](https://github.com/joe-bell/plaiceholder) can help with `base64` generation.
 
@@ -542,7 +542,7 @@ The expiration (or rather Max Age) is defined by either the [`minimumCacheTTL`](
 
 ### Minimum Cache TTL
 
-You can configure the Time to Live (TTL) in seconds for cached optimized images. In many cases, it's better to use a [Static Image Import](/docs/pages/building-your-application/optimizing/images#local-images) which will automatically hash the file contents and cache the image forever with a `Cache-Control` header of `immutable`.
+You can configure the Time to Live (TTL) in seconds for cached optimized images. In many cases, it's better to use a [Static Image Import](/docs/pages/api-reference/components/image#src) which will automatically hash the file contents and cache the image forever with a `Cache-Control` header of `immutable`.
 
 If no configuration is provided, the default below is used.
 

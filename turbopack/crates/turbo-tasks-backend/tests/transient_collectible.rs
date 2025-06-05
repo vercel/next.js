@@ -2,8 +2,8 @@
 #![feature(arbitrary_self_types_pointers)]
 
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc, TaskInput};
-use turbo_tasks_testing::{register, run_without_cache_check, Registration};
+use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, trace::TraceRawVcs};
+use turbo_tasks_testing::{Registration, register, run_without_cache_check};
 
 static REGISTRATION: Registration = register!();
 
@@ -19,10 +19,9 @@ async fn test_transient_emit_from_persistent() {
         anyhow::Ok(())
     })
     .await;
-    assert!(result
-        .unwrap_err()
-        .to_string()
-        .contains(&EXPECTED_MSG.escape_debug().to_string()));
+
+    let message = format!("{:#}", result.unwrap_err());
+    assert!(message.contains(&EXPECTED_MSG.to_string()));
 }
 
 #[turbo_tasks::function(operation)]

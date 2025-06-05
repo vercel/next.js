@@ -21,7 +21,7 @@ pub trait Compactable {
     fn range(&self) -> Range;
 
     /// Returns the size of the compactable.
-    fn size(&self) -> usize;
+    fn size(&self) -> u64;
 }
 
 fn is_overlapping(a: &Range, b: &Range) -> bool {
@@ -65,7 +65,7 @@ pub struct CompactConfig {
     pub max_merge: usize,
 
     /// The maximum size of all files to merge at once.
-    pub max_merge_size: usize,
+    pub max_merge_size: u64,
 }
 
 /// For a list of compactables, computes merge and move jobs that are expected to perform best.
@@ -228,7 +228,7 @@ mod tests {
 
     struct TestCompactable {
         range: Range,
-        size: usize,
+        size: u64,
     }
 
     impl Compactable for TestCompactable {
@@ -236,7 +236,7 @@ mod tests {
             self.range
         }
 
-        fn size(&self) -> usize {
+        fn size(&self) -> u64 {
             self.size
         }
     }
@@ -244,7 +244,7 @@ mod tests {
     fn compact<const N: usize>(
         ranges: [(u64, u64); N],
         max_merge: usize,
-        max_merge_size: usize,
+        max_merge_size: u64,
     ) -> CompactionJobs {
         let compactables = ranges
             .iter()
@@ -277,7 +277,7 @@ mod tests {
                 (30, 40),
             ],
             3,
-            usize::MAX,
+            u64::MAX,
         );
         assert_eq!(merge_jobs, vec![vec![0, 1, 2], vec![4, 5, 6]]);
         assert_eq!(move_jobs, vec![3, 8]);
@@ -341,7 +341,7 @@ mod tests {
                 let config = CompactConfig {
                     max_merge: 4,
                     min_merge: 2,
-                    max_merge_size: usize::MAX,
+                    max_merge_size: u64::MAX,
                 };
                 let jobs = get_compaction_jobs(&containers, &config);
                 if !jobs.is_empty() {
@@ -364,7 +364,7 @@ mod tests {
                 swap(&mut warm_keys[i], &mut keys[j]);
             }
         }
-        println!("Number of compactions: {}", number_of_compactions);
+        println!("Number of compactions: {number_of_compactions}");
 
         assert!(containers.len() < 40);
         let coverage = total_coverage(&containers, (0, 10000));
@@ -387,8 +387,8 @@ mod tests {
             (self.keys[0], *self.keys.last().unwrap())
         }
 
-        fn size(&self) -> usize {
-            self.keys.len()
+        fn size(&self) -> u64 {
+            self.keys.len() as u64
         }
     }
 

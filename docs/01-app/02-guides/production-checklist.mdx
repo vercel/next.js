@@ -14,10 +14,10 @@ These Next.js optimizations are enabled by default and require no configuration:
 
 <AppOnly>
 
-- **[Server Components](/docs/app/building-your-application/rendering/server-components):** Next.js uses Server Components by default. Server Components run on the server, and don't require JavaScript to render on the client. As such, they have no impact on the size of your client-side JavaScript bundles. You can then use [Client Components](/docs/app/building-your-application/rendering/client-components) as needed for interactivity.
+- **[Server Components](/docs/app/getting-started/server-and-client-components):** Next.js uses Server Components by default. Server Components run on the server, and don't require JavaScript to render on the client. As such, they have no impact on the size of your client-side JavaScript bundles. You can then use [Client Components](/docs/app/getting-started/server-and-client-components) as needed for interactivity.
 - **[Code-splitting](/docs/app/building-your-application/routing/linking-and-navigating#how-routing-and-navigation-works):** Server Components enable automatic code-splitting by route segments. You may also consider [lazy loading](/docs/app/guides/lazy-loading) Client Components and third-party libraries, where appropriate.
 - **[Prefetching](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching):** When a link to a new route enters the user's viewport, Next.js prefetches the route in background. This makes navigation to new routes almost instant. You can opt out of prefetching, where appropriate.
-- **[Static Rendering](/docs/app/building-your-application/rendering/server-components#static-rendering-default):** Next.js statically renders Server and Client Components on the server at build time and caches the rendered result to improve your application's performance. You can opt into [Dynamic Rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) for specific routes, where appropriate. {/* TODO: Update when PPR is stable */}
+- **[Static Rendering](/docs/app/getting-started/partial-prerendering#static-rendering):** Next.js statically renders Server and Client Components on the server at build time and caches the rendered result to improve your application's performance. You can opt into [Dynamic Rendering](/docs/app/getting-started/partial-prerendering#dynamic-rendering) for specific routes, where appropriate. {/* TODO: Update when PPR is stable */}
 - **[Caching](/docs/app/deep-dive/caching):** Next.js caches data requests, the rendered result of Server and Client Components, static assets, and more, to reduce the number of network requests to your server, database, and backend services. You may opt out of caching, where appropriate.
 
 </AppOnly>
@@ -40,11 +40,11 @@ While building your application, we recommend using the following features to en
 
 <AppOnly>
 
-- **[Layouts](/docs/app/building-your-application/routing/layouts-and-templates#layouts):** Use layouts to share UI across pages and enable [partial rendering](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering) on navigation.
+- **[Layouts](/docs/app/api-reference/file-conventions/layout):** Use layouts to share UI across pages and enable [partial rendering](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering) on navigation.
 - **[`<Link>` component](/docs/app/building-your-application/routing/linking-and-navigating#link-component):** Use the `<Link>` component for [client-side navigation and prefetching](/docs/app/building-your-application/routing/linking-and-navigating#how-routing-and-navigation-works).
-- **[Error Handling](/docs/app/building-your-application/routing/error-handling):** Gracefully handle [catch-all errors](/docs/app/building-your-application/routing/error-handling) and [404 errors](/docs/app/api-reference/file-conventions/not-found) in production by creating custom error pages.
-- **[Composition Patterns](/docs/app/building-your-application/rendering/composition-patterns):** Follow the recommended composition patterns for Server and Client Components, and check the placement of your [`"use client"` boundaries](/docs/app/building-your-application/rendering/composition-patterns#moving-client-components-down-the-tree) to avoid unnecessarily increasing your client-side JavaScript bundle.
-- **[Dynamic APIs](/docs/app/building-your-application/rendering/server-components#dynamic-apis):** Be aware that Dynamic APIs like [`cookies`](/docs/app/api-reference/functions/cookies) and the [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) prop will opt the entire route into [Dynamic Rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) (or your whole application if used in the [Root Layout](/docs/app/building-your-application/routing/layouts-and-templates#root-layout-required)). Ensure Dynamic API usage is intentional and wrap them in `<Suspense>` boundaries where appropriate.
+- **[Error Handling](/docs/app/getting-started/error-handling):** Gracefully handle [catch-all errors](/docs/app/getting-started/error-handling) and [404 errors](/docs/app/api-reference/file-conventions/not-found) in production by creating custom error pages.
+- **[Client and Server Components](/docs/app/getting-started/server-and-client-components#examples):** Follow the recommended composition patterns for Server and Client Components, and check the placement of your [`"use client"` boundaries](/docs/app/getting-started/server-and-client-components#examples#moving-client-components-down-the-tree) to avoid unnecessarily increasing your client-side JavaScript bundle.
+- **[Dynamic APIs](/docs/app/getting-started/partial-prerendering#dynamic-rendering):** Be aware that Dynamic APIs like [`cookies`](/docs/app/api-reference/functions/cookies) and the [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) prop will opt the entire route into [Dynamic Rendering](/docs/app/getting-started/partial-prerendering#dynamic-rendering) (or your whole application if used in the [Root Layout](/docs/app/api-reference/file-conventions/layout#root-layout)). Ensure Dynamic API usage is intentional and wrap them in `<Suspense>` boundaries where appropriate.
 
 > **Good to know**: [Partial Prerendering (experimental)](/blog/next-14#partial-prerendering-preview) will allow parts of a route to be dynamic without opting the whole route into dynamic rendering.
 
@@ -61,10 +61,10 @@ While building your application, we recommend using the following features to en
 
 <AppOnly>
 
-- **[Server Components](/docs/app/building-your-application/data-fetching/fetching):** Leverage the benefits of fetching data on the server using Server Components.
+- **[Server Components](/docs/app/getting-started/fetching-data):** Leverage the benefits of fetching data on the server using Server Components.
 - **[Route Handlers](/docs/app/building-your-application/routing/route-handlers):** Use Route Handlers to access your backend resources from Client Components. But do not call Route Handlers from Server Components to avoid an additional server request.
 - **[Streaming](/docs/app/building-your-application/routing/loading-ui-and-streaming):** Use Loading UI and React Suspense to progressively send UI from the server to the client, and prevent the whole route from blocking while data is being fetched.
-- **[Parallel Data Fetching](/docs/app/building-your-application/data-fetching/fetching#parallel-and-sequential-data-fetching):** Reduce network waterfalls by fetching data in parallel, where appropriate. Also, consider [preloading data](/docs/app/building-your-application/data-fetching/fetching#preloading-data) where appropriate.
+- **[Parallel Data Fetching](/docs/app/getting-started/fetching-data#parallel-data-fetching):** Reduce network waterfalls by fetching data in parallel, where appropriate. Also, consider [preloading data](/docs/app/getting-started/fetching-data#preloading-data) where appropriate.
 - **[Data Caching](/docs/app/deep-dive/caching#data-cache):** Verify whether your data requests are being cached or not, and opt into caching, where appropriate. Ensure requests that don't use `fetch` are [cached](/docs/app/api-reference/functions/unstable_cache).
 - **[Static Images](/docs/app/api-reference/file-conventions/public-folder):** Use the `public` directory to automatically cache your application's static assets, e.g. images.
 
@@ -74,7 +74,7 @@ While building your application, we recommend using the following features to en
 
 - **[API Routes](/docs/pages/building-your-application/routing/api-routes):** Use Route Handlers to access your backend resources, and prevent sensitive secrets from being exposed to the client.
 - **[Data Caching](/docs/pages/building-your-application/data-fetching/get-static-props):** Verify whether your data requests are being cached or not, and opt into caching, where appropriate. Ensure requests that don't use `getStaticProps` are cached where appropriate.
-- **[Incremental Static Regeneration](/docs/pages/building-your-application/data-fetching/incremental-static-regeneration):** Use Incremental Static Regeneration to update static pages after they've been built, without rebuilding your entire site.
+- **[Incremental Static Regeneration](/docs/pages/guides/incremental-static-regeneration):** Use Incremental Static Regeneration to update static pages after they've been built, without rebuilding your entire site.
 - **[Static Images](/docs/pages/api-reference/file-conventions/public-folder):** Use the `public` directory to automatically cache your application's static assets, e.g. images.
 
 </PagesOnly>
@@ -83,12 +83,12 @@ While building your application, we recommend using the following features to en
 
 <AppOnly>
 
-- **[Forms and Validation](/docs/app/building-your-application/data-fetching/server-actions-and-mutations#forms):** Use Server Actions to handle form submissions, server-side validation, and handle errors.
+- **[Forms and Validation](/docs/app/guides/forms):** Use Server Actions to handle form submissions, server-side validation, and handle errors.
 
 </AppOnly>
 
 - **[Font Module](/docs/app/api-reference/components/font):** Optimize fonts by using the Font Module, which automatically hosts your font files with other static assets, removes external network requests, and reduces [layout shift](https://web.dev/articles/cls).
-- **[`<Image>` Component](/docs/app/building-your-application/optimizing/images):** Optimize images by using the Image Component, which automatically optimizes images, prevents layout shift, and serves them in modern formats like WebP.
+- **[`<Image>` Component](/docs/app/api-reference/components/image):** Optimize images by using the Image Component, which automatically optimizes images, prevents layout shift, and serves them in modern formats like WebP.
 - **[`<Script>` Component](/docs/app/guides/scripts):** Optimize third-party scripts by using the Script Component, which automatically defers scripts and prevents them from blocking the main thread.
 - **[ESLint](/docs/architecture/accessibility#linting):** Use the built-in `eslint-plugin-jsx-a11y` plugin to catch accessibility issues early.
 
@@ -96,7 +96,7 @@ While building your application, we recommend using the following features to en
 
 <AppOnly>
 
-- **[Tainting](/docs/app/building-your-application/data-fetching/fetching#preventing-sensitive-data-from-being-exposed-to-the-client):** Prevent sensitive data from being exposed to the client by tainting data objects and/or specific values.
+- **[Tainting](/docs/app/api-reference/config/next-config-js/taint):** Prevent sensitive data from being exposed to the client by tainting data objects and/or specific values.
 - **[Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations#authentication-and-authorization):** Ensure users are authorized to call Server Actions. Review the recommended [security practices](/blog/security-nextjs-server-components-actions).
 
 </AppOnly>

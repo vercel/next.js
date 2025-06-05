@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, hash::Hash, ops::DerefMut};
 
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue};
+use turbo_tasks::{NonLocalValue, trace::TraceRawVcs};
 
 use super::ContentSourceDataFilter;
 

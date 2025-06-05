@@ -514,7 +514,7 @@ The following examples demonstrate how to use the `<Link>` component in differen
 
 ### Linking to dynamic segments
 
-When linking to [dynamic segments](/docs/app/building-your-application/routing/dynamic-routes), you can use [template literals and interpolation](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Template_literals) to generate a list of links. For example, to generate a list of blog posts:
+When linking to [dynamic segments](/docs/app/api-reference/file-conventions/dynamic-routes), you can use [template literals and interpolation](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Template_literals) to generate a list of links. For example, to generate a list of blog posts:
 
 ```tsx filename="app/blog/post-list.tsx" switcher
 import Link from 'next/link'
@@ -629,7 +629,7 @@ If you'd like to scroll to a specific `id` on navigation, you can append your UR
 
 ### Linking to dynamic route segments
 
-For [dynamic route segments](/docs/app/building-your-application/routing/dynamic-routes), it can be handy to use template literals to create the link's path.
+For [dynamic route segments](/docs/app/api-reference/file-conventions/dynamic-routes), it can be handy to use template literals to create the link's path.
 
 <PagesOnly>
 
@@ -973,7 +973,7 @@ export default Home
 The above example has a link to:
 
 - A predefined route: `/about?name=test`
-- A [dynamic route](/docs/app/building-your-application/routing/dynamic-routes): `/blog/my-post`
+- A [dynamic route](/docs/app/api-reference/file-conventions/dynamic-routes): `/blog/my-post`
 
 You can use every property as defined in the [Node.js URL module documentation](https://nodejs.org/api/url.html#url_url_strings_and_url_objects).
 
@@ -1230,7 +1230,7 @@ export default function Home() {
 
 <PagesOnly>
 
-> **Good to know**: If you're using [Dynamic Routes](/docs/app/building-your-application/routing/dynamic-routes), you'll need to adapt your `as` and `href` props. For example, if you have a Dynamic Route like `/dashboard/authed/[user]` that you want to present differently via middleware, you would write: `<Link href={{ pathname: '/dashboard/authed/[user]', query: { user: username } }} as="/dashboard/[user]">Profile</Link>`.
+> **Good to know**: If you're using [Dynamic Routes](/docs/app/api-reference/file-conventions/dynamic-routes), you'll need to adapt your `as` and `href` props. For example, if you have a Dynamic Route like `/dashboard/authed/[user]` that you want to present differently via middleware, you would write: `<Link href={{ pathname: '/dashboard/authed/[user]', query: { user: username } }} as="/dashboard/[user]">Profile</Link>`.
 
 </PagesOnly>
 

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use smallvec::SmallVec;
-use turbo_tasks::{backend::CachedTaskType, SessionId, TaskId};
+use turbo_tasks::{SessionId, TaskId, backend::CachedTaskType};
 
 use crate::{
     backend::{AnyOperation, TaskDataCategory},
@@ -15,9 +15,9 @@ pub trait BackingStorage: 'static + Send + Sync {
     fn lower_read_transaction<'l: 'i + 'r, 'i: 'r, 'r>(
         tx: &'r Self::ReadTransaction<'l>,
     ) -> &'r Self::ReadTransaction<'i>;
-    fn next_free_task_id(&self) -> TaskId;
-    fn next_session_id(&self) -> SessionId;
-    fn uncompleted_operations(&self) -> Vec<AnyOperation>;
+    fn next_free_task_id(&self) -> Result<TaskId>;
+    fn next_session_id(&self) -> Result<SessionId>;
+    fn uncompleted_operations(&self) -> Result<Vec<AnyOperation>>;
     #[allow(clippy::ptr_arg)]
     fn serialize(task: TaskId, data: &Vec<CachedDataItem>) -> Result<SmallVec<[u8; 16]>>;
     fn save_snapshot<I>(
@@ -44,7 +44,7 @@ pub trait BackingStorage: 'static + Send + Sync {
         &self,
         tx: Option<&Self::ReadTransaction<'_>>,
         key: &CachedTaskType,
-    ) -> Option<TaskId>;
+    ) -> Result<Option<TaskId>>;
     /// # Safety
     ///
     /// `tx` must be a transaction from this BackingStorage instance.
@@ -52,7 +52,7 @@ pub trait BackingStorage: 'static + Send + Sync {
         &self,
         tx: Option<&Self::ReadTransaction<'_>>,
         task_id: TaskId,
-    ) -> Option<Arc<CachedTaskType>>;
+    ) -> Result<Option<Arc<CachedTaskType>>>;
     /// # Safety
     ///
     /// `tx` must be a transaction from this BackingStorage instance.
@@ -61,7 +61,17 @@ pub trait BackingStorage: 'static + Send + Sync {
         tx: Option<&Self::ReadTransaction<'_>>,
         task_id: TaskId,
         category: TaskDataCategory,
-    ) -> Vec<CachedDataItem>;
+    ) -> Result<Vec<CachedDataItem>>;
+
+    /// Called when the database should be invalidated upon re-initialization.
+    ///
+    /// This typically means that we'll restart the process or `turbo-tasks` soon with a fresh
+    /// database. If this happens, there's no point in writing anything else to disk, or flushing
+    /// during [`KeyValueDatabase::shutdown`].
+    ///
+    /// This can be implemented by calling [`crate::database::db_invalidation::invalidate_db`] with
+    /// the database's non-versioned base path.
+    fn invalidate(&self) -> Result<()>;
 
     fn shutdown(&self) -> Result<()> {
         Ok(())

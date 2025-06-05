@@ -4,10 +4,10 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    Vc, VcValueTrait,
     registry::get_value_type,
     task::shared_reference::TypedSharedReference,
-    vc::{cast::VcCast, ReadVcFuture, VcValueTraitCast},
-    Vc, VcValueTrait,
+    vc::{ReadVcFuture, VcValueTraitCast, cast::VcCast},
 };
 
 /// Similar to a [`ReadRef<T>`][crate::ReadRef], but contains a value trait
@@ -94,7 +94,7 @@ where
     }
 
     pub fn ptr_eq(this: &Self, other: &Self) -> bool {
-        triomphe::Arc::ptr_eq(&this.shared_reference.1 .0, &other.shared_reference.1 .0)
+        triomphe::Arc::ptr_eq(&this.shared_reference.1.0, &other.shared_reference.1.0)
     }
 }
 

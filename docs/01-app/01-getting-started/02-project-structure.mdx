@@ -73,28 +73,28 @@ Top-level files are used to configure your application, manage dependencies, run
 
 ### Dynamic routes
 
-|                                                                                                           |                                  |
-| --------------------------------------------------------------------------------------------------------- | -------------------------------- |
-| [`[folder]`](/docs/app/building-your-application/routing/dynamic-routes#convention)                       | Dynamic route segment            |
-| [`[...folder]`](/docs/app/building-your-application/routing/dynamic-routes#catch-all-segments)            | Catch-all route segment          |
-| [`[[...folder]]`](/docs/app/building-your-application/routing/dynamic-routes#optional-catch-all-segments) | Optional catch-all route segment |
+|                                                                                                        |                                  |
+| ------------------------------------------------------------------------------------------------------ | -------------------------------- |
+| [`[folder]`](/docs/app/api-reference/file-conventions/dynamic-routes#convention)                       | Dynamic route segment            |
+| [`[...folder]`](/docs/app/api-reference/file-conventions/dynamic-routes#catch-all-segments)            | Catch-all route segment          |
+| [`[[...folder]]`](/docs/app/api-reference/file-conventions/dynamic-routes#optional-catch-all-segments) | Optional catch-all route segment |
 
 ### Route Groups and private folders
 
-|                                                                                   |                                                  |
-| --------------------------------------------------------------------------------- | ------------------------------------------------ |
-| [`(folder)`](/docs/app/building-your-application/routing/route-groups#convention) | Group routes without affecting routing           |
-| [`_folder`](#private-folders)                                                     | Opt folder and all child segments out of routing |
+|                                                                                |                                                  |
+| ------------------------------------------------------------------------------ | ------------------------------------------------ |
+| [`(folder)`](/docs/app/api-reference/file-conventions/route-groups#convention) | Group routes without affecting routing           |
+| [`_folder`](#private-folders)                                                  | Opt folder and all child segments out of routing |
 
 ### Parallel and Intercepted Routes
 
-|                                                                                                |                            |
-| ---------------------------------------------------------------------------------------------- | -------------------------- |
-| [`@folder`](/docs/app/building-your-application/routing/parallel-routes#slots)                 | Named slot                 |
-| [`(.)folder`](/docs/app/building-your-application/routing/intercepting-routes#convention)      | Intercept same level       |
-| [`(..)folder`](/docs/app/building-your-application/routing/intercepting-routes#convention)     | Intercept one level above  |
-| [`(..)(..)folder`](/docs/app/building-your-application/routing/intercepting-routes#convention) | Intercept two levels above |
-| [`(...)folder`](/docs/app/building-your-application/routing/intercepting-routes#convention)    | Intercept from root        |
+|                                                                                             |                            |
+| ------------------------------------------------------------------------------------------- | -------------------------- |
+| [`@folder`](/docs/app/api-reference/file-conventions/parallel-routes#slots)                 | Named slot                 |
+| [`(.)folder`](/docs/app/api-reference/file-conventions/intercepting-routes#convention)      | Intercept same level       |
+| [`(..)folder`](/docs/app/api-reference/file-conventions/intercepting-routes#convention)     | Intercept one level above  |
+| [`(..)(..)folder`](/docs/app/api-reference/file-conventions/intercepting-routes#convention) | Intercept two levels above |
+| [`(...)folder`](/docs/app/api-reference/file-conventions/intercepting-routes#convention)    | Intercept from root        |
 
 ### Metadata file conventions
 
@@ -297,13 +297,13 @@ Next.js supports storing application code (including `app`) inside an optional [
   height="687"
 />
 
-### Examples
+## Examples
 
 The following section lists a very high-level overview of common strategies. The simplest takeaway is to choose a strategy that works for you and your team and be consistent across the project.
 
 > **Good to know**: In our examples below, we're using `components` and `lib` folders as generalized placeholders, their naming has no special framework significance and your projects might use other folders like `ui`, `utils`, `hooks`, `styles`, etc.
 
-#### Store project files outside of `app`
+### Store project files outside of `app`
 
 This strategy stores all application code in shared folders in the **root of your project** and keeps the `app` directory purely for routing purposes.
 
@@ -315,7 +315,7 @@ This strategy stores all application code in shared folders in the **root of you
   height="849"
 />
 
-#### Store project files in top-level folders inside of `app`
+### Store project files in top-level folders inside of `app`
 
 This strategy stores all application code in shared folders in the **root of the `app` directory**.
 
@@ -327,7 +327,7 @@ This strategy stores all application code in shared folders in the **root of the
   height="849"
 />
 
-#### Split project files by feature or route
+### Split project files by feature or route
 
 This strategy stores globally shared application code in the root `app` directory and **splits** more specific application code into the route segments that use them.
 
@@ -389,7 +389,7 @@ Now, the `loading.tsx` file will only apply to your dashboard → overview page 
 
 ### Creating multiple root layouts
 
-To create multiple [root layouts](/docs/app/api-reference/file-conventions/layout#root-layouts), remove the top-level `layout.js` file, and add a `layout.js` file inside each route group. This is useful for partitioning an application into sections that have a completely different UI or experience. The `<html>` and `<body>` tags need to be added to each root layout.
+To create multiple [root layouts](/docs/app/api-reference/file-conventions/layout#root-layout), remove the top-level `layout.js` file, and add a `layout.js` file inside each route group. This is useful for partitioning an application into sections that have a completely different UI or experience. The `<html>` and `<body>` tags need to be added to each root layout.
 
 <Image
   alt="Route Groups with Multiple Root Layouts"

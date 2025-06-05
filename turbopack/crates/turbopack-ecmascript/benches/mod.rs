@@ -1,3 +1,5 @@
+extern crate turbo_tasks_malloc;
+
 use criterion::{criterion_group, criterion_main};
 
 mod analyzer;

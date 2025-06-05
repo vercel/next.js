@@ -1,7 +1,7 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ReadRef, TryJoinIterExt, Vc};
-use turbo_tasks_hash::{encode_hex, Xxh3Hash64Hasher};
+use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_hex};
 use turbopack_core::version::Version;
 
 use super::super::version::EcmascriptBrowserChunkVersion;

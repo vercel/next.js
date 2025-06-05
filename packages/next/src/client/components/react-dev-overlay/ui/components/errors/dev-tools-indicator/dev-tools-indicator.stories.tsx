@@ -54,15 +54,17 @@ const state: OverlayState = {
   showIndicator: true,
   versionInfo: mockVersionInfo,
   notFound: false,
+  buildingIndicator: false,
   staticIndicator: true,
   debugInfo: { devtoolsFrontendUrl: undefined },
+  isErrorOverlayOpen: false,
 }
 
 export const StaticRoute: Story = {
   args: {
     errorCount: 0,
     state,
-    setIsErrorOverlayOpen: () => {},
+    dispatch: () => {},
   },
 }
 
@@ -73,7 +75,7 @@ export const DynamicRoute: Story = {
       ...state,
       staticIndicator: false,
     },
-    setIsErrorOverlayOpen: () => {},
+    dispatch: () => {},
   },
 }
 
@@ -81,7 +83,7 @@ export const SingleError: Story = {
   args: {
     errorCount: 1,
     state,
-    setIsErrorOverlayOpen: () => {},
+    dispatch: () => {},
   },
 }
 
@@ -89,6 +91,6 @@ export const MultipleErrors: Story = {
   args: {
     errorCount: 3,
     state,
-    setIsErrorOverlayOpen: () => {},
+    dispatch: () => {},
   },
 }

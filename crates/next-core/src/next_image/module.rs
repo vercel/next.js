@@ -1,6 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{fxindexmap, ResolvedVc, TaskInput, Value, Vc};
-use turbopack::{module_options::CustomModuleType, ModuleAssetContext};
+use turbo_tasks::{ResolvedVc, TaskInput, Value, Vc, fxindexmap};
+use turbopack::{ModuleAssetContext, module_options::CustomModuleType};
 use turbopack_core::{
     context::AssetContext, module::Module, reference_type::ReferenceType, resolve::ModulePart,
     source::Source,

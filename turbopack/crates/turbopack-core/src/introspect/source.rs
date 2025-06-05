@@ -1,8 +1,8 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 
-use super::{utils::content_to_details, Introspectable};
+use super::{Introspectable, utils::content_to_details};
 use crate::{asset::Asset, source::Source};
 
 #[turbo_tasks::value]
@@ -17,16 +17,11 @@ impl IntrospectableSource {
     }
 }
 
-#[turbo_tasks::function]
-fn ty() -> Vc<RcStr> {
-    Vc::cell("source".into())
-}
-
 #[turbo_tasks::value_impl]
 impl Introspectable for IntrospectableSource {
     #[turbo_tasks::function]
     fn ty(&self) -> Vc<RcStr> {
-        ty()
+        Vc::cell(rcstr!("source"))
     }
 
     #[turbo_tasks::function]

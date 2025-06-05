@@ -5,36 +5,36 @@ mod util;
 
 use std::{collections::VecDeque, fs, path::PathBuf};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use dunce::canonicalize;
 use rustc_hash::FxHashSet;
 use serde::Deserialize;
 use serde_json::json;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    apply_effects, ReadConsistency, ReadRef, ResolvedVc, TryJoinIterExt, TurboTasks, Value,
-    ValueToString, Vc,
+    ReadConsistency, ReadRef, ResolvedVc, TryJoinIterExt, TurboTasks, Value, ValueToString, Vc,
+    apply_effects,
 };
-use turbo_tasks_backend::{noop_backing_storage, BackendOptions, TurboTasksBackend};
+use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_env::DotenvProcessEnv;
 use turbo_tasks_fs::{
-    json::parse_json_with_source_context, util::sys_to_unix, DiskFileSystem, FileSystem,
-    FileSystemPath,
+    DiskFileSystem, FileSystem, FileSystemPath, json::parse_json_with_source_context,
+    util::sys_to_unix,
 };
 use turbopack::{
+    ModuleAssetContext,
     ecmascript::{EcmascriptInputTransform, TreeShakingMode},
     module_options::{
         CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext,
         ModuleRule, ModuleRuleEffect, RuleCondition,
     },
-    ModuleAssetContext,
 };
 use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt, EvaluatableAsset,
-        EvaluatableAssetExt, EvaluatableAssets, MinifyType,
+        ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssetExt,
+        EvaluatableAssets, MinifyType, availability_info::AvailabilityInfo,
     },
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
@@ -46,8 +46,8 @@ use turbopack_core::{
     issue::{Issue, IssueDescriptionExt},
     module::Module,
     module_graph::{
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
         ModuleGraph,
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
     },
     output::{OutputAsset, OutputAssets},
     reference_type::{EntryReferenceSubType, ReferenceType},
@@ -188,7 +188,7 @@ async fn run_inner_operation(resource: RcStr) -> Result<()> {
         .try_join()
         .await?;
 
-    snapshot_issues(plain_issues, out_vc.join("issues".into()), &REPO_ROOT)
+    snapshot_issues(plain_issues, out_vc.join(rcstr!("issues")), &REPO_ROOT)
         .await
         .context("Unable to handle issues")?;
 
@@ -198,7 +198,7 @@ async fn run_inner_operation(resource: RcStr) -> Result<()> {
 #[turbo_tasks::function(operation)]
 async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     let test_path = canonicalize(&resource)?;
-    assert!(test_path.exists(), "{} does not exist", resource);
+    assert!(test_path.exists(), "{resource} does not exist");
     assert!(
         test_path.is_dir(),
         "{} is not a directory. Snapshot tests must be directories.",
@@ -210,7 +210,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         Err(_) => SnapshotOptions::default(),
         Ok(options_str) => parse_json_with_source_context(&options_str).unwrap(),
     };
-    let project_fs = DiskFileSystem::new("project".into(), REPO_ROOT.clone(), vec![]);
+    let project_fs = DiskFileSystem::new(rcstr!("project"), REPO_ROOT.clone(), vec![]);
     let project_root = project_fs.root().to_resolved().await?;
 
     let relative_path = test_path.strip_prefix(&*REPO_ROOT)?;
@@ -335,22 +335,22 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             ..Default::default()
         }
         .cell(),
-        Vc::cell("test".into()),
+        rcstr!("test"),
     ));
 
     let runtime_entries = maybe_load_env(asset_context, *project_path)
         .await?
         .map(|asset| EvaluatableAssets::one(asset.to_evaluatable(asset_context)));
 
-    let chunk_root_path = project_path.join("output".into()).to_resolved().await?;
-    let static_root_path = project_path.join("static".into()).to_resolved().await?;
+    let chunk_root_path = project_path.join(rcstr!("output")).to_resolved().await?;
+    let static_root_path = project_path.join(rcstr!("static")).to_resolved().await?;
 
     let chunking_context: Vc<Box<dyn ChunkingContext>> = match options.runtime {
         Runtime::Browser => Vc::upcast(
             BrowserChunkingContext::builder(
                 project_root,
                 project_path,
-                ResolvedVc::cell(project_path_to_project_root),
+                project_path_to_project_root,
                 project_path,
                 chunk_root_path,
                 static_root_path,
@@ -363,7 +363,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             NodeJsChunkingContext::builder(
                 project_root,
                 project_path,
-                ResolvedVc::cell(project_path_to_project_root),
+                project_path_to_project_root,
                 project_path,
                 chunk_root_path,
                 static_root_path,
@@ -430,7 +430,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                                         .unwrap()
                                         .into(),
                                 )
-                                .with_extension("entry.js".into()),
+                                .with_extension(rcstr!("entry.js")),
                             evaluatable_assets,
                             module_graph,
                             OutputAssets::empty(),
@@ -503,7 +503,7 @@ async fn maybe_load_env(
     _context: Vc<Box<dyn AssetContext>>,
     path: Vc<FileSystemPath>,
 ) -> Result<Option<Vc<Box<dyn Source>>>> {
-    let dotenv_path = path.join("input/.env".into());
+    let dotenv_path = path.join(rcstr!("input/.env"));
 
     if !dotenv_path.read().await?.is_content() {
         return Ok(None);

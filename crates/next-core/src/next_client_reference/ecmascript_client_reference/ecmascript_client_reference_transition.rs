@@ -1,7 +1,6 @@
-use anyhow::{bail, Result};
-use turbo_rcstr::RcStr;
+use anyhow::{Result, bail};
 use turbo_tasks::{ResolvedVc, Value, Vc};
-use turbopack::{transition::Transition, ModuleAssetContext};
+use turbopack::{ModuleAssetContext, transition::Transition};
 use turbopack_core::{
     context::ProcessResult,
     file_source::FileSource,
@@ -36,11 +35,6 @@ impl NextEcmascriptClientReferenceTransition {
 #[turbo_tasks::value_impl]
 impl Transition for NextEcmascriptClientReferenceTransition {
     #[turbo_tasks::function]
-    fn process_layer(self: Vc<Self>, layer: Vc<RcStr>) -> Vc<RcStr> {
-        layer
-    }
-
-    #[turbo_tasks::function]
     async fn process(
         self: Vc<Self>,
         source: Vc<Box<dyn Source>>,
@@ -71,7 +65,11 @@ impl Transition for NextEcmascriptClientReferenceTransition {
                     .replace("next/dist/esm/", "next/dist/")
                     .into(),
             );
-            Vc::upcast(FileSource::new_with_query(path, *ident_ref.query))
+            Vc::upcast(FileSource::new_with_query_and_fragment(
+                path,
+                ident_ref.query.clone(),
+                ident_ref.fragment.clone(),
+            ))
         } else {
             source
         };
@@ -118,7 +116,7 @@ impl Transition for NextEcmascriptClientReferenceTransition {
             *module_asset_context.compile_time_info,
             *module_asset_context.module_options_context,
             *module_asset_context.resolve_options_context,
-            *module_asset_context.layer,
+            module_asset_context.layer.clone(),
         );
 
         Ok(ProcessResult::Module(ResolvedVc::upcast(

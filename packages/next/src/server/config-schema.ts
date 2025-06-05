@@ -41,8 +41,7 @@ const zExportMap: zod.ZodType<ExportPathMap> = z.record(
     _isAppDir: z.boolean().optional(),
     _isDynamicError: z.boolean().optional(),
     _isRoutePPREnabled: z.boolean().optional(),
-    _isProspectiveRender: z.boolean().optional(),
-    _doNotThrowOnEmptyStaticShell: z.boolean().optional(),
+    _allowEmptyStaticShell: z.boolean().optional(),
   })
 )
 
@@ -148,6 +147,7 @@ const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
     .optional(),
   resolveExtensions: z.array(z.string()).optional(),
   moduleIds: z.enum(['named', 'deterministic']).optional(),
+  root: z.string().optional(),
 })
 
 // Same as zTurbopackConfig but with deprecated properties. Unfortunately, base
@@ -173,6 +173,7 @@ const zDeprecatedExperimentalTurboConfig: zod.ZodType<DeprecatedExperimentalTurb
     moduleIds: z.enum(['named', 'deterministic']).optional(),
     minify: z.boolean().optional(),
     sourceMaps: z.boolean().optional(),
+    root: z.string().optional(),
   })
 
 export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
@@ -269,6 +270,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           }),
         ]),
         define: z.record(z.string(), z.string()).optional(),
+        defineServer: z.record(z.string(), z.string()).optional(),
         runAfterProductionCompile: z
           .function()
           .returns(z.promise(z.void()))
@@ -315,6 +317,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     excludeDefaultMomentLocales: z.boolean().optional(),
     experimental: z
       .strictObject({
+        adapterPath: z.string().optional(),
         useSkewCookie: z.boolean().optional(),
         nodeMiddleware: z.boolean().optional(),
         after: z.boolean().optional(),
@@ -403,6 +406,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         proxyTimeout: z.number().gte(0).optional(),
         routerBFCache: z.boolean().optional(),
         removeUncaughtErrorAndRejectionListeners: z.boolean().optional(),
+        validateRSCRequestHeaders: z.boolean().optional(),
         scrollRestoration: z.boolean().optional(),
         sri: z
           .object({
@@ -461,10 +465,10 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         optimizeServerReact: z.boolean().optional(),
         clientTraceMetadata: z.array(z.string()).optional(),
         serverMinification: z.boolean().optional(),
+        enablePrerenderSourceMaps: z.boolean().optional(),
         serverSourceMaps: z.boolean().optional(),
         useWasmBinary: z.boolean().optional(),
         useLightningcss: z.boolean().optional(),
-        useEarlyImport: z.boolean().optional(),
         testProxy: z.boolean().optional(),
         defaultTestRunner: z.enum(SUPPORTED_TEST_RUNNERS_LIST).optional(),
         allowDevelopmentBuild: z.literal(true).optional(),
@@ -493,6 +497,8 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             buildTimeThresholdMs: z.number().int(),
           })
           .optional(),
+        globalNotFound: z.boolean().optional(),
+        devtoolSegmentExplorer: z.boolean().optional(),
       })
       .optional(),
     exportPathMap: z

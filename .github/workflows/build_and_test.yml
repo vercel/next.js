@@ -39,7 +39,8 @@ jobs:
       - name: check for release
         id: is-release
         run: |
-          if [[ $(node ./scripts/check-is-release.js 2> /dev/null || :) = v* ]];
+          RELEASE_CHECK=$(node ./scripts/check-is-release.js 2> /dev/null || :)
+          if [[ $RELEASE_CHECK == "new-release" || $RELEASE_CHECK == v* ]];
             then
               echo "IS_RELEASE=true" >> $GITHUB_OUTPUT
             else
@@ -49,6 +50,11 @@ jobs:
     outputs:
       docs-only: ${{ steps.docs-change.outputs.DOCS_ONLY != 'false' }}
       is-release: ${{ steps.is-release.outputs.IS_RELEASE == 'true' }}
+      rspack: >-
+        ${{
+          github.event_name == 'pull_request' &&
+          contains(github.event.pull_request.labels.*.name, 'Rspack')
+        }}
 
   build-native:
     name: build-native
@@ -86,6 +92,8 @@ jobs:
     needs: ['build-next']
     uses: ./.github/workflows/build_reusable.yml
     with:
+      skipNativeBuild: 'yes'
+      skipNativeInstall: 'yes'
       afterBuild: |
         pnpm lint-no-typescript
         pnpm check-examples
@@ -213,6 +221,7 @@ jobs:
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
     uses: ./.github/workflows/build_reusable.yml
     with:
+      skipNativeBuild: 'yes'
       stepName: 'test-devlow'
       afterBuild: |
         pnpm run --filter=devlow-bench test
@@ -238,7 +247,6 @@ jobs:
         export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-dev-tests-manifest.json"
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_DEV=1
-        export NEXT_E2E_TEST_TIMEOUT=240000
         export NEXT_TEST_MODE=dev
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
 
@@ -336,6 +344,124 @@ jobs:
       stepName: 'test-turbopack-production-integration-${{ matrix.group }}'
     secrets: inherit
 
+  test-rspack-dev:
+    name: test rspack dev
+    needs: ['optimize-ci', 'changes', 'build-next', 'build-native']
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.rspack == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1/5, 2/5, 3/5, 4/5, 5/5]
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      afterBuild: |
+        export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-dev-tests-manifest.json"
+        export NEXT_TEST_MODE=dev
+
+        # rspack flags
+        export NEXT_RSPACK=1
+        export NEXT_TEST_USE_RSPACK=1
+
+        # HACK: Despite the name, this environment variable is only used to gate
+        # tests, so it's applicable to rspack
+        export TURBOPACK_DEV=1
+
+        node run-tests.js \
+          --test-pattern '^(test\/(development|e2e))/.*\.test\.(js|jsx|ts|tsx)$' \
+          --timings \
+          -g ${{ matrix.group }}
+      stepName: 'test-rspack-dev-react-${{ matrix.react }}-${{ matrix.group }}'
+    secrets: inherit
+
+  test-rspack-integration:
+    name: test rspack development integration
+    needs: ['optimize-ci', 'changes', 'build-next', 'build-native']
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.rspack == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      nodeVersion: 18.18.2
+      afterBuild: |
+        export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-dev-tests-manifest.json"
+
+        # rspack flags
+        export NEXT_RSPACK=1
+        export NEXT_TEST_USE_RSPACK=1
+
+        # HACK: Despite the name, this environment variable is only used to gate
+        # tests, so it's applicable to rspack
+        export TURBOPACK_DEV=1
+
+        node run-tests.js \
+          --timings \
+          -g ${{ matrix.group }} \
+          --type integration
+      stepName: 'test-rspack-integration-react-${{ matrix.react }}-${{ matrix.group }}'
+    secrets: inherit
+
+  test-rspack-production:
+    name: test rspack production
+    needs: ['optimize-ci', 'changes', 'build-next', 'build-native']
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.rspack == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        exclude:
+          # Excluding React 18 tests unless on `canary` branch until budget is approved.
+          - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
+        group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
+        # Empty value uses default
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      nodeVersion: 18.18.2
+      afterBuild: |
+        export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-build-tests-manifest.json"
+        export NEXT_TEST_MODE=start
+
+        # rspack flags
+        export NEXT_RSPACK=1
+        export NEXT_TEST_USE_RSPACK=1
+
+        # HACK: Despite the name, this environment variable is only used to gate
+        # tests, so it's applicable to rspack
+        export TURBOPACK_BUILD=1
+
+        node run-tests.js --timings -g ${{ matrix.group }} --type production
+      stepName: 'test-rspack-production-react-${{ matrix.react }}-${{ matrix.group }}'
+    secrets: inherit
+
+  test-rspack-production-integration:
+    name: test rspack production integration
+    needs: ['optimize-ci', 'changes', 'build-next', 'build-native']
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.rspack == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      nodeVersion: 18.18.2
+      afterBuild: |
+        export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-build-tests-manifest.json"
+
+        # rspack flags
+        export NEXT_RSPACK=1
+        export NEXT_TEST_USE_RSPACK=1
+
+        # HACK: Despite the name, this environment variable is only used to gate
+        # tests, so it's applicable to rspack
+        export TURBOPACK_BUILD=1
+
+        node run-tests.js \
+          --timings \
+          -g ${{ matrix.group }} \
+          --type integration
+      stepName: 'test-rspack-production-integration-${{ matrix.group }}'
+    secrets: inherit
+
   test-next-swc-wasm:
     name: test next-swc wasm
     needs: ['optimize-ci', 'changes', 'build-next']
@@ -343,6 +469,8 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
+      skipNativeBuild: 'yes'
+      skipNativeInstall: 'yes'
       afterBuild: |
         rustup target add wasm32-unknown-unknown
         curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
@@ -372,6 +500,8 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
+      skipNativeBuild: 'yes'
+      skipNativeInstall: 'yes'
       afterBuild: |
         rustup target add wasm32-wasip1-threads
         pnpm dlx turbo@${TURBO_VERSION} run build-native-wasi
@@ -380,7 +510,7 @@ jobs:
 
   test-unit:
     name: test unit
-    needs: ['changes']
+    needs: ['changes', 'build-next', 'build-native']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
@@ -672,7 +802,8 @@ jobs:
 
         NEXT_TEST_MODE=start BROWSER_NAME=safari node run-tests.js \
           test/production/pages-dir/production/test/index.test.ts \
-          test/e2e/basepath/basepath.test.ts
+          test/e2e/basepath/basepath.test.ts \
+          test/e2e/basepath/error-pages.test.ts
 
         BROWSER_NAME=safari DEVICE_NAME='iPhone XR' node run-tests.js \
           test/production/prerender-prefetch/index.test.ts

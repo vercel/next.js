@@ -1,12 +1,12 @@
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, TokenStream as TokenStream2};
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use syn::{
+    Attribute, Error, Expr, ExprLit, Generics, ImplItem, ImplItemFn, ItemImpl, Lit, LitStr, Meta,
+    MetaNameValue, Path, Token, Type,
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote,
     spanned::Spanned,
-    Attribute, Error, Expr, ExprLit, Generics, ImplItem, ImplItemFn, ItemImpl, Lit, LitStr, Meta,
-    MetaNameValue, Path, Token, Type,
 };
 use turbo_tasks_macros_shared::{
     get_inherent_impl_function_id_ident, get_inherent_impl_function_ident, get_path_ident,
@@ -15,8 +15,8 @@ use turbo_tasks_macros_shared::{
 };
 
 use crate::func::{
-    filter_inline_attributes, parse_with_optional_parens, DefinitionContext, FunctionArguments,
-    NativeFn, TurboFn,
+    DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes,
+    parse_with_optional_parens,
 };
 
 fn is_attribute(attr: &Attribute, name: &str) -> bool {
@@ -92,8 +92,8 @@ impl Parse for ValueImplArguments {
                 (_, meta) => {
                     return Err(Error::new_spanned(
                         &meta,
-                        format!("unexpected {:?}, expected \"ident\"", meta),
-                    ))
+                        format!("unexpected {meta:?}, expected \"ident\""),
+                    ));
                 }
             }
         }
@@ -241,7 +241,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
 
                 let inline_function_ident = turbo_fn.inline_ident();
                 let inline_extension_trait_ident = Ident::new(
-                    &format!("{}_{}_{}_inline", ty_ident, trait_ident, ident),
+                    &format!("{ty_ident}_{trait_ident}_{ident}_inline"),
                     ident.span(),
                 );
                 let (inline_signature, inline_block) =

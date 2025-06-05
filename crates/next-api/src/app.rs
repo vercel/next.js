@@ -1,67 +1,67 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use next_core::{
     all_assets_from_entries,
     app_segment_config::NextSegmentConfig,
     app_structure::{
-        get_entrypoints, AppPageLoaderTree, Entrypoint as AppEntrypoint,
-        Entrypoints as AppEntrypoints, FileSystemPathVec, MetadataItem,
+        AppPageLoaderTree, Entrypoint as AppEntrypoint, Entrypoints as AppEntrypoints,
+        FileSystemPathVec, MetadataItem, get_entrypoints,
     },
     get_edge_resolve_options_context, get_next_package,
     next_app::{
-        get_app_client_references_chunks, get_app_client_shared_chunk_group, get_app_page_entry,
-        get_app_route_entry, metadata::route::get_app_metadata_route_entry, AppEntry, AppPage,
+        AppEntry, AppPage, get_app_client_references_chunks, get_app_client_shared_chunk_group,
+        get_app_page_entry, get_app_route_entry, metadata::route::get_app_metadata_route_entry,
     },
     next_client::{
-        get_client_module_options_context, get_client_resolve_options_context,
-        get_client_runtime_entries, ClientContextType, RuntimeEntries,
+        ClientContextType, RuntimeEntries, get_client_module_options_context,
+        get_client_resolve_options_context, get_client_runtime_entries,
     },
     next_client_reference::{
-        find_server_entries, ClientReferenceGraphResult, NextCssClientReferenceTransition,
-        NextEcmascriptClientReferenceTransition, ServerEntries,
+        ClientReferenceGraphResult, NextCssClientReferenceTransition,
+        NextEcmascriptClientReferenceTransition, ServerEntries, find_server_entries,
     },
     next_config::NextConfig,
     next_dynamic::NextDynamicTransition,
     next_edge::route_regex::get_named_middleware_regex,
     next_manifests::{
-        client_reference_manifest::ClientReferenceManifestOptions, AppBuildManifest,
-        AppPathsManifest, BuildManifest, ClientReferenceManifest, EdgeFunctionDefinition,
-        MiddlewareMatcher, MiddlewaresManifestV2, PagesManifest, Regions,
+        AppBuildManifest, AppPathsManifest, BuildManifest, ClientReferenceManifest,
+        EdgeFunctionDefinition, MiddlewareMatcher, MiddlewaresManifestV2, PagesManifest, Regions,
+        client_reference_manifest::ClientReferenceManifestOptions,
     },
     next_server::{
-        get_server_module_options_context, get_server_resolve_options_context,
-        get_server_runtime_entries, ServerContextType,
+        ServerContextType, get_server_module_options_context, get_server_resolve_options_context,
+        get_server_runtime_entries,
     },
-    next_server_utility::{NextServerUtilityTransition, NEXT_SERVER_UTILITY_MERGE_TAG},
+    next_server_utility::{NEXT_SERVER_UTILITY_MERGE_TAG, NextServerUtilityTransition},
     parse_segment_config_from_source,
     util::NextRuntime,
 };
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    fxindexmap, fxindexset, trace::TraceRawVcs, Completion, FxIndexSet, NonLocalValue, ResolvedVc,
-    TryJoinIterExt, Value, ValueToString, Vc,
+    Completion, FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc,
+    fxindexmap, fxindexset, trace::TraceRawVcs,
 };
 use turbo_tasks_env::{CustomProcessEnv, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack::{
-    module_options::{transition_rule::TransitionRule, ModuleOptionsContext, RuleCondition},
+    ModuleAssetContext,
+    module_options::{ModuleOptionsContext, RuleCondition, transition_rule::TransitionRule},
     resolve_options_context::ResolveOptionsContext,
     transition::{FullContextTransition, Transition, TransitionOptions},
-    ModuleAssetContext,
 };
 use turbopack_core::{
     asset::AssetContent,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkGroupResult, ChunkingContext, ChunkingContextExt,
-        EvaluatableAsset, EvaluatableAssets,
+        ChunkGroupResult, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets,
+        availability_info::AvailabilityInfo,
     },
     file_source::FileSource,
     ident::AssetIdent,
     module::Module,
     module_graph::{
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
         GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
     },
     output::{OutputAsset, OutputAssets},
     raw_output::RawOutput,
@@ -73,7 +73,7 @@ use turbopack_core::{
 use turbopack_ecmascript::resolve::cjs_resolve;
 
 use crate::{
-    dynamic_imports::{collect_next_dynamic_chunks, NextDynamicChunkAvailability},
+    dynamic_imports::{NextDynamicChunkAvailability, collect_next_dynamic_chunks},
     font::create_font_manifest,
     loadable_manifest::create_react_loadable_manifest,
     module_graph::get_reduced_graphs_for_endpoint,
@@ -98,8 +98,6 @@ pub struct AppProject {
 pub struct OptionAppProject(Option<ResolvedVc<AppProject>>);
 
 impl AppProject {}
-
-pub(crate) const ECMASCRIPT_CLIENT_TRANSITION_NAME: &str = "next-ecmascript-client-reference";
 
 fn styles_rule_condition() -> RuleCondition {
     RuleCondition::any(vec![
@@ -130,6 +128,11 @@ fn module_styles_rule_condition() -> RuleCondition {
         RuleCondition::ResourcePathEndsWith(".module.sass".into()),
         RuleCondition::ContentTypeStartsWith("text/css+module".into()),
     ])
+}
+impl AppProject {
+    pub fn client_transition_name() -> RcStr {
+        rcstr!("next-ecmascript-client-reference")
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -165,9 +168,7 @@ impl AppProject {
             client_transition: Some(ResolvedVc::upcast(
                 self.client_transition().to_resolved().await?,
             )),
-            ecmascript_client_reference_transition_name: Some(
-                self.client_transition_name().to_resolved().await?,
-            ),
+            ecmascript_client_reference_transition_name: Some(Self::client_transition_name()),
         }
         .cell())
     }
@@ -177,9 +178,7 @@ impl AppProject {
         let this = self.await?;
         Ok(ServerContextType::AppRoute {
             app_dir: this.app_dir,
-            ecmascript_client_reference_transition_name: Some(
-                self.client_transition_name().to_resolved().await?,
-            ),
+            ecmascript_client_reference_transition_name: Some(Self::client_transition_name()),
         }
         .cell())
     }
@@ -194,7 +193,12 @@ impl AppProject {
 
     #[turbo_tasks::function]
     fn app_entrypoints(&self) -> Vc<AppEntrypoints> {
-        get_entrypoints(*self.app_dir, self.project.next_config().page_extensions())
+        let conf = self.project.next_config();
+        get_entrypoints(
+            *self.app_dir,
+            conf.page_extensions(),
+            conf.is_global_not_found_enabled(),
+        )
     }
 
     #[turbo_tasks::function]
@@ -203,7 +207,7 @@ impl AppProject {
             self.project().project_path(),
             self.project().execution_context(),
             self.project().client_compile_time_info().environment(),
-            Value::new(self.client_ty().owned().await?),
+            self.client_ty().owned().await?,
             self.project().next_mode(),
             self.project().next_config(),
             self.project().encryption_key(),
@@ -215,16 +219,11 @@ impl AppProject {
     async fn client_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
         Ok(get_client_resolve_options_context(
             self.project().project_path(),
-            Value::new(self.client_ty().owned().await?),
+            self.client_ty().owned().await?,
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
         ))
-    }
-
-    #[turbo_tasks::function]
-    pub(crate) fn client_transition_name(self: Vc<Self>) -> Vc<RcStr> {
-        Vc::cell(ECMASCRIPT_CLIENT_TRANSITION_NAME.into())
     }
 
     #[turbo_tasks::function]
@@ -364,25 +363,28 @@ impl AppProject {
         Ok(TransitionOptions {
             named_transitions: [
                 (
-                    ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
+                    AppProject::client_transition_name(),
                     ecmascript_client_reference_transition.to_resolved().await?,
                 ),
                 (
-                    "next-dynamic".into(),
+                    rcstr!("next-dynamic"),
                     ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
                 ),
                 (
-                    "next-dynamic-client".into(),
+                    rcstr!("next-dynamic-client"),
                     ResolvedVc::upcast(
                         NextDynamicTransition::new_client(Vc::upcast(self.client_transition()))
                             .to_resolved()
                             .await?,
                     ),
                 ),
-                ("next-ssr".into(), ssr_transition.to_resolved().await?),
-                ("next-shared".into(), shared_transition.to_resolved().await?),
+                (rcstr!("next-ssr"), ssr_transition.to_resolved().await?),
                 (
-                    "next-server-utility".into(),
+                    rcstr!("next-shared"),
+                    shared_transition.to_resolved().await?,
+                ),
+                (
+                    rcstr!("next-server-utility"),
                     ResolvedVc::upcast(NextServerUtilityTransition::new().to_resolved().await?),
                 ),
             ]
@@ -433,7 +435,7 @@ impl AppProject {
             self.project().server_compile_time_info(),
             self.rsc_module_options_context(),
             self.rsc_resolve_options_context(),
-            Vc::cell("app-rsc".into()),
+            rcstr!("app-rsc"),
         ))
     }
 
@@ -448,7 +450,7 @@ impl AppProject {
             self.project().edge_compile_time_info(),
             self.edge_rsc_module_options_context(),
             self.edge_rsc_resolve_options_context(),
-            Vc::cell("app-edge-rsc".into()),
+            rcstr!("app-edge-rsc"),
         ))
     }
 
@@ -456,17 +458,17 @@ impl AppProject {
     async fn route_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
         let transitions = [
             (
-                ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
+                AppProject::client_transition_name(),
                 self.ecmascript_client_reference_transition()
                     .to_resolved()
                     .await?,
             ),
             (
-                "next-dynamic".into(),
+                rcstr!("next-dynamic"),
                 ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
             ),
             (
-                "next-dynamic-client".into(),
+                rcstr!("next-dynamic-client"),
                 ResolvedVc::upcast(
                     NextDynamicTransition::new_client(Vc::upcast(self.client_transition()))
                         .to_resolved()
@@ -474,15 +476,15 @@ impl AppProject {
                 ),
             ),
             (
-                "next-ssr".into(),
+                rcstr!("next-ssr"),
                 ResolvedVc::upcast(self.ssr_transition().to_resolved().await?),
             ),
             (
-                "next-shared".into(),
+                rcstr!("next-shared"),
                 ResolvedVc::upcast(self.shared_transition().to_resolved().await?),
             ),
             (
-                "next-server-utility".into(),
+                rcstr!("next-server-utility"),
                 ResolvedVc::upcast(NextServerUtilityTransition::new().to_resolved().await?),
             ),
         ]
@@ -499,7 +501,7 @@ impl AppProject {
             self.project().server_compile_time_info(),
             self.route_module_options_context(),
             self.route_resolve_options_context(),
-            Vc::cell("app-route".into()),
+            rcstr!("app-route"),
         ))
     }
 
@@ -507,17 +509,17 @@ impl AppProject {
     async fn edge_route_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
         let transitions = [
             (
-                ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
+                AppProject::client_transition_name(),
                 self.edge_ecmascript_client_reference_transition()
                     .to_resolved()
                     .await?,
             ),
             (
-                "next-dynamic".into(),
+                rcstr!("next-dynamic"),
                 ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
             ),
             (
-                "next-dynamic-client".into(),
+                rcstr!("next-dynamic-client"),
                 ResolvedVc::upcast(
                     NextDynamicTransition::new_client(Vc::upcast(self.client_transition()))
                         .to_resolved()
@@ -525,15 +527,15 @@ impl AppProject {
                 ),
             ),
             (
-                "next-ssr".into(),
+                rcstr!("next-ssr"),
                 ResolvedVc::upcast(self.edge_ssr_transition().to_resolved().await?),
             ),
             (
-                "next-shared".into(),
+                rcstr!("next-shared"),
                 ResolvedVc::upcast(self.edge_shared_transition().to_resolved().await?),
             ),
             (
-                "next-server-utility".into(),
+                rcstr!("next-server-utility"),
                 ResolvedVc::upcast(NextServerUtilityTransition::new().to_resolved().await?),
             ),
         ]
@@ -549,7 +551,7 @@ impl AppProject {
             self.project().edge_compile_time_info(),
             self.edge_route_module_options_context(),
             self.edge_route_resolve_options_context(),
-            Vc::cell("app-edge-route".into()),
+            rcstr!("app-edge-route"),
         ))
     }
 
@@ -557,11 +559,11 @@ impl AppProject {
     async fn client_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
         let transitions = [
             (
-                "next-dynamic".into(),
+                rcstr!("next-dynamic"),
                 ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
             ),
             (
-                "next-dynamic-client".into(),
+                rcstr!("next-dynamic-client"),
                 ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
             ),
         ]
@@ -576,7 +578,7 @@ impl AppProject {
             self.project().client_compile_time_info(),
             self.client_module_options_context(),
             self.client_resolve_options_context(),
-            Vc::cell("app-client".into()),
+            rcstr!("app-client"),
         ))
     }
 
@@ -632,11 +634,11 @@ impl AppProject {
     async fn ssr_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
         let transitions = [
             (
-                "next-dynamic".into(),
+                rcstr!("next-dynamic"),
                 ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
             ),
             (
-                "next-dynamic-client".into(),
+                rcstr!("next-dynamic-client"),
                 ResolvedVc::upcast(
                     NextDynamicTransition::new_client(Vc::upcast(self.client_transition()))
                         .to_resolved()
@@ -644,7 +646,7 @@ impl AppProject {
                 ),
             ),
             (
-                "next-shared".into(),
+                rcstr!("next-shared"),
                 ResolvedVc::upcast(self.shared_transition().to_resolved().await?),
             ),
         ]
@@ -659,7 +661,7 @@ impl AppProject {
             self.project().server_compile_time_info(),
             self.ssr_module_options_context(),
             self.ssr_resolve_options_context(),
-            Vc::cell("app-ssr".into()),
+            rcstr!("app-ssr"),
         ))
     }
 
@@ -679,7 +681,7 @@ impl AppProject {
             self.project().server_compile_time_info(),
             self.ssr_module_options_context(),
             self.ssr_resolve_options_context(),
-            Vc::cell("app-shared".into()),
+            rcstr!("app-shared"),
         ))
     }
 
@@ -692,11 +694,11 @@ impl AppProject {
     async fn edge_ssr_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
         let transitions = [
             (
-                "next-dynamic".into(),
+                rcstr!("next-dynamic"),
                 ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
             ),
             (
-                "next-dynamic-client".into(),
+                rcstr!("next-dynamic-client"),
                 ResolvedVc::upcast(
                     NextDynamicTransition::new_client(Vc::upcast(self.client_transition()))
                         .to_resolved()
@@ -704,7 +706,7 @@ impl AppProject {
                 ),
             ),
             (
-                "next-shared".into(),
+                rcstr!("next-shared"),
                 ResolvedVc::upcast(self.edge_shared_transition().to_resolved().await?),
             ),
         ]
@@ -719,7 +721,7 @@ impl AppProject {
             self.project().edge_compile_time_info(),
             self.edge_ssr_module_options_context(),
             self.edge_ssr_resolve_options_context(),
-            Vc::cell("app-edge-ssr".into()),
+            rcstr!("app-edge-ssr"),
         ))
     }
 
@@ -739,7 +741,7 @@ impl AppProject {
             self.project().edge_compile_time_info(),
             self.edge_ssr_module_options_context(),
             self.edge_ssr_resolve_options_context(),
-            Vc::cell("app-edge-shared".into()),
+            rcstr!("app-edge-shared"),
         ))
     }
 
@@ -782,7 +784,7 @@ impl AppProject {
     async fn client_runtime_entries(self: Vc<Self>) -> Result<Vc<EvaluatableAssets>> {
         Ok(get_client_runtime_entries(
             self.project().project_path(),
-            Value::new(self.client_ty().owned().await?),
+            self.client_ty().owned().await?,
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
@@ -819,11 +821,11 @@ impl AppProject {
         let client_main_module = cjs_resolve(
             Vc::upcast(PlainResolveOrigin::new(
                 client_module_context,
-                self.project().project_path().join("_".into()),
+                self.project().project_path().join(rcstr!("_")),
             )),
-            Request::parse(Value::new(Pattern::Constant(
-                "next/dist/client/app-next-turbopack.js".into(),
-            ))),
+            Request::parse(Value::new(Pattern::Constant(rcstr!(
+                "next/dist/client/app-next-turbopack.js"
+            )))),
             None,
             false,
         )
@@ -1022,16 +1024,6 @@ pub fn app_entry_point_to_route(
     .cell()
 }
 
-#[turbo_tasks::function]
-fn client_shared_chunks_modifier() -> Vc<RcStr> {
-    Vc::cell("client-shared-chunks".into())
-}
-
-#[turbo_tasks::function]
-fn server_utils_modifier() -> Vc<RcStr> {
-    Vc::cell("server-utils".into())
-}
-
 #[turbo_tasks::value(transparent)]
 struct OutputAssetsWithAvailability((ResolvedVc<OutputAssets>, AvailabilityInfo));
 
@@ -1185,7 +1177,7 @@ impl AppEndpoint {
 
         let node_root = project.node_root().to_resolved().await?;
         let client_relative_path = project.client_relative_path().to_resolved().await?;
-        let server_path = node_root.join("server".into());
+        let server_path = node_root.join(rcstr!("server"));
 
         let mut server_assets = fxindexset![];
         let mut client_assets = fxindexset![];
@@ -1225,7 +1217,7 @@ impl AppEndpoint {
 
         let client_shared_chunk_group = get_app_client_shared_chunk_group(
             AssetIdent::from_path(project.project_path())
-                .with_modifier(client_shared_chunks_modifier()),
+                .with_modifier(rcstr!("client-shared-chunks")),
             this.app_project.client_runtime_entries(),
             *module_graphs.full,
             *client_chunking_context,
@@ -1326,11 +1318,11 @@ impl AppEndpoint {
         // load it as a RawModule.
         let next_package = get_next_package(project.project_path());
         let polyfill_source =
-            FileSource::new(next_package.join("dist/build/polyfills/polyfill-nomodule.js".into()));
+            FileSource::new(next_package.join(rcstr!("dist/build/polyfills/polyfill-nomodule.js")));
         let polyfill_output_path = client_chunking_context.chunk_path(
             Some(Vc::upcast(polyfill_source)),
             polyfill_source.ident(),
-            ".js".into(),
+            rcstr!(".js"),
         );
         let polyfill_output_asset = ResolvedVc::upcast(
             RawOutput::new(polyfill_output_path, Vc::upcast(polyfill_source))
@@ -1454,7 +1446,6 @@ impl AppEndpoint {
                     entry_name: app_entry.original_name.clone(),
                     client_references,
                     client_references_chunks,
-                    rsc_app_entry_chunks: app_entry_chunks,
                     client_chunking_context,
                     ssr_chunking_context,
                     async_module_info: module_graphs.full.async_module_info().to_resolved().await?,
@@ -1491,10 +1482,10 @@ impl AppEndpoint {
                 //
                 // they are created in `setup-dev-bundler.ts`
                 let mut file_paths_from_root = fxindexset![
-                    "server/server-reference-manifest.js".into(),
-                    "server/middleware-build-manifest.js".into(),
-                    "server/next-font-manifest.js".into(),
-                    "server/interception-route-rewrite-manifest.js".into(),
+                    rcstr!("server/server-reference-manifest.js"),
+                    rcstr!("server/middleware-build-manifest.js"),
+                    rcstr!("server/next-font-manifest.js"),
+                    rcstr!("server/interception-route-rewrite-manifest.js"),
                 ];
                 let mut wasm_paths_from_root = fxindexset![];
 
@@ -1515,7 +1506,7 @@ impl AppEndpoint {
                 let all_assets =
                     get_asset_paths_from_root(&node_root_value, &all_output_assets).await?;
 
-                let entry_file = "app-edge-has-no-entrypoint".into();
+                let entry_file = rcstr!("app-edge-has-no-entrypoint");
 
                 if emit_manifests == EmitManifests::Full {
                     let dynamic_import_entries = collect_next_dynamic_chunks(
@@ -1781,7 +1772,7 @@ impl AppEndpoint {
                         let chunk_group = chunking_context
                             .chunk_group(
                                 AssetIdent::from_path(this.app_project.project().project_path())
-                                    .with_modifier(server_utils_modifier()),
+                                    .with_modifier(rcstr!("server-utils")),
                                 // TODO this should be ChunkGroup::Shared
                                 ChunkGroup::Entry(server_utils),
                                 module_graph,
@@ -1970,7 +1961,7 @@ impl Endpoint for AppEndpoint {
         }
         .instrument(span)
         .await
-        .with_context(|| format!("Failed to write app endpoint {}", page_name))
+        .with_context(|| format!("Failed to write app endpoint {page_name}"))
     }
 
     #[turbo_tasks::function]

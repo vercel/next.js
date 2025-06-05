@@ -327,11 +327,20 @@ export async function initialize(opts: {
         if (blockCrossSite(req, res, config.allowedDevOrigins, opts.hostname)) {
           return
         }
+
         const origUrl = req.url || '/'
 
+        // both the basePath and assetPrefix need to be stripped from the URL
+        // so that the development bundler can find the correct file
         if (config.basePath && pathHasPrefix(origUrl, config.basePath)) {
           req.url = removePathPrefix(origUrl, config.basePath)
+        } else if (
+          config.assetPrefix &&
+          pathHasPrefix(origUrl, config.assetPrefix)
+        ) {
+          req.url = removePathPrefix(origUrl, config.assetPrefix)
         }
+
         const parsedUrl = url.parse(req.url || '/')
 
         const hotReloaderResult = await developmentBundler.hotReloader.run(
@@ -343,6 +352,7 @@ export async function initialize(opts: {
         if (hotReloaderResult.finished) {
           return hotReloaderResult
         }
+
         req.url = origUrl
       }
 
@@ -370,6 +380,11 @@ export async function initialize(opts: {
 
         if (config.basePath && pathHasPrefix(origUrl, config.basePath)) {
           req.url = removePathPrefix(origUrl, config.basePath)
+        } else if (
+          config.assetPrefix &&
+          pathHasPrefix(origUrl, config.assetPrefix)
+        ) {
+          req.url = removePathPrefix(origUrl, config.assetPrefix)
         }
 
         if (resHeaders) {
@@ -619,7 +634,7 @@ export async function initialize(opts: {
   if (config.experimental.testProxy) {
     // Intercept fetch and other testmode apis.
     const { wrapRequestHandlerWorker, interceptTestApis } =
-      require('next/dist/experimental/testmode/server') as typeof import('next/src/experimental/testmode/server')
+      require('next/dist/experimental/testmode/server') as typeof import('../../experimental/testmode/server')
     requestHandler = wrapRequestHandlerWorker(requestHandler)
     interceptTestApis()
     // We treat the intercepted fetch as "original" fetch that should be reset to during HMR.
@@ -652,10 +667,20 @@ export async function initialize(opts: {
 
   // this must come after initialize of render server since it's
   // using initialized methods
-  routerServerGlobal[RouterServerContextSymbol] = {
-    dir: opts.dir,
+  if (!routerServerGlobal[RouterServerContextSymbol]) {
+    routerServerGlobal[RouterServerContextSymbol] = {}
+  }
+  const relativeProjectDir = path.relative(process.cwd(), opts.dir)
+
+  routerServerGlobal[RouterServerContextSymbol][relativeProjectDir] = {
+    nextConfig: config,
     hostname: handlers.server.hostname,
     revalidate: handlers.server.revalidate.bind(handlers.server),
+    experimentalTestProxy: renderServerOpts.experimentalTestProxy,
+    logErrorWithOriginalStack: opts.dev
+      ? handlers.server.logErrorWithOriginalStack.bind(handlers.server)
+      : (err: unknown) => Log.error(err),
+    setIsrStatus: devBundlerService?.setIsrStatus.bind(devBundlerService),
   }
 
   const logError = async (

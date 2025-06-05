@@ -4,36 +4,38 @@ use std::{
     future::Future,
     hash::BuildHasherDefault,
     mem::take,
-    panic::AssertUnwindSafe,
     pin::Pin,
     sync::{
-        atomic::{AtomicBool, AtomicUsize, Ordering},
         Arc, Mutex, RwLock, Weak,
+        atomic::{AtomicBool, AtomicUsize, Ordering},
     },
     thread,
     time::{Duration, Instant},
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use auto_hash_map::AutoMap;
-use futures::FutureExt;
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
-use tokio::{runtime::Handle, select, task_local};
+use tokio::{runtime::Handle, select, sync::mpsc::Receiver, task_local};
 use tokio_util::task::TaskTracker;
-use tracing::{info_span, instrument, trace_span, Instrument, Level, Span};
+use tracing::{Instrument, Level, Span, info_span, instrument, trace_span};
 use turbo_tasks_malloc::TurboMalloc;
 
 use crate::{
+    Completion, InvalidationReason, InvalidationReasonSet, OutputContent, ReadCellOptions,
+    ResolvedVc, SharedReference, TaskId, TaskIdSet, ValueTypeId, Vc, VcRead, VcValueTrait,
+    VcValueType,
     backend::{
         Backend, CachedTaskType, CellContent, TaskCollectiblesMap, TaskExecutionSpec,
-        TransientTaskType, TypedCellContent,
+        TransientTaskType, TurboTasksExecutionError, TypedCellContent,
     },
     capture_future::{self, CaptureFuture},
     event::{Event, EventListener},
-    id::{BackendJobId, ExecutionId, FunctionId, LocalTaskId, TraitTypeId, TRANSIENT_TASK_BIT},
+    id::{BackendJobId, ExecutionId, FunctionId, LocalTaskId, TRANSIENT_TASK_BIT, TraitTypeId},
     id_factory::IdFactoryWithReuse,
     magic_any::MagicAny,
+    message_queue::{CompilationEvent, CompilationEventQueue},
     raw_vc::{CellId, RawVc},
     registry,
     serialization_invalidation::SerializationInvalidator,
@@ -43,9 +45,6 @@ use crate::{
     trait_helpers::get_trait_method,
     util::{IdFactory, StaticOrArc},
     vc::ReadVcFuture,
-    Completion, InvalidationReason, InvalidationReasonSet, OutputContent, ReadCellOptions,
-    ResolvedVc, SharedReference, TaskId, TaskIdSet, ValueTypeId, Vc, VcRead, VcValueTrait,
-    VcValueType,
 };
 
 /// Common base trait for [`TurboTasksApi`] and [`TurboTasksBackendApi`]. Provides APIs for creating
@@ -202,6 +201,12 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     fn task_statistics(&self) -> &TaskStatisticsApi;
 
     fn stop_and_wait(&self) -> Pin<Box<dyn Future<Output = ()> + Send>>;
+
+    fn subscribe_to_compilation_events(
+        &self,
+        event_types: Option<Vec<String>>,
+    ) -> Receiver<Arc<dyn CompilationEvent>>;
+    fn send_compilation_event(&self, event: Arc<dyn CompilationEvent>);
 }
 
 /// A wrapper around a value that is unused.
@@ -380,6 +385,7 @@ pub struct TurboTasks<B: Backend + 'static> {
     event_foreground: Event,
     event_background: Event,
     program_start: Instant,
+    compilation_events: CompilationEventQueue,
 }
 
 /// Information about a non-local task. A non-local task can contain multiple "local" tasks, which
@@ -505,6 +511,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
             event_foreground: Event::new(|| "TurboTasks::event_foreground".to_string()),
             event_background: Event::new(|| "TurboTasks::event_background".to_string()),
             program_start: Instant::now(),
+            compilation_events: CompilationEventQueue::default(),
         });
         this.backend.startup(&*this);
         this
@@ -694,8 +701,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                     };
 
                     async {
-                        let (result, duration, memory_usage) =
-                            CaptureFuture::new(AssertUnwindSafe(future).catch_unwind()).await;
+                        let (result, duration, memory_usage) = CaptureFuture::new(future).await;
 
                         // wait for all spawned local tasks using `local` to finish
                         let ltt = CURRENT_TASK_STATE
@@ -703,13 +709,12 @@ impl<B: Backend + 'static> TurboTasks<B> {
                         ltt.close();
                         ltt.wait().await;
 
-                        let result = result.map_err(|any| match any.downcast::<String>() {
-                            Ok(owned) => Some(Cow::Owned(*owned)),
-                            Err(any) => match any.downcast::<&'static str>() {
-                                Ok(str) => Some(Cow::Borrowed(*str)),
-                                Err(_) => None,
-                            },
-                        });
+                        let result = match result {
+                            Ok(Ok(raw_vc)) => Ok(raw_vc),
+                            Ok(Err(err)) => Err(err.into()),
+                            Err(err) => Err(TurboTasksExecutionError::Panic(Arc::new(err))),
+                        };
+
                         this.backend.task_execution_result(task_id, result, &*this);
                         let stateful = this.finish_current_task_state();
                         let cell_counters = CURRENT_TASK_STATE
@@ -770,7 +775,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 let local_task_id = gts_write.create_local_task(LocalTask::Scheduled {
                     done_event: Event::new({
                         let ty = Arc::clone(&ty);
-                        move || format!("LocalTask({})::done_event", ty)
+                        move || format!("LocalTask({ty})::done_event")
                     }),
                 });
                 (
@@ -794,22 +799,20 @@ impl<B: Backend + 'static> TurboTasks<B> {
         let future = async move {
             let TaskExecutionSpec { future, span } =
                 crate::task::local_task::get_local_task_execution_spec(&*this, &ty, persistence);
+            let ty = ty.clone();
             async move {
-                let (result, _duration, _memory_usage) =
-                    CaptureFuture::new(AssertUnwindSafe(future).catch_unwind()).await;
+                let (result, _duration, _memory_usage) = CaptureFuture::new(future).await;
 
-                let result = result.map_err(|any| match any.downcast::<String>() {
-                    Ok(owned) => Some(Cow::Owned(*owned)),
-                    Err(any) => match any.downcast::<&'static str>() {
-                        Ok(str) => Some(Cow::Borrowed(*str)),
-                        Err(_) => None,
-                    },
-                });
+                let result = match result {
+                    Ok(Ok(raw_vc)) => Ok(raw_vc),
+                    Ok(Err(err)) => Err(err.into()),
+                    Err(err) => Err(TurboTasksExecutionError::Panic(Arc::new(err))),
+                };
+
                 let local_task = LocalTask::Done {
                     output: match result {
-                        Ok(Ok(raw_vc)) => OutputContent::Link(raw_vc),
-                        Ok(Err(err)) => OutputContent::Error(err.into()),
-                        Err(panic_err) => OutputContent::Panic(panic_err.map(Box::new)),
+                        Ok(raw_vc) => OutputContent::Link(raw_vc),
+                        Err(err) => OutputContent::Error(err.task_context(ty)),
                     },
                 };
 
@@ -1443,6 +1446,19 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
             this.stop_and_wait().await;
         })
     }
+
+    fn subscribe_to_compilation_events(
+        &self,
+        event_types: Option<Vec<String>>,
+    ) -> Receiver<Arc<dyn CompilationEvent>> {
+        self.compilation_events.subscribe(event_types)
+    }
+
+    fn send_compilation_event(&self, event: Arc<dyn CompilationEvent>) {
+        if let Err(e) = self.compilation_events.send(event) {
+            tracing::warn!("Failed to send compilation event: {e}");
+        }
+    }
 }
 
 impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
@@ -1578,10 +1594,7 @@ impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
 pub(crate) fn current_task(from: &str) -> TaskId {
     match CURRENT_TASK_STATE.try_with(|ts| ts.read().unwrap().task_id) {
         Ok(id) => id,
-        Err(_) => panic!(
-            "{} can only be used in the context of turbo_tasks task execution",
-            from
-        ),
+        Err(_) => panic!("{from} can only be used in the context of turbo_tasks task execution"),
     }
 }
 
@@ -1869,7 +1882,7 @@ impl CurrentCellRef {
         let cell_content = tt
             .read_own_task_cell(self.current_task, self.index, ReadCellOptions::default())
             .ok();
-        let update = functor(cell_content.as_ref().and_then(|cc| cc.1 .0.as_ref()));
+        let update = functor(cell_content.as_ref().and_then(|cc| cc.1.0.as_ref()));
         if let Some(update) = update {
             tt.update_own_task_cell(self.current_task, self.index, CellContent(Some(update)))
         }

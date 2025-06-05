@@ -7,19 +7,19 @@ use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack::{transition::Transition, ModuleAssetContext};
+use turbopack::{ModuleAssetContext, transition::Transition};
 use turbopack_core::{file_source::FileSource, module::Module};
 use turbopack_ecmascript::{magic_identifier, text::TextContentFileSource, utils::StringifyJs};
 
 use crate::{
     app_structure::{
-        get_metadata_route_name, AppDirModules, AppPageLoaderTree, GlobalMetadata, Metadata,
-        MetadataItem, MetadataWithAltItem,
+        AppDirModules, AppPageLoaderTree, GlobalMetadata, Metadata, MetadataItem,
+        MetadataWithAltItem, get_metadata_route_name,
     },
     base_loader_tree::{AppDirModuleType, BaseLoaderTreeBuilder},
     next_app::{
-        metadata::{get_content_type, image::dynamic_image_metadata_source},
         AppPage,
+        metadata::{get_content_type, image::dynamic_image_metadata_source},
     },
     next_image::module::{BlurPlaceholderMode, StructuredImageModuleType},
 };
@@ -136,7 +136,7 @@ impl AppPageLoaderTreeBuilder {
         let metadata_manifest_route = get_metadata_route_name(manifest).await?;
         // prefix with base_path if it exists
         let manifest_route = if let Some(base_path) = &self.base_path {
-            format!("{}/{}", base_path, metadata_manifest_route)
+            format!("{base_path}/{metadata_manifest_route}")
         } else {
             metadata_manifest_route.to_string()
         };
@@ -250,7 +250,7 @@ impl AppPageLoaderTreeBuilder {
         let s = "      ";
         writeln!(self.loader_tree_code, "{s}(async (props) => [{{")?;
         let pathname_prefix = if let Some(base_path) = &self.base_path {
-            format!("{}/{}", base_path, app_page)
+            format!("{base_path}/{app_page}")
         } else {
             app_page.to_string()
         };
@@ -335,6 +335,7 @@ impl AppPageLoaderTreeBuilder {
             default,
             error,
             global_error,
+            global_not_found,
             layout,
             loading,
             template,
@@ -375,6 +376,8 @@ impl AppPageLoaderTreeBuilder {
             .await?;
         self.write_modules_entry(AppDirModuleType::GlobalError, *global_error)
             .await?;
+        self.write_modules_entry(AppDirModuleType::GlobalNotFound, *global_not_found)
+            .await?;
 
         let modules_code = replace(&mut self.loader_tree_code, temp_loader_tree_code);
 
@@ -399,6 +402,7 @@ impl AppPageLoaderTreeBuilder {
         let loader_tree = &*loader_tree.await?;
 
         let modules = &loader_tree.modules;
+        // load global-error module
         if let Some(global_error) = modules.global_error {
             let module = self
                 .base
@@ -406,6 +410,17 @@ impl AppPageLoaderTreeBuilder {
                 .to_resolved()
                 .await?;
             self.base.inner_assets.insert(GLOBAL_ERROR.into(), module);
+        };
+        // load global-not-found module
+        if let Some(global_not_found) = modules.global_not_found {
+            let module = self
+                .base
+                .process_source(Vc::upcast(FileSource::new(*global_not_found)))
+                .to_resolved()
+                .await?;
+            self.base
+                .inner_assets
+                .insert(GLOBAL_NOT_FOUND.into(), module);
         };
 
         self.walk_tree(loader_tree, true).await?;
@@ -439,3 +454,4 @@ impl AppPageLoaderTreeModule {
 }
 
 pub const GLOBAL_ERROR: &str = "GLOBAL_ERROR_MODULE";
+pub const GLOBAL_NOT_FOUND: &str = "GLOBAL_NOT_FOUND_MODULE";

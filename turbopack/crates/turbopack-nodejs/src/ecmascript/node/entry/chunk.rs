@@ -1,8 +1,8 @@
 use std::io::Write;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use indoc::writedoc;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
@@ -160,18 +160,8 @@ impl EcmascriptBuildNodeEntryChunk {
 impl ValueToString for EcmascriptBuildNodeEntryChunk {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell("Ecmascript Build Node Evaluate Chunk".into())
+        Vc::cell(rcstr!("Ecmascript Build Node Evaluate Chunk"))
     }
-}
-
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("ecmascript build node evaluate chunk".into())
-}
-
-#[turbo_tasks::function]
-fn chunk_reference_description() -> Vc<RcStr> {
-    Vc::cell("chunk".into())
 }
 
 #[turbo_tasks::value_impl]

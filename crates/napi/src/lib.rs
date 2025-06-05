@@ -68,10 +68,18 @@ static ALLOC: dhat::Alloc = dhat::Alloc;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[napi::module_init]
-
 fn init() {
+    use std::panic::{set_hook, take_hook};
+
     use tokio::runtime::Builder;
+    use turbo_tasks::handle_panic;
     use turbo_tasks_malloc::TurboMalloc;
+
+    let prev_hook = take_hook();
+    set_hook(Box::new(move |info| {
+        handle_panic(info);
+        prev_hook(info);
+    }));
 
     let rt = Builder::new_multi_thread()
         .enable_all()

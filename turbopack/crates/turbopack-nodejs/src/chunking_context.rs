@@ -1,22 +1,22 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use tracing::Instrument;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Upcast, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        availability_info::AvailabilityInfo,
-        chunk_group::{make_chunk_group, MakeChunkGroupResult},
-        module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
         Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule, ChunkingConfig,
         ChunkingConfigs, ChunkingContext, EntryChunkGroupResult, EvaluatableAssets, MinifyType,
         ModuleId, SourceMapsType,
+        availability_info::AvailabilityInfo,
+        chunk_group::{MakeChunkGroupResult, make_chunk_group},
+        module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
     },
     environment::Environment,
     ident::AssetIdent,
     module::Module,
-    module_graph::{chunk_group_info::ChunkGroup, ModuleGraph},
+    module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
     output::{OutputAsset, OutputAssets},
 };
 use turbopack_ecmascript::{
@@ -36,7 +36,7 @@ pub struct NodeJsChunkingContextBuilder {
 }
 
 impl NodeJsChunkingContextBuilder {
-    pub fn asset_prefix(mut self, asset_prefix: ResolvedVc<Option<RcStr>>) -> Self {
+    pub fn asset_prefix(mut self, asset_prefix: Option<RcStr>) -> Self {
         self.chunking_context.asset_prefix = asset_prefix;
         self
     }
@@ -104,7 +104,7 @@ pub struct NodeJsChunkingContext {
     /// This path is used to compute the url to request chunks or assets from
     output_root: ResolvedVc<FileSystemPath>,
     /// The relative path from the output_root to the root_path.
-    output_root_to_root_path: ResolvedVc<RcStr>,
+    output_root_to_root_path: RcStr,
     /// This path is used to compute the url to request chunks or assets from
     client_root: ResolvedVc<FileSystemPath>,
     /// Chunks are placed at this path
@@ -112,7 +112,7 @@ pub struct NodeJsChunkingContext {
     /// Static assets are placed at this path
     asset_root_path: ResolvedVc<FileSystemPath>,
     /// Static assets requested from this url base
-    asset_prefix: ResolvedVc<Option<RcStr>>,
+    asset_prefix: Option<RcStr>,
     /// The environment chunks will be evaluated in.
     environment: ResolvedVc<Environment>,
     /// The kind of runtime to include in the output.
@@ -138,7 +138,7 @@ impl NodeJsChunkingContext {
     pub fn builder(
         root_path: ResolvedVc<FileSystemPath>,
         output_root: ResolvedVc<FileSystemPath>,
-        output_root_to_root_path: ResolvedVc<RcStr>,
+        output_root_to_root_path: RcStr,
         client_root: ResolvedVc<FileSystemPath>,
         chunk_root_path: ResolvedVc<FileSystemPath>,
         asset_root_path: ResolvedVc<FileSystemPath>,
@@ -153,7 +153,7 @@ impl NodeJsChunkingContext {
                 client_root,
                 chunk_root_path,
                 asset_root_path,
-                asset_prefix: ResolvedVc::cell(None),
+                asset_prefix: None,
                 enable_file_tracing: false,
                 environment,
                 runtime_type,
@@ -183,16 +183,17 @@ impl NodeJsChunkingContext {
     }
 }
 
+impl NodeJsChunkingContext {
+    pub async fn asset_prefix(self: Vc<Self>) -> Result<Option<RcStr>> {
+        Ok(self.await?.asset_prefix.clone())
+    }
+}
+
 #[turbo_tasks::value_impl]
 impl NodeJsChunkingContext {
     #[turbo_tasks::function]
     fn new(this: Value<NodeJsChunkingContext>) -> Vc<Self> {
         this.into_value().cell()
-    }
-
-    #[turbo_tasks::function]
-    pub fn asset_prefix(&self) -> Vc<Option<RcStr>> {
-        *self.asset_prefix
     }
 
     #[turbo_tasks::function]
@@ -220,7 +221,7 @@ impl NodeJsChunkingContext {
 impl ChunkingContext for NodeJsChunkingContext {
     #[turbo_tasks::function]
     fn name(&self) -> Vc<RcStr> {
-        Vc::cell("unknown".into())
+        Vc::cell(rcstr!("unknown"))
     }
 
     #[turbo_tasks::function]
@@ -235,7 +236,7 @@ impl ChunkingContext for NodeJsChunkingContext {
 
     #[turbo_tasks::function]
     fn output_root_to_root_path(&self) -> Vc<RcStr> {
-        *self.output_root_to_root_path
+        Vc::cell(self.output_root_to_root_path.clone())
     }
 
     #[turbo_tasks::function]
@@ -263,11 +264,7 @@ impl ChunkingContext for NodeJsChunkingContext {
         Ok(Vc::cell(
             format!(
                 "{}{}",
-                self.asset_prefix
-                    .await?
-                    .as_ref()
-                    .map(|s| s.clone())
-                    .unwrap_or_else(|| "/".into()),
+                self.asset_prefix.clone().unwrap_or(rcstr!("/")),
                 asset_path
             )
             .into(),

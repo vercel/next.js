@@ -3,23 +3,23 @@ use std::{collections::BTreeMap, fmt::Display};
 use once_cell::sync::Lazy;
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
-    common::{comments::Comments, source_map::SmallPos, BytePos, Span, Spanned},
+    common::{BytePos, Span, Spanned, comments::Comments, source_map::SmallPos},
     ecma::{
         ast::*,
-        atoms::{atom, Atom},
+        atoms::{Atom, atom},
         utils::find_pat_ids,
         visit::{Visit, VisitWith},
     },
 };
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc};
 use turbopack_core::{issue::IssueSource, source::Source};
 
-use super::{top_level_await::has_top_level_await, JsValue, ModuleValue};
+use super::{JsValue, ModuleValue, top_level_await::has_top_level_await};
 use crate::{
-    analyzer::{ConstantValue, ObjectPart},
-    tree_shake::{find_turbopack_part_id_in_asserts, PartId},
     SpecifiedModuleType,
+    analyzer::{ConstantValue, ObjectPart},
+    tree_shake::{PartId, find_turbopack_part_id_in_asserts},
 };
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
@@ -658,7 +658,7 @@ impl Visit for Analyzer<'_> {
     fn visit_export_default_specifier(&mut self, n: &ExportDefaultSpecifier) {
         self.data
             .exports
-            .insert("default".into(), n.exported.to_id());
+            .insert(rcstr!("default"), n.exported.to_id());
     }
 
     fn visit_export_namespace_specifier(&mut self, n: &ExportNamespaceSpecifier) {

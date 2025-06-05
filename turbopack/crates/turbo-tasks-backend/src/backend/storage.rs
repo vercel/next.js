@@ -1,7 +1,7 @@
 use std::{
     hash::Hash,
     ops::{Deref, DerefMut},
-    sync::{atomic::AtomicBool, Arc},
+    sync::{Arc, atomic::AtomicBool},
     thread::available_parallelism,
 };
 
@@ -16,7 +16,7 @@ use crate::{
         CachedDataItemValue, CachedDataItemValueRef, CachedDataItemValueRefMut, OutputValue,
     },
     data_storage::{AutoMapStorage, OptionStorage},
-    utils::dash_map_multi::{get_multiple_mut, RefMut},
+    utils::dash_map_multi::{RefMut, get_multiple_mut},
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -137,7 +137,7 @@ pub struct InnerStorageSnapshot {
     aggregation_number: OptionStorage<AggregationNumber>,
     output_dependent: AutoMapStorage<TaskId, ()>,
     output: OptionStorage<OutputValue>,
-    upper: AutoMapStorage<TaskId, i32>,
+    upper: AutoMapStorage<TaskId, u32>,
     dynamic: DynamicStorage,
     pub meta_modified: bool,
     pub data_modified: bool,
@@ -205,7 +205,7 @@ pub struct InnerStorage {
     aggregation_number: OptionStorage<AggregationNumber>,
     output_dependent: AutoMapStorage<TaskId, ()>,
     output: OptionStorage<OutputValue>,
-    upper: AutoMapStorage<TaskId, i32>,
+    upper: AutoMapStorage<TaskId, u32>,
     dynamic: DynamicStorage,
     state: InnerStorageState,
 }
@@ -654,8 +654,7 @@ impl Storage {
 
         // The number of shards is much larger than the number of threads, so the effect of the
         // locks held is negligible.
-        let shards = self
-            .modified
+        self.modified
             .shards()
             .par_iter()
             .with_max_len(1)
@@ -696,9 +695,7 @@ impl Storage {
                     process_snapshot,
                 }
             })
-            .collect::<Vec<_>>();
-
-        shards
+            .collect::<Vec<_>>()
     }
 
     /// Start snapshot mode.
@@ -891,9 +888,7 @@ impl DerefMut for StorageWriteGuard<'_> {
 }
 
 macro_rules! count {
-    ($task:ident, $key:ident) => {{
-        $task.count($crate::data::CachedDataItemType::$key)
-    }};
+    ($task:ident, $key:ident) => {{ $task.count($crate::data::CachedDataItemType::$key) }};
 }
 
 macro_rules! get {

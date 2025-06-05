@@ -11,16 +11,16 @@ use swc_core::{
     },
     quote, quote_expr,
 };
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TryFlatJoinIterExt,
-    ValueToString, Vc,
+    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, ValueToString, Vc,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
     chunk::ChunkingContext,
     ident::AssetIdent,
-    issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, StyledString},
+    issue::{IssueExt, IssueSeverity, StyledString, analyze::AnalyzeIssue},
     module::Module,
     module_graph::ModuleGraph,
     reference::ModuleReference,
@@ -29,13 +29,13 @@ use turbopack_core::{
 
 use super::base::ReferencedAsset;
 use crate::{
+    EcmascriptModuleAsset,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
     magic_identifier,
     parse::ParseResult,
     runtime_functions::{TURBOPACK_DYNAMIC, TURBOPACK_ESM},
     tree_shake::asset::EcmascriptModulePartAsset,
-    EcmascriptModuleAsset,
 };
 
 #[derive(Clone, Hash, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
@@ -461,7 +461,7 @@ async fn emit_star_exports_issue(source_ident: Vc<AssetIdent>, message: RcStr) -
     AnalyzeIssue::new(
         IssueSeverity::Warning,
         source_ident,
-        Vc::cell("unexpected export *".into()),
+        Vc::cell(rcstr!("unexpected export *")),
         StyledString::Text(message).cell(),
         None,
         None,
@@ -680,16 +680,15 @@ impl EsmExports {
         Ok(CodeGeneration::new(
             vec![],
             [dynamic_stmt
-                .clone()
-                .map(|stmt| CodeGenerationHoistedStmt::new("__turbopack_dynamic__".into(), stmt))]
+                .map(|stmt| CodeGenerationHoistedStmt::new(rcstr!("__turbopack_dynamic__"), stmt))]
             .into_iter()
             .flatten()
             .collect(),
             vec![CodeGenerationHoistedStmt::new(
-                "__turbopack_esm__".into(),
+                rcstr!("__turbopack_esm__"),
                 quote!("$turbopack_esm($getters);" as Stmt,
                     turbopack_esm: Expr = TURBOPACK_ESM.into(),
-                    getters: Expr = getters.clone()
+                    getters: Expr = getters
                 ),
             )],
         ))

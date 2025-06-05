@@ -12,8 +12,8 @@ use turbopack_core::{
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 use crate::{
-    module_options::{transition_rule::TransitionRule, ModuleOptionsContext},
     ModuleAssetContext,
+    module_options::{ModuleOptionsContext, transition_rule::TransitionRule},
 };
 
 /// Some kind of operation that is executed during reference processing. e. g.
@@ -32,11 +32,6 @@ pub trait Transition {
         compile_time_info: Vc<CompileTimeInfo>,
     ) -> Vc<CompileTimeInfo> {
         compile_time_info
-    }
-
-    /// Apply modifications to the layer
-    fn process_layer(self: Vc<Self>, layer: Vc<RcStr>) -> Vc<RcStr> {
-        layer
     }
 
     /// Apply modifications/wrapping to the module options context
@@ -84,7 +79,7 @@ pub trait Transition {
             self.process_module_options_context(*module_asset_context.module_options_context);
         let resolve_options_context =
             self.process_resolve_options_context(*module_asset_context.resolve_options_context);
-        let layer = self.process_layer(*module_asset_context.layer);
+        let layer = module_asset_context.layer.clone();
         let transition_options = self.process_transition_options(*module_asset_context.transitions);
         let module_asset_context = ModuleAssetContext::new(
             transition_options,

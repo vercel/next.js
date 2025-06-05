@@ -1,4 +1,4 @@
-import type { OverlayState } from '../shared'
+import type { OverlayDispatch, OverlayState } from '../shared'
 
 import { ShadowPortal } from './components/shadow-portal'
 import { Base } from './styles/base'
@@ -10,17 +10,16 @@ import { DevToolsIndicator } from './components/errors/dev-tools-indicator/dev-t
 import { RenderError } from './container/runtime-error/render-error'
 import { DarkTheme } from './styles/dark-theme'
 import { useDevToolsScale } from './components/errors/dev-tools-indicator/dev-tools-info/preferences'
+import type { HydrationErrorState } from '../pages/hydration-error-state'
 
 export function DevOverlay({
   state,
-  isErrorOverlayOpen,
-  setIsErrorOverlayOpen,
+  dispatch,
+  getSquashedHydrationErrorDetails,
 }: {
   state: OverlayState
-  isErrorOverlayOpen: boolean
-  setIsErrorOverlayOpen: (
-    isErrorOverlayOpen: boolean | ((prev: boolean) => boolean)
-  ) => void
+  dispatch: OverlayDispatch
+  getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
 }) {
   const [scale, setScale] = useDevToolsScale()
   return (
@@ -41,18 +40,20 @@ export function DevOverlay({
                   scale={scale}
                   setScale={setScale}
                   state={state}
+                  dispatch={dispatch}
                   errorCount={totalErrorCount}
                   isBuildError={isBuildError}
-                  setIsErrorOverlayOpen={setIsErrorOverlayOpen}
                 />
               )}
 
               <ErrorOverlay
                 state={state}
+                dispatch={dispatch}
+                getSquashedHydrationErrorDetails={
+                  getSquashedHydrationErrorDetails
+                }
                 runtimeErrors={runtimeErrors}
                 errorCount={totalErrorCount}
-                isErrorOverlayOpen={isErrorOverlayOpen}
-                setIsErrorOverlayOpen={setIsErrorOverlayOpen}
               />
             </>
           )

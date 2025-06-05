@@ -69,7 +69,7 @@ export async function register() {
 
 ### Importing runtime-specific code
 
-Next.js calls `register` in all environments, so it's important to conditionally import any code that doesn't support specific runtimes (e.g. [Edge or Node.js](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes)). You can use the `NEXT_RUNTIME` environment variable to get the current environment:
+Next.js calls `register` in all environments, so it's important to conditionally import any code that doesn't support specific runtimes (e.g. [Edge or Node.js](/docs/app/api-reference/edge)). You can use the `NEXT_RUNTIME` environment variable to get the current environment:
 
 ```ts filename="instrumentation.ts" switcher
 export async function register() {

@@ -1,24 +1,26 @@
 use std::{borrow::Cow, iter, ops::ControlFlow, thread::available_parallelism, time::Duration};
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use async_stream::try_stream as generator;
 use async_trait::async_trait;
 use futures::{
-    channel::mpsc::{unbounded, UnboundedSender},
-    pin_mut, SinkExt, StreamExt,
+    SinkExt, StreamExt,
+    channel::mpsc::{UnboundedSender, unbounded},
+    pin_mut,
 };
 use futures_retry::{FutureRetry, RetryPolicy};
 use parking_lot::Mutex;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value as JsonValue;
+use turbo_rcstr::rcstr;
 use turbo_tasks::{
-    apply_effects, duration_span, fxindexmap, mark_finished, prevent_gc, trace::TraceRawVcs,
-    util::SharedError, Completion, FxIndexMap, NonLocalValue, OperationVc, RawVc, ResolvedVc,
-    TaskInput, TryJoinIterExt, Value, Vc,
+    Completion, FxIndexMap, NonLocalValue, OperationVc, RawVc, ResolvedVc, TaskInput,
+    TryJoinIterExt, Value, Vc, apply_effects, duration_span, fxindexmap, mark_finished, prevent_gc,
+    trace::TraceRawVcs, util::SharedError,
 };
 use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::{EnvMap, ProcessEnv};
-use turbo_tasks_fs::{to_sys_path, File, FileSystemPath};
+use turbo_tasks_fs::{File, FileSystemPath, to_sys_path};
 use turbopack_core::{
     asset::AssetContent,
     changed::content_changed,
@@ -29,18 +31,18 @@ use turbopack_core::{
     ident::AssetIdent,
     issue::{Issue, IssueExt, IssueStage, OptionStyledString, StyledString},
     module::Module,
-    module_graph::{chunk_group_info::ChunkGroupEntry, ModuleGraph},
+    module_graph::{ModuleGraph, chunk_group_info::ChunkGroupEntry},
     output::{OutputAsset, OutputAssets},
     reference_type::{InnerAssets, ReferenceType},
     virtual_source::VirtualSource,
 };
 
 use crate::{
+    AssetsForSourceMapping,
     embed_js::embed_file_path,
     emit, emit_package_json, internal_assets_for_source_mapping,
     pool::{FormattingMode, NodeJsOperation, NodeJsPool},
     source_map::StructuredError,
-    AssetsForSourceMapping,
 };
 
 #[derive(Serialize)]
@@ -95,7 +97,7 @@ async fn emit_evaluate_pool_assets_operation(
 ) -> Result<Vc<EmittedEvaluatePoolAssets>> {
     let runtime_asset = asset_context
         .process(
-            Vc::upcast(FileSource::new(embed_file_path("ipc/evaluate.ts".into()))),
+            Vc::upcast(FileSource::new(embed_file_path(rcstr!("ipc/evaluate.ts")))),
             Value::new(ReferenceType::Internal(
                 InnerAssets::empty().to_resolved().await?,
             )),
@@ -117,14 +119,14 @@ async fn emit_evaluate_pool_assets_operation(
     let entry_module = asset_context
         .process(
             Vc::upcast(VirtualSource::new(
-                runtime_asset.ident().path().join("evaluate.js".into()),
+                runtime_asset.ident().path().join(rcstr!("evaluate.js")),
                 AssetContent::file(
                     File::from("import { run } from 'RUNTIME'; run(() => import('INNER'))").into(),
                 ),
             )),
             Value::new(ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
-                "INNER".into() => module_asset,
-                "RUNTIME".into() => runtime_asset
+                rcstr!("INNER") => module_asset,
+                rcstr!("RUNTIME") => runtime_asset
             }))),
         )
         .module()
@@ -134,7 +136,7 @@ async fn emit_evaluate_pool_assets_operation(
     let runtime_entries = {
         let globals_module = asset_context
             .process(
-                Vc::upcast(FileSource::new(embed_file_path("globals.ts".into()))),
+                Vc::upcast(FileSource::new(embed_file_path(rcstr!("globals.ts")))),
                 Value::new(ReferenceType::Internal(
                     InnerAssets::empty().to_resolved().await?,
                 )),
@@ -703,7 +705,7 @@ pub struct EvaluationIssue {
 impl Issue for EvaluationIssue {
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Error evaluating Node.js code".into()).cell()
+        StyledString::Text(rcstr!("Error evaluating Node.js code")).cell()
     }
 
     #[turbo_tasks::function]

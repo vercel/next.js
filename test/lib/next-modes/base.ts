@@ -44,6 +44,7 @@ export interface NextInstanceOpts {
   forcedPort?: string
   serverReadyPattern?: RegExp
   patchFileDelay?: number
+  startServerTimeout?: number
 }
 
 /**
@@ -84,6 +85,7 @@ export class NextInstance {
   public env: Record<string, string>
   public forcedPort?: string
   public dirSuffix: string = ''
+  public startServerTimeout: number = 10_000 // 10 seconds
   public serverReadyPattern: RegExp = / ✓ Ready in /
   patchFileDelay: number = 0
 
@@ -386,7 +388,7 @@ export class NextInstance {
 
   protected setServerReadyTimeout(
     reject: (reason?: unknown) => void,
-    ms = 10_000
+    ms: number
   ): NodeJS.Timeout {
     return setTimeout(() => {
       reject(
@@ -543,6 +545,16 @@ export class NextInstance {
 
   public async readFile(filename: string) {
     return fs.readFile(path.join(this.testDir, filename), 'utf8')
+  }
+
+  public async readFileBuffer(
+    filename: string
+  ): Promise<Buffer<ArrayBufferLike>> {
+    return fs.readFile(path.join(this.testDir, filename))
+  }
+
+  public async writeFileBuffer(filename: string, data: Buffer): Promise<void> {
+    return fs.writeFile(path.join(this.testDir, filename), data)
   }
 
   public async readFiles(

@@ -10,7 +10,7 @@ use turbopack::{
 use turbopack_browser::react_refresh::assert_can_resolve_react_refresh;
 use turbopack_core::{
     file_source::FileSource,
-    resolve::{find_context_file, node::node_cjs_resolve_options, FindContextFileResult},
+    resolve::{FindContextFileResult, find_context_file, node::node_cjs_resolve_options},
     source::Source,
 };
 use turbopack_ecmascript::typescript::resolve::{read_from_tsconfigs, read_tsconfigs, tsconfig};
@@ -66,51 +66,62 @@ pub async fn get_decorators_transform_options(
 ) -> Result<Vc<DecoratorsOptions>> {
     let tsconfig = get_typescript_options(project_path).await?;
 
-    let decorators_transform_options = if let Some(tsconfig) = tsconfig {
-        read_from_tsconfigs(&tsconfig, |json, _| {
-            let decorators_kind = if json["compilerOptions"]["experimentalDecorators"]
-                .as_bool()
-                .unwrap_or(false)
-            {
-                Some(DecoratorsKind::Legacy)
-            } else {
-                // ref: https://devblogs.microsoft.com/typescript/announcing-typescript-5-0-rc/#differences-with-experimental-legacy-decorators
-                // `without the flag, decorators will now be valid syntax for all new code.
-                // Outside of --experimentalDecorators, they will be type-checked and emitted
-                // differently with ts 5.0, new ecma decorators will be enabled
-                // if legacy decorators are not enabled
-                Some(DecoratorsKind::Ecma)
-            };
-
-            let emit_decorators_metadata = if let Some(decorators_kind) = &decorators_kind {
-                match decorators_kind {
-                    DecoratorsKind::Legacy => {
-                        // ref: This new decorators proposal is not compatible with
-                        // --emitDecoratorMetadata, and it does not allow decorating parameters.
-                        // Future ECMAScript proposals may be able to help bridge that gap
-                        json["compilerOptions"]["emitDecoratorMetadata"]
-                            .as_bool()
-                            .unwrap_or(false)
-                    }
-                    DecoratorsKind::Ecma => false,
-                }
-            } else {
-                false
-            };
-
-            Some(DecoratorsOptions {
-                decorators_kind,
-                emit_decorators_metadata,
-                use_define_for_class_fields: json["compilerOptions"]["useDefineForClassFields"]
-                    .as_bool()
-                    .unwrap_or(false),
-                ..Default::default()
-            })
+    let experimental_decorators = if let Some(ref tsconfig) = tsconfig {
+        read_from_tsconfigs(tsconfig, |json, _| {
+            json["compilerOptions"]["experimentalDecorators"].as_bool()
         })
         .await?
-        .unwrap_or_default()
+        .unwrap_or(false)
     } else {
-        Default::default()
+        false
+    };
+
+    let decorators_kind = if experimental_decorators {
+        Some(DecoratorsKind::Legacy)
+    } else {
+        // ref: https://devblogs.microsoft.com/typescript/announcing-typescript-5-0-rc/#differences-with-experimental-legacy-decorators
+        // `without the flag, decorators will now be valid syntax for all new code.
+        // Outside of --experimentalDecorators, they will be type-checked and emitted
+        // differently with ts 5.0, new ecma decorators will be enabled
+        // if legacy decorators are not enabled
+        Some(DecoratorsKind::Ecma)
+    };
+
+    let emit_decorators_metadata = if let Some(ref tsconfig) = tsconfig {
+        read_from_tsconfigs(tsconfig, |json, _| {
+            json["compilerOptions"]["emitDecoratorMetadata"].as_bool()
+        })
+        .await?
+        .unwrap_or(false)
+    } else {
+        false
+    };
+
+    let use_define_for_class_fields = if let Some(ref tsconfig) = tsconfig {
+        read_from_tsconfigs(tsconfig, |json, _| {
+            json["compilerOptions"]["useDefineForClassFields"].as_bool()
+        })
+        .await?
+        .unwrap_or(false)
+    } else {
+        false
+    };
+
+    let decorators_transform_options = DecoratorsOptions {
+        decorators_kind: decorators_kind.clone(),
+        emit_decorators_metadata: if let Some(ref decorators_kind) = decorators_kind {
+            match decorators_kind {
+                DecoratorsKind::Legacy => emit_decorators_metadata,
+                // ref: This new decorators proposal is not compatible with
+                // --emitDecoratorMetadata, and it does not allow decorating parameters.
+                // Future ECMAScript proposals may be able to help bridge that gap
+                DecoratorsKind::Ecma => false,
+            }
+        } else {
+            false
+        },
+        use_define_for_class_fields,
+        ..Default::default()
     };
 
     Ok(decorators_transform_options.cell())
