@@ -1,7 +1,7 @@
 use anyhow::Result;
 use rustc_hash::FxHashSet;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 
 use crate::{
@@ -87,7 +87,7 @@ pub trait BeforeResolvePlugin {
     fn before_resolve(
         self: Vc<Self>,
         lookup_path: Vc<FileSystemPath>,
-        reference_type: Value<ReferenceType>,
+        reference_type: ReferenceType,
         request: Vc<Request>,
     ) -> Vc<ResolveResultOption>;
 }
@@ -104,7 +104,7 @@ pub trait AfterResolvePlugin {
         self: Vc<Self>,
         fs_path: Vc<FileSystemPath>,
         lookup_path: Vc<FileSystemPath>,
-        reference_type: Value<ReferenceType>,
+        reference_type: ReferenceType,
         request: Vc<Request>,
     ) -> Vc<ResolveResultOption>;
 }

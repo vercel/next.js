@@ -199,9 +199,7 @@ async fn config_changed(
     let config_asset = asset_context
         .process(
             Vc::upcast(FileSource::new(postcss_config_path)),
-            Value::new(ReferenceType::Internal(
-                InnerAssets::empty().to_resolved().await?,
-            )),
+            ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
         )
         .module();
 
@@ -237,9 +235,7 @@ async fn extra_configs_changed(
                     match *asset_context
                         .process(
                             Vc::upcast(FileSource::new(path)),
-                            Value::new(ReferenceType::Internal(
-                                InnerAssets::empty().to_resolved().await?,
-                            )),
+                            ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
                         )
                         .try_into_module()
                         .await?
@@ -403,7 +399,7 @@ async fn postcss_executor(
     let config_asset = asset_context
         .process(
             config_loader_source(project_path, postcss_config_path),
-            Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
+            ReferenceType::Entry(EntryReferenceSubType::Undefined),
         )
         .module()
         .to_resolved()
@@ -413,9 +409,9 @@ async fn postcss_executor(
         Vc::upcast(FileSource::new(embed_file_path(rcstr!(
             "transforms/postcss.ts"
         )))),
-        Value::new(ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
+        ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
             rcstr!("CONFIG") => config_asset
-        }))),
+        })),
     ))
 }
 

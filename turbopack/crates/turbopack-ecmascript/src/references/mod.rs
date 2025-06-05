@@ -3507,14 +3507,14 @@ async fn resolve_as_webpack_runtime(
     request: Vc<Request>,
     transforms: Vc<EcmascriptInputTransforms>,
 ) -> Result<Vc<WebpackRuntime>> {
-    let ty = Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined));
+    let ty = ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined);
     let options = origin.resolve_options(ty.clone());
 
     let options = apply_cjs_specific_options(options);
 
     let resolved = resolve(
         origin.origin_path().parent().resolve().await?,
-        Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)),
+        ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
         request,
         options,
     );
