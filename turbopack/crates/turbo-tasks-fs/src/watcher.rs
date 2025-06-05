@@ -118,10 +118,10 @@ impl DiskWatcher {
         // https://github.com/notify-rs/notify/pull/611, it seems like there's still some case where
         // it can occur with inotify on Linux.
         fn map_notify_err(mut err: notify::Error) -> notify::Error {
-            if let notify::ErrorKind::Io(io_err) = &err.kind {
-                if io_err.kind() == std::io::ErrorKind::NotFound {
-                    err.kind = notify::ErrorKind::PathNotFound;
-                }
+            if let notify::ErrorKind::Io(io_err) = &err.kind
+                && io_err.kind() == std::io::ErrorKind::NotFound
+            {
+                err.kind = notify::ErrorKind::PathNotFound;
             }
             err
         }
