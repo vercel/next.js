@@ -336,9 +336,9 @@ impl PagesProject {
             self.project().project_path(),
             self.project().execution_context(),
             self.project().client_compile_time_info().environment(),
-            Value::new(ClientContextType::Pages {
+            ClientContextType::Pages {
                 pages_dir: self.pages_dir().to_resolved().await?,
-            }),
+            },
             self.project().next_mode(),
             self.project().next_config(),
             self.project().encryption_key(),
@@ -350,9 +350,9 @@ impl PagesProject {
     async fn client_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
         Ok(get_client_resolve_options_context(
             self.project().project_path(),
-            Value::new(ClientContextType::Pages {
+            ClientContextType::Pages {
                 pages_dir: self.pages_dir().to_resolved().await?,
-            }),
+            },
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
@@ -566,9 +566,9 @@ impl PagesProject {
     async fn client_runtime_entries(self: Vc<Self>) -> Result<Vc<EvaluatableAssets>> {
         let client_runtime_entries = get_client_runtime_entries(
             self.project().project_path(),
-            Value::new(ClientContextType::Pages {
+            ClientContextType::Pages {
                 pages_dir: self.pages_dir().to_resolved().await?,
-            }),
+            },
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
