@@ -309,11 +309,10 @@ impl UrlAssetReferenceCodeGen {
                                     *expr = request.as_str().into()
                                 }
 
-                                if let Some(rewrite) = &rewrite_url_base {
-                                    if let Some(ExprOrSpread { box expr, spread: None }) = args.get_mut(1) {
+                                if let Some(rewrite) = &rewrite_url_base
+                                    && let Some(ExprOrSpread { box expr, spread: None }) = args.get_mut(1) {
                                         *expr = rewrite.clone();
                                     }
-                                }
                             }
                         }));
                     }

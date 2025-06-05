@@ -31,13 +31,13 @@ pub enum Pattern {
 }
 
 fn concatenation_push_or_merge_item(list: &mut Vec<Pattern>, pat: Pattern) {
-    if let Pattern::Constant(ref s) = pat {
-        if let Some(Pattern::Constant(last)) = list.last_mut() {
-            let mut buf = last.to_string();
-            buf.push_str(s);
-            *last = buf.into();
-            return;
-        }
+    if let Pattern::Constant(ref s) = pat
+        && let Some(Pattern::Constant(last)) = list.last_mut()
+    {
+        let mut buf = last.to_string();
+        buf.push_str(s);
+        *last = buf.into();
+        return;
     }
     list.push(pat);
 }
@@ -959,10 +959,10 @@ impl Pattern {
                         }
                     }
                 }
-                if let Some(offset) = any_offset {
-                    if offset == value.len() {
-                        dynamics.push_back(value);
-                    }
+                if let Some(offset) = any_offset
+                    && offset == value.len()
+                {
+                    dynamics.push_back(value);
                 }
                 MatchResult::Consumed {
                     remaining: value,
@@ -1648,16 +1648,12 @@ pub async fn read_matches(
                                         lookup_dir.join(key.clone()).to_resolved().await?;
                                     if let LinkContent::Link { link_type, .. } =
                                         &*fs_path.read_link().await?
+                                        && link_type.contains(LinkType::DIRECTORY)
                                     {
-                                        if link_type.contains(LinkType::DIRECTORY) {
-                                            results.push((
-                                                pos,
-                                                PatternMatch::Directory(
-                                                    prefix.clone().into(),
-                                                    fs_path,
-                                                ),
-                                            ));
-                                        }
+                                        results.push((
+                                            pos,
+                                            PatternMatch::Directory(prefix.clone().into(), fs_path),
+                                        ));
                                     }
                                 }
                                 if let Some(pos) = pat.could_match_position(&prefix) {
@@ -1665,16 +1661,12 @@ pub async fn read_matches(
                                         lookup_dir.join(key.clone()).to_resolved().await?;
                                     if let LinkContent::Link { link_type, .. } =
                                         &*fs_path.read_link().await?
+                                        && link_type.contains(LinkType::DIRECTORY)
                                     {
-                                        if link_type.contains(LinkType::DIRECTORY) {
-                                            results.push((
-                                                pos,
-                                                PatternMatch::Directory(
-                                                    prefix.clone().into(),
-                                                    fs_path,
-                                                ),
-                                            ));
-                                        }
+                                        results.push((
+                                            pos,
+                                            PatternMatch::Directory(prefix.clone().into(), fs_path),
+                                        ));
                                     }
                                 }
                                 prefix.truncate(len)

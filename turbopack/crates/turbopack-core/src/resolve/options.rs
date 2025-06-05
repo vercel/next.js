@@ -556,16 +556,16 @@ impl ResolvedMap {
         let resolved = resolved.await?;
         for (root, glob, mapping) in self.by_glob.iter() {
             let root = root.await?;
-            if let Some(path) = root.get_path_to(&resolved) {
-                if glob.await?.matches(path) {
-                    return Ok(import_mapping_to_result(
-                        *mapping.convert().await?,
-                        lookup_path,
-                        request,
-                    )
-                    .await?
-                    .into());
-                }
+            if let Some(path) = root.get_path_to(&resolved)
+                && glob.await?.matches(path)
+            {
+                return Ok(import_mapping_to_result(
+                    *mapping.convert().await?,
+                    lookup_path,
+                    request,
+                )
+                .await?
+                .into());
             }
         }
         Ok(ImportMapResult::NoEntry.into())

@@ -253,13 +253,12 @@ async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap
     };
 
     if let Some(module) = Vc::try_resolve_downcast_type::<EcmascriptModulePartAsset>(module).await?
-    {
-        if matches!(
+        && matches!(
             module.await?.part,
             ModulePart::Evaluation | ModulePart::Facade
-        ) {
-            return Ok(Vc::cell(None));
-        }
+        )
+    {
+        return Ok(Vc::cell(None));
     }
 
     let original_parsed = ecmascript_asset.parse_original().resolve().await?;

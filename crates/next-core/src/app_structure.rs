@@ -324,23 +324,23 @@ async fn get_directory_tree_internal(
                 if basename.ends_with(".d.ts") {
                     continue;
                 }
-                if let Some((stem, ext)) = basename.split_once('.') {
-                    if page_extensions_value.iter().any(|e| e == ext) {
-                        match stem {
-                            "page" => modules.page = Some(file),
-                            "layout" => modules.layout = Some(file),
-                            "error" => modules.error = Some(file),
-                            "global-error" => modules.global_error = Some(file),
-                            "global-not-found" => modules.global_not_found = Some(file),
-                            "loading" => modules.loading = Some(file),
-                            "template" => modules.template = Some(file),
-                            "forbidden" => modules.forbidden = Some(file),
-                            "unauthorized" => modules.unauthorized = Some(file),
-                            "not-found" => modules.not_found = Some(file),
-                            "default" => modules.default = Some(file),
-                            "route" => modules.route = Some(file),
-                            _ => {}
-                        }
+                if let Some((stem, ext)) = basename.split_once('.')
+                    && page_extensions_value.iter().any(|e| e == ext)
+                {
+                    match stem {
+                        "page" => modules.page = Some(file),
+                        "layout" => modules.layout = Some(file),
+                        "error" => modules.error = Some(file),
+                        "global-error" => modules.global_error = Some(file),
+                        "global-not-found" => modules.global_not_found = Some(file),
+                        "loading" => modules.loading = Some(file),
+                        "template" => modules.template = Some(file),
+                        "forbidden" => modules.forbidden = Some(file),
+                        "unauthorized" => modules.unauthorized = Some(file),
+                        "not-found" => modules.not_found = Some(file),
+                        "default" => modules.default = Some(file),
+                        "route" => modules.route = Some(file),
+                        _ => {}
                     }
                 }
 
@@ -834,18 +834,17 @@ async fn check_duplicate(
 ) -> Result<()> {
     let page_path = page_path_except_parallel(loader_tree);
 
-    if let Some(page_path) = page_path {
-        if let Some(prev) = duplicate.insert(AppPath::from(page_path.clone()), page_path.clone()) {
-            if prev != page_path {
-                DuplicateParallelRouteIssue {
-                    app_dir: app_dir.to_resolved().await?,
-                    previously_inserted_page: prev.clone(),
-                    page: loader_tree.page.clone(),
-                }
-                .resolved_cell()
-                .emit();
-            }
+    if let Some(page_path) = page_path
+        && let Some(prev) = duplicate.insert(AppPath::from(page_path.clone()), page_path.clone())
+        && prev != page_path
+    {
+        DuplicateParallelRouteIssue {
+            app_dir: app_dir.to_resolved().await?,
+            previously_inserted_page: prev.clone(),
+            page: loader_tree.page.clone(),
         }
+        .resolved_cell()
+        .emit();
     }
 
     Ok(())
@@ -1415,10 +1414,10 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             )
             .await?;
 
-            if let Some(illegal_path) = illegal_path {
-                if !map.is_empty() {
-                    return Err(illegal_path);
-                }
+            if let Some(illegal_path) = illegal_path
+                && !map.is_empty()
+            {
+                return Err(illegal_path);
             }
 
             let mut loader_trees = Vec::new();

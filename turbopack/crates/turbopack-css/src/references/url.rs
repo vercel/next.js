@@ -54,17 +54,16 @@ impl UrlAssetReference {
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<ReferencedAsset>> {
-        if let Some(module) = *self.resolve_reference().first_module().await? {
-            if let Some(embeddable) = Vc::try_resolve_downcast::<Box<dyn CssEmbed>>(*module).await?
-            {
-                return Ok(ReferencedAsset::Some(
-                    embeddable
-                        .embedded_asset(chunking_context)
-                        .to_resolved()
-                        .await?,
-                )
-                .into());
-            }
+        if let Some(module) = *self.resolve_reference().first_module().await?
+            && let Some(embeddable) = Vc::try_resolve_downcast::<Box<dyn CssEmbed>>(*module).await?
+        {
+            return Ok(ReferencedAsset::Some(
+                embeddable
+                    .embedded_asset(chunking_context)
+                    .to_resolved()
+                    .await?,
+            )
+            .into());
         }
         Ok(ReferencedAsset::cell(ReferencedAsset::None))
     }
