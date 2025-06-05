@@ -422,4 +422,4 @@ vergen-gitcl = { version = "1.0.8", features = ["cargo"] }
 webbrowser = "0.8.7"
 
 [patch.crates-io]
-sourcemap = { git = "https://github.com/kdy1/rust-sourcemap", branch = "kdy1/lazy" }
+sourcemap = { git = "https://github.com/kdy1/rust-sourcemap", branch = "main" }
