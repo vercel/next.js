@@ -3033,7 +3033,7 @@ dependencies = [
  "httpdate",
  "itoa",
  "pin-project-lite",
- "socket2 0.4.9",
+ "socket2 0.5.8",
  "tokio",
  "tower-service",
  "tracing",
@@ -4243,8 +4243,9 @@ dependencies = [
 
 [[package]]
 name = "mdxjs"
-version = "1.0.2"
-source = "git+https://github.com/kdy1/mdxjs-rs?branch=swc-core-26#d56c9e7f378496f4e838fb11a2644a38762fa86e"
+version = "1.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "93e707fe5e7f461e42315261846790d0a515285907ef533dc89408d5d79e395c"
 dependencies = [
  "markdown",
  "rustc-hash 2.1.1",
@@ -4580,7 +4581,7 @@ dependencies = [
  "turbopack-node",
  "turbopack-nodejs",
  "turbopack-wasm",
- "vergen 9.0.6",
+ "vergen",
 ]
 
 [[package]]
@@ -7585,7 +7586,7 @@ dependencies = [
  "swc_plugin_proxy",
  "swc_plugin_runner",
  "testing",
- "vergen 9.0.4",
+ "vergen",
 ]
 
 [[package]]
@@ -8631,7 +8632,7 @@ dependencies = [
  "swc_transform_common",
  "tokio",
  "tracing",
- "vergen 9.0.4",
+ "vergen",
  "virtual-fs 0.19.0",
  "wasmer",
  "wasmer-cache",
@@ -10698,9 +10699,9 @@ checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 
 [[package]]
 name = "vergen"
-version = "9.0.4"
+version = "9.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e0d2f179f8075b805a43a2a21728a46f0cc2921b3c58695b28fa8817e103cd9a"
+checksum = "6b2bf58be11fc9414104c6d3a2e464163db5ef74b12296bda593cac37b6e4777"
 dependencies = [
  "anyhow",
  "cargo_metadata 0.19.2",
@@ -10708,33 +10709,21 @@ dependencies = [
  "regex",
  "rustversion",
  "time",
- "vergen-lib 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "vergen"
-version = "9.0.6"
-source = "git+https://github.com/bgw/vergen.git?branch=bgw%2Fno-optional-locks#ebb2f123ed3ab0a409040943b8e20f5c8b480585"
-dependencies = [
- "anyhow",
- "cargo_metadata 0.19.2",
- "derive_builder 0.20.2",
- "regex",
- "rustversion",
- "vergen-lib 0.1.6 (git+https://github.com/bgw/vergen.git?branch=bgw%2Fno-optional-locks)",
+ "vergen-lib",
 ]
 
 [[package]]
 name = "vergen-gitcl"
-version = "1.0.7"
-source = "git+https://github.com/bgw/vergen.git?branch=bgw%2Fno-optional-locks#ebb2f123ed3ab0a409040943b8e20f5c8b480585"
+version = "1.0.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b9dfc1de6eb2e08a4ddf152f1b179529638bedc0ea95e6d667c014506377aefe"
 dependencies = [
  "anyhow",
  "derive_builder 0.20.2",
  "rustversion",
  "time",
- "vergen 9.0.6",
- "vergen-lib 0.1.6 (git+https://github.com/bgw/vergen.git?branch=bgw%2Fno-optional-locks)",
+ "vergen",
+ "vergen-lib",
 ]
 
 [[package]]
@@ -10742,16 +10731,6 @@ name = "vergen-lib"
 version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b07e6010c0f3e59fcb164e0163834597da68d1f864e2b8ca49f74de01e9c166"
-dependencies = [
- "anyhow",
- "derive_builder 0.20.2",
- "rustversion",
-]
-
-[[package]]
-name = "vergen-lib"
-version = "0.1.6"
-source = "git+https://github.com/bgw/vergen.git?branch=bgw%2Fno-optional-locks#ebb2f123ed3ab0a409040943b8e20f5c8b480585"
 dependencies = [
  "anyhow",
  "derive_builder 0.20.2",
