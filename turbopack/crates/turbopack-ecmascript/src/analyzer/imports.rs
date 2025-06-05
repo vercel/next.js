@@ -135,7 +135,7 @@ impl Display for ImportAnnotations {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) enum Reexport {
     Star,
     Namespace { exported: Atom },
@@ -146,7 +146,7 @@ pub(crate) enum Reexport {
 ///
 /// Note that when it's initialized by calling `analyze`, it only contains ESM
 /// import/exports.
-#[derive(Default, Debug)]
+#[derive(Clone, Default, Debug)]
 pub(crate) struct ImportMap {
     /// Map from identifier to (index in references, exported symbol)
     imports: FxIndexMap<Id, (usize, Atom)>,
@@ -188,7 +188,7 @@ pub(crate) struct ImportMap {
 /// behaviors.
 ///
 /// [magic]: https://webpack.js.org/api/module-methods/#magic-comments
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ImportAttributes {
     /// Should we ignore this import expression when bundling? If so, the import expression will be
     /// left as-is in Turbopack's output.
