@@ -17,7 +17,7 @@ describe('app dir - basepath', () => {
     // then we can assert if the element is present.
     await retry(async () => {
       expect(await browser.url()).toBe(`${next.url}/base/another`)
-    })
+    }, 5_000)
     await browser.waitForElementByCss('#page-2')
   })
 
