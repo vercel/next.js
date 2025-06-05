@@ -1726,16 +1726,7 @@ impl Project {
     /// Gets the module id strategy for the project.
     #[turbo_tasks::function]
     pub async fn module_ids(self: Vc<Self>) -> Result<Vc<Box<dyn ModuleIdStrategy>>> {
-        let module_id_strategy =
-            if let Some(module_id_strategy) = &*self.next_config().module_ids().await? {
-                *module_id_strategy
-            } else {
-                match *self.next_mode().await? {
-                    NextMode::Development => ModuleIdStrategyConfig::Named,
-                    NextMode::Build => ModuleIdStrategyConfig::Deterministic,
-                }
-            };
-
+        let module_id_strategy = *self.next_config().module_ids(self.next_mode()).await?;
         match module_id_strategy {
             ModuleIdStrategyConfig::Named => Ok(Vc::upcast(DevModuleIdStrategy::new())),
             ModuleIdStrategyConfig::Deterministic => {
