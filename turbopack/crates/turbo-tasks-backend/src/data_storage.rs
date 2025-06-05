@@ -1,6 +1,6 @@
 use std::hash::{BuildHasherDefault, Hash};
 
-use auto_hash_map::{map::Entry, AutoMap};
+use auto_hash_map::{AutoMap, map::Entry};
 use rustc_hash::FxHasher;
 
 pub trait Storage {
@@ -17,7 +17,7 @@ pub trait Storage {
     fn get(&self, key: &Self::K) -> Option<&Self::V>;
     fn get_mut(&mut self, key: &Self::K) -> Option<&mut Self::V>;
     fn get_mut_or_insert_with(&mut self, key: Self::K, f: impl FnOnce() -> Self::V)
-        -> &mut Self::V;
+    -> &mut Self::V;
     fn extract_if<'l, F>(&'l mut self, f: F) -> impl Iterator<Item = (Self::K, Self::V)>
     where
         F: for<'a, 'b> FnMut(&'a Self::K, &'b mut Self::V) -> bool + 'l;
@@ -93,11 +93,7 @@ impl<V> Storage for OptionStorage<V> {
     }
 
     fn len(&self) -> usize {
-        if self.value.is_some() {
-            1
-        } else {
-            0
-        }
+        if self.value.is_some() { 1 } else { 0 }
     }
 
     fn iter(&self) -> Self::Iterator<'_> {
@@ -108,10 +104,10 @@ impl<V> Storage for OptionStorage<V> {
     where
         F: for<'a, 'b> FnMut(&'a Self::K, &'b mut Self::V) -> bool + 'l,
     {
-        if let Some(value) = self.value.as_mut() {
-            if f(&(), value) {
-                return self.value.take().map(|v| ((), v)).into_iter();
-            }
+        if let Some(value) = self.value.as_mut()
+            && f(&(), value)
+        {
+            return self.value.take().map(|v| ((), v)).into_iter();
         }
         None.into_iter()
     }

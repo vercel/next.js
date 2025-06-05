@@ -4,14 +4,14 @@ use turbo_tasks::TaskId;
 
 use crate::{
     backend::{
+        TaskDataCategory,
         operation::{
+            ExecuteContext, Operation, TaskGuard,
             aggregation_update::{
                 AggregatedDataUpdate, AggregationUpdateJob, AggregationUpdateQueue,
             },
-            ExecuteContext, Operation, TaskGuard,
         },
         storage::{get, get_mut},
-        TaskDataCategory,
     },
     data::{
         CachedDataItem, CachedDataItemKey, CachedDataItemValue, DirtyState, InProgressState,
@@ -197,21 +197,19 @@ pub fn make_task_dirty_internal(
     queue: &mut AggregationUpdateQueue,
     ctx: &impl ExecuteContext,
 ) {
-    if make_stale {
-        if let Some(InProgressState::InProgress(box InProgressStateInner { stale, .. })) =
+    if make_stale
+        && let Some(InProgressState::InProgress(box InProgressStateInner { stale, .. })) =
             get_mut!(task, InProgress)
-        {
-            if !*stale {
-                #[cfg(feature = "trace_task_dirty")]
-                let _span = tracing::trace_span!(
-                    "make task stale",
-                    name = ctx.get_task_description(task_id),
-                    cause = %TaskDirtyCauseInContext::new(&cause, ctx)
-                )
-                .entered();
-                *stale = true;
-            }
-        }
+        && !*stale
+    {
+        #[cfg(feature = "trace_task_dirty")]
+        let _span = tracing::trace_span!(
+            "make task stale",
+            name = ctx.get_task_description(task_id),
+            cause = %TaskDirtyCauseInContext::new(&cause, ctx)
+        )
+        .entered();
+        *stale = true;
     }
     let old = task.insert(CachedDataItem::Dirty {
         value: DirtyState {

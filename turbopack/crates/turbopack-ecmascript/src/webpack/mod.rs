@@ -1,7 +1,7 @@
 use anyhow::Result;
 use swc_core::ecma::ast::Lit;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     file_source::FileSource,
@@ -10,9 +10,10 @@ use turbopack_core::{
     reference::{ModuleReference, ModuleReferences},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
+        ModuleResolveResult, ModuleResolveResultItem,
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
-        resolve, ModuleResolveResult, ModuleResolveResultItem,
+        resolve,
     },
     source::Source,
 };
@@ -23,11 +24,6 @@ use crate::EcmascriptInputTransforms;
 
 pub mod parse;
 pub(crate) mod references;
-
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("webpack".into())
-}
 
 #[turbo_tasks::value]
 pub struct WebpackModuleAsset {
@@ -56,7 +52,7 @@ impl WebpackModuleAsset {
 impl Module for WebpackModuleAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        self.source.ident().with_modifier(modifier())
+        self.source.ident().with_modifier(rcstr!("webpack"))
     }
 
     #[turbo_tasks::function]
@@ -97,7 +93,7 @@ impl ModuleReference for WebpackChunkAssetReference {
                     Lit::Num(num) => format!("{num}"),
                     _ => todo!(),
                 };
-                let filename = format!("./chunks/{}.js", chunk_id).into();
+                let filename = format!("./chunks/{chunk_id}.js").into();
                 let source = Vc::upcast(FileSource::new(context_path.join(filename)));
 
                 *ModuleResolveResult::module(ResolvedVc::upcast(
@@ -120,7 +116,7 @@ impl ValueToString for WebpackChunkAssetReference {
             Lit::Num(num) => format!("{num}"),
             _ => todo!(),
         };
-        Vc::cell(format!("webpack chunk {}", chunk_id).into())
+        Vc::cell(format!("webpack chunk {chunk_id}").into())
     }
 }
 
@@ -147,7 +143,7 @@ impl ModuleReference for WebpackEntryAssetReference {
 impl ValueToString for WebpackEntryAssetReference {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell("webpack entry".into())
+        Vc::cell(rcstr!("webpack entry"))
     }
 }
 
@@ -163,14 +159,14 @@ pub struct WebpackRuntimeAssetReference {
 impl ModuleReference for WebpackRuntimeAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        let ty = Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined));
+        let ty = ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined);
         let options = self.origin.resolve_options(ty.clone());
 
         let options = apply_cjs_specific_options(options);
 
         let resolved = resolve(
             self.origin.origin_path().parent().resolve().await?,
-            Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)),
+            ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
             *self.request,
             options,
         );

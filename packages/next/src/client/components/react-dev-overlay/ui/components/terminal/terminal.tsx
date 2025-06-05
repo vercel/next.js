@@ -113,31 +113,33 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
         </div>
       </div>
       <pre className="code-frame-pre">
-        {decoded.map((entry, index) => (
-          <span
-            key={`terminal-entry-${index}`}
-            style={{
-              color: entry.fg ? `var(--color-${entry.fg})` : undefined,
-              ...(entry.decoration === 'bold'
-                ? // TODO(jiwon): This used to be 800, but the symbols like `─┬─` are
-                  // having longer width than expected on Geist Mono font-weight
-                  // above 600, hence a temporary fix is to use 500 for bold.
-                  { fontWeight: 500 }
-                : entry.decoration === 'italic'
-                  ? { fontStyle: 'italic' }
-                  : undefined),
-            }}
-          >
-            <HotlinkedText text={entry.content} />
-          </span>
-        ))}
-        {importTraceFiles.map((importTraceFile) => (
-          <EditorLink
-            isSourceFile={false}
-            key={importTraceFile}
-            file={importTraceFile}
-          />
-        ))}
+        <div className="code-frame-lines">
+          {decoded.map((entry, index) => (
+            <span
+              key={`terminal-entry-${index}`}
+              style={{
+                color: entry.fg ? `var(--color-${entry.fg})` : undefined,
+                ...(entry.decoration === 'bold'
+                  ? // TODO(jiwon): This used to be 800, but the symbols like `─┬─` are
+                    // having longer width than expected on Geist Mono font-weight
+                    // above 600, hence a temporary fix is to use 500 for bold.
+                    { fontWeight: 500 }
+                  : entry.decoration === 'italic'
+                    ? { fontStyle: 'italic' }
+                    : undefined),
+              }}
+            >
+              <HotlinkedText text={entry.content} />
+            </span>
+          ))}
+          {importTraceFiles.map((importTraceFile) => (
+            <EditorLink
+              isSourceFile={false}
+              key={importTraceFile}
+              file={importTraceFile}
+            />
+          ))}
+        </div>
       </pre>
     </div>
   )

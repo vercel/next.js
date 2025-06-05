@@ -4,22 +4,22 @@
 
 use std::{iter::once, thread::available_parallelism};
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 pub use node_entry::{NodeEntry, NodeRenderingEntries, NodeRenderingEntry};
 use rustc_hash::FxHashMap;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    graph::{AdjacencyMap, GraphTraversal},
     FxIndexSet, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    graph::{AdjacencyMap, GraphTraversal},
 };
 use turbo_tasks_env::ProcessEnv;
-use turbo_tasks_fs::{to_sys_path, File, FileSystemPath};
+use turbo_tasks_fs::{File, FileSystemPath, to_sys_path};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     changed::content_changed,
     chunk::{ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets},
     module::Module,
-    module_graph::{chunk_group_info::ChunkGroupEntry, ModuleGraph},
+    module_graph::{ModuleGraph, chunk_group_info::ChunkGroupEntry},
     output::{OutputAsset, OutputAssets, OutputAssetsSet},
     source_map::GenerateSourceMap,
     virtual_output::VirtualOutputAsset,
@@ -90,10 +90,9 @@ async fn internal_assets_for_source_mapping(
     for asset in internal_assets.iter() {
         if let Some(generate_source_map) =
             ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(*asset)
+            && let Some(path) = intermediate_output_path.get_path_to(&*asset.path().await?)
         {
-            if let Some(path) = intermediate_output_path.get_path_to(&*asset.path().await?) {
-                internal_assets_for_source_mapping.insert(path.to_string(), generate_source_map);
-            }
+            internal_assets_for_source_mapping.insert(path.to_string(), generate_source_map);
         }
     }
     Ok(Vc::cell(internal_assets_for_source_mapping))
@@ -189,7 +188,7 @@ async fn separate_assets_operation(
 fn emit_package_json(dir: Vc<FileSystemPath>) -> Vc<()> {
     emit(
         Vc::upcast(VirtualOutputAsset::new(
-            dir.join("package.json".into()),
+            dir.join(rcstr!("package.json")),
             AssetContent::file(File::from("{\"type\": \"commonjs\"}").into()),
         )),
         dir,
@@ -255,7 +254,7 @@ pub async fn get_intermediate_asset(
     other_entries: Vc<EvaluatableAssets>,
 ) -> Result<Vc<Box<dyn OutputAsset>>> {
     Ok(Vc::upcast(chunking_context.root_entry_chunk_group_asset(
-        chunking_context.chunk_path(None, main_entry.ident(), ".js".into()),
+        chunking_context.chunk_path(None, main_entry.ident(), rcstr!(".js")),
         other_entries.with_entry(*main_entry),
         ModuleGraph::from_modules(
             Vc::cell(vec![ChunkGroupEntry::Entry(

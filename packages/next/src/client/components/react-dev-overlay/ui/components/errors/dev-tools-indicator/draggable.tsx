@@ -73,13 +73,17 @@ export function Draggable({
     const offset = padding * 2
     const triggerWidth = ref.current?.offsetWidth || 0
     const triggerHeight = ref.current?.offsetHeight || 0
+    const scrollbarWidth =
+      window.innerWidth - document.documentElement.clientWidth
 
     function getAbsolutePosition(corner: Corners) {
       const isRight = corner.includes('right')
       const isBottom = corner.includes('bottom')
 
       return {
-        x: isRight ? window.innerWidth - offset - triggerWidth : 0,
+        x: isRight
+          ? window.innerWidth - scrollbarWidth - offset - triggerWidth
+          : 0,
         y: isBottom ? window.innerHeight - offset - triggerHeight : 0,
       }
     }
@@ -93,7 +97,12 @@ export function Draggable({
         y: 0 - basePosition.y,
       },
       'top-right': {
-        x: window.innerWidth - offset - triggerWidth - basePosition.x,
+        x:
+          window.innerWidth -
+          scrollbarWidth -
+          offset -
+          triggerWidth -
+          basePosition.x,
         y: 0 - basePosition.y,
       },
       'bottom-left': {
@@ -101,7 +110,12 @@ export function Draggable({
         y: window.innerHeight - offset - triggerHeight - basePosition.y,
       },
       'bottom-right': {
-        x: window.innerWidth - offset - triggerWidth - basePosition.x,
+        x:
+          window.innerWidth -
+          scrollbarWidth -
+          offset -
+          triggerWidth -
+          basePosition.x,
         y: window.innerHeight - offset - triggerHeight - basePosition.y,
       },
     }
@@ -172,6 +186,9 @@ export function useDrag(options: UseDragOptions) {
   }
 
   function onPointerDown(e: React.PointerEvent) {
+    if (e.button !== 0) {
+      return // ignore right click
+    }
     origin.current = { x: e.clientX, y: e.clientY }
     state.current = 'press'
     window.addEventListener('pointermove', onPointerMove)

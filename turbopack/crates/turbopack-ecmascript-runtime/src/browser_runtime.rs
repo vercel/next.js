@@ -2,7 +2,7 @@ use std::io::Write;
 
 use anyhow::Result;
 use indoc::writedoc;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{Value, Vc};
 use turbopack_core::{
     code_builder::{Code, CodeBuilder},
@@ -11,23 +11,23 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::utils::StringifyJs;
 
-use crate::{asset_context::get_runtime_asset_context, embed_js::embed_static_code, RuntimeType};
+use crate::{RuntimeType, asset_context::get_runtime_asset_context, embed_js::embed_static_code};
 
 /// Returns the code for the ECMAScript runtime.
 #[turbo_tasks::function]
 pub async fn get_browser_runtime_code(
     environment: Vc<Environment>,
-    chunk_base_path: Vc<Option<RcStr>>,
-    chunk_suffix_path: Vc<Option<RcStr>>,
+    chunk_base_path: Option<RcStr>,
+    chunk_suffix_path: Option<RcStr>,
     runtime_type: Value<RuntimeType>,
-    output_root_to_root_path: Vc<RcStr>,
+    output_root_to_root_path: RcStr,
     generate_source_map: bool,
 ) -> Result<Vc<Code>> {
     let asset_context = get_runtime_asset_context(environment).await?;
 
     let shared_runtime_utils_code = embed_static_code(
         asset_context,
-        "shared/runtime-utils.ts".into(),
+        rcstr!("shared/runtime-utils.ts"),
         generate_source_map,
     );
 
@@ -78,10 +78,8 @@ pub async fn get_browser_runtime_code(
     };
 
     let mut code: CodeBuilder = CodeBuilder::default();
-    let relative_root_path = output_root_to_root_path.await?;
-    let chunk_base_path = &*chunk_base_path.await?;
+    let relative_root_path = output_root_to_root_path;
     let chunk_base_path = chunk_base_path.as_ref().map_or_else(|| "", |f| f.as_str());
-    let chunk_suffix_path = &*chunk_suffix_path.await?;
     let chunk_suffix_path = chunk_suffix_path
         .as_ref()
         .map_or_else(|| "", |f| f.as_str());
@@ -116,7 +114,7 @@ pub async fn get_browser_runtime_code(
         code.push_code(
             &*embed_static_code(
                 asset_context,
-                "shared-node/base-externals-utils.ts".into(),
+                rcstr!("shared-node/base-externals-utils.ts"),
                 generate_source_map,
             )
             .await?,
@@ -126,7 +124,7 @@ pub async fn get_browser_runtime_code(
         code.push_code(
             &*embed_static_code(
                 asset_context,
-                "shared-node/node-externals-utils.ts".into(),
+                rcstr!("shared-node/node-externals-utils.ts"),
                 generate_source_map,
             )
             .await?,
@@ -136,7 +134,7 @@ pub async fn get_browser_runtime_code(
         code.push_code(
             &*embed_static_code(
                 asset_context,
-                "shared-node/node-wasm-utils.ts".into(),
+                rcstr!("shared-node/node-wasm-utils.ts"),
                 generate_source_map,
             )
             .await?,

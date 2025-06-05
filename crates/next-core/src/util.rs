@@ -1,19 +1,19 @@
 use std::future::Future;
 
-use anyhow::{bail, Context, Result};
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use anyhow::{Context, Result, bail};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use swc_core::{
     common::GLOBALS,
     ecma::ast::{Expr, Lit, Program},
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, util::WrapFuture, FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc,
-    TaskInput, ValueDefault, ValueToString, Vc,
+    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, ValueDefault, ValueToString, Vc,
+    trace::TraceRawVcs, util::WrapFuture,
 };
 use turbo_tasks_fs::{
-    self, json::parse_json_rope_with_source_context, rope::Rope, util::join_path, File,
-    FileContent, FileSystem, FileSystemPath,
+    self, File, FileContent, FileSystem, FileSystemPath, json::parse_json_rope_with_source_context,
+    rope::Rope, util::join_path,
 };
 use turbopack_core::{
     asset::AssetContent,
@@ -25,10 +25,10 @@ use turbopack_core::{
     virtual_source::VirtualSource,
 };
 use turbopack_ecmascript::{
+    EcmascriptParsable,
     analyzer::{ConstantValue, JsValue, ObjectPart},
     parse::ParseResult,
     utils::StringifyJs,
-    EcmascriptParsable,
 };
 
 use crate::{
@@ -71,7 +71,7 @@ pub async fn pathname_for_path(
         (PathType::Data, "") => "/index".into(),
         // `get_path_to` always strips the leading `/` from the path, so we need to add
         // it back here.
-        (_, path) => format!("/{}", path).into(),
+        (_, path) => format!("/{path}").into(),
     };
 
     Ok(Vc::cell(path))
@@ -84,7 +84,7 @@ pub fn get_asset_prefix_from_pathname(pathname: &str) -> String {
     if pathname == "/" {
         "/index".to_string()
     } else if pathname == "/index" || pathname.starts_with("/index/") {
-        format!("/index{}", pathname)
+        format!("/index{pathname}")
     } else {
         pathname.to_string()
     }
@@ -250,7 +250,8 @@ impl Issue for NextSourceConfigParsingIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Unable to parse config export in source file".into()).cell()
+        StyledString::Text("Next.js can't recognize the exported `config` field in route".into())
+            .cell()
     }
 
     #[turbo_tasks::function]
@@ -384,6 +385,9 @@ async fn parse_route_matcher_from_js_value(
                                         matcher.original_source = value.into();
                                     }
                                 }
+                                Some("locale") => {
+                                    matcher.locale = value.as_bool().unwrap_or_default();
+                                }
                                 Some("missing") => {
                                     matcher.missing = Some(parse_matcher_kind_matcher(value))
                                 }
@@ -431,112 +435,106 @@ pub async fn parse_config_from_source(
     default_runtime: NextRuntime,
 ) -> Result<Vc<NextSourceConfig>> {
     if let Some(ecmascript_asset) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptParsable>>(module)
-    {
-        if let ParseResult::Ok {
+        && let ParseResult::Ok {
             program: Program::Module(module_ast),
             globals,
             eval_context,
             ..
         } = &*ecmascript_asset.parse_original().await?
-        {
-            for item in &module_ast.body {
-                if let Some(decl) = item
-                    .as_module_decl()
-                    .and_then(|mod_decl| mod_decl.as_export_decl())
-                    .and_then(|export_decl| export_decl.decl.as_var())
-                {
-                    for decl in &decl.decls {
-                        let decl_ident = decl.name.as_ident();
+    {
+        for item in &module_ast.body {
+            if let Some(decl) = item
+                .as_module_decl()
+                .and_then(|mod_decl| mod_decl.as_export_decl())
+                .and_then(|export_decl| export_decl.decl.as_var())
+            {
+                for decl in &decl.decls {
+                    let decl_ident = decl.name.as_ident();
 
-                        // Check if there is exported config object `export const config = {...}`
-                        // https://nextjs.org/docs/app/building-your-application/routing/middleware#matcher
-                        if decl_ident
-                            .map(|ident| &*ident.sym == "config")
-                            .unwrap_or_default()
-                        {
-                            if let Some(init) = decl.init.as_ref() {
-                                return WrapFuture::new(
-                                    async {
-                                        let value = eval_context.eval(init);
-                                        Ok(parse_config_from_js_value(
-                                            *module,
-                                            &value,
-                                            default_runtime,
-                                        )
+                    // Check if there is exported config object `export const config = {...}`
+                    // https://nextjs.org/docs/app/building-your-application/routing/middleware#matcher
+                    if decl_ident
+                        .map(|ident| &*ident.sym == "config")
+                        .unwrap_or_default()
+                    {
+                        if let Some(init) = decl.init.as_ref() {
+                            return WrapFuture::new(
+                                async {
+                                    let value = eval_context.eval(init);
+                                    Ok(parse_config_from_js_value(*module, &value, default_runtime)
                                         .await?
                                         .cell())
-                                    },
-                                    |f, ctx| GLOBALS.set(globals, || f.poll(ctx)),
-                                )
-                                .await;
-                            } else {
-                                NextSourceConfigParsingIssue::new(
-                                    module.ident(),
-                                    StyledString::Text(
-                                        "The exported config object must contain an variable \
-                                         initializer."
-                                            .into(),
-                                    )
-                                    .cell(),
-                                )
-                                .to_resolved()
-                                .await?
-                                .emit();
-                            }
-                        }
-                        // Or, check if there is segment runtime option
-                        // https://nextjs.org/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes#segment-runtime-Option
-                        else if decl_ident
-                            .map(|ident| &*ident.sym == "runtime")
-                            .unwrap_or_default()
-                        {
-                            let runtime_value_issue = NextSourceConfigParsingIssue::new(
+                                },
+                                |f, ctx| GLOBALS.set(globals, || f.poll(ctx)),
+                            )
+                            .await;
+                        } else {
+                            NextSourceConfigParsingIssue::new(
                                 module.ident(),
                                 StyledString::Text(
-                                    "The runtime property must be either \"nodejs\" or \"edge\"."
+                                    "The exported config object must contain an variable \
+                                     initializer."
                                         .into(),
                                 )
                                 .cell(),
                             )
                             .to_resolved()
-                            .await?;
-                            if let Some(init) = decl.init.as_ref() {
-                                // skipping eval and directly read the expr's value, as we know it
-                                // should be a const string
-                                if let Expr::Lit(Lit::Str(str_value)) = &**init {
-                                    let mut config = NextSourceConfig::default();
+                            .await?
+                            .emit();
+                        }
+                    }
+                    // Or, check if there is segment runtime option
+                    // https://nextjs.org/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes#segment-runtime-Option
+                    else if decl_ident
+                        .map(|ident| &*ident.sym == "runtime")
+                        .unwrap_or_default()
+                    {
+                        let runtime_value_issue = NextSourceConfigParsingIssue::new(
+                            module.ident(),
+                            StyledString::Text(
+                                "The runtime property must be either \"nodejs\" or \"edge\"."
+                                    .into(),
+                            )
+                            .cell(),
+                        )
+                        .to_resolved()
+                        .await?;
+                        if let Some(init) = decl.init.as_ref() {
+                            // skipping eval and directly read the expr's value, as we know it
+                            // should be a const string
+                            if let Expr::Lit(Lit::Str(str_value)) = &**init {
+                                let mut config = NextSourceConfig::default();
 
-                                    let runtime = str_value.value.to_string();
-                                    match runtime.as_str() {
-                                        "edge" | "experimental-edge" => {
-                                            config.runtime = NextRuntime::Edge;
-                                        }
-                                        "nodejs" => {
-                                            config.runtime = NextRuntime::NodeJs;
-                                        }
-                                        _ => {
-                                            runtime_value_issue.emit();
-                                        }
+                                let runtime = str_value.value.to_string();
+                                match runtime.as_str() {
+                                    "edge" | "experimental-edge" => {
+                                        config.runtime = NextRuntime::Edge;
                                     }
-
-                                    return Ok(config.cell());
-                                } else {
-                                    runtime_value_issue.emit();
+                                    "nodejs" => {
+                                        config.runtime = NextRuntime::NodeJs;
+                                    }
+                                    _ => {
+                                        runtime_value_issue.emit();
+                                    }
                                 }
+
+                                return Ok(config.cell());
                             } else {
-                                NextSourceConfigParsingIssue::new(
-                                    module.ident(),
-                                    StyledString::Text(
-                                        "The exported segment runtime option must contain an \
-                                         variable initializer."
-                                            .into(),
-                                    )
-                                    .cell(),
-                                )
-                                .to_resolved()
-                                .await?
-                                .emit();
+                                runtime_value_issue.emit();
                             }
+                        } else {
+                            NextSourceConfigParsingIssue::new(
+                                module.ident(),
+                                StyledString::Text(
+                                    "The exported segment runtime option must contain an variable \
+                                     initializer."
+                                        .into(),
+                                )
+                                .cell(),
+                            )
+                            .to_resolved()
+                            .await?
+                            .emit();
                         }
                     }
                 }
@@ -773,7 +771,7 @@ pub async fn load_next_js_template(
     // variable is missing, throw an error.
     let mut replaced = FxIndexSet::default();
     for (key, replacement) in &replacements {
-        let full = format!("'{}'", key);
+        let full = format!("'{key}'");
 
         if content.contains(&full) {
             replaced.insert(*key);
@@ -815,12 +813,12 @@ pub async fn load_next_js_template(
     // Replace the injections.
     let mut injected = FxIndexSet::default();
     for (key, injection) in &injections {
-        let full = format!("// INJECT:{}", key);
+        let full = format!("// INJECT:{key}");
 
         if content.contains(&full) {
             // Track all the injections to ensure that we're not missing any.
             injected.insert(*key);
-            content = content.replace(&full, &format!("const {} = {}", key, injection));
+            content = content.replace(&full, &format!("const {key} = {injection}"));
         }
     }
 
@@ -858,9 +856,9 @@ pub async fn load_next_js_template(
     // Replace the optional imports.
     let mut imports_added = FxIndexSet::default();
     for (key, import_path) in &imports {
-        let mut full = format!("// OPTIONAL_IMPORT:{}", key);
+        let mut full = format!("// OPTIONAL_IMPORT:{key}");
         let namespace = if !content.contains(&full) {
-            full = format!("// OPTIONAL_IMPORT:* as {}", key);
+            full = format!("// OPTIONAL_IMPORT:* as {key}");
             if content.contains(&full) {
                 true
             } else {
@@ -884,7 +882,7 @@ pub async fn load_next_js_template(
                 ),
             );
         } else {
-            content = content.replace(&full, &format!("const {} = null", key));
+            content = content.replace(&full, &format!("const {key} = null"));
         }
     }
 

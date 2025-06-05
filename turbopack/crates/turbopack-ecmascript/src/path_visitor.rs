@@ -4,11 +4,11 @@ use swc_core::{
     common::pass::AstKindPath,
     ecma::{
         ast::*,
-        visit::{AstParentKind, VisitMut, VisitMutAstPath, VisitMutWith, VisitMutWithAstPath},
+        visit::{AstParentKind, VisitMutAstPath, VisitMutWithAstPath},
     },
 };
 
-use crate::code_gen::VisitorFactory;
+use crate::code_gen::{AstModifier, ModifiableAst};
 
 pub type AstPath = Vec<AstParentKind>;
 
@@ -16,7 +16,7 @@ pub type AstPath = Vec<AstParentKind>;
 pub struct ApplyVisitors<'a, 'b> {
     /// `VisitMut` should be shallow. In other words, it should not visit
     /// children of the node.
-    visitors: Cow<'b, [(&'a AstPath, &'a dyn VisitorFactory)]>,
+    visitors: Cow<'b, [(&'a AstPath, &'a dyn AstModifier)]>,
 
     index: usize,
 }
@@ -24,10 +24,10 @@ pub struct ApplyVisitors<'a, 'b> {
 /// Do two binary searches to find the sub-slice that has `path[index] == kind`.
 /// Returns None if no item matches that. `visitors` need to be sorted by path.
 fn find_range<'a, 'b>(
-    visitors: &'b [(&'a AstPath, &'a dyn VisitorFactory)],
+    visitors: &'b [(&'a AstPath, &'a dyn AstModifier)],
     kind: &AstParentKind,
     index: usize,
-) -> Option<&'b [(&'a AstPath, &'a dyn VisitorFactory)]> {
+) -> Option<&'b [(&'a AstPath, &'a dyn AstModifier)]> {
     // Precondition: visitors is never empty
     if visitors.first().unwrap().0[index] > *kind || visitors.last().unwrap().0[index] < *kind {
         // Fast path: If ast path of the first visitor is already out of range, then we
@@ -67,7 +67,7 @@ fn find_range<'a, 'b>(
 
 impl<'a> ApplyVisitors<'a, '_> {
     /// `visitors` must have an non-empty [AstPath].
-    pub fn new(mut visitors: Vec<(&'a AstPath, &'a dyn VisitorFactory)>) -> Self {
+    pub fn new(mut visitors: Vec<(&'a AstPath, &'a dyn AstModifier)>) -> Self {
         assert!(!visitors.is_empty());
         visitors.sort_by_key(|(path, _)| *path);
         Self {
@@ -79,8 +79,7 @@ impl<'a> ApplyVisitors<'a, '_> {
     #[inline(never)]
     fn visit_if_required<N>(&mut self, n: &mut N, ast_path: &mut AstKindPath<AstParentKind>)
     where
-        N: for<'aa> VisitMutWith<dyn VisitMut + Send + Sync + 'aa>
-            + for<'aa, 'bb> VisitMutWithAstPath<ApplyVisitors<'aa, 'bb>>,
+        N: ModifiableAst + for<'aa, 'bb> VisitMutWithAstPath<ApplyVisitors<'aa, 'bb>>,
     {
         let mut index = self.index;
         let mut current_visitors = self.visitors.as_ref();
@@ -110,7 +109,7 @@ impl<'a> ApplyVisitors<'a, '_> {
                         );
                     }
                     for (_, visitor) in visitors[..nested_visitors_start].iter() {
-                        n.visit_mut_with(&mut visitor.create());
+                        n.modify(&**visitor);
                     }
                     return;
                 } else {
@@ -162,18 +161,18 @@ mod tests {
     use std::sync::Arc;
 
     use swc_core::{
-        common::{errors::HANDLER, FileName, Mark, SourceFile, SourceMap},
+        common::{FileName, Mark, SourceFile, SourceMap, errors::HANDLER},
         ecma::{
             ast::*,
-            codegen::{text_writer::JsWriter, Emitter},
+            codegen::{Emitter, text_writer::JsWriter},
             parser::parse_file_as_module,
             transforms::base::resolver,
-            visit::{fields::*, AstParentKind, VisitMut, VisitMutWith, VisitMutWithAstPath},
+            visit::{AstParentKind, VisitMutWith, VisitMutWithAstPath, fields::*},
         },
         testing::run_test,
     };
 
-    use super::{ApplyVisitors, VisitorFactory};
+    use super::{ApplyVisitors, AstModifier};
 
     fn parse(fm: &SourceFile) -> Module {
         let mut m = parse_file_as_module(
@@ -198,20 +197,14 @@ mod tests {
         to: &'a str,
     }
 
-    impl VisitorFactory for Box<StrReplacer<'_>> {
-        fn create<'a>(&'a self) -> Box<dyn VisitMut + Send + Sync + 'a> {
-            Box::new(&**self)
-        }
-    }
-
-    impl VisitMut for &'_ StrReplacer<'_> {
-        fn visit_mut_str(&mut self, s: &mut Str) {
+    impl AstModifier for StrReplacer<'_> {
+        fn visit_mut_str(&self, s: &mut Str) {
             s.value = s.value.replace(self.from, self.to).into();
             s.raw = None;
         }
     }
 
-    fn replacer(from: &'static str, to: &'static str) -> impl VisitorFactory {
+    fn replacer(from: &'static str, to: &'static str) -> Box<dyn AstModifier + 'static> {
         Box::new(StrReplacer { from, to })
     }
 
@@ -264,7 +257,7 @@ mod tests {
 
                 let mut m = m.clone();
                 m.visit_mut_with_ast_path(
-                    &mut ApplyVisitors::new(vec![(&path, &bar_replacer)]),
+                    &mut ApplyVisitors::new(vec![(&path, &*bar_replacer)]),
                     &mut Default::default(),
                 );
 
@@ -289,7 +282,7 @@ mod tests {
 
                 let mut m = m.clone();
                 m.visit_mut_with_ast_path(
-                    &mut ApplyVisitors::new(vec![(&wrong_path, &bar_replacer)]),
+                    &mut ApplyVisitors::new(vec![(&wrong_path, &*bar_replacer)]),
                     &mut Default::default(),
                 );
 

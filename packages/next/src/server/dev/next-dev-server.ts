@@ -9,6 +9,7 @@ import type { MiddlewareRoutingItem } from '../base-server'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 import type { RouteMatcherManager } from '../route-matcher-managers/route-matcher-manager'
 import {
+  addRequestMeta,
   getRequestMeta,
   type NextParsedUrlQuery,
   type NextUrlWithParsedQuery,
@@ -24,10 +25,7 @@ import fs from 'fs'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import { join as pathJoin } from 'path'
 import { ampValidation } from '../../build/output'
-import {
-  INSTRUMENTATION_HOOK_FILENAME,
-  PUBLIC_DIR_MIDDLEWARE_CONFLICT,
-} from '../../lib/constants'
+import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../../lib/constants'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import {
   PHASE_DEVELOPMENT_SERVER,
@@ -70,14 +68,18 @@ import type { ServerComponentsHmrCache } from '../response-cache'
 import { logRequests } from './log-requests'
 import { FallbackMode } from '../../lib/fallback'
 import type { PagesDevOverlayType } from '../../client/components/react-dev-overlay/pages/pages-dev-overlay'
+import {
+  ensureInstrumentationRegistered,
+  getInstrumentationModule,
+} from '../lib/router-utils/instrumentation-globals.external'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: PagesDevOverlayType
 const ReactDevOverlay: PagesDevOverlayType = (props) => {
   if (ReactDevOverlayImpl === undefined) {
-    ReactDevOverlayImpl =
-      require('../../client/components/react-dev-overlay/pages/pages-dev-overlay')
-        .PagesDevOverlay as PagesDevOverlayType
+    ReactDevOverlayImpl = (
+      require('../../client/components/react-dev-overlay/pages/pages-dev-overlay') as typeof import('../../client/components/react-dev-overlay/pages/pages-dev-overlay')
+    ).PagesDevOverlay as PagesDevOverlayType
   }
   return ReactDevOverlayImpl(props)
 }
@@ -308,11 +310,23 @@ export default class DevServer extends Server {
         })
       )
 
+      // TODO: Improve passing of "is running with Turbopack"
+      const isTurbopack = !!process.env.TURBOPACK
       matchers.push(
-        new DevAppPageRouteMatcherProvider(appDir, extensions, fileReader)
+        new DevAppPageRouteMatcherProvider(
+          appDir,
+          extensions,
+          fileReader,
+          isTurbopack
+        )
       )
       matchers.push(
-        new DevAppRouteRouteMatcherProvider(appDir, extensions, fileReader)
+        new DevAppRouteRouteMatcherProvider(
+          appDir,
+          extensions,
+          fileReader,
+          isTurbopack
+        )
       )
     }
 
@@ -541,6 +555,7 @@ export default class DevServer extends Server {
     const span = trace('handle-request', undefined, { url: req.url })
     const result = await span.traceAsyncFn(async () => {
       await this.ready?.promise
+      addRequestMeta(req, 'PagesErrorDebug', this.renderOpts.ErrorDebug)
       return await super.handleRequest(req, res, parsedUrl)
     })
     const memoryUsage = process.memoryUsage()
@@ -689,8 +704,9 @@ export default class DevServer extends Server {
         .catch(() => false))
     ) {
       try {
-        instrumentationModule = await require(
-          pathJoin(this.distDir, 'server', INSTRUMENTATION_HOOK_FILENAME)
+        instrumentationModule = await getInstrumentationModule(
+          this.dir,
+          this.nextConfig.distDir
         )
       } catch (err: any) {
         err.message = `An error occurred while loading instrumentation hook: ${err.message}`
@@ -701,9 +717,7 @@ export default class DevServer extends Server {
   }
 
   protected async runInstrumentationHookIfAvailable() {
-    await this.startServerSpan
-      .traceChild('run-instrumentation-hook')
-      .traceAsyncFn(() => this.instrumentation?.register?.())
+    await ensureInstrumentationRegistered(this.dir, this.nextConfig.distDir)
   }
 
   protected async ensureEdgeFunction({

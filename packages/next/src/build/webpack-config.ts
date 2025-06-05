@@ -5,14 +5,16 @@ import crypto from 'crypto'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import path from 'path'
 
+import { getDefineEnv } from './define-env'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import { WEBPACK_LAYERS, WEBPACK_RESOURCE_QUERIES } from '../lib/constants'
 import type { WebpackLayerName } from '../lib/constants'
 import {
   isWebpackBundledLayer,
   isWebpackClientOnlyLayer,
-  isWebpackDefaultLayer,
   isWebpackServerOnlyLayer,
+  isWebpackDefaultLayer,
+  RSPACK_DEFAULT_LAYERS_REGEX,
 } from './utils'
 import type { CustomRoutes } from '../lib/load-custom-routes.js'
 import {
@@ -68,7 +70,6 @@ import { getSupportedBrowsers } from './utils'
 import { MemoryWithGcCachePlugin } from './webpack/plugins/memory-with-gc-cache-plugin'
 import { getBabelConfigFile } from './get-babel-config-file'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
-import { getDefineEnvPlugin } from './webpack/plugins/define-env-plugin'
 import type { SWCLoaderOptions } from './webpack/loaders/next-swc-loader'
 import { isResourceInPackages, makeExternalHandler } from './handle-externals'
 import {
@@ -132,7 +133,7 @@ const browserNonTranspileModules = [
 const precompileRegex = /[\\/]next[\\/]dist[\\/]compiled[\\/]/
 
 const asyncStoragesRegex =
-  /next[\\/]dist[\\/](esm[\\/])?server[\\/]app-render[\\/](work-async-storage|action-async-storage|work-unit-async-storage)/
+  /next[\\/]dist[\\/](esm[\\/])?server[\\/]app-render[\\/](work-async-storage|action-async-storage|dynamic-access-async-storage|work-unit-async-storage)/
 
 // Support for NODE_PATH
 const nodePathList = (process.env.NODE_PATH || '')
@@ -279,7 +280,7 @@ export async function loadProjectInfo({
 
 export function hasExternalOtelApiPackage(): boolean {
   try {
-    require('@opentelemetry/api')
+    require('@opentelemetry/api') as typeof import('@opentelemetry/api')
     return true
   } catch {
     return false
@@ -387,8 +388,9 @@ export default async function getBaseWebpackConfig(
   let SWCBinaryTarget: [Feature, boolean] | undefined = undefined
   if (useSWCLoader) {
     // TODO: we do not collect wasm target yet
-    const binaryTarget = require('./swc')?.getBinaryMetadata?.()
-      ?.target as SWC_TARGET_TRIPLE
+    const binaryTarget = (
+      require('./swc') as typeof import('./swc')
+    )?.getBinaryMetadata?.()?.target as SWC_TARGET_TRIPLE
     SWCBinaryTarget = binaryTarget
       ? [`swc/target/${binaryTarget}` as const, true]
       : undefined
@@ -486,7 +488,9 @@ export default async function getBaseWebpackConfig(
       // Subscriber need to be initialized _before_ any actual swc's call (transform, etcs)
       // to collect correct trace spans when they are called.
       swcTraceProfilingInitialized = true
-      require('./swc')?.initCustomTraceSubscriber?.(
+      ;(
+        require('./swc') as typeof import('./swc')
+      )?.initCustomTraceSubscriber?.(
         path.join(distDir, `swc-trace-profile-${Date.now()}.json`)
       )
     }
@@ -534,6 +538,7 @@ export default async function getBaseWebpackConfig(
       loader: 'next-swc-loader',
       options: {
         isServer: isNodeOrEdgeCompilation,
+        compilerType,
         rootDir: dir,
         pagesDir,
         appDir,
@@ -777,6 +782,8 @@ export default async function getBaseWebpackConfig(
     ].filter(Boolean) as webpack.ResolvePluginInstance[],
     ...((isRspack && jsConfigPath
       ? {
+          // Skip paths that are routed to a .d.ts file
+          restrictions: [/^(?!.*\.d\.ts$).*$/],
           tsConfig: {
             configFile: jsConfigPath,
           },
@@ -884,7 +891,8 @@ export default async function getBaseWebpackConfig(
 
   const aliasCodeConditionTest = [codeCondition.test, pageExtensionsRegex]
 
-  const builtinModules = require('module').builtinModules
+  const builtinModules = (require('module') as typeof import('module'))
+    .builtinModules
 
   const shouldEnableSlowModuleDetection =
     !!config.experimental.slowModuleDetection && dev
@@ -1156,9 +1164,25 @@ export default async function getBaseWebpackConfig(
             : (chunk: any) =>
                 !/^(polyfills|main|pages\/_app)$/.test(chunk.name),
 
-          // TODO: investigate these cache groups with rspack
           cacheGroups: isRspack
-            ? {}
+            ? {
+                framework: {
+                  chunks: 'all' as const,
+                  name: 'framework',
+                  layer: RSPACK_DEFAULT_LAYERS_REGEX,
+                  test: /[/]node_modules[/](react|react-dom|next[/]dist[/]compiled[/](react|react-dom)(-experimental)?)[/]/,
+                  priority: 40,
+                  enforce: true,
+                },
+                lib: {
+                  test: /[/]node_modules[/](?!.*\.(css|scss|sass|less|styl)$)/,
+                  name: 'lib',
+                  chunks: 'all',
+                  priority: 30,
+                  minChunks: 1,
+                  reuseExistingChunk: true,
+                },
+              }
             : {
                 framework: frameworkCacheGroup,
                 lib: libCacheGroup,
@@ -1176,9 +1200,10 @@ export default async function getBaseWebpackConfig(
         (isClient ||
           isEdgeServer ||
           (isNodeServer && config.experimental.serverMinification)),
-      minimizer: isRspack
-        ? [
-            new (getRspackCore().SwcJsMinimizerRspackPlugin)({
+      minimizer: [
+        // Minify JavaScript
+        isRspack
+          ? new (getRspackCore().SwcJsMinimizerRspackPlugin)({
               // JS minimizer configuration
               // options should align with crates/napi/src/minify.rs#patch_opts
               minimizerOptions: {
@@ -1193,30 +1218,33 @@ export default async function getBaseWebpackConfig(
                   disableCharFreq: !isClient,
                 },
               },
-            }),
-            new (getRspackCore().LightningCssMinimizerRspackPlugin)({
-              // CSS minimizer configuration
-              minimizerOptions: {
-                targets: supportedBrowsers,
-              },
-            }),
-          ]
-        : [
-            // Minify JavaScript
-            (compiler: webpack.Compiler) => {
+            })
+          : (compiler: webpack.Compiler) => {
               // @ts-ignore No typings yet
               const { MinifyPlugin } =
-                require('./webpack/plugins/minify-webpack-plugin/src/index.js') as typeof import('./webpack/plugins/minify-webpack-plugin/src')
+                require('./webpack/plugins/minify-webpack-plugin/src') as typeof import('./webpack/plugins/minify-webpack-plugin/src')
               new MinifyPlugin({
                 noMangling,
                 disableCharFreq: !isClient,
               }).apply(compiler)
             },
-            // Minify CSS
-            (compiler: webpack.Compiler) => {
-              const {
-                CssMinimizerPlugin,
-              } = require('./webpack/plugins/css-minimizer-plugin')
+        // Minify CSS
+        // By default, Rspack uses LightningCSS for CSS minification.
+        // Rspack uses css-minimizer-plugin by default for compatibility.
+        isRspack &&
+        (process.env.__NEXT_TEST_MODE
+          ? config.experimental.useLightningcss
+          : config.experimental?.useLightningcss === undefined ||
+            config.experimental.useLightningcss)
+          ? new (getRspackCore().LightningCssMinimizerRspackPlugin)({
+              // CSS minimizer configuration
+              minimizerOptions: {
+                targets: supportedBrowsers,
+              },
+            })
+          : (compiler: webpack.Compiler) => {
+              const { CssMinimizerPlugin } =
+                require('./webpack/plugins/css-minimizer-plugin') as typeof import('./webpack/plugins/css-minimizer-plugin')
               new CssMinimizerPlugin({
                 postcssOptions: {
                   map: {
@@ -1230,7 +1258,7 @@ export default async function getBaseWebpackConfig(
                 },
               }).apply(compiler)
             },
-          ],
+      ],
     },
     context: dir,
     // Kept as function to be backwards compatible
@@ -1261,7 +1289,7 @@ export default async function getBaseWebpackConfig(
           ? `[name].js`
           : `../[name].js`
         : `static/chunks/${isDevFallback ? 'fallback/' : ''}[name]${
-            dev ? '' : appDir ? '-[chunkhash]' : '-[contenthash]'
+            dev ? '' : '-[contenthash]'
           }.js`,
       library: isClient || isEdgeServer ? '_N_E' : undefined,
       libraryTarget: isClient || isEdgeServer ? 'assign' : 'commonjs2',
@@ -1925,20 +1953,23 @@ export default async function getBaseWebpackConfig(
           // Avoid process being overridden when in web run time
           ...(isClient && { process: [require.resolve('process')] }),
         }),
-      getDefineEnvPlugin({
-        isTurbopack: false,
-        config,
-        dev,
-        distDir,
-        fetchCacheKeyPrefix,
-        hasRewrites,
-        isClient,
-        isEdgeServer,
-        isNodeOrEdgeCompilation,
-        isNodeServer,
-        middlewareMatchers,
-        omitNonDeterministic: isCompileMode,
-      }),
+
+      new (getWebpackBundler().DefinePlugin)(
+        getDefineEnv({
+          isTurbopack: false,
+          config,
+          dev,
+          distDir,
+          projectPath: dir,
+          fetchCacheKeyPrefix,
+          hasRewrites,
+          isClient,
+          isEdgeServer,
+          isNodeServer,
+          middlewareMatchers,
+          omitNonDeterministic: isCompileMode,
+        })
+      ),
       isClient &&
         new ReactLoadablePlugin({
           filename: REACT_LOADABLE_MANIFEST,
@@ -1948,10 +1979,12 @@ export default async function getBaseWebpackConfig(
           dev,
         }),
       // rspack doesn't support the parser hooks used here
-      (isClient || isEdgeServer) && new DropClientPage(),
+      !isRspack && (isClient || isEdgeServer) && new DropClientPage(),
       isNodeServer &&
         !dev &&
-        new (require('./webpack/plugins/next-trace-entrypoints-plugin')
+        new ((
+          require('./webpack/plugins/next-trace-entrypoints-plugin') as typeof import('./webpack/plugins/next-trace-entrypoints-plugin')
+        )
           .TraceEntryPointsPlugin as typeof import('./webpack/plugins/next-trace-entrypoints-plugin').TraceEntryPointsPlugin)(
           {
             rootDir: dir,
@@ -1962,6 +1995,7 @@ export default async function getBaseWebpackConfig(
             appDirEnabled: hasAppDir,
             traceIgnores: [],
             compilerType,
+            swcLoaderConfig: swcDefaultLoader,
           }
         ),
       // Moment.js is an extremely popular library that bundles large locale files
@@ -2081,11 +2115,17 @@ export default async function getBaseWebpackConfig(
         new NextFontManifestPlugin({
           appDir,
         }),
-      !isRspack &&
-        !dev &&
+      !dev &&
         isClient &&
         config.experimental.cssChunking &&
-        new CssChunkingPlugin(config.experimental.cssChunking === 'strict'),
+        (isRspack
+          ? new (getRspackCore().experiments.CssChunkingPlugin)({
+              strict: config.experimental.cssChunking === 'strict',
+              nextjs: true,
+            })
+          : new CssChunkingPlugin(
+              config.experimental.cssChunking === 'strict'
+            )),
       telemetryPlugin,
       !dev &&
         isNodeServer &&

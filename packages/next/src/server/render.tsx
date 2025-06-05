@@ -104,6 +104,7 @@ import { getCacheControlHeader } from './lib/cache-control'
 import { getErrorSource } from '../shared/lib/error-source'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import type { PagesDevOverlayType } from '../client/components/react-dev-overlay/pages/pages-dev-overlay'
+import { getScriptNonceFromHeader } from './app-render/get-script-nonce-from-header'
 
 let tryGetPreviewData: typeof import('./api-utils/node/try-get-preview-data').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -112,10 +113,15 @@ let postProcessHTML: typeof import('./post-process').postProcessHTML
 const DOCTYPE = '<!DOCTYPE html>'
 
 if (process.env.NEXT_RUNTIME !== 'edge') {
-  tryGetPreviewData =
-    require('./api-utils/node/try-get-preview-data').tryGetPreviewData
-  warn = require('../build/output/log').warn
-  postProcessHTML = require('./post-process').postProcessHTML
+  tryGetPreviewData = (
+    require('./api-utils/node/try-get-preview-data') as typeof import('./api-utils/node/try-get-preview-data')
+  ).tryGetPreviewData
+  warn = (
+    require('../build/output/log') as typeof import('../build/output/log')
+  ).warn
+  postProcessHTML = (
+    require('./post-process') as typeof import('./post-process')
+  ).postProcessHTML
 } else {
   warn = console.warn.bind(console)
   postProcessHTML = async (_pathname: string, html: string) => html
@@ -604,7 +610,8 @@ export async function renderToHTMLImpl(
   let asPath: string = renderOpts.resolvedAsPath || (req.url as string)
 
   if (dev) {
-    const { isValidElementType } = require('next/dist/compiled/react-is')
+    const { isValidElementType } =
+      require('next/dist/compiled/react-is') as typeof import('next/dist/compiled/react-is')
     if (!isValidElementType(Component)) {
       throw new Error(
         `The default export is not a React Component in page: "${pathname}"`
@@ -740,6 +747,13 @@ export async function renderToHTMLImpl(
       .map((script: any) => script.props)
   }
 
+  const csp =
+    req.headers['content-security-policy'] ||
+    req.headers['content-security-policy-report-only']
+
+  const nonce =
+    typeof csp === 'string' ? getScriptNonceFromHeader(csp) : undefined
+
   const AppContainer = ({ children }: { children: JSX.Element }) => (
     <AppRouterContext.Provider value={appRouter}>
       <SearchParamsContext.Provider value={adaptForSearchParams(router)}>
@@ -760,6 +774,7 @@ export async function renderToHTMLImpl(
                     },
                     scripts: initialScripts,
                     mountedInstances: new Set(),
+                    nonce,
                   }}
                 >
                   <LoadableContext.Provider
@@ -843,7 +858,7 @@ export async function renderToHTMLImpl(
       const { html, head: renderPageHead } = await docCtx.renderPage({
         enhanceApp,
       })
-      const styles = jsxStyleRegistry.styles({ nonce: options.nonce })
+      const styles = jsxStyleRegistry.styles({ nonce: options.nonce || nonce })
       jsxStyleRegistry.flush()
       return { html, head: renderPageHead, styles }
     },
@@ -1504,6 +1519,7 @@ export async function renderToHTMLImpl(
       isPreview: isPreview === true ? true : undefined,
       notFoundSrcPage: notFoundSrcPage && dev ? notFoundSrcPage : undefined,
     },
+    nonce,
     strictNextHead: renderOpts.strictNextHead,
     buildManifest: filteredBuildManifest,
     docComponentsRendered,

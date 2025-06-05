@@ -1,9 +1,9 @@
 use std::{
     env::current_dir,
-    future::{join, Future},
-    io::{stdout, Write},
+    future::{Future, join},
+    io::{Write, stdout},
     net::{IpAddr, SocketAddr},
-    path::{PathBuf, MAIN_SEPARATOR},
+    path::{MAIN_SEPARATOR, PathBuf},
     sync::Arc,
     time::{Duration, Instant},
 };
@@ -11,14 +11,14 @@ use std::{
 use anyhow::{Context, Result};
 use owo_colors::OwoColorize;
 use rustc_hash::FxHashSet;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
+    NonLocalValue, OperationVc, ResolvedVc, TransientInstance, TurboTasks, UpdateInfo, Value, Vc,
     trace::TraceRawVcs,
     util::{FormatBytes, FormatDuration},
-    NonLocalValue, OperationVc, ResolvedVc, TransientInstance, TurboTasks, UpdateInfo, Value, Vc,
 };
 use turbo_tasks_backend::{
-    noop_backing_storage, BackendOptions, NoopBackingStorage, TurboTasksBackend,
+    BackendOptions, NoopBackingStorage, TurboTasksBackend, noop_backing_storage,
 };
 use turbo_tasks_fs::FileSystem;
 use turbo_tasks_malloc::TurboMalloc;
@@ -30,12 +30,12 @@ use turbopack_core::{
     server_fs::ServerFileSystem,
 };
 use turbopack_dev_server::{
+    DevServer, DevServerBuilder, SourceProvider,
     introspect::IntrospectionSource,
     source::{
-        combined::CombinedContentSource, router::PrefixedRouterContentSource,
-        static_assets::StaticAssetsContentSource, ContentSource,
+        ContentSource, combined::CombinedContentSource, router::PrefixedRouterContentSource,
+        static_assets::StaticAssetsContentSource,
     },
-    DevServer, DevServerBuilder, SourceProvider,
 };
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_env::dotenv::load_env;
@@ -47,7 +47,7 @@ use crate::{
     arguments::DevArguments,
     contexts::NodeEnv,
     util::{
-        normalize_dirs, normalize_entries, output_fs, project_fs, EntryRequest, NormalizedDirs,
+        EntryRequest, NormalizedDirs, normalize_dirs, normalize_entries, output_fs, project_fs,
     },
 };
 
@@ -159,29 +159,30 @@ impl TurbopackDevServerBuilder {
             let addr = SocketAddr::new(host, current_port);
             let listen_result = DevServer::listen(addr);
 
-            if let Err(e) = &listen_result {
-                if self.allow_retry && attempts < max_attempts {
-                    // Returned error from `listen` is not `std::io::Error` but `anyhow::Error`,
-                    // so we need to access its source to check if it is
-                    // `std::io::ErrorKind::AddrInUse`.
-                    let should_retry = e
-                        .source()
-                        .and_then(|e| {
-                            e.downcast_ref::<std::io::Error>()
-                                .map(|e| e.kind() == std::io::ErrorKind::AddrInUse)
-                        })
-                        .unwrap_or(false);
+            if let Err(e) = &listen_result
+                && self.allow_retry
+                && attempts < max_attempts
+            {
+                // Returned error from `listen` is not `std::io::Error` but `anyhow::Error`,
+                // so we need to access its source to check if it is
+                // `std::io::ErrorKind::AddrInUse`.
+                let should_retry = e
+                    .source()
+                    .and_then(|e| {
+                        e.downcast_ref::<std::io::Error>()
+                            .map(|e| e.kind() == std::io::ErrorKind::AddrInUse)
+                    })
+                    .unwrap_or(false);
 
-                    if should_retry {
-                        println!(
-                            "{} - Port {} is in use, trying {} instead",
-                            "warn ".yellow(),
-                            current_port,
-                            current_port + 1
-                        );
-                        attempts += 1;
-                        continue;
-                    }
+                if should_retry {
+                    println!(
+                        "{} - Port {} is in use, trying {} instead",
+                        "warn ".yellow(),
+                        current_port,
+                        current_port + 1
+                    );
+                    attempts += 1;
+                    continue;
                 }
             }
 
@@ -264,23 +265,23 @@ async fn source(
         .into();
 
     let output_fs = output_fs(project_dir);
-    let fs: Vc<Box<dyn FileSystem>> = project_fs(root_dir);
+    let fs: Vc<Box<dyn FileSystem>> = project_fs(root_dir, /* watch= */ true);
     let root_path = fs.root().to_resolved().await?;
     let project_path = root_path.join(project_relative).to_resolved().await?;
 
     let env = load_env(*root_path);
     let build_output_root = output_fs
         .root()
-        .join(".turbopack/build".into())
+        .join(rcstr!(".turbopack/build"))
         .to_resolved()
         .await?;
 
     let build_output_root_to_root_path = project_path
-        .join(".turbopack/build".into())
+        .join(rcstr!(".turbopack/build"))
         .await?
         .get_relative_path_to(&*root_path.await?)
         .context("Project path is in root path")?;
-    let build_output_root_to_root_path = ResolvedVc::cell(build_output_root_to_root_path);
+    let build_output_root_to_root_path = build_output_root_to_root_path;
 
     let build_chunking_context = NodeJsChunkingContext::builder(
         root_path,
@@ -288,11 +289,11 @@ async fn source(
         build_output_root_to_root_path,
         build_output_root,
         build_output_root
-            .join("chunks".into())
+            .join(rcstr!("chunks"))
             .to_resolved()
             .await?,
         build_output_root
-            .join("assets".into())
+            .join(rcstr!("assets"))
             .to_resolved()
             .await?,
         node_build_environment().to_resolved().await?,
@@ -328,7 +329,7 @@ async fn source(
         execution_context,
         entry_requests,
         server_root,
-        Vc::cell("/ROOT".into()),
+        rcstr!("/ROOT"),
         env,
         eager_compile,
         NodeEnv::Development.cell(),
@@ -338,7 +339,7 @@ async fn source(
     .to_resolved()
     .await?;
     let static_source = ResolvedVc::upcast(
-        StaticAssetsContentSource::new(Default::default(), project_path.join("public".into()))
+        StaticAssetsContentSource::new(Default::default(), project_path.join(rcstr!("public")))
             .to_resolved()
             .await?,
     );
@@ -354,7 +355,7 @@ async fn source(
     let main_source = ResolvedVc::upcast(main_source);
     Ok(Vc::upcast(PrefixedRouterContentSource::new(
         Default::default(),
-        vec![("__turbopack__".into(), introspect)],
+        vec![(rcstr!("__turbopack__"), introspect)],
         *main_source,
     )))
 }

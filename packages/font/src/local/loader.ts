@@ -2,6 +2,7 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 let fontFromBuffer: any
 try {
+  // eslint-disable-next-line @next/internal/typechecked-require -- Module created during build.
   const mod = require('../fontkit').default
   fontFromBuffer = mod.default || mod
 } catch {}
@@ -54,12 +55,17 @@ const nextFontLocalFontLoader: FontLoader = async ({
         console.error(`Failed to load font file: ${resolved}\n${e}`)
       }
 
+      // Check if `font-family` is explicitly defined in `declarations`
+      const hasCustomFontFamily = declarations?.some(
+        ({ prop }) => prop === 'font-family'
+      )
+
       // Get all values that should be added to the @font-face declaration
       const fontFaceProperties = [
         ...(declarations
           ? declarations.map(({ prop, value }) => [prop, value])
           : []),
-        ['font-family', variableName],
+        ...(hasCustomFontFamily ? [] : [['font-family', variableName]]),
         ['src', `url(${fontUrl}) format('${format}')`],
         ['font-display', display],
         ...(weight ?? defaultWeight

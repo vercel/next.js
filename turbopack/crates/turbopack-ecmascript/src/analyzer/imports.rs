@@ -3,23 +3,23 @@ use std::{collections::BTreeMap, fmt::Display};
 use once_cell::sync::Lazy;
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
-    common::{comments::Comments, source_map::SmallPos, BytePos, Span, Spanned},
+    common::{BytePos, Span, Spanned, comments::Comments, source_map::SmallPos},
     ecma::{
         ast::*,
-        atoms::{atom, Atom},
+        atoms::{Atom, atom},
         utils::find_pat_ids,
         visit::{Visit, VisitWith},
     },
 };
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc};
 use turbopack_core::{issue::IssueSource, source::Source};
 
-use super::{top_level_await::has_top_level_await, JsValue, ModuleValue};
+use super::{JsValue, ModuleValue, top_level_await::has_top_level_await};
 use crate::{
-    analyzer::{ConstantValue, ObjectPart},
-    tree_shake::{find_turbopack_part_id_in_asserts, PartId},
     SpecifiedModuleType,
+    analyzer::{ConstantValue, ObjectPart},
+    tree_shake::{PartId, find_turbopack_part_id_in_asserts},
 };
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
@@ -362,11 +362,11 @@ struct StarImportAnalyzer<'a> {
 
 impl Visit for StarImportAnalyzer<'_> {
     fn visit_expr(&mut self, node: &Expr) {
-        if let Expr::Ident(i) = node {
-            if let Some(module_path) = self.candidates.get(&i.to_id()) {
-                self.full_star_imports.insert(module_path.clone());
-                return;
-            }
+        if let Expr::Ident(i) = node
+            && let Some(module_path) = self.candidates.get(&i.to_id())
+        {
+            self.full_star_imports.insert(module_path.clone());
+            return;
         }
 
         node.visit_children_with(self);
@@ -391,22 +391,22 @@ impl Visit for StarImportAnalyzer<'_> {
     }
 
     fn visit_pat(&mut self, pat: &Pat) {
-        if let Pat::Ident(i) = pat {
-            if let Some(module_path) = self.candidates.get(&i.to_id()) {
-                self.full_star_imports.insert(module_path.clone());
-                return;
-            }
+        if let Pat::Ident(i) = pat
+            && let Some(module_path) = self.candidates.get(&i.to_id())
+        {
+            self.full_star_imports.insert(module_path.clone());
+            return;
         }
 
         pat.visit_children_with(self);
     }
 
     fn visit_simple_assign_target(&mut self, node: &SimpleAssignTarget) {
-        if let SimpleAssignTarget::Ident(i) = node {
-            if let Some(module_path) = self.candidates.get(&i.to_id()) {
-                self.full_star_imports.insert(module_path.clone());
-                return;
-            }
+        if let SimpleAssignTarget::Ident(i) = node
+            && let Some(module_path) = self.candidates.get(&i.to_id())
+        {
+            self.full_star_imports.insert(module_path.clone());
+            return;
         }
 
         node.visit_children_with(self);
@@ -502,15 +502,15 @@ impl Visit for Analyzer<'_> {
 
             self.data.imports.insert(local, (i, orig_sym));
         }
-        if import.specifiers.is_empty() {
-            if let Some(internal_symbol) = internal_symbol {
-                self.ensure_reference(
-                    import.span,
-                    import.src.value.clone(),
-                    internal_symbol,
-                    annotations,
-                );
-            }
+        if import.specifiers.is_empty()
+            && let Some(internal_symbol) = internal_symbol
+        {
+            self.ensure_reference(
+                import.span,
+                import.src.value.clone(),
+                internal_symbol,
+                annotations,
+            );
         }
     }
 
@@ -658,7 +658,7 @@ impl Visit for Analyzer<'_> {
     fn visit_export_default_specifier(&mut self, n: &ExportDefaultSpecifier) {
         self.data
             .exports
-            .insert("default".into(), n.exported.to_id());
+            .insert(rcstr!("default"), n.exported.to_id());
     }
 
     fn visit_export_namespace_specifier(&mut self, n: &ExportNamespaceSpecifier) {

@@ -3,7 +3,7 @@ name = "turbopack-cli"
 version = "0.1.0"
 description = "TBD"
 license = "MIT"
-edition = "2021"
+edition = "2024"
 autobenches = false
 
 [[bin]]
@@ -16,6 +16,10 @@ bench = false
 
 [[bench]]
 name = "mod"
+harness = false
+
+[[bench]]
+name = "small_apps"
 harness = false
 
 [features]
@@ -38,7 +42,6 @@ clap = { workspace = true, features = ["derive", "env"] }
 console-subscriber = { workspace = true, optional = true }
 dunce = { workspace = true }
 futures = { workspace = true }
-mime = { workspace = true }
 owo-colors = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true }
@@ -49,7 +52,6 @@ turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-backend = { workspace = true }
 turbo-tasks-env = { workspace = true }
-turbo-tasks-fetch = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbo-tasks-malloc = { workspace = true, default-features = false }
 turbopack = { workspace = true }

@@ -26,13 +26,13 @@ use next_core::{
 };
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc,
-    TryFlatJoinIterExt, TryJoinIterExt, Value, Vc,
+    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
     chunk::{
-        availability_info::AvailabilityInfo, ChunkItem, ChunkableModule, ChunkingContext,
-        ModuleChunkItemIdExt, ModuleId,
+        ChunkItem, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt, ModuleId,
+        availability_info::AvailabilityInfo,
     },
     module::Module,
     module_graph::{ModuleGraph, SingleModuleGraph, SingleModuleGraphModuleNode},
@@ -125,20 +125,21 @@ pub async fn map_next_dynamic(graph: Vc<SingleModuleGraph>) -> Result<Vc<Dynamic
         .await?
         .iter_nodes()
         .map(|node| async move {
-            let SingleModuleGraphModuleNode { module, layer, .. } = node;
+            let SingleModuleGraphModuleNode { module } = node;
 
-            if layer
+            if module
+                .ident()
+                .await?
+                .layer
                 .as_ref()
-                .is_some_and(|layer| &**layer == "app-client" || &**layer == "client")
-            {
-                if let Some(dynamic_entry_module) =
+                .is_some_and(|layer| *layer == "app-client" || *layer == "client")
+                && let Some(dynamic_entry_module) =
                     ResolvedVc::try_downcast_type::<NextDynamicEntryModule>(*module)
-                {
-                    return Ok(Some((
-                        *module,
-                        DynamicImportEntriesMapType::DynamicEntry(dynamic_entry_module),
-                    )));
-                }
+            {
+                return Ok(Some((
+                    *module,
+                    DynamicImportEntriesMapType::DynamicEntry(dynamic_entry_module),
+                )));
             }
             // TODO add this check once these modules have the correct layer
             // if layer.is_some_and(|layer| &**layer == "app-rsc") {

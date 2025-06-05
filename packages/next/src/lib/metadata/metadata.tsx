@@ -38,12 +38,10 @@ import {
   METADATA_BOUNDARY_NAME,
   VIEWPORT_BOUNDARY_NAME,
 } from './metadata-constants'
-import {
-  AsyncMetadata,
-  AsyncMetadataOutlet,
-} from '../../client/components/metadata/async-metadata'
+import { AsyncMetadataOutlet } from '../../client/components/metadata/async-metadata'
 import { isPostpone } from '../../server/lib/router-utils/is-postpone'
 import { createServerSearchParamsForMetadata } from '../../server/request/search-params'
+import { createServerPathnameForMetadata } from '../../server/request/pathname'
 
 // Use a promise to share the status of the metadata resolving,
 // returning two components `MetadataTree` and `MetadataOutlet`
@@ -53,6 +51,7 @@ import { createServerSearchParamsForMetadata } from '../../server/request/search
 // and the error will be caught by the error boundary and trigger fallbacks.
 export function createMetadataComponents({
   tree,
+  pathname,
   parsedQuery,
   metadataContext,
   getDynamicParamFromSegment,
@@ -64,6 +63,7 @@ export function createMetadataComponents({
   serveStreamingMetadata,
 }: {
   tree: LoaderTree
+  pathname: string
   parsedQuery: SearchParams
   metadataContext: MetadataContext
   getDynamicParamFromSegment: GetDynamicParamFromSegment
@@ -78,10 +78,14 @@ export function createMetadataComponents({
   ViewportTree: React.ComponentType
   getMetadataReady: () => Promise<void>
   getViewportReady: () => Promise<void>
-  StreamingMetadataOutlet: React.ComponentType
+  StreamingMetadataOutlet: React.ComponentType | null
 } {
   const searchParams = createServerSearchParamsForMetadata(
     parsedQuery,
+    workStore
+  )
+  const pathnameForMetadata = createServerPathnameForMetadata(
+    pathname,
     workStore
   )
 
@@ -143,6 +147,7 @@ export function createMetadataComponents({
   function metadata() {
     return getResolvedMetadata(
       tree,
+      pathnameForMetadata,
       searchParams,
       getDynamicParamFromSegment,
       metadataContext,
@@ -167,6 +172,7 @@ export function createMetadataComponents({
         try {
           result = await getNotFoundMetadata(
             tree,
+            pathnameForMetadata,
             searchParams,
             getDynamicParamFromSegment,
             metadataContext,
@@ -202,18 +208,22 @@ export function createMetadataComponents({
       }
     }
   }
-  async function Metadata() {
-    const promise = resolveFinalMetadata()
-    if (serveStreamingMetadata) {
-      return (
-        <div hidden>
-          <Suspense fallback={null}>
-            <AsyncMetadata promise={promise} />
-          </Suspense>
-        </div>
-      )
+
+  function Metadata() {
+    if (!serveStreamingMetadata) {
+      return <MetadataResolver />
     }
-    const metadataState = await promise
+    return (
+      <div hidden>
+        <Suspense fallback={null}>
+          <MetadataResolver />
+        </Suspense>
+      </div>
+    )
+  }
+
+  async function MetadataResolver() {
+    const metadataState = await resolveFinalMetadata()
     return metadataState.metadata
   }
 
@@ -233,12 +243,13 @@ export function createMetadataComponents({
     return undefined
   }
 
-  function StreamingMetadataOutlet() {
-    if (serveStreamingMetadata) {
-      return <AsyncMetadataOutlet promise={resolveFinalMetadata()} />
-    }
-    return null
+  function StreamingMetadataOutletImpl() {
+    return <AsyncMetadataOutlet promise={resolveFinalMetadata()} />
   }
+
+  const StreamingMetadataOutlet = serveStreamingMetadata
+    ? StreamingMetadataOutletImpl
+    : null
 
   return {
     ViewportTree,
@@ -252,6 +263,7 @@ export function createMetadataComponents({
 const getResolvedMetadata = cache(getResolvedMetadataImpl)
 async function getResolvedMetadataImpl(
   tree: LoaderTree,
+  pathname: Promise<string>,
   searchParams: Promise<ParsedUrlQuery>,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
   metadataContext: MetadataContext,
@@ -261,6 +273,7 @@ async function getResolvedMetadataImpl(
   const errorConvention = errorType === 'redirect' ? undefined : errorType
   return renderMetadata(
     tree,
+    pathname,
     searchParams,
     getDynamicParamFromSegment,
     metadataContext,
@@ -272,6 +285,7 @@ async function getResolvedMetadataImpl(
 const getNotFoundMetadata = cache(getNotFoundMetadataImpl)
 async function getNotFoundMetadataImpl(
   tree: LoaderTree,
+  pathname: Promise<string>,
   searchParams: Promise<ParsedUrlQuery>,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
   metadataContext: MetadataContext,
@@ -280,6 +294,7 @@ async function getNotFoundMetadataImpl(
   const notFoundErrorConvention = 'not-found'
   return renderMetadata(
     tree,
+    pathname,
     searchParams,
     getDynamicParamFromSegment,
     metadataContext,
@@ -325,6 +340,7 @@ async function getNotFoundViewportImpl(
 
 async function renderMetadata(
   tree: LoaderTree,
+  pathname: Promise<string>,
   searchParams: Promise<ParsedUrlQuery>,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
   metadataContext: MetadataContext,
@@ -333,6 +349,7 @@ async function renderMetadata(
 ) {
   const resolvedMetadata = await resolveMetadata(
     tree,
+    pathname,
     searchParams,
     errorConvention,
     getDynamicParamFromSegment,

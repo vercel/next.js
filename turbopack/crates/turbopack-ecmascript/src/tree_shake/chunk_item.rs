@@ -10,6 +10,7 @@ use turbopack_core::{
 
 use super::asset::EcmascriptModulePartAsset;
 use crate::{
+    EcmascriptAnalyzable,
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemOptions,
         EcmascriptChunkPlaceable, EcmascriptChunkType,
@@ -18,7 +19,6 @@ use crate::{
     runtime_functions::{TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_IMPORT},
     tree_shake::side_effect_module::SideEffectsModule,
     utils::StringifyModuleId,
-    EcmascriptAnalyzable,
 };
 
 /// This is an implementation of [ChunkItem] for
@@ -130,10 +130,10 @@ impl EcmascriptChunkItem for SideEffectsModuleChunkItem {
         for &side_effect in self.module.await?.side_effects.iter() {
             let need_await = 'need_await: {
                 let async_module = *side_effect.get_async_module().await?;
-                if let Some(async_module) = async_module {
-                    if async_module.await?.has_top_level_await {
-                        break 'need_await true;
-                    }
+                if let Some(async_module) = async_module
+                    && async_module.await?.has_top_level_await
+                {
+                    break 'need_await true;
                 }
                 false
             };

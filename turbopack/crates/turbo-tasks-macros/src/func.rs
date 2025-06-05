@@ -1,18 +1,18 @@
 use std::borrow::Cow;
 
 use proc_macro2::{Group, Ident, Span, TokenStream, TokenTree};
-use quote::{quote, quote_spanned, ToTokens};
+use quote::{ToTokens, quote, quote_spanned};
 use rustc_hash::FxHashSet;
 use syn::{
+    AngleBracketedGenericArguments, Attribute, Block, Expr, ExprBlock, ExprPath, FnArg,
+    GenericArgument, Local, LocalInit, Meta, Pat, PatIdent, PatType, Path, PathArguments,
+    PathSegment, Receiver, ReturnType, Signature, Stmt, Token, Type, TypeGroup, TypePath,
+    TypeTuple,
     parse::{Parse, ParseStream},
     parse_quote, parse_quote_spanned,
     punctuated::{Pair, Punctuated},
     spanned::Spanned,
     visit_mut::VisitMut,
-    AngleBracketedGenericArguments, Attribute, Block, Expr, ExprBlock, ExprPath, FnArg,
-    GenericArgument, Local, LocalInit, Meta, Pat, PatIdent, PatType, Path, PathArguments,
-    PathSegment, Receiver, ReturnType, Signature, Stmt, Token, Type, TypeGroup, TypePath,
-    TypeTuple,
 };
 
 #[derive(Debug)]
@@ -765,7 +765,7 @@ impl Parse for FunctionArguments {
                         meta,
                         "unexpected token, expected one of: \"fs\", \"network\", \"operation\", \
                          \"local\"",
-                    ))
+                    ));
                 }
             }
         }
@@ -782,7 +782,7 @@ impl Parse for FunctionArguments {
 fn return_type_to_type(return_type: &ReturnType) -> Type {
     match return_type {
         ReturnType::Default => parse_quote! { () },
-        ReturnType::Type(_, ref return_type) => (**return_type).clone(),
+        ReturnType::Type(_, return_type) => (**return_type).clone(),
     }
 }
 
@@ -855,17 +855,16 @@ fn expand_task_input_type(orig_input: &Type) -> Cow<'_, Type> {
                     if let PathArguments::AngleBracketed(
                         bracketed_args @ AngleBracketedGenericArguments { args, .. },
                     ) = &last_segment.arguments
+                        && let Some(GenericArgument::Type(first_arg)) = args.first()
                     {
-                        if let Some(GenericArgument::Type(first_arg)) = args.first() {
-                            match expand_task_input_type(first_arg) {
-                                Cow::Borrowed(_) => {} // was not transformed
-                                Cow::Owned(first_arg) => {
-                                    let mut bracketed_args = bracketed_args.clone();
-                                    *bracketed_args.args.first_mut().expect("non-empty") =
-                                        GenericArgument::Type(first_arg);
-                                    segments.to_mut().last_mut().expect("non-empty").arguments =
-                                        PathArguments::AngleBracketed(bracketed_args);
-                                }
+                        match expand_task_input_type(first_arg) {
+                            Cow::Borrowed(_) => {} // was not transformed
+                            Cow::Owned(first_arg) => {
+                                let mut bracketed_args = bracketed_args.clone();
+                                *bracketed_args.args.first_mut().expect("non-empty") =
+                                    GenericArgument::Type(first_arg);
+                                segments.to_mut().last_mut().expect("non-empty").arguments =
+                                    PathArguments::AngleBracketed(bracketed_args);
                             }
                         }
                     }

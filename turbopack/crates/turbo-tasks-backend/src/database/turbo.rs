@@ -1,7 +1,7 @@
 use std::{
     path::PathBuf,
     sync::Arc,
-    thread::{spawn, JoinHandle},
+    thread::{JoinHandle, spawn},
 };
 
 use anyhow::Result;
@@ -13,9 +13,9 @@ use crate::database::{
     write_batch::{BaseWriteBatch, ConcurrentWriteBatch, WriteBatch, WriteBuffer},
 };
 
-const COMPACT_MAX_COVERAGE: f32 = 10.0;
-const COMPACT_MAX_MERGE_SEQUENCE: usize = 16;
-const COMPACT_MAX_MERGE_SIZE: usize = 512 * 1024 * 1024; // 512 MiB
+const COMPACT_MAX_COVERAGE: f32 = 20.0;
+const COMPACT_MAX_MERGE_SEQUENCE: usize = 64;
+const COMPACT_MAX_MERGE_SIZE: u64 = 512 * 1024 * 1024; // 512 MiB
 
 pub struct TurboKeyValueDatabase {
     db: Arc<TurboPersistence>,
@@ -23,8 +23,8 @@ pub struct TurboKeyValueDatabase {
 }
 
 impl TurboKeyValueDatabase {
-    pub fn new(path: PathBuf) -> Result<Self> {
-        let db = Arc::new(TurboPersistence::open(path.to_path_buf())?);
+    pub fn new(versioned_path: PathBuf) -> Result<Self> {
+        let db = Arc::new(TurboPersistence::open(versioned_path)?);
         let mut this = Self {
             db: db.clone(),
             compact_join_handle: Mutex::new(None),
@@ -99,6 +99,8 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
         }))
     }
 
+    fn prevent_writes(&self) {}
+
     fn shutdown(&self) -> Result<()> {
         // Wait for the compaction to finish
         if let Some(join_handle) = self.compact_join_handle.lock().take() {
@@ -162,7 +164,7 @@ impl<'a> ConcurrentWriteBatch<'a> for TurboWriteBatch<'a> {
     }
 
     unsafe fn flush(&self, key_space: KeySpace) -> Result<()> {
-        self.batch.flush(key_space as u32)
+        unsafe { self.batch.flush(key_space as u32) }
     }
 }
 

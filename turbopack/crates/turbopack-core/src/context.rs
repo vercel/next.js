@@ -1,14 +1,14 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, Vc};
-use turbo_tasks_fs::{glob::Glob, FileSystemPath};
+use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 
 use crate::{
     compile_time_info::CompileTimeInfo,
     issue::module::emit_unknown_module_type_error,
     module::{Module, OptionModule},
     reference_type::ReferenceType,
-    resolve::{options::ResolveOptions, parse::Request, ModuleResolveResult, ResolveResult},
+    resolve::{ModuleResolveResult, ResolveResult, options::ResolveOptions, parse::Request},
     source::Source,
 };
 
@@ -69,7 +69,7 @@ pub trait AssetContext {
     fn resolve_options(
         self: Vc<Self>,
         origin_path: Vc<FileSystemPath>,
-        reference_type: Value<ReferenceType>,
+        reference_type: ReferenceType,
     ) -> Vc<ResolveOptions>;
 
     /// Resolves an request to an [ModuleResolveResult].
@@ -78,21 +78,21 @@ pub trait AssetContext {
         origin_path: Vc<FileSystemPath>,
         request: Vc<Request>,
         resolve_options: Vc<ResolveOptions>,
-        reference_type: Value<ReferenceType>,
+        reference_type: ReferenceType,
     ) -> Vc<ModuleResolveResult>;
 
     /// Process a source into a module.
     fn process(
         self: Vc<Self>,
         asset: Vc<Box<dyn Source>>,
-        reference_type: Value<ReferenceType>,
+        reference_type: ReferenceType,
     ) -> Vc<ProcessResult>;
 
     /// Process an [ResolveResult] into an [ModuleResolveResult].
     fn process_resolve_result(
         self: Vc<Self>,
         result: Vc<ResolveResult>,
-        reference_type: Value<ReferenceType>,
+        reference_type: ReferenceType,
     ) -> Vc<ModuleResolveResult>;
 
     /// Gets a new AssetContext with the transition applied.

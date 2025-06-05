@@ -561,7 +561,7 @@ const secretKey = process.env.SESSION_SECRET
 
 #### 2. Encrypting and decrypting sessions
 
-Next, you can use your preferred [session management library](#session-management-libraries) to encrypt and decrypt sessions. Continuing from the previous example, we'll use [Jose](https://www.npmjs.com/package/jose) (compatible with the [Edge Runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes)) and React's [`server-only`](https://www.npmjs.com/package/server-only) package to ensure that your session management logic is only executed on the server.
+Next, you can use your preferred [session management library](#session-management-libraries) to encrypt and decrypt sessions. Continuing from the previous example, we'll use [Jose](https://www.npmjs.com/package/jose) (compatible with the [Edge Runtime](/docs/app/api-reference/edge)) and React's [`server-only`](https://www.npmjs.com/package/server-only) package to ensure that your session management logic is only executed on the server.
 
 ```tsx filename="app/lib/session.ts" switcher
 import 'server-only'
@@ -672,7 +672,7 @@ export async function createSession(userId) {
 }
 ```
 
-Back in your Server Action, you can invoke the `createSession()` function, and use the [`redirect()`](/docs/app/building-your-application/routing/redirecting) API to redirect the user to the appropriate page:
+Back in your Server Action, you can invoke the `createSession()` function, and use the [`redirect()`](/docs/app/guides/redirecting) API to redirect the user to the appropriate page:
 
 ```ts filename="app/actions/auth.ts" switcher
 import { createSession } from '@/app/lib/session'
@@ -1121,7 +1121,7 @@ While Middleware can be useful for initial checks, it should not be your only li
 > **Tips**:
 >
 > - In Middleware, you can also read cookies using `req.cookies.get('session').value`.
-> - Middleware uses the [Edge Runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes), check if your Auth library and session management library are compatible.
+> - Middleware uses the [Edge Runtime](/docs/app/api-reference/edge), check if your Auth library and session management library are compatible.
 > - You can use the `matcher` property in the Middleware to specify which routes Middleware should run on. Although, for auth, it's recommended Middleware runs on all routes.
 
 <AppOnly>
@@ -1307,7 +1307,7 @@ By centralizing your data requests and authorization logic in a DAL and using DT
 
 ### Server Components
 
-Auth check in [Server Components](/docs/app/building-your-application/rendering/server-components) are useful for role-based access. For example, to conditionally render components based on the user's role:
+Auth check in [Server Components](/docs/app/getting-started/server-and-client-components) are useful for role-based access. For example, to conditionally render components based on the user's role:
 
 ```tsx filename="app/dashboard/page.tsx" switcher
 import { verifySession } from '@/app/lib/dal'
@@ -1347,7 +1347,7 @@ In the example, we use the `verifySession()` function from our DAL to check for 
 
 ### Layouts and auth checks
 
-Due to [Partial Rendering](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering), be cautious when doing checks in [Layouts](/docs/app/building-your-application/routing/layouts-and-templates) as these don't re-render on navigation, meaning the user session won't be checked on every route change.
+Due to [Partial Rendering](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering), be cautious when doing checks in [Layouts](/docs/app/api-reference/file-conventions/layout) as these don't re-render on navigation, meaning the user session won't be checked on every route change.
 
 Instead, you should do the checks close to your data source or the component that'll be conditionally rendered.
 
@@ -1497,7 +1497,7 @@ The example above demonstrates a Route Handler with a two-tier security check. I
 
 ## Context Providers
 
-Using context providers for auth works due to [interleaving](/docs/app/building-your-application/rendering/composition-patterns#interleaving-server-and-client-components). However, React `context` is not supported in Server Components, making them only applicable to Client Components.
+Using context providers for auth works due to [interleaving](/docs/app/getting-started/server-and-client-components#examples#interleaving-server-and-client-components). However, React `context` is not supported in Server Components, making them only applicable to Client Components.
 
 This works, but any child Server Components will be rendered on the server first, and will not have access to the context provider’s session data:
 
@@ -1516,7 +1516,7 @@ export default function RootLayout({ children }) {
 ```
 
 ```tsx filename="app/ui/profile.ts switcher
-"use client";
+'use client';
 
 import { useSession } from "auth-lib";
 
@@ -1531,7 +1531,7 @@ export default function Profile() {
 ```
 
 ```jsx filename="app/ui/profile.js switcher
-"use client";
+'use client';
 
 import { useSession } from "auth-lib";
 

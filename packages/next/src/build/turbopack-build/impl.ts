@@ -19,6 +19,8 @@ import loadConfig from '../../server/config'
 import { hasCustomExportOutput } from '../../export/utils'
 import { Telemetry } from '../../telemetry/storage'
 import { setGlobal } from '../../trace'
+import * as Log from '../output/log'
+import { isCI } from '../../server/ci-info'
 
 export async function turbopackBuild(): Promise<{
   duration: number
@@ -69,6 +71,7 @@ export async function turbopackBuild(): Promise<{
         config,
         dev,
         distDir,
+        projectPath: dir,
         fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
         hasRewrites,
         // Implemented separately in Turbopack, doesn't have to be passed here.
@@ -84,9 +87,37 @@ export async function turbopackBuild(): Promise<{
       persistentCaching,
       memoryLimit: config.experimental?.turbopackMemoryLimit,
       dependencyTracking: persistentCaching,
+      isCi: isCI,
     }
   )
   try {
+    ;(async function logCompilationEvents() {
+      for await (const event of project.compilationEventsSubscribe()) {
+        switch (event.severity) {
+          case 'EVENT':
+            Log.event(event.message)
+            break
+          case 'TRACE':
+            Log.trace(event.message)
+            break
+          case 'INFO':
+            Log.info(event.message)
+            break
+          case 'WARNING':
+            Log.warn(event.message)
+            break
+          case 'ERROR':
+            Log.error(event.message)
+            break
+          case 'FATAL':
+            Log.error(event.message)
+            break
+          default:
+            break
+        }
+      }
+    })()
+
     // Write an empty file in a known location to signal this was built with Turbopack
     await fs.writeFile(path.join(distDir, 'turbopack'), '')
 

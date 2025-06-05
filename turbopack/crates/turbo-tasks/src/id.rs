@@ -5,12 +5,11 @@ use std::{
     ops::Deref,
 };
 
-use serde::{de::Visitor, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::Visitor};
 
 use crate::{
-    registry,
+    TaskPersistence, registry,
     trace::{TraceRawVcs, TraceRawVcsContext},
-    TaskPersistence,
 };
 
 macro_rules! define_id {

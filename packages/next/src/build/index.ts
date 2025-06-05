@@ -9,7 +9,6 @@ import '../lib/setup-exception-listeners'
 
 import { loadEnvConfig, type LoadedEnvFiles } from '@next/env'
 import { bold, yellow } from '../lib/picocolors'
-import crypto from 'crypto'
 import { makeRe } from 'next/dist/compiled/picomatch'
 import { existsSync, promises as fs } from 'fs'
 import os from 'os'
@@ -193,11 +192,6 @@ import {
 } from '../server/lib/experimental/ppr'
 import { FallbackMode, fallbackModeToFallbackField } from '../lib/fallback'
 import { RenderingMode } from './rendering-mode'
-import { getParamKeys } from '../server/request/fallback-params'
-import {
-  formatNodeOptions,
-  getParsedNodeOptionsWithoutInspect,
-} from '../server/lib/utils'
 import { InvariantError } from '../shared/lib/invariant-error'
 import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
 import type { UseCacheTrackerKey } from './webpack/plugins/telemetry-plugin/use-cache-tracker-utils'
@@ -215,6 +209,7 @@ import { durationToString } from './duration-to-string'
 import { traceGlobals } from '../trace/shared'
 import { extractNextErrorCode } from '../lib/error-telemetry-utils'
 import { runAfterProductionCompile } from './after-production-compile'
+import { generatePreviewKeys } from './preview-key-utils'
 
 type Fallback = null | boolean | string
 
@@ -536,6 +531,7 @@ export interface FunctionsConfigManifest {
     {
       maxDuration?: number | undefined
       runtime?: 'nodejs'
+      regions?: string[] | string
       matchers?: Array<{
         regexp: string
         originalSource: string
@@ -556,7 +552,7 @@ async function writeFunctionsConfigManifest(
   )
 }
 
-interface RequiredServerFilesManifest {
+export interface RequiredServerFilesManifest {
   version: number
   config: NextConfigComplete
   appDir: string
@@ -743,17 +739,15 @@ const staticWorkerExposedMethods = [
 type StaticWorker = typeof import('./worker') & Worker
 export function createStaticWorker(
   config: NextConfigComplete,
-  progress?: {
-    run: () => void
-    clear: () => void
+  options: {
+    debuggerPortOffset: number
+    progress?: {
+      run: () => void
+      clear: () => void
+    }
   }
 ): StaticWorker {
-  // Get the node options without inspect and also remove the
-  // --max-old-space-size flag as it can cause memory issues.
-  const nodeOptions = getParsedNodeOptionsWithoutInspect()
-  delete nodeOptions['max-old-space-size']
-  delete nodeOptions['max_old_space_size']
-
+  const { debuggerPortOffset, progress } = options
   return new Worker(staticWorkerPath, {
     logger: Log,
     numWorkers: getNumberOfWorkers(config),
@@ -763,9 +757,10 @@ export function createStaticWorker(
     onActivityAbort: () => {
       progress?.clear()
     },
-    forkOptions: {
-      env: { ...process.env, NODE_OPTIONS: formatNodeOptions(nodeOptions) },
-    },
+    debuggerPortOffset,
+    enableSourceMaps: config.experimental.enablePrerenderSourceMaps,
+    // remove --max-old-space-size flag as it can cause memory issues.
+    isolatedMemory: true,
     enableWorkerThreads: config.experimental.workerThreads,
     exposedMethods: staticWorkerExposedMethods,
   }) as StaticWorker
@@ -778,11 +773,8 @@ async function writeFullyStaticExport(
   configOutDir: string,
   nextBuildSpan: Span
 ): Promise<void> {
-  const exportApp = require('../export')
+  const exportApp = (require('../export') as typeof import('../export'))
     .default as typeof import('../export').default
-
-  const pagesWorker = createStaticWorker(config)
-  const appWorker = createStaticWorker(config)
 
   await exportApp(
     dir,
@@ -796,9 +788,6 @@ async function writeFullyStaticExport(
     },
     nextBuildSpan
   )
-
-  pagesWorker.end()
-  appWorker.end()
 }
 
 async function getBuildId(
@@ -1105,11 +1094,10 @@ export default async function build(
 
       NextBuildContext.hasInstrumentationHook = hasInstrumentationHook
 
-      const previewProps: __ApiPreviewProps = {
-        previewModeId: crypto.randomBytes(16).toString('hex'),
-        previewModeSigningKey: crypto.randomBytes(32).toString('hex'),
-        previewModeEncryptionKey: crypto.randomBytes(32).toString('hex'),
-      }
+      const previewProps: __ApiPreviewProps = await generatePreviewKeys({
+        isBuild: true,
+        distDir,
+      })
       NextBuildContext.previewProps = previewProps
 
       const mappedPages = await nextBuildSpan
@@ -1500,6 +1488,8 @@ export default async function build(
                 const buildTraceWorker = new Worker(
                   require.resolve('./collect-build-traces'),
                   {
+                    debuggerPortOffset: -1,
+                    isolatedMemory: false,
                     numWorkers: 1,
                     exposedMethods: ['collectBuildTraces'],
                   }
@@ -1623,10 +1613,6 @@ export default async function build(
       const serverPropsPages = new Set<string>()
       const additionalPaths = new Map<string, PrerenderedRoute[]>()
       const staticPaths = new Map<string, PrerenderedRoute[]>()
-      const prospectiveRenders = new Map<
-        string,
-        { page: string; originalAppPath: string }
-      >()
       const appNormalizedPaths = new Map<string, string>()
       const fallbackModes = new Map<string, FallbackMode>()
       const appDefaultConfigs = new Map<string, AppSegmentConfig>()
@@ -1656,7 +1642,7 @@ export default async function build(
 
       process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
-      const worker = createStaticWorker(config)
+      const worker = createStaticWorker(config, { debuggerPortOffset: -1 })
 
       const analysisBegin = process.hrtime()
       const staticCheckSpan = nextBuildSpan.traceChild('static-check')
@@ -1887,10 +1873,18 @@ export default async function build(
                 // configuration, we need to add it to the manifest.
                 if (
                   typeof staticInfo?.runtime !== 'undefined' ||
-                  typeof staticInfo?.maxDuration !== 'undefined'
+                  typeof staticInfo?.maxDuration !== 'undefined' ||
+                  typeof staticInfo?.preferredRegion !== 'undefined'
                 ) {
+                  const regions = staticInfo?.preferredRegion
+                    ? typeof staticInfo.preferredRegion === 'string'
+                      ? [staticInfo.preferredRegion]
+                      : staticInfo.preferredRegion
+                    : undefined
+
                   functionsConfigManifest.functions[page] = {
                     maxDuration: staticInfo?.maxDuration,
+                    ...(regions && { regions }),
                   }
                 }
 
@@ -1984,31 +1978,6 @@ export default async function build(
                             isStatic = true
 
                             staticPaths.set(originalAppPath, [])
-                          }
-                          // As PPR isn't enabled for this route, if dynamic IO
-                          // is enabled, and this is a dynamic route, we should
-                          // complete a prospective render for the route so that
-                          // we can use the fallback behavior. This lets us
-                          // check that dynamic pages won't error when they
-                          // enable PPR.
-                          else if (config.experimental.dynamicIO && isDynamic) {
-                            // If there's a page with a more specific render
-                            // available, then we should skip the prospective
-                            // render because it'll be done as a part of the
-                            // that render to validate the dynamic state.
-                            if (
-                              // The existence of any prerendered routes when
-                              // PPR is disabled means that the route has more
-                              // specific prerendered routes that should be
-                              // used for the diagnostic render anyways.
-                              !workerResult.prerenderedRoutes ||
-                              workerResult.prerenderedRoutes.length === 0
-                            ) {
-                              prospectiveRenders.set(originalAppPath, {
-                                page,
-                                originalAppPath,
-                              })
-                            }
                           }
 
                           if (workerResult.prerenderedRoutes) {
@@ -2301,8 +2270,6 @@ export default async function build(
                 ...config.experimental,
                 cacheHandlers: normalizedCacheHandlers,
                 trustHostHeader: ciEnvironment.hasNextSupport,
-
-                // @ts-expect-error internal field TODO: fix this, should use a separate mechanism to pass the info.
                 isExperimentalCompile: isCompileMode,
               },
             },
@@ -2361,6 +2328,7 @@ export default async function build(
               BUILD_ID_FILE,
               path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.js'),
               path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.json'),
+              SERVER_FILES_MANIFEST,
               ...instrumentationHookEntryFiles,
             ]
               .filter(nonNullable)
@@ -2629,7 +2597,7 @@ export default async function build(
             )
           )
 
-          const exportApp = require('../export')
+          const exportApp = (require('../export') as typeof import('../export'))
             .default as typeof import('../export').default
 
           const exportConfig: NextConfigComplete = {
@@ -2722,33 +2690,10 @@ export default async function build(
                     _isDynamicError: isDynamicError,
                     _isAppDir: true,
                     _isRoutePPREnabled: isRoutePPREnabled,
-                    _doNotThrowOnEmptyStaticShell:
-                      !route.throwOnEmptyStaticShell,
+                    _allowEmptyStaticShell: !route.throwOnEmptyStaticShell,
                   }
                 })
               })
-
-              // If the app does have dynamic IO enabled but does not have PPR
-              // enabled, then we need to perform a prospective render for all
-              // the dynamic pages to ensure that they won't error during
-              // rendering (due to a missing prelude).
-              for (const {
-                page,
-                originalAppPath,
-              } of prospectiveRenders.values()) {
-                defaultMap[page] = {
-                  page: originalAppPath,
-                  _ssgPath: page,
-                  _fallbackRouteParams: getParamKeys(page),
-                  // Prospective renders are only enabled for app pages.
-                  _isAppDir: true,
-                  // Prospective renders are only enabled when PPR is disabled.
-                  _isRoutePPREnabled: false,
-                  _isProspectiveRender: true,
-                  // Dynamic IO does not currently support `dynamic === 'error'`.
-                  _isDynamicError: false,
-                }
-              }
 
               if (i18n) {
                 for (const page of [
@@ -3555,18 +3500,11 @@ export default async function build(
               ...routesManifest.staticRoutes,
               ...routesManifest.dynamicRoutes,
             ]) {
-              // We only want to handle pages that are using the app router. We
-              // need this path in order to determine if it's an app route or an
-              // app page.
-              const originalAppPath = pageInfos.get(route.page)?.originalAppPath
-              if (!originalAppPath) {
-                continue
-              }
-
-              // We only want to handle app pages, not app routes.
-              if (isAppRouteRoute(originalAppPath)) {
-                continue
-              }
+              // If the segment paths aren't defined, we need to insert a
+              // reverse routing rule so that there isn't any conflicts
+              // with other dynamic routes for the prefetch segment
+              // routes. This is true for any route that is not PPR-enabled,
+              // including all routes defined by Pages Router.
 
               // We don't need to add the prefetch segment data routes if it was
               // added due to a page that was already generated. This would have
@@ -3575,11 +3513,6 @@ export default async function build(
                 continue
               }
 
-              // If the segment paths aren't defined, we need to insert a
-              // reverse routing rule so that there isn't any conflicts
-              // with other dynamic routes for the prefetch segment
-              // routes. This is only an issue for pages that do not have
-              // partial prerendering enabled.
               route.prefetchSegmentDataRoutes = [
                 buildInversePrefetchSegmentDataRoute(
                   route.page,

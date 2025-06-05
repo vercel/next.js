@@ -110,7 +110,7 @@ When using file based routing, you can use MDX pages like any other page.
 
 <AppOnly>
 
-In App Router apps, that includes being able to use [metadata](/docs/app/building-your-application/optimizing/metadata).
+In App Router apps, that includes being able to use [metadata](/docs/app/getting-started/metadata-and-og-images).
 
 Create a new MDX page within the `/app` directory:
 
@@ -483,7 +483,7 @@ export default function Page() {
 
 <AppOnly>
 
-To share a layout across MDX pages, you can use the [built-in layouts support](/docs/app/building-your-application/routing/layouts-and-templates#layouts) with the App Router.
+To share a layout across MDX pages, you can use the [built-in layouts support](/docs/app/api-reference/file-conventions/layout) with the App Router.
 
 ```tsx filename="app/mdx-page/layout.tsx" switcher
 export default function MdxLayout({ children }: { children: React.ReactNode }) {

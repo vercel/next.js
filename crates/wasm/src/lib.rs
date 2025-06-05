@@ -21,7 +21,7 @@ use wasm_bindgen_futures::future_to_promise;
 pub mod mdx;
 
 fn convert_err(err: Error) -> JsValue {
-    format!("{:?}", err).into()
+    format!("{err:?}").into()
 }
 
 #[wasm_bindgen(js_name = "minifySync")]

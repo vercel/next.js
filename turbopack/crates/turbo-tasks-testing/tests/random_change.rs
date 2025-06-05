@@ -2,10 +2,10 @@
 #![feature(arbitrary_self_types_pointers)]
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use rand::Rng;
 use turbo_tasks::{State, Vc};
-use turbo_tasks_testing::{register, run, Registration};
+use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 
@@ -64,7 +64,7 @@ async fn func(input: Vc<ValueContainer>, nesting: i32) -> Result<Vc<Value>> {
         return Ok(func(input, nesting + 1));
     }
     if nesting == *value {
-        println!("func {}", nesting);
+        println!("func {nesting}");
         return Ok(Value { value: *value }.cell());
     }
     bail!("func no longer valid {}", nesting)

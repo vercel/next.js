@@ -25,7 +25,7 @@ fn main() -> anyhow::Result<()> {
     };
 
     // Make the Next.js version available as a build-time environment variable
-    println!("cargo:rustc-env=NEXTJS_VERSION={}", nextjs_version);
+    println!("cargo:rustc-env=NEXTJS_VERSION={nextjs_version}");
 
     // Generates, stores build-time information as static values.
     // There are some places relying on correct values for this (i.e telemetry),

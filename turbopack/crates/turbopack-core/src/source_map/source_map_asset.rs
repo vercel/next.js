@@ -1,9 +1,9 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexSet, NonLocalValue, ResolvedVc,
-    ValueToString, Vc,
+    FxIndexSet, NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{File, FileSystemPath};
 
@@ -77,9 +77,9 @@ impl OutputAsset for SourceMapAsset {
                 chunking_context,
                 ident_for_path,
             } => chunking_context
-                .chunk_path(Some(Vc::upcast(self)), *ident_for_path, ".js".into())
-                .append(".map".into()),
-            PathType::Fixed { path } => path.append(".map".into()),
+                .chunk_path(Some(Vc::upcast(self)), *ident_for_path, rcstr!(".js"))
+                .append(rcstr!(".map")),
+            PathType::Fixed { path } => path.append(rcstr!(".map")),
         })
     }
 }
@@ -98,21 +98,11 @@ impl Asset for SourceMapAsset {
     }
 }
 
-#[turbo_tasks::function]
-fn introspectable_type() -> Vc<RcStr> {
-    Vc::cell("source map".into())
-}
-
-#[turbo_tasks::function]
-fn introspectable_details() -> Vc<RcStr> {
-    Vc::cell("source map of an asset".into())
-}
-
 #[turbo_tasks::value_impl]
 impl Introspectable for SourceMapAsset {
     #[turbo_tasks::function]
     fn ty(&self) -> Vc<RcStr> {
-        introspectable_type()
+        Vc::cell(rcstr!("source map"))
     }
 
     #[turbo_tasks::function]
@@ -122,7 +112,7 @@ impl Introspectable for SourceMapAsset {
 
     #[turbo_tasks::function]
     fn details(&self) -> Vc<RcStr> {
-        introspectable_details()
+        Vc::cell(rcstr!("source map of an asset"))
     }
 
     #[turbo_tasks::function]
@@ -131,7 +121,7 @@ impl Introspectable for SourceMapAsset {
         if let Some(asset) =
             ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.generate_source_map)
         {
-            children.insert((ResolvedVc::cell("asset".into()), asset));
+            children.insert((rcstr!("asset"), asset));
         }
         Ok(Vc::cell(children))
     }

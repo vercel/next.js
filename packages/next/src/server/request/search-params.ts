@@ -69,6 +69,7 @@ export function createSearchParamsFromClient(
   if (workUnitStore) {
     switch (workUnitStore.type) {
       case 'prerender':
+      case 'prerender-client':
       case 'prerender-ppr':
       case 'prerender-legacy':
         return createPrerenderSearchParams(workStore, workUnitStore)
@@ -91,6 +92,7 @@ export function createServerSearchParamsForServerPage(
   if (workUnitStore) {
     switch (workUnitStore.type) {
       case 'prerender':
+      case 'prerender-client':
       case 'prerender-ppr':
       case 'prerender-legacy':
         return createPrerenderSearchParams(workStore, workUnitStore)
@@ -111,7 +113,11 @@ export function createPrerenderSearchParamsForClientPage(
   }
 
   const prerenderStore = workUnitAsyncStorage.getStore()
-  if (prerenderStore && prerenderStore.type === 'prerender') {
+  if (
+    prerenderStore &&
+    (prerenderStore.type === 'prerender' ||
+      prerenderStore.type === 'prerender-client')
+  ) {
     // dynamicIO Prerender
     // We're prerendering in a mode that aborts (dynamicIO) and should stall
     // the promise to ensure the RSC side is considered dynamic
@@ -133,15 +139,17 @@ function createPrerenderSearchParams(
     return Promise.resolve({})
   }
 
-  if (prerenderStore.type === 'prerender') {
-    // We are in a dynamicIO (PPR or otherwise) prerender
-    return makeAbortingExoticSearchParams(workStore.route, prerenderStore)
+  switch (prerenderStore.type) {
+    case 'prerender':
+    case 'prerender-client':
+      // We are in a dynamicIO (PPR or otherwise) prerender
+      return makeAbortingExoticSearchParams(workStore.route, prerenderStore)
+    default:
+      // The remaining cases are prerender-ppr and prerender-legacy
+      // We are in a legacy static generation and need to interrupt the prerender
+      // when search params are accessed.
+      return makeErroringExoticSearchParams(workStore, prerenderStore)
   }
-
-  // The remaining cases are prerender-ppr and prerender-legacy
-  // We are in a legacy static generation and need to interrupt the prerender
-  // when search params are accessed.
-  return makeErroringExoticSearchParams(workStore, prerenderStore)
 }
 
 function createRenderSearchParams(

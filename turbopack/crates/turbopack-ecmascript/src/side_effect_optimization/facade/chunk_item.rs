@@ -9,11 +9,11 @@ use turbopack_core::{
 
 use super::module::EcmascriptModuleFacadeModule;
 use crate::{
+    EcmascriptAnalyzable, EcmascriptOptions,
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
         EcmascriptChunkType,
     },
-    EcmascriptAnalyzable, EcmascriptOptions,
 };
 
 /// The chunk item for [EcmascriptModuleFacadeModule].

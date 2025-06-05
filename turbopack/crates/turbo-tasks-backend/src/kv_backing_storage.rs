@@ -1,17 +1,20 @@
-use std::{borrow::Borrow, cmp::max, sync::Arc};
+use std::{borrow::Borrow, cmp::max, path::PathBuf, sync::Arc};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use tracing::Span;
-use turbo_tasks::{backend::CachedTaskType, turbo_tasks_scope, SessionId, TaskId};
+use turbo_tasks::{SessionId, TaskId, backend::CachedTaskType, turbo_tasks_scope};
 
 use crate::{
+    GitVersionInfo,
     backend::{AnyOperation, TaskDataCategory},
     backing_storage::BackingStorage,
     data::CachedDataItem,
     database::{
+        db_invalidation::{check_db_invalidation_and_cleanup, invalidate_db},
+        db_versioning::handle_db_versioning,
         key_value_database::{KeySpace, KeyValueDatabase},
         write_batch::{
             BaseWriteBatch, ConcurrentWriteBatch, SerialWriteBatch, WriteBatch, WriteBatchRef,
@@ -53,7 +56,6 @@ fn pot_ser_symbol_map() -> pot::ser::SymbolMap {
     pot::ser::SymbolMap::new().with_compatibility(pot::Compatibility::V4)
 }
 
-#[cfg(feature = "verify_serialization")]
 fn pot_de_symbol_list<'l>() -> pot::de::SymbolList<'l> {
     pot::de::SymbolList::new()
 }
@@ -83,11 +85,31 @@ fn as_u32(bytes: impl Borrow<[u8]>) -> Result<u32> {
 
 pub struct KeyValueDatabaseBackingStorage<T: KeyValueDatabase> {
     database: T,
+    /// Used when calling [`BackingStorage::invalidate`]. Can be `None` in the memory-only/no-op
+    /// storage case.
+    base_path: Option<PathBuf>,
 }
 
 impl<T: KeyValueDatabase> KeyValueDatabaseBackingStorage<T> {
-    pub fn new(database: T) -> Self {
-        Self { database }
+    pub fn new_in_memory(database: T) -> Self {
+        Self {
+            database,
+            base_path: None,
+        }
+    }
+
+    pub fn open_versioned_on_disk(
+        base_path: PathBuf,
+        version_info: &GitVersionInfo,
+        is_ci: bool,
+        database: impl FnOnce(PathBuf) -> Result<T>,
+    ) -> Result<Self> {
+        check_db_invalidation_and_cleanup(&base_path)?;
+        let versioned_path = handle_db_versioning(&base_path, version_info, is_ci)?;
+        Ok(Self {
+            database: (database)(versioned_path)?,
+            base_path: Some(base_path),
+        })
     }
 
     fn with_tx<R>(
@@ -106,14 +128,12 @@ impl<T: KeyValueDatabase> KeyValueDatabaseBackingStorage<T> {
     }
 }
 
-fn get_infra_u32(database: &impl KeyValueDatabase, key: u32) -> Option<u32> {
-    let tx = database.begin_read_transaction().ok()?;
-    let value = database
-        .get(&tx, KeySpace::Infra, IntKey::new(key).as_ref())
-        .ok()?
-        .map(as_u32)?
-        .ok()?;
-    Some(value)
+fn get_infra_u32(database: &impl KeyValueDatabase, key: u32) -> Result<Option<u32>> {
+    let tx = database.begin_read_transaction()?;
+    database
+        .get(&tx, KeySpace::Infra, IntKey::new(key).as_ref())?
+        .map(as_u32)
+        .transpose()
 }
 
 impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
@@ -127,17 +147,24 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
         T::lower_read_transaction(tx)
     }
 
-    fn next_free_task_id(&self) -> TaskId {
-        TaskId::try_from(get_infra_u32(&self.database, META_KEY_NEXT_FREE_TASK_ID).unwrap_or(1))
-            .unwrap()
+    fn next_free_task_id(&self) -> Result<TaskId> {
+        Ok(TaskId::try_from(
+            get_infra_u32(&self.database, META_KEY_NEXT_FREE_TASK_ID)
+                .context("Unable to read next free task id from database")?
+                .unwrap_or(1),
+        )?)
     }
 
-    fn next_session_id(&self) -> SessionId {
-        SessionId::try_from(get_infra_u32(&self.database, META_KEY_SESSION_ID).unwrap_or(0) + 1)
-            .unwrap()
+    fn next_session_id(&self) -> Result<SessionId> {
+        Ok(SessionId::try_from(
+            get_infra_u32(&self.database, META_KEY_SESSION_ID)
+                .context("Unable to read session id from database")?
+                .unwrap_or(0)
+                + 1,
+        )?)
     }
 
-    fn uncompleted_operations(&self) -> Vec<AnyOperation> {
+    fn uncompleted_operations(&self) -> Result<Vec<AnyOperation>> {
         fn get(database: &impl KeyValueDatabase) -> Result<Vec<AnyOperation>> {
             let tx = database.begin_read_transaction()?;
             let Some(operations) = database.get(
@@ -148,10 +175,10 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
             else {
                 return Ok(Vec::new());
             };
-            let operations = POT_CONFIG.deserialize(operations.borrow())?;
+            let operations = deserialize_with_good_error(operations.borrow())?;
             Ok(operations)
         }
-        get(&self.database).unwrap_or_default()
+        get(&self.database).context("Unable to read uncompleted operations from database")
     }
 
     fn serialize(task: TaskId, data: &Vec<CachedDataItem>) -> Result<SmallVec<[u8; 16]>> {
@@ -180,13 +207,15 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
 
         // Start organizing the updates in parallel
         match &mut batch {
-            WriteBatch::Concurrent(ref batch, _) => {
+            &mut WriteBatch::Concurrent(ref batch, _) => {
                 {
                     let _span = tracing::trace_span!("update task data").entered();
                     process_task_data(snapshots, Some(batch))?;
+                    let span = tracing::trace_span!("flush task data").entered();
                     [KeySpace::TaskMeta, KeySpace::TaskData]
                         .into_par_iter()
                         .try_for_each(|key_space| {
+                            let _span = span.clone().entered();
                             // Safety: We already finished all processing of the task data and task
                             // meta
                             unsafe { batch.flush(key_space) }
@@ -208,6 +237,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
                         .into_par_iter()
                         .with_max_len(1)
                         .map(|updates| {
+                            let _span = _span.clone().entered();
                             let mut max_task_id = 0;
 
                             let mut task_type_bytes = Vec::new();
@@ -357,7 +387,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
         &self,
         tx: Option<&T::ReadTransaction<'_>>,
         task_type: &CachedTaskType,
-    ) -> Option<TaskId> {
+    ) -> Result<Option<TaskId>> {
         fn lookup<D: KeyValueDatabase>(
             database: &D,
             tx: &D::ReadTransaction<'_>,
@@ -374,20 +404,17 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
         if self.database.is_empty() {
             // Checking if the database is empty is a performance optimization
             // to avoid serializing the task type.
-            return None;
+            return Ok(None);
         }
-        let id = self
-            .with_tx(tx, |tx| lookup(&self.database, tx, task_type))
-            .inspect_err(|err| println!("Looking up task id for {task_type:?} failed: {err:?}"))
-            .ok()??;
-        Some(id)
+        self.with_tx(tx, |tx| lookup(&self.database, tx, task_type))
+            .with_context(|| format!("Looking up task id for {task_type:?} from database failed"))
     }
 
     unsafe fn reverse_lookup_task_cache(
         &self,
         tx: Option<&T::ReadTransaction<'_>>,
         task_id: TaskId,
-    ) -> Option<Arc<CachedTaskType>> {
+    ) -> Result<Option<Arc<CachedTaskType>>> {
         fn lookup<D: KeyValueDatabase>(
             database: &D,
             tx: &D::ReadTransaction<'_>,
@@ -401,13 +428,10 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
             else {
                 return Ok(None);
             };
-            Ok(Some(POT_CONFIG.deserialize(bytes.borrow())?))
+            Ok(Some(deserialize_with_good_error(bytes.borrow())?))
         }
-        let result = self
-            .with_tx(tx, |tx| lookup(&self.database, tx, task_id))
-            .inspect_err(|err| println!("Looking up task type for {task_id} failed: {err:?}"))
-            .ok()??;
-        Some(result)
+        self.with_tx(tx, |tx| lookup(&self.database, tx, task_id))
+            .with_context(|| format!("Looking up task type for {task_id} from database failed"))
     }
 
     unsafe fn lookup_data(
@@ -415,7 +439,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
         tx: Option<&T::ReadTransaction<'_>>,
         task_id: TaskId,
         category: TaskDataCategory,
-    ) -> Vec<CachedDataItem> {
+    ) -> Result<Vec<CachedDataItem>> {
         fn lookup<D: KeyValueDatabase>(
             database: &D,
             tx: &D::ReadTransaction<'_>,
@@ -434,12 +458,23 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
             else {
                 return Ok(Vec::new());
             };
-            let result: Vec<CachedDataItem> = POT_CONFIG.deserialize(bytes.borrow())?;
+            let result: Vec<CachedDataItem> = deserialize_with_good_error(bytes.borrow())?;
             Ok(result)
         }
         self.with_tx(tx, |tx| lookup(&self.database, tx, task_id, category))
-            .inspect_err(|err| println!("Looking up data for {task_id} failed: {err:?}"))
-            .unwrap_or_default()
+            .with_context(|| format!("Looking up data for {task_id} from database failed"))
+    }
+
+    fn invalidate(&self) -> Result<()> {
+        // `base_path` can be `None` for a `NoopKvDb`
+        if let Some(base_path) = &self.base_path {
+            // Invalidate first, as it's a very fast atomic operation. `prevent_writes` is allowed
+            // to be slower (e.g. wait for a lock) and is allowed to corrupt the database with
+            // partial writes.
+            invalidate_db(base_path)?;
+            self.database.prevent_writes()
+        }
+        Ok(())
     }
 
     fn shutdown(&self) -> Result<()> {
@@ -643,4 +678,16 @@ fn serialize(task: TaskId, data: &Vec<CachedDataItem>) -> Result<SmallVec<[u8; 1
                 .with_context(|| anyhow!("Unable to serialize data items for {task}: {data:#?}"))?
         }
     })
+}
+
+fn deserialize_with_good_error<'de, T: Deserialize<'de>>(data: &'de [u8]) -> Result<T> {
+    match POT_CONFIG.deserialize(data) {
+        Ok(value) => Ok(value),
+        Err(error) => serde_path_to_error::deserialize::<'_, _, T>(
+            &mut pot_de_symbol_list().deserializer_for_slice(data)?,
+        )
+        .map_err(anyhow::Error::from)
+        .and(Err(error.into()))
+        .context("Deserialization failed"),
+    }
 }

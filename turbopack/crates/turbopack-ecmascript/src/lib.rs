@@ -43,17 +43,22 @@ use anyhow::Result;
 use chunk::EcmascriptChunkItem;
 use code_gen::{CodeGeneration, CodeGenerationHoistedStmt};
 use either::Either;
-use parse::{parse, ParseResult};
+use parse::{ParseResult, parse};
 use path_visitor::ApplyVisitors;
 use references::esm::UrlRewriteBehavior;
 pub use references::{AnalyzeEcmascriptModuleResult, TURBOPACK_HELPER};
 use serde::{Deserialize, Serialize};
 pub use static_code::StaticEcmascriptCode;
 use swc_core::{
-    common::{comments::Comments, util::take::Take, Globals, Mark, SourceMap, DUMMY_SP, GLOBALS},
+    base::SwcComments,
+    common::{
+        BytePos, DUMMY_SP, GLOBALS, Globals, Mark, SourceMap,
+        comments::{Comment, Comments},
+        util::take::Take,
+    },
     ecma::{
         ast::{self, Expr, ModuleItem, Program, Script},
-        codegen::{text_writer::JsWriter, Emitter},
+        codegen::{Emitter, text_writer::JsWriter},
         visit::{VisitMutWith, VisitMutWithAstPath},
     },
     quote,
@@ -63,16 +68,17 @@ pub use transform::{
     CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransforms, TransformContext,
     TransformPlugin, UnsupportedServerActionIssue,
 };
-use turbo_rcstr::RcStr;
+use turbo_rcstr::rcstr;
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt,
-    Value, ValueToString, Vc,
+    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Value,
+    ValueToString, Vc, trace::TraceRawVcs,
 };
-use turbo_tasks_fs::{glob::Glob, rope::Rope, FileJsonContent, FileSystemPath};
+use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
         AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext, EvaluatableAsset,
+        MinifyType,
     },
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
@@ -82,19 +88,19 @@ use turbopack_core::{
     reference::ModuleReferences,
     reference_type::InnerAssets,
     resolve::{
-        find_context_file, origin::ResolveOrigin, package_json, parse::Request,
-        FindContextFileResult,
+        FindContextFileResult, find_context_file, origin::ResolveOrigin, package_json,
+        parse::Request,
     },
     source::Source,
-    source_map::OptionStringifiedSourceMap,
+    source_map::GenerateSourceMap,
 };
 // TODO remove this
 pub use turbopack_resolve::ecmascript as resolve;
 
 use self::chunk::{EcmascriptChunkItemContent, EcmascriptChunkType, EcmascriptExports};
 use crate::{
-    chunk::{placeable::is_marked_as_side_effect_free, EcmascriptChunkPlaceable},
-    code_gen::CodeGens,
+    chunk::{EcmascriptChunkPlaceable, placeable::is_marked_as_side_effect_free},
+    code_gen::{CodeGens, ModifiableAst},
     parse::generate_js_source_map,
     references::{
         analyse_ecmascript_module, async_module::OptionAsyncModule, esm::base::EsmAssetReferences,
@@ -200,11 +206,6 @@ impl Display for EcmascriptModuleAssetType {
             EcmascriptModuleAssetType::TypescriptDeclaration => write!(f, "typescript declaration"),
         }
     }
-}
-
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("ecmascript".into())
 }
 
 #[derive(Clone)]
@@ -475,17 +476,17 @@ async fn determine_module_type_for_directory(
     };
 
     // analysis.add_reference(PackageJsonReference::new(package_json));
-    if let FileJsonContent::Content(content) = &*package_json.read_json().await? {
-        if let Some(r#type) = content.get("type") {
-            return Ok(ModuleTypeResult::new_with_package_json(
-                match r#type.as_str() {
-                    Some("module") => SpecifiedModuleType::EcmaScript,
-                    Some("commonjs") => SpecifiedModuleType::CommonJs,
-                    _ => SpecifiedModuleType::Automatic,
-                },
-                *package_json,
-            ));
-        }
+    if let FileJsonContent::Content(content) = &*package_json.read_json().await?
+        && let Some(r#type) = content.get("type")
+    {
+        return Ok(ModuleTypeResult::new_with_package_json(
+            match r#type.as_str() {
+                Some("module") => SpecifiedModuleType::EcmaScript,
+                Some("commonjs") => SpecifiedModuleType::CommonJs,
+                _ => SpecifiedModuleType::Automatic,
+            },
+            *package_json,
+        ));
     }
 
     Ok(ModuleTypeResult::new_with_package_json(
@@ -580,10 +581,10 @@ impl EcmascriptModuleAsset {
 
         match this.options.await?.specified_module_type {
             SpecifiedModuleType::EcmaScript => {
-                return ModuleTypeResult::new(SpecifiedModuleType::EcmaScript).await
+                return ModuleTypeResult::new(SpecifiedModuleType::EcmaScript).await;
             }
             SpecifiedModuleType::CommonJs => {
-                return ModuleTypeResult::new(SpecifiedModuleType::CommonJs).await
+                return ModuleTypeResult::new(SpecifiedModuleType::CommonJs).await;
             }
             SpecifiedModuleType::Automatic => {}
         }
@@ -604,24 +605,15 @@ impl EcmascriptModuleAsset {
 impl Module for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        let mut ident = self.source.ident().owned().await?;
         if let Some(inner_assets) = self.inner_assets {
-            let mut ident = self.source.ident().owned().await?;
             for (name, asset) in inner_assets.await?.iter() {
-                ident.add_asset(
-                    ResolvedVc::cell(name.to_string().into()),
-                    asset.ident().to_resolved().await?,
-                );
+                ident.add_asset(name.clone(), asset.ident().to_resolved().await?);
             }
-            ident.add_modifier(modifier().to_resolved().await?);
-            ident.layer = Some(self.asset_context.layer().to_resolved().await?);
-            Ok(AssetIdent::new(Value::new(ident)))
-        } else {
-            Ok(self
-                .source
-                .ident()
-                .with_modifier(modifier())
-                .with_layer(self.asset_context.layer()))
         }
+        ident.add_modifier(rcstr!("ecmascript"));
+        ident.layer = Some(self.asset_context.layer().owned().await?);
+        Ok(AssetIdent::new(Value::new(ident)))
     }
 
     #[turbo_tasks::function]
@@ -819,7 +811,7 @@ pub struct EcmascriptModuleContentOptions {
     code_generation: ResolvedVc<CodeGens>,
     async_module: ResolvedVc<OptionAsyncModule>,
     generate_source_map: bool,
-    original_source_map: ResolvedVc<OptionStringifiedSourceMap>,
+    original_source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
     exports: ResolvedVc<EcmascriptExports>,
     async_module_info: Option<ResolvedVc<AsyncModuleInfo>>,
 }
@@ -912,10 +904,13 @@ impl EcmascriptModuleContent {
             specified_module_type,
             generate_source_map,
             original_source_map,
+            chunking_context,
             ..
         } = &*input;
         let code_gens = input.merged_code_gens().await?;
         async {
+            let minify = chunking_context.minify_type().await?;
+
             let content = process_parse_result(
                 *parsed,
                 **ident,
@@ -923,6 +918,7 @@ impl EcmascriptModuleContent {
                 code_gens,
                 *generate_source_map,
                 *original_source_map,
+                *minify,
             )
             .await?;
             emit_content(content).await
@@ -945,7 +941,8 @@ impl EcmascriptModuleContent {
             specified_module_type,
             vec![],
             generate_source_map,
-            OptionStringifiedSourceMap::none().to_resolved().await?,
+            None,
+            MinifyType::NoMinify,
         )
         .await?;
         emit_content(content).await
@@ -956,23 +953,31 @@ struct CodeGenResult {
     program: Program,
     source_map: Arc<SourceMap>,
     comments: Either<ImmutableComments, Arc<ImmutableComments>>,
+    extra_comments: SwcComments,
     is_esm: bool,
     generate_source_map: bool,
-    original_source_map: Option<ResolvedVc<OptionStringifiedSourceMap>>,
+    original_source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
+    minify: MinifyType,
 }
 
 async fn process_parse_result(
     parsed: ResolvedVc<ParseResult>,
     ident: Vc<AssetIdent>,
     specified_module_type: SpecifiedModuleType,
-    code_gens: Vec<CodeGeneration>,
+    mut code_gens: Vec<CodeGeneration>,
     generate_source_map: bool,
-    original_source_map: ResolvedVc<OptionStringifiedSourceMap>,
+    original_source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
+    minify: MinifyType,
 ) -> Result<CodeGenResult> {
     let parsed = parsed.final_read_hint().await?;
 
     Ok(match &*parsed {
         ParseResult::Ok { .. } => {
+            let extra_comments = SwcComments {
+                leading: Default::default(),
+                trailing: Default::default(),
+            };
+
             // We need a mutable version of the AST. We try to avoid cloning it by unwrapping the
             // ReadRef.
             let mut parsed = ReadRef::try_unwrap(parsed);
@@ -1017,22 +1022,42 @@ async fn process_parse_result(
             let top_level_mark = eval_context.top_level_mark;
             let is_esm = eval_context.is_esm(specified_module_type);
 
-            process_content_with_code_gens(&mut program, globals, Some(top_level_mark), code_gens);
+            process_content_with_code_gens(
+                &mut program,
+                globals,
+                Some(top_level_mark),
+                &mut code_gens,
+            );
+
+            for comments in code_gens.iter_mut().flat_map(|cg| cg.comments.as_mut()) {
+                let leading = Arc::unwrap_or_clone(take(&mut comments.leading));
+                let trailing = Arc::unwrap_or_clone(take(&mut comments.trailing));
+
+                for (pos, v) in leading {
+                    extra_comments.leading.entry(pos).or_default().extend(v);
+                }
+
+                for (pos, v) in trailing {
+                    extra_comments.trailing.entry(pos).or_default().extend(v);
+                }
+            }
 
             CodeGenResult {
                 program,
                 source_map: source_map.clone(),
                 comments,
+                extra_comments,
                 is_esm,
                 generate_source_map,
-                original_source_map: Some(original_source_map),
+                original_source_map,
+                minify,
             }
         }
         ParseResult::Unparseable { messages } => {
             let path = ident.path().to_string().await?;
             let error_messages = messages
                 .as_ref()
-                .and_then(|m| m.first().map(|f| format!("\n{}", f)))
+                .and_then(|m| m.first().map(|f| format!("\n{f}")))
                 .unwrap_or("".into());
             let msg = format!("Could not parse module '{path}'\n{error_messages}");
             let body = vec![
@@ -1052,9 +1077,11 @@ async fn process_parse_result(
                 }),
                 source_map: Arc::new(SourceMap::default()),
                 comments: Either::Left(Default::default()),
+                extra_comments: Default::default(),
                 is_esm: false,
                 generate_source_map: false,
                 original_source_map: None,
+                minify: MinifyType::NoMinify,
             }
         }
         ParseResult::NotFound => {
@@ -1076,9 +1103,11 @@ async fn process_parse_result(
                 }),
                 source_map: Arc::new(SourceMap::default()),
                 comments: Either::Left(Default::default()),
+                extra_comments: Default::default(),
                 is_esm: false,
                 generate_source_map: false,
                 original_source_map: None,
+                minify: MinifyType::NoMinify,
             }
         }
     })
@@ -1089,9 +1118,11 @@ async fn emit_content(content: CodeGenResult) -> Result<Vc<EcmascriptModuleConte
         program,
         source_map,
         comments,
+        extra_comments,
         is_esm,
         generate_source_map,
         original_source_map,
+        minify,
     } = content;
 
     let mut bytes: Vec<u8> = vec![];
@@ -1110,19 +1141,31 @@ async fn emit_content(content: CodeGenResult) -> Result<Vc<EcmascriptModuleConte
             Either::Right(comments) => comments,
         };
 
+        let comments = MergedComments {
+            baseline: comments,
+            mutable: extra_comments,
+        };
+
+        let mut wr = JsWriter::new(
+            source_map.clone(),
+            "\n",
+            &mut bytes,
+            generate_source_map.then_some(&mut mappings),
+        );
+        if matches!(minify, MinifyType::Minify { .. }) {
+            wr.set_indent_str("");
+        }
+
         let mut emitter = Emitter {
             cfg: swc_core::ecma::codegen::Config::default(),
             cm: source_map.clone(),
-            comments: Some(&comments),
-            wr: JsWriter::new(
-                source_map.clone(),
-                "\n",
-                &mut bytes,
-                generate_source_map.then_some(&mut mappings),
-            ),
+            comments: Some(&comments as &dyn Comments),
+            wr,
         };
 
         emitter.emit_program(&program)?;
+        // Drop the AST eagerly so we don't keep it in memory while generating source maps
+        drop(program);
     }
 
     let source_map = if generate_source_map {
@@ -1130,10 +1173,16 @@ async fn emit_content(content: CodeGenResult) -> Result<Vc<EcmascriptModuleConte
             Some(generate_js_source_map(
                 source_map.clone(),
                 mappings,
-                original_source_map.await?.as_ref(),
+                original_source_map.generate_source_map().await?.as_ref(),
+                true,
             )?)
         } else {
-            Some(generate_js_source_map(source_map.clone(), mappings, None)?)
+            Some(generate_js_source_map(
+                source_map.clone(),
+                mappings,
+                None,
+                true,
+            )?)
         }
     } else {
         None
@@ -1151,19 +1200,20 @@ fn process_content_with_code_gens(
     program: &mut Program,
     globals: &Globals,
     top_level_mark: Option<Mark>,
-    code_gens: Vec<CodeGeneration>,
+    code_gens: &mut Vec<CodeGeneration>,
 ) {
     let mut visitors = Vec::new();
     let mut root_visitors = Vec::new();
     let mut early_hoisted_stmts = FxIndexMap::default();
     let mut hoisted_stmts = FxIndexMap::default();
-    for code_gen in &code_gens {
-        for CodeGenerationHoistedStmt { key, stmt } in &code_gen.hoisted_stmts {
-            hoisted_stmts.entry(key.clone()).or_insert(stmt.clone());
+    for code_gen in code_gens {
+        for CodeGenerationHoistedStmt { key, stmt } in code_gen.hoisted_stmts.drain(..) {
+            hoisted_stmts.entry(key).or_insert(stmt);
         }
-        for CodeGenerationHoistedStmt { key, stmt } in &code_gen.early_hoisted_stmts {
-            early_hoisted_stmts.insert(key.clone(), stmt.clone());
+        for CodeGenerationHoistedStmt { key, stmt } in code_gen.early_hoisted_stmts.drain(..) {
+            early_hoisted_stmts.insert(key.clone(), stmt);
         }
+
         for (path, visitor) in &code_gen.visitors {
             if path.is_empty() {
                 root_visitors.push(&**visitor);
@@ -1180,8 +1230,8 @@ fn process_content_with_code_gens(
                 &mut Default::default(),
             );
         }
-        for visitor in root_visitors {
-            program.visit_mut_with(&mut visitor.create());
+        for pass in root_visitors {
+            program.modify(pass);
         }
         program.visit_mut_with(
             &mut swc_core::ecma::transforms::base::hygiene::hygiene_with_config(
@@ -1217,6 +1267,104 @@ fn process_content_with_code_gens(
             );
         }
     };
+}
+
+struct MergedComments<A, B>
+where
+    A: Comments,
+    B: Comments,
+{
+    baseline: A,
+    mutable: B,
+}
+
+impl<A, B> Comments for MergedComments<A, B>
+where
+    A: Comments,
+    B: Comments,
+{
+    fn add_leading(&self, pos: BytePos, cmt: Comment) {
+        self.mutable.add_leading(pos, cmt);
+    }
+
+    fn add_leading_comments(&self, pos: BytePos, comments: Vec<Comment>) {
+        self.mutable.add_leading_comments(pos, comments);
+    }
+
+    fn has_leading(&self, pos: BytePos) -> bool {
+        self.baseline.has_leading(pos) || self.mutable.has_leading(pos)
+    }
+
+    fn move_leading(&self, from: BytePos, to: BytePos) {
+        self.baseline.move_leading(from, to);
+        self.mutable.move_leading(from, to);
+    }
+
+    fn take_leading(&self, pos: BytePos) -> Option<Vec<Comment>> {
+        let (v1, v2) = (
+            self.baseline.take_leading(pos),
+            self.mutable.take_leading(pos),
+        );
+
+        merge_option_vec(v1, v2)
+    }
+
+    fn get_leading(&self, pos: BytePos) -> Option<Vec<Comment>> {
+        let (v1, v2) = (
+            self.baseline.get_leading(pos),
+            self.mutable.get_leading(pos),
+        );
+
+        merge_option_vec(v1, v2)
+    }
+
+    fn add_trailing(&self, pos: BytePos, cmt: Comment) {
+        self.mutable.add_trailing(pos, cmt);
+    }
+
+    fn add_trailing_comments(&self, pos: BytePos, comments: Vec<Comment>) {
+        self.mutable.add_trailing_comments(pos, comments);
+    }
+
+    fn has_trailing(&self, pos: BytePos) -> bool {
+        self.baseline.has_trailing(pos) || self.mutable.has_trailing(pos)
+    }
+
+    fn move_trailing(&self, from: BytePos, to: BytePos) {
+        self.baseline.move_trailing(from, to);
+        self.mutable.move_trailing(from, to);
+    }
+
+    fn take_trailing(&self, pos: BytePos) -> Option<Vec<Comment>> {
+        let (v1, v2) = (
+            self.baseline.take_trailing(pos),
+            self.mutable.take_trailing(pos),
+        );
+
+        merge_option_vec(v1, v2)
+    }
+
+    fn get_trailing(&self, pos: BytePos) -> Option<Vec<Comment>> {
+        let (v1, v2) = (
+            self.baseline.get_trailing(pos),
+            self.mutable.get_trailing(pos),
+        );
+
+        merge_option_vec(v1, v2)
+    }
+
+    fn add_pure_comment(&self, pos: BytePos) {
+        self.mutable.add_pure_comment(pos);
+    }
+}
+
+fn merge_option_vec<T>(a: Option<Vec<T>>, b: Option<Vec<T>>) -> Option<Vec<T>> {
+    match (a, b) {
+        (Some(a), Some(b)) => Some(a.into_iter().chain(b).collect()),
+        (Some(a), None) => Some(a),
+        (None, Some(b)) => Some(b),
+        (None, None) => None,
+    }
 }
 
 pub fn register() {

@@ -133,15 +133,37 @@ The experimental `serverComponentsHmrCache` option allows you to cache `fetch` r
 
 [Learn more about the experimental option](/docs/app/api-reference/config/next-config-js/serverComponentsHmrCache).
 
+### 8. Consider local development over Docker
+
+If you're using Docker for development on Mac or Windows, you may experience significantly slower performance compared to running Next.js locally.
+
+Docker's filesystem access on Mac and Windows can cause Hot Module Replacement (HMR) to take seconds or even minutes, while the same application runs with fast HMR when developed locally.
+
+This performance difference is due to how Docker handles filesystem operations outside of Linux environments. For the best development experience:
+
+- Use local development (`npm run dev` or `pnpm dev`) instead of Docker during development
+- Reserve Docker for production deployments and testing production builds
+- If you must use Docker for development, consider using Docker on a Linux machine or VM
+
+[Learn more about Docker deployment](/docs/app/getting-started/deploying#docker) for production use.
+
 ## Tools for finding problems
 
 ### Detailed fetch logging
 
-Use this command to see more detailed information about what's happening during development:
+Use the `logging.fetches` option in your `next.config.js` file, to see more detailed information about what's happening during development:
 
-```bash
-next dev --verbose
+```js
+module.exports = {
+  logging: {
+    fetches: {
+      fullUrl: true,
+    },
+  },
+}
 ```
+
+[Learn more about fetch logging](/docs/app/api-reference/config/next-config-js/logging).
 
 ## Turbopack tracing
 

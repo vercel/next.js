@@ -121,6 +121,9 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub css_env: Option<swc_core::ecma::preset_env::Config>,
+
+    #[serde(default)]
+    pub track_dynamic_imports: bool,
 }
 
 pub fn custom_before_pass<'a, C>(
@@ -332,6 +335,14 @@ where
                     ServerActionsMode::Webpack,
                 )),
                 None => Either::Right(noop_pass()),
+            },
+            match &opts.track_dynamic_imports {
+                true => Either::Left(
+                    crate::transforms::track_dynamic_imports::track_dynamic_imports(
+                        unresolved_mark,
+                    ),
+                ),
+                false => Either::Right(noop_pass()),
             },
             match &opts.cjs_require_optimizer {
                 Some(config) => Either::Left(visit_mut_pass(

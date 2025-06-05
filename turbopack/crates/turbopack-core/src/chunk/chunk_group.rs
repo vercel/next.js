@@ -5,20 +5,20 @@ use rustc_hash::FxHashMap;
 use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Value, Vc};
 
 use super::{
-    availability_info::AvailabilityInfo, chunking::make_chunks, Chunk, ChunkGroupContent,
-    ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkingContext,
+    Chunk, ChunkGroupContent, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkingContext,
+    availability_info::AvailabilityInfo, chunking::make_chunks,
 };
 use crate::{
     chunk::{
-        chunk_item_batch::{ChunkItemBatchGroup, ChunkItemOrBatchWithAsyncModuleInfo},
         ChunkableModule, ChunkingType,
+        chunk_item_batch::{ChunkItemBatchGroup, ChunkItemOrBatchWithAsyncModuleInfo},
     },
     environment::ChunkLoading,
     module::Module,
     module_graph::{
+        GraphTraversalAction, ModuleGraph,
         module_batch::{ChunkableModuleBatchGroup, ChunkableModuleOrBatch, ModuleOrBatch},
         module_batches::{BatchingConfig, ModuleBatchesGraphEdge},
-        GraphTraversalAction, ModuleGraph,
     },
     output::OutputAssets,
     reference::ModuleReference,
@@ -32,9 +32,10 @@ pub struct MakeChunkGroupResult {
 
 /// Creates a chunk group from a set of entries.
 pub async fn make_chunk_group(
-    chunk_group_entries: impl IntoIterator<IntoIter = impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + Send>
-        + Send
-        + Clone,
+    chunk_group_entries: impl IntoIterator<
+        IntoIter = impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + Send,
+    > + Send
+    + Clone,
     module_graph: Vc<ModuleGraph>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     availability_info: AvailabilityInfo,
@@ -182,8 +183,9 @@ pub async fn references_to_output_assets(
 
 pub async fn chunk_group_content(
     module_graph: Vc<ModuleGraph>,
-    chunk_group_entries: impl IntoIterator<IntoIter = impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + Send>
-        + Send,
+    chunk_group_entries: impl IntoIterator<
+        IntoIter = impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + Send,
+    > + Send,
     availability_info: AvailabilityInfo,
     can_split_async: bool,
     should_trace: bool,
@@ -264,9 +266,7 @@ pub async fn chunk_group_content(
             };
 
             Ok(match edge.ty {
-                ChunkingType::Parallel
-                | ChunkingType::ParallelInheritAsync
-                | ChunkingType::Shared { .. } => {
+                ChunkingType::Parallel { .. } | ChunkingType::Shared { .. } => {
                     if is_available {
                         GraphTraversalAction::Exclude
                     } else if state

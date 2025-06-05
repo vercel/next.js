@@ -83,6 +83,7 @@ import {
 import { RedirectStatusCode } from '../../../client/components/redirect-status-code'
 import { INFINITE_CACHE } from '../../../lib/constants'
 import { executeRevalidates } from '../../revalidation-utils'
+import { trackPendingModules } from '../../app-render/module-loading/track-module-loading.external'
 
 export class WrappedNextRouterError {
   constructor(
@@ -214,10 +215,12 @@ export class AppRouteRouteModule extends RouteModule<
   constructor({
     userland,
     definition,
+    distDir,
+    projectDir,
     resolvedPagePath,
     nextConfigOutput,
   }: AppRouteRouteModuleOptions) {
-    super({ userland, definition })
+    super({ userland, definition, distDir, projectDir })
 
     this.resolvedPagePath = resolvedPagePath
     this.nextConfigOutput = nextConfigOutput
@@ -439,6 +442,8 @@ export class AppRouteRouteModule extends RouteModule<
               }
             )
           }
+
+          trackPendingModules(cacheSignal)
           await cacheSignal.cacheReady()
 
           if (prospectiveRenderIsDynamic) {
@@ -1127,7 +1132,7 @@ function createDynamicIOError(route: string) {
   )
 }
 
-export function trackDynamic(
+function trackDynamic(
   store: WorkStore,
   workUnitStore: undefined | WorkUnitStore,
   expression: string

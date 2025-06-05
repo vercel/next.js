@@ -6,9 +6,9 @@
 const { createFromReadableStream } = (
   !!process.env.NEXT_RUNTIME
     ? // eslint-disable-next-line import/no-extraneous-dependencies
-      require('react-server-dom-webpack/client.edge')
+      (require('react-server-dom-webpack/client.edge') as typeof import('react-server-dom-webpack/client.edge'))
     : // eslint-disable-next-line import/no-extraneous-dependencies
-      require('react-server-dom-webpack/client')
+      (require('react-server-dom-webpack/client') as typeof import('react-server-dom-webpack/client'))
 ) as typeof import('react-server-dom-webpack/client')
 
 import type {
@@ -187,9 +187,13 @@ export async function fetchServerResponse(
     const contentType = res.headers.get('content-type') || ''
     const interception = !!res.headers.get('vary')?.includes(NEXT_URL)
     const postponed = !!res.headers.get(NEXT_DID_POSTPONE_HEADER)
-    const staleTimeHeader = res.headers.get(NEXT_ROUTER_STALE_TIME_HEADER)
+    const staleTimeHeaderSeconds = res.headers.get(
+      NEXT_ROUTER_STALE_TIME_HEADER
+    )
     const staleTime =
-      staleTimeHeader !== null ? parseInt(staleTimeHeader, 10) : -1
+      staleTimeHeaderSeconds !== null
+        ? parseInt(staleTimeHeaderSeconds, 10) * 1000
+        : -1
     let isFlightResponse = contentType.startsWith(RSC_CONTENT_TYPE_HEADER)
 
     if (process.env.NODE_ENV === 'production') {
@@ -216,7 +220,9 @@ export async function fetchServerResponse(
     // In dev, the Webpack runtime is minimal for each page.
     // We need to ensure the Webpack runtime is updated before executing client-side JS of the new page.
     if (process.env.NODE_ENV !== 'production' && !process.env.TURBOPACK) {
-      await require('../react-dev-overlay/app/hot-reloader-client').waitForWebpackRuntimeHotUpdate()
+      await (
+        require('../react-dev-overlay/app/hot-reloader-client') as typeof import('../react-dev-overlay/app/hot-reloader-client')
+      ).waitForWebpackRuntimeHotUpdate()
     }
 
     // Handle the `fetch` readable stream that can be unwrapped by `React.use`.

@@ -62,7 +62,7 @@ const url = require('url') as typeof import('url')
 const fs = require('fs/promises') as typeof import('fs/promises')
 
 const moduleFactories: ModuleFactories = Object.create(null)
-const moduleCache: ModuleCache<ModuleWithDirection> = Object.create(null)
+const moduleCache: ModuleCache<Module> = Object.create(null)
 
 /**
  * Returns an absolute path to the given module's id.
@@ -213,10 +213,7 @@ function getWorkerBlobURL(_chunks: ChunkPath[]): string {
   throw new Error('Worker blobs are not implemented yet for Node.js')
 }
 
-function instantiateModule(
-  id: ModuleId,
-  source: SourceInfo
-): ModuleWithDirection {
+function instantiateModule(id: ModuleId, source: SourceInfo): Module {
   const moduleFactory = moduleFactories[id]
   if (typeof moduleFactory !== 'function') {
     // This can happen if modules incorrectly handle HMR disposes/updates,
@@ -252,13 +249,11 @@ function instantiateModule(
       invariant(source, (source) => `Unknown source type: ${source?.type}`)
   }
 
-  const module: ModuleWithDirection = {
+  const module: Module = {
     exports: {},
     error: undefined,
     loaded: false,
     id,
-    parents,
-    children: [],
     namespaceObject: undefined,
   }
   moduleCache[id] = module
@@ -289,16 +284,11 @@ function instantiateModule(
       }),
       w: loadWebAssembly,
       u: loadWebAssemblyModule,
-      g: globalThis,
       P: resolveAbsolutePath,
       U: relativeURL,
       R: createResolvePathFromModule(r),
       b: getWorkerBlobURL,
       z: requireStub,
-      __dirname:
-        typeof module.id === 'string'
-          ? module.id.replace(/(^|\/)\/+$/, '')
-          : module.id,
     })
   } catch (error) {
     module.error = error as any
@@ -320,19 +310,11 @@ function instantiateModule(
 // @ts-ignore
 function getOrInstantiateModuleFromParent(
   id: ModuleId,
-  sourceModule: ModuleWithDirection
-): ModuleWithDirection {
+  sourceModule: Module
+): Module {
   const module = moduleCache[id]
 
-  if (sourceModule.children.indexOf(id) === -1) {
-    sourceModule.children.push(id)
-  }
-
   if (module) {
-    if (module.parents.indexOf(sourceModule.id) === -1) {
-      module.parents.push(sourceModule.id)
-    }
-
     return module
   }
 

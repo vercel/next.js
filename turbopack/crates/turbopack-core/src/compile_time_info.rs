@@ -1,6 +1,7 @@
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ResolvedVc, Vc};
+use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::environment::Environment;
@@ -200,6 +201,14 @@ impl CompileTimeDefines {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
+pub enum InputRelativeConstant {
+    // The project relative directory name of the source file
+    DirName,
+    // The project relative file name of the source file.
+    FileName,
+}
+
 #[turbo_tasks::value]
 #[derive(Debug, Clone)]
 pub enum FreeVarReference {
@@ -211,6 +220,7 @@ pub enum FreeVarReference {
     Ident(RcStr),
     Member(RcStr, RcStr),
     Value(CompileTimeDefineValue),
+    InputRelative(InputRelativeConstant),
     Error(RcStr),
 }
 

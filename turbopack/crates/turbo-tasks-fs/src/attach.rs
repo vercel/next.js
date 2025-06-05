@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 
@@ -156,7 +156,7 @@ impl ValueToString for AttachedFileSystem {
         let root_fs_str = self.root_fs.to_string().await?;
         let child_fs_str = self.child_fs.to_string().await?;
         Ok(Vc::cell(
-            format!("{}-with-{}", root_fs_str, child_fs_str).into(),
+            format!("{root_fs_str}-with-{child_fs_str}").into(),
         ))
     }
 }

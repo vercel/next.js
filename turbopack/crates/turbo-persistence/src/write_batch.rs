@@ -4,11 +4,11 @@ use std::{
     io::Write,
     mem::{replace, take},
     path::PathBuf,
-    sync::atomic::{AtomicU32, Ordering},
+    sync::atomic::{AtomicU32, AtomicU64, Ordering},
 };
 
 use anyhow::{Context, Result};
-use byteorder::{WriteBytesExt, BE};
+use byteorder::{BE, WriteBytesExt};
 use lzzzz::lz4::{self, ACC_LEVEL_DEFAULT};
 use parking_lot::Mutex;
 use rayon::{
@@ -20,12 +20,13 @@ use thread_local::ThreadLocal;
 use tracing::Span;
 
 use crate::{
+    ValueBuffer,
     collector::Collector,
     collector_entry::CollectorEntry,
     constants::{MAX_MEDIUM_VALUE_SIZE, THREAD_LOCAL_SIZE_SHIFT},
     key::StoreKey,
-    static_sorted_file_builder::StaticSortedFileBuilder,
-    ValueBuffer,
+    meta_file_builder::MetaFileBuilder,
+    static_sorted_file_builder::{StaticSortedFileBuilder, StaticSortedFileBuilderMeta},
 };
 
 /// The thread local state of a `WriteBatch`. `FAMILIES` should fit within a `u32`.
@@ -49,9 +50,13 @@ const COLLECTOR_SHARD_SHIFT: usize =
 pub(crate) struct FinishResult {
     pub(crate) sequence_number: u32,
     /// Tuple of (sequence number, file).
+    pub(crate) new_meta_files: Vec<(u32, File)>,
+    /// Tuple of (sequence number, file).
     pub(crate) new_sst_files: Vec<(u32, File)>,
     /// Tuple of (sequence number, file).
     pub(crate) new_blob_files: Vec<(u32, File)>,
+    /// Number of keys written in this batch.
+    pub(crate) keys_written: u64,
 }
 
 enum GlobalCollectorState<K: StoreKey + Send> {
@@ -65,13 +70,15 @@ enum GlobalCollectorState<K: StoreKey + Send> {
 /// A write batch.
 pub struct WriteBatch<K: StoreKey + Send, const FAMILIES: usize> {
     /// The database path
-    path: PathBuf,
+    db_path: PathBuf,
     /// The current sequence number counter. Increased for every new SST file or blob file.
     current_sequence_number: AtomicU32,
     /// The thread local state.
     thread_locals: ThreadLocal<SyncUnsafeCell<ThreadLocalState<K, FAMILIES>>>,
     /// Collectors in use. The thread local collectors flush into these when they are full.
     collectors: [Mutex<GlobalCollectorState<K>>; FAMILIES],
+    /// Meta file builders for each family.
+    meta_collectors: [Mutex<Vec<(u32, StaticSortedFileBuilderMeta)>>; FAMILIES],
     /// The list of new SST files that have been created.
     /// Tuple of (sequence number, file).
     new_sst_files: Mutex<Vec<(u32, File)>>,
@@ -88,11 +95,12 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
             assert!(FAMILIES <= usize_from_u32(u32::MAX));
         };
         Self {
-            path,
+            db_path: path,
             current_sequence_number: AtomicU32::new(current),
             thread_locals: ThreadLocal::new(),
             collectors: [(); FAMILIES]
                 .map(|_| Mutex::new(GlobalCollectorState::Unsharded(Collector::new()))),
+            meta_collectors: [(); FAMILIES].map(|_| Mutex::new(Vec::new())),
             new_sst_files: Mutex::new(Vec::new()),
             idle_collectors: Mutex::new(Vec::new()),
             idle_thread_local_collectors: Mutex::new(Vec::new()),
@@ -138,6 +146,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
         Ok(collector)
     }
 
+    #[tracing::instrument(level = "trace", skip(self, collector))]
     fn flush_thread_local_collector(
         &self,
         family: u32,
@@ -235,15 +244,16 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
     ///
     /// Caller must ensure that no concurrent put or delete operation is happening on the flushed
     /// family.
+    #[tracing::instrument(level = "trace", skip(self))]
     pub unsafe fn flush(&self, family: u32) -> Result<()> {
         // Flush the thread local collectors to the global collector.
         let mut collectors = Vec::new();
         for cell in self.thread_locals.iter() {
             let state = unsafe { &mut *cell.get() };
-            if let Some(collector) = state.collectors[usize_from_u32(family)].take() {
-                if !collector.is_empty() {
-                    collectors.push(collector);
-                }
+            if let Some(collector) = state.collectors[usize_from_u32(family)].take()
+                && !collector.is_empty()
+            {
+                collectors.push(collector);
             }
         }
 
@@ -290,21 +300,23 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
 
     /// Finishes the write batch by returning the new sequence number and the new SST files. This
     /// writes all outstanding thread local data to disk.
+    #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn finish(&mut self) -> Result<FinishResult> {
         let mut new_blob_files = Vec::new();
         let shared_error = Mutex::new(Ok(()));
 
         // First, we flush all thread local collectors to the global collectors.
         scope(|scope| {
+            let _span = tracing::trace_span!("flush thread local collectors").entered();
             let mut collectors = [const { Vec::new() }; FAMILIES];
             for cell in self.thread_locals.iter_mut() {
                 let state = cell.get_mut();
                 new_blob_files.append(&mut state.new_blob_files);
                 for (family, thread_local_collector) in state.collectors.iter_mut().enumerate() {
-                    if let Some(collector) = thread_local_collector.take() {
-                        if !collector.is_empty() {
-                            collectors[family].push(collector);
-                        }
+                    if let Some(collector) = thread_local_collector.take()
+                        && !collector.is_empty()
+                    {
+                        collectors[family].push(collector);
                     }
                 }
             }
@@ -312,7 +324,9 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
                 for mut collector in thread_local_collectors {
                     let this = &self;
                     let shared_error = &shared_error;
+                    let span = Span::current();
                     scope.spawn(move |_| {
+                        let _span = span.entered();
                         if let Err(err) =
                             this.flush_thread_local_collector(family as u32, &mut collector)
                         {
@@ -324,6 +338,8 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
             }
         });
 
+        let _span = tracing::trace_span!("flush collectors").entered();
+
         // Now we reduce the global collectors in parallel
         let mut new_sst_files = take(self.new_sst_files.get_mut());
         let shared_new_sst_files = Mutex::new(&mut new_sst_files);
@@ -331,6 +347,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
         let new_collectors = [(); FAMILIES]
             .map(|_| Mutex::new(GlobalCollectorState::Unsharded(self.get_new_collector())));
         let collectors = replace(&mut self.collectors, new_collectors);
+        let span = Span::current();
         collectors
             .into_par_iter()
             .enumerate()
@@ -348,6 +365,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
                 }
             })
             .try_for_each(|(family, mut collector)| {
+                let _span = span.clone().entered();
                 let family = family as u32;
                 if !collector.is_empty() {
                     let sst = self.create_sst_file(family, collector.sorted())?;
@@ -359,17 +377,45 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
             })?;
 
         shared_error.into_inner()?;
+
+        // Not we need to write the new meta files.
+        let new_meta_collectors = [(); FAMILIES].map(|_| Mutex::new(Vec::new()));
+        let meta_collectors = replace(&mut self.meta_collectors, new_meta_collectors);
+        let keys_written = AtomicU64::new(0);
+        let new_meta_files = meta_collectors
+            .into_par_iter()
+            .map(|mutex| mutex.into_inner())
+            .enumerate()
+            .filter(|(_, sst_files)| !sst_files.is_empty())
+            .map(|(family, sst_files)| {
+                let family = family as u32;
+                let mut entries = 0;
+                let mut builder = MetaFileBuilder::new(family);
+                for (seq, sst) in sst_files {
+                    entries += sst.entries;
+                    builder.add(seq, sst);
+                }
+                keys_written.fetch_add(entries, Ordering::Relaxed);
+                let seq = self.current_sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
+                let file = builder.write(&self.db_path, seq)?;
+                Ok((seq, file))
+            })
+            .collect::<Result<Vec<_>>>()?;
+
+        // Finally we return the new files and sequence number.
         let seq = self.current_sequence_number.load(Ordering::SeqCst);
-        new_sst_files.sort_unstable_by_key(|(seq, _)| *seq);
         Ok(FinishResult {
             sequence_number: seq,
+            new_meta_files,
             new_sst_files,
             new_blob_files,
+            keys_written: keys_written.into_inner(),
         })
     }
 
     /// Creates a new blob file with the given value.
     /// Returns a tuple of (sequence number, file).
+    #[tracing::instrument(level = "trace", skip(self, value), fields(value_len = value.len()))]
     fn create_blob(&self, value: &[u8]) -> Result<(u32, File)> {
         let seq = self.current_sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
         let mut buffer = Vec::new();
@@ -377,7 +423,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
         lz4::compress_to_vec(value, &mut buffer, ACC_LEVEL_DEFAULT)
             .context("Compression of value for blob file failed")?;
 
-        let file = self.path.join(format!("{:08}.blob", seq));
+        let file = self.db_path.join(format!("{seq:08}.blob"));
         let mut file = File::create(&file).context("Unable to create blob file")?;
         file.write_all(&buffer)
             .context("Unable to write blob file")?;
@@ -387,6 +433,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
 
     /// Creates a new SST file with the given collector data.
     /// Returns a tuple of (sequence number, file).
+    #[tracing::instrument(level = "trace", skip(self, collector_data))]
     fn create_sst_file(
         &self,
         family: u32,
@@ -395,13 +442,12 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
         let (entries, total_key_size, total_value_size) = collector_data;
         let seq = self.current_sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
 
-        let builder =
-            StaticSortedFileBuilder::new(family, entries, total_key_size, total_value_size)?;
+        let builder = StaticSortedFileBuilder::new(entries, total_key_size, total_value_size)?;
 
-        let path = self.path.join(format!("{:08}.sst", seq));
-        let file = builder
+        let path = self.db_path.join(format!("{seq:08}.sst"));
+        let (meta, file) = builder
             .write(&path)
-            .with_context(|| format!("Unable to write SST file {:08}.sst", seq))?;
+            .with_context(|| format!("Unable to write SST file {seq:08}.sst"))?;
 
         #[cfg(feature = "verify_sst_content")]
         {
@@ -410,19 +456,23 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
             use crate::{
                 collector_entry::CollectorEntryValue,
                 key::hash_key,
-                static_sorted_file::{AqmfCache, BlockCache, LookupResult, StaticSortedFile},
+                lookup_entry::LookupValue,
+                static_sorted_file::{
+                    BlockCache, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData,
+                },
                 static_sorted_file_builder::Entry,
             };
 
             file.sync_all()?;
-            let sst = StaticSortedFile::open(seq, path)?;
-            let cache1 = AqmfCache::with(
-                10,
-                u64::MAX,
-                Default::default(),
-                Default::default(),
-                Default::default(),
-            );
+            let sst = StaticSortedFile::open(
+                &self.db_path,
+                StaticSortedFileMetaData {
+                    sequence_number: seq,
+                    key_compression_dictionary_length: meta.key_compression_dictionary_length,
+                    value_compression_dictionary_length: meta.value_compression_dictionary_length,
+                    block_count: meta.block_count,
+                },
+            )?;
             let cache2 = BlockCache::with(
                 10,
                 u64::MAX,
@@ -441,21 +491,14 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
             for entry in entries {
                 entry.write_key_to(&mut key_buf);
                 let result = sst
-                    .lookup(
-                        family,
-                        hash_key(&key_buf),
-                        &key_buf,
-                        &cache1,
-                        &cache2,
-                        &cache3,
-                    )
+                    .lookup(hash_key(&key_buf), &key_buf, &cache2, &cache3)
                     .expect("key found");
                 key_buf.clear();
                 match result {
-                    LookupResult::Deleted => {}
-                    LookupResult::Slice {
+                    SstLookupResult::Found(LookupValue::Deleted) => {}
+                    SstLookupResult::Found(LookupValue::Slice {
                         value: lookup_value,
-                    } => {
+                    }) => {
                         let expected_value_slice = match &entry.value {
                             CollectorEntryValue::Small { value } => &**value,
                             CollectorEntryValue::Medium { value } => &**value,
@@ -463,13 +506,15 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
                         };
                         assert_eq!(*lookup_value, *expected_value_slice);
                     }
-                    LookupResult::Blob { sequence_number: _ } => {}
-                    LookupResult::QuickFilterMiss => panic!("aqmf must include"),
-                    LookupResult::RangeMiss => panic!("Index must cover"),
-                    LookupResult::KeyMiss => panic!("All keys must exist"),
+                    SstLookupResult::Found(LookupValue::Blob { sequence_number: _ }) => {}
+                    SstLookupResult::NotFound => panic!("All keys must exist"),
                 }
             }
         }
+
+        self.meta_collectors[usize_from_u32(family)]
+            .lock()
+            .push((seq, meta));
 
         Ok((seq, file))
     }

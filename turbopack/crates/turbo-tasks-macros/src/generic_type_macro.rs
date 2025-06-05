@@ -1,8 +1,8 @@
 use proc_macro::TokenStream;
 use quote::quote;
 use rustc_hash::FxHashSet;
-use syn::{parse_macro_input, spanned::Spanned, visit_mut::VisitMut, GenericParam, Lifetime, Type};
-use turbo_tasks_macros_shared::{get_type_ident, GenericTypeInput};
+use syn::{GenericParam, Lifetime, Type, parse_macro_input, spanned::Spanned, visit_mut::VisitMut};
+use turbo_tasks_macros_shared::{GenericTypeInput, get_type_ident};
 
 use crate::value_macro::value_type_and_register;
 
@@ -111,18 +111,17 @@ struct ReplaceGenericsVisitor<'a> {
 
 impl VisitMut for ReplaceGenericsVisitor<'_> {
     fn visit_type_mut(&mut self, node: &mut Type) {
-        if let Type::Path(type_path) = node {
-            if type_path.qself.is_none()
-                && type_path.path.segments.len() == 1
-                && type_path.path.segments[0].arguments.is_none()
-                && self
-                    .generics
-                    .contains(&type_path.path.segments[0].ident.to_string())
-            {
-                // Replace the whole path with ()
-                *node = syn::parse_quote! { () };
-                return;
-            }
+        if let Type::Path(type_path) = node
+            && type_path.qself.is_none()
+            && type_path.path.segments.len() == 1
+            && type_path.path.segments[0].arguments.is_none()
+            && self
+                .generics
+                .contains(&type_path.path.segments[0].ident.to_string())
+        {
+            // Replace the whole path with ()
+            *node = syn::parse_quote! { () };
+            return;
         }
 
         syn::visit_mut::visit_type_mut(self, node);

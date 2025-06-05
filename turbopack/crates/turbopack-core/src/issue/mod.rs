@@ -5,19 +5,19 @@ pub mod resolve;
 
 use std::{
     borrow::Cow,
-    cmp::{min, Ordering},
+    cmp::{Ordering, min},
     fmt::{Display, Formatter},
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use auto_hash_map::AutoSet;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    emit, trace::TraceRawVcs, CollectiblesSource, NonLocalValue, OperationVc, RawVc, ReadRef,
-    ResolvedVc, TaskInput, TransientInstance, TransientValue, TryJoinIterExt, Upcast,
-    ValueToString, Vc,
+    CollectiblesSource, NonLocalValue, OperationVc, RawVc, ReadRef, ResolvedVc, TaskInput,
+    TransientInstance, TransientValue, TryJoinIterExt, Upcast, ValueToString, Vc, emit,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileContent, FileLine, FileLinesContent, FileSystemPath};
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
@@ -148,10 +148,6 @@ pub trait Issue {
         Vc::cell(None)
     }
 
-    fn sub_issues(self: Vc<Self>) -> Vc<Issues> {
-        Vc::cell(Vec::new())
-    }
-
     async fn into_plain(
         self: Vc<Self>,
         processing_path: Vc<OptionIssueProcessingPathItems>,
@@ -180,15 +176,6 @@ pub trait Issue {
                     None
                 }
             },
-            sub_issues: self
-                .sub_issues()
-                .await?
-                .iter()
-                .map(|i| async move {
-                    anyhow::Ok(i.into_plain(OptionIssueProcessingPathItems::none()).await?)
-                })
-                .try_join()
-                .await?,
             processing_path: processing_path.into_plain().await?,
         }
         .cell())
@@ -672,7 +659,7 @@ impl Display for IssueStage {
             IssueStage::Unsupported => write!(f, "unsupported"),
             IssueStage::AppStructure => write!(f, "app structure"),
             IssueStage::Misc => write!(f, "misc"),
-            IssueStage::Other(s) => write!(f, "{}", s),
+            IssueStage::Other(s) => write!(f, "{s}"),
         }
     }
 }
@@ -691,7 +678,6 @@ pub struct PlainIssue {
     pub documentation_link: RcStr,
 
     pub source: Option<PlainIssueSource>,
-    pub sub_issues: Vec<ReadRef<PlainIssue>>,
     pub processing_path: ReadRef<PlainIssueProcessingPath>,
 }
 
@@ -714,11 +700,6 @@ fn hash_plain_issue(issue: &PlainIssue, hasher: &mut Xxh3Hash64Hasher, full: boo
     }
 
     if full {
-        hasher.write_value(issue.sub_issues.len());
-        for i in &issue.sub_issues {
-            hash_plain_issue(i, hasher, full);
-        }
-
         hasher.write_ref(&issue.processing_path);
     }
 }

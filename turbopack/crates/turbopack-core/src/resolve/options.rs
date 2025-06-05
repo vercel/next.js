@@ -1,21 +1,21 @@
 use std::{collections::BTreeMap, future::Future, pin::Pin};
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexSet, NonLocalValue, ResolvedVc,
-    TryJoinIterExt, Value, ValueToString, Vc,
+    FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs,
 };
-use turbo_tasks_fs::{glob::Glob, FileSystemPath};
+use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 
 use super::{
+    AliasPattern, ExternalType, ResolveResult, ResolveResultItem,
     alias_map::{AliasMap, AliasTemplate},
     pattern::Pattern,
     plugin::BeforeResolvePlugin,
-    AliasPattern, ExternalType, ResolveResult, ResolveResultItem,
 };
-use crate::resolve::{parse::Request, plugin::AfterResolvePlugin, ExternalTraced};
+use crate::resolve::{ExternalTraced, parse::Request, plugin::AfterResolvePlugin};
 
 #[turbo_tasks::value(shared)]
 #[derive(Hash, Debug)]
@@ -463,9 +463,9 @@ impl ValueToString for ImportMapResult {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<Vc<RcStr>> {
         match self {
-            ImportMapResult::Result(_) => Ok(Vc::cell("Resolved by import map".into())),
-            ImportMapResult::External(_, _, _) => Ok(Vc::cell("TODO external".into())),
-            ImportMapResult::AliasExternal { .. } => Ok(Vc::cell("TODO external".into())),
+            ImportMapResult::Result(_) => Ok(Vc::cell(rcstr!("Resolved by import map"))),
+            ImportMapResult::External(_, _, _) => Ok(Vc::cell(rcstr!("TODO external"))),
+            ImportMapResult::AliasExternal { .. } => Ok(Vc::cell(rcstr!("TODO external"))),
             ImportMapResult::Alias(request, context) => {
                 let s = if let Some(path) = context {
                     let path = path.to_string().await?;
@@ -491,7 +491,7 @@ impl ValueToString for ImportMapResult {
                     .collect::<Vec<_>>();
                 Ok(Vc::cell(strings.join(" | ").into()))
             }
-            ImportMapResult::NoEntry => Ok(Vc::cell("No import map entry".into())),
+            ImportMapResult::NoEntry => Ok(Vc::cell(rcstr!("No import map entry"))),
         }
     }
 }
@@ -556,16 +556,16 @@ impl ResolvedMap {
         let resolved = resolved.await?;
         for (root, glob, mapping) in self.by_glob.iter() {
             let root = root.await?;
-            if let Some(path) = root.get_path_to(&resolved) {
-                if glob.await?.execute(path) {
-                    return Ok(import_mapping_to_result(
-                        *mapping.convert().await?,
-                        lookup_path,
-                        request,
-                    )
-                    .await?
-                    .into());
-                }
+            if let Some(path) = root.get_path_to(&resolved)
+                && glob.await?.matches(path)
+            {
+                return Ok(import_mapping_to_result(
+                    *mapping.convert().await?,
+                    lookup_path,
+                    request,
+                )
+                .await?
+                .into());
             }
         }
         Ok(ImportMapResult::NoEntry.into())
@@ -597,7 +597,7 @@ pub struct ResolveOptions {
     pub fallback_import_map: Option<ResolvedVc<ImportMap>>,
     pub resolved_map: Option<ResolvedVc<ResolvedMap>>,
     pub before_resolve_plugins: Vec<ResolvedVc<Box<dyn BeforeResolvePlugin>>>,
-    pub plugins: Vec<ResolvedVc<Box<dyn AfterResolvePlugin>>>,
+    pub after_resolve_plugins: Vec<ResolvedVc<Box<dyn AfterResolvePlugin>>>,
     /// Support resolving *.js requests to *.ts files
     pub enable_typescript_with_output_extension: bool,
     /// Warn instead of error for resolve errors

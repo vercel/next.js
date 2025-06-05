@@ -3,19 +3,19 @@ use lazy_static::lazy_static;
 use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Value, Vc};
-use turbo_tasks_fs::{glob::Glob, FileSystemPath};
+use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 use turbopack_core::{
     diagnostics::DiagnosticExt,
     file_source::FileSource,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     reference_type::ReferenceType,
     resolve::{
+        ExternalTraced, ExternalType, ResolveResult, ResolveResultItem, ResolveResultOption,
         parse::Request,
         plugin::{
             AfterResolvePlugin, AfterResolvePluginCondition, BeforeResolvePlugin,
             BeforeResolvePluginCondition,
         },
-        ExternalTraced, ExternalType, ResolveResult, ResolveResultItem, ResolveResultOption,
     },
 };
 
@@ -85,7 +85,7 @@ impl Issue for InvalidImportModuleIssue {
             StyledString::Line(
                 messages
                     .iter()
-                    .map(|v| StyledString::Text(format!("{}\n", v).into()))
+                    .map(|v| StyledString::Text(format!("{v}\n").into()))
                     .collect::<Vec<StyledString>>(),
             )
             .resolved_cell(),
@@ -132,7 +132,7 @@ impl BeforeResolvePlugin for InvalidImportResolvePlugin {
     fn before_resolve(
         &self,
         lookup_path: ResolvedVc<FileSystemPath>,
-        _reference_type: Value<ReferenceType>,
+        _reference_type: ReferenceType,
         _request: Vc<Request>,
     ) -> Vc<ResolveResultOption> {
         InvalidImportModuleIssue {
@@ -231,7 +231,7 @@ impl AfterResolvePlugin for NextExternalResolvePlugin {
         &self,
         fs_path: Vc<FileSystemPath>,
         _lookup_path: Vc<FileSystemPath>,
-        _reference_type: Value<ReferenceType>,
+        _reference_type: ReferenceType,
         _request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
         let path = fs_path.await?.path.to_string();
@@ -289,7 +289,7 @@ impl AfterResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
         &self,
         fs_path: Vc<FileSystemPath>,
         _lookup_path: Vc<FileSystemPath>,
-        _reference_type: Value<ReferenceType>,
+        _reference_type: ReferenceType,
         _request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
         let stem = fs_path.file_stem().await?;
@@ -357,7 +357,7 @@ impl BeforeResolvePlugin for ModuleFeatureReportResolvePlugin {
     async fn before_resolve(
         &self,
         _lookup_path: Vc<FileSystemPath>,
-        _reference_type: Value<ReferenceType>,
+        _reference_type: ReferenceType,
         request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
         if let Request::Module {
@@ -374,7 +374,7 @@ impl BeforeResolvePlugin for ModuleFeatureReportResolvePlugin {
                     .find(|sub_path| path.is_match(sub_path));
 
                 if let Some(sub_path) = sub_path {
-                    ModuleFeatureTelemetry::new(format!("{}{}", module, sub_path).into(), 1)
+                    ModuleFeatureTelemetry::new(format!("{module}{sub_path}").into(), 1)
                         .resolved_cell()
                         .emit();
                 }
@@ -413,7 +413,7 @@ impl AfterResolvePlugin for NextSharedRuntimeResolvePlugin {
         &self,
         fs_path: Vc<FileSystemPath>,
         _lookup_path: Vc<FileSystemPath>,
-        _reference_type: Value<ReferenceType>,
+        _reference_type: ReferenceType,
         _request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
         let raw_fs_path = &*fs_path.await?;

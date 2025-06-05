@@ -1,13 +1,13 @@
 use std::{ops::Deref, sync::Arc};
 
 use anyhow::Result;
-use napi::{bindgen_prelude::External, JsFunction};
+use napi::{JsFunction, bindgen_prelude::External};
 use next_api::{
     operation::OptionEndpoint,
     paths::ServerPath,
     route::{
-        endpoint_client_changed_operation, endpoint_server_changed_operation,
-        endpoint_write_to_disk_operation, EndpointOutputPaths,
+        EndpointOutputPaths, endpoint_client_changed_operation, endpoint_server_changed_operation,
+        endpoint_write_to_disk_operation,
     },
 };
 use tracing::Instrument;
@@ -15,8 +15,8 @@ use turbo_tasks::{Completion, Effects, OperationVc, ReadRef, Vc};
 use turbopack_core::{diagnostics::PlainDiagnostic, error::PrettyPrintError, issue::PlainIssue};
 
 use super::utils::{
-    strongly_consistent_catch_collectables, subscribe, NapiDiagnostic, NapiIssue, RootTask,
-    TurbopackResult, VcArc,
+    NapiDiagnostic, NapiIssue, RootTask, TurbopackResult, VcArc,
+    strongly_consistent_catch_collectables, subscribe,
 };
 
 #[napi(object)]

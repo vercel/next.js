@@ -1,6 +1,6 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use swc_core::{common::DUMMY_SP, ecma::ast::Ident, quote};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
@@ -55,7 +55,7 @@ impl ValueToString for EcmascriptModulePartReference {
     async fn to_string(&self) -> Result<Vc<RcStr>> {
         Ok(match &self.part {
             Some(part) => Vc::cell(part.to_string().into()),
-            None => Vc::cell("module".into()),
+            None => Vc::cell(rcstr!("module")),
         })
     }
 }
@@ -102,7 +102,10 @@ impl ModuleReference for EcmascriptModulePartReference {
 impl ChunkableModuleReference for EcmascriptModulePartReference {
     #[turbo_tasks::function]
     fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::ParallelInheritAsync))
+        Vc::cell(Some(ChunkingType::Parallel {
+            inherit_async: true,
+            hoisted: true,
+        }))
     }
 }
 
