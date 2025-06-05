@@ -28,7 +28,7 @@ pub use self::{
     operation::{OperationValue, OperationVc},
     read::{ReadOwnedVcFuture, ReadVcFuture, VcDefaultRead, VcRead, VcTransparentRead},
     resolved::ResolvedVc,
-    traits::{Dynamic, TypedForInput, Upcast, VcValueTrait, VcValueType},
+    traits::{Dynamic, Upcast, VcValueTrait, VcValueType},
 };
 use crate::{
     CellId, RawVc, ResolveTypeError,

@@ -139,7 +139,7 @@ impl From<serde_json::Value> for CompileTimeDefineValue {
     }
 }
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
+#[turbo_tasks::value]
 #[derive(Debug, Clone, Hash)]
 pub enum DefineableNameSegment {
     Name(RcStr),

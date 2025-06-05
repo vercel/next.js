@@ -157,7 +157,7 @@ pub enum TreeShakingMode {
 #[turbo_tasks::value(transparent)]
 pub struct OptionTreeShaking(pub Option<TreeShakingMode>);
 
-#[turbo_tasks::value(shared, serialization = "auto_for_input")]
+#[turbo_tasks::value(shared)]
 #[derive(Hash, Debug, Default, Copy, Clone)]
 pub struct EcmascriptOptions {
     pub refresh: bool,
@@ -185,7 +185,7 @@ pub struct EcmascriptOptions {
     pub keep_last_successful_parse: bool,
 }
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
+#[turbo_tasks::value]
 #[derive(Hash, Debug, Copy, Clone, TaskInput)]
 pub enum EcmascriptModuleAssetType {
     /// Module with EcmaScript code
