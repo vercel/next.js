@@ -699,7 +699,7 @@ function assignDefaults(
     dset(result, ['turbopack', 'root'], result.outputFileTracingRoot)
   }
 
-  // use the closest lockfile as tracing root
+  // use the highest level lockfile as tracing root
   if (!result?.outputFileTracingRoot || !result?.turbopack?.root) {
     let rootDir = findRootDir(dir)
 
