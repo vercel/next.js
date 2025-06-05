@@ -125,20 +125,13 @@ async fn get_update_stream_item_operation(
         Ok(content) => content,
         Err(e) => {
             plain_issues.push(
-                PlainIssue::from_issue(
-                    Vc::upcast(
-                        FatalStreamIssue {
-                            resource,
-                            description: StyledString::Text(
-                                format!("{}", PrettyPrintError(&e)).into(),
-                            )
-                            .resolved_cell(),
-                        }
-                        .cell(),
-                    ),
-                    None,
-                    OptionIssueProcessingPathItems::none(),
-                )
+                FatalStreamIssue {
+                    resource,
+                    description: StyledString::Text(format!("{}", PrettyPrintError(&e)).into())
+                        .resolved_cell(),
+                }
+                .cell()
+                .into_plain(OptionIssueProcessingPathItems::none())
                 .await?,
             );
 

@@ -356,7 +356,6 @@ export interface NapiIssue {
   detail?: any
   source?: NapiIssueSource
   documentationLink: string
-  importTraces: any
 }
 export interface NapiIssueSource {
   source: NapiSource
