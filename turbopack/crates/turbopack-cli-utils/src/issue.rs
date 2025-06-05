@@ -176,7 +176,7 @@ pub fn format_issue(
         /// Returns the layer used by all items in the trace if it is unique.
         /// Returns None, if there are multiple different layers (or no layers)
         fn get_layer(items: &[PlainTraceItem]) -> Option<RcStr> {
-            let layer = items.first().map(|t| t.layer.clone()).flatten();
+            let layer = items.first().and_then(|t| t.layer.clone());
             for item in items.iter().skip(1) {
                 if item.layer != layer {
                     return None;
