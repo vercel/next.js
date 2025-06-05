@@ -110,7 +110,6 @@ import {
 } from '../telemetry/events'
 import type { EventBuildFeatureUsage } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
-import { hadUnsupportedValue } from './analysis/get-page-static-info'
 import {
   createPagesMapping,
   getStaticInfoIncludingLayouts,
@@ -1869,6 +1868,10 @@ export default async function build(
                     })
                   : undefined
 
+                if (staticInfo?.hadUnsupportedValue) {
+                  errorFromUnsupportedSegmentConfig()
+                }
+
                 // If there's any thing that would contribute to the functions
                 // configuration, we need to add it to the manifest.
                 if (
@@ -2183,13 +2186,6 @@ export default async function build(
             })
         )
 
-        if (hadUnsupportedValue) {
-          Log.error(
-            `Invalid config value exports detected, these can cause unexpected behavior from the configs not being applied. Please fix them to continue`
-          )
-          process.exit(1)
-        }
-
         const errorPageResult = await errorPageStaticResult
         const nonStaticErrorPage =
           (await errorPageHasCustomGetInitialProps) ||
@@ -2370,6 +2366,10 @@ export default async function build(
           isDev: false,
           page: 'middleware',
         })
+
+        if (staticInfo.hadUnsupportedValue) {
+          errorFromUnsupportedSegmentConfig()
+        }
 
         if (staticInfo.runtime === 'nodejs') {
           hasNodeMiddleware = true
@@ -3784,6 +3784,13 @@ export default async function build(
       })
     }
   }
+}
+
+function errorFromUnsupportedSegmentConfig(): never {
+  Log.error(
+    `Invalid segment configuration export detected. This can cause unexpected behavior from the configs not being applied. You should see the relevant failures in the logs above. Please fix them to continue.`
+  )
+  process.exit(1)
 }
 
 function warnAboutTurbopackBuilds(config?: NextConfigComplete) {
