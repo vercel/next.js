@@ -165,16 +165,16 @@ export function runErrorRecoveryHmrTest(nextConfig: {
 
     if (process.env.IS_TURBOPACK_TEST) {
       expect(source).toMatchInlineSnapshot(`
-         "./pages/hmr/about2.js (7:1)
-         Parsing ecmascript source code failed
-           5 |     div
-           6 |   )
-         > 7 | }
-             | ^
-           8 |
+       "./pages/hmr/about2.js (7:1)
+       Parsing ecmascript source code failed
+         5 |     div
+         6 |   )
+       > 7 | }
+           | ^
+         8 |
 
-         Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?"
-        `)
+       Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?"
+      `)
     } else if (process.env.NEXT_RSPACK) {
       expect(trimEndMultiline(source)).toMatchInlineSnapshot(`
          "./pages/hmr/about2.js
@@ -602,17 +602,26 @@ export function runErrorRecoveryHmrTest(nextConfig: {
       if (process.env.IS_TURBOPACK_TEST) {
         expect(next.normalizeTestDirContent(redboxSource))
           .toMatchInlineSnapshot(`
-           "./components/parse-error.js (3:1)
-           Parsing ecmascript source code failed
-             1 | This
-             2 | is
-           > 3 | }}}
-               | ^
-             4 | invalid
-             5 | js
+         "./components/parse-error.js (3:1)
+         Parsing ecmascript source code failed
+           1 | This
+           2 | is
+         > 3 | }}}
+             | ^
+           4 | invalid
+           5 | js
 
-           Expression expected"
-          `)
+         Expression expected
+
+         Example import traces:
+           client:
+             ./components/parse-error.js
+             ./pages/hmr/about9.js
+
+           ssr:
+             ./components/parse-error.js
+             ./pages/hmr/about9.js"
+        `)
       } else if (process.env.NEXT_RSPACK) {
         expect(trimEndMultiline(next.normalizeTestDirContent(redboxSource)))
           .toMatchInlineSnapshot(`
