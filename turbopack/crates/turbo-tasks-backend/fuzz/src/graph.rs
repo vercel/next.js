@@ -136,6 +136,7 @@ async fn run_task_child(from: u16, i: u8) -> Result<Vc<()>> {
     Ok(Vc::cell(()))
 }
 
+/// This removes all unused tasks and remaps references to have a continuous range.
 #[allow(dead_code, reason = "used to minimize the graph when crash found")]
 fn optimize(spec: Vec<TaskSpec>) -> Vec<TaskSpec> {
     let mut referenced = vec![false; spec.len()];

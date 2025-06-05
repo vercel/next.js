@@ -26,6 +26,7 @@ struct TasksSpec(Vec<TaskSpec>);
 
 #[tokio::test]
 async fn graph_bug() {
+    // see https://github.com/vercel/next.js/pull/79451
     run(&REGISTRATION, || async {
         let spec = vec![
             TaskSpec {
