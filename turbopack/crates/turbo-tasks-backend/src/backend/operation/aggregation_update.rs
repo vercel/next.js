@@ -338,16 +338,16 @@ impl AggregatedDataUpdate {
                     }
                     (!new.is_zero()).then_some(new)
                 });
-                if let Some((_, count)) = result.dirty_container_update.as_ref() {
-                    if count.get(session_id) < 0 {
-                        // When the current task is no longer dirty, we need to fire the
-                        // aggregate root events and do some cleanup
-                        if let Some(root_state) = get_mut!(task, Activeness) {
-                            root_state.all_clean_event.notify(usize::MAX);
-                            root_state.unset_active_until_clean();
-                            if root_state.is_empty() {
-                                task.remove(&CachedDataItemKey::Activeness {});
-                            }
+                if let Some((_, count)) = result.dirty_container_update.as_ref()
+                    && count.get(session_id) < 0
+                {
+                    // When the current task is no longer dirty, we need to fire the
+                    // aggregate root events and do some cleanup
+                    if let Some(root_state) = get_mut!(task, Activeness) {
+                        root_state.all_clean_event.notify(usize::MAX);
+                        root_state.unset_active_until_clean();
+                        if root_state.is_empty() {
+                            task.remove(&CachedDataItemKey::Activeness {});
                         }
                     }
                 }

@@ -181,14 +181,14 @@ async fn get_update_stream_item_operation(
             extend_issues(&mut plain_issues, peek_issues(proxy_result_op).await?);
 
             let from = from.get();
-            if let Some(from) = Vc::try_resolve_downcast_type::<ProxyResult>(from).await? {
-                if from.await? == proxy_result_value {
-                    return Ok(UpdateStreamItem::Found {
-                        update: Update::None.cell().await?,
-                        issues: plain_issues,
-                    }
-                    .cell());
+            if let Some(from) = Vc::try_resolve_downcast_type::<ProxyResult>(from).await?
+                && from.await? == proxy_result_value
+            {
+                return Ok(UpdateStreamItem::Found {
+                    update: Update::None.cell().await?,
+                    issues: plain_issues,
                 }
+                .cell());
             }
 
             Ok(UpdateStreamItem::Found {

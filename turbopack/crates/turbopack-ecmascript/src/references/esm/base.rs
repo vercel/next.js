@@ -204,22 +204,22 @@ impl ModuleReference for EsmAssetReference {
             }
         }
 
-        if let Request::Module { module, .. } = &*self.request.await? {
-            if module == TURBOPACK_PART_IMPORT_SOURCE {
-                if let Some(part) = &self.export_name {
-                    let module: ResolvedVc<crate::EcmascriptModuleAsset> =
-                        ResolvedVc::try_downcast_type(self.origin)
-                            .expect("EsmAssetReference origin should be a EcmascriptModuleAsset");
+        if let Request::Module { module, .. } = &*self.request.await?
+            && module == TURBOPACK_PART_IMPORT_SOURCE
+        {
+            if let Some(part) = &self.export_name {
+                let module: ResolvedVc<crate::EcmascriptModuleAsset> =
+                    ResolvedVc::try_downcast_type(self.origin)
+                        .expect("EsmAssetReference origin should be a EcmascriptModuleAsset");
 
-                    return Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
-                        EcmascriptModulePartAsset::select_part(*module, part.clone())
-                            .to_resolved()
-                            .await?,
-                    )));
-                }
-
-                bail!("export_name is required for part import")
+                return Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
+                    EcmascriptModulePartAsset::select_part(*module, part.clone())
+                        .to_resolved()
+                        .await?,
+                )));
             }
+
+            bail!("export_name is required for part import")
         }
 
         let result = esm_resolve(
@@ -233,16 +233,16 @@ impl ModuleReference for EsmAssetReference {
 
         if let Some(ModulePart::Export(export_name)) = &self.export_name {
             for &module in result.primary_modules().await? {
-                if let Some(module) = ResolvedVc::try_downcast(module) {
-                    if *is_export_missing(*module, export_name.clone()).await? {
-                        InvalidExport {
-                            export: export_name.clone(),
-                            module,
-                            source: self.issue_source.clone(),
-                        }
-                        .resolved_cell()
-                        .emit();
+                if let Some(module) = ResolvedVc::try_downcast(module)
+                    && *is_export_missing(*module, export_name.clone()).await?
+                {
+                    InvalidExport {
+                        export: export_name.clone(),
+                        module,
+                        source: self.issue_source.clone(),
                     }
+                    .resolved_cell()
+                    .emit();
                 }
             }
         }

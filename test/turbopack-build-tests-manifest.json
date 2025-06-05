@@ -2639,6 +2639,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/global-not-found/css/global-not-found-css.test.ts": {
+    "passed": [
+      "global-not-found - css should include css for global-not-found properly"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/global-not-found/metadata/metadata.test.ts": {
     "passed": [
       "global-not-found - metadata should render metadata of global-not-found for 404"
@@ -2967,6 +2976,7 @@
       "app dir - metadata dynamic routes icon image routes should render apple icon with dynamic routes",
       "app dir - metadata dynamic routes icon image routes should render icon with dynamic routes",
       "app dir - metadata dynamic routes robots.txt should handle robots.[ext] dynamic routes",
+      "app dir - metadata dynamic routes route segment config should generate dynamic route if dynamic config is force-dynamic",
       "app dir - metadata dynamic routes should generate unique path for image routes under group routes",
       "app dir - metadata dynamic routes should include default og font files in file trace",
       "app dir - metadata dynamic routes should inject dynamic metadata properly to head",
@@ -2989,8 +2999,7 @@
       "app dir - metadata dynamic routes social image routes should render og image with opengraph-image dynamic routes",
       "app dir - metadata dynamic routes social image routes should render og image with twitter-image dynamic routes",
       "app dir - metadata dynamic routes social image routes should support generate multi images with generateImageMetadata",
-      "app dir - metadata dynamic routes social image routes should support params as argument in dynamic routes",
-      "app dir - metadata dynamic routes route segment config should generate dynamic route if dynamic config is force-dynamic"
+      "app dir - metadata dynamic routes social image routes should support params as argument in dynamic routes"
     ],
     "failed": [],
     "pending": [],
@@ -4603,6 +4612,17 @@
       "ppr with suspense for /suspense/edge should eventually render the dynamic part",
       "ppr with suspense for /suspense/node should eventually render the dynamic part",
       "ppr without suspense for /no-suspense should immediately render the dynamic part"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/preferred-region/preferred-region.test.ts": {
+    "passed": [
+      "preferred-region should include preferredRegion in functions config manifest for nodejs runtime",
+      "preferred-region should return success from Edge API route",
+      "preferred-region should return success from Node.js API route"
     ],
     "failed": [],
     "pending": [],

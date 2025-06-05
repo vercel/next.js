@@ -1,6 +1,6 @@
 use indoc::formatdoc;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, Vc, fxindexmap};
+use turbo_tasks::{ResolvedVc, Vc, fxindexmap};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent, context::AssetContext, module::Module, reference_type::ReferenceType,
@@ -56,7 +56,7 @@ pub async fn wrap_edge_entry(
     asset_context
         .process(
             Vc::upcast(virtual_source),
-            Value::new(ReferenceType::Internal(ResolvedVc::cell(inner_assets))),
+            ReferenceType::Internal(ResolvedVc::cell(inner_assets)),
         )
         .module()
 }

@@ -1011,7 +1011,7 @@ async fn insert_next_shared_aliases(
 pub async fn get_next_package(context_directory: Vc<FileSystemPath>) -> Result<Vc<FileSystemPath>> {
     let result = resolve(
         context_directory,
-        Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)),
+        ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
         Request::parse(Value::new(Pattern::Constant(rcstr!("next/package.json")))),
         node_cjs_resolve_options(context_directory.root()),
     );

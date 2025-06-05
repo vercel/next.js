@@ -736,13 +736,12 @@ impl PageEndpoint {
         if matches!(
             *this.pages_project.project().next_mode().await?,
             NextMode::Development
-        ) {
-            if let Some(chunkable) = Vc::try_resolve_downcast(page_loader).await? {
-                return Ok(Vc::upcast(HmrEntryModule::new(
-                    AssetIdent::from_path(*this.page.await?.base_path),
-                    chunkable,
-                )));
-            }
+        ) && let Some(chunkable) = Vc::try_resolve_downcast(page_loader).await?
+        {
+            return Ok(Vc::upcast(HmrEntryModule::new(
+                AssetIdent::from_path(*this.page.await?.base_path),
+                chunkable,
+            )));
         }
         Ok(page_loader)
     }
@@ -876,19 +875,19 @@ impl PageEndpoint {
 
         let (reference_type, project_root, module_context, edge_module_context) = match this.ty {
             PageEndpointType::Html | PageEndpointType::SsrOnly => (
-                Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
+                ReferenceType::Entry(EntryReferenceSubType::Page),
                 this.pages_project.project().project_path(),
                 this.pages_project.ssr_module_context(),
                 this.pages_project.edge_ssr_module_context(),
             ),
             PageEndpointType::Data => (
-                Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
+                ReferenceType::Entry(EntryReferenceSubType::Page),
                 this.pages_project.project().project_path(),
                 this.pages_project.ssr_data_module_context(),
                 this.pages_project.edge_ssr_data_module_context(),
             ),
             PageEndpointType::Api => (
-                Value::new(ReferenceType::Entry(EntryReferenceSubType::PagesApi)),
+                ReferenceType::Entry(EntryReferenceSubType::PagesApi),
                 this.pages_project.project().project_path(),
                 this.pages_project.api_module_context(),
                 this.pages_project.edge_api_module_context(),
