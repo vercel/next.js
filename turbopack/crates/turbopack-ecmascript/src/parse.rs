@@ -129,7 +129,7 @@ pub fn generate_js_source_map(
     match input_map {
         Some(mut map) => {
             // TODO: Make this more efficient
-            map.adjust_mappings(new_mappings.into());
+            map.adjust_mappings(new_mappings);
 
             // TODO: Enable this when we have a way to handle the ignore list
             // add_default_ignore_list(&mut map);
