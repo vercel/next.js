@@ -736,13 +736,12 @@ impl PageEndpoint {
         if matches!(
             *this.pages_project.project().next_mode().await?,
             NextMode::Development
-        ) {
-            if let Some(chunkable) = Vc::try_resolve_downcast(page_loader).await? {
-                return Ok(Vc::upcast(HmrEntryModule::new(
-                    AssetIdent::from_path(*this.page.await?.base_path),
-                    chunkable,
-                )));
-            }
+        ) && let Some(chunkable) = Vc::try_resolve_downcast(page_loader).await?
+        {
+            return Ok(Vc::upcast(HmrEntryModule::new(
+                AssetIdent::from_path(*this.page.await?.base_path),
+                chunkable,
+            )));
         }
         Ok(page_loader)
     }

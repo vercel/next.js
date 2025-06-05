@@ -31,7 +31,6 @@
 #![feature(thread_local)]
 #![feature(try_trait_v2)]
 #![deny(unsafe_op_in_unsafe_fn)]
-#![feature(result_flattening)]
 #![feature(error_generic_member_access)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]

@@ -157,15 +157,13 @@ impl WorkerAssetReferenceCodeGen {
                                 item_id: Expr = item_id
                             );
 
-                            if let Some(opts) = args.get_mut(1) {
-                                if opts.spread.is_none(){
+                            if let Some(opts) = args.get_mut(1)
+                                && opts.spread.is_none(){
                                     *opts.expr = *quote_expr!(
                                         "{...$opts, type: undefined}",
                                         opts: Expr = (*opts.expr).take()
                                     );
                                 }
-
-                            }
                             return;
                         }
                         // These are SWC bugs: https://github.com/swc-project/swc/issues/5394

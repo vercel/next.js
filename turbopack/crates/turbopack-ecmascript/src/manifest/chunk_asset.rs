@@ -76,10 +76,9 @@ impl ManifestAsyncModule {
             let module_or_batch = batches.get_entry(inner_module).await?;
             if let Some(chunkable_module_or_batch) =
                 ChunkableModuleOrBatch::from_module_or_batch(module_or_batch)
+                && *chunk_items.get(chunkable_module_or_batch).await?
             {
-                if *chunk_items.get(chunkable_module_or_batch).await? {
-                    return Ok(Vc::cell(vec![]));
-                }
+                return Ok(Vc::cell(vec![]));
             }
         }
         Ok(this.chunking_context.chunk_group_assets(

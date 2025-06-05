@@ -90,10 +90,9 @@ async fn internal_assets_for_source_mapping(
     for asset in internal_assets.iter() {
         if let Some(generate_source_map) =
             ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(*asset)
+            && let Some(path) = intermediate_output_path.get_path_to(&*asset.path().await?)
         {
-            if let Some(path) = intermediate_output_path.get_path_to(&*asset.path().await?) {
-                internal_assets_for_source_mapping.insert(path.to_string(), generate_source_map);
-            }
+            internal_assets_for_source_mapping.insert(path.to_string(), generate_source_map);
         }
     }
     Ok(Vc::cell(internal_assets_for_source_mapping))

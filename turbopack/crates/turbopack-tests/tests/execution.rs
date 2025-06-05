@@ -282,11 +282,11 @@ async fn prepare_test(resource: RcStr) -> Result<Vc<PreparedTest>> {
     let options_file = path.join(rcstr!("options.json"));
 
     let mut options = TestOptions::default();
-    if matches!(*options_file.get_type().await?, FileSystemEntryType::File) {
-        if let FileContent::Content(content) = &*options_file.read().await? {
-            options =
-                serde_json::from_reader(content.read()).context("Unable to parse options.json")?;
-        }
+    if matches!(*options_file.get_type().await?, FileSystemEntryType::File)
+        && let FileContent::Content(content) = &*options_file.read().await?
+    {
+        options =
+            serde_json::from_reader(content.read()).context("Unable to parse options.json")?;
     }
 
     Ok(PreparedTest {

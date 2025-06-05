@@ -1327,12 +1327,11 @@ pub async fn find_context_file_or_package_key(
 ) -> Result<Vc<FindContextFileResult>> {
     let mut refs = Vec::new();
     let package_json_path = lookup_path.join(rcstr!("package.json"));
-    if let Some(package_json_path) = exists(package_json_path, &mut refs).await? {
-        if let Some(json) = &*read_package_json(*package_json_path).await? {
-            if json.get(&**package_key).is_some() {
-                return Ok(FindContextFileResult::Found(package_json_path, refs).into());
-            }
-        }
+    if let Some(package_json_path) = exists(package_json_path, &mut refs).await?
+        && let Some(json) = &*read_package_json(*package_json_path).await?
+        && json.get(&**package_key).is_some()
+    {
+        return Ok(FindContextFileResult::Found(package_json_path, refs).into());
     }
     for name in &*names.await? {
         let fs_path = lookup_path.join(name.clone());
@@ -1695,13 +1694,12 @@ async fn handle_after_resolve_plugins(
     ) -> Result<Option<Vc<ResolveResult>>> {
         for plugin in &options.await?.after_resolve_plugins {
             let after_resolve_condition = plugin.after_resolve_condition().resolve().await?;
-            if *after_resolve_condition.matches(path).await? {
-                if let Some(result) = *plugin
+            if *after_resolve_condition.matches(path).await?
+                && let Some(result) = *plugin
                     .after_resolve(path, lookup_path, reference_type.clone(), request)
                     .await?
-                {
-                    return Ok(Some(*result));
-                }
+            {
+                return Ok(Some(*result));
             }
         }
         Ok(None)
@@ -1804,10 +1802,10 @@ async fn resolve_internal_inline(
                     // would also match a request to "@emotion/core". Here, we follow what the
                     // Typescript resolution algorithm does in case an alias match
                     // doesn't resolve to anything: fall back to resolving the request normally.
-                    if let Some(result) = resolved_result {
-                        if !*result.is_unresolvable().await? {
-                            return Ok(result);
-                        }
+                    if let Some(result) = resolved_result
+                        && !*result.is_unresolvable().await?
+                    {
+                        return Ok(result);
                     }
                 }
             }
@@ -1873,8 +1871,8 @@ async fn resolve_internal_inline(
                 force_in_lookup_dir,
                 fragment,
             } => {
-                if !fragment.is_empty() {
-                    if let Ok(result) = resolve_relative_request(
+                if !fragment.is_empty()
+                    && let Ok(result) = resolve_relative_request(
                         lookup_path,
                         request,
                         options,
@@ -1885,9 +1883,8 @@ async fn resolve_internal_inline(
                         fragment.clone(),
                     )
                     .await
-                    {
-                        return Ok(result);
-                    }
+                {
+                    return Ok(result);
                 }
                 // Resolve without fragment
                 resolve_relative_request(
@@ -2069,23 +2066,23 @@ async fn resolve_internal_inline(
         };
 
         // Apply fallback import mappings if provided
-        if let Some(import_map) = &options_value.fallback_import_map {
-            if *result.is_unresolvable().await? {
-                let result = import_map.await?.lookup(lookup_path, request).await?;
-                let resolved_result = resolve_import_map_result(
-                    &result,
-                    lookup_path,
-                    lookup_path,
-                    request,
-                    options,
-                    request.query().owned().await?,
-                )
-                .await?;
-                if let Some(result) = resolved_result {
-                    if !*result.is_unresolvable().await? {
-                        return Ok(result);
-                    }
-                }
+        if let Some(import_map) = &options_value.fallback_import_map
+            && *result.is_unresolvable().await?
+        {
+            let result = import_map.await?.lookup(lookup_path, request).await?;
+            let resolved_result = resolve_import_map_result(
+                &result,
+                lookup_path,
+                lookup_path,
+                request,
+                options,
+                request.query().owned().await?,
+            )
+            .await?;
+            if let Some(result) = resolved_result
+                && !*result.is_unresolvable().await?
+            {
+                return Ok(result);
             }
         }
 
@@ -2106,38 +2103,38 @@ async fn resolve_into_folder(
     for resolve_into_package in options_value.into_package.iter() {
         match resolve_into_package {
             ResolveIntoPackage::MainField { field: name } => {
-                if let Some(package_json) = &*read_package_json(package_json_path).await? {
-                    if let Some(field_value) = package_json[name.as_str()].as_str() {
-                        let normalized_request: RcStr = normalize_request(field_value).into();
-                        if normalized_request.is_empty()
-                            || &*normalized_request == "."
-                            || &*normalized_request == "./"
-                        {
-                            continue;
-                        }
-                        let request = Request::parse(Value::new(normalized_request.into()))
-                            .to_resolved()
-                            .await?;
+                if let Some(package_json) = &*read_package_json(package_json_path).await?
+                    && let Some(field_value) = package_json[name.as_str()].as_str()
+                {
+                    let normalized_request: RcStr = normalize_request(field_value).into();
+                    if normalized_request.is_empty()
+                        || &*normalized_request == "."
+                        || &*normalized_request == "./"
+                    {
+                        continue;
+                    }
+                    let request = Request::parse(Value::new(normalized_request.into()))
+                        .to_resolved()
+                        .await?;
 
-                        // main field will always resolve not fully specified
-                        let options = if options_value.fully_specified {
-                            options.with_fully_specified(false).resolve().await?
-                        } else {
-                            options
-                        };
-                        let result = &*resolve_internal_inline(*package_path, *request, options)
-                            .await?
-                            .await?;
-                        // we are not that strict when a main field fails to resolve
-                        // we continue to try other alternatives
-                        if !result.is_unresolvable_ref() {
-                            let mut result: ResolveResultBuilder =
-                                result.with_request_ref(rcstr!(".")).into();
-                            result.affecting_sources.push(ResolvedVc::upcast(
-                                FileSource::new(package_json_path).to_resolved().await?,
-                            ));
-                            return Ok(ResolveResult::from(result).cell());
-                        }
+                    // main field will always resolve not fully specified
+                    let options = if options_value.fully_specified {
+                        options.with_fully_specified(false).resolve().await?
+                    } else {
+                        options
+                    };
+                    let result = &*resolve_internal_inline(*package_path, *request, options)
+                        .await?
+                        .await?;
+                    // we are not that strict when a main field fails to resolve
+                    // we continue to try other alternatives
+                    if !result.is_unresolvable_ref() {
+                        let mut result: ResolveResultBuilder =
+                            result.with_request_ref(rcstr!(".")).into();
+                        result.affecting_sources.push(ResolvedVc::upcast(
+                            FileSource::new(package_json_path).to_resolved().await?,
+                        ));
+                        return Ok(ResolveResult::from(result).cell());
                     }
                 };
             }
@@ -2490,16 +2487,15 @@ async fn find_self_reference(
     let package_json_context = find_context_file(lookup_path, package_json()).await?;
     if let FindContextFileResult::Found(package_json_path, _refs) = &*package_json_context {
         let read = read_package_json(**package_json_path).await?;
-        if let Some(json) = &*read {
-            if json.get("exports").is_some() {
-                if let Some(name) = json["name"].as_str() {
-                    return Ok(FindSelfReferencePackageResult::Found {
-                        name: name.to_string(),
-                        package_path: package_json_path.parent().to_resolved().await?,
-                    }
-                    .cell());
-                }
+        if let Some(json) = &*read
+            && json.get("exports").is_some()
+            && let Some(name) = json["name"].as_str()
+        {
+            return Ok(FindSelfReferencePackageResult::Found {
+                name: name.to_string(),
+                package_path: package_json_path.parent().to_resolved().await?,
             }
+            .cell());
         }
     }
     Ok(FindSelfReferencePackageResult::NotFound.cell())
@@ -2538,18 +2534,17 @@ async fn resolve_module_request(
     // fields/fallbacks.
     if let FindSelfReferencePackageResult::Found { name, package_path } =
         &*find_self_reference(lookup_path).await?
+        && name == module
     {
-        if name == module {
-            let result = resolve_into_package(
-                Value::new(path.clone()),
-                **package_path,
-                query.clone(),
-                fragment.clone(),
-                options,
-            );
-            if !(*result.is_unresolvable().await?) {
-                return Ok(result);
-            }
+        let result = resolve_into_package(
+            Value::new(path.clone()),
+            **package_path,
+            query.clone(),
+            fragment.clone(),
+            options,
+        );
+        if !(*result.is_unresolvable().await?) {
+            return Ok(result);
         }
     }
 
