@@ -218,8 +218,11 @@ export function formatIssue(issue: Issue) {
       const tracesAndLayers: Array<[string | undefined, PlainTraceItem[]]> =
         importTraces.map((trace) => [getLayer(trace), trace])
       const everyTraceHasADistinctLayer =
-        new Set(tracesAndLayers.map(([layer, _trace]) => layer).filter(Boolean))
-          .size === tracesAndLayers.length
+        new Set(
+          tracesAndLayers
+            .map(([layer, _trace]) => layer)
+            .filter((layer) => layer != null)
+        ).size === tracesAndLayers.length
       for (let i = 0; i < tracesAndLayers.length; i++) {
         const [layer, trace] = tracesAndLayers[i]
         if (everyTraceHasADistinctLayer) {

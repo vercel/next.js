@@ -167,7 +167,7 @@ impl DelegatingImportTracer {
         Ok(self
             .delegates
             .iter()
-            .map(|d| async move { d.get_traces(path).await })
+            .map(|d| d.get_traces(path))
             .try_join()
             .await?
             .iter()

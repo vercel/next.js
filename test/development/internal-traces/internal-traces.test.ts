@@ -8,7 +8,7 @@ describe('internal traces', () => {
 
   it('should not write long internal traces to stdio', async () => {
     await next.render$('/traces')
-    expect(next.cliOutput.length).toBeLessThan(256 * 1024 /* 128kb of ascii */)
+    expect(next.cliOutput.length).toBeLessThan(256 * 1024 /* 256KiB of ascii */)
     expect(next.cliOutput).not.toContain(
       'https://nextjs.org/docs/messages/large-page-data'
     )
