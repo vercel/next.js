@@ -1,0 +1,710 @@
+---
+title: How to use Next.js as a backend for your frontend
+nav_title: Backend
+description: Learn how to use Next.js as a backend framework
+related:
+  title: API Reference
+  description: Learn more about Route Handlers and Middleware
+  links:
+    - app/building-your-application/routing/route-handlers
+    - app/api-reference/file-conventions/route
+    - app/building-your-application/routing/middleware
+---
+
+With Next.js you can achieve a pattern known as "Backend for Frontend". This pattern makes it possible, to use the Next.js server to build publicly reachable endpoints, to receive any type of HTTP requests, and deliver any type of content, not just HTML. It is also possible to access other data sources, and update remote data, amon other side effects, within this backend for your frontend.
+
+Note that, a formal backend solution, does a lot more than what is outlined in this document. The backend capability of Next.js is not intended to replace these solutions, but rather, it exists to complement your application, by providing an API layer that:
+
+- is publicly reachable
+- handles any HTTP request
+- can serve any type of content
+
+To build this backend for your frontend, Next.js offers two tools:
+
+- Router Handlers
+- [`middleware`](/docs/app/api-reference/file-conventions/middleware)
+
+## Public Endpoints
+
+Route Handlers are HTTP endpoints, publicly available. Although these can be reached by any type of client.
+
+To restrict access to these endpoints, you have to implement authorization and authentication checks. Learn more about [Authentication]().
+
+To create a Route Handler, use the `route.ts` or `route.js`, [file convention](/app/api-reference/file-conventions/route).
+
+```ts filename="/app/api/route.ts" switcher
+export function GET(request: Request) {}
+```
+
+```js filename="/app/api/route.js" switcher
+export function GET(request) {}
+```
+
+This Route Handler can now receive `GET` request sent to `/api`.
+
+To improve observability of your Route Handlers, you should use `try/catch` blocks around operations that could potentially reject, or throw exceptions.
+
+```ts filename="/app/api/route.ts" switcher
+import { submit } from '@/lib/submit'
+
+export function POST(request: Request) {
+  try {
+    await submit(request)
+    return new Response(null, { status: 204 })
+  } catch (reason) {
+    const message =
+      reason instanceof Error ? reason.message : 'Unexpected error'
+
+    return new Response(message, { status: 500 })
+  }
+}
+```
+
+```js filename="/app/api/route.js" switcher
+import { submit } from '@/lib/submit'
+
+export function POST(request) {
+  try {
+    await submit(request)
+    return new Response(null, { status: 204 })
+  } catch (reason) {
+    const message =
+      reason instanceof Error ? reason.message : 'Unexpected error'
+
+    return new Response(message, { status: 500 })
+  }
+}
+```
+
+Make sure to redact sensitive data from error messages returned to the client.
+
+## Many Content Types
+
+Beyond serving HTML, applications often need to serve JSON, XML, Images, Files, Plain Text, and other content types.
+
+Next.js implements file conventions to serve commonly used endpoints to complement your application:
+
+- `sitemap.xml`
+- `opengraph-image.jpg` and `twitter-image`
+- favicon, icon and app icons
+- `manifest.json`
+- `robots.txt`
+
+In your application, there might be need for other types of files. Take for instance:
+
+- `llms.txt`
+- `rss.xml`
+- `.well-known` resources
+
+```ts filename="/app/rss.xml/route.ts" switcher
+export async function GET(request: Request) {
+  const rssResponse = await fetch(/* rss endpoint */)
+  const rssData = await rssResponse.json()
+
+  const rssFeed = `<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0">
+<channel>
+ <title>${rssData.title}</title>
+ <description>${rssData.description}</description>
+ <link>${rssData.link}</link>
+ <copyright>${rssData.copyright}</copyright>
+
+ ${rssData.items.map((item) => {
+   return `<item>
+    <title>${item.title}</title>
+    <description>${item.description}</description>
+    <link>${item.link}</link>
+    <pubDate>${item.publishDate}</pubDate>
+    <guid isPermaLink="false">${item.guid}</guid>
+ </item>`
+ })}
+</channel>
+</rss>`
+
+  const headers = new Headers({ 'content-type': 'application/xml' })
+
+  return new Response(rssFeed, { headers })
+}
+```
+
+```js filename="/app/rss.xml/route.js" switcher
+export async function GET(request) {
+  const rssResponse = await fetch(/* rss endpoint */)
+  const rssData = await rssResponse.json()
+
+  const rssFeed = `<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0">
+<channel>
+ <title>${rssData.title}</title>
+ <description>${rssData.description}</description>
+ <link>${rssData.link}</link>
+ <copyright>${rssData.copyright}</copyright>
+
+ ${rssData.items.map((item) => {
+   return `<item>
+    <title>${item.title}</title>
+    <description>${item.description}</description>
+    <link>${item.link}</link>
+    <pubDate>${item.publishDate}</pubDate>
+    <guid isPermaLink="false">${item.guid}</guid>
+ </item>`
+ })}
+</channel>
+</rss>`
+
+  const headers = new Headers({ 'content-type': 'application/xml' })
+
+  return new Response(rssFeed, { headers })
+}
+```
+
+Always try to sanitize inputs used to build mark-up.
+
+### Consuming request payload
+
+The Request Web API [exposes many asynchronous methods](https://developer.mozilla.org/en-US/docs/Web/API/Request#instance_methods) to access the body of a request.
+
+`GET` and `HEAD` requests do not carry a body payload.
+
+For most applications `.json()`, `.formData()`, and `.text()`, are sufficient.
+
+```ts filename="app/api/echo-body/route.ts" switcher
+export async function POST(request: Request) {
+  const res = await request.json()
+  return Response.json({ res })
+}
+```
+
+```js filename="app/api/echo-body/route.js" switcher
+export async function POST(request) {
+  const res = await request.json()
+  return Response.json({ res })
+}
+```
+
+Always add a validation step, before passing data to other systems.
+
+```ts filename="app/api/send-email/route.ts" switcher
+import { sendMail, validateInputs } from '@/lib/email-transporter'
+
+export async function POST(request: Request) {
+  const formData = await request.formData()
+  const email = formData.get('email')
+  const contents = formData.get('contents')
+
+  try {
+    // Make sure to validate the data!
+    await validateInputs({ email, contents })
+    const info = await sendMail({ email, contents })
+
+    return Response.json({ messageId: info.messageId })
+  } catch (reason) {
+    const message =
+      reason instanceof Error ? reason.message : 'Unexpected exception'
+
+    return new Response(message, { status: 500 })
+  }
+}
+```
+
+```js filename="app/api/send-email/route.js" switcher
+import { sendMail, validateInputs } from '@/lib/email-transporter'
+
+export async function POST(request) {
+  const formData = await request.formData()
+  const email = formData.get('email')
+  const contents = formData.get('contents')
+
+  try {
+    // Make sure to validate the data!
+    await validateInputs({ email, contents })
+    const info = await sendMail({ email, contents })
+
+    return Response.json({ messageId: info.messageId })
+  } catch (reason) {
+    const message =
+      reason instanceof Error ? reason.message : 'Unexpected exception'
+
+    return new Response(message, { status: 500 })
+  }
+}
+```
+
+You can only access the body of a request once. If you need to access it multiple times, clone the request first, otherwise, an exception will be thrown.
+
+```ts filename="/app/api/route.ts" switcher
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ slug: string[] }> }
+) {
+  try {
+    const clonedRequest = request.clone()
+
+    await request.body() // Works
+
+    await clonedRequest.body() // Works
+
+    await request.body() // Throws exception
+
+    // this response is not reached
+    return new Response(null, { status: 204 })
+  } catch (e) {
+    return new Response(null, { status: 500 })
+  }
+}
+```
+
+```js filename="/app/api/route.js" switcher
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ slug: string[] }> }
+) {
+  try {
+    const clonedRequest = request.clone()
+
+    await request.body() // Works
+
+    await clonedRequest.body() // Works
+
+    await request.body() // Throws exception
+
+    // this response is not reached
+    return new Response(null, { status: 204 })
+  } catch (e) {
+    return new Response(null, { status: 500 })
+  }
+}
+```
+
+### Producing a response with Middleware
+
+Next.js also supports `middleware`, which can generate a response, before the request arrives to the server.
+
+There can only be one `middleware` file per project. You can configure which paths are matched by the middleware, and produce a response when these are requested.
+
+```ts
+import { isAuthenticated } from '@lib/auth'
+
+// Limit the middleware to paths starting with `/api/`
+export const config = {
+  matcher: '/api/:function*',
+}
+
+export function middleware(request: Request) {
+  // Call our authentication function to check the request
+  if (!isAuthenticated(request)) {
+    // Respond with JSON indicating an error message
+    return Response.json(
+      { success: false, message: 'authentication failed' },
+      { status: 401 }
+    )
+  }
+}
+```
+
+Learn more about [middleware](/docs/app/api-reference/file-conventions/middleware).
+
+## Manipulating data
+
+Within a Route Handler, you can transform, filter, or aggregate data from a single, or multiple sources, keeping your frontend isolated from the process.
+
+In other words, you don't have to share, how the data is manipulated, nor where the data comes from.
+
+This is also important, because it is a way to run expensive computations, without compromising clients battery, and in some cases, reduce network data transfer costs.
+
+In the following example, the weather API used, does not support JSON responses, but we have a function `parseWeatherData` that can transform their plain text response, to JSON.
+
+```ts file="/app/api/route.ts" switcher
+import { parseWeatherData } from '@/lib/weather'
+
+export async function POST(request: Request) {
+  const body = await request.json()
+  const searchParams = new URLSearchParams({ lat: body.lat, lng: body.lng })
+
+  try {
+    const weatherResponse = await fetch(`${weatherEndpoint}?${searchParams}`)
+
+    if (!weatherResponse.ok) {
+      /* handle fetch failure */
+    }
+
+    const weatherData = await weatherResponse.text()
+
+    const payload = parseWeatherData.asJSON(weatherData)
+
+    return new Response(payload, { status: 200, statusText: 'OK' })
+  } catch (reason) {
+    const message =
+      reason instanceof Error ? reason.message : 'Unexpected exception'
+
+    // in the browser you'd need to call `.text()`, to read this message
+    return new Response(message, { status: 500 })
+  }
+}
+```
+
+```js file="/app/api/route.js" switcher
+import { parseWeatherData } from '@/lib/weather'
+
+export async function POST(request) {
+  const body = await request.json()
+  const searchParams = new URLSearchParams({ lat: body.lat, lng: body.lng })
+
+  try {
+    const weatherResponse = await fetch(`${weatherEndpoint}?${searchParams}`)
+
+    if (!weatherResponse.ok) {
+      /* handle fetch failure */
+    }
+
+    const weatherData = await weatherResponse.text()
+
+    const payload = parseWeatherData.asJSON(weatherData)
+
+    return new Response(payload, { status: 200, statusText: 'OK' })
+  } catch (reason) {
+    const message =
+      reason instanceof Error ? reason.message : 'Unexpected exception'
+
+    // in the browser you'd need to call `.text()`, to read this message
+    return new Response(message, { status: 500 })
+  }
+}
+```
+
+> **Good to know**: In this example, a `POST` request is used to get weather data. That might be semantically incorrect, but this is done to prevent including geo-location data in a URL query parameters. `GET` request can be cached by CDNs, or appear in server logs, and these would contain geo-location data, which in turn could be used to identify a person. In some jurisdictions, this is not allowed by law.
+
+## Proxying to an existing backend
+
+A Route Handler that, takes its input request, and forwards it to another backend, and simply returns the response back to the client, is in a way, functioning as a Proxy to that backend.
+
+You can use Route Handlers to proxy requests to an existing backend service. You can also add some preamble logic, to allow, or reject, the incoming request.
+
+Once you have a response from your existing backend, you can modify it and send it back to the client.
+
+```ts filename="/app/api/[...slug]/route.ts" switcher
+import { isValidRequest } from '@/lib/utils'
+
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ slug: string[] }> }
+) {
+  const clonedRequest = request.clone()
+
+  const isValid = await isValidRequest(clonedRequest)
+
+  if (!isValid) {
+    return Response(null, { status: 400, statusText: 'Bad Request' })
+  }
+
+  const { slug } = await params
+
+  try {
+    const pathname = slug.join('/')
+
+    const proxyURL = new URL(pathname, 'https://example.com')
+    // create a new Request, pointing a new url,
+    // using the incoming request to preserve the incoming body and other options
+    const proxyRequest = new Request(proxyURL, request)
+
+    return fetch(proxyRequest)
+  } catch (reason) {
+    const message =
+      reason instanceof Error ? reason.message : 'Unexpected exception'
+
+    // in the browser you'd need to call `.text()`, to read this message
+    return new Response(message, { status: 500 })
+  }
+}
+```
+
+```js filename="/app/api/[...slug]/route.js" switcher
+import { isValidRequest } from '@/lib/utils'
+
+export async function POST(request, { params }) {
+  const clonedRequest = request.clone()
+
+  const isValid = await isValidRequest(clonedRequest)
+
+  if (!isValid) {
+    return Response(null, { status: 400, statusText: 'Bad Request' })
+  }
+
+  const { slug } = await params
+
+  try {
+    const pathname = slug.join('/')
+
+    const proxyURL = new URL(pathname, 'https://example.org')
+    // create a new Request, pointing a new url,
+    // using the incoming request to preserve the incoming body and other options
+    const proxyRequest = new Request(proxyURL, request)
+
+    return fetch(proxyRequest)
+  } catch (reason) {
+    const message =
+      reason instanceof Error ? reason.message : 'Unexpected exception'
+
+    // in the browser you'd need to call `.text()`, to read this message
+    return new Response(message, { status: 500 })
+  }
+}
+```
+
+Notice that the path to this Route Handler is using [dynamic route segments](/app/building-your-application/routing/route-handlers#dynamic-route-segments).
+
+> ** Good to know **: You can only read the body of a request once. The first time you do `await request.json()` should work without issue. However, if you call `request.json()`, once again, you'll see an error, indicating the body of the request has already been read. If you need to read the body twice, which can be necessary when working with third party code, you can clone the request.
+
+With `middleware`, it is also possible to proxy a request by doing a `rewrite` for an incoming request.
+
+```ts filename="middleware.ts" switcher
+import { NextResponse } from 'next/server'
+
+export function middleware(request: Request) {
+  if (request.nextUrl.pathname === '/proxy-this-path') {
+    const rewriteUrl = new URL('http://example.org')
+    return NextResponse.rewrite(rewriteUrl)
+  }
+}
+```
+
+Another pattern to proxy request, is to use add [`rewrites`]() to your next.config.js file.
+
+## NextRequest and NextResponse
+
+Next.js extends the `Request` and `Response` Web APIs, with methods that make common operations less verbose. These are available both in Route Handlers and Middleware.
+
+Both extensions, provide way for reading and manipulating cookies.
+
+NextRequest also gives access to Next.js properties calculated from the incoming request object, under the `nextUrl` property. This makes it easier to access search params in the incoming request.
+
+NextResponse, `next()`, `json()`, `redirect()`, and `rewrite()`.
+
+Any function that expects a `Request`, can be passed a `NextRequest` object. Similarly, where you are expected to return a `Response` instance, you can return `NextResponse` instead.
+
+```ts filename="app/echo-pathname/route.ts" switcher
+import { type NextRequest, NextResponse } from 'next/server'
+
+export async function GET(request: NextRequest) {
+  const nextUrl = request.nextUrl
+
+  if (nextUrl.searchParams.get('redirect')) {
+    return NextResponse.redirect(new URL('/', request.url))
+  }
+
+  if (nextUrl.searchParams.get('rewrite')) {
+    return NextResponse.rewrite(new URL('/', request.url))
+  }
+
+  return NextResponse.json({ pathname: nextUrl.pathname })
+}
+```
+
+```js filename="app/echo-pathname/route.js" switcher
+import { NextResponse } from 'next/server'
+
+export async function GET(request) {
+  const nextUrl = request.nextUrl
+
+  if (nextUrl.searchParams.get('redirect')) {
+    return NextResponse.redirect(new URL('/', request.url))
+  }
+
+   if (nextUrl.searchParams.get('rewrite')) {
+    return NextResponse.rewrite(new URL('/', request.url))
+  }
+  }
+
+  return NextResponse.json({ pathname: nextUrl.pathname })
+}
+```
+
+Learn more about the [`NextRequest`]() and [`NextResponse`]() objects.
+
+## Webhooks and Callback URLs
+
+You can use Route Handlers to receive event notifications from other party applications.
+
+For example, revalidate a route when changes happen in a CMS. In this case, you'd tell the CMS, which endpoint to call when a content item changes.
+
+```ts filename="/app/webhook/route.ts" switcher
+import { type NextRequest, NextResponse } from 'next/server'
+
+export async function GET(request: NextRequest) {
+  const token = request.nextUrl.searchParams.get('token')
+
+  if (token !== process.env.REVALIDATE_SECRET_TOKEN) {
+    return NextResponse.json({ success: false }, { status: 401 })
+  }
+
+  const tag = request.nextUrl.searchParams.get('tag')
+
+  if (!tag) {
+    return NextResponse.json({ success: false }, { status: 400 })
+  }
+
+  revalidateTag(tag)
+
+  return NextResponse.json({ success: true })
+}
+```
+
+Another use case are callback URLs. These are used when you send a user to a third party flow, the callback URL tells the third party, where to send the user when the flow is complete. While the callback URL can be a page, a common design pattern is to use a Route Handler, to verify data passed by the third party flow, and decide where to send the user afterwards.
+
+```ts filename="/app/auth/callback/route.ts" switcher
+import { type NextRequest, NextResponse } from 'next/server'
+
+export async function GET(request: NextRequest) {
+  const token = request.nextUrl.searchParams.get('session_token')
+
+  const redirectUrl = request.nextUrl.searchParams.get('redirect_url')
+
+  const response = NextResponse.redirect(new URL(redirectUrl, request.url))
+
+  response.cookies.set({
+    value: token,
+    name: '_token',
+    path: '/',
+    secure: true,
+    httpOnly: true,
+    // session cookie
+    expires: undefined,
+  })
+
+  return response
+}
+```
+
+## Rate Limiting
+
+It is possible to apply rate limiting within your Next.js backend. However, a defensive approach is necessary if you want to protect your resources, make sure to activate any rate limiting features provided by your hosting service.
+
+```ts filename="/app/resource/route.ts" switcher
+import { NextResponse } from 'next/server'
+import { checkRateLimit } from '@/lib/rate-limit'
+
+export async function POST(request: Request) {
+  const { rateLimited } = await checkRateLimit(request)
+
+  if ({ rateLimited }) {
+    return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
+  }
+
+  return new Response(null, { status: 204 })
+}
+```
+
+```js filename="/app/resource/route.js" switcher
+import { NextResponse } from 'next/server'
+import { checkRateLimit } from '@/lib/rate-limit'
+
+export async function POST(request) {
+  const { rateLimited } = await checkRateLimit(request)
+
+  if ({ rateLimited }) {
+    return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
+  }
+
+  return new Response(null, { status: 204 })
+}
+```
+
+## Preflight Requests
+
+Preflight requests are HTTP requests initiated by the browser, that use the `OPTIONS` method, to verify if the server can allow the request, given parameters such as the origin, method, headers present in the request, to name a few.
+
+If `OPTIONS` is not defined, Next.js will automatically implement `OPTIONS` and set the appropriate Response `Allow` header depending on the other methods defined in the Route Handler.
+
+- [CORS](/app/building-your-application/routing/route-handlers#cors)
+
+## Library patterns
+
+When using community libraries, you might find this pattern, or similar, for Route Handlers.
+
+```ts filename="/app/api/[...path]/route.ts" switcher
+import { createHandler } from 'third-party-library'
+
+const handler = createHandler({
+  /* options required by the library */
+})
+
+export const GET = handler
+// or
+export { handler as POST }
+```
+
+This is create a unique handler, which is then used for GET and POST requests. Additionally, the resource path is dynamic, so the library can adjust its behavior depending on the `method` and `pathname` it calculates from the incoming request.
+
+## More Examples
+
+- [Redirect](/app/building-your-application/routing/route-handlers#redirects)
+- [Cookies](/app/building-your-application/routing/route-handlers#cookies)
+- [Streaming](/app/building-your-application/routing/route-handlers#streaming)
+
+## Caveats
+
+### Server Components
+
+Fetching data in Server Components should be done directly from its source, and not through Route Handlers.
+
+For pages pre-rendered at build time, fetching from Router Handlers will not work, and will cause the build step to fail.
+
+For pages that are rendered on demand, fetching from Route Handlers is bound to be slower than getting the data from source, because an additional HTTP round trip is required to fetch data from your Route Handler, and back to the render process.
+
+Server Components, cover most data fetching use cases, but there is still a few cases where you have to fetch from the client, for example:
+
+- Data depends on parameters collected from Web APIs, available only client side
+  - Geo-location API
+  - Storage API
+  - Audio API
+  - File API
+- Data that needs to be polled frequently
+
+For these, you can use community libraries such as [`swr`](https://swr.vercel.app/), or [`react-query`](https://tanstack.com/query/latest/docs/framework/react/overview).
+
+### Server Actions
+
+Server Actions, are a way to execute server side code from the client. For various reasons, their main purpose is to mutate data.
+
+These are not specialized Route Handlers either. Triggering a Server Action manually, is not as easy as making a fetch request, because there's a [security](/app/building-your-application/data-fetching/server-actions-and-mutations#security) layer, that obfuscates Server actions, although it is not impossible.
+
+Additionally, Server Actions are queued, which means that, if you use them for data fetching, you'd necessarily opt into having sequential data fetching requests.
+
+### `export` mode
+
+Features that require a Next.js runtime server, are not supported for `export` mode, because this mode produces a static site, and no runtime server.
+
+You can generate a static JSON response for `GET` requests. This outputs a JSON file, that can be used on `export` mode.
+
+- [Unsupported features](/app/guides/static-exports#unsupported-features) in `export` mode
+
+### Deployment environment
+
+Some hosting providers, deploy Next.js Route Handlers, as lambda functions. Roughly speaking, this means, that the Route Handler is loaded when a request arrives, and shortly after the response is sent, if no other requests arrive, the Route Handler is unloaded.
+
+This has a few implications:
+
+- You cannot share data between different requests, or should not rely on that
+- The Route Handler may be loaded in an environment that doesn't support File System operations
+- If your Route Handler, takes too long to respond, it might be terminated, because lambda functions often run against a timeout
+- Websockets won't work under this model, because the connection is dropped on timeout
+
+### Intercepting downstream response
+
+Next.js provides a way to execute code, when a request arrives, through middleware. While middleware itself can generate a response, there's no unified way to intercept the response leaving the Next.js server.
+
+Some hosting providers, do extend the Next.js API to accomplish this, but at the moment, this is not native to the Next.js platform.
+
+### Be defensive
+
+Do not trust any request data arriving to your Next.js server. Verify the content type, size, and if possible, sanitize it for XSS injections, before using it at all.
+
+Use timeouts to prevent malicious request that want to consume your server quotas.
+
+Store static assets generated by users, in services dedicated for this very purpose. If possible, send these assets to that service provider in the browser, in exchange for a URI, that you can store in your database. This will also reduce the size of the request sent to your backend.
+
+Always protect resource access by verifying that the incoming request has provided sufficient credentials. A common bad practice is to let middleware alone handle the verification of incoming requests, but this is not sufficient.
+
+Redact sensitive data, or ensure to remove unnecessary fields from responses sent to clients, and from logs printed by your backend.
+
+Rotate credentials and API keys used within your handlers regularly.
