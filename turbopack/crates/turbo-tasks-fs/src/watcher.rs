@@ -544,11 +544,11 @@ fn invalidate(
     path: &Path,
     invalidator: Invalidator,
 ) {
-    if report_invalidation_reason {
-        if let Some(path) = format_absolute_fs_path(path, &inner.name, inner.root_path()) {
-            invalidator.invalidate_with_reason(WatchChange { path });
-            return;
-        }
+    if report_invalidation_reason
+        && let Some(path) = format_absolute_fs_path(path, &inner.name, inner.root_path())
+    {
+        invalidator.invalidate_with_reason(WatchChange { path });
+        return;
     }
     invalidator.invalidate();
 }

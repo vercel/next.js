@@ -417,12 +417,12 @@ impl TurboPersistence {
             );
         }
         let current = self.inner.read().current_sequence_number;
-        if let Some((ty, any)) = self.idle_write_batch.lock().take() {
-            if ty == TypeId::of::<WriteBatch<K, FAMILIES>>() {
-                let mut write_batch = *any.downcast::<WriteBatch<K, FAMILIES>>().unwrap();
-                write_batch.reset(current);
-                return Ok(write_batch);
-            }
+        if let Some((ty, any)) = self.idle_write_batch.lock().take()
+            && ty == TypeId::of::<WriteBatch<K, FAMILIES>>()
+        {
+            let mut write_batch = *any.downcast::<WriteBatch<K, FAMILIES>>().unwrap();
+            write_batch.reset(current);
+            return Ok(write_batch);
         }
         Ok(WriteBatch::new(self.path.clone(), current))
     }

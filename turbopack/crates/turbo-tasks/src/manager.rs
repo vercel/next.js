@@ -1926,10 +1926,10 @@ impl CurrentCellRef {
         T: PartialEq + VcValueType,
     {
         self.conditional_update(|old_value| {
-            if let Some(old_value) = old_value {
-                if old_value == &new_value {
-                    return None;
-                }
+            if let Some(old_value) = old_value
+                && old_value == &new_value
+            {
+                return None;
             }
             Some(new_value)
         });

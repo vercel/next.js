@@ -130,10 +130,10 @@ impl EcmascriptChunkItem for SideEffectsModuleChunkItem {
         for &side_effect in self.module.await?.side_effects.iter() {
             let need_await = 'need_await: {
                 let async_module = *side_effect.get_async_module().await?;
-                if let Some(async_module) = async_module {
-                    if async_module.await?.has_top_level_await {
-                        break 'need_await true;
-                    }
+                if let Some(async_module) = async_module
+                    && async_module.await?.has_top_level_await
+                {
+                    break 'need_await true;
                 }
                 false
             };

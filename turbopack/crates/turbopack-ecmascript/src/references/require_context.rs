@@ -90,10 +90,10 @@ impl DirList {
         for (_, entry) in entries.iter().flat_map(|m| m.iter()) {
             match entry {
                 DirectoryEntry::File(path) => {
-                    if let Some(relative_path) = root_val.get_relative_path_to(&*path.await?) {
-                        if regex.is_match(&relative_path) {
-                            list.insert(relative_path, DirListEntry::File(*path));
-                        }
+                    if let Some(relative_path) = root_val.get_relative_path_to(&*path.await?)
+                        && regex.is_match(&relative_path)
+                    {
+                        list.insert(relative_path, DirListEntry::File(*path));
                     }
                 }
                 DirectoryEntry::Directory(path) if recursive => {

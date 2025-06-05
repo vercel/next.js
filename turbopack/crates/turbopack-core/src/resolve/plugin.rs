@@ -30,10 +30,10 @@ impl AfterResolvePluginCondition {
 
         let path = fs_path.await?;
 
-        if let Some(path) = root.get_path_to(&path) {
-            if glob.matches(path) {
-                return Ok(Vc::cell(true));
-            }
+        if let Some(path) = root.get_path_to(&path)
+            && glob.matches(path)
+        {
+            return Ok(Vc::cell(true));
         }
 
         Ok(Vc::cell(false))

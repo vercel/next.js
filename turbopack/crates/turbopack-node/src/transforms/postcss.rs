@@ -430,16 +430,15 @@ async fn find_config_in_location(
         return Ok(Some(*config_path));
     }
 
-    if matches!(location, PostCssConfigLocation::ProjectPathOrLocalPath) {
-        if let FindContextFileResult::Found(config_path, _) = *find_context_file_or_package_key(
+    if matches!(location, PostCssConfigLocation::ProjectPathOrLocalPath)
+        && let FindContextFileResult::Found(config_path, _) = *find_context_file_or_package_key(
             source.ident().path().parent(),
             postcss_configs(),
             Value::new(rcstr!("postcss")),
         )
         .await?
-        {
-            return Ok(Some(*config_path));
-        }
+    {
+        return Ok(Some(*config_path));
     }
 
     Ok(None)
