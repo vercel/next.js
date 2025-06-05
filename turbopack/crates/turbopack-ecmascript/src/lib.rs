@@ -110,8 +110,20 @@ use crate::{
     transform::remove_shebang,
 };
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Hash, Debug, Clone, Copy, Default, TaskInput)]
+#[derive(
+    Eq,
+    PartialEq,
+    Hash,
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    TaskInput,
+    TraceRawVcs,
+    NonLocalValue,
+    Serialize,
+    Deserialize,
+)]
 pub enum SpecifiedModuleType {
     #[default]
     Automatic,
