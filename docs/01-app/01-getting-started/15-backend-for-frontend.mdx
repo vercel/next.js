@@ -21,14 +21,14 @@ Note that, a formal backend solution, does a lot more than what is outlined in t
 
 To build this backend for your frontend, Next.js offers two tools:
 
-- Router Handlers
-- [`middleware`](/docs/app/api-reference/file-conventions/middleware)
+- [Router Handlers](/app/building-your-application/routing/route-handlers)
+- [`middleware`](/app/api-reference/file-conventions/middleware)
 
 ## Public Endpoints
 
 Route Handlers are HTTP endpoints, publicly available. Although these can be reached by any type of client.
 
-To restrict access to these endpoints, you have to implement authorization and authentication checks. Learn more about [Authentication]().
+To restrict access to these endpoints, you have to implement authorization and authentication checks. Learn more about [Authentication](/app/guides/authentication).
 
 To create a Route Handler, use the `route.ts` or `route.js`, [file convention](/app/api-reference/file-conventions/route).
 
@@ -168,14 +168,14 @@ The Request Web API [exposes many asynchronous methods](https://developer.mozill
 
 For most applications `.json()`, `.formData()`, and `.text()`, are sufficient.
 
-```ts filename="app/api/echo-body/route.ts" switcher
+```ts filename="/app/api/echo-body/route.ts" switcher
 export async function POST(request: Request) {
   const res = await request.json()
   return Response.json({ res })
 }
 ```
 
-```js filename="app/api/echo-body/route.js" switcher
+```js filename="/app/api/echo-body/route.js" switcher
 export async function POST(request) {
   const res = await request.json()
   return Response.json({ res })
@@ -184,7 +184,7 @@ export async function POST(request) {
 
 Always add a validation step, before passing data to other systems.
 
-```ts filename="app/api/send-email/route.ts" switcher
+```ts filename="/app/api/send-email/route.ts" switcher
 import { sendMail, validateInputs } from '@/lib/email-transporter'
 
 export async function POST(request: Request) {
@@ -207,7 +207,7 @@ export async function POST(request: Request) {
 }
 ```
 
-```js filename="app/api/send-email/route.js" switcher
+```js filename="/app/api/send-email/route.js" switcher
 import { sendMail, validateInputs } from '@/lib/email-transporter'
 
 export async function POST(request) {
@@ -232,7 +232,7 @@ export async function POST(request) {
 
 You can only access the body of a request once. If you need to access it multiple times, clone the request first, otherwise, an exception will be thrown.
 
-```ts filename="/app/api/route.ts" switcher
+```ts filename="/app/api/clone/route.ts" switcher
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ slug: string[] }> }
@@ -254,7 +254,7 @@ export async function POST(
 }
 ```
 
-```js filename="/app/api/route.js" switcher
+```js filename="/app/api/clone/route.js" switcher
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ slug: string[] }> }
@@ -282,7 +282,7 @@ Next.js also supports `middleware`, which can generate a response, before the re
 
 There can only be one `middleware` file per project. You can configure which paths are matched by the middleware, and produce a response when these are requested.
 
-```ts
+```ts filename="middleware.ts" switcher
 import { isAuthenticated } from '@lib/auth'
 
 // Limit the middleware to paths starting with `/api/`
@@ -291,6 +291,26 @@ export const config = {
 }
 
 export function middleware(request: Request) {
+  // Call our authentication function to check the request
+  if (!isAuthenticated(request)) {
+    // Respond with JSON indicating an error message
+    return Response.json(
+      { success: false, message: 'authentication failed' },
+      { status: 401 }
+    )
+  }
+}
+```
+
+```js filename="middleware.js" switcher
+import { isAuthenticated } from '@lib/auth'
+
+// Limit the middleware to paths starting with `/api/`
+export const config = {
+  matcher: '/api/:function*',
+}
+
+export function middleware(request) {
   // Call our authentication function to check the request
   if (!isAuthenticated(request)) {
     // Respond with JSON indicating an error message
@@ -314,7 +334,7 @@ This is also important, because it is a way to run expensive computations, witho
 
 In the following example, the weather API used, does not support JSON responses, but we have a function `parseWeatherData` that can transform their plain text response, to JSON.
 
-```ts file="/app/api/route.ts" switcher
+```ts file="/app/api/weather/route.ts" switcher
 import { parseWeatherData } from '@/lib/weather'
 
 export async function POST(request: Request) {
@@ -343,7 +363,7 @@ export async function POST(request: Request) {
 }
 ```
 
-```js file="/app/api/route.js" switcher
+```js file="/app/api/weather/route.js" switcher
 import { parseWeatherData } from '@/lib/weather'
 
 export async function POST(request) {
@@ -468,6 +488,17 @@ export function middleware(request: Request) {
 }
 ```
 
+```js filename="middleware.js" switcher
+import { NextResponse } from 'next/server'
+
+export function middleware(request) {
+  if (request.nextUrl.pathname === '/proxy-this-path') {
+    const rewriteUrl = new URL('http://example.org')
+    return NextResponse.rewrite(rewriteUrl)
+  }
+}
+```
+
 Another pattern to proxy request, is to use add [`rewrites`]() to your next.config.js file.
 
 ## NextRequest and NextResponse
@@ -482,7 +513,7 @@ NextResponse, `next()`, `json()`, `redirect()`, and `rewrite()`.
 
 Any function that expects a `Request`, can be passed a `NextRequest` object. Similarly, where you are expected to return a `Response` instance, you can return `NextResponse` instead.
 
-```ts filename="app/echo-pathname/route.ts" switcher
+```ts filename="/app/echo-pathname/route.ts" switcher
 import { type NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
@@ -500,7 +531,7 @@ export async function GET(request: NextRequest) {
 }
 ```
 
-```js filename="app/echo-pathname/route.js" switcher
+```js filename="/app/echo-pathname/route.js" switcher
 import { NextResponse } from 'next/server'
 
 export async function GET(request) {
@@ -549,6 +580,28 @@ export async function GET(request: NextRequest) {
 }
 ```
 
+```js filename="/app/webhook/route.js" switcher
+import { NextResponse } from 'next/server'
+
+export async function GET(request) {
+  const token = request.nextUrl.searchParams.get('token')
+
+  if (token !== process.env.REVALIDATE_SECRET_TOKEN) {
+    return NextResponse.json({ success: false }, { status: 401 })
+  }
+
+  const tag = request.nextUrl.searchParams.get('tag')
+
+  if (!tag) {
+    return NextResponse.json({ success: false }, { status: 400 })
+  }
+
+  revalidateTag(tag)
+
+  return NextResponse.json({ success: true })
+}
+```
+
 Another use case are callback URLs. These are used when you send a user to a third party flow, the callback URL tells the third party, where to send the user when the flow is complete. While the callback URL can be a page, a common design pattern is to use a Route Handler, to verify data passed by the third party flow, and decide where to send the user afterwards.
 
 ```ts filename="/app/auth/callback/route.ts" switcher
@@ -575,9 +628,33 @@ export async function GET(request: NextRequest) {
 }
 ```
 
+```js filename="/app/auth/callback/route.js" switcher
+import { NextResponse } from 'next/server'
+
+export async function GET(request) {
+  const token = request.nextUrl.searchParams.get('session_token')
+
+  const redirectUrl = request.nextUrl.searchParams.get('redirect_url')
+
+  const response = NextResponse.redirect(new URL(redirectUrl, request.url))
+
+  response.cookies.set({
+    value: token,
+    name: '_token',
+    path: '/',
+    secure: true,
+    httpOnly: true,
+    // session cookie
+    expires: undefined,
+  })
+
+  return response
+}
+```
+
 ## Rate Limiting
 
-It is possible to apply rate limiting within your Next.js backend. However, a defensive approach is necessary if you want to protect your resources, make sure to activate any rate limiting features provided by your hosting service.
+It is possible to apply rate limiting within your Next.js backend. However, in addition to a code base rate limiting approach, make sure to activate any rate limiting features, and budget limits, provided by your hosting service.
 
 ```ts filename="/app/resource/route.ts" switcher
 import { NextResponse } from 'next/server'
@@ -621,7 +698,7 @@ If `OPTIONS` is not defined, Next.js will automatically implement `OPTIONS` and 
 
 When using community libraries, you might find this pattern, or similar, for Route Handlers.
 
-```ts filename="/app/api/[...path]/route.ts" switcher
+```ts filename="/app/api/[...path]/route.ts"
 import { createHandler } from 'third-party-library'
 
 const handler = createHandler({
@@ -633,7 +710,7 @@ export const GET = handler
 export { handler as POST }
 ```
 
-This is create a unique handler, which is then used for GET and POST requests. Additionally, the resource path is dynamic, so the library can adjust its behavior depending on the `method` and `pathname` it calculates from the incoming request.
+This is create a unique handler, which is then used for both `GET` and `POST` requests. Additionally, the resource path is dynamic, so the library can adjust its behavior depending on the `method` and `pathname` it calculates from the incoming request.
 
 ## More Examples
 
