@@ -19,7 +19,7 @@ use swc_core::{
     },
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{self, File, FileSystemPath, rope::RopeBuilder};
 use turbopack_core::{
     asset::AssetContent,
@@ -134,7 +134,7 @@ pub(crate) async fn build_server_actions_loader(
     let module = asset_context
         .process(
             Vc::upcast(source),
-            Value::new(ReferenceType::Internal(ResolvedVc::cell(import_map))),
+            ReferenceType::Internal(ResolvedVc::cell(import_map)),
         )
         .module();
 
@@ -213,9 +213,7 @@ pub async fn to_rsc_context(
     let module = asset_context
         .process(
             Vc::upcast(source),
-            Value::new(ReferenceType::EcmaScriptModules(
-                EcmaScriptModulesReferenceSubType::Undefined,
-            )),
+            ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined),
         )
         .module()
         .to_resolved()
@@ -255,13 +253,12 @@ async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap
     };
 
     if let Some(module) = Vc::try_resolve_downcast_type::<EcmascriptModulePartAsset>(module).await?
-    {
-        if matches!(
+        && matches!(
             module.await?.part,
             ModulePart::Evaluation | ModulePart::Facade
-        ) {
-            return Ok(Vc::cell(None));
-        }
+        )
+    {
+        return Ok(Vc::cell(None));
     }
 
     let original_parsed = ecmascript_asset.parse_original().resolve().await?;

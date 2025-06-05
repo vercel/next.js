@@ -191,9 +191,7 @@ async fn webpack_loaders_executor(
         Vc::upcast(FileSource::new(embed_file_path(rcstr!(
             "transforms/webpack-loaders.ts"
         )))),
-        Value::new(ReferenceType::Internal(
-            InnerAssets::empty().to_resolved().await?,
-        )),
+        ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
     ))
 }
 
@@ -576,12 +574,7 @@ impl EvaluateContext for WebpackLoaderContext {
 
                 let options = apply_webpack_resolve_options(options, webpack_options);
 
-                let resolved = resolve(
-                    lookup_path,
-                    Value::new(ReferenceType::Undefined),
-                    request,
-                    options,
-                );
+                let resolved = resolve(lookup_path, ReferenceType::Undefined, request, options);
 
                 let request_str = request.to_string().await?;
                 let lookup_path_str = lookup_path.to_string().await?;

@@ -759,16 +759,14 @@ impl FileSystem for DiskFileSystem {
             match &*content {
                 FileContent::Content(..) => {
                     let create_directory = compare == FileComparison::Create;
-                    if create_directory {
-                        if let Some(parent) = full_path.parent() {
-                            inner.create_directory(parent).await.with_context(|| {
-                                format!(
-                                    "failed to create directory {} for write to {}",
-                                    parent.display(),
-                                    full_path.display()
-                                )
-                            })?;
-                        }
+                    if create_directory && let Some(parent) = full_path.parent() {
+                        inner.create_directory(parent).await.with_context(|| {
+                            format!(
+                                "failed to create directory {} for write to {}",
+                                parent.display(),
+                                full_path.display()
+                            )
+                        })?;
                     }
 
                     let full_path_to_write = full_path.clone();
@@ -893,16 +891,14 @@ impl FileSystem for DiskFileSystem {
             match &*content {
                 LinkContent::Link { target, link_type } => {
                     let create_directory = old_content.is_none();
-                    if create_directory {
-                        if let Some(parent) = full_path.parent() {
-                            inner.create_directory(parent).await.with_context(|| {
-                                format!(
-                                    "failed to create directory {} for write link to {}",
-                                    parent.display(),
-                                    full_path.display()
-                                )
-                            })?;
-                        }
+                    if create_directory && let Some(parent) = full_path.parent() {
+                        inner.create_directory(parent).await.with_context(|| {
+                            format!(
+                                "failed to create directory {} for write link to {}",
+                                parent.display(),
+                                full_path.display()
+                            )
+                        })?;
                     }
 
                     let link_type = *link_type;
@@ -1254,14 +1250,14 @@ impl FileSystemPath {
     /// None when the joined path would leave the current path.
     #[turbo_tasks::function]
     pub async fn try_join_inside(&self, path: RcStr) -> Result<Vc<FileSystemPathOption>> {
-        if let Some(path) = join_path(&self.path, &path) {
-            if path.starts_with(&*self.path) {
-                return Ok(Vc::cell(Some(
-                    Self::new_normalized(*self.fs, path.into())
-                        .to_resolved()
-                        .await?,
-                )));
-            }
+        if let Some(path) = join_path(&self.path, &path)
+            && path.starts_with(&*self.path)
+        {
+            return Ok(Vc::cell(Some(
+                Self::new_normalized(*self.fs, path.into())
+                    .to_resolved()
+                    .await?,
+            )));
         }
         Ok(FileSystemPathOption::none())
     }

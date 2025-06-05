@@ -285,23 +285,20 @@ async fn find_export_from_reexports(
 ) -> Result<Vc<FindExportFromReexportsResult>> {
     if let Some(module) =
         Vc::try_resolve_downcast_type::<EcmascriptModulePartAsset>(*module).await?
+        && matches!(module.await?.part, ModulePart::Exports)
     {
-        if matches!(module.await?.part, ModulePart::Exports) {
-            let module_part = EcmascriptModulePartAsset::select_part(
-                *module.await?.full_module,
-                ModulePart::export(export_name.clone()),
-            );
+        let module_part = EcmascriptModulePartAsset::select_part(
+            *module.await?.full_module,
+            ModulePart::export(export_name.clone()),
+        );
 
-            // If we apply this logic to EcmascriptModuleAsset, we will resolve everything in the
-            // target module.
-            if (Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module_part).await?)
-                .is_none()
-            {
-                return Ok(find_export_from_reexports(
-                    Vc::upcast(module_part),
-                    export_name,
-                ));
-            }
+        // If we apply this logic to EcmascriptModuleAsset, we will resolve everything in the
+        // target module.
+        if (Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module_part).await?).is_none() {
+            return Ok(find_export_from_reexports(
+                Vc::upcast(module_part),
+                export_name,
+            ));
         }
     }
 
@@ -395,10 +392,9 @@ pub async fn expand_star_exports(
                 for esm_ref in exports.star_exports.iter() {
                     if let ReferencedAsset::Some(asset) =
                         &*ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?
+                        && checked_modules.insert(**asset)
                     {
-                        if checked_modules.insert(**asset) {
-                            queue.push((**asset, asset.get_exports()));
-                        }
+                        queue.push((**asset, asset.get_exports()));
                     }
                 }
             }

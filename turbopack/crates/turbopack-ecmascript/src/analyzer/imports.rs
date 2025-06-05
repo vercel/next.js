@@ -362,11 +362,11 @@ struct StarImportAnalyzer<'a> {
 
 impl Visit for StarImportAnalyzer<'_> {
     fn visit_expr(&mut self, node: &Expr) {
-        if let Expr::Ident(i) = node {
-            if let Some(module_path) = self.candidates.get(&i.to_id()) {
-                self.full_star_imports.insert(module_path.clone());
-                return;
-            }
+        if let Expr::Ident(i) = node
+            && let Some(module_path) = self.candidates.get(&i.to_id())
+        {
+            self.full_star_imports.insert(module_path.clone());
+            return;
         }
 
         node.visit_children_with(self);
@@ -391,22 +391,22 @@ impl Visit for StarImportAnalyzer<'_> {
     }
 
     fn visit_pat(&mut self, pat: &Pat) {
-        if let Pat::Ident(i) = pat {
-            if let Some(module_path) = self.candidates.get(&i.to_id()) {
-                self.full_star_imports.insert(module_path.clone());
-                return;
-            }
+        if let Pat::Ident(i) = pat
+            && let Some(module_path) = self.candidates.get(&i.to_id())
+        {
+            self.full_star_imports.insert(module_path.clone());
+            return;
         }
 
         pat.visit_children_with(self);
     }
 
     fn visit_simple_assign_target(&mut self, node: &SimpleAssignTarget) {
-        if let SimpleAssignTarget::Ident(i) = node {
-            if let Some(module_path) = self.candidates.get(&i.to_id()) {
-                self.full_star_imports.insert(module_path.clone());
-                return;
-            }
+        if let SimpleAssignTarget::Ident(i) = node
+            && let Some(module_path) = self.candidates.get(&i.to_id())
+        {
+            self.full_star_imports.insert(module_path.clone());
+            return;
         }
 
         node.visit_children_with(self);
@@ -502,15 +502,15 @@ impl Visit for Analyzer<'_> {
 
             self.data.imports.insert(local, (i, orig_sym));
         }
-        if import.specifiers.is_empty() {
-            if let Some(internal_symbol) = internal_symbol {
-                self.ensure_reference(
-                    import.span,
-                    import.src.value.clone(),
-                    internal_symbol,
-                    annotations,
-                );
-            }
+        if import.specifiers.is_empty()
+            && let Some(internal_symbol) = internal_symbol
+        {
+            self.ensure_reference(
+                import.span,
+                import.src.value.clone(),
+                internal_symbol,
+                annotations,
+            );
         }
     }
 

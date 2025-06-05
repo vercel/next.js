@@ -531,6 +531,7 @@ export interface FunctionsConfigManifest {
     {
       maxDuration?: number | undefined
       runtime?: 'nodejs'
+      regions?: string[] | string
       matchers?: Array<{
         regexp: string
         originalSource: string
@@ -1872,10 +1873,18 @@ export default async function build(
                 // configuration, we need to add it to the manifest.
                 if (
                   typeof staticInfo?.runtime !== 'undefined' ||
-                  typeof staticInfo?.maxDuration !== 'undefined'
+                  typeof staticInfo?.maxDuration !== 'undefined' ||
+                  typeof staticInfo?.preferredRegion !== 'undefined'
                 ) {
+                  const regions = staticInfo?.preferredRegion
+                    ? typeof staticInfo.preferredRegion === 'string'
+                      ? [staticInfo.preferredRegion]
+                      : staticInfo.preferredRegion
+                    : undefined
+
                   functionsConfigManifest.functions[page] = {
                     maxDuration: staticInfo?.maxDuration,
+                    ...(regions && { regions }),
                   }
                 }
 

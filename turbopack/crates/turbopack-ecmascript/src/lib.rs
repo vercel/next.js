@@ -476,17 +476,17 @@ async fn determine_module_type_for_directory(
     };
 
     // analysis.add_reference(PackageJsonReference::new(package_json));
-    if let FileJsonContent::Content(content) = &*package_json.read_json().await? {
-        if let Some(r#type) = content.get("type") {
-            return Ok(ModuleTypeResult::new_with_package_json(
-                match r#type.as_str() {
-                    Some("module") => SpecifiedModuleType::EcmaScript,
-                    Some("commonjs") => SpecifiedModuleType::CommonJs,
-                    _ => SpecifiedModuleType::Automatic,
-                },
-                *package_json,
-            ));
-        }
+    if let FileJsonContent::Content(content) = &*package_json.read_json().await?
+        && let Some(r#type) = content.get("type")
+    {
+        return Ok(ModuleTypeResult::new_with_package_json(
+            match r#type.as_str() {
+                Some("module") => SpecifiedModuleType::EcmaScript,
+                Some("commonjs") => SpecifiedModuleType::CommonJs,
+                _ => SpecifiedModuleType::Automatic,
+            },
+            *package_json,
+        ));
     }
 
     Ok(ModuleTypeResult::new_with_package_json(

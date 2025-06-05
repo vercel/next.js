@@ -384,7 +384,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     let entry_module = asset_context
         .process(
             Vc::upcast(FileSource::new(entry_asset)),
-            Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
+            ReferenceType::Entry(EntryReferenceSubType::Undefined),
         )
         .module();
 

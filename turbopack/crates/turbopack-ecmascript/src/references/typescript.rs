@@ -85,9 +85,7 @@ impl ModuleReference for TsReferencePathAssetReference {
                     .asset_context()
                     .process(
                         Vc::upcast(FileSource::new(**path)),
-                        Value::new(ReferenceType::TypeScript(
-                            TypeScriptReferenceSubType::Undefined,
-                        )),
+                        ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined),
                     )
                     .module()
                     .to_resolved()

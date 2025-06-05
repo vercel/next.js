@@ -10,7 +10,6 @@ import {
 import { useState, useEffect, useRef, createContext, useContext } from 'react'
 import { Toast } from '../../toast'
 import { NextLogo } from './next-logo'
-import { useIsDevBuilding } from '../../../../../../dev/dev-build-indicator/internal/initialize'
 import { useIsDevRendering } from '../../../../utils/dev-indicator/dev-render-indicator'
 import { useDelayedRender } from '../../../hooks/use-delayed-render'
 import { TurbopackInfo } from './dev-tools-info/turbopack-info'
@@ -54,6 +53,7 @@ export function DevToolsIndicator({
       routerType={state.routerType}
       semver={state.versionInfo.installed}
       issueCount={errorCount}
+      isDevBuilding={state.buildingIndicator}
       isStaticRoute={state.staticIndicator}
       hide={() => {
         setIsDevToolsIndicatorVisible(false)
@@ -95,6 +95,7 @@ function DevToolsPopover({
   routerType,
   disabled,
   issueCount,
+  isDevBuilding,
   isStaticRoute,
   isTurbopack,
   isBuildError,
@@ -108,6 +109,7 @@ function DevToolsPopover({
   issueCount: number
   isStaticRoute: boolean
   semver: string | undefined
+  isDevBuilding: boolean
   isTurbopack: boolean
   isBuildError: boolean
   hide: () => void
@@ -294,7 +296,7 @@ function DevToolsPopover({
           issueCount={issueCount}
           onTriggerClick={onTriggerClick}
           toggleErrorOverlay={toggleErrorOverlay}
-          isDevBuilding={useIsDevBuilding()}
+          isDevBuilding={isDevBuilding}
           isDevRendering={useIsDevRendering()}
           isBuildError={isBuildError}
           scale={scale}

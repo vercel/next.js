@@ -2,12 +2,14 @@ use std::{
     fs::File,
     hash::BuildHasherDefault,
     io::{BufReader, Seek},
+    ops::Deref,
     path::{Path, PathBuf},
     sync::{Arc, OnceLock},
 };
 
 use anyhow::{Context, Result, bail};
 use byteorder::{BE, ReadBytesExt};
+use either::Either;
 use memmap2::{Mmap, MmapOptions};
 use quick_cache::sync::GuardResult;
 use rustc_hash::FxHasher;
@@ -62,10 +64,52 @@ impl MetaEntry {
         self.size
     }
 
-    pub fn aqmf<'l>(&self, aqmf_data: &'l [u8]) -> &'l [u8] {
+    pub fn aqmf_size(&self) -> u32 {
+        self.end_of_aqmf_data_offset - self.start_of_aqmf_data_offset
+    }
+
+    pub fn raw_aqmf<'l>(&self, aqmf_data: &'l [u8]) -> &'l [u8] {
         aqmf_data
             .get(self.start_of_aqmf_data_offset as usize..self.end_of_aqmf_data_offset as usize)
             .expect("AQMF data out of bounds")
+    }
+
+    pub fn deserialize_aqmf(&self, meta: &MetaFile) -> Result<qfilter::Filter> {
+        let aqmf = self.raw_aqmf(meta.aqmf_data());
+        pot::from_slice(aqmf).with_context(|| {
+            format!(
+                "Failed to deserialize AQMF from {:08}.meta for {:08}.sst",
+                meta.sequence_number,
+                self.sequence_number()
+            )
+        })
+    }
+
+    pub fn aqmf(
+        &self,
+        meta: &MetaFile,
+        aqmf_cache: &AqmfCache,
+    ) -> Result<impl Deref<Target = qfilter::Filter>> {
+        let use_aqmf_cache = self.max_hash - self.min_hash < 1 << 60;
+        Ok(if use_aqmf_cache {
+            let aqmf = match aqmf_cache.get_value_or_guard(&self.sequence_number(), None) {
+                GuardResult::Value(aqmf) => aqmf,
+                GuardResult::Guard(guard) => {
+                    let aqmf = self.deserialize_aqmf(meta)?;
+                    let aqmf: Arc<qfilter::Filter> = Arc::new(aqmf);
+                    let _ = guard.insert(aqmf.clone());
+                    aqmf
+                }
+                GuardResult::Timeout => unreachable!(),
+            };
+            Either::Left(aqmf)
+        } else {
+            let aqmf = self.aqmf.get_or_try_init(|| {
+                let aqmf = self.deserialize_aqmf(meta)?;
+                anyhow::Ok(aqmf)
+            })?;
+            Either::Right(aqmf)
+        })
     }
 
     pub fn sst(&self, meta: &MetaFile) -> Result<&StaticSortedFile> {
@@ -258,49 +302,17 @@ impl MetaFile {
             return Ok(MetaLookupResult::FamilyMiss);
         }
         let mut miss_result = MetaLookupResult::RangeMiss;
-        for entry in self.entries.iter() {
+        for entry in self.entries.iter().rev() {
             if key_hash < entry.min_hash || key_hash > entry.max_hash {
                 continue;
             }
-            let use_aqmf_cache = entry.max_hash - entry.min_hash < 1 << 60;
-            if use_aqmf_cache {
-                let aqmf = match aqmf_cache.get_value_or_guard(&entry.sequence_number(), None) {
-                    GuardResult::Value(aqmf) => aqmf,
-                    GuardResult::Guard(guard) => {
-                        let aqmf = entry.aqmf(self.aqmf_data());
-                        let aqmf: Arc<qfilter::Filter> =
-                            Arc::new(pot::from_slice(aqmf).with_context(|| {
-                                format!(
-                                    "Failed to deserialize AQMF from {:08}.meta for {:08}.sst",
-                                    self.sequence_number,
-                                    entry.sequence_number()
-                                )
-                            })?);
-                        let _ = guard.insert(aqmf.clone());
-                        aqmf
-                    }
-                    GuardResult::Timeout => unreachable!(),
-                };
+            {
+                let aqmf = entry.aqmf(self, aqmf_cache)?;
                 if !aqmf.contains_fingerprint(key_hash) {
                     miss_result = MetaLookupResult::QuickFilterMiss;
                     continue;
                 }
-            } else {
-                let aqmf = entry.aqmf.get_or_try_init(|| {
-                    let aqmf = entry.aqmf(self.aqmf_data());
-                    anyhow::Ok(pot::from_slice(aqmf).with_context(|| {
-                        format!(
-                            "Failed to deserialize AQMF from {:08}.meta for {:08}.sst",
-                            self.sequence_number,
-                            entry.sequence_number()
-                        )
-                    })?)
-                })?;
-                if !aqmf.contains_fingerprint(key_hash) {
-                    miss_result = MetaLookupResult::QuickFilterMiss;
-                    continue;
-                }
-            };
+            }
             let result =
                 entry
                     .sst(self)?

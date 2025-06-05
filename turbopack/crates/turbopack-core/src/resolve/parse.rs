@@ -202,27 +202,27 @@ impl Request {
             });
         }
 
-        if let Some(caps) = URI_PATH.captures(&r) {
-            if let (Some(protocol), Some(remainder)) = (caps.get(1), caps.get(2)) {
-                if let Some(caps) = DATA_URI_REMAINDER.captures(remainder.as_str()) {
-                    let media_type = caps.get(1).map_or("", |m| m.as_str()).into();
-                    let encoding = caps.get(2).map_or("", |e| e.as_str()).into();
-                    let data = caps.get(3).map_or("", |d| d.as_str()).into();
+        if let Some(caps) = URI_PATH.captures(&r)
+            && let (Some(protocol), Some(remainder)) = (caps.get(1), caps.get(2))
+        {
+            if let Some(caps) = DATA_URI_REMAINDER.captures(remainder.as_str()) {
+                let media_type = caps.get(1).map_or("", |m| m.as_str()).into();
+                let encoding = caps.get(2).map_or("", |e| e.as_str()).into();
+                let data = caps.get(3).map_or("", |d| d.as_str()).into();
 
-                    return Ok(Request::DataUri {
-                        media_type,
-                        encoding,
-                        data: ResolvedVc::cell(data),
-                    });
-                }
-
-                return Ok(Request::Uri {
-                    protocol: protocol.as_str().into(),
-                    remainder: remainder.as_str().into(),
-                    query: RcStr::default(),
-                    fragment: RcStr::default(),
+                return Ok(Request::DataUri {
+                    media_type,
+                    encoding,
+                    data: ResolvedVc::cell(data),
                 });
             }
+
+            return Ok(Request::Uri {
+                protocol: protocol.as_str().into(),
+                remainder: remainder.as_str().into(),
+                query: RcStr::default(),
+                fragment: RcStr::default(),
+            });
         }
 
         if let Some((module, path)) = MODULE_PATH

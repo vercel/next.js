@@ -3,7 +3,7 @@ use std::{io::Write, iter::once};
 use anyhow::{Context, Result, bail};
 use indoc::writedoc;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -160,10 +160,7 @@ impl EcmascriptClientReferenceModule {
 
         let proxy_module = self
             .server_asset_context
-            .process(
-                Vc::upcast(proxy_source),
-                Value::new(ReferenceType::Undefined),
-            )
+            .process(Vc::upcast(proxy_source), ReferenceType::Undefined)
             .module();
 
         let Some(proxy_module) =

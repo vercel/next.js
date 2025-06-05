@@ -145,13 +145,12 @@ fn load_image_internal(
         .with_guessed_format()
         .context("unable to determine image format from file content")?;
     let mut format = reader.format();
-    if format.is_none() {
-        if let Some(extension) = extension {
-            if let Some(new_format) = extension_to_image_format(extension) {
-                format = Some(new_format);
-                reader.set_format(new_format);
-            }
-        }
+    if format.is_none()
+        && let Some(extension) = extension
+        && let Some(new_format) = extension_to_image_format(extension)
+    {
+        format = Some(new_format);
+        reader.set_format(new_format);
     }
 
     // [NOTE]

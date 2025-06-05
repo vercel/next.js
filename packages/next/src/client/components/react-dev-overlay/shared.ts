@@ -22,6 +22,7 @@ export interface OverlayState {
   refreshState: FastRefreshState
   versionInfo: VersionInfo
   notFound: boolean
+  buildingIndicator: boolean
   staticIndicator: boolean
   showIndicator: boolean
   disableDevIndicator: boolean
@@ -44,6 +45,8 @@ export const ACTION_DEV_INDICATOR = 'dev-indicator'
 export const ACTION_ERROR_OVERLAY_OPEN = 'error-overlay-open'
 export const ACTION_ERROR_OVERLAY_CLOSE = 'error-overlay-close'
 export const ACTION_ERROR_OVERLAY_TOGGLE = 'error-overlay-toggle'
+export const ACTION_BUILDING_INDICATOR_SHOW = 'building-indicator-show'
+export const ACTION_BUILDING_INDICATOR_HIDE = 'building-indicator-hide'
 
 export const STORAGE_KEY_THEME = '__nextjs-dev-tools-theme'
 export const STORAGE_KEY_POSITION = '__nextjs-dev-tools-position'
@@ -102,6 +105,13 @@ export interface ErrorOverlayToggleAction {
   type: typeof ACTION_ERROR_OVERLAY_TOGGLE
 }
 
+export interface BuildingIndicatorShowAction {
+  type: typeof ACTION_BUILDING_INDICATOR_SHOW
+}
+export interface BuildingIndicatorHideAction {
+  type: typeof ACTION_BUILDING_INDICATOR_HIDE
+}
+
 export type BusEvent =
   | BuildOkAction
   | BuildErrorAction
@@ -116,6 +126,8 @@ export type BusEvent =
   | ErrorOverlayOpenAction
   | ErrorOverlayCloseAction
   | ErrorOverlayToggleAction
+  | BuildingIndicatorShowAction
+  | BuildingIndicatorHideAction
 
 const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX =
   // 1st group: v8
@@ -149,6 +161,7 @@ export const INITIAL_OVERLAY_STATE: Omit<
   */
   showIndicator: false,
   disableDevIndicator: false,
+  buildingIndicator: false,
   refreshState: { type: 'idle' },
   versionInfo: { installed: '0.0.0', staleness: 'unknown' },
   debugInfo: { devtoolsFrontendUrl: undefined },
@@ -295,6 +308,12 @@ export function useErrorOverlayReducer(
       }
       case ACTION_ERROR_OVERLAY_TOGGLE: {
         return { ...state, isErrorOverlayOpen: !state.isErrorOverlayOpen }
+      }
+      case ACTION_BUILDING_INDICATOR_SHOW: {
+        return { ...state, buildingIndicator: true }
+      }
+      case ACTION_BUILDING_INDICATOR_HIDE: {
+        return { ...state, buildingIndicator: false }
       }
       default: {
         return state

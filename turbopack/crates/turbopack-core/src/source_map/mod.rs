@@ -314,11 +314,12 @@ impl SourceMap {
         let mut sections = sections.into_iter().peekable();
 
         let mut first = sections.next();
-        if let Some((offset, map)) = &mut first {
-            if sections.peek().is_none() && *offset == (0, 0) {
-                // There is just a single sourcemap that starts at the beginning of the file.
-                return Ok(std::mem::take(map));
-            }
+        if let Some((offset, map)) = &mut first
+            && sections.peek().is_none()
+            && *offset == (0, 0)
+        {
+            // There is just a single sourcemap that starts at the beginning of the file.
+            return Ok(std::mem::take(map));
         }
 
         // My kingdom for a decent dedent macro with interpolation!
@@ -569,27 +570,26 @@ impl SourceMap {
                     guessed_original_file,
                     ..
                 }) = &mut token
+                    && let DecodedMap::Regular(map) = &map.map.0
+                    && map.get_source_count() == 1
                 {
-                    if let DecodedMap::Regular(map) = &map.map.0 {
-                        if map.get_source_count() == 1 {
-                            let source = map.sources().next().unwrap();
-                            *guessed_original_file = Some(RcStr::from(source));
-                        }
-                    }
+                    let source = map.sources().next().unwrap();
+                    *guessed_original_file = Some(RcStr::from(source));
                 }
 
-                if need_source_content && content.is_none() {
-                    if let Some(map) = map.map.as_regular_source_map() {
-                        content = tok.and_then(|tok| {
-                            let src_id = tok.get_src_id();
+                if need_source_content
+                    && content.is_none()
+                    && let Some(map) = map.map.as_regular_source_map()
+                {
+                    content = tok.and_then(|tok| {
+                        let src_id = tok.get_src_id();
 
-                            let name = map.get_source(src_id);
-                            let content = map.get_source_contents(src_id);
+                        let name = map.get_source(src_id);
+                        let content = map.get_source_contents(src_id);
 
-                            let (name, content) = name.zip(content)?;
-                            Some(sourcemap_content_source(name.into(), content.into()))
-                        });
-                    }
+                        let (name, content) = name.zip(content)?;
+                        Some(sourcemap_content_source(name.into(), content.into()))
+                    });
                 }
 
                 token

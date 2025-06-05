@@ -133,15 +133,13 @@ pub async fn map_next_dynamic(graph: Vc<SingleModuleGraph>) -> Result<Vc<Dynamic
                 .layer
                 .as_ref()
                 .is_some_and(|layer| *layer == "app-client" || *layer == "client")
-            {
-                if let Some(dynamic_entry_module) =
+                && let Some(dynamic_entry_module) =
                     ResolvedVc::try_downcast_type::<NextDynamicEntryModule>(*module)
-                {
-                    return Ok(Some((
-                        *module,
-                        DynamicImportEntriesMapType::DynamicEntry(dynamic_entry_module),
-                    )));
-                }
+            {
+                return Ok(Some((
+                    *module,
+                    DynamicImportEntriesMapType::DynamicEntry(dynamic_entry_module),
+                )));
             }
             // TODO add this check once these modules have the correct layer
             // if layer.is_some_and(|layer| &**layer == "app-rsc") {

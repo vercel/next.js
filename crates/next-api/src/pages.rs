@@ -336,9 +336,9 @@ impl PagesProject {
             self.project().project_path(),
             self.project().execution_context(),
             self.project().client_compile_time_info().environment(),
-            Value::new(ClientContextType::Pages {
+            ClientContextType::Pages {
                 pages_dir: self.pages_dir().to_resolved().await?,
-            }),
+            },
             self.project().next_mode(),
             self.project().next_config(),
             self.project().encryption_key(),
@@ -350,9 +350,9 @@ impl PagesProject {
     async fn client_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
         Ok(get_client_resolve_options_context(
             self.project().project_path(),
-            Value::new(ClientContextType::Pages {
+            ClientContextType::Pages {
                 pages_dir: self.pages_dir().to_resolved().await?,
-            }),
+            },
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
@@ -566,9 +566,9 @@ impl PagesProject {
     async fn client_runtime_entries(self: Vc<Self>) -> Result<Vc<EvaluatableAssets>> {
         let client_runtime_entries = get_client_runtime_entries(
             self.project().project_path(),
-            Value::new(ClientContextType::Pages {
+            ClientContextType::Pages {
                 pages_dir: self.pages_dir().to_resolved().await?,
-            }),
+            },
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
@@ -736,13 +736,12 @@ impl PageEndpoint {
         if matches!(
             *this.pages_project.project().next_mode().await?,
             NextMode::Development
-        ) {
-            if let Some(chunkable) = Vc::try_resolve_downcast(page_loader).await? {
-                return Ok(Vc::upcast(HmrEntryModule::new(
-                    AssetIdent::from_path(*this.page.await?.base_path),
-                    chunkable,
-                )));
-            }
+        ) && let Some(chunkable) = Vc::try_resolve_downcast(page_loader).await?
+        {
+            return Ok(Vc::upcast(HmrEntryModule::new(
+                AssetIdent::from_path(*this.page.await?.base_path),
+                chunkable,
+            )));
         }
         Ok(page_loader)
     }
@@ -876,19 +875,19 @@ impl PageEndpoint {
 
         let (reference_type, project_root, module_context, edge_module_context) = match this.ty {
             PageEndpointType::Html | PageEndpointType::SsrOnly => (
-                Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
+                ReferenceType::Entry(EntryReferenceSubType::Page),
                 this.pages_project.project().project_path(),
                 this.pages_project.ssr_module_context(),
                 this.pages_project.edge_ssr_module_context(),
             ),
             PageEndpointType::Data => (
-                Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
+                ReferenceType::Entry(EntryReferenceSubType::Page),
                 this.pages_project.project().project_path(),
                 this.pages_project.ssr_data_module_context(),
                 this.pages_project.edge_ssr_data_module_context(),
             ),
             PageEndpointType::Api => (
-                Value::new(ReferenceType::Entry(EntryReferenceSubType::PagesApi)),
+                ReferenceType::Entry(EntryReferenceSubType::PagesApi),
                 this.pages_project.project().project_path(),
                 this.pages_project.api_module_context(),
                 this.pages_project.edge_api_module_context(),

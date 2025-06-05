@@ -157,10 +157,6 @@ export function Errors({
   const hydrationWarning = errorDetails.hydrationWarning
   const errorCode = extractNextErrorCode(error)
 
-  const footerMessage = isServerError
-    ? 'This error happened while generating the page. Any console logs will be displayed in the terminal window.'
-    : undefined
-
   return (
     <ErrorOverlayLayout
       errorCode={errorCode}
@@ -178,7 +174,6 @@ export function Errors({
       runtimeErrors={runtimeErrors}
       activeIdx={activeIdx}
       setActiveIndex={setActiveIndex}
-      footerMessage={footerMessage}
       dialogResizerRef={dialogResizerRef}
       {...props}
     >

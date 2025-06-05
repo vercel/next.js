@@ -282,11 +282,11 @@ async fn prepare_test(resource: RcStr) -> Result<Vc<PreparedTest>> {
     let options_file = path.join(rcstr!("options.json"));
 
     let mut options = TestOptions::default();
-    if matches!(*options_file.get_type().await?, FileSystemEntryType::File) {
-        if let FileContent::Content(content) = &*options_file.read().await? {
-            options =
-                serde_json::from_reader(content.read()).context("Unable to parse options.json")?;
-        }
+    if matches!(*options_file.get_type().await?, FileSystemEntryType::File)
+        && let FileContent::Content(content) = &*options_file.read().await?
+    {
+        options =
+            serde_json::from_reader(content.read()).context("Unable to parse options.json")?;
     }
 
     Ok(PreparedTest {
@@ -439,9 +439,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     let test_asset = asset_context
         .process(
             Vc::upcast(test_source),
-            Value::new(ReferenceType::Internal(
-                InnerAssets::empty().to_resolved().await?,
-            )),
+            ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
         )
         .module()
         .to_resolved()
@@ -450,9 +448,9 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     let jest_entry_asset = asset_context
         .process(
             Vc::upcast(jest_entry_source),
-            Value::new(ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
+            ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
                 rcstr!("TESTS") => test_asset,
-            }))),
+            })),
         )
         .module();
 

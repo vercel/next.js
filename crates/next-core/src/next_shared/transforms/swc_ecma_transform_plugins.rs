@@ -72,12 +72,12 @@ pub async fn get_swc_ecma_transform_rule_impl(
             let plugin_wasm_module_resolve_result = handle_resolve_error(
                 resolve(
                     *project_path,
-                    Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)),
+                    ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
                     request,
                     resolve_options,
                 )
                 .as_raw_module_result(),
-                Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)),
+                ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
                 // TODO proper error location
                 *project_path,
                 request,

@@ -22,14 +22,11 @@ impl SstFilter {
         meta.retain_entries(|seq| match self.0.entry(seq) {
             Entry::Occupied(mut e) => {
                 let state = e.get_mut();
-                match state {
-                    SstState::Active => false,
-                    SstState::UnusedObsolete => {
-                        *state = SstState::Obsolete;
-                        false
-                    }
-                    SstState::Obsolete => false,
+                if matches!(state, SstState::UnusedObsolete) {
+                    // the obsolete state is used now
+                    *state = SstState::Obsolete;
                 }
+                false
             }
             Entry::Vacant(e) => {
                 e.insert(SstState::Active);
@@ -47,20 +44,14 @@ impl SstFilter {
     pub fn apply_and_get_remove(&mut self, meta: &MetaFile) -> bool {
         let mut used = false;
         for seq in meta.obsolete_sst_files() {
-            match self.0.entry(*seq) {
-                Entry::Occupied(e) => match e.get() {
-                    SstState::Active => {}
-                    SstState::UnusedObsolete => {
-                        e.remove();
-                    }
-                    SstState::Obsolete => {
-                        e.remove();
-                        used = true;
-                    }
-                },
-                Entry::Vacant(e) => {
-                    e.insert(SstState::UnusedObsolete);
+            if let Entry::Occupied(e) = self.0.entry(*seq) {
+                if matches!(e.get(), SstState::Obsolete) {
+                    // This obsolete sst entry was used, so we need to keep the meta file.
+                    used = true;
                 }
+                // Only the first obsolete sst entry is needed, so we can clear this flag, so
+                // that following meta files won't see it as used anymore.
+                e.remove();
             }
         }
 

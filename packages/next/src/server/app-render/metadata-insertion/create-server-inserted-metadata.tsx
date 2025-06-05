@@ -15,6 +15,6 @@ export function createServerInsertedMetadata(nonce: string | undefined) {
     }
 
     inserted = true
-    return `<script nonce="${nonce}">${REINSERT_ICON_SCRIPT}</script>`
+    return `<script ${nonce ? `nonce="${nonce}"` : ''}>${REINSERT_ICON_SCRIPT}</script>`
   }
 }

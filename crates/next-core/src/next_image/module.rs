@@ -50,9 +50,9 @@ impl StructuredImageModuleType {
                     }
                     .cell(),
                 ),
-                Value::new(ReferenceType::Internal(ResolvedVc::cell(fxindexmap!(
+                ReferenceType::Internal(ResolvedVc::cell(fxindexmap!(
                     "IMAGE".into() => ResolvedVc::upcast(static_asset)
-                )))),
+                ))),
             )
             .module())
     }

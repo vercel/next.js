@@ -102,7 +102,7 @@ export default function Page({ params, searchParams }) {}
 > - The `metadata` object and `generateMetadata` function exports are **only supported in Server Components**.
 > - You cannot export both the `metadata` object and `generateMetadata` function from the same route segment.
 > - `fetch` requests inside `generateMetadata` are automatically [memoized](/docs/app/deep-dive/caching#request-memoization) for the same data across `generateMetadata`, `generateStaticParams`, Layouts, Pages, and Server Components.
-> - React [`cache` can be used](/docs/app/deep-dive/caching#react-cache-function) if `fetch` is unavailable. -[ File-based metadat](/docs/app/api-reference/file-conventions/metadata) has the higher priority and will override the `metadata` object and `generateMetadata` function.
+> - React [`cache` can be used](/docs/app/deep-dive/caching#react-cache-function) if `fetch` is unavailable. -[ File-based metadata](/docs/app/api-reference/file-conventions/metadata) has the higher priority and will override the `metadata` object and `generateMetadata` function.
 
 ## Reference
 
