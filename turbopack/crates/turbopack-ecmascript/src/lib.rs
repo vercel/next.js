@@ -1533,22 +1533,22 @@ async fn process_parse_result(
             let (mut code_gens, retain_syntax_context) = if let Some(scope_hoisting_options) =
                 scope_hoisting_options
             {
-                let (is_export_mark, module_syntax_contexts) = GLOBALS.set(&globals, || {
-                    let is_export_mark = Mark::new();
+                let (is_import_mark, module_syntax_contexts) = GLOBALS.set(&globals, || {
+                    let is_import_mark = Mark::new();
                     let module_syntax_contexts: FxIndexMap<_, _> = scope_hoisting_options
                         .modules
                         .keys()
                         .map(|m| {
-                            let mark = Mark::fresh(is_export_mark);
+                            let mark = Mark::fresh(is_import_mark);
                             (
                                 *m,
                                 SyntaxContext::empty()
-                                    .apply_mark(is_export_mark)
+                                    .apply_mark(is_import_mark)
                                     .apply_mark(mark),
                             )
                         })
                         .collect();
-                    (is_export_mark, module_syntax_contexts)
+                    (is_import_mark, module_syntax_contexts)
                 });
 
                 let ctx = ScopeHoistingContext::Some {
@@ -1562,20 +1562,21 @@ async fn process_parse_result(
                         .await?
                         .exports
                         .iter()
-                        .flat_map(|(_, e)| {
-                            if let export::EsmExport::LocalBinding(n, _) = e {
-                                Some(Atom::from(&**n))
+                        .filter(|(_, e)| matches!(e, export::EsmExport::LocalBinding(_, _)))
+                        .map(|(name, e)| {
+                            if let Some((sym, ctxt)) = eval_context.imports.exports.get(name) {
+                                Ok((sym.clone(), *ctxt))
                             } else {
-                                None
+                                bail!("Couldn't find export {} for binding {:?}", name, e);
                             }
                         })
-                        .collect(),
+                        .collect::<Result<FxHashSet<_>>>()?,
                     _ => Default::default(),
                 };
 
                 (
                     code_gens,
-                    Some((is_export_mark, module_syntax_contexts, preserved_exports)),
+                    Some((is_import_mark, module_syntax_contexts, preserved_exports)),
                 )
             } else if let Some(options) = options {
                 (
@@ -1610,11 +1611,11 @@ async fn process_parse_result(
             }
 
             GLOBALS.set(&globals, || {
-                if let Some((is_export_mark, _, preserved_symbols)) = &retain_syntax_context {
+                if let Some((is_import_mark, _, preserved_exports)) = &retain_syntax_context {
                     program.visit_mut_with(&mut hygiene_rename_only(
                         Some(top_level_mark),
-                        *is_export_mark,
-                        preserved_symbols,
+                        *is_import_mark,
+                        preserved_exports,
                     ));
                 } else {
                     program.visit_mut_with(
@@ -1921,17 +1922,18 @@ fn process_content_with_code_gens(
 
 /// Like `hygiene`, but only renames the Atoms without clearing all SyntaxContexts
 ///
-/// Don't rename idents marked with `is_export_mark` (i.e. imported identifier from another module)
-/// or listed in `preserve_name` (i.e. export local binding): even if they are causing collisions,
-/// they will be handled by the next hygiene pass over the whole module.
+/// Don't rename idents marked with `is_import_mark` (i.e. a reference to a value which is imported
+/// from another merged module) or listed in `preserve_exports` (i.e. an exported local binding):
+/// even if they are causing collisions, they will be handled by the next hygiene pass over the
+/// whole module.
 fn hygiene_rename_only(
     top_level_mark: Option<Mark>,
-    is_export_mark: Mark,
-    preserved_symbols: &FxHashSet<Atom>,
+    is_import_mark: Mark,
+    preserved_exports: &FxHashSet<Id>,
 ) -> impl VisitMut {
     struct HygieneRenamer<'a> {
-        preserved_symbols: &'a FxHashSet<Atom>,
-        is_export_mark: Mark,
+        preserved_exports: &'a FxHashSet<Id>,
+        is_import_mark: Mark,
     }
     impl swc_core::ecma::transforms::base::rename::Renamer for HygieneRenamer<'_> {
         const MANGLE: bool = false;
@@ -1948,7 +1950,7 @@ fn hygiene_rename_only(
         }
 
         fn preserve_name(&self, orig: &Id) -> bool {
-            self.preserved_symbols.contains(&orig.0) || orig.1.has_mark(self.is_export_mark)
+            self.preserved_exports.contains(orig) || orig.1.has_mark(self.is_import_mark)
         }
     }
     swc_core::ecma::transforms::base::rename::renamer(
@@ -1957,8 +1959,8 @@ fn hygiene_rename_only(
             ..Default::default()
         },
         HygieneRenamer {
-            preserved_symbols,
-            is_export_mark,
+            preserved_exports,
+            is_import_mark,
         },
     )
 }
