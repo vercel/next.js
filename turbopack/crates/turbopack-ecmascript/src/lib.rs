@@ -36,6 +36,7 @@ pub mod webpack;
 pub mod worker_chunk;
 
 use std::{
+    borrow::Cow,
     fmt::{Debug, Display, Formatter},
     mem::take,
     sync::Arc,
@@ -50,7 +51,7 @@ use parse::{ParseResult, parse};
 use path_visitor::ApplyVisitors;
 use references::esm::UrlRewriteBehavior;
 pub use references::{AnalyzeEcmascriptModuleResult, TURBOPACK_HELPER};
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 pub use static_code::StaticEcmascriptCode;
@@ -66,8 +67,8 @@ use swc_core::{
     },
     ecma::{
         ast::{
-            self, CallExpr, Callee, EmptyStmt, Expr, ExprStmt, Id, ModuleItem, Program, Script,
-            SourceMapperExt, Stmt,
+            self, CallExpr, Callee, EmptyStmt, Expr, ExprStmt, Id, Ident, ModuleItem, Program,
+            Script, SourceMapperExt, Stmt,
         },
         codegen::{Emitter, text_writer::JsWriter},
         visit::{VisitMut, VisitMutWith, VisitMutWithAstPath},
@@ -79,7 +80,7 @@ pub use transform::{
     CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransforms, TransformContext,
     TransformPlugin, UnsupportedServerActionIssue,
 };
-use turbo_rcstr::rcstr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString, Vc,
     trace::TraceRawVcs,
@@ -1183,15 +1184,6 @@ impl EcmascriptModuleContent {
             .collect::<Vec<_>>();
 
         let globals_merged = Globals::default();
-        let merged_ctxts = GLOBALS.set(&globals_merged, || {
-            let exports_mark = Mark::new();
-            FxIndexMap::from_iter(modules.keys().map(|m| {
-                (
-                    *m,
-                    SyntaxContext::empty().apply_mark(Mark::fresh(exports_mark)),
-                )
-            }))
-        });
 
         let contents = module_options
             .iter()
@@ -1229,7 +1221,7 @@ impl EcmascriptModuleContent {
             .await?;
 
         let (merged_ast, comments, source_maps) =
-            merge_modules(contents, &entries, &merged_ctxts, &globals_merged).await?;
+            merge_modules(contents, &entries, &globals_merged).await?;
 
         let last_options = module_options.last().unwrap().await?;
 
@@ -1245,6 +1237,7 @@ impl EcmascriptModuleContent {
                 comments,
             },
             globals: Arc::new(globals_merged),
+            eval_context: None,
             is_esm: true,
             generate_source_map: last_options.generate_source_map,
             // TODO
@@ -1280,7 +1273,6 @@ impl EcmascriptModuleContent {
 async fn merge_modules(
     mut contents: Vec<(ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, CodeGenResult)>,
     entries: &Vec<(ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, usize)>,
-    merged_ctxts: &'_ FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, SyntaxContext>,
     globals_merged: &'_ Globals,
 ) -> Result<(
     Program,
@@ -1291,24 +1283,92 @@ async fn merge_modules(
         header_width: u32,
         current_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
         current_module_idx: u32,
-        /// A marker to quickly identify the special cross-module variable references
-        export_mark: Mark,
-        /// The syntax contexts in the merged AST (each module has its own)
-        merged_ctxts: &'a FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, SyntaxContext>,
         /// The export syntax contexts in the current AST, which will be mapped to merged_ctxts
         reverse_module_contexts:
             FxIndexMap<SyntaxContext, ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
+        eval_contexts:
+            &'a FxHashMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, &'a EvalContext>,
+        unique_contexts_cache: &'a mut FxHashMap<
+            (ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, SyntaxContext),
+            SyntaxContext,
+        >,
+        globals_merged: &'a Globals,
+    }
+
+    impl<'a> SetSyntaxContextVisitor<'a> {
+        fn get_context_for(
+            &mut self,
+            module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+            local_ctxt: SyntaxContext,
+        ) -> SyntaxContext {
+            if let Some(&global_ctxt) = self.unique_contexts_cache.get(&(module, local_ctxt)) {
+                global_ctxt
+            } else {
+                let global_ctxt = GLOBALS.set(self.globals_merged, || {
+                    SyntaxContext::empty().apply_mark(Mark::new())
+                });
+                self.unique_contexts_cache
+                    .insert((module, local_ctxt), global_ctxt);
+                global_ctxt
+            }
+        }
     }
 
     impl VisitMut for SetSyntaxContextVisitor<'_> {
-        fn visit_mut_syntax_context(&mut self, ctxt: &mut SyntaxContext) {
-            let module = if ctxt.has_mark(self.export_mark) {
-                *self.reverse_module_contexts.get(ctxt).unwrap()
-            } else {
-                self.current_module
-            };
+        fn visit_mut_ident(&mut self, ident: &mut Ident) {
+            let Ident {
+                sym, ctxt, span, ..
+            } = ident;
 
-            *ctxt = *self.merged_ctxts.get(&module).unwrap();
+            // if ctxt.has_mark(self.export_mark) {
+            if let Some(&module) = self.reverse_module_contexts.get(ctxt) {
+                // let module = *self.reverse_module_contexts.get(ctxt).unwrap();
+                let eval_context = self.eval_contexts.get(&module).unwrap();
+                // TODO looking up an Atom in a Map<RcStr, _>
+                let sym_rc_str: RcStr = sym.as_str().into();
+                let (local, local_ctxt) = if let Some((local, local_ctxt)) =
+                    eval_context.imports.exports.get(&sym_rc_str)
+                {
+                    (Some(local), *local_ctxt)
+                } else if sym.starts_with("__TURBOPACK__imported__module__$") {
+                    // The variable corresponding to the `export * as foo from "...";` is generated
+                    // in the module generating the reexport (and it's not listed in the
+                    // eval_context). `EsmAssetReference::code_gen` uses a dummy span when
+                    // generating this variable.
+                    (None, SyntaxContext::empty())
+                } else {
+                    panic!(
+                        "Expected to find a local export for {sym} with ctxt {ctxt:#?} in {:?}",
+                        self.reverse_module_contexts
+                    );
+                };
+
+                let global_ctxt = self.get_context_for(module, local_ctxt);
+
+                if let Some(local) = local {
+                    *sym = local.clone();
+                }
+                *ctxt = global_ctxt; //.apply_mark(*module_context)
+                span.visit_mut_with(self);
+            } else {
+                ident.visit_mut_children_with(self);
+            }
+        }
+
+        fn visit_mut_syntax_context(&mut self, local_ctxt: &mut SyntaxContext) {
+            // let module = if local_ctxt.has_mark(self.export_mark) {
+            //     *self.reverse_module_contexts.get(local_ctxt).unwrap()
+            // } else {
+            //     self.current_module
+            // };
+            let module = self
+                .reverse_module_contexts
+                .get(local_ctxt)
+                .copied()
+                .unwrap_or(self.current_module);
+
+            let global_ctxt = self.get_context_for(module, *local_ctxt);
+            *local_ctxt = global_ctxt; // ctxt.apply_mark(*self.merged_marks.get(&module).unwrap());
         }
         fn visit_mut_span(&mut self, span: &mut Span) {
             span.lo = CodeGenResultComments::encode_bytepos(
@@ -1334,26 +1394,41 @@ async fn merge_modules(
         .map(|(_, content)| std::mem::take(&mut content.source_map))
         .collect::<Vec<_>>();
 
-    let prepare_module =
-        |(module, content): &mut (ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, CodeGenResult)| {
+    let mut programs = contents
+        .iter_mut()
+        .map(|(_, content)| content.program.take())
+        .collect::<Vec<_>>();
+
+    let eval_contexts = contents
+        .iter()
+        .map(|(module, content)| (*module, content.eval_context.as_ref().unwrap()))
+        .collect::<FxHashMap<_, _>>();
+
+    let mut unique_contexts =
+        FxHashMap::with_capacity_and_hasher(contents.len(), Default::default());
+
+    let mut prepare_module =
+        |(module, content): &(ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, CodeGenResult),
+         program: &mut Program| {
             if let CodeGenResult {
-                program: Program::Module(content),
                 globals,
-                scope_hoisting_syntax_contexts: Some((export_mark, module_contexts)),
+                scope_hoisting_syntax_contexts: Some(module_contexts),
                 ..
             } = content
+                && let Program::Module(content) = program
             {
-                GLOBALS.set(&*globals, || {
+                GLOBALS.set(globals, || {
                     content.visit_mut_with(&mut SetSyntaxContextVisitor {
                         header_width: module_contexts.len().next_power_of_two().trailing_zeros(),
                         current_module: *module,
                         current_module_idx: module_contexts.get_index_of(module).unwrap() as u32,
-                        export_mark: *export_mark,
-                        merged_ctxts,
                         reverse_module_contexts: module_contexts
                             .iter()
                             .map(|(m, ctxt)| (*ctxt, *m))
                             .collect(),
+                        eval_contexts: &eval_contexts,
+                        globals_merged,
+                        unique_contexts_cache: &mut unique_contexts,
                     });
                 });
 
@@ -1372,7 +1447,7 @@ async fn merge_modules(
         shebang: None,
         body: entries
             .iter()
-            .map(|(_, i)| prepare_module(&mut contents[*i]))
+            .map(|(_, i)| prepare_module(&contents[*i], &mut programs[*i]))
             .flatten_ok()
             .collect::<Result<Vec<_>>>()?,
     };
@@ -1394,8 +1469,10 @@ async fn merge_modules(
             let index = args[0].expr.as_lit().unwrap().as_num().unwrap().value as usize;
 
             if inserted.insert(index) {
-                let module = &mut contents[index];
-                merged_ast.body.splice(i..=i, prepare_module(module)?);
+                merged_ast.body.splice(
+                    i..=i,
+                    prepare_module(&contents[index], &mut programs[index])?,
+                );
 
                 // Don't increment, the ith item has just changed
                 continue;
@@ -1422,7 +1499,17 @@ async fn merge_modules(
     let mut merged_ast = Program::Module(merged_ast);
 
     GLOBALS.set(globals_merged, || {
+        let mut p = merged_ast.clone();
+        p.visit_mut_with(&mut DisplayContextVisitor {
+            postfix: "individual",
+            mark: None,
+        });
+        println!("----b before {}", swc_core::ecma::codegen::to_code(&p),);
         merged_ast.visit_mut_with(&mut swc_core::ecma::transforms::base::hygiene::hygiene());
+        println!(
+            "----b after  {}",
+            swc_core::ecma::codegen::to_code(&merged_ast),
+        );
         // merged_ast.visit_mut_with(&mut DisplayContextVisitor { postfix: "merged" });
     });
 
@@ -1431,10 +1518,21 @@ async fn merge_modules(
 
 // struct DisplayContextVisitor {
 //     postfix: &'static str,
+//     mark: Option<Mark>,
 // }
 // impl VisitMut for DisplayContextVisitor {
 //     fn visit_mut_ident(&mut self, ident: &mut swc_core::ecma::ast::Ident) {
-//         ident.sym = format!("{}$$${}{}", ident.sym, self.postfix, ident.ctxt.as_u32()).into();
+//         if &*ident.sym != "__turbopack_merged__" {
+//             let has_mark = self.mark.is_some_and(|mark| ident.ctxt.has_mark(mark));
+//             ident.sym = format!(
+//                 "{}$$${}{}{}",
+//                 ident.sym,
+//                 self.postfix,
+//                 ident.ctxt.as_u32(),
+//                 if has_mark { "___" } else { "" }
+//             )
+//             .into();
+//         }
 //     }
 // }
 
@@ -1501,15 +1599,13 @@ struct CodeGenResult {
     source_map: CodeGenResultSourceMap,
     globals: Arc<Globals>,
     comments: CodeGenResultComments,
+    eval_context: Option<EvalContext>,
     is_esm: bool,
     generate_source_map: bool,
     original_source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
     minify: MinifyType,
-    #[allow(clippy::type_complexity)]
-    scope_hoisting_syntax_contexts: Option<(
-        Mark,
-        FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable + 'static>>, SyntaxContext>,
-    )>,
+    scope_hoisting_syntax_contexts:
+        Option<FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable + 'static>>, SyntaxContext>>,
 }
 
 struct ScopeHoistingOptions<'a> {
@@ -1611,13 +1707,28 @@ async fn process_parse_result(
             }
 
             GLOBALS.set(&globals, || {
+                // let mut p = program.clone();
+                // p.visit_mut_with(&mut DisplayContextVisitor {
+                //     postfix: "individual",
+                //     mark: retain_syntax_context.as_ref().map(|v| v.0),
+                // });
                 if let Some((is_import_mark, _, preserved_exports)) = &retain_syntax_context {
+                    // println!(
+                    //     "----a before {} {:?}",
+                    //     swc_core::ecma::codegen::to_code(&p),
+                    //     preserved_exports
+                    // );
                     program.visit_mut_with(&mut hygiene_rename_only(
                         Some(top_level_mark),
                         *is_import_mark,
                         preserved_exports,
                     ));
+                    // println!(
+                    //     "----a after  {}",
+                    //     swc_core::ecma::codegen::to_code(&program)
+                    // );
                 } else {
+                    // println!("----x before {}", swc_core::ecma::codegen::to_code(&p),);
                     program.visit_mut_with(
                         &mut swc_core::ecma::transforms::base::hygiene::hygiene_with_config(
                             swc_core::ecma::transforms::base::hygiene::Config {
@@ -1626,6 +1737,10 @@ async fn process_parse_result(
                             },
                         ),
                     );
+                    // println!(
+                    //     "----x after  {}",
+                    //     swc_core::ecma::codegen::to_code(&program)
+                    // );
                 }
                 // program.visit_mut_with(&mut DisplayContextVisitor {
                 //     postfix: "individual",
@@ -1647,12 +1762,13 @@ async fn process_parse_result(
                     comments,
                     extra_comments,
                 },
+                // TODO ideally don't clone here at all
+                eval_context: Some(eval_context.into_owned()),
                 is_esm,
                 generate_source_map,
                 original_source_map,
                 minify,
-                scope_hoisting_syntax_contexts: retain_syntax_context
-                    .map(|(mark, ctxts, _)| (mark, ctxts)),
+                scope_hoisting_syntax_contexts: retain_syntax_context.map(|(_, ctxts, _)| ctxts),
             })
         },
         async |parse_result| -> Result<CodeGenResult> {
@@ -1683,6 +1799,7 @@ async fn process_parse_result(
                         source_map: CodeGenResultSourceMap::default(),
                         globals: Arc::new(Globals::default()),
                         comments: CodeGenResultComments::Empty,
+                        eval_context: None,
                         is_esm: false,
                         generate_source_map: false,
                         original_source_map: None,
@@ -1710,6 +1827,7 @@ async fn process_parse_result(
                         source_map: CodeGenResultSourceMap::default(),
                         globals: Arc::new(Globals::default()),
                         comments: CodeGenResultComments::Empty,
+                        eval_context: None,
                         is_esm: false,
                         generate_source_map: false,
                         original_source_map: None,
@@ -1730,7 +1848,7 @@ async fn with_consumed_parse_result<T>(
         Program,
         &Arc<SourceMap>,
         Globals,
-        &EvalContext,
+        Cow<'_, EvalContext>,
         Either<ImmutableComments, Arc<ImmutableComments>>,
     ) -> Result<T>,
     error: impl AsyncFnOnce(&ParseResult) -> Result<T>,
@@ -1753,7 +1871,15 @@ async fn with_consumed_parse_result<T>(
                         Ok(globals) => globals,
                         Err(globals) => globals.clone_data(),
                     },
-                    &*eval_context,
+                    Cow::Owned(std::mem::replace(
+                        eval_context,
+                        EvalContext {
+                            unresolved_mark: eval_context.unresolved_mark,
+                            top_level_mark: eval_context.top_level_mark,
+                            imports: Default::default(),
+                            force_free_values: Default::default(),
+                        },
+                    )),
                     match Arc::try_unwrap(take(comments)) {
                         Ok(comments) => Either::Left(comments),
                         Err(comments) => Either::Right(comments),
@@ -1774,7 +1900,7 @@ async fn with_consumed_parse_result<T>(
                         program.clone(),
                         source_map,
                         globals.clone_data(),
-                        eval_context,
+                        Cow::Borrowed(eval_context),
                         Either::Right(comments.clone()),
                     )
                 }
@@ -1795,6 +1921,7 @@ async fn emit_content(
         program,
         source_map,
         comments,
+        eval_context: _,
         is_esm,
         generate_source_map,
         original_source_map,

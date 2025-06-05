@@ -169,11 +169,12 @@ impl ReferencedAsset {
                     let exports = exports.expand_exports(None).await?;
                     let esm_export = exports.exports.get(export);
                     match esm_export {
-                        Some(EsmExport::LocalBinding(name, _)) => {
-                            // A local binding in a module that is merged in the same
-                            // group
+                        Some(EsmExport::LocalBinding(_, _)) => {
+                            // A local binding in a module that is merged in the same group. Use the
+                            // export name as identifier, it will be replaced with the actual
+                            // variable name during AST merging.
                             return Ok(Some(ReferencedAssetIdent::LocalBinding {
-                                ident: name.clone(),
+                                ident: export.clone(),
                                 ctxt,
                             }));
                         }
