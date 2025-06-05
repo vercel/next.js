@@ -79,12 +79,15 @@ function getPlugins(
       : false
 
   const applyCommonJsItem = hasModuleExports
-    ? createConfigItem(require('../plugins/commonjs'), { type: 'plugin' })
+    ? createConfigItem(
+        require('../plugins/commonjs') as typeof import('../plugins/commonjs'),
+        { type: 'plugin' }
+      )
     : null
   const reactRefreshItem = hasReactRefresh
     ? createConfigItem(
         [
-          require('next/dist/compiled/react-refresh/babel'),
+          require('next/dist/compiled/react-refresh/babel') as typeof import('next/dist/compiled/react-refresh/babel'),
           { skipEnvCheck: true },
         ],
         { type: 'plugin' }
@@ -92,14 +95,21 @@ function getPlugins(
     : null
   const pageConfigItem =
     !isServer && isPageFile
-      ? createConfigItem([require('../plugins/next-page-config')], {
-          type: 'plugin',
-        })
+      ? createConfigItem(
+          [
+            require('../plugins/next-page-config') as typeof import('../plugins/next-page-config'),
+          ],
+          {
+            type: 'plugin',
+          }
+        )
       : null
   const disallowExportAllItem =
     !isServer && isPageFile
       ? createConfigItem(
-          [require('../plugins/next-page-disallow-re-export-all-exports')],
+          [
+            require('../plugins/next-page-disallow-re-export-all-exports') as typeof import('../plugins/next-page-disallow-re-export-all-exports'),
+          ],
           { type: 'plugin' }
         )
       : null
@@ -123,12 +133,14 @@ function getPlugins(
       : null
   const commonJsItem = isNextDist
     ? createConfigItem(
-        require('next/dist/compiled/babel/plugin-transform-modules-commonjs'),
+        require('next/dist/compiled/babel/plugin-transform-modules-commonjs') as typeof import('next/dist/compiled/babel/plugin-transform-modules-commonjs'),
         { type: 'plugin' }
       )
     : null
   const nextFontUnsupported = createConfigItem(
-    [require('../plugins/next-font-unsupported')],
+    [
+      require('../plugins/next-font-unsupported') as typeof import('../plugins/next-font-unsupported'),
+    ],
     { type: 'plugin' }
   )
 
@@ -341,7 +353,7 @@ async function getFreshConfig(
     options.plugins = [jsx, ...reactCompilerPluginsIfEnabled]
     options.presets = [
       [
-        require('next/dist/compiled/babel/preset-typescript'),
+        require('next/dist/compiled/babel/preset-typescript') as typeof import('next/dist/compiled/babel/preset-typescript'),
         { allowNamespaces: true },
       ],
     ]

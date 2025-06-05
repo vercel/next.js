@@ -474,7 +474,9 @@ export default abstract class Server<
     this.serverOptions = options
 
     this.dir =
-      process.env.NEXT_RUNTIME === 'edge' ? dir : require('path').resolve(dir)
+      process.env.NEXT_RUNTIME === 'edge'
+        ? dir
+        : (require('path') as typeof import('path')).resolve(dir)
 
     this.quiet = quiet
     this.loadEnvConfig({ dev })
@@ -491,7 +493,10 @@ export default abstract class Server<
     this.distDir =
       process.env.NEXT_RUNTIME === 'edge'
         ? this.nextConfig.distDir
-        : require('path').join(this.dir, this.nextConfig.distDir)
+        : (require('path') as typeof import('path')).join(
+            this.dir,
+            this.nextConfig.distDir
+          )
     this.publicDir = this.getPublicDir()
     this.hasStaticDir = !minimalMode && this.getHasStaticDir()
 
