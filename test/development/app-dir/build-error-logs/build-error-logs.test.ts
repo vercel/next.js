@@ -20,7 +20,7 @@ describe('build-error-logs', () => {
       expect(moduleNotFoundLogs).toHaveLength(1)
     } else {
       // FIXME: next with webpack still logs the same error too many times
-      expect(moduleNotFoundLogs).toHaveLength(4)
+      expect(moduleNotFoundLogs).toHaveLength(5)
     }
   })
 })

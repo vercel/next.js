@@ -1,26 +1,7 @@
 'use client'
 
 import { HandleISRError } from './handle-isr-error'
-
-const styles = {
-  error: {
-    // https://github.com/sindresorhus/modern-normalize/blob/main/modern-normalize.css#L38-L52
-    fontFamily:
-      'system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
-    height: '100vh',
-    textAlign: 'center',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  text: {
-    fontSize: '14px',
-    fontWeight: 400,
-    lineHeight: '28px',
-    margin: '0 8px',
-  },
-} as const
+import { globalErrorStyles as styles } from './global-error-styles'
 
 export type GlobalErrorComponent = React.ComponentType<{
   error: any
@@ -52,4 +33,3 @@ function GlobalError({ error }: { error: any }) {
 // Exported so that the import signature in the loaders can be identical to user
 // supplied custom global error signatures.
 export default GlobalError
-export { styles as globalErrorStyles }
