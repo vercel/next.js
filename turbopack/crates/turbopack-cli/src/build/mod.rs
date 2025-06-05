@@ -439,7 +439,7 @@ async fn build_internal(
                                         [ResolvedVc::upcast(ecmascript)].into_iter().collect(),
                                     ),
                                     module_graph,
-                                    Value::new(AvailabilityInfo::Root),
+                                    AvailabilityInfo::Root,
                                 )
                                 .await?
                                 .assets
@@ -462,7 +462,7 @@ async fn build_internal(
                                     EvaluatableAssets::one(*ResolvedVc::upcast(ecmascript)),
                                     module_graph,
                                     OutputAssets::empty(),
-                                    Value::new(AvailabilityInfo::Root),
+                                    AvailabilityInfo::Root,
                                 )
                                 .await?
                                 .asset,
