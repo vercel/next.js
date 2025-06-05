@@ -299,8 +299,7 @@ dependencies = [
 [[package]]
 name = "ast_node"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91fb5864e2f5bf9fd9797b94b2dfd1554d4c3092b535008b27d7e15c86675a2f"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -724,8 +723,7 @@ dependencies = [
 [[package]]
 name = "better_scoped_tls"
 version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "50fd297a11c709be8348aec039c8b91de16075d2b2bdaee1bd562c0875993664"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "scoped-tls",
 ]
@@ -762,8 +760,7 @@ dependencies = [
 [[package]]
 name = "binding_macros"
 version = "25.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c23c0cf9351aa158baee33c9dea1870a0f21393375cf00b2a6170ad7f477aa1b"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "anyhow",
  "console_error_panic_hook",
@@ -2457,8 +2454,7 @@ dependencies = [
 [[package]]
 name = "from_variant"
 version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d7ccf961415e7aa17ef93dcb6c2441faaa8e768abe09e659b908089546f74c5"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "proc-macro2",
  "swc_macros_common",
@@ -2904,8 +2900,7 @@ dependencies = [
 [[package]]
 name = "hstr"
 version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71399f53a92ef72ee336a4b30201c6e944827e14e0af23204c291aad9c24cc85"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "hashbrown 0.14.5",
  "new_debug_unreachable",
@@ -4250,7 +4245,7 @@ dependencies = [
  "markdown",
  "rustc-hash 2.1.1",
  "serde",
- "swc_core",
+ "swc_core 26.4.4",
 ]
 
 [[package]]
@@ -4567,7 +4562,7 @@ dependencies = [
  "rustc-hash 2.1.1",
  "serde",
  "serde_json",
- "swc_core",
+ "swc_core 26.4.5",
  "tracing",
  "turbo-rcstr",
  "turbo-tasks",
@@ -4645,7 +4640,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_path_to_error",
- "swc_core",
+ "swc_core 26.4.5",
  "thiserror 1.0.69",
  "tracing",
  "turbo-esregex",
@@ -4696,7 +4691,7 @@ dependencies = [
  "sha1",
  "styled_components",
  "styled_jsx",
- "swc_core",
+ "swc_core 26.4.5",
  "swc_emotion",
  "swc_relay",
  "testing",
@@ -4731,7 +4726,7 @@ dependencies = [
  "serde",
  "serde_json",
  "supports-hyperlinks",
- "swc_core",
+ "swc_core 26.4.5",
  "terminal_hyperlink",
  "tokio",
  "tracing",
@@ -5552,8 +5547,7 @@ checksum = "925383efa346730478fb4838dbe9137d2a47675ad789c546d150a6e1dd4ab31c"
 [[package]]
 name = "preset_env_base"
 version = "3.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b06c1ead1873928228f01ffafe4800c3accb27d019c034626c54698408e36bfb"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "anyhow",
  "browserslist-rs",
@@ -7266,8 +7260,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 [[package]]
 name = "string_enum"
 version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c9fe66b8ee349846ce2f9557a26b8f1e74843c4a13fb381f9a3d73617a5f956a"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -7352,8 +7345,7 @@ checksum = "804f44ed3c63152de6a9f90acbea1a110441de43006ea51bcce8f436196a288b"
 [[package]]
 name = "swc"
 version = "25.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "707e7a089761c5f4661765cc38b689d795d67bb0810782cdece3997cd03a6e94"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -7413,14 +7405,13 @@ dependencies = [
  "clap",
  "owo-colors 3.5.0",
  "regex",
- "swc_core",
+ "swc_core 26.4.5",
 ]
 
 [[package]]
 name = "swc_allocator"
 version = "4.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cc6b926f0d94bbb34031fe5449428cfa1268cdc0b31158d6ad9c97e0fc1e79dd"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "allocator-api2",
  "bumpalo",
@@ -7433,8 +7424,7 @@ dependencies = [
 [[package]]
 name = "swc_atoms"
 version = "5.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d7077ba879f95406459bc0c81f3141c529b34580bc64d7ab7bd15e7118a0391"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "bytecheck 0.8.0",
  "hstr",
@@ -7463,8 +7453,7 @@ dependencies = [
 [[package]]
 name = "swc_common"
 version = "11.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "44c332906667b0fa98622f19a19e43afa5aa63b652813f80645dd0f33eca1fbb"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "anyhow",
  "ast_node",
@@ -7496,9 +7485,8 @@ dependencies = [
 
 [[package]]
 name = "swc_compiler_base"
-version = "22.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3aef98ee955eac3339cb3a8152c64746196bd14919b41afdf2cc410c06e6cfee"
+version = "22.0.1"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -7525,8 +7513,7 @@ dependencies = [
 [[package]]
 name = "swc_config"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a01bfcbbdea182bdda93713aeecd997749ae324686bf7944f54d128e56be4ea9"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "anyhow",
  "dashmap 5.5.3",
@@ -7544,8 +7531,7 @@ dependencies = [
 [[package]]
 name = "swc_config_macro"
 version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f2ebd37ef52a8555c8c9be78b694d64adcb5e3bc16c928f030d82f1d65fac57"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -7558,6 +7544,22 @@ name = "swc_core"
 version = "26.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6d1783e7597476b56a78ecf32de11269455e0263b1f93729be2fdbd8eeb799a"
+dependencies = [
+ "swc_allocator",
+ "swc_atoms",
+ "swc_common",
+ "swc_ecma_ast",
+ "swc_ecma_codegen",
+ "swc_ecma_parser",
+ "swc_ecma_transforms_base",
+ "swc_ecma_visit",
+ "vergen",
+]
+
+[[package]]
+name = "swc_core"
+version = "26.4.5"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "binding_macros",
  "par-core",
@@ -7592,8 +7594,7 @@ dependencies = [
 [[package]]
 name = "swc_css_ast"
 version = "11.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a434516e60c9ceebcd288c5b22f6d6d4051403e11691a97a2c6729b74d8a9aba"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "is-macro",
  "string_enum",
@@ -7604,8 +7605,7 @@ dependencies = [
 [[package]]
 name = "swc_css_codegen"
 version = "11.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "838abcc39836584f28b413370575636286ea36cbaa00b748f787a3a68868e0c8"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "auto_impl",
  "bitflags 2.9.0",
@@ -7621,8 +7621,7 @@ dependencies = [
 [[package]]
 name = "swc_css_codegen_macros"
 version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "50abd25b3b79f18423cdf99b0d11dee24e64496be3b8abe18c10a2c40bd6c91f"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -7633,8 +7632,7 @@ dependencies = [
 [[package]]
 name = "swc_css_compat"
 version = "11.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba75455f1f1e3539cf6baa999b2338b1366849ad50fd6a8f6db129109bec4eb9"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "bitflags 2.9.0",
  "once_cell",
@@ -7650,8 +7648,7 @@ dependencies = [
 [[package]]
 name = "swc_css_minifier"
 version = "11.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "10f809a4dff6a164664ff1553ec7ef891a69241c26a9ec788f0e59053542c9fc"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "rustc-hash 2.1.1",
  "serde",
@@ -7665,8 +7662,7 @@ dependencies = [
 [[package]]
 name = "swc_css_parser"
 version = "11.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "76c5f791bcaedb06018e1f6a5c6f8a45e03149be6cc72f291dae8782d90a3654"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "lexical",
  "serde",
@@ -7678,8 +7674,7 @@ dependencies = [
 [[package]]
 name = "swc_css_prefixer"
 version = "13.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3dae7345db04cfe794e26a86e64aa82d9decad0fc9bc9897a7b7243355aa7b43"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "once_cell",
  "preset_env_base",
@@ -7696,8 +7691,7 @@ dependencies = [
 [[package]]
 name = "swc_css_utils"
 version = "11.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c62b1d0dc15f9f09405f90f76cfb89900a5eaeb53486e91cdad1e8df25a1ee3d"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "once_cell",
  "rustc-hash 2.1.1",
@@ -7712,8 +7706,7 @@ dependencies = [
 [[package]]
 name = "swc_css_visit"
 version = "11.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "acf01ce7c4f3d05f82ee58692daaa0df8bee5c8115842df36780bc3ce74faa41"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "serde",
  "swc_atoms",
@@ -7725,8 +7718,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_ast"
 version = "11.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2313360a518a37c4b9ee50030d189222927a3af902903cc70c50f6929e402dc"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "bitflags 2.9.0",
  "bytecheck 0.8.0",
@@ -7750,8 +7742,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_codegen"
 version = "13.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "005b9e6e4cdd15c4c437d6662e4fc6dc93f60bd1c5159a1afcf6cd9eea6fb24f"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "ascii",
  "compact_str",
@@ -7774,8 +7765,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_codegen_macros"
 version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e99e1931669a67c83e2c2b4375674f6901d1480994a76aa75b23f1389e6c5076"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -7786,8 +7776,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_bugfixes"
 version = "16.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "842e35f35bb7732f35b885c906e93183817d76e167234ab45948bf7cfc856804"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "rustc-hash 2.1.1",
  "swc_atoms",
@@ -7804,8 +7793,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_common"
 version = "15.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed5d027ec8260c28031723a13d30f12793f0f1cdb1f64133c4da32891e5058e8"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "swc_common",
  "swc_ecma_ast",
@@ -7817,8 +7805,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_es2015"
 version = "16.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "073fd6f4f2fe6e5929056fab53d1ce188818b81b7008904bc7f932efa3348717"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "arrayvec 0.7.4",
  "indexmap 2.7.1",
@@ -7844,8 +7831,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_es2016"
 version = "15.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6f53fcada063eba1c278e829a8b9ec024408c5bad526171b0cb96c77bf9c533b"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "swc_atoms",
  "swc_common",
@@ -7861,8 +7847,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_es2017"
 version = "15.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d9a8e0589b8933b4e2de95a787b33e6ef91371c5a85f9d73c5870ac546fc6b7"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "serde",
  "swc_atoms",
@@ -7879,8 +7864,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_es2018"
 version = "15.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eb69df2828e6d00ca815d66fd1e609e64683abf705dcc46b195fbc7353cabe89"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "serde",
  "swc_atoms",
@@ -7898,8 +7882,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_es2019"
 version = "15.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a71abfad6a3a6093098f46e68e026d132ca15906fed912b0912f561a1cbd67f5"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "swc_atoms",
  "swc_common",
@@ -7914,8 +7897,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_es2020"
 version = "16.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73b226871c16b8f4e3914c1dff2e8c93626fbc6a6bfeb3fb598f941d04890e20"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "serde",
  "swc_atoms",
@@ -7932,8 +7914,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_es2021"
 version = "15.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2f79df9e55b7c3fd29e4116fc6ef1e0155c86fe64fa6a91d357469501d574ef2"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "swc_atoms",
  "swc_common",
@@ -7948,8 +7929,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_es2022"
 version = "16.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a7749e111ac8251708d6067dc20d0a9399dd7d8e3cd75a18d309830575064d1"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "rustc-hash 2.1.1",
  "swc_atoms",
@@ -7968,8 +7948,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_es3"
 version = "15.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ecfb2f4d16cd2459bdae7a12a0c3258bb53d63d97c0bbff50dade9c3f324c634"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "swc_common",
  "swc_ecma_ast",
@@ -7983,8 +7962,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_ext_transforms"
 version = "15.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1db3a2e81be5e12bf58f53a9217791e695bb79e43e6e9e0b63be602c048f0451"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "phf",
  "swc_atoms",
@@ -7997,8 +7975,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_lexer"
 version = "14.0.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb339d30ba6ee93da5d5638982faaa79586cd429fe331648abf42afa0eb0a7b5"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "arrayvec 0.7.4",
  "bitflags 2.9.0",
@@ -8022,8 +7999,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_lints"
 version = "16.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "daf720184ed1f84a61a34df1c9d73be0931a8184a7ed6af67ad8f5f1bbec3881"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "auto_impl",
  "dashmap 5.5.3",
@@ -8043,8 +8019,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_loader"
 version = "11.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "209c6a8a5ca19c9b24daf598debb4f2fa57bf21a3bd76046d9791b7f2a0b0c93"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "anyhow",
  "dashmap 5.5.3",
@@ -8065,8 +8040,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_minifier"
 version = "20.0.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf26b860e6a0e23807c70b03175d0e09082cfe256130c4759fdf9372020d3a3f"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "arrayvec 0.7.4",
  "bitflags 2.9.0",
@@ -8103,8 +8077,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_parser"
 version = "14.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "60e07e6ecd47f748988902976d09c4022b1147772f88ad8a95852a20722ac7dc"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "arrayvec 0.7.4",
  "bitflags 2.9.0",
@@ -8129,8 +8102,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_preset_env"
 version = "20.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e8f94ea6dfa4daf55a08e210cbc213b5758b6bc92a929a3af75f478c8b0253cf"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "anyhow",
  "dashmap 5.5.3",
@@ -8154,8 +8126,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_quote_macros"
 version = "14.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f755b824a30c6b70dba267077f4e2471d2a6e440623dc8e399ff27f59759a5a"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "anyhow",
  "proc-macro2",
@@ -8172,8 +8143,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_testing"
 version = "12.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bfca232a0a2e743c963185665bc6fb6f92b1422449aba17ccd836ff4aa02858d"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "anyhow",
  "hex",
@@ -8185,8 +8155,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms"
 version = "19.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "82f91c0e075315f1e745f65888e135ff05e3d16b6c6393c70dc9fb2c944b40fe"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "par-core",
  "swc_atoms",
@@ -8206,8 +8175,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms_base"
 version = "15.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "49c0a76bff24b9fa13d5451e7a664d18158849c45434d863e0553e29fb31170b"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "better_scoped_tls",
  "bitflags 2.9.0",
@@ -8231,8 +8199,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms_classes"
 version = "15.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1c30a47eb83be77705a16103918db015a409a45e158a490697d8419a6f92151a"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "swc_atoms",
  "swc_common",
@@ -8245,8 +8212,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms_compat"
 version = "17.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ab71af00c78903335fc2ac0ad4308e6729b6be60e47393a36357fb20ffbb612"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "arrayvec 0.7.4",
  "indexmap 2.7.1",
@@ -8283,8 +8249,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms_macros"
 version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6845dfb88569f3e8cd05901505916a8ebe98be3922f94769ca49f84e8ccec8f7"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -8295,8 +8260,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms_module"
 version = "17.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc169d2f3e52ab9619aff70b97b6f9db7b96feec8112454df3dd7d134f34078a"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "Inflector",
  "anyhow",
@@ -8323,8 +8287,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms_optimization"
 version = "16.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e184bf675c5c9111e1b155e49fc267bc2971b732ac22d80887cc46973a782b7"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "dashmap 5.5.3",
  "indexmap 2.7.1",
@@ -8348,8 +8311,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms_proposal"
 version = "15.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f21a20e2231143fe4aacecf2f1957c80bca8096ebe52f27e6e5624a49a2a385d"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "either",
  "rustc-hash 2.1.1",
@@ -8368,8 +8330,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms_react"
 version = "17.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a3f141582d19aa9679ecfc811bc72cb8ef24290bc1e53ba208445ff5d5745f2b"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "base64 0.22.1",
  "dashmap 5.5.3",
@@ -8395,8 +8356,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms_testing"
 version = "18.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "297e4f7638cfc0d6088ad637ec717b9ffbf7555a913963344cd1f3ce2864a660"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "ansi_term",
  "anyhow",
@@ -8422,8 +8382,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms_typescript"
 version = "17.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5af18b9b3f38cf775b9dcf46f0fdbde542d6559e5759799263ef0f76563fcd9b"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "once_cell",
  "rustc-hash 2.1.1",
@@ -8441,8 +8400,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_usage_analyzer"
 version = "16.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f4061a34574b9431c94c21519948ad4421d7b28479a1a78bb94b878c67d9fac9"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "bitflags 2.9.0",
  "indexmap 2.7.1",
@@ -8459,8 +8417,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_utils"
 version = "15.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d2c29dbfc54e02c14975aff9d2c75ae6fff0808d860d9971a493d37870e282f"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "indexmap 2.7.1",
  "num_cpus",
@@ -8481,8 +8438,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_visit"
 version = "11.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8227d1d2d76a9ccfd190ec06bb4a4720bf3edb9f954c69816b2bca5f5aa43887"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "new_debug_unreachable",
  "num-bigint",
@@ -8522,8 +8478,7 @@ dependencies = [
 [[package]]
 name = "swc_eq_ignore_macros"
 version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e96e15288bf385ab85eb83cff7f9e2d834348da58d0a31b33bdb572e66ee413e"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -8533,8 +8488,7 @@ dependencies = [
 [[package]]
 name = "swc_error_reporters"
 version = "13.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "572075b92eef780f9a13b99abcb4fbf8e6272abeed27b361632b5e3a2e8de70d"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "anyhow",
  "miette",
@@ -8549,8 +8503,7 @@ dependencies = [
 [[package]]
 name = "swc_macros_common"
 version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a509f56fca05b39ba6c15f3e58636c3924c78347d63853632ed2ffcb6f5a0ac7"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -8560,8 +8513,7 @@ dependencies = [
 [[package]]
 name = "swc_node_comments"
 version = "11.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c75011be56778fa9d67fce20853b9a00f46484bfaef230e8098c08ad9caf8dc7"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "dashmap 5.5.3",
  "rustc-hash 2.1.1",
@@ -8572,8 +8524,7 @@ dependencies = [
 [[package]]
 name = "swc_nodejs_common"
 version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb8398dd81e4dc5ea31d9f932cbdcebef0c16fb85c289b7c4aa976f68a43d87e"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "anyhow",
  "napi",
@@ -8586,8 +8537,7 @@ dependencies = [
 [[package]]
 name = "swc_plugin_macro"
 version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ace467dfafbbdf3aecff786b8605b35db57d945e92fd88800569aa2cba0cdf61"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -8597,8 +8547,7 @@ dependencies = [
 [[package]]
 name = "swc_plugin_proxy"
 version = "11.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ab1281343dca1fe02aa027e2dfdf77067e62506e77b651e3e9c1a4e3fa8bccf6"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "better_scoped_tls",
  "bytecheck 0.8.0",
@@ -8614,8 +8563,7 @@ dependencies = [
 [[package]]
 name = "swc_plugin_runner"
 version = "13.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4802311e7168c171b047c28335603e8969e62ba4d75c0c607b53e77fbcb1a9aa"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "anyhow",
  "enumset",
@@ -8661,8 +8609,7 @@ dependencies = [
 [[package]]
 name = "swc_timer"
 version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4db06b46cc832f7cf83c2ce21905fc465d01443a2bdccf63644383e1f5847532"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "tracing",
 ]
@@ -8670,8 +8617,7 @@ dependencies = [
 [[package]]
 name = "swc_trace_macro"
 version = "2.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "559185db338f1bcb50297aafd4f79c0956c84dc71a66da4cffb57acf9d93fd88"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -8681,8 +8627,7 @@ dependencies = [
 [[package]]
 name = "swc_transform_common"
 version = "5.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3be97f7341c59045d8ecbd5579acad8063e545d10304db086846b9dcf985c56e"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "better_scoped_tls",
  "once_cell",
@@ -8695,8 +8640,7 @@ dependencies = [
 [[package]]
 name = "swc_typescript"
 version = "14.0.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "520693e220391e003179bed5d1c8e183e7673fb67a446eac8ad650493c279619"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "bitflags 2.9.0",
  "petgraph 0.7.1",
@@ -8712,8 +8656,7 @@ dependencies = [
 [[package]]
 name = "swc_visit"
 version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9138b6a36bbe76dd6753c4c0794f7e26480ea757bee499738bedbbb3ae3ec5f3"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "either",
  "new_debug_unreachable",
@@ -8888,8 +8831,7 @@ dependencies = [
 [[package]]
 name = "testing"
 version = "12.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4afa5efbee09e27d4fa6f7d3278e351ab1feaf8d253eea84bc69975fb6da418e"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "ansi_term",
  "cargo_metadata 0.18.1",
@@ -8910,8 +8852,7 @@ dependencies = [
 [[package]]
 name = "testing_macros"
 version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a2d27bf245b90a80d5aa231133418ae7db98f032855ce5292e12071ab29c4b26"
+source = "git+https://github.com/mischnic/swc?branch=mischnic%2Fno-comments-for-dummy#ca1a9d558ac8f2445a528c00eb2595ef12308f6e"
 dependencies = [
  "anyhow",
  "glob",
@@ -10005,7 +9946,7 @@ dependencies = [
  "serde_json",
  "smallvec",
  "sourcemap",
- "swc_core",
+ "swc_core 26.4.5",
  "tokio",
  "tracing",
  "turbo-prehash",
@@ -10042,7 +9983,7 @@ dependencies = [
  "rustc-hash 2.1.1",
  "serde",
  "smallvec",
- "swc_core",
+ "swc_core 26.4.5",
  "tokio",
  "tracing",
  "turbo-rcstr",
@@ -10117,7 +10058,7 @@ dependencies = [
  "smallvec",
  "sourcemap",
  "strsim 0.11.1",
- "swc_core",
+ "swc_core 26.4.5",
  "tokio",
  "tracing",
  "turbo-esregex",
@@ -10158,7 +10099,7 @@ dependencies = [
  "serde_json",
  "styled_components",
  "styled_jsx",
- "swc_core",
+ "swc_core 26.4.5",
  "swc_emotion",
  "swc_relay",
  "tracing",
@@ -10341,7 +10282,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "parking_lot",
- "swc_core",
+ "swc_core 26.4.5",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
@@ -11003,7 +10944,7 @@ dependencies = [
  "next-custom-transforms",
  "serde-wasm-bindgen 0.4.5",
  "serde_json",
- "swc_core",
+ "swc_core 26.4.5",
  "tracing",
  "wasm-bindgen",
  "wasm-bindgen-futures",
