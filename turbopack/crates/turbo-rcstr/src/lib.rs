@@ -337,7 +337,7 @@ pub const fn inline_atom(s: &str) -> Option<RcStr> {
 /// allocates the RcStr inline when possible otherwise uses a `LazyLock` to manage the allocation.
 #[macro_export]
 macro_rules! rcstr {
-    ($s:tt) => {{
+    ($s:expr) => {{
         const INLINE: core::option::Option<$crate::RcStr> = $crate::inline_atom($s);
         // this condition should be able to be compile time evaluated and inlined.
         if INLINE.is_some() {
@@ -445,6 +445,7 @@ mod tests {
         assert_eq!(rcstr!("abcdefgh"), RcStr::from("abcdefgh"));
         assert_eq!(rcstr!("abcdefghi"), RcStr::from("abcdefghi"));
     }
+
     #[test]
     fn test_inline_atom() {
         // This is a silly test, just asserts that we can evaluate this in a constant context.

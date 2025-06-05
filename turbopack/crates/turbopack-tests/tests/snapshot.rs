@@ -43,7 +43,7 @@ use turbopack_core::{
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     free_var_references,
-    issue::{Issue, IssueDescriptionExt},
+    issue::IssueDescriptionExt,
     module::Module,
     module_graph::{
         ModuleGraph,
@@ -61,7 +61,7 @@ use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_env::ProcessEnvAsset;
 use turbopack_nodejs::NodeJsChunkingContext;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
-use turbopack_test_utils::snapshot::{diff, expected, matches_expected, snapshot_issues};
+use turbopack_test_utils::snapshot::{UPDATE, diff, expected, matches_expected, snapshot_issues};
 
 use crate::util::REPO_ROOT;
 
@@ -159,6 +159,9 @@ async fn run(resource: PathBuf) -> Result<()> {
     let tt = TurboTasks::new(TurboTasksBackend::new(
         BackendOptions {
             storage_mode: None,
+            // Enable dependency tracking when we are running under UPDATE=1 to ensure file writes
+            // don't crash the test.
+            dependency_tracking: *UPDATE,
             ..Default::default()
         },
         noop_backing_storage(),
@@ -182,11 +185,7 @@ async fn run_inner_operation(resource: RcStr) -> Result<()> {
     let out_vc = out_op.resolve_strongly_consistent().await?;
     let captured_issues = out_op.peek_issues_with_path().await?;
 
-    let plain_issues = captured_issues
-        .iter_with_shortest_path()
-        .map(|(issue_vc, path)| async move { issue_vc.into_plain(path).await })
-        .try_join()
-        .await?;
+    let plain_issues = captured_issues.get_plain_issues().await?;
 
     snapshot_issues(plain_issues, out_vc.join(rcstr!("issues")), &REPO_ROOT)
         .await

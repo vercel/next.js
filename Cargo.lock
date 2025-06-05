@@ -9971,6 +9971,7 @@ dependencies = [
  "owo-colors 3.5.0",
  "rustc-hash 2.1.1",
  "serde",
+ "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
  "turbo-tasks-fs",
