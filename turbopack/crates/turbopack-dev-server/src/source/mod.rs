@@ -322,7 +322,7 @@ impl ContentSourceDataFilter {
 /// Describes additional information that need to be sent to requests to
 /// ContentSource. By sending these information ContentSource responses are
 /// cached-keyed by them and they can access them.
-#[turbo_tasks::value(shared, serialization = "auto_for_input")]
+#[turbo_tasks::value(shared)]
 #[derive(Debug, Default, Clone, Hash)]
 pub struct ContentSourceDataVary {
     pub method: bool,
