@@ -7164,7 +7164,7 @@ dependencies = [
 [[package]]
 name = "sourcemap"
 version = "9.2.2"
-source = "git+https://github.com/kdy1/rust-sourcemap?branch=kdy1%2Flazy#3bbec188d76f2cfa6f8f04cfda3bc0e17fed1b7c"
+source = "git+https://github.com/kdy1/rust-sourcemap?branch=kdy1%2Flazy#6bc70da37962a2eefbd7e707510cb247068689f1"
 dependencies = [
  "base64-simd 0.8.0",
  "bitvec",
