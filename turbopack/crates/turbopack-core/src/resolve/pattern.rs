@@ -20,7 +20,7 @@ use turbo_tasks_fs::{
     util::normalize_path,
 };
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
+#[turbo_tasks::value(shared, serialization = "auto_for_input")]
 #[derive(Hash, Clone, Debug, Default)]
 pub enum Pattern {
     Constant(RcStr),
@@ -801,6 +801,7 @@ impl Pattern {
                 .then_some(0)
         }
     }
+
     fn match_internal<'a>(
         &self,
         mut value: &'a str,
@@ -1170,8 +1171,6 @@ impl Pattern {
 
 impl Pattern {
     pub fn new(pattern: Pattern) -> Vc<Self> {
-        let mut pattern = pattern;
-        pattern.normalize();
         Pattern::new_internal(Value::new(pattern))
     }
 }

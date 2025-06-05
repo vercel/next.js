@@ -706,7 +706,7 @@ impl Request {
     /// more complete.
     #[turbo_tasks::function]
     pub async fn request_pattern(self: Vc<Self>) -> Result<Vc<Pattern>> {
-        Ok(Pattern::new(match &*self.await? {
+        Ok(match &*self.await? {
             Request::Raw { path, .. } => path.clone(),
             Request::Relative { path, .. } => path.clone(),
             Request::Module { module, path, .. } => {
@@ -744,7 +744,8 @@ impl Request {
                     .try_join()
                     .await?,
             ),
-        }))
+        }
+        .cell())
     }
 }
 
