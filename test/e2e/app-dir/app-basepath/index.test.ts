@@ -12,7 +12,7 @@ describe('app dir - basepath', () => {
 
   it('should successfully hard navigate from pages -> app', async () => {
     const browser = await next.browser('/base/pages-path')
-    await browser.elementByCss('#to-another').click()
+    await browser.waitForElementByCss('#to-another').click()
     // Wait for url to change, ensure the navigation is finished,
     // then we can assert if the element is present.
     await retry(async () => {
