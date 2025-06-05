@@ -2,7 +2,7 @@ use std::io::Write as _;
 
 use anyhow::{Result, anyhow};
 use indoc::writedoc;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
     chunk::{
@@ -25,9 +25,8 @@ use crate::{
     utils::{StringifyJs, StringifyModuleId},
 };
 
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("loader".into())
+fn modifier() -> RcStr {
+    rcstr!("loader")
 }
 
 /// The manifest loader item is shipped in the same chunk that uses the dynamic
@@ -76,16 +75,6 @@ impl ManifestLoaderChunkItem {
     pub fn asset_ident_for(module: Vc<Box<dyn ChunkableModule>>) -> Vc<AssetIdent> {
         module.ident().with_modifier(modifier())
     }
-}
-
-#[turbo_tasks::function]
-fn manifest_loader_chunk_reference_description() -> Vc<RcStr> {
-    Vc::cell("manifest loader chunk".into())
-}
-
-#[turbo_tasks::function]
-fn chunk_data_reference_description() -> Vc<RcStr> {
-    Vc::cell("chunk data reference".into())
 }
 
 #[turbo_tasks::value_impl]

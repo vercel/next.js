@@ -1370,7 +1370,8 @@ export default async function loadConfig(
     }
 
     if (userConfig.experimental?.useLightningcss) {
-      const { loadBindings } = require('next/dist/build/swc')
+      const { loadBindings } =
+        require('../build/swc') as typeof import('../build/swc')
       const isLightningSupported = (await loadBindings())?.css?.lightning
 
       if (!isLightningSupported) {

@@ -79,12 +79,12 @@ fn severity_to_style(severity: IssueSeverity) -> Style {
 }
 
 fn format_source_content(source: &PlainIssueSource, formatted_issue: &mut String) {
-    if let FileLinesContent::Lines(lines) = source.asset.content.lines_ref() {
-        if let Some((start, end)) = source.range {
-            let lines = lines.iter().map(|l| l.content.as_str());
-            let ctx = get_source_context(lines, start.line, start.column, end.line, end.column);
-            format_source_context_lines(&ctx, formatted_issue);
-        }
+    if let FileLinesContent::Lines(lines) = source.asset.content.lines_ref()
+        && let Some((start, end)) = source.range
+    {
+        let lines = lines.iter().map(|l| l.content.as_str());
+        let ctx = get_source_context(lines, start.line, start.column, end.line, end.column);
+        format_source_context_lines(&ctx, formatted_issue);
     }
 }
 

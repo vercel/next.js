@@ -1,7 +1,7 @@
 use std::fmt::Write;
 
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath, rope::RopeBuilder};
 use turbopack_core::{
@@ -75,7 +75,7 @@ impl SingleItemCssChunk {
     #[turbo_tasks::function]
     pub(super) async fn ident_for_path(&self) -> Result<Vc<AssetIdent>> {
         let item = self.item.asset_ident();
-        Ok(item.with_modifier(single_item_modifier()))
+        Ok(item.with_modifier(rcstr!("single item css chunk")))
     }
 }
 
@@ -93,11 +93,6 @@ impl Chunk for SingleItemCssChunk {
     }
 }
 
-#[turbo_tasks::function]
-fn single_item_modifier() -> Vc<RcStr> {
-    Vc::cell("single item css chunk".into())
-}
-
 #[turbo_tasks::value_impl]
 impl OutputAsset for SingleItemCssChunk {
     #[turbo_tasks::function]
@@ -105,7 +100,7 @@ impl OutputAsset for SingleItemCssChunk {
         Ok(self.await?.chunking_context.chunk_path(
             Some(Vc::upcast(self)),
             self.ident_for_path(),
-            ".single.css".into(),
+            rcstr!(".single.css"),
         ))
     }
 
@@ -161,21 +156,11 @@ impl GenerateSourceMap for SingleItemCssChunk {
     }
 }
 
-#[turbo_tasks::function]
-fn introspectable_type() -> Vc<RcStr> {
-    Vc::cell("single asset css chunk".into())
-}
-
-#[turbo_tasks::function]
-fn entry_module_key() -> Vc<RcStr> {
-    Vc::cell("entry module".into())
-}
-
 #[turbo_tasks::value_impl]
 impl Introspectable for SingleItemCssChunk {
     #[turbo_tasks::function]
     fn ty(&self) -> Vc<RcStr> {
-        introspectable_type()
+        Vc::cell(rcstr!("single asset css chunk"))
     }
 
     #[turbo_tasks::function]

@@ -2,9 +2,8 @@ use std::{io::Write, iter::once};
 
 use anyhow::{Context, Result, bail};
 use indoc::writedoc;
-use once_cell::sync::Lazy;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -161,10 +160,7 @@ impl EcmascriptClientReferenceModule {
 
         let proxy_module = self
             .server_asset_context
-            .process(
-                Vc::upcast(proxy_source),
-                Value::new(ReferenceType::Undefined),
-            )
+            .process(Vc::upcast(proxy_source), ReferenceType::Undefined)
             .module();
 
         let Some(proxy_module) =
@@ -177,32 +173,21 @@ impl EcmascriptClientReferenceModule {
     }
 }
 
-#[turbo_tasks::function]
-fn client_reference_modifier() -> Vc<RcStr> {
-    Vc::cell("client reference proxy".into())
+pub fn ecmascript_client_reference_merge_tag() -> RcStr {
+    rcstr!("client")
 }
-
-#[turbo_tasks::function]
-fn ecmascript_client_reference_client_ref_modifier() -> Vc<RcStr> {
-    Vc::cell("ecmascript client reference to client".into())
+pub fn ecmascript_client_reference_merge_tag_ssr() -> RcStr {
+    rcstr!("ssr")
 }
-
-#[turbo_tasks::function]
-fn ecmascript_client_reference_ssr_ref_modifier() -> Vc<RcStr> {
-    Vc::cell("ecmascript client reference to ssr".into())
-}
-
-pub static ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG_CLIENT: Lazy<RcStr> =
-    Lazy::new(|| "client".into());
-pub static ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG_SSR: Lazy<RcStr> = Lazy::new(|| "ssr".into());
 
 #[turbo_tasks::value_impl]
 impl Module for EcmascriptClientReferenceModule {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        self.server_ident
-            .with_modifier(client_reference_modifier())
-            .with_layer(self.server_asset_context.layer())
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(self
+            .server_ident
+            .with_modifier(rcstr!("client reference proxy"))
+            .with_layer(self.server_asset_context.layer().owned().await?))
     }
 
     #[turbo_tasks::function]
@@ -223,8 +208,8 @@ impl Module for EcmascriptClientReferenceModule {
                 EcmascriptClientReference::new(
                     *ResolvedVc::upcast(*client_module),
                     ChunkGroupType::Evaluated,
-                    Some(ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG_CLIENT.clone()),
-                    ecmascript_client_reference_client_ref_modifier(),
+                    Some(ecmascript_client_reference_merge_tag()),
+                    rcstr!("ecmascript client reference to client"),
                 )
                 .to_resolved()
                 .await?,
@@ -233,8 +218,8 @@ impl Module for EcmascriptClientReferenceModule {
                 EcmascriptClientReference::new(
                     *ResolvedVc::upcast(*ssr_module),
                     ChunkGroupType::Entry,
-                    Some(ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG_SSR.clone()),
-                    ecmascript_client_reference_ssr_ref_modifier(),
+                    Some(ecmascript_client_reference_merge_tag_ssr()),
+                    rcstr!("ecmascript client reference to ssr"),
                 )
                 .to_resolved()
                 .await?,
@@ -300,11 +285,6 @@ struct EcmascriptClientReferenceProxyChunkItem {
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
-#[turbo_tasks::function]
-fn client_reference_description() -> Vc<RcStr> {
-    Vc::cell("client references".into())
-}
-
 #[turbo_tasks::value_impl]
 impl ChunkItem for EcmascriptClientReferenceProxyChunkItem {
     #[turbo_tasks::function]
@@ -350,7 +330,7 @@ pub(crate) struct EcmascriptClientReference {
     module: ResolvedVc<Box<dyn Module>>,
     ty: ChunkGroupType,
     merge_tag: Option<RcStr>,
-    description: ResolvedVc<RcStr>,
+    description: RcStr,
 }
 
 #[turbo_tasks::value_impl]
@@ -360,7 +340,7 @@ impl EcmascriptClientReference {
         module: ResolvedVc<Box<dyn Module>>,
         ty: ChunkGroupType,
         merge_tag: Option<RcStr>,
-        description: ResolvedVc<RcStr>,
+        description: RcStr,
     ) -> Vc<Self> {
         Self::cell(EcmascriptClientReference {
             module,
@@ -394,6 +374,6 @@ impl ModuleReference for EcmascriptClientReference {
 impl ValueToString for EcmascriptClientReference {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        *self.description
+        Vc::cell(self.description.clone())
     }
 }

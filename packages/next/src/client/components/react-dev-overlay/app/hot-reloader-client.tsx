@@ -7,10 +7,13 @@ import formatWebpackMessages from '../utils/format-webpack-messages'
 import { useRouter } from '../../navigation'
 import {
   ACTION_BEFORE_REFRESH,
+  ACTION_BUILDING_INDICATOR_HIDE,
   ACTION_BUILD_ERROR,
   ACTION_BUILD_OK,
+  ACTION_BUILDING_INDICATOR_SHOW,
   ACTION_DEBUG_INFO,
   ACTION_DEV_INDICATOR,
+  ACTION_ERROR_OVERLAY_OPEN,
   ACTION_REFRESH,
   ACTION_STATIC_INDICATOR,
   ACTION_UNHANDLED_ERROR,
@@ -20,8 +23,8 @@ import {
   reportInvalidHmrMessage,
   useErrorOverlayReducer,
 } from '../shared'
-import { parseStack } from '../utils/parse-stack'
 import { AppDevOverlay } from './app-dev-overlay'
+import { ReplaySsrOnlyErrors } from './replay-ssr-only-errors'
 import { useErrorHandler } from '../../errors/use-error-handler'
 import { RuntimeErrorHandler } from '../../errors/runtime-error-handler'
 import {
@@ -30,7 +33,6 @@ import {
   useWebsocket,
   useWebsocketPing,
 } from '../utils/use-websocket'
-import { parseComponentStack } from '../utils/parse-component-stack'
 import type { VersionInfo } from '../../../../server/dev/parse-version-info'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../../server/dev/hot-reloader-types'
 import type {
@@ -40,13 +42,13 @@ import type {
 import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from '../shared'
 import type { DebugInfo } from '../types'
 import { useUntrackedPathname } from '../../navigation-untracked'
-import { getComponentStack, getOwnerStack } from '../../errors/stitched-error'
-import { handleDevBuildIndicatorHmrEvents } from '../../../dev/dev-build-indicator/internal/handle-dev-build-indicator-hmr-events'
 import type { GlobalErrorComponent } from '../../global-error'
 import type { DevIndicatorServerState } from '../../../../server/dev/dev-indicator-server-state'
 import reportHmrLatency from '../utils/report-hmr-latency'
 import { TurbopackHmr } from '../utils/turbopack-hot-reloader-common'
 import { NEXT_HMR_REFRESH_HASH_COOKIE } from '../../app-router-headers'
+import { getComponentStack, getOwnerStack } from '../../errors/stitched-error'
+import { isRecoverableError } from '../../../react-client-callbacks/on-recoverable-error'
 
 export interface Dispatcher {
   onBuildOk(): void
@@ -59,6 +61,9 @@ export interface Dispatcher {
   onDevIndicator(devIndicator: DevIndicatorServerState): void
   onUnhandledError(error: Error): void
   onUnhandledRejection(error: Error): void
+  openErrorOverlay(): void
+  buildingIndicatorHide(): void
+  buildingIndicatorShow(): void
 }
 
 let mostRecentCompilationHash: any = null
@@ -300,6 +305,8 @@ function processMessage(
       break
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.BUILDING: {
+      dispatcher.buildingIndicatorShow()
+
       if (process.env.TURBOPACK) {
         turbopackHmr!.onBuilding()
       } else {
@@ -311,6 +318,8 @@ function processMessage(
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.BUILT:
     case HMR_ACTIONS_SENT_TO_BROWSER.SYNC: {
+      dispatcher.buildingIndicatorHide()
+
       if (obj.hash) {
         handleAvailableHash(obj.hash)
       }
@@ -482,7 +491,12 @@ export default function HotReload({
   children: ReactNode
   globalError: [GlobalErrorComponent, React.ReactNode]
 }) {
-  const [state, dispatch] = useErrorOverlayReducer('app')
+  const [state, dispatch] = useErrorOverlayReducer(
+    'app',
+    getComponentStack,
+    getOwnerStack,
+    isRecoverableError
+  )
 
   const dispatcher = useMemo<Dispatcher>(() => {
     return {
@@ -514,27 +528,25 @@ export default function HotReload({
         })
       },
       onUnhandledError(error) {
-        // Component stack is added to the error in use-error-handler in case there was a hydration error
-        const componentStack = getComponentStack(error)
-        const ownerStack = getOwnerStack(error)
-
         dispatch({
           type: ACTION_UNHANDLED_ERROR,
           reason: error,
-          frames: parseStack((error.stack || '') + (ownerStack || '')),
-          componentStackFrames:
-            typeof componentStack === 'string'
-              ? parseComponentStack(componentStack)
-              : undefined,
         })
       },
       onUnhandledRejection(error) {
-        const ownerStack = getOwnerStack(error)
         dispatch({
           type: ACTION_UNHANDLED_REJECTION,
           reason: error,
-          frames: parseStack((error.stack || '') + (ownerStack || '')),
         })
+      },
+      openErrorOverlay() {
+        dispatch({ type: ACTION_ERROR_OVERLAY_OPEN })
+      },
+      buildingIndicatorHide() {
+        dispatch({ type: ACTION_BUILDING_INDICATOR_HIDE })
+      },
+      buildingIndicatorShow() {
+        dispatch({ type: ACTION_BUILDING_INDICATOR_SHOW })
       },
     }
   }, [dispatch])
@@ -597,7 +609,6 @@ export default function HotReload({
     const handler = (event: MessageEvent<any>) => {
       try {
         const obj = JSON.parse(event.data)
-        handleDevBuildIndicatorHmrEvents(obj)
         processMessage(
           obj,
           sendMessage,
@@ -625,6 +636,7 @@ export default function HotReload({
 
   return (
     <AppDevOverlay state={state} dispatch={dispatch} globalError={globalError}>
+      <ReplaySsrOnlyErrors onBlockingError={dispatcher.openErrorOverlay} />
       {children}
     </AppDevOverlay>
   )

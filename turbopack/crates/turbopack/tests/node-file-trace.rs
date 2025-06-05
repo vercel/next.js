@@ -27,7 +27,7 @@ use rstest_reuse::{
 };
 use serde::{Deserialize, Serialize};
 use tokio::{process::Command, time::timeout};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     ResolvedVc, TurboTasks, Value, ValueToString, Vc, apply_effects, backend::Backend,
     trace::TraceRawVcs,
@@ -327,14 +327,14 @@ async fn node_file_trace_operation(
     directory: RcStr,
 ) -> Result<Vc<RebasedAsset>> {
     let workspace_fs: Vc<Box<dyn FileSystem>> = Vc::upcast(DiskFileSystem::new(
-        "workspace".into(),
+        rcstr!("workspace"),
         package_root.clone(),
         vec![],
     ));
     let input_dir = workspace_fs.root().to_resolved().await?;
     let input = input_dir.join(format!("tests/{input}").into());
 
-    let output_fs = DiskFileSystem::new("output".into(), directory.clone(), vec![]);
+    let output_fs = DiskFileSystem::new(rcstr!("output"), directory.clone(), vec![]);
     let output_dir = output_fs.root().to_resolved().await?;
 
     let source = FileSource::new(input);
@@ -361,14 +361,14 @@ async fn node_file_trace_operation(
         ResolveOptionsContext {
             enable_node_native_modules: true,
             enable_node_modules: Some(input_dir),
-            custom_conditions: vec!["node".into()],
+            custom_conditions: vec![rcstr!("node")],
             ..Default::default()
         }
         .cell(),
-        Vc::cell("test".into()),
+        rcstr!("test"),
     );
     let module = module_asset_context
-        .process(Vc::upcast(source), Value::new(ReferenceType::Undefined))
+        .process(Vc::upcast(source), ReferenceType::Undefined)
         .module();
 
     let rebased = RebasedAsset::new(Vc::upcast(module), *input_dir, *output_dir)

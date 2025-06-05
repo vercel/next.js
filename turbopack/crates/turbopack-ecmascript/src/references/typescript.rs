@@ -85,9 +85,7 @@ impl ModuleReference for TsReferencePathAssetReference {
                     .asset_context()
                     .process(
                         Vc::upcast(FileSource::new(**path)),
-                        Value::new(ReferenceType::TypeScript(
-                            TypeScriptReferenceSubType::Undefined,
-                        )),
+                        ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined),
                     )
                     .module()
                     .to_resolved()
@@ -132,8 +130,8 @@ impl ModuleReference for TsReferenceTypeAssetReference {
             Request::module(
                 self.module.clone(),
                 Value::new(RcStr::default().into()),
-                Vc::<RcStr>::default(),
-                Vc::<RcStr>::default(),
+                RcStr::default(),
+                RcStr::default(),
             ),
         )
     }

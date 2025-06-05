@@ -2,7 +2,7 @@ use std::fmt::Write;
 
 use anyhow::Result;
 use indoc::{formatdoc, writedoc};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::Vc;
 use turbo_tasks_fs::File;
 use turbopack_core::{asset::AssetContent, source::Source, virtual_source::VirtualSource};
@@ -56,7 +56,7 @@ pub(crate) async fn instantiating_loader_source(
     let code: RcStr = code.into();
 
     Ok(Vc::upcast(VirtualSource::new(
-        source.ident().path().append("_.loader.mjs".into()),
+        source.ident().path().append(rcstr!("_.loader.mjs")),
         AssetContent::file(File::from(code).into()),
     )))
 }
@@ -80,7 +80,7 @@ pub(crate) async fn compiling_loader_source(
     .into();
 
     Ok(Vc::upcast(VirtualSource::new(
-        source.ident().path().append("_.loader.mjs".into()),
+        source.ident().path().append(rcstr!("_.loader.mjs")),
         AssetContent::file(File::from(code).into()),
     )))
 }

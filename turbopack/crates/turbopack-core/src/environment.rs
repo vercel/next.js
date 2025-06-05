@@ -5,7 +5,7 @@ use std::{
 
 use anyhow::{Context, Result, anyhow};
 use swc_core::ecma::preset_env::{Version, Versions};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TaskInput, Value, Vc};
 use turbo_tasks_env::ProcessEnv;
 
@@ -146,7 +146,7 @@ impl Environment {
         let env = self;
         match env.execution {
             ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
-                Vc::cell(vec![".js".into(), ".node".into(), ".json".into()])
+                Vc::cell(vec![rcstr!(".js"), rcstr!(".node"), rcstr!(".json")])
             }
             ExecutionEnvironment::EdgeWorker(_) | ExecutionEnvironment::Browser(_) => {
                 Vc::<Vec<RcStr>>::default()
@@ -174,11 +174,11 @@ impl Environment {
         let env = self;
         match env.execution {
             ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
-                Vc::cell(vec!["node".into()])
+                Vc::cell(vec![rcstr!("node")])
             }
             ExecutionEnvironment::Browser(_) => Vc::<Vec<RcStr>>::default(),
             ExecutionEnvironment::EdgeWorker(_) => {
-                Vc::cell(vec!["edge-light".into(), "worker".into()])
+                Vc::cell(vec![rcstr!("edge-light"), rcstr!("worker")])
             }
             ExecutionEnvironment::Custom(_) => todo!(),
         }
@@ -302,7 +302,7 @@ pub struct RuntimeVersions(#[turbo_tasks(trace_ignore)] pub Versions);
 
 #[turbo_tasks::function]
 pub async fn get_current_nodejs_version(env: Vc<Box<dyn ProcessEnv>>) -> Result<Vc<RcStr>> {
-    let path_read = env.read("PATH".into()).await?;
+    let path_read = env.read(rcstr!("PATH")).await?;
     let path = path_read.as_ref().context("env must have PATH")?;
     let mut cmd = Command::new("node");
     cmd.arg("--version");

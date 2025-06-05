@@ -1,6 +1,6 @@
 use anyhow::Result;
 use swc_core::{ecma::ast::Expr, quote};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{FileSystemPath, rope::Rope};
 use turbopack_core::{
@@ -39,7 +39,7 @@ pub async fn request_to_string(request: Vc<Request>) -> Result<Vc<RcStr>> {
             .await?
             .request()
             // TODO: Handle Request::Dynamic, Request::Alternatives
-            .unwrap_or_else(|| "unknown".into()),
+            .unwrap_or(rcstr!("unknown")),
     ))
 }
 

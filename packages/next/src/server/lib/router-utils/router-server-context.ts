@@ -25,6 +25,12 @@ export type RouterServerContext = Record<
     nextConfig?: NextConfigComplete
     // whether running in custom server mode
     isCustomServer?: boolean
+    // whether test proxy is enabled
+    experimentalTestProxy?: boolean
+    // allow dev server to log with original stack
+    logErrorWithOriginalStack?: (err: unknown, type: string) => void
+    // allow setting ISR status in dev
+    setIsrStatus?: (key: string, value: boolean | null) => void
   }
 >
 
