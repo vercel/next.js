@@ -3137,6 +3137,8 @@
   },
   "test/e2e/app-dir/metadata-icons/metadata-icons.test.ts": {
     "passed": [
+      "app-dir - metadata-icons should not contain icon insertion script when metadata is rendered in head",
+      "app-dir - metadata-icons should not contain icon replacement mark in html or after hydration",
       "app-dir - metadata-icons should only have 1 favicon link in nested page",
       "app-dir - metadata-icons should only have 1 favicon link in root page",
       "app-dir - metadata-icons should re-insert the apple icons into the head after navigation",
@@ -3270,7 +3272,7 @@
   },
   "test/e2e/app-dir/metadata-suspense/index.test.ts": {
     "passed": [
-      "app dir - metadata dynamic routes suspense should render metadata in head even root layout is wrapped with Suspense"
+      "app dir - metadata dynamic routes suspense should render metadata in head when root layout is wrapped with Suspense for bot requests"
     ],
     "failed": [],
     "pending": [],
@@ -17747,6 +17749,7 @@
   "test/integration/server-side-dev-errors/test/index.test.js": {
     "passed": [
       "server-side dev errors should show server-side error for api route correctly",
+      "server-side dev errors should show server-side error for dynamic api route correctly",
       "server-side dev errors should show server-side error for dynamic gssp page correctly",
       "server-side dev errors should show server-side error for gsp page correctly",
       "server-side dev errors should show server-side error for gssp page correctly",
@@ -17755,9 +17758,7 @@
       "server-side dev errors should show server-side error for uncaught exception correctly",
       "server-side dev errors should show server-side error for uncaught rejection correctly"
     ],
-    "failed": [
-      "server-side dev errors should show server-side error for dynamic api route correctly"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
