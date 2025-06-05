@@ -9513,6 +9513,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "byteorder",
+ "either",
  "jiff",
  "lzzzz",
  "memmap2 0.9.5",
@@ -9529,6 +9530,14 @@ dependencies = [
  "tracing",
  "twox-hash 2.1.0",
  "zstd",
+]
+
+[[package]]
+name = "turbo-persistence-tools"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "turbo-persistence",
 ]
 
 [[package]]
