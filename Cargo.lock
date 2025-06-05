@@ -7164,8 +7164,7 @@ dependencies = [
 [[package]]
 name = "sourcemap"
 version = "9.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e22afbcb92ce02d23815b9795523c005cb9d3c214f8b7a66318541c240ea7935"
+source = "git+https://github.com/kdy1/rust-sourcemap?branch=kdy1%2Fatom#55054005514734cbf41e627fa104f0fd571bda4b"
 dependencies = [
  "base64-simd 0.8.0",
  "bitvec",
@@ -7177,6 +7176,7 @@ dependencies = [
  "serde_json",
  "unicode-id-start",
  "url",
+ "weak-table",
 ]
 
 [[package]]
@@ -11521,6 +11521,12 @@ checksum = "ac0409090fb5154f95fb5ba3235675fd9e579e731524d63b6a2f653e1280c82a"
 dependencies = [
  "wast",
 ]
+
+[[package]]
+name = "weak-table"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "323f4da9523e9a669e1eaf9c6e763892769b1d38c623913647bfdc1532fe4549"
 
 [[package]]
 name = "web-sys"
