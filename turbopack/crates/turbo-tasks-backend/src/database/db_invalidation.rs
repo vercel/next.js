@@ -1,6 +1,6 @@
 use std::{
     fs::{self, read_dir},
-    io,
+    io::{self, ErrorKind},
     path::Path,
 };
 
@@ -19,8 +19,12 @@ const INVALIDATION_MARKER: &str = "__turbo_tasks_invalidated_db";
 /// This should be run with the base (non-versioned) path, as that likely aligns closest with user
 /// expectations (e.g. if they're clearing the cache for disk space reasons).
 pub fn invalidate_db(base_path: &Path) -> anyhow::Result<()> {
-    fs::write(base_path.join(INVALIDATION_MARKER), [0u8; 0])?;
-    Ok(())
+    match fs::write(base_path.join(INVALIDATION_MARKER), [0u8; 0]) {
+        Ok(_) => Ok(()),
+        // just ignore if the cache directory doesn't exist at all
+        Err(err) if err.kind() == ErrorKind::NotFound => Ok(()),
+        Err(err) => Err(err).context("Failed to invalidate database"),
+    }
 }
 
 /// Called during startup. See if the db is in a partially-completed invalidation state. Find and

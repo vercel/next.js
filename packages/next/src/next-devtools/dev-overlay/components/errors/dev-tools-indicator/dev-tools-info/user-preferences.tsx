@@ -66,10 +66,10 @@ export function UserPreferences({
     setScale(value)
   }
 
-  function handleRestartDevServer() {
+  function handleRestartDevServer(invalidatePersistentCache: boolean) {
     let endpoint = '/__nextjs_restart_dev'
 
-    if (process.env.__NEXT_TURBOPACK_PERSISTENT_CACHE) {
+    if (invalidatePersistentCache) {
       endpoint = '/__nextjs_restart_dev?invalidatePersistentCache'
     }
 
@@ -198,14 +198,16 @@ export function UserPreferences({
               name="restart-dev-server"
               data-restart-dev-server
               className="action-button"
-              onClick={handleRestartDevServer}
+              onClick={() =>
+                handleRestartDevServer(/*invalidatePersistentCache*/ false)
+              }
             >
               <span>Restart</span>
             </button>
           </div>
         </div>
       </div>
-      {process.env.__NEXT_TURBOPACK_PERSISTENT_CACHE ? (
+      {process.env.__NEXT_BUNDLER_HAS_PERSISTENT_CACHE ? (
         <div className="preferences-container">
           <div className="preference-section">
             <div className="preference-header">
@@ -222,7 +224,9 @@ export function UserPreferences({
                 name="reset-bundler-cache"
                 data-reset-bundler-cache
                 className="action-button"
-                onClick={handleRestartDevServer}
+                onClick={() =>
+                  handleRestartDevServer(/*invalidatePersistentCache*/ true)
+                }
               >
                 <span>Reset Cache</span>
               </button>
