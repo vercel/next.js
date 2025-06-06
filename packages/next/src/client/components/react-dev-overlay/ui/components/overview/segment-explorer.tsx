@@ -62,6 +62,7 @@ function PageSegmentTree({ tree }: { tree: Trie<SegmentNode> | undefined }) {
         tree={tree}
         node={tree.getRoot()}
         level={0}
+        segment=""
       />
     </div>
   )
@@ -69,10 +70,12 @@ function PageSegmentTree({ tree }: { tree: Trie<SegmentNode> | undefined }) {
 
 function PageSegmentTreeLayerPresentation({
   tree,
+  segment,
   node,
   level,
 }: {
   tree: Trie<SegmentNode>
+  segment: string
   node: TrieNode<SegmentNode>
   level: number
 }) {
@@ -81,11 +84,9 @@ function PageSegmentTreeLayerPresentation({
 
   const segments = pagePath.split('/') || []
   const fileName = segments.pop() || ''
-  const segmentPath = segments.join('/')
+  const childrenKeys = Object.keys(node.children)
 
-  let pagePathPrefix = segmentPath
-
-  const childrenKeys = Object.keys(node.children).sort((a, b) => {
+  const sortedChildrenKeys = childrenKeys.sort((a, b) => {
     // Prioritize if it's a file convention like layout or page,
     // then the rest parallel routes.
     const aHasExt = a.includes('.')
@@ -98,13 +99,11 @@ function PageSegmentTreeLayerPresentation({
 
   return (
     <div
-      className={cx(
-        'segment-explorer-item',
-        level > 1 && 'segment-explorer-item--nested'
-      )}
+      className="segment-explorer-item"
+      data-nextjs-devtool-segment-explorer-segment={segment}
     >
-      {!fileName || level === 0 ? null : (
-        <div className="segment-explorer-item-row">
+      {fileName ? (
+        <div className={cx('segment-explorer-item-row')}>
           <div className="segment-explorer-line">
             <div className={`segment-explorer-line-text-${nodeName}`}>
               <span
@@ -115,20 +114,36 @@ function PageSegmentTreeLayerPresentation({
               >
                 {nodeName === 'layout' ? ICONS.layout : ICONS.page}
               </span>
-              {pagePathPrefix === '' ? '' : `${pagePathPrefix}/`}
               <span className="segment-explorer-filename-path">{fileName}</span>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className={cx('segment-explorer-item-row')}>
+          <div className="segment-explorer-line">
+            <div className={`segment-explorer-line-text-${nodeName}`}>
+              <span
+                className={cx(
+                  'segment-explorer-line-icon',
+                  `segment-explorer-line-icon-${nodeName}`
+                )}
+              ></span>
+              <span className="segment-explorer-filename-path">
+                {`${segment}/`}
+              </span>
             </div>
           </div>
         </div>
       )}
 
-      <div className="tree-node-expanded-rendered-children">
-        {childrenKeys.map((segment) => {
-          const child = node.children[segment]
+      <div className="segment-explorer-segment-children">
+        {sortedChildrenKeys.map((childSegment) => {
+          const child = node.children[childSegment]
           return (
             child && (
               <PageSegmentTreeLayerPresentation
-                key={segment}
+                key={childSegment}
+                segment={childSegment}
                 tree={tree}
                 node={child}
                 level={level + 1}
@@ -163,15 +178,15 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
     font-size: var(--size-14);
   }
 
-  .segment-explorer-item--nested {
-    padding-left: 20px;
-  }
-
   .segment-explorer-item-row {
     display: flex;
     align-items: center;
     gap: 8px;
     padding: 2px 0;
+  }
+
+  .segment-explorer-segment-children {
+    padding-left: 20px;
   }
 
   .segment-explorer-filename-path {
