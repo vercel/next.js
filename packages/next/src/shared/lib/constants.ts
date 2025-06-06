@@ -149,3 +149,32 @@ export const SYSTEM_ENTRYPOINTS = new Set<string>([
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
 ])
+
+/**
+ * Custom HTTP status code used to signal a redirect for React Server Component (RSC)
+ * requests that should be handled by the client-side RSC router, rather than
+ * being automatically followed by the browser like standard 307/308 redirects.
+ *
+ * Purpose:
+ * - To bypass the browser's default redirect behavior, which typically forwards
+ * original request headers and might not be ideal for RSC's stateful navigation.
+ * - To empower the client-side RSC router to intercept this signal and initiate
+ * a new, clean fetch or navigation to the target URL specified in the 'Location' header.
+ * This allows for better control over the request lifecycle for the redirected route.
+ *
+ * How it's used:
+ * - Server-side: When an RSC route intends to perform a redirect (originally as a
+ * 307 or 308), the status code is transformed into this custom value.
+ * The response must also include a 'Location' header with the redirect target URL.
+ * - Client-side: The RSC router is programmed to recognize this specific status code.
+ * Upon detection, it extracts the target URL from the 'Location' header and
+ * handles the navigation programmatically.
+ *
+ * Choice of Value (e.g., 278):
+ * - The specific value (like 278) is chosen from the 2xx range (indicating success)
+ * but is not a standard HTTP status code with predefined browser actions for redirection.
+ * This ensures browsers won't automatically follow it, while still signaling a
+ * successful server determination that requires client action. It should be an
+ * officially unassigned status code to minimize conflicts.
+ */
+export const RSC_REDIRECT_STATUS_CODE = 278

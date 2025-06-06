@@ -34,6 +34,7 @@ import { CloseController } from './web-on-close'
 import { getEdgePreviewProps } from './get-edge-preview-props'
 import { getBuiltinRequestContext } from '../after/builtin-request-context'
 import { getImplicitTags } from '../lib/implicit-tags'
+import { RSC_REDIRECT_STATUS_CODE } from '../../shared/lib/constants'
 
 export class NextRequestHint extends NextRequest {
   sourcePage: string
@@ -427,6 +428,25 @@ export async function adapter(
         'x-nextjs-redirect',
         getRelativeURL(redirectURL.toString(), requestURL.toString())
       )
+    }
+  }
+
+  if (process.env.__NEXT_CLIENT_VALIDATE_RSC_REQUEST_HEADERS) {
+    // For RSC requests, transform standard 3xx redirects to a custom status.
+    // This allows our client-side RSC router to handle the redirect manually,
+    // ensuring cleaner navigation and state management specific to RSC,
+    // rather than default browser handling.
+    if (
+      isRSCRequest &&
+      response &&
+      response.status >= 300 &&
+      response.status < 400
+    ) {
+      response = new Response(response.body, {
+        ...response,
+        status: RSC_REDIRECT_STATUS_CODE,
+        headers: response.headers,
+      })
     }
   }
 
