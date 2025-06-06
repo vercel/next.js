@@ -3404,6 +3404,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/dev-indicator/dev-rendering-indicator.test.ts": {
+    "passed": [
+      "Dev Rendering Indicator Shows build indicator when page is built from modifying"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/dotenv-default-expansion/index.test.ts": {
     "passed": ["Dotenv default expansion should work"],
     "failed": [],
@@ -9490,6 +9499,7 @@
       "use-cache can reference server actions in \"use cache\" functions",
       "use-cache renders the not-found page when `notFound()` is used",
       "use-cache replays logs from \"use cache\" functions",
+      "use-cache shares caches between the page/layout and generateMetadata",
       "use-cache should be able to revalidate a page using unstable_expireTag",
       "use-cache should cache complex args",
       "use-cache should cache fetch without no-store",
