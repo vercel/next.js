@@ -29,7 +29,7 @@ While client-side data fetching is supported in Next.js, Next.js also lets you m
 
 ### Fast and intentional loading states
 
-With built-in support for [streaming through React Suspense](/docs/app/building-your-application/routing/loading-ui-and-streaming#streaming-with-suspense), you can define which parts of your UI load first and in what order, without creating network waterfalls.
+With built-in support for [streaming through React Suspense](/docs/app/getting-started/linking-and-navigating#streaming), you can define which parts of your UI load first and in what order, without creating network waterfalls.
 
 This enables you to build pages that are faster to load and eliminate [layout shifts](https://vercel.com/blog/how-core-web-vitals-affect-seo).
 
@@ -78,7 +78,7 @@ export default nextConfig
 
 ### Step 3: Create the Root Layout
 
-A Next.js [App Router](/docs/app) application must include a [root layout](/docs/app/building-your-application/routing/layouts-and-templates#root-layout-required) file, which is a [React Server Component](/docs/app/getting-started/server-and-client-components) that will wrap all your pages.
+A Next.js [App Router](/docs/app) application must include a [root layout](/docs/app/api-reference/file-conventions/layout#root-layout) file, which is a [React Server Component](/docs/app/getting-started/server-and-client-components) that will wrap all your pages.
 
 The closest equivalent of the root layout file in a CRA application is `public/index.html`, which includes your `<html>`, `<head>`, and `<body>` tags.
 
@@ -306,7 +306,7 @@ If you’re using Tailwind CSS, see our [installation docs](/docs/app/guides/tai
 
 Create React App uses `src/index.tsx` (or `index.js`) as the entry point. In Next.js (App Router), each folder inside the `app` directory corresponds to a route, and each folder should have a `page.tsx`.
 
-Since we want to keep the app as an SPA for now and intercept **all** routes, we’ll use an [optional catch-all route](/docs/app/building-your-application/routing/dynamic-routes#optional-catch-all-segments).
+Since we want to keep the app as an SPA for now and intercept **all** routes, we’ll use an [optional catch-all route](/docs/app/api-reference/file-conventions/dynamic-routes#optional-catch-all-segments).
 
 1. **Create a `[[...slug]]` directory inside `app`.**
 
@@ -571,7 +571,7 @@ If everything worked, you now have a functioning Next.js application running as 
 
 - **Migrate from React Router** to the [Next.js App Router](/docs/app/building-your-application/routing) for:
   - Automatic code splitting
-  - [Streaming server rendering](/docs/app/building-your-application/routing/loading-ui-and-streaming)
+  - [Streaming server rendering](/docs/app/api-reference/file-conventions/loading)
   - [React Server Components](/docs/app/getting-started/server-and-client-components)
 - **Optimize images** with the [`<Image>` component](/docs/app/api-reference/components/image)
 - **Optimize fonts** with [`next/font`](/docs/app/api-reference/components/font)

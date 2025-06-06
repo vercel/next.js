@@ -510,7 +510,6 @@
   },
   "test/e2e/app-dir/app-css/index.test.ts": {
     "passed": [
-      "app dir - css css support chunks should bundle css resources into chunks",
       "app dir - css css support client components should support css modules inside client components",
       "app dir - css css support client components should support css modules inside client page",
       "app dir - css css support client layouts should support css modules inside client layouts",
@@ -528,7 +527,6 @@
       "app dir - css css support special entries should include css imported in client not-found.js",
       "app dir - css css support special entries should include css imported in client template.js",
       "app dir - css css support special entries should include css imported in error.js",
-      "app dir - css css support special entries should include css imported in loading.js",
       "app dir - css css support special entries should include css imported in root not-found.js",
       "app dir - css css support special entries should include css imported in server not-found.js",
       "app dir - css css support special entries should include css imported in server template.js",
@@ -543,7 +541,10 @@
       "app dir - css sass support server pages should support global sass/scss inside server pages",
       "app dir - css sass support server pages should support sass/scss modules inside server pages"
     ],
-    "failed": [],
+    "failed": [
+      "app dir - css css support chunks should bundle css resources into chunks",
+      "app dir - css css support special entries should include css imported in loading.js"
+    ],
     "pending": [
       "app dir - css css support server layouts should support global css inside server layouts"
     ],
@@ -773,13 +774,14 @@
       "app dir - prefetching should not need to prefetch the layout if the prefetch is initiated at the same segment",
       "app dir - prefetching should not prefetch for a bot user agent",
       "app dir - prefetching should not re-render error component when triggering a prefetch action",
-      "app dir - prefetching should not suppress prefetches after navigating back",
       "app dir - prefetching should not unintentionally modify the requested prefetch by escaping the uri encoded query params",
       "app dir - prefetching should only prefetch the loading state and not the component tree when prefetching at the same segment",
       "app dir - prefetching should show layout eagerly when prefetched with loading one level down"
     ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "app dir - prefetching should not suppress prefetches after navigating back"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -1340,6 +1342,8 @@
       "app dir - basic should pass props from getServerSideProps in root layout",
       "app dir - basic should provide query for getStaticProps page correctly",
       "app dir - basic should return normalized dynamic route params for catch-all edge page",
+      "app dir - basic should return the `vary` header from edge runtime",
+      "app dir - basic should return the `vary` header from pages for flight requests",
       "app dir - basic should run generate command correctly",
       "app dir - basic should serve /index as separate page",
       "app dir - basic should serve dynamic parameter",
@@ -1461,6 +1465,8 @@
       "app dir - basic should not share edge workers",
       "app dir - basic should pass props from getServerSideProps in root layout",
       "app dir - basic should return normalized dynamic route params for catch-all edge page",
+      "app dir - basic should return the `vary` header from edge runtime",
+      "app dir - basic should return the `vary` header from pages for flight requests",
       "app dir - basic should serve /index as separate page",
       "app dir - basic should serve dynamic parameter",
       "app dir - basic should serve dynamic route from pages",
@@ -1756,6 +1762,8 @@
       "css-order loose should load correct styles navigating third -> first-client",
       "css-order loose should load correct styles navigating third -> second",
       "css-order loose should load correct styles navigating third -> second-client",
+      "css-order loose should load correct styles on big-interleaved-a",
+      "css-order loose should load correct styles on big-interleaved-b",
       "css-order loose should load correct styles on first",
       "css-order loose should load correct styles on first-client",
       "css-order loose should load correct styles on interleaved-a",
@@ -1773,7 +1781,16 @@
       "css-order loose should load correct styles on second-client",
       "css-order loose should load correct styles on third",
       "css-order loose should load correct styles on vendor",
+      "css-order strict should load correct styles navigating back again first -> first-client -> first -> first-client",
+      "css-order strict should load correct styles navigating back again first -> second -> first -> second",
+      "css-order strict should load correct styles navigating back again first -> second-client -> first -> second-client",
+      "css-order strict should load correct styles navigating back again first -> third -> first -> third",
+      "css-order strict should load correct styles navigating back again first-client -> first -> first-client -> first",
+      "css-order strict should load correct styles navigating back again first-client -> second -> first-client -> second",
+      "css-order strict should load correct styles navigating back again first-client -> second-client -> first-client -> second-client",
+      "css-order strict should load correct styles navigating back again first-client -> third -> first-client -> third",
       "css-order strict should load correct styles navigating back again interleaved-a -> interleaved-b -> interleaved-a -> interleaved-b",
+      "css-order strict should load correct styles navigating back again interleaved-b -> interleaved-a -> interleaved-b -> interleaved-a",
       "css-order strict should load correct styles navigating back again pages-first -> pages-second -> pages-first -> pages-second",
       "css-order strict should load correct styles navigating back again pages-first -> pages-third -> pages-first -> pages-third",
       "css-order strict should load correct styles navigating back again pages-interleaved-a -> pages-interleaved-b -> pages-interleaved-a -> pages-interleaved-b",
@@ -1786,6 +1803,18 @@
       "css-order strict should load correct styles navigating back again pages-second -> pages-third -> pages-second -> pages-third",
       "css-order strict should load correct styles navigating back again pages-third -> pages-first -> pages-third -> pages-first",
       "css-order strict should load correct styles navigating back again pages-third -> pages-second -> pages-third -> pages-second",
+      "css-order strict should load correct styles navigating back again second -> first -> second -> first",
+      "css-order strict should load correct styles navigating back again second -> first-client -> second -> first-client",
+      "css-order strict should load correct styles navigating back again second -> second-client -> second -> second-client",
+      "css-order strict should load correct styles navigating back again second -> third -> second -> third",
+      "css-order strict should load correct styles navigating back again second-client -> first -> second-client -> first",
+      "css-order strict should load correct styles navigating back again second-client -> first-client -> second-client -> first-client",
+      "css-order strict should load correct styles navigating back again second-client -> second -> second-client -> second",
+      "css-order strict should load correct styles navigating back again second-client -> third -> second-client -> third",
+      "css-order strict should load correct styles navigating back again third -> first -> third -> first",
+      "css-order strict should load correct styles navigating back again third -> first-client -> third -> first-client",
+      "css-order strict should load correct styles navigating back again third -> second -> third -> second",
+      "css-order strict should load correct styles navigating back again third -> second-client -> third -> second-client",
       "css-order strict should load correct styles navigating first -> first-client",
       "css-order strict should load correct styles navigating first -> second",
       "css-order strict should load correct styles navigating first -> second-client",
@@ -1820,8 +1849,12 @@
       "css-order strict should load correct styles navigating third -> first-client",
       "css-order strict should load correct styles navigating third -> second",
       "css-order strict should load correct styles navigating third -> second-client",
+      "css-order strict should load correct styles on big-interleaved-a",
+      "css-order strict should load correct styles on big-interleaved-b",
       "css-order strict should load correct styles on first",
       "css-order strict should load correct styles on first-client",
+      "css-order strict should load correct styles on global-first",
+      "css-order strict should load correct styles on global-second",
       "css-order strict should load correct styles on interleaved-a",
       "css-order strict should load correct styles on interleaved-b",
       "css-order strict should load correct styles on pages-first",
@@ -1833,11 +1866,24 @@
       "css-order strict should load correct styles on pages-reversed-b",
       "css-order strict should load correct styles on pages-second",
       "css-order strict should load correct styles on pages-third",
+      "css-order strict should load correct styles on partial-reversed-a",
+      "css-order strict should load correct styles on partial-reversed-b",
+      "css-order strict should load correct styles on reversed-a",
+      "css-order strict should load correct styles on reversed-b",
       "css-order strict should load correct styles on second",
       "css-order strict should load correct styles on second-client",
       "css-order strict should load correct styles on third",
       "css-order strict should load correct styles on vendor",
+      "css-order true should load correct styles navigating back again first -> first-client -> first -> first-client",
+      "css-order true should load correct styles navigating back again first -> second -> first -> second",
+      "css-order true should load correct styles navigating back again first -> second-client -> first -> second-client",
+      "css-order true should load correct styles navigating back again first -> third -> first -> third",
+      "css-order true should load correct styles navigating back again first-client -> first -> first-client -> first",
+      "css-order true should load correct styles navigating back again first-client -> second -> first-client -> second",
+      "css-order true should load correct styles navigating back again first-client -> second-client -> first-client -> second-client",
+      "css-order true should load correct styles navigating back again first-client -> third -> first-client -> third",
       "css-order true should load correct styles navigating back again interleaved-a -> interleaved-b -> interleaved-a -> interleaved-b",
+      "css-order true should load correct styles navigating back again interleaved-b -> interleaved-a -> interleaved-b -> interleaved-a",
       "css-order true should load correct styles navigating back again pages-first -> pages-second -> pages-first -> pages-second",
       "css-order true should load correct styles navigating back again pages-first -> pages-third -> pages-first -> pages-third",
       "css-order true should load correct styles navigating back again pages-interleaved-a -> pages-interleaved-b -> pages-interleaved-a -> pages-interleaved-b",
@@ -1849,49 +1895,7 @@
       "css-order true should load correct styles navigating back again pages-second -> pages-first -> pages-second -> pages-first",
       "css-order true should load correct styles navigating back again pages-second -> pages-third -> pages-second -> pages-third",
       "css-order true should load correct styles navigating back again pages-third -> pages-first -> pages-third -> pages-first",
-      "css-order true should load correct styles navigating back again pages-third -> pages-second -> pages-third -> pages-second"
-    ],
-    "failed": [
-      "css-order loose should load correct styles on big-interleaved-a",
-      "css-order loose should load correct styles on big-interleaved-b",
-      "css-order strict should load correct styles navigating back again first -> first-client -> first -> first-client",
-      "css-order strict should load correct styles navigating back again first -> second -> first -> second",
-      "css-order strict should load correct styles navigating back again first -> second-client -> first -> second-client",
-      "css-order strict should load correct styles navigating back again first -> third -> first -> third",
-      "css-order strict should load correct styles navigating back again first-client -> first -> first-client -> first",
-      "css-order strict should load correct styles navigating back again first-client -> second -> first-client -> second",
-      "css-order strict should load correct styles navigating back again first-client -> second-client -> first-client -> second-client",
-      "css-order strict should load correct styles navigating back again first-client -> third -> first-client -> third",
-      "css-order strict should load correct styles navigating back again interleaved-b -> interleaved-a -> interleaved-b -> interleaved-a",
-      "css-order strict should load correct styles navigating back again second -> first -> second -> first",
-      "css-order strict should load correct styles navigating back again second -> first-client -> second -> first-client",
-      "css-order strict should load correct styles navigating back again second -> second-client -> second -> second-client",
-      "css-order strict should load correct styles navigating back again second -> third -> second -> third",
-      "css-order strict should load correct styles navigating back again second-client -> first -> second-client -> first",
-      "css-order strict should load correct styles navigating back again second-client -> first-client -> second-client -> first-client",
-      "css-order strict should load correct styles navigating back again second-client -> second -> second-client -> second",
-      "css-order strict should load correct styles navigating back again second-client -> third -> second-client -> third",
-      "css-order strict should load correct styles navigating back again third -> first -> third -> first",
-      "css-order strict should load correct styles navigating back again third -> first-client -> third -> first-client",
-      "css-order strict should load correct styles navigating back again third -> second -> third -> second",
-      "css-order strict should load correct styles navigating back again third -> second-client -> third -> second-client",
-      "css-order strict should load correct styles on big-interleaved-a",
-      "css-order strict should load correct styles on big-interleaved-b",
-      "css-order strict should load correct styles on global-first",
-      "css-order strict should load correct styles on global-second",
-      "css-order strict should load correct styles on partial-reversed-a",
-      "css-order strict should load correct styles on partial-reversed-b",
-      "css-order strict should load correct styles on reversed-a",
-      "css-order strict should load correct styles on reversed-b",
-      "css-order true should load correct styles navigating back again first -> first-client -> first -> first-client",
-      "css-order true should load correct styles navigating back again first -> second -> first -> second",
-      "css-order true should load correct styles navigating back again first -> second-client -> first -> second-client",
-      "css-order true should load correct styles navigating back again first -> third -> first -> third",
-      "css-order true should load correct styles navigating back again first-client -> first -> first-client -> first",
-      "css-order true should load correct styles navigating back again first-client -> second -> first-client -> second",
-      "css-order true should load correct styles navigating back again first-client -> second-client -> first-client -> second-client",
-      "css-order true should load correct styles navigating back again first-client -> third -> first-client -> third",
-      "css-order true should load correct styles navigating back again interleaved-b -> interleaved-a -> interleaved-b -> interleaved-a",
+      "css-order true should load correct styles navigating back again pages-third -> pages-second -> pages-third -> pages-second",
       "css-order true should load correct styles navigating back again second -> first -> second -> first",
       "css-order true should load correct styles navigating back again second -> first-client -> second -> first-client",
       "css-order true should load correct styles navigating back again second -> second-client -> second -> second-client",
@@ -1905,6 +1909,7 @@
       "css-order true should load correct styles navigating back again third -> second -> third -> second",
       "css-order true should load correct styles navigating back again third -> second-client -> third -> second-client"
     ],
+    "failed": [],
     "pending": [
       "css-order loose should load correct styles navigating big-interleaved-a -> big-interleaved-b",
       "css-order loose should load correct styles navigating big-interleaved-b -> big-interleaved-a",
@@ -2142,6 +2147,22 @@
       "Dynamic IO Prospective Render Errors - Standard Build should not log an error when the prospective render errors with an object in a route",
       "Dynamic IO Prospective Render Errors - Standard Build should not log an error when the prospective render errors with null in a Page",
       "Dynamic IO Prospective Render Errors - Standard Build should not log an error when the prospective render errors with undefined in a route"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.sync-attribution.test.ts": {
+    "passed": [
+      "Dynamic IO Errors - With Minification Error Attribution with Sync IO - Guarded RSC with guarded Client sync IO should not error the build sync IO is used inside a Suspense Boundary in a client Component and nothing else is dynamic",
+      "Dynamic IO Errors - With Minification Error Attribution with Sync IO - Guarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
+      "Dynamic IO Errors - With Minification Error Attribution with Sync IO - Unguarded RSC with guarded Client sync IO should error the build with a reason related dynamic data",
+      "Dynamic IO Errors - With Minification Error Attribution with Sync IO - unguarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
+      "Dynamic IO Errors - Without Minification Error Attribution with Sync IO - Guarded RSC with guarded Client sync IO should not error the build sync IO is used inside a Suspense Boundary in a client Component and nothing else is dynamic",
+      "Dynamic IO Errors - Without Minification Error Attribution with Sync IO - Guarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
+      "Dynamic IO Errors - Without Minification Error Attribution with Sync IO - Unguarded RSC with guarded Client sync IO should error the build with a reason related dynamic data",
+      "Dynamic IO Errors - Without Minification Error Attribution with Sync IO - unguarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access"
     ],
     "failed": [],
     "pending": [],
@@ -2527,6 +2548,7 @@
       "empty-fallback-shells should not log a HANGING_PROMISE_REJECTION error",
       "empty-fallback-shells with cached IO and the page not wrapped in Suspense and params.then/catch/finally passed to a cached function does not resume a postponed fallback shell",
       "empty-fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in a cached non-page function does not resume a postponed fallback shell",
+      "empty-fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in the cached page does not render a fallback shell when using a params placeholder",
       "empty-fallback-shells with cached IO and the page not wrapped in Suspense and the params accessed in the cached page does not resume a postponed fallback shell",
       "empty-fallback-shells with cached IO and the page wrapped in Suspense and params.then/catch/finally passed to a cached function resumes a postponed fallback shell",
       "empty-fallback-shells with cached IO and the page wrapped in Suspense and the params accessed in cached non-page function resumes a postponed fallback shell",
@@ -2728,6 +2750,15 @@
     "passed": [
       "global-not-found - both-present should render global-not-found for 404 routes",
       "global-not-found - both-present should render not-found boundary when calling notFound() in a page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/global-not-found/css/global-not-found-css.test.ts": {
+    "passed": [
+      "global-not-found - css should include css for global-not-found properly"
     ],
     "failed": [],
     "pending": [],
@@ -3115,6 +3146,8 @@
   },
   "test/e2e/app-dir/metadata-icons/metadata-icons.test.ts": {
     "passed": [
+      "app-dir - metadata-icons should not contain icon insertion script when metadata is rendered in head",
+      "app-dir - metadata-icons should not contain icon replacement mark in html or after hydration",
       "app-dir - metadata-icons should only have 1 favicon link in nested page",
       "app-dir - metadata-icons should only have 1 favicon link in root page",
       "app-dir - metadata-icons should re-insert the apple icons into the head after navigation",
@@ -3248,7 +3281,7 @@
   },
   "test/e2e/app-dir/metadata-suspense/index.test.ts": {
     "passed": [
-      "app dir - metadata dynamic routes suspense should render metadata in head even root layout is wrapped with Suspense"
+      "app dir - metadata dynamic routes suspense should render metadata in head when root layout is wrapped with Suspense for bot requests"
     ],
     "failed": [],
     "pending": [],
@@ -3741,11 +3774,10 @@
     "passed": [
       "next-dynamic-css should have correct order of global styles between layout and pages",
       "next-dynamic-css should have correct order of styles between global and css modules",
+      "next-dynamic-css should have correct order of styles on client component that is sharing styles with next/dynamic",
       "next-dynamic-css should have correct order of styles on next/dynamic loaded component"
     ],
-    "failed": [
-      "next-dynamic-css should have correct order of styles on client component that is sharing styles with next/dynamic"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3757,28 +3789,29 @@
       "app dir - next/font app dir - next-font import values should have correct values at /",
       "app dir - next/font app dir - next-font import values should have correct values at /client",
       "app dir - next/font app dir - next-font import values should transform code in node_modules",
-      "app dir - next/font app dir - next-font preconnect should not preconnect when css is used but no fonts",
-      "app dir - next/font app dir - next-font preload should preload correctly with client components",
-      "app dir - next/font app dir - next-font preload should preload correctly with layout using fonts",
-      "app dir - next/font app dir - next-font preload should preload correctly with page using fonts"
-    ],
-    "failed": [
       "app dir - next/font app dir - next-font navigation should not have duplicate preload tags on navigation",
       "app dir - next/font app dir - next-font preconnect should add preconnect when preloading is disabled in component",
       "app dir - next/font app dir - next-font preconnect should add preconnect when preloading is disabled in layout",
       "app dir - next/font app dir - next-font preconnect should add preconnect when preloading is disabled in page",
-      "app dir - next/font app dir - next-font preload should preload correctly with server components"
+      "app dir - next/font app dir - next-font preconnect should add preconnect when preloading is disabled in template",
+      "app dir - next/font app dir - next-font preconnect should not preconnect when css is used but no fonts",
+      "app dir - next/font app dir - next-font preload should preload correctly with client components",
+      "app dir - next/font app dir - next-font preload should preload correctly with layout using fonts",
+      "app dir - next/font app dir - next-font preload should preload correctly with page using fonts",
+      "app dir - next/font app dir - next-font preload should preload correctly with server components",
+      "app dir - next/font app dir - next-font preload should preload correctly with template using fonts"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/next-image/next-image-https.test.ts": {
-    "passed": [
-      "app dir - next-image (with https) only runs on CI as it requires administrator privileges"
-    ],
+    "passed": [],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "app dir - next-image (with https) loads images without any errors"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -4653,25 +4686,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/ppr-navigations/simple/per-segment-prefetching.test.ts": {
-    "passed": [
-      "per segment prefetching basic route tree prefetch",
-      "per segment prefetching respond with 204 if the segment does not have prefetch data"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/ppr-navigations/simple/simple.test.ts": {
-    "passed": [
-      "ppr-navigations simple can navigate between all the links and back"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/ppr-navigations/stale-prefetch-entry/stale-prefetch-entry.test.ts": {
     "passed": [
       "stale-prefetch-entry works if a prefetched route entry has become stale (too much time has elapsed since it was prefetched)"
@@ -4714,6 +4728,17 @@
       "ppr with suspense for /suspense/edge should eventually render the dynamic part",
       "ppr with suspense for /suspense/node should eventually render the dynamic part",
       "ppr without suspense for /no-suspense should immediately render the dynamic part"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/preferred-region/preferred-region.test.ts": {
+    "passed": [
+      "preferred-region should include preferredRegion in functions config manifest for nodejs runtime",
+      "preferred-region should return success from Edge API route",
+      "preferred-region should return success from Node.js API route"
     ],
     "failed": [],
     "pending": [],
@@ -5509,6 +5534,7 @@
   },
   "test/e2e/app-dir/segment-cache/basic/segment-cache-basic.test.ts": {
     "passed": [
+      "segment cache (basic tests) does not throw an error when navigating to a page with a server action",
       "segment cache (basic tests) navigate before any data has loaded into the prefetch cache",
       "segment cache (basic tests) navigate to page with lazily-generated (not at build time) static param",
       "segment cache (basic tests) navigate with prefetched data",
@@ -5516,6 +5542,16 @@
       "segment cache (basic tests) refreshes page segments when navigating to the exact same URL as the current location",
       "segment cache (basic tests) skips dynamic request if prefetched data is fully static",
       "segment cache (basic tests) skips static layouts during partially static navigation"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/segment-cache/cdn-cache-busting/cdn-cache-busting.test.ts": {
+    "passed": [
+      "segment cache (CDN cache busting) perform fully prefetched navigation with a CDN that doesn't respect the Vary header",
+      "segment cache (CDN cache busting) prevent cache poisoning attacks by responding with an error if a custom header is sent during a prefetch without a corresponding cache-busting search param"
     ],
     "failed": [],
     "pending": [],
@@ -5540,6 +5576,16 @@
       "conflicting routes /fr/vercel/~/monitoring matches the right route",
       "conflicting routes handles conflict between App Router and Pages Router routes",
       "conflicting routes matches the right route when the original route has no dynamic params, is dynamic, and PPR is disabled"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/segment-cache/deployment-skew/deployment-skew.test.ts": {
+    "passed": [
+      "segment cache (deployment skew) does not crash when prefetching a dynamic, non-PPR page on a different deployment",
+      "segment cache (deployment skew) does not crash when prefetching a static page on a different deployment"
     ],
     "failed": [],
     "pending": [],
@@ -6016,10 +6062,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/use-cache-segment-configs/use-cache-segment-configs.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "use-cache-segment-configs it should error when using segment configs that aren't supported by useCache"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6035,20 +6081,19 @@
   },
   "test/e2e/app-dir/use-cache-unknown-cache-kind/use-cache-unknown-cache-kind.test.ts": {
     "passed": [
+      "use-cache-unknown-cache-kind should fail the build with an error",
       "use-cache-unknown-cache-kind should not fail the build for default cache kinds"
     ],
-    "failed": [
-      "use-cache-unknown-cache-kind should fail the build with an error"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/use-cache-without-experimental-flag/use-cache-without-experimental-flag.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "use-cache-without-experimental-flag should fail the build with an error"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6072,6 +6117,7 @@
       "use-cache should match the expected stale config in the page header",
       "use-cache should not read nor write cached data when draft mode is enabled js disabled",
       "use-cache should not read nor write cached data when draft mode is enabled js enabled",
+      "use-cache should not store a fetch response with no-store in the incremental cache handler during build",
       "use-cache should not use stale caches in server actions that have revalidated",
       "use-cache should override fetch with cookies/auth in use cache properly",
       "use-cache should override fetch with no-store in use cache properly",
@@ -6083,6 +6129,7 @@
       "use-cache should revalidate caches during on-demand revalidation",
       "use-cache should revalidate caches nested in unstable_cache",
       "use-cache should send an SWR cache-control header based on the revalidate and expire values",
+      "use-cache should store a fetch response without no-store in the incremental cache handler during build",
       "use-cache should update after unstable_expireTag correctly",
       "use-cache should use revalidate config in fetch",
       "use-cache usage in node_modules should cache results when using a directive with a handler",
@@ -6413,11 +6460,11 @@
     "runtimeError": false
   },
   "test/e2e/browserslist-extends/index.test.ts": {
-    "passed": [],
-    "failed": ["browserslist-extends should work"],
+    "passed": ["browserslist-extends should work"],
+    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/browserslist/browserslist.test.ts": {
     "passed": [],
@@ -7868,6 +7915,7 @@
       "next/font Fallback fontfaces local Roboto multiple weights and styles",
       "next/font Fallback fontfaces local Roboto multiple weights and styles - variable 1",
       "next/font Fallback fontfaces local Roboto multiple weights and styles - variable 2",
+      "next/font computed styles page using fallback fonts",
       "next/font computed styles page using variables",
       "next/font computed styles page with fonts",
       "next/font import values Variable font without weight range",
@@ -7881,7 +7929,7 @@
       "next/font preload page without fonts",
       "next/font should not have deprecation warning"
     ],
-    "failed": ["next/font computed styles page using fallback fonts"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -8932,9 +8980,9 @@
   },
   "test/e2e/vary-header/test/index.test.ts": {
     "passed": [
-      "Vary Header Tests should preserve custom vary header",
+      "Vary Header Tests should preserve custom vary header and append RSC headers in app route handlers",
       "Vary Header Tests should preserve custom vary header in API routes",
-      "Vary Header Tests should preserve middleware vary header"
+      "Vary Header Tests should preserve middleware vary header in combination with route handlers"
     ],
     "failed": [],
     "pending": [],
@@ -9918,10 +9966,10 @@
     "runtimeError": false
   },
   "test/integration/config-devtool-dev/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "devtool set in development mode in next config should warn and revert when a devtool is set in development mode"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10293,16 +10341,15 @@
       "CSS Customization production mode Bad CSS Customization should've compiled and prefixed",
       "CSS Customization production mode Bad CSS Customization should've emitted a source map",
       "CSS Customization production mode Basic CSS should compile successfully",
+      "CSS Customization production mode Basic CSS should've compiled and prefixed",
+      "CSS Customization production mode Basic CSS should've emitted a source map",
       "CSS Customization production mode Correct CSS Customization Array should compile successfully",
+      "CSS Customization production mode Correct CSS Customization Array should've compiled and prefixed",
+      "CSS Customization production mode Correct CSS Customization Array should've emitted a source map",
       "CSS Customization production mode Correct CSS Customization custom loader should compile successfully",
       "CSS Customization production mode Correct CSS Customization custom loader should've applied style"
     ],
-    "failed": [
-      "CSS Customization production mode Basic CSS should've compiled and prefixed",
-      "CSS Customization production mode Basic CSS should've emitted a source map",
-      "CSS Customization production mode Correct CSS Customization Array should've compiled and prefixed",
-      "CSS Customization production mode Correct CSS Customization Array should've emitted a source map"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10310,24 +10357,23 @@
   "test/integration/css-features/test/browserslist.test.js": {
     "passed": [
       "Browserslist: New production mode should have compiled successfully",
-      "Browserslist: Old production mode should have compiled successfully"
-    ],
-    "failed": [
       "Browserslist: New production mode should've emitted a single CSS file",
+      "Browserslist: Old production mode should have compiled successfully",
       "Browserslist: Old production mode should've emitted a single CSS file"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/css-features/test/css-modules.test.js": {
     "passed": [
+      "CSS Modules: Import Exports production mode should've emitted a single CSS file",
       "CSS Modules: Import Global CSS production mode should've emitted a single CSS file",
       "Custom Properties: Fail for :root {} in CSS Modules production mode should fail to build",
       "Custom Properties: Fail for global element in CSS Modules production mode should fail to build"
     ],
     "failed": [
-      "CSS Modules: Import Exports production mode should've emitted a single CSS file",
       "CSS Modules: Importing Invalid Global CSS production mode should fail to build"
     ],
     "pending": [],
@@ -10337,20 +10383,19 @@
   "test/integration/css-features/test/index.test.js": {
     "passed": [
       "Custom Properties: Pass-Through IE11 production mode should've emitted a single CSS file",
-      "Custom Properties: Pass-Through Modern production mode should've emitted a single CSS file"
-    ],
-    "failed": [
+      "Custom Properties: Pass-Through Modern production mode should've emitted a single CSS file",
       "Inline Comments: Minify production mode should've emitted a single CSS file"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/css-minify/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "css-minify production mode should minify correctly by removing whitespace"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10364,29 +10409,28 @@
       "Basic CSS Module Support production mode should've emitted a single CSS file",
       "Basic CSS Module Support production mode should've injected the CSS on server render",
       "CSS Module Composes Usage (Basic) production mode should have compiled successfully",
+      "CSS Module Composes Usage (Basic) production mode should've emitted a single CSS file",
+      "CSS Module Composes Usage (External) production mode should've emitted a single CSS file",
       "Can hot reload CSS Module without losing state should update CSS color without remounting <input>",
       "Catch-all Route CSS Module Usage production mode should apply styles correctly",
       "Catch-all Route CSS Module Usage production mode should have compiled successfully",
+      "Catch-all Route CSS Module Usage production mode should've emitted a single CSS file",
       "Dynamic Route CSS Module Usage production mode should apply styles correctly",
       "Dynamic Route CSS Module Usage production mode should have compiled successfully",
+      "Dynamic Route CSS Module Usage production mode should've emitted a single CSS file",
       "Has CSS Module in computed styles in Development should have CSS for page",
       "Has CSS Module in computed styles in Production production mode should have CSS for page",
       "Has CSS Module in computed styles in Production production mode should have compiled successfully",
       "Valid CSS Module Usage from within node_modules production mode should have compiled successfully",
       "Valid CSS Module Usage from within node_modules production mode should've emitted a single CSS file",
       "Valid CSS Module Usage from within node_modules production mode should've prerendered with relevant data",
+      "Valid Nested CSS Module Usage from within node_modules production mode should've emitted a single CSS file",
       "Valid Nested CSS Module Usage from within node_modules production mode should've prerendered with relevant data",
       "cssmodules-pure-no-check usage should apply styles correctly",
       "cssmodules-pure-no-check usage should have compiled successfully",
       "cssmodules-pure-no-check usage should've emitted a CSS file"
     ],
-    "failed": [
-      "CSS Module Composes Usage (Basic) production mode should've emitted a single CSS file",
-      "CSS Module Composes Usage (External) production mode should've emitted a single CSS file",
-      "Catch-all Route CSS Module Usage production mode should've emitted a single CSS file",
-      "Dynamic Route CSS Module Usage production mode should've emitted a single CSS file",
-      "Valid Nested CSS Module Usage from within node_modules production mode should've emitted a single CSS file"
-    ],
+    "failed": [],
     "pending": [
       "Invalid CSS Module Usage in node_modules production mode should fail to build",
       "Invalid Global CSS Module Usage in node_modules production mode should fail to build"
@@ -10402,17 +10446,17 @@
       "Basic Global Support with special characters in path production mode useLightnincsss(true) should've emitted a single CSS file",
       "Basic Global Support with src/ dir production mode useLightnincsss(false) should've emitted a single CSS file",
       "Basic Global Support with src/ dir production mode useLightnincsss(true) should've emitted a single CSS file",
-      "Multi Global Support (reversed) production mode useLightnincsss(true) should've emitted a single CSS file",
-      "Multi Global Support production mode useLightnincsss(true) should've emitted a single CSS file"
-    ],
-    "failed": [
       "CSS URL via `file-loader` and asset prefix (1) production mode should've emitted expected files",
       "CSS URL via `file-loader` and asset prefix (2) production mode should've emitted expected files",
       "CSS URL via `file-loader` production mode useLightnincsss(false) should've emitted expected files",
-      "CSS URL via `file-loader` production mode useLightnincsss(true) should've emitted expected files",
       "Multi Global Support (reversed) production mode useLightnincsss(false) should've emitted a single CSS file",
+      "Multi Global Support (reversed) production mode useLightnincsss(true) should've emitted a single CSS file",
       "Multi Global Support production mode useLightnincsss(false) should've emitted a single CSS file",
-      "Nested @import() Global Support production mode useLightnincsss(false) should've emitted a single CSS file",
+      "Multi Global Support production mode useLightnincsss(true) should've emitted a single CSS file",
+      "Nested @import() Global Support production mode useLightnincsss(false) should've emitted a single CSS file"
+    ],
+    "failed": [
+      "CSS URL via `file-loader` production mode useLightnincsss(true) should've emitted expected files",
       "Nested @import() Global Support production mode useLightnincsss(true) should've emitted a single CSS file"
     ],
     "pending": [],
@@ -10436,6 +10480,7 @@
       "CSS Property Ordering production mode useLightnincsss(true) should have the border width (property ordering)",
       "CSS Support production mode Good CSS Import from node_modules useLightnincsss(false) should've emitted a single CSS file",
       "CSS Support production mode Good CSS Import from node_modules useLightnincsss(true) should've emitted a single CSS file",
+      "CSS Support production mode Good Nested CSS Import from node_modules useLightnincsss(false) should've emitted a single CSS file",
       "CSS Support production mode Good Nested CSS Import from node_modules useLightnincsss(true) should've emitted a single CSS file",
       "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(false) should have CSS for page",
       "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(false) should've preloaded the CSS file and injected it in <head>",
@@ -10446,8 +10491,7 @@
     ],
     "failed": [
       "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(false) should've compiled and prefixed",
-      "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(true) should've compiled and prefixed",
-      "CSS Support production mode Good Nested CSS Import from node_modules useLightnincsss(false) should've emitted a single CSS file"
+      "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(true) should've compiled and prefixed"
     ],
     "pending": [],
     "flakey": [],
@@ -10491,11 +10535,10 @@
       "Ordering with Global CSS and Modules (prod) production mode useLightnincsss(false) should have the correct color (css ordering)",
       "Ordering with Global CSS and Modules (prod) production mode useLightnincsss(true) should have compiled successfully",
       "Ordering with Global CSS and Modules (prod) production mode useLightnincsss(true) should have the correct color (css ordering)",
-      "should handle unresolved files gracefully production mode should build correctly"
-    ],
-    "failed": [
+      "should handle unresolved files gracefully production mode should build correctly",
       "should handle unresolved files gracefully production mode should have correct file references in CSS output"
     ],
+    "failed": [],
     "pending": [
       "CSS Modules Composes Ordering useLightnincsss(false) development mode should have correct color on index page (on hover)",
       "CSS Modules Composes Ordering useLightnincsss(false) development mode should have correct color on index page (on load)",
@@ -17720,8 +17763,7 @@
     "runtimeError": false
   },
   "test/integration/server-side-dev-errors/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "server-side dev errors should show server-side error for api route correctly",
       "server-side dev errors should show server-side error for dynamic api route correctly",
       "server-side dev errors should show server-side error for dynamic gssp page correctly",
@@ -17729,7 +17771,9 @@
       "server-side dev errors should show server-side error for gssp page correctly",
       "server-side dev errors should show server-side error for uncaught empty exception correctly",
       "server-side dev errors should show server-side error for uncaught empty rejection correctly",
-      "server-side dev errors should show server-side error for uncaught exception correctly",
+      "server-side dev errors should show server-side error for uncaught exception correctly"
+    ],
+    "failed": [
       "server-side dev errors should show server-side error for uncaught rejection correctly"
     ],
     "pending": [],
@@ -18104,18 +18148,17 @@
   "test/integration/typescript-paths/test/index.test.js": {
     "passed": [
       "typescript paths default behavior should alias components",
+      "typescript paths default behavior should not resolve to .d.ts files",
       "typescript paths default behavior should resolve a single matching alias",
       "typescript paths default behavior should resolve the first item in the array first",
       "typescript paths default behavior should resolve the second item in as a fallback",
       "typescript paths without baseurl default behavior should alias components",
+      "typescript paths without baseurl default behavior should not resolve to .d.ts files",
       "typescript paths without baseurl default behavior should resolve a single matching alias",
       "typescript paths without baseurl default behavior should resolve the first item in the array first",
       "typescript paths without baseurl default behavior should resolve the second item in as a fallback"
     ],
-    "failed": [
-      "typescript paths default behavior should not resolve to .d.ts files",
-      "typescript paths without baseurl default behavior should not resolve to .d.ts files"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -18123,13 +18166,12 @@
   "test/integration/typescript-workspaces-paths/packages/www/test/index.test.js": {
     "passed": [
       "TypeScript Features default behavior should alias components",
+      "TypeScript Features default behavior should not resolve to .d.ts files",
       "TypeScript Features default behavior should resolve a single matching alias",
       "TypeScript Features default behavior should resolve the first item in the array first",
       "TypeScript Features default behavior should resolve the second item in as a fallback"
     ],
-    "failed": [
-      "TypeScript Features default behavior should not resolve to .d.ts files"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -18847,11 +18889,11 @@
     "runtimeError": false
   },
   "test/production/bfcache-routing/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
       "bfcache-routing should not suspend indefinitely when page is restored from bfcache after an mpa navigation"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -19188,11 +19230,11 @@
     "runtimeError": false
   },
   "test/production/generate-middleware-source-maps/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Middleware source maps generates a source map for Edge API",
       "Middleware source maps generates a source map for Middleware"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false

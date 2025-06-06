@@ -1,8 +1,8 @@
-import { useState } from 'react'
 import { PagesDevOverlayErrorBoundary } from './pages-dev-overlay-error-boundary'
 import { usePagesDevOverlay } from './hooks'
 import { FontStyles } from '../font/font-styles'
 import { DevOverlay } from '../ui/dev-overlay'
+import { getSquashedHydrationErrorDetails } from './hydration-error-state'
 
 export type ErrorType = 'runtime' | 'build'
 
@@ -13,22 +13,18 @@ interface PagesDevOverlayProps {
 }
 
 export function PagesDevOverlay({ children }: PagesDevOverlayProps) {
-  const { state, onComponentError } = usePagesDevOverlay()
-
-  const [isErrorOverlayOpen, setIsErrorOverlayOpen] = useState(true)
+  const { state, dispatch } = usePagesDevOverlay()
 
   return (
     <>
-      <PagesDevOverlayErrorBoundary onError={onComponentError}>
-        {children ?? null}
-      </PagesDevOverlayErrorBoundary>
+      <PagesDevOverlayErrorBoundary>{children}</PagesDevOverlayErrorBoundary>
 
       {/* Fonts can only be loaded outside the Shadow DOM. */}
       <FontStyles />
       <DevOverlay
         state={state}
-        isErrorOverlayOpen={isErrorOverlayOpen}
-        setIsErrorOverlayOpen={setIsErrorOverlayOpen}
+        dispatch={dispatch}
+        getSquashedHydrationErrorDetails={getSquashedHydrationErrorDetails}
       />
     </>
   )

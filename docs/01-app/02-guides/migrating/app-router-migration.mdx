@@ -60,7 +60,7 @@ There are two codemods to help you migrate to the new Image Component:
 
 ### `<Link>` Component
 
-The [`<Link>` Component](/docs/app/building-your-application/routing/linking-and-navigating#link-component) no longer requires manually adding an `<a>` tag as a child. This behavior was added as an experimental option in [version 12.2](https://nextjs.org/blog/next-12-2) and is now the default. In Next.js 13, `<Link>` always renders `<a>` and allows you to forward props to the underlying tag.
+The [`<Link>` Component](/docs/app/api-reference/components/link) no longer requires manually adding an `<a>` tag as a child. This behavior was added as an experimental option in [version 12.2](https://nextjs.org/blog/next-12-2) and is now the default. In Next.js 13, `<Link>` always renders `<a>` and allows you to forward props to the underlying tag.
 
 For example:
 
@@ -112,8 +112,8 @@ We recommend reducing the combined complexity of these updates by breaking down 
   - `.js`, `.jsx`, or `.tsx` file extensions can be used for special files.
 - You can colocate other files inside the `app` directory such as components, styles, tests, and more. [Learn more](/docs/app/building-your-application/routing).
 - Data fetching functions like `getServerSideProps` and `getStaticProps` have been replaced with [a new API](/docs/app/building-your-application/data-fetching) inside `app`. `getStaticPaths` has been replaced with [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params).
-- `pages/_app.js` and `pages/_document.js` have been replaced with a single `app/layout.js` root layout. [Learn more](/docs/app/building-your-application/routing/layouts-and-templates#root-layout-required).
-- `pages/_error.js` has been replaced with more granular `error.js` special files. [Learn more](/docs/app/building-your-application/routing/error-handling).
+- `pages/_app.js` and `pages/_document.js` have been replaced with a single `app/layout.js` root layout. [Learn more](/docs/app/api-reference/file-conventions/layout#root-layout).
+- `pages/_error.js` has been replaced with more granular `error.js` special files. [Learn more](/docs/app/getting-started/error-handling).
 - `pages/404.js` has been replaced with the [`not-found.js`](/docs/app/api-reference/file-conventions/not-found) file.
 - `pages/api/*` API Routes have been replaced with the [`route.js`](/docs/app/api-reference/file-conventions/route) (Route Handler) special file.
 
@@ -129,7 +129,7 @@ Then, create a new `app` directory at the root of your project (or `src/` direct
 
 ### Step 2: Creating a Root Layout
 
-Create a new `app/layout.tsx` file inside the `app` directory. This is a [root layout](/docs/app/building-your-application/routing/layouts-and-templates#root-layout-required) that will apply to all routes inside `app`.
+Create a new `app/layout.tsx` file inside the `app` directory. This is a [root layout](/docs/app/api-reference/file-conventions/layout#root-layout) that will apply to all routes inside `app`.
 
 ```tsx filename="app/layout.tsx" switcher
 export default function RootLayout({
@@ -192,7 +192,7 @@ If you are using any React Context providers, they will need to be moved to a [C
 
 #### Migrating the `getLayout()` pattern to Layouts (Optional)
 
-Next.js recommended adding a [property to Page components](/docs/pages/building-your-application/routing/pages-and-layouts#layout-pattern#per-page-layouts) to achieve per-page layouts in the `pages` directory. This pattern can be replaced with native support for [nested layouts](/docs/app/building-your-application/routing/layouts-and-templates#layouts) in the `app` directory.
+Next.js recommended adding a [property to Page components](/docs/pages/building-your-application/routing/pages-and-layouts#layout-pattern) to achieve per-page layouts in the `pages` directory. This pattern can be replaced with native support for [nested layouts](/docs/app/api-reference/file-conventions/layout) in the `app` directory.
 
 <details>
   <summary>See before and after example</summary>
@@ -385,7 +385,7 @@ export default function HomePage({ recentPosts }) {
 
 - Create a new `app/page.tsx` file inside the `app` directory. This is a Server Component by default.
 - Import the `home-page.tsx` Client Component into the page.
-- If you were fetching data in `pages/index.js`, move the data fetching logic directly into the Server Component using the new [data fetching APIs](/docs/app/building-your-application/data-fetching/fetching). See the [data fetching upgrade guide](#step-6-migrating-data-fetching-methods) for more details.
+- If you were fetching data in `pages/index.js`, move the data fetching logic directly into the Server Component using the new [data fetching APIs](/docs/app/getting-started/fetching-data). See the [data fetching upgrade guide](#step-6-migrating-data-fetching-methods) for more details.
 
   ```tsx filename="app/page.tsx" switcher
   // Import your Client Component
@@ -556,7 +556,7 @@ export default function Dashboard({ projects }) {
 
 In the App Router, we can colocate our data fetching inside our React components using [Server Components](/docs/app/getting-started/server-and-client-components). This allows us to send less JavaScript to the client, while maintaining the rendered HTML from the server.
 
-By setting the `cache` option to `no-store`, we can indicate that the fetched data should [never be cached](/docs/app/building-your-application/data-fetching/fetching). This is similar to `getServerSideProps` in the `pages` directory.
+By setting the `cache` option to `no-store`, we can indicate that the fetched data should [never be cached](/docs/app/getting-started/fetching-data). This is similar to `getServerSideProps` in the `pages` directory.
 
 ```tsx filename="app/dashboard/page.tsx" switcher
 // `app` directory
@@ -737,7 +737,7 @@ export default function Post({ post }) {
 
 In the `app` directory, `getStaticPaths` is replaced with [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params).
 
-[`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) behaves similarly to `getStaticPaths`, but has a simplified API for returning route parameters and can be used inside [layouts](/docs/app/building-your-application/routing/layouts-and-templates). The return shape of `generateStaticParams` is an array of segments instead of an array of nested `param` objects or a string of resolved paths.
+[`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) behaves similarly to `getStaticPaths`, but has a simplified API for returning route parameters and can be used inside [layouts](/docs/app/api-reference/file-conventions/layout). The return shape of `generateStaticParams` is an array of segments instead of an array of nested `param` objects or a string of resolved paths.
 
 ```jsx filename="app/posts/[id]/page.js"
 // `app` directory
@@ -876,7 +876,7 @@ export async function GET(request: Request) {}
 export async function GET(request) {}
 ```
 
-> **Good to know**: If you previously used API routes to call an external API from the client, you can now use [Server Components](/docs/app/getting-started/server-and-client-components) instead to securely fetch data. Learn more about [data fetching](/docs/app/building-your-application/data-fetching/fetching).
+> **Good to know**: If you previously used API routes to call an external API from the client, you can now use [Server Components](/docs/app/getting-started/server-and-client-components) instead to securely fetch data. Learn more about [data fetching](/docs/app/getting-started/fetching-data).
 
 #### Single-Page Applications
 

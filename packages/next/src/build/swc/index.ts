@@ -723,6 +723,10 @@ function bindingToApi(
       )
     }
 
+    invalidatePersistentCache(): Promise<void> {
+      return binding.projectInvalidatePersistentCache(this._nativeProject)
+    }
+
     shutdown(): Promise<void> {
       return binding.projectShutdown(this._nativeProject)
     }
@@ -891,7 +895,7 @@ function bindingToApi(
       type SerializedConditions = {
         [key: string]: {
           path:
-            | { type: 'regexp'; value: { source: string; flags: string } }
+            | { type: 'regex'; value: { source: string; flags: string } }
             | { type: 'glob'; value: string }
         }
       }
@@ -903,7 +907,7 @@ function bindingToApi(
           path:
             value.path instanceof RegExp
               ? {
-                  type: 'regexp',
+                  type: 'regex',
                   value: { source: value.path.source, flags: value.path.flags },
                 }
               : { type: 'glob', value: value.path },

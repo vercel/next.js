@@ -3,7 +3,6 @@ import { css } from '../../../utils/css'
 import type { DevToolsInfoPropsCore } from '../errors/dev-tools-indicator/dev-tools-info/dev-tools-info'
 import { DevToolsInfo } from '../errors/dev-tools-indicator/dev-tools-info/dev-tools-info'
 import { cx } from '../../utils/cx'
-import { LeftArrow } from '../../icons/left-arrow'
 import {
   useSegmentTreeClientState,
   type SegmentNode,
@@ -55,7 +54,10 @@ function PageSegmentTree({ tree }: { tree: Trie<SegmentNode> | undefined }) {
     return null
   }
   return (
-    <div className="segment-explorer-content">
+    <div
+      className="segment-explorer-content"
+      data-nextjs-devtool-segment-explorer
+    >
       <PageSegmentTreeLayerPresentation
         tree={tree}
         node={tree.getRoot()}
@@ -74,13 +76,33 @@ function PageSegmentTreeLayerPresentation({
   node: TrieNode<SegmentNode>
   level: number
 }) {
-  const segments = node.value?.pagePath?.split('/') || []
-  const fileName = segments[segments.length - 1] || ''
+  const pagePath = node.value?.pagePath || ''
   const nodeName = node.value?.type
-  const pagePathPrefix = segments.slice(0, -1).join('/')
+
+  const segments = pagePath.split('/') || []
+  const fileName = segments.pop() || ''
+  const segmentPath = segments.join('/')
+
+  let pagePathPrefix = segmentPath
+
+  const childrenKeys = Object.keys(node.children).sort((a, b) => {
+    // Prioritize if it's a file convention like layout or page,
+    // then the rest parallel routes.
+    const aHasExt = a.includes('.')
+    const bHasExt = b.includes('.')
+    if (aHasExt && !bHasExt) return -1
+    if (!aHasExt && bHasExt) return 1
+    // Otherwise sort alphabetically
+    return a.localeCompare(b)
+  })
 
   return (
-    <div className="segment-explorer-item">
+    <div
+      className={cx(
+        'segment-explorer-item',
+        level > 1 && 'segment-explorer-item--nested'
+      )}
+    >
       {!fileName || level === 0 ? null : (
         <div className="segment-explorer-item-row">
           <div className="segment-explorer-line">
@@ -101,17 +123,19 @@ function PageSegmentTreeLayerPresentation({
       )}
 
       <div className="tree-node-expanded-rendered-children">
-        {Object.entries(node.children).map(
-          ([key, child]) =>
+        {childrenKeys.map((segment) => {
+          const child = node.children[segment]
+          return (
             child && (
               <PageSegmentTreeLayerPresentation
-                key={key}
+                key={segment}
                 tree={tree}
                 node={child}
                 level={level + 1}
               />
             )
-        )}
+          )
+        })}
       </div>
     </div>
   )
@@ -126,40 +150,21 @@ export function SegmentsExplorer(
   }
 
   return (
-    <DevToolsInfo
-      title={
-        <>
-          <button
-            className="segment-explorer-back-button"
-            onClick={props.close}
-          >
-            <LeftArrow />
-          </button>
-          {'Segment Explorer'}
-        </>
-      }
-      closeButton={false}
-      {...props}
-    >
+    <DevToolsInfo title="Segment Explorer" {...props}>
       <PageSegmentTree tree={ctx.tree} />
     </DevToolsInfo>
   )
 }
 
 export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
-  .segment-explorer-back-button {
-    margin-right: 12px;
-    color: var(--color-gray-1000);
-  }
-  .segment-explorer-back-button svg {
-    width: 20px;
-    height: 20px;
-  }
-
   .segment-explorer-content {
     overflow-y: auto;
     padding: 0 12px;
     font-size: var(--size-14);
+  }
+
+  .segment-explorer-item--nested {
+    padding-left: 20px;
   }
 
   .segment-explorer-item-row {
@@ -171,11 +176,6 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
 
   .segment-explorer-filename-path {
     display: inline-block;
-
-    &:hover {
-      color: var(--color-gray-1000);
-      text-decoration: none;
-    }
   }
 
   .segment-explorer-filename-path a {
@@ -185,6 +185,7 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
 
   .segment-explorer-line {
     white-space: pre;
+    cursor: default;
   }
 
   .segment-explorer-line-icon {
@@ -193,12 +194,9 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
   .segment-explorer-line-icon-page {
     color: inherit;
   }
-  .segment-explorer-line-icon-layout {
-    color: var(--color-gray-1-00);
-  }
 
   .segment-explorer-line-text-page {
-    color: var(--color-blue-900);
+    color: var(--color-gray-1000);
     font-weight: 500;
   }
 `

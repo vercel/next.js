@@ -1,10 +1,22 @@
 use anyhow::Result;
-use turbo_tasks::{ResolvedVc, Vc};
+use serde::{Deserialize, Serialize};
+use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 
 use super::available_modules::{AvailableModules, AvailableModulesSet};
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Hash, Clone, Copy, Debug)]
+#[derive(
+    Eq,
+    PartialEq,
+    Hash,
+    Clone,
+    Copy,
+    Debug,
+    TaskInput,
+    TraceRawVcs,
+    NonLocalValue,
+    Serialize,
+    Deserialize,
+)]
 pub enum AvailabilityInfo {
     /// Availability of modules is not tracked
     Untracked,

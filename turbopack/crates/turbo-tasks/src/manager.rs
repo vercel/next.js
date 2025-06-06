@@ -43,7 +43,7 @@ use crate::{
     task_statistics::TaskStatisticsApi,
     trace::TraceRawVcs,
     trait_helpers::get_trait_method,
-    util::{IdFactory, SharedError, StaticOrArc},
+    util::{IdFactory, StaticOrArc},
     vc::ReadVcFuture,
 };
 
@@ -711,10 +711,8 @@ impl<B: Backend + 'static> TurboTasks<B> {
 
                         let result = match result {
                             Ok(Ok(raw_vc)) => Ok(raw_vc),
-                            Ok(Err(err)) => Err(Arc::new(err.into())),
-                            Err(err) => {
-                                Err(Arc::new(TurboTasksExecutionError::Panic(Arc::new(err))))
-                            }
+                            Ok(Err(err)) => Err(err.into()),
+                            Err(err) => Err(TurboTasksExecutionError::Panic(Arc::new(err))),
                         };
 
                         this.backend.task_execution_result(task_id, result, &*this);
@@ -807,24 +805,14 @@ impl<B: Backend + 'static> TurboTasks<B> {
 
                 let result = match result {
                     Ok(Ok(raw_vc)) => Ok(raw_vc),
-                    Ok(Err(err)) => Err(Arc::new(err.into())),
-                    Err(err) => Err(Arc::new(TurboTasksExecutionError::Panic(Arc::new(err)))),
+                    Ok(Err(err)) => Err(err.into()),
+                    Err(err) => Err(TurboTasksExecutionError::Panic(Arc::new(err))),
                 };
 
                 let local_task = LocalTask::Done {
                     output: match result {
                         Ok(raw_vc) => OutputContent::Link(raw_vc),
-                        Err(err) => match &*err {
-                            TurboTasksExecutionError::Error { .. } => {
-                                OutputContent::Error(SharedError::new(
-                                    anyhow::Error::new(err)
-                                        .context(format!("Execution of {ty} failed")),
-                                ))
-                            }
-                            TurboTasksExecutionError::Panic(err) => {
-                                OutputContent::Panic(err.clone())
-                            }
-                        },
+                        Err(err) => OutputContent::Error(err.task_context(ty)),
                     },
                 };
 
@@ -1938,10 +1926,10 @@ impl CurrentCellRef {
         T: PartialEq + VcValueType,
     {
         self.conditional_update(|old_value| {
-            if let Some(old_value) = old_value {
-                if old_value == &new_value {
-                    return None;
-                }
+            if let Some(old_value) = old_value
+                && old_value == &new_value
+            {
+                return None;
             }
             Some(new_value)
         });

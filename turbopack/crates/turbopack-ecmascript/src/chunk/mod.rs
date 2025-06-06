@@ -9,7 +9,7 @@ pub(crate) mod placeable;
 use std::fmt::Write;
 
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystem;
 use turbopack_core::{
@@ -66,16 +66,6 @@ impl EcmascriptChunk {
     }
 }
 
-#[turbo_tasks::function]
-fn chunk_item_key() -> Vc<RcStr> {
-    Vc::cell("chunk item".into())
-}
-
-#[turbo_tasks::function]
-fn availability_root_key() -> Vc<RcStr> {
-    Vc::cell("current_availability_root".into())
-}
-
 #[turbo_tasks::value_impl]
 impl Chunk for EcmascriptChunk {
     #[turbo_tasks::function]
@@ -104,12 +94,11 @@ impl Chunk for EcmascriptChunk {
             }
         }
 
-        let chunk_item_key = chunk_item_key().to_resolved().await?;
         let assets = chunk_items
             .iter()
             .map(|&chunk_item| async move {
                 Ok((
-                    chunk_item_key,
+                    rcstr!("chunk item"),
                     chunk_item.content_ident().to_resolved().await?,
                 ))
             })
@@ -122,8 +111,8 @@ impl Chunk for EcmascriptChunk {
             } else {
                 ServerFileSystem::new().root().to_resolved().await?
             },
-            query: ResolvedVc::cell(RcStr::default()),
-            fragment: None,
+            query: RcStr::default(),
+            fragment: RcStr::default(),
             assets,
             modifiers: Vec::new(),
             parts: Vec::new(),
@@ -176,21 +165,11 @@ impl EcmascriptChunk {
     }
 }
 
-#[turbo_tasks::function]
-fn introspectable_type() -> Vc<RcStr> {
-    Vc::cell("ecmascript chunk".into())
-}
-
-#[turbo_tasks::function]
-fn chunk_item_module_key() -> Vc<RcStr> {
-    Vc::cell("module".into())
-}
-
 #[turbo_tasks::value_impl]
 impl Introspectable for EcmascriptChunk {
     #[turbo_tasks::function]
     fn ty(&self) -> Vc<RcStr> {
-        introspectable_type()
+        Vc::cell(rcstr!("ecmascript chunk"))
     }
 
     #[turbo_tasks::function]
@@ -214,10 +193,9 @@ impl Introspectable for EcmascriptChunk {
         let mut children = children_from_output_assets(self.references())
             .owned()
             .await?;
-        let chunk_item_module_key = chunk_item_module_key().to_resolved().await?;
         for chunk_item in self.await?.content.included_chunk_items().await? {
             children.insert((
-                chunk_item_module_key,
+                rcstr!("module"),
                 IntrospectableModule::new(chunk_item.module())
                     .to_resolved()
                     .await?,

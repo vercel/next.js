@@ -1,5 +1,6 @@
 'use client'
-import { hexHash } from '../../../shared/lib/hash'
+
+import { computeCacheBustingSearchParam } from '../../../shared/lib/router/utils/cache-busting-search-param'
 import {
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
@@ -29,14 +30,17 @@ export const setCacheBustingSearchParam = (
   url: URL,
   headers: RequestHeaders
 ): void => {
-  const uniqueCacheKey = hexHash(
-    [
-      headers[NEXT_ROUTER_PREFETCH_HEADER] || '0',
-      headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] || '0',
-      headers[NEXT_ROUTER_STATE_TREE_HEADER],
-      headers[NEXT_URL],
-    ].join(',')
+  const uniqueCacheKey = computeCacheBustingSearchParam(
+    headers[NEXT_ROUTER_PREFETCH_HEADER],
+    headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER],
+    headers[NEXT_ROUTER_STATE_TREE_HEADER],
+    headers[NEXT_URL]
   )
+  if (uniqueCacheKey === null) {
+    // None of our custom request headers are present. We don't need to set a
+    // cache-busting search param.
+    return
+  }
 
   /**
    * Note that we intentionally do not use `url.searchParams.set` here:

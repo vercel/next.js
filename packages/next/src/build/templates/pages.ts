@@ -161,16 +161,6 @@ export async function handler(
     const publicRuntimeConfig: Record<string, string> =
       routerServerContext?.publicRuntimeConfig || nextConfig.publicRuntimeConfig
 
-    let ErrorDebug: any
-
-    if (process.env.NODE_ENV === 'development') {
-      ErrorDebug = (props: any) => {
-        const ReactDevOverlayImpl =
-          require('next/dist/client/components/react-dev-overlay/pages/pages-dev-overlay').PagesDevOverlay
-        return ReactDevOverlayImpl(props)
-      }
-    }
-
     const invokeRouteModule = async (span?: Span) =>
       routeModule
         .render(req, res, {
@@ -255,6 +245,7 @@ export async function handler(
             locale,
             locales,
             defaultLocale,
+            setIsrStatus: routerServerContext?.setIsrStatus,
 
             isNextDataRequest:
               isNextDataRequest && (hasServerProps || hasStaticProps),
@@ -277,7 +268,7 @@ export async function handler(
 
             isOnDemandRevalidate,
 
-            ErrorDebug,
+            ErrorDebug: getRequestMeta(req, 'PagesErrorDebug'),
             err: getRequestMeta(req, 'invokeError'),
             dev: routeModule.isDev,
 

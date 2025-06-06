@@ -220,7 +220,7 @@ The default export function receives the following props:
 
 #### `params` (optional)
 
-An object containing the [dynamic route parameters](/docs/app/building-your-application/routing/dynamic-routes) object from the root segment down to the segment `opengraph-image` or `twitter-image` is colocated in.
+An object containing the [dynamic route parameters](/docs/app/api-reference/file-conventions/dynamic-routes) object from the root segment down to the segment `opengraph-image` or `twitter-image` is colocated in.
 
 ```tsx filename="app/shop/[slug]/opengraph-image.tsx" switcher
 export default function Image({ params }: { params: { slug: string } }) {

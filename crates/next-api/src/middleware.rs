@@ -10,8 +10,8 @@ use next_core::{
     util::{MiddlewareMatcherKind, NextRuntime, parse_config_from_source},
 };
 use tracing::Instrument;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{Completion, ResolvedVc, Value, Vc};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{Completion, ResolvedVc, Vc};
 use turbo_tasks_fs::{self, File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
@@ -47,7 +47,7 @@ pub struct MiddlewareEndpoint {
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
     source: ResolvedVc<Box<dyn Source>>,
     app_dir: Option<ResolvedVc<FileSystemPath>>,
-    ecmascript_client_reference_transition_name: Option<ResolvedVc<RcStr>>,
+    ecmascript_client_reference_transition_name: Option<RcStr>,
 }
 
 #[turbo_tasks::value_impl]
@@ -58,7 +58,7 @@ impl MiddlewareEndpoint {
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
         source: ResolvedVc<Box<dyn Source>>,
         app_dir: Option<ResolvedVc<FileSystemPath>>,
-        ecmascript_client_reference_transition_name: Option<ResolvedVc<RcStr>>,
+        ecmascript_client_reference_transition_name: Option<RcStr>,
     ) -> Vc<Self> {
         Self {
             project,
@@ -76,7 +76,7 @@ impl MiddlewareEndpoint {
             .asset_context
             .process(
                 *self.source,
-                Value::new(ReferenceType::Entry(EntryReferenceSubType::Middleware)),
+                ReferenceType::Entry(EntryReferenceSubType::Middleware),
             )
             .module();
 
@@ -95,7 +95,7 @@ impl MiddlewareEndpoint {
             *self.asset_context,
             self.project.project_path(),
             module,
-            "middleware".into(),
+            rcstr!("middleware"),
         ))
     }
 
@@ -107,11 +107,12 @@ impl MiddlewareEndpoint {
         let module_graph = this.project.module_graph(*module);
 
         let evaluatable_assets = get_server_runtime_entries(
-            Value::new(ServerContextType::Middleware {
+            ServerContextType::Middleware {
                 app_dir: this.app_dir,
                 ecmascript_client_reference_transition_name: this
-                    .ecmascript_client_reference_transition_name,
-            }),
+                    .ecmascript_client_reference_transition_name
+                    .clone(),
+            },
             this.project.next_mode(),
         )
         .resolve_entries(*this.asset_context)
@@ -126,7 +127,7 @@ impl MiddlewareEndpoint {
             module.ident(),
             ChunkGroup::Entry(evaluatable_assets),
             module_graph,
-            Value::new(AvailabilityInfo::Root),
+            AvailabilityInfo::Root,
         );
         Ok(edge_files)
     }
@@ -146,20 +147,23 @@ impl MiddlewareEndpoint {
 
         let EntryChunkGroupResult { asset: chunk, .. } = *chunking_context
             .entry_chunk_group(
-                this.project.node_root().join("server/middleware.js".into()),
+                this.project
+                    .node_root()
+                    .join(rcstr!("server/middleware.js")),
                 get_server_runtime_entries(
-                    Value::new(ServerContextType::Middleware {
+                    ServerContextType::Middleware {
                         app_dir: this.app_dir,
                         ecmascript_client_reference_transition_name: this
-                            .ecmascript_client_reference_transition_name,
-                    }),
+                            .ecmascript_client_reference_transition_name
+                            .clone(),
+                    },
                     this.project.next_mode(),
                 )
                 .resolve_entries(*this.asset_context)
                 .with_entry(*module),
                 module_graph,
                 OutputAssets::empty(),
-                Value::new(AvailabilityInfo::Root),
+                AvailabilityInfo::Root,
             )
             .await?;
         Ok(*chunk)
@@ -233,8 +237,8 @@ impl MiddlewareEndpoint {
                 .collect()
         } else {
             vec![MiddlewareMatcher {
-                regexp: Some("^/.*$".into()),
-                original_source: "/:path*".into(),
+                regexp: Some(rcstr!("^/.*$")),
+                original_source: rcstr!("/:path*"),
                 ..Default::default()
             }]
         };
@@ -256,7 +260,7 @@ impl MiddlewareEndpoint {
             let middleware_manifest_v2 = VirtualOutputAsset::new(
                 this.project
                     .node_root()
-                    .join("server/middleware/middleware-manifest.json".into()),
+                    .join(rcstr!("server/middleware/middleware-manifest.json")),
                 AssetContent::file(
                     FileContent::Content(File::from(serde_json::to_string_pretty(
                         &middleware_manifest_v2,
@@ -303,20 +307,20 @@ impl MiddlewareEndpoint {
                 files: file_paths_from_root,
                 wasm: wasm_paths_to_bindings(wasm_paths_from_root).await?,
                 assets: paths_to_bindings(all_assets),
-                name: "middleware".into(),
-                page: "/".into(),
+                name: rcstr!("middleware"),
+                page: rcstr!("/"),
                 regions,
                 matchers: matchers.clone(),
                 env: this.project.edge_env().owned().await?,
             };
             let middleware_manifest_v2 = MiddlewaresManifestV2 {
-                middleware: [("/".into(), edge_function_definition)]
+                middleware: [(rcstr!("/"), edge_function_definition)]
                     .into_iter()
                     .collect(),
                 ..Default::default()
             };
             let middleware_manifest_v2 = VirtualOutputAsset::new(
-                node_root.join("server/middleware/middleware-manifest.json".into()),
+                node_root.join(rcstr!("server/middleware/middleware-manifest.json")),
                 AssetContent::file(
                     FileContent::Content(File::from(serde_json::to_string_pretty(
                         &middleware_manifest_v2,
@@ -337,7 +341,7 @@ impl MiddlewareEndpoint {
         self.asset_context
             .process(
                 *self.source,
-                Value::new(ReferenceType::Entry(EntryReferenceSubType::Middleware)),
+                ReferenceType::Entry(EntryReferenceSubType::Middleware),
             )
             .module()
     }

@@ -95,7 +95,6 @@ export interface Issue {
     }
   }
   documentationLink: string
-  subIssues: Issue[]
 }
 
 export interface Diagnostics {
@@ -226,6 +225,8 @@ export interface Project {
   compilationEventsSubscribe(): AsyncIterableIterator<
     TurbopackResult<CompilationEvent>
   >
+
+  invalidatePersistentCache(): Promise<void>
 
   shutdown(): Promise<void>
 

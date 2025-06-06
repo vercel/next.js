@@ -1,7 +1,6 @@
 use anyhow::Result;
 use indoc::formatdoc;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
     chunk::{
         ChunkData, ChunkItem, ChunkType, ChunkingContext, ChunkingContextExt, ChunksData,
@@ -46,17 +45,16 @@ impl AsyncLoaderChunkItem {
             let module_or_batch = batches.get_entry(inner_module).await?;
             if let Some(chunkable_module_or_batch) =
                 ChunkableModuleOrBatch::from_module_or_batch(module_or_batch)
+                && *chunk_items.get(chunkable_module_or_batch).await?
             {
-                if *chunk_items.get(chunkable_module_or_batch).await? {
-                    return Ok(Vc::cell(vec![]));
-                }
+                return Ok(Vc::cell(vec![]));
             }
         }
         Ok(self.chunking_context.chunk_group_assets(
             module.inner.ident(),
             ChunkGroup::Async(ResolvedVc::upcast(module.inner)),
             *self.module_graph,
-            Value::new(module.availability_info),
+            module.availability_info,
         ))
     }
 
@@ -152,11 +150,6 @@ impl EcmascriptChunkItem for AsyncLoaderChunkItem {
     }
 }
 
-#[turbo_tasks::function]
-fn chunk_reference_description() -> Vc<RcStr> {
-    Vc::cell("chunk".into())
-}
-
 #[turbo_tasks::value_impl]
 impl ChunkItem for AsyncLoaderChunkItem {
     #[turbo_tasks::function]
@@ -168,9 +161,7 @@ impl ChunkItem for AsyncLoaderChunkItem {
     async fn content_ident(self: Vc<Self>) -> Result<Vc<AssetIdent>> {
         let ident = self.module().ident();
 
-        Ok(ident.with_modifier(Vc::cell(
-            self.chunks_data().hash().await?.to_string().into(),
-        )))
+        Ok(ident.with_modifier(self.chunks_data().hash().await?.to_string().into()))
     }
 
     #[turbo_tasks::function]

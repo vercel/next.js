@@ -3,8 +3,6 @@
 #![feature(arbitrary_self_types_pointers)]
 
 mod helpers;
-#[cfg(feature = "bench_against_node_nft")]
-use std::time::Instant;
 use std::{
     collections::HashSet,
     env::temp_dir,
@@ -15,7 +13,7 @@ use std::{
     io::{ErrorKind, Write as _},
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use anyhow::{Context, Result, anyhow};
@@ -29,12 +27,13 @@ use rstest_reuse::{
 };
 use serde::{Deserialize, Serialize};
 use tokio::{process::Command, time::timeout};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    ReadRef, ResolvedVc, TurboTasks, Value, ValueToString, Vc, apply_effects, backend::Backend,
+    ResolvedVc, TurboTasks, Value, ValueToString, Vc, apply_effects, backend::Backend,
+    trace::TraceRawVcs,
 };
-use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
-use turbo_tasks_memory::MemoryBackend;
+use turbo_tasks_backend::TurboTasksBackend;
+use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 use turbopack::{
     ModuleAssetContext, emit_with_completion_operation,
     module_options::{CssOptionsContext, EcmascriptOptionsContext, ModuleOptionsContext},
@@ -265,46 +264,31 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 fn test_cases() {}
 
 #[apply(test_cases)]
-fn node_file_trace_memory(#[case] input: CaseInput) {
-    node_file_trace(
-        input,
-        "memory",
-        false,
-        1,
-        120,
-        |_| TurboTasks::new(MemoryBackend::default()),
-        |tt| {
-            let b = tt.backend();
-            b.with_all_cached_tasks(|task| {
-                b.with_task(task, |task| {
-                    if task.is_pending() {
-                        println!("PENDING: {task}");
-                    }
-                })
-            });
-        },
-    );
+fn node_file_trace_noop_backing_storage(#[case] input: CaseInput) {
+    node_file_trace(input, "noop_backing_storage", false, 1, 120, |_| {
+        TurboTasks::new(TurboTasksBackend::new(
+            turbo_tasks_backend::BackendOptions::default(),
+            turbo_tasks_backend::noop_backing_storage(),
+        ))
+    });
 }
 
-#[cfg(feature = "test_persistent_cache")]
 #[apply(test_cases)]
-fn node_file_trace_rocksdb(#[case] input: CaseInput) {
-    use turbo_tasks_memory::MemoryBackendWithPersistedGraph;
-    use turbo_tasks_rocksdb::RocksDbPersistedGraph;
-
-    node_file_trace(
-        input,
-        "rockdb",
-        false,
-        2,
-        240,
-        |directory_path| {
-            TurboTasks::new(MemoryBackendWithPersistedGraph::new(
-                RocksDbPersistedGraph::new(directory_path.join(".db")).unwrap(),
-            ))
-        },
-        |_| {},
-    );
+fn node_file_trace_persistent(#[case] input: CaseInput) {
+    node_file_trace(input, "persistent_cache", false, 2, 240, |directory_path| {
+        TurboTasks::new(TurboTasksBackend::new(
+            turbo_tasks_backend::BackendOptions::default(),
+            turbo_tasks_backend::default_backing_storage(
+                &directory_path.join(".cache"),
+                &turbo_tasks_backend::GitVersionInfo {
+                    describe: "test-unversioned",
+                    dirty: false,
+                },
+                false,
+            )
+            .unwrap(),
+        ))
+    });
 }
 
 #[cfg(feature = "bench_against_node_nft")]
@@ -323,22 +307,79 @@ fn bench_against_node_nft_mt(#[case] input: CaseInput) {
 fn bench_against_node_nft_inner(input: CaseInput, multi_threaded: bool) {
     node_file_trace(
         input,
-        "memory",
+        "noop_backing_storage",
         multi_threaded,
         1,
         120,
-        |_| TurboTasks::new(MemoryBackend::default()),
-        |tt| {
-            let b = tt.backend();
-            b.with_all_cached_tasks(|task| {
-                b.with_task(task, |task| {
-                    if task.is_pending() {
-                        println!("PENDING: {task}");
-                    }
-                })
-            });
+        |_| {
+            TurboTasks::new(TurboTasksBackend::new(
+                turbo_tasks_backend::BackendOptions::default(),
+                turbo_tasks_backend::noop_backing_storage(),
+            ))
         },
     );
+}
+
+#[turbo_tasks::function(operation)]
+async fn node_file_trace_operation(
+    package_root: RcStr,
+    input: RcStr,
+    directory: RcStr,
+) -> Result<Vc<RebasedAsset>> {
+    let workspace_fs: Vc<Box<dyn FileSystem>> = Vc::upcast(DiskFileSystem::new(
+        rcstr!("workspace"),
+        package_root.clone(),
+        vec![],
+    ));
+    let input_dir = workspace_fs.root().to_resolved().await?;
+    let input = input_dir.join(format!("tests/{input}").into());
+
+    let output_fs = DiskFileSystem::new(rcstr!("output"), directory.clone(), vec![]);
+    let output_dir = output_fs.root().to_resolved().await?;
+
+    let source = FileSource::new(input);
+    let module_asset_context = ModuleAssetContext::new(
+        Default::default(),
+        // TODO It's easy to make a mistake here as this should match the config in the
+        // binary. TODO These test cases should move into the
+        // `node-file-trace` crate and use the same config.
+        CompileTimeInfo::new(Environment::new(Value::new(
+            ExecutionEnvironment::NodeJsLambda(NodeJsEnvironment::default().resolved_cell()),
+        ))),
+        ModuleOptionsContext {
+            ecmascript: EcmascriptOptionsContext {
+                enable_types: true,
+                ..Default::default()
+            },
+            css: CssOptionsContext {
+                enable_raw_css: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        }
+        .cell(),
+        ResolveOptionsContext {
+            enable_node_native_modules: true,
+            enable_node_modules: Some(input_dir),
+            custom_conditions: vec![rcstr!("node")],
+            ..Default::default()
+        }
+        .cell(),
+        rcstr!("test"),
+    );
+    let module = module_asset_context
+        .process(Vc::upcast(source), ReferenceType::Undefined)
+        .module();
+
+    let rebased = RebasedAsset::new(Vc::upcast(module), *input_dir, *output_dir)
+        .to_resolved()
+        .await?;
+
+    let emit_op = emit_with_completion_operation(ResolvedVc::upcast(rebased), output_dir);
+    emit_op.read_strongly_consistent().await?;
+    apply_effects(emit_op).await?;
+
+    Ok(*rebased)
 }
 
 fn node_file_trace<B: Backend + 'static>(
@@ -352,7 +393,6 @@ fn node_file_trace<B: Backend + 'static>(
     run_count: i32,
     timeout_len: u64,
     create_turbo_tasks: impl Fn(&Path) -> Arc<TurboTasks<B>>,
-    handle_timeout_error: impl Fn(&Arc<TurboTasks<B>>),
 ) {
     lazy_static! {
         static ref BENCH_SUITES: Arc<Mutex<Vec<BenchSuite>>> = Arc::new(Mutex::new(Vec::new()));
@@ -398,108 +438,46 @@ fn node_file_trace<B: Backend + 'static>(
 
         for _ in 0..run_count {
             let bench_suites = bench_suites.clone();
-            let package_root = package_root.clone();
-            let input_string = input.clone();
-            let directory = directory.clone();
-            #[cfg(not(feature = "bench_against_node_nft"))]
             let expected_stderr = expected_stderr.clone();
+            let package_root = package_root.clone();
+            let input = input.clone();
+            let directory = directory.clone();
             let task = async move {
                 #[allow(unused)]
                 let bench_suites = bench_suites.clone();
-                #[cfg(feature = "bench_against_node_nft")]
                 let before_start = Instant::now();
-                let workspace_fs: Vc<Box<dyn FileSystem>> = Vc::upcast(DiskFileSystem::new(
-                    "workspace".into(),
+
+                let rebased = node_file_trace_operation(
                     package_root.clone(),
-                    vec![],
-                ));
-                let input_dir = workspace_fs.root().to_resolved().await?;
-                let input = input_dir.join(format!("tests/{input_string}").into());
-
-                #[cfg(not(feature = "bench_against_node_nft"))]
-                let original_output = exec_node(package_root, input);
-
-                let output_fs = DiskFileSystem::new("output".into(), directory.clone(), vec![]);
-                let output_dir = output_fs.root().to_resolved().await?;
-
-                let source = FileSource::new(input);
-                let module_asset_context = ModuleAssetContext::new(
-                    Default::default(),
-                    // TODO It's easy to make a mistake here as this should match the config in the
-                    // binary. TODO These test cases should move into the
-                    // `node-file-trace` crate and use the same config.
-                    CompileTimeInfo::new(Environment::new(Value::new(
-                        ExecutionEnvironment::NodeJsLambda(
-                            NodeJsEnvironment::default().resolved_cell(),
-                        ),
-                    ))),
-                    ModuleOptionsContext {
-                        ecmascript: EcmascriptOptionsContext {
-                            enable_types: true,
-                            ..Default::default()
-                        },
-                        css: CssOptionsContext {
-                            enable_raw_css: true,
-                            ..Default::default()
-                        },
-                        ..Default::default()
-                    }
-                    .cell(),
-                    ResolveOptionsContext {
-                        enable_node_native_modules: true,
-                        enable_node_modules: Some(input_dir),
-                        custom_conditions: vec!["node".into()],
-                        ..Default::default()
-                    }
-                    .cell(),
-                    Vc::cell("test".into()),
-                );
-                let module = module_asset_context
-                    .process(Vc::upcast(source), Value::new(ReferenceType::Undefined))
-                    .module();
-                let rebased = RebasedAsset::new(Vc::upcast(module), *input_dir, *output_dir)
-                    .to_resolved()
-                    .await?;
-
-                #[cfg(not(feature = "bench_against_node_nft"))]
-                let output_path = rebased.path();
+                    input.clone(),
+                    directory.clone(),
+                )
+                .resolve_strongly_consistent()
+                .await?;
 
                 print_graph(ResolvedVc::upcast(rebased)).await?;
 
-                let emit_op =
-                    emit_with_completion_operation(ResolvedVc::upcast(rebased), output_dir);
-                emit_op.read_strongly_consistent().await?;
-                apply_effects(emit_op).await?;
-
-                #[cfg(not(feature = "bench_against_node_nft"))]
-                {
-                    let output = exec_node(directory.clone(), output_path);
-                    let output =
-                        assert_output(original_output, output, expected_stderr.map(From::from));
-                    output.await
-                }
-                #[cfg(feature = "bench_against_node_nft")]
-                {
+                if cfg!(feature = "bench_against_node_nft") {
                     let duration = before_start.elapsed();
                     let node_start = Instant::now();
-                    exec_node(package_root, input.clone()).await?;
+                    exec_node(&package_root, &input).await?;
                     let node_duration = node_start.elapsed();
                     let is_faster = node_duration > duration;
                     {
                         let mut bench_suites_lock = bench_suites.lock().unwrap();
                         let rust_speedup =
                             node_duration.as_millis() as f32 / duration.as_millis() as f32 - 1.0;
-                        let rust_duration = format!("{:?}", duration);
-                        let node_duration = format!("{:?}", node_duration);
+                        let rust_duration = format!("{duration:?}");
+                        let node_duration = format!("{node_duration:?}");
                         let rust_speedup = if rust_speedup > 1.0 {
-                            format!("+{:.2}x", rust_speedup)
+                            format!("+{rust_speedup:.2}x")
                         } else if rust_speedup > 0.0 {
                             format!("+{:.0}%", rust_speedup * 100.0)
                         } else {
                             format!("-{:.0}%", -rust_speedup * 100.0)
                         };
                         bench_suites_lock.push(BenchSuite {
-                            suite: input_string
+                            suite: input
                                 .trim_start_matches("node-file-trace/integration/")
                                 .to_string()
                                 + (if multi_threaded {
@@ -513,28 +491,35 @@ fn node_file_trace<B: Backend + 'static>(
                             rust_speedup,
                         });
                     }
-                    CommandOutput::cell(CommandOutput {
+                    Ok(CommandOutput {
                         stdout: String::new(),
                         stderr: String::new(),
                     })
-                    .await
+                } else {
+                    let output_path = &rebased.path().await?.path;
+                    let original_output =
+                        exec_node(&package_root, &format!("{package_root}/tests/{input}")).await?;
+                    let output = exec_node(&directory, output_path).await?;
+                    assert_output(original_output, output, expected_stderr.map(From::from))
                 }
             };
-            let handle_result = |result: Result<ReadRef<CommandOutput>>| match result {
-                #[allow(unused)]
-                Ok(output) => {
-                    #[cfg(not(feature = "bench_against_node_nft"))]
-                    {
-                        assert!(
-                            output.is_empty(),
-                            "emitted files behave differently when executed via node.js\n{output}"
-                        );
+
+            fn handle_result(result: Result<CommandOutput>) {
+                match result {
+                    Ok(output) => {
+                        if !cfg!(feature = "bench_against_node_nft") {
+                            assert!(
+                                output.is_empty(),
+                                "emitted files behave differently when executed via \
+                                 node.js\n{output}"
+                            );
+                        }
+                    }
+                    Err(err) => {
+                        panic!("Execution failed: {err:?}");
                     }
                 }
-                Err(err) => {
-                    panic!("Execution failed: {err:?}");
-                }
-            };
+            }
 
             let tt = create_turbo_tasks(directory_path.as_path());
             let output = timeout(Duration::from_secs(timeout_len), tt.run_once(task)).await;
@@ -543,7 +528,6 @@ fn node_file_trace<B: Backend + 'static>(
             match (output, stop) {
                 (Ok(result), Ok(_)) => handle_result(result),
                 (Err(err), _) => {
-                    handle_timeout_error(&tt);
                     panic!("Execution is hanging (for > {timeout_len}s): {err}");
                 }
                 (_, Err(err)) => {
@@ -569,13 +553,12 @@ fn node_file_trace<B: Backend + 'static>(
     })
 }
 
-#[turbo_tasks::value]
+#[derive(TraceRawVcs)]
 struct CommandOutput {
     stdout: String,
     stderr: String,
 }
 
-#[cfg(not(feature = "bench_against_node_nft"))]
 impl CommandOutput {
     fn is_empty(&self) -> bool {
         self.stderr.is_empty() && self.stdout.is_empty()
@@ -592,36 +575,23 @@ impl Display for CommandOutput {
     }
 }
 
-#[turbo_tasks::function]
-async fn exec_node(directory: RcStr, path: Vc<FileSystemPath>) -> Result<Vc<CommandOutput>> {
+async fn exec_node(directory: &str, path: &str) -> Result<CommandOutput> {
     let mut cmd = Command::new("node");
 
-    let p = path.await?;
-    let f = Path::new(&directory).join(&p.path);
+    let f = Path::new(&directory).join(path);
     let dir = f.parent().unwrap();
     println!("[CWD]: {}", dir.display());
-    let label = path.to_string().await?;
 
-    if p.path.contains("mdx") {
+    if path.contains("mdx") {
         cmd.arg("--experimental-loader=@mdx-js/node-loader")
             .arg("--no-warnings");
     }
 
-    #[cfg(not(feature = "bench_against_node_nft"))]
-    if p.path.ends_with(".ts") {
-        let mut ts_node = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        ts_node.push("tests");
-        ts_node.push("node-file-trace");
-        ts_node.push("node_modules");
-        ts_node.push("ts-node");
-        ts_node.push("dist");
-        ts_node.push("bin.js");
-        cmd.arg(&ts_node);
-    }
+    if cfg!(feature = "bench_against_node_nft") {
+        let current_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        cmd.current_dir(&current_dir);
 
-    #[cfg(feature = "bench_against_node_nft")]
-    {
-        let mut node_nft = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let mut node_nft = current_dir;
         node_nft.push("tests");
         node_nft.push("node-file-trace");
         node_nft.push("node_modules");
@@ -630,25 +600,28 @@ async fn exec_node(directory: RcStr, path: Vc<FileSystemPath>) -> Result<Vc<Comm
         node_nft.push("out");
         node_nft.push("cli.js");
         cmd.arg(&node_nft).arg("build");
-    }
-    #[cfg(not(feature = "bench_against_node_nft"))]
-    {
-        cmd.arg(&f);
+        cmd.arg(path);
+    } else {
         cmd.current_dir(dir);
-    }
-    #[cfg(feature = "bench_against_node_nft")]
-    {
-        let current_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        cmd.arg(&p.path);
-        cmd.current_dir(current_dir);
+        if path.ends_with(".ts") {
+            let mut ts_node = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+            ts_node.push("tests");
+            ts_node.push("node-file-trace");
+            ts_node.push("node_modules");
+            ts_node.push("ts-node");
+            ts_node.push("dist");
+            ts_node.push("bin.js");
+            cmd.arg(&ts_node);
+        }
+        cmd.arg(&f);
     }
 
     println!("[CMD]: {cmd:#?}");
 
     let output = timeout(Duration::from_secs(100), cmd.output())
         .await
-        .with_context(|| anyhow!("node execution of {label} is hanging"))?
-        .with_context(|| anyhow!("failed to spawn node process of {label}"))?;
+        .with_context(|| anyhow!("node execution of {path} is hanging"))?
+        .with_context(|| anyhow!("failed to spawn node process of {path}"))?;
 
     let output = CommandOutput {
         stdout: String::from_utf8_lossy(&output.stdout).to_string(),
@@ -657,7 +630,7 @@ async fn exec_node(directory: RcStr, path: Vc<FileSystemPath>) -> Result<Vc<Comm
 
     println!("File: {}\n{}", f.display(), output,);
 
-    Ok(CommandOutput::cell(output))
+    Ok(output)
 }
 
 fn clean_stderr(str: &str) -> String {
@@ -689,16 +662,12 @@ fn diff(expected: &str, actual: &str) -> String {
     print_changeset(&Changeset::new(expected.trim(), actual.trim(), "\n"))
 }
 
-#[allow(unused)]
-#[turbo_tasks::function]
-async fn assert_output(
-    expected: Vc<CommandOutput>,
-    actual: Vc<CommandOutput>,
+fn assert_output(
+    expected: CommandOutput,
+    actual: CommandOutput,
     expected_stderr: Option<RcStr>,
-) -> Result<Vc<CommandOutput>> {
-    let expected = expected.await?;
-    let actual = actual.await?;
-    Ok(CommandOutput::cell(CommandOutput {
+) -> Result<CommandOutput> {
+    Ok(CommandOutput {
         stdout: diff(&expected.stdout, &actual.stdout),
         stderr: if let Some(expected_stderr) = expected_stderr {
             if actual.stderr.contains(&*expected_stderr)
@@ -712,7 +681,7 @@ async fn assert_output(
         } else {
             diff(&expected.stderr, &actual.stderr)
         },
-    }))
+    })
 }
 
 #[derive(Debug, Serialize, Deserialize)]

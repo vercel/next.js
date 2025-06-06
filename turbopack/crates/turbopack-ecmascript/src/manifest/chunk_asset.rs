@@ -1,6 +1,6 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, Vc};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
@@ -17,11 +17,6 @@ use turbopack_core::{
 
 use super::chunk_item::ManifestChunkItem;
 use crate::chunk::{EcmascriptChunkPlaceable, EcmascriptExports};
-
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("manifest chunk".into())
-}
 
 /// The manifest module is deferred until requested by the manifest loader
 /// item when the dynamic `import()` expression is reached.
@@ -49,13 +44,13 @@ impl ManifestAsyncModule {
         module: ResolvedVc<Box<dyn ChunkableModule>>,
         module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-        availability_info: Value<AvailabilityInfo>,
+        availability_info: AvailabilityInfo,
     ) -> Vc<Self> {
         Self::cell(ManifestAsyncModule {
             inner: module,
             module_graph,
             chunking_context,
-            availability_info: availability_info.into_value(),
+            availability_info,
         })
     }
 
@@ -65,7 +60,7 @@ impl ManifestAsyncModule {
             self.inner.ident(),
             ChunkGroup::Async(ResolvedVc::upcast(self.inner)),
             *self.module_graph,
-            Value::new(self.availability_info),
+            self.availability_info,
         )
     }
 
@@ -81,17 +76,16 @@ impl ManifestAsyncModule {
             let module_or_batch = batches.get_entry(inner_module).await?;
             if let Some(chunkable_module_or_batch) =
                 ChunkableModuleOrBatch::from_module_or_batch(module_or_batch)
+                && *chunk_items.get(chunkable_module_or_batch).await?
             {
-                if *chunk_items.get(chunkable_module_or_batch).await? {
-                    return Ok(Vc::cell(vec![]));
-                }
+                return Ok(Vc::cell(vec![]));
             }
         }
         Ok(this.chunking_context.chunk_group_assets(
             self.ident(),
             ChunkGroup::Async(ResolvedVc::upcast(self)),
             *this.module_graph,
-            Value::new(this.availability_info),
+            this.availability_info,
         ))
     }
 
@@ -104,23 +98,23 @@ impl ManifestAsyncModule {
     pub async fn content_ident(&self) -> Result<Vc<AssetIdent>> {
         let mut ident = self.inner.ident();
         if let Some(available_modules) = self.availability_info.available_modules() {
-            ident =
-                ident.with_modifier(Vc::cell(available_modules.hash().await?.to_string().into()));
+            ident = ident.with_modifier(available_modules.hash().await?.to_string().into());
         }
         Ok(ident)
     }
 }
 
-#[turbo_tasks::function]
-fn manifest_chunk_reference_description() -> Vc<RcStr> {
-    Vc::cell("manifest chunk".into())
+fn manifest_chunk_reference_description() -> RcStr {
+    rcstr!("manifest chunk")
 }
 
 #[turbo_tasks::value_impl]
 impl Module for ManifestAsyncModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        self.inner.ident().with_modifier(modifier())
+        self.inner
+            .ident()
+            .with_modifier(manifest_chunk_reference_description())
     }
 
     #[turbo_tasks::function]

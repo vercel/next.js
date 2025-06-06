@@ -699,7 +699,7 @@ function assignDefaults(
     dset(result, ['turbopack', 'root'], result.outputFileTracingRoot)
   }
 
-  // use the closest lockfile as tracing root
+  // use the highest level lockfile as tracing root
   if (!result?.outputFileTracingRoot || !result?.turbopack?.root) {
     let rootDir = findRootDir(dir)
 
@@ -1370,7 +1370,8 @@ export default async function loadConfig(
     }
 
     if (userConfig.experimental?.useLightningcss) {
-      const { loadBindings } = require('next/dist/build/swc')
+      const { loadBindings } =
+        require('../build/swc') as typeof import('../build/swc')
       const isLightningSupported = (await loadBindings())?.css?.lightning
 
       if (!isLightningSupported) {

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
@@ -327,7 +327,7 @@ impl Module for EcmascriptModulePartAsset {
                     *self.full_module,
                     part,
                 )),
-                Vc::cell("part reference".into()),
+                rcstr!("part reference"),
             ))
         };
 

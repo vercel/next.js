@@ -20,6 +20,7 @@ import { hasCustomExportOutput } from '../../export/utils'
 import { Telemetry } from '../../telemetry/storage'
 import { setGlobal } from '../../trace'
 import * as Log from '../output/log'
+import { isCI } from '../../server/ci-info'
 
 export async function turbopackBuild(): Promise<{
   duration: number
@@ -86,13 +87,33 @@ export async function turbopackBuild(): Promise<{
       persistentCaching,
       memoryLimit: config.experimental?.turbopackMemoryLimit,
       dependencyTracking: persistentCaching,
+      isCi: isCI,
     }
   )
   try {
     ;(async function logCompilationEvents() {
       for await (const event of project.compilationEventsSubscribe()) {
-        if (event.severity === 'EVENT') {
-          Log.event(event.message)
+        switch (event.severity) {
+          case 'EVENT':
+            Log.event(event.message)
+            break
+          case 'TRACE':
+            Log.trace(event.message)
+            break
+          case 'INFO':
+            Log.info(event.message)
+            break
+          case 'WARNING':
+            Log.warn(event.message)
+            break
+          case 'ERROR':
+            Log.error(event.message)
+            break
+          case 'FATAL':
+            Log.error(event.message)
+            break
+          default:
+            break
         }
       }
     })()

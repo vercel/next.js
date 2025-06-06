@@ -126,8 +126,10 @@
       }
     },
     {
-      "files": ["packages/**/*.tsx?"],
+      "files": ["packages/**/*.ts", "packages/**/*.tsx"],
+      "plugins": ["@next/eslint-plugin-internal"],
       "rules": {
+        "@next/internal/typechecked-require": "error",
         "jsdoc/no-types": "error",
         "jsdoc/no-undefined-types": "error"
       }

@@ -1,10 +1,15 @@
-import type { OverlayState } from '../../../../shared'
+import {
+  ACTION_ERROR_OVERLAY_CLOSE,
+  type OverlayDispatch,
+  type OverlayState,
+} from '../../../../shared'
 
 import { Suspense } from 'react'
 import { BuildError } from '../../../container/build-error'
 import { Errors } from '../../../container/errors'
 import { useDelayedRender } from '../../../hooks/use-delayed-render'
 import type { ReadyRuntimeError } from '../../../../utils/get-error-by-type'
+import type { HydrationErrorState } from '../../../../pages/hydration-error-state'
 
 const transitionDurationMs = 200
 
@@ -18,21 +23,21 @@ export interface ErrorBaseProps {
 
 export function ErrorOverlay({
   state,
+  dispatch,
+  getSquashedHydrationErrorDetails,
   runtimeErrors,
-  isErrorOverlayOpen,
-  setIsErrorOverlayOpen,
   errorCount,
 }: {
   state: OverlayState
+  dispatch: OverlayDispatch
+  getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
   runtimeErrors: ReadyRuntimeError[]
-  isErrorOverlayOpen: boolean
-  setIsErrorOverlayOpen: (value: boolean) => void
   errorCount: number
 }) {
   const isTurbopack = !!process.env.TURBOPACK
 
   // This hook lets us do an exit animation before unmounting the component
-  const { mounted, rendered } = useDelayedRender(isErrorOverlayOpen, {
+  const { mounted, rendered } = useDelayedRender(state.isErrorOverlayOpen, {
     exitDelay: transitionDurationMs,
   })
 
@@ -72,9 +77,10 @@ export function ErrorOverlay({
     <Errors
       {...commonProps}
       debugInfo={state.debugInfo}
+      getSquashedHydrationErrorDetails={getSquashedHydrationErrorDetails}
       runtimeErrors={runtimeErrors}
       onClose={() => {
-        setIsErrorOverlayOpen(false)
+        dispatch({ type: ACTION_ERROR_OVERLAY_CLOSE })
       }}
     />
   )

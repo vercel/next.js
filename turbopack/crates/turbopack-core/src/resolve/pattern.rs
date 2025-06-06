@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    NonLocalValue, ResolvedVc, Value, ValueToString, Vc, debug::ValueDebugFormat,
+    NonLocalValue, ResolvedVc, TaskInput, ValueToString, Vc, debug::ValueDebugFormat,
     trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{
@@ -20,7 +20,7 @@ use turbo_tasks_fs::{
     util::normalize_path,
 };
 
-#[turbo_tasks::value(shared, serialization = "auto_for_input")]
+#[turbo_tasks::value]
 #[derive(Hash, Clone, Debug, Default)]
 pub enum Pattern {
     Constant(RcStr),
@@ -30,14 +30,24 @@ pub enum Pattern {
     Concatenation(Vec<Pattern>),
 }
 
+/// manually implement TaskInput to avoid recursion in the implementation of `resolve_input` in the
+/// derived implementation.  We can instead use the default implementation since `Pattern` contains
+/// no VCs.
+impl TaskInput for Pattern {
+    fn is_transient(&self) -> bool {
+        // We contain no vcs so they cannot be transient.
+        false
+    }
+}
+
 fn concatenation_push_or_merge_item(list: &mut Vec<Pattern>, pat: Pattern) {
-    if let Pattern::Constant(ref s) = pat {
-        if let Some(Pattern::Constant(last)) = list.last_mut() {
-            let mut buf = last.to_string();
-            buf.push_str(s);
-            *last = buf.into();
-            return;
-        }
+    if let Pattern::Constant(ref s) = pat
+        && let Some(Pattern::Constant(last)) = list.last_mut()
+    {
+        let mut buf = last.to_string();
+        buf.push_str(s);
+        *last = buf.into();
+        return;
     }
     list.push(pat);
 }
@@ -959,10 +969,10 @@ impl Pattern {
                         }
                     }
                 }
-                if let Some(offset) = any_offset {
-                    if offset == value.len() {
-                        dynamics.push_back(value);
-                    }
+                if let Some(offset) = any_offset
+                    && offset == value.len()
+                {
+                    dynamics.push_back(value);
                 }
                 MatchResult::Consumed {
                     remaining: value,
@@ -1170,16 +1180,17 @@ impl Pattern {
 }
 
 impl Pattern {
-    pub fn new(pattern: Pattern) -> Vc<Self> {
-        Pattern::new_internal(Value::new(pattern))
+    pub fn new(mut pattern: Pattern) -> Vc<Self> {
+        pattern.normalize();
+        Pattern::new_internal(pattern)
     }
 }
 
 #[turbo_tasks::value_impl]
 impl Pattern {
     #[turbo_tasks::function]
-    fn new_internal(pattern: Value<Pattern>) -> Vc<Self> {
-        Self::cell(pattern.into_value())
+    fn new_internal(pattern: Pattern) -> Vc<Self> {
+        Self::cell(pattern)
     }
 }
 
@@ -1648,16 +1659,12 @@ pub async fn read_matches(
                                         lookup_dir.join(key.clone()).to_resolved().await?;
                                     if let LinkContent::Link { link_type, .. } =
                                         &*fs_path.read_link().await?
+                                        && link_type.contains(LinkType::DIRECTORY)
                                     {
-                                        if link_type.contains(LinkType::DIRECTORY) {
-                                            results.push((
-                                                pos,
-                                                PatternMatch::Directory(
-                                                    prefix.clone().into(),
-                                                    fs_path,
-                                                ),
-                                            ));
-                                        }
+                                        results.push((
+                                            pos,
+                                            PatternMatch::Directory(prefix.clone().into(), fs_path),
+                                        ));
                                     }
                                 }
                                 if let Some(pos) = pat.could_match_position(&prefix) {
@@ -1665,16 +1672,12 @@ pub async fn read_matches(
                                         lookup_dir.join(key.clone()).to_resolved().await?;
                                     if let LinkContent::Link { link_type, .. } =
                                         &*fs_path.read_link().await?
+                                        && link_type.contains(LinkType::DIRECTORY)
                                     {
-                                        if link_type.contains(LinkType::DIRECTORY) {
-                                            results.push((
-                                                pos,
-                                                PatternMatch::Directory(
-                                                    prefix.clone().into(),
-                                                    fs_path,
-                                                ),
-                                            ));
-                                        }
+                                        results.push((
+                                            pos,
+                                            PatternMatch::Directory(prefix.clone().into(), fs_path),
+                                        ));
                                     }
                                 }
                                 prefix.truncate(len)

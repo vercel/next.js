@@ -19,12 +19,15 @@ import type { ServerComponentsHmrCache } from '../../response-cache'
 import type { FallbackRouteParams } from '../../request/fallback-params'
 
 let vendoredReactRSC
-let vendoredReactSSR
+// TODO: Ship react-dom/server.edge types
+let vendoredReactSSR: any
 
 // the vendored Reacts are loaded from their original source in the edge runtime
 if (process.env.NEXT_RUNTIME !== 'edge') {
-  vendoredReactRSC = require('./vendored/rsc/entrypoints')
-  vendoredReactSSR = require('./vendored/ssr/entrypoints')
+  vendoredReactRSC =
+    require('./vendored/rsc/entrypoints') as typeof import('./vendored/rsc/entrypoints')
+  vendoredReactSSR =
+    require('./vendored/ssr/entrypoints') as typeof import('./vendored/ssr/entrypoints')
 }
 
 /**
@@ -58,6 +61,13 @@ export class AppPageRouteModule extends RouteModule<
   AppPageRouteDefinition,
   AppPageUserlandModule
 > {
+  constructor(
+    options: RouteModuleOptions<AppPageRouteDefinition, AppPageUserlandModule>
+  ) {
+    super(options)
+    this.isAppRouter = true
+  }
+
   public render(
     req: BaseNextRequest,
     res: BaseNextResponse,
