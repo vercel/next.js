@@ -1,6 +1,3 @@
-// TODO-APP: hydration warning
-
-import { renderAppDevOverlay } from 'next/dist/compiled/next-devtools'
 import { appBootstrap } from './app-bootstrap'
 import {
   getComponentStack,
@@ -19,6 +16,10 @@ appBootstrap(() => {
   try {
     hydrate(instrumentationHooks)
   } finally {
-    renderAppDevOverlay(getComponentStack, getOwnerStack, isRecoverableError)
+    if (process.env.NODE_ENV !== 'production') {
+      const { renderAppDevOverlay } =
+        require('next/dist/compiled/next-devtools') as typeof import('next/dist/compiled/next-devtools')
+      renderAppDevOverlay(getComponentStack, getOwnerStack, isRecoverableError)
+    }
   }
 })
