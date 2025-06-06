@@ -11,7 +11,7 @@ use next_core::{
 };
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{Completion, ResolvedVc, Value, Vc};
+use turbo_tasks::{Completion, ResolvedVc, Vc};
 use turbo_tasks_fs::{self, File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
@@ -107,12 +107,12 @@ impl MiddlewareEndpoint {
         let module_graph = this.project.module_graph(*module);
 
         let evaluatable_assets = get_server_runtime_entries(
-            Value::new(ServerContextType::Middleware {
+            ServerContextType::Middleware {
                 app_dir: this.app_dir,
                 ecmascript_client_reference_transition_name: this
                     .ecmascript_client_reference_transition_name
                     .clone(),
-            }),
+            },
             this.project.next_mode(),
         )
         .resolve_entries(*this.asset_context)
@@ -151,12 +151,12 @@ impl MiddlewareEndpoint {
                     .node_root()
                     .join(rcstr!("server/middleware.js")),
                 get_server_runtime_entries(
-                    Value::new(ServerContextType::Middleware {
+                    ServerContextType::Middleware {
                         app_dir: this.app_dir,
                         ecmascript_client_reference_transition_name: this
                             .ecmascript_client_reference_transition_name
                             .clone(),
-                    }),
+                    },
                     this.project.next_mode(),
                 )
                 .resolve_entries(*this.asset_context)

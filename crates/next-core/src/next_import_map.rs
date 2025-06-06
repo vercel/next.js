@@ -287,7 +287,7 @@ pub async fn get_next_client_fallback_import_map(ty: ClientContextType) -> Resul
 #[turbo_tasks::function]
 pub async fn get_next_server_import_map(
     project_path: ResolvedVc<FileSystemPath>,
-    ty: Value<ServerContextType>,
+    ty: ServerContextType,
     next_config: Vc<NextConfig>,
     next_mode: Vc<NextMode>,
     execution_context: Vc<ExecutionContext>,
@@ -311,8 +311,6 @@ pub async fn get_next_server_import_map(
         [],
     )
     .await?;
-
-    let ty = ty.into_value();
 
     let external = ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Traced)
         .resolved_cell();
@@ -384,7 +382,7 @@ pub async fn get_next_server_import_map(
 #[turbo_tasks::function]
 pub async fn get_next_edge_import_map(
     project_path: ResolvedVc<FileSystemPath>,
-    ty: Value<ServerContextType>,
+    ty: ServerContextType,
     next_config: Vc<NextConfig>,
     next_mode: Vc<NextMode>,
     execution_context: Vc<ExecutionContext>,
@@ -453,7 +451,6 @@ pub async fn get_next_edge_import_map(
     )
     .await?;
 
-    let ty = ty.into_value();
     match &ty {
         ServerContextType::Pages { .. }
         | ServerContextType::PagesData { .. }

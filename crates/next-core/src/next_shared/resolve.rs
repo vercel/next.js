@@ -2,7 +2,7 @@ use anyhow::Result;
 use lazy_static::lazy_static;
 use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 use turbopack_core::{
     diagnostics::DiagnosticExt,
@@ -263,9 +263,8 @@ impl NextNodeSharedRuntimeResolvePlugin {
     #[turbo_tasks::function]
     pub fn new(
         root: ResolvedVc<FileSystemPath>,
-        server_context_type: Value<ServerContextType>,
+        server_context_type: ServerContextType,
     ) -> Vc<Self> {
-        let server_context_type = server_context_type.into_value();
         NextNodeSharedRuntimeResolvePlugin {
             root,
             server_context_type,
