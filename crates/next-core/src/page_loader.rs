@@ -2,7 +2,7 @@ use std::io::Write;
 
 use anyhow::{Result, bail};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, Vc, fxindexmap};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc, fxindexmap};
 use turbo_tasks_fs::{
     self, File, FileContent, FileSystemPath, FileSystemPathOption, rope::RopeBuilder,
 };
@@ -48,7 +48,7 @@ pub async fn create_page_loader_entry_module(
     let module = client_context
         .process(
             entry_asset,
-            Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
+            ReferenceType::Entry(EntryReferenceSubType::Page),
         )
         .module()
         .to_resolved()
@@ -57,9 +57,9 @@ pub async fn create_page_loader_entry_module(
     let module = client_context
         .process(
             virtual_source,
-            Value::new(ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
+            ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
                 rcstr!("PAGE") => module,
-            }))),
+            })),
         )
         .module();
     Ok(module)

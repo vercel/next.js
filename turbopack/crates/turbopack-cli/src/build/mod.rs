@@ -282,7 +282,7 @@ async fn build_internal(
         entry_requests
             .into_iter()
             .map(|request_vc| async move {
-                let ty = Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined));
+                let ty = ReferenceType::Entry(EntryReferenceSubType::Undefined);
                 let request = request_vc.await?;
                 origin
                     .resolve_asset(request_vc, origin.resolve_options(ty.clone()), ty)
@@ -439,7 +439,7 @@ async fn build_internal(
                                         [ResolvedVc::upcast(ecmascript)].into_iter().collect(),
                                     ),
                                     module_graph,
-                                    Value::new(AvailabilityInfo::Root),
+                                    AvailabilityInfo::Root,
                                 )
                                 .await?
                                 .assets
@@ -462,7 +462,7 @@ async fn build_internal(
                                     EvaluatableAssets::one(*ResolvedVc::upcast(ecmascript)),
                                     module_graph,
                                     OutputAssets::empty(),
-                                    Value::new(AvailabilityInfo::Root),
+                                    AvailabilityInfo::Root,
                                 )
                                 .await?
                                 .asset,

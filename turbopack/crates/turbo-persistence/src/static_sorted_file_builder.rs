@@ -165,22 +165,21 @@ impl StaticSortedFileBuilder {
             let entry = &entries[i];
             let value_remaining = value_compression_samples_size - value_samples.len();
             let key_remaining = key_compression_samples_size - key_samples.len();
-            if value_remaining > 0 {
-                if let EntryValue::Small { value } | EntryValue::Medium { value } = entry.value() {
-                    let value = if value.len() <= COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY {
-                        value
-                    } else {
-                        j = (j + 12345678)
-                            % (value.len() - COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY);
-                        &value[j..j + COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY]
-                    };
-                    if value.len() <= value_remaining {
-                        value_sample_sizes.push(value.len());
-                        value_samples.extend_from_slice(value);
-                    } else {
-                        value_sample_sizes.push(value_remaining);
-                        value_samples.extend_from_slice(&value[..value_remaining]);
-                    }
+            if value_remaining > 0
+                && let EntryValue::Small { value } | EntryValue::Medium { value } = entry.value()
+            {
+                let value = if value.len() <= COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY {
+                    value
+                } else {
+                    j = (j + 12345678) % (value.len() - COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY);
+                    &value[j..j + COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY]
+                };
+                if value.len() <= value_remaining {
+                    value_sample_sizes.push(value.len());
+                    value_samples.extend_from_slice(value);
+                } else {
+                    value_sample_sizes.push(value_remaining);
+                    value_samples.extend_from_slice(&value[..value_remaining]);
                 }
             }
             if key_remaining > 0 {

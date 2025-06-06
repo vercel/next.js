@@ -326,11 +326,13 @@ export async function setupFsCheck(opts: {
       dynamicRoutes: {},
       notFoundRoutes: [],
       preview: {
-        previewModeId: require('crypto').randomBytes(16).toString('hex'),
-        previewModeSigningKey: require('crypto')
+        previewModeId: (require('crypto') as typeof import('crypto'))
+          .randomBytes(16)
+          .toString('hex'),
+        previewModeSigningKey: (require('crypto') as typeof import('crypto'))
           .randomBytes(32)
           .toString('hex'),
-        previewModeEncryptionKey: require('crypto')
+        previewModeEncryptionKey: (require('crypto') as typeof import('crypto'))
           .randomBytes(32)
           .toString('hex'),
       },

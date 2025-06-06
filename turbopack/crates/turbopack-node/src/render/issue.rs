@@ -36,12 +36,12 @@ impl Issue for RenderingIssue {
     async fn detail(&self) -> Vc<OptionStyledString> {
         let mut details = vec![];
 
-        if let Some(status) = self.status {
-            if status != 0 {
-                details.push(StyledString::Text(
-                    format!("Node.js exit code: {status}").into(),
-                ));
-            }
+        if let Some(status) = self.status
+            && status != 0
+        {
+            details.push(StyledString::Text(
+                format!("Node.js exit code: {status}").into(),
+            ));
         }
 
         Vc::cell(Some(StyledString::Stack(details).resolved_cell()))

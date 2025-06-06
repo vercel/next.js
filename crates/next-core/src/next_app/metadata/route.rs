@@ -239,6 +239,8 @@ async fn dynamic_text_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<dy
                 }},
               }})
             }}
+
+            export * from {resource_path}
         "#,
         resource_path = StringifyJs(&format!("./{stem}.{ext}")),
         content_type = StringifyJs(&content_type),
@@ -330,6 +332,8 @@ async fn dynamic_site_map_route_source(
                 }})
             }}
 
+            export * from {resource_path}
+
             {static_generation_code}
         "#,
         resource_path = StringifyJs(&format!("./{stem}.{ext}")),
@@ -395,6 +399,8 @@ async fn dynamic_image_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<d
 
                 return handler({{ params: restParams, id }})
             }}
+
+            export * from {resource_path}
         "#,
         resource_path = StringifyJs(&format!("./{stem}.{ext}")),
     };

@@ -406,6 +406,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         proxyTimeout: z.number().gte(0).optional(),
         routerBFCache: z.boolean().optional(),
         removeUncaughtErrorAndRejectionListeners: z.boolean().optional(),
+        validateRSCRequestHeaders: z.boolean().optional(),
         scrollRestoration: z.boolean().optional(),
         sri: z
           .object({

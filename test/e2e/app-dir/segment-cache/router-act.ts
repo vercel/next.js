@@ -9,7 +9,12 @@ type Batch = {
 
 type PendingRSCRequest = {
   route: Playwright.Route
-  result: Promise<{ body: string; headers: Record<string, string> }>
+  result: Promise<{
+    text: string
+    body: any
+    headers: Record<string, string>
+    status: number
+  }>
   didProcess: boolean
 }
 
@@ -145,10 +150,14 @@ export function createRouterAct(
             // but it should not affect the timing of when requests reach the
             // server; we pass the request to the server the immediately.
             result: new Promise(async (resolve) => {
-              const originalResponse = await page.request.fetch(request)
+              const originalResponse = await page.request.fetch(request, {
+                maxRedirects: 0,
+              })
               resolve({
-                body: await originalResponse.text(),
+                text: await originalResponse.text(),
+                body: await originalResponse.body(),
                 headers: originalResponse.headers(),
+                status: originalResponse.status(),
               })
             }),
             didProcess: false,
@@ -343,7 +352,11 @@ Choose a more specific substring to assert on.
             // fulfill it yet.
             remaining.add(item)
           } else {
-            await route.fulfill(fulfilled)
+            await route.fulfill({
+              body: fulfilled.body,
+              headers: fulfilled.headers,
+              status: fulfilled.status,
+            })
             const browserResponse = await request.response()
             if (browserResponse !== null) {
               await browserResponse.finished()
@@ -353,10 +366,13 @@ Choose a more specific substring to assert on.
 
         // After flushing the queue, wait for the microtask queue to be
         // exhausted, then check if any additional requests are initiated. A
-        // microtask should be enough because if the router queue is network
-        // throttled, the next request is issued within a microtask of the
-        // previous one finishing.
-        await page.evaluate(() => Promise.resolve())
+        // single macrotask should be enough because if the router queue is
+        // network throttled, the next request is issued either directly within
+        // the task of the previous request's completion event, or in the
+        // microtask queue of that event.
+        await page.evaluate(
+          () => new Promise<void>((res) => requestIdleCallback(() => res()))
+        )
 
         await waitForPendingRequestChecks()
       }

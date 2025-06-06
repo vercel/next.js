@@ -187,6 +187,9 @@ export function getDefineEnv({
     'process.env.__NEXT_CLIENT_SEGMENT_CACHE': Boolean(
       config.experimental.clientSegmentCache
     ),
+    'process.env.__NEXT_CLIENT_VALIDATE_RSC_REQUEST_HEADERS': Boolean(
+      config.experimental.validateRSCRequestHeaders
+    ),
     'process.env.__NEXT_DYNAMIC_ON_HOVER': Boolean(
       config.experimental.dynamicOnHover
     ),
