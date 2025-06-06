@@ -125,13 +125,22 @@ function ManualPrefetchLink({
     }
   }, [href, router])
 
-  return <a href={href}>{children}</a>
+<a
+  href={href}
+  onClick={(event) => {
+    event.preventDefault()
+    router.push(href)
+  }}
+>
+  {children}
+</a>
+
 }
 ```
 
 `onInvalidate` is invoked when Next.js suspects cached data is stale, allowing you to refresh the prefetch.
 
-> **Good to know:** Using an `a` tag will cause a full page navigation to the destination route, you can use `onClick` to prevent...
+> **Good to know:** Using an `a` tag will cause a full page navigation to the destination route, you can use `onClick` to prevent the full page navigation, and then invoke `router.push` to navigate to the destination. 
 
 ## Disabled prefetch
 
