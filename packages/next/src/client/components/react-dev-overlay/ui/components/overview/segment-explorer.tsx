@@ -194,12 +194,9 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
   .segment-explorer-line-icon-page {
     color: inherit;
   }
-  .segment-explorer-line-icon-layout {
-    color: var(--color-gray-1-00);
-  }
 
   .segment-explorer-line-text-page {
-    color: var(--color-blue-900);
+    color: var(--color-gray-1000);
     font-weight: 500;
   }
 `
