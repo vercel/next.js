@@ -3,18 +3,11 @@ import { styles as feedbackStyles } from './error-feedback/error-feedback'
 
 export type ErrorOverlayFooterProps = {
   errorCode: string | undefined
-  footerMessage: string | undefined
 }
 
-export function ErrorOverlayFooter({
-  errorCode,
-  footerMessage,
-}: ErrorOverlayFooterProps) {
+export function ErrorOverlayFooter({ errorCode }: ErrorOverlayFooterProps) {
   return (
     <footer className="error-overlay-footer">
-      {footerMessage ? (
-        <p className="error-overlay-footer-message">{footerMessage}</p>
-      ) : null}
       {errorCode ? (
         <ErrorFeedback className="error-feedback" errorCode={errorCode} />
       ) : null}
@@ -42,14 +35,6 @@ export const styles = `
       font-weight: 500;
       margin: 0;
     }
-  }
-
-  .error-overlay-footer-message {
-    color: var(--color-gray-900);
-    margin: 0;
-    font-size: var(--size-14);
-    font-weight: 400;
-    line-height: var(--size-20);
   }
 
   ${feedbackStyles}

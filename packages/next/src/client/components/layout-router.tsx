@@ -42,8 +42,8 @@ import { dispatchAppRouterAction } from './use-action-queue'
 import { useRouterBFCache, type RouterBFCacheEntry } from './bfcache'
 
 const Activity = process.env.__NEXT_ROUTER_BF_CACHE
-  ? require('react').unstable_Activity
-  : null
+  ? (require('react') as typeof import('react')).unstable_Activity
+  : null!
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.

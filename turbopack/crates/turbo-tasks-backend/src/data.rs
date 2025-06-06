@@ -176,10 +176,10 @@ impl DirtyContainerCount {
     /// Get the count for a specific session. It's only expected to be asked for the current
     /// session, since old session counts might be dropped.
     pub fn get(&self, session: SessionId) -> i32 {
-        if let Some((s, count)) = self.count_in_session {
-            if s == session {
-                return count;
-            }
+        if let Some((s, count)) = self.count_in_session
+            && s == session
+        {
+            return count;
         }
         self.count
     }

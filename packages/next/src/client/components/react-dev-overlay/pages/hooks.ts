@@ -27,16 +27,8 @@ export const usePagesDevOverlay = () => {
     }
   }, [dispatch])
 
-  const onComponentError = React.useCallback(
-    (_error: Error, _componentStack: string | null) => {
-      // TODO: special handling
-    },
-    []
-  )
-
   return {
     state,
-    onComponentError,
     dispatch,
   }
 }

@@ -54,6 +54,7 @@ const state: OverlayState = {
   showIndicator: true,
   versionInfo: mockVersionInfo,
   notFound: false,
+  buildingIndicator: false,
   staticIndicator: true,
   debugInfo: { devtoolsFrontendUrl: undefined },
   isErrorOverlayOpen: false,

@@ -539,6 +539,12 @@ export interface ExperimentalConfig {
    */
   removeUncaughtErrorAndRejectionListeners?: boolean
 
+  /**
+   * During an RSC request, validates that the request headers match the
+   * cache-busting search parameter sent by the client.
+   */
+  validateRSCRequestHeaders?: boolean
+
   serverActions?: {
     /**
      * Allows adjusting body parser size limit for server actions.
@@ -1368,6 +1374,7 @@ export const defaultConfig = {
     viewTransition: false,
     routerBFCache: false,
     removeUncaughtErrorAndRejectionListeners: false,
+    validateRSCRequestHeaders: false,
     staleTimes: {
       dynamic: 0,
       static: 300,

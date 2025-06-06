@@ -1,0 +1,20 @@
+{
+  "name": "@next/eslint-plugin-internal",
+  "private": true,
+  "version": "15.4.0-canary.68",
+  "description": "ESLint plugin for working on Next.js.",
+  "exports": {
+    ".": "./src/eslint-plugin-internal.js"
+  },
+  "license": "MIT",
+  "repository": {
+    "url": "vercel/next.js",
+    "directory": "packages/eslint-plugin-internal"
+  },
+  "peerDependencies": {
+    "eslint": "9.12.0"
+  },
+  "devDependencies": {
+    "eslint": "9.12.0"
+  }
+}

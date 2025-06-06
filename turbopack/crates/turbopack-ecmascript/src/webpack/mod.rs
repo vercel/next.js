@@ -1,7 +1,7 @@
 use anyhow::Result;
 use swc_core::ecma::ast::Lit;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     file_source::FileSource,
@@ -159,14 +159,14 @@ pub struct WebpackRuntimeAssetReference {
 impl ModuleReference for WebpackRuntimeAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        let ty = Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined));
+        let ty = ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined);
         let options = self.origin.resolve_options(ty.clone());
 
         let options = apply_cjs_specific_options(options);
 
         let resolved = resolve(
             self.origin.origin_path().parent().resolve().await?,
-            Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)),
+            ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
             *self.request,
             options,
         );
