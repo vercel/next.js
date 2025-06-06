@@ -118,8 +118,8 @@ function PageSegmentTreeLayerPresentation({
             </div>
           </div>
         </div>
-      ) : (
-        <div className={cx('segment-explorer-item-row')}>
+      ) : segment ? (
+        <div className={'segment-explorer-item-row'}>
           <div className="segment-explorer-line">
             <div className={`segment-explorer-line-text-${nodeName}`}>
               <span
@@ -134,9 +134,12 @@ function PageSegmentTreeLayerPresentation({
             </div>
           </div>
         </div>
-      )}
+      ) : null}
 
-      <div className="segment-explorer-segment-children">
+      <div
+        className="segment-explorer-segment-children"
+        data-nextjs-devtool-segment-explorer-level={level}
+      >
         {sortedChildrenKeys.map((childSegment) => {
           const child = node.children[childSegment]
           return (
@@ -185,8 +188,11 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
     padding: 2px 0;
   }
 
-  .segment-explorer-segment-children {
+  [data-nextjs-devtool-segment-explorer-level].segment-explorer-segment-children {
     padding-left: 20px;
+  }
+  [data-nextjs-devtool-segment-explorer-level='0'].segment-explorer-segment-children {
+    padding-left: 0px;
   }
 
   .segment-explorer-filename-path {

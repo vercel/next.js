@@ -26,8 +26,7 @@ describe('segment-explorer', () => {
   it('should render the segment explorer for parallel routes', async () => {
     const browser = await next.browser('/parallel-routes')
     expect(await getSegmentExplorerContent(browser)).toMatchInlineSnapshot(`
-     "/
-     app/
+     "app/
      layout.tsx
      parallel-routes/
      layout.tsx
@@ -44,8 +43,7 @@ describe('segment-explorer', () => {
   it('should render the segment explorer for nested routes', async () => {
     const browser = await next.browser('/blog/~/grid')
     expect(await getSegmentExplorerContent(browser)).toMatchInlineSnapshot(`
-     "/
-     app/
+     "app/
      layout.tsx
      (v2)/
      layout.tsx
