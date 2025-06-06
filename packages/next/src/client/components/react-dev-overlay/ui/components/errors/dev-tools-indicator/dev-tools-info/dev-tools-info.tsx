@@ -157,6 +157,15 @@ export const DEV_TOOLS_INFO_STYLES = `
     margin: 0;
   }
 
+  .dev-tools-info-section-title {
+    padding: 8px 0px;
+    color: var(--color-gray-1000);
+    font-size: var(--size-16);
+    font-weight: 600;
+    line-height: var(--size-20);
+    margin: 0;
+  }
+
   .dev-tools-info-article {
     padding: 8px 6px;
     color: var(--color-gray-1000);

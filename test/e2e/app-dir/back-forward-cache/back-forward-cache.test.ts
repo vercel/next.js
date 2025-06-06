@@ -139,6 +139,9 @@ describe('back/forward cache', () => {
   it('bfcache only preserves up to N entries', async () => {
     // The current limit is hardcoded to 3.
     const browser = await next.browser('/page/1')
+    await retry(async () => {
+      expect(await browser.elementByCss('h2').text()).toEqual('Page 1')
+    })
 
     // Accumulate some state on page 1.
     await retry(async () => {
@@ -157,6 +160,9 @@ describe('back/forward cache', () => {
     // Navigate to page 2. Accumulate some state here, too.
     const linkToPage2 = await browser.elementByCss('a[href="/page/2"]')
     await linkToPage2.click()
+    await retry(async () => {
+      expect(await browser.elementByCss('h2').text()).toEqual('Page 2')
+    })
 
     const incrementButton2 = await browser.elementById('increment-button-2')
     const counterDisplay2 = await browser.elementById('counter-display-2')
@@ -174,27 +180,37 @@ describe('back/forward cache', () => {
     // Navigate to 2 additional pages.
     const linkToPage3 = await browser.elementByCss('a[href="/page/3"]')
     await linkToPage3.click()
+    await retry(async () => {
+      expect(await browser.elementByCss('h2').text()).toEqual('Page 3')
+    })
     const linkToPage4 = await browser.elementByCss('a[href="/page/4"]')
     await linkToPage4.click()
+    await retry(async () => {
+      expect(await browser.elementByCss('h2').text()).toEqual('Page 4')
+    })
 
     // The bfcache size is now 4. Because the limit is 3, page 1 should have
     // been evicted, but not page 2.
 
     // Navigate to page 2 to confirm its state is preserved.
     await linkToPage2.click()
+    await retry(async () => {
+      expect(await browser.elementByCss('h2').text()).toEqual('Page 2')
+    })
     const counterDisplay2AfterNav =
       await browser.elementById('counter-display-2')
     expect(await counterDisplay2AfterNav.text()).toBe('Count: 9')
 
     // Navigate back to page 1 to confirm its state is not preserved.
+    const linkToPage1 = await browser.elementByCss('a[href="/page/1"]')
+    await linkToPage1.click()
     await retry(async () => {
-      const linkToPage1 = await browser.elementByCss('a[href="/page/1"]')
-      await linkToPage1.click()
-
-      const counterDisplay1AfterNav =
-        await browser.elementById('counter-display-1')
-      expect(await counterDisplay1AfterNav.text()).toBe('Count: 0')
+      expect(await browser.elementByCss('h2').text()).toEqual('Page 1')
     })
+
+    const counterDisplay1AfterNav =
+      await browser.elementById('counter-display-1')
+    expect(await counterDisplay1AfterNav.text()).toBe('Count: 0')
   })
 
   it('navigate back and forth repeatedly between the same pages without evicting', async () => {

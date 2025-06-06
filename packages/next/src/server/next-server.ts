@@ -346,6 +346,7 @@ export default class NextNodeServer extends BaseServer<
     if (this.serverOptions.experimentalTestProxy) {
       process.env.NEXT_PRIVATE_TEST_PROXY = 'true'
       const { interceptTestApis } =
+        // eslint-disable-next-line @next/internal/typechecked-require -- experimental/testmode is not built ins next/dist/esm
         require('next/dist/experimental/testmode/server') as typeof import('../experimental/testmode/server')
       interceptTestApis()
     }
@@ -1250,6 +1251,7 @@ export default class NextNodeServer extends BaseServer<
     const handler = this.makeRequestHandler()
     if (this.serverOptions.experimentalTestProxy) {
       const { wrapRequestHandlerNode } =
+        // eslint-disable-next-line @next/internal/typechecked-require -- experimental/testmode is not built ins next/dist/esm
         require('next/dist/experimental/testmode/server') as typeof import('../experimental/testmode/server')
       return wrapRequestHandlerNode(handler)
     }

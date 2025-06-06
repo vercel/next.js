@@ -1,4 +1,5 @@
 use anyhow::Result;
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbopack_core::{
     issue::IssueSource,
@@ -43,12 +44,12 @@ pub fn get_condition_maps(
 
 pub fn apply_esm_specific_options(
     options: Vc<ResolveOptions>,
-    reference_type: Value<ReferenceType>,
+    reference_type: ReferenceType,
 ) -> Vc<ResolveOptions> {
     apply_esm_specific_options_internal(
         options,
         matches!(
-            reference_type.into_value(),
+            reference_type,
             ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportWithType(_))
         ),
     )
@@ -63,8 +64,8 @@ async fn apply_esm_specific_options_internal(
     // TODO set fully_specified when in strict ESM mode
     // options.fully_specified = true;
     for conditions in get_condition_maps(&mut options) {
-        conditions.insert("import".into(), ConditionValue::Set);
-        conditions.insert("require".into(), ConditionValue::Unset);
+        conditions.insert(rcstr!("import"), ConditionValue::Set);
+        conditions.insert(rcstr!("require"), ConditionValue::Unset);
     }
 
     if clear_extensions {
@@ -80,8 +81,8 @@ async fn apply_esm_specific_options_internal(
 pub async fn apply_cjs_specific_options(options: Vc<ResolveOptions>) -> Result<Vc<ResolveOptions>> {
     let mut options: ResolveOptions = options.owned().await?;
     for conditions in get_condition_maps(&mut options) {
-        conditions.insert("import".into(), ConditionValue::Unset);
-        conditions.insert("require".into(), ConditionValue::Set);
+        conditions.insert(rcstr!("import"), ConditionValue::Unset);
+        conditions.insert(rcstr!("require"), ConditionValue::Set);
     }
     Ok(options.into())
 }
@@ -93,7 +94,7 @@ pub async fn esm_resolve(
     is_optional: bool,
     issue_source: Option<IssueSource>,
 ) -> Result<Vc<ModuleResolveResult>> {
-    let ty = Value::new(ReferenceType::EcmaScriptModules(ty.into_value()));
+    let ty = ReferenceType::EcmaScriptModules(ty.into_value());
     let options = apply_esm_specific_options(origin.resolve_options(ty.clone()), ty.clone())
         .resolve()
         .await?;
@@ -108,7 +109,7 @@ pub async fn cjs_resolve(
     is_optional: bool,
 ) -> Result<Vc<ModuleResolveResult>> {
     // TODO pass CommonJsReferenceSubType
-    let ty = Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined));
+    let ty = ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined);
     let options = apply_cjs_specific_options(origin.resolve_options(ty.clone()))
         .resolve()
         .await?;
@@ -123,7 +124,7 @@ pub async fn cjs_resolve_source(
     is_optional: bool,
 ) -> Result<Vc<ResolveResult>> {
     // TODO pass CommonJsReferenceSubType
-    let ty = Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined));
+    let ty = ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined);
     let options = apply_cjs_specific_options(origin.resolve_options(ty.clone()))
         .resolve()
         .await?;
@@ -150,7 +151,7 @@ async fn specific_resolve(
     origin: Vc<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
     options: Vc<ResolveOptions>,
-    reference_type: Value<ReferenceType>,
+    reference_type: ReferenceType,
     is_optional: bool,
     issue_source: Option<IssueSource>,
 ) -> Result<Vc<ModuleResolveResult>> {

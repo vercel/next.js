@@ -155,7 +155,7 @@ import {
   getBuiltinRequestContext,
   type WaitUntil,
 } from './after/builtin-request-context'
-import { ENCODED_TAGS } from './stream-utils/encodedTags'
+import { ENCODED_TAGS } from './stream-utils/encoded-tags'
 import { NextRequestHint } from './web/adapter'
 import { getRevalidateReason } from './instrumentation/utils'
 import { RouteKind } from './route-kind'
@@ -474,7 +474,9 @@ export default abstract class Server<
     this.serverOptions = options
 
     this.dir =
-      process.env.NEXT_RUNTIME === 'edge' ? dir : require('path').resolve(dir)
+      process.env.NEXT_RUNTIME === 'edge'
+        ? dir
+        : (require('path') as typeof import('path')).resolve(dir)
 
     this.quiet = quiet
     this.loadEnvConfig({ dev })
@@ -491,7 +493,10 @@ export default abstract class Server<
     this.distDir =
       process.env.NEXT_RUNTIME === 'edge'
         ? this.nextConfig.distDir
-        : require('path').join(this.dir, this.nextConfig.distDir)
+        : (require('path') as typeof import('path')).join(
+            this.dir,
+            this.nextConfig.distDir
+          )
     this.publicDir = this.getPublicDir()
     this.hasStaticDir = !minimalMode && this.getHasStaticDir()
 
@@ -2084,6 +2089,8 @@ export default abstract class Server<
     // TODO: Consider not using custom request headers at all, and instead fully
     // encode everything into the search param.
     if (
+      !this.minimalMode &&
+      this.nextConfig.experimental.validateRSCRequestHeaders &&
       this.isAppSegmentPrefetchEnabled &&
       getRequestMeta(req, 'segmentPrefetchRSCRequest')
     ) {
@@ -2099,7 +2106,8 @@ export default abstract class Server<
         // The hash sent by the client does not match the expected value.
         // Respond with an error.
         res.statusCode = 400
-        res.body('Bad Request').send()
+        res.setHeader('content-type', 'text/plain')
+        res.body('').send()
         return null
       }
     }
@@ -3746,11 +3754,17 @@ export default abstract class Server<
     let page = pathname
     const bubbleNoFallback =
       getRequestMeta(ctx.req, 'bubbleNoFallback') ?? false
-    addRequestMeta(
-      ctx.req,
-      'cacheBustingSearchParam',
-      query[NEXT_RSC_UNION_QUERY]
-    )
+
+    if (
+      !this.minimalMode &&
+      this.nextConfig.experimental.validateRSCRequestHeaders
+    ) {
+      addRequestMeta(
+        ctx.req,
+        'cacheBustingSearchParam',
+        query[NEXT_RSC_UNION_QUERY]
+      )
+    }
     delete query[NEXT_RSC_UNION_QUERY]
 
     const options: MatchOptions = {

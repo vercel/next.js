@@ -83,6 +83,7 @@ export function UserPreferences({
 
   return (
     <DevToolsInfo title="Preferences" {...props}>
+      <h2 className="dev-tools-info-section-title">General</h2>
       <div className="preferences-container">
         <div className="preference-section">
           <div className="preference-header">
@@ -180,18 +181,20 @@ export function UserPreferences({
           </div>
         </div>
       </div>
-      <h1 className="dev-tools-info-title">Development Server</h1>
+      <h2 className="dev-tools-info-section-title">Development Server</h2>
       <div className="preferences-container">
         <div className="preference-section">
           <div className="preference-header">
             <label id="restart-dev-server">Restart Dev Server</label>
             <p className="preference-description">
-              Restart the dev server to rebuild your application.
+              Restarts the development server without needing to leave the
+              browser.
             </p>
           </div>
           <div className="preference-control">
             <button
               aria-describedby="restart-dev-server"
+              title="Restarts the development server without needing to leave the browser."
               name="restart-dev-server"
               data-restart-dev-server
               className="action-button"
@@ -208,13 +211,14 @@ export function UserPreferences({
             <div className="preference-header">
               <label id="reset-bundler-cache">Reset Bundler Cache</label>
               <p className="preference-description">
-                Reset the bundler cache to rebuild your application without
-                cache.
+                Clears the bundler cache and restarts the dev server. Helpful if
+                you are seeing stale errors or changes are not appearing.
               </p>
             </div>
             <div className="preference-control">
               <button
                 aria-describedby="reset-bundler-cache"
+                title="Clears the bundler cache and restarts the dev server. Helpful if you are seeing stale errors or changes are not appearing."
                 name="reset-bundler-cache"
                 data-reset-bundler-cache
                 className="action-button"

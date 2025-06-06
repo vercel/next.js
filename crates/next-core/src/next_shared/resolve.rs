@@ -2,7 +2,7 @@ use anyhow::Result;
 use lazy_static::lazy_static;
 use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 use turbopack_core::{
     diagnostics::DiagnosticExt,
@@ -132,7 +132,7 @@ impl BeforeResolvePlugin for InvalidImportResolvePlugin {
     fn before_resolve(
         &self,
         lookup_path: ResolvedVc<FileSystemPath>,
-        _reference_type: Value<ReferenceType>,
+        _reference_type: ReferenceType,
         _request: Vc<Request>,
     ) -> Vc<ResolveResultOption> {
         InvalidImportModuleIssue {
@@ -231,7 +231,7 @@ impl AfterResolvePlugin for NextExternalResolvePlugin {
         &self,
         fs_path: Vc<FileSystemPath>,
         _lookup_path: Vc<FileSystemPath>,
-        _reference_type: Value<ReferenceType>,
+        _reference_type: ReferenceType,
         _request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
         let path = fs_path.await?.path.to_string();
@@ -263,9 +263,8 @@ impl NextNodeSharedRuntimeResolvePlugin {
     #[turbo_tasks::function]
     pub fn new(
         root: ResolvedVc<FileSystemPath>,
-        server_context_type: Value<ServerContextType>,
+        server_context_type: ServerContextType,
     ) -> Vc<Self> {
-        let server_context_type = server_context_type.into_value();
         NextNodeSharedRuntimeResolvePlugin {
             root,
             server_context_type,
@@ -289,7 +288,7 @@ impl AfterResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
         &self,
         fs_path: Vc<FileSystemPath>,
         _lookup_path: Vc<FileSystemPath>,
-        _reference_type: Value<ReferenceType>,
+        _reference_type: ReferenceType,
         _request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
         let stem = fs_path.file_stem().await?;
@@ -357,7 +356,7 @@ impl BeforeResolvePlugin for ModuleFeatureReportResolvePlugin {
     async fn before_resolve(
         &self,
         _lookup_path: Vc<FileSystemPath>,
-        _reference_type: Value<ReferenceType>,
+        _reference_type: ReferenceType,
         request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
         if let Request::Module {
@@ -413,7 +412,7 @@ impl AfterResolvePlugin for NextSharedRuntimeResolvePlugin {
         &self,
         fs_path: Vc<FileSystemPath>,
         _lookup_path: Vc<FileSystemPath>,
-        _reference_type: Value<ReferenceType>,
+        _reference_type: ReferenceType,
         _request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
         let raw_fs_path = &*fs_path.await?;

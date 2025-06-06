@@ -1,6 +1,6 @@
 use anyhow::Result;
 use tracing::Instrument;
-use turbo_tasks::{ResolvedVc, Value, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     chunk::{
         ChunkGroupResult, ChunkingContext, EvaluatableAssets, availability_info::AvailabilityInfo,
@@ -38,7 +38,7 @@ pub async fn get_app_client_shared_chunk_group(
                         .collect(),
                 ),
                 module_graph,
-                Value::new(AvailabilityInfo::Root),
+                AvailabilityInfo::Root,
             )
             .resolve()
             .await

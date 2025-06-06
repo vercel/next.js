@@ -590,19 +590,17 @@ pub async fn compute_module_batches(
                         &pre_batches,
                         batches_with_item_index[0].0,
                         batches_with_item_index[0].1 + selected_items,
-                    ) {
-                        if parallel_module_to_pre_batch.get(next_module).unwrap().len()
-                            == batches.len()
-                            && batches_with_item_index[1..]
-                                .iter()
-                                .all(|&(batch_idx, item_idx)| {
-                                    get_item_at(&pre_batches, batch_idx, item_idx + selected_items)
-                                        == Some(&PreBatchItem::ParallelModule(*next_module))
-                                })
-                        {
-                            selected_items += 1;
-                            continue;
-                        }
+                    ) && parallel_module_to_pre_batch.get(next_module).unwrap().len()
+                        == batches.len()
+                        && batches_with_item_index[1..]
+                            .iter()
+                            .all(|&(batch_idx, item_idx)| {
+                                get_item_at(&pre_batches, batch_idx, item_idx + selected_items)
+                                    == Some(&PreBatchItem::ParallelModule(*next_module))
+                            })
+                    {
+                        selected_items += 1;
+                        continue;
                     }
                     break;
                 }
@@ -867,19 +865,18 @@ pub async fn compute_module_batches(
                         );
                     }
                     PreBatchItem::NonParallelEdge(ty, module) => {
-                        if let Some(chunkable_module) = ResolvedVc::try_downcast(module) {
-                            if let Some(batch) = pre_batches.entries.get(&chunkable_module).copied()
-                            {
-                                graph.add_edge(
-                                    index,
-                                    batch_indicies[batch],
-                                    ModuleBatchesGraphEdge {
-                                        ty,
-                                        module: Some(module),
-                                    },
-                                );
-                                continue;
-                            }
+                        if let Some(chunkable_module) = ResolvedVc::try_downcast(module)
+                            && let Some(batch) = pre_batches.entries.get(&chunkable_module).copied()
+                        {
+                            graph.add_edge(
+                                index,
+                                batch_indicies[batch],
+                                ModuleBatchesGraphEdge {
+                                    ty,
+                                    module: Some(module),
+                                },
+                            );
+                            continue;
                         }
                         let idx = pre_batches
                             .single_module_entries
@@ -907,11 +904,11 @@ pub async fn compute_module_batches(
         let mut entries = FxHashMap::default();
         for chunk_group in &chunk_group_info.chunk_groups {
             for module in chunk_group.entries() {
-                if let Some(chunkable_module) = ResolvedVc::try_downcast(module) {
-                    if let Some(batch) = pre_batches.entries.get(&chunkable_module).copied() {
-                        entries.insert(module, batch_indicies[batch]);
-                        continue;
-                    }
+                if let Some(chunkable_module) = ResolvedVc::try_downcast(module)
+                    && let Some(batch) = pre_batches.entries.get(&chunkable_module).copied()
+                {
+                    entries.insert(module, batch_indicies[batch]);
+                    continue;
                 }
                 let idx = pre_batches
                     .single_module_entries

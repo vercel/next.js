@@ -20,7 +20,7 @@ export function normalizePagePath(page: string): string {
         : ensureLeadingSlash(page)
 
   if (process.env.NEXT_RUNTIME !== 'edge') {
-    const { posix } = require('path')
+    const { posix } = require('path') as typeof import('path')
     const resolvedPage = posix.normalize(normalized)
     if (resolvedPage !== normalized) {
       throw new NormalizeError(

@@ -250,10 +250,10 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
         let mut collectors = Vec::new();
         for cell in self.thread_locals.iter() {
             let state = unsafe { &mut *cell.get() };
-            if let Some(collector) = state.collectors[usize_from_u32(family)].take() {
-                if !collector.is_empty() {
-                    collectors.push(collector);
-                }
+            if let Some(collector) = state.collectors[usize_from_u32(family)].take()
+                && !collector.is_empty()
+            {
+                collectors.push(collector);
             }
         }
 
@@ -313,10 +313,10 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
                 let state = cell.get_mut();
                 new_blob_files.append(&mut state.new_blob_files);
                 for (family, thread_local_collector) in state.collectors.iter_mut().enumerate() {
-                    if let Some(collector) = thread_local_collector.take() {
-                        if !collector.is_empty() {
-                            collectors[family].push(collector);
-                        }
+                    if let Some(collector) = thread_local_collector.take()
+                        && !collector.is_empty()
+                    {
+                        collectors[family].push(collector);
                     }
                 }
             }
@@ -397,10 +397,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
                 }
                 keys_written.fetch_add(entries, Ordering::Relaxed);
                 let seq = self.current_sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
-                let file = self.db_path.join(format!("{seq:08}.meta"));
-                let file = builder
-                    .write(&file)
-                    .with_context(|| format!("Unable to write meta file {seq:08}.meta"))?;
+                let file = builder.write(&self.db_path, seq)?;
                 Ok((seq, file))
             })
             .collect::<Result<Vec<_>>>()?;

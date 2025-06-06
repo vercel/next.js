@@ -78,7 +78,11 @@ impl EcmascriptBrowserEvaluateChunk {
         let chunking_context = this.chunking_context.await?;
         let environment = this.chunking_context.environment();
 
-        let output_root_to_root_path = this.chunking_context.output_root_to_root_path();
+        let output_root_to_root_path = this
+            .chunking_context
+            .output_root_to_root_path()
+            .owned()
+            .await?;
         let source_maps = *this
             .chunking_context
             .reference_chunk_source_maps(Vc::upcast(self))
@@ -242,7 +246,7 @@ impl EcmascriptBrowserEvaluateChunk {
 impl ValueToString for EcmascriptBrowserEvaluateChunk {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell("Ecmascript Browser Evaluate Chunk".into())
+        Vc::cell(rcstr!("Ecmascript Browser Evaluate Chunk"))
     }
 }
 
@@ -254,7 +258,7 @@ impl OutputAsset for EcmascriptBrowserEvaluateChunk {
         let ident = self.ident_for_path();
         Ok(this
             .chunking_context
-            .chunk_path(Some(Vc::upcast(self)), ident, ".js".into()))
+            .chunk_path(Some(Vc::upcast(self)), ident, rcstr!(".js")))
     }
 
     #[turbo_tasks::function]
