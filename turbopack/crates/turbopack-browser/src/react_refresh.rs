@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{ResolvedVc, Value, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
@@ -58,7 +58,7 @@ pub async fn assert_can_resolve_react_refresh(
     for request in [react_refresh_request_in_next(), react_refresh_request()] {
         let result = turbopack_core::resolve::resolve(
             *path,
-            Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)),
+            ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
             request,
             resolve_options,
         )

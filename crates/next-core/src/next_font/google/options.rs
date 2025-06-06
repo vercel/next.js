@@ -182,18 +182,18 @@ pub(super) fn options_from_request(
         )
     }
 
-    if let Some(axes) = argument.axes.as_ref() {
-        if !axes.is_empty() {
-            if !supports_variable_weight {
-                anyhow::bail!("Axes can only be defined for variable fonts.")
-            }
+    if let Some(axes) = argument.axes.as_ref()
+        && !axes.is_empty()
+    {
+        if !supports_variable_weight {
+            anyhow::bail!("Axes can only be defined for variable fonts.")
+        }
 
-            if weights != FontWeights::Variable {
-                anyhow::bail!(
-                    "Axes can only be defined for variable fonts when the weight property is \
-                     nonexistent or set to `variable`."
-                )
-            }
+        if weights != FontWeights::Variable {
+            anyhow::bail!(
+                "Axes can only be defined for variable fonts when the weight property is \
+                 nonexistent or set to `variable`."
+            )
         }
     }
 

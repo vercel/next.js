@@ -1949,11 +1949,10 @@
   "test/e2e/app-dir/dynamic-in-generate-params/index.test.ts": {
     "passed": [
       "app-dir - dynamic in generate params should be able to call fetch while generating multiple dynamic pages",
-      "app-dir - dynamic in generate params should be able to call while generating multiple dynamic sitemaps"
-    ],
-    "failed": [
+      "app-dir - dynamic in generate params should be able to call while generating multiple dynamic sitemaps",
       "app-dir - dynamic in generate params should render sitemap with generateSitemaps in force-dynamic config dynamically"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2031,6 +2030,22 @@
       "Dynamic IO Prospective Render Errors - Standard Build should not log an error when the prospective render errors with an object in a route",
       "Dynamic IO Prospective Render Errors - Standard Build should not log an error when the prospective render errors with null in a Page",
       "Dynamic IO Prospective Render Errors - Standard Build should not log an error when the prospective render errors with undefined in a route"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.sync-attribution.test.ts": {
+    "passed": [
+      "Dynamic IO Errors - With Minification Error Attribution with Sync IO - Guarded RSC with guarded Client sync IO should not error the build sync IO is used inside a Suspense Boundary in a client Component and nothing else is dynamic",
+      "Dynamic IO Errors - With Minification Error Attribution with Sync IO - Guarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
+      "Dynamic IO Errors - With Minification Error Attribution with Sync IO - Unguarded RSC with guarded Client sync IO should error the build with a reason related dynamic data",
+      "Dynamic IO Errors - With Minification Error Attribution with Sync IO - unguarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
+      "Dynamic IO Errors - Without Minification Error Attribution with Sync IO - Guarded RSC with guarded Client sync IO should not error the build sync IO is used inside a Suspense Boundary in a client Component and nothing else is dynamic",
+      "Dynamic IO Errors - Without Minification Error Attribution with Sync IO - Guarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
+      "Dynamic IO Errors - Without Minification Error Attribution with Sync IO - Unguarded RSC with guarded Client sync IO should error the build with a reason related dynamic data",
+      "Dynamic IO Errors - Without Minification Error Attribution with Sync IO - unguarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access"
     ],
     "failed": [],
     "pending": [],
@@ -2624,6 +2639,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/global-not-found/css/global-not-found-css.test.ts": {
+    "passed": [
+      "global-not-found - css should include css for global-not-found properly"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/global-not-found/metadata/metadata.test.ts": {
     "passed": [
       "global-not-found - metadata should render metadata of global-not-found for 404"
@@ -2952,6 +2976,7 @@
       "app dir - metadata dynamic routes icon image routes should render apple icon with dynamic routes",
       "app dir - metadata dynamic routes icon image routes should render icon with dynamic routes",
       "app dir - metadata dynamic routes robots.txt should handle robots.[ext] dynamic routes",
+      "app dir - metadata dynamic routes route segment config should generate dynamic route if dynamic config is force-dynamic",
       "app dir - metadata dynamic routes should generate unique path for image routes under group routes",
       "app dir - metadata dynamic routes should include default og font files in file trace",
       "app dir - metadata dynamic routes should inject dynamic metadata properly to head",
@@ -2976,9 +3001,7 @@
       "app dir - metadata dynamic routes social image routes should support generate multi images with generateImageMetadata",
       "app dir - metadata dynamic routes social image routes should support params as argument in dynamic routes"
     ],
-    "failed": [
-      "app dir - metadata dynamic routes route segment config should generate dynamic route if dynamic config is force-dynamic"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3007,6 +3030,8 @@
   },
   "test/e2e/app-dir/metadata-icons/metadata-icons.test.ts": {
     "passed": [
+      "app-dir - metadata-icons should not contain icon insertion script when metadata is rendered in head",
+      "app-dir - metadata-icons should not contain icon replacement mark in html or after hydration",
       "app-dir - metadata-icons should only have 1 favicon link in nested page",
       "app-dir - metadata-icons should only have 1 favicon link in root page",
       "app-dir - metadata-icons should re-insert the apple icons into the head after navigation",
@@ -3140,7 +3165,7 @@
   },
   "test/e2e/app-dir/metadata-suspense/index.test.ts": {
     "passed": [
-      "app dir - metadata dynamic routes suspense should render metadata in head even root layout is wrapped with Suspense"
+      "app dir - metadata dynamic routes suspense should render metadata in head when root layout is wrapped with Suspense for bot requests"
     ],
     "failed": [],
     "pending": [],
@@ -4593,6 +4618,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/preferred-region/preferred-region.test.ts": {
+    "passed": [
+      "preferred-region should include preferredRegion in functions config manifest for nodejs runtime",
+      "preferred-region should return success from Edge API route",
+      "preferred-region should return success from Node.js API route"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/prefetch-searchparam/prefetch-searchparam.test.ts": {
     "passed": [
       "prefetch-searchparam should set prefetch cache properly on different search params"
@@ -5320,10 +5356,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/webpack-error/webpack-error.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "SCSS Support Friendly Webpack Error should be a friendly error successfully"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5963,6 +5999,7 @@
       "use-cache should match the expected stale config in the page header",
       "use-cache should not read nor write cached data when draft mode is enabled js disabled",
       "use-cache should not read nor write cached data when draft mode is enabled js enabled",
+      "use-cache should not store a fetch response with no-store in the incremental cache handler during build",
       "use-cache should not use stale caches in server actions that have revalidated",
       "use-cache should override fetch with cookies/auth in use cache properly",
       "use-cache should override fetch with no-store in use cache properly",
@@ -5974,6 +6011,7 @@
       "use-cache should revalidate caches during on-demand revalidation",
       "use-cache should revalidate caches nested in unstable_cache",
       "use-cache should send an SWR cache-control header based on the revalidate and expire values",
+      "use-cache should store a fetch response without no-store in the incremental cache handler during build",
       "use-cache should update after unstable_expireTag correctly",
       "use-cache should use revalidate config in fetch",
       "use-cache usage in node_modules should cache results when using a directive with a handler",
@@ -7135,17 +7173,17 @@
     "passed": [
       "Middleware custom matchers i18n should match /en/hello",
       "Middleware custom matchers i18n should match /hello",
+      "Middleware custom matchers i18n should match /nl-NL/about",
       "Middleware custom matchers i18n should match /nl-NL/hello",
       "Middleware custom matchers i18n should match has query on client routing en_hello",
       "Middleware custom matchers i18n should match has query on client routing hello",
+      "Middleware custom matchers i18n should match has query on client routing nl-NL_about",
       "Middleware custom matchers i18n should match has query on client routing nl-NL_hello",
       "Middleware custom matchers i18n should not match /about",
       "Middleware custom matchers i18n should not match /en/about",
       "Middleware custom matchers i18n should not match /hello/invalid",
       "Middleware custom matchers i18n should not match /invalid/hello",
-      "Middleware custom matchers with root should not match",
-      "Middleware custom matchers i18n should match /nl-NL/about",
-      "Middleware custom matchers i18n should match has query on client routing nl-NL_about"
+      "Middleware custom matchers with root should not match"
     ],
     "failed": [],
     "pending": [],
@@ -7248,6 +7286,7 @@
       "Middleware Runtime with i18n should have correct route params for rewrite from config dynamic route",
       "Middleware Runtime with i18n should have correct route params for rewrite from config non-dynamic route",
       "Middleware Runtime with i18n should have init header for NextResponse.redirect",
+      "Middleware Runtime with i18n should have the custom config in the manifest",
       "Middleware Runtime with i18n should have valid middleware field in manifest",
       "Middleware Runtime with i18n should keep non data requests in their original shape",
       "Middleware Runtime with i18n should normalize data requests into page requests",
@@ -7288,6 +7327,7 @@
       "Middleware Runtime without i18n should have correct route params for rewrite from config dynamic route",
       "Middleware Runtime without i18n should have correct route params for rewrite from config non-dynamic route",
       "Middleware Runtime without i18n should have init header for NextResponse.redirect",
+      "Middleware Runtime without i18n should have the custom config in the manifest",
       "Middleware Runtime without i18n should have valid middleware field in manifest",
       "Middleware Runtime without i18n should keep non data requests in their original shape",
       "Middleware Runtime without i18n should normalize data requests into page requests",
@@ -7306,9 +7346,7 @@
       "Middleware Runtime without i18n should validate & parse request url from any route",
       "Middleware Runtime without i18n should warn when using NextResponse.redirect with a relative URL",
       "Middleware Runtime without i18n should warn when using Response.redirect with a relative URL",
-      "Middleware Runtime without i18n should work with notFound: true correctly",
-      "Middleware Runtime with i18n should have the custom config in the manifest",
-      "Middleware Runtime without i18n should have the custom config in the manifest"
+      "Middleware Runtime without i18n should work with notFound: true correctly"
     ],
     "failed": [],
     "pending": [],
@@ -7766,13 +7804,13 @@
       "next/font import values Variable font without weight range",
       "next/font import values page with font",
       "next/font import values page with local fonts",
-      "next/font preload page with fonts",
-      "next/font should not have deprecation warning",
       "next/font preload font without preloadable subsets",
       "next/font preload font without size adjust",
       "next/font preload google fonts with multiple weights/styles",
+      "next/font preload page with fonts",
       "next/font preload page with local fonts",
-      "next/font preload page without fonts"
+      "next/font preload page without fonts",
+      "next/font should not have deprecation warning"
     ],
     "failed": [],
     "pending": [],
@@ -18500,10 +18538,10 @@
     "runtimeError": false
   },
   "test/production/app-dir/metadata-revalidate/metadata-revalidate.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "app-dir - metadata-revalidate should contain the routes in prerender manifest"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false

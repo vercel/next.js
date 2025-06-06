@@ -75,9 +75,7 @@ pub async fn dynamic_image_metadata_source(
     let module = asset_context
         .process(
             source,
-            turbo_tasks::Value::new(ReferenceType::EcmaScriptModules(
-                EcmaScriptModulesReferenceSubType::Undefined,
-            )),
+            ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined),
         )
         .module();
     let exports = &*collect_direct_exports(module).await?;

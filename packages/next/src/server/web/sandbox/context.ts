@@ -40,8 +40,9 @@ if (process.env.NODE_ENV === 'development') {
   const middleware =
     require('../../../client/components/react-dev-overlay/server/middleware-webpack') as typeof import('../../../client/components/react-dev-overlay/server/middleware-webpack')
   getServerError = middleware.getServerError
-  decorateServerError =
-    require('../../../shared/lib/error-source').decorateServerError
+  decorateServerError = (
+    require('../../../shared/lib/error-source') as typeof import('../../../shared/lib/error-source')
+  ).decorateServerError
 } else {
   getServerError = (error: Error, _: string) => error
   decorateServerError = (_: Error, __: string) => {}

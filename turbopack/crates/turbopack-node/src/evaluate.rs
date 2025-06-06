@@ -15,7 +15,7 @@ use serde_json::Value as JsonValue;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{
     Completion, FxIndexMap, NonLocalValue, OperationVc, RawVc, ResolvedVc, TaskInput,
-    TryJoinIterExt, Value, Vc, apply_effects, duration_span, fxindexmap, mark_finished, prevent_gc,
+    TryJoinIterExt, Vc, apply_effects, duration_span, fxindexmap, mark_finished, prevent_gc,
     trace::TraceRawVcs, util::SharedError,
 };
 use turbo_tasks_bytes::{Bytes, Stream};
@@ -98,9 +98,7 @@ async fn emit_evaluate_pool_assets_operation(
     let runtime_asset = asset_context
         .process(
             Vc::upcast(FileSource::new(embed_file_path(rcstr!("ipc/evaluate.ts")))),
-            Value::new(ReferenceType::Internal(
-                InnerAssets::empty().to_resolved().await?,
-            )),
+            ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
         )
         .module()
         .to_resolved()
@@ -124,10 +122,10 @@ async fn emit_evaluate_pool_assets_operation(
                     File::from("import { run } from 'RUNTIME'; run(() => import('INNER'))").into(),
                 ),
             )),
-            Value::new(ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
+            ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
                 rcstr!("INNER") => module_asset,
                 rcstr!("RUNTIME") => runtime_asset
-            }))),
+            })),
         )
         .module()
         .to_resolved()
@@ -137,9 +135,7 @@ async fn emit_evaluate_pool_assets_operation(
         let globals_module = asset_context
             .process(
                 Vc::upcast(FileSource::new(embed_file_path(rcstr!("globals.ts")))),
-                Value::new(ReferenceType::Internal(
-                    InnerAssets::empty().to_resolved().await?,
-                )),
+                ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
             )
             .module();
 

@@ -280,7 +280,7 @@ export async function loadProjectInfo({
 
 export function hasExternalOtelApiPackage(): boolean {
   try {
-    require('@opentelemetry/api')
+    require('@opentelemetry/api') as typeof import('@opentelemetry/api')
     return true
   } catch {
     return false
@@ -388,8 +388,9 @@ export default async function getBaseWebpackConfig(
   let SWCBinaryTarget: [Feature, boolean] | undefined = undefined
   if (useSWCLoader) {
     // TODO: we do not collect wasm target yet
-    const binaryTarget = require('./swc')?.getBinaryMetadata?.()
-      ?.target as SWC_TARGET_TRIPLE
+    const binaryTarget = (
+      require('./swc') as typeof import('./swc')
+    )?.getBinaryMetadata?.()?.target as SWC_TARGET_TRIPLE
     SWCBinaryTarget = binaryTarget
       ? [`swc/target/${binaryTarget}` as const, true]
       : undefined
@@ -487,7 +488,9 @@ export default async function getBaseWebpackConfig(
       // Subscriber need to be initialized _before_ any actual swc's call (transform, etcs)
       // to collect correct trace spans when they are called.
       swcTraceProfilingInitialized = true
-      require('./swc')?.initCustomTraceSubscriber?.(
+      ;(
+        require('./swc') as typeof import('./swc')
+      )?.initCustomTraceSubscriber?.(
         path.join(distDir, `swc-trace-profile-${Date.now()}.json`)
       )
     }
@@ -888,7 +891,8 @@ export default async function getBaseWebpackConfig(
 
   const aliasCodeConditionTest = [codeCondition.test, pageExtensionsRegex]
 
-  const builtinModules = require('module').builtinModules
+  const builtinModules = (require('module') as typeof import('module'))
+    .builtinModules
 
   const shouldEnableSlowModuleDetection =
     !!config.experimental.slowModuleDetection && dev
@@ -1196,9 +1200,10 @@ export default async function getBaseWebpackConfig(
         (isClient ||
           isEdgeServer ||
           (isNodeServer && config.experimental.serverMinification)),
-      minimizer: isRspack
-        ? [
-            new (getRspackCore().SwcJsMinimizerRspackPlugin)({
+      minimizer: [
+        // Minify JavaScript
+        isRspack
+          ? new (getRspackCore().SwcJsMinimizerRspackPlugin)({
               // JS minimizer configuration
               // options should align with crates/napi/src/minify.rs#patch_opts
               minimizerOptions: {
@@ -1213,30 +1218,33 @@ export default async function getBaseWebpackConfig(
                   disableCharFreq: !isClient,
                 },
               },
-            }),
-            new (getRspackCore().LightningCssMinimizerRspackPlugin)({
-              // CSS minimizer configuration
-              minimizerOptions: {
-                targets: supportedBrowsers,
-              },
-            }),
-          ]
-        : [
-            // Minify JavaScript
-            (compiler: webpack.Compiler) => {
+            })
+          : (compiler: webpack.Compiler) => {
               // @ts-ignore No typings yet
               const { MinifyPlugin } =
-                require('./webpack/plugins/minify-webpack-plugin/src/index.js') as typeof import('./webpack/plugins/minify-webpack-plugin/src')
+                require('./webpack/plugins/minify-webpack-plugin/src') as typeof import('./webpack/plugins/minify-webpack-plugin/src')
               new MinifyPlugin({
                 noMangling,
                 disableCharFreq: !isClient,
               }).apply(compiler)
             },
-            // Minify CSS
-            (compiler: webpack.Compiler) => {
-              const {
-                CssMinimizerPlugin,
-              } = require('./webpack/plugins/css-minimizer-plugin')
+        // Minify CSS
+        // By default, Rspack uses LightningCSS for CSS minification.
+        // Rspack uses css-minimizer-plugin by default for compatibility.
+        isRspack &&
+        (process.env.__NEXT_TEST_MODE
+          ? config.experimental.useLightningcss
+          : config.experimental?.useLightningcss === undefined ||
+            config.experimental.useLightningcss)
+          ? new (getRspackCore().LightningCssMinimizerRspackPlugin)({
+              // CSS minimizer configuration
+              minimizerOptions: {
+                targets: supportedBrowsers,
+              },
+            })
+          : (compiler: webpack.Compiler) => {
+              const { CssMinimizerPlugin } =
+                require('./webpack/plugins/css-minimizer-plugin') as typeof import('./webpack/plugins/css-minimizer-plugin')
               new CssMinimizerPlugin({
                 postcssOptions: {
                   map: {
@@ -1250,7 +1258,7 @@ export default async function getBaseWebpackConfig(
                 },
               }).apply(compiler)
             },
-          ],
+      ],
     },
     context: dir,
     // Kept as function to be backwards compatible
@@ -1281,7 +1289,7 @@ export default async function getBaseWebpackConfig(
           ? `[name].js`
           : `../[name].js`
         : `static/chunks/${isDevFallback ? 'fallback/' : ''}[name]${
-            dev ? '' : appDir ? '-[chunkhash]' : '-[contenthash]'
+            dev ? '' : '-[contenthash]'
           }.js`,
       library: isClient || isEdgeServer ? '_N_E' : undefined,
       libraryTarget: isClient || isEdgeServer ? 'assign' : 'commonjs2',
@@ -1974,7 +1982,9 @@ export default async function getBaseWebpackConfig(
       !isRspack && (isClient || isEdgeServer) && new DropClientPage(),
       isNodeServer &&
         !dev &&
-        new (require('./webpack/plugins/next-trace-entrypoints-plugin')
+        new ((
+          require('./webpack/plugins/next-trace-entrypoints-plugin') as typeof import('./webpack/plugins/next-trace-entrypoints-plugin')
+        )
           .TraceEntryPointsPlugin as typeof import('./webpack/plugins/next-trace-entrypoints-plugin').TraceEntryPointsPlugin)(
           {
             rootDir: dir,

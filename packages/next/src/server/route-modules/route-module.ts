@@ -119,7 +119,7 @@ export abstract class RouteModule<
     // this is only handled here for node, for edge it
     // is handled in the adapter/loader instead
     if (process.env.NEXT_RUNTIME !== 'edge') {
-      const { join } = require('node:path')
+      const { join } = require('node:path') as typeof import('node:path')
       const projectDir =
         getRequestMeta(req, 'projectDir') ||
         join(process.cwd(), this.projectDir)
@@ -284,7 +284,7 @@ export abstract class RouteModule<
     // if we want to share the normalizing logic here
     // we will need to allow passing in the i18n and similar info
     if (process.env.NEXT_RUNTIME !== 'edge') {
-      const { join } = require('node:path')
+      const { join } = require('node:path') as typeof import('node:path')
       const projectDir =
         getRequestMeta(req, 'projectDir') ||
         join(process.cwd(), this.projectDir)

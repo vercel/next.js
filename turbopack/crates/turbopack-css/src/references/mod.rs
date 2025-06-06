@@ -183,7 +183,7 @@ pub fn css_resolve(
     url_resolve(
         origin,
         request,
-        Value::new(ReferenceType::Css(ty.into_value())),
+        ReferenceType::Css(ty.into_value()),
         issue_source,
         false,
     )

@@ -111,6 +111,9 @@ struct TrackedStats {
 pub struct TurboPersistence {
     /// The path to the directory where the database is stored
     path: PathBuf,
+    /// If true, the database is opened in read-only mode. In this mode, no writes are allowed and
+    /// no modification on the database is performed.
+    read_only: bool,
     /// The inner state of the database. Writing will update that.
     inner: RwLock<Inner>,
     /// A cache for the last WriteBatch. It is used to avoid reallocation of buffers for the
@@ -149,13 +152,10 @@ pub struct CommitOptions {
 }
 
 impl TurboPersistence {
-    /// Open a TurboPersistence database at the given path.
-    /// This will read the directory and might performance cleanup when the database was not closed
-    /// properly. Cleanup only requires to read a few bytes from a few files and to delete
-    /// files, so it's fast.
-    pub fn open(path: PathBuf) -> Result<Self> {
-        let mut db = Self {
+    fn new(path: PathBuf, read_only: bool) -> Self {
+        Self {
             path,
+            read_only,
             inner: RwLock::new(Inner {
                 meta_files: Vec::new(),
                 current_sequence_number: 0,
@@ -185,26 +185,45 @@ impl TurboPersistence {
             ),
             #[cfg(feature = "stats")]
             stats: TrackedStats::default(),
-        };
-        db.open_directory()?;
+        }
+    }
+
+    /// Open a TurboPersistence database at the given path.
+    /// This will read the directory and might performance cleanup when the database was not closed
+    /// properly. Cleanup only requires to read a few bytes from a few files and to delete
+    /// files, so it's fast.
+    pub fn open(path: PathBuf) -> Result<Self> {
+        let mut db = Self::new(path, false);
+        db.open_directory(false)?;
+        Ok(db)
+    }
+
+    /// Open a TurboPersistence database at the given path in read only mode.
+    /// This will read the directory. No Cleanup is performed.
+    pub fn open_read_only(path: PathBuf) -> Result<Self> {
+        let mut db = Self::new(path, true);
+        db.open_directory(false)?;
         Ok(db)
     }
 
     /// Performs the initial check on the database directory.
-    fn open_directory(&mut self) -> Result<()> {
+    fn open_directory(&mut self, read_only: bool) -> Result<()> {
         match fs::read_dir(&self.path) {
             Ok(entries) => {
                 if !self
-                    .load_directory(entries)
+                    .load_directory(entries, read_only)
                     .context("Loading persistence directory failed")?
                 {
+                    if read_only {
+                        bail!("Failed to open database");
+                    }
                     self.init_directory()
                         .context("Initializing persistence directory failed")?;
                 }
                 Ok(())
             }
             Err(e) => {
-                if e.kind() == std::io::ErrorKind::NotFound {
+                if !read_only && e.kind() == std::io::ErrorKind::NotFound {
                     self.create_and_init_directory()
                         .context("Creating and initializing persistence directory failed")?;
                     Ok(())
@@ -230,12 +249,12 @@ impl TurboPersistence {
     }
 
     /// Loads an existing database directory and performs cleanup if necessary.
-    fn load_directory(&mut self, entries: ReadDir) -> Result<bool> {
+    fn load_directory(&mut self, entries: ReadDir, read_only: bool) -> Result<bool> {
         let mut meta_files = Vec::new();
         let mut current_file = match File::open(self.path.join("CURRENT")) {
             Ok(file) => file,
             Err(e) => {
-                if e.kind() == std::io::ErrorKind::NotFound {
+                if !read_only && e.kind() == std::io::ErrorKind::NotFound {
                     return Ok(false);
                 } else {
                     return Err(e).context("Failed to open CURRENT file");
@@ -260,7 +279,9 @@ impl TurboPersistence {
                     continue;
                 }
                 if seq > current {
-                    fs::remove_file(&path)?;
+                    if !read_only {
+                        fs::remove_file(&path)?;
+                    }
                 } else {
                     match ext {
                         "meta" => {
@@ -272,17 +293,20 @@ impl TurboPersistence {
                             while !content.is_empty() {
                                 let seq = content.read_u32::<BE>()?;
                                 deleted_files.insert(seq);
-                                let sst_file = self.path.join(format!("{seq:08}.sst"));
-                                let meta_file = self.path.join(format!("{seq:08}.meta"));
-                                let blob_file = self.path.join(format!("{seq:08}.blob"));
-                                for path in [sst_file, meta_file, blob_file] {
-                                    if fs::exists(&path)? {
-                                        fs::remove_file(path)?;
-                                        no_existing_files = false;
+                                if !read_only {
+                                    // Remove the files that are marked for deletion
+                                    let sst_file = self.path.join(format!("{seq:08}.sst"));
+                                    let meta_file = self.path.join(format!("{seq:08}.meta"));
+                                    let blob_file = self.path.join(format!("{seq:08}.blob"));
+                                    for path in [sst_file, meta_file, blob_file] {
+                                        if fs::exists(&path)? {
+                                            fs::remove_file(path)?;
+                                            no_existing_files = false;
+                                        }
                                     }
                                 }
                             }
-                            if no_existing_files {
+                            if !read_only && no_existing_files {
                                 fs::remove_file(&path)?;
                             }
                         }
@@ -333,7 +357,7 @@ impl TurboPersistence {
             .collect::<Result<Vec<MetaFile>>>()?;
 
         let mut sst_filter = SstFilter::new();
-        for meta_file in meta_files.iter_mut() {
+        for meta_file in meta_files.iter_mut().rev() {
             sst_filter.apply_filter(meta_file);
         }
 
@@ -379,6 +403,9 @@ impl TurboPersistence {
     pub fn write_batch<K: StoreKey + Send + Sync + 'static, const FAMILIES: usize>(
         &self,
     ) -> Result<WriteBatch<K, FAMILIES>> {
+        if self.read_only {
+            bail!("Cannot write to a read-only database");
+        }
         if self
             .active_write_operation
             .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
@@ -390,17 +417,20 @@ impl TurboPersistence {
             );
         }
         let current = self.inner.read().current_sequence_number;
-        if let Some((ty, any)) = self.idle_write_batch.lock().take() {
-            if ty == TypeId::of::<WriteBatch<K, FAMILIES>>() {
-                let mut write_batch = *any.downcast::<WriteBatch<K, FAMILIES>>().unwrap();
-                write_batch.reset(current);
-                return Ok(write_batch);
-            }
+        if let Some((ty, any)) = self.idle_write_batch.lock().take()
+            && ty == TypeId::of::<WriteBatch<K, FAMILIES>>()
+        {
+            let mut write_batch = *any.downcast::<WriteBatch<K, FAMILIES>>().unwrap();
+            write_batch.reset(current);
+            return Ok(write_batch);
         }
         Ok(WriteBatch::new(self.path.clone(), current))
     }
 
     fn open_log(&self) -> Result<BufWriter<File>> {
+        if self.read_only {
+            unreachable!("Only write operations can open the log file");
+        }
         let log_path = self.path.join("LOG");
         let log_file = OpenOptions::new()
             .create(true)
@@ -415,6 +445,9 @@ impl TurboPersistence {
         &self,
         mut write_batch: WriteBatch<K, FAMILIES>,
     ) -> Result<()> {
+        if self.read_only {
+            unreachable!("It's not possible to create a write batch for a read-only database");
+        }
         let FinishResult {
             sequence_number,
             new_meta_files,
@@ -468,7 +501,7 @@ impl TurboPersistence {
             .collect::<Result<Vec<_>>>()?;
 
         let mut sst_filter = SstFilter::new();
-        for meta_file in new_meta_files.iter_mut() {
+        for meta_file in new_meta_files.iter_mut().rev() {
             sst_filter.apply_filter(meta_file);
         }
 
@@ -501,10 +534,12 @@ impl TurboPersistence {
 
         {
             let mut inner = self.inner.write();
-            for meta_file in inner.meta_files.iter_mut() {
+            for meta_file in inner.meta_files.iter_mut().rev() {
                 sst_filter.apply_filter(meta_file);
             }
             inner.meta_files.append(&mut new_meta_files);
+            // apply_and_get_remove need to run in reverse order
+            inner.meta_files.reverse();
             inner.meta_files.retain(|meta| {
                 if sst_filter.apply_and_get_remove(meta) {
                     meta_seq_numbers_to_delete.push(meta.sequence_number());
@@ -513,6 +548,7 @@ impl TurboPersistence {
                     true
                 }
             });
+            inner.meta_files.reverse();
             has_delete_file = !sst_seq_numbers_to_delete.is_empty()
                 || !blob_seq_numbers_to_delete.is_empty()
                 || !meta_seq_numbers_to_delete.is_empty();
@@ -619,6 +655,9 @@ impl TurboPersistence {
         max_merge_sequence: usize,
         max_merge_size: u64,
     ) -> Result<()> {
+        if self.read_only {
+            bail!("Compaction is not allowed on a read only database");
+        }
         let _span = tracing::info_span!("compact database").entered();
         if self
             .active_write_operation
@@ -1003,7 +1042,7 @@ impl TurboPersistence {
                     let index_in_meta = ssts_with_ranges[index].index_in_meta;
                     let meta_file = &meta_files[meta_index];
                     let entry = meta_file.entry(index_in_meta);
-                    let aqmf = entry.aqmf(meta_file.aqmf_data()).to_vec();
+                    let aqmf = entry.raw_aqmf(meta_file.aqmf_data()).to_vec();
                     let meta = StaticSortedFileBuilderMeta {
                         min_hash: entry.min_hash(),
                         max_hash: entry.max_hash(),
@@ -1166,10 +1205,67 @@ impl TurboPersistence {
         }
     }
 
+    pub fn meta_info(&self) -> Result<Vec<MetaFileInfo>> {
+        Ok(self
+            .inner
+            .read()
+            .meta_files
+            .iter()
+            .rev()
+            .map(|meta_file| {
+                let entries = meta_file
+                    .entries()
+                    .iter()
+                    .map(|entry| {
+                        let aqmf = entry.raw_aqmf(meta_file.aqmf_data());
+                        MetaFileEntryInfo {
+                            sequence_number: entry.sequence_number(),
+                            min_hash: entry.min_hash(),
+                            max_hash: entry.max_hash(),
+                            sst_size: entry.size(),
+                            aqmf_size: entry.aqmf_size(),
+                            aqmf_entries: aqmf.len(),
+                            key_compression_dictionary_size: entry
+                                .key_compression_dictionary_length(),
+                            value_compression_dictionary_size: entry
+                                .value_compression_dictionary_length(),
+                            block_count: entry.block_count(),
+                        }
+                    })
+                    .collect();
+                MetaFileInfo {
+                    sequence_number: meta_file.sequence_number(),
+                    family: meta_file.family(),
+                    obsolete_sst_files: meta_file.obsolete_sst_files().to_vec(),
+                    entries,
+                }
+            })
+            .collect())
+    }
+
     /// Shuts down the database. This will print statistics if the `print_stats` feature is enabled.
     pub fn shutdown(&self) -> Result<()> {
         #[cfg(feature = "print_stats")]
         println!("{:#?}", self.statistics());
         Ok(())
     }
+}
+
+pub struct MetaFileInfo {
+    pub sequence_number: u32,
+    pub family: u32,
+    pub obsolete_sst_files: Vec<u32>,
+    pub entries: Vec<MetaFileEntryInfo>,
+}
+
+pub struct MetaFileEntryInfo {
+    pub sequence_number: u32,
+    pub min_hash: u64,
+    pub max_hash: u64,
+    pub aqmf_size: u32,
+    pub aqmf_entries: usize,
+    pub sst_size: u64,
+    pub key_compression_dictionary_size: u16,
+    pub value_compression_dictionary_size: u16,
+    pub block_count: u16,
 }

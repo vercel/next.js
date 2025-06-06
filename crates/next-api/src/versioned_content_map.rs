@@ -211,10 +211,9 @@ impl VersionedContentMap {
             assets_operation: _,
             path_to_asset,
         }) = &*result
+            && let Some(&asset) = path_to_asset.get(&path)
         {
-            if let Some(&asset) = path_to_asset.get(&path) {
-                return Ok(Vc::cell(Some(asset)));
-            }
+            return Ok(Vc::cell(Some(asset)));
         }
 
         Ok(Vc::cell(None))
