@@ -3,7 +3,11 @@ export const dynamic = "force-dynamic"; // This disables SSG and ISR
 import prisma from "@/lib/prisma";
 import { notFound, redirect } from "next/navigation";
 
-export default async function Post({ params }: { params: Promise<{ id: string }> }) {
+export default async function Post({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
   const postId = parseInt(id);
 
@@ -41,7 +45,10 @@ export default async function Post({ params }: { params: Promise<{ id: string }>
 
         {/* Author Information */}
         <p className="text-lg text-gray-600 mb-4">
-          by <span className="font-medium text-gray-800">{post.author?.name || "Anonymous"}</span>
+          by{" "}
+          <span className="font-medium text-gray-800">
+            {post.author?.name || "Anonymous"}
+          </span>
         </p>
 
         {/* Content Section */}
@@ -49,7 +56,9 @@ export default async function Post({ params }: { params: Promise<{ id: string }>
           {post.content ? (
             <p>{post.content}</p>
           ) : (
-            <p className="italic text-gray-500">No content available for this post.</p>
+            <p className="italic text-gray-500">
+              No content available for this post.
+            </p>
           )}
         </div>
       </article>
