@@ -860,10 +860,10 @@ describe('opentelemetry', () => {
                     },
                   },
                   {
-                    name: 'render route (app) /404',
+                    name: 'render route (app) /_not-found',
                     attributes: {
-                      'next.route': '/404',
-                      'next.span_name': 'render route (app) /404',
+                      'next.route': '/_not-found',
+                      'next.span_name': 'render route (app) /_not-found',
                       'next.span_type': 'AppRender.getBodyResult',
                     },
                     kind: 0,
