@@ -84,7 +84,7 @@ How much of the route is prefetched depends on whether it's static or dynamic:
 - **Static Route**: the full route is prefetched.
 - **Dynamic Route**: prefetching is skipped, or the route is partially prefetched if [`loading.tsx`](/docs/app/api-reference/file-conventions/loading) is present.
 
-By skipping or partially prefetching dynamic routes, Next.js avoids unnecessary work on the server for routes the users may never visit. However, this blocks navigation and can give the user the impression that the app is not responding.
+By skipping or partially prefetching dynamic routes, Next.js avoids unnecessary work on the server for routes the users may never visit. However, waiting for a server response before navigation can give the users the impression that the app is not responding.
 
 <Image
   alt="Server Rendering without Streaming"
@@ -167,11 +167,7 @@ TODO
 
 ### Dynamic routes without `loading.tsx`
 
-Without [`loading.tsx`](/docs/app/api-reference/file-conventions/loading), dynamic routes will block until the server responds. This becomes more apparent with slow data requests.
-
-In development mode, you can use the Next.js Devtools to identify if the route is static or dynamic.
-
-{/* TODO: Add a screenshot of the Devtools */}
+When navigating to a dynamic route, the client must wait for the server response before showing the result. This can give the users the impression that the app is not responding.
 
 We recommend adding `loading.tsx` to dynamic routes to enable partial prefetching, trigger immediate navigation, and display a loading UI while the route renders.
 
@@ -186,6 +182,8 @@ export default function Loading() {
   return <LoadingSkeleton />
 }
 ```
+
+> **Good to know**: In development mode, you can use the Next.js Devtools to identify if the route is static or dynamic. See [`devIndicators`](/docs/app/api-reference/config/next-config-js/devIndicators) for more information.
 
 ### Dynamic segments without `generateStaticParams`
 
