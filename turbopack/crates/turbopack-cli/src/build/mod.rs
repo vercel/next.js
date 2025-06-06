@@ -10,8 +10,7 @@ use rustc_hash::FxHashSet;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    ReadConsistency, ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks, Value, Vc,
-    apply_effects,
+    ReadConsistency, ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks, Vc, apply_effects,
 };
 use turbo_tasks_backend::{
     BackendOptions, NoopBackingStorage, TurboTasksBackend, noop_backing_storage,
@@ -234,9 +233,9 @@ async fn build_internal(
                 build_output_root,
                 build_output_root,
                 build_output_root,
-                Environment::new(Value::new(ExecutionEnvironment::NodeJsLambda(
+                Environment::new(ExecutionEnvironment::NodeJsLambda(
                     NodeJsEnvironment::default().resolved_cell(),
-                )))
+                ))
                 .to_resolved()
                 .await?,
                 runtime_type,
@@ -322,7 +321,7 @@ async fn build_internal(
                 build_output_root,
                 build_output_root,
                 build_output_root,
-                Environment::new(Value::new(ExecutionEnvironment::Browser(
+                Environment::new(ExecutionEnvironment::Browser(
                     BrowserEnvironment {
                         dom: true,
                         web_worker: false,
@@ -330,7 +329,7 @@ async fn build_internal(
                         browserslist_query: browserslist_query.clone(),
                     }
                     .resolved_cell(),
-                )))
+                ))
                 .to_resolved()
                 .await?,
                 runtime_type,
@@ -373,9 +372,9 @@ async fn build_internal(
                 build_output_root,
                 build_output_root,
                 build_output_root,
-                Environment::new(Value::new(ExecutionEnvironment::NodeJsLambda(
+                Environment::new(ExecutionEnvironment::NodeJsLambda(
                     NodeJsEnvironment::default().resolved_cell(),
-                )))
+                ))
                 .to_resolved()
                 .await?,
                 runtime_type,

@@ -2,7 +2,7 @@ use std::iter::once;
 
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, OptionVcExt, ResolvedVc, TaskInput, Value, Vc};
+use turbo_tasks::{FxIndexMap, OptionVcExt, ResolvedVc, TaskInput, Vc};
 use turbo_tasks_env::EnvMap;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
@@ -121,7 +121,7 @@ pub async fn get_client_compile_time_info(
     define_env: Vc<EnvMap>,
 ) -> Result<Vc<CompileTimeInfo>> {
     CompileTimeInfo::builder(
-        Environment::new(Value::new(ExecutionEnvironment::Browser(
+        Environment::new(ExecutionEnvironment::Browser(
             BrowserEnvironment {
                 dom: true,
                 web_worker: false,
@@ -129,7 +129,7 @@ pub async fn get_client_compile_time_info(
                 browserslist_query: browserslist_query.to_owned(),
             }
             .resolved_cell(),
-        )))
+        ))
         .to_resolved()
         .await?,
     )
