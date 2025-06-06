@@ -183,7 +183,91 @@ With PPR is enabled, a page is divided into a static shell and a streamed dynami
 
 ### Triggering unwanted side-effects during prefetching
 
-- Server Actions and Client Components
+If your layouts or pages are not [pure](https://react.dev/learn/keeping-components-pure#purity-components-as-formulas) and have side-effects (e.g. tracking analytics), these might be triggered when the route is prefetched, not when the user visits the page.
+
+To avoid this, you should move side-effects to a `useEffect` hook or a Server Action triggered from a Client Component.
+
+**Before**:
+
+```tsx filename="app/dashboard/layout.tsx" switcher
+import { trackPageView } from '@/lib/analytics'
+
+export default function Layout({ children }: { children: React.ReactNode }) {
+  // This runs during prefetch
+  trackPageView()
+
+  return <div>{children}</div>
+}
+```
+
+```jsx filename="app/dashboard/layout.js" switcher
+import { trackPageView } from '@/lib/analytics'
+
+export default function Layout({ children }) {
+  // This runs during prefetch
+  trackPageView()
+
+  return <div>{children}</div>
+}
+```
+
+**After**:
+
+```tsx filename="app/ui/analytics-tracker.tsx" switcher
+'use client'
+
+import { useEffect } from 'react'
+import { trackPageView } from '@/lib/analytics'
+
+export function AnalyticsTracker() {
+  useEffect(() => {
+    trackPageView()
+  }, [])
+
+  return null
+}
+```
+
+```jsx filename="app/dashboard/page.js" switcher
+'use client'
+
+import { useEffect } from 'react'
+import { trackPageView } from '@/lib/analytics'
+
+export function AnalyticsTracker() {
+  useEffect(() => {
+    trackPageView()
+  }, [])
+
+  return null
+}
+```
+
+```tsx filename="app/dashboard/layout.tsx" switcher
+import { AnalyticsTracker } from '@/app/ui/analytics-tracker'
+
+export default function Layout({ children }: { children: React.ReactNode }) {
+  return (
+    <div>
+      <AnalyticsTracker />
+      {children}
+    </div>
+  )
+}
+```
+
+```jsx filename="app/dashboard/layout.js" switcher
+import { AnalyticsTracker } from '@/app/ui/analytics-tracker'
+
+export default function Layout({ children }) {
+  return (
+    <div>
+      <AnalyticsTracker />
+      {children}
+    </div>
+  )
+}
+```
 
 ### Preventing too many prefetches
 
