@@ -90,5 +90,5 @@ function encodeToFilesystemAndURLSafeString(value: string) {
 export function convertSegmentPathToStaticExportFilename(
   segmentPath: string
 ): string {
-  return `__next${segmentPath.replace(/\//g, '.')}.txt`
+  return `__next${segmentPath.replace(/\//g, '.')}.rsc.txt`
 }
