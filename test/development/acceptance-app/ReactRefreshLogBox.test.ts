@@ -564,7 +564,7 @@ describe('ReactRefreshLogBox app', () => {
       await session.evaluate(
         () =>
           document
-            .querySelector('body > nextjs-portal')
+            .querySelector('body nextjs-portal')
             .shadowRoot.querySelectorAll('#nextjs__container_errors_desc a')
             .length
       )
@@ -574,7 +574,7 @@ describe('ReactRefreshLogBox app', () => {
         () =>
           (
             document
-              .querySelector('body > nextjs-portal')
+              .querySelector('body nextjs-portal')
               .shadowRoot.querySelector(
                 '#nextjs__container_errors_desc a:nth-of-type(1)'
               ) as any
@@ -646,7 +646,7 @@ describe('ReactRefreshLogBox app', () => {
       await session.evaluate(
         () =>
           document
-            .querySelector('body > nextjs-portal')
+            .querySelector('body nextjs-portal')
             .shadowRoot.querySelectorAll('#nextjs__container_errors_desc a')
             .length
       )
@@ -656,7 +656,7 @@ describe('ReactRefreshLogBox app', () => {
         () =>
           (
             document
-              .querySelector('body > nextjs-portal')
+              .querySelector('body nextjs-portal')
               .shadowRoot.querySelector(
                 '#nextjs__container_errors_desc a:nth-of-type(1)'
               ) as any
@@ -728,7 +728,7 @@ describe('ReactRefreshLogBox app', () => {
       await session.evaluate(
         () =>
           document
-            .querySelector('body > nextjs-portal')
+            .querySelector('body nextjs-portal')
             .shadowRoot.querySelectorAll('#nextjs__container_errors_desc a')
             .length
       )
@@ -738,7 +738,7 @@ describe('ReactRefreshLogBox app', () => {
         () =>
           (
             document
-              .querySelector('body > nextjs-portal')
+              .querySelector('body nextjs-portal')
               .shadowRoot.querySelector(
                 '#nextjs__container_errors_desc a:nth-of-type(1)'
               ) as any
@@ -811,7 +811,7 @@ describe('ReactRefreshLogBox app', () => {
       await session.evaluate(
         () =>
           document
-            .querySelector('body > nextjs-portal')
+            .querySelector('body nextjs-portal')
             .shadowRoot.querySelectorAll('#nextjs__container_errors_desc a')
             .length
       )
@@ -821,7 +821,7 @@ describe('ReactRefreshLogBox app', () => {
         () =>
           (
             document
-              .querySelector('body > nextjs-portal')
+              .querySelector('body nextjs-portal')
               .shadowRoot.querySelector(
                 '#nextjs__container_errors_desc a:nth-of-type(1)'
               ) as any
@@ -833,7 +833,7 @@ describe('ReactRefreshLogBox app', () => {
         () =>
           (
             document
-              .querySelector('body > nextjs-portal')
+              .querySelector('body nextjs-portal')
               .shadowRoot.querySelector(
                 '#nextjs__container_errors_desc a:nth-of-type(2)'
               ) as any
