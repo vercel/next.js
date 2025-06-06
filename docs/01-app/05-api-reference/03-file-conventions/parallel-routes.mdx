@@ -276,7 +276,7 @@ export default function Default() {
 }
 ```
 
-Inside your `@auth` slot, intercept the `/login` route by importing the `<Modal>` component and its children into the `/login/page.tsx` file, and updating the folder name to `/(..)login/page.tsx`.
+Inside your `@auth` slot, intercept the `/login` route by importing the `<Modal>` component and its children into the `@auth/(.)login/page.tsx` file, and updating the folder name to `/@auth/(.)login/page.tsx`.
 
 ```tsx filename="app/@auth/(..)login/page.tsx" switcher
 import { Modal } from '@/app/ui/modal'
@@ -306,7 +306,7 @@ export default function Page() {
 
 > **Good to know:**
 >
-> - The convention `(..)` is used for intercepting routes. See [Intercepting Routes](/docs/app/api-reference/file-conventions/intercepting-routes#convention) docs for more information.
+> - The convention `(.)` is used for intercepting routes. See [Intercepting Routes](/docs/app/api-reference/file-conventions/intercepting-routes#convention) docs for more information.
 > - By separating the `<Modal>` functionality from the modal content (`<Login>`), you can ensure any content inside the modal, e.g. [forms](/docs/app/guides/forms), are Server Components. See [Interleaving Client and Server Components](/docs/app/getting-started/server-and-client-components#examples#supported-pattern-passing-server-components-to-client-components-as-props) for more information.
 
 #### Opening the modal
