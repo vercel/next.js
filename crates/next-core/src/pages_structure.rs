@@ -208,7 +208,6 @@ async fn get_pages_structure_for_root_directory(
                                 get_pages_structure_for_directory(
                                     *dir_project_path,
                                     next_router_path.join(name.clone()),
-                                    1,
                                     page_extensions,
                                 )
                                 .to_resolved()
@@ -221,7 +220,6 @@ async fn get_pages_structure_for_root_directory(
                                 get_pages_structure_for_directory(
                                     *dir_project_path,
                                     next_router_path.join(name.clone()),
-                                    1,
                                     page_extensions,
                                 ),
                             ));
@@ -313,7 +311,6 @@ async fn get_pages_structure_for_root_directory(
 async fn get_pages_structure_for_directory(
     project_path: Vc<FileSystemPath>,
     next_router_path: Vc<FileSystemPath>,
-    position: u32,
     page_extensions: Vc<Vec<RcStr>>,
 ) -> Result<Vc<PagesDirectoryStructure>> {
     let span = {
@@ -356,7 +353,6 @@ async fn get_pages_structure_for_directory(
                             get_pages_structure_for_directory(
                                 **dir_project_path,
                                 next_router_path.join(name.clone()),
-                                position + 1,
                                 page_extensions,
                             ),
                         ));
