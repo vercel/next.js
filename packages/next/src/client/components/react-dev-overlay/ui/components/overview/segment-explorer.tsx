@@ -76,13 +76,33 @@ function PageSegmentTreeLayerPresentation({
   node: TrieNode<SegmentNode>
   level: number
 }) {
-  const segments = node.value?.pagePath?.split('/') || []
-  const fileName = segments[segments.length - 1] || ''
+  const pagePath = node.value?.pagePath || ''
   const nodeName = node.value?.type
-  const pagePathPrefix = segments.slice(0, -1).join('/')
+
+  const segments = pagePath.split('/') || []
+  const fileName = segments.pop() || ''
+  const segmentPath = segments.join('/')
+
+  let pagePathPrefix = segmentPath
+
+  const childrenKeys = Object.keys(node.children).sort((a, b) => {
+    // Prioritize if it's a file convention like layout or page,
+    // then the rest parallel routes.
+    const aHasExt = a.includes('.')
+    const bHasExt = b.includes('.')
+    if (aHasExt && !bHasExt) return -1
+    if (!aHasExt && bHasExt) return 1
+    // Otherwise sort alphabetically
+    return a.localeCompare(b)
+  })
 
   return (
-    <div className="segment-explorer-item">
+    <div
+      className={cx(
+        'segment-explorer-item',
+        level > 1 && 'segment-explorer-item--nested'
+      )}
+    >
       {!fileName || level === 0 ? null : (
         <div className="segment-explorer-item-row">
           <div className="segment-explorer-line">
@@ -103,17 +123,19 @@ function PageSegmentTreeLayerPresentation({
       )}
 
       <div className="tree-node-expanded-rendered-children">
-        {Object.entries(node.children).map(
-          ([key, child]) =>
+        {childrenKeys.map((segment) => {
+          const child = node.children[segment]
+          return (
             child && (
               <PageSegmentTreeLayerPresentation
-                key={key}
+                key={segment}
                 tree={tree}
                 node={child}
                 level={level + 1}
               />
             )
-        )}
+          )
+        })}
       </div>
     </div>
   )
@@ -139,6 +161,10 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
     overflow-y: auto;
     padding: 0 12px;
     font-size: var(--size-14);
+  }
+
+  .segment-explorer-item--nested {
+    padding-left: 20px;
   }
 
   .segment-explorer-item-row {
@@ -168,12 +194,9 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
   .segment-explorer-line-icon-page {
     color: inherit;
   }
-  .segment-explorer-line-icon-layout {
-    color: var(--color-gray-1-00);
-  }
 
   .segment-explorer-line-text-page {
-    color: var(--color-blue-900);
+    color: var(--color-gray-1000);
     font-weight: 500;
   }
 `
