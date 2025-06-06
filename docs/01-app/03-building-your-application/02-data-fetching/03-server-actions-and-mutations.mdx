@@ -13,11 +13,7 @@ related:
 - The arguments and return value of Server Actions must be serializable by React. See the React docs for a list of [serializable arguments and values](https://react.dev/reference/react/use-server#serializable-parameters-and-return-values).
 - Server Actions inherit the runtime from the page or layout they are used on.
 - Server Actions inherit the [Route Segment Config](/docs/app/api-reference/file-conventions/route-segment-config) from the page or layout they are used on, including fields like `maxDuration`.
-
-- Usually, the Next.js TypeScript plugin would flag `updateItemAction` in `client-component.tsx` since it is a function which generally can't be serialized across client-server boundaries.
-  However, props named `action` or ending with `Action` are assumed to receive Server Actions.
-  This is only a heuristic since the TypeScript plugin doesn't actually know if it receives a Server Action or an ordinary function.
-  Runtime type-checking will still ensure you don't accidentally pass a function to a Client Component.
+- Usually, the Next.js TypeScript plugin would flag `updateItemAction` in `client-component.tsx` since it is a function which generally can't be serialized across client-server boundaries. However, props named `action` or ending with `Action` are assumed to receive Server Actions. This is only a heuristic since the TypeScript plugin doesn't actually know if it receives a Server Action or an ordinary function. Runtime type-checking will still ensure you don't accidentally pass a function to a Client Component.
 
 ## Security
 
