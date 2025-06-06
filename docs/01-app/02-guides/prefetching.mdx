@@ -154,9 +154,11 @@ For example, you may still want to have consistent usage of `<Link>` in your app
 
 ## Prefetching optimizations
 
-### Layout deduplication
+> **Good to know:** Layout deduplication and prefetch scheduling are part of upcoming optimizations. Currently available in Next.js canary via the `experimental.clientSegmentCache` flag.
 
-Shared layouts download once per session, even if several prefetches request the same component tree. This reduces network traffic and speeds up subsequent navigations that reuse the layout.
+### Client cache
+
+Next.js stores prefetched React Server Component payloads in memory, keyed by route segments. When navigating between sibling routes (e.g. `/dashboard/settings` → `/dashboard/analytics`), it reuses the parent layout and only fetches the updated leaf page. This reduces network traffic and improves navigation speed.
 
 ### Prefetch scheduling
 
@@ -176,10 +178,6 @@ With PPR is enabled, a page is divided into a static shell and a streamed dynami
 - The shell, which can be prefetched, streams immediately
 - Dynamic data streams when ready
 - Data invalidations (`revalidateTag`, `revalidatePath`) silently refresh associated prefetches
-
-### Router cache
-
-Prefetched React Server Component payloads are stored in memory and keyed by route segments. Navigating between sibling routes—e.g. `/dashboard/settings` → `/dashboard/analytics`—reuses parent payloads and fetches only the changed leaf.
 
 ## Troubleshooting
 
