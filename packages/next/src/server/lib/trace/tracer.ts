@@ -163,6 +163,9 @@ type NextAttributeNames =
   | 'next.span_name'
   | 'next.span_type'
   | 'next.clientComponentLoadCount'
+  | 'next.cache.status'
+  | 'next.cache.reason'
+  | 'next.cache.revalidate'
 type OTELAttributeNames = `http.${string}` | `net.${string}`
 type AttributeNames = NextAttributeNames | OTELAttributeNames
 
