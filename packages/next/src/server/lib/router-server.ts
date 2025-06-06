@@ -7,6 +7,7 @@ import type { NextUrlWithParsedQuery, RequestMeta } from '../request-meta'
 import '../node-environment'
 import '../require-hook'
 
+import { randomUUID } from 'crypto'
 import url from 'url'
 import path from 'path'
 import loadConfig from '../config'
@@ -568,6 +569,26 @@ export async function initialize(opts: {
             invokeOutput: matchedOutput.itemPath,
           }
         )
+      }
+
+      if (
+        opts.dev &&
+        parsedUrl.pathname ===
+          '/.well-known/appspecific/com.chrome.devtools.json'
+      ) {
+        // This is a special path used by Chrome DevTools to connect to the
+        // Next.js development server. We need to handle it separately.
+        res.setHeader('Content-Type', 'application/json')
+        res.end(
+          JSON.stringify({
+            workspace: {
+              // TODO: Generate a unique ID for the workspace
+              uuid: randomUUID(),
+              root: opts.dir,
+            },
+          })
+        )
+        return
       }
 
       // 404 case
