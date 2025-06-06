@@ -259,14 +259,14 @@ async fn build_internal(
         .map(|r| async move {
             Ok(match r {
                 EntryRequest::Relative(p) => Request::relative(
-                    Value::new(p.clone().into()),
+                    p.clone().into(),
                     Default::default(),
                     Default::default(),
                     false,
                 ),
                 EntryRequest::Module(m, p) => Request::module(
                     m.clone(),
-                    Value::new(p.clone().into()),
+                    p.clone().into(),
                     Default::default(),
                     Default::default(),
                 ),
