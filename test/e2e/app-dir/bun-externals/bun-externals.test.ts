@@ -47,6 +47,14 @@ describe('app-dir - bun externals', () => {
     expect(data.bun).toBe('external')
   })
 
+  it('should handle bun builtins in edge runtime', async () => {
+    const response = await next.fetch('/api/edge-bun-externals')
+    const data = await response.json()
+
+    expect(data.status).toBe('success')
+    expect(data.message).toBe('Bun modules correctly blocked in edge runtime')
+  })
+
   // Check that the modules are not bundled
   if (!isTurbopack && !isNextDev) {
     it('should not bundle bun builtins in server bundles', async () => {
