@@ -12,7 +12,7 @@ use serde::Deserialize;
 use serde_json::json;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    ReadConsistency, ReadRef, ResolvedVc, TryJoinIterExt, TurboTasks, Value, ValueToString, Vc,
+    ReadConsistency, ReadRef, ResolvedVc, TryJoinIterExt, TurboTasks, ValueToString, Vc,
     apply_effects,
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
@@ -226,7 +226,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
 
     let entry_asset = project_path.join(options.entry.into());
 
-    let env = Environment::new(Value::new(match options.environment {
+    let env = Environment::new(match options.environment {
         SnapshotEnvironment::Browser => {
             ExecutionEnvironment::Browser(
                 // TODO: load more from options.json
@@ -245,7 +245,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 NodeJsEnvironment::default().resolved_cell(),
             )
         }
-    }))
+    })
     .to_resolved()
     .await?;
 
