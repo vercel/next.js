@@ -29,7 +29,7 @@ When navigating to the new page, there's no full page reload or browser loading 
 | [**Client Cache TTL**](/docs/app/deep-dive/caching#full-route-cache) | 5 min (default) | Off unless enabled                           |
 | **Server roundtrip on click**                                        | No              | Yes (streamed after shell)                   |
 
-> **Good to know:** During the initial navigation, the browser fetches the HTML, RSC Payload, and JS Bundle. For subsequent navigations, the browser will the RSC Payload for Server Components and JS bundle for Client Components.
+> **Good to know:** During the initial navigation, the browser fetches the HTML, RSC Payload, and JS Bundle. For subsequent navigations, the browser will fetch the RSC Payload for Server Components and JS bundle for Client Components.
 
 ## Automatic prefetch
 
@@ -62,7 +62,7 @@ Call `router.prefetch()` to warm routes outside the viewport or in response to a
 
 > **Proceed with caution:** Extending `Link` opts you into maintaining prefetching, cache invalidation, and accessibility concerns. Proceed only if defaults are insufficient.
 
-Next.js tries to do the right prefetching by default and power users can tweak the knobs to do more/less prefetching based on their needs. You have the control between performance and resource consumption.
+Next.js tries to do the right prefetching by default but power users can tweak the knobs to do more or less prefetching based on their needs. You have the control between performance and resource consumption.
 
 For example, you might have to only trigger prefetches on hover, instead of when entering the viewport (the default behavior):
 
@@ -150,7 +150,7 @@ function NoPrefetchLink({
 }
 ```
 
-For example, you may still want to have consistent usage of `<Link>` in your application, but links if your footer might not need to be prefetched when entering the viewport.
+For example, you may still want to have consistent usage of `<Link>` in your application, but links in your footer might not need to be prefetched when entering the viewport.
 
 ## Prefetching optimizations
 
