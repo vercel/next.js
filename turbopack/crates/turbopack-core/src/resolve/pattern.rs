@@ -2,10 +2,10 @@ use std::{
     collections::{VecDeque, hash_map::Entry},
     fmt::Display,
     mem::take,
+    sync::LazyLock,
 };
 
 use anyhow::Result;
-use lazy_static::lazy_static;
 use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
@@ -837,11 +837,11 @@ impl Pattern {
                 }
             }
             Pattern::Dynamic => {
-                lazy_static! {
-                    static ref FORBIDDEN: Regex =
-                        Regex::new(r"(/|^)(ROOT|\.|/|(node_modules|__tests?__)(/|$))").unwrap();
-                    static ref FORBIDDEN_MATCH: Regex = Regex::new(r"\.d\.ts$|\.map$").unwrap();
-                }
+                static FORBIDDEN: LazyLock<Regex> = LazyLock::new(|| {
+                    Regex::new(r"(/|^)(ROOT|\.|/|(node_modules|__tests?__)(/|$))").unwrap()
+                });
+                static FORBIDDEN_MATCH: LazyLock<Regex> =
+                    LazyLock::new(|| Regex::new(r"\.d\.ts$|\.map$").unwrap());
                 if let Some(m) = FORBIDDEN.find(value) {
                     MatchResult::Consumed {
                         remaining: value,
@@ -923,11 +923,11 @@ impl Pattern {
                 }
             }
             Pattern::Dynamic => {
-                lazy_static! {
-                    static ref FORBIDDEN: Regex =
-                        Regex::new(r"(/|^)(ROOT|\.|/|(node_modules|__tests?__)(/|$))").unwrap();
-                    static ref FORBIDDEN_MATCH: Regex = Regex::new(r"\.d\.ts$|\.map$").unwrap();
-                }
+                static FORBIDDEN: LazyLock<Regex> = LazyLock::new(|| {
+                    Regex::new(r"(/|^)(ROOT|\.|/|(node_modules|__tests?__)(/|$))").unwrap()
+                });
+                static FORBIDDEN_MATCH: LazyLock<Regex> =
+                    LazyLock::new(|| Regex::new(r"\.d\.ts$|\.map$").unwrap());
                 if let Some(m) = FORBIDDEN.find(value) {
                     MatchResult::Consumed {
                         remaining: value,
@@ -1037,11 +1037,11 @@ impl Pattern {
                 }
             }
             Pattern::Dynamic => {
-                lazy_static! {
-                    static ref FORBIDDEN: Regex =
-                        Regex::new(r"(/|^)(\.|(node_modules|__tests?__)(/|$))").unwrap();
-                    static ref FORBIDDEN_MATCH: Regex = Regex::new(r"\.d\.ts$|\.map$").unwrap();
-                }
+                static FORBIDDEN: LazyLock<Regex> = LazyLock::new(|| {
+                    Regex::new(r"(/|^)(\.|(node_modules|__tests?__)(/|$))").unwrap()
+                });
+                static FORBIDDEN_MATCH: LazyLock<Regex> =
+                    LazyLock::new(|| Regex::new(r"\.d\.ts$|\.map$").unwrap());
                 if let Some(m) = FORBIDDEN.find(value) {
                     NextConstantUntilResult::Consumed(value, Some(m.start()))
                 } else if FORBIDDEN_MATCH.find(value).is_some() {
