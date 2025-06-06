@@ -18,6 +18,13 @@ describe('chrome-devtools-workspace default', () => {
           root: next.testDir,
         },
       })
+
+      const pageReload = await next.fetch(
+        '/.well-known/appspecific/com.chrome.devtools.json'
+      )
+      // The UUID should be stable across reloads.
+      // Otherwise you'd have to reconnect every-time.
+      expect(await pageReload.json()).toEqual(json)
     } else {
       expect({ status: devtoolsResponse.status }).toEqual({ status: 404 })
     }

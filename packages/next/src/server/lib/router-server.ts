@@ -7,7 +7,6 @@ import type { NextUrlWithParsedQuery, RequestMeta } from '../request-meta'
 import '../node-environment'
 import '../require-hook'
 
-import { randomUUID } from 'crypto'
 import url from 'url'
 import path from 'path'
 import loadConfig from '../config'
@@ -56,6 +55,10 @@ import {
   RouterServerContextSymbol,
   routerServerGlobal,
 } from './router-utils/router-server-context'
+import {
+  handleChromeDevtoolsWorkspaceRequest,
+  isChromeDevtoolsWorkspaceUrl,
+} from './chrome-devtools-workspace'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -571,23 +574,8 @@ export async function initialize(opts: {
         )
       }
 
-      if (
-        opts.dev &&
-        parsedUrl.pathname ===
-          '/.well-known/appspecific/com.chrome.devtools.json'
-      ) {
-        // This is a special path used by Chrome DevTools to connect to the
-        // Next.js development server. We need to handle it separately.
-        res.setHeader('Content-Type', 'application/json')
-        res.end(
-          JSON.stringify({
-            workspace: {
-              // TODO: Generate a unique ID for the workspace
-              uuid: randomUUID(),
-              root: opts.dir,
-            },
-          })
-        )
+      if (opts.dev && isChromeDevtoolsWorkspaceUrl(parsedUrl)) {
+        await handleChromeDevtoolsWorkspaceRequest(res, opts, config)
         return
       }
 

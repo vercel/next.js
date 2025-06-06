@@ -695,5 +695,6 @@
   "694": "createPrerenderPathname was called inside a client component scope.",
   "695": "Expected workUnitAsyncStorage to have a store.",
   "696": "Next DevTools: Can't dispatch %s in this environment. This is a bug in Next.js",
-  "697": "Next DevTools: Can't render in this environment. This is a bug in Next.js"
+  "697": "Next DevTools: Can't render in this environment. This is a bug in Next.js",
+  "698": "Failed to persist Chrome DevTools workspace UUID. The Chrome DevTools Workspace needs to be reconnected after the next page reload."
 }
