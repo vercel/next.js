@@ -1,6 +1,5 @@
-use std::iter::FromIterator;
+use std::{iter::FromIterator, sync::LazyLock};
 
-use lazy_static::lazy_static;
 use rustc_hash::FxHashSet;
 use swc_core::{
     atoms::atom,
@@ -15,15 +14,15 @@ use swc_core::{
 
 use super::{ExportInfo, ExportInfoWarning};
 
-lazy_static! {
-    static ref EXPORTS_SET: FxHashSet<&'static str> = FxHashSet::from_iter([
+static EXPORTS_SET: LazyLock<FxHashSet<&'static str>> = LazyLock::new(|| {
+    FxHashSet::from_iter([
         "getStaticProps",
         "getServerSideProps",
         "generateImageMetadata",
         "generateSitemaps",
         "generateStaticParams",
-    ]);
-}
+    ])
+});
 
 pub(crate) struct CollectExportsVisitor {
     pub export_info: Option<ExportInfo>,
