@@ -2,7 +2,7 @@ use anyhow::Result;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Upcast, Value, Vc, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Upcast, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
 
@@ -205,7 +205,7 @@ pub trait ChunkingContext {
         &self,
         module: Vc<Box<dyn ChunkableModule>>,
         module_graph: Vc<ModuleGraph>,
-        availability_info: Value<AvailabilityInfo>,
+        availability_info: AvailabilityInfo,
     ) -> Vc<Box<dyn ChunkItem>>;
     fn async_loader_chunk_item_id(&self, module: Vc<Box<dyn ChunkableModule>>) -> Vc<ModuleId>;
 
@@ -214,7 +214,7 @@ pub trait ChunkingContext {
         ident: Vc<AssetIdent>,
         chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
-        availability_info: Value<AvailabilityInfo>,
+        availability_info: AvailabilityInfo,
     ) -> Vc<ChunkGroupResult>;
 
     fn evaluated_chunk_group(
@@ -222,7 +222,7 @@ pub trait ChunkingContext {
         ident: Vc<AssetIdent>,
         chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
-        availability_info: Value<AvailabilityInfo>,
+        availability_info: AvailabilityInfo,
     ) -> Vc<ChunkGroupResult>;
 
     /// Generates an output chunk that:
@@ -235,7 +235,7 @@ pub trait ChunkingContext {
         evaluatable_assets: Vc<EvaluatableAssets>,
         module_graph: Vc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
-        availability_info: Value<AvailabilityInfo>,
+        availability_info: AvailabilityInfo,
     ) -> Result<Vc<EntryChunkGroupResult>>;
 
     async fn chunk_item_id_from_ident(
@@ -275,7 +275,7 @@ pub trait ChunkingContextExt {
         ident: Vc<AssetIdent>,
         chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
-        availability_info: Value<AvailabilityInfo>,
+        availability_info: AvailabilityInfo,
     ) -> Vc<OutputAssets>
     where
         Self: Send;
@@ -286,7 +286,7 @@ pub trait ChunkingContextExt {
         evaluatable_assets: Vc<EvaluatableAssets>,
         module_graph: Vc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
-        availability_info: Value<AvailabilityInfo>,
+        availability_info: AvailabilityInfo,
     ) -> Vc<Box<dyn OutputAsset>>
     where
         Self: Send;
@@ -316,7 +316,7 @@ pub trait ChunkingContextExt {
         ident: Vc<AssetIdent>,
         chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
-        availability_info: Value<AvailabilityInfo>,
+        availability_info: AvailabilityInfo,
     ) -> Vc<OutputAssets>
     where
         Self: Send;
@@ -329,12 +329,7 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
         chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
     ) -> Vc<ChunkGroupResult> {
-        self.chunk_group(
-            ident,
-            chunk_group,
-            module_graph,
-            Value::new(AvailabilityInfo::Root),
-        )
+        self.chunk_group(ident, chunk_group, module_graph, AvailabilityInfo::Root)
     }
 
     fn root_chunk_group_assets(
@@ -351,7 +346,7 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
         ident: Vc<AssetIdent>,
         chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
-        availability_info: Value<AvailabilityInfo>,
+        availability_info: AvailabilityInfo,
     ) -> Vc<OutputAssets> {
         evaluated_chunk_group_assets(
             Vc::upcast(self),
@@ -368,7 +363,7 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
         evaluatable_assets: Vc<EvaluatableAssets>,
         module_graph: Vc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
-        availability_info: Value<AvailabilityInfo>,
+        availability_info: AvailabilityInfo,
     ) -> Vc<Box<dyn OutputAsset>> {
         entry_chunk_group_asset(
             Vc::upcast(self),
@@ -392,7 +387,7 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
             evaluatable_assets,
             module_graph,
             extra_chunks,
-            Value::new(AvailabilityInfo::Root),
+            AvailabilityInfo::Root,
         )
     }
 
@@ -409,7 +404,7 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
             evaluatable_assets,
             module_graph,
             extra_chunks,
-            Value::new(AvailabilityInfo::Root),
+            AvailabilityInfo::Root,
         )
     }
 
@@ -418,7 +413,7 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
         ident: Vc<AssetIdent>,
         chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
-        availability_info: Value<AvailabilityInfo>,
+        availability_info: AvailabilityInfo,
     ) -> Vc<OutputAssets> {
         chunk_group_assets(
             Vc::upcast(self),
@@ -449,7 +444,7 @@ async fn evaluated_chunk_group_assets(
     ident: Vc<AssetIdent>,
     chunk_group: ChunkGroup,
     module_graph: Vc<ModuleGraph>,
-    availability_info: Value<AvailabilityInfo>,
+    availability_info: AvailabilityInfo,
 ) -> Result<Vc<OutputAssets>> {
     Ok(*chunking_context
         .evaluated_chunk_group(ident, chunk_group, module_graph, availability_info)
@@ -464,7 +459,7 @@ async fn entry_chunk_group_asset(
     evaluatable_assets: Vc<EvaluatableAssets>,
     module_graph: Vc<ModuleGraph>,
     extra_chunks: Vc<OutputAssets>,
-    availability_info: Value<AvailabilityInfo>,
+    availability_info: AvailabilityInfo,
 ) -> Result<Vc<Box<dyn OutputAsset>>> {
     Ok(*chunking_context
         .entry_chunk_group(
@@ -484,7 +479,7 @@ async fn chunk_group_assets(
     ident: Vc<AssetIdent>,
     chunk_group: ChunkGroup,
     module_graph: Vc<ModuleGraph>,
-    availability_info: Value<AvailabilityInfo>,
+    availability_info: AvailabilityInfo,
 ) -> Result<Vc<OutputAssets>> {
     Ok(*chunking_context
         .chunk_group(ident, chunk_group, module_graph, availability_info)

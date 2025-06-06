@@ -411,7 +411,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 entry_module.ident(),
                 ChunkGroup::Entry(all_modules.into_iter().collect()),
                 module_graph,
-                Value::new(AvailabilityInfo::Root),
+                AvailabilityInfo::Root,
             ),
             Runtime::NodeJs => {
                 Vc::cell(vec![
@@ -435,7 +435,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                             evaluatable_assets,
                             module_graph,
                             OutputAssets::empty(),
-                            Value::new(AvailabilityInfo::Root),
+                            AvailabilityInfo::Root,
                         )
                         .await?
                         .asset,

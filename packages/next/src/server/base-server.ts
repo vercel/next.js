@@ -2106,7 +2106,8 @@ export default abstract class Server<
         // The hash sent by the client does not match the expected value.
         // Respond with an error.
         res.statusCode = 400
-        res.body('Bad Request').send()
+        res.setHeader('content-type', 'text/plain')
+        res.body('').send()
         return null
       }
     }

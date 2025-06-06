@@ -25,6 +25,7 @@ import {
 import {
   createFetch,
   createFromNextReadableStream,
+  type RSCResponse,
   type RequestHeaders,
 } from '../router-reducer/fetch-server-response'
 import {
@@ -997,6 +998,8 @@ export async function fetchRouteOnCacheMiss(
   }
 
   // In output: "export" mode, we need to add the segment path to the URL.
+  // TODO: Consider moving this to `createFetch`, where we do similar logic for
+  // manipulating the request URL to encode extra information.
   const url = new URL(href)
   const requestUrl = isOutputExportMode
     ? addSegmentPathToUrlInOutputExportMode(url, segmentPath)
@@ -1372,7 +1375,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
 function writeDynamicTreeResponseIntoCache(
   now: number,
   task: PrefetchTask,
-  response: Response,
+  response: RSCResponse,
   serverData: NavigationFlightResponse,
   entry: PendingRouteCacheEntry,
   couldBeIntercepted: boolean,
@@ -1462,7 +1465,7 @@ function rejectSegmentEntriesIfStillPending(
 function writeDynamicRenderResponseIntoCache(
   now: number,
   task: PrefetchTask,
-  response: Response,
+  response: RSCResponse,
   serverData: NavigationFlightResponse,
   isResponsePartial: boolean,
   route: FulfilledRouteCacheEntry,
@@ -1629,7 +1632,7 @@ function writeSeedDataIntoCache(
 async function fetchPrefetchResponse(
   url: URL,
   headers: RequestHeaders
-): Promise<Response | null> {
+): Promise<RSCResponse | null> {
   const fetchPriority = 'low'
   const response = await createFetch(url, headers, fetchPriority)
   if (!response.ok) {
