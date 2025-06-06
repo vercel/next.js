@@ -19455,14 +19455,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_2209 = React.version;
 if (
-  "19.2.0-experimental-b4477d38-20250605" !==
+  "19.2.0-experimental-ab859e31-20250606" !==
   isomorphicReactPackageVersion$jscomp$inline_2209
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_2209,
-      "19.2.0-experimental-b4477d38-20250605"
+      "19.2.0-experimental-ab859e31-20250606"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -19484,10 +19484,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 };
 var internals$jscomp$inline_2899 = {
   bundleType: 0,
-  version: "19.2.0-experimental-b4477d38-20250605",
+  version: "19.2.0-experimental-ab859e31-20250606",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.2.0-experimental-b4477d38-20250605"
+  reconcilerVersion: "19.2.0-experimental-ab859e31-20250606"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
   var hook$jscomp$inline_2900 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -19745,4 +19745,4 @@ exports.observeVisibleRects = function (
     }
   };
 };
-exports.version = "19.2.0-experimental-b4477d38-20250605";
+exports.version = "19.2.0-experimental-ab859e31-20250606";

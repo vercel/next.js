@@ -6759,7 +6759,7 @@ function flushCompletedBoundary(request, destination, boundary) {
             ((completedSegments.instructions |= 256),
             writeChunk(
               destination,
-              '$RV=function(w,f){function h(a,d){var k=a.getAttribute(d);k&&(d=a.style,l.push(a,d.viewTransitionName,d.viewTransitionClass),"auto"!==k&&(d.viewTransitionClass=k),(a=a.getAttribute("vt-name"))||(a="_T_"+F++ +"_"),d.viewTransitionName=a,x=!0)}var x=!1,F=0,l=[];try{var e=document.__reactViewTransition;if(e){e.finished.finally($RV.bind(null,f));return}var m=new Map;for(e=1;e<f.length;e+=2)for(var g=f[e].querySelectorAll("[vt-share]"),c=0;c<g.length;c++){var b=g[c];m.set(b.getAttribute("vt-name"),b)}for(g=0;g<f.length;g+=2){var y=f[g],t=y.parentNode;if(t){var r=t.getBoundingClientRect();if(r.left||r.top||r.width||r.height){b=y;for(e=0;b;){if(8===b.nodeType){var p=b.data;if("/$"===p)if(0===e)break;else e--;else"$"!==p&&"$?"!==p&&"$~"!==p&&"$!"!==p||e++}else if(1===b.nodeType){c=b;var z=c.getAttribute("vt-name"),u=m.get(z);h(c,u?"vt-share":"vt-exit");u&&(h(u,"vt-share"),m.set(z,null));var A=c.querySelectorAll("[vt-share]");for(c=0;c<A.length;c++){var B=A[c],C=B.getAttribute("vt-name"),D=m.get(C);\nD&&(h(B,"vt-share"),h(D,"vt-share"),m.set(C,null))}}b=b.nextSibling}for(var q=f[g+1].firstElementChild;q;)null!==m.get(q.getAttribute("vt-name"))&&h(q,"vt-enter"),q=q.nextElementSibling;b=t;do for(var n=b.firstElementChild;n;){var E=n.getAttribute("vt-update");E&&"none"!==E&&!l.includes(n)&&h(n,"vt-update");n=n.nextElementSibling}while((b=b.parentNode)&&1===b.nodeType&&"none"!==b.getAttribute("vt-update"))}}}if(x){var v=document.__reactViewTransition=document.startViewTransition({update:function(){w(f,\ndocument.documentElement.clientHeight);return Promise.race([document.fonts.ready,new Promise(function(a){return setTimeout(a,500)})])},types:[]});v.ready.finally(function(){for(var a=l.length-3;0<=a;a-=3){var d=l[a],k=d.style;k.viewTransitionName=l[a+1];k.viewTransitionClass=l[a+1];""===d.getAttribute("style")&&d.removeAttribute("style")}});v.finished.finally(function(){document.__reactViewTransition===v&&(document.__reactViewTransition=null)});$RB=[];return}}catch(a){}w(f)}.bind(null,$RV);'
+              '$RV=function(z,g){function k(a,b){var e=a.getAttribute(b);e&&(b=a.style,l.push(a,b.viewTransitionName,b.viewTransitionClass),"auto"!==e&&(b.viewTransitionClass=e),(a=a.getAttribute("vt-name"))||(a="_T_"+K++ +"_"),b.viewTransitionName=a,A=!0)}var A=!1,K=0,l=[];try{var f=document.__reactViewTransition;if(f){f.finished.finally($RV.bind(null,g));return}var m=new Map;for(f=1;f<g.length;f+=2)for(var h=g[f].querySelectorAll("[vt-share]"),d=0;d<h.length;d++){var c=h[d];m.set(c.getAttribute("vt-name"),c)}var t=[];for(h=0;h<g.length;h+=2){var B=g[h],w=B.parentNode;if(w){var u=w.getBoundingClientRect();if(u.left||u.top||u.width||u.height){c=B;for(f=0;c;){if(8===c.nodeType){var q=c.data;if("/$"===q)if(0===f)break;else f--;else"$"!==q&&"$?"!==q&&"$~"!==q&&"$!"!==q||f++}else if(1===c.nodeType){d=c;var C=d.getAttribute("vt-name"),x=m.get(C);k(d,x?"vt-share":"vt-exit");x&&(k(x,"vt-share"),m.set(C,null));var D=d.querySelectorAll("[vt-share]");for(d=0;d<D.length;d++){var E=D[d],F=E.getAttribute("vt-name"),\nG=m.get(F);G&&(k(E,"vt-share"),k(G,"vt-share"),m.set(F,null))}}c=c.nextSibling}for(var H=g[h+1],r=H.firstElementChild;r;)null!==m.get(r.getAttribute("vt-name"))&&k(r,"vt-enter"),r=r.nextElementSibling;c=w;do for(var n=c.firstElementChild;n;){var I=n.getAttribute("vt-update");I&&"none"!==I&&!l.includes(n)&&k(n,"vt-update");n=n.nextElementSibling}while((c=c.parentNode)&&1===c.nodeType&&"none"!==c.getAttribute("vt-update"));t.push.apply(t,H.querySelectorAll(\'img[src]:not([loading="lazy"])\'))}}}if(A){var y=\ndocument.__reactViewTransition=document.startViewTransition({update:function(){z(g);for(var a=[document.documentElement.clientHeight,document.fonts.ready],b={},e=0;e<t.length;b={g:b.g},e++)if(b.g=t[e],!b.g.complete){var p=b.g.getBoundingClientRect();0<p.bottom&&0<p.right&&p.top<window.innerHeight&&p.left<window.innerWidth&&(p=new Promise(function(v){return function(J){v.g.addEventListener("load",J);v.g.addEventListener("error",J)}}(b)),a.push(p))}return Promise.race([Promise.all(a),new Promise(function(v){return setTimeout(v,\n500)})])},types:[]});y.ready.finally(function(){for(var a=l.length-3;0<=a;a-=3){var b=l[a],e=b.style;e.viewTransitionName=l[a+1];e.viewTransitionClass=l[a+1];""===b.getAttribute("style")&&b.removeAttribute("style")}});y.finished.finally(function(){document.__reactViewTransition===y&&(document.__reactViewTransition=null)});$RB=[];return}}catch(a){}z(g)}.bind(null,$RV);'
             )),
           0 === (completedSegments.instructions & 8)
             ? ((completedSegments.instructions |= 8),
@@ -6779,7 +6779,7 @@ function flushCompletedBoundary(request, destination, boundary) {
             ((completedSegments.instructions |= 256),
             writeChunk(
               destination,
-              '$RV=function(w,f){function h(a,d){var k=a.getAttribute(d);k&&(d=a.style,l.push(a,d.viewTransitionName,d.viewTransitionClass),"auto"!==k&&(d.viewTransitionClass=k),(a=a.getAttribute("vt-name"))||(a="_T_"+F++ +"_"),d.viewTransitionName=a,x=!0)}var x=!1,F=0,l=[];try{var e=document.__reactViewTransition;if(e){e.finished.finally($RV.bind(null,f));return}var m=new Map;for(e=1;e<f.length;e+=2)for(var g=f[e].querySelectorAll("[vt-share]"),c=0;c<g.length;c++){var b=g[c];m.set(b.getAttribute("vt-name"),b)}for(g=0;g<f.length;g+=2){var y=f[g],t=y.parentNode;if(t){var r=t.getBoundingClientRect();if(r.left||r.top||r.width||r.height){b=y;for(e=0;b;){if(8===b.nodeType){var p=b.data;if("/$"===p)if(0===e)break;else e--;else"$"!==p&&"$?"!==p&&"$~"!==p&&"$!"!==p||e++}else if(1===b.nodeType){c=b;var z=c.getAttribute("vt-name"),u=m.get(z);h(c,u?"vt-share":"vt-exit");u&&(h(u,"vt-share"),m.set(z,null));var A=c.querySelectorAll("[vt-share]");for(c=0;c<A.length;c++){var B=A[c],C=B.getAttribute("vt-name"),D=m.get(C);\nD&&(h(B,"vt-share"),h(D,"vt-share"),m.set(C,null))}}b=b.nextSibling}for(var q=f[g+1].firstElementChild;q;)null!==m.get(q.getAttribute("vt-name"))&&h(q,"vt-enter"),q=q.nextElementSibling;b=t;do for(var n=b.firstElementChild;n;){var E=n.getAttribute("vt-update");E&&"none"!==E&&!l.includes(n)&&h(n,"vt-update");n=n.nextElementSibling}while((b=b.parentNode)&&1===b.nodeType&&"none"!==b.getAttribute("vt-update"))}}}if(x){var v=document.__reactViewTransition=document.startViewTransition({update:function(){w(f,\ndocument.documentElement.clientHeight);return Promise.race([document.fonts.ready,new Promise(function(a){return setTimeout(a,500)})])},types:[]});v.ready.finally(function(){for(var a=l.length-3;0<=a;a-=3){var d=l[a],k=d.style;k.viewTransitionName=l[a+1];k.viewTransitionClass=l[a+1];""===d.getAttribute("style")&&d.removeAttribute("style")}});v.finished.finally(function(){document.__reactViewTransition===v&&(document.__reactViewTransition=null)});$RB=[];return}}catch(a){}w(f)}.bind(null,$RV);'
+              '$RV=function(z,g){function k(a,b){var e=a.getAttribute(b);e&&(b=a.style,l.push(a,b.viewTransitionName,b.viewTransitionClass),"auto"!==e&&(b.viewTransitionClass=e),(a=a.getAttribute("vt-name"))||(a="_T_"+K++ +"_"),b.viewTransitionName=a,A=!0)}var A=!1,K=0,l=[];try{var f=document.__reactViewTransition;if(f){f.finished.finally($RV.bind(null,g));return}var m=new Map;for(f=1;f<g.length;f+=2)for(var h=g[f].querySelectorAll("[vt-share]"),d=0;d<h.length;d++){var c=h[d];m.set(c.getAttribute("vt-name"),c)}var t=[];for(h=0;h<g.length;h+=2){var B=g[h],w=B.parentNode;if(w){var u=w.getBoundingClientRect();if(u.left||u.top||u.width||u.height){c=B;for(f=0;c;){if(8===c.nodeType){var q=c.data;if("/$"===q)if(0===f)break;else f--;else"$"!==q&&"$?"!==q&&"$~"!==q&&"$!"!==q||f++}else if(1===c.nodeType){d=c;var C=d.getAttribute("vt-name"),x=m.get(C);k(d,x?"vt-share":"vt-exit");x&&(k(x,"vt-share"),m.set(C,null));var D=d.querySelectorAll("[vt-share]");for(d=0;d<D.length;d++){var E=D[d],F=E.getAttribute("vt-name"),\nG=m.get(F);G&&(k(E,"vt-share"),k(G,"vt-share"),m.set(F,null))}}c=c.nextSibling}for(var H=g[h+1],r=H.firstElementChild;r;)null!==m.get(r.getAttribute("vt-name"))&&k(r,"vt-enter"),r=r.nextElementSibling;c=w;do for(var n=c.firstElementChild;n;){var I=n.getAttribute("vt-update");I&&"none"!==I&&!l.includes(n)&&k(n,"vt-update");n=n.nextElementSibling}while((c=c.parentNode)&&1===c.nodeType&&"none"!==c.getAttribute("vt-update"));t.push.apply(t,H.querySelectorAll(\'img[src]:not([loading="lazy"])\'))}}}if(A){var y=\ndocument.__reactViewTransition=document.startViewTransition({update:function(){z(g);for(var a=[document.documentElement.clientHeight,document.fonts.ready],b={},e=0;e<t.length;b={g:b.g},e++)if(b.g=t[e],!b.g.complete){var p=b.g.getBoundingClientRect();0<p.bottom&&0<p.right&&p.top<window.innerHeight&&p.left<window.innerWidth&&(p=new Promise(function(v){return function(J){v.g.addEventListener("load",J);v.g.addEventListener("error",J)}}(b)),a.push(p))}return Promise.race([Promise.all(a),new Promise(function(v){return setTimeout(v,\n500)})])},types:[]});y.ready.finally(function(){for(var a=l.length-3;0<=a;a-=3){var b=l[a],e=b.style;e.viewTransitionName=l[a+1];e.viewTransitionClass=l[a+1];""===b.getAttribute("style")&&b.removeAttribute("style")}});y.finished.finally(function(){document.__reactViewTransition===y&&(document.__reactViewTransition=null)});$RB=[];return}}catch(a){}z(g)}.bind(null,$RV);'
             )),
           writeChunk(destination, '$RC("')))
     : requiresStyleInsertion
@@ -6860,6 +6860,20 @@ function flushCompletedQueues(request, destination) {
         var completedPreambleSegments = request.completedPreambleSegments;
         if (null === completedPreambleSegments) return;
         flushedByteSize = request.byteSize;
+        var skipBlockingShell = !1,
+          blockingRenderMaxSize = 40 * request.progressiveChunkSize;
+        flushedByteSize > blockingRenderMaxSize &&
+          ((skipBlockingShell = !0),
+          logRecoverableError(
+            request,
+            Error(
+              "This rendered a large document (>" +
+                Math.round(blockingRenderMaxSize / 1e3) +
+                ") without any Suspense boundaries around most of it. That can delay initial paint longer than necessary. To improve load performance, add a <Suspense> or <SuspenseList> around the content you expect to be below the header or below the fold. In the meantime, the content will deopt to paint arbitrary incomplete pieces of HTML."
+            ),
+            {},
+            null
+          ));
         var resumableState = request.resumableState,
           renderState = request.renderState;
         if (renderState.externalRuntimeScript) {
@@ -6912,7 +6926,9 @@ function flushCompletedQueues(request, destination) {
         renderState.scripts.clear();
         renderState.bulkPreloads.forEach(flushResource, destination);
         renderState.bulkPreloads.clear();
-        if (htmlChunks || headChunks) {
+        if ((!htmlChunks && !headChunks) || skipBlockingShell)
+          resumableState.instructions |= 32;
+        else {
           var shellId = "_" + resumableState.idPrefix + "R_";
           writeChunk(destination, '<link rel="expect" href="#');
           writeChunk(destination, escapeTextForBrowser(shellId));
@@ -7205,15 +7221,15 @@ function addToReplayParent(node, parentKeyPath, trackedPostpones) {
     parentNode[2].push(node);
   }
 }
-var isomorphicReactPackageVersion$jscomp$inline_865 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_866 = React.version;
 if (
-  "19.2.0-experimental-b4477d38-20250605" !==
-  isomorphicReactPackageVersion$jscomp$inline_865
+  "19.2.0-experimental-ab859e31-20250606" !==
+  isomorphicReactPackageVersion$jscomp$inline_866
 )
   throw Error(
     'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
-      (isomorphicReactPackageVersion$jscomp$inline_865 +
-        "\n  - react-dom:  19.2.0-experimental-b4477d38-20250605\nLearn more: https://react.dev/warnings/version-mismatch")
+      (isomorphicReactPackageVersion$jscomp$inline_866 +
+        "\n  - react-dom:  19.2.0-experimental-ab859e31-20250606\nLearn more: https://react.dev/warnings/version-mismatch")
   );
 exports.renderToReadableStream = function (children, options) {
   return new Promise(function (resolve, reject) {
@@ -7304,4 +7320,4 @@ exports.renderToReadableStream = function (children, options) {
     startWork(request);
   });
 };
-exports.version = "19.2.0-experimental-b4477d38-20250605";
+exports.version = "19.2.0-experimental-ab859e31-20250606";

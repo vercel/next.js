@@ -7727,7 +7727,8 @@
             var completedPreambleSegments = request.completedPreambleSegments;
             if (null === completedPreambleSegments) return;
             flushedByteSize = request.byteSize;
-            var renderState = request.renderState,
+            var resumableState = request.resumableState,
+              renderState = request.renderState,
               preamble = renderState.preamble,
               htmlChunks = preamble.htmlChunks,
               headChunks = preamble.headChunks,
@@ -7788,6 +7789,7 @@
             renderState.scripts.clear();
             renderState.bulkPreloads.forEach(flushResource, destination);
             renderState.bulkPreloads.clear();
+            resumableState.instructions |= SentCompletedShellId;
             var hoistableChunks = renderState.hoistableChunks;
             for (
               i$jscomp$0 = 0;
@@ -7796,13 +7798,17 @@
             )
               destination.push(hoistableChunks[i$jscomp$0]);
             for (
-              renderState = hoistableChunks.length = 0;
-              renderState < completedPreambleSegments.length;
-              renderState++
+              resumableState = hoistableChunks.length = 0;
+              resumableState < completedPreambleSegments.length;
+              resumableState++
             ) {
-              var segments = completedPreambleSegments[renderState];
-              for (preamble = 0; preamble < segments.length; preamble++)
-                flushSegment(request, destination, segments[preamble], null);
+              var segments = completedPreambleSegments[resumableState];
+              for (
+                renderState = 0;
+                renderState < segments.length;
+                renderState++
+              )
+                flushSegment(request, destination, segments[renderState], null);
             }
             var preamble$jscomp$0 = request.renderState.preamble,
               headChunks$jscomp$0 = preamble$jscomp$0.headChunks;
@@ -7829,19 +7835,20 @@
                 (0 !== request.trackedPostpones.rootNodes.length ||
                   null !== request.trackedPostpones.rootSlots))
             ) {
-              var resumableState = request.resumableState;
+              var resumableState$jscomp$0 = request.resumableState;
               if (
-                (resumableState.instructions & SentMarkShellTime) ===
+                (resumableState$jscomp$0.instructions & SentMarkShellTime) ===
                 NothingSent
               ) {
-                resumableState.instructions |= SentMarkShellTime;
+                resumableState$jscomp$0.instructions |= SentMarkShellTime;
                 destination.push(renderState$jscomp$0.startInlineScript);
                 if (
-                  (resumableState.instructions & SentCompletedShellId) ===
+                  (resumableState$jscomp$0.instructions &
+                    SentCompletedShellId) ===
                   NothingSent
                 ) {
-                  resumableState.instructions |= SentCompletedShellId;
-                  var shellId = "_" + resumableState.idPrefix + "R_";
+                  resumableState$jscomp$0.instructions |= SentCompletedShellId;
+                  var shellId = "_" + resumableState$jscomp$0.idPrefix + "R_";
                   destination.push(completedShellIdAttributeStart);
                   var chunk$jscomp$1 = escapeTextForBrowser(shellId);
                   destination.push(chunk$jscomp$1);
@@ -7890,7 +7897,7 @@
           for (i = 0; i < clientRenderedBoundaries.length; i++) {
             var boundary = clientRenderedBoundaries[i];
             renderState$jscomp$1 = destination;
-            var resumableState$jscomp$0 = request.resumableState,
+            var resumableState$jscomp$1 = request.resumableState,
               renderState$jscomp$2 = request.renderState,
               id = boundary.rootSegmentID,
               errorDigest = boundary.errorDigest,
@@ -7899,10 +7906,10 @@
               errorComponentStack = boundary.errorComponentStack;
             renderState$jscomp$1.push(renderState$jscomp$2.startInlineScript);
             renderState$jscomp$1.push(endOfStartTag);
-            (resumableState$jscomp$0.instructions &
+            (resumableState$jscomp$1.instructions &
               SentClientRenderFunction) ===
             NothingSent
-              ? ((resumableState$jscomp$0.instructions |=
+              ? ((resumableState$jscomp$1.instructions |=
                   SentClientRenderFunction),
                 renderState$jscomp$1.push(clientRenderScript1Full))
               : renderState$jscomp$1.push(clientRenderScript1Partial);
@@ -9648,5 +9655,5 @@
         'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToPipeableStream" which supports Suspense on the server'
       );
     };
-    exports.version = "19.2.0-canary-b4477d38-20250605";
+    exports.version = "19.2.0-canary-ab859e31-20250606";
   })();

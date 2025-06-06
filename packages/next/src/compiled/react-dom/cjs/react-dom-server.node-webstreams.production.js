@@ -2464,8 +2464,8 @@ stringToPrecomputedChunk('" data-pid="');
 var completeBoundaryScriptFunctionOnly = stringToPrecomputedChunk(
   '$RB=[];$RV=function(c){$RT=performance.now();for(var a=0;a<c.length;a+=2){var b=c[a],h=c[a+1],e=b.parentNode;if(e){var f=b.previousSibling,g=0;do{if(b&&8===b.nodeType){var d=b.data;if("/$"===d||"/&"===d)if(0===g)break;else g--;else"$"!==d&&"$?"!==d&&"$~"!==d&&"$!"!==d&&"&"!==d||g++}d=b.nextSibling;e.removeChild(b);b=d}while(b);for(;h.firstChild;)e.insertBefore(h.firstChild,b);f.data="$";f._reactRetry&&f._reactRetry()}}c.length=0};$RC=function(c,a){if(a=document.getElementById(a))if(a.parentNode.removeChild(a),c=document.getElementById(c))c.previousSibling.data="$~",$RB.push(c,a),2===$RB.length&&setTimeout($RV.bind(null,$RB),("number"!==typeof $RT?0:$RT)+300-performance.now())};'
 );
-stringToPrecomputedChunk(
-  '$RV=function(w,f){function h(a,d){var k=a.getAttribute(d);k&&(d=a.style,l.push(a,d.viewTransitionName,d.viewTransitionClass),"auto"!==k&&(d.viewTransitionClass=k),(a=a.getAttribute("vt-name"))||(a="_T_"+F++ +"_"),d.viewTransitionName=a,x=!0)}var x=!1,F=0,l=[];try{var e=document.__reactViewTransition;if(e){e.finished.finally($RV.bind(null,f));return}var m=new Map;for(e=1;e<f.length;e+=2)for(var g=f[e].querySelectorAll("[vt-share]"),c=0;c<g.length;c++){var b=g[c];m.set(b.getAttribute("vt-name"),b)}for(g=0;g<f.length;g+=2){var y=f[g],t=y.parentNode;if(t){var r=t.getBoundingClientRect();if(r.left||r.top||r.width||r.height){b=y;for(e=0;b;){if(8===b.nodeType){var p=b.data;if("/$"===p)if(0===e)break;else e--;else"$"!==p&&"$?"!==p&&"$~"!==p&&"$!"!==p||e++}else if(1===b.nodeType){c=b;var z=c.getAttribute("vt-name"),u=m.get(z);h(c,u?"vt-share":"vt-exit");u&&(h(u,"vt-share"),m.set(z,null));var A=c.querySelectorAll("[vt-share]");for(c=0;c<A.length;c++){var B=A[c],C=B.getAttribute("vt-name"),D=m.get(C);\nD&&(h(B,"vt-share"),h(D,"vt-share"),m.set(C,null))}}b=b.nextSibling}for(var q=f[g+1].firstElementChild;q;)null!==m.get(q.getAttribute("vt-name"))&&h(q,"vt-enter"),q=q.nextElementSibling;b=t;do for(var n=b.firstElementChild;n;){var E=n.getAttribute("vt-update");E&&"none"!==E&&!l.includes(n)&&h(n,"vt-update");n=n.nextElementSibling}while((b=b.parentNode)&&1===b.nodeType&&"none"!==b.getAttribute("vt-update"))}}}if(x){var v=document.__reactViewTransition=document.startViewTransition({update:function(){w(f,\ndocument.documentElement.clientHeight);return Promise.race([document.fonts.ready,new Promise(function(a){return setTimeout(a,500)})])},types:[]});v.ready.finally(function(){for(var a=l.length-3;0<=a;a-=3){var d=l[a],k=d.style;k.viewTransitionName=l[a+1];k.viewTransitionClass=l[a+1];""===d.getAttribute("style")&&d.removeAttribute("style")}});v.finished.finally(function(){document.__reactViewTransition===v&&(document.__reactViewTransition=null)});$RB=[];return}}catch(a){}w(f)}.bind(null,$RV);'
+stringToChunk(
+  '$RV=function(z,g){function k(a,b){var e=a.getAttribute(b);e&&(b=a.style,l.push(a,b.viewTransitionName,b.viewTransitionClass),"auto"!==e&&(b.viewTransitionClass=e),(a=a.getAttribute("vt-name"))||(a="_T_"+K++ +"_"),b.viewTransitionName=a,A=!0)}var A=!1,K=0,l=[];try{var f=document.__reactViewTransition;if(f){f.finished.finally($RV.bind(null,g));return}var m=new Map;for(f=1;f<g.length;f+=2)for(var h=g[f].querySelectorAll("[vt-share]"),d=0;d<h.length;d++){var c=h[d];m.set(c.getAttribute("vt-name"),c)}var t=[];for(h=0;h<g.length;h+=2){var B=g[h],w=B.parentNode;if(w){var u=w.getBoundingClientRect();if(u.left||u.top||u.width||u.height){c=B;for(f=0;c;){if(8===c.nodeType){var q=c.data;if("/$"===q)if(0===f)break;else f--;else"$"!==q&&"$?"!==q&&"$~"!==q&&"$!"!==q||f++}else if(1===c.nodeType){d=c;var C=d.getAttribute("vt-name"),x=m.get(C);k(d,x?"vt-share":"vt-exit");x&&(k(x,"vt-share"),m.set(C,null));var D=d.querySelectorAll("[vt-share]");for(d=0;d<D.length;d++){var E=D[d],F=E.getAttribute("vt-name"),\nG=m.get(F);G&&(k(E,"vt-share"),k(G,"vt-share"),m.set(F,null))}}c=c.nextSibling}for(var H=g[h+1],r=H.firstElementChild;r;)null!==m.get(r.getAttribute("vt-name"))&&k(r,"vt-enter"),r=r.nextElementSibling;c=w;do for(var n=c.firstElementChild;n;){var I=n.getAttribute("vt-update");I&&"none"!==I&&!l.includes(n)&&k(n,"vt-update");n=n.nextElementSibling}while((c=c.parentNode)&&1===c.nodeType&&"none"!==c.getAttribute("vt-update"));t.push.apply(t,H.querySelectorAll(\'img[src]:not([loading="lazy"])\'))}}}if(A){var y=\ndocument.__reactViewTransition=document.startViewTransition({update:function(){z(g);for(var a=[document.documentElement.clientHeight,document.fonts.ready],b={},e=0;e<t.length;b={g:b.g},e++)if(b.g=t[e],!b.g.complete){var p=b.g.getBoundingClientRect();0<p.bottom&&0<p.right&&p.top<window.innerHeight&&p.left<window.innerWidth&&(p=new Promise(function(v){return function(J){v.g.addEventListener("load",J);v.g.addEventListener("error",J)}}(b)),a.push(p))}return Promise.race([Promise.all(a),new Promise(function(v){return setTimeout(v,\n500)})])},types:[]});y.ready.finally(function(){for(var a=l.length-3;0<=a;a-=3){var b=l[a],e=b.style;e.viewTransitionName=l[a+1];e.viewTransitionClass=l[a+1];""===b.getAttribute("style")&&b.removeAttribute("style")}});y.finished.finally(function(){document.__reactViewTransition===y&&(document.__reactViewTransition=null)});$RB=[];return}}catch(a){}z(g)}.bind(null,$RV);'
 );
 var completeBoundaryScript1Partial = stringToPrecomputedChunk('$RC("'),
   completeBoundaryWithStylesScript1FullPartial = stringToPrecomputedChunk(
@@ -6456,7 +6456,8 @@ function flushCompletedQueues(request, destination) {
         var completedPreambleSegments = request.completedPreambleSegments;
         if (null === completedPreambleSegments) return;
         flushedByteSize = request.byteSize;
-        var renderState = request.renderState,
+        var resumableState = request.resumableState,
+          renderState = request.renderState,
           preamble = renderState.preamble,
           htmlChunks = preamble.htmlChunks,
           headChunks = preamble.headChunks,
@@ -6499,17 +6500,18 @@ function flushCompletedQueues(request, destination) {
         renderState.scripts.clear();
         renderState.bulkPreloads.forEach(flushResource, destination);
         renderState.bulkPreloads.clear();
+        htmlChunks || headChunks || (resumableState.instructions |= 32);
         var hoistableChunks = renderState.hoistableChunks;
         for (i$jscomp$0 = 0; i$jscomp$0 < hoistableChunks.length; i$jscomp$0++)
           writeChunk(destination, hoistableChunks[i$jscomp$0]);
         for (
-          renderState = hoistableChunks.length = 0;
-          renderState < completedPreambleSegments.length;
-          renderState++
+          resumableState = hoistableChunks.length = 0;
+          resumableState < completedPreambleSegments.length;
+          resumableState++
         ) {
-          var segments = completedPreambleSegments[renderState];
-          for (preamble = 0; preamble < segments.length; preamble++)
-            flushSegment(request, destination, segments[preamble], null);
+          var segments = completedPreambleSegments[resumableState];
+          for (renderState = 0; renderState < segments.length; renderState++)
+            flushSegment(request, destination, segments[renderState], null);
         }
         var preamble$jscomp$0 = request.renderState.preamble,
           headChunks$jscomp$0 = preamble$jscomp$0.headChunks;
@@ -6534,13 +6536,13 @@ function flushCompletedQueues(request, destination) {
             (0 !== request.trackedPostpones.rootNodes.length ||
               null !== request.trackedPostpones.rootSlots))
         ) {
-          var resumableState = request.resumableState;
-          if (0 === (resumableState.instructions & 64)) {
-            resumableState.instructions |= 64;
+          var resumableState$jscomp$0 = request.resumableState;
+          if (0 === (resumableState$jscomp$0.instructions & 64)) {
+            resumableState$jscomp$0.instructions |= 64;
             writeChunk(destination, renderState$jscomp$0.startInlineScript);
-            if (0 === (resumableState.instructions & 32)) {
-              resumableState.instructions |= 32;
-              var shellId = "_" + resumableState.idPrefix + "R_";
+            if (0 === (resumableState$jscomp$0.instructions & 32)) {
+              resumableState$jscomp$0.instructions |= 32;
+              var shellId = "_" + resumableState$jscomp$0.idPrefix + "R_";
               writeChunk(destination, completedShellIdAttributeStart);
               writeChunk(
                 destination,
@@ -6591,7 +6593,7 @@ function flushCompletedQueues(request, destination) {
       for (i = 0; i < clientRenderedBoundaries.length; i++) {
         var boundary = clientRenderedBoundaries[i];
         renderState$jscomp$1 = destination;
-        var resumableState$jscomp$0 = request.resumableState,
+        var resumableState$jscomp$1 = request.resumableState,
           renderState$jscomp$2 = request.renderState,
           id = boundary.rootSegmentID,
           errorDigest = boundary.errorDigest;
@@ -6600,8 +6602,8 @@ function flushCompletedQueues(request, destination) {
           renderState$jscomp$2.startInlineScript
         );
         writeChunk(renderState$jscomp$1, endOfStartTag);
-        0 === (resumableState$jscomp$0.instructions & 4)
-          ? ((resumableState$jscomp$0.instructions |= 4),
+        0 === (resumableState$jscomp$1.instructions & 4)
+          ? ((resumableState$jscomp$1.instructions |= 4),
             writeChunk(renderState$jscomp$1, clientRenderScript1Full))
           : writeChunk(renderState$jscomp$1, clientRenderScript1Partial);
         writeChunk(renderState$jscomp$1, renderState$jscomp$2.boundaryPrefix);
@@ -6802,11 +6804,11 @@ function addToReplayParent(node, parentKeyPath, trackedPostpones) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.2.0-canary-b4477d38-20250605" !== isomorphicReactPackageVersion)
+  if ("19.2.0-canary-ab859e31-20250606" !== isomorphicReactPackageVersion)
     throw Error(
       'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
         (isomorphicReactPackageVersion +
-          "\n  - react-dom:  19.2.0-canary-b4477d38-20250605\nLearn more: https://react.dev/warnings/version-mismatch")
+          "\n  - react-dom:  19.2.0-canary-ab859e31-20250606\nLearn more: https://react.dev/warnings/version-mismatch")
     );
 }
 ensureCorrectIsomorphicReactVersion();
@@ -6952,4 +6954,4 @@ exports.renderToReadableStream = function (children, options) {
     startWork(request);
   });
 };
-exports.version = "19.2.0-canary-b4477d38-20250605";
+exports.version = "19.2.0-canary-ab859e31-20250606";
