@@ -298,7 +298,7 @@ pub fn create_graph(m: &Program, eval_context: &EvalContext) -> VarGraph {
 }
 
 /// A context used for assembling the evaluation graph.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct EvalContext {
     pub(crate) unresolved_mark: Mark,
     pub(crate) top_level_mark: Mark,

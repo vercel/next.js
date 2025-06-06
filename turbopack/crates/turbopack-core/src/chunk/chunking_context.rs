@@ -193,7 +193,14 @@ pub trait ChunkingContext {
         })
     }
 
+    /// Whether `ChunkingType::Traced` are used to create corresponding output assets for each
+    /// traced module.
     fn is_tracing_enabled(self: Vc<Self>) -> Vc<bool> {
+        Vc::cell(false)
+    }
+
+    /// Whether to use `MergableModule` to merge modules if possible.
+    fn is_module_merging_enabled(self: Vc<Self>) -> Vc<bool> {
         Vc::cell(false)
     }
 

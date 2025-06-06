@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 use swc_core::{
     common::{DUMMY_SP, SyntaxContext},
     ecma::ast::{
-        AssignTarget, ComputedPropName, Expr, ExprStmt, Ident, KeyValueProp, Lit, MemberExpr,
-        MemberProp, ObjectLit, Prop, PropName, PropOrSpread, SimpleAssignTarget, Stmt, Str,
+        AssignTarget, Expr, ExprStmt, Ident, KeyValueProp, ObjectLit, Prop, PropName, PropOrSpread,
+        SimpleAssignTarget, Stmt, Str,
     },
     quote, quote_expr,
 };
@@ -18,7 +18,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
-    chunk::ChunkingContext,
+    chunk::{ChunkingContext, ModuleChunkItemIdExt},
     ident::AssetIdent,
     issue::{IssueExt, IssueSeverity, StyledString, analyze::AnalyzeIssue},
     module::Module,
@@ -28,7 +28,7 @@ use turbopack_core::{
 
 use super::base::ReferencedAsset;
 use crate::{
-    EcmascriptModuleAsset,
+    EcmascriptModuleAsset, ScopeHoistingContext,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
     magic_identifier,
@@ -36,6 +36,7 @@ use crate::{
     runtime_functions::{TURBOPACK_DYNAMIC, TURBOPACK_ESM},
     simple_tree_shake::ModuleExportUsageInfo,
     tree_shake::asset::EcmascriptModulePartAsset,
+    utils::module_id_to_lit,
 };
 
 #[derive(Clone, Hash, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
@@ -552,9 +553,15 @@ impl EsmExports {
     pub async fn code_generation(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
+        scope_hoisting_context: ScopeHoistingContext<'_>,
         parsed: Option<Vc<ParseResult>>,
         export_usage_info: Option<ResolvedVc<ModuleExportUsageInfo>>,
     ) -> Result<CodeGeneration> {
+        if scope_hoisting_context.skip_module_exports() {
+            // If the current module is not exposed, no need to generate exports
+            return Ok(CodeGeneration::empty());
+        }
+
         let expanded = self.expand_exports(export_usage_info.map(|v| *v)).await?;
         let parsed = if let Some(parsed) = parsed {
             Some(parsed.await?)
@@ -563,19 +570,40 @@ impl EsmExports {
         };
 
         let mut dynamic_exports = Vec::<Box<Expr>>::new();
-        for dynamic_export_asset in &expanded.dynamic_exports {
-            let ident =
-                ReferencedAsset::get_ident_from_placeable(dynamic_export_asset, chunking_context)
-                    .await?;
+        {
+            let id = if let Some(module) = scope_hoisting_context.module()
+                && !expanded.dynamic_exports.is_empty()
+            {
+                Some(module.chunk_item_id(Vc::upcast(chunking_context)).await?)
+            } else {
+                None
+            };
 
-            dynamic_exports.push(quote_expr!(
-                "$turbopack_dynamic($arg)",
-                turbopack_dynamic: Expr = TURBOPACK_DYNAMIC.into(),
-                arg: Expr = Ident::new(ident.into(), DUMMY_SP, Default::default()).into()
-            ));
+            for dynamic_export_asset in &expanded.dynamic_exports {
+                let ident = ReferencedAsset::get_ident_from_placeable(
+                    dynamic_export_asset,
+                    chunking_context,
+                )
+                .await?;
+
+                if let Some(id) = &id {
+                    dynamic_exports.push(quote_expr!(
+                        "$turbopack_dynamic($arg, $id)",
+                        turbopack_dynamic: Expr = TURBOPACK_DYNAMIC.into(),
+                        arg: Expr = Ident::new(ident.into(), DUMMY_SP, Default::default()).into(),
+                        id: Expr = module_id_to_lit(id)
+                    ));
+                } else {
+                    dynamic_exports.push(quote_expr!(
+                        "$turbopack_dynamic($arg)",
+                        turbopack_dynamic: Expr = TURBOPACK_DYNAMIC.into(),
+                        arg: Expr = Ident::new(ident.into(), DUMMY_SP, Default::default()).into()
+                    ));
+                }
+            }
         }
 
-        let mut props = Vec::new();
+        let mut getters = Vec::new();
         for (exported, local) in &expanded.exports {
             let expr = match local {
                 EsmExport::Error => Some(quote!(
@@ -631,60 +659,47 @@ impl EsmExports {
                 EsmExport::ImportedBinding(esm_ref, name, mutable) => {
                     let referenced_asset =
                         ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?;
-                    referenced_asset.get_ident(
-                        chunking_context
-                    ).await?.map(|ident| {
-                        let expr = MemberExpr {
-                            span: DUMMY_SP,
-                            obj: Box::new(Expr::Ident(Ident::new(
-                                ident.into(),
-                                DUMMY_SP,
-                                Default::default(),
-                            ))),
-                            prop: MemberProp::Computed(ComputedPropName {
-                                span: DUMMY_SP,
-                                expr: Box::new(Expr::Lit(Lit::Str(Str {
-                                    span: DUMMY_SP,
-                                    value: (name as &str).into(),
-                                    raw: None,
-                                }))),
-                            }),
-                        };
-                        if *mutable {
-                            quote!(
-                                "([() => $expr, ($new) => $lhs = $new])" as Expr,
-                                expr: Expr = Expr::Member(expr.clone()),
-                                lhs: AssignTarget = AssignTarget::Simple(SimpleAssignTarget::Member(expr)),
-                                new = Ident::new(
-                                    format!("new_{name}").into(),
-                                    DUMMY_SP,
-                                    Default::default()
-                                ),
-                            )
-                        } else {
-                            quote!(
-                                "(() => $expr)" as Expr,
-                                expr: Expr = Expr::Member(expr),
-                            )
-                        }
-                    })
+                    referenced_asset
+                        .get_ident(chunking_context, Some(name.clone()), scope_hoisting_context)
+                        .await?
+                        .map(|ident| {
+                            let expr = ident.as_expr_individual(DUMMY_SP);
+                            if *mutable {
+                                quote!(
+                                    "([() => $expr, ($new) => $lhs = $new])" as Expr,
+                                    expr: Expr = expr.clone().map_either(Expr::from, Expr::from).into_inner(),
+                                    lhs: AssignTarget = AssignTarget::Simple(
+                                        expr.map_either(|i| SimpleAssignTarget::Ident(i.into()), SimpleAssignTarget::Member).into_inner()),
+                                    new = Ident::new(
+                                        format!("new_{name}").into(),
+                                        DUMMY_SP,
+                                        Default::default()
+                                    ),
+                                )
+                            } else {
+                                quote!(
+                                    "(() => $expr)" as Expr,
+                                    expr: Expr = expr.map_either(Expr::from, Expr::from).into_inner()
+                                )
+                            }
+                        })
                 }
                 EsmExport::ImportedNamespace(esm_ref) => {
                     let referenced_asset =
                         ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?;
                     referenced_asset
-                        .get_ident(chunking_context)
+                        .get_ident(chunking_context, None, scope_hoisting_context)
                         .await?
                         .map(|ident| {
                             quote!(
                                 "(() => $imported)" as Expr,
-                                imported = Ident::new(ident.into(), DUMMY_SP, Default::default())
+                                imported: Expr = ident.as_expr(DUMMY_SP, false)
                             )
                         })
                 }
             };
             if let Some(expr) = expr {
-                props.push(PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                getters.push(PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
                     key: PropName::Str(Str {
                         span: DUMMY_SP,
                         value: exported.as_str().into(),
@@ -696,7 +711,7 @@ impl EsmExports {
         }
         let getters = Expr::Object(ObjectLit {
             span: DUMMY_SP,
-            props,
+            props: getters,
         });
         let dynamic_stmt = if !dynamic_exports.is_empty() {
             Some(Stmt::Expr(ExprStmt {
@@ -707,6 +722,23 @@ impl EsmExports {
             None
         };
 
+        let early_hoisted_stmts = vec![CodeGenerationHoistedStmt::new(
+            rcstr!("__turbopack_esm__"),
+            if let Some(module) = scope_hoisting_context.module() {
+                let id = module.chunk_item_id(Vc::upcast(chunking_context)).await?;
+                quote!("$turbopack_esm($getters, $id);" as Stmt,
+                    turbopack_esm: Expr = TURBOPACK_ESM.into(),
+                    getters: Expr = getters,
+                    id: Expr = module_id_to_lit(&id)
+                )
+            } else {
+                quote!("$turbopack_esm($getters);" as Stmt,
+                    turbopack_esm: Expr = TURBOPACK_ESM.into(),
+                    getters: Expr = getters
+                )
+            },
+        )];
+
         Ok(CodeGeneration::new(
             vec![],
             [dynamic_stmt
@@ -714,13 +746,7 @@ impl EsmExports {
             .into_iter()
             .flatten()
             .collect(),
-            vec![CodeGenerationHoistedStmt::new(
-                rcstr!("__turbopack_esm__"),
-                quote!("$turbopack_esm($getters);" as Stmt,
-                    turbopack_esm: Expr = TURBOPACK_ESM.into(),
-                    getters: Expr = getters
-                ),
-            )],
+            early_hoisted_stmts,
         ))
     }
 }

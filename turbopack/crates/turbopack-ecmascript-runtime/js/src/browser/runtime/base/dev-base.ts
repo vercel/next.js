@@ -43,7 +43,7 @@ interface TurbopackDevContext extends TurbopackDevBaseContext {}
 type ModuleFactory = (
   this: Module['exports'],
   context: TurbopackDevBaseContext
-) => undefined
+) => unknown
 
 interface DevRuntimeBackend {
   reloadChunk?: (chunkUrl: ChunkUrl) => Promise<void>
@@ -205,10 +205,10 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
           t: runtimeRequire,
           f: moduleContext,
           i: esmImport.bind(null, module),
-          s: esmExport.bind(null, module, module.exports),
-          j: dynamicExport.bind(null, module, module.exports),
-          v: exportValue.bind(null, module),
-          n: exportNamespace.bind(null, module),
+          s: esmExport.bind(null, module, module.exports, devModuleCache),
+          j: dynamicExport.bind(null, module, module.exports, devModuleCache),
+          v: exportValue.bind(null, module, devModuleCache),
+          n: exportNamespace.bind(null, module, devModuleCache),
           m: module,
           c: devModuleCache,
           M: moduleFactories,

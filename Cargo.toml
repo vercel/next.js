@@ -292,12 +292,12 @@ turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
 # SWC crates
-swc_core = { version = "26.4.4", features = [
+swc_core = {  git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" , features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
   "parallel_rayon",
 ] }
-testing = { version = "12.0.0" }
+testing = {  git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy"  }
 
 # Keep consistent with preset_env_base through swc_core
 browserslist-rs = { version = "0.18.0" }
@@ -421,3 +421,71 @@ vergen = { version = "9.0.6", features = ["cargo"] }
 vergen-gitcl = { version = "1.0.8", features = ["cargo"] }
 webbrowser = "0.8.7"
 
+[patch.crates-io]
+preset_env_base = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_allocator = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_atoms = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_common = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_compiler_base = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_config = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_config_macro = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_core = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_css_ast = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_css_codegen = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_css_codegen_macros = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_css_compat = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_css_minifier = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_css_parser = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_css_prefixer = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_css_utils = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_css_visit = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_ecma_ast = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_ecma_codegen = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_ecma_codegen_macros = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_ecma_compat_bugfixes = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_ecma_compat_common = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_ecma_compat_es2015 = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_ecma_compat_es2016 = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_ecma_compat_es2017 = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_ecma_compat_es2018 = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_ecma_compat_es2019 = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_ecma_compat_es2020 = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_ecma_compat_es2021 = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_ecma_compat_es2022 = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_ecma_compat_es3 = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_ecma_ext_transforms = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_ecma_lexer = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_ecma_lints = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_ecma_loader = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_ecma_minifier = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_ecma_parser = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_ecma_preset_env = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_ecma_quote_macros = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_ecma_testing = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_ecma_transforms = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_ecma_transforms_base = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_ecma_transforms_classes = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_ecma_transforms_compat = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_ecma_transforms_macros = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_ecma_transforms_module = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_ecma_transforms_optimization = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_ecma_transforms_proposal = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_ecma_transforms_react = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_ecma_transforms_testing = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_ecma_transforms_typescript = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_ecma_usage_analyzer = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_ecma_utils = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_ecma_visit = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_eq_ignore_macros = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_error_reporters = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_macros_common = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_node_comments = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_nodejs_common = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_plugin_macro = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_plugin_proxy = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_plugin_runner = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_timer = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_trace_macro = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_transform_common = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_typescript = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }
+swc_visit = { git = "https://github.com/mischnic/swc", branch = "mischnic/no-comments-for-dummy" }

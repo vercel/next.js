@@ -23,7 +23,7 @@ __turbopack_context__.v("/static/ignore-worker.c7cb9893.cjs");}),
 "use strict";
 
 __turbopack_context__.s({
-    "foo": (()=>foo)
+    "foo": ()=>foo
 });
 const __TURBOPACK__import$2e$meta__ = {
     get url () {

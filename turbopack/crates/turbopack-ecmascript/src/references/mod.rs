@@ -759,7 +759,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         ImportedSymbol::Part(part_id) => Some(ModulePart::internal(*part_id)),
                         ImportedSymbol::Exports => Some(ModulePart::exports()),
                     },
-                    Some(TreeShakingMode::ReexportsOnly) => match &r.imported_symbol {
+                    _ => match &r.imported_symbol {
                         ImportedSymbol::ModuleEvaluation => {
                             should_add_evaluation = true;
                             Some(ModulePart::evaluation())
@@ -775,10 +775,6 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         }
                         ImportedSymbol::Exports => None,
                     },
-                    None => {
-                        should_add_evaluation = true;
-                        None
-                    }
                 },
                 import_externals,
             )

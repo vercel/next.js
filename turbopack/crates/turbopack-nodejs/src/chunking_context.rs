@@ -56,6 +56,11 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
+    pub fn module_merging(mut self, enable_module_merging: bool) -> Self {
+        self.chunking_context.enable_module_merging = enable_module_merging;
+        self
+    }
+
     pub fn runtime_type(mut self, runtime_type: RuntimeType) -> Self {
         self.chunking_context.runtime_type = runtime_type;
         self
@@ -119,6 +124,8 @@ pub struct NodeJsChunkingContext {
     runtime_type: RuntimeType,
     /// Enable tracing for this chunking
     enable_file_tracing: bool,
+    /// Enable module merging
+    enable_module_merging: bool,
     /// Whether to minify resulting chunks
     minify_type: MinifyType,
     /// Whether to generate source maps
@@ -155,6 +162,7 @@ impl NodeJsChunkingContext {
                 asset_root_path,
                 asset_prefix: None,
                 enable_file_tracing: false,
+                enable_module_merging: false,
                 environment,
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
@@ -247,6 +255,11 @@ impl ChunkingContext for NodeJsChunkingContext {
     #[turbo_tasks::function]
     fn is_tracing_enabled(&self) -> Vc<bool> {
         Vc::cell(self.enable_file_tracing)
+    }
+
+    #[turbo_tasks::function]
+    fn is_module_merging_enabled(&self) -> Vc<bool> {
+        Vc::cell(self.enable_module_merging)
     }
 
     #[turbo_tasks::function]

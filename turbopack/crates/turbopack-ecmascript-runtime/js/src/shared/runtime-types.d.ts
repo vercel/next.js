@@ -13,6 +13,7 @@ type ChunkListScript = CurrentScript & { readonly brand: unique symbol }
 type ChunkPath = string & { readonly brand: unique symbol }
 type ChunkScript = CurrentScript & { readonly brand: unique symbol }
 type ChunkUrl = string & { readonly brand: unique symbol }
+// TODO this should actually be `string | number`
 type ModuleId = string
 
 interface Exports {
@@ -36,10 +37,16 @@ type EsmImport = (
   moduleId: ModuleId,
   allowExportDefault: boolean
 ) => EsmNamespaceObject | Promise<EsmNamespaceObject>
-type EsmExport = (exportGetters: Record<string, () => any>) => void
-type ExportValue = (value: any) => void
-type ExportNamespace = (namespace: any) => void
-type DynamicExport = (object: Record<string, any>) => void
+type EsmExport = (
+  exportGetters: Record<string, () => any>,
+  id: ModuleId | undefined
+) => void
+type ExportValue = (value: any, id: ModuleId | undefined) => void
+type ExportNamespace = (namespace: any, id: ModuleId | undefined) => void
+type DynamicExport = (
+  object: Record<string, any>,
+  id: ModuleId | undefined
+) => void
 
 type LoadChunk = (chunkPath: ChunkPath) => Promise<any> | undefined
 type LoadChunkByUrl = (chunkUrl: ChunkUrl) => Promise<any> | undefined
@@ -54,7 +61,13 @@ type LoadWebAssemblyModule = (
 ) => WebAssembly.Module
 
 type ModuleCache<M> = Record<ModuleId, M>
-type ModuleFactories = Record<ModuleId, unknown>
+// TODO properly type values here
+type ModuleFactories = Record<ModuleId, Function>
+// The value is an array with scope hoisting
+type CompressedModuleFactories = Record<
+  ModuleId,
+  Function | [Function, ModuleId[]]
+>
 
 type RelativeURL = (inputUrl: string) => void
 type ResolvePathFromModule = (moduleId: string) => string
