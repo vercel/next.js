@@ -1236,7 +1236,6 @@ impl EcmascriptModuleContent {
                 header_width,
                 comments,
             },
-            globals: Arc::new(globals_merged),
             eval_context: None,
             is_esm: true,
             generate_source_map: last_options.generate_source_map,
@@ -1269,6 +1268,8 @@ impl EcmascriptModuleContent {
     }
 }
 
+/// Merges multiple Ecmascript modules into a single AST, setting the syntax contexts correctly so
+/// that imports work.
 #[allow(clippy::type_complexity)]
 async fn merge_modules(
     mut contents: Vec<(ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, CodeGenResult)>,
@@ -1292,7 +1293,6 @@ async fn merge_modules(
             (ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, SyntaxContext),
             SyntaxContext,
         >,
-        globals_merged: &'a Globals,
     }
 
     impl<'a> SetSyntaxContextVisitor<'a> {
@@ -1304,9 +1304,7 @@ async fn merge_modules(
             if let Some(&global_ctxt) = self.unique_contexts_cache.get(&(module, local_ctxt)) {
                 global_ctxt
             } else {
-                let global_ctxt = GLOBALS.set(self.globals_merged, || {
-                    SyntaxContext::empty().apply_mark(Mark::new())
-                });
+                let global_ctxt = SyntaxContext::empty().apply_mark(Mark::new());
                 self.unique_contexts_cache
                     .insert((module, local_ctxt), global_ctxt);
                 global_ctxt
@@ -1384,16 +1382,8 @@ async fn merge_modules(
         }
     }
 
-    let comments = contents
-        .iter_mut()
-        .map(|(_, content)| content.comments.take())
-        .collect::<Vec<_>>();
-
-    let source_maps = contents
-        .iter_mut()
-        .map(|(_, content)| std::mem::take(&mut content.source_map))
-        .collect::<Vec<_>>();
-
+    // Extract programs into separate mutable variable so that `content` doesn't have to be mutably
+    // borrowed (and eval_contexts doesn't have to clone).
     let mut programs = contents
         .iter_mut()
         .map(|(_, content)| content.program.take())
@@ -1404,86 +1394,108 @@ async fn merge_modules(
         .map(|(module, content)| (*module, content.eval_context.as_ref().unwrap()))
         .collect::<FxHashMap<_, _>>();
 
-    let mut unique_contexts =
-        FxHashMap::with_capacity_and_hasher(contents.len(), Default::default());
+    let (merged_ast, inserted) = GLOBALS.set(globals_merged, || {
+        let mut unique_contexts_cache =
+            FxHashMap::with_capacity_and_hasher(contents.len(), Default::default());
 
-    let mut prepare_module =
-        |(module, content): &(ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, CodeGenResult),
-         program: &mut Program| {
-            if let CodeGenResult {
-                globals,
-                scope_hoisting_syntax_contexts: Some(module_contexts),
-                ..
-            } = content
-                && let Program::Module(content) = program
-            {
-                GLOBALS.set(globals, || {
-                    content.visit_mut_with(&mut SetSyntaxContextVisitor {
-                        header_width: module_contexts.len().next_power_of_two().trailing_zeros(),
-                        current_module: *module,
-                        current_module_idx: module_contexts.get_index_of(module).unwrap() as u32,
-                        reverse_module_contexts: module_contexts
-                            .iter()
-                            .map(|(m, ctxt)| (*ctxt, *m))
-                            .collect(),
-                        eval_contexts: &eval_contexts,
-                        globals_merged,
-                        unique_contexts_cache: &mut unique_contexts,
+        let mut prepare_module =
+            |(module, content): &(ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, CodeGenResult),
+             program: &mut Program| {
+                if let CodeGenResult {
+                    scope_hoisting_syntax_contexts: Some(module_contexts),
+                    ..
+                } = content
+                    && let Program::Module(content) = program
+                {
+                    GLOBALS.set(globals_merged, || {
+                        content.visit_mut_with(&mut SetSyntaxContextVisitor {
+                            header_width: module_contexts
+                                .len()
+                                .next_power_of_two()
+                                .trailing_zeros(),
+                            current_module: *module,
+                            current_module_idx: module_contexts.get_index_of(module).unwrap()
+                                as u32,
+                            reverse_module_contexts: module_contexts
+                                .iter()
+                                .map(|(m, ctxt)| (*ctxt, *m))
+                                .collect(),
+                            eval_contexts: &eval_contexts,
+                            unique_contexts_cache: &mut unique_contexts_cache,
+                        });
                     });
-                });
 
-                Ok(content.take().body)
-            } else {
-                bail!("Expected Program::Module with scope_hosting_syntax_contexts");
-            }
+                    Ok(content.take().body)
+                } else {
+                    bail!("Expected Program::Module with scope_hosting_syntax_contexts");
+                }
+            };
+
+        let mut inserted = FxHashSet::with_capacity_and_hasher(contents.len(), Default::default());
+
+        inserted.extend(entries.iter().map(|(_, i)| *i));
+
+        let mut merged_ast = swc_core::ecma::ast::Module {
+            span: DUMMY_SP,
+            shebang: None,
+            body: entries
+                .iter()
+                .map(|(_, i)| prepare_module(&contents[*i], &mut programs[*i]))
+                .flatten_ok()
+                .collect::<Result<Vec<_>>>()?,
         };
 
-    let mut inserted = FxHashSet::with_capacity_and_hasher(contents.len(), Default::default());
-
-    inserted.extend(entries.iter().map(|(_, i)| *i));
-
-    let mut merged_ast = swc_core::ecma::ast::Module {
-        span: DUMMY_SP,
-        shebang: None,
-        body: entries
-            .iter()
-            .map(|(_, i)| prepare_module(&contents[*i], &mut programs[*i]))
-            .flatten_ok()
-            .collect::<Result<Vec<_>>>()?,
-    };
-
-    // Replace inserted `__turbopack_merged_esm__(i);` statements with the corresponding ith-module
-    let mut i = 0;
-    loop {
-        if i >= merged_ast.body.len() {
-            break;
-        }
-        if let ModuleItem::Stmt(Stmt::Expr(ExprStmt { expr, .. })) = &merged_ast.body[i]
-            && let Expr::Call(CallExpr {
-                callee: Callee::Expr(callee),
-                args,
-                ..
-            }) = &**expr
-            && callee.is_ident_ref_to("__turbopack_merged_esm__")
-        {
-            let index = args[0].expr.as_lit().unwrap().as_num().unwrap().value as usize;
-
-            if inserted.insert(index) {
-                merged_ast.body.splice(
-                    i..=i,
-                    prepare_module(&contents[index], &mut programs[index])?,
-                );
-
-                // Don't increment, the ith item has just changed
-                continue;
-            } else {
-                // Already inserted (and thus already executed), remove the placeholder
-                merged_ast.body[i] = ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
+        // Replace inserted `__turbopack_merged_esm__(i);` statements with the corresponding
+        // ith-module
+        let mut i = 0;
+        loop {
+            if i >= merged_ast.body.len() {
+                break;
             }
-        }
+            if let ModuleItem::Stmt(Stmt::Expr(ExprStmt { expr, .. })) = &merged_ast.body[i]
+                && let Expr::Call(CallExpr {
+                    callee: Callee::Expr(callee),
+                    args,
+                    ..
+                }) = &**expr
+                && callee.is_ident_ref_to("__turbopack_merged_esm__")
+            {
+                let index = args[0].expr.as_lit().unwrap().as_num().unwrap().value as usize;
 
-        i += 1;
-    }
+                if inserted.insert(index) {
+                    merged_ast.body.splice(
+                        i..=i,
+                        prepare_module(&contents[index], &mut programs[index])?,
+                    );
+
+                    // Don't increment, the ith item has just changed
+                    continue;
+                } else {
+                    // Already inserted (and thus already executed), remove the placeholder
+                    merged_ast.body[i] =
+                        ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
+                }
+            }
+
+            i += 1;
+        }
+        let mut merged_ast = Program::Module(merged_ast);
+
+        // let mut p = merged_ast.clone();
+        // p.visit_mut_with(&mut DisplayContextVisitor {
+        //     postfix: "individual",
+        //     mark: None,
+        // });
+        // println!("----b before {}", swc_core::ecma::codegen::to_code(&p),);
+        merged_ast.visit_mut_with(&mut swc_core::ecma::transforms::base::hygiene::hygiene());
+        // println!(
+        //     "----b after  {}",
+        //     swc_core::ecma::codegen::to_code(&merged_ast),
+        // );
+        // merged_ast.visit_mut_with(&mut DisplayContextVisitor { postfix: "merged" });
+
+        anyhow::Ok((merged_ast, inserted))
+    })?;
 
     debug_assert!(
         inserted.len() == contents.len(),
@@ -1496,22 +1508,15 @@ async fn merge_modules(
             .await?,
     );
 
-    let mut merged_ast = Program::Module(merged_ast);
+    let comments = contents
+        .iter_mut()
+        .map(|(_, content)| content.comments.take())
+        .collect::<Vec<_>>();
 
-    GLOBALS.set(globals_merged, || {
-        let mut p = merged_ast.clone();
-        p.visit_mut_with(&mut DisplayContextVisitor {
-            postfix: "individual",
-            mark: None,
-        });
-        println!("----b before {}", swc_core::ecma::codegen::to_code(&p),);
-        merged_ast.visit_mut_with(&mut swc_core::ecma::transforms::base::hygiene::hygiene());
-        println!(
-            "----b after  {}",
-            swc_core::ecma::codegen::to_code(&merged_ast),
-        );
-        // merged_ast.visit_mut_with(&mut DisplayContextVisitor { postfix: "merged" });
-    });
+    let source_maps = contents
+        .iter_mut()
+        .map(|(_, content)| std::mem::take(&mut content.source_map))
+        .collect::<Vec<_>>();
 
     Ok((merged_ast, comments, source_maps))
 }
@@ -1597,7 +1602,6 @@ impl<'a> ScopeHoistingContext<'a> {
 struct CodeGenResult {
     program: Program,
     source_map: CodeGenResultSourceMap,
-    globals: Arc<Globals>,
     comments: CodeGenResultComments,
     eval_context: Option<EvalContext>,
     is_esm: bool,
@@ -1629,7 +1633,7 @@ async fn process_parse_result(
             let (mut code_gens, retain_syntax_context) = if let Some(scope_hoisting_options) =
                 scope_hoisting_options
             {
-                let (is_import_mark, module_syntax_contexts) = GLOBALS.set(&globals, || {
+                let (is_import_mark, module_syntax_contexts) = GLOBALS.set(globals, || {
                     let is_import_mark = Mark::new();
                     let module_syntax_contexts: FxIndexMap<_, _> = scope_hoisting_options
                         .modules
@@ -1691,7 +1695,7 @@ async fn process_parse_result(
             let top_level_mark = eval_context.top_level_mark;
             let is_esm = eval_context.is_esm(specified_module_type);
 
-            process_content_with_code_gens(&mut program, &globals, &mut code_gens);
+            process_content_with_code_gens(&mut program, globals, &mut code_gens);
 
             for comments in code_gens.iter_mut().flat_map(|cg| cg.comments.as_mut()) {
                 let leading = Arc::unwrap_or_clone(take(&mut comments.leading));
@@ -1706,7 +1710,7 @@ async fn process_parse_result(
                 }
             }
 
-            GLOBALS.set(&globals, || {
+            GLOBALS.set(globals, || {
                 // let mut p = program.clone();
                 // p.visit_mut_with(&mut DisplayContextVisitor {
                 //     postfix: "individual",
@@ -1757,7 +1761,6 @@ async fn process_parse_result(
                 source_map: CodeGenResultSourceMap::Single {
                     source_map: source_map.clone(),
                 },
-                globals: Arc::new(globals),
                 comments: CodeGenResultComments::Single {
                     comments,
                     extra_comments,
@@ -1797,7 +1800,6 @@ async fn process_parse_result(
                             shebang: None,
                         }),
                         source_map: CodeGenResultSourceMap::default(),
-                        globals: Arc::new(Globals::default()),
                         comments: CodeGenResultComments::Empty,
                         eval_context: None,
                         is_esm: false,
@@ -1825,7 +1827,6 @@ async fn process_parse_result(
                             shebang: None,
                         }),
                         source_map: CodeGenResultSourceMap::default(),
-                        globals: Arc::new(Globals::default()),
                         comments: CodeGenResultComments::Empty,
                         eval_context: None,
                         is_esm: false,
@@ -1847,7 +1848,7 @@ async fn with_consumed_parse_result<T>(
     success: impl AsyncFnOnce(
         Program,
         &Arc<SourceMap>,
-        Globals,
+        &Arc<Globals>,
         Cow<'_, EvalContext>,
         Either<ImmutableComments, Arc<ImmutableComments>>,
     ) -> Result<T>,
@@ -1867,10 +1868,7 @@ async fn with_consumed_parse_result<T>(
                 }) => (
                     program.take(),
                     &*source_map,
-                    match Arc::try_unwrap(take(globals)) {
-                        Ok(globals) => globals,
-                        Err(globals) => globals.clone_data(),
-                    },
+                    &*globals,
                     Cow::Owned(std::mem::replace(
                         eval_context,
                         EvalContext {
@@ -1899,7 +1897,7 @@ async fn with_consumed_parse_result<T>(
                     (
                         program.clone(),
                         source_map,
-                        globals.clone_data(),
+                        globals,
                         Cow::Borrowed(eval_context),
                         Either::Right(comments.clone()),
                     )
@@ -1926,7 +1924,6 @@ async fn emit_content(
         generate_source_map,
         original_source_map,
         minify,
-        globals: _,
         scope_hoisting_syntax_contexts: _,
     } = content;
 
