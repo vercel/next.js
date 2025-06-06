@@ -232,8 +232,6 @@ export async function createPost(formData) {
 }
 ```
 
-> **Good to know:** When passed to the `action` prop, Server Functions are also known as _Server Actions_.
-
 ### Event Handlers
 
 You can invoke a Server Function in a Client Component by using event handlers such as `onClick`.
@@ -330,7 +328,7 @@ export function Button() {
 }
 ```
 
-### Revalidating the cache
+### Revalidating
 
 After performing an update, you can revalidate the Next.js cache and show the updated data by calling [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) within the Server Function:
 
