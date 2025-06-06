@@ -1619,6 +1619,7 @@ function processFullStringRow(response, id, tag, row) {
       break;
     case 78:
     case 68:
+    case 74:
     case 87:
       throw Error(
         "Failed to read a RSC payload created by a development version of React on the server while using a production version on the client. Always use matching versions on the server and the client."

@@ -266,43 +266,49 @@
       return error;
     }
     function parseStackTrace(error, skipFrames) {
+      var existing = stackTraceCache.get(error);
+      if (void 0 !== existing) return existing;
       collectedStackTrace = null;
       framesToSkip = skipFrames;
-      var previousPrepare = Error.prepareStackTrace;
+      existing = Error.prepareStackTrace;
       Error.prepareStackTrace = collectStackTrace;
       try {
         var stack = String(error.stack);
       } finally {
-        Error.prepareStackTrace = previousPrepare;
+        Error.prepareStackTrace = existing;
       }
       if (null !== collectedStackTrace)
         return (
           (skipFrames = collectedStackTrace),
           (collectedStackTrace = null),
+          stackTraceCache.set(error, skipFrames),
           skipFrames
         );
       stack.startsWith("Error: react-stack-top-frame\n") &&
         (stack = stack.slice(29));
-      error = stack.indexOf("react-stack-bottom-frame");
-      -1 !== error && (error = stack.lastIndexOf("\n", error));
-      -1 !== error && (stack = stack.slice(0, error));
+      existing = stack.indexOf("react-stack-bottom-frame");
+      -1 !== existing && (existing = stack.lastIndexOf("\n", existing));
+      -1 !== existing && (stack = stack.slice(0, existing));
       stack = stack.split("\n");
-      for (error = []; skipFrames < stack.length; skipFrames++)
-        if ((previousPrepare = frameRegExp.exec(stack[skipFrames]))) {
-          var name = previousPrepare[1] || "";
+      for (existing = []; skipFrames < stack.length; skipFrames++) {
+        var parsed = frameRegExp.exec(stack[skipFrames]);
+        if (parsed) {
+          var name = parsed[1] || "";
           "<anonymous>" === name && (name = "");
-          var filename = previousPrepare[2] || previousPrepare[5] || "";
+          var filename = parsed[2] || parsed[5] || "";
           "<anonymous>" === filename && (filename = "");
-          error.push([
+          existing.push([
             name,
             filename,
-            +(previousPrepare[3] || previousPrepare[6]),
-            +(previousPrepare[4] || previousPrepare[7]),
+            +(parsed[3] || parsed[6]),
+            +(parsed[4] || parsed[7]),
             0,
             0
           ]);
         }
-      return error;
+      }
+      stackTraceCache.set(error, existing);
+      return existing;
     }
     function createTemporaryReference(temporaryReferences, id) {
       var reference = Object.defineProperties(
@@ -599,32 +605,25 @@
         !filename.includes("node_modules")
       );
     }
-    function filterStackTrace(request, error, skipFrames) {
-      var existing = stackTraceCache.get(error);
-      if (void 0 !== existing) {
-        error = existing.slice(0);
-        for (request = 0; request < error.length; request++)
-          error[request] = error[request].slice(0);
-        return error;
-      }
+    function filterStackTrace(request, stack) {
       request = request.filterStackFrame;
-      skipFrames = parseStackTrace(error, skipFrames);
-      for (existing = 0; existing < skipFrames.length; existing++) {
-        var callsite = skipFrames[existing],
-          functionName = callsite[0],
-          url = callsite[1];
+      for (var filteredStack = [], i = 0; i < stack.length; i++) {
+        var callsite = stack[i],
+          functionName = callsite[0];
+        var url = callsite[1];
         if (url.startsWith("rsc://React/")) {
           var envIdx = url.indexOf("/", 12),
             suffixIdx = url.lastIndexOf("?");
           -1 < envIdx &&
             -1 < suffixIdx &&
-            (url = callsite[1] = url.slice(envIdx + 1, suffixIdx));
+            (url = url.slice(envIdx + 1, suffixIdx));
         }
-        request(url, functionName) ||
-          (skipFrames.splice(existing, 1), existing--);
+        request(url, functionName) &&
+          ((callsite = callsite.slice(0)),
+          (callsite[1] = url),
+          filteredStack.push(callsite));
       }
-      stackTraceCache.set(error, skipFrames);
-      return skipFrames;
+      return filteredStack;
     }
     function patchConsole(consoleInst, methodName) {
       var descriptor = Object.getOwnPropertyDescriptor(consoleInst, methodName);
@@ -640,8 +639,7 @@
           if (("assert" !== methodName || !arguments[0]) && null !== request) {
             var stack = filterStackTrace(
               request,
-              Error("react-stack-top-frame"),
-              1
+              parseStackTrace(Error("react-stack-top-frame"), 1)
             );
             request.pendingChunks++;
             var owner = resolveOwner();
@@ -781,7 +779,7 @@
           ? defaultFilterStackFrame
           : filterStackFrame;
       this.didWarnForKey = null;
-      type = createTask(this, model, null, !1, abortSet, null, null, null);
+      type = createTask(this, model, null, !1, abortSet, 0, null, null, null);
       pingedTasks.push(type);
     }
     function createRequest(
@@ -843,6 +841,7 @@
         task.keyPath,
         task.implicitSlot,
         request.abortableTasks,
+        0,
         task.debugOwner,
         task.debugStack,
         task.debugTask
@@ -944,6 +943,7 @@
           task.keyPath,
           task.implicitSlot,
           request.abortableTasks,
+          0,
           task.debugOwner,
           task.debugStack,
           task.debugTask
@@ -1017,6 +1017,7 @@
           task.keyPath,
           task.implicitSlot,
           request.abortableTasks,
+          0,
           task.debugOwner,
           task.debugStack,
           task.debugTask
@@ -1081,7 +1082,7 @@
       componentDebugInfo.stack =
         null === task.debugStack
           ? null
-          : filterStackTrace(request, task.debugStack, 1);
+          : filterStackTrace(request, parseStackTrace(task.debugStack, 1));
       componentDebugInfo.debugStack = task.debugStack;
       request = componentDebugInfo.debugTask = task.debugTask;
       currentOwner = componentDebugInfo;
@@ -1183,7 +1184,7 @@
         componentDebugInfo.stack =
           null === task.debugStack
             ? null
-            : filterStackTrace(request, task.debugStack, 1);
+            : filterStackTrace(request, parseStackTrace(task.debugStack, 1));
         componentDebugInfo.props = props;
         componentDebugInfo.debugStack = task.debugStack;
         componentDebugInfo.debugTask = task.debugTask;
@@ -1301,6 +1302,7 @@
         task.keyPath,
         task.implicitSlot,
         request.abortableTasks,
+        0,
         task.debugOwner,
         task.debugStack,
         task.debugTask
@@ -1315,6 +1317,7 @@
         task.keyPath,
         task.implicitSlot,
         request.abortableTasks,
+        0,
         task.debugOwner,
         task.debugStack,
         task.debugTask
@@ -1349,7 +1352,10 @@
                 stack:
                   null === task.debugStack
                     ? null
-                    : filterStackTrace(request, task.debugStack, 1),
+                    : filterStackTrace(
+                        request,
+                        parseStackTrace(task.debugStack, 1)
+                      ),
                 props: props,
                 debugStack: task.debugStack,
                 debugTask: task.debugTask
@@ -1428,7 +1434,7 @@
         task.debugOwner,
         null === task.debugStack
           ? null
-          : filterStackTrace(request, task.debugStack, 1),
+          : filterStackTrace(request, parseStackTrace(task.debugStack, 1)),
         validated
       ];
       task = task.implicitSlot && null !== key ? [request] : request;
@@ -1453,19 +1459,20 @@
       keyPath,
       implicitSlot,
       abortSet,
+      lastTimestamp,
       debugOwner,
       debugStack,
       debugTask
     ) {
       request.pendingChunks++;
-      var id = request.nextChunkId++;
+      lastTimestamp = request.nextChunkId++;
       "object" !== typeof model ||
         null === model ||
         null !== keyPath ||
         implicitSlot ||
-        request.writtenObjects.set(model, serializeByValueID(id));
+        request.writtenObjects.set(model, serializeByValueID(lastTimestamp));
       var task = {
-        id: id,
+        id: lastTimestamp,
         status: PENDING$1,
         model: model,
         keyPath: keyPath,
@@ -1600,6 +1607,7 @@
         null,
         !1,
         request.abortableTasks,
+        0,
         null,
         null,
         null
@@ -1697,6 +1705,7 @@
           null,
           !1,
           request.abortableTasks,
+          0,
           null,
           null,
           null
@@ -1742,6 +1751,7 @@
               task.keyPath,
               task.implicitSlot,
               request.abortableTasks,
+              0,
               task.debugOwner,
               task.debugStack,
               task.debugTask
@@ -2106,7 +2116,7 @@
       try {
         name = error.name;
         var message = String(error.message);
-        var stack = filterStackTrace(request, error, 0);
+        var stack = filterStackTrace(request, parseStackTrace(error, 0));
         var errorEnv = error.environmentName;
         "string" === typeof errorEnv && (env = errorEnv);
       } catch (x) {
@@ -2131,7 +2141,7 @@
         if (error instanceof Error) {
           name = error.name;
           var message = String(error.message);
-          var stack = filterStackTrace(request, error, 0);
+          var stack = filterStackTrace(request, parseStackTrace(error, 0));
           var errorEnv = error.environmentName;
           "string" === typeof errorEnv && (env = errorEnv);
         } else
@@ -2207,6 +2217,31 @@
         );
       }
     }
+    function emitIOInfoChunk(request, id, name, start, end, env, owner, stack) {
+      var objectLimit = 10;
+      stack && (objectLimit += stack.length);
+      var counter = { objectLimit: objectLimit };
+      name = {
+        name: name,
+        start: start - request.timeOrigin,
+        end: end - request.timeOrigin
+      };
+      null != env && (name.env = env);
+      null != stack && (name.stack = stack);
+      null != owner && (name.owner = owner);
+      env = stringify(name, function (parentPropertyName, value) {
+        return renderConsoleValue(
+          request,
+          counter,
+          this,
+          parentPropertyName,
+          value
+        );
+      });
+      id = id.toString(16) + ":J" + env + "\n";
+      id = stringToChunk(id);
+      request.completedRegularChunks.push(id);
+    }
     function emitTypedArrayChunk(request, id, tag, typedArray) {
       request.pendingChunks++;
       var buffer = new Uint8Array(
@@ -2272,7 +2307,10 @@
             counter = null;
             if (null != value._debugStack)
               for (
-                counter = filterStackTrace(request, value._debugStack, 1),
+                counter = filterStackTrace(
+                  request,
+                  parseStackTrace(value._debugStack, 1)
+                ),
                   doNotLimit.add(counter),
                   request = 0;
                 request < counter.length;
@@ -2484,13 +2522,46 @@
       methodName = stringToChunk(":W" + json + "\n");
       request.completedRegularChunks.push(methodName);
     }
-    function forwardDebugInfo(request, id, debugInfo) {
+    function forwardDebugInfo(request$jscomp$0, id$jscomp$0, debugInfo) {
       for (var i = 0; i < debugInfo.length; i++)
-        "number" !== typeof debugInfo[i].time &&
-          (request.pendingChunks++,
-          "string" === typeof debugInfo[i].name &&
-            outlineComponentInfo(request, debugInfo[i]),
-          emitDebugChunk(request, id, debugInfo[i]));
+        if ("number" !== typeof debugInfo[i].time)
+          if (
+            (request$jscomp$0.pendingChunks++,
+            "string" === typeof debugInfo[i].name)
+          )
+            outlineComponentInfo(request$jscomp$0, debugInfo[i]),
+              emitDebugChunk(request$jscomp$0, id$jscomp$0, debugInfo[i]);
+          else if (debugInfo[i].awaited) {
+            var ioInfo = debugInfo[i].awaited;
+            var request = request$jscomp$0,
+              ioInfo$jscomp$0 = ioInfo;
+            if (!request.writtenObjects.has(ioInfo$jscomp$0)) {
+              request.pendingChunks++;
+              var id = request.nextChunkId++,
+                owner = ioInfo$jscomp$0.owner;
+              null != owner && outlineComponentInfo(request, owner);
+              emitIOInfoChunk(
+                request,
+                id,
+                ioInfo$jscomp$0.name,
+                ioInfo$jscomp$0.start,
+                ioInfo$jscomp$0.end,
+                ioInfo$jscomp$0.env,
+                owner,
+                ioInfo$jscomp$0.stack
+              );
+              request.writtenObjects.set(
+                ioInfo$jscomp$0,
+                serializeByValueID(id)
+              );
+            }
+            emitDebugChunk(request$jscomp$0, id$jscomp$0, {
+              awaited: ioInfo,
+              env: debugInfo[i].env,
+              owner: debugInfo[i].owner,
+              stack: debugInfo[i].stack
+            });
+          } else emitDebugChunk(request$jscomp$0, id$jscomp$0, debugInfo[i]);
     }
     function emitChunk(request, task, value) {
       var id = task.id;
@@ -3751,6 +3822,7 @@
       identifierRegExp = /^[a-zA-Z_$][0-9a-zA-Z_$]*$/,
       frameRegExp =
         /^ {3} at (?:(.+) \((?:(.+):(\d+):(\d+)|<anonymous>)\)|(?:async )?(.+):(\d+):(\d+)|<anonymous>)$/,
+      stackTraceCache = new WeakMap(),
       TEMPORARY_REFERENCE_TAG = Symbol.for("react.temporary.reference"),
       proxyHandlers = {
         get: function (target, name) {
@@ -3859,11 +3931,11 @@
             throw Error("useId can only be used while React is rendering");
           var id = currentRequest$1.identifierCount++;
           return (
-            "\u00ab" +
+            "_" +
             currentRequest$1.identifierPrefix +
-            "S" +
+            "S_" +
             id.toString(32) +
-            "\u00bb"
+            "_"
           );
         },
         useHostTransitionStatus: unsupportedHook,
@@ -3951,8 +4023,7 @@
       jsxPropsParents = new WeakMap(),
       jsxChildrenParents = new WeakMap(),
       CLIENT_REFERENCE_TAG = Symbol.for("react.client.reference"),
-      doNotLimit = new WeakSet(),
-      stackTraceCache = new WeakMap();
+      doNotLimit = new WeakSet();
     "object" === typeof console &&
       null !== console &&
       (patchConsole(console, "assert"),
