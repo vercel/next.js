@@ -386,3 +386,46 @@ export async function createPost(formData) {
   redirect('/posts')
 }
 ```
+
+### Cookies
+
+You can `get`, `set`, and `delete` cookies inside a Server Action using the [`cookies`](/docs/app/api-reference/functions/cookies) API:
+
+```ts filename="app/actions.ts" switcher
+'use server'
+
+import { cookies } from 'next/headers'
+
+export async function exampleAction() {
+  const cookieStore = await cookies()
+
+  // Get cookie
+  cookieStore.get('name')?.value
+
+  // Set cookie
+  cookieStore.set('name', 'Delba')
+
+  // Delete cookie
+  cookieStore.delete('name')
+}
+```
+
+```js filename="app/actions.js" switcher
+'use server'
+
+import { cookies } from 'next/headers'
+
+export async function exampleAction() {
+  // Get cookie
+  const cookieStore = await cookies()
+
+  // Get cookie
+  cookieStore.get('name')?.value
+
+  // Set cookie
+  cookieStore.set('name', 'Delba')
+
+  // Delete cookie
+  cookieStore.delete('name')
+}
+```
