@@ -288,6 +288,10 @@ function isNodeJsModule(moduleName: string) {
   )
 }
 
+function isBunModule(moduleName: string) {
+  return moduleName === 'bun' || moduleName.startsWith('bun:')
+}
+
 function isDynamicCodeEvaluationAllowed(
   fileName: string,
   middlewareConfig?: MiddlewareConfig,
@@ -521,12 +525,13 @@ function getCodeAnalyzer(params: {
 
         if (
           !dev &&
-          isNodeJsModule(importedModule) &&
+          (isNodeJsModule(importedModule) || isBunModule(importedModule)) &&
           !SUPPORTED_NATIVE_MODULES.includes(importedModule)
         ) {
+          const isBun = isBunModule(importedModule)
           compilation.warnings.push(
             buildWebpackError({
-              message: `A Node.js module is loaded ('${importedModule}' at line ${node.loc.start.line}) which is not supported in the Edge Runtime.
+              message: `A ${isBun ? 'Bun' : 'Node.js'} module is loaded ('${importedModule}' at line ${node.loc.start.line}) which is not supported in the Edge Runtime.
 Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`,
               compilation,
               parser,
@@ -871,7 +876,7 @@ export async function handleWebpackExternalForEdgeRuntime({
   if (
     (contextInfo.issuerLayer === WEBPACK_LAYERS.middleware ||
       contextInfo.issuerLayer === WEBPACK_LAYERS.apiEdge) &&
-    isNodeJsModule(request) &&
+    (isNodeJsModule(request) || isBunModule(request)) &&
     !supportedEdgePolyfills.has(request)
   ) {
     // allows user to provide and use their polyfills, as we do with buffer.

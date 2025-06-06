@@ -319,6 +319,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         }
         .into(),
         ResolveOptionsContext {
+            emulate_environment: Some(env),
             enable_typescript: true,
             enable_react: true,
             enable_node_modules: Some(project_root),
