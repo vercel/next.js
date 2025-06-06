@@ -271,8 +271,69 @@ export default function Layout({ children }) {
 
 ### Preventing too many prefetches
 
-- What is the problem with prefetching too much? Unnecessary server load. Especially for routes users might never visit.
-- Hover-trigger the prefetch or use manual prefetching
+Next.js automatically prefetches links in the viewport when using the `<Link>` component.
+
+There may be cases where you want to prevent this to avoid unnecessary usage of resources, such as when rendering a large list of links (e.g. an infinite scroll table).
+
+You can disable prefetching by setting the `prefetch` prop of the `<Link>` component to `false`.
+
+```tsx filename="app/ui/no-prefetch-link.tsx" switcher
+<Link prefetch={false} href={`/blog/${post.id}`}>
+  {post.title}
+</Link>
+```
+
+However, this means static routes will only be fetched on click, and dynamic routes will wait for the server to render before navigating.
+
+To reduce resource usage without disabling prefetch entirely, you can defer prefetching until the user hovers over a link. This targets only links the user is likely to visit.
+
+```tsx filename="app/ui/hover-prefetch-link.tsx" switcher
+'use client'
+
+import Link from 'next/link'
+import { useState } from 'react'
+
+function HoverPrefetchLink({
+  href,
+  children,
+}: {
+  href: string
+  children: React.ReactNode
+}) {
+  const [active, setActive] = useState(false)
+
+  return (
+    <Link
+      href={href}
+      prefetch={active ? null : false}
+      onMouseEnter={() => setActive(true)}
+    >
+      {children}
+    </Link>
+  )
+}
+```
+
+```jsx filename="app/ui/hover-prefetch-link.js" switcher
+'use client'
+
+import Link from 'next/link'
+import { useState } from 'react'
+
+function HoverPrefetchLink({ href, children }) {
+  const [active, setActive] = useState(false)
+
+  return (
+    <Link
+      href={href}
+      prefetch={active ? null : false}
+      onMouseEnter={() => setActive(true)}
+    >
+      {children}
+    </Link>
+  )
+}
+```
 
 ### Disabling prefetching on hover
 
