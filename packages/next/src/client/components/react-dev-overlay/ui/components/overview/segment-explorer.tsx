@@ -82,10 +82,20 @@ function PageSegmentTreeLayerPresentation({
   const segments = pagePath.split('/') || []
   const fileName = segments.pop() || ''
   const segmentPath = segments.join('/')
-
   let pagePathPrefix = segmentPath
+  let hasFileConvention = false
+  const childrenKeys = Object.keys(node.children)
 
-  const childrenKeys = Object.keys(node.children).sort((a, b) => {
+  childrenKeys.forEach((segment) => {
+    const child = node.children[segment]
+    // if it's a file
+    if (child?.value?.type) {
+      hasFileConvention = true
+    }
+  })
+
+  const hasIndentation = level > 1 && hasFileConvention
+  const sortedChildrenKeys = childrenKeys.sort((a, b) => {
     // Prioritize if it's a file convention like layout or page,
     // then the rest parallel routes.
     const aHasExt = a.includes('.')
@@ -100,7 +110,7 @@ function PageSegmentTreeLayerPresentation({
     <div
       className={cx(
         'segment-explorer-item',
-        level > 1 && 'segment-explorer-item--nested'
+        hasIndentation && 'segment-explorer-item--nested'
       )}
     >
       {!fileName || level === 0 ? null : (
@@ -123,7 +133,7 @@ function PageSegmentTreeLayerPresentation({
       )}
 
       <div className="tree-node-expanded-rendered-children">
-        {childrenKeys.map((segment) => {
+        {sortedChildrenKeys.map((segment) => {
           const child = node.children[segment]
           return (
             child && (
