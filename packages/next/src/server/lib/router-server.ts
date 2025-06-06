@@ -32,6 +32,7 @@ import {
   PHASE_PRODUCTION_SERVER,
   PHASE_DEVELOPMENT_SERVER,
   UNDERSCORE_NOT_FOUND_ROUTE,
+  RSC_REDIRECT_STATUS_CODE,
 } from '../../shared/lib/constants'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 import { DevBundlerService } from './dev-bundler-service'
@@ -55,6 +56,7 @@ import {
   RouterServerContextSymbol,
   routerServerGlobal,
 } from './router-utils/router-server-context'
+import { RSC_HEADER } from '../../client/components/app-router-headers'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -421,13 +423,37 @@ export async function initialize(opts: {
       // handle redirect
       if (!bodyStream && statusCode && statusCode > 300 && statusCode < 400) {
         const destination = url.format(parsedUrl)
-        res.statusCode = statusCode
         res.setHeader('location', destination)
+
+        // process.env.__NEXT_CLIENT_VALIDATE_RSC_REQUEST_HEADERS does not work in this file
+        // so we use config.experimental.validateRSCRequestHeaders instead
+        if (config.experimental.validateRSCRequestHeaders) {
+          // handle RSC redirect
+          // For RSC requests, transform standard 3xx redirects to a custom status.
+          // This allows our client-side RSC router to handle the redirect manually,
+          // ensuring cleaner navigation and state management specific to RSC,
+          // rather than default browser handling.
+          if (req.headers[RSC_HEADER.toLowerCase()] === '1') {
+            res.statusCode = RSC_REDIRECT_STATUS_CODE
+            return res.end()
+          }
+        }
+
+        res.statusCode = statusCode
 
         if (statusCode === RedirectStatusCode.PermanentRedirect) {
           res.setHeader('Refresh', `0;url=${destination}`)
         }
         return res.end(destination)
+      }
+
+      // process.env.__NEXT_CLIENT_VALIDATE_RSC_REQUEST_HEADERS does not work in this file
+      // so we use config.experimental.validateRSCRequestHeaders instead
+      if (config.experimental.validateRSCRequestHeaders) {
+        // handle RSC redirect from middleware
+        if (statusCode === RSC_REDIRECT_STATUS_CODE) {
+          return res.end()
+        }
       }
 
       // handle middleware body response

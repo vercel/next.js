@@ -693,5 +693,6 @@
   "692": "Expected clientReferenceManifest to be defined.",
   "693": "%s must not be used within a client component. Next.js should be preventing %s from being included in client components statically, but did not in this case.",
   "694": "createPrerenderPathname was called inside a client component scope.",
-  "695": "Expected workUnitAsyncStorage to have a store."
+  "695": "Expected workUnitAsyncStorage to have a store.",
+  "696": "Next.js RSC redirect protocol error: Missing Location header. This may indicate either a Next.js bug or that a third-party proxy is not correctly implementing the RSC redirect protocol."
 }

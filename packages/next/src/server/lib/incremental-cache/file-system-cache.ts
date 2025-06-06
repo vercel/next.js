@@ -23,6 +23,7 @@ import {
 } from '../../../lib/constants'
 import { isStale, tagsManifest } from './tags-manifest.external'
 import { MultiFileWriter } from '../../../lib/multi-file-writer'
+import { RSC_REDIRECT_STATUS_CODE } from '../../../shared/lib/constants'
 
 type FileSystemCacheContext = Omit<
   CacheHandlerContext,
@@ -244,6 +245,25 @@ export default class FileSystemCache implements CacheHandler {
                 IncrementalCacheKind.APP_PAGE
               )
             )
+          }
+
+          if (process.env.__NEXT_CLIENT_VALIDATE_RSC_REQUEST_HEADERS) {
+            // For RSC requests, transform standard 3xx redirects to a custom status.
+            // This allows our client-side RSC router to handle the redirect manually,
+            // ensuring cleaner navigation and state management specific to RSC,
+            // rather than default browser handling.
+            const modifyHeadersAndStatusForRscRedirect = () => {
+              if (!meta || !meta.status) {
+                return
+              }
+              const isRedirect = meta.status >= 300 && meta.status < 400
+              if (!isRedirect) {
+                return
+              }
+              meta.status = RSC_REDIRECT_STATUS_CODE
+            }
+
+            modifyHeadersAndStatusForRscRedirect()
           }
 
           data = {
