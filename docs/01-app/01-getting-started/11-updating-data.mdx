@@ -99,6 +99,8 @@ export default function Page() {
 }
 ```
 
+> **Good to know:** Server Components support progressive enhancement by default, meaning forms that call Server Actions will be submitted even if JavaScript hasn't loaded yet or is disabled.
+
 ### Client Components
 
 It's not possible to define Server Functions in Client Components. However, you can invoke them in Client Components by importing them from a file that has the `"use server"` directive at the top of it:
@@ -134,6 +136,8 @@ export function Button() {
   return <button formAction={createPost}>Create</button>
 }
 ```
+
+> **Good to know:** In Client Components, forms invoking Server Actions will queue submissions if JavaScript isn't loaded yet, and will be prioritized for hydration. After hydration, the browser does not refresh on form submission.
 
 ## Invoking Server Functions
 
