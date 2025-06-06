@@ -131,7 +131,16 @@ function ManualPrefetchLink({
     }
   }, [href, router])
 
-  return <a href={href}>{children}</a>
+<a
+  href={href}
+  onClick={(event) => {
+    event.preventDefault()
+    router.push(href)
+  }}
+>
+  {children}
+</a>
+
 }
 ```
 
