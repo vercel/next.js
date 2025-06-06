@@ -517,10 +517,6 @@ pub async fn get_client_runtime_entries(
         // because the bootstrap contains JSX which requires Refresh's global
         // functions to be available.
         if let Some(request) = enable_react_refresh {
-            // Use PriorityRequest to ensure React Refresh is loaded and initialized
-            // before any other entries that depend on React hooks/contexts.
-            // This prevents the race condition during concurrent compilation where
-            // React hooks are called before React's global functions are available.
             runtime_entries.push(
                 RuntimeEntry::PriorityRequest(
                     request.to_resolved().await?,
