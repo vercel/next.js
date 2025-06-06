@@ -276,7 +276,7 @@ impl AliasTemplate for Vc<ImportMapping> {
                         .await?,
                 ),
                 ImportMapping::Dynamic(replacement) => {
-                    (*replacement.replace(capture.clone().cell()).await?).clone()
+                    (*replacement.replace(Pattern::new(capture.clone())).await?).clone()
                 }
             }
             .resolved_cell())

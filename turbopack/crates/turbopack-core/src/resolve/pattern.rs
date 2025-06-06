@@ -1180,8 +1180,9 @@ impl Pattern {
 }
 
 impl Pattern {
-    pub fn new(pattern: Pattern) -> Vc<Self> {
-        Pattern::new_internal(Value::new(pattern))
+    pub fn new(mut pattern: Pattern) -> Vc<Self> {
+        pattern.normalize();
+        Pattern::new_internal(pattern)
     }
 }
 
