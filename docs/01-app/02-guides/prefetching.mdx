@@ -17,15 +17,9 @@ This guide will explain how prefetching works and show common implementation pat
 
 When navigating between routes, the browser requests assets for the page like HTML and JavaScript files. Prefetching is the process of fetching these resources _ahead_ of time, before you navigate to a new route.
 
-Next.js understands which routes you are [likely going to navigate to](https://www.notion.so/Prefetching-in-Next-js-1dfe06b059c48068b551eed1a2d53736?pvs=21), so it's able to prefetch the new route in the background. By the time you click the link, the resources for the new route have already been loaded into the browser cache.
+Next.js automatically splits your application into smaller JavaScript chunks based on routes. Instead of loading all the code upfront like traditional SPAs, only the code needed for the current route is loaded. This reduces the initial load time while other parts of the app are loaded in the background. By the time you click the link, the resources for the new route have already been loaded into the browser cache.
 
-When navigating to the new page, there's not a browser loading spinner. Instead, Next.js can transition the application to the new route on the client, making the page navigation feel instant.
-
-### Single-Page Applications
-
-Next.js can be used to build [Single-Page Applications (SPAs)](https://nextjs.org/docs/app/guides/single-page-applications). Unlike traditional SPAs, Next.js splits application code into smaller chunks which conditionally load based on the route you are navigating to. Rather than downloading all the application code at once, you load it incrementally.
-
-This approach prevents blocking the page from being interactive while waiting for one large JavaScript file to load and execute.
+When navigating to the new page, there's no full page reload or browser loading spinner. Instead, Next.js performs a [client-side transition](/docs/app/getting-started/linking-and-navigating#client-side-transitions), making the page navigation feel instant.
 
 ## Prefetching static vs. dynamic routes
 
