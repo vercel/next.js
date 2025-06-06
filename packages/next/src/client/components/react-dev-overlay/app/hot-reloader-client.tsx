@@ -1,30 +1,14 @@
 /// <reference types="webpack/module.d.ts" />
 
 import type { ReactNode } from 'react'
-import { useEffect, startTransition, useMemo, useRef } from 'react'
+import { useEffect, startTransition, useRef } from 'react'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import formatWebpackMessages from '../utils/format-webpack-messages'
 import { useRouter } from '../../navigation'
-import {
-  ACTION_BEFORE_REFRESH,
-  ACTION_BUILDING_INDICATOR_HIDE,
-  ACTION_BUILD_ERROR,
-  ACTION_BUILD_OK,
-  ACTION_BUILDING_INDICATOR_SHOW,
-  ACTION_DEBUG_INFO,
-  ACTION_DEV_INDICATOR,
-  ACTION_ERROR_OVERLAY_OPEN,
-  ACTION_REFRESH,
-  ACTION_STATIC_INDICATOR,
-  ACTION_UNHANDLED_ERROR,
-  ACTION_UNHANDLED_REJECTION,
-  ACTION_VERSION_INFO,
-  REACT_REFRESH_FULL_RELOAD,
-  reportInvalidHmrMessage,
-  useErrorOverlayReducer,
-} from '../shared'
-import { AppDevOverlay } from './app-dev-overlay'
+import { REACT_REFRESH_FULL_RELOAD, reportInvalidHmrMessage } from '../shared'
+import { dispatcher } from 'next/dist/compiled/next-devtools'
 import { ReplaySsrOnlyErrors } from './replay-ssr-only-errors'
+import { AppDevOverlayErrorBoundary } from './app-dev-overlay-error-boundary'
 import { useErrorHandler } from '../../errors/use-error-handler'
 import { RuntimeErrorHandler } from '../../errors/runtime-error-handler'
 import {
@@ -33,38 +17,17 @@ import {
   useWebsocket,
   useWebsocketPing,
 } from '../utils/use-websocket'
-import type { VersionInfo } from '../../../../server/dev/parse-version-info'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../../server/dev/hot-reloader-types'
 import type {
   HMR_ACTION_TYPES,
   TurbopackMsgToBrowser,
 } from '../../../../server/dev/hot-reloader-types'
 import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from '../shared'
-import type { DebugInfo } from '../types'
 import { useUntrackedPathname } from '../../navigation-untracked'
 import type { GlobalErrorComponent } from '../../global-error'
-import type { DevIndicatorServerState } from '../../../../server/dev/dev-indicator-server-state'
 import reportHmrLatency from '../utils/report-hmr-latency'
 import { TurbopackHmr } from '../utils/turbopack-hot-reloader-common'
 import { NEXT_HMR_REFRESH_HASH_COOKIE } from '../../app-router-headers'
-import { getComponentStack, getOwnerStack } from '../../errors/stitched-error'
-import { isRecoverableError } from '../../../react-client-callbacks/on-recoverable-error'
-
-export interface Dispatcher {
-  onBuildOk(): void
-  onBuildError(message: string): void
-  onVersionInfo(versionInfo: VersionInfo): void
-  onDebugInfo(debugInfo: DebugInfo): void
-  onBeforeRefresh(): void
-  onRefresh(): void
-  onStaticIndicator(status: boolean): void
-  onDevIndicator(devIndicator: DevIndicatorServerState): void
-  onUnhandledError(error: Error): void
-  onUnhandledRejection(error: Error): void
-  openErrorOverlay(): void
-  buildingIndicatorHide(): void
-  buildingIndicatorShow(): void
-}
 
 let mostRecentCompilationHash: any = null
 let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
@@ -150,10 +113,7 @@ function performFullReload(err: any, sendMessage: any) {
 }
 
 // Attempt to update code on the fly, fall back to a hard reload.
-function tryApplyUpdatesWebpack(
-  sendMessage: (message: string) => void,
-  dispatcher: Dispatcher
-) {
+function tryApplyUpdatesWebpack(sendMessage: (message: string) => void) {
   if (!isUpdateAvailable() || !canApplyUpdates()) {
     resolvePendingHotUpdateWebpack()
     dispatcher.onBuildOk()
@@ -179,7 +139,7 @@ function tryApplyUpdatesWebpack(
 
     if (isUpdateAvailable()) {
       // While we were updating, there was a new update! Do it again.
-      tryApplyUpdatesWebpack(sendMessage, dispatcher)
+      tryApplyUpdatesWebpack(sendMessage)
       return
     }
 
@@ -233,7 +193,6 @@ function processMessage(
   sendMessage: (message: string) => void,
   processTurbopackMessage: (msg: TurbopackMsgToBrowser) => void,
   router: ReturnType<typeof useRouter>,
-  dispatcher: Dispatcher,
   appIsrManifestRef: ReturnType<typeof useRef>,
   pathnameRef: ReturnType<typeof useRef>
 ) {
@@ -281,7 +240,7 @@ function processMessage(
       }
       dispatcher.onBuildOk()
     } else {
-      tryApplyUpdatesWebpack(sendMessage, dispatcher)
+      tryApplyUpdatesWebpack(sendMessage)
     }
   }
 
@@ -491,66 +450,6 @@ export default function HotReload({
   children: ReactNode
   globalError: [GlobalErrorComponent, React.ReactNode]
 }) {
-  const [state, dispatch] = useErrorOverlayReducer(
-    'app',
-    getComponentStack,
-    getOwnerStack,
-    isRecoverableError
-  )
-
-  const dispatcher = useMemo<Dispatcher>(() => {
-    return {
-      onBuildOk() {
-        dispatch({ type: ACTION_BUILD_OK })
-      },
-      onBuildError(message) {
-        dispatch({ type: ACTION_BUILD_ERROR, message })
-      },
-      onBeforeRefresh() {
-        dispatch({ type: ACTION_BEFORE_REFRESH })
-      },
-      onRefresh() {
-        dispatch({ type: ACTION_REFRESH })
-      },
-      onVersionInfo(versionInfo) {
-        dispatch({ type: ACTION_VERSION_INFO, versionInfo })
-      },
-      onStaticIndicator(status: boolean) {
-        dispatch({ type: ACTION_STATIC_INDICATOR, staticIndicator: status })
-      },
-      onDebugInfo(debugInfo) {
-        dispatch({ type: ACTION_DEBUG_INFO, debugInfo })
-      },
-      onDevIndicator(devIndicator) {
-        dispatch({
-          type: ACTION_DEV_INDICATOR,
-          devIndicator,
-        })
-      },
-      onUnhandledError(error) {
-        dispatch({
-          type: ACTION_UNHANDLED_ERROR,
-          reason: error,
-        })
-      },
-      onUnhandledRejection(error) {
-        dispatch({
-          type: ACTION_UNHANDLED_REJECTION,
-          reason: error,
-        })
-      },
-      openErrorOverlay() {
-        dispatch({ type: ACTION_ERROR_OVERLAY_OPEN })
-      },
-      buildingIndicatorHide() {
-        dispatch({ type: ACTION_BUILDING_INDICATOR_HIDE })
-      },
-      buildingIndicatorShow() {
-        dispatch({ type: ACTION_BUILDING_INDICATOR_SHOW })
-      },
-    }
-  }, [dispatch])
-
   useErrorHandler(dispatcher.onUnhandledError, dispatcher.onUnhandledRejection)
 
   const webSocketRef = useWebsocket(assetPrefix)
@@ -599,7 +498,7 @@ export default function HotReload({
           dispatcher.onStaticIndicator(false)
         }
       }
-    }, [pathname, dispatcher])
+    }, [pathname])
   }
 
   useEffect(() => {
@@ -614,7 +513,6 @@ export default function HotReload({
           sendMessage,
           processTurbopackMessage,
           router,
-          dispatcher,
           appIsrManifestRef,
           pathnameRef
         )
@@ -629,15 +527,14 @@ export default function HotReload({
     sendMessage,
     router,
     webSocketRef,
-    dispatcher,
     processTurbopackMessage,
     appIsrManifestRef,
   ])
 
   return (
-    <AppDevOverlay state={state} dispatch={dispatch} globalError={globalError}>
+    <AppDevOverlayErrorBoundary globalError={globalError}>
       <ReplaySsrOnlyErrors onBlockingError={dispatcher.openErrorOverlay} />
       {children}
-    </AppDevOverlay>
+    </AppDevOverlayErrorBoundary>
   )
 }

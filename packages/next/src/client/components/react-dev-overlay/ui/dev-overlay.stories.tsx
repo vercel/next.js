@@ -74,6 +74,7 @@ const initialState: OverlayState = {
   refreshState: { type: 'idle' },
   notFound: false,
   buildingIndicator: false,
+  renderingIndicator: false,
   staticIndicator: false,
   debugInfo: { devtoolsFrontendUrl: undefined },
   versionInfo: {

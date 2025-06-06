@@ -364,6 +364,9 @@ declare module 'next/dist/compiled/jest-worker' {
   export * from 'jest-worker'
 }
 
+// TODO: Use tsconfig#paths instead
+declare module 'next/dist/compiled/next-devtools'
+
 declare module 'next/dist/compiled/react-is' {
   export * from 'react-is'
 }
