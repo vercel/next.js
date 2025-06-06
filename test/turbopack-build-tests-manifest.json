@@ -5434,6 +5434,7 @@
   },
   "test/e2e/app-dir/segment-cache/cdn-cache-busting/cdn-cache-busting.test.ts": {
     "passed": [
+      "segment cache (CDN cache busting) perform fully prefetched navigation when a third-party proxy performs a redirect",
       "segment cache (CDN cache busting) perform fully prefetched navigation with a CDN that doesn't respect the Vary header",
       "segment cache (CDN cache busting) prevent cache poisoning attacks by responding with an error if a custom header is sent during a prefetch without a corresponding cache-busting search param"
     ],
@@ -5985,6 +5986,7 @@
     "passed": [
       "use-cache can reference server actions in \"use cache\" functions",
       "use-cache renders the not-found page when `notFound()` is used",
+      "use-cache shares caches between the page/layout and generateMetadata",
       "use-cache should be able to revalidate a page using unstable_expireTag",
       "use-cache should cache complex args",
       "use-cache should cache fetch without no-store",
