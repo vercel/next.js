@@ -12,6 +12,8 @@ use super::ContentSourceDataFilter;
 #[serde(transparent)]
 pub struct Query(BTreeMap<String, QueryValue>);
 
+// This type contains no VCs so the default implementation works.
+// Query is also recursive through QueryValue so the derive macro doesnt work
 impl TaskInput for Query {
     fn is_transient(&self) -> bool {
         false

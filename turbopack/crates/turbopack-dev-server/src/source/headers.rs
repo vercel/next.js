@@ -5,17 +5,21 @@ use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
 
 /// A parsed query string from a http request
 #[derive(
-    Clone, Debug, PartialEq, Eq, Default, Hash, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Default,
+    Hash,
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+    NonLocalValue,
+    TaskInput,
 )]
 #[serde(transparent)]
 pub struct Headers(BTreeMap<String, HeaderValue>);
 
-impl TaskInput for Headers {
-    fn is_transient(&self) -> bool {
-        // This is correct because Headers implements NonLocalValue
-        false
-    }
-}
 /// The value of an http header. HTTP headers might contain non-utf-8 bytes. An
 /// header might also occur multiple times.
 #[derive(
