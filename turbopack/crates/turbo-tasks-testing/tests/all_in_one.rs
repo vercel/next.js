@@ -63,11 +63,11 @@ async fn all_in_one() {
     .unwrap()
 }
 
-#[turbo_tasks::value(transparent, serialization = "auto_for_input")]
+#[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone, Hash)]
 struct MyTransparentValue(u32);
 
-#[turbo_tasks::value(shared, serialization = "auto_for_input")]
+#[turbo_tasks::value(shared)]
 #[derive(Debug, Clone, Hash, TaskInput)]
 enum MyEnumValue {
     Yeah(u32),
