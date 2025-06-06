@@ -51,9 +51,9 @@ export class BloomFilter {
     if (process.env.NEXT_RUNTIME === 'nodejs') {
       if (this.errorRate < DEFAULT_ERROR_RATE) {
         const filterData = JSON.stringify(data)
-        const gzipSize = require('next/dist/compiled/gzip-size').sync(
-          filterData
-        )
+        const gzipSize = (
+          require('next/dist/compiled/gzip-size') as typeof import('next/dist/compiled/gzip-size')
+        ).sync(filterData)
 
         if (gzipSize > 1024) {
           console.warn(

@@ -283,7 +283,9 @@ function isInMiddlewareLayer(parser: webpack.javascript.JavascriptParser) {
 }
 
 function isNodeJsModule(moduleName: string) {
-  return require('module').builtinModules.includes(moduleName)
+  return (require('module') as typeof import('module')).builtinModules.includes(
+    moduleName
+  )
 }
 
 function isDynamicCodeEvaluationAllowed(

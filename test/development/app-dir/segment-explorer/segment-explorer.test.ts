@@ -22,13 +22,13 @@ describe('segment-explorer', () => {
       '[data-nextjs-devtool-segment-explorer]'
     )
     expect(await content.text()).toMatchInlineSnapshot(`
-     "app/parallel-routes/page.tsx
-     app/parallel-routes/@foo/page.tsx
-     app/parallel-routes/@foo/layout.tsx
-     app/parallel-routes/@bar/page.tsx
-     app/parallel-routes/@bar/layout.tsx
+     "app/layout.tsx
      app/parallel-routes/layout.tsx
-     app/layout.tsx"
+     app/parallel-routes/page.tsx
+     app/parallel-routes/@bar/layout.tsx
+     app/parallel-routes/@bar/page.tsx
+     app/parallel-routes/@foo/layout.tsx
+     app/parallel-routes/@foo/page.tsx"
     `)
   })
 })

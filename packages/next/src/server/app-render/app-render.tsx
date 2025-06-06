@@ -1332,7 +1332,9 @@ async function renderToHTMLOrFlightImpl(
   } else if (process.env.NEXT_RUNTIME === 'edge') {
     requestId = crypto.randomUUID()
   } else {
-    requestId = require('next/dist/compiled/nanoid').nanoid()
+    requestId = (
+      require('next/dist/compiled/nanoid') as typeof import('next/dist/compiled/nanoid')
+    ).nanoid()
   }
 
   /**
@@ -1952,8 +1954,9 @@ async function renderToStream(
         // We assume we have dynamic HTML requiring a resume render to complete
         const postponed = getPostponedFromState(postponedState)
 
-        const resume = require('react-dom/server.edge')
-          .resume as (typeof import('react-dom/server.edge'))['resume']
+        const resume = (
+          require('react-dom/server.edge') as typeof import('react-dom/server.edge')
+        ).resume as (typeof import('react-dom/server.edge'))['resume']
 
         const htmlStream = await workUnitAsyncStorage.run(
           requestStore,
@@ -1990,7 +1993,9 @@ async function renderToStream(
     }
 
     // This is a regular dynamic render
-    const renderToReadableStream = require('react-dom/server.edge')
+    const renderToReadableStream = (
+      require('react-dom/server.edge') as typeof import('react-dom/server.edge')
+    )
       .renderToReadableStream as (typeof import('react-dom/server.edge'))['renderToReadableStream']
 
     const htmlStream = await workUnitAsyncStorage.run(
@@ -2149,7 +2154,8 @@ async function renderToStream(
         requestStore,
         renderToInitialFizzStream,
         {
-          ReactDOMServer: require('react-dom/server.edge'),
+          ReactDOMServer:
+            require('react-dom/server.edge') as typeof import('react-dom/server.edge'),
           element: (
             <ErrorApp
               reactServerStream={errorServerStream}
@@ -2413,8 +2419,9 @@ async function spawnDynamicValidationInDev(
       hmrRefreshHash: undefined,
     }
 
-    const prerender = require('react-dom/static.edge')
-      .prerender as (typeof import('react-dom/static.edge'))['prerender']
+    const prerender = (
+      require('react-dom/static.edge') as typeof import('react-dom/static.edge')
+    ).prerender as (typeof import('react-dom/static.edge'))['prerender']
     const pendingInitialClientResult = workUnitAsyncStorage.run(
       initialClientPrerenderStore,
       prerender,
@@ -2562,8 +2569,9 @@ async function spawnDynamicValidationInDev(
   let dynamicValidation = createDynamicValidationState()
 
   try {
-    const prerender = require('react-dom/static.edge')
-      .prerender as (typeof import('react-dom/static.edge'))['prerender']
+    const prerender = (
+      require('react-dom/static.edge') as typeof import('react-dom/static.edge')
+    ).prerender as (typeof import('react-dom/static.edge'))['prerender']
     let { prelude: unprocessedPrelude } =
       await prerenderAndAbortInSequentialTasks(
         () =>
@@ -3006,8 +3014,9 @@ async function prerenderToStream(
           hmrRefreshHash: undefined,
         }
 
-        const prerender = require('react-dom/static.edge')
-          .prerender as (typeof import('react-dom/static.edge'))['prerender']
+        const prerender = (
+          require('react-dom/static.edge') as typeof import('react-dom/static.edge')
+        ).prerender as (typeof import('react-dom/static.edge'))['prerender']
         const pendingInitialClientResult = workUnitAsyncStorage.run(
           initialClientPrerenderStore,
           prerender,
@@ -3163,8 +3172,9 @@ async function prerenderToStream(
       let clientIsDynamic = false
       let dynamicValidation = createDynamicValidationState()
 
-      const prerender = require('react-dom/static.edge')
-        .prerender as (typeof import('react-dom/static.edge'))['prerender']
+      const prerender = (
+        require('react-dom/static.edge') as typeof import('react-dom/static.edge')
+      ).prerender as (typeof import('react-dom/static.edge'))['prerender']
       let { prelude: unprocessedPrelude, postponed } =
         await prerenderAndAbortInSequentialTasks(
           () =>
@@ -3295,8 +3305,9 @@ async function prerenderToStream(
         if (postponed != null) {
           // We postponed but nothing dynamic was used. We resume the render now and immediately abort it
           // so we can set all the postponed boundaries to client render mode before we store the HTML response
-          const resume = require('react-dom/server.edge')
-            .resume as (typeof import('react-dom/server.edge'))['resume']
+          const resume = (
+            require('react-dom/server.edge') as typeof import('react-dom/server.edge')
+          ).resume as (typeof import('react-dom/server.edge'))['resume']
 
           // We don't actually want to render anything so we just pass a stream
           // that never resolves. The resume call is going to abort immediately anyway
@@ -3396,8 +3407,9 @@ async function prerenderToStream(
         tags: [...implicitTags.tags],
         prerenderResumeDataCache,
       }
-      const prerender = require('react-dom/static.edge')
-        .prerender as (typeof import('react-dom/static.edge'))['prerender']
+      const prerender = (
+        require('react-dom/static.edge') as typeof import('react-dom/static.edge')
+      ).prerender as (typeof import('react-dom/static.edge'))['prerender']
       const { prelude, postponed } = await workUnitAsyncStorage.run(
         ssrPrerenderStore,
         prerender,
@@ -3525,8 +3537,9 @@ async function prerenderToStream(
         if (postponed != null) {
           // We postponed but nothing dynamic was used. We resume the render now and immediately abort it
           // so we can set all the postponed boundaries to client render mode before we store the HTML response
-          const resume = require('react-dom/server.edge')
-            .resume as (typeof import('react-dom/server.edge'))['resume']
+          const resume = (
+            require('react-dom/server.edge') as typeof import('react-dom/server.edge')
+          ).resume as (typeof import('react-dom/server.edge'))['resume']
 
           // We don't actually want to render anything so we just pass a stream
           // that never resolves. The resume call is going to abort immediately anyway
@@ -3606,7 +3619,9 @@ async function prerenderToStream(
           )
         ))
 
-      const renderToReadableStream = require('react-dom/server.edge')
+      const renderToReadableStream = (
+        require('react-dom/server.edge') as typeof import('react-dom/server.edge')
+      )
         .renderToReadableStream as (typeof import('react-dom/server.edge'))['renderToReadableStream']
 
       const htmlStream = await workUnitAsyncStorage.run(
@@ -3780,7 +3795,8 @@ async function prerenderToStream(
         prerenderLegacyStore,
         renderToInitialFizzStream,
         {
-          ReactDOMServer: require('react-dom/server.edge'),
+          ReactDOMServer:
+            require('react-dom/server.edge') as typeof import('react-dom/server.edge'),
           element: (
             <ErrorApp
               reactServerStream={errorServerStream}

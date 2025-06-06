@@ -345,7 +345,7 @@ impl ChunkingContext for NodeJsChunkingContext {
         ident: Vc<AssetIdent>,
         chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
-        availability_info: Value<AvailabilityInfo>,
+        availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
         let span = tracing::info_span!("chunking", module = ident.to_string().await?.to_string());
         async move {
@@ -357,7 +357,7 @@ impl ChunkingContext for NodeJsChunkingContext {
                 modules,
                 module_graph,
                 ResolvedVc::upcast(self),
-                availability_info.into_value(),
+                availability_info,
             )
             .await?;
 
@@ -384,10 +384,8 @@ impl ChunkingContext for NodeJsChunkingContext {
         evaluatable_assets: Vc<EvaluatableAssets>,
         module_graph: Vc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
-        availability_info: Value<AvailabilityInfo>,
+        availability_info: AvailabilityInfo,
     ) -> Result<Vc<EntryChunkGroupResult>> {
-        let availability_info = availability_info.into_value();
-
         let evaluatable_assets_ref = evaluatable_assets.await?;
         let entries = evaluatable_assets_ref
             .iter()
@@ -447,7 +445,7 @@ impl ChunkingContext for NodeJsChunkingContext {
         _ident: Vc<AssetIdent>,
         _chunk_group: ChunkGroup,
         _module_graph: Vc<ModuleGraph>,
-        _availability_info: Value<AvailabilityInfo>,
+        _availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
         // TODO(alexkirsz) This method should be part of a separate trait that is
         // only implemented for client/edge runtimes.
@@ -464,7 +462,7 @@ impl ChunkingContext for NodeJsChunkingContext {
         self: Vc<Self>,
         module: Vc<Box<dyn ChunkableModule>>,
         module_graph: Vc<ModuleGraph>,
-        availability_info: Value<AvailabilityInfo>,
+        availability_info: AvailabilityInfo,
     ) -> Result<Vc<Box<dyn ChunkItem>>> {
         Ok(if self.await?.manifest_chunks {
             let manifest_asset =

@@ -48,7 +48,7 @@ use turbopack_core::{
     source_map::{OptionStringifiedSourceMap, SourceMap, Token},
     version::{PartialUpdate, TotalUpdate, Update, VersionState},
 };
-use turbopack_ecmascript_hmr_protocol::{ClientUpdateInstruction, Issue, ResourceIdentifier};
+use turbopack_ecmascript_hmr_protocol::{ClientUpdateInstruction, ResourceIdentifier};
 use turbopack_trace_utils::{
     exit::{ExitHandler, ExitReceiver},
     filter_layer::FilterLayer,
@@ -1079,7 +1079,7 @@ pub fn project_hmr_events(
                 .collect();
             let update_issues = issues
                 .iter()
-                .map(|issue| Issue::from(&**issue))
+                .map(|issue| (&**issue).into())
                 .collect::<Vec<_>>();
 
             let identifier = ResourceIdentifier {

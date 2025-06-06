@@ -342,7 +342,8 @@ async function createComponentTreeInternal({
   let MaybeComponent = LayoutOrPage
 
   if (process.env.NODE_ENV === 'development') {
-    const { isValidElementType } = require('next/dist/compiled/react-is')
+    const { isValidElementType } =
+      require('next/dist/compiled/react-is') as typeof import('next/dist/compiled/react-is')
     if (
       typeof MaybeComponent !== 'undefined' &&
       !isValidElementType(MaybeComponent)

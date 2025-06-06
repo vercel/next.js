@@ -77,9 +77,9 @@ import {
 let ReactDevOverlayImpl: PagesDevOverlayType
 const ReactDevOverlay: PagesDevOverlayType = (props) => {
   if (ReactDevOverlayImpl === undefined) {
-    ReactDevOverlayImpl =
-      require('../../client/components/react-dev-overlay/pages/pages-dev-overlay')
-        .PagesDevOverlay as PagesDevOverlayType
+    ReactDevOverlayImpl = (
+      require('../../client/components/react-dev-overlay/pages/pages-dev-overlay') as typeof import('../../client/components/react-dev-overlay/pages/pages-dev-overlay')
+    ).PagesDevOverlay as PagesDevOverlayType
   }
   return ReactDevOverlayImpl(props)
 }

@@ -1,0 +1,3 @@
+warning - [analysis] [project]/turbopack/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/commonjs.js  unexpected export *
+  export * used with module [project]/turbopack/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/commonjs.js [test] (ecmascript) which is a CommonJS module with exports only available at runtime
+  List all export names manually (`export { a, b, c } from "...") or rewrite the module to ESM, to avoid the additional runtime code.`

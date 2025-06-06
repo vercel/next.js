@@ -184,11 +184,7 @@ describe('Error overlay - RSC build errors', () => {
          4 |   return 'client-only-lib'
 
        You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
-       Learn more: https://nextjs.org/docs/app/building-your-application/rendering
-
-       Example import trace:
-         ./app/server-with-errors/client-only-in-server/client-only-lib.js
-         ./app/server-with-errors/client-only-in-server/page.js"
+       Learn more: https://nextjs.org/docs/app/building-your-application/rendering"
       `)
     } else {
       expect(await session.getRedboxSource()).toInclude(

@@ -3,7 +3,7 @@ use mime_guess::mime::TEXT_HTML_UTF_8;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Value, Vc, trace::TraceRawVcs,
+    NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_hex};
@@ -159,7 +159,7 @@ impl DevHtmlAsset {
                                 .collect(),
                         ),
                         *module_graph,
-                        Value::new(AvailabilityInfo::Root),
+                        AvailabilityInfo::Root,
                     )
                 } else {
                     chunking_context.root_chunk_group_assets(

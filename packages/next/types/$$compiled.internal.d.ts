@@ -411,6 +411,7 @@ declare module 'next/dist/compiled/amphtml-validator' {
   import m from 'amphtml-validator'
   export = m
 }
+declare module 'next/dist/compiled/@ampproject/toolbox-optimizer'
 
 declare module 'next/dist/compiled/superstruct' {
   import * as m from 'superstruct'
@@ -455,6 +456,20 @@ declare module 'next/dist/compiled/babel/core-lib-normalize-file'
 declare module 'next/dist/compiled/babel/core-lib-normalize-opts'
 declare module 'next/dist/compiled/babel/core-lib-block-hoist-plugin'
 declare module 'next/dist/compiled/babel/core-lib-plugin-pass'
+declare module 'next/dist/compiled/babel/plugin-syntax-dynamic-import'
+declare module 'next/dist/compiled/babel/plugin-syntax-import-attributes'
+declare module 'next/dist/compiled/babel/plugin-proposal-class-properties'
+declare module 'next/dist/compiled/babel/plugin-proposal-object-rest-spread'
+declare module 'next/dist/compiled/babel/plugin-transform-runtime'
+declare module 'styled-jsx/babel-test'
+declare module 'styled-jsx/babel'
+declare module 'next/dist/compiled/babel/plugin-transform-react-remove-prop-types'
+declare module 'next/dist/compiled/babel/plugin-syntax-bigint'
+declare module 'next/dist/compiled/babel/plugin-proposal-numeric-separator'
+declare module 'next/dist/compiled/babel/plugin-proposal-export-namespace-from'
+declare module 'next/dist/compiled/babel/preset-env'
+declare module 'next/dist/compiled/babel/preset-react'
+declare module 'next/dist/compiled/babel/preset-typescript'
 
 declare module 'next/dist/compiled/bytes' {
   import m from 'bytes'
@@ -540,6 +555,9 @@ declare module 'next/dist/compiled/lodash.curry' {
   import m from 'lodash.curry'
   export = m
 }
+declare module 'next/dist/compiled/nanoid' {
+  export * from 'nanoid'
+}
 declare module 'next/dist/compiled/picomatch' {
   import m from 'picomatch'
   export = m
@@ -556,6 +574,7 @@ declare module 'next/dist/compiled/path-to-regexp' {
   import m from 'path-to-regexp'
   export = m
 }
+declare module 'next/dist/compiled/react-refresh/babel'
 declare module 'next/dist/compiled/send' {
   import m from 'send'
   export = m

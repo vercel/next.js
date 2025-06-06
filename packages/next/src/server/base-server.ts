@@ -474,7 +474,9 @@ export default abstract class Server<
     this.serverOptions = options
 
     this.dir =
-      process.env.NEXT_RUNTIME === 'edge' ? dir : require('path').resolve(dir)
+      process.env.NEXT_RUNTIME === 'edge'
+        ? dir
+        : (require('path') as typeof import('path')).resolve(dir)
 
     this.quiet = quiet
     this.loadEnvConfig({ dev })
@@ -491,7 +493,10 @@ export default abstract class Server<
     this.distDir =
       process.env.NEXT_RUNTIME === 'edge'
         ? this.nextConfig.distDir
-        : require('path').join(this.dir, this.nextConfig.distDir)
+        : (require('path') as typeof import('path')).join(
+            this.dir,
+            this.nextConfig.distDir
+          )
     this.publicDir = this.getPublicDir()
     this.hasStaticDir = !minimalMode && this.getHasStaticDir()
 
@@ -2101,7 +2106,8 @@ export default abstract class Server<
         // The hash sent by the client does not match the expected value.
         // Respond with an error.
         res.statusCode = 400
-        res.body('Bad Request').send()
+        res.setHeader('content-type', 'text/plain')
+        res.body('').send()
         return null
       }
     }

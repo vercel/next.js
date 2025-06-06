@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     context::AssetContext,
@@ -129,7 +129,7 @@ impl ModuleReference for TsReferenceTypeAssetReference {
             *self.origin,
             Request::module(
                 self.module.clone(),
-                Value::new(RcStr::default().into()),
+                RcStr::default().into(),
                 RcStr::default(),
                 RcStr::default(),
             ),

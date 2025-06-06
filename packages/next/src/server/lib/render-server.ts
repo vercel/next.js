@@ -18,7 +18,8 @@ let initializations: Record<string, Promise<ServerInitResult> | undefined> = {}
 let sandboxContext: undefined | typeof import('../web/sandbox/context')
 
 if (process.env.NODE_ENV !== 'production') {
-  sandboxContext = require('../web/sandbox/context')
+  sandboxContext =
+    require('../web/sandbox/context') as typeof import('../web/sandbox/context')
 }
 
 export function clearAllModuleContexts() {

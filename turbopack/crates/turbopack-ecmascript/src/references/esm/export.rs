@@ -1,10 +1,10 @@
 use std::{borrow::Cow, collections::BTreeMap, ops::ControlFlow};
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use swc_core::{
-    common::DUMMY_SP,
+    common::{DUMMY_SP, SyntaxContext},
     ecma::ast::{
         AssignTarget, ComputedPropName, Expr, ExprStmt, Ident, KeyValueProp, Lit, MemberExpr,
         MemberProp, ObjectLit, Prop, PropName, PropOrSpread, SimpleAssignTarget, Stmt, Str,
@@ -565,21 +565,38 @@ impl EsmExports {
                     "(() => { throw new Error(\"Failed binding. See build errors!\"); })" as Expr,
                 )),
                 EsmExport::LocalBinding(name, mutable) => {
-                    let local = if name == "default" {
-                        Cow::Owned(magic_identifier::mangle("default export"))
-                    } else {
-                        Cow::Borrowed(name.as_str())
-                    };
-                    let ctxt = parsed
-                        .as_ref()
-                        .and_then(|parsed| {
-                            if let ParseResult::Ok { eval_context, .. } = &**parsed {
-                                eval_context.imports.exports.get(name).map(|id| id.1)
+                    // TODO ideally, this information would just be stored in
+                    // EsmExport::LocalBinding and we wouldn't have to re-correlated this
+                    // information with eval_context.imports.exports to get the syntax context.
+                    let binding = if let Some(parsed) = &parsed {
+                        if let ParseResult::Ok { eval_context, .. } = &**parsed {
+                            if let Some((local, ctxt)) = eval_context.imports.exports.get(exported)
+                            {
+                                Some((Cow::Borrowed(local.as_str()), *ctxt))
                             } else {
-                                None
+                                bail!(
+                                    "Expected export to be in eval context {:?} {:?}",
+                                    exported,
+                                    eval_context.imports,
+                                )
                             }
-                        })
-                        .unwrap_or_default();
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    };
+                    let (local, ctxt) = binding.unwrap_or_else(|| {
+                        // Fallback, shouldn't happen in practice
+                        (
+                            if name == "default" {
+                                Cow::Owned(magic_identifier::mangle("default export"))
+                            } else {
+                                Cow::Borrowed(name.as_str())
+                            },
+                            SyntaxContext::empty(),
+                        )
+                    });
 
                     if *mutable {
                         Some(quote!(

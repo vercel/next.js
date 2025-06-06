@@ -36,7 +36,11 @@ let ServerImpl: typeof NextNodeServer
 
 const getServerImpl = async () => {
   if (ServerImpl === undefined) {
-    ServerImpl = (await Promise.resolve(require('./next-server'))).default
+    ServerImpl = (
+      await Promise.resolve(
+        require('./next-server') as typeof import('./next-server')
+      )
+    ).default
   }
   return ServerImpl
 }
@@ -231,8 +235,9 @@ export class NextServer implements NextWrapperServer {
   ): Promise<NextNodeServer> {
     let ServerImplementation: typeof NextNodeServer
     if (options.dev) {
-      ServerImplementation = require('./dev/next-dev-server')
-        .default as typeof import('./dev/next-dev-server').default
+      ServerImplementation = (
+        require('./dev/next-dev-server') as typeof import('./dev/next-dev-server')
+      ).default as typeof import('./dev/next-dev-server').default
     } else {
       ServerImplementation = await getServerImpl()
     }
@@ -515,7 +520,8 @@ function createServer(
     'typescript' in options &&
     'version' in (options as any).typescript
   ) {
-    const pluginMod: typeof import('./next-typescript') = require('./next-typescript')
+    const pluginMod: typeof import('./next-typescript') =
+      require('./next-typescript') as typeof import('./next-typescript')
     return pluginMod.createTSPlugin(
       options as any
     ) as unknown as NextWrapperServer

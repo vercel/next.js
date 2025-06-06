@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, OptionVcExt, ResolvedVc, Value, Vc};
+use turbo_tasks::{FxIndexMap, OptionVcExt, ResolvedVc, Vc};
 use turbo_tasks_env::EnvMap;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{css::chunk::CssChunkType, resolve_options_context::ResolveOptionsContext};
@@ -85,9 +85,9 @@ pub async fn get_edge_compile_time_info(
     define_env: Vc<EnvMap>,
 ) -> Result<Vc<CompileTimeInfo>> {
     CompileTimeInfo::builder(
-        Environment::new(Value::new(ExecutionEnvironment::EdgeWorker(
+        Environment::new(ExecutionEnvironment::EdgeWorker(
             EdgeWorkerEnvironment {}.resolved_cell(),
-        )))
+        ))
         .to_resolved()
         .await?,
     )
@@ -104,7 +104,7 @@ pub async fn get_edge_compile_time_info(
 #[turbo_tasks::function]
 pub async fn get_edge_resolve_options_context(
     project_path: ResolvedVc<FileSystemPath>,
-    ty: Value<ServerContextType>,
+    ty: ServerContextType,
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
@@ -118,8 +118,6 @@ pub async fn get_edge_resolve_options_context(
     )
     .to_resolved()
     .await?;
-
-    let ty: ServerContextType = ty.into_value();
 
     let mut before_resolve_plugins = vec![ResolvedVc::upcast(
         ModuleFeatureReportResolvePlugin::new(*project_path)

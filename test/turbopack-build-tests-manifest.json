@@ -10248,10 +10248,9 @@
       "CSS Modules: Import Global CSS production mode should've emitted a single CSS file",
       "Custom Properties: Fail for global element in CSS Modules production mode should fail to build"
     ],
-    "failed": [
-      "CSS Modules: Importing Invalid Global CSS production mode should fail to build"
-    ],
+    "failed": [],
     "pending": [
+      "CSS Modules: Importing Invalid Global CSS production mode should fail to build",
       "CSS Modules: Import Exports production mode should've emitted a single CSS file",
       "Custom Properties: Fail for :root {} in CSS Modules production mode should fail to build"
     ],
@@ -10304,13 +10303,12 @@
       "Valid CSS Module Usage from within node_modules production mode should've prerendered with relevant data",
       "cssmodules-pure-no-check usage should apply styles correctly",
       "cssmodules-pure-no-check usage should have compiled successfully",
-      "cssmodules-pure-no-check usage should've emitted a CSS file"
-    ],
-    "failed": [
+      "cssmodules-pure-no-check usage should've emitted a CSS file",
       "CSS Module Composes Usage (External) production mode should've emitted a single CSS file",
       "Valid Nested CSS Module Usage from within node_modules production mode should've emitted a single CSS file",
       "Valid Nested CSS Module Usage from within node_modules production mode should've prerendered with relevant data"
     ],
+    "failed": [],
     "pending": [
       "Invalid CSS Module Usage in node_modules production mode should fail to build",
       "Invalid Global CSS Module Usage in node_modules production mode should fail to build"

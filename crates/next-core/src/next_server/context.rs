@@ -2,7 +2,7 @@ use std::iter::once;
 
 use anyhow::{Result, bail};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, OptionVcExt, ResolvedVc, Value, Vc};
+use turbo_tasks::{FxIndexMap, OptionVcExt, ResolvedVc, TaskInput, Vc};
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
@@ -78,8 +78,8 @@ use crate::{
     },
 };
 
-#[turbo_tasks::value(shared, serialization = "auto_for_input")]
-#[derive(Debug, Clone, Hash)]
+#[turbo_tasks::value(shared)]
+#[derive(Debug, Clone, Hash, TaskInput)]
 pub enum ServerContextType {
     Pages {
         pages_dir: ResolvedVc<FileSystemPath>,
@@ -128,7 +128,7 @@ impl ServerContextType {
 #[turbo_tasks::function]
 pub async fn get_server_resolve_options_context(
     project_path: ResolvedVc<FileSystemPath>,
-    ty: Value<ServerContextType>,
+    ty: ServerContextType,
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
@@ -193,8 +193,6 @@ pub async fn get_server_resolve_options_context(
 
     external_packages.retain(|item| !transpiled_packages.contains(item));
 
-    let ty = ty.into_value();
-
     let server_external_packages_plugin = ExternalCjsModulesResolvePlugin::new(
         *project_path,
         project_path.root(),
@@ -234,7 +232,7 @@ pub async fn get_server_resolve_options_context(
         .to_resolved()
         .await?;
     let next_node_shared_runtime_plugin =
-        NextNodeSharedRuntimeResolvePlugin::new(*project_path, Value::new(ty.clone()))
+        NextNodeSharedRuntimeResolvePlugin::new(*project_path, ty.clone())
             .to_resolved()
             .await?;
 
@@ -388,7 +386,7 @@ pub async fn get_server_compile_time_info(
     cwd: RcStr,
 ) -> Result<Vc<CompileTimeInfo>> {
     CompileTimeInfo::builder(
-        Environment::new(Value::new(ExecutionEnvironment::NodeJsLambda(
+        Environment::new(ExecutionEnvironment::NodeJsLambda(
             NodeJsEnvironment {
                 compile_target: CompileTarget::current().to_resolved().await?,
                 node_version: NodeJsVersion::resolved_cell(NodeJsVersion::Current(
@@ -397,7 +395,7 @@ pub async fn get_server_compile_time_info(
                 cwd: ResolvedVc::cell(Some(cwd)),
             }
             .resolved_cell(),
-        )))
+        ))
         .to_resolved()
         .await?,
     )
@@ -411,7 +409,7 @@ pub async fn get_server_compile_time_info(
 pub async fn get_server_module_options_context(
     project_path: ResolvedVc<FileSystemPath>,
     execution_context: ResolvedVc<ExecutionContext>,
-    ty: Value<ServerContextType>,
+    ty: ServerContextType,
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     next_runtime: NextRuntime,
@@ -420,7 +418,7 @@ pub async fn get_server_module_options_context(
     let next_mode = mode.await?;
     let mut next_server_rules = get_next_server_transforms_rules(
         next_config,
-        ty.clone().into_value(),
+        ty.clone(),
         mode,
         false,
         next_runtime,
@@ -429,7 +427,7 @@ pub async fn get_server_module_options_context(
     .await?;
     let mut foreign_next_server_rules = get_next_server_transforms_rules(
         next_config,
-        ty.clone().into_value(),
+        ty.clone(),
         mode,
         true,
         next_runtime,
@@ -437,7 +435,7 @@ pub async fn get_server_module_options_context(
     )
     .await?;
     let mut internal_custom_rules = get_next_server_internal_transforms_rules(
-        ty.clone().into_value(),
+        ty.clone(),
         next_config.mdx_rs().await?.is_some(),
     )
     .await?;
@@ -570,7 +568,6 @@ pub async fn get_server_module_options_context(
         ..Default::default()
     };
 
-    let ty = ty.into_value();
     let module_options_context = match ty {
         ServerContextType::Pages { .. }
         | ServerContextType::PagesData { .. }
@@ -976,7 +973,7 @@ pub async fn get_server_module_options_context(
 
 #[turbo_tasks::function]
 pub fn get_server_runtime_entries(
-    _ty: Value<ServerContextType>,
+    _ty: ServerContextType,
     _mode: Vc<NextMode>,
 ) -> Vc<RuntimeEntries> {
     let runtime_entries = vec![];

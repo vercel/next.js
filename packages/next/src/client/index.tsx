@@ -181,7 +181,8 @@ class Container extends React.Component<{
     } else {
       const {
         PagesDevOverlay,
-      }: typeof import('./components/react-dev-overlay/pages/pages-dev-overlay') = require('./components/react-dev-overlay/pages/pages-dev-overlay')
+      }: typeof import('./components/react-dev-overlay/pages/pages-dev-overlay') =
+        require('./components/react-dev-overlay/pages/pages-dev-overlay') as typeof import('./components/react-dev-overlay/pages/pages-dev-overlay')
       return <PagesDevOverlay>{this.props.children}</PagesDevOverlay>
     }
   }
@@ -269,7 +270,8 @@ export async function initialize(opts: { devClient?: any } = {}): Promise<{
   }
 
   if (initialData.scriptLoader) {
-    const { initScriptLoader } = require('./script')
+    const { initScriptLoader } =
+      require('./script') as typeof import('./script')
     initScriptLoader(initialData.scriptLoader)
   }
 
@@ -901,7 +903,8 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
     CachedComponent = pageEntrypoint.component
 
     if (process.env.NODE_ENV !== 'production') {
-      const { isValidElementType } = require('next/dist/compiled/react-is')
+      const { isValidElementType } =
+        require('next/dist/compiled/react-is') as typeof import('next/dist/compiled/react-is')
       if (!isValidElementType(CachedComponent)) {
         throw new Error(
           `The default export is not a React Component in page: "${initialData.page}"`
@@ -915,7 +918,9 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
 
   if (process.env.NODE_ENV === 'development') {
     const getServerError: typeof import('./components/react-dev-overlay/pages/client').getServerError =
-      require('./components/react-dev-overlay/pages/client').getServerError
+      (
+        require('./components/react-dev-overlay/pages/client') as typeof import('./components/react-dev-overlay/pages/client')
+      ).getServerError
     // Server-side runtime errors need to be re-thrown on the client-side so
     // that the overlay is rendered.
     if (initialErr) {

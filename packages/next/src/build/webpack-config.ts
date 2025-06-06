@@ -280,7 +280,7 @@ export async function loadProjectInfo({
 
 export function hasExternalOtelApiPackage(): boolean {
   try {
-    require('@opentelemetry/api')
+    require('@opentelemetry/api') as typeof import('@opentelemetry/api')
     return true
   } catch {
     return false
@@ -388,8 +388,9 @@ export default async function getBaseWebpackConfig(
   let SWCBinaryTarget: [Feature, boolean] | undefined = undefined
   if (useSWCLoader) {
     // TODO: we do not collect wasm target yet
-    const binaryTarget = require('./swc')?.getBinaryMetadata?.()
-      ?.target as SWC_TARGET_TRIPLE
+    const binaryTarget = (
+      require('./swc') as typeof import('./swc')
+    )?.getBinaryMetadata?.()?.target as SWC_TARGET_TRIPLE
     SWCBinaryTarget = binaryTarget
       ? [`swc/target/${binaryTarget}` as const, true]
       : undefined
@@ -487,7 +488,9 @@ export default async function getBaseWebpackConfig(
       // Subscriber need to be initialized _before_ any actual swc's call (transform, etcs)
       // to collect correct trace spans when they are called.
       swcTraceProfilingInitialized = true
-      require('./swc')?.initCustomTraceSubscriber?.(
+      ;(
+        require('./swc') as typeof import('./swc')
+      )?.initCustomTraceSubscriber?.(
         path.join(distDir, `swc-trace-profile-${Date.now()}.json`)
       )
     }
@@ -888,7 +891,8 @@ export default async function getBaseWebpackConfig(
 
   const aliasCodeConditionTest = [codeCondition.test, pageExtensionsRegex]
 
-  const builtinModules = require('module').builtinModules
+  const builtinModules = (require('module') as typeof import('module'))
+    .builtinModules
 
   const shouldEnableSlowModuleDetection =
     !!config.experimental.slowModuleDetection && dev
@@ -1218,7 +1222,7 @@ export default async function getBaseWebpackConfig(
           : (compiler: webpack.Compiler) => {
               // @ts-ignore No typings yet
               const { MinifyPlugin } =
-                require('./webpack/plugins/minify-webpack-plugin/src/index.js') as typeof import('./webpack/plugins/minify-webpack-plugin/src')
+                require('./webpack/plugins/minify-webpack-plugin/src') as typeof import('./webpack/plugins/minify-webpack-plugin/src')
               new MinifyPlugin({
                 noMangling,
                 disableCharFreq: !isClient,
@@ -1239,9 +1243,8 @@ export default async function getBaseWebpackConfig(
               },
             })
           : (compiler: webpack.Compiler) => {
-              const {
-                CssMinimizerPlugin,
-              } = require('./webpack/plugins/css-minimizer-plugin')
+              const { CssMinimizerPlugin } =
+                require('./webpack/plugins/css-minimizer-plugin') as typeof import('./webpack/plugins/css-minimizer-plugin')
               new CssMinimizerPlugin({
                 postcssOptions: {
                   map: {
@@ -1979,7 +1982,9 @@ export default async function getBaseWebpackConfig(
       !isRspack && (isClient || isEdgeServer) && new DropClientPage(),
       isNodeServer &&
         !dev &&
-        new (require('./webpack/plugins/next-trace-entrypoints-plugin')
+        new ((
+          require('./webpack/plugins/next-trace-entrypoints-plugin') as typeof import('./webpack/plugins/next-trace-entrypoints-plugin')
+        )
           .TraceEntryPointsPlugin as typeof import('./webpack/plugins/next-trace-entrypoints-plugin').TraceEntryPointsPlugin)(
           {
             rootDir: dir,

@@ -1724,8 +1724,8 @@ pub fn mark_session_dependent() {
     });
 }
 
-/// Marks the current task as a root in the aggregation graph.  This means it starts with the
-/// correct aggregation number instead of needing to recompute it after the fact.
+/// Marks the current task as finished. This excludes it from waiting for
+/// strongly consistency.
 pub fn mark_root() {
     with_turbo_tasks(|tt| {
         tt.set_own_task_aggregation_number(current_task("turbo_tasks::mark_root()"), u32::MAX)
