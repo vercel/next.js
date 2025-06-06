@@ -2585,10 +2585,9 @@ async fn handle_free_var_reference(
                         ),
                         Default::default(),
                         match state.tree_shaking_mode {
-                            Some(TreeShakingMode::ModuleFragments)
-                            | Some(TreeShakingMode::ReexportsOnly) => {
-                                export.clone().map(ModulePart::export)
-                            }
+                            Some(
+                                TreeShakingMode::ModuleFragments | TreeShakingMode::ReexportsOnly,
+                            ) => export.clone().map(ModulePart::export),
                             None => None,
                         },
                         state.import_externals,

@@ -1,0 +1,4 @@
+{
+  "treeShakingMode": "reexports-only",
+  "removeUnusedExports": true
+}

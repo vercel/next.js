@@ -10,7 +10,7 @@ use turbopack_core::{
     module::Module,
     module_graph::ModuleGraph,
     reference::{ModuleReference, ModuleReferences, SingleChunkableModuleReference},
-    resolve::{ModulePart, origin::ResolveOrigin},
+    resolve::{ExportUsage, ModulePart, origin::ResolveOrigin},
 };
 
 use super::{
@@ -27,6 +27,7 @@ use crate::{
         FollowExportsResult, analyse_ecmascript_module, esm::FoundExportType, follow_reexports,
     },
     side_effect_optimization::facade::module::EcmascriptModuleFacadeModule,
+    simple_tree_shake::get_module_export_usages,
     tree_shake::{Key, side_effect_module::SideEffectsModule},
 };
 
@@ -96,6 +97,16 @@ impl EcmascriptAnalyzable for EcmascriptModulePartAsset {
             .reference_module_source_maps(Vc::upcast(self))
             .await?;
 
+        let export_usage_info = if module.full_module.options().await?.remove_unused_exports {
+            Some(
+                get_module_export_usages(*module_graph, Vc::upcast(*module.full_module))
+                    .to_resolved()
+                    .await?,
+            )
+        } else {
+            None
+        };
+
         Ok(EcmascriptModuleContentOptions {
             parsed,
             ident: self.ident().to_resolved().await?,
@@ -111,6 +122,7 @@ impl EcmascriptAnalyzable for EcmascriptModulePartAsset {
             original_source_map: analyze_ref.source_map,
             exports: analyze_ref.exports,
             async_module_info,
+            export_usage_info,
         }
         .cell())
     }
@@ -203,6 +215,7 @@ impl EcmascriptModulePartAsset {
                             EcmascriptModuleFacadeModule::new(
                                 **final_module,
                                 ModulePart::renamed_export(new_export.clone(), export.clone()),
+                                module.options().await?.remove_unused_exports,
                             )
                             .to_resolved()
                             .await?,
@@ -213,6 +226,7 @@ impl EcmascriptModulePartAsset {
                         EcmascriptModuleFacadeModule::new(
                             **final_module,
                             ModulePart::renamed_namespace(export.clone()),
+                            module.options().await?.remove_unused_exports,
                         )
                         .to_resolved()
                         .await?,
@@ -322,12 +336,19 @@ impl Module for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         let part_dep = |part: ModulePart| -> Vc<Box<dyn ModuleReference>> {
+            let export = match &part {
+                ModulePart::Export(export) => ExportUsage::named(export.clone()),
+                ModulePart::Evaluation => ExportUsage::evaluation(),
+                _ => ExportUsage::all(),
+            };
+
             Vc::upcast(SingleChunkableModuleReference::new(
                 Vc::upcast(EcmascriptModulePartAsset::new_with_resolved_part(
                     *self.full_module,
                     part,
                 )),
                 rcstr!("part reference"),
+                export,
             ))
         };
 

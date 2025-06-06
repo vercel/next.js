@@ -565,6 +565,9 @@ pub async fn get_server_module_options_context(
             None
         },
         keep_last_successful_parse: next_mode.is_development(),
+        remove_unused_exports: *next_config
+            .turbopack_remove_unused_exports(next_mode.is_development())
+            .await?,
         ..Default::default()
     };
 

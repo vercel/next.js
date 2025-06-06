@@ -22,7 +22,6 @@ use turbopack_core::{
     ident::AssetIdent,
     issue::{IssueExt, IssueSeverity, StyledString, analyze::AnalyzeIssue},
     module::Module,
-    module_graph::ModuleGraph,
     reference::ModuleReference,
     resolve::ModulePart,
 };
@@ -35,6 +34,7 @@ use crate::{
     magic_identifier,
     parse::ParseResult,
     runtime_functions::{TURBOPACK_DYNAMIC, TURBOPACK_ESM},
+    simple_tree_shake::ModuleExportUsageInfo,
     tree_shake::asset::EcmascriptModulePartAsset,
 };
 
@@ -490,9 +490,20 @@ pub struct ExpandedExports {
 #[turbo_tasks::value_impl]
 impl EsmExports {
     #[turbo_tasks::function]
-    pub async fn expand_exports(&self) -> Result<Vc<ExpandedExports>> {
+    pub async fn expand_exports(
+        &self,
+        export_usage_info: Option<ResolvedVc<ModuleExportUsageInfo>>,
+    ) -> Result<Vc<ExpandedExports>> {
         let mut exports: BTreeMap<RcStr, EsmExport> = self.exports.clone();
         let mut dynamic_exports = vec![];
+        let usage_info = match export_usage_info {
+            Some(usage_info) => Some(usage_info.await?),
+            None => None,
+        };
+
+        if let Some(usage_info) = &usage_info {
+            exports.retain(|export, _| usage_info.is_export_used(export));
+        }
 
         for &esm_ref in self.star_exports.iter() {
             // TODO(PACK-2176): we probably need to handle re-exporting from external
@@ -506,6 +517,12 @@ impl EsmExports {
             let export_info = expand_star_exports(**asset).await?;
 
             for export in &export_info.star_exports {
+                if let Some(usage_info) = &usage_info
+                    && !usage_info.is_export_used(export)
+                {
+                    continue;
+                }
+
                 if !exports.contains_key(export) {
                     exports.insert(
                         export.clone(),
@@ -534,11 +551,11 @@ impl EsmExports {
 impl EsmExports {
     pub async fn code_generation(
         self: Vc<Self>,
-        _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         parsed: Option<Vc<ParseResult>>,
+        export_usage_info: Option<ResolvedVc<ModuleExportUsageInfo>>,
     ) -> Result<CodeGeneration> {
-        let expanded = self.expand_exports().await?;
+        let expanded = self.expand_exports(export_usage_info.map(|v| *v)).await?;
         let parsed = if let Some(parsed) = parsed {
             Some(parsed.await?)
         } else {
