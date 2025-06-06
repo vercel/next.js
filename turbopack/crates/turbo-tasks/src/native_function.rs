@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use tracing::Span;
 
 use crate::{
-    self as turbo_tasks, RawVc, TaskInput, TaskPersistence,
+    RawVc, TaskInput, TaskPersistence,
     magic_any::{MagicAny, MagicAnyDeserializeSeed, MagicAnySerializeSeed},
     registry::register_function,
     task::{
@@ -148,20 +148,16 @@ pub struct FunctionMeta {
 
 /// A native (rust) turbo-tasks function. It's used internally by
 /// `#[turbo_tasks::function]`.
-#[turbo_tasks::value(cell = "new", serialization = "none", eq = "manual")]
 pub struct NativeFunction {
     /// A readable name of the function that is used to reporting purposes.
     pub name: String,
 
-    #[turbo_tasks(trace_ignore)]
     pub function_meta: FunctionMeta,
 
-    #[turbo_tasks(debug_ignore, trace_ignore)]
     pub arg_meta: ArgMeta,
 
     /// The functor that creates a functor from inputs. The inner functor
     /// handles the task execution.
-    #[turbo_tasks(debug_ignore, trace_ignore)]
     pub implementation: Box<dyn TaskFn + Send + Sync + 'static>,
 }
 

@@ -13,7 +13,7 @@ export { findSourceMapURL } from 'next/dist/client/app-find-source-map-url'
 export const createServerReference = (
   (!!process.env.NEXT_RUNTIME
     ? // eslint-disable-next-line import/no-extraneous-dependencies
-      require('react-server-dom-webpack/client.edge')
+      (require('react-server-dom-webpack/client.edge') as typeof import('react-server-dom-webpack/client.edge'))
     : // eslint-disable-next-line import/no-extraneous-dependencies
-      require('react-server-dom-webpack/client')) as typeof import('react-server-dom-webpack/client')
+      (require('react-server-dom-webpack/client') as typeof import('react-server-dom-webpack/client'))) as typeof import('react-server-dom-webpack/client')
 ).createServerReference

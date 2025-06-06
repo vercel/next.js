@@ -634,6 +634,7 @@ export async function initialize(opts: {
   if (config.experimental.testProxy) {
     // Intercept fetch and other testmode apis.
     const { wrapRequestHandlerWorker, interceptTestApis } =
+      // eslint-disable-next-line @next/internal/typechecked-require -- experimental/testmode is not built ins next/dist/esm
       require('next/dist/experimental/testmode/server') as typeof import('../../experimental/testmode/server')
     requestHandler = wrapRequestHandlerWorker(requestHandler)
     interceptTestApis()

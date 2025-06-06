@@ -104,7 +104,7 @@ pub async fn get_edge_compile_time_info(
 #[turbo_tasks::function]
 pub async fn get_edge_resolve_options_context(
     project_path: ResolvedVc<FileSystemPath>,
-    ty: Value<ServerContextType>,
+    ty: ServerContextType,
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
@@ -118,8 +118,6 @@ pub async fn get_edge_resolve_options_context(
     )
     .to_resolved()
     .await?;
-
-    let ty: ServerContextType = ty.into_value();
 
     let mut before_resolve_plugins = vec![ResolvedVc::upcast(
         ModuleFeatureReportResolvePlugin::new(*project_path)

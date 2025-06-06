@@ -68,23 +68,21 @@ struct ModuleReferencesVisitor<'a> {
 
 impl Visit for ModuleReferencesVisitor<'_> {
     fn visit_call_expr(&mut self, call: &CallExpr) {
-        if let Some(member) = call.callee.as_expr().and_then(|e| e.as_member()) {
-            if let (Some(obj), Some(prop)) = (member.obj.as_ident(), member.prop.as_ident()) {
-                if &*obj.sym == "__webpack_require__" && &*prop.sym == "e" {
-                    if let [ExprOrSpread { spread: None, expr }] = &call.args[..] {
-                        if let Expr::Lit(lit) = &**expr {
-                            self.references.push(ResolvedVc::upcast(
-                                WebpackChunkAssetReference {
-                                    chunk_id: lit.clone(),
-                                    runtime: self.runtime,
-                                    transforms: self.transforms,
-                                }
-                                .resolved_cell(),
-                            ));
-                        }
-                    }
+        if let Some(member) = call.callee.as_expr().and_then(|e| e.as_member())
+            && let (Some(obj), Some(prop)) = (member.obj.as_ident(), member.prop.as_ident())
+            && &*obj.sym == "__webpack_require__"
+            && &*prop.sym == "e"
+            && let [ExprOrSpread { spread: None, expr }] = &call.args[..]
+            && let Expr::Lit(lit) = &**expr
+        {
+            self.references.push(ResolvedVc::upcast(
+                WebpackChunkAssetReference {
+                    chunk_id: lit.clone(),
+                    runtime: self.runtime,
+                    transforms: self.transforms,
                 }
-            }
+                .resolved_cell(),
+            ));
         }
         call.visit_children_with(self);
     }

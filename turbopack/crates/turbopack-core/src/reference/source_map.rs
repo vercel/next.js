@@ -30,10 +30,10 @@ impl SourceMapReference {
 impl SourceMapReference {
     async fn get_file(&self) -> Option<Vc<FileSystemPath>> {
         let file_type = self.file.get_type().await;
-        if let Ok(file_type_result) = file_type.as_ref() {
-            if let FileSystemEntryType::File = &**file_type_result {
-                return Some(*self.file);
-            }
+        if let Ok(file_type_result) = file_type.as_ref()
+            && let FileSystemEntryType::File = &**file_type_result
+        {
+            return Some(*self.file);
         }
         None
     }

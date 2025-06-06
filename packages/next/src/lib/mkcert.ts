@@ -4,9 +4,8 @@ import { X509Certificate, createPrivateKey } from 'node:crypto'
 import { getCacheDirectory } from './helpers/get-cache-directory'
 import * as Log from '../build/output/log'
 import { execSync } from 'node:child_process'
-const { WritableStream } = require('node:stream/web') as {
-  WritableStream: typeof global.WritableStream
-}
+const { WritableStream } =
+  require('node:stream/web') as typeof import('node:stream/web')
 
 const MKCERT_VERSION = 'v1.4.4'
 

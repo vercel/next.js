@@ -1,9 +1,7 @@
 use anyhow::Result;
 use tracing::Instrument;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{
-    FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, ValueToString, Vc,
-};
+use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc};
 use turbopack_core::{
     chunk::{ChunkingContext, availability_info::AvailabilityInfo},
     module::Module,
@@ -41,7 +39,7 @@ pub async fn get_app_client_references_chunks(
     app_client_references: Vc<ClientReferenceGraphResult>,
     module_graph: Vc<ModuleGraph>,
     client_chunking_context: Vc<Box<dyn ChunkingContext>>,
-    client_availability_info: Value<AvailabilityInfo>,
+    client_availability_info: AvailabilityInfo,
     ssr_chunking_context: Option<Vc<Box<dyn ChunkingContext>>>,
 ) -> Result<Vc<ClientReferencesChunks>> {
     async move {
@@ -161,7 +159,7 @@ pub async fn get_app_client_references_chunks(
 
             let chunk_group_info = module_graph.chunk_group_info();
 
-            let mut current_client_availability_info = client_availability_info.into_value();
+            let mut current_client_availability_info = client_availability_info;
             let mut current_client_chunks = OutputAssets::empty().to_resolved().await?;
             let mut current_ssr_availability_info = AvailabilityInfo::Root;
             let mut current_ssr_chunks = OutputAssets::empty().to_resolved().await?;
@@ -221,7 +219,7 @@ pub async fn get_app_client_references_chunks(
                                 entries: ssr_modules,
                             },
                             module_graph,
-                            Value::new(current_ssr_availability_info),
+                            current_ssr_availability_info,
                         )
                     })
                 } else {
@@ -259,7 +257,7 @@ pub async fn get_app_client_references_chunks(
                             entries: client_modules,
                         },
                         module_graph,
-                        Value::new(current_client_availability_info),
+                        current_client_availability_info,
                     ))
                 } else {
                     None

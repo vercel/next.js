@@ -93,7 +93,10 @@ export class NextDevInstance extends NextInstance {
           }
         })
 
-        const serverReadyTimeoutId = this.setServerReadyTimeout(reject)
+        const serverReadyTimeoutId = this.setServerReadyTimeout(
+          reject,
+          this.startServerTimeout
+        )
 
         const readyCb = (msg) => {
           const resolveServer = () => {
