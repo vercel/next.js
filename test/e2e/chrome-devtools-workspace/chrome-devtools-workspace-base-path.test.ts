@@ -1,13 +1,14 @@
 import * as path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 
-describe('chrome-devtools-workspace default', () => {
+describe('chrome-devtools-workspace basePath', () => {
   const { isNextDev, next } = nextTestSetup({
-    files: path.join(__dirname, 'fixtures', 'default'),
+    files: path.join(__dirname, 'fixtures', 'base-path'),
   })
 
-  it('should be able to connect to Chrome DevTools in dev', async () => {
+  it('should be able to connect to Chrome DevTools in dev with a configured basePath', async () => {
     const devtoolsResponse = await next.fetch(
+      // Chrome DevTools always requests `/`.
       '/.well-known/appspecific/com.chrome.devtools.json'
     )
     if (isNextDev) {
