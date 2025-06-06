@@ -98,6 +98,7 @@ import { getRspackCore, getRspackReactRefresh } from '../shared/lib/get-rspack'
 import { RspackProfilingPlugin } from './webpack/plugins/rspack-profiling-plugin'
 import getWebpackBundler from '../shared/lib/get-webpack-bundler'
 import type { NextBuildContext } from './build-context'
+import type { RootParamsLoaderOpts } from './webpack/loaders/next-root-params-loader'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -1339,6 +1340,7 @@ export default async function getBaseWebpackConfig(
         'modularize-import-loader',
         'next-barrel-loader',
         'next-error-browser-binary-loader',
+        'next-root-params-loader',
       ].reduce(
         (alias, loader) => {
           // using multiple aliases to replace `resolveLoader.modules`
@@ -1517,6 +1519,9 @@ export default async function getBaseWebpackConfig(
               },
             ]
           : []),
+
+        ...getNextRootParamsRules({ isClient, appDir, pageExtensions }),
+
         // TODO: FIXME: do NOT webpack 5 support with this
         // x-ref: https://github.com/webpack/webpack/issues/11467
         ...(!config.experimental.fullySpecified
@@ -2716,4 +2721,48 @@ export default async function getBaseWebpackConfig(
   }
 
   return webpackConfig
+}
+
+function getNextRootParamsRules({
+  isClient,
+  appDir,
+  pageExtensions,
+}: {
+  isClient: boolean
+  appDir: string | undefined
+  pageExtensions: string[]
+}): webpack.RuleSetRule[] {
+  // Match resolved import of 'next/root-params'
+  const nextRootParamsModule = path.join(NEXT_PROJECT_ROOT, 'root-params.js')
+
+  // Handle invalid imports of 'next/root-params' that slip through our import validation.
+  const invalidImportRule = {
+    resource: nextRootParamsModule,
+    loader: 'next-invalid-import-error-loader',
+    options: {
+      message:
+        "'next/root-params' cannot be imported from a Client Component module. It should only be used from a Server Component.",
+    },
+  } satisfies webpack.RuleSetRule
+
+  if (isClient || !appDir) {
+    return [invalidImportRule]
+  }
+
+  return [
+    {
+      oneOf: [
+        {
+          resource: nextRootParamsModule,
+          issuerLayer: isWebpackServerOnlyLayer as (layer: string) => boolean,
+          loader: 'next-root-params-loader',
+          options: {
+            appDir,
+            pageExtensions,
+          } satisfies RootParamsLoaderOpts,
+        },
+        invalidImportRule,
+      ],
+    },
+  ]
 }
