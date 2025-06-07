@@ -1,5 +1,5 @@
 import React from 'react'
-import isError from '../../../lib/is-error'
+import isError from '../../../../../lib/is-error'
 
 const ownerStacks = new WeakMap<Error, string | null>()
 const componentStacks = new WeakMap<Error, string>()

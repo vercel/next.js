@@ -1,10 +1,53 @@
+import React from 'react'
+import { renderPagesDevOverlay } from 'next/dist/compiled/next-devtools'
 import { dispatcher } from 'next/dist/compiled/next-devtools'
 import {
   attachHydrationErrorState,
   storeHydrationErrorStateFromConsoleArgs,
 } from './hydration-error-state'
-import type { VersionInfo } from '../../../../server/dev/parse-version-info'
-import type { DevIndicatorServerState } from '../../../../server/dev/dev-indicator-server-state'
+import { Router } from '../../../router'
+import { getComponentStack, getOwnerStack } from '../app/errors/stitched-error'
+import { isRecoverableError } from '../../../react-client-callbacks/on-recoverable-error'
+import { getSquashedHydrationErrorDetails } from './hydration-error-state'
+import { PagesDevOverlayErrorBoundary } from './pages-dev-overlay-error-boundary'
+
+const usePagesDevOverlayBridge = () => {
+  React.useInsertionEffect(() => {
+    // NDT uses a different React instance so it's not technically a state update
+    // scheduled from useInsertionEffect.
+    renderPagesDevOverlay(
+      getComponentStack,
+      getOwnerStack,
+      getSquashedHydrationErrorDetails,
+      isRecoverableError
+    )
+  }, [])
+
+  React.useEffect(() => {
+    const { handleStaticIndicator } =
+      require('../../../dev/hot-reloader/pages/hot-reloader-pages') as typeof import('../../../dev/hot-reloader/pages/hot-reloader-pages')
+
+    Router.events.on('routeChangeComplete', handleStaticIndicator)
+
+    return function () {
+      Router.events.off('routeChangeComplete', handleStaticIndicator)
+    }
+  }, [])
+}
+
+export type PagesDevOverlayBridgeType = typeof PagesDevOverlayBridge
+
+interface PagesDevOverlayBridgeProps {
+  children?: React.ReactNode
+}
+
+export function PagesDevOverlayBridge({
+  children,
+}: PagesDevOverlayBridgeProps) {
+  usePagesDevOverlayBridge()
+
+  return <PagesDevOverlayErrorBoundary>{children}</PagesDevOverlayErrorBoundary>
+}
 
 let isRegistered = false
 
@@ -69,42 +112,3 @@ export function register() {
   window.addEventListener('unhandledrejection', onUnhandledRejection)
   window.console.error = nextJsHandleConsoleError
 }
-
-export function onBuildOk() {
-  dispatcher.onBuildOk()
-}
-
-export function onBuildError(message: string) {
-  dispatcher.onBuildError(message)
-}
-
-export function onRefresh() {
-  dispatcher.onRefresh()
-}
-
-export function onBeforeRefresh() {
-  dispatcher.onBeforeRefresh()
-}
-
-export function onVersionInfo(versionInfo: VersionInfo) {
-  dispatcher.onVersionInfo(versionInfo)
-}
-
-export function onStaticIndicator(isStatic: boolean) {
-  dispatcher.onStaticIndicator(isStatic)
-}
-
-export function onDevIndicator(devIndicatorsState: DevIndicatorServerState) {
-  dispatcher.onDevIndicator(devIndicatorsState)
-}
-
-export function buildingIndicatorShow() {
-  dispatcher.buildingIndicatorShow()
-}
-
-export function buildingIndicatorHide() {
-  dispatcher.buildingIndicatorHide()
-}
-
-export { getErrorByType } from '../utils/get-error-by-type'
-export { getServerError } from '../utils/node-stack-frames'

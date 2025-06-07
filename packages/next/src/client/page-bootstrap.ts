@@ -11,13 +11,10 @@ import {
   urlQueryToSearchParams,
 } from '../shared/lib/router/utils/querystring'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../server/dev/hot-reloader-types'
-import { RuntimeErrorHandler } from './components/errors/runtime-error-handler'
+import { RuntimeErrorHandler } from './components/react-dev-overlay/runtime-error-handler'
 import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from './dev/hot-reloader/shared'
 import { performFullReload } from './dev/hot-reloader/pages/hot-reloader-pages'
-import {
-  buildingIndicatorHide,
-  buildingIndicatorShow,
-} from './components/react-dev-overlay/pages/client'
+import { dispatcher } from 'next/dist/compiled/next-devtools'
 
 export function pageBootstrap(assetPrefix: string) {
   connectHMR({ assetPrefix, path: '/_next/webpack-hmr' })
@@ -93,8 +90,8 @@ export function pageBootstrap(assetPrefix: string) {
 
             if (!router.clc && pages.includes(router.pathname)) {
               console.log('Refreshing page data due to server-side change')
-              buildingIndicatorShow()
-              const clearIndicator = buildingIndicatorHide
+              dispatcher.buildingIndicatorShow()
+              const clearIndicator = dispatcher.buildingIndicatorHide
 
               router
                 .replace(
