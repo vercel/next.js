@@ -76,6 +76,92 @@
     "experimental/testmode/proxy.js",
     "experimental/testmode/proxy.d.ts"
   ],
+  "exports": {
+    ".": {
+      "import": "./index.js",
+      "types": "./index.d.ts"
+    },
+    "./amp": {
+      "import": "./amp.js",
+      "types": "./amp.d.ts"
+    },
+    "./app": {
+      "import": "./app.js",
+      "types": "./app.d.ts"
+    },
+    "./babel": {
+      "import": "./babel.js",
+      "types": "./babel.d.ts"
+    },
+    "./cache": {
+      "import": "./cache.js",
+      "types": "./cache.d.ts"
+    },
+    "./client": {
+      "import": "./client.js",
+      "types": "./client.d.ts"
+    },
+    "./config": {
+      "import": "./config.js",
+      "types": "./config.d.ts"
+    },
+    "./document": {
+      "import": "./document.js",
+      "types": "./document.d.ts"
+    },
+    "./error": {
+      "import": "./error.js",
+      "types": "./error.d.ts"
+    },
+    "./font": {
+      "import": "./font/index.js",
+      "types": "./font/index.d.ts"
+    },
+    "./font/google": {
+      "import": "./font/google.js",
+      "types": "./font/google.d.ts"
+    },
+    "./font/local": {
+      "import": "./font/local.js",
+      "types": "./font/local.d.ts"
+    },
+    "./head": {
+      "import": "./head.js",
+      "types": "./head.d.ts"
+    },
+    "./headers": {
+      "import": "./headers.js",
+      "types": "./headers.d.ts"
+    },
+    "./image": {
+      "import": "./image.js",
+      "types": "./image.d.ts"
+    },
+    "./link": {
+      "require": "./link.js",
+      "types": "./link.d.ts"
+    },
+    "./navigation": {
+      "import": "./navigation.js",
+      "types": "./navigation.d.ts"
+    },
+    "./router": {
+      "import": "./router.js",
+      "types": "./router.d.ts"
+    },
+    "./script": {
+      "import": "./script.js",
+      "types": "./script.d.ts"
+    },
+    "./server": {
+      "import": "./server.js",
+      "types": "./server.d.ts"
+    },
+    "./web-vitals": {
+      "import": "./web-vitals.js",
+      "types": "./web-vitals.d.ts"
+    }
+  },
   "bin": {
     "next": "./dist/bin/next"
   },
