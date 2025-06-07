@@ -1720,7 +1720,7 @@ process.env.NODE_ENV = 'production'
 process.chdir(__dirname)
 
 const currentPort = parseInt(process.env.PORT, 10) || 3000
-const hostname = process.env.HOSTNAME || '0.0.0.0'
+const hostname = process.env.BIND_ADDRESS || process.env.HOSTNAME || '0.0.0.0'
 
 let keepAliveTimeout = parseInt(process.env.KEEP_ALIVE_TIMEOUT, 10)
 const nextConfig = ${JSON.stringify(nextConfig)}
