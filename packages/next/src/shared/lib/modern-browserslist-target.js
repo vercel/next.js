@@ -12,6 +12,7 @@ const MODERN_BROWSERSLIST_TARGET = [
   'firefox 67',
   'opera 51',
   'safari 12',
+  'not IE > 0',
 ]
 
 module.exports = MODERN_BROWSERSLIST_TARGET
