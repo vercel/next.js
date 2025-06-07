@@ -5,15 +5,15 @@ import { displayContent } from './dev/fouc'
 import {
   connectHMR,
   addMessageListener,
-} from './components/react-dev-overlay/pages/websocket'
+} from './dev/hot-reloader/pages/websocket'
 import {
   assign,
   urlQueryToSearchParams,
 } from '../shared/lib/router/utils/querystring'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../server/dev/hot-reloader-types'
 import { RuntimeErrorHandler } from './components/errors/runtime-error-handler'
-import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from './components/react-dev-overlay/shared'
-import { performFullReload } from './components/react-dev-overlay/pages/hot-reloader-client'
+import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from './dev/hot-reloader/shared'
+import { performFullReload } from './dev/hot-reloader/pages/hot-reloader-pages'
 import {
   buildingIndicatorHide,
   buildingIndicatorShow,
