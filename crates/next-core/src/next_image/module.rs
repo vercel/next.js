@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{ResolvedVc, TaskInput, Value, Vc, fxindexmap};
+use turbo_tasks::{ResolvedVc, TaskInput, Vc, fxindexmap};
 use turbopack::{ModuleAssetContext, module_options::CustomModuleType};
 use turbopack_core::{
     context::AssetContext, module::Module, reference_type::ReferenceType, resolve::ModulePart,
@@ -58,9 +58,9 @@ impl StructuredImageModuleType {
     }
 
     #[turbo_tasks::function]
-    pub fn new(blur_placeholder_mode: Value<BlurPlaceholderMode>) -> Vc<Self> {
+    pub fn new(blur_placeholder_mode: BlurPlaceholderMode) -> Vc<Self> {
         StructuredImageModuleType::cell(StructuredImageModuleType {
-            blur_placeholder_mode: blur_placeholder_mode.into_value(),
+            blur_placeholder_mode,
         })
     }
 }

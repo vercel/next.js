@@ -8,7 +8,7 @@ use lightningcss::{
     visitor::{Visit, Visitor},
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
     issue::IssueSource,
     reference::ModuleReference,
@@ -177,14 +177,8 @@ impl Visitor<'_> for ModuleReferencesVisitor<'_> {
 pub fn css_resolve(
     origin: Vc<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
-    ty: Value<CssReferenceSubType>,
+    ty: CssReferenceSubType,
     issue_source: Option<IssueSource>,
 ) -> Vc<ModuleResolveResult> {
-    url_resolve(
-        origin,
-        request,
-        ReferenceType::Css(ty.into_value()),
-        issue_source,
-        false,
-    )
+    url_resolve(origin, request, ReferenceType::Css(ty), issue_source, false)
 }
