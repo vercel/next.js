@@ -359,8 +359,11 @@ describe('required server files', () => {
 
   it('`compress` should be `false` in nextEnv', async () => {
     expect(
-      await fs.readFileSync(join(next.testDir, 'standalone/server.js'), 'utf8')
-    ).toContain('"compress":false')
+      await fs.readFile(
+        join(next.testDir, 'standalone/next.config.json'),
+        'utf8'
+      )
+    ).toContain('"compress": false')
   })
 
   it('`cacheHandler` should have correct path', async () => {
@@ -369,14 +372,20 @@ describe('required server files', () => {
     ).toBe(true)
 
     expect(
-      await fs.readFileSync(join(next.testDir, 'standalone/server.js'), 'utf8')
-    ).toContain('"cacheHandler":"../cache-handler.js"')
+      await fs.readFile(
+        join(next.testDir, 'standalone/next.config.json'),
+        'utf8'
+      )
+    ).toContain('"cacheHandler": "../cache-handler.js"')
   })
 
   it('`cacheMaxMemorySize` should be disabled by setting to 0', async () => {
     expect(
-      await fs.readFileSync(join(next.testDir, 'standalone/server.js'), 'utf8')
-    ).toContain('"cacheMaxMemorySize":0')
+      await fs.readFile(
+        join(next.testDir, 'standalone/next.config.json'),
+        'utf8'
+      )
+    ).toContain('"cacheMaxMemorySize": 0')
   })
 
   // TODO(mischnic) do these files even exist in turbopack?
