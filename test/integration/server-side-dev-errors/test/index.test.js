@@ -49,6 +49,7 @@ describe('server-side dev errors', () => {
   function stripInternalHandler(output) {
     return output
       .replace(/.*at async handler .*next-route-loader.*/, '')
+      .replace(/.*at async handleResponse.*/, '')
       .split(/\n/)
       .filter((item) => !!item.trim())
       .join('\n')

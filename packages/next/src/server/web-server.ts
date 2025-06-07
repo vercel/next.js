@@ -13,7 +13,7 @@ import type {
 import type { CacheControl } from './lib/cache-control'
 
 import { byteLength } from './api-utils/web'
-import BaseServer, { NoFallbackError } from './base-server'
+import BaseServer from './base-server'
 import { generateETag } from './lib/etag'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 import WebResponseCache from './response-cache/web'
@@ -34,6 +34,7 @@ import { UNDERSCORE_NOT_FOUND_ROUTE } from '../api/constants'
 import { getEdgeInstrumentationModule } from './web/globals'
 import type { ServerOnInstrumentationRequestError } from './app-render/types'
 import { getEdgePreviewProps } from './web/get-edge-preview-props'
+import { NoFallbackError } from '../shared/lib/no-fallback-error.external'
 
 interface WebServerOptions extends Options {
   buildId: string
@@ -79,7 +80,6 @@ export default class NextWebServer extends BaseServer<
     return new IncrementalCache({
       dev,
       requestHeaders,
-      requestProtocol: 'https',
       allowedRevalidateHeaderKeys:
         this.nextConfig.experimental.allowedRevalidateHeaderKeys,
       minimalMode: this.minimalMode,

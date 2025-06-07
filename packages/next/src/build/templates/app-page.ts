@@ -26,12 +26,8 @@ import { createServerModuleMap } from '../../server/app-render/action-utils'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { getIsPossibleServerAction } from '../../server/lib/server-action-request-meta'
 import {
-  RouterServerContextSymbol,
-  routerServerGlobal,
-} from '../../server/lib/router-utils/router-server-context'
-import {
-  NEXT_ROUTER_PREFETCH_HEADER,
   RSC_HEADER,
+  NEXT_ROUTER_PREFETCH_HEADER,
 } from '../../client/components/app-router-headers'
 
 // These are injected by the loader afterwards.
@@ -132,7 +128,6 @@ export async function handler(
     pageIsDynamic,
     buildManifest,
     nextFontManifest,
-    serverFilesManifest,
     reactLoadableManifest,
     serverActionsManifest,
     clientReferenceManifest,
@@ -140,12 +135,9 @@ export async function handler(
     prerenderManifest,
     isDraftMode,
     isOnDemandRevalidate,
+    routerServerContext,
+    nextConfig,
   } = prepareResult
-
-  const routerServerContext =
-    routerServerGlobal[RouterServerContextSymbol]?.[
-      process.env.__NEXT_RELATIVE_PROJECT_DIR || ''
-    ]
 
   const onInstrumentationRequestError =
     routeModule.instrumentationOnRequestError.bind(routeModule)
@@ -171,9 +163,6 @@ export async function handler(
       errorContext
     )
   }
-
-  const nextConfig =
-    routerServerContext?.nextConfig || serverFilesManifest.config
 
   const pathname = parsedUrl.pathname || '/'
   const normalizedSrcPage = normalizeAppPath(srcPage)
@@ -311,11 +300,7 @@ export async function handler(
     isRevalidate ||
     // Otherwise we're checking the user agent to decide if we should
     // serve streaming metadata.
-    shouldServeStreamingMetadata(
-      userAgent,
-      // @ts-expect-error update for readonly
-      nextConfig.htmlLimitedBots
-    )
+    shouldServeStreamingMetadata(userAgent, nextConfig.htmlLimitedBots)
 
   if (isHtmlBot && isRoutePPREnabled) {
     isIsr = false
@@ -360,14 +345,14 @@ export async function handler(
           subresourceIntegrityManifest,
           serverActionsManifest,
           clientReferenceManifest,
-          isPossibleServerAction,
-          isOnDemandRevalidate,
           setIsrStatus: routerServerContext?.setIsrStatus,
 
           dir: routeModule.projectDir,
           isDraftMode,
           isRevalidate,
           botType,
+          isOnDemandRevalidate,
+          isPossibleServerAction,
           assetPrefix: nextConfig.assetPrefix,
           nextConfigOutput: nextConfig.output,
           crossOrigin: nextConfig.crossOrigin,
@@ -375,7 +360,6 @@ export async function handler(
           previewProps: prerenderManifest.preview,
           deploymentId: nextConfig.deploymentId,
           enableTainting: nextConfig.experimental.taint,
-          // @ts-expect-error fix issue with readonly regex object type
           htmlLimitedBots: nextConfig.htmlLimitedBots,
           devtoolSegmentExplorer:
             nextConfig.experimental.devtoolSegmentExplorer,
@@ -385,7 +369,6 @@ export async function handler(
           incrementalCache: getRequestMeta(req, 'incrementalCache'),
           cacheLifeProfiles: nextConfig.experimental.cacheLife,
           basePath: nextConfig.basePath,
-          // @ts-expect-error fix issue with readonly regex object type
           serverActions: nextConfig.experimental.serverActions,
 
           ...(isDebugStaticShell || isDebugDynamicAccesses
