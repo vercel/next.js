@@ -38,6 +38,7 @@
   "keyv",
   "libsql",
   "mdx-bundler",
+  "mjml",
   "mongodb",
   "mongoose",
   "newrelic",
