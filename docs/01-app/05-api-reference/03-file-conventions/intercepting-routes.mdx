@@ -32,7 +32,7 @@ However, when navigating to the photo by clicking a shareable URL or by refreshi
 
 ## Convention
 
-Intercepting routes can be defined with the `(..)` convention, which is similar to relative path convention `../` but for segments.
+Intercepting routes can be defined with the `(..)` convention, which is similar to relative path convention `../` but for route segments.
 
 You can use:
 
@@ -51,7 +51,7 @@ For example, you can intercept the `photo` segment from within the `feed` segmen
   height="604"
 />
 
-> Note that the `(..)` convention is based on _route segments_, not the file-system.
+> **Good to know:** The `(..)` convention is based on _route segments_, not the file-system. For example, it does not consider `@slot` folders in [Parallel Routes](/docs/app/api-reference/file-conventions/parallel-routes).
 
 ## Examples
 
