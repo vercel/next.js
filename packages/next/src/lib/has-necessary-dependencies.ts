@@ -18,7 +18,7 @@ export interface MissingDependency {
    * resolves to `path.join(dirname(resolvedPackageJsonPath), 'index.d.ts')`.
    *
    * If false, will resolve `file` relative to the baseDir.
-   * ForFor example, `{ file: '@types/react/index.d.ts', pkg: '@types/react', exportsRestrict: true }`
+   * For example, `{ file: '@types/react/index.d.ts', pkg: '@types/react', exportsRestrict: true }`
    * will try to resolve `@types/react/index.d.ts` directly.
    */
   exportsRestrict: boolean
