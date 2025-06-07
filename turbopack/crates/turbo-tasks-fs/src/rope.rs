@@ -2,14 +2,14 @@ use std::{
     borrow::Cow,
     cmp::{Ordering, min},
     fmt,
-    io::{BufRead, Read, Result as IoResult, Write},
+    io::{BufRead, Cursor, Read, Result as IoResult, Write},
     mem,
     ops::{AddAssign, Deref},
     pin::Pin,
     task::{Context as TaskContext, Poll},
 };
 
-use RopeElem::{Local, Shared};
+use RopeElem::{Compressed, Local, Shared};
 use anyhow::{Context, Result};
 use bytes::{Buf, Bytes};
 use futures::Stream;
@@ -48,6 +48,9 @@ struct InnerRope(Arc<Vec<RopeElem>>);
 enum RopeElem {
     /// Local bytes are owned directly by this rope.
     Local(Bytes),
+
+    /// Compressed bytes are compressed and stored in this rope.
+    Compressed(u32, Bytes),
 
     /// Shared holds the Arc container of another rope.
     Shared(InnerRope),
@@ -145,10 +148,34 @@ impl<T: Into<Bytes>> From<T> for Rope {
         } else {
             Rope {
                 length: bytes.len(),
-                data: InnerRope(Arc::from(vec![Local(bytes)])),
+                data: InnerRope(Arc::from(vec![compress_bytes(bytes)])),
             }
         }
     }
+}
+
+fn compress_bytes(bytes: Bytes) -> RopeElem {
+    debug_assert!(!bytes.is_empty(), "must not have empty bytes");
+
+    let mut encoder = lz4::EncoderBuilder::new()
+        .build(Vec::new())
+        .expect("lz4 version mismatch");
+
+    encoder.write_all(&bytes).expect("failed to compress bytes");
+
+    let (output, result) = encoder.finish();
+    result.expect("failed to compress bytes");
+
+    RopeElem::Compressed(bytes.len() as u32, output.into())
+}
+
+fn decompress_bytes(bytes: &[u8], len: u32) -> Bytes {
+    let mut decoder = lz4::Decoder::new(Cursor::new(bytes)).expect("lz4 version mismatch");
+    let mut buf = Vec::with_capacity(len as usize);
+    decoder.read_to_end(&mut buf).unwrap_or_else(|err| {
+        unreachable!("internal error: failed to decompress bytes while we compressed them. {err:?}")
+    });
+    buf.into()
 }
 
 impl RopeBuilder {
@@ -588,6 +615,7 @@ impl From<Vec<RopeElem>> for InnerRope {
             for el in els.iter() {
                 match el {
                     Local(b) => debug_assert!(!b.is_empty(), "must not have empty Bytes"),
+                    Compressed(_, b) => debug_assert!(!b.is_empty(), "must not have empty Bytes"),
                     Shared(s) => {
                         // We check whether the shared slice is empty, and not its elements. The
                         // only way to construct the Shared's InnerRope is
@@ -639,6 +667,7 @@ impl RopeElem {
     fn into_bytes(self, len: usize) -> Bytes {
         match self {
             Local(bytes) => bytes,
+            Compressed(_, bytes) => decompress_bytes(&bytes, len as u32),
             Shared(inner) => inner.into_bytes(len),
         }
     }
@@ -651,6 +680,7 @@ impl DeterministicHash for RopeElem {
     fn deterministic_hash<H: DeterministicHasher>(&self, state: &mut H) {
         match self {
             Local(bytes) => state.write_bytes(bytes),
+            Compressed(len, bytes) => state.write_bytes(&decompress_bytes(bytes, *len)),
             Shared(inner) => inner.deterministic_hash(state),
         }
     }
@@ -805,6 +835,7 @@ impl From<RopeElem> for StackElem {
     fn from(el: RopeElem) -> Self {
         match el {
             Local(bytes) => Self::Local(bytes),
+            Compressed(len, bytes) => Self::Local(decompress_bytes(&bytes, len as u32)),
             Shared(inner) => Self::Shared(inner, 0),
         }
     }
@@ -857,6 +888,7 @@ mod test {
         fn len(&self) -> usize {
             match self {
                 RopeElem::Local(b) => b.len(),
+                RopeElem::Compressed(len, _) => *len as usize,
                 RopeElem::Shared(r) => r.len(),
             }
         }
