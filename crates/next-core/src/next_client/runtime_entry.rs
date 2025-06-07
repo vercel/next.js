@@ -15,6 +15,7 @@ pub enum RuntimeEntry {
     Request(ResolvedVc<Request>, ResolvedVc<FileSystemPath>),
     Evaluatable(ResolvedVc<Box<dyn EvaluatableAsset>>),
     Source(ResolvedVc<Box<dyn Source>>),
+    PriorityRequest(ResolvedVc<Request>, ResolvedVc<FileSystemPath>),
 }
 
 #[turbo_tasks::value_impl]
@@ -30,6 +31,7 @@ impl RuntimeEntry {
                 return Ok(EvaluatableAssets::one(source.to_evaluatable(asset_context)));
             }
             RuntimeEntry::Request(r, path) => (r, path),
+            RuntimeEntry::PriorityRequest(r, path) => (r, path),
         };
 
         let modules = cjs_resolve(
@@ -70,8 +72,23 @@ impl RuntimeEntries {
         asset_context: Vc<Box<dyn AssetContext>>,
     ) -> Result<Vc<EvaluatableAssets>> {
         let mut runtime_entries = Vec::new();
+        let mut priority_entries = Vec::new();
+        let mut regular_entries = Vec::new();
 
         for reference in &self.0 {
+            let entry = reference.await?;
+            match *entry {
+                RuntimeEntry::PriorityRequest(_, _) => priority_entries.push(*reference),
+                _ => regular_entries.push(*reference),
+            }
+        }
+
+        for reference in priority_entries {
+            let resolved_entries = reference.resolve_entry(asset_context).await?;
+            runtime_entries.extend(&resolved_entries);
+        }
+
+        for reference in regular_entries {
             let resolved_entries = reference.resolve_entry(asset_context).await?;
             runtime_entries.extend(&resolved_entries);
         }
