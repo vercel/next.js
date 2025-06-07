@@ -1,8 +1,7 @@
 // imports polyfill from `@next/polyfill-module` after build.
 import '../build/polyfills/polyfill-module'
 
-import './components/globals/patch-console'
-import './components/globals/handle-global-errors'
+import './components/react-dev-overlay/app/app-dev-overlay-setup'
 
 import ReactDOMClient from 'react-dom/client'
 import React, { use } from 'react'
