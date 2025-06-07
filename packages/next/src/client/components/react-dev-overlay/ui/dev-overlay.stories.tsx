@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import type { BusEvent, OverlayState } from '../shared'
+import type { DispatcherEvent, OverlayState } from '../shared'
 
 // @ts-expect-error
 import imgApp from './app.png'
@@ -97,23 +97,26 @@ const initialState: OverlayState = {
 }
 
 function useOverlayReducer() {
-  return useReducer<OverlayState, [BusEvent]>((state, action): OverlayState => {
-    switch (action.type) {
-      case ACTION_ERROR_OVERLAY_CLOSE: {
-        return { ...state, isErrorOverlayOpen: false }
+  return useReducer<OverlayState, [DispatcherEvent]>(
+    (state, action): OverlayState => {
+      switch (action.type) {
+        case ACTION_ERROR_OVERLAY_CLOSE: {
+          return { ...state, isErrorOverlayOpen: false }
+        }
+        case ACTION_ERROR_OVERLAY_OPEN: {
+          return { ...state, isErrorOverlayOpen: true }
+        }
+        case ACTION_ERROR_OVERLAY_TOGGLE: {
+          return { ...state, isErrorOverlayOpen: !state.isErrorOverlayOpen }
+        }
+        default: {
+          return state
+        }
       }
-      case ACTION_ERROR_OVERLAY_OPEN: {
-        return { ...state, isErrorOverlayOpen: true }
-      }
-      case ACTION_ERROR_OVERLAY_TOGGLE: {
-        return { ...state, isErrorOverlayOpen: !state.isErrorOverlayOpen }
-      }
-      default: {
-        return state
-      }
-    }
-    return state
-  }, initialState)
+      return state
+    },
+    initialState
+  )
 }
 
 function getNoSquashedHydrationErrorDetails() {

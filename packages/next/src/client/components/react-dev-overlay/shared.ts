@@ -30,7 +30,7 @@ export interface OverlayState {
   routerType: 'pages' | 'app'
   isErrorOverlayOpen: boolean
 }
-export type OverlayDispatch = React.Dispatch<BusEvent>
+export type OverlayDispatch = React.Dispatch<DispatcherEvent>
 
 export const ACTION_STATIC_INDICATOR = 'static-indicator'
 export const ACTION_BUILD_OK = 'build-ok'
@@ -121,7 +121,7 @@ export interface RenderingIndicatorHideAction {
   type: typeof ACTION_RENDERING_INDICATOR_HIDE
 }
 
-export type BusEvent =
+export type DispatcherEvent =
   | BuildOkAction
   | BuildErrorAction
   | BeforeFastRefreshAction
@@ -240,107 +240,110 @@ export function useErrorOverlayReducer(
     return events
   }
 
-  return useReducer((state: OverlayState, action: BusEvent): OverlayState => {
-    switch (action.type) {
-      case ACTION_DEBUG_INFO: {
-        return { ...state, debugInfo: action.debugInfo }
-      }
-      case ACTION_STATIC_INDICATOR: {
-        return { ...state, staticIndicator: action.staticIndicator }
-      }
-      case ACTION_BUILD_OK: {
-        return { ...state, buildError: null }
-      }
-      case ACTION_BUILD_ERROR: {
-        return { ...state, buildError: action.message }
-      }
-      case ACTION_BEFORE_REFRESH: {
-        return { ...state, refreshState: { type: 'pending', errors: [] } }
-      }
-      case ACTION_REFRESH: {
-        return {
-          ...state,
-          buildError: null,
-          errors:
-            // Errors can come in during updates. In this case, UNHANDLED_ERROR
-            // and UNHANDLED_REJECTION events might be dispatched between the
-            // BEFORE_REFRESH and the REFRESH event. We want to keep those errors
-            // around until the next refresh. Otherwise we run into a race
-            // condition where those errors would be cleared on refresh completion
-            // before they can be displayed.
-            state.refreshState.type === 'pending'
-              ? state.refreshState.errors
-              : [],
-          refreshState: { type: 'idle' },
+  return useReducer(
+    (state: OverlayState, action: DispatcherEvent): OverlayState => {
+      switch (action.type) {
+        case ACTION_DEBUG_INFO: {
+          return { ...state, debugInfo: action.debugInfo }
         }
-      }
-      case ACTION_UNHANDLED_ERROR:
-      case ACTION_UNHANDLED_REJECTION: {
-        switch (state.refreshState.type) {
-          case 'idle': {
-            return {
-              ...state,
-              nextId: state.nextId + 1,
-              errors: pushErrorFilterDuplicates(
-                state.errors,
-                state.nextId,
-                action.reason
-              ),
-            }
+        case ACTION_STATIC_INDICATOR: {
+          return { ...state, staticIndicator: action.staticIndicator }
+        }
+        case ACTION_BUILD_OK: {
+          return { ...state, buildError: null }
+        }
+        case ACTION_BUILD_ERROR: {
+          return { ...state, buildError: action.message }
+        }
+        case ACTION_BEFORE_REFRESH: {
+          return { ...state, refreshState: { type: 'pending', errors: [] } }
+        }
+        case ACTION_REFRESH: {
+          return {
+            ...state,
+            buildError: null,
+            errors:
+              // Errors can come in during updates. In this case, UNHANDLED_ERROR
+              // and UNHANDLED_REJECTION events might be dispatched between the
+              // BEFORE_REFRESH and the REFRESH event. We want to keep those errors
+              // around until the next refresh. Otherwise we run into a race
+              // condition where those errors would be cleared on refresh completion
+              // before they can be displayed.
+              state.refreshState.type === 'pending'
+                ? state.refreshState.errors
+                : [],
+            refreshState: { type: 'idle' },
           }
-          case 'pending': {
-            return {
-              ...state,
-              nextId: state.nextId + 1,
-              refreshState: {
-                ...state.refreshState,
+        }
+        case ACTION_UNHANDLED_ERROR:
+        case ACTION_UNHANDLED_REJECTION: {
+          switch (state.refreshState.type) {
+            case 'idle': {
+              return {
+                ...state,
+                nextId: state.nextId + 1,
                 errors: pushErrorFilterDuplicates(
                   state.errors,
                   state.nextId,
                   action.reason
                 ),
-              },
+              }
             }
+            case 'pending': {
+              return {
+                ...state,
+                nextId: state.nextId + 1,
+                refreshState: {
+                  ...state.refreshState,
+                  errors: pushErrorFilterDuplicates(
+                    state.errors,
+                    state.nextId,
+                    action.reason
+                  ),
+                },
+              }
+            }
+            default:
+              return state
           }
-          default:
-            return state
+        }
+        case ACTION_VERSION_INFO: {
+          return { ...state, versionInfo: action.versionInfo }
+        }
+        case ACTION_DEV_INDICATOR: {
+          return {
+            ...state,
+            showIndicator: true,
+            disableDevIndicator:
+              shouldDisableDevIndicator || !!action.devIndicator.disabledUntil,
+          }
+        }
+        case ACTION_ERROR_OVERLAY_OPEN: {
+          return { ...state, isErrorOverlayOpen: true }
+        }
+        case ACTION_ERROR_OVERLAY_CLOSE: {
+          return { ...state, isErrorOverlayOpen: false }
+        }
+        case ACTION_ERROR_OVERLAY_TOGGLE: {
+          return { ...state, isErrorOverlayOpen: !state.isErrorOverlayOpen }
+        }
+        case ACTION_BUILDING_INDICATOR_SHOW: {
+          return { ...state, buildingIndicator: true }
+        }
+        case ACTION_BUILDING_INDICATOR_HIDE: {
+          return { ...state, buildingIndicator: false }
+        }
+        case ACTION_RENDERING_INDICATOR_SHOW: {
+          return { ...state, renderingIndicator: true }
+        }
+        case ACTION_RENDERING_INDICATOR_HIDE: {
+          return { ...state, renderingIndicator: false }
+        }
+        default: {
+          return state
         }
       }
-      case ACTION_VERSION_INFO: {
-        return { ...state, versionInfo: action.versionInfo }
-      }
-      case ACTION_DEV_INDICATOR: {
-        return {
-          ...state,
-          showIndicator: true,
-          disableDevIndicator:
-            shouldDisableDevIndicator || !!action.devIndicator.disabledUntil,
-        }
-      }
-      case ACTION_ERROR_OVERLAY_OPEN: {
-        return { ...state, isErrorOverlayOpen: true }
-      }
-      case ACTION_ERROR_OVERLAY_CLOSE: {
-        return { ...state, isErrorOverlayOpen: false }
-      }
-      case ACTION_ERROR_OVERLAY_TOGGLE: {
-        return { ...state, isErrorOverlayOpen: !state.isErrorOverlayOpen }
-      }
-      case ACTION_BUILDING_INDICATOR_SHOW: {
-        return { ...state, buildingIndicator: true }
-      }
-      case ACTION_BUILDING_INDICATOR_HIDE: {
-        return { ...state, buildingIndicator: false }
-      }
-      case ACTION_RENDERING_INDICATOR_SHOW: {
-        return { ...state, renderingIndicator: true }
-      }
-      case ACTION_RENDERING_INDICATOR_HIDE: {
-        return { ...state, renderingIndicator: false }
-      }
-      default: {
-        return state
-      }
-    }
-  }, getInitialState(routerType))
+    },
+    getInitialState(routerType)
+  )
 }
