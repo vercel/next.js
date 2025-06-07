@@ -72,7 +72,7 @@ fn init() {
     use std::panic::{set_hook, take_hook};
 
     use tokio::runtime::Builder;
-    use turbo_tasks::handle_panic;
+    use turbo_tasks::panic_hooks::handle_panic;
     use turbo_tasks_malloc::TurboMalloc;
 
     let prev_hook = take_hook();
