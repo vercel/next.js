@@ -1,3 +1,4 @@
+"use client"
 import React, { useEffect } from "react";
 import { observer } from "mobx-react-lite";
 import Link from "next/link";
