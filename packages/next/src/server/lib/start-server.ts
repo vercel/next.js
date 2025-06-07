@@ -297,7 +297,7 @@ export async function startServer(
           )
         } else {
           Log.warn(
-            `Port ${originalPort} is in use, using available port ${port} instead.`
+            `Port ${originalPort} is in use by an unknown process, using available port ${port} instead.`
           )
         }
       }
