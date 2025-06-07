@@ -482,17 +482,11 @@ pub enum ResolveResultItem {
 /// A primary factor is the actual request string, but there are
 /// other factors like exports conditions that can affect resolting and become
 /// part of the key (assuming the condition is unknown at compile time)
-#[derive(Clone, Debug, Default, Hash)]
-#[turbo_tasks::value(serialization = "auto_for_input")]
+#[derive(Clone, Debug, Default, Hash, TaskInput)]
+#[turbo_tasks::value]
 pub struct RequestKey {
     pub request: Option<RcStr>,
     pub conditions: BTreeMap<String, bool>,
-}
-
-impl TaskInput for RequestKey {
-    fn is_transient(&self) -> bool {
-        false
-    }
 }
 
 impl Display for RequestKey {
