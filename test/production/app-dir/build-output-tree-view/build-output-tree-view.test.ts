@@ -14,8 +14,6 @@ describe('build-output-tree-view', () => {
     beforeAll(() => next.build())
 
     it('should show info about prerendered and dynamic routes in a tree view', async () => {
-      // TODO: Fix double-listing of the /ppr/[slug] fallback.
-
       expect(getTreeView(next.cliOutput)).toMatchInlineSnapshot(`
        "Route (app)                      Size  First Load JS  Revalidate  Expire
        ┌ ○ /_not-found                N/A kB         N/A kB
@@ -26,7 +24,6 @@ describe('build-output-tree-view', () => {
        ├ ○ /cache-life-hours          N/A kB         N/A kB          1h      1d
        ├ ƒ /dynamic                   N/A kB         N/A kB
        ├ ◐ /ppr/[slug]                N/A kB         N/A kB          1w     30d
-       ├   ├ /ppr/[slug]                                             1w     30d
        ├   ├ /ppr/[slug]                                             1w     30d
        ├   ├ /ppr/days                                               1d      1w
        ├   └ /ppr/weeks                                              1w     30d

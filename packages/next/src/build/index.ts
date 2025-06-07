@@ -735,7 +735,7 @@ const staticWorkerExposedMethods = [
   'getDefinedNamedExports',
   'exportPages',
 ] as const
-type StaticWorker = typeof import('./worker') & Worker
+export type StaticWorker = typeof import('./worker') & Worker
 export function createStaticWorker(
   config: NextConfigComplete,
   options: {
