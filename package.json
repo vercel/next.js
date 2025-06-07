@@ -13,7 +13,7 @@
     "lerna": "lerna",
     "dev": "turbo run dev --parallel",
     "pack-next": "tsx scripts/pack-next.ts",
-    "ci:version": "tsx ./scripts/release/version-packages.ts",
+    "ci:version": "pnpm changeset version && pnpm install --no-frozen-lockfile",
     "ci:publish": "tsx ./scripts/release/publish-npm.ts",
     "test-types": "tsc",
     "test-unit": "jest test/unit/ packages/next/ packages/font",
