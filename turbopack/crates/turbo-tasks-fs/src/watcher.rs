@@ -385,6 +385,12 @@ impl DiskWatcher {
                             ) => {
                                 batched_invalidate_path.extend(paths);
                             }
+                            // Watch MetadataKind::Permissions as this could change the result of
+                            // raw_read_dir which skips entries with PermissionDenied.
+                            EventKind::Modify(ModifyKind::Metadata(MetadataKind::Permissions)) => {
+                                batched_invalidate_path_and_children.extend(paths.clone());
+                                batched_invalidate_path_and_children_dir.extend(paths);
+                            }
                             EventKind::Create(_) => {
                                 batched_invalidate_path_and_children.extend(paths.clone());
                                 batched_invalidate_path_and_children_dir.extend(paths.clone());
