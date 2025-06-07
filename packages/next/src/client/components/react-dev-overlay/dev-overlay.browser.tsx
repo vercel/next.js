@@ -17,15 +17,16 @@ import {
   ACTION_BUILDING_INDICATOR_SHOW,
   ACTION_RENDERING_INDICATOR_HIDE,
   ACTION_RENDERING_INDICATOR_SHOW,
-} from '../shared'
+} from './shared'
 
 import { startTransition, useInsertionEffect } from 'react'
 import { createRoot } from 'react-dom/client'
-import { FontStyles } from '../font/font-styles'
-import type { DebugInfo } from '../types'
-import { DevOverlay } from '../ui/dev-overlay'
-import type { DevIndicatorServerState } from '../../../../server/dev/dev-indicator-server-state'
-import type { VersionInfo } from '../../../../server/dev/parse-version-info'
+import { FontStyles } from './font/font-styles'
+import type { HydrationErrorState } from './pages/hydration-error-state'
+import type { DebugInfo } from './types'
+import { DevOverlay } from './ui/dev-overlay'
+import type { DevIndicatorServerState } from '../../../server/dev/dev-indicator-server-state'
+import type { VersionInfo } from '../../../server/dev/parse-version-info'
 
 export interface Dispatcher {
   onBuildOk(): void
@@ -143,22 +144,21 @@ function replayQueuedEvents(dispatch: NonNullable<typeof maybeDispatch>) {
   }
 }
 
-function getSquashedHydrationErrorDetails() {
-  // We don't squash hydration errors in the App Router.
-  return null
-}
-
-function AppDevOverlay({
+function DevOverlayRoot({
   getComponentStack,
   getOwnerStack,
+  getSquashedHydrationErrorDetails,
   isRecoverableError,
+  routerType,
 }: {
   getComponentStack: (error: Error) => string | undefined
   getOwnerStack: (error: Error) => string | null | undefined
+  getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
   isRecoverableError: (error: Error) => boolean
+  routerType: 'app' | 'pages'
 }) {
   const [state, dispatch] = useErrorOverlayReducer(
-    'app',
+    routerType,
     getComponentStack,
     getOwnerStack,
     isRecoverableError
@@ -193,13 +193,28 @@ function AppDevOverlay({
   )
 }
 
-let isMounted = false
+let isPagesMounted = false
+let isAppMounted = false
+
+function getSquashedHydrationErrorDetailsApp() {
+  // We don't squash hydration errors in the App Router.
+  return null
+}
+
 export function renderAppDevOverlay(
   getComponentStack: (error: Error) => string | undefined,
   getOwnerStack: (error: Error) => string | null | undefined,
   isRecoverableError: (error: Error) => boolean
 ): void {
-  if (!isMounted) {
+  if (isPagesMounted) {
+    // Switching between App and Pages Router is always a hard navigation
+    // TODO: Support soft navigation between App and Pages Router
+    throw new Error(
+      'Next DevTools: Pages Dev Overlay is already mounted. This is a bug in Next.js'
+    )
+  }
+
+  if (!isAppMounted) {
     // React 19 will not throw away `<script>` elements in a container it owns.
     // This ensures the actual user-space React does not unmount the Dev Overlay.
     const script = document.createElement('script')
@@ -225,14 +240,80 @@ export function renderAppDevOverlay(
       // TODO: Dedicated error boundary or root error callbacks?
       // At least it won't unmount any user code if it errors.
       root.render(
-        <AppDevOverlay
+        <DevOverlayRoot
           getComponentStack={getComponentStack}
           getOwnerStack={getOwnerStack}
+          getSquashedHydrationErrorDetails={getSquashedHydrationErrorDetailsApp}
           isRecoverableError={isRecoverableError}
+          routerType="app"
         />
       )
     })
 
-    isMounted = true
+    isAppMounted = true
+  }
+}
+
+export function renderPagesDevOverlay(
+  getComponentStack: (error: Error) => string | undefined,
+  getOwnerStack: (error: Error) => string | null | undefined,
+  getSquashedHydrationErrorDetails: (
+    error: Error
+  ) => HydrationErrorState | null,
+  isRecoverableError: (error: Error) => boolean
+): void {
+  if (isAppMounted) {
+    // Switching between App and Pages Router is always a hard navigation
+    // TODO: Support soft navigation between App and Pages Router
+    throw new Error(
+      'Next DevTools: App Dev Overlay is already mounted. This is a bug in Next.js'
+    )
+  }
+
+  if (!isPagesMounted) {
+    const container = document.createElement('nextjs-portal')
+    // Although the style applied to the shadow host is isolated,
+    // the element that attached the shadow host (i.e. "script")
+    // is still affected by the parent's style (e.g. "body"). This may
+    // occur style conflicts like "display: flex", with other children
+    // elements therefore give the shadow host an absolute position.
+    container.style.position = 'absolute'
+
+    // Pages Router runs with React 18 or 19 so we can't use the same trick as with
+    // App Router. We just reconnect the container if React wipes it e.g. when
+    // we recover from a shell error via createRoot()
+    new MutationObserver((records) => {
+      for (const record of records) {
+        if (record.type === 'childList') {
+          for (const node of record.removedNodes) {
+            if (node === container) {
+              // Reconnect the container to the body
+              document.body.appendChild(container)
+            }
+          }
+        }
+      }
+    }).observe(document.body, {
+      childList: true,
+    })
+    document.body.appendChild(container)
+
+    const root = createRoot(container)
+
+    startTransition(() => {
+      // TODO: Dedicated error boundary or root error callbacks?
+      // At least it won't unmount any user code if it errors.
+      root.render(
+        <DevOverlayRoot
+          getComponentStack={getComponentStack}
+          getOwnerStack={getOwnerStack}
+          getSquashedHydrationErrorDetails={getSquashedHydrationErrorDetails}
+          isRecoverableError={isRecoverableError}
+          routerType="pages"
+        />
+      )
+    })
+
+    isPagesMounted = true
   }
 }
