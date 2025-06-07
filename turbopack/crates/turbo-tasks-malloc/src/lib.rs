@@ -34,6 +34,15 @@ pub struct AllocationCounters {
 }
 
 impl AllocationCounters {
+    const fn new() -> Self {
+        Self {
+            allocation_count: 0,
+            deallocation_count: 0,
+            allocations: 0,
+            deallocations: 0,
+            _not_send: PhantomData {},
+        }
+    }
     pub fn until_now(&self) -> AllocationInfo {
         let new = TurboMalloc::allocation_counters();
         AllocationInfo {
@@ -50,6 +59,7 @@ impl AllocationCounters {
 pub struct TurboMalloc;
 
 impl TurboMalloc {
+    // Returns the current amount of memory
     pub fn memory_usage() -> usize {
         get()
     }
