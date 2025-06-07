@@ -388,6 +388,33 @@ describe('opentelemetry', () => {
             ])
           })
 
+          it('should handle RSC with cached fetch and include cache attributes', async () => {
+            await next.fetch('/app/param/rsc-fetch-cached', env.fetchInit)
+
+            await expectTrace(getCollector(), [
+              {
+                name: 'GET /app/[param]/rsc-fetch-cached',
+                spans: [
+                  {
+                    name: 'fetch GET https://example.vercel.sh/',
+                    attributes: {
+                      'http.method': 'GET',
+                      'http.url': 'https://example.vercel.sh/',
+                      'net.peer.name': 'example.vercel.sh',
+                      'next.span_name': 'fetch GET https://example.vercel.sh/',
+                      'next.span_type': 'AppRender.fetch',
+                      'next.cache.status': expect.any(String),
+                      'next.cache.reason': expect.any(String),
+                      'next.cache.revalidate': 60,
+                    },
+                    kind: 2,
+                    status: { code: 0 },
+                  },
+                ],
+              },
+            ])
+          })
+
           it('should handle route handlers in app router', async () => {
             await next.fetch('/api/app/param/data', env.fetchInit)
 

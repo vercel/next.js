@@ -9,5 +9,5 @@ export async function generateMetadata() {
 
 export default async function Page() {
   const data = await fetch('https://example.vercel.sh')
-  return <pre>RESONSE: {data.status}</pre>
+  return <pre>RESPONSE: {data.status}</pre>
 }
