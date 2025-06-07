@@ -55,6 +55,10 @@ import {
   RouterServerContextSymbol,
   routerServerGlobal,
 } from './router-utils/router-server-context'
+import {
+  handleChromeDevtoolsWorkspaceRequest,
+  isChromeDevtoolsWorkspaceUrl,
+} from './chrome-devtools-workspace'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -568,6 +572,11 @@ export async function initialize(opts: {
             invokeOutput: matchedOutput.itemPath,
           }
         )
+      }
+
+      if (opts.dev && isChromeDevtoolsWorkspaceUrl(parsedUrl)) {
+        await handleChromeDevtoolsWorkspaceRequest(res, opts, config)
+        return
       }
 
       // 404 case
