@@ -11,8 +11,8 @@ use glob::glob;
 use quote::ToTokens;
 use rustc_hash::{FxHashMap, FxHashSet};
 use syn::{
-    Attribute, Ident, Item, ItemEnum, ItemFn, ItemImpl, ItemMacro, ItemMod, ItemStruct, ItemTrait,
-    TraitItem, TraitItemFn, parse_quote,
+    Attribute, Expr, Ident, Item, ItemEnum, ItemFn, ItemImpl, ItemMacro, ItemMod, ItemStruct,
+    ItemTrait, Lit, Meta, TraitItem, TraitItemFn, parse_quote,
 };
 use turbo_tasks_macros_shared::{
     GenericTypeInput, PrimitiveInput, get_impl_function_ident, get_native_function_ident,
@@ -34,6 +34,8 @@ pub fn generate_register() {
     let src_dir = crate_dir.join("src");
     let examples_dir = crate_dir.join("examples");
     let tests_dir = crate_dir.join("tests");
+    let fuzz_dir = crate_dir.join("fuzz_targets");
+    let afl_dir = crate_dir.join("afl_targets");
     let benches_dir = crate_dir.join("benches");
     let cargo_lock_path = workspace_dir.join("Cargo.lock");
 
@@ -75,6 +77,34 @@ pub fn generate_register() {
                 let name = name.to_string_lossy();
                 if name.ends_with(".rs") {
                     entries.push((format!("register_test_{name}"), item.path()));
+                }
+            }
+        }
+    }
+
+    if afl_dir.exists() {
+        for item in read_dir(afl_dir).unwrap() {
+            let item = item.unwrap();
+            let file_type = &item.file_type().unwrap();
+            if file_type.is_file() || file_type.is_symlink() {
+                let name = item.file_name();
+                let name = name.to_string_lossy();
+                if name.ends_with(".rs") {
+                    entries.push((format!("register_afl_{name}"), item.path()));
+                }
+            }
+        }
+    }
+
+    if fuzz_dir.exists() {
+        for item in read_dir(fuzz_dir).unwrap() {
+            let item = item.unwrap();
+            let file_type = &item.file_type().unwrap();
+            if file_type.is_file() || file_type.is_symlink() {
+                let name = item.file_name();
+                let name = name.to_string_lossy();
+                if name.ends_with(".rs") {
+                    entries.push((format!("register_fuzz_{name}"), item.path()));
                 }
             }
         }
@@ -325,21 +355,46 @@ impl RegisterContext<'_> {
             self.mod_path = parent_mod_path;
         } else {
             let parent_file_path = self.file_path.parent().unwrap();
-            let direct = parent_file_path.join(format!("{child_mod_name}.rs"));
-            if direct.exists() {
+            if let Some(path) = mod_item.attrs.iter().find_map(|attr| {
+                let Meta::NameValue(pair) = &attr.meta else {
+                    return None;
+                };
+                if !pair.path.is_ident("path") {
+                    return None;
+                }
+                let Expr::Lit(lit) = &pair.value else {
+                    return None;
+                };
+                let Lit::Str(str) = &lit.lit else {
+                    return None;
+                };
+                let path = str.value();
+                let path = path.replace('/', &format!("{PATH_SEP}"));
+                let path = parent_file_path.join(path);
+                Some(path)
+            }) {
                 self.queue.push(QueueEntry {
-                    file_path: direct,
+                    file_path: path,
                     mod_path: child_mod_path,
                     attributes: self.attributes.clone(),
                 });
             } else {
-                let nested = parent_file_path.join(&child_mod_name).join("mod.rs");
-                if nested.exists() {
+                let direct = parent_file_path.join(format!("{child_mod_name}.rs"));
+                if direct.exists() {
                     self.queue.push(QueueEntry {
-                        file_path: nested,
+                        file_path: direct,
                         mod_path: child_mod_path,
                         attributes: self.attributes.clone(),
                     });
+                } else {
+                    let nested = parent_file_path.join(&child_mod_name).join("mod.rs");
+                    if nested.exists() {
+                        self.queue.push(QueueEntry {
+                            file_path: nested,
+                            mod_path: child_mod_path,
+                            attributes: self.attributes.clone(),
+                        });
+                    }
                 }
             }
         }
