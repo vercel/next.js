@@ -581,13 +581,15 @@ export async function setupFsCheck(opts: {
           if (matchedItem) curItemPath = curDecodedItemPath
           else {
             // x-ref: https://github.com/vercel/next.js/issues/54008
-            // There're cases that urls get decoded before requests, we should support both encoded and decoded ones.
+            // There're cases that urls get decoded or partially decoded before requests, we should support encoded, decoded, and partially decoded ones.
             // e.g. nginx could decode the proxy urls, the below ones should be treated as the same:
             // decoded version: `/_next/static/chunks/pages/blog/[slug]-d4858831b91b69f6.js`
             // encoded version: `/_next/static/chunks/pages/blog/%5Bslug%5D-d4858831b91b69f6.js`
+            // Sometimes serverless deploys can partially decode the path, such as in the case of the @ in parallel route slots
+            // partially encoded version: `/_next/static/chunks/app/@modal/(.)photos/%5Bid%5D/page-8f5e339ccc213b0c.js`
             try {
               // encode the special characters in the path and retrieve again to determine if path exists.
-              const encodedCurItemPath = encodeURIPath(curItemPath)
+              const encodedCurItemPath = encodeURIPath(curDecodedItemPath)
               matchedItem = items.has(encodedCurItemPath)
             } catch {}
           }
