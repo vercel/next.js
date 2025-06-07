@@ -22,8 +22,7 @@ npm install -D tailwindcss @tailwindcss/postcss postcss
 
 Create a `postcss.config.mjs` file in the root of your project and add the `@tailwindcss/postcss` plugin to your PostCSS configuration:
 
-```js filename="postcss.config.mjs" highlight={4}
-/** @type {import('tailwindcss').Config} */
+```js filename="postcss.config.mjs" highlight={3}
 export default {
   plugins: {
     '@tailwindcss/postcss': {},
