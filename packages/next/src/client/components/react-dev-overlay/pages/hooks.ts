@@ -19,7 +19,7 @@ export const usePagesDevOverlayBridge = () => {
 
   React.useEffect(() => {
     const { handleStaticIndicator } =
-      require('./hot-reloader-client') as typeof import('./hot-reloader-client')
+      require('../../../dev/hot-reloader/pages/hot-reloader-pages') as typeof import('../../../dev/hot-reloader/pages/hot-reloader-pages')
 
     Router.events.on('routeChangeComplete', handleStaticIndicator)
 

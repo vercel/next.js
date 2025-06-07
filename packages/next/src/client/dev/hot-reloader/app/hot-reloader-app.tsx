@@ -3,31 +3,32 @@
 import type { ReactNode } from 'react'
 import { useEffect, startTransition, useRef } from 'react'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
-import formatWebpackMessages from '../utils/format-webpack-messages'
-import { useRouter } from '../../navigation'
-import { REACT_REFRESH_FULL_RELOAD, reportInvalidHmrMessage } from '../shared'
+import formatWebpackMessages from '../../../components/react-dev-overlay/utils/format-webpack-messages'
+import { useRouter } from '../../../components/navigation'
+import { REACT_REFRESH_FULL_RELOAD } from '../shared'
+import { reportInvalidHmrMessage } from '../shared'
 import { dispatcher } from 'next/dist/compiled/next-devtools'
-import { ReplaySsrOnlyErrors } from './replay-ssr-only-errors'
-import { AppDevOverlayErrorBoundary } from './app-dev-overlay-error-boundary'
-import { useErrorHandler } from '../../errors/use-error-handler'
-import { RuntimeErrorHandler } from '../../errors/runtime-error-handler'
+import { ReplaySsrOnlyErrors } from '../../../components/react-dev-overlay/app/replay-ssr-only-errors'
+import { AppDevOverlayErrorBoundary } from '../../../components/react-dev-overlay/app/app-dev-overlay-error-boundary'
+import { useErrorHandler } from '../../../components/errors/use-error-handler'
+import { RuntimeErrorHandler } from '../../../components/errors/runtime-error-handler'
 import {
   useSendMessage,
   useTurbopack,
   useWebsocket,
   useWebsocketPing,
-} from '../utils/use-websocket'
+} from './use-websocket'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../../server/dev/hot-reloader-types'
 import type {
   HMR_ACTION_TYPES,
   TurbopackMsgToBrowser,
 } from '../../../../server/dev/hot-reloader-types'
 import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from '../shared'
-import { useUntrackedPathname } from '../../navigation-untracked'
-import type { GlobalErrorComponent } from '../../global-error'
-import reportHmrLatency from '../utils/report-hmr-latency'
-import { TurbopackHmr } from '../utils/turbopack-hot-reloader-common'
-import { NEXT_HMR_REFRESH_HASH_COOKIE } from '../../app-router-headers'
+import { useUntrackedPathname } from '../../../components/navigation-untracked'
+import type { GlobalErrorComponent } from '../../../components/global-error'
+import reportHmrLatency from '../../../components/react-dev-overlay/utils/report-hmr-latency'
+import { TurbopackHmr } from '../../../components/react-dev-overlay/utils/turbopack-hot-reloader-common'
+import { NEXT_HMR_REFRESH_HASH_COOKIE } from '../../../components/app-router-headers'
 
 let mostRecentCompilationHash: any = null
 let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())

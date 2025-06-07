@@ -505,9 +505,9 @@ function Router({
         </DevRootHTTPAccessFallbackBoundary>
       )
     }
-    const HotReloader: typeof import('./react-dev-overlay/app/hot-reloader-client').default =
+    const HotReloader: typeof import('../dev/hot-reloader/app/hot-reloader-app').default =
       (
-        require('./react-dev-overlay/app/hot-reloader-client') as typeof import('./react-dev-overlay/app/hot-reloader-client')
+        require('../dev/hot-reloader/app/hot-reloader-app') as typeof import('../dev/hot-reloader/app/hot-reloader-app')
       ).default
 
     content = (
