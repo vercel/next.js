@@ -1,7 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
-// FIXME: er-enable when we have a better implementation of node binary resolving
-describe.skip('externalize-node-binary', () => {
+describe('externalize-node-binary', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
