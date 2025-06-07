@@ -89,6 +89,8 @@ async function fetchServerAction(
 
   const res = await fetch('', {
     method: 'POST',
+    // Backwards compat for older browsers. `same-origin` is the default in modern browsers.
+    credentials: 'same-origin',
     headers: {
       Accept: RSC_CONTENT_TYPE_HEADER,
       [ACTION_HEADER]: actionId,
