@@ -665,6 +665,26 @@ jobs:
       buildNativeTarget: 'x86_64-pc-windows-msvc'
     secrets: inherit
 
+  test-turbopack-dev-windows:
+    name: test turbopack dev windows
+    needs:
+      [
+        'optimize-ci',
+        'changes',
+        'build-native-windows',
+        'build-native',
+        'build-next',
+      ]
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      afterBuild: TURBOPACK=1 TURBOPACK_DEV=1 NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_MODE=dev node run-tests.js -c ${TEST_CONCURRENCY} test/e2e/app-dir/server-source-maps/server-source-maps.test.ts
+      stepName: 'test-turbopack-dev-windows'
+      runs_on_labels: '["windows","self-hosted","x64"]'
+      buildNativeTarget: 'x86_64-pc-windows-msvc'
+    secrets: inherit
+
   test-integration-windows:
     name: test integration windows
     needs:
@@ -907,6 +927,7 @@ jobs:
         'test-dev-windows',
         'test-integration-windows',
         'test-prod-windows',
+        'test-turbopack-dev-windows',
       ]
 
     if: always()
