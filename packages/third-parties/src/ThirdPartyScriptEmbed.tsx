@@ -38,8 +38,8 @@ export default function ThirdPartyScriptEmbed({
       {html ? (
         <div
           style={{
-            height: height != null ? `${height}px` : 'auto',
-            width: width != null ? `${width}px` : 'auto',
+            height: height != null ? height : 'auto',
+            width: width != null ? width : 'auto',
           }}
           data-ntpc={dataNtpc}
           dangerouslySetInnerHTML={{ __html: html }}
