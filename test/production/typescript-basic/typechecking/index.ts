@@ -13,7 +13,7 @@ import 'next/head'
 import 'next/headers'
 import 'next/image'
 import 'next'
-// TODO @jest/types is an undeclared peer dependecy
+// TODO @jest/types is an undeclared peer dependency
 // import 'next/jest';
 import 'next/link'
 import 'next/navigation'

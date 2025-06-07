@@ -14,7 +14,7 @@ It supports having multiple key families, which are stored in separate files, bu
 
 There is a single `CURRENT` file which stores the latest committed sequence number.
 
-All other files have a sequence number as file name, e. g. `0000123.sst`. All files are immutable once there sequence number is <= the committed sequence number. But they might be deleted when they are superseeded by other committed files.
+All other files have a sequence number as file name, e. g. `0000123.sst`. All files are immutable once there sequence number is <= the committed sequence number. But they might be deleted when they are superseded by other committed files.
 
 There are four different file types:
 
@@ -74,7 +74,7 @@ The SST file contains only data without any header.
   - 8 bytes hash
   - 2 bytes block index
 
-An Index block contains `n` 8 bytes hashes, which specify `n - 1` hash ranges (eq hash goes into the prev range, except for the first key). Between these `n` hashes there are `n - 1` 2 byte block indicies that point to the block that contains the hash range.
+An Index block contains `n` 8 bytes hashes, which specify `n - 1` hash ranges (eq hash goes into the prev range, except for the first key). Between these `n` hashes there are `n - 1` 2 byte block indices that point to the block that contains the hash range.
 
 The hashes are sorted.
 
@@ -139,7 +139,7 @@ Reading start from the current sequence number and goes downwards.
 
 - We have all SST files memory mapped
 - for i = CURRENT sequence number .. 0
-  - Check AQMF from SST file for key existance -> if not continue
+  - Check AQMF from SST file for key existence -> if not continue
   - let block = 0
   - loop
     - Index Block: find key range that contains the key by binary search
@@ -189,7 +189,7 @@ SST 3':                          |-----|
 
 The merge operation decreases the total coverage since the new SST files will have a coverage of < 1.
 
-But we need to be careful to insert the SST files in the correct location again, since items in these SST files might be overriden in later SST file and we don't want to change that.
+But we need to be careful to insert the SST files in the correct location again, since items in these SST files might be overridden in later SST file and we don't want to change that.
 
 Since SST files that are smaller than the current sequence number are immutable we can't change the files and we can't insert new files at this sequence numbers.
 Instead we need to insert the new SST after the current sequence number and copy all SST files after the original SST files after them. (Actually we only need to copy SST files with overlapping key hash ranges. And we can hardlink them instead). Later we will write the current sequence number and delete them original and all copied SST files.

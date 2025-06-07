@@ -248,7 +248,7 @@ impl UrlAssetReferenceCodeGen {
                 // be a location.origin because it allows us to access files from the root of
                 // the dev server.
                 //
-                // By default for the remaining environments, turbopack's runtime have overriden
+                // By default for the remaining environments, turbopack's runtime have overridden
                 // `import.meta.url`.
                 let rewrite_url_base = match reference.rendering {
                     Rendering::Client => Some(quote!("location.origin" as Expr)),

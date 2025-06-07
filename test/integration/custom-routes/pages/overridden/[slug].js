@@ -1,5 +1,5 @@
 export default function Page() {
-  return <p>/overriden/[slug]</p>
+  return <p>/overridden/[slug]</p>
 }
 
 export function getStaticProps({ params }) {
