@@ -16,7 +16,7 @@ type FontOptions = {
   subsets: string[]
 }
 /**
- * Validate the data recieved from next-swc next-transform-font on next/font/google calls
+ * Validate the data received from next-swc next-transform-font on next/font/google calls
  */
 export function validateGoogleFontFunctionCall(
   functionName: string,

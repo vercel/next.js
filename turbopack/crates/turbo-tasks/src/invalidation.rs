@@ -231,7 +231,7 @@ enum MapEntry {
 #[derive(Default)]
 pub struct InvalidationReasonSet {
     next_unique_tag: usize,
-    // We track typed and untyped entries in the same map to keep the occurence order of entries.
+    // We track typed and untyped entries in the same map to keep the occurrence order of entries.
     map: FxIndexMap<MapKey, MapEntry>,
 }
 

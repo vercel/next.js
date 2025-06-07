@@ -491,7 +491,7 @@ impl<'a> Parser<'a> {
         };
         // we don't need to check because we already checked 'have_tokens' above.
         match self.pop_token_unchecked() {
-            // This is for `/**/**` which is kind of silly, just skip the second occurence
+            // This is for `/**/**` which is kind of silly, just skip the second occurrence
             Token::RecursivePrefix => {
                 self.push_token(Token::RecursivePrefix);
             }

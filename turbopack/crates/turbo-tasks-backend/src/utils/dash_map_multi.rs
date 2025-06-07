@@ -123,7 +123,7 @@ where
             .find_or_find_insert_slot(h1, eq1, hash_entry)
             .unwrap_or_else(|slot| unsafe {
                 // SAFETY: This slot was previously returned by `find_or_find_insert_slot`, and no
-                // mutation of the table has occured since that call.
+                // mutation of the table has occurred since that call.
                 guard.insert_in_slot(h1, slot, (key1.clone(), SharedValue::new(insert_with())))
             });
 
