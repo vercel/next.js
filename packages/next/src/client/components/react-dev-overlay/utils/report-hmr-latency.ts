@@ -18,12 +18,17 @@ declare global {
 export default function reportHmrLatency(
   sendMessage: (message: string) => void,
   updatedModules: ReadonlyArray<string | number>,
-  startMsSinceEpoch: number,
+  startMsSinceEpoch: number | null,
   endMsSinceEpoch: number,
   hasUpdate: boolean = true
 ) {
-  const latencyMs = endMsSinceEpoch - startMsSinceEpoch
-  console.log(`[Fast Refresh] done in ${latencyMs}ms`)
+  if (startMsSinceEpoch === null) {
+    return;
+  }
+  const latencyMs = endMsSinceEpoch - startMsSinceEpoch;
+  if (!isNaN(latencyMs)) {
+    console.log(`[Fast Refresh] done in ${latencyMs}ms`);
+  }
   if (!hasUpdate) {
     return
   }
