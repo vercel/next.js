@@ -125,6 +125,8 @@ export interface PrefetchOptions {
   onInvalidate?: () => void
 }
 
+export interface NavigationUrl extends string {}
+
 export interface AppRouterInstance {
   /**
    * Navigate to the previous history entry.
@@ -147,16 +149,16 @@ export interface AppRouterInstance {
    * Navigate to the provided href.
    * Pushes a new history entry.
    */
-  push(href: string, options?: NavigateOptions): void
+  push(href: NavigationUrl, options?: NavigateOptions): void
   /**
    * Navigate to the provided href.
    * Replaces the current history entry.
    */
-  replace(href: string, options?: NavigateOptions): void
+  replace(href: NavigationUrl, options?: NavigateOptions): void
   /**
    * Prefetch the provided href.
    */
-  prefetch(href: string, options?: PrefetchOptions): void
+  prefetch(href: NavigationUrl, options?: PrefetchOptions): void
 }
 
 export const AppRouterContext = React.createContext<AppRouterInstance | null>(
