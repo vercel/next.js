@@ -66,6 +66,7 @@
   "ts-morph",
   "typescript",
   "vscode-oniguruma",
+  "web-worker",
   "webpack",
   "websocket",
   "zeromq"
