@@ -811,7 +811,6 @@ impl Pattern {
                 .then_some(0)
         }
     }
-
     fn match_internal<'a>(
         &self,
         mut value: &'a str,

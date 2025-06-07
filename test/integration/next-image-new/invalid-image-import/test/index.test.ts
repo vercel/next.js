@@ -34,12 +34,21 @@ function runTests({ isDev }) {
       const source = await getRedboxSource(browser)
       if (process.env.IS_TURBOPACK_TEST) {
         expect(source).toMatchInlineSnapshot(`
-          "./test/integration/next-image-new/invalid-image-import/public/invalid.svg
-          Processing image failed
-          Failed to parse svg source code for image dimensions
+         "./test/integration/next-image-new/invalid-image-import/public/invalid.svg
+         Processing image failed
+         Failed to parse svg source code for image dimensions
 
-          Caused by:
-          - Source code does not contain a <svg> root element"
+         Caused by:
+         - Source code does not contain a <svg> root element
+
+         Example import traces:
+           #1:
+             ./test/integration/next-image-new/invalid-image-import/public/invalid.svg
+             ./test/integration/next-image-new/invalid-image-import/pages/index.js [client]
+
+           #2:
+             ./test/integration/next-image-new/invalid-image-import/public/invalid.svg
+             ./test/integration/next-image-new/invalid-image-import/pages/index.js [ssr]"
         `)
       } else {
         expect(source).toMatchInlineSnapshot(`
