@@ -18,7 +18,6 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-lazy_static = { workspace = true }
 regex = { workspace = true }
 rustc-hash = { workspace = true }
 smallvec = { workspace = true }

@@ -1,5 +1,6 @@
+use std::sync::LazyLock;
+
 use anyhow::Result;
-use lazy_static::lazy_static;
 use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
@@ -21,24 +22,26 @@ use turbopack_core::{
 
 use crate::{next_server::ServerContextType, next_telemetry::ModuleFeatureTelemetry};
 
-lazy_static! {
-    // Set of the features we want to track, following existing references in webpack/plugins/telemetry-plugin.
-    static ref FEATURE_MODULES: FxHashMap<&'static str, Vec<&'static str>> = FxHashMap::from_iter([
-        (
-            "next",
-            vec![
-                "/image",
-                "/future/image",
-                "/legacy/image",
-                "/script",
-                "/dynamic",
-                "/font/google",
-                "/font/local"
-            ]
-        ),
-        ("@next", vec!["/font/google", "/font/local"])
-    ]);
-}
+// Set of the features we want to track, following existing references in
+// webpack/plugins/telemetry-plugin.
+static FEATURE_MODULES: LazyLock<FxHashMap<&'static str, Vec<&'static str>>> =
+    LazyLock::new(|| {
+        FxHashMap::from_iter([
+            (
+                "next",
+                vec![
+                    "/image",
+                    "/future/image",
+                    "/legacy/image",
+                    "/script",
+                    "/dynamic",
+                    "/font/google",
+                    "/font/local",
+                ],
+            ),
+            ("@next", vec!["/font/google", "/font/local"]),
+        ])
+    });
 
 #[turbo_tasks::value(shared)]
 pub struct InvalidImportModuleIssue {

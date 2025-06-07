@@ -28,7 +28,6 @@ mime_guess = "2.0.4"
 indoc = { workspace = true }
 allsorts = { workspace = true }
 futures = { workspace = true }
-lazy_static = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 rustc-hash = { workspace = true }
@@ -69,7 +68,9 @@ turbopack = { workspace = true }
 turbopack-browser = { workspace = true }
 turbopack-core = { workspace = true }
 turbopack-ecmascript = { workspace = true }
-turbopack-ecmascript-plugins = { workspace = true, features = ["transform_emotion"] }
+turbopack-ecmascript-plugins = { workspace = true, features = [
+  "transform_emotion",
+] }
 turbopack-ecmascript-runtime = { workspace = true }
 turbopack-image = { workspace = true }
 turbopack-node = { workspace = true }

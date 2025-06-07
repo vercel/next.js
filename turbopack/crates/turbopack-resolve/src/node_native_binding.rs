@@ -1,5 +1,6 @@
+use std::sync::LazyLock;
+
 use anyhow::Result;
-use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
@@ -86,17 +87,16 @@ pub async fn resolve_node_pre_gyp_files(
     config_file_pattern: Vc<Pattern>,
     compile_target: Vc<CompileTarget>,
 ) -> Result<Vc<ModuleResolveResult>> {
-    lazy_static! {
-        static ref NAPI_VERSION_TEMPLATE: Regex =
-            Regex::new(r"\{(napi_build_version|node_napi_label)\}")
-                .expect("create napi_build_version regex failed");
-        static ref PLATFORM_TEMPLATE: Regex =
-            Regex::new(r"\{platform\}").expect("create node_platform regex failed");
-        static ref ARCH_TEMPLATE: Regex =
-            Regex::new(r"\{arch\}").expect("create node_arch regex failed");
-        static ref LIBC_TEMPLATE: Regex =
-            Regex::new(r"\{libc\}").expect("create node_libc regex failed");
-    }
+    static NAPI_VERSION_TEMPLATE: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r"\{(napi_build_version|node_napi_label)\}")
+            .expect("create napi_build_version regex failed")
+    });
+    static PLATFORM_TEMPLATE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"\{platform\}").expect("create node_platform regex failed"));
+    static ARCH_TEMPLATE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"\{arch\}").expect("create node_arch regex failed"));
+    static LIBC_TEMPLATE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"\{libc\}").expect("create node_libc regex failed"));
     let config = resolve_raw(context_dir, config_file_pattern, true)
         .first_source()
         .await?;
@@ -261,12 +261,11 @@ pub async fn resolve_node_gyp_build_files(
     context_dir: Vc<FileSystemPath>,
     compile_target: Vc<CompileTarget>,
 ) -> Result<Vc<ModuleResolveResult>> {
-    lazy_static! {
-        // TODO Proper parser
-        static ref GYP_BUILD_TARGET_NAME: Regex =
-            Regex::new(r#"['"]target_name['"]\s*:\s*(?:"(.*?)"|'(.*?)')"#)
-                .expect("create napi_build_version regex failed");
-    }
+    // TODO Proper parser
+    static GYP_BUILD_TARGET_NAME: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r#"['"]target_name['"]\s*:\s*(?:"(.*?)"|'(.*?)')"#)
+            .expect("create napi_build_version regex failed")
+    });
     let binding_gyp_pat = Pattern::new(Pattern::Constant(rcstr!("binding.gyp")));
     let gyp_file = resolve_raw(context_dir, binding_gyp_pat, true);
     if let [binding_gyp] = &gyp_file.primary_sources().await?[..] {
@@ -370,15 +369,15 @@ pub async fn resolve_node_bindings_files(
     context_dir: Vc<FileSystemPath>,
     file_name: RcStr,
 ) -> Result<Vc<ModuleResolveResult>> {
-    lazy_static! {
-        static ref BINDINGS_TRY: [&'static str; 5] = [
+    static BINDINGS_TRY: LazyLock<[&'static str; 5]> = LazyLock::new(|| {
+        [
             "build/bindings",
             "build/Release",
             "build/Release/bindings",
             "out/Release/bindings",
             "Release/bindings",
-        ];
-    }
+        ]
+    });
     let mut root_context_dir = context_dir;
     loop {
         let resolved = resolve_raw(
