@@ -264,19 +264,22 @@ fn djb2_hash(str: &str) -> u32 {
 fn format_radix(mut x: u32, radix: u32) -> String {
     let mut result = vec![];
 
-    loop {
+    // Handle 0 specially since it won't enter the loop
+    if x == 0 {
+        result.push('0');
+    }
+
+    while x > 0 {
         let m = x % radix;
         x /= radix;
-
-        // will panic if you use a bad radix (< 2 or > 36).
         result.push(std::char::from_digit(m, radix).unwrap());
-        if x == 0 {
-            break;
-        }
     }
 
     result.reverse();
-    result[..6].iter().collect()
+    let s: String = result.iter().collect();
+    
+    // Take up to 6 chars, if string is shorter than 6 chars, return the whole string
+    s.chars().take(6).collect()
 }
 
 /// If there's special convention like (...) or @ in the page path,
