@@ -4613,6 +4613,7 @@
       "ppr-metadata-streaming html limited bots should serve partial static shell when normal UA requests the PPR page",
       "ppr-metadata-streaming partial shell should insert metadata into body with dynamic metadata and wrapped under layout Suspense boundary",
       "ppr-metadata-streaming partial shell should insert metadata into head with dynamic metadata and dynamic page wrapped under layout Suspense boundary",
+      "ppr-metadata-streaming partial shell should not yield hydration errors after revalidation",
       "ppr-metadata-streaming static metadata should generate metadata in head when page is fully static",
       "ppr-metadata-streaming static metadata should insert metadata in body when page is dynamic page content"
     ],
@@ -5550,6 +5551,7 @@
   },
   "test/e2e/app-dir/segment-cache/cdn-cache-busting/cdn-cache-busting.test.ts": {
     "passed": [
+      "segment cache (CDN cache busting) perform fully prefetched navigation when a third-party proxy performs a redirect",
       "segment cache (CDN cache busting) perform fully prefetched navigation with a CDN that doesn't respect the Vary header",
       "segment cache (CDN cache busting) prevent cache poisoning attacks by responding with an error if a custom header is sent during a prefetch without a corresponding cache-busting search param"
     ],
@@ -6102,6 +6104,7 @@
     "passed": [
       "use-cache can reference server actions in \"use cache\" functions",
       "use-cache renders the not-found page when `notFound()` is used",
+      "use-cache shares caches between the page/layout and generateMetadata",
       "use-cache should be able to revalidate a page using unstable_expireTag",
       "use-cache should cache complex args",
       "use-cache should cache fetch without no-store",
@@ -17764,17 +17767,17 @@
   },
   "test/integration/server-side-dev-errors/test/index.test.js": {
     "passed": [
-      "server-side dev errors should show server-side error for api route correctly",
-      "server-side dev errors should show server-side error for dynamic api route correctly",
       "server-side dev errors should show server-side error for dynamic gssp page correctly",
       "server-side dev errors should show server-side error for gsp page correctly",
       "server-side dev errors should show server-side error for gssp page correctly",
       "server-side dev errors should show server-side error for uncaught empty exception correctly",
       "server-side dev errors should show server-side error for uncaught empty rejection correctly",
-      "server-side dev errors should show server-side error for uncaught exception correctly"
+      "server-side dev errors should show server-side error for uncaught exception correctly",
+      "server-side dev errors should show server-side error for uncaught rejection correctly"
     ],
     "failed": [
-      "server-side dev errors should show server-side error for uncaught rejection correctly"
+      "server-side dev errors should show server-side error for api route correctly",
+      "server-side dev errors should show server-side error for dynamic api route correctly"
     ],
     "pending": [],
     "flakey": [],
@@ -19198,8 +19201,9 @@
   },
   "test/production/exported-runtimes-value-validation/index.test.ts": {
     "passed": [
-      "Exported runtimes value validation fails to build on malformed input",
-      "Exported runtimes value validation warns on unrecognized runtimes value"
+      "Exported runtimes value validation fails the build on invalid middleware matcher",
+      "Exported runtimes value validation fails the build on unrecognized runtimes value",
+      "Exported runtimes value validation fails to build on malformed input"
     ],
     "failed": [],
     "pending": [],
