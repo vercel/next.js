@@ -134,7 +134,7 @@ export interface TurbopackOptions {
   /**
    * (`next --turbopack` only) A mapping of aliased imports to modules to load in their place.
    *
-   * @see [Resolve Alias](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#resolve-alias)
+   * @see [Resolve Alias](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#resolving-aliases)
    */
   resolveAlias?: Record<
     string,
@@ -144,7 +144,7 @@ export interface TurbopackOptions {
   /**
    * (`next --turbopack` only) A list of extensions to resolve when importing files.
    *
-   * @see [Resolve Extensions](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#resolve-extensions)
+   * @see [Resolve Extensions](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#resolving-custom-extensions)
    */
   resolveExtensions?: string[]
 
