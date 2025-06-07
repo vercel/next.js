@@ -630,7 +630,7 @@ pub struct PlainTraceItem {
     pub root_path: RcStr,
     // The path of the file, relative to the filesystem root
     pub path: RcStr,
-    // An optional label attached to the module that clarifies where in the module grpah it is.
+    // An optional label attached to the module that clarifies where in the module graph it is.
     pub layer: Option<RcStr>,
 }
 
