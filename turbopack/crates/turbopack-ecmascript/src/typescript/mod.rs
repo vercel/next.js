@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde_json::Value as JsonValue;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::DirectoryContent;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -82,12 +82,12 @@ impl Module for TsConfigModuleAsset {
                     .map(|s| (source, s.to_string()))
             })
             .await?;
-            let compiler: RcStr = compiler
-                .map(|(_, c)| c)
-                .unwrap_or_else(|| "typescript".to_string())
-                .into();
+            let compiler = match compiler {
+                Some((_, c)) => RcStr::from(c),
+                None => rcstr!("typescript"),
+            };
             references.push(ResolvedVc::upcast(
-                CompilerReference::new(*self.origin, Request::parse(Value::new(compiler.into())))
+                CompilerReference::new(*self.origin, Request::parse(compiler.into()))
                     .to_resolved()
                     .await?,
             ));
@@ -107,12 +107,9 @@ impl Module for TsConfigModuleAsset {
             if let Some(require) = require {
                 for (_, request) in require {
                     references.push(ResolvedVc::upcast(
-                        TsNodeRequireReference::new(
-                            *self.origin,
-                            Request::parse(Value::new(request.into())),
-                        )
-                        .to_resolved()
-                        .await?,
+                        TsNodeRequireReference::new(*self.origin, Request::parse(request.into()))
+                            .to_resolved()
+                            .await?,
                     ));
                 }
             }
@@ -165,7 +162,7 @@ impl Module for TsConfigModuleAsset {
                         *self.origin,
                         Request::module(
                             name,
-                            Value::new(RcStr::default().into()),
+                            RcStr::default().into(),
                             RcStr::default(),
                             RcStr::default(),
                         ),

@@ -39,7 +39,7 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc,
+    Completion, FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
     fxindexmap, fxindexset, trace::TraceRawVcs,
 };
 use turbo_tasks_env::{CustomProcessEnv, ProcessEnv};
@@ -823,9 +823,9 @@ impl AppProject {
                 client_module_context,
                 self.project().project_path().join(rcstr!("_")),
             )),
-            Request::parse(Value::new(Pattern::Constant(rcstr!(
+            Request::parse(Pattern::Constant(rcstr!(
                 "next/dist/client/app-next-turbopack.js"
-            )))),
+            ))),
             None,
             false,
         )

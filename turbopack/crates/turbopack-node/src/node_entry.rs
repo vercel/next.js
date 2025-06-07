@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{ResolvedVc, Value, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::chunk::{ChunkingContext, EvaluatableAsset, EvaluatableAssets};
 use turbopack_dev_server::source::ContentSourceData;
@@ -20,12 +20,10 @@ pub struct NodeRenderingEntries(Vec<ResolvedVc<NodeRenderingEntry>>);
 /// Trait that allows to get the entry module for rendering something in Node.js
 #[turbo_tasks::value_trait]
 pub trait NodeEntry {
-    fn entry(self: Vc<Self>, data: Value<ContentSourceData>) -> Vc<NodeRenderingEntry>;
+    fn entry(self: Vc<Self>, data: ContentSourceData) -> Vc<NodeRenderingEntry>;
     async fn entries(self: Vc<Self>) -> Result<Vc<NodeRenderingEntries>> {
         Ok(Vc::cell(vec![
-            self.entry(Value::new(Default::default()))
-                .to_resolved()
-                .await?,
+            self.entry(Default::default()).to_resolved().await?,
         ]))
     }
 }

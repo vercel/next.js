@@ -1848,6 +1848,7 @@
         response,
         errorInfo.stack,
         env,
+        !1,
         Error.bind(
           null,
           errorInfo.message ||
@@ -2001,10 +2002,20 @@
       }
       return fn;
     }
-    function buildFakeCallStack(response, stack, environmentName, innerCall) {
+    function buildFakeCallStack(
+      response,
+      stack,
+      environmentName,
+      useEnclosingLine,
+      innerCall
+    ) {
       for (var i = 0; i < stack.length; i++) {
         var frame = stack[i],
-          frameKey = frame.join("-") + "-" + environmentName,
+          frameKey =
+            frame.join("-") +
+            "-" +
+            environmentName +
+            (useEnclosingLine ? "-e" : "-n"),
           fn = fakeFunctionCache.get(frameKey);
         if (void 0 === fn) {
           fn = frame[0];
@@ -2023,8 +2034,8 @@
             findSourceMapURL,
             line,
             col,
-            enclosingLine,
-            frame,
+            useEnclosingLine ? line : enclosingLine,
+            useEnclosingLine ? col : frame,
             environmentName
           );
           fakeFunctionCache.set(frameKey, fn);
@@ -2047,7 +2058,8 @@
     }
     function initializeFakeTask(response, debugInfo, childEnvironmentName) {
       if (!supportsCreateTask || null == debugInfo.stack) return null;
-      var stack = debugInfo.stack,
+      var useEnclosingLine = void 0 === debugInfo.key,
+        stack = debugInfo.stack,
         env =
           null == debugInfo.env ? response._rootEnvironmentName : debugInfo.env;
       if (env !== childEnvironmentName)
@@ -2061,7 +2073,8 @@
             debugInfo,
             stack,
             '"use ' + childEnvironmentName.toLowerCase() + '"',
-            env
+            env,
+            useEnclosingLine
           )
         );
       childEnvironmentName = debugInfo.debugTask;
@@ -2074,13 +2087,31 @@
         response,
         childEnvironmentName,
         stack,
-        "<" + (debugInfo.name || "...") + ">",
-        env
+        void 0 !== debugInfo.key
+          ? "<" + (debugInfo.name || "...") + ">"
+          : void 0 !== debugInfo.name
+            ? debugInfo.name || "unknown"
+            : "await " + (debugInfo.awaited.name || "unknown"),
+        env,
+        useEnclosingLine
       ));
     }
-    function buildFakeTask(response, ownerTask, stack, taskName, env) {
+    function buildFakeTask(
+      response,
+      ownerTask,
+      stack,
+      taskName,
+      env,
+      useEnclosingLine
+    ) {
       taskName = console.createTask.bind(console, taskName);
-      stack = buildFakeCallStack(response, stack, env, taskName);
+      stack = buildFakeCallStack(
+        response,
+        stack,
+        env,
+        useEnclosingLine,
+        taskName
+      );
       return null === ownerTask
         ? ((response = getRootTask(response, env)),
           null != response ? response.run(stack) : stack())
@@ -2312,6 +2343,7 @@
                 function () {}
               );
           break;
+        case 74:
         case 87:
           resolveConsoleEntry(response, row);
           break;
@@ -2389,7 +2421,13 @@
             supportsCreateTask &&
               null !== stack &&
               ((type = console.createTask.bind(console, getTaskName(type))),
-              (stack = buildFakeCallStack(response, stack, validated, type)),
+              (stack = buildFakeCallStack(
+                response,
+                stack,
+                validated,
+                !1,
+                type
+              )),
               (type =
                 null === key
                   ? null
@@ -2634,6 +2672,7 @@
             response,
             stack,
             environmentName,
+            !1,
             fakeJSXCallSite
           )();
         }
@@ -2698,6 +2737,7 @@
               response,
               stackTrace,
               env,
+              !1,
               JSCompiler_inline_result
             );
             if (null != owner) {
@@ -2731,10 +2771,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.2.0-canary-14094f80-20250529",
+      version: "19.2.0-canary-280ff6fe-20250606",
       rendererPackageName: "react-server-dom-turbopack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.2.0-canary-14094f80-20250529",
+      reconcilerVersion: "19.2.0-canary-280ff6fe-20250606",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

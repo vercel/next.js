@@ -92,6 +92,8 @@ const sharedExternals = [
 
 const externalsMap = {
   './web/sandbox': 'next/dist/server/web/sandbox',
+  'next/dist/compiled/next-devtools':
+    'commonjs next/dist/client/components/react-dev-overlay/app/app-dev-overlay.shim.js',
 }
 
 const externalsRegexMap = {

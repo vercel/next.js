@@ -13,7 +13,7 @@ use owo_colors::OwoColorize;
 use rustc_hash::FxHashSet;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    NonLocalValue, OperationVc, ResolvedVc, TransientInstance, TurboTasks, UpdateInfo, Value, Vc,
+    NonLocalValue, OperationVc, ResolvedVc, TransientInstance, TurboTasks, UpdateInfo, Vc,
     trace::TraceRawVcs,
     util::{FormatBytes, FormatDuration},
 };
@@ -310,14 +310,14 @@ async fn source(
         .iter()
         .map(|r| match r {
             EntryRequest::Relative(p) => Request::relative(
-                Value::new(p.clone().into()),
+                p.clone().into(),
                 Default::default(),
                 Default::default(),
                 false,
             ),
             EntryRequest::Module(m, p) => Request::module(
                 m.clone(),
-                Value::new(p.clone().into()),
+                p.clone().into(),
                 Default::default(),
                 Default::default(),
             ),

@@ -2,6 +2,9 @@
 // it is not meant to be used with local type checking and is ignored in our
 // local tsconfig.json
 
+// TODO: Use tsconfig#paths instead
+declare module 'next/dist/compiled/next-devtools'
+
 declare module 'next/dist/compiled/webpack/webpack' {
   export function init(): void
   export let BasicEvaluatedExpression: any

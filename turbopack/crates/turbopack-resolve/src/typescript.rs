@@ -3,7 +3,7 @@ use std::{collections::HashMap, fmt::Write, mem::take};
 use anyhow::Result;
 use serde_json::Value as JsonValue;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, Value, ValueDefault, Vc, fxindexset};
+use turbo_tasks::{ResolvedVc, ValueDefault, Vc, fxindexset};
 use turbo_tasks_fs::{FileContent, FileJsonContent, FileSystemPath};
 use turbopack_core::{
     asset::Asset,
@@ -401,7 +401,7 @@ pub async fn type_resolve(
         };
         Some(Request::module(
             format!("@types/{m}").into(),
-            Value::new(p.clone()),
+            p.clone(),
             RcStr::default(),
             RcStr::default(),
         ))

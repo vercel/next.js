@@ -2374,7 +2374,7 @@ function pushCompletedShellIdAttribute(target, resumableState) {
     ((resumableState.instructions |= 32),
     target.push(
       ' id="',
-      escapeTextForBrowser("\u00ab" + resumableState.idPrefix + "R\u00bb"),
+      escapeTextForBrowser("_" + resumableState.idPrefix + "R_"),
       '"'
     ));
 }
@@ -3393,9 +3393,9 @@ var HooksDispatcher = {
         );
       overflow = localIdCounter++;
       JSCompiler_inline_result =
-        "\u00ab" + resumableState.idPrefix + "R" + JSCompiler_inline_result;
+        "_" + resumableState.idPrefix + "R_" + JSCompiler_inline_result;
       0 < overflow && (JSCompiler_inline_result += "H" + overflow.toString(32));
-      return JSCompiler_inline_result + "\u00bb";
+      return JSCompiler_inline_result + "_";
     },
     useSyncExternalStore: function (subscribe, getSnapshot, getServerSnapshot) {
       if (void 0 === getServerSnapshot)
@@ -4027,7 +4027,11 @@ function renderSuspenseListRows(request, task, keyPath, rows, revealOrder) {
     var resumeSlots = task.replay.slots;
     if (null !== resumeSlots && "object" === typeof resumeSlots)
       for (var n = 0; n < keyPath; n++) {
-        var i = "backwards" !== revealOrder ? n : keyPath - 1 - n,
+        var i =
+            "backwards" !== revealOrder &&
+            "unstable_legacy-backwards" !== revealOrder
+              ? n
+              : keyPath - 1 - n,
           node = rows[i];
         task.row = previousSuspenseListRow = createSuspenseListRow(
           previousSuspenseListRow
@@ -4044,7 +4048,8 @@ function renderSuspenseListRows(request, task, keyPath, rows, revealOrder) {
     else
       for (resumeSlots = 0; resumeSlots < keyPath; resumeSlots++)
         (n =
-          "backwards" !== revealOrder
+          "backwards" !== revealOrder &&
+          "unstable_legacy-backwards" !== revealOrder
             ? resumeSlots
             : keyPath - 1 - resumeSlots),
           (i = rows[n]),
@@ -4054,7 +4059,10 @@ function renderSuspenseListRows(request, task, keyPath, rows, revealOrder) {
           renderNode(request, task, i, n),
           0 === --previousSuspenseListRow.pendingTasks &&
             finishSuspenseListRow(request, previousSuspenseListRow);
-  } else if ("backwards" !== revealOrder)
+  } else if (
+    "backwards" !== revealOrder &&
+    "unstable_legacy-backwards" !== revealOrder
+  )
     for (revealOrder = 0; revealOrder < keyPath; revealOrder++)
       (resumeSlots = rows[revealOrder]),
         (task.row = previousSuspenseListRow =
@@ -4413,7 +4421,11 @@ function renderElement(request, task, keyPath, type, props, ref) {
         a: {
           type = props.children;
           props = props.revealOrder;
-          if ("forwards" === props || "backwards" === props) {
+          if (
+            "forwards" === props ||
+            "backwards" === props ||
+            "unstable_legacy-backwards" === props
+          ) {
             if (isArrayImpl(type)) {
               renderSuspenseListRows(request, task, keyPath, type, props);
               break a;
@@ -5483,7 +5495,10 @@ function queueCompletedSegment(boundary, segment) {
     var childSegment = segment.children[0];
     childSegment.id = segment.id;
     childSegment.parentFlushed = !0;
-    1 === childSegment.status && queueCompletedSegment(boundary, childSegment);
+    (1 !== childSegment.status &&
+      3 !== childSegment.status &&
+      4 !== childSegment.status) ||
+      queueCompletedSegment(boundary, childSegment);
   } else boundary.completedSegments.push(segment);
 }
 function finishedSegment(request, boundary, segment) {
@@ -5518,7 +5533,7 @@ function finishedTask(request$jscomp$0, boundary, row, segment) {
         (0 === boundary.status && (boundary.status = 1),
         null !== segment &&
           segment.parentFlushed &&
-          1 === segment.status &&
+          (1 === segment.status || 3 === segment.status) &&
           queueCompletedSegment(boundary, segment),
         boundary.parentFlushed &&
           request$jscomp$0.completedBoundaries.push(boundary),
@@ -5598,9 +5613,9 @@ function finishedTask(request$jscomp$0, boundary, row, segment) {
         }
       }
     else
-      null !== segment &&
-        segment.parentFlushed &&
-        1 === segment.status &&
+      null === segment ||
+        !segment.parentFlushed ||
+        (1 !== segment.status && 3 !== segment.status) ||
         (queueCompletedSegment(boundary, segment),
         1 === boundary.completedSegments.length &&
           boundary.parentFlushed &&
@@ -5919,6 +5934,8 @@ function flushSubtree(request, destination, segment, hoistableState) {
         writeChunk(destination, chunks[chunkIdx]);
       chunkIdx < chunks.length && (r = !!destination.write(chunks[chunkIdx]));
       return r;
+    case 3:
+      return !0;
     default:
       throw Error(
         "Aborted, errored or already flushed boundaries should not be flushed again. This is a bug in React."
@@ -6039,7 +6056,7 @@ function flushCompletedBoundary(request, destination, boundary) {
         ((completedSegments.instructions |= 2),
         writeChunk(
           destination,
-          '$RB=[];$RV=function(c){$RT=performance.now();for(var a=0;a<c.length;a+=2){var b=c[a],h=c[a+1],e=b.parentNode;if(e){var f=b.previousSibling,g=0;do{if(b&&8===b.nodeType){var d=b.data;if("/$"===d||"/&"===d)if(0===g)break;else g--;else"$"!==d&&"$?"!==d&&"$~"!==d&&"$!"!==d&&"&"!==d||g++}d=b.nextSibling;e.removeChild(b);b=d}while(b);for(;h.firstChild;)e.insertBefore(h.firstChild,b);f.data="$";f._reactRetry&&f._reactRetry()}}c.length=0};$RC=function(c,a){if(a=document.getElementById(a))if(a.parentNode.removeChild(a),c=document.getElementById(c))c.previousSibling.data="$~",$RB.push(c,a),2===$RB.length&&setTimeout($RV.bind(null,$RB),("number"!==typeof $RT?0:$RT)+300-performance.now())};'
+          '$RB=[];$RV=function(b){$RT=performance.now();for(var a=0;a<b.length;a+=2){var c=b[a],h=b[a+1],e=c.parentNode;if(e){var f=c.previousSibling,g=0;do{if(c&&8===c.nodeType){var d=c.data;if("/$"===d||"/&"===d)if(0===g)break;else g--;else"$"!==d&&"$?"!==d&&"$~"!==d&&"$!"!==d&&"&"!==d||g++}d=c.nextSibling;e.removeChild(c);c=d}while(c);for(;h.firstChild;)e.insertBefore(h.firstChild,c);f.data="$";f._reactRetry&&f._reactRetry()}}b.length=0};$RC=function(b,a){if(a=document.getElementById(a))if(a.parentNode.removeChild(a),b=document.getElementById(b))b.previousSibling.data="$~",$RB.push(b,a),2===$RB.length&&(b="number"!==typeof $RT?0:$RT,a=performance.now(),setTimeout($RV.bind(null,$RB),2300>a&&2E3<a?2300-a:b+300-a))};'
         )),
       0 === (completedSegments.instructions & 8)
         ? ((completedSegments.instructions |= 8),
@@ -6052,7 +6069,7 @@ function flushCompletedBoundary(request, destination, boundary) {
         ((completedSegments.instructions |= 2),
         writeChunk(
           destination,
-          '$RB=[];$RV=function(c){$RT=performance.now();for(var a=0;a<c.length;a+=2){var b=c[a],h=c[a+1],e=b.parentNode;if(e){var f=b.previousSibling,g=0;do{if(b&&8===b.nodeType){var d=b.data;if("/$"===d||"/&"===d)if(0===g)break;else g--;else"$"!==d&&"$?"!==d&&"$~"!==d&&"$!"!==d&&"&"!==d||g++}d=b.nextSibling;e.removeChild(b);b=d}while(b);for(;h.firstChild;)e.insertBefore(h.firstChild,b);f.data="$";f._reactRetry&&f._reactRetry()}}c.length=0};$RC=function(c,a){if(a=document.getElementById(a))if(a.parentNode.removeChild(a),c=document.getElementById(c))c.previousSibling.data="$~",$RB.push(c,a),2===$RB.length&&setTimeout($RV.bind(null,$RB),("number"!==typeof $RT?0:$RT)+300-performance.now())};'
+          '$RB=[];$RV=function(b){$RT=performance.now();for(var a=0;a<b.length;a+=2){var c=b[a],h=b[a+1],e=c.parentNode;if(e){var f=c.previousSibling,g=0;do{if(c&&8===c.nodeType){var d=c.data;if("/$"===d||"/&"===d)if(0===g)break;else g--;else"$"!==d&&"$?"!==d&&"$~"!==d&&"$!"!==d&&"&"!==d||g++}d=c.nextSibling;e.removeChild(c);c=d}while(c);for(;h.firstChild;)e.insertBefore(h.firstChild,c);f.data="$";f._reactRetry&&f._reactRetry()}}b.length=0};$RC=function(b,a){if(a=document.getElementById(a))if(a.parentNode.removeChild(a),b=document.getElementById(b))b.previousSibling.data="$~",$RB.push(b,a),2===$RB.length&&(b="number"!==typeof $RT?0:$RT,a=performance.now(),setTimeout($RV.bind(null,$RB),2300>a&&2E3<a?2300-a:b+300-a))};'
         )),
       writeChunk(destination, '$RC("'));
   completedSegments = i.toString(16);
@@ -6117,7 +6134,8 @@ function flushCompletedQueues(request, destination) {
         var completedPreambleSegments = request.completedPreambleSegments;
         if (null === completedPreambleSegments) return;
         flushedByteSize = request.byteSize;
-        var renderState = request.renderState,
+        var resumableState = request.resumableState,
+          renderState = request.renderState,
           preamble = renderState.preamble,
           htmlChunks = preamble.htmlChunks,
           headChunks = preamble.headChunks,
@@ -6160,17 +6178,18 @@ function flushCompletedQueues(request, destination) {
         renderState.scripts.clear();
         renderState.bulkPreloads.forEach(flushResource, destination);
         renderState.bulkPreloads.clear();
+        htmlChunks || headChunks || (resumableState.instructions |= 32);
         var hoistableChunks = renderState.hoistableChunks;
         for (i$jscomp$0 = 0; i$jscomp$0 < hoistableChunks.length; i$jscomp$0++)
           writeChunk(destination, hoistableChunks[i$jscomp$0]);
         for (
-          renderState = hoistableChunks.length = 0;
-          renderState < completedPreambleSegments.length;
-          renderState++
+          resumableState = hoistableChunks.length = 0;
+          resumableState < completedPreambleSegments.length;
+          resumableState++
         ) {
-          var segments = completedPreambleSegments[renderState];
-          for (preamble = 0; preamble < segments.length; preamble++)
-            flushSegment(request, destination, segments[preamble], null);
+          var segments = completedPreambleSegments[resumableState];
+          for (renderState = 0; renderState < segments.length; renderState++)
+            flushSegment(request, destination, segments[renderState], null);
         }
         var preamble$jscomp$0 = request.renderState.preamble,
           headChunks$jscomp$0 = preamble$jscomp$0.headChunks;
@@ -6195,13 +6214,13 @@ function flushCompletedQueues(request, destination) {
             (0 !== request.trackedPostpones.rootNodes.length ||
               null !== request.trackedPostpones.rootSlots))
         ) {
-          var resumableState = request.resumableState;
-          if (0 === (resumableState.instructions & 64)) {
-            resumableState.instructions |= 64;
+          var resumableState$jscomp$0 = request.resumableState;
+          if (0 === (resumableState$jscomp$0.instructions & 64)) {
+            resumableState$jscomp$0.instructions |= 64;
             writeChunk(destination, renderState$jscomp$0.startInlineScript);
-            if (0 === (resumableState.instructions & 32)) {
-              resumableState.instructions |= 32;
-              var shellId = "\u00ab" + resumableState.idPrefix + "R\u00bb";
+            if (0 === (resumableState$jscomp$0.instructions & 32)) {
+              resumableState$jscomp$0.instructions |= 32;
+              var shellId = "_" + resumableState$jscomp$0.idPrefix + "R_";
               writeChunk(destination, ' id="');
               writeChunk(destination, escapeTextForBrowser(shellId));
               writeChunk(destination, '"');
@@ -6252,7 +6271,7 @@ function flushCompletedQueues(request, destination) {
       for (i = 0; i < clientRenderedBoundaries.length; i++) {
         var boundary = clientRenderedBoundaries[i];
         renderState$jscomp$1 = destination;
-        var resumableState$jscomp$0 = request.resumableState,
+        var resumableState$jscomp$1 = request.resumableState,
           renderState$jscomp$2 = request.renderState,
           id = boundary.rootSegmentID,
           errorDigest = boundary.errorDigest;
@@ -6261,8 +6280,8 @@ function flushCompletedQueues(request, destination) {
           renderState$jscomp$2.startInlineScript
         );
         writeChunk(renderState$jscomp$1, ">");
-        0 === (resumableState$jscomp$0.instructions & 4)
-          ? ((resumableState$jscomp$0.instructions |= 4),
+        0 === (resumableState$jscomp$1.instructions & 4)
+          ? ((resumableState$jscomp$1.instructions |= 4),
             writeChunk(
               renderState$jscomp$1,
               '$RX=function(b,c,d,e,f){var a=document.getElementById(b);a&&(b=a.previousSibling,b.data="$!",a=a.dataset,c&&(a.dgst=c),d&&(a.msg=d),e&&(a.stck=e),f&&(a.cstck=f),b._reactRetry&&b._reactRetry())};;$RX("'
@@ -6435,15 +6454,15 @@ function addToReplayParent(node, parentKeyPath, trackedPostpones) {
     parentNode[2].push(node);
   }
 }
-var isomorphicReactPackageVersion$jscomp$inline_812 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_813 = React.version;
 if (
-  "19.2.0-canary-14094f80-20250529" !==
-  isomorphicReactPackageVersion$jscomp$inline_812
+  "19.2.0-canary-280ff6fe-20250606" !==
+  isomorphicReactPackageVersion$jscomp$inline_813
 )
   throw Error(
     'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
-      (isomorphicReactPackageVersion$jscomp$inline_812 +
-        "\n  - react-dom:  19.2.0-canary-14094f80-20250529\nLearn more: https://react.dev/warnings/version-mismatch")
+      (isomorphicReactPackageVersion$jscomp$inline_813 +
+        "\n  - react-dom:  19.2.0-canary-280ff6fe-20250606\nLearn more: https://react.dev/warnings/version-mismatch")
   );
 exports.renderToReadableStream = function (children, options) {
   return new Promise(function (resolve, reject) {
@@ -6534,4 +6553,4 @@ exports.renderToReadableStream = function (children, options) {
     startWork(request);
   });
 };
-exports.version = "19.2.0-canary-14094f80-20250529";
+exports.version = "19.2.0-canary-280ff6fe-20250606";

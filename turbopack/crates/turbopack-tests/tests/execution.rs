@@ -321,9 +321,9 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         .get_relative_path_to(&*project_root.await?)
         .context("Project path is in root path")?;
 
-    let env = Environment::new(Value::new(ExecutionEnvironment::NodeJsBuildTime(
+    let env = Environment::new(ExecutionEnvironment::NodeJsBuildTime(
         NodeJsEnvironment::default().resolved_cell(),
-    )))
+    ))
     .to_resolved()
     .await?;
 

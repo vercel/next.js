@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use anyhow::{Context, Result};
 use rustc_hash::FxHashMap;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, ResolvedVc, Value, Vc, fxindexmap};
+use turbo_tasks::{FxIndexMap, ResolvedVc, Vc, fxindexmap};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::{
     reference_type::{CommonJsReferenceSubType, ReferenceType},
@@ -1009,7 +1009,7 @@ pub async fn get_next_package(context_directory: Vc<FileSystemPath>) -> Result<V
     let result = resolve(
         context_directory,
         ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
-        Request::parse(Value::new(Pattern::Constant(rcstr!("next/package.json")))),
+        Request::parse(Pattern::Constant(rcstr!("next/package.json"))),
         node_cjs_resolve_options(context_directory.root()),
     );
     let source = result

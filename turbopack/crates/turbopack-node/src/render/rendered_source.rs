@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde_json::Value as JsonValue;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexSet, OperationVc, ResolvedVc, Value, Vc};
+use turbo_tasks::{FxIndexSet, OperationVc, ResolvedVc, Vc};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -165,11 +165,7 @@ impl GetContentSourceContent for NodeRenderContentSource {
     }
 
     #[turbo_tasks::function]
-    async fn get(
-        &self,
-        path: RcStr,
-        data: Value<ContentSourceData>,
-    ) -> Result<Vc<ContentSourceContent>> {
+    async fn get(&self, path: RcStr, data: ContentSourceData) -> Result<Vc<ContentSourceContent>> {
         let pathname = self.pathname.await?;
         let Some(params) = &*self.route_match.params(path.clone()).await? else {
             anyhow::bail!("Non matching path ({}) provided for {}", path, pathname)
@@ -181,7 +177,7 @@ impl GetContentSourceContent for NodeRenderContentSource {
             raw_headers: Some(raw_headers),
             raw_query: Some(raw_query),
             ..
-        } = &*data
+        } = &data
         else {
             anyhow::bail!("Missing request data")
         };

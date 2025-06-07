@@ -16,7 +16,39 @@ describe('Exported runtimes value validation', () => {
     })
   })
 
-  test('warns on unrecognized runtimes value', async () => {
+  test('fails the build on invalid middleware matcher', async () => {
+    const result = await nextBuild(
+      path.resolve(__dirname, './invalid-middleware'),
+      undefined,
+      { stdout: true, stderr: true }
+    )
+
+    // The build should fail to prevent unexpected behavior
+    expect(result.code).toBe(1)
+
+    // TODO: Turbopack matches the error message but omits the routing & error information
+    if (process.env.IS_TURBOPACK_TEST) {
+      expect(result.stderr).toEqual(
+        expect.stringContaining(
+          "Next.js can't recognize the exported `config` field in route"
+        )
+      )
+    } else {
+      expect(result.stderr).toEqual(
+        expect.stringContaining(
+          'Next.js can\'t recognize the exported `config` field in route "/middleware"'
+        )
+      )
+
+      expect(result.stderr).toEqual(
+        expect.stringContaining(
+          'Unknown identifier "dynamicPath" at "config.matcher[1]"'
+        )
+      )
+    }
+  })
+
+  test('fails the build on unrecognized runtimes value', async () => {
     const result = await nextBuild(
       path.resolve(__dirname, './unsupported-syntax/app'),
       undefined,

@@ -29,8 +29,7 @@ use serde::{Deserialize, Serialize};
 use tokio::{process::Command, time::timeout};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    ResolvedVc, TurboTasks, Value, ValueToString, Vc, apply_effects, backend::Backend,
-    trace::TraceRawVcs,
+    ResolvedVc, TurboTasks, ValueToString, Vc, apply_effects, backend::Backend, trace::TraceRawVcs,
 };
 use turbo_tasks_backend::TurboTasksBackend;
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
@@ -343,8 +342,8 @@ async fn node_file_trace_operation(
         // TODO It's easy to make a mistake here as this should match the config in the
         // binary. TODO These test cases should move into the
         // `node-file-trace` crate and use the same config.
-        CompileTimeInfo::new(Environment::new(Value::new(
-            ExecutionEnvironment::NodeJsLambda(NodeJsEnvironment::default().resolved_cell()),
+        CompileTimeInfo::new(Environment::new(ExecutionEnvironment::NodeJsLambda(
+            NodeJsEnvironment::default().resolved_cell(),
         ))),
         ModuleOptionsContext {
             ecmascript: EcmascriptOptionsContext {

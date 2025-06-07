@@ -4,8 +4,8 @@ use anyhow::Result;
 use rustc_hash::FxHashSet;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, FxIndexMap, FxIndexSet, ResolvedVc, State, TryJoinIterExt, Value, ValueToString,
-    Vc, fxindexset,
+    Completion, FxIndexMap, FxIndexSet, ResolvedVc, State, TryJoinIterExt, ValueToString, Vc,
+    fxindexset,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -270,7 +270,7 @@ impl GetContentSourceContent for AssetGraphGetContentSourceContent {
     async fn get(
         self: ResolvedVc<Self>,
         _path: RcStr,
-        _data: Value<ContentSourceData>,
+        _data: ContentSourceData,
     ) -> Result<Vc<ContentSourceContent>> {
         let this = self.await?;
         turbo_tasks::emit(ResolvedVc::upcast::<Box<dyn ContentSourceSideEffect>>(self));

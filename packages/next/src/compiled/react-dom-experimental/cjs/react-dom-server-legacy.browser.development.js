@@ -907,9 +907,9 @@
       );
     }
     function makeId(resumableState, treeId, localId) {
-      resumableState = "\u00ab" + resumableState.idPrefix + "R" + treeId;
+      resumableState = "_" + resumableState.idPrefix + "R_" + treeId;
       0 < localId && (resumableState += "H" + localId.toString(32));
-      return resumableState + "\u00bb";
+      return resumableState + "_";
     }
     function pushViewTransitionAttributes(target, formatContext) {
       formatContext = formatContext.viewTransition;
@@ -3283,7 +3283,7 @@
     function writeCompletedShellIdAttribute(destination, resumableState) {
       (resumableState.instructions & SentCompletedShellId) === NothingSent &&
         ((resumableState.instructions |= SentCompletedShellId),
-        (resumableState = "\u00ab" + resumableState.idPrefix + "R\u00bb"),
+        (resumableState = "_" + resumableState.idPrefix + "R_"),
         destination.push(completedShellIdAttributeStart),
         (resumableState = escapeTextForBrowser(resumableState)),
         destination.push(resumableState),
@@ -3294,7 +3294,7 @@
         ((resumableState.instructions |= SentCompletedShellId),
         target.push(
           completedShellIdAttributeStart,
-          escapeTextForBrowser("\u00ab" + resumableState.idPrefix + "R\u00bb"),
+          escapeTextForBrowser("_" + resumableState.idPrefix + "R_"),
           attributeEnd
         ));
     }
@@ -5140,7 +5140,11 @@
         var resumeSlots = task.replay.slots;
         if (null !== resumeSlots && "object" === typeof resumeSlots)
           for (var n = 0; n < keyPath; n++) {
-            var i = "backwards" !== revealOrder ? n : keyPath - 1 - n,
+            var i =
+                "backwards" !== revealOrder &&
+                "unstable_legacy-backwards" !== revealOrder
+                  ? n
+                  : keyPath - 1 - n,
               node = rows[i];
             task.row = previousSuspenseListRow = createSuspenseListRow(
               previousSuspenseListRow
@@ -5157,7 +5161,8 @@
         else
           for (resumeSlots = 0; resumeSlots < keyPath; resumeSlots++)
             (n =
-              "backwards" !== revealOrder
+              "backwards" !== revealOrder &&
+              "unstable_legacy-backwards" !== revealOrder
                 ? resumeSlots
                 : keyPath - 1 - resumeSlots),
               (i = rows[n]),
@@ -5168,7 +5173,10 @@
               renderNode(request, task, i, n),
               0 === --previousSuspenseListRow.pendingTasks &&
                 finishSuspenseListRow(request, previousSuspenseListRow);
-      } else if ("backwards" !== revealOrder)
+      } else if (
+        "backwards" !== revealOrder &&
+        "unstable_legacy-backwards" !== revealOrder
+      )
         for (revealOrder = 0; revealOrder < keyPath; revealOrder++)
           (resumeSlots = rows[revealOrder]),
             warnForMissingKey(request, task, resumeSlots),
@@ -5216,7 +5224,8 @@
                 finishSuspenseListRow(request, previousSuspenseListRow);
           } catch (thrownValue) {
             throw (
-              ((resumeSegmentID.status = 12 === request.status ? ABORTED : 4),
+              ((resumeSegmentID.status =
+                12 === request.status ? ABORTED : ERRORED),
               thrownValue)
             );
           }
@@ -5896,7 +5905,11 @@
             a: {
               var children$jscomp$0 = props.children,
                 revealOrder = props.revealOrder;
-              if ("forwards" === revealOrder || "backwards" === revealOrder) {
+              if (
+                "forwards" === revealOrder ||
+                "backwards" === revealOrder ||
+                "unstable_legacy-backwards" === revealOrder
+              ) {
                 if (isArrayImpl(children$jscomp$0)) {
                   renderSuspenseListRows(
                     request,
@@ -6124,7 +6137,7 @@
                 } catch (thrownValue) {
                   throw (
                     ((boundarySegment.status =
-                      12 === request.status ? ABORTED : 4),
+                      12 === request.status ? ABORTED : ERRORED),
                     thrownValue)
                   );
                 } finally {
@@ -6205,7 +6218,8 @@
                     contentRootSegment.status = ABORTED;
                     var error = request.fatalError;
                   } else
-                    (contentRootSegment.status = 4), (error = thrownValue$2);
+                    (contentRootSegment.status = ERRORED),
+                      (error = thrownValue$2);
                   var thrownInfo = getThrownInfo(task.componentStack);
                   if (
                     "object" === typeof error &&
@@ -7591,7 +7605,9 @@
         var childSegment = segment.children[0];
         childSegment.id = segment.id;
         childSegment.parentFlushed = !0;
-        childSegment.status === COMPLETED &&
+        (childSegment.status !== COMPLETED &&
+          childSegment.status !== ABORTED &&
+          childSegment.status !== ERRORED) ||
           queueCompletedSegment(boundary, childSegment);
       } else boundary.completedSegments.push(segment);
     }
@@ -7617,7 +7633,7 @@
             (boundary.status === PENDING && (boundary.status = COMPLETED),
             null !== segment &&
               segment.parentFlushed &&
-              segment.status === COMPLETED &&
+              (segment.status === COMPLETED || segment.status === ABORTED) &&
               queueCompletedSegment(boundary, segment),
             boundary.parentFlushed &&
               request.completedBoundaries.push(boundary),
@@ -7666,9 +7682,9 @@
             }
           }
         else
-          null !== segment &&
-            segment.parentFlushed &&
-            segment.status === COMPLETED &&
+          null === segment ||
+            !segment.parentFlushed ||
+            (segment.status !== COMPLETED && segment.status !== ABORTED) ||
             (queueCompletedSegment(boundary, segment),
             1 === boundary.completedSegments.length &&
               boundary.parentFlushed &&
@@ -7896,7 +7912,7 @@
                         task$jscomp$0.componentStack
                       );
                       task$jscomp$0.abortSet.delete(task$jscomp$0);
-                      segment$jscomp$0.status = 4;
+                      segment$jscomp$0.status = ERRORED;
                       var boundary = task$jscomp$0.blockedBoundary,
                         row = task$jscomp$0.row,
                         debugTask = task$jscomp$0.debugTask;
@@ -8090,6 +8106,8 @@
             destination.push(chunks[chunkIdx]);
           chunkIdx < chunks.length && (r = destination.push(chunks[chunkIdx]));
           return r;
+        case ABORTED:
+          return !0;
         default:
           throw Error(
             "Aborted, errored or already flushed boundaries should not be flushed again. This is a bug in React."
@@ -8382,6 +8400,18 @@
             var completedPreambleSegments = request.completedPreambleSegments;
             if (null === completedPreambleSegments) return;
             flushedByteSize = request.byteSize;
+            var blockingRenderMaxSize = 40 * request.progressiveChunkSize;
+            flushedByteSize > blockingRenderMaxSize &&
+              logRecoverableError(
+                request,
+                Error(
+                  "This rendered a large document (>" +
+                    Math.round(blockingRenderMaxSize / 1e3) +
+                    ") without any Suspense boundaries around most of it. That can delay initial paint longer than necessary. To improve load performance, add a <Suspense> or <SuspenseList> around the content you expect to be below the header or below the fold. In the meantime, the content will deopt to paint arbitrary incomplete pieces of HTML."
+                ),
+                {},
+                null
+              );
             var resumableState = request.resumableState,
               renderState = request.renderState;
             if (renderState.externalRuntimeScript) {
@@ -8452,13 +8482,7 @@
             renderState.scripts.clear();
             renderState.bulkPreloads.forEach(flushResource, destination);
             renderState.bulkPreloads.clear();
-            if (htmlChunks || headChunks) {
-              var shellId = "\u00ab" + resumableState.idPrefix + "R\u00bb";
-              destination.push(blockingRenderChunkStart);
-              var chunk$jscomp$0 = escapeTextForBrowser(shellId);
-              destination.push(chunk$jscomp$0);
-              destination.push(blockingRenderChunkEnd);
-            }
+            resumableState.instructions |= SentCompletedShellId;
             var hoistableChunks = renderState.hoistableChunks;
             for (
               i$jscomp$0 = 0;
@@ -8467,23 +8491,28 @@
             )
               destination.push(hoistableChunks[i$jscomp$0]);
             for (
-              resumableState = hoistableChunks.length = 0;
-              resumableState < completedPreambleSegments.length;
-              resumableState++
+              blockingRenderMaxSize = hoistableChunks.length = 0;
+              blockingRenderMaxSize < completedPreambleSegments.length;
+              blockingRenderMaxSize++
             ) {
-              var segments = completedPreambleSegments[resumableState];
+              var segments = completedPreambleSegments[blockingRenderMaxSize];
               for (
-                renderState = 0;
-                renderState < segments.length;
-                renderState++
+                resumableState = 0;
+                resumableState < segments.length;
+                resumableState++
               )
-                flushSegment(request, destination, segments[renderState], null);
+                flushSegment(
+                  request,
+                  destination,
+                  segments[resumableState],
+                  null
+                );
             }
             var preamble$jscomp$0 = request.renderState.preamble,
               headChunks$jscomp$0 = preamble$jscomp$0.headChunks;
             if (preamble$jscomp$0.htmlChunks || headChunks$jscomp$0) {
-              var chunk$jscomp$1 = endChunkForTag("head");
-              destination.push(chunk$jscomp$1);
+              var chunk$jscomp$0 = endChunkForTag("head");
+              destination.push(chunk$jscomp$0);
             }
             var bodyChunks = preamble$jscomp$0.bodyChunks;
             if (bodyChunks)
@@ -8522,15 +8551,15 @@
               (resumableState$jscomp$0.instructions & SentCompletedShellId) ===
                 NothingSent
             ) {
-              var chunk$jscomp$2 = startChunkForTag("template");
-              destination.push(chunk$jscomp$2);
+              var chunk$jscomp$1 = startChunkForTag("template");
+              destination.push(chunk$jscomp$1);
               writeCompletedShellIdAttribute(
                 destination,
                 resumableState$jscomp$0
               );
               destination.push(endOfStartTag);
-              var chunk$jscomp$3 = endChunkForTag("template");
-              destination.push(chunk$jscomp$3);
+              var chunk$jscomp$2 = endChunkForTag("template");
+              destination.push(chunk$jscomp$2);
             }
             writeBootstrap(destination, renderState$jscomp$0);
           }
@@ -8594,8 +8623,8 @@
                   : renderState$jscomp$1.push(clientRenderScript1Partial))
               : renderState$jscomp$1.push(clientRenderData1);
             renderState$jscomp$1.push(renderState$jscomp$2.boundaryPrefix);
-            var chunk$jscomp$4 = id.toString(16);
-            renderState$jscomp$1.push(chunk$jscomp$4);
+            var chunk$jscomp$3 = id.toString(16);
+            renderState$jscomp$1.push(chunk$jscomp$3);
             scriptFormat && renderState$jscomp$1.push(clientRenderScript1A);
             if (
               errorDigest ||
@@ -8607,55 +8636,55 @@
                 renderState$jscomp$1.push(
                   clientRenderErrorScriptArgInterstitial
                 );
-                var chunk$jscomp$5 = escapeJSStringsForInstructionScripts(
+                var chunk$jscomp$4 = escapeJSStringsForInstructionScripts(
                   errorDigest || ""
                 );
-                renderState$jscomp$1.push(chunk$jscomp$5);
+                renderState$jscomp$1.push(chunk$jscomp$4);
               } else {
                 renderState$jscomp$1.push(clientRenderData2);
-                var chunk$jscomp$6 = escapeTextForBrowser(errorDigest || "");
-                renderState$jscomp$1.push(chunk$jscomp$6);
+                var chunk$jscomp$5 = escapeTextForBrowser(errorDigest || "");
+                renderState$jscomp$1.push(chunk$jscomp$5);
               }
             if (errorMessage || errorStack || errorComponentStack)
               if (scriptFormat) {
                 renderState$jscomp$1.push(
                   clientRenderErrorScriptArgInterstitial
                 );
-                var chunk$jscomp$7 = escapeJSStringsForInstructionScripts(
+                var chunk$jscomp$6 = escapeJSStringsForInstructionScripts(
                   errorMessage || ""
                 );
-                renderState$jscomp$1.push(chunk$jscomp$7);
+                renderState$jscomp$1.push(chunk$jscomp$6);
               } else {
                 renderState$jscomp$1.push(clientRenderData3);
-                var chunk$jscomp$8 = escapeTextForBrowser(errorMessage || "");
-                renderState$jscomp$1.push(chunk$jscomp$8);
+                var chunk$jscomp$7 = escapeTextForBrowser(errorMessage || "");
+                renderState$jscomp$1.push(chunk$jscomp$7);
               }
             if (errorStack || errorComponentStack)
               if (scriptFormat) {
                 renderState$jscomp$1.push(
                   clientRenderErrorScriptArgInterstitial
                 );
-                var chunk$jscomp$9 = escapeJSStringsForInstructionScripts(
+                var chunk$jscomp$8 = escapeJSStringsForInstructionScripts(
                   errorStack || ""
                 );
-                renderState$jscomp$1.push(chunk$jscomp$9);
+                renderState$jscomp$1.push(chunk$jscomp$8);
               } else {
                 renderState$jscomp$1.push(clientRenderData4);
-                var chunk$jscomp$10 = escapeTextForBrowser(errorStack || "");
-                renderState$jscomp$1.push(chunk$jscomp$10);
+                var chunk$jscomp$9 = escapeTextForBrowser(errorStack || "");
+                renderState$jscomp$1.push(chunk$jscomp$9);
               }
             if (errorComponentStack)
               if (scriptFormat) {
                 renderState$jscomp$1.push(
                   clientRenderErrorScriptArgInterstitial
                 );
-                var chunk$jscomp$11 =
+                var chunk$jscomp$10 =
                   escapeJSStringsForInstructionScripts(errorComponentStack);
-                renderState$jscomp$1.push(chunk$jscomp$11);
+                renderState$jscomp$1.push(chunk$jscomp$10);
               } else {
                 renderState$jscomp$1.push(clientRenderData5);
-                var chunk$jscomp$12 = escapeTextForBrowser(errorComponentStack);
-                renderState$jscomp$1.push(chunk$jscomp$12);
+                var chunk$jscomp$11 = escapeTextForBrowser(errorComponentStack);
+                renderState$jscomp$1.push(chunk$jscomp$11);
               }
             var JSCompiler_inline_result = scriptFormat
               ? renderState$jscomp$1.push(clientRenderScriptEnd)
@@ -8816,7 +8845,17 @@
                 : reason;
           request.fatalError = error;
           abortableTasks.forEach(function (task) {
-            return abortTask(task, request, error);
+            var prevTaskInDEV = currentTaskInDEV,
+              prevGetCurrentStackImpl = ReactSharedInternals.getCurrentStack;
+            currentTaskInDEV = task;
+            ReactSharedInternals.getCurrentStack = getCurrentStackInDEV;
+            try {
+              abortTask(task, request, error);
+            } finally {
+              (currentTaskInDEV = prevTaskInDEV),
+                (ReactSharedInternals.getCurrentStack =
+                  prevGetCurrentStackImpl);
+            }
           });
           abortableTasks.clear();
         }
@@ -10059,9 +10098,9 @@
       completeSegmentData2 = '" data-pid="',
       completeSegmentDataEnd = '"></template>',
       completeBoundaryScriptFunctionOnly =
-        '$RB=[];$RV=function(c){$RT=performance.now();for(var a=0;a<c.length;a+=2){var b=c[a],h=c[a+1],e=b.parentNode;if(e){var f=b.previousSibling,g=0;do{if(b&&8===b.nodeType){var d=b.data;if("/$"===d||"/&"===d)if(0===g)break;else g--;else"$"!==d&&"$?"!==d&&"$~"!==d&&"$!"!==d&&"&"!==d||g++}d=b.nextSibling;e.removeChild(b);b=d}while(b);for(;h.firstChild;)e.insertBefore(h.firstChild,b);f.data="$";f._reactRetry&&f._reactRetry()}}c.length=0};$RC=function(c,a){if(a=document.getElementById(a))if(a.parentNode.removeChild(a),c=document.getElementById(c))c.previousSibling.data="$~",$RB.push(c,a),2===$RB.length&&setTimeout($RV.bind(null,$RB),("number"!==typeof $RT?0:$RT)+300-performance.now())};',
+        '$RB=[];$RV=function(b){$RT=performance.now();for(var a=0;a<b.length;a+=2){var c=b[a],h=b[a+1],e=c.parentNode;if(e){var f=c.previousSibling,g=0;do{if(c&&8===c.nodeType){var d=c.data;if("/$"===d||"/&"===d)if(0===g)break;else g--;else"$"!==d&&"$?"!==d&&"$~"!==d&&"$!"!==d&&"&"!==d||g++}d=c.nextSibling;e.removeChild(c);c=d}while(c);for(;h.firstChild;)e.insertBefore(h.firstChild,c);f.data="$";f._reactRetry&&f._reactRetry()}}b.length=0};$RC=function(b,a){if(a=document.getElementById(a))if(a.parentNode.removeChild(a),b=document.getElementById(b))b.previousSibling.data="$~",$RB.push(b,a),2===$RB.length&&(b="number"!==typeof $RT?0:$RT,a=performance.now(),setTimeout($RV.bind(null,$RB),2300>a&&2E3<a?2300-a:b+300-a))};',
       completeBoundaryUpgradeToViewTransitionsInstruction =
-        '$RV=function(w,f){function h(a,d){var k=a.getAttribute(d);k&&(d=a.style,l.push(a,d.viewTransitionName,d.viewTransitionClass),"auto"!==k&&(d.viewTransitionClass=k),(a=a.getAttribute("vt-name"))||(a="\\u00abT"+F++ +"\\u00bb"),d.viewTransitionName=a,x=!0)}var x=!1,F=0,l=[];try{var e=document.__reactViewTransition;if(e){e.finished.finally($RV.bind(null,f));return}var m=new Map;for(e=1;e<f.length;e+=2)for(var g=f[e].querySelectorAll("[vt-share]"),c=0;c<g.length;c++){var b=g[c];m.set(b.getAttribute("vt-name"),b)}for(g=0;g<f.length;g+=2){var y=f[g],t=y.parentNode;if(t){var r=t.getBoundingClientRect();if(r.left||r.top||r.width||r.height){b=y;for(e=0;b;){if(8===b.nodeType){var p=b.data;if("/$"===p)if(0===e)break;else e--;else"$"!==p&&"$?"!==p&&"$~"!==p&&"$!"!==p||e++}else if(1===b.nodeType){c=b;var z=c.getAttribute("vt-name"),u=m.get(z);h(c,u?"vt-share":"vt-exit");u&&(h(u,"vt-share"),m.set(z,null));var A=c.querySelectorAll("[vt-share]");for(c=0;c<A.length;c++){var B=A[c],C=B.getAttribute("vt-name"),D=m.get(C);\nD&&(h(B,"vt-share"),h(D,"vt-share"),m.set(C,null))}}b=b.nextSibling}for(var q=f[g+1].firstElementChild;q;)null!==m.get(q.getAttribute("vt-name"))&&h(q,"vt-enter"),q=q.nextElementSibling;b=t;do for(var n=b.firstElementChild;n;){var E=n.getAttribute("vt-update");E&&"none"!==E&&!l.includes(n)&&h(n,"vt-update");n=n.nextElementSibling}while((b=b.parentNode)&&1===b.nodeType&&"none"!==b.getAttribute("vt-update"))}}}if(x){var v=document.__reactViewTransition=document.startViewTransition({update:function(){w(f,\ndocument.documentElement.clientHeight);return Promise.race([document.fonts.ready,new Promise(function(a){return setTimeout(a,500)})])},types:[]});v.ready.finally(function(){for(var a=l.length-3;0<=a;a-=3){var d=l[a],k=d.style;k.viewTransitionName=l[a+1];k.viewTransitionClass=l[a+1];""===d.getAttribute("style")&&d.removeAttribute("style")}});v.finished.finally(function(){document.__reactViewTransition===v&&(document.__reactViewTransition=null)});$RB=[];return}}catch(a){}w(f)}.bind(null,$RV);',
+        '$RV=function(A,g){function k(a,b){var e=a.getAttribute(b);e&&(b=a.style,l.push(a,b.viewTransitionName,b.viewTransitionClass),"auto"!==e&&(b.viewTransitionClass=e),(a=a.getAttribute("vt-name"))||(a="_T_"+K++ +"_"),b.viewTransitionName=a,B=!0)}var B=!1,K=0,l=[];try{var f=document.__reactViewTransition;if(f){f.finished.finally($RV.bind(null,g));return}var m=new Map;for(f=1;f<g.length;f+=2)for(var h=g[f].querySelectorAll("[vt-share]"),d=0;d<h.length;d++){var c=h[d];m.set(c.getAttribute("vt-name"),c)}var u=[];for(h=0;h<g.length;h+=2){var C=g[h],x=C.parentNode;if(x){var v=x.getBoundingClientRect();if(v.left||v.top||v.width||v.height){c=C;for(f=0;c;){if(8===c.nodeType){var r=c.data;if("/$"===r)if(0===f)break;else f--;else"$"!==r&&"$?"!==r&&"$~"!==r&&"$!"!==r||f++}else if(1===c.nodeType){d=c;var D=d.getAttribute("vt-name"),y=m.get(D);k(d,y?"vt-share":"vt-exit");y&&(k(y,"vt-share"),m.set(D,null));var E=d.querySelectorAll("[vt-share]");for(d=0;d<E.length;d++){var F=E[d],G=F.getAttribute("vt-name"),\nH=m.get(G);H&&(k(F,"vt-share"),k(H,"vt-share"),m.set(G,null))}}c=c.nextSibling}for(var I=g[h+1],t=I.firstElementChild;t;)null!==m.get(t.getAttribute("vt-name"))&&k(t,"vt-enter"),t=t.nextElementSibling;c=x;do for(var n=c.firstElementChild;n;){var J=n.getAttribute("vt-update");J&&"none"!==J&&!l.includes(n)&&k(n,"vt-update");n=n.nextElementSibling}while((c=c.parentNode)&&1===c.nodeType&&"none"!==c.getAttribute("vt-update"));u.push.apply(u,I.querySelectorAll(\'img[src]:not([loading="lazy"])\'))}}}if(B){var z=\ndocument.__reactViewTransition=document.startViewTransition({update:function(){A(g);for(var a=[document.documentElement.clientHeight,document.fonts.ready],b={},e=0;e<u.length;b={g:b.g},e++)if(b.g=u[e],!b.g.complete){var p=b.g.getBoundingClientRect();0<p.bottom&&0<p.right&&p.top<window.innerHeight&&p.left<window.innerWidth&&(p=new Promise(function(w){return function(q){w.g.addEventListener("load",q);w.g.addEventListener("error",q)}}(b)),a.push(p))}return Promise.race([Promise.all(a),new Promise(function(w){var q=\nperformance.now();setTimeout(w,2300>q&&2E3<q?2300-q:500)})])},types:[]});z.ready.finally(function(){for(var a=l.length-3;0<=a;a-=3){var b=l[a],e=b.style;e.viewTransitionName=l[a+1];e.viewTransitionClass=l[a+1];""===b.getAttribute("style")&&b.removeAttribute("style")}});z.finished.finally(function(){document.__reactViewTransition===z&&(document.__reactViewTransition=null)});$RB=[];return}}catch(a){}A(g)}.bind(null,$RV);',
       completeBoundaryScript1Partial = '$RC("',
       completeBoundaryWithStylesScript1FullPartial =
         '$RM=new Map;$RR=function(n,w,p){function u(q){this._p=null;q()}for(var r=new Map,t=document,h,b,e=t.querySelectorAll("link[data-precedence],style[data-precedence]"),v=[],k=0;b=e[k++];)"not all"===b.getAttribute("media")?v.push(b):("LINK"===b.tagName&&$RM.set(b.getAttribute("href"),b),r.set(b.dataset.precedence,h=b));e=0;b=[];var l,a;for(k=!0;;){if(k){var f=p[e++];if(!f){k=!1;e=0;continue}var c=!1,m=0;var d=f[m++];if(a=$RM.get(d)){var g=a._p;c=!0}else{a=t.createElement("link");a.href=d;a.rel=\n"stylesheet";for(a.dataset.precedence=l=f[m++];g=f[m++];)a.setAttribute(g,f[m++]);g=a._p=new Promise(function(q,x){a.onload=u.bind(a,q);a.onerror=u.bind(a,x)});$RM.set(d,a)}d=a.getAttribute("media");!g||d&&!matchMedia(d).matches||b.push(g);if(c)continue}else{a=v[e++];if(!a)break;l=a.getAttribute("data-precedence");a.removeAttribute("media")}c=r.get(l)||h;c===h&&(h=a);r.set(l,a);c?c.parentNode.insertBefore(a,c.nextSibling):(c=t.head,c.insertBefore(a,c.firstChild))}if(p=document.getElementById(n))p.previousSibling.data=\n"$~";Promise.all(b).then($RC.bind(null,n,w),$RX.bind(null,n,"CSS failed to load"))};$RR("',
@@ -10103,8 +10142,6 @@
       spaceSeparator = " ",
       styleTagResourceOpen3 = '">',
       styleTagResourceClose = "</style>",
-      blockingRenderChunkStart = '<link rel="expect" href="#',
-      blockingRenderChunkEnd = '" blocking="render"/>',
       completedShellIdAttributeStart = ' id="',
       arrayFirstOpenBracket = "[",
       arraySubsequentOpenBracket = ",[",
@@ -10349,6 +10386,7 @@
       COMPLETED = 1,
       FLUSHED = 2,
       ABORTED = 3,
+      ERRORED = 4,
       POSTPONED = 5,
       CLOSED = 14,
       currentRequest = null,
@@ -10376,5 +10414,5 @@
         'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToReadableStream" which supports Suspense on the server'
       );
     };
-    exports.version = "19.2.0-experimental-14094f80-20250529";
+    exports.version = "19.2.0-experimental-280ff6fe-20250606";
   })();

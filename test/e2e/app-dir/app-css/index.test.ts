@@ -1,8 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
-const isPPREnabledByDefault = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
-
 describe('app dir - css', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,

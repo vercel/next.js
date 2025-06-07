@@ -1079,6 +1079,16 @@
       registerBoundServerReference(action, id, null, encodeFormAction);
       return action;
     }
+    function getIOColor(functionName) {
+      switch (functionName.charCodeAt(0) % 3) {
+        case 0:
+          return "tertiary-light";
+        case 1:
+          return "tertiary";
+        default:
+          return "tertiary-dark";
+      }
+    }
     function getComponentNameFromType(type) {
       if (null == type) return null;
       if ("function" === typeof type)
@@ -1304,6 +1314,14 @@
         "pending" === chunk.status && triggerErrorOnChunk(chunk, error);
       });
       supportsUserTiming &&
+        (console.timeStamp(
+          "Server Requests Track",
+          0.001,
+          0.001,
+          "Server Requests \u269b",
+          void 0,
+          "primary-light"
+        ),
         console.timeStamp(
           "Server Components Track",
           0.001,
@@ -1311,7 +1329,7 @@
           "Primary",
           "Server Components \u269b",
           "primary-light"
-        );
+        ));
       flushComponentPerformance(
         response,
         getChunk(response, 0),
@@ -2109,6 +2127,7 @@
         response,
         errorInfo.stack,
         env,
+        !1,
         Error.bind(
           null,
           errorInfo.message ||
@@ -2126,6 +2145,7 @@
         response,
         stack,
         env,
+        !1,
         Error.bind(null, reason || "")
       );
       stack = response._debugRootTask;
@@ -2277,10 +2297,20 @@
       }
       return fn;
     }
-    function buildFakeCallStack(response, stack, environmentName, innerCall) {
+    function buildFakeCallStack(
+      response,
+      stack,
+      environmentName,
+      useEnclosingLine,
+      innerCall
+    ) {
       for (var i = 0; i < stack.length; i++) {
         var frame = stack[i],
-          frameKey = frame.join("-") + "-" + environmentName,
+          frameKey =
+            frame.join("-") +
+            "-" +
+            environmentName +
+            (useEnclosingLine ? "-e" : "-n"),
           fn = fakeFunctionCache.get(frameKey);
         if (void 0 === fn) {
           fn = frame[0];
@@ -2299,8 +2329,8 @@
             findSourceMapURL,
             line,
             col,
-            enclosingLine,
-            frame,
+            useEnclosingLine ? line : enclosingLine,
+            useEnclosingLine ? col : frame,
             environmentName
           );
           fakeFunctionCache.set(frameKey, fn);
@@ -2323,7 +2353,8 @@
     }
     function initializeFakeTask(response, debugInfo, childEnvironmentName) {
       if (!supportsCreateTask || null == debugInfo.stack) return null;
-      var stack = debugInfo.stack,
+      var useEnclosingLine = void 0 === debugInfo.key,
+        stack = debugInfo.stack,
         env =
           null == debugInfo.env ? response._rootEnvironmentName : debugInfo.env;
       if (env !== childEnvironmentName)
@@ -2337,7 +2368,8 @@
             debugInfo,
             stack,
             '"use ' + childEnvironmentName.toLowerCase() + '"',
-            env
+            env,
+            useEnclosingLine
           )
         );
       childEnvironmentName = debugInfo.debugTask;
@@ -2350,13 +2382,31 @@
         response,
         childEnvironmentName,
         stack,
-        "<" + (debugInfo.name || "...") + ">",
-        env
+        void 0 !== debugInfo.key
+          ? "<" + (debugInfo.name || "...") + ">"
+          : void 0 !== debugInfo.name
+            ? debugInfo.name || "unknown"
+            : "await " + (debugInfo.awaited.name || "unknown"),
+        env,
+        useEnclosingLine
       ));
     }
-    function buildFakeTask(response, ownerTask, stack, taskName, env) {
+    function buildFakeTask(
+      response,
+      ownerTask,
+      stack,
+      taskName,
+      env,
+      useEnclosingLine
+    ) {
       taskName = console.createTask.bind(console, taskName);
-      stack = buildFakeCallStack(response, stack, env, taskName);
+      stack = buildFakeCallStack(
+        response,
+        stack,
+        env,
+        useEnclosingLine,
+        taskName
+      );
       return null === ownerTask
         ? ((response = getRootTask(response, env)),
           null != response ? response.run(stack) : stack())
@@ -2467,6 +2517,66 @@
         );
       }
     }
+    function initializeIOInfo(response, ioInfo) {
+      var env =
+        void 0 === ioInfo.env ? response._rootEnvironmentName : ioInfo.env;
+      void 0 !== ioInfo.stack &&
+        (initializeFakeTask(response, ioInfo, env),
+        initializeFakeStack(response, ioInfo));
+      ioInfo.start += response._timeOrigin;
+      ioInfo.end += response._timeOrigin;
+      env = ioInfo.start;
+      var endTime = ioInfo.end;
+      if (supportsUserTiming && 0 <= endTime) {
+        var name = ioInfo.name,
+          env$jscomp$0 = ioInfo.env;
+        response =
+          env$jscomp$0 === response._rootEnvironmentName ||
+          void 0 === env$jscomp$0
+            ? name
+            : name + " [" + env$jscomp$0 + "]";
+        ioInfo = ioInfo.debugTask;
+        name = getIOColor(name);
+        ioInfo
+          ? ioInfo.run(
+              console.timeStamp.bind(
+                console,
+                response,
+                0 > env ? 0 : env,
+                endTime,
+                "Server Requests \u269b",
+                void 0,
+                name
+              )
+            )
+          : console.timeStamp(
+              response,
+              0 > env ? 0 : env,
+              endTime,
+              "Server Requests \u269b",
+              void 0,
+              name
+            );
+      }
+    }
+    function resolveIOInfo(response, id, model) {
+      var chunks = response._chunks,
+        chunk = chunks.get(id);
+      chunk
+        ? (resolveModelChunk(chunk, model),
+          "resolved_model" === chunk.status && initializeModelChunk(chunk))
+        : ((chunk = new ReactPromise("resolved_model", model, null, response)),
+          chunks.set(id, chunk),
+          initializeModelChunk(chunk));
+      "fulfilled" === chunk.status
+        ? initializeIOInfo(response, chunk.value)
+        : chunk.then(
+            function (v) {
+              initializeIOInfo(response, v);
+            },
+            function () {}
+          );
+    }
     function mergeBuffer(buffer, lastChunk) {
       for (
         var l = buffer.length, byteLength = lastChunk.length, i = 0;
@@ -2510,119 +2620,117 @@
       parentEndTime
     ) {
       if (!isArrayImpl(root._children)) {
-        response = root._children;
-        root = response.endTime;
+        root = root._children;
+        var previousEndTime = root.endTime;
         if (
           -Infinity < parentEndTime &&
-          parentEndTime < root &&
-          null !== response.component
+          parentEndTime < previousEndTime &&
+          null !== root.component
         ) {
-          var componentInfo = response.component,
-            trackIdx = trackIdx$jscomp$0,
-            startTime = parentEndTime;
-          supportsUserTiming &&
-            0 <= root &&
-            10 > trackIdx &&
-            ((parentEndTime = componentInfo.name + " [deduped]"),
+          var componentInfo = root.component,
+            trackIdx = trackIdx$jscomp$0;
+          if (supportsUserTiming && 0 <= previousEndTime && 10 > trackIdx) {
+            response =
+              componentInfo.env === response._rootEnvironmentName
+                ? "primary-light"
+                : "secondary-light";
+            var entryName = componentInfo.name + " [deduped]";
             (componentInfo = componentInfo.debugTask)
               ? componentInfo.run(
                   console.timeStamp.bind(
                     console,
-                    parentEndTime,
-                    0 > startTime ? 0 : startTime,
-                    root,
+                    entryName,
+                    0 > parentEndTime ? 0 : parentEndTime,
+                    previousEndTime,
                     trackNames[trackIdx],
                     "Server Components \u269b",
-                    "tertiary-light"
+                    response
                   )
                 )
               : console.timeStamp(
-                  parentEndTime,
-                  0 > startTime ? 0 : startTime,
-                  root,
+                  entryName,
+                  0 > parentEndTime ? 0 : parentEndTime,
+                  previousEndTime,
                   trackNames[trackIdx],
                   "Server Components \u269b",
-                  "tertiary-light"
-                ));
+                  response
+                );
+          }
         }
-        response.track = trackIdx$jscomp$0;
-        return response;
+        root.track = trackIdx$jscomp$0;
+        return root;
       }
-      var children = root._children;
+      entryName = root._children;
       "resolved_model" === root.status && initializeModelChunk(root);
-      if ((trackIdx = root._debugInfo)) {
-        for (
-          componentInfo = 1;
-          componentInfo < trackIdx.length;
-          componentInfo++
-        )
+      if ((previousEndTime = root._debugInfo)) {
+        for (trackIdx = 1; trackIdx < previousEndTime.length; trackIdx++)
           if (
-            "string" === typeof trackIdx[componentInfo].name &&
-            ((startTime = trackIdx[componentInfo - 1]),
-            "number" === typeof startTime.time)
+            "string" === typeof previousEndTime[trackIdx].name &&
+            ((componentInfo = previousEndTime[trackIdx - 1]),
+            "number" === typeof componentInfo.time)
           ) {
-            componentInfo = startTime.time;
-            componentInfo < trackTime && trackIdx$jscomp$0++;
-            trackTime = componentInfo;
+            trackIdx = componentInfo.time;
+            trackIdx < trackTime && trackIdx$jscomp$0++;
+            trackTime = trackIdx;
             break;
           }
-        for (
-          componentInfo = trackIdx.length - 1;
-          0 <= componentInfo;
-          componentInfo--
-        )
-          (startTime = trackIdx[componentInfo]),
-            "number" === typeof startTime.time &&
-              startTime.time > parentEndTime &&
-              (parentEndTime = startTime.time);
+        for (trackIdx = previousEndTime.length - 1; 0 <= trackIdx; trackIdx--)
+          (componentInfo = previousEndTime[trackIdx]),
+            "number" === typeof componentInfo.time &&
+              componentInfo.time > parentEndTime &&
+              (parentEndTime = componentInfo.time);
       }
-      componentInfo = {
+      trackIdx = {
         track: trackIdx$jscomp$0,
         endTime: -Infinity,
         component: null
       };
-      root._children = componentInfo;
-      startTime = -Infinity;
+      root._children = trackIdx;
+      componentInfo = -Infinity;
       var childTrackIdx = trackIdx$jscomp$0,
         childTrackTime = trackTime;
-      for (trackTime = 0; trackTime < children.length; trackTime++) {
+      for (trackTime = 0; trackTime < entryName.length; trackTime++) {
         childTrackTime = flushComponentPerformance(
           response,
-          children[trackTime],
+          entryName[trackTime],
           childTrackIdx,
           childTrackTime,
           parentEndTime
         );
         null !== childTrackTime.component &&
-          (componentInfo.component = childTrackTime.component);
+          (trackIdx.component = childTrackTime.component);
         childTrackIdx = childTrackTime.track;
         var childEndTime = childTrackTime.endTime;
         childTrackTime = childEndTime;
-        childEndTime > startTime && (startTime = childEndTime);
+        childEndTime > componentInfo && (componentInfo = childEndTime);
       }
-      if (trackIdx)
+      if (previousEndTime)
         for (
-          parentEndTime = 0, childTrackIdx = !0, children = trackIdx.length - 1;
-          0 <= children;
-          children--
+          entryName = 0,
+            childTrackTime = !0,
+            parentEndTime = previousEndTime.length - 1;
+          0 <= parentEndTime;
+          parentEndTime--
         )
           if (
-            ((trackTime = trackIdx[children]),
+            ((trackTime = previousEndTime[parentEndTime]),
             "number" === typeof trackTime.time &&
-              ((parentEndTime = trackTime.time),
-              parentEndTime > startTime && (startTime = parentEndTime)),
-            "string" === typeof trackTime.name && 0 < children)
+              (trackTime.time > componentInfo &&
+                (componentInfo = trackTime.time),
+              0 === entryName && (entryName = trackTime.time)),
+            "string" === typeof trackTime.name && 0 < parentEndTime)
           ) {
-            childTrackTime = trackIdx[children - 1];
-            if ("number" === typeof childTrackTime.time) {
-              childTrackTime = childTrackTime.time;
+            childTrackIdx = previousEndTime[parentEndTime - 1];
+            if ("number" === typeof childTrackIdx.time) {
+              childTrackIdx = childTrackIdx.time;
               if (
-                childTrackIdx &&
+                childTrackTime &&
                 "rejected" === root.status &&
                 root.reason !== response._closedReason
               ) {
-                childTrackIdx = trackIdx$jscomp$0;
-                childEndTime = startTime;
+                entryName = trackIdx$jscomp$0;
+                childTrackTime = childTrackIdx;
+                childEndTime = componentInfo;
                 var error = root.reason;
                 if (supportsUserTiming) {
                   var env = trackTime.env,
@@ -2639,7 +2747,7 @@
                         detail: {
                           devtools: {
                             color: "error",
-                            track: trackNames[childTrackIdx],
+                            track: trackNames[entryName],
                             trackGroup: "Server Components \u269b",
                             tooltipText: env + " Errored",
                             properties: [
@@ -2659,30 +2767,31 @@
                         env,
                         0 > childTrackTime ? 0 : childTrackTime,
                         childEndTime,
-                        trackNames[childTrackIdx],
+                        trackNames[entryName],
                         "Server Components \u269b",
                         "error"
                       );
                 }
               } else if (
-                ((childTrackIdx = trackIdx$jscomp$0),
-                (childEndTime = startTime),
-                supportsUserTiming && 0 <= childEndTime && 10 > childTrackIdx)
+                ((childTrackTime = trackIdx$jscomp$0),
+                (childEndTime = childTrackIdx),
+                (error = componentInfo),
+                supportsUserTiming && 0 <= error && 10 > childTrackTime)
               ) {
                 env = trackTime.env;
                 name = trackTime.name;
                 var isPrimaryEnv = env === response._rootEnvironmentName;
-                error = parentEndTime - childTrackTime;
-                error =
-                  0.5 > error
+                entryName -= childEndTime;
+                entryName =
+                  0.5 > entryName
                     ? isPrimaryEnv
                       ? "primary-light"
                       : "secondary-light"
-                    : 50 > error
+                    : 50 > entryName
                       ? isPrimaryEnv
                         ? "primary"
                         : "secondary"
-                      : 500 > error
+                      : 500 > entryName
                         ? isPrimaryEnv
                           ? "primary-dark"
                           : "secondary-dark"
@@ -2696,28 +2805,72 @@
                       console.timeStamp.bind(
                         console,
                         env,
-                        0 > childTrackTime ? 0 : childTrackTime,
-                        childEndTime,
-                        trackNames[childTrackIdx],
+                        0 > childEndTime ? 0 : childEndTime,
+                        error,
+                        trackNames[childTrackTime],
                         "Server Components \u269b",
-                        error
+                        entryName
                       )
                     )
                   : console.timeStamp(
                       env,
-                      0 > childTrackTime ? 0 : childTrackTime,
-                      childEndTime,
-                      trackNames[childTrackIdx],
+                      0 > childEndTime ? 0 : childEndTime,
+                      error,
+                      trackNames[childTrackTime],
                       "Server Components \u269b",
-                      error
+                      entryName
                     );
               }
-              componentInfo.component = trackTime;
+              trackIdx.component = trackTime;
+              entryName = childTrackIdx;
             }
-            childTrackIdx = !1;
+            childTrackTime = !1;
+          } else if (
+            trackTime.awaited &&
+            0 < parentEndTime &&
+            parentEndTime < previousEndTime.length - 2 &&
+            ((childEndTime = previousEndTime[parentEndTime - 1]),
+            (error = previousEndTime[parentEndTime + 1]),
+            "number" === typeof childEndTime.time &&
+              "number" === typeof error.time &&
+              ((childTrackIdx = trackTime),
+              (trackTime = trackIdx$jscomp$0),
+              (childEndTime = childEndTime.time),
+              (error = error.time),
+              supportsUserTiming && 0 < error))
+          ) {
+            name = childTrackIdx.env;
+            isPrimaryEnv = childTrackIdx.awaited.name;
+            var isPrimaryEnv$jscomp$0 = name === response._rootEnvironmentName;
+            env = getIOColor(isPrimaryEnv);
+            name =
+              "await " +
+              (isPrimaryEnv$jscomp$0 || void 0 === name
+                ? isPrimaryEnv
+                : isPrimaryEnv + " [" + name + "]");
+            (childTrackIdx = childTrackIdx.debugTask)
+              ? childTrackIdx.run(
+                  console.timeStamp.bind(
+                    console,
+                    name,
+                    0 > childEndTime ? 0 : childEndTime,
+                    error,
+                    trackNames[trackTime],
+                    "Server Components \u269b",
+                    env
+                  )
+                )
+              : console.timeStamp(
+                  name,
+                  0 > childEndTime ? 0 : childEndTime,
+                  error,
+                  trackNames[trackTime],
+                  "Server Components \u269b",
+                  env
+                );
           }
-      componentInfo.endTime = startTime;
-      return componentInfo;
+      trackIdx.endTime = componentInfo;
+      return trackIdx;
     }
     function processFullBinaryRow(response, id, tag, buffer, chunk) {
       switch (tag) {
@@ -2810,6 +2963,9 @@
                 function () {}
               );
           break;
+        case 74:
+          resolveIOInfo(response, id, row);
+          break;
         case 87:
           resolveConsoleEntry(response, row);
           break;
@@ -2835,6 +2991,85 @@
         default:
           resolveModel(response, id, row);
       }
+    }
+    function processBinaryChunk(response, chunk) {
+      for (
+        var i = 0,
+          rowState = response._rowState,
+          rowID = response._rowID,
+          rowTag = response._rowTag,
+          rowLength = response._rowLength,
+          buffer = response._buffer,
+          chunkLength = chunk.length;
+        i < chunkLength;
+
+      ) {
+        var lastIdx = -1;
+        switch (rowState) {
+          case 0:
+            lastIdx = chunk[i++];
+            58 === lastIdx
+              ? (rowState = 1)
+              : (rowID =
+                  (rowID << 4) | (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
+            continue;
+          case 1:
+            rowState = chunk[i];
+            84 === rowState ||
+            65 === rowState ||
+            79 === rowState ||
+            111 === rowState ||
+            85 === rowState ||
+            83 === rowState ||
+            115 === rowState ||
+            76 === rowState ||
+            108 === rowState ||
+            71 === rowState ||
+            103 === rowState ||
+            77 === rowState ||
+            109 === rowState ||
+            86 === rowState
+              ? ((rowTag = rowState), (rowState = 2), i++)
+              : (64 < rowState && 91 > rowState) ||
+                  35 === rowState ||
+                  114 === rowState ||
+                  120 === rowState
+                ? ((rowTag = rowState), (rowState = 3), i++)
+                : ((rowTag = 0), (rowState = 3));
+            continue;
+          case 2:
+            lastIdx = chunk[i++];
+            44 === lastIdx
+              ? (rowState = 4)
+              : (rowLength =
+                  (rowLength << 4) |
+                  (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
+            continue;
+          case 3:
+            lastIdx = chunk.indexOf(10, i);
+            break;
+          case 4:
+            (lastIdx = i + rowLength), lastIdx > chunk.length && (lastIdx = -1);
+        }
+        var offset = chunk.byteOffset + i;
+        if (-1 < lastIdx)
+          (rowLength = new Uint8Array(chunk.buffer, offset, lastIdx - i)),
+            processFullBinaryRow(response, rowID, rowTag, buffer, rowLength),
+            (i = lastIdx),
+            3 === rowState && i++,
+            (rowLength = rowID = rowTag = rowState = 0),
+            (buffer.length = 0);
+        else {
+          chunk = new Uint8Array(chunk.buffer, offset, chunk.byteLength - i);
+          buffer.push(chunk);
+          rowLength -= chunk.byteLength;
+          break;
+        }
+      }
+      response._rowState = rowState;
+      response._rowID = rowID;
+      response._rowTag = rowTag;
+      response._rowLength = rowLength;
     }
     function createFromJSONCallback(response) {
       return function (key, value) {
@@ -2891,7 +3126,13 @@
             supportsCreateTask &&
               null !== stack &&
               ((type = console.createTask.bind(console, getTaskName(type))),
-              (stack = buildFakeCallStack(response, stack, validated, type)),
+              (stack = buildFakeCallStack(
+                response,
+                stack,
+                validated,
+                !1,
+                type
+              )),
               (type =
                 null === key
                   ? null
@@ -2934,6 +3175,46 @@
         }
         return value;
       };
+    }
+    function close(response) {
+      reportGlobalError(response, Error("Connection closed."));
+    }
+    function noServerCall$1() {
+      throw Error(
+        "Server Functions cannot be called during initial render. This would create a fetch waterfall. Try to use a Server Component to pass data to Client Components instead."
+      );
+    }
+    function createResponseFromOptions(options) {
+      return new ResponseInstance(
+        options.serverConsumerManifest.moduleMap,
+        options.serverConsumerManifest.serverModuleMap,
+        options.serverConsumerManifest.moduleLoading,
+        noServerCall$1,
+        options.encodeFormAction,
+        "string" === typeof options.nonce ? options.nonce : void 0,
+        options && options.temporaryReferences
+          ? options.temporaryReferences
+          : void 0,
+        options && options.findSourceMapURL ? options.findSourceMapURL : void 0,
+        options ? !0 === options.replayConsoleLogs : !1,
+        options && options.environmentName ? options.environmentName : void 0
+      );
+    }
+    function startReadingFromStream(response, stream) {
+      function progress(_ref) {
+        var value = _ref.value;
+        if (_ref.done) close(response);
+        else
+          return (
+            processBinaryChunk(response, value),
+            reader.read().then(progress).catch(error)
+          );
+      }
+      function error(e) {
+        reportGlobalError(response, e);
+      }
+      var reader = stream.getReader();
+      reader.read().then(progress).catch(error);
     }
     function noServerCall() {
       throw Error(
@@ -2998,6 +3279,7 @@
         ReactSharedInteralsServer;
     ReactPromise.prototype = Object.create(Promise.prototype);
     ReactPromise.prototype.then = function (resolve, reject) {
+      var _this = this;
       switch (this.status) {
         case "resolved_model":
           initializeModelChunk(this);
@@ -3005,6 +3287,19 @@
         case "resolved_module":
           initializeModuleChunk(this);
       }
+      var resolveCallback = resolve,
+        rejectCallback = reject,
+        wrapperPromise = new Promise(function (res, rej) {
+          resolve = function (value) {
+            wrapperPromise._debugInfo = _this._debugInfo;
+            res(value);
+          };
+          reject = function (reason) {
+            wrapperPromise._debugInfo = _this._debugInfo;
+            rej(reason);
+          };
+        });
+      wrapperPromise.then(resolveCallback, rejectCallback);
       switch (this.status) {
         case "fulfilled":
           resolve(this.value);
@@ -3037,6 +3332,7 @@
             response,
             stack,
             environmentName,
+            !1,
             fakeJSXCallSite
           )();
         }
@@ -3101,6 +3397,7 @@
               response,
               stackTrace,
               env,
+              !1,
               JSCompiler_inline_result
             );
             if (null != owner) {
@@ -3122,6 +3419,18 @@
       replayConsoleWithCallStackInDEV = replayConsoleWithCallStack[
         "react-stack-bottom-frame"
       ].bind(replayConsoleWithCallStack);
+    exports.createFromFetch = function (promiseForResponse, options) {
+      var response = createResponseFromOptions(options);
+      promiseForResponse.then(
+        function (r) {
+          startReadingFromStream(response, r.body);
+        },
+        function (e) {
+          reportGlobalError(response, e);
+        }
+      );
+      return getChunk(response, 0);
+    };
     exports.createFromNodeStream = function (
       stream,
       serverConsumerManifest,
@@ -3140,96 +3449,50 @@
         options && options.environmentName ? options.environmentName : void 0
       );
       stream.on("data", function (chunk) {
-        for (
-          var i = 0,
-            rowState = response._rowState,
-            rowID = response._rowID,
-            rowTag = response._rowTag,
-            rowLength = response._rowLength,
-            buffer = response._buffer,
-            chunkLength = chunk.length;
-          i < chunkLength;
-
-        ) {
-          var lastIdx = -1;
-          switch (rowState) {
-            case 0:
-              lastIdx = chunk[i++];
-              58 === lastIdx
-                ? (rowState = 1)
-                : (rowID =
-                    (rowID << 4) |
-                    (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
-              continue;
-            case 1:
-              rowState = chunk[i];
-              84 === rowState ||
-              65 === rowState ||
-              79 === rowState ||
-              111 === rowState ||
-              85 === rowState ||
-              83 === rowState ||
-              115 === rowState ||
-              76 === rowState ||
-              108 === rowState ||
-              71 === rowState ||
-              103 === rowState ||
-              77 === rowState ||
-              109 === rowState ||
-              86 === rowState
-                ? ((rowTag = rowState), (rowState = 2), i++)
-                : (64 < rowState && 91 > rowState) ||
-                    35 === rowState ||
-                    114 === rowState ||
-                    120 === rowState
-                  ? ((rowTag = rowState), (rowState = 3), i++)
-                  : ((rowTag = 0), (rowState = 3));
-              continue;
-            case 2:
-              lastIdx = chunk[i++];
-              44 === lastIdx
-                ? (rowState = 4)
-                : (rowLength =
-                    (rowLength << 4) |
-                    (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
-              continue;
-            case 3:
-              lastIdx = chunk.indexOf(10, i);
-              break;
-            case 4:
-              (lastIdx = i + rowLength),
-                lastIdx > chunk.length && (lastIdx = -1);
-          }
-          var offset = chunk.byteOffset + i;
-          if (-1 < lastIdx)
-            (rowLength = new Uint8Array(chunk.buffer, offset, lastIdx - i)),
-              processFullBinaryRow(response, rowID, rowTag, buffer, rowLength),
-              (i = lastIdx),
-              3 === rowState && i++,
-              (rowLength = rowID = rowTag = rowState = 0),
-              (buffer.length = 0);
-          else {
-            chunk = new Uint8Array(chunk.buffer, offset, chunk.byteLength - i);
-            buffer.push(chunk);
-            rowLength -= chunk.byteLength;
-            break;
-          }
-        }
-        response._rowState = rowState;
-        response._rowID = rowID;
-        response._rowTag = rowTag;
-        response._rowLength = rowLength;
+        processBinaryChunk(response, chunk);
       });
       stream.on("error", function (error) {
         reportGlobalError(response, error);
       });
       stream.on("end", function () {
-        reportGlobalError(response, Error("Connection closed."));
+        return close(response);
       });
       return getChunk(response, 0);
     };
+    exports.createFromReadableStream = function (stream, options) {
+      options = createResponseFromOptions(options);
+      startReadingFromStream(options, stream);
+      return getChunk(options, 0);
+    };
     exports.createServerReference = function (id) {
-      return createServerReference$1(id, noServerCall);
+      return createServerReference$1(id, noServerCall$1);
+    };
+    exports.createTemporaryReferenceSet = function () {
+      return new Map();
+    };
+    exports.encodeReply = function (value, options) {
+      return new Promise(function (resolve, reject) {
+        var abort = processReply(
+          value,
+          "",
+          options && options.temporaryReferences
+            ? options.temporaryReferences
+            : void 0,
+          resolve,
+          reject
+        );
+        if (options && options.signal) {
+          var signal = options.signal;
+          if (signal.aborted) abort(signal.reason);
+          else {
+            var listener = function () {
+              abort(signal.reason);
+              signal.removeEventListener("abort", listener);
+            };
+            signal.addEventListener("abort", listener);
+          }
+        }
+      });
     };
     exports.registerServerReference = function (
       reference,
