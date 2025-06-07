@@ -28,7 +28,7 @@ type OptionalKeys<T> = {
   [K in keyof T]-?: {} extends Pick<T, K> ? K : never
 }[keyof T]
 
-type OnNavigateEventHandler = (event: { preventDefault: () => void }) => void
+type OnNavigateEventHandler = (event: React.MouseEvent) => void
 
 type InternalLinkProps = {
   /**
@@ -235,39 +235,32 @@ function linkClicked(
     return
   }
 
-  e.preventDefault()
+  if (onNavigate) {
+    onNavigate(e)
 
-  const navigate = () => {
-    if (onNavigate) {
-      let isDefaultPrevented = false
-
-      onNavigate({
-        preventDefault: () => {
-          isDefaultPrevented = true
-        },
-      })
-
-      if (isDefaultPrevented) {
-        return
-      }
-    }
-
-    // If the router is an NextRouter instance it will have `beforePopState`
-    const routerScroll = scroll ?? true
-    if ('beforePopState' in router) {
-      router[replace ? 'replace' : 'push'](href, as, {
-        shallow,
-        locale,
-        scroll: routerScroll,
-      })
-    } else {
-      router[replace ? 'replace' : 'push'](as || href, {
-        scroll: routerScroll,
-      })
+    if (e.defaultPrevented) {
+      // cancel navigation entirely
+      return
     }
   }
 
-  navigate()
+  // prevent browser default behavior (hard navigation)
+  e.preventDefault()
+
+  // If the router is an NextRouter instance it will have `beforePopState`
+  const routerScroll = scroll ?? true
+  if ('beforePopState' in router) {
+    router[replace ? 'replace' : 'push'](href, as, {
+      shallow,
+      locale,
+      scroll: routerScroll,
+    })
+  } else {
+    router[replace ? 'replace' : 'push'](as || href, {
+      scroll: routerScroll,
+    })
+  }
+
 }
 
 type LinkPropsReal = React.PropsWithChildren<
