@@ -3399,8 +3399,7 @@ c#1018 = (arguments[2] | d[a])
 c#1019 = arguments[2]
 
 c#102 = (???*0* | "cssFloat")
-- *0* c
-  ⚠️  pattern without value
+- *0* for-in variable currently not analyzed
 
 c#1023 = arguments[2]
 
@@ -3471,8 +3470,7 @@ c#203 = (arguments[2] | b["tag"])
 c#207 = b["length"]
 
 c#212 = ???*0*
-- *0* c
-  ⚠️  pattern without value
+- *0* for-in variable currently not analyzed
 
 c#236 = (arguments[2] | new td("onChange", "change", null, c, d))
 
@@ -3504,9 +3502,10 @@ c#269 = arguments[2]
 
 c#270 = {}
 
-c#271 = ???*0*
+c#271 = (???*0* | ???*1*)
 - *0* c
   ⚠️  pattern without value
+- *1* for-in variable currently not analyzed
 
 c#274 = arguments[2]
 
@@ -3573,8 +3572,7 @@ c#364 = (b | undefined)
 c#370 = (a["data"] | undefined)
 
 c#381 = ???*0*
-- *0* c
-  ⚠️  pattern without value
+- *0* for-in variable currently not analyzed
 
 c#385 = arguments[2]
 
@@ -4656,8 +4654,7 @@ e#320 = (c["nextSibling"] | undefined)
 e#341 = {}
 
 e#345 = ???*0*
-- *0* e
-  ⚠️  pattern without value
+- *0* for-in variable currently not analyzed
 
 e#354 = ???*0*
 - *0* e
@@ -4963,9 +4960,10 @@ f#308 = (e["stateNode"] | undefined | Kb(a, c) | Kb(a, b))
 
 f#311 = b["_reactName"]
 
-f#341 = ???*0*
+f#341 = (???*0* | ???*1*)
 - *0* f
   ⚠️  pattern without value
+- *1* for-in variable currently not analyzed
 
 f#357 = ((???*0* + e) | ???*1*["toString"](32))
 - *0* unsupported expression
@@ -5076,8 +5074,7 @@ f#647 = (
   | !(0)
   | c
 )
-- *0* f
-  ⚠️  pattern without value
+- *0* for-in variable currently not analyzed
 
 f#673 = (d["focusNode"] | undefined)
 
@@ -5279,9 +5276,10 @@ g#609 = (
 
 g#614 = arguments[6]
 
-g#639 = ???*0*
+g#639 = (???*0* | ???*1*)
 - *0* g
   ⚠️  pattern without value
+- *1* for-in variable currently not analyzed
 
 g#647 = (
   | ???*0*
@@ -5292,8 +5290,7 @@ g#647 = (
   | Mh(a)
   | f["alternate"]
 )
-- *0* g
-  ⚠️  pattern without value
+- *0* for-in variable currently not analyzed
 
 g#673 = (0 | undefined | (g + q["nodeValue"]["length"]))
 
@@ -5859,8 +5856,7 @@ l#601 = (
 )
 
 l#639 = (???*0* | f | undefined)
-- *0* l
-  ⚠️  pattern without value
+- *0* for-in variable currently not analyzed
 
 l#673 = (0 | undefined | ???*0*)
 - *0* updated with update expression
