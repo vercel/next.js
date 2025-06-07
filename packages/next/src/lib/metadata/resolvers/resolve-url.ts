@@ -6,7 +6,10 @@ function isStringOrURL(icon: any): icon is string | URL {
 }
 
 function createLocalMetadataBase() {
-  return new URL(`http://localhost:${process.env.PORT || 3000}`)
+  // Check if experimental HTTPS is enabled
+  const isExperimentalHttps = Boolean(process.env.__NEXT_EXPERIMENTAL_HTTPS)
+  const protocol = isExperimentalHttps ? 'https' : 'http'
+  return new URL(`${protocol}://localhost:${process.env.PORT || 3000}`)
 }
 
 function getPreviewDeploymentUrl(): URL | undefined {
