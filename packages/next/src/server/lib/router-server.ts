@@ -363,6 +363,7 @@ export async function initialize(opts: {
         resHeaders,
         bodyStream,
         matchedOutput,
+        secure,
       } = await resolveRoutes({
         req,
         res,
@@ -443,7 +444,8 @@ export async function initialize(opts: {
           parsedUrl,
           undefined,
           getRequestMeta(req, 'clonableBody')?.cloneBodyStream(),
-          config.experimental.proxyTimeout
+          config.experimental.proxyTimeout,
+          secure
         )
       }
 
@@ -775,7 +777,7 @@ export async function initialize(opts: {
           )
         },
       })
-      const { matchedOutput, parsedUrl } = await resolveRoutes({
+      const { matchedOutput, parsedUrl, secure } = await resolveRoutes({
         req,
         res,
         isUpgradeReq: true,
@@ -789,7 +791,15 @@ export async function initialize(opts: {
       }
 
       if (parsedUrl.protocol) {
-        return await proxyRequest(req, socket, parsedUrl, head)
+        return await proxyRequest(
+          req,
+          socket,
+          parsedUrl,
+          head,
+          undefined,
+          undefined,
+          secure
+        )
       }
 
       // If there's no matched output, we don't handle the request as user's
