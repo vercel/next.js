@@ -16,51 +16,99 @@ Next.js includes its own server with `next start` by default. If you have an exi
 Take a look at the [following example](https://github.com/vercel/next.js/tree/canary/examples/custom-server) of a custom server:
 
 ```ts filename="server.ts" switcher
-import { createServer } from 'http'
-import { parse } from 'url'
-import next from 'next'
+import { createServer } from 'http';
+import { parse } from 'url';
+import next from 'next';
 
-const port = parseInt(process.env.PORT || '3000', 10)
-const dev = process.env.NODE_ENV !== 'production'
-const app = next({ dev })
-const handle = app.getRequestHandler()
+const port = parseInt(process.env.PORT || '3000', 10);
+const dev = process.env.NODE_ENV !== 'production';
+const app = next({ dev });
+const handle = app.getRequestHandler();
 
 app.prepare().then(() => {
-  createServer((req, res) => {
-    const parsedUrl = parse(req.url!, true)
-    handle(req, res, parsedUrl)
-  }).listen(port)
+  const server = createServer((req, res) => {
+    const parsedUrl = parse(req.url!, true);
 
-  console.log(
-    `> Server listening at http://localhost:${port} as ${
-      dev ? 'development' : process.env.NODE_ENV
-    }`
-  )
-})
+    // Handle promise rejections from the request handler
+    handle(req, res, parsedUrl).catch(err => {
+      console.error('Error handling request:', err);
+
+      // Only send response if headers haven't been sent yet
+      if (!res.headersSent) {
+        res.statusCode = 500;
+        res.end('Internal Server Error');
+      }
+    });
+    // Handle server-level errors
+    server.on('error', (err) =>
+      console.error('Server error:', err);
+      // Implement recovery logic if needed
+    });
+
+    // Handle specific connection errors
+    server.on('clientError', (err, socket) => {
+      console.error('Client connection error:', err);
+      socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
+    });
+
+    server.listen(port, () => {
+      console.log(
+        > Server listening at http://localhost:${port} as ${ dev ? 'development' : process.env.NODE_ENV }
+      );
+    })
+}).catch(err => {
+  console.error('Error preparing Next.js app:', err);
+  process.exit(1);
+});
+
 ```
 
 ```js filename="server.js" switcher
-import { createServer } from 'http'
-import { parse } from 'url'
-import next from 'next'
+import { createServer } from 'http';
+import { parse } from 'url';
+import next from 'next';
 
-const port = parseInt(process.env.PORT || '3000', 10)
-const dev = process.env.NODE_ENV !== 'production'
-const app = next({ dev })
-const handle = app.getRequestHandler()
+const port = parseInt(process.env.PORT || '3000', 10);
+const dev = process.env.NODE_ENV !== 'production';
+const app = next({ dev });
+const handle = app.getRequestHandler();
 
 app.prepare().then(() => {
-  createServer((req, res) => {
-    const parsedUrl = parse(req.url, true)
-    handle(req, res, parsedUrl)
-  }).listen(port)
+  const server = createServer((req, res) => {
+    const parsedUrl = parse(req.url!, true);
 
-  console.log(
-    `> Server listening at http://localhost:${port} as ${
-      dev ? 'development' : process.env.NODE_ENV
-    }`
-  )
+    // Handle promise rejections from the request handler
+    handle(req, res, parsedUrl).catch(err => {
+      console.error('Error handling request:', err);
+
+      // Only send response if headers haven't been sent yet
+      if (!res.headersSent) {
+        res.statusCode = 500;
+        res.end('Internal Server Error');
+      }
+    });
+    // Handle server-level errors
+    server.on('error', (err) =>
+      console.error('Server error:', err);
+      // Implement recovery logic if needed
+    });
+
+    // Handle specific connection errors
+    server.on('clientError', (err, socket) => {
+      console.error('Client connection error:', err)
+      socket.end('HTTP/1.1 400 Bad Request\r\n\r\n')
+    });
+
+    server.listen(port, () => {
+      console.log(
+        > Server listening at http://localhost:${port} as ${ dev ? 'development' : process.env.NODE_ENV }
+      );
+    })
+}).catch(err => {
+  console.error('Error preparing Next.js app:', err);
+  process.exit(1);
 })
+
 ```
 
 > `server.js` does not run through the Next.js Compiler or bundling process. Make sure the syntax and source code this file requires are compatible with the current Node.js version you are using. [View an example](https://github.com/vercel/next.js/tree/canary/examples/custom-server).
