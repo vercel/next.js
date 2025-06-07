@@ -1,10 +1,10 @@
-import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import { NEXT_URL } from '../client/components/app-router-headers'
 import {
   extractInterceptionRouteInformation,
   isInterceptionRouteAppPath,
 } from '../shared/lib/router/utils/interception-routes'
 import type { Rewrite } from './load-custom-routes'
+import { safePathToRegexp } from './try-to-parse-path'
 
 // a function that converts normalised paths (e.g. /foo/[bar]/[baz]) to the format expected by pathToRegexp (e.g. /foo/:bar/:baz)
 function toPathToRegexpPath(path: string): string {
@@ -41,7 +41,7 @@ export function generateInterceptionRoutesRewrites(
       // pathToRegexp returns a regex that matches the path, but we need to
       // convert it to a string that can be used in a header value
       // to the format that Next/the proxy expects
-      let interceptingRouteRegex = pathToRegexp(normalizedInterceptingRoute)
+      let interceptingRouteRegex = safePathToRegexp(normalizedInterceptingRoute)
         .toString()
         .slice(2, -3)
 
