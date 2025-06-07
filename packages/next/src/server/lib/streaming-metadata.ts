@@ -12,10 +12,11 @@ export function shouldServeStreamingMetadata(
     htmlLimitedBots || HTML_LIMITED_BOT_UA_RE_STRING,
     'i'
   )
-  return (
-    // When it's static generation, userAgents are not available - do not serve streaming metadata
-    !!userAgent && !blockingMetadataUARegex.test(userAgent)
-  )
+  // Only block metadata for HTML-limited bots
+  if (userAgent && blockingMetadataUARegex.test(userAgent)) {
+    return false
+  }
+  return true
 }
 
 // When the request UA is a html-limited bot, we should do a dynamic render.
