@@ -31,6 +31,10 @@ export const NEXT_CACHE_TAG_MAX_LENGTH = 256
 export const NEXT_CACHE_SOFT_TAG_MAX_LENGTH = 1024
 export const NEXT_CACHE_IMPLICIT_TAG_ID = '_N_T_'
 
+// Threshold for warning when 'output: "export"' is used with a large number of pages,
+// as it may lead to build issues like maximum call stack size exceeded.
+export const OUTPUT_EXPORT_PAGE_COUNT_WARNING_THRESHOLD = 15000
+
 // in seconds
 export const CACHE_ONE_YEAR = 31536000
 
