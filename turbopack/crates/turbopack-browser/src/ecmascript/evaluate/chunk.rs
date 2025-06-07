@@ -228,7 +228,7 @@ impl EcmascriptBrowserEvaluateChunk {
                 .await?,
         );
 
-        Ok(AssetIdent::new(Value::new(ident)))
+        Ok(AssetIdent::new(ident))
     }
 
     #[turbo_tasks::function]
