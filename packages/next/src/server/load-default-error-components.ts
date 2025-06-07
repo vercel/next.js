@@ -58,7 +58,7 @@ async function loadDefaultErrorComponentsImpl(
   // TODO: (wyattjoh) replace this with just exporting the route module when the transition is complete
   const ComponentMod =
     require('./route-modules/pages/builtin/_error') as typeof import('./route-modules/pages/builtin/_error')
-  const Component = ComponentMod.routeModule.userland.default
+  const Component = interopDefault(ComponentMod.routeModule.userland)
 
   return {
     App,
@@ -72,6 +72,7 @@ async function loadDefaultErrorComponentsImpl(
     ComponentMod,
     page: '/_error',
     routeModule: ComponentMod.routeModule,
+    isAppPath: false,
   }
 }
 export const loadDefaultErrorComponents = getTracer().wrap(

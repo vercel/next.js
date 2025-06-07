@@ -479,6 +479,15 @@ export async function findPagePathData(
         page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
       }
     }
+
+    if (page === '/_error/page') {
+      return {
+        filename: require.resolve('next/dist/client/components/empty-error'),
+        bundlePath: 'app/_error/page',
+        page: '/_error/page',
+      }
+    }
+
     pagePath = await findPageFile(appDir, normalizedPagePath, extensions, true)
     if (pagePath) {
       const pageUrl = ensureLeadingSlash(

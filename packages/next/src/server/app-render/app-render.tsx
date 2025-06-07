@@ -193,6 +193,7 @@ import {
   trackPendingModules,
 } from './module-loading/track-module-loading.external'
 import { isUseCacheTimeoutError } from '../use-cache/use-cache-errors'
+import EmptyError from '../../client/components/empty-error'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -337,6 +338,22 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
     },
     // When global-not-found is present, skip layout from components
     hasGlobalNotFound ? components : {},
+  ]
+}
+
+function createErrorLoaderTree(): LoaderTree {
+  return [
+    '',
+    {
+      children: [
+        PAGE_SEGMENT_KEY,
+        {},
+        {
+          page: [() => () => <EmptyError />, ''],
+        },
+      ],
+    },
+    {},
   ]
 }
 
@@ -1500,7 +1517,12 @@ async function renderToHTMLOrFlightImpl(
       renderOpts.devRenderResumeDataCache ??
       postponedState?.renderResumeDataCache
 
-    const rootParams = getRootParams(loaderTree, ctx.getDynamicParamFromSegment)
+    let tree = loaderTree
+    if (pagePath === '/_error') {
+      tree = createErrorLoaderTree()
+    }
+
+    const rootParams = getRootParams(tree, ctx.getDynamicParamFromSegment)
     const requestStore = createRequestStoreForRender(
       req,
       res,
