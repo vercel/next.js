@@ -111,7 +111,10 @@ function resolveAbsoluteUrlWithPathname(
   if (typeof result === 'string') {
     resolvedUrl = result
   } else {
-    resolvedUrl = result.pathname === '/' ? result.origin : result.href
+    resolvedUrl =
+      result.pathname === '/' && result.searchParams.size === 0
+        ? result.origin
+        : result.href
   }
 
   // Add trailing slash if it's enabled for urls matches the condition
