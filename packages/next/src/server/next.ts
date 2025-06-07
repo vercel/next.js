@@ -8,6 +8,7 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type { Duplex } from 'stream'
 import type { NextUrlWithParsedQuery } from './request-meta'
 
+import './node-environment'
 import './require-hook'
 import './node-polyfill-crypto'
 
