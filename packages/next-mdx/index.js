@@ -32,6 +32,7 @@ module.exports =
           'private-next-root-dir/src/mdx-components',
           'private-next-root-dir/mdx-components',
           '@mdx-js/react',
+          require.resolve('./mdx-components.js'),
         ]
         config.module.rules.push({
           test: extension,
