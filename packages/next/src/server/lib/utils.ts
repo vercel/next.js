@@ -12,48 +12,40 @@ export function printAndExit(message: string, code = 1) {
 }
 
 const parseNodeArgs = (args: string[]) => {
-  const { values, tokens } = parseArgs({ args, strict: false, tokens: true })
+  const { tokens } = parseArgs({ args, strict: false, tokens: true })
+
+  const parsedValues: { [optionName: string]: Array<string | boolean> } = {}
 
   // For the `NODE_OPTIONS`, we support arguments with values without the `=`
   // sign. We need to parse them manually.
-  let orphan = null
   for (let i = 0; i < tokens.length; i++) {
-    const token = tokens[i]
+    const left = tokens[i]
+    const right = tokens[i + 1]
 
-    if (token.kind === 'option-terminator') {
+    if (left.kind === 'option-terminator') {
       break
     }
 
-    // When we encounter an option, if it's value is undefined, we should check
-    // to see if the following tokens are positional parameters. If they are,
-    // then the option is orphaned, and we can assign it.
-    if (token.kind === 'option') {
-      orphan = typeof token.value === 'undefined' ? token : null
+    if (left.kind === 'positional') {
       continue
     }
 
-    // If the token isn't a positional one, then we can't assign it to the found
-    // orphaned option.
-    if (token.kind !== 'positional') {
-      orphan = null
-      continue
-    }
+    parsedValues[left.rawName] ||= []
 
-    // If we don't have an orphan, then we can skip this token.
-    if (!orphan) {
-      continue
-    }
-
-    // If the token is a positional one, and it has a value, so add it to the
-    // values object. If it already exists, append it with a space.
-    if (orphan.name in values && typeof values[orphan.name] === 'string') {
-      values[orphan.name] += ` ${token.value}`
-    } else {
-      values[orphan.name] = token.value
+    // Once we identify an option, there can be an optional value, either passed
+    // explicitly to it, `--token=value` or as the following positional token,
+    // i.e. `--token value`
+    if (left.kind === 'option') {
+      if (right?.kind === 'positional') {
+        parsedValues[left.rawName].push(right.value)
+        i++
+      } else {
+        parsedValues[left.rawName].push(left.value || true)
+      }
     }
   }
 
-  return values
+  return parsedValues
 }
 
 /**
@@ -156,7 +148,9 @@ export const getParsedDebugAddress = (): DebugAddress => {
   // We expect to find the debug port in one of these options. The first one
   // found will be used.
   const address =
-    parsed.inspect ?? parsed['inspect-brk'] ?? parsed['inspect_brk']
+    parsed['--inspect']?.[0] ??
+    parsed['--inspect-brk']?.[0] ??
+    parsed['--inspect_brk']?.[0]
 
   if (!address || typeof address !== 'string') {
     return { host: undefined, port: 9229 }
@@ -188,25 +182,30 @@ export const getFormattedDebugAddress = () =>
  * @returns A string with the arguments.
  */
 export function formatNodeOptions(
-  args: Record<string, string | boolean | undefined>
+  args: Record<string, Array<string | boolean | undefined>>
 ): string {
   return Object.entries(args)
-    .map(([key, value]) => {
-      if (value === true) {
-        return `--${key}`
-      }
+    .map(([key, values]) => {
+      return values
+        .map((value) => {
+          if (value === true) {
+            return key
+          }
 
-      if (value) {
-        return `--${key}=${
-          // Values with spaces need to be quoted. We use JSON.stringify to
-          // also escape any nested quotes.
-          value.includes(' ') && !value.startsWith('"')
-            ? JSON.stringify(value)
-            : value
-        }`
-      }
+          if (value) {
+            // Values with spaces need to be quoted. We use JSON.stringify to
+            // also escape any nested quotes.
+            const encodedValue =
+              value.includes(' ') && !value.startsWith('"')
+                ? JSON.stringify(value)
+                : value
 
-      return null
+            return `${key}${key.startsWith('--') ? '=' : ' '}${encodedValue}`
+          }
+
+          return null
+        })
+        .join(' ')
     })
     .filter((arg) => arg !== null)
     .join(' ')
@@ -225,9 +224,9 @@ export function getParsedNodeOptionsWithoutInspect() {
   const parsed = parseNodeArgs(args)
 
   // Remove inspect options.
-  delete parsed.inspect
-  delete parsed['inspect-brk']
-  delete parsed['inspect_brk']
+  delete parsed['--inspect']
+  delete parsed['--inspect-brk']
+  delete parsed['--inspect_brk']
 
   return parsed
 }
@@ -272,8 +271,9 @@ export function getNodeDebugType(): NodeInspectType {
 
   const parsed = parseNodeArgs(args)
 
-  if (parsed.inspect) return 'inspect'
-  if (parsed['inspect-brk'] || parsed['inspect_brk']) return 'inspect-brk'
+  if (parsed['--inspect']?.length) return 'inspect'
+  if (parsed['--inspect-brk']?.length || parsed['--inspect_brk']?.length)
+    return 'inspect-brk'
 }
 
 /**
