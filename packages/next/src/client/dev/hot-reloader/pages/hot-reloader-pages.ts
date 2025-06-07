@@ -33,10 +33,10 @@
 /// <reference types="webpack/module.d.ts" />
 
 import { dispatcher } from 'next/dist/compiled/next-devtools'
-import { register } from '../../../components/react-dev-overlay/pages/pages-dev-overlay-setup'
+import { register } from '../../../../next-devtools/userspace/pages/pages-dev-overlay-setup'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { addMessageListener, sendMessage } from './websocket'
-import formatWebpackMessages from '../../../components/react-dev-overlay/utils/format-webpack-messages'
+import formatWebpackMessages from '../../../../shared/lib/format-webpack-messages'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../../server/dev/hot-reloader-types'
 import type {
   HMR_ACTION_TYPES,
@@ -47,9 +47,9 @@ import {
   REACT_REFRESH_FULL_RELOAD_FROM_ERROR,
   reportInvalidHmrMessage,
 } from '../shared'
-import { RuntimeErrorHandler } from '../../../components/react-dev-overlay/runtime-error-handler'
-import reportHmrLatency from '../../../components/react-dev-overlay/utils/report-hmr-latency'
-import { TurbopackHmr } from '../../../components/react-dev-overlay/utils/turbopack-hot-reloader-common'
+import { RuntimeErrorHandler } from '../../runtime-error-handler'
+import reportHmrLatency from '../../report-hmr-latency'
+import { TurbopackHmr } from '../turbopack-hot-reloader-common'
 
 // This alternative WebpackDevServer combines the functionality of:
 // https://github.com/webpack/webpack-dev-server/blob/webpack-1/client/index.js
