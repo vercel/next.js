@@ -32,6 +32,39 @@ describe('parseHostHeader', () => {
         'x-forwarded-host': 'www.bar.com',
       })
     ).toEqual({ type: 'x-forwarded-host', value: 'www.bar.com' })
+
+    expect(
+      parseHostHeader({
+        host: 'www.foo.com',
+        'x-forwarded-host': 'www.bar.com:3000',
+      })
+    ).toEqual({ type: 'x-forwarded-host', value: 'www.bar.com:3000' })
+
+    expect(
+      parseHostHeader({
+        host: 'www.foo.com',
+        'x-forwarded-host': 'www.bar.com',
+        'x-forwarded-port': '3000',
+      })
+    ).toEqual({ type: 'x-forwarded-host', value: 'www.bar.com:3000' })
+
+    expect(
+      parseHostHeader({
+        host: 'www.foo.com',
+        'x-forwarded-proto': 'https',
+        'x-forwarded-host': 'www.bar.com',
+        'x-forwarded-port': '443',
+      })
+    ).toEqual({ type: 'x-forwarded-host', value: 'www.bar.com' })
+
+    expect(
+      parseHostHeader({
+        host: 'www.foo.com',
+        'x-forwarded-proto': 'http',
+        'x-forwarded-host': 'www.bar.com',
+        'x-forwarded-port': '80',
+      })
+    ).toEqual({ type: 'x-forwarded-host', value: 'www.bar.com' })
   })
 
   it('should return correct x-forwarded-host when provided in array', () => {
