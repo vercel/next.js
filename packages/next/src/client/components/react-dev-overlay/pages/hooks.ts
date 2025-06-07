@@ -1,21 +1,23 @@
 import React from 'react'
-import * as Bus from './bus'
-import { useErrorOverlayReducer } from '../shared'
 import { Router } from '../../../router'
+import { renderPagesDevOverlay } from 'next/dist/compiled/next-devtools'
 import { getComponentStack, getOwnerStack } from '../../errors/stitched-error'
 import { isRecoverableError } from '../../../react-client-callbacks/on-recoverable-error'
+import { getSquashedHydrationErrorDetails } from './hydration-error-state'
 
-export const usePagesDevOverlay = () => {
-  const [state, dispatch] = useErrorOverlayReducer(
-    'pages',
-    getComponentStack,
-    getOwnerStack,
-    isRecoverableError
-  )
+export const usePagesDevOverlayBridge = () => {
+  React.useInsertionEffect(() => {
+    // NDT uses a different React instance so it's not technically a state update
+    // scheduled from useInsertionEffect.
+    renderPagesDevOverlay(
+      getComponentStack,
+      getOwnerStack,
+      getSquashedHydrationErrorDetails,
+      isRecoverableError
+    )
+  }, [])
 
   React.useEffect(() => {
-    Bus.on(dispatch)
-
     const { handleStaticIndicator } =
       require('./hot-reloader-client') as typeof import('./hot-reloader-client')
 
@@ -23,12 +25,6 @@ export const usePagesDevOverlay = () => {
 
     return function () {
       Router.events.off('routeChangeComplete', handleStaticIndicator)
-      Bus.off(dispatch)
     }
-  }, [dispatch])
-
-  return {
-    state,
-    dispatch,
-  }
+  }, [])
 }

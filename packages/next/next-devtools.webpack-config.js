@@ -27,7 +27,7 @@ module.exports = ({ dev, ...rest }) => {
   return {
     entry: path.join(
       __dirname,
-      'src/client/components/react-dev-overlay/app/entrypoint.js'
+      'src/client/components/react-dev-overlay/entrypoint.js'
     ),
     target,
     mode: dev ? 'development' : 'production',
