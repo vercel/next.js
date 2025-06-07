@@ -14,6 +14,7 @@ use turbo_tasks_fs::{
     File, FileSystem, FileSystemPath,
     rope::{Rope, RopeBuilder},
 };
+use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher, encode_hex};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
@@ -150,8 +151,34 @@ impl CssChunk {
     }
 
     #[turbo_tasks::function]
-    async fn ident_for_path(&self) -> Result<Vc<AssetIdent>> {
+    async fn chunk_items_ident_hash(&self) -> Result<Vc<Option<RcStr>>> {
         let CssChunkContent { chunk_items, .. } = &*self.content.await?;
+        if chunk_items.is_empty() {
+            Ok(Vc::cell(None))
+        } else {
+            let chunk_item_idents = chunk_items
+                .iter()
+                .map(async |chunk_item| chunk_item.asset_ident().to_string().await)
+                .try_join()
+                .await?;
+
+            let mut hasher = Xxh3Hash64Hasher::new();
+            chunk_item_idents.iter().for_each(|ident| {
+                ident.deterministic_hash(&mut hasher);
+            });
+
+            let hash = hasher.finish();
+            let hex_hash = encode_hex(hash);
+            Ok(Vc::cell(Some(hex_hash.into())))
+        }
+    }
+
+    #[turbo_tasks::function]
+    async fn ident_for_path(self: Vc<Self>) -> Result<Vc<AssetIdent>> {
+        let this = self.await?;
+
+        let CssChunkContent { chunk_items, .. } = &*this.content.await?;
+
         let mut common_path = if let Some(chunk_item) = chunk_items.first() {
             let path = chunk_item.asset_ident().path().to_resolved().await?;
             Some((path, path.await?))
@@ -170,11 +197,23 @@ impl CssChunk {
                         common_path = None;
                         break;
                     }
+                    if parent.await?.path.is_empty() {
+                        let hashed_chunk_path = this
+                            .chunking_context
+                            .chunk_root_path()
+                            .join((*(self.chunk_items_ident_hash().await?)).clone().unwrap())
+                            .to_resolved()
+                            .await?;
+                        *common_path_vc = hashed_chunk_path;
+                        *common_path_ref = (*hashed_chunk_path).await?;
+                        break;
+                    }
                     *common_path_vc = parent;
                     *common_path_ref = (*common_path_vc).await?;
                 }
             }
         }
+
         let assets = chunk_items
             .iter()
             .map(|chunk_item| async move {
