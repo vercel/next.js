@@ -1,9 +1,9 @@
 import { useEffect } from 'react'
-import { isNextRouterError } from '../is-next-router-error'
-import { formatConsoleArgs, parseConsoleArgs } from '../../lib/console'
-import isError from '../../../lib/is-error'
+import { isNextRouterError } from '../../../is-next-router-error'
+import { formatConsoleArgs, parseConsoleArgs } from '../../../../lib/console'
+import isError from '../../../../../lib/is-error'
 import { createConsoleError } from './console-error'
-import { coerceError, setOwnerStackIfAvailable } from '../errors/stitched-error'
+import { coerceError, setOwnerStackIfAvailable } from './stitched-error'
 
 const queueMicroTask =
   globalThis.queueMicrotask || ((cb: () => void) => Promise.resolve().then(cb))

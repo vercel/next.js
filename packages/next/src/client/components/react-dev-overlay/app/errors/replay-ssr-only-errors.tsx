@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
-import { handleClientError } from '../../errors/use-error-handler'
-import { isNextRouterError } from '../../is-next-router-error'
-import { MISSING_ROOT_TAGS_ERROR } from '../../../../shared/lib/errors/constants'
+import { handleClientError } from './use-error-handler'
+import { isNextRouterError } from '../../../is-next-router-error'
+import { MISSING_ROOT_TAGS_ERROR } from '../../../../../shared/lib/errors/constants'
 
 function readSsrError(): (Error & { digest?: string }) | null {
   if (typeof document === 'undefined') {

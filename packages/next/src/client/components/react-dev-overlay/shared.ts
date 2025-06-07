@@ -6,7 +6,7 @@ import { parseComponentStack } from './utils/parse-component-stack'
 import type { DebugInfo } from './types'
 import type { DevIndicatorServerState } from '../../../server/dev/dev-indicator-server-state'
 import { parseStack } from './utils/parse-stack'
-import { isConsoleError } from '../errors/console-error'
+import { isConsoleError } from './app/errors/console-error'
 
 type FastRefreshState =
   /** No refresh in progress. */

@@ -1,7 +1,7 @@
-import isError from '../../../lib/is-error'
-import { isNextRouterError } from '../is-next-router-error'
-import { handleConsoleError } from '../errors/use-error-handler'
-import { parseConsoleArgs } from '../../lib/console'
+import isError from '../../../../../lib/is-error'
+import { isNextRouterError } from '../../../is-next-router-error'
+import { handleConsoleError } from './use-error-handler'
+import { parseConsoleArgs } from '../../../../lib/console'
 
 export const originConsoleError = globalThis.console.error
 
