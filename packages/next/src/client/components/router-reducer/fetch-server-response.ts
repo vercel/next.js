@@ -72,11 +72,11 @@ export function urlToUrlWithoutFlightMarker(url: string): URL {
   if (process.env.NODE_ENV === 'production') {
     if (
       process.env.__NEXT_CONFIG_OUTPUT === 'export' &&
-      urlWithoutFlightParameters.pathname.endsWith('.txt')
+      urlWithoutFlightParameters.pathname.endsWith('.rsc.txt')
     ) {
       const { pathname } = urlWithoutFlightParameters
-      const length = pathname.endsWith('/index.txt') ? 10 : 4
-      // Slice off `/index.txt` or `.txt` from the end of the pathname
+      const length = pathname.endsWith('/index.rsc.txt') ? 14 : 8
+      // Slice off `/index.rsc.txt` or `.rsc.txt` from the end of the pathname
       urlWithoutFlightParameters.pathname = pathname.slice(0, -length)
     }
   }
@@ -167,9 +167,9 @@ export async function fetchServerResponse(
         // to the request.
         url = new URL(url)
         if (url.pathname.endsWith('/')) {
-          url.pathname += 'index.txt'
+          url.pathname += 'index.rsc.txt'
         } else {
-          url.pathname += '.txt'
+          url.pathname += '.rsc.txt'
         }
       }
     }
