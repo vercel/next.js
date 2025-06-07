@@ -12,7 +12,7 @@ const EXTERNAL = {
 const COLLECTOR_PORT = 9001
 
 describe('opentelemetry', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next, skipped, isNextStart } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
     dependencies: require('./package.json').dependencies,
@@ -393,14 +393,14 @@ describe('opentelemetry', () => {
 
             await expectTrace(getCollector(), [
               {
-                name: 'GET /api/app/[param]/data/route',
+                name: 'GET /api/app/[param]/data',
                 attributes: {
                   'http.method': 'GET',
-                  'http.route': '/api/app/[param]/data/route',
+                  'http.route': '/api/app/[param]/data',
                   'http.status_code': 200,
                   'http.target': '/api/app/param/data',
-                  'next.route': '/api/app/[param]/data/route',
-                  'next.span_name': 'GET /api/app/[param]/data/route',
+                  'next.route': '/api/app/[param]/data',
+                  'next.span_name': 'GET /api/app/[param]/data',
                   'next.span_type': 'BaseServer.handleRequest',
                 },
                 kind: 1,
@@ -409,11 +409,11 @@ describe('opentelemetry', () => {
                 parentId: env.span.rootParentId,
                 spans: [
                   {
-                    name: 'executing api route (app) /api/app/[param]/data/route',
+                    name: 'executing api route (app) /api/app/[param]/data',
                     attributes: {
-                      'next.route': '/api/app/[param]/data/route',
+                      'next.route': '/api/app/[param]/data',
                       'next.span_name':
-                        'executing api route (app) /api/app/[param]/data/route',
+                        'executing api route (app) /api/app/[param]/data',
                       'next.span_type': 'AppRouteRouteHandlers.runHandler',
                     },
                     kind: 0,
@@ -451,11 +451,11 @@ describe('opentelemetry', () => {
                 runtime: 'edge',
                 traceId: env.span.traceId,
                 parentId: env.span.rootParentId,
-                name: 'executing api route (app) /api/app/[param]/data/edge/route',
+                name: 'executing api route (app) /api/app/[param]/data/edge',
                 attributes: {
-                  'next.route': '/api/app/[param]/data/edge/route',
+                  'next.route': '/api/app/[param]/data/edge',
                   'next.span_name':
-                    'executing api route (app) /api/app/[param]/data/edge/route',
+                    'executing api route (app) /api/app/[param]/data/edge',
                   'next.span_type': 'AppRouteRouteHandlers.runHandler',
                 },
                 kind: 0,
@@ -718,6 +718,175 @@ describe('opentelemetry', () => {
                       'next.span_name': 'start response',
                       'next.span_type': 'NextNodeServer.startResponse',
                     },
+                    status: { code: 0 },
+                  },
+                ],
+              },
+            ])
+          })
+
+          it('should handle getServerSideProps exceptions', async () => {
+            await next.fetch(
+              '/pages/param/getServerSidePropsError',
+              env.fetchInit
+            )
+
+            await expectTrace(getCollector(), [
+              {
+                name: 'GET /pages/[param]/getServerSidePropsError',
+                attributes: {
+                  'http.method': 'GET',
+                  'http.route': '/pages/[param]/getServerSidePropsError',
+                  'http.status_code': 500,
+                  'http.target': '/pages/param/getServerSidePropsError',
+                  'next.route': '/pages/[param]/getServerSidePropsError',
+                  'next.span_name':
+                    'GET /pages/[param]/getServerSidePropsError',
+                  'next.span_type': 'BaseServer.handleRequest',
+                },
+                kind: 1,
+                status: { code: 0 },
+                traceId: env.span.traceId,
+                parentId: env.span.rootParentId,
+                spans: [
+                  {
+                    name: 'getServerSideProps /pages/[param]/getServerSidePropsError',
+                    attributes: {
+                      'next.route': '/pages/[param]/getServerSidePropsError',
+                      'next.span_name':
+                        'getServerSideProps /pages/[param]/getServerSidePropsError',
+                      'next.span_type': 'Render.getServerSideProps',
+                    },
+                    kind: 0,
+                    status: {
+                      code: 2,
+                      message: 'ServerSideProps error',
+                    },
+                    events: [
+                      {
+                        name: 'exception',
+                        attributes: {
+                          'exception.type': 'Error',
+                          'exception.message': 'ServerSideProps error',
+                        },
+                      },
+                    ],
+                  },
+                  {
+                    name: 'render route (pages) /_error',
+                    attributes: {
+                      'next.route': '/_error',
+                      'next.span_name': 'render route (pages) /_error',
+                      'next.span_type': 'Render.renderDocument',
+                    },
+                    kind: 0,
+                    status: { code: 0 },
+                  },
+                  {
+                    name: 'resolve page components',
+                    attributes: {
+                      'next.route': '/pages/[param]/getServerSidePropsError',
+                      'next.span_name': 'resolve page components',
+                      'next.span_type': 'NextNodeServer.findPageComponents',
+                    },
+                    kind: 0,
+                    status: { code: 0 },
+                  },
+                  ...(isNextStart
+                    ? [
+                        {
+                          name: 'resolve page components',
+                          attributes: {
+                            'next.route': '/500',
+                            'next.span_name': 'resolve page components',
+                            'next.span_type':
+                              'NextNodeServer.findPageComponents',
+                          },
+                          kind: 0,
+                          status: { code: 0 },
+                        },
+                      ]
+                    : []),
+                  {
+                    name: 'resolve page components',
+                    attributes: {
+                      'next.route': '/_error',
+                      'next.span_name': 'resolve page components',
+                      'next.span_type': 'NextNodeServer.findPageComponents',
+                    },
+                    kind: 0,
+                    status: { code: 0 },
+                  },
+                ],
+              },
+            ])
+          })
+
+          it('should handle getServerSideProps returning notFound', async () => {
+            await next.fetch(
+              '/pages/param/getServerSidePropsNotFound',
+              env.fetchInit
+            )
+
+            await expectTrace(getCollector(), [
+              {
+                name: 'GET /pages/[param]/getServerSidePropsNotFound',
+                attributes: {
+                  'http.method': 'GET',
+                  'http.route': '/pages/[param]/getServerSidePropsNotFound',
+                  'http.status_code': 404,
+                  'http.target': '/pages/param/getServerSidePropsNotFound',
+                  'next.route': '/pages/[param]/getServerSidePropsNotFound',
+                  'next.span_name':
+                    'GET /pages/[param]/getServerSidePropsNotFound',
+                  'next.span_type': 'BaseServer.handleRequest',
+                },
+                kind: 1,
+                status: { code: 0 },
+                traceId: env.span.traceId,
+                parentId: env.span.rootParentId,
+                spans: [
+                  {
+                    name: 'getServerSideProps /pages/[param]/getServerSidePropsNotFound',
+                    attributes: {
+                      'next.route': '/pages/[param]/getServerSidePropsNotFound',
+                      'next.span_name':
+                        'getServerSideProps /pages/[param]/getServerSidePropsNotFound',
+                      'next.span_type': 'Render.getServerSideProps',
+                    },
+                    kind: 0,
+                    status: {
+                      code: 0,
+                    },
+                  },
+                  {
+                    name: 'render route (app) /_not-found',
+                    attributes: {
+                      'next.route': '/_not-found',
+                      'next.span_name': 'render route (app) /_not-found',
+                      'next.span_type': 'AppRender.getBodyResult',
+                    },
+                    kind: 0,
+                    status: { code: 0 },
+                  },
+                  {
+                    name: 'resolve page components',
+                    attributes: {
+                      'next.route': '/pages/[param]/getServerSidePropsNotFound',
+                      'next.span_name': 'resolve page components',
+                      'next.span_type': 'NextNodeServer.findPageComponents',
+                    },
+                    kind: 0,
+                    status: { code: 0 },
+                  },
+                  {
+                    name: 'resolve page components',
+                    attributes: {
+                      'next.route': '/_not-found',
+                      'next.span_name': 'resolve page components',
+                      'next.span_type': 'NextNodeServer.findPageComponents',
+                    },
+                    kind: 0,
                     status: { code: 0 },
                   },
                 ],
