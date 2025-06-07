@@ -12,6 +12,7 @@ import fs from 'fs-extra'
 import nodeFs from 'fs'
 import path, { join } from 'path'
 import { outdent } from 'outdent'
+import { debug } from 'console'
 
 const GENERIC_RSC_ERROR =
   'Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
@@ -904,11 +905,17 @@ describe('app-dir action handling', () => {
       // Trigger the delayed action. This will sleep for a few seconds before dispatching the server action handler
       await browser.elementById('run-action').click()
 
-      // navigate away from the page
-      await browser
-        .elementByCss(`[href='/delayed-action/${runtime}/other']`)
-        .click()
-        .waitForElementByCss('#other-page')
+      try {
+        // navigate away from the page
+        await browser
+          .elementByCss(`[href='/delayed-action/${runtime}/other']`)
+          .click()
+          .waitForElementByCss('#other-page')
+      } catch (error) {
+        debug(await browser.url())
+        debug(await browser.eval('document.body.innerHTML'))
+        throw error
+      }
 
       await retry(async () => {
         expect(
