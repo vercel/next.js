@@ -53,7 +53,7 @@ import {
 import { resolveIcons } from './resolvers/resolve-icons'
 import { getTracer } from '../../server/lib/trace/tracer'
 import { ResolveMetadataSpan } from '../../server/lib/trace/constants'
-import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
+import { DEFAULT_SEGMENT_KEY, PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import * as Log from '../../build/output/log'
 import { createServerParamsForMetadata } from '../../server/request/params'
 
@@ -451,6 +451,7 @@ async function collectMetadata({
   const hasErrorConventionComponent = Boolean(
     errorConvention && tree[2][errorConvention]
   )
+
   if (errorConvention) {
     mod = await getComponentTypeModule(tree, 'layout')
     modType = errorConvention
@@ -598,6 +599,15 @@ async function resolveMetadataItemsImpl(
     }
   }
 
+  const pageKey = tree[0]
+
+  // If it's default.js, ignore the metadata
+  // webpack loader: pageKey of the default.js is DEFAULT_SEGMENT_KEY ('__DEFAULT__')
+  // turbopack loader: pageKey of the parallel route @bar is 'page$'
+  const isDefaultPage = pageKey === DEFAULT_SEGMENT_KEY || pageKey === 'page$'
+  if (isDefaultPage) {
+    return metadataItems
+  }
   await collectMetadata({
     tree,
     metadataItems,
