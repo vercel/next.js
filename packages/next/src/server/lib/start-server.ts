@@ -43,7 +43,12 @@ let startServerSpan: Span | undefined
  * Get the process ID (PID) of the process using the specified port
  */
 async function getProcessIdUsingPort(port: number): Promise<string | null> {
-  return new Promise((resolve) => {
+  const timeoutMs = parseInt(
+    process.env.NEXT_PID_DETECTION_TIMEOUT || '100',
+    10
+  )
+
+  const pidPromise = new Promise<string | null>((resolve) => {
     try {
       // Use lsof on Unix-like systems (macOS, Linux)
       if (process.platform !== 'win32') {
@@ -82,6 +87,15 @@ async function getProcessIdUsingPort(port: number): Promise<string | null> {
       resolve(null)
     }
   })
+
+  const timeoutPromise = new Promise<string | null>((resolve) =>
+    setTimeout(() => {
+      debug('PID detection timed out after', timeoutMs, 'ms for port', port)
+      resolve(null)
+    }, timeoutMs)
+  )
+
+  return Promise.race([pidPromise, timeoutPromise])
 }
 
 export interface StartServerOptions {
