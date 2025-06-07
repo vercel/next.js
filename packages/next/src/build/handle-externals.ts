@@ -10,7 +10,11 @@ import {
   NODE_ESM_RESOLVE_OPTIONS,
   NODE_RESOLVE_OPTIONS,
 } from './webpack-config'
-import { isWebpackBundledLayer, isWebpackServerOnlyLayer } from './utils'
+import {
+  isWebpackBundledLayer,
+  isWebpackPagesRouterPagesLayer,
+  isWebpackServerOnlyLayer,
+} from './utils'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 const reactPackagesRegex = /^(react|react-dom|react-server-dom-webpack)($|\/)/
 
@@ -25,6 +29,13 @@ const externalPattern = new RegExp(
 
 const nodeModulesRegex = /node_modules[/\\].*\.[mc]?js$/
 
+// Determine if a resource is in a package
+// 1st case:
+//   resource is in a package that is in the list of packages
+//   e.g. resource is foo/* and packageNames is ['foo']
+// 2nd case:
+//   resource is in a package that is in the list of packages
+//   e.g. resource is */node_modules/foo/* and packageNames is ['foo']
 export function isResourceInPackages(
   resource: string,
   packageNames?: string[],
@@ -130,6 +141,11 @@ export async function resolveExternal(
   return { res, isEsm }
 }
 
+function getPackageName(filePath: string) {
+  const match = filePath.match(/node_modules(?:\/\.pnpm\/[^/]+)?\/([^/]+)/)
+  return match ? match[1].split('@').pop() : null // Handles scoped packages properly
+}
+
 export function makeExternalHandler({
   config,
   optOutBundlingPackageRegex,
@@ -149,6 +165,7 @@ export function makeExternalHandler({
     request: string,
     dependencyType: string,
     layer: WebpackLayerName | null,
+    issuer: string,
     getResolve: (
       options: any
     ) => (
@@ -282,6 +299,19 @@ export function makeExternalHandler({
     // If the request cannot be resolved we need to have
     // webpack "bundle" it so it surfaces the not found error.
     if (!res) {
+      return
+    }
+
+    // When bundling pages router page, we need to recursively bundle dependencies of dependencies.
+    // If the package is required to be transpiled, then all its dependencies should also
+    // be transpiled.
+    if (
+      isWebpackPagesRouterPagesLayer(layer) &&
+      isResourceInPackages(issuer, transpiledPackages)
+    ) {
+      const packageName = getPackageName(res)
+      if (packageName) transpiledPackages.push(packageName)
+
       return
     }
 
