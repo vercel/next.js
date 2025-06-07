@@ -822,6 +822,11 @@ describe('app dir - basic', () => {
         expect(await browser.waitForElementByCss('#app-link').text()).toBe(
           'To Pages Page'
         )
+
+        const logs = await browser.log()
+
+        // Expect no errors when doing a hard navigation between the routers.
+        expect(logs.find((log) => log.source === 'error')).toBeUndefined()
       } finally {
         await browser.close()
       }
