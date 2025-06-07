@@ -1,12 +1,10 @@
 'use client'
 import React, { useEffect } from 'react'
-import type { AppRouterInstance } from '../../shared/lib/app-router-context.shared-runtime'
-import { useRouter } from './navigation'
+import { usePathname, useRouter, useSearchParams } from './navigation'
 import { getRedirectTypeFromError, getURLFromRedirectError } from './redirect'
 import { RedirectType, isRedirectError } from './redirect-error'
 
 interface RedirectBoundaryProps {
-  router: AppRouterInstance
   children: React.ReactNode
 }
 
@@ -20,8 +18,18 @@ function HandleRedirect({
   reset: () => void
 }) {
   const router = useRouter()
+  const pathName = usePathname()
+  const searchParams = useSearchParams()
 
   useEffect(() => {
+    // Check if the redirect is the same as the current URL
+    // This can cause an infinite loop if not checked
+    if (
+      redirect ===
+      pathName + (searchParams.size > 0 ? '?' + searchParams.toString() : '')
+    ) {
+      return
+    }
     React.startTransition(() => {
       if (redirectType === RedirectType.push) {
         router.push(redirect, {})
@@ -30,7 +38,7 @@ function HandleRedirect({
       }
       reset()
     })
-  }, [redirect, redirectType, reset, router])
+  }, [redirect, redirectType, reset, router, pathName, searchParams])
 
   return null
 }
@@ -72,8 +80,5 @@ export class RedirectErrorBoundary extends React.Component<
 }
 
 export function RedirectBoundary({ children }: { children: React.ReactNode }) {
-  const router = useRouter()
-  return (
-    <RedirectErrorBoundary router={router}>{children}</RedirectErrorBoundary>
-  )
+  return <RedirectErrorBoundary>{children}</RedirectErrorBoundary>
 }
