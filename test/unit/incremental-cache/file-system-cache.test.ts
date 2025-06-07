@@ -1,5 +1,6 @@
 import { promises as fs } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
 import FileSystemCache from 'next/dist/server/lib/incremental-cache/file-system-cache'
 import { nodeFs } from 'next/dist/server/lib/node-fs-methods'
 import {
@@ -7,7 +8,11 @@ import {
   IncrementalCacheKind,
 } from 'next/dist/server/response-cache'
 
-const cacheDir = fileURLToPath(new URL('./cache', import.meta.url))
+jest.mock('next/dist/compiled/lru-cache')
+import LRUCache from 'next/dist/compiled/lru-cache'
+
+const cacheDir = fileURLToPath(new URL('./cache', import.meta.url)),
+  tagsManifestPath = join(cacheDir, 'fetch-cache', 'tags-manifest.json')
 
 describe('FileSystemCache', () => {
   it('set image route', async () => {
@@ -101,6 +106,7 @@ describe('FileSystemCache (isrMemory 0)', () => {
       revalidate: 30,
       tags: ['server-time'],
     })
+    expect(LRUCache).not.toHaveBeenCalled()
   })
 
   it('should cache unstable_cache', async () => {
@@ -125,5 +131,84 @@ describe('FileSystemCache (isrMemory 0)', () => {
       revalidate: 30,
       tags: ['server-time2'],
     })
+  })
+
+  it('revalidate timestamp', async () => {
+    const timestamp = Date.now() - 10,
+      key = 'unstable-cache'
+    await fs.writeFile(
+      tagsManifestPath,
+      JSON.stringify({
+        version: 1,
+        items: {
+          [key]: { revalidatedAt: timestamp },
+        },
+      })
+    )
+    await fsCache.revalidateTag(key)
+    const tagsManifest = (await fs.readFile(tagsManifestPath)).toString()
+    expect(JSON.parse(tagsManifest).items[key].revalidatedAt).toBeGreaterThan(
+      timestamp
+    )
+  })
+})
+
+describe('page cache', () => {
+  it('should cache page type in file-system', async () => {
+    jest.resetAllMocks()
+
+    const timeStampBeforeCache = Date.now(),
+      fsCache = new FileSystemCache({
+        _appDir: true,
+        _pagesDir: true,
+        _requestHeaders: {},
+        flushToDisk: true,
+        fs: nodeFs,
+        serverDistDir: cacheDir,
+        revalidatedTags: [],
+        experimental: {
+          ppr: false,
+        },
+        maxMemoryCacheSize: 5,
+      }),
+      pageKey = 'page-cache'
+
+    await fsCache.set(
+      pageKey,
+      {
+        kind: 'PAGE',
+        html: '<p>hello</p>',
+        pageData: {},
+        headers: {},
+        postponed: undefined,
+        status: 200,
+      },
+      {
+        fetchCache: true,
+        revalidate: 30,
+        fetchUrl: 'http://my-api.local',
+        fetchIdx: 5,
+        tags: [pageKey],
+      }
+    )
+
+    const pagesPath = (filename: string) => join(cacheDir, 'pages', filename),
+      html = await fs.readFile(pagesPath(`${pageKey}.html`)),
+      pageData = await fs.readFile(pagesPath(`${pageKey}.json`)),
+      metadata = await fs.readFile(pagesPath(`${pageKey}.meta`)),
+      fileTimestamp = (
+        await fs.stat(pagesPath(`${pageKey}.html`))
+      ).mtime.getTime()
+
+    expect(html.toString()).toEqual('<p>hello</p>')
+    expect(pageData.toString()).toEqual('{}')
+    expect(metadata.toString()).toEqual('{"headers":{},"status":200}')
+
+    // ensure the file created is newer than the timestamp before initialization
+    expect(fileTimestamp).toBeGreaterThan(timeStampBeforeCache)
+
+    // ensure lru-cache API is triggered
+    expect(LRUCache).toHaveBeenCalledTimes(1)
+    expect(LRUCache.mock.instances[0].set).toHaveBeenCalledTimes(1)
   })
 })
