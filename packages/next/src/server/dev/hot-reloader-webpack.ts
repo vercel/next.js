@@ -10,7 +10,7 @@ import { type webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
 import {
   getOverlayMiddleware,
   getSourceMapMiddleware,
-} from '../../client/components/react-dev-overlay/server/middleware-webpack'
+} from './middleware-webpack'
 import { WebpackHotMiddleware } from './hot-middleware'
 import { join, relative, isAbsolute, posix, dirname } from 'path'
 import {
@@ -83,11 +83,11 @@ import type { WebpackError } from 'webpack'
 import { PAGE_TYPES } from '../../lib/page-types'
 import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
 import { getNodeDebugType } from '../lib/utils'
-import { getNextErrorFeedbackMiddleware } from '../../client/components/react-dev-overlay/server/get-next-error-feedback-middleware'
-import { getDevOverlayFontMiddleware } from '../../client/components/react-dev-overlay/font/get-dev-overlay-font-middleware'
-import { getDisableDevIndicatorMiddleware } from './dev-indicator-middleware'
+import { getNextErrorFeedbackMiddleware } from '../../next-devtools/server/get-next-error-feedback-middleware'
+import { getDevOverlayFontMiddleware } from '../../next-devtools/server/font/get-dev-overlay-font-middleware'
+import { getDisableDevIndicatorMiddleware } from '../../next-devtools/server/dev-indicator-middleware'
 import getWebpackBundler from '../../shared/lib/get-webpack-bundler'
-import { getRestartDevServerMiddleware } from '../../client/components/react-dev-overlay/server/restart-dev-server-middleware'
+import { getRestartDevServerMiddleware } from '../../next-devtools/server/restart-dev-server-middleware'
 
 const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
 

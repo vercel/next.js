@@ -33,12 +33,12 @@ interface ModuleContext {
   warnedEvals: Set<string>
 }
 
-let getServerError: typeof import('../../../client/components/react-dev-overlay/utils/node-stack-frames').getServerError
+let getServerError: typeof import('../../dev/node-stack-frames').getServerError
 let decorateServerError: typeof import('../../../shared/lib/error-source').decorateServerError
 
 if (process.env.NODE_ENV === 'development') {
   getServerError = (
-    require('../../../client/components/react-dev-overlay/utils/node-stack-frames') as typeof import('../../../client/components/react-dev-overlay/utils/node-stack-frames') as typeof import('../../../client/components/react-dev-overlay/utils/node-stack-frames')
+    require('../../dev/node-stack-frames') as typeof import('../../dev/node-stack-frames') as typeof import('../../dev/node-stack-frames')
   ).getServerError
   decorateServerError = (
     require('../../../shared/lib/error-source') as typeof import('../../../shared/lib/error-source')
