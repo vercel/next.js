@@ -1,6 +1,7 @@
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, ValueToString, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -42,14 +43,14 @@ impl EcmascriptDevChunkList {
         ident: ResolvedVc<AssetIdent>,
         evaluatable_assets: ResolvedVc<EvaluatableAssets>,
         chunks: ResolvedVc<OutputAssets>,
-        source: Value<EcmascriptDevChunkListSource>,
+        source: EcmascriptDevChunkListSource,
     ) -> Vc<Self> {
         EcmascriptDevChunkList {
             chunking_context,
             ident,
             evaluatable_assets,
             chunks,
-            source: source.into_value(),
+            source,
         }
         .cell()
     }
@@ -112,8 +113,19 @@ impl Asset for EcmascriptDevChunkList {
     }
 }
 
-#[derive(Debug, Clone, Copy, Hash)]
-#[turbo_tasks::value(serialization = "auto_for_input")]
+#[derive(
+    Eq,
+    PartialEq,
+    Debug,
+    Clone,
+    Copy,
+    Hash,
+    TaskInput,
+    NonLocalValue,
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+)]
 #[serde(rename_all = "camelCase")]
 pub enum EcmascriptDevChunkListSource {
     /// The chunk list is from a runtime entry.
