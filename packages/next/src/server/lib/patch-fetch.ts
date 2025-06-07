@@ -246,7 +246,8 @@ export function createPatchedFetcher(
         }
         // RequestInit doesn't keep extra fields e.g. next so it's
         // only available if init is used separate
-        let currentFetchRevalidate = getNextField('revalidate')
+        const originalFetchRevalidate = getNextField('revalidate')
+        let currentFetchRevalidate = originalFetchRevalidate
         const tags: string[] = validateTags(
           getNextField('tags') || [],
           `fetch ${input.toString()}`
@@ -339,11 +340,8 @@ export function createPatchedFetcher(
         ) {
           currentFetchRevalidate = false
         } else if (
-          // if we are inside of "use cache"/"unstable_cache"
-          // we shouldn't set the revalidate to 0 as it's overridden
-          // by the cache context
-          workUnitStore?.type !== 'cache' &&
-          (hasExplicitFetchCacheOptOut || noFetchConfigAndForceDynamic)
+          hasExplicitFetchCacheOptOut ||
+          noFetchConfigAndForceDynamic
         ) {
           currentFetchRevalidate = 0
         }
@@ -531,8 +529,9 @@ export function createPatchedFetcher(
           }
 
           // We only want to set the revalidate store's revalidate time if it
-          // was explicitly set for the fetch call, i.e. currentFetchRevalidate.
-          if (revalidateStore && currentFetchRevalidate === finalRevalidate) {
+          // was explicitly set for the fetch call, i.e.
+          // originalFetchRevalidate.
+          if (revalidateStore && originalFetchRevalidate === finalRevalidate) {
             revalidateStore.revalidate = finalRevalidate
           }
         }

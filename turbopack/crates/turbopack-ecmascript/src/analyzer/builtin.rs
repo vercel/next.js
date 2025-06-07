@@ -444,16 +444,16 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
             }
 
             // matching calls on strings like `"dayjs/locale/".concat(userLocale, ".js")`
-            if obj.is_string() == Some(true) {
-                if let Some(str) = prop.as_str() {
-                    // The String.prototype.concat method
-                    if str == "concat" {
-                        let mut values = vec![take(obj)];
-                        values.extend(take(args));
+            if obj.is_string() == Some(true)
+                && let Some(str) = prop.as_str()
+            {
+                // The String.prototype.concat method
+                if str == "concat" {
+                    let mut values = vec![take(obj)];
+                    values.extend(take(args));
 
-                        *value = JsValue::concat(values);
-                        return true;
-                    }
+                    *value = JsValue::concat(values);
+                    return true;
                 }
             }
 

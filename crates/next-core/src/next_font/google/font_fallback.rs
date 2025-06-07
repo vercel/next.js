@@ -3,7 +3,7 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{IssueExt, IssueSeverity, StyledString};
@@ -53,7 +53,7 @@ pub(super) async fn get_font_fallback(
         None => {
             let metrics_json = load_next_js_templateon(
                 lookup_path,
-                "dist/server/capsize-font-metrics.json".into(),
+                rcstr!("dist/server/capsize-font-metrics.json"),
             )
             .await?;
             let fallback = lookup_fallback(
@@ -65,12 +65,10 @@ pub(super) async fn get_font_fallback(
             match fallback {
                 Ok(fallback) => FontFallback::Automatic(AutomaticFontFallback {
                     scoped_font_family: get_scoped_font_family(
-                        FontFamilyType::Fallback.cell(),
-                        options_vc.font_family(),
-                    )
-                    .to_resolved()
-                    .await?,
-                    local_font_family: ResolvedVc::cell(fallback.font_family),
+                        FontFamilyType::Fallback,
+                        options_vc.font_family().await?,
+                    ),
+                    local_font_family: fallback.font_family,
                     adjustment: fallback.adjustment,
                 })
                 .cell(),
@@ -85,9 +83,9 @@ pub(super) async fn get_font_fallback(
                             .into(),
                         )
                         .resolved_cell(),
-                        description: StyledString::Text(
-                            "Skipping generating a fallback font.".into(),
-                        )
+                        description: StyledString::Text(rcstr!(
+                            "Skipping generating a fallback font."
+                        ))
                         .resolved_cell(),
                         severity: IssueSeverity::Warning.resolved_cell(),
                     }
@@ -172,6 +170,7 @@ fn lookup_fallback(
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
+    use turbo_rcstr::rcstr;
     use turbo_tasks_fs::json::parse_json_with_source_context;
 
     use super::{FontAdjustment, FontMetricsMap};
@@ -211,7 +210,7 @@ mod tests {
         assert_eq!(
             lookup_fallback("Inter", font_metrics, true)?,
             Fallback {
-                font_family: "Arial".into(),
+                font_family: rcstr!("Arial"),
                 adjustment: Some(FontAdjustment {
                     ascent: 0.901_989_700_374_532,
                     descent: -0.224_836_142_322_097_4,
@@ -257,7 +256,7 @@ mod tests {
         assert_eq!(
             lookup_fallback("Roboto Slab", font_metrics, true)?,
             Fallback {
-                font_family: "Times New Roman".into(),
+                font_family: rcstr!("Times New Roman"),
                 adjustment: Some(FontAdjustment {
                     ascent: 0.885_645_438_273_993_8,
                     descent: -0.229_046_234_036_377_7,

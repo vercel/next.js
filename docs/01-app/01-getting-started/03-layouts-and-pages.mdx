@@ -6,6 +6,7 @@ related:
   title: API Reference
   description: Learn more about the features mentioned in this page by reading the API Reference.
   links:
+    - app/getting-started/linking-and-navigating
     - app/api-reference/file-conventions/layout
     - app/api-reference/file-conventions/page
     - app/api-reference/components/link
@@ -249,7 +250,7 @@ Learn more about [Dynamic Segments](/docs/app/api-reference/file-conventions/dyn
 
 ## Linking between pages
 
-You can use the [`<Link>` component](/docs/app/api-reference/components/link) to navigate between routes. `<Link>` is a built-in Next.js component that extends the HTML `<a>` tag to provide [prefetching](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching) and [client-side navigation](/docs/app/building-your-application/routing/linking-and-navigating#5-soft-navigation).
+You can use the [`<Link>` component](/docs/app/api-reference/components/link) to navigate between routes. `<Link>` is a built-in Next.js component that extends the HTML `<a>` tag to provide [prefetching](/docs/app/getting-started/linking-and-navigating#prefetching) and [client-side navigation](/docs/app/getting-started/linking-and-navigating#client-side-transitions).
 
 For example, to generate a list of blog posts, import `<Link>` from `next/link` and pass a `href` prop to the component:
 
@@ -289,4 +290,4 @@ export default async function Post({ post }) {
 }
 ```
 
-`<Link>` is the primary and recommended way to navigate between routes in your Next.js application. However, you can also use the [`useRouter` hook](/docs/app/api-reference/functions/use-router) for more advanced navigation.
+> **Good to know**: `<Link>` is the primary way to navigate between routes in Next.js. You can also use the [`useRouter` hook](/docs/app/api-reference/functions/use-router) for more advanced navigation.

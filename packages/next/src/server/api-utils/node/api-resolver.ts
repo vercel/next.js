@@ -145,7 +145,7 @@ function setDraftMode<T>(
   // https://tools.ietf.org/html/rfc6265#section-4.1.1
   // `Max-Age: 0` is not valid, thus ignored, and the cookie is persisted.
   const { serialize } =
-    require('next/dist/compiled/cookie') as typeof import('cookie')
+    require('next/dist/compiled/cookie') as typeof import('next/dist/compiled/cookie')
   const previous = res.getHeader('Set-Cookie')
   res.setHeader(`Set-Cookie`, [
     ...(typeof previous === 'string'
@@ -211,7 +211,7 @@ function setPreviewData<T>(
   }
 
   const { serialize } =
-    require('next/dist/compiled/cookie') as typeof import('cookie')
+    require('next/dist/compiled/cookie') as typeof import('next/dist/compiled/cookie')
   const previous = res.getHeader('Set-Cookie')
   res.setHeader(`Set-Cookie`, [
     ...(typeof previous === 'string'

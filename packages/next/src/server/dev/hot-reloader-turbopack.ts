@@ -172,10 +172,13 @@ export async function createHotReloaderTurbopack(
   // For the debugging purpose, check if createNext or equivalent next instance setup in test cases
   // works correctly. Normally `run-test` hides output so only will be visible when `--debug` flag is used.
   if (isTestMode) {
-    require('console').log('Creating turbopack project', {
-      dir: projectPath,
-      testMode: isTestMode,
-    })
+    ;(require('console') as typeof import('console')).log(
+      'Creating turbopack project',
+      {
+        dir: projectPath,
+        testMode: isTestMode,
+      }
+    )
   }
 
   const hasRewrites =

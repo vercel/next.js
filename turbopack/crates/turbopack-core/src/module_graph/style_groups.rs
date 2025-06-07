@@ -97,10 +97,10 @@ pub async fn compute_style_groups(
             entries.iter().copied(),
             &mut (),
             |parent_info, module, _| {
-                if let Some((_, ModuleBatchesGraphEdge { ty, .. })) = parent_info {
-                    if !ty.is_parallel() {
-                        return Ok(GraphTraversalAction::Exclude);
-                    }
+                if let Some((_, ModuleBatchesGraphEdge { ty, .. })) = parent_info
+                    && !ty.is_parallel()
+                {
+                    return Ok(GraphTraversalAction::Exclude);
                 }
                 if visited.insert(module) {
                     Ok(GraphTraversalAction::Continue)
@@ -109,10 +109,10 @@ pub async fn compute_style_groups(
                 }
             },
             |parent_info, item, _| {
-                if let Some((_, ModuleBatchesGraphEdge { ty, .. })) = parent_info {
-                    if !ty.is_parallel() {
-                        return;
-                    }
+                if let Some((_, ModuleBatchesGraphEdge { ty, .. })) = parent_info
+                    && !ty.is_parallel()
+                {
+                    return;
                 }
                 items_in_postorder.insert(*item);
             },
@@ -315,12 +315,12 @@ pub async fn compute_style_groups(
                     continue;
                 }
                 // In loose mode we only check if the dependencies are not violated
-                if let Some(dependents) = module_dependents.get(&module) {
-                    if dependents.iter().any(|m| new_chunk_modules.contains(m)) {
-                        // A dependent of the module is already in the chunk, which would violate
-                        // the order
-                        continue;
-                    }
+                if let Some(dependents) = module_dependents.get(&module)
+                    && dependents.iter().any(|m| new_chunk_modules.contains(m))
+                {
+                    // A dependent of the module is already in the chunk, which would violate
+                    // the order
+                    continue;
                 }
 
                 // Global CSS must not leak into unrelated chunks

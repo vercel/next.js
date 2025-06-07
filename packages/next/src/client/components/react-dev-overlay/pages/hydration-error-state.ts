@@ -8,7 +8,7 @@ import {
   isErrorMessageWithComponentStackDiff as isReact19HydrationWarning,
 } from '../../react-19-hydration-error'
 
-type HydrationErrorState = {
+export type HydrationErrorState = {
   // Hydration warning template format: <message> <serverContent> <clientContent>
   warning?: string
   reactOutputComponentDiff?: string

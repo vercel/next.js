@@ -13,7 +13,7 @@ use rustc_hash::FxHashMap;
 use smallvec::smallvec;
 use swc_core::base::sourcemap::SourceMapBuilder;
 use tracing::Instrument;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath, rope::Rope};
 use turbopack_core::{
@@ -66,6 +66,7 @@ impl StyleSheetLike<'_, '_> {
         minify_type: MinifyType,
         enable_srcmap: bool,
         handle_nesting: bool,
+        mut origin_source_map: Option<parcel_sourcemap::SourceMap>,
     ) -> Result<CssOutput> {
         let ss = &self.0;
         let mut srcmap = if enable_srcmap {
@@ -94,8 +95,12 @@ impl StyleSheetLike<'_, '_> {
         if let Some(srcmap) = &mut srcmap {
             debug_assert_eq!(ss.sources.len(), 1);
 
-            srcmap.add_sources(ss.sources.clone());
-            srcmap.set_source_content(0, code)?;
+            if let Some(origin_source_map) = origin_source_map.as_mut() {
+                let _ = srcmap.extends(origin_source_map);
+            } else {
+                srcmap.add_sources(ss.sources.clone());
+                srcmap.set_source_content(0, code)?;
+            }
         }
 
         let srcmap = match srcmap {
@@ -193,7 +198,7 @@ pub async fn process_css_with_placeholder(
 
             // We use NoMinify because this is not a final css. We need to replace url references,
             // and we do final codegen with proper minification.
-            let (result, _) = stylesheet.to_css(&code, MinifyType::NoMinify, false, false)?;
+            let (result, _) = stylesheet.to_css(&code, MinifyType::NoMinify, false, false, None)?;
 
             let exports = result.exports.map(|exports| {
                 let mut exports = exports.into_iter().collect::<FxIndexMap<_, _>>();
@@ -222,6 +227,7 @@ pub async fn finalize_css(
     result: Vc<CssWithPlaceholderResult>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     minify_type: MinifyType,
+    origin_source_map: Vc<OptionStringifiedSourceMap>,
 ) -> Result<Vc<FinalCssResult>> {
     let result = result.await?;
     match &*result {
@@ -259,7 +265,15 @@ pub async fn finalize_css(
                 FileContent::Content(v) => v.content().to_str()?,
                 _ => bail!("this case should be filtered out while parsing"),
             };
-            let (result, srcmap) = stylesheet.to_css(&code, minify_type, true, true)?;
+
+            let origin_source_map = if let Some(rope) = &*origin_source_map.await? {
+                Some(parcel_sourcemap::SourceMap::from_json("", &rope.to_str()?)?)
+            } else {
+                None
+            };
+
+            let (result, srcmap) =
+                stylesheet.to_css(&code, minify_type, true, true, origin_source_map)?;
 
             Ok(FinalCssResult::Ok {
                 output_code: result.code,
@@ -420,7 +434,7 @@ async fn process_content(
 
                             ParsingIssue {
                                 file: fs_path_vc,
-                                msg: ResolvedVc::cell(err.to_string().into()),
+                                msg: err.to_string().into(),
                                 source,
                             }
                             .resolved_cell()
@@ -457,7 +471,7 @@ async fn process_content(
                 };
                 ParsingIssue {
                     file: fs_path_vc,
-                    msg: ResolvedVc::cell(e.to_string().into()),
+                    msg: e.to_string().into(),
                     source,
                 }
                 .resolved_cell()
@@ -497,18 +511,17 @@ struct CssValidator {
 
 #[derive(Debug, PartialEq, Eq)]
 enum CssError {
-    LightningCssSelectorInModuleNotPure { selector: String },
+    CssSelectorInModuleNotPure { selector: String },
 }
 
 impl CssError {
     fn report(self, file: ResolvedVc<FileSystemPath>) {
         match self {
-            CssError::LightningCssSelectorInModuleNotPure { selector } => {
+            CssError::CssSelectorInModuleNotPure { selector } => {
                 ParsingIssue {
                     file,
-                    msg: ResolvedVc::cell(
-                        format!("{CSS_MODULE_ERROR}, (lightningcss, {selector})").into(),
-                    ),
+                    msg: format!("{CSS_MODULE_ERROR}, (lightningcss, {selector})").into(),
+
                     source: None,
                 }
                 .resolved_cell()
@@ -562,10 +575,9 @@ impl lightningcss::visitor::Visitor<'_> for CssValidator {
         }
 
         if is_selector_problematic(selector) {
-            self.errors
-                .push(CssError::LightningCssSelectorInModuleNotPure {
-                    selector: format!("{selector:?}"),
-                });
+            self.errors.push(CssError::CssSelectorInModuleNotPure {
+                selector: format!("{selector:?}"),
+            });
         }
 
         Ok(())
@@ -604,7 +616,7 @@ fn generate_css_source_map(source_map: &parcel_sourcemap::SourceMap) -> Result<R
 
 #[turbo_tasks::value]
 struct ParsingIssue {
-    msg: ResolvedVc<RcStr>,
+    msg: RcStr,
     file: ResolvedVc<FileSystemPath>,
     source: Option<IssueSource>,
 }
@@ -623,7 +635,7 @@ impl Issue for ParsingIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Parsing css source code failed".into()).cell()
+        StyledString::Text(rcstr!("Parsing css source code failed")).cell()
     }
 
     #[turbo_tasks::function]
@@ -637,7 +649,7 @@ impl Issue for ParsingIssue {
     #[turbo_tasks::function]
     async fn description(&self) -> Result<Vc<OptionStyledString>> {
         Ok(Vc::cell(Some(
-            StyledString::Text(self.msg.await?.as_str().into()).resolved_cell(),
+            StyledString::Text(self.msg.clone()).resolved_cell(),
         )))
     }
 }

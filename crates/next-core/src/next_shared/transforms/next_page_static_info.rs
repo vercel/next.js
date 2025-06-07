@@ -96,33 +96,32 @@ impl CustomTransformer for NextPageStaticInfo {
                 }
             }
 
-            if is_app_page {
-                if let Some(Const::Value(Value::Object(config_obj))) = properties_to_extract.config
-                {
-                    let mut messages = vec![format!(
-                        "Page config in {} is deprecated. Replace `export const config=…` with \
-                         the following:",
-                        ctx.file_path_str
-                    )];
+            if is_app_page
+                && let Some(Const::Value(Value::Object(config_obj))) = properties_to_extract.config
+            {
+                let mut messages = vec![format!(
+                    "Page config in {} is deprecated. Replace `export const config=…` with the \
+                     following:",
+                    ctx.file_path_str
+                )];
 
-                    if let Some(runtime) = config_obj.get("runtime") {
-                        messages.push(format!("- `export const runtime = {runtime}`"));
-                    }
-
-                    if let Some(regions) = config_obj.get("regions") {
-                        messages.push(format!("- `export const preferredRegion = {regions}`"));
-                    }
-
-                    messages.push("Visit https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config for more information.".to_string());
-
-                    PageStaticInfoIssue {
-                        file_path: ctx.file_path,
-                        messages,
-                        severity: IssueSeverity::Warning,
-                    }
-                    .resolved_cell()
-                    .emit();
+                if let Some(runtime) = config_obj.get("runtime") {
+                    messages.push(format!("- `export const runtime = {runtime}`"));
                 }
+
+                if let Some(regions) = config_obj.get("regions") {
+                    messages.push(format!("- `export const preferredRegion = {regions}`"));
+                }
+
+                messages.push("Visit https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config for more information.".to_string());
+
+                PageStaticInfoIssue {
+                    file_path: ctx.file_path,
+                    messages,
+                    severity: IssueSeverity::Warning,
+                }
+                .resolved_cell()
+                .emit();
             }
 
             if collected_exports.directives.contains(&atom!("client"))

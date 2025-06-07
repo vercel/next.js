@@ -9,6 +9,7 @@ import { BuildError } from '../../../container/build-error'
 import { Errors } from '../../../container/errors'
 import { useDelayedRender } from '../../../hooks/use-delayed-render'
 import type { ReadyRuntimeError } from '../../../../utils/get-error-by-type'
+import type { HydrationErrorState } from '../../../../pages/hydration-error-state'
 
 const transitionDurationMs = 200
 
@@ -23,11 +24,13 @@ export interface ErrorBaseProps {
 export function ErrorOverlay({
   state,
   dispatch,
+  getSquashedHydrationErrorDetails,
   runtimeErrors,
   errorCount,
 }: {
   state: OverlayState
   dispatch: OverlayDispatch
+  getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
   runtimeErrors: ReadyRuntimeError[]
   errorCount: number
 }) {
@@ -74,6 +77,7 @@ export function ErrorOverlay({
     <Errors
       {...commonProps}
       debugInfo={state.debugInfo}
+      getSquashedHydrationErrorDetails={getSquashedHydrationErrorDetails}
       runtimeErrors={runtimeErrors}
       onClose={() => {
         dispatch({ type: ACTION_ERROR_OVERLAY_CLOSE })

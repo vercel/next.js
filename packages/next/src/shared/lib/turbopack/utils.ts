@@ -170,7 +170,8 @@ export function formatIssue(issue: Issue) {
     !isInternal(filePath)
   ) {
     const { start, end } = source.range
-    const { codeFrameColumns } = require('next/dist/compiled/babel/code-frame')
+    const { codeFrameColumns } =
+      require('next/dist/compiled/babel/code-frame') as typeof import('next/dist/compiled/babel/code-frame')
 
     message +=
       codeFrameColumns(
@@ -190,7 +191,17 @@ export function formatIssue(issue: Issue) {
   }
 
   if (description) {
-    message += renderStyledStringToErrorAnsi(description) + '\n\n'
+    if (
+      description.type === 'text' &&
+      description.value.includes(`Cannot find module 'sass'`)
+    ) {
+      message +=
+        "To use Next.js' built-in Sass support, you first need to install `sass`.\n"
+      message += 'Run `npm i sass` or `yarn add sass` inside your workspace.\n'
+      message += '\nLearn more: https://nextjs.org/docs/messages/install-sass'
+    } else {
+      message += renderStyledStringToErrorAnsi(description) + '\n\n'
+    }
   }
 
   // TODO: make it possible to enable this for debugging, but not in tests.

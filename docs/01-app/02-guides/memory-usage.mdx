@@ -136,3 +136,36 @@ You can disable source map generation by adding `productionBrowserSourceMaps: fa
 ## Edge memory issues
 
 Next.js `v14.1.3` fixed a memory issue when using the Edge runtime. Please update to this version (or later) to see if it addresses your issue.
+
+## Preloading Entries
+
+When the Next.js server starts, it preloads each page's JavaScript modules into memory, rather than at request time.
+
+This optimization allows for faster response times, in exchange for a larger initial memory footprint.
+
+To disable this optimization, set the `experimental.preloadEntriesOnStart` flag to `false`.
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const config: NextConfig = {
+  experimental: {
+    preloadEntriesOnStart: false,
+  },
+}
+
+export default config
+```
+
+```js filename="next.config.mjs" switcher
+/** @type {import('next').NextConfig} */
+const config = {
+  experimental: {
+    preloadEntriesOnStart: false,
+  },
+}
+
+export default config
+```
+
+Next.js doesn't unload these JavaScript modules, meaning that even with this optimization disabled, the memory footprint of your Next.js server will eventually be the same if all pages are eventually requested.

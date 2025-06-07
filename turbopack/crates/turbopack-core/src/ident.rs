@@ -274,10 +274,10 @@ impl AssetIdent {
             has_hash = true;
         }
         for modifier in modifiers.iter() {
-            if let Some(default_modifier) = default_modifier {
-                if *modifier == default_modifier {
-                    continue;
-                }
+            if let Some(default_modifier) = default_modifier
+                && *modifier == default_modifier
+            {
+                continue;
             }
             3_u8.deterministic_hash(&mut hasher);
             modifier.deterministic_hash(&mut hasher);
@@ -349,10 +349,10 @@ impl AssetIdent {
         const MAX_FILENAME: usize = 80;
         if name.len() - i > MAX_FILENAME {
             i = name.len() - MAX_FILENAME;
-            if let Some(j) = name[i..].find('_') {
-                if j < 20 {
-                    i += j + 1;
-                }
+            if let Some(j) = name[i..].find('_')
+                && j < 20
+            {
+                i += j + 1;
             }
         }
         if i > 0 {

@@ -15,7 +15,10 @@ use shrink_to_fit::ShrinkToFit;
 use triomphe::Arc;
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
 
-use crate::{dynamic::new_atom, tagged_value::TaggedValue};
+use crate::{
+    dynamic::{deref_from, new_atom},
+    tagged_value::TaggedValue,
+};
 
 mod dynamic;
 mod tagged_value;
@@ -34,8 +37,8 @@ mod tagged_value;
 ///
 /// ## Conversion
 ///
-/// Converting a `String` or `&str` to an `RcStr` can be perfomed using `.into()` or
-/// `RcStr::from(...)`:
+/// Converting a `String` or `&str` to an `RcStr` can be perfomed using `.into()`,
+/// `RcStr::from(...)`, or the `rcstr!` macro.
 ///
 /// ```
 /// # use turbo_rcstr::RcStr;
@@ -43,8 +46,14 @@ mod tagged_value;
 /// let s = "foo";
 /// let rc_s1: RcStr = s.into();
 /// let rc_s2 = RcStr::from(s);
+/// let rc_s3 = rcstr!("foo");
 /// assert_eq!(rc_s1, rc_s2);
 /// ```
+///
+/// Generally speaking you should
+///  * use `rcstr!` when converting a `const`-compatible `str`
+///  * use `RcStr::from` for readability
+///  * use `.into()` when context makes it clear.
 ///
 /// Converting from an [`RcStr`] to a `&str` should be done with [`RcStr::as_str`]. Converting to a
 /// `String` should be done with [`RcStr::into_owned`].
@@ -80,7 +89,7 @@ impl RcStr {
     #[inline(never)]
     pub fn as_str(&self) -> &str {
         match self.tag() {
-            DYNAMIC_TAG => unsafe { dynamic::deref_from(self.unsafe_data) },
+            DYNAMIC_TAG => unsafe { dynamic::deref_from(self.unsafe_data).value.as_str() },
             INLINE_TAG => {
                 let len = (self.unsafe_data.tag() & LEN_MASK) >> LEN_OFFSET;
                 let src = self.unsafe_data.data();
@@ -103,8 +112,8 @@ impl RcStr {
                 // convert `self` into `arc`
                 let arc = unsafe { dynamic::restore_arc(ManuallyDrop::new(self).unsafe_data) };
                 match Arc::try_unwrap(arc) {
-                    Ok(v) => v,
-                    Err(arc) => arc.to_string(),
+                    Ok(v) => v.value,
+                    Err(arc) => arc.value.to_string(),
                 }
             }
             INLINE_TAG => self.as_str().to_string(),
@@ -256,7 +265,15 @@ impl Default for RcStr {
 
 impl PartialEq for RcStr {
     fn eq(&self, other: &Self) -> bool {
-        self.as_str() == other.as_str()
+        match (self.tag(), other.tag()) {
+            (DYNAMIC_TAG, DYNAMIC_TAG) => {
+                let l = unsafe { deref_from(self.unsafe_data) };
+                let r = unsafe { deref_from(other.unsafe_data) };
+                l.hash == r.hash && l.value == r.value
+            }
+            (INLINE_TAG, INLINE_TAG) => self.unsafe_data == other.unsafe_data,
+            _ => false,
+        }
     }
 }
 
@@ -276,7 +293,17 @@ impl Ord for RcStr {
 
 impl Hash for RcStr {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.as_str().hash(state);
+        match self.tag() {
+            DYNAMIC_TAG => {
+                let l = unsafe { deref_from(self.unsafe_data) };
+                state.write_u64(l.hash);
+                state.write_u8(0xff);
+            }
+            INLINE_TAG => {
+                self.as_str().hash(state);
+            }
+            _ => unsafe { debug_unreachable!() },
+        }
     }
 }
 

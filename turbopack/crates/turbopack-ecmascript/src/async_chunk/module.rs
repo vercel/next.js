@@ -1,6 +1,6 @@
 use anyhow::Result;
-use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, Value, Vc};
+use turbo_rcstr::rcstr;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkableModule, ChunkingContext, availability_info::AvailabilityInfo},
@@ -11,11 +11,6 @@ use turbopack_core::{
 };
 
 use crate::async_chunk::chunk_item::AsyncLoaderChunkItem;
-
-#[turbo_tasks::function]
-fn async_loader_modifier() -> Vc<RcStr> {
-    Vc::cell("async loader".into())
-}
 
 /// The AsyncLoaderModule is a module that loads another module async, by
 /// putting it into a separate chunk group.
@@ -32,12 +27,12 @@ impl AsyncLoaderModule {
     pub fn new(
         module: ResolvedVc<Box<dyn ChunkableModule>>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-        availability_info: Value<AvailabilityInfo>,
+        availability_info: AvailabilityInfo,
     ) -> Vc<Self> {
         Self::cell(AsyncLoaderModule {
             inner: module,
             chunking_context,
-            availability_info: availability_info.into_value(),
+            availability_info,
         })
     }
 
@@ -45,11 +40,6 @@ impl AsyncLoaderModule {
     pub fn asset_ident_for(module: Vc<Box<dyn ChunkableModule>>) -> Vc<AssetIdent> {
         module.ident().with_modifier(rcstr!("async loader"))
     }
-}
-
-#[turbo_tasks::function]
-fn inner_module_reference_description() -> Vc<RcStr> {
-    Vc::cell("async module".into())
 }
 
 #[turbo_tasks::value_impl]
@@ -64,7 +54,7 @@ impl Module for AsyncLoaderModule {
         Ok(Vc::cell(vec![ResolvedVc::upcast(
             SingleModuleReference::new(
                 *ResolvedVc::upcast(self.await?.inner),
-                inner_module_reference_description(),
+                rcstr!("async module"),
             )
             .to_resolved()
             .await?,

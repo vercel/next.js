@@ -319,9 +319,11 @@ export declare function projectCompilationEventsSubscribe(
 export interface StackFrame {
   isServer: boolean
   isInternal?: boolean
-  originalFile?: string
+  originalFile?: RcStr
   file: RcStr
+  /** 1-indexed, unlike source map tokens */
   line?: number
+  /** 1-indexed, unlike source map tokens */
   column?: number
   methodName?: RcStr
 }

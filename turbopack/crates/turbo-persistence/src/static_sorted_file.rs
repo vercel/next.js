@@ -344,7 +344,7 @@ impl StaticSortedFile {
             bail!(
                 "Corrupted file seq:{} block:{} > number of blocks {} (block_offsets: {:x}, \
                  blocks: {:x})",
-                self.sequence_number,
+                self.meta.sequence_number,
                 block_index,
                 self.meta.block_count,
                 self.meta.block_offsets_start(),
@@ -357,7 +357,7 @@ impl StaticSortedFile {
             bail!(
                 "Corrupted file seq:{} block:{} block offset locations {} + 4 bytes > file end {} \
                  (block_offsets: {:x}, blocks: {:x})",
-                self.sequence_number,
+                self.meta.sequence_number,
                 block_index,
                 offset,
                 self.mmap.len(),
@@ -377,7 +377,7 @@ impl StaticSortedFile {
             bail!(
                 "Corrupted file seq:{} block:{} block {} - {} > file end {} (block_offsets: {:x}, \
                  blocks: {:x})",
-                self.sequence_number,
+                self.meta.sequence_number,
                 block_index,
                 block_start,
                 block_end,

@@ -16,6 +16,7 @@ const nextConfig = {
       custom: require.resolve('next/dist/server/lib/cache-handlers/default'),
     },
   },
+  cacheHandler: require.resolve('./incremental-cache-handler'),
 }
 
 module.exports = nextConfig

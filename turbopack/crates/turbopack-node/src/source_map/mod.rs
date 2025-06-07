@@ -159,21 +159,21 @@ fn write_resolved(
             let (line, column) = frame.get_pos().unwrap_or((0, 0));
             let line = line.saturating_sub(1);
             let column = column.saturating_sub(1);
-            if let FileLinesContent::Lines(lines) = &*lines {
-                if *visible_code_frames < MAX_CODE_FRAMES {
-                    let lines = lines.iter().map(|l| l.content.as_str());
-                    let ctx = get_source_context(lines, line, column, line, column);
-                    match formatting_mode {
-                        FormattingMode::Plain => {
-                            write!(writable, "\n{ctx}")?;
-                        }
-                        FormattingMode::AnsiColors => {
-                            writable.write_char('\n')?;
-                            format_source_context_lines(&ctx, writable);
-                        }
+            if let FileLinesContent::Lines(lines) = &*lines
+                && *visible_code_frames < MAX_CODE_FRAMES
+            {
+                let lines = lines.iter().map(|l| l.content.as_str());
+                let ctx = get_source_context(lines, line, column, line, column);
+                match formatting_mode {
+                    FormattingMode::Plain => {
+                        write!(writable, "\n{ctx}")?;
                     }
-                    *visible_code_frames += 1;
+                    FormattingMode::AnsiColors => {
+                        writable.write_char('\n')?;
+                        format_source_context_lines(&ctx, writable);
+                    }
                 }
+                *visible_code_frames += 1;
             }
         }
     }

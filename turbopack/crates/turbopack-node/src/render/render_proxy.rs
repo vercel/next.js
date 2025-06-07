@@ -7,7 +7,7 @@ use futures::{
 };
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     RawVc, ResolvedVc, TaskInput, ValueToString, Vc, duration_span, mark_finished, prevent_gc,
     trace::TraceRawVcs, util::SharedError,
@@ -115,7 +115,7 @@ async fn proxy_error(
     let status_code = 500;
     let body = error_html(
         status_code,
-        "An error occurred while proxying the request to Node.js".into(),
+        rcstr!("An error occurred while proxying the request to Node.js"),
         format!("{message}\n\n{}", details.join("\n")).into(),
     )
     .owned()
@@ -289,8 +289,8 @@ async fn render_stream_internal(
                 yield RenderItem::Headers(ResponseHeaders {
                     status,
                     headers: vec![(
-                        "content-type".into(),
-                        "text/html; charset=utf-8".into(),
+                        rcstr!("content-type"),
+                        rcstr!("text/html; charset=utf-8"),
                     )],
                 });
                 yield RenderItem::BodyChunk(body.into_owned().into_bytes().into());

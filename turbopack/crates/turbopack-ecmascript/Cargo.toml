@@ -28,7 +28,7 @@ petgraph = { workspace = true }
 regex = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true }
-serde_json = { workspace = true }
+serde_json = { workspace = true, features = ["raw_value"] }
 sourcemap = { workspace = true }
 smallvec = { workspace = true }
 strsim = { workspace = true }
@@ -43,7 +43,6 @@ turbopack-core = { workspace = true }
 turbopack-resolve = { workspace = true }
 turbopack-swc-utils = { workspace = true }
 url = { workspace = true }
-urlencoding = { workspace = true }
 
 swc_core = { workspace = true, features = [
   "ecma_ast",
@@ -72,11 +71,10 @@ swc_core = { workspace = true, features = [
   "testing",
   "base",
 ] }
-par-core = { workspace = true, features = ["rayon"] }
+bitvec = "1.0.1"
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
-turbo-tasks-backend = { workspace = true }
 turbo-tasks-malloc = { workspace = true }
 turbo-tasks-testing = { workspace = true }
 

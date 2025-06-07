@@ -1,8 +1,8 @@
 use std::iter::once;
 
 use anyhow::Result;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, OptionVcExt, ResolvedVc, Value, Vc};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{FxIndexMap, OptionVcExt, ResolvedVc, TaskInput, Vc};
 use turbo_tasks_env::EnvMap;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
@@ -102,14 +102,14 @@ async fn next_client_free_vars(define_env: Vc<EnvMap>) -> Result<Vc<FreeVarRefer
     Ok(free_var_references!(
         ..defines(&*define_env.await?).into_iter(),
         Buffer = FreeVarReference::EcmaScriptModule {
-            request: "node:buffer".into(),
+            request: rcstr!("node:buffer"),
             lookup_path: None,
-            export: Some("Buffer".into()),
+            export: Some(rcstr!("Buffer")),
         },
         process = FreeVarReference::EcmaScriptModule {
-            request: "node:process".into(),
+            request: rcstr!("node:process"),
             lookup_path: None,
-            export: Some("default".into()),
+            export: Some(rcstr!("default")),
         }
     )
     .cell())
@@ -121,7 +121,7 @@ pub async fn get_client_compile_time_info(
     define_env: Vc<EnvMap>,
 ) -> Result<Vc<CompileTimeInfo>> {
     CompileTimeInfo::builder(
-        Environment::new(Value::new(ExecutionEnvironment::Browser(
+        Environment::new(ExecutionEnvironment::Browser(
             BrowserEnvironment {
                 dom: true,
                 web_worker: false,
@@ -129,7 +129,7 @@ pub async fn get_client_compile_time_info(
                 browserslist_query: browserslist_query.to_owned(),
             }
             .resolved_cell(),
-        )))
+        ))
         .to_resolved()
         .await?,
     )
@@ -139,8 +139,8 @@ pub async fn get_client_compile_time_info(
     .await
 }
 
-#[turbo_tasks::value(shared, serialization = "auto_for_input")]
-#[derive(Debug, Copy, Clone, Hash)]
+#[turbo_tasks::value(shared)]
+#[derive(Debug, Copy, Clone, Hash, TaskInput)]
 pub enum ClientContextType {
     Pages {
         pages_dir: ResolvedVc<FileSystemPath>,
@@ -155,13 +155,13 @@ pub enum ClientContextType {
 #[turbo_tasks::function]
 pub async fn get_client_resolve_options_context(
     project_path: ResolvedVc<FileSystemPath>,
-    ty: Value<ClientContextType>,
+    ty: ClientContextType,
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ResolveOptionsContext>> {
     let next_client_import_map =
-        get_next_client_import_map(*project_path, ty, next_config, execution_context)
+        get_next_client_import_map(*project_path, ty, next_config, mode, execution_context)
             .to_resolved()
             .await?;
     let next_client_fallback_import_map = get_next_client_fallback_import_map(ty)
@@ -231,7 +231,7 @@ pub async fn get_client_module_options_context(
     project_path: ResolvedVc<FileSystemPath>,
     execution_context: ResolvedVc<ExecutionContext>,
     env: ResolvedVc<Environment>,
-    ty: Value<ClientContextType>,
+    ty: ClientContextType,
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     encryption_key: ResolvedVc<RcStr>,
@@ -265,7 +265,7 @@ pub async fn get_client_module_options_context(
     // foreign_code_context_condition. This allows to import codes from
     // node_modules that requires webpack loaders, which next-dev implicitly
     // does by default.
-    let conditions = vec!["browser".into(), mode.await?.condition().into()];
+    let conditions = vec![rcstr!("browser"), mode.await?.condition().into()];
     let foreign_enable_webpack_loaders = webpack_loader_options(
         project_path,
         next_config,
@@ -273,7 +273,7 @@ pub async fn get_client_module_options_context(
         conditions
             .iter()
             .cloned()
-            .chain(once("foreign".into()))
+            .chain(once(rcstr!("foreign")))
             .collect(),
     )
     .await?;
@@ -291,11 +291,9 @@ pub async fn get_client_module_options_context(
     let target_browsers = env.runtime_versions();
 
     let mut next_client_rules =
-        get_next_client_transforms_rules(next_config, ty.into_value(), mode, false, encryption_key)
-            .await?;
+        get_next_client_transforms_rules(next_config, ty, mode, false, encryption_key).await?;
     let foreign_next_client_rules =
-        get_next_client_transforms_rules(next_config, ty.into_value(), mode, true, encryption_key)
-            .await?;
+        get_next_client_transforms_rules(next_config, ty, mode, true, encryption_key).await?;
     let additional_rules: Vec<ModuleRule> = vec![
         get_swc_ecma_transform_plugin_rule(next_config, project_path).await?,
         get_relay_transform_rule(next_config, project_path).await?,
@@ -425,9 +423,9 @@ pub async fn get_client_module_options_context(
 pub async fn get_client_chunking_context(
     root_path: ResolvedVc<FileSystemPath>,
     client_root: ResolvedVc<FileSystemPath>,
-    client_root_to_root_path: ResolvedVc<RcStr>,
-    asset_prefix: ResolvedVc<Option<RcStr>>,
-    chunk_suffix_path: ResolvedVc<Option<RcStr>>,
+    client_root_to_root_path: RcStr,
+    asset_prefix: Option<RcStr>,
+    chunk_suffix_path: Option<RcStr>,
     environment: ResolvedVc<Environment>,
     mode: Vc<NextMode>,
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
@@ -442,14 +440,14 @@ pub async fn get_client_chunking_context(
         client_root_to_root_path,
         client_root,
         client_root
-            .join("static/chunks".into())
+            .join(rcstr!("static/chunks"))
             .to_resolved()
             .await?,
         get_client_assets_path(*client_root).to_resolved().await?,
         environment,
         next_mode.runtime_type(),
     )
-    .chunk_base_path(asset_prefix)
+    .chunk_base_path(asset_prefix.clone())
     .chunk_suffix_path(chunk_suffix_path)
     .minify_type(if *minify.await? {
         MinifyType::Minify {
@@ -494,13 +492,13 @@ pub async fn get_client_chunking_context(
 
 #[turbo_tasks::function]
 pub fn get_client_assets_path(client_root: Vc<FileSystemPath>) -> Vc<FileSystemPath> {
-    client_root.join("static/media".into())
+    client_root.join(rcstr!("static/media"))
 }
 
 #[turbo_tasks::function]
 pub async fn get_client_runtime_entries(
     project_root: Vc<FileSystemPath>,
-    ty: Value<ClientContextType>,
+    ty: ClientContextType,
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
@@ -522,22 +520,22 @@ pub async fn get_client_runtime_entries(
             runtime_entries.push(
                 RuntimeEntry::Request(
                     request.to_resolved().await?,
-                    project_root.join("_".into()).to_resolved().await?,
+                    project_root.join(rcstr!("_")).to_resolved().await?,
                 )
                 .resolved_cell(),
             )
         };
     }
 
-    if matches!(*ty, ClientContextType::App { .. },) {
+    if matches!(ty, ClientContextType::App { .. },) {
         runtime_entries.push(
             RuntimeEntry::Request(
-                Request::parse(Value::new(Pattern::Constant(
-                    "next/dist/client/app-next-turbopack.js".into(),
+                Request::parse(Pattern::Constant(rcstr!(
+                    "next/dist/client/app-next-turbopack.js"
                 )))
                 .to_resolved()
                 .await?,
-                project_root.join("_".into()).to_resolved().await?,
+                project_root.join(rcstr!("_")).to_resolved().await?,
             )
             .resolved_cell(),
         );

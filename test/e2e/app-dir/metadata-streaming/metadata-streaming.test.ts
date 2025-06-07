@@ -157,8 +157,10 @@ describe('app-dir - metadata-streaming', () => {
   describe('static', () => {
     it('should render static metadata in the head', async () => {
       const $ = await next.render$('/static/full')
+      // We can't ensure if it's inserted into  head or body since it's a race condition,
+      // where sometimes the metadata can be suspended.
       expect($('title').length).toBe(1)
-      expect($('head title').text()).toBe('static page')
+      expect($('title').text()).toBe('static page')
     })
 
     it('should determine dynamic metadata in build and render in the body', async () => {

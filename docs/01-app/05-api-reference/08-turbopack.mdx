@@ -99,6 +99,8 @@ Some features are not yet implemented or not planned:
   - Standalone `:local` and `:global` pseudo-classes (only the function variant `:global(...)` is supported).
   - The `@value` rule (superseded by CSS variables).
   - `:import` and `:export` ICSS rules.
+  - `composes` in `.module.css` composing a `.css` file. In webpack this would treat the `.css` file as a CSS Module, with Turbopack the `.css` file will always be global. This means that if you want to use `composes` in a CSS Module, you need to change the `.css` file to a `.module.css` file.
+  - `@import` in CSS Modules importing `.css` as a CSS Module. In webpack this would treat the `.css` file as a CSS Module, with Turbopack the `.css` file will always be global. This means that if you want to use `@import` in a CSS Module, you need to change the `.css` file to a `.module.css` file.
 - **`webpack()` configuration** in `next.config.js`
   Turbopack replaces webpack, so `webpack()` configs are not recognized. Use the [`turbopack` config](/docs/app/api-reference/config/next-config-js/turbopack) instead.
 - **AMP**

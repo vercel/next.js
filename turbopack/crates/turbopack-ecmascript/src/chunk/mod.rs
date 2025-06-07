@@ -165,21 +165,11 @@ impl EcmascriptChunk {
     }
 }
 
-#[turbo_tasks::function]
-fn introspectable_type() -> Vc<RcStr> {
-    Vc::cell("ecmascript chunk".into())
-}
-
-#[turbo_tasks::function]
-fn chunk_item_module_key() -> Vc<RcStr> {
-    Vc::cell("module".into())
-}
-
 #[turbo_tasks::value_impl]
 impl Introspectable for EcmascriptChunk {
     #[turbo_tasks::function]
     fn ty(&self) -> Vc<RcStr> {
-        introspectable_type()
+        Vc::cell(rcstr!("ecmascript chunk"))
     }
 
     #[turbo_tasks::function]
@@ -203,10 +193,9 @@ impl Introspectable for EcmascriptChunk {
         let mut children = children_from_output_assets(self.references())
             .owned()
             .await?;
-        let chunk_item_module_key = chunk_item_module_key().to_resolved().await?;
         for chunk_item in self.await?.content.included_chunk_items().await? {
             children.insert((
-                chunk_item_module_key,
+                rcstr!("module"),
                 IntrospectableModule::new(chunk_item.module())
                     .to_resolved()
                     .await?,

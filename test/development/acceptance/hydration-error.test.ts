@@ -104,8 +104,8 @@ describe('Error overlay for hydration errors in Pages router', () => {
          "componentStack": "...
            <AppContainer>
              <Container fn={function fn}>
-               <PagesDevOverlay>
-                 <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
+               <PagesDevOverlayBridge>
+                 <PagesDevOverlayErrorBoundary>
                    <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                      <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                        <Mismatch>
@@ -113,8 +113,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
                            <main className="child">
        +                     client
        -                     server
-                     ...
-                 ...",
+                     ...",
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Recoverable Error",
@@ -210,15 +209,14 @@ describe('Error overlay for hydration errors in Pages router', () => {
          "componentStack": "...
            <AppContainer>
              <Container fn={function fn}>
-               <PagesDevOverlay>
-                 <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
+               <PagesDevOverlayBridge>
+                 <PagesDevOverlayErrorBoundary>
                    <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                      <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                        <Mismatch>
                          <div className="parent">
        +                   <main className="only">
-                     ...
-                 ...",
+                     ...",
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Recoverable Error",
@@ -301,8 +299,8 @@ describe('Error overlay for hydration errors in Pages router', () => {
          "componentStack": "...
            <AppContainer>
              <Container fn={function fn}>
-               <PagesDevOverlay>
-                 <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
+               <PagesDevOverlayBridge>
+                 <PagesDevOverlayErrorBoundary>
                    <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                      <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                        <Mismatch>
@@ -311,8 +309,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
        +                   second
        -                   <footer className="3">
                            ...
-                     ...
-                 ...",
+                     ...",
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Recoverable Error",
@@ -377,15 +374,14 @@ describe('Error overlay for hydration errors in Pages router', () => {
            <Head>
            <AppContainer>
              <Container fn={function fn}>
-               <PagesDevOverlay>
-                 <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
+               <PagesDevOverlayBridge>
+                 <PagesDevOverlayErrorBoundary>
                    <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                      <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                        <Mismatch>
                          <div className="parent">
        -                   <main className="only">
-                     ...
-                 ...",
+                     ...",
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Recoverable Error",
@@ -448,15 +444,14 @@ describe('Error overlay for hydration errors in Pages router', () => {
            <Head>
            <AppContainer>
              <Container fn={function fn}>
-               <PagesDevOverlay>
-                 <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
+               <PagesDevOverlayBridge>
+                 <PagesDevOverlayErrorBoundary>
                    <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                      <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                        <Mismatch>
                          <div className="parent">
        -                   only
-                     ...
-                 ...",
+                     ...",
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Recoverable Error",
@@ -538,8 +533,8 @@ describe('Error overlay for hydration errors in Pages router', () => {
        {
          "componentStack": "...
            <Container fn={function fn}>
-             <PagesDevOverlay>
-               <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
+             <PagesDevOverlayBridge>
+               <PagesDevOverlayErrorBoundary>
                  <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                    <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                      <Page>
@@ -547,8 +542,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
                          <tbody>
                            <tr>
        >                     test
-                   ...
-               ...",
+                   ...",
          "description": "In HTML, text nodes cannot be a child of <tr>.
        This will cause a hydration error.",
          "environmentLabel": null,
@@ -627,16 +621,15 @@ describe('Error overlay for hydration errors in Pages router', () => {
            <Head>
            <AppContainer>
              <Container fn={function fn}>
-               <PagesDevOverlay>
-                 <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
+               <PagesDevOverlayBridge>
+                 <PagesDevOverlayErrorBoundary>
                    <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                      <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                        <Page>
        >                 <table>
        >                   {" 123"}
                            ...
-                     ...
-                 ...",
+                     ...",
          "description": "In HTML, text nodes cannot be a child of <table>.
        This will cause a hydration error.",
          "environmentLabel": null,
@@ -721,8 +714,8 @@ describe('Error overlay for hydration errors in Pages router', () => {
       await expect(browser).toDisplayRedbox(`
        {
          "componentStack": "...
-           <PagesDevOverlay>
-             <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
+           <PagesDevOverlayBridge>
+             <PagesDevOverlayErrorBoundary>
                <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                  <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                    <Mismatch>
@@ -732,8 +725,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
        +                 <main className="second">
        -                 <footer className="3">
                          ...
-                 ...
-             ...",
+                 ...",
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Recoverable Error",
@@ -845,15 +837,14 @@ describe('Error overlay for hydration errors in Pages router', () => {
            <Head>
            <AppContainer>
              <Container fn={function fn}>
-               <PagesDevOverlay>
-                 <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
+               <PagesDevOverlayBridge>
+                 <PagesDevOverlayErrorBoundary>
                    <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                      <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                        <Page>
        >                 <p>
        >                   <p>
-                     ...
-                 ...",
+                     ...",
          "description": "In HTML, <p> cannot be a descendant of <p>.
        This will cause a hydration error.",
          "environmentLabel": null,
@@ -939,8 +930,8 @@ describe('Error overlay for hydration errors in Pages router', () => {
        {
          "componentStack": "...
            <Container fn={function fn}>
-             <PagesDevOverlay>
-               <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
+             <PagesDevOverlayBridge>
+               <PagesDevOverlayErrorBoundary>
                  <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                    <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                      <Page>
@@ -948,8 +939,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
                          <div>
        >                   <p>
        >                     <div>
-                   ...
-               ...",
+                   ...",
          "description": "In HTML, <div> cannot be a descendant of <p>.
        This will cause a hydration error.",
          "environmentLabel": null,
@@ -1025,15 +1015,14 @@ describe('Error overlay for hydration errors in Pages router', () => {
            <Head>
            <AppContainer>
              <Container fn={function fn}>
-               <PagesDevOverlay>
-                 <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
+               <PagesDevOverlayBridge>
+                 <PagesDevOverlayErrorBoundary>
                    <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                      <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                        <Page>
        >                 <div>
        >                   <tr>
-                     ...
-                 ...",
+                     ...",
          "description": "In HTML, <tr> cannot be a child of <div>.
        This will cause a hydration error.",
          "environmentLabel": null,
@@ -1119,8 +1108,8 @@ describe('Error overlay for hydration errors in Pages router', () => {
            <Head>
            <AppContainer>
              <Container fn={function fn}>
-               <PagesDevOverlay>
-                 <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
+               <PagesDevOverlayBridge>
+                 <PagesDevOverlayErrorBoundary>
                    <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                      <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                        <Page>
@@ -1130,8 +1119,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
                                <span>
                                  <span>
        >                           <p>
-                     ...
-                 ...",
+                     ...",
          "description": "In HTML, <p> cannot be a descendant of <p>.
        This will cause a hydration error.",
          "environmentLabel": null,

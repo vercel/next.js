@@ -3,7 +3,6 @@ import { css } from '../../../utils/css'
 import type { DevToolsInfoPropsCore } from '../errors/dev-tools-indicator/dev-tools-info/dev-tools-info'
 import { DevToolsInfo } from '../errors/dev-tools-indicator/dev-tools-info/dev-tools-info'
 import { cx } from '../../utils/cx'
-import { LeftArrow } from '../../icons/left-arrow'
 import {
   useSegmentTreeClientState,
   type SegmentNode,
@@ -55,11 +54,15 @@ function PageSegmentTree({ tree }: { tree: Trie<SegmentNode> | undefined }) {
     return null
   }
   return (
-    <div className="segment-explorer-content">
+    <div
+      className="segment-explorer-content"
+      data-nextjs-devtool-segment-explorer
+    >
       <PageSegmentTreeLayerPresentation
         tree={tree}
         node={tree.getRoot()}
         level={0}
+        segment=""
       />
     </div>
   )
@@ -67,22 +70,40 @@ function PageSegmentTree({ tree }: { tree: Trie<SegmentNode> | undefined }) {
 
 function PageSegmentTreeLayerPresentation({
   tree,
+  segment,
   node,
   level,
 }: {
   tree: Trie<SegmentNode>
+  segment: string
   node: TrieNode<SegmentNode>
   level: number
 }) {
-  const segments = node.value?.pagePath?.split('/') || []
-  const fileName = segments[segments.length - 1] || ''
+  const pagePath = node.value?.pagePath || ''
   const nodeName = node.value?.type
-  const pagePathPrefix = segments.slice(0, -1).join('/')
+
+  const segments = pagePath.split('/') || []
+  const fileName = segments.pop() || ''
+  const childrenKeys = Object.keys(node.children)
+
+  const sortedChildrenKeys = childrenKeys.sort((a, b) => {
+    // Prioritize if it's a file convention like layout or page,
+    // then the rest parallel routes.
+    const aHasExt = a.includes('.')
+    const bHasExt = b.includes('.')
+    if (aHasExt && !bHasExt) return -1
+    if (!aHasExt && bHasExt) return 1
+    // Otherwise sort alphabetically
+    return a.localeCompare(b)
+  })
 
   return (
-    <div className="segment-explorer-item">
-      {!fileName || level === 0 ? null : (
-        <div className="segment-explorer-item-row">
+    <div
+      className="segment-explorer-item"
+      data-nextjs-devtool-segment-explorer-segment={segment}
+    >
+      {fileName ? (
+        <div className={cx('segment-explorer-item-row')}>
           <div className="segment-explorer-line">
             <div className={`segment-explorer-line-text-${nodeName}`}>
               <span
@@ -93,25 +114,46 @@ function PageSegmentTreeLayerPresentation({
               >
                 {nodeName === 'layout' ? ICONS.layout : ICONS.page}
               </span>
-              {pagePathPrefix === '' ? '' : `${pagePathPrefix}/`}
               <span className="segment-explorer-filename-path">{fileName}</span>
             </div>
           </div>
         </div>
-      )}
+      ) : segment ? (
+        <div className={'segment-explorer-item-row'}>
+          <div className="segment-explorer-line">
+            <div className={`segment-explorer-line-text-${nodeName}`}>
+              <span
+                className={cx(
+                  'segment-explorer-line-icon',
+                  `segment-explorer-line-icon-${nodeName}`
+                )}
+              ></span>
+              <span className="segment-explorer-filename-path">
+                {`${segment}/`}
+              </span>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
-      <div className="tree-node-expanded-rendered-children">
-        {Object.entries(node.children).map(
-          ([key, child]) =>
+      <div
+        className="segment-explorer-segment-children"
+        data-nextjs-devtool-segment-explorer-level={level}
+      >
+        {sortedChildrenKeys.map((childSegment) => {
+          const child = node.children[childSegment]
+          return (
             child && (
               <PageSegmentTreeLayerPresentation
-                key={key}
+                key={childSegment}
+                segment={childSegment}
                 tree={tree}
                 node={child}
                 level={level + 1}
               />
             )
-        )}
+          )
+        })}
       </div>
     </div>
   )
@@ -126,36 +168,13 @@ export function SegmentsExplorer(
   }
 
   return (
-    <DevToolsInfo
-      title={
-        <>
-          <button
-            className="segment-explorer-back-button"
-            onClick={props.close}
-          >
-            <LeftArrow />
-          </button>
-          {'Segment Explorer'}
-        </>
-      }
-      closeButton={false}
-      {...props}
-    >
+    <DevToolsInfo title="Segment Explorer" {...props}>
       <PageSegmentTree tree={ctx.tree} />
     </DevToolsInfo>
   )
 }
 
 export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
-  .segment-explorer-back-button {
-    margin-right: 12px;
-    color: var(--color-gray-1000);
-  }
-  .segment-explorer-back-button svg {
-    width: 20px;
-    height: 20px;
-  }
-
   .segment-explorer-content {
     overflow-y: auto;
     padding: 0 12px;
@@ -169,13 +188,15 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
     padding: 2px 0;
   }
 
+  [data-nextjs-devtool-segment-explorer-level].segment-explorer-segment-children {
+    padding-left: 20px;
+  }
+  [data-nextjs-devtool-segment-explorer-level='0'].segment-explorer-segment-children {
+    padding-left: 0px;
+  }
+
   .segment-explorer-filename-path {
     display: inline-block;
-
-    &:hover {
-      color: var(--color-gray-1000);
-      text-decoration: none;
-    }
   }
 
   .segment-explorer-filename-path a {
@@ -185,6 +206,7 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
 
   .segment-explorer-line {
     white-space: pre;
+    cursor: default;
   }
 
   .segment-explorer-line-icon {
@@ -193,12 +215,9 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
   .segment-explorer-line-icon-page {
     color: inherit;
   }
-  .segment-explorer-line-icon-layout {
-    color: var(--color-gray-1-00);
-  }
 
   .segment-explorer-line-text-page {
-    color: var(--color-blue-900);
+    color: var(--color-gray-1000);
     font-weight: 500;
   }
 `

@@ -2,7 +2,7 @@ use std::future::Future;
 
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Upcast, Value, Vc};
+use turbo_tasks::{ResolvedVc, Upcast, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use super::{ModuleResolveResult, options::ResolveOptions, parse::Request};
@@ -40,11 +40,11 @@ pub trait ResolveOriginExt: Send {
         self: Vc<Self>,
         request: Vc<Request>,
         options: Vc<ResolveOptions>,
-        reference_type: Value<ReferenceType>,
+        reference_type: ReferenceType,
     ) -> impl Future<Output = Result<Vc<ModuleResolveResult>>> + Send;
 
     /// Get the resolve options that apply for this origin.
-    fn resolve_options(self: Vc<Self>, reference_type: Value<ReferenceType>) -> Vc<ResolveOptions>;
+    fn resolve_options(self: Vc<Self>, reference_type: ReferenceType) -> Vc<ResolveOptions>;
 
     /// Adds a transition that is used for resolved assets.
     fn with_transition(self: ResolvedVc<Self>, transition: RcStr) -> Vc<Box<dyn ResolveOrigin>>;
@@ -58,12 +58,12 @@ where
         self: Vc<Self>,
         request: Vc<Request>,
         options: Vc<ResolveOptions>,
-        reference_type: Value<ReferenceType>,
+        reference_type: ReferenceType,
     ) -> impl Future<Output = Result<Vc<ModuleResolveResult>>> + Send {
         resolve_asset(Vc::upcast(self), request, options, reference_type)
     }
 
-    fn resolve_options(self: Vc<Self>, reference_type: Value<ReferenceType>) -> Vc<ResolveOptions> {
+    fn resolve_options(self: Vc<Self>, reference_type: ReferenceType) -> Vc<ResolveOptions> {
         self.asset_context()
             .resolve_options(self.origin_path(), reference_type)
     }
@@ -83,7 +83,7 @@ async fn resolve_asset(
     resolve_origin: Vc<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
     options: Vc<ResolveOptions>,
-    reference_type: Value<ReferenceType>,
+    reference_type: ReferenceType,
 ) -> Result<Vc<ModuleResolveResult>> {
     if let Some(asset) = *resolve_origin.get_inner_asset(request).await? {
         return Ok(*ModuleResolveResult::module(asset));

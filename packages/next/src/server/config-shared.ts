@@ -539,6 +539,12 @@ export interface ExperimentalConfig {
    */
   removeUncaughtErrorAndRejectionListeners?: boolean
 
+  /**
+   * During an RSC request, validates that the request headers match the
+   * cache-busting search parameter sent by the client.
+   */
+  validateRSCRequestHeaders?: boolean
+
   serverActions?: {
     /**
      * Allows adjusting body parser size limit for server actions.
@@ -585,11 +591,6 @@ export interface ExperimentalConfig {
    * Use lightningcss instead of postcss-loader
    */
   useLightningcss?: boolean
-
-  /**
-   * Enables early import feature for app router modules
-   */
-  useEarlyImport?: boolean
 
   /**
    * Enables view transitions by using the {@link https://github.com/facebook/react/pull/31975 unstable_ViewTransition} Component.
@@ -1370,10 +1371,10 @@ export const defaultConfig = {
     webpackBuildWorker: undefined,
     webpackMemoryOptimizations: false,
     optimizeServerReact: true,
-    useEarlyImport: false,
     viewTransition: false,
     routerBFCache: false,
     removeUncaughtErrorAndRejectionListeners: false,
+    validateRSCRequestHeaders: false,
     staleTimes: {
       dynamic: 0,
       static: 300,

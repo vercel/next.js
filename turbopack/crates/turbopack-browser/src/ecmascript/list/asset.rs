@@ -64,7 +64,7 @@ impl EcmascriptDevChunkList {
 impl ValueToString for EcmascriptDevChunkList {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell("Ecmascript Dev Chunk List".into())
+        Vc::cell(rcstr!("Ecmascript Dev Chunk List"))
     }
 }
 
@@ -90,7 +90,7 @@ impl OutputAsset for EcmascriptDevChunkList {
         let ident = AssetIdent::new(Value::new(ident));
         Ok(this
             .chunking_context
-            .chunk_path(Some(Vc::upcast(self)), ident, ".js".into()))
+            .chunk_path(Some(Vc::upcast(self)), ident, rcstr!(".js")))
     }
 
     #[turbo_tasks::function]

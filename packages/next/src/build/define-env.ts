@@ -187,6 +187,9 @@ export function getDefineEnv({
     'process.env.__NEXT_CLIENT_SEGMENT_CACHE': Boolean(
       config.experimental.clientSegmentCache
     ),
+    'process.env.__NEXT_CLIENT_VALIDATE_RSC_REQUEST_HEADERS': Boolean(
+      config.experimental.validateRSCRequestHeaders
+    ),
     'process.env.__NEXT_DYNAMIC_ON_HOVER': Boolean(
       config.experimental.dynamicOnHover
     ),
@@ -286,6 +289,8 @@ export function getDefineEnv({
       : {}),
     'process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER':
       config.experimental.devtoolSegmentExplorer ?? false,
+    'process.env.__NEXT_TURBOPACK_PERSISTENT_CACHE':
+      config.experimental.turbopackPersistentCaching ?? false,
   }
 
   const userDefines = config.compiler?.define ?? {}

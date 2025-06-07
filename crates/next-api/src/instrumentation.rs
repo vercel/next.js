@@ -6,8 +6,8 @@ use next_core::{
     next_server::{ServerContextType, get_server_runtime_entries},
 };
 use tracing::Instrument;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{Completion, ResolvedVc, Value, Vc};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{Completion, ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
@@ -44,7 +44,7 @@ pub struct InstrumentationEndpoint {
     is_edge: bool,
 
     app_dir: Option<ResolvedVc<FileSystemPath>>,
-    ecmascript_client_reference_transition_name: Option<ResolvedVc<RcStr>>,
+    ecmascript_client_reference_transition_name: Option<RcStr>,
 }
 
 #[turbo_tasks::value_impl]
@@ -56,7 +56,7 @@ impl InstrumentationEndpoint {
         source: ResolvedVc<Box<dyn Source>>,
         is_edge: bool,
         app_dir: Option<ResolvedVc<FileSystemPath>>,
-        ecmascript_client_reference_transition_name: Option<ResolvedVc<RcStr>>,
+        ecmascript_client_reference_transition_name: Option<RcStr>,
     ) -> Vc<Self> {
         Self {
             project,
@@ -75,7 +75,7 @@ impl InstrumentationEndpoint {
             .asset_context
             .process(
                 *self.source,
-                Value::new(ReferenceType::Entry(EntryReferenceSubType::Instrumentation)),
+                ReferenceType::Entry(EntryReferenceSubType::Instrumentation),
             )
             .module()
             .to_resolved()
@@ -85,7 +85,7 @@ impl InstrumentationEndpoint {
             *self.asset_context,
             self.project.project_path(),
             *userland_module,
-            "instrumentation".into(),
+            rcstr!("instrumentation"),
         )
         .to_resolved()
         .await?;
@@ -105,11 +105,12 @@ impl InstrumentationEndpoint {
         let module_graph = this.project.module_graph(*module);
 
         let evaluatable_assets = get_server_runtime_entries(
-            Value::new(ServerContextType::Instrumentation {
+            ServerContextType::Instrumentation {
                 app_dir: this.app_dir,
                 ecmascript_client_reference_transition_name: this
-                    .ecmascript_client_reference_transition_name,
-            }),
+                    .ecmascript_client_reference_transition_name
+                    .clone(),
+            },
             this.project.next_mode(),
         )
         .resolve_entries(*this.asset_context)
@@ -124,7 +125,7 @@ impl InstrumentationEndpoint {
             module.ident(),
             ChunkGroup::Entry(evaluatable_assets),
             module_graph,
-            Value::new(AvailabilityInfo::Root),
+            AvailabilityInfo::Root,
         );
 
         Ok(edge_files)
@@ -147,20 +148,21 @@ impl InstrumentationEndpoint {
             .entry_chunk_group(
                 this.project
                     .node_root()
-                    .join("server/instrumentation.js".into()),
+                    .join(rcstr!("server/instrumentation.js")),
                 get_server_runtime_entries(
-                    Value::new(ServerContextType::Instrumentation {
+                    ServerContextType::Instrumentation {
                         app_dir: this.app_dir,
                         ecmascript_client_reference_transition_name: this
-                            .ecmascript_client_reference_transition_name,
-                    }),
+                            .ecmascript_client_reference_transition_name
+                            .clone(),
+                    },
                     this.project.next_mode(),
                 )
                 .resolve_entries(*this.asset_context)
                 .with_entry(*module),
                 module_graph,
                 OutputAssets::empty(),
-                Value::new(AvailabilityInfo::Root),
+                AvailabilityInfo::Root,
             )
             .await?;
         Ok(*chunk)
@@ -188,7 +190,7 @@ impl InstrumentationEndpoint {
             let instrumentation_definition = InstrumentationDefinition {
                 files: file_paths_from_root,
                 wasm: wasm_paths_to_bindings(wasm_paths_from_root).await?,
-                name: "instrumentation".into(),
+                name: rcstr!("instrumentation"),
                 ..Default::default()
             };
             let middleware_manifest_v2 = MiddlewaresManifestV2 {
@@ -196,7 +198,7 @@ impl InstrumentationEndpoint {
                 ..Default::default()
             };
             let middleware_manifest_v2 = VirtualOutputAsset::new(
-                node_root.join("server/instrumentation/middleware-manifest.json".into()),
+                node_root.join(rcstr!("server/instrumentation/middleware-manifest.json")),
                 AssetContent::file(
                     FileContent::Content(File::from(serde_json::to_string_pretty(
                         &middleware_manifest_v2,

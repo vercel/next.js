@@ -7,6 +7,7 @@ use futures::{
 };
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
+use turbo_rcstr::rcstr;
 use turbo_tasks::{
     RawVc, ResolvedVc, TaskInput, ValueToString, Vc, duration_span, mark_finished, prevent_gc,
     trace::TraceRawVcs, util::SharedError,
@@ -163,7 +164,7 @@ async fn static_error(
         .to_string();
 
     body.push_str(
-        error_html_body(500, "Error rendering page".into(), message.into())
+        error_html_body(500, rcstr!("Error rendering page"), message.into())
             .await?
             .as_str(),
     );

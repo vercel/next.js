@@ -77,16 +77,6 @@ impl ManifestLoaderChunkItem {
     }
 }
 
-#[turbo_tasks::function]
-fn manifest_loader_chunk_reference_description() -> Vc<RcStr> {
-    Vc::cell("manifest loader chunk".into())
-}
-
-#[turbo_tasks::function]
-fn chunk_data_reference_description() -> Vc<RcStr> {
-    Vc::cell("chunk data reference".into())
-}
-
 #[turbo_tasks::value_impl]
 impl ChunkItem for ManifestLoaderChunkItem {
     #[turbo_tasks::function]

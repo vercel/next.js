@@ -2,7 +2,7 @@ use std::io::Write;
 
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc, fxindexmap};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc, fxindexmap};
 use turbo_tasks_fs::{self, File, FileSystemPath, rope::RopeBuilder};
 use turbopack::ModuleAssetContext;
 use turbopack_core::{
@@ -116,7 +116,7 @@ pub async fn get_app_page_entry(
     let mut rsc_entry = module_asset_context
         .process(
             Vc::upcast(source),
-            Value::new(ReferenceType::Internal(ResolvedVc::cell(inner_assets))),
+            ReferenceType::Internal(ResolvedVc::cell(inner_assets)),
         )
         .module();
 
@@ -196,7 +196,7 @@ async fn wrap_edge_page(
     let wrapped = asset_context
         .process(
             Vc::upcast(source),
-            Value::new(ReferenceType::Internal(ResolvedVc::cell(inner_assets))),
+            ReferenceType::Internal(ResolvedVc::cell(inner_assets)),
         )
         .module();
 

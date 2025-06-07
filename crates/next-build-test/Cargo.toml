@@ -24,18 +24,7 @@ tracing-subscriber = "0.3"
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-backend = { workspace = true }
-turbo-tasks-env = { workspace = true }
-turbo-tasks-fs = { workspace = true }
 turbo-tasks-malloc = { workspace = true }
-turbopack = { workspace = true }
-turbopack-browser = { workspace = true }
-turbopack-cli-utils = { workspace = true }
-turbopack-core = { workspace = true }
-turbopack-ecmascript = { workspace = true }
-turbopack-ecmascript-runtime = { workspace = true }
-turbopack-env = { workspace = true }
-turbopack-node = { workspace = true }
-turbopack-nodejs = { workspace = true }
 turbopack-trace-utils = { workspace = true }
 
 [build-dependencies]

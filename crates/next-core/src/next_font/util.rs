@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use serde::Deserialize;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{FileSystemPath, json::parse_json_with_source_context};
 use turbo_tasks_hash::hash_xxh3_hash64;
@@ -46,31 +46,21 @@ pub(crate) enum FontFamilyType {
 ///   e.g. `__Roboto_Fallback_c123b8`
 /// * `font_family_name` - The font name to scope, e.g. `Roboto`
 /// * `request_hash` - The hash value of the font request
-#[turbo_tasks::function]
-pub(crate) async fn get_scoped_font_family(
-    ty: Vc<FontFamilyType>,
-    font_family_name: Vc<RcStr>,
-) -> Result<Vc<RcStr>> {
-    let font_family_base = font_family_name.await?.to_string();
-    let font_family_name = match &*ty.await? {
-        FontFamilyType::WebFont => font_family_base,
-        FontFamilyType::Fallback => format!("{font_family_base} Fallback"),
-    };
-
-    Ok(Vc::cell(font_family_name.into()))
+pub(crate) fn get_scoped_font_family(ty: FontFamilyType, font_family_name: RcStr) -> RcStr {
+    match ty {
+        FontFamilyType::WebFont => font_family_name,
+        FontFamilyType::Fallback => format!("{font_family_name} Fallback").into(),
+    }
 }
 
-/// Returns a [Vc] for [String] uniquely identifying the request for the font.
-#[turbo_tasks::function]
-pub async fn get_request_id(font_family: Vc<RcStr>, request_hash: u32) -> Result<Vc<RcStr>> {
-    Ok(Vc::cell(
-        format!(
-            "{}_{:x?}",
-            font_family.await?.to_lowercase().replace(' ', "_"),
-            request_hash
-        )
-        .into(),
-    ))
+/// Returns a [RcStr] for [String] uniquely identifying the request for the font.
+pub fn get_request_id(font_family: RcStr, request_hash: u32) -> RcStr {
+    format!(
+        "{}_{:x?}",
+        font_family.to_lowercase().replace(' ', "_"),
+        request_hash
+    )
+    .into()
 }
 
 #[derive(Debug, Deserialize)]
@@ -98,12 +88,12 @@ pub(crate) async fn can_use_next_font(
         NextFontIssue {
             path: path.to_resolved().await?,
             title: StyledString::Line(vec![
-                StyledString::Code("next/font:".into()),
-                StyledString::Text(" error:".into()),
+                StyledString::Code(rcstr!("next/font:")),
+                StyledString::Text(rcstr!(" error:")),
             ])
             .resolved_cell(),
             description: StyledString::Line(vec![
-                StyledString::Text("Cannot be used within ".into()),
+                StyledString::Text(rcstr!("Cannot be used within ")),
                 StyledString::Code(request.path),
             ])
             .resolved_cell(),

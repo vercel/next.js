@@ -1,3 +1,3 @@
-module.exports = require('../../module.compiled').vendored[
-  'react-ssr'
-].ReactServerDOMWebpackClientEdge
+module.exports = (
+  require('../../module.compiled') as typeof import('../../module.compiled')
+).vendored['react-ssr']!.ReactServerDOMWebpackClientEdge

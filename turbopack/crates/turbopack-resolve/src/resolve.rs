@@ -1,4 +1,5 @@
 use anyhow::Result;
+use turbo_rcstr::rcstr;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::resolve::{
@@ -143,16 +144,16 @@ async fn base_resolve_options(
 
     let conditions = {
         let mut conditions: ResolutionConditions = [
-            ("import".into(), ConditionValue::Unknown),
-            ("require".into(), ConditionValue::Unknown),
+            (rcstr!("import"), ConditionValue::Unknown),
+            (rcstr!("require"), ConditionValue::Unknown),
         ]
         .into_iter()
         .collect();
         if opt.browser {
-            conditions.insert("browser".into(), ConditionValue::Set);
+            conditions.insert(rcstr!("browser"), ConditionValue::Set);
         }
         if opt.module {
-            conditions.insert("module".into(), ConditionValue::Set);
+            conditions.insert(rcstr!("module"), ConditionValue::Set);
         }
         if let Some(environment) = emulating {
             for condition in environment.resolve_conditions().await?.iter() {
@@ -167,7 +168,7 @@ async fn base_resolve_options(
         let prod = conditions.get("production").cloned();
         if prod.is_none() {
             conditions.insert(
-                "production".into(),
+                rcstr!("production"),
                 if matches!(dev, Some(ConditionValue::Set)) {
                     ConditionValue::Unset
                 } else {
@@ -177,7 +178,7 @@ async fn base_resolve_options(
         }
         if dev.is_none() {
             conditions.insert(
-                "development".into(),
+                rcstr!("development"),
                 if matches!(prod, Some(ConditionValue::Set)) {
                     ConditionValue::Unset
                 } else {
@@ -195,22 +196,22 @@ async fn base_resolve_options(
     } else {
         let mut ext = Vec::new();
         if opt.enable_typescript && opt.enable_react {
-            ext.push(".tsx".into());
+            ext.push(rcstr!(".tsx"));
         }
         if opt.enable_typescript {
-            ext.push(".ts".into());
+            ext.push(rcstr!(".ts"));
         }
         if opt.enable_react {
-            ext.push(".jsx".into());
+            ext.push(rcstr!(".jsx"));
         }
-        ext.push(".js".into());
+        ext.push(rcstr!(".js"));
         if opt.enable_mjs_extension {
-            ext.push(".mjs".into());
+            ext.push(rcstr!(".mjs"));
         }
         if opt.enable_node_native_modules {
-            ext.push(".node".into());
+            ext.push(rcstr!(".node"));
         }
-        ext.push(".json".into());
+        ext.push(rcstr!(".json"));
         ext
     };
     Ok(ResolveOptions {
@@ -219,7 +220,7 @@ async fn base_resolve_options(
             if *environment.resolve_node_modules().await? {
                 vec![ResolveModules::Nested(
                     root.to_resolved().await?,
-                    vec!["node_modules".into()],
+                    vec![rcstr!("node_modules")],
                 )]
             } else {
                 Vec::new()
@@ -227,7 +228,7 @@ async fn base_resolve_options(
         } else {
             let mut mods = Vec::new();
             if let Some(dir) = opt.enable_node_modules {
-                mods.push(ResolveModules::Nested(dir, vec!["node_modules".into()]));
+                mods.push(ResolveModules::Nested(dir, vec![rcstr!("node_modules")]));
             }
             mods
         },
@@ -238,16 +239,16 @@ async fn base_resolve_options(
             }];
             if opt.browser {
                 resolve_into.push(ResolveIntoPackage::MainField {
-                    field: "browser".into(),
+                    field: rcstr!("browser"),
                 });
             }
             if opt.module {
                 resolve_into.push(ResolveIntoPackage::MainField {
-                    field: "module".into(),
+                    field: rcstr!("module"),
                 });
             }
             resolve_into.push(ResolveIntoPackage::MainField {
-                field: "main".into(),
+                field: rcstr!("main"),
             });
             resolve_into
         },
@@ -257,11 +258,11 @@ async fn base_resolve_options(
                 unspecified_conditions: ConditionValue::Unset,
             }];
             if opt.browser {
-                resolve_in.push(ResolveInPackage::AliasField("browser".into()));
+                resolve_in.push(ResolveInPackage::AliasField(rcstr!("browser")));
             }
             resolve_in
         },
-        default_files: vec!["index".into()],
+        default_files: vec![rcstr!("index")],
         import_map: Some(import_map),
         resolved_map: opt.resolved_map,
         after_resolve_plugins: opt.after_resolve_plugins.clone(),

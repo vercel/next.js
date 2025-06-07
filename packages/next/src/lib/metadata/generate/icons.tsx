@@ -1,5 +1,6 @@
 import type { ResolvedMetadata } from '../types/metadata-interface'
 import type { Icon, IconDescriptor } from '../types/metadata-types'
+import { IconMark } from './icon-mark'
 
 import { MetaFilter } from './meta'
 
@@ -27,6 +28,14 @@ export function IconsMetadata({ icons }: { icons: ResolvedMetadata['icons'] }) {
   const appleList = icons.apple
   const otherList = icons.other
 
+  const hasIcon = Boolean(
+    shortcutList?.length ||
+      iconList?.length ||
+      appleList?.length ||
+      otherList?.length
+  )
+  if (!hasIcon) return null
+
   return MetaFilter([
     shortcutList
       ? shortcutList.map((icon) => IconLink({ rel: 'shortcut icon', icon }))
@@ -36,5 +45,6 @@ export function IconsMetadata({ icons }: { icons: ResolvedMetadata['icons'] }) {
       ? appleList.map((icon) => IconLink({ rel: 'apple-touch-icon', icon }))
       : null,
     otherList ? otherList.map((icon) => IconDescriptorLink({ icon })) : null,
+    hasIcon ? <IconMark /> : null,
   ])
 }

@@ -1,6 +1,7 @@
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 #![cfg(test)]
 
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::Vc;
 use turbo_tasks_fetch::{FetchErrorKind, fetch};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
@@ -18,13 +19,9 @@ async fn basic_get() {
             then.status(200).body("responsebody");
         });
 
-        let result = &*fetch(
-            Vc::cell(server.url("/foo.woff").into()),
-            Vc::cell(None),
-            Vc::cell(None),
-        )
-        .await
-        .unwrap();
+        let result = &*fetch(server.url("/foo.woff").into(), None, Vc::cell(None))
+            .await
+            .unwrap();
         resource_mock.assert();
 
         match result {
@@ -51,8 +48,8 @@ async fn sends_user_agent() {
         });
 
         let result = &*fetch(
-            Vc::cell(server.url("/foo.woff").into()),
-            Vc::cell(Some("foo".into())),
+            server.url("/foo.woff").into(),
+            Some(rcstr!("foo")),
             Vc::cell(None),
         )
         .await
@@ -81,10 +78,10 @@ async fn invalidation_does_not_invalidate() {
             then.status(200).body("responsebody");
         });
 
-        let url = Vc::cell(server.url("/foo.woff").into());
-        let user_agent = Vc::cell(Some("foo".into()));
+        let url: RcStr = server.url("/foo.woff").into();
+        let user_agent = Some(rcstr!("foo"));
         let proxy = Vc::cell(None);
-        let result = &*fetch(url, user_agent, proxy).await?;
+        let result = &*fetch(url.clone(), user_agent.clone(), proxy).await?;
         resource_mock.assert();
 
         let Ok(response_vc) = result else { panic!() };
@@ -111,8 +108,8 @@ async fn invalidation_does_not_invalidate() {
 #[tokio::test]
 async fn errors_on_failed_connection() {
     run(&REGISTRATION, || async {
-        let url = "https://doesnotexist/foo.woff";
-        let result = &*fetch(Vc::cell(url.into()), Vc::cell(None), Vc::cell(None)).await?;
+        let url = rcstr!("https://doesnotexist/foo.woff");
+        let result = &*fetch(url.clone(), None, Vc::cell(None)).await?;
         let Err(err_vc) = result else {
             panic!()
         };
@@ -122,7 +119,7 @@ async fn errors_on_failed_connection() {
 
         let issue = err_vc.to_issue(IssueSeverity::Error.into(), get_issue_context());
         assert_eq!(*issue.severity().await?, IssueSeverity::Error);
-        assert_eq!(*issue.description().await?.unwrap().await?, StyledString::Text("There was an issue establishing a connection while requesting https://doesnotexist/foo.woff.".into()));
+        assert_eq!(*issue.description().await?.unwrap().await?, StyledString::Text(rcstr!("There was an issue establishing a connection while requesting https://doesnotexist/foo.woff.")));
         anyhow::Ok(())
     })
     .await.unwrap()
@@ -132,14 +129,10 @@ async fn errors_on_failed_connection() {
 async fn errors_on_404() {
     run(&REGISTRATION, || async {
         let server = httpmock::MockServer::start();
-        let resource_url = server.url("/");
-        let result = &*fetch(
-            Vc::cell(resource_url.clone().into()),
-            Vc::cell(None),
-            Vc::cell(None),
-        )
-        .await
-        .unwrap();
+        let resource_url: RcStr = server.url("/").into();
+        let result = &*fetch(resource_url.clone(), None, Vc::cell(None))
+            .await
+            .unwrap();
         let Err(err_vc) = result else { panic!() };
         let err = &*err_vc.await?;
         assert!(matches!(*err.kind.await?, FetchErrorKind::Status(404)));
@@ -164,5 +157,5 @@ async fn errors_on_404() {
 }
 
 fn get_issue_context() -> Vc<FileSystemPath> {
-    DiskFileSystem::new("root".into(), "/".into(), vec![]).root()
+    DiskFileSystem::new(rcstr!("root"), rcstr!("/"), vec![]).root()
 }

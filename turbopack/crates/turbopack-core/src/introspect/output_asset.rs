@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 
 use super::{
@@ -25,16 +25,11 @@ impl IntrospectableOutputAsset {
     }
 }
 
-#[turbo_tasks::function]
-fn ty() -> Vc<RcStr> {
-    Vc::cell("output asset".into())
-}
-
 #[turbo_tasks::value_impl]
 impl Introspectable for IntrospectableOutputAsset {
     #[turbo_tasks::function]
     fn ty(&self) -> Vc<RcStr> {
-        ty()
+        Vc::cell(rcstr!("output asset"))
     }
 
     #[turbo_tasks::function]

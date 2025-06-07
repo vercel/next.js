@@ -48,7 +48,6 @@ export type AppLoaderOptions = {
   isDev?: true
   basePath: string
   nextConfigOutput?: NextConfig['output']
-  nextConfigExperimentalUseEarlyImport?: true
   middlewareConfig: string
   isGlobalNotFoundEnabled: true | undefined
 }
@@ -553,7 +552,6 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     preferredRegion,
     basePath,
     middlewareConfig: middlewareConfigBase64,
-    nextConfigExperimentalUseEarlyImport,
   } = loaderOptions
 
   const isGlobalNotFoundEnabled = !!loaderOptions.isGlobalNotFoundEnabled
@@ -839,25 +837,14 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     }
   )
 
-  const header =
-    nextConfigExperimentalUseEarlyImport &&
-    process.env.NODE_ENV === 'production'
-      ? // Evaluate the imported modules early in the generated code
-        collectedDeclarations
-          .map(([varName, modulePath]) => {
-            return `import * as ${varName}_ from ${JSON.stringify(
-              modulePath
-            )};\nconst ${varName} = () => ${varName}_;\n`
-          })
-          .join('')
-      : // Lazily evaluate the imported modules in the generated code
-        collectedDeclarations
-          .map(([varName, modulePath]) => {
-            return `const ${varName} = () => import(/* webpackMode: "eager" */ ${JSON.stringify(
-              modulePath
-            )});\n`
-          })
-          .join('')
+  // Lazily evaluate the imported modules in the generated code
+  const header = collectedDeclarations
+    .map(([varName, modulePath]) => {
+      return `const ${varName} = () => import(/* webpackMode: "eager" */ ${JSON.stringify(
+        modulePath
+      )});\n`
+    })
+    .join('')
 
   return header + code
 }

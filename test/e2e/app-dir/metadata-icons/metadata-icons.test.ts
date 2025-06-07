@@ -44,6 +44,27 @@ describe('app-dir - metadata-icons', () => {
     })
   })
 
+  it('should not contain icon insertion script when metadata is rendered in head', async () => {
+    const iconInsertionScript = `document.querySelectorAll('body link[rel="icon"], body link[rel="apple-touch-icon"]').forEach(el => document.head.appendChild(el))`
+
+    const suspendedHtml = await next.render('/custom-icon')
+    expect(suspendedHtml).toContain(iconInsertionScript)
+  })
+
+  it('should not contain icon replacement mark in html or after hydration', async () => {
+    const html = await next.render('/custom-icon')
+    expect(html).not.toContain('<meta name="«nxt-icon»" content=""/>')
+    expect(html).not.toContain('«nxt-icon»')
+
+    const browser = await next.browser('/custom-icon')
+    const metaTags = await browser.elementsByCss('meta')
+    // none of them has [name="«nxt-icon»"]
+    const names = await Promise.all(
+      metaTags.map((el) => el.getAttribute('name'))
+    )
+    expect(names).not.toContain('«nxt-icon»')
+  })
+
   it('should re-insert the apple icons into the head after navigation', async () => {
     const browser = await next.browser('/custom-icon')
     await browser.elementByCss('#custom-icon-sub-link').click()

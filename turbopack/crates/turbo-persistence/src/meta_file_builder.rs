@@ -4,6 +4,7 @@ use std::{
     path::Path,
 };
 
+use anyhow::{Context, Result};
 use byteorder::{BE, WriteBytesExt};
 
 use crate::static_sorted_file_builder::StaticSortedFileBuilderMeta;
@@ -34,7 +35,13 @@ impl MetaFileBuilder {
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn write(&self, file: &Path) -> io::Result<File> {
+    pub fn write(&self, db_path: &Path, seq: u32) -> Result<File> {
+        let file = db_path.join(format!("{seq:08}.meta"));
+        self.write_internal(&file)
+            .with_context(|| format!("Unable to write meta file {seq:08}.meta"))
+    }
+
+    fn write_internal(&self, file: &Path) -> io::Result<File> {
         let mut file = BufWriter::new(File::create(file)?);
         file.write_u32::<BE>(0xFE4ADA4A)?; // Magic number
         file.write_u32::<BE>(self.family)?;

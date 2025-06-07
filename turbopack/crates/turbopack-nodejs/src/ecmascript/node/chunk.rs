@@ -52,7 +52,7 @@ impl EcmascriptBuildNodeChunk {
 impl ValueToString for EcmascriptBuildNodeChunk {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell("Ecmascript Build Node Chunk".into())
+        Vc::cell(rcstr!("Ecmascript Build Node Chunk"))
     }
 }
 
@@ -82,7 +82,7 @@ impl OutputAsset for EcmascriptBuildNodeChunk {
         let ident = this.chunk.ident().with_modifier(modifier());
         Ok(this
             .chunking_context
-            .chunk_path(Some(Vc::upcast(self)), ident, ".js".into()))
+            .chunk_path(Some(Vc::upcast(self)), ident, rcstr!(".js")))
     }
 
     #[turbo_tasks::function]
@@ -129,21 +129,11 @@ impl GenerateSourceMap for EcmascriptBuildNodeChunk {
     }
 }
 
-#[turbo_tasks::function]
-fn introspectable_type() -> Vc<RcStr> {
-    Vc::cell("ecmascript build node chunk".into())
-}
-
-#[turbo_tasks::function]
-fn introspectable_details() -> Vc<RcStr> {
-    Vc::cell("generates a production EcmaScript chunk targeting Node.js".into())
-}
-
 #[turbo_tasks::value_impl]
 impl Introspectable for EcmascriptBuildNodeChunk {
     #[turbo_tasks::function]
     fn ty(&self) -> Vc<RcStr> {
-        introspectable_type()
+        Vc::cell(rcstr!("ecmascript build node chunk"))
     }
 
     #[turbo_tasks::function]
@@ -153,14 +143,16 @@ impl Introspectable for EcmascriptBuildNodeChunk {
 
     #[turbo_tasks::function]
     fn details(&self) -> Vc<RcStr> {
-        introspectable_details()
+        Vc::cell(rcstr!(
+            "generates a production EcmaScript chunk targeting Node.js"
+        ))
     }
 
     #[turbo_tasks::function]
     async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
         let mut children = FxIndexSet::default();
         let introspectable_chunk = ResolvedVc::upcast::<Box<dyn Introspectable>>(self.chunk);
-        children.insert((ResolvedVc::cell("chunk".into()), introspectable_chunk));
+        children.insert((rcstr!("chunk"), introspectable_chunk));
         Ok(Vc::cell(children))
     }
 }

@@ -18,7 +18,7 @@ use swc_core::{
     },
     quote,
 };
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -305,9 +305,9 @@ impl Issue for UnsupportedServerActionIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(
-            "Server actions (\"use server\") are not yet supported in Turbopack".into(),
-        )
+        StyledString::Text(rcstr!(
+            "Server actions (\"use server\") are not yet supported in Turbopack"
+        ))
         .cell()
     }
 

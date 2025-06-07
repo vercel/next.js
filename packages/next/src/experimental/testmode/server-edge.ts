@@ -5,8 +5,8 @@ export function interceptTestApis(): () => void {
   return interceptFetch(global.fetch)
 }
 
-export function wrapRequestHandler<T>(
-  handler: (req: Request, fn: () => T) => T
-): (req: Request, fn: () => T) => T {
+export function wrapRequestHandler<T, TRequest extends Request>(
+  handler: (req: TRequest, fn: () => T) => T
+): (req: TRequest, fn: () => T) => T {
   return (req, fn) => withRequestContext(req, reader, () => handler(req, fn))
 }

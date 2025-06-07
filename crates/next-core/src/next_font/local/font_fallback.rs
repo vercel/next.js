@@ -3,6 +3,7 @@ use allsorts::{
     font_data::{DynamicFontTableProvider, FontData},
 };
 use anyhow::{Context, Result, bail};
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 
@@ -38,7 +39,7 @@ pub(super) async fn get_font_fallbacks(
 ) -> Result<Vc<FontFallbackResult>> {
     let options = &*options_vc.await?;
     let scoped_font_family =
-        get_scoped_font_family(FontFamilyType::Fallback.cell(), options_vc.font_family());
+        get_scoped_font_family(FontFamilyType::Fallback, options_vc.font_family().await?);
 
     let mut font_fallbacks = vec![];
     match options.adjust_font_fallback {
@@ -49,8 +50,8 @@ pub(super) async fn get_font_fallbacks(
             match adjustment {
                 FontResult::Ok(adjustment) => font_fallbacks.push(
                     FontFallback::Automatic(AutomaticFontFallback {
-                        scoped_font_family: scoped_font_family.to_resolved().await?,
-                        local_font_family: ResolvedVc::cell("Arial".into()),
+                        scoped_font_family,
+                        local_font_family: rcstr!("Arial"),
                         adjustment: Some(adjustment),
                     })
                     .resolved_cell(),
@@ -67,8 +68,8 @@ pub(super) async fn get_font_fallbacks(
             match adjustment {
                 FontResult::Ok(adjustment) => font_fallbacks.push(
                     FontFallback::Automatic(AutomaticFontFallback {
-                        scoped_font_family: scoped_font_family.to_resolved().await?,
-                        local_font_family: ResolvedVc::cell("Times New Roman".into()),
+                        scoped_font_family,
+                        local_font_family: rcstr!("Times New Roman"),
                         adjustment: Some(adjustment),
                     })
                     .resolved_cell(),
@@ -193,7 +194,7 @@ fn pick_font_for_fallback_generation(
 
                 // Prefer normal style if they have the same weight
                 if used_font_distance == current_font_distance
-                    && current_descriptor.style != Some("italic".into())
+                    && current_descriptor.style != Some(rcstr!("italic"))
                 {
                     used_descriptor = current_descriptor;
                     continue;
@@ -280,18 +281,18 @@ fn parse_weight_string(weight_str: &str) -> Result<f64> {
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use turbo_rcstr::RcStr;
+    use turbo_rcstr::{RcStr, rcstr};
 
     use crate::next_font::local::{
         font_fallback::pick_font_for_fallback_generation,
         options::{FontDescriptor, FontDescriptors, FontWeight},
     };
 
-    fn generate_font_descriptor(weight: &FontWeight, style: &Option<String>) -> FontDescriptor {
+    fn generate_font_descriptor(weight: &FontWeight, style: Option<RcStr>) -> FontDescriptor {
         FontDescriptor {
-            ext: "ttf".into(),
-            path: "foo.ttf".into(),
-            style: style.clone().map(RcStr::from),
+            ext: rcstr!("ttf"),
+            path: rcstr!("foo.ttf"),
+            style,
             weight: Some(weight.clone()),
         }
     }
@@ -300,34 +301,34 @@ mod tests {
     fn test_picks_weight_closest_to_400() -> Result<()> {
         assert_eq!(
             pick_font_for_fallback_generation(&FontDescriptors::Many(vec![
-                generate_font_descriptor(&FontWeight::Fixed("300".into()), &None),
-                generate_font_descriptor(&FontWeight::Fixed("600".into()), &None)
+                generate_font_descriptor(&FontWeight::Fixed(rcstr!("300")), None),
+                generate_font_descriptor(&FontWeight::Fixed(rcstr!("600")), None)
             ]))?,
-            &generate_font_descriptor(&FontWeight::Fixed("300".into()), &None)
+            &generate_font_descriptor(&FontWeight::Fixed(rcstr!("300")), None)
         );
 
         assert_eq!(
             pick_font_for_fallback_generation(&FontDescriptors::Many(vec![
-                generate_font_descriptor(&FontWeight::Fixed("200".into()), &None),
-                generate_font_descriptor(&FontWeight::Fixed("500".into()), &None)
+                generate_font_descriptor(&FontWeight::Fixed(rcstr!("200")), None),
+                generate_font_descriptor(&FontWeight::Fixed(rcstr!("500")), None)
             ]))?,
-            &generate_font_descriptor(&FontWeight::Fixed("500".into()), &None)
+            &generate_font_descriptor(&FontWeight::Fixed(rcstr!("500")), None)
         );
 
         assert_eq!(
             pick_font_for_fallback_generation(&FontDescriptors::Many(vec![
-                generate_font_descriptor(&FontWeight::Fixed("normal".into()), &None),
-                generate_font_descriptor(&FontWeight::Fixed("700".into()), &None)
+                generate_font_descriptor(&FontWeight::Fixed(rcstr!("normal")), None),
+                generate_font_descriptor(&FontWeight::Fixed(rcstr!("700")), None)
             ]))?,
-            &generate_font_descriptor(&FontWeight::Fixed("normal".into()), &None)
+            &generate_font_descriptor(&FontWeight::Fixed(rcstr!("normal")), None)
         );
 
         assert_eq!(
             pick_font_for_fallback_generation(&FontDescriptors::Many(vec![
-                generate_font_descriptor(&FontWeight::Fixed("bold".into()), &None),
-                generate_font_descriptor(&FontWeight::Fixed("900".into()), &None)
+                generate_font_descriptor(&FontWeight::Fixed(rcstr!("bold")), None),
+                generate_font_descriptor(&FontWeight::Fixed(rcstr!("900")), None)
             ]))?,
-            &generate_font_descriptor(&FontWeight::Fixed("bold".into()), &None)
+            &generate_font_descriptor(&FontWeight::Fixed(rcstr!("bold")), None)
         );
 
         Ok(())
@@ -337,10 +338,10 @@ mod tests {
     fn test_picks_thinner_weight_if_same_distance_to_400() -> Result<()> {
         assert_eq!(
             pick_font_for_fallback_generation(&FontDescriptors::Many(vec![
-                generate_font_descriptor(&FontWeight::Fixed("300".into()), &None),
-                generate_font_descriptor(&FontWeight::Fixed("500".into()), &None)
+                generate_font_descriptor(&FontWeight::Fixed(rcstr!("300")), None),
+                generate_font_descriptor(&FontWeight::Fixed(rcstr!("500")), None)
             ]))?,
-            &generate_font_descriptor(&FontWeight::Fixed("300".into()), &None)
+            &generate_font_descriptor(&FontWeight::Fixed(rcstr!("300")), None)
         );
 
         Ok(())
@@ -350,26 +351,26 @@ mod tests {
     fn test_picks_variable_closest_to_400() -> Result<()> {
         assert_eq!(
             pick_font_for_fallback_generation(&FontDescriptors::Many(vec![
-                generate_font_descriptor(&FontWeight::Variable("100".into(), "300".into()), &None),
-                generate_font_descriptor(&FontWeight::Variable("600".into(), "900".into()), &None)
+                generate_font_descriptor(&FontWeight::Variable(rcstr!("100"), rcstr!("300")), None),
+                generate_font_descriptor(&FontWeight::Variable(rcstr!("600"), rcstr!("900")), None)
             ]))?,
-            &generate_font_descriptor(&FontWeight::Variable("100".into(), "300".into()), &None)
+            &generate_font_descriptor(&FontWeight::Variable(rcstr!("100"), rcstr!("300")), None)
         );
 
         assert_eq!(
             pick_font_for_fallback_generation(&FontDescriptors::Many(vec![
-                generate_font_descriptor(&FontWeight::Variable("100".into(), "200".into()), &None),
-                generate_font_descriptor(&FontWeight::Variable("500".into(), "800".into()), &None)
+                generate_font_descriptor(&FontWeight::Variable(rcstr!("100"), rcstr!("200")), None),
+                generate_font_descriptor(&FontWeight::Variable(rcstr!("500"), rcstr!("800")), None)
             ]))?,
-            &generate_font_descriptor(&FontWeight::Variable("500".into(), "800".into()), &None)
+            &generate_font_descriptor(&FontWeight::Variable(rcstr!("500"), rcstr!("800")), None)
         );
 
         assert_eq!(
             pick_font_for_fallback_generation(&FontDescriptors::Many(vec![
-                generate_font_descriptor(&FontWeight::Variable("100".into(), "900".into()), &None),
-                generate_font_descriptor(&FontWeight::Variable("300".into(), "399".into()), &None)
+                generate_font_descriptor(&FontWeight::Variable(rcstr!("100"), rcstr!("900")), None),
+                generate_font_descriptor(&FontWeight::Variable(rcstr!("300"), rcstr!("399")), None)
             ]))?,
-            &generate_font_descriptor(&FontWeight::Variable("100".into(), "900".into()), &None)
+            &generate_font_descriptor(&FontWeight::Variable(rcstr!("100"), rcstr!("900")), None)
         );
 
         Ok(())
@@ -379,10 +380,10 @@ mod tests {
     fn test_prefer_normal_over_italic() -> Result<()> {
         assert_eq!(
             pick_font_for_fallback_generation(&FontDescriptors::Many(vec![
-                generate_font_descriptor(&FontWeight::Fixed("400".into()), &Some("normal".into())),
-                generate_font_descriptor(&FontWeight::Fixed("400".into()), &Some("italic".into()))
+                generate_font_descriptor(&FontWeight::Fixed(rcstr!("400")), Some(rcstr!("normal"))),
+                generate_font_descriptor(&FontWeight::Fixed(rcstr!("400")), Some(rcstr!("italic")))
             ]))?,
-            &generate_font_descriptor(&FontWeight::Fixed("400".into()), &Some("normal".into()))
+            &generate_font_descriptor(&FontWeight::Fixed(rcstr!("400")), Some(rcstr!("normal")))
         );
 
         Ok(())
@@ -391,10 +392,13 @@ mod tests {
     #[test]
     fn test_errors_on_invalid_weight() -> Result<()> {
         match pick_font_for_fallback_generation(&FontDescriptors::Many(vec![
-            generate_font_descriptor(&FontWeight::Variable("normal".into(), "bold".into()), &None),
-            generate_font_descriptor(&FontWeight::Variable("400".into(), "bold".into()), &None),
-            generate_font_descriptor(&FontWeight::Variable("normal".into(), "700".into()), &None),
-            generate_font_descriptor(&FontWeight::Variable("100".into(), "abc".into()), &None),
+            generate_font_descriptor(
+                &FontWeight::Variable(rcstr!("normal"), rcstr!("bold")),
+                None,
+            ),
+            generate_font_descriptor(&FontWeight::Variable(rcstr!("400"), rcstr!("bold")), None),
+            generate_font_descriptor(&FontWeight::Variable(rcstr!("normal"), rcstr!("700")), None),
+            generate_font_descriptor(&FontWeight::Variable(rcstr!("100"), rcstr!("abc")), None),
         ])) {
             Ok(_) => panic!(),
             Err(err) => {

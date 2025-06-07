@@ -34,6 +34,11 @@ impl Code {
     pub fn has_source_map(&self) -> bool {
         !self.mappings.is_empty()
     }
+
+    /// Take the source code out of the Code.
+    pub fn into_source_code(self) -> Rope {
+        self.code
+    }
 }
 
 /// CodeBuilder provides a mutable container to append source code.

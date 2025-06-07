@@ -22,7 +22,6 @@ auto-hash-map = { workspace = true }
 futures = { workspace = true }
 hyper = { version = "0.14", features = ["full"] }
 hyper-tungstenite = "0.9.0"
-indexmap = { workspace = true, features = ["serde"] }
 mime = { workspace = true }
 mime_guess = "2.0.4"
 parking_lot = { workspace = true }

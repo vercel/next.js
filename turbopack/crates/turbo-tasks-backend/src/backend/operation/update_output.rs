@@ -69,10 +69,10 @@ impl UpdateOutputOperation {
         let current_output = get!(task, Output);
         let output_value = match output {
             Ok(RawVc::TaskOutput(output_task_id)) => {
-                if let Some(OutputValue::Output(current_task_id)) = current_output {
-                    if *current_task_id == output_task_id {
-                        return;
-                    }
+                if let Some(OutputValue::Output(current_task_id)) = current_output
+                    && *current_task_id == output_task_id
+                {
+                    return;
                 }
                 OutputValue::Output(output_task_id)
             }
@@ -81,10 +81,10 @@ impl UpdateOutputOperation {
                     task: current_task_id,
                     cell: current_cell,
                 })) = current_output
+                    && *current_task_id == output_task_id
+                    && *current_cell == cell
                 {
-                    if *current_task_id == output_task_id && *current_cell == cell {
-                        return;
-                    }
+                    return;
                 }
                 OutputValue::Cell(CellRef {
                     task: output_task_id,
@@ -95,10 +95,10 @@ impl UpdateOutputOperation {
                 panic!("Non-local tasks must not return a local Vc");
             }
             Err(err) => {
-                if let Some(OutputValue::Error(old_error)) = current_output {
-                    if old_error == &err {
-                        return;
-                    }
+                if let Some(OutputValue::Error(old_error)) = current_output
+                    && old_error == &err
+                {
+                    return;
                 }
                 OutputValue::Error(err)
             }

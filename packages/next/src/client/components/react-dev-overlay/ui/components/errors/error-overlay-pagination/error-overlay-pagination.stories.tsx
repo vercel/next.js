@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react'
 import { ErrorOverlayPagination } from './error-overlay-pagination'
 import { withShadowPortal } from '../../../storybook/with-shadow-portal'
 import { useState } from 'react'
+import type { ReadyRuntimeError } from '../../../../utils/get-error-by-type'
 
 const meta: Meta<typeof ErrorOverlayPagination> = {
   component: ErrorOverlayPagination,
@@ -15,24 +16,27 @@ export default meta
 type Story = StoryObj<typeof ErrorOverlayPagination>
 
 // Mock errors for stories
-const mockErrors = [
+const mockErrors: ReadyRuntimeError[] = [
   {
     id: 1,
     runtime: true as const,
     error: new Error('First error'),
     frames: () => Promise.resolve([]),
+    type: 'runtime',
   },
   {
     id: 2,
     runtime: true as const,
     error: new Error('Second error'),
     frames: () => Promise.resolve([]),
+    type: 'runtime',
   },
   {
     id: 3,
     runtime: true as const,
     error: new Error('Third error'),
     frames: () => Promise.resolve([]),
+    type: 'runtime',
   },
 ]
 

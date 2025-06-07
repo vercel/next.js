@@ -435,112 +435,106 @@ pub async fn parse_config_from_source(
     default_runtime: NextRuntime,
 ) -> Result<Vc<NextSourceConfig>> {
     if let Some(ecmascript_asset) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptParsable>>(module)
-    {
-        if let ParseResult::Ok {
+        && let ParseResult::Ok {
             program: Program::Module(module_ast),
             globals,
             eval_context,
             ..
         } = &*ecmascript_asset.parse_original().await?
-        {
-            for item in &module_ast.body {
-                if let Some(decl) = item
-                    .as_module_decl()
-                    .and_then(|mod_decl| mod_decl.as_export_decl())
-                    .and_then(|export_decl| export_decl.decl.as_var())
-                {
-                    for decl in &decl.decls {
-                        let decl_ident = decl.name.as_ident();
+    {
+        for item in &module_ast.body {
+            if let Some(decl) = item
+                .as_module_decl()
+                .and_then(|mod_decl| mod_decl.as_export_decl())
+                .and_then(|export_decl| export_decl.decl.as_var())
+            {
+                for decl in &decl.decls {
+                    let decl_ident = decl.name.as_ident();
 
-                        // Check if there is exported config object `export const config = {...}`
-                        // https://nextjs.org/docs/app/building-your-application/routing/middleware#matcher
-                        if decl_ident
-                            .map(|ident| &*ident.sym == "config")
-                            .unwrap_or_default()
-                        {
-                            if let Some(init) = decl.init.as_ref() {
-                                return WrapFuture::new(
-                                    async {
-                                        let value = eval_context.eval(init);
-                                        Ok(parse_config_from_js_value(
-                                            *module,
-                                            &value,
-                                            default_runtime,
-                                        )
+                    // Check if there is exported config object `export const config = {...}`
+                    // https://nextjs.org/docs/app/building-your-application/routing/middleware#matcher
+                    if decl_ident
+                        .map(|ident| &*ident.sym == "config")
+                        .unwrap_or_default()
+                    {
+                        if let Some(init) = decl.init.as_ref() {
+                            return WrapFuture::new(
+                                async {
+                                    let value = eval_context.eval(init);
+                                    Ok(parse_config_from_js_value(*module, &value, default_runtime)
                                         .await?
                                         .cell())
-                                    },
-                                    |f, ctx| GLOBALS.set(globals, || f.poll(ctx)),
-                                )
-                                .await;
-                            } else {
-                                NextSourceConfigParsingIssue::new(
-                                    module.ident(),
-                                    StyledString::Text(
-                                        "The exported config object must contain an variable \
-                                         initializer."
-                                            .into(),
-                                    )
-                                    .cell(),
-                                )
-                                .to_resolved()
-                                .await?
-                                .emit();
-                            }
-                        }
-                        // Or, check if there is segment runtime option
-                        // https://nextjs.org/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes#segment-runtime-Option
-                        else if decl_ident
-                            .map(|ident| &*ident.sym == "runtime")
-                            .unwrap_or_default()
-                        {
-                            let runtime_value_issue = NextSourceConfigParsingIssue::new(
+                                },
+                                |f, ctx| GLOBALS.set(globals, || f.poll(ctx)),
+                            )
+                            .await;
+                        } else {
+                            NextSourceConfigParsingIssue::new(
                                 module.ident(),
                                 StyledString::Text(
-                                    "The runtime property must be either \"nodejs\" or \"edge\"."
+                                    "The exported config object must contain an variable \
+                                     initializer."
                                         .into(),
                                 )
                                 .cell(),
                             )
                             .to_resolved()
-                            .await?;
-                            if let Some(init) = decl.init.as_ref() {
-                                // skipping eval and directly read the expr's value, as we know it
-                                // should be a const string
-                                if let Expr::Lit(Lit::Str(str_value)) = &**init {
-                                    let mut config = NextSourceConfig::default();
+                            .await?
+                            .emit();
+                        }
+                    }
+                    // Or, check if there is segment runtime option
+                    // https://nextjs.org/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes#segment-runtime-Option
+                    else if decl_ident
+                        .map(|ident| &*ident.sym == "runtime")
+                        .unwrap_or_default()
+                    {
+                        let runtime_value_issue = NextSourceConfigParsingIssue::new(
+                            module.ident(),
+                            StyledString::Text(
+                                "The runtime property must be either \"nodejs\" or \"edge\"."
+                                    .into(),
+                            )
+                            .cell(),
+                        )
+                        .to_resolved()
+                        .await?;
+                        if let Some(init) = decl.init.as_ref() {
+                            // skipping eval and directly read the expr's value, as we know it
+                            // should be a const string
+                            if let Expr::Lit(Lit::Str(str_value)) = &**init {
+                                let mut config = NextSourceConfig::default();
 
-                                    let runtime = str_value.value.to_string();
-                                    match runtime.as_str() {
-                                        "edge" | "experimental-edge" => {
-                                            config.runtime = NextRuntime::Edge;
-                                        }
-                                        "nodejs" => {
-                                            config.runtime = NextRuntime::NodeJs;
-                                        }
-                                        _ => {
-                                            runtime_value_issue.emit();
-                                        }
+                                let runtime = str_value.value.to_string();
+                                match runtime.as_str() {
+                                    "edge" | "experimental-edge" => {
+                                        config.runtime = NextRuntime::Edge;
                                     }
-
-                                    return Ok(config.cell());
-                                } else {
-                                    runtime_value_issue.emit();
+                                    "nodejs" => {
+                                        config.runtime = NextRuntime::NodeJs;
+                                    }
+                                    _ => {
+                                        runtime_value_issue.emit();
+                                    }
                                 }
+
+                                return Ok(config.cell());
                             } else {
-                                NextSourceConfigParsingIssue::new(
-                                    module.ident(),
-                                    StyledString::Text(
-                                        "The exported segment runtime option must contain an \
-                                         variable initializer."
-                                            .into(),
-                                    )
-                                    .cell(),
-                                )
-                                .to_resolved()
-                                .await?
-                                .emit();
+                                runtime_value_issue.emit();
                             }
+                        } else {
+                            NextSourceConfigParsingIssue::new(
+                                module.ident(),
+                                StyledString::Text(
+                                    "The exported segment runtime option must contain an variable \
+                                     initializer."
+                                        .into(),
+                                )
+                                .cell(),
+                            )
+                            .to_resolved()
+                            .await?
+                            .emit();
                         }
                     }
                 }

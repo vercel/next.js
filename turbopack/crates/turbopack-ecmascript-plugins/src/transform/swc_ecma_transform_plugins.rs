@@ -1,6 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use swc_core::ecma::ast::Program;
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString};
@@ -66,8 +67,10 @@ impl Issue for UnsupportedSwcEcmaTransformPluginsIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Unsupported SWC EcmaScript transform plugins on this platform.".into())
-            .cell()
+        StyledString::Text(rcstr!(
+            "Unsupported SWC EcmaScript transform plugins on this platform."
+        ))
+        .cell()
     }
 
     #[turbo_tasks::function]

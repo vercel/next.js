@@ -119,7 +119,7 @@ impl HmrEntryModuleReference {
 impl ValueToString for HmrEntryModuleReference {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell("entry".into())
+        Vc::cell(rcstr!("entry"))
     }
 }
 

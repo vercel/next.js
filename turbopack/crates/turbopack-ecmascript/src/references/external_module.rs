@@ -118,7 +118,7 @@ impl CachedExternalModule {
 impl Module for CachedExternalModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        let fs = VirtualFileSystem::new_with_name("externals".into());
+        let fs = VirtualFileSystem::new_with_name(rcstr!("externals"));
 
         AssetIdent::from_path(fs.root().join(self.request.clone()))
             .with_layer(rcstr!("external"))
@@ -212,7 +212,7 @@ pub struct CachedExternalModuleChunkItem {
 // Without this wrapper, VirtualFileSystem::new_with_name always returns a new filesystem
 #[turbo_tasks::function]
 fn external_fs() -> Vc<VirtualFileSystem> {
-    VirtualFileSystem::new_with_name("externals".into())
+    VirtualFileSystem::new_with_name(rcstr!("externals"))
 }
 
 #[turbo_tasks::value_impl]

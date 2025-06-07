@@ -10,13 +10,16 @@ import { DevToolsIndicator } from './components/errors/dev-tools-indicator/dev-t
 import { RenderError } from './container/runtime-error/render-error'
 import { DarkTheme } from './styles/dark-theme'
 import { useDevToolsScale } from './components/errors/dev-tools-indicator/dev-tools-info/preferences'
+import type { HydrationErrorState } from '../pages/hydration-error-state'
 
 export function DevOverlay({
   state,
   dispatch,
+  getSquashedHydrationErrorDetails,
 }: {
   state: OverlayState
   dispatch: OverlayDispatch
+  getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
 }) {
   const [scale, setScale] = useDevToolsScale()
   return (
@@ -46,6 +49,9 @@ export function DevOverlay({
               <ErrorOverlay
                 state={state}
                 dispatch={dispatch}
+                getSquashedHydrationErrorDetails={
+                  getSquashedHydrationErrorDetails
+                }
                 runtimeErrors={runtimeErrors}
                 errorCount={totalErrorCount}
               />

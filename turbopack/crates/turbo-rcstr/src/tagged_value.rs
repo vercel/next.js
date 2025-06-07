@@ -2,37 +2,37 @@
 
 use std::{num::NonZeroU8, os::raw::c_void, ptr::NonNull, slice};
 
-#[cfg(feature = "atom_size_128")]
-type RawTaggedValue = u128;
-#[cfg(any(
-    target_pointer_width = "32",
-    target_pointer_width = "16",
-    feature = "atom_size_64"
-))]
-type RawTaggedValue = u64;
-#[cfg(not(any(
-    target_pointer_width = "32",
-    target_pointer_width = "16",
-    feature = "atom_size_64",
-    feature = "atom_size_128"
-)))]
-type RawTaggedValue = usize;
+use self::raw_types::*;
 
 #[cfg(feature = "atom_size_128")]
-type RawTaggedNonZeroValue = std::num::NonZeroU128;
-#[cfg(any(
-    target_pointer_width = "32",
-    target_pointer_width = "16",
-    feature = "atom_size_64"
+mod raw_types {
+    pub type RawTaggedValue = u128;
+    pub type RawTaggedNonZeroValue = std::num::NonZeroU128;
+}
+
+#[cfg(all(
+    any(
+        target_pointer_width = "32",
+        target_pointer_width = "16",
+        feature = "atom_size_64"
+    ),
+    not(feature = "atom_size_128")
 ))]
-type RawTaggedNonZeroValue = std::num::NonZeroU64;
+mod raw_types {
+    pub type RawTaggedValue = u64;
+    pub type RawTaggedNonZeroValue = std::num::NonZeroU64;
+}
+
 #[cfg(not(any(
     target_pointer_width = "32",
     target_pointer_width = "16",
     feature = "atom_size_64",
     feature = "atom_size_128"
 )))]
-type RawTaggedNonZeroValue = std::ptr::NonNull<()>;
+mod raw_types {
+    pub type RawTaggedValue = usize;
+    pub type RawTaggedNonZeroValue = std::ptr::NonNull<()>;
+}
 
 pub(crate) const MAX_INLINE_LEN: usize = std::mem::size_of::<TaggedValue>() - 1;
 
@@ -75,6 +75,7 @@ impl TaggedValue {
     pub const fn new_tag(value: NonZeroU8) -> Self {
         let value = value.get() as RawTaggedValue;
         Self {
+            #[allow(clippy::transmute_int_to_non_zero)]
             value: unsafe { std::mem::transmute(value) },
         }
     }

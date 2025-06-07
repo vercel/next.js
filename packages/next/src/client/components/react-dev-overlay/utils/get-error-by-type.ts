@@ -1,4 +1,3 @@
-import { ACTION_UNHANDLED_ERROR, ACTION_UNHANDLED_REJECTION } from '../shared'
 import type { SupportedErrorEvent } from '../ui/container/runtime-error/render-error'
 import { getOriginalStackFrames } from './stack-frame'
 import type { OriginalStackFrame } from './stack-frame'
@@ -12,6 +11,7 @@ export type ReadyRuntimeError = {
   error: Error & { environmentName?: string }
   frames: OriginalStackFrame[] | (() => Promise<OriginalStackFrame[]>)
   componentStackFrames?: ComponentStackFrame[]
+  type: 'runtime' | 'console' | 'recoverable'
 }
 
 export const useFrames = (error: ReadyRuntimeError): OriginalStackFrame[] => {
@@ -37,58 +37,47 @@ export const useFrames = (error: ReadyRuntimeError): OriginalStackFrame[] => {
 }
 
 export async function getErrorByType(
-  ev: SupportedErrorEvent,
+  event: SupportedErrorEvent,
   isAppDir: boolean
 ): Promise<ReadyRuntimeError> {
-  const { id, event } = ev
-  switch (event.type) {
-    case ACTION_UNHANDLED_ERROR:
-    case ACTION_UNHANDLED_REJECTION: {
-      const baseError = {
-        id,
-        runtime: true,
-        error: event.reason,
-      } as const
+  const baseError = {
+    id: event.id,
+    runtime: true,
+    error: event.error,
+    type: event.type,
+  } as const
 
-      if ('use' in React) {
-        const readyRuntimeError: ReadyRuntimeError = {
-          ...baseError,
-          // createMemoizedPromise dedups calls to getOriginalStackFrames
-          frames: createMemoizedPromise(async () => {
-            return await getOriginalStackFrames(
-              event.frames,
-              getErrorSource(event.reason),
-              isAppDir
-            )
-          }),
-        }
-        if (event.type === ACTION_UNHANDLED_ERROR) {
-          readyRuntimeError.componentStackFrames = event.componentStackFrames
-        }
-        return readyRuntimeError
-      } else {
-        const readyRuntimeError: ReadyRuntimeError = {
-          ...baseError,
-          // createMemoizedPromise dedups calls to getOriginalStackFrames
-          frames: await getOriginalStackFrames(
-            event.frames,
-            getErrorSource(event.reason),
-            isAppDir
-          ),
-        }
-        if (event.type === ACTION_UNHANDLED_ERROR) {
-          readyRuntimeError.componentStackFrames = event.componentStackFrames
-        }
-        return readyRuntimeError
-      }
+  if ('use' in React) {
+    const readyRuntimeError: ReadyRuntimeError = {
+      ...baseError,
+      // createMemoizedPromise dedups calls to getOriginalStackFrames
+      frames: createMemoizedPromise(async () => {
+        return await getOriginalStackFrames(
+          event.frames,
+          getErrorSource(event.error),
+          isAppDir
+        )
+      }),
     }
-    default: {
-      break
+    if (event.componentStackFrames !== undefined) {
+      readyRuntimeError.componentStackFrames = event.componentStackFrames
     }
+    return readyRuntimeError
+  } else {
+    const readyRuntimeError: ReadyRuntimeError = {
+      ...baseError,
+      // createMemoizedPromise dedups calls to getOriginalStackFrames
+      frames: await getOriginalStackFrames(
+        event.frames,
+        getErrorSource(event.error),
+        isAppDir
+      ),
+    }
+    if (event.componentStackFrames !== undefined) {
+      readyRuntimeError.componentStackFrames = event.componentStackFrames
+    }
+    return readyRuntimeError
   }
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _: never = event
-  throw new Error('type system invariant violation')
 }
 
 function createMemoizedPromise<T>(

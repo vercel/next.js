@@ -23,12 +23,13 @@ let api: typeof import('next/dist/compiled/@opentelemetry/api')
 // the version that is bundled with Next.js.
 // the API is ~stable, so this should be fine
 if (process.env.NEXT_RUNTIME === 'edge') {
-  api = require('@opentelemetry/api')
+  api = require('@opentelemetry/api') as typeof import('@opentelemetry/api')
 } else {
   try {
-    api = require('@opentelemetry/api')
+    api = require('@opentelemetry/api') as typeof import('@opentelemetry/api')
   } catch (err) {
-    api = require('next/dist/compiled/@opentelemetry/api')
+    api =
+      require('next/dist/compiled/@opentelemetry/api') as typeof import('next/dist/compiled/@opentelemetry/api')
   }
 }
 

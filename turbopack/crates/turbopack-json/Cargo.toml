@@ -21,7 +21,6 @@ turbo-tasks-fs = { workspace = true }
 turbopack-core = { workspace = true }
 turbopack-ecmascript = { workspace = true }
 
-serde = { workspace = true }
 serde_json = { workspace = true }
 
 [build-dependencies]

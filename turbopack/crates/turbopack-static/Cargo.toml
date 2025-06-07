@@ -23,7 +23,5 @@ turbopack-core = { workspace = true }
 turbopack-css = { workspace = true }
 turbopack-ecmascript = { workspace = true }
 
-serde = { workspace = true }
-
 [build-dependencies]
 turbo-tasks-build = { workspace = true }

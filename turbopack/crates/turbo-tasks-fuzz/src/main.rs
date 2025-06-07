@@ -11,7 +11,7 @@ use clap::{Args, Parser, Subcommand};
 use rand::{Rng, RngCore, SeedableRng};
 use rustc_hash::FxHashSet;
 use tokio::time::sleep;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{NonLocalValue, ResolvedVc, TransientInstance, Vc, trace::TraceRawVcs};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
@@ -142,7 +142,7 @@ async fn fuzz_fs_watcher(args: FsWatcher) -> anyhow::Result<()> {
 
 #[turbo_tasks::function(operation)]
 fn disk_file_system_operation(fs_root: RcStr) -> Vc<DiskFileSystem> {
-    DiskFileSystem::new("project".into(), fs_root, Vec::new())
+    DiskFileSystem::new(rcstr!("project"), fs_root, Vec::new())
 }
 
 #[turbo_tasks::function(operation)]

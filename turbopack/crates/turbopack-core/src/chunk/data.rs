@@ -1,5 +1,4 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
 use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::Xxh3Hash64Hasher;
@@ -38,11 +37,6 @@ impl ChunksData {
         }
         Ok(Vc::cell(hasher.finish()))
     }
-}
-
-#[turbo_tasks::function]
-fn module_chunk_reference_description() -> Vc<RcStr> {
-    Vc::cell("module chunk".into())
 }
 
 #[turbo_tasks::value_impl]

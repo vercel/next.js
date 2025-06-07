@@ -87,25 +87,45 @@ describe.each([
         if (process.env.IS_TURBOPACK_TEST) {
           if (dependencies.sass) {
             expect(sourceMapContentParsed).toMatchInlineSnapshot(`
-             {
-               "mappings": "AAAA,iCAAiC",
-               "names": [],
-               "sourcesContent": [
-                 ".redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}",
-               ],
-               "version": 3,
-             }
+              {
+                "mappings": "AAEE,iCAKF",
+                "names": [],
+                "sourcesContent": [
+                  "$var: red;
+              .redText {
+                ::placeholder {
+                  color: $var;
+                }
+              }
+
+              .flex-parsing {
+                flex: 0 0 calc(50% - var(--vertical-gutter));
+              }
+              ",
+                ],
+                "version": 3,
+              }
             `)
           } else {
             expect(sourceMapContentParsed).toMatchInlineSnapshot(`
-             {
-               "mappings": "AAAA,iCAAiC",
-               "names": [],
-               "sourcesContent": [
-                 ".redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}",
-               ],
-               "version": 3,
-             }
+              {
+                "mappings": "AAEE,iCAKF",
+                "names": [],
+                "sourcesContent": [
+                  "$var: red;
+              .redText {
+                ::placeholder {
+                  color: $var;
+                }
+              }
+
+              .flex-parsing {
+                flex: 0 0 calc(50% - var(--vertical-gutter));
+              }
+              ",
+                ],
+                "version": 3,
+              }
             `)
           }
         } else {

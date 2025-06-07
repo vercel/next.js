@@ -24,11 +24,11 @@ impl<T> ChunkedVec<T> {
     }
 
     pub fn push(&mut self, item: T) {
-        if let Some(chunk) = self.chunks.last_mut() {
-            if chunk.len() < chunk.capacity() {
-                chunk.push(item);
-                return;
-            }
+        if let Some(chunk) = self.chunks.last_mut()
+            && chunk.len() < chunk.capacity()
+        {
+            chunk.push(item);
+            return;
         }
         let mut chunk = Vec::with_capacity(chunk_size(self.chunks.len()));
         chunk.push(item);

@@ -23,8 +23,9 @@ async function postProcessHTML(
   const postProcessors: Array<PostProcessorFunction> = [
     process.env.NEXT_RUNTIME !== 'edge' && inAmpMode && !process.env.TURBOPACK
       ? async (html: string) => {
-          const optimizeAmp = require('./optimize-amp')
-            .default as typeof import('./optimize-amp').default
+          const optimizeAmp = (
+            require('./optimize-amp') as typeof import('./optimize-amp')
+          ).default as typeof import('./optimize-amp').default
           html = await optimizeAmp!(html, renderOpts.ampOptimizerConfig)
           if (!renderOpts.ampSkipValidation && renderOpts.ampValidator) {
             await renderOpts.ampValidator(html, pathname)
@@ -35,7 +36,8 @@ async function postProcessHTML(
     process.env.NEXT_RUNTIME !== 'edge' && renderOpts.optimizeCss
       ? async (html: string) => {
           // eslint-disable-next-line import/no-extraneous-dependencies
-          const Critters = require('critters')
+          const Critters = require('critters') as typeof import('critters')
+          // @ts-expect-error -- interopRequireDefault
           const cssOptimizer = new Critters({
             ssrMode: true,
             reduceInlineStyles: false,

@@ -110,7 +110,6 @@ import {
 } from '../telemetry/events'
 import type { EventBuildFeatureUsage } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
-import { hadUnsupportedValue } from './analysis/get-page-static-info'
 import {
   createPagesMapping,
   getStaticInfoIncludingLayouts,
@@ -531,6 +530,7 @@ export interface FunctionsConfigManifest {
     {
       maxDuration?: number | undefined
       runtime?: 'nodejs'
+      regions?: string[] | string
       matchers?: Array<{
         regexp: string
         originalSource: string
@@ -772,7 +772,7 @@ async function writeFullyStaticExport(
   configOutDir: string,
   nextBuildSpan: Span
 ): Promise<void> {
-  const exportApp = require('../export')
+  const exportApp = (require('../export') as typeof import('../export'))
     .default as typeof import('../export').default
 
   await exportApp(
@@ -1868,14 +1868,26 @@ export default async function build(
                     })
                   : undefined
 
+                if (staticInfo?.hadUnsupportedValue) {
+                  errorFromUnsupportedSegmentConfig()
+                }
+
                 // If there's any thing that would contribute to the functions
                 // configuration, we need to add it to the manifest.
                 if (
                   typeof staticInfo?.runtime !== 'undefined' ||
-                  typeof staticInfo?.maxDuration !== 'undefined'
+                  typeof staticInfo?.maxDuration !== 'undefined' ||
+                  typeof staticInfo?.preferredRegion !== 'undefined'
                 ) {
+                  const regions = staticInfo?.preferredRegion
+                    ? typeof staticInfo.preferredRegion === 'string'
+                      ? [staticInfo.preferredRegion]
+                      : staticInfo.preferredRegion
+                    : undefined
+
                   functionsConfigManifest.functions[page] = {
                     maxDuration: staticInfo?.maxDuration,
+                    ...(regions && { regions }),
                   }
                 }
 
@@ -2174,13 +2186,6 @@ export default async function build(
             })
         )
 
-        if (hadUnsupportedValue) {
-          Log.error(
-            `Invalid config value exports detected, these can cause unexpected behavior from the configs not being applied. Please fix them to continue`
-          )
-          process.exit(1)
-        }
-
         const errorPageResult = await errorPageStaticResult
         const nonStaticErrorPage =
           (await errorPageHasCustomGetInitialProps) ||
@@ -2361,6 +2366,10 @@ export default async function build(
           isDev: false,
           page: 'middleware',
         })
+
+        if (staticInfo.hadUnsupportedValue) {
+          errorFromUnsupportedSegmentConfig()
+        }
 
         if (staticInfo.runtime === 'nodejs') {
           hasNodeMiddleware = true
@@ -2588,7 +2597,7 @@ export default async function build(
             )
           )
 
-          const exportApp = require('../export')
+          const exportApp = (require('../export') as typeof import('../export'))
             .default as typeof import('../export').default
 
           const exportConfig: NextConfigComplete = {
@@ -3775,6 +3784,13 @@ export default async function build(
       })
     }
   }
+}
+
+function errorFromUnsupportedSegmentConfig(): never {
+  Log.error(
+    `Invalid segment configuration export detected. This can cause unexpected behavior from the configs not being applied. You should see the relevant failures in the logs above. Please fix them to continue.`
+  )
+  process.exit(1)
 }
 
 function warnAboutTurbopackBuilds(config?: NextConfigComplete) {

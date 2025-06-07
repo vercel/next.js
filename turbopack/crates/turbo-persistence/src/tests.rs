@@ -477,3 +477,83 @@ fn persist_changes() -> Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn partial_compaction() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    const READ_COUNT: u32 = 2_000; // we'll read every 10th value, so writes are 10x this value
+    fn put(b: &WriteBatch<(u8, [u8; 4]), 1>, key: u8, value: u8) -> Result<()> {
+        for i in 0..(READ_COUNT * 10) {
+            b.put(0, (key, i.to_be_bytes()), vec![value].into())?;
+        }
+        Ok(())
+    }
+    fn check(db: &TurboPersistence, key: u8, value: u8) -> Result<()> {
+        for i in 0..READ_COUNT {
+            // read every 10th item
+            let i = i * 10;
+            assert_eq!(
+                db.get(0, &(key, i.to_be_bytes()))?.as_deref(),
+                Some(&[value][..]),
+                "Key {key} {i} expected {value}"
+            );
+        }
+        Ok(())
+    }
+
+    for i in 0..50 {
+        println!("--- Iteration {i} ---");
+        println!("Add more entries");
+        {
+            let db = TurboPersistence::open(path.to_path_buf())?;
+            let b = db.write_batch::<_, 1>()?;
+            put(&b, i, i)?;
+            put(&b, i + 1, i)?;
+            put(&b, i + 2, i)?;
+            db.commit_write_batch(b)?;
+
+            for j in 0..i {
+                check(&db, j, j)?;
+            }
+            check(&db, i, i)?;
+            check(&db, i + 1, i)?;
+            check(&db, i + 2, i)?;
+
+            db.shutdown()?;
+        }
+
+        println!("Compaction");
+        {
+            let db = TurboPersistence::open(path.to_path_buf())?;
+
+            db.compact(3.0, 3, u64::MAX)?;
+
+            for j in 0..i {
+                check(&db, j, j)?;
+            }
+            check(&db, i, i)?;
+            check(&db, i + 1, i)?;
+            check(&db, i + 2, i)?;
+
+            db.shutdown()?;
+        }
+
+        println!("Restore check");
+        {
+            let db = TurboPersistence::open(path.to_path_buf())?;
+
+            for j in 0..i {
+                check(&db, j, j)?;
+            }
+            check(&db, i, i)?;
+            check(&db, i + 1, i)?;
+            check(&db, i + 2, i)?;
+
+            db.shutdown()?;
+        }
+    }
+
+    Ok(())
+}

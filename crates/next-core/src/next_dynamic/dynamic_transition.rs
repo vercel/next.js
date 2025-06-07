@@ -1,5 +1,5 @@
 use anyhow::{Result, bail};
-use turbo_tasks::{ResolvedVc, Value, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack::{ModuleAssetContext, transition::Transition};
 use turbopack_core::{
     context::{AssetContext, ProcessResult},
@@ -49,16 +49,14 @@ impl Transition for NextDynamicTransition {
         self: Vc<Self>,
         source: Vc<Box<dyn Source>>,
         module_asset_context: Vc<ModuleAssetContext>,
-        _reference_type: Value<ReferenceType>,
+        _reference_type: ReferenceType,
     ) -> Result<Vc<ProcessResult>> {
         let module_asset_context = self.process_context(module_asset_context);
         let module = match self.await?.client_transition {
-            Some(client_transition) => client_transition.process(
-                source,
-                module_asset_context,
-                Value::new(ReferenceType::Undefined),
-            ),
-            None => module_asset_context.process(source, Value::new(ReferenceType::Undefined)),
+            Some(client_transition) => {
+                client_transition.process(source, module_asset_context, ReferenceType::Undefined)
+            }
+            None => module_asset_context.process(source, ReferenceType::Undefined),
         };
 
         Ok(match &*module.try_into_module().await? {

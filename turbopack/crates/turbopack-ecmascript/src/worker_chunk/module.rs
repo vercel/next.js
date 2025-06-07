@@ -116,6 +116,6 @@ impl ModuleReference for WorkerModuleReference {
 impl ValueToString for WorkerModuleReference {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell("worker module".into())
+        Vc::cell(rcstr!("worker module"))
     }
 }

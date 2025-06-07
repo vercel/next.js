@@ -223,6 +223,7 @@ impl RuleCondition {
 
 #[cfg(test)]
 pub mod tests {
+    use turbo_rcstr::rcstr;
     use turbo_tasks::Vc;
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
     use turbo_tasks_fs::{FileContent, FileSystem, VirtualFileSystem};
@@ -245,7 +246,7 @@ pub mod tests {
     #[turbo_tasks::function]
     pub async fn run_leaves_test() -> Result<()> {
         let fs = VirtualFileSystem::new();
-        let virtual_path = fs.root().join("foo.js".into());
+        let virtual_path = fs.root().join(rcstr!("foo.js"));
         let virtual_source = Vc::upcast::<Box<dyn Source>>(VirtualSource::new(
             virtual_path,
             AssetContent::File(FileContent::NotFound.cell().to_resolved().await?).cell(),
@@ -253,7 +254,7 @@ pub mod tests {
         .to_resolved()
         .await?;
 
-        let non_virtual_path = fs.root().join("bar.js".into());
+        let non_virtual_path = fs.root().join(rcstr!("bar.js"));
         let non_virtual_source = Vc::upcast::<Box<dyn Source>>(FileSource::new(non_virtual_path))
             .to_resolved()
             .await?;
@@ -336,7 +337,7 @@ pub mod tests {
                 condition
                     .matches(
                         virtual_source,
-                        &*fs.root().join("foo".into()).await?,
+                        &*fs.root().join(rcstr!("foo")).await?,
                         &ReferenceType::Undefined
                     )
                     .await
@@ -394,7 +395,7 @@ pub mod tests {
     #[turbo_tasks::function]
     pub async fn run_rule_condition_tree_test() -> Result<()> {
         let fs = VirtualFileSystem::new();
-        let virtual_path = fs.root().join("foo.js".into());
+        let virtual_path = fs.root().join(rcstr!("foo.js"));
         let virtual_source = Vc::upcast::<Box<dyn Source>>(VirtualSource::new(
             virtual_path,
             AssetContent::File(FileContent::NotFound.cell().to_resolved().await?).cell(),
@@ -402,7 +403,7 @@ pub mod tests {
         .to_resolved()
         .await?;
 
-        let non_virtual_path = fs.root().join("bar.js".into());
+        let non_virtual_path = fs.root().join(rcstr!("bar.js"));
         let non_virtual_source = Vc::upcast::<Box<dyn Source>>(FileSource::new(non_virtual_path))
             .to_resolved()
             .await?;

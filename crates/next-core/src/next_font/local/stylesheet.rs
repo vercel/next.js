@@ -18,7 +18,7 @@ pub(super) async fn build_stylesheet(
     css_properties: Vc<FontCssProperties>,
 ) -> Result<Vc<RcStr>> {
     let scoped_font_family =
-        get_scoped_font_family(FontFamilyType::WebFont.cell(), options.font_family());
+        get_scoped_font_family(FontFamilyType::WebFont, options.font_family().await?);
 
     Ok(Vc::cell(
         formatdoc!(
@@ -39,7 +39,7 @@ pub(super) async fn build_stylesheet(
 /// Builds a string of `@font-face` definitions for each local font file
 #[turbo_tasks::function]
 pub(super) async fn build_font_face_definitions(
-    scoped_font_family: Vc<RcStr>,
+    scoped_font_family: RcStr,
     options: Vc<NextFontLocalOptions>,
     has_size_adjust: Vc<bool>,
 ) -> Result<Vc<RcStr>> {
@@ -70,7 +70,7 @@ pub(super) async fn build_font_face_definitions(
                     {}{}
                 }}
             "#,
-            *scoped_font_family.await?,
+            scoped_font_family,
             query_str,
             ext_to_format(&font.ext)?,
             options.display,

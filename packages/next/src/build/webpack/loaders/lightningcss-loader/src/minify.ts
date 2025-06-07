@@ -66,7 +66,8 @@ export class LightningCssMinifyPlugin {
     } = compilation.compiler
 
     if (!this.transform) {
-      const { loadBindings } = require('next/dist/build/swc')
+      const { loadBindings } =
+        require('../../../../../build/swc') as typeof import('../../../../../build/swc')
       this.transform = (await loadBindings()).css.lightning.transform
     }
 
