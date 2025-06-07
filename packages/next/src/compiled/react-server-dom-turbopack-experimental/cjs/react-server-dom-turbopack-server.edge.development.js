@@ -210,24 +210,90 @@
           ((hasProperties = !0), (trimmed[key] = options[key]));
       return hasProperties ? trimmed : null;
     }
-    function prepareStackTrace(error, structuredStackTrace) {
+    function collectStackTrace(error, structuredStackTrace) {
+      for (
+        var result = [], i = framesToSkip;
+        i < structuredStackTrace.length;
+        i++
+      ) {
+        var callSite = structuredStackTrace[i],
+          _name = callSite.getFunctionName() || "<anonymous>";
+        if ("react-stack-bottom-frame" === _name) break;
+        else if (callSite.isNative()) result.push([_name, "", 0, 0, 0, 0]);
+        else {
+          if (callSite.isConstructor()) _name = "new " + _name;
+          else if (!callSite.isToplevel()) {
+            var callSite$jscomp$0 = callSite;
+            _name = callSite$jscomp$0.getTypeName();
+            var methodName = callSite$jscomp$0.getMethodName();
+            callSite$jscomp$0 = callSite$jscomp$0.getFunctionName();
+            var result$jscomp$0 = "";
+            callSite$jscomp$0
+              ? (_name &&
+                  identifierRegExp.test(callSite$jscomp$0) &&
+                  callSite$jscomp$0 !== _name &&
+                  (result$jscomp$0 += _name + "."),
+                (result$jscomp$0 += callSite$jscomp$0),
+                !methodName ||
+                  callSite$jscomp$0 === methodName ||
+                  callSite$jscomp$0.endsWith("." + methodName) ||
+                  callSite$jscomp$0.endsWith(" " + methodName) ||
+                  (result$jscomp$0 += " [as " + methodName + "]"))
+              : (_name && (result$jscomp$0 += _name + "."),
+                (result$jscomp$0 = methodName
+                  ? result$jscomp$0 + methodName
+                  : result$jscomp$0 + "<anonymous>"));
+            _name = result$jscomp$0;
+          }
+          "<anonymous>" === _name && (_name = "");
+          methodName = callSite.getScriptNameOrSourceURL() || "<anonymous>";
+          "<anonymous>" === methodName && (methodName = "");
+          callSite.isEval() &&
+            !methodName &&
+            (callSite$jscomp$0 = callSite.getEvalOrigin()) &&
+            (methodName = callSite$jscomp$0.toString() + ", <anonymous>");
+          callSite$jscomp$0 = callSite.getLineNumber() || 0;
+          result$jscomp$0 = callSite.getColumnNumber() || 0;
+          var enclosingLine =
+            "function" === typeof callSite.getEnclosingLineNumber
+              ? callSite.getEnclosingLineNumber() || 0
+              : 0;
+          callSite =
+            "function" === typeof callSite.getEnclosingColumnNumber
+              ? callSite.getEnclosingColumnNumber() || 0
+              : 0;
+          result.push([
+            _name,
+            methodName,
+            callSite$jscomp$0,
+            result$jscomp$0,
+            enclosingLine,
+            callSite
+          ]);
+        }
+      }
       error = (error.name || "Error") + ": " + (error.message || "");
-      for (var i = 0; i < structuredStackTrace.length; i++)
+      for (i = 0; i < structuredStackTrace.length; i++)
         error += "\n    at " + structuredStackTrace[i].toString();
+      collectedStackTrace = result;
       return error;
     }
     function parseStackTrace(error, skipFrames) {
-      a: {
-        var previousPrepare = Error.prepareStackTrace;
-        Error.prepareStackTrace = prepareStackTrace;
-        try {
-          var stack = String(error.stack);
-          break a;
-        } finally {
-          Error.prepareStackTrace = previousPrepare;
-        }
-        stack = void 0;
+      collectedStackTrace = null;
+      framesToSkip = skipFrames;
+      var previousPrepare = Error.prepareStackTrace;
+      Error.prepareStackTrace = collectStackTrace;
+      try {
+        var stack = String(error.stack);
+      } finally {
+        Error.prepareStackTrace = previousPrepare;
       }
+      if (null !== collectedStackTrace)
+        return (
+          (skipFrames = collectedStackTrace),
+          (collectedStackTrace = null),
+          skipFrames
+        );
       stack.startsWith("Error: react-stack-top-frame\n") &&
         (stack = stack.slice(29));
       error = stack.indexOf("react-stack-bottom-frame");
@@ -244,7 +310,9 @@
             name,
             filename,
             +(previousPrepare[3] || previousPrepare[6]),
-            +(previousPrepare[4] || previousPrepare[7])
+            +(previousPrepare[4] || previousPrepare[7]),
+            0,
+            0
           ]);
         }
       return error;
@@ -262,13 +330,12 @@
       temporaryReferences.set(reference, id);
       return reference;
     }
-    function noop$1() {}
+    function noop() {}
     function trackUsedThenable(thenableState, thenable, index) {
       index = thenableState[index];
       void 0 === index
         ? thenableState.push(thenable)
-        : index !== thenable &&
-          (thenable.then(noop$1, noop$1), (thenable = index));
+        : index !== thenable && (thenable.then(noop, noop), (thenable = index));
       switch (thenable.status) {
         case "fulfilled":
           return thenable.value;
@@ -276,7 +343,7 @@
           throw thenable.reason;
         default:
           "string" === typeof thenable.status
-            ? thenable.then(noop$1, noop$1)
+            ? thenable.then(noop, noop)
             : ((thenableState = thenable),
               (thenableState.status = "pending"),
               thenableState.then(
@@ -338,6 +405,12 @@
         if (owner) return owner;
       }
       return null;
+    }
+    function prepareStackTrace(error, structuredStackTrace) {
+      error = (error.name || "Error") + ": " + (error.message || "");
+      for (var i = 0; i < structuredStackTrace.length; i++)
+        error += "\n    at " + structuredStackTrace[i].toString();
+      return error;
     }
     function resetOwnerStackLimit() {
       var now = getCurrentTime();
@@ -545,10 +618,17 @@
       );
     }
     function filterStackTrace(request, error, skipFrames) {
+      var existing = stackTraceCache.get(error);
+      if (void 0 !== existing) {
+        error = existing.slice(0);
+        for (request = 0; request < error.length; request++)
+          error[request] = error[request].slice(0);
+        return error;
+      }
       request = request.filterStackFrame;
-      error = parseStackTrace(error, skipFrames);
-      for (skipFrames = 0; skipFrames < error.length; skipFrames++) {
-        var callsite = error[skipFrames],
+      skipFrames = parseStackTrace(error, skipFrames);
+      for (existing = 0; existing < skipFrames.length; existing++) {
+        var callsite = skipFrames[existing],
           functionName = callsite[0],
           url = callsite[1];
         if (url.startsWith("rsc://React/")) {
@@ -559,9 +639,10 @@
             (url = callsite[1] = url.slice(envIdx + 1, suffixIdx));
         }
         request(url, functionName) ||
-          (error.splice(skipFrames, 1), skipFrames--);
+          (skipFrames.splice(existing, 1), existing--);
       }
-      return error;
+      stackTraceCache.set(error, skipFrames);
+      return skipFrames;
     }
     function patchConsole(consoleInst, methodName) {
       var descriptor = Object.getOwnPropertyDescriptor(consoleInst, methodName);
@@ -666,7 +747,6 @@
     function defaultErrorHandler(error) {
       console.error(error);
     }
-    function defaultPostponeHandler() {}
     function RequestInstance(
       type,
       model,
@@ -742,7 +822,6 @@
       model = createTask(this, model, null, !1, abortSet, null, null, null);
       pingedTasks.push(model);
     }
-    function noop() {}
     function createRequest(
       model,
       bundlerConfig,
@@ -1316,6 +1395,20 @@
       getAsyncIterator = getAsyncIterator.call(children);
       return serializeAsyncIterable(request, task, children, getAsyncIterator);
     }
+    function deferTask(request, task) {
+      task = createTask(
+        request,
+        task.model,
+        task.keyPath,
+        task.implicitSlot,
+        request.abortableTasks,
+        task.debugOwner,
+        task.debugStack,
+        task.debugTask
+      );
+      pingTask(request, task);
+      return serializeLazyID(task.id);
+    }
     function outlineTask(request, task) {
       task = createTask(
         request,
@@ -1628,7 +1721,9 @@
         error = serverReference.$$location;
       error &&
         ((error = parseStackTrace(error, 1)),
-        0 < error.length && (location = error[0]));
+        0 < error.length &&
+          ((location = error[0]),
+          (location = [location[0], location[1], location[2], location[3]])));
       existingId =
         null !== location
           ? {
@@ -1717,6 +1812,7 @@
       return "$B" + newTask.id.toString(16);
     }
     function renderModel(request, task, parent, key, value) {
+      serializedSize += key.length;
       var prevKeyPath = task.keyPath,
         prevImplicitSlot = task.implicitSlot;
       try {
@@ -1814,6 +1910,7 @@
                       _existingReference + ":" + parentPropertyName),
                     _writtenObjects.set(value, elementReference)));
             }
+            if (serializedSize > MAX_ROW_SIZE) return deferTask(request, task);
             if ((_existingReference = value._debugInfo)) {
               if (null === debugID) return outlineTask(request, task);
               forwardDebugInfo(request, debugID, _existingReference);
@@ -1839,6 +1936,7 @@
                 _writtenObjects.set(request, elementReference));
             return request;
           case REACT_LAZY_TYPE:
+            if (serializedSize > MAX_ROW_SIZE) return deferTask(request, task);
             task.thenableState = null;
             elementReference = callLazyInitInDEV(value);
             if (request.status === ABORTING) throw null;
@@ -2009,6 +2107,7 @@
         return (
           (task = TaintRegistryValues.get(value)),
           void 0 !== task && throwTaintViolation(task.message),
+          (serializedSize += value.length),
           "Z" === value[value.length - 1] &&
           parent[parentPropertyName] instanceof Date
             ? "$D" + value
@@ -2658,6 +2757,7 @@
       if (task.status === PENDING$1) {
         var prevDebugID = debugID;
         task.status = RENDERING;
+        var parentSerializedSize = serializedSize;
         try {
           modelRoot = task.model;
           debugID = task.id;
@@ -2719,17 +2819,18 @@
             } else erroredTask(request, task, x);
           }
         } finally {
-          debugID = prevDebugID;
+          (debugID = prevDebugID), (serializedSize = parentSerializedSize);
         }
       }
     }
     function tryStreamTask(request, task) {
       var prevDebugID = debugID;
       debugID = null;
+      var parentSerializedSize = serializedSize;
       try {
         emitChunk(request, task, task.model);
       } finally {
-        debugID = prevDebugID;
+        (serializedSize = parentSerializedSize), (debugID = prevDebugID);
       }
     }
     function performWork(request) {
@@ -3910,7 +4011,10 @@
         }
       }
     };
-    var frameRegExp =
+    var framesToSkip = 0,
+      collectedStackTrace = null,
+      identifierRegExp = /^[a-zA-Z_$][0-9a-zA-Z_$]*$/,
+      frameRegExp =
         /^ {3} at (?:(.+) \((?:(.+):(\d+):(\d+)|<anonymous>)\)|(?:async )?(.+):(\d+):(\d+)|<anonymous>)$/,
       supportsRequestStorage = "function" === typeof AsyncLocalStorage,
       requestStorage = supportsRequestStorage ? new AsyncLocalStorage() : null,
@@ -4021,11 +4125,11 @@
             throw Error("useId can only be used while React is rendering");
           var id = currentRequest$1.identifierCount++;
           return (
-            ":" +
+            "\u00ab" +
             currentRequest$1.identifierPrefix +
             "S" +
             id.toString(32) +
-            ":"
+            "\u00bb"
           );
         },
         useHostTransitionStatus: unsupportedHook,
@@ -4112,7 +4216,8 @@
       jsxPropsParents = new WeakMap(),
       jsxChildrenParents = new WeakMap(),
       CLIENT_REFERENCE_TAG = Symbol.for("react.client.reference"),
-      doNotLimit = new WeakSet();
+      doNotLimit = new WeakSet(),
+      stackTraceCache = new WeakMap();
     (function () {
       createAsyncHook({
         init: function () {},
@@ -4155,8 +4260,11 @@
         ReactSharedInternalsServer.TaintRegistryByteLengths,
       TaintRegistryPendingRequests =
         ReactSharedInternalsServer.TaintRegistryPendingRequests,
+      defaultPostponeHandler = noop,
       currentRequest = null,
       debugID = null,
+      serializedSize = 0,
+      MAX_ROW_SIZE = 3200,
       modelRoot = !1,
       emptyRoot = {},
       chunkCache = new Map(),
