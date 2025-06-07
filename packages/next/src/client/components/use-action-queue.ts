@@ -36,7 +36,7 @@ export function useActionQueue(
   // weird implementation details.
   if (process.env.NODE_ENV !== 'production') {
     const { useAppDevRenderingIndicator } =
-      require('./react-dev-overlay/utils/dev-indicator/use-app-dev-rendering-indicator') as typeof import('./react-dev-overlay/utils/dev-indicator/use-app-dev-rendering-indicator')
+      require('../../next-devtools/userspace/use-app-dev-rendering-indicator') as typeof import('../../next-devtools/userspace/use-app-dev-rendering-indicator')
     // eslint-disable-next-line react-hooks/rules-of-hooks
     const appDevRenderingIndicator = useAppDevRenderingIndicator()
 

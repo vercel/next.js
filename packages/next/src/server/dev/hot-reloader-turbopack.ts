@@ -34,7 +34,7 @@ import { BLOCKED_PAGES } from '../../shared/lib/constants'
 import {
   getOverlayMiddleware,
   getSourceMapMiddleware,
-} from '../../client/components/react-dev-overlay/server/middleware-turbopack'
+} from './middleware-turbopack'
 import { PageNotFoundError } from '../../shared/lib/utils'
 import { debounce } from '../utils'
 import { deleteCache, deleteFromRequireCache } from './require-cache'
@@ -83,7 +83,7 @@ import {
   setBundlerFindSourceMapImplementation,
   type ModernSourceMapPayload,
 } from '../patch-error-inspect'
-import { getNextErrorFeedbackMiddleware } from '../../client/components/react-dev-overlay/server/get-next-error-feedback-middleware'
+import { getNextErrorFeedbackMiddleware } from '../../next-devtools/server/get-next-error-feedback-middleware'
 import {
   formatIssue,
   getTurbopackJsConfig,
@@ -94,10 +94,10 @@ import {
   type EntryIssuesMap,
   type TopLevelIssuesMap,
 } from '../../shared/lib/turbopack/utils'
-import { getDevOverlayFontMiddleware } from '../../client/components/react-dev-overlay/font/get-dev-overlay-font-middleware'
+import { getDevOverlayFontMiddleware } from '../../next-devtools/server/font/get-dev-overlay-font-middleware'
 import { devIndicatorServerState } from './dev-indicator-server-state'
-import { getDisableDevIndicatorMiddleware } from './dev-indicator-middleware'
-import { getRestartDevServerMiddleware } from '../../client/components/react-dev-overlay/server/restart-dev-server-middleware'
+import { getDisableDevIndicatorMiddleware } from '../../next-devtools/server/dev-indicator-middleware'
+import { getRestartDevServerMiddleware } from '../../next-devtools/server/restart-dev-server-middleware'
 // import { getSupportedBrowsers } from '../../build/utils'
 
 const wsServer = new ws.Server({ noServer: true })

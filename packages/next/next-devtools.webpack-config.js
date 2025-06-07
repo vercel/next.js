@@ -24,11 +24,9 @@ module.exports = ({ dev, ...rest }) => {
 
   const target = `browserslist:${MODERN_BROWSERSLIST_TARGET.join(', ')}`
 
+  console.log(path.join(__dirname, 'dist/compiled/next-devtools/index.js'))
   return {
-    entry: path.join(
-      __dirname,
-      'src/client/components/react-dev-overlay/entrypoint.js'
-    ),
+    entry: path.join(__dirname, 'src/next-devtools/entrypoint.ts'),
     target,
     mode: dev ? 'development' : 'production',
     output: {

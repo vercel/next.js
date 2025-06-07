@@ -6,7 +6,7 @@ import {
   setOwnerStackIfAvailable,
   setComponentStack,
   coerceError,
-} from '../components/react-dev-overlay/app/errors/stitched-error'
+} from '../../next-devtools/userspace/app/errors/stitched-error'
 import isError from '../../lib/is-error'
 import { reportGlobalError } from './report-global-error'
 

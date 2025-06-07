@@ -11,7 +11,7 @@ import {
   urlQueryToSearchParams,
 } from '../shared/lib/router/utils/querystring'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../server/dev/hot-reloader-types'
-import { RuntimeErrorHandler } from './components/react-dev-overlay/runtime-error-handler'
+import { RuntimeErrorHandler } from './dev/runtime-error-handler'
 import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from './dev/hot-reloader/shared'
 import { performFullReload } from './dev/hot-reloader/pages/hot-reloader-pages'
 import { dispatcher } from 'next/dist/compiled/next-devtools'
