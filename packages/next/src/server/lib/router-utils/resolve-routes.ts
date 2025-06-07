@@ -251,7 +251,7 @@ export function getResolveRoutes(
     }
 
     async function checkTrue() {
-      const pathname = parsedUrl.pathname || ''
+      const pathname = parsedUrl.pathname || '/'
 
       if (checkLocaleApi(pathname)) {
         return
@@ -435,7 +435,7 @@ export function getResolveRoutes(
         }
 
         if (route.name === 'check_fs') {
-          const pathname = parsedUrl.pathname || ''
+          const pathname = parsedUrl.pathname || '/'
 
           if (invokedOutputs?.has(pathname) || checkLocaleApi(pathname)) {
             return

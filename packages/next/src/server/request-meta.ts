@@ -225,6 +225,12 @@ export interface RequestMeta {
    * ErrorOverlay component to use in development for pages router
    */
   PagesErrorDebug?: PagesDevOverlayBridgeType
+
+  /**
+   * Whether server is in minimal mode (this will be replaced with more
+   * specific flags in future)
+   */
+  minimalMode?: boolean
 }
 
 /**

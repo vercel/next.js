@@ -5,12 +5,6 @@ import {
 } from '../../server/route-modules/app-route/module.compiled'
 import { RouteKind } from '../../server/route-kind'
 import { patchFetch as _patchFetch } from '../../server/lib/patch-fetch'
-
-import * as userland from 'VAR_USERLAND'
-import {
-  RouterServerContextSymbol,
-  routerServerGlobal,
-} from '../../server/lib/router-utils/router-server-context'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { getRequestMeta } from '../../server/request-meta'
 import { getTracer, type Span, SpanKind } from '../../server/lib/trace/tracer'
@@ -30,6 +24,8 @@ import {
   CachedRouteKind,
   type ResponseCacheEntry,
 } from '../../server/response-cache'
+
+import * as userland from 'VAR_USERLAND'
 
 // These are injected by the loader afterwards. This is injected as a variable
 // instead of a replacement because this could also be `undefined` instead of
@@ -112,15 +108,11 @@ export async function handler(
     buildId,
     params,
     parsedUrl,
-    serverFilesManifest,
+    nextConfig,
     prerenderManifest,
+    routerServerContext,
     isOnDemandRevalidate,
   } = prepareResult
-
-  const routerServerContext =
-    routerServerGlobal[RouterServerContextSymbol]?.[
-      process.env.__NEXT_RELATIVE_PROJECT_DIR || ''
-    ]
 
   const onInstrumentationRequestError =
     routeModule.instrumentationOnRequestError.bind(routeModule)
@@ -146,9 +138,6 @@ export async function handler(
       errorContext
     )
   }
-
-  const nextConfig =
-    routerServerContext?.nextConfig || serverFilesManifest.config
 
   const pathname = parsedUrl.pathname || '/'
   const normalizedSrcPage = normalizeAppPath(srcPage)

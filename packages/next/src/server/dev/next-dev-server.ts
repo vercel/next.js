@@ -33,6 +33,7 @@ import {
   PAGES_MANIFEST,
   APP_PATHS_MANIFEST,
   COMPILER_NAMES,
+  PRERENDER_MANIFEST,
 } from '../../shared/lib/constants'
 import Server, { WrappedBuildError } from '../next-server'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
@@ -73,6 +74,7 @@ import {
   ensureInstrumentationRegistered,
   getInstrumentationModule,
 } from '../lib/router-utils/instrumentation-globals.external'
+import type { PrerenderManifest } from '../../build'
 
 // Load ReactDevOverlay only when needed
 let PagesDevOverlayBridgeImpl: PagesDevOverlayBridgeType
@@ -848,7 +850,7 @@ export default class DevServer extends Server {
       `staticPaths-${pathname}`,
       []
     )
-      .then((res) => {
+      .then(async (res) => {
         const { prerenderedRoutes: staticPaths, fallbackMode: fallback } =
           res.value
         if (!isAppPath && this.nextConfig.output === 'export') {
@@ -869,6 +871,35 @@ export default class DevServer extends Server {
         } = {
           staticPaths: staticPaths?.map((route) => route.pathname),
           fallbackMode: fallback,
+        }
+
+        // we write the static paths to partial manifest for
+        // fallback handling inside of entry handler's
+        const rawExistingManifest = await fs.promises.readFile(
+          pathJoin(this.distDir, PRERENDER_MANIFEST),
+          'utf8'
+        )
+        const existingManifest: PrerenderManifest =
+          JSON.parse(rawExistingManifest)
+        for (const staticPath of value.staticPaths || []) {
+          existingManifest.routes[staticPath] = {} as any
+        }
+        existingManifest.dynamicRoutes[pathname] = {
+          fallback:
+            value.fallbackMode === FallbackMode.PRERENDER
+              ? `${pathname}.html`
+              : value.fallbackMode === FallbackMode.BLOCKING_STATIC_RENDER
+                ? null
+                : false,
+        } as any
+
+        const updatedManifest = JSON.stringify(existingManifest)
+
+        if (updatedManifest !== rawExistingManifest) {
+          await fs.promises.writeFile(
+            pathJoin(this.distDir, PRERENDER_MANIFEST),
+            updatedManifest
+          )
         }
         this.staticPathsCache.set(pathname, value)
         return value
