@@ -221,7 +221,7 @@ export async function fetchServerResponse(
     // We need to ensure the Webpack runtime is updated before executing client-side JS of the new page.
     if (process.env.NODE_ENV !== 'production' && !process.env.TURBOPACK) {
       await (
-        require('../react-dev-overlay/app/hot-reloader-client') as typeof import('../react-dev-overlay/app/hot-reloader-client')
+        require('../../dev/hot-reloader/app/hot-reloader-app') as typeof import('../../dev/hot-reloader/app/hot-reloader-app')
       ).waitForWebpackRuntimeHotUpdate()
     }
 

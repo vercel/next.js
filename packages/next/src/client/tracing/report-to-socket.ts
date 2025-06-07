@@ -1,4 +1,4 @@
-import { sendMessage } from '../components/react-dev-overlay/pages/websocket'
+import { sendMessage } from '../dev/hot-reloader/pages/websocket'
 import type { Span } from './tracer'
 
 export default function reportToSocket(span: Span) {
