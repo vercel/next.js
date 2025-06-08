@@ -2,10 +2,11 @@ mod counter;
 
 use std::{
     alloc::{GlobalAlloc, Layout},
+    fmt::Display,
     marker::PhantomData,
 };
 
-use self::counter::{add, flush, get, remove, update};
+use self::counter::{add, flush, global_counters, remove, update};
 
 #[derive(Default, Clone, Debug)]
 pub struct AllocationInfo {
@@ -54,6 +55,66 @@ impl AllocationCounters {
     }
 }
 
+impl Display for AllocationCounters {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        struct FormatBytes(usize);
+        impl Display for FormatBytes {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                let bytes = self.0;
+                const KB: usize = 1_024;
+                const MB: usize = 1_024 * KB;
+                const GB: usize = 1_024 * MB;
+                if bytes > GB {
+                    return write!(f, "{:.2}GiB", ((bytes / MB) as f32) / 1_024.0);
+                }
+                if bytes > MB {
+                    return write!(f, "{:.2}MiB", ((bytes / KB) as f32) / 1_024.0);
+                }
+                if bytes > KB {
+                    return write!(f, "{:.2}KiB", (bytes as f32) / 1_024.0);
+                }
+                write!(f, "{bytes}B")
+            }
+        }
+        struct FormatCount(usize);
+
+        impl Display for FormatCount {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                let num = self.0;
+                const THOUSANDS: usize = 1000;
+                const MILLIONS: usize = 1000 * THOUSANDS;
+                const BUILLIONS: usize = 1_024 * MILLIONS;
+                if num > BUILLIONS {
+                    return write!(f, "{:.2}B", ((num / MILLIONS) as f32) / 1000.0);
+                }
+                if num > MILLIONS {
+                    return write!(f, "{:.2}M", ((num / THOUSANDS) as f32) / 1000.0);
+                }
+                if num > THOUSANDS {
+                    return write!(f, "{:.2}K", (num as f32) / 1000.0);
+                }
+                write!(f, "{num}")
+            }
+        }
+        let allocated = FormatBytes(self.allocations - self.deallocations);
+        let allocations = FormatBytes(self.allocations);
+        let deallocations = FormatBytes(self.deallocations);
+        let num_allocations = FormatCount(self.allocation_count);
+        let num_deallocations = FormatCount(self.deallocation_count);
+        write!(
+            f,
+            "\
+Allocations:
+  allocated: {allocated}
+  allocations: {num_allocations}
+  deadllocations: {num_deallocations}
+  total allocation: {allocations}
+  total deallocations: {deallocations}
+"
+        )
+    }
+}
+
 /// Turbo's preferred global allocator. This is a new type instead of a type
 /// alias because you can't use type aliases to instantiate unit types (E0423).
 pub struct TurboMalloc;
@@ -61,7 +122,13 @@ pub struct TurboMalloc;
 impl TurboMalloc {
     // Returns the current amount of memory
     pub fn memory_usage() -> usize {
-        get()
+        let allocations = global_counters();
+        allocations.allocations - allocations.deallocations
+    }
+
+    // Returns statistics for all allocations in the application that are tracked by TurboMalloc.
+    pub fn global_allocation_counters() -> AllocationCounters {
+        global_counters()
     }
 
     pub fn thread_stop() {

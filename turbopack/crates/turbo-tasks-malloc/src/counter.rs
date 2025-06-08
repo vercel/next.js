@@ -1,99 +1,138 @@
 use std::{
     cell::UnsafeCell,
     ptr::NonNull,
-    sync::atomic::{AtomicUsize, Ordering},
+    sync::{
+        Mutex,
+        atomic::{AtomicUsize, Ordering},
+    },
 };
+
+use rustc_hash::FxHashSet;
 
 use crate::AllocationCounters;
 
-/// Tracks the current total amount of memory allocated through all the [ThreadLocalCounter]
-/// instances.  This is an overestimate as individual threads 'preallocate' a [TARGET_BUFFER] bytes
-/// to reduce the number of global synchronizations.  This means at any given time this might
-/// overcount by up to [MAX_BUFFER] bytes for each thread.
-static ALLOCATED: AtomicUsize = AtomicUsize::new(0);
-const KB: usize = 1024;
-/// When global counter is updates we will keep a thread-local buffer of this
-/// size.
-const TARGET_BUFFER: usize = 100 * KB;
-/// When the thread-local buffer would exceed this size, we will update the
-/// global counter.
-const MAX_BUFFER: usize = 200 * KB;
+lazy_static::lazy_static! {
+    static ref ACTIVE: Mutex<GlobalData> = Mutex::new(Default::default());
+}
 
 #[derive(Default)]
+struct GlobalData {
+    /// Data accumulated from retired threads
+    allocations: usize,
+    deallocations: usize,
+    allocation_count: usize,
+    deallocation_count: usize,
+    active: FxHashSet<RegisteredCounters>,
+}
+
+struct AtomicCounters {
+    allocations: AtomicUsize,
+    deallocations: AtomicUsize,
+    allocation_count: AtomicUsize,
+    deallocation_count: AtomicUsize,
+}
+
+impl AtomicCounters {
+    const fn new() -> Self {
+        Self {
+            allocations: AtomicUsize::new(0),
+            deallocations: AtomicUsize::new(0),
+            allocation_count: AtomicUsize::new(0),
+            deallocation_count: AtomicUsize::new(0),
+        }
+    }
+
+    fn from_allocation_counters(counter: AllocationCounters) -> Self {
+        Self {
+            allocations: AtomicUsize::new(counter.allocations),
+            deallocations: AtomicUsize::new(counter.deallocations),
+            allocation_count: AtomicUsize::new(counter.allocation_count),
+            deallocation_count: AtomicUsize::new(counter.deallocation_count),
+        }
+    }
+    fn to_allocation_counters(&self) -> AllocationCounters {
+        AllocationCounters {
+            allocations: self.allocations.load(Ordering::Relaxed),
+            deallocations: self.deallocations.load(Ordering::Relaxed),
+            allocation_count: self.allocation_count.load(Ordering::Relaxed),
+            deallocation_count: self.deallocation_count.load(Ordering::Relaxed),
+            ..Default::default()
+        }
+    }
+}
+
+#[derive(Eq, PartialEq, Hash, Copy, Clone)]
+struct RegisteredCounters(*const AtomicCounters);
+unsafe impl Send for RegisteredCounters {}
+unsafe impl Sync for RegisteredCounters {}
+
 struct ThreadLocalCounter {
-    /// Thread-local buffer of allocated bytes that have been added to the
-    /// global counter desprite not being allocated yet. It is unsigned so that
-    /// means the global counter is always equal or greater than the real
-    /// value.
-    buffer: usize,
-    allocation_counters: AllocationCounters,
+    counters: AtomicCounters,
+    registered: bool,
 }
 
 impl ThreadLocalCounter {
     const fn new() -> Self {
         Self {
-            buffer: 0,
-            allocation_counters: AllocationCounters::new(),
+            registered: false,
+            counters: AtomicCounters::new(),
         }
     }
+    #[inline]
+    #[cold]
+    fn register(&mut self) {
+        let ptr = RegisteredCounters(&self.counters as *const AtomicCounters);
+        let inserted = ACTIVE.lock().unwrap().active.insert(ptr);
+        debug_assert!(inserted);
+        self.registered = true;
+    }
+
     fn add(&mut self, size: usize) {
-        self.allocation_counters.allocations += size;
-        self.allocation_counters.allocation_count += 1;
-        if self.buffer >= size {
-            self.buffer -= size;
-        } else {
-            let offset = size - self.buffer + TARGET_BUFFER;
-            self.buffer = TARGET_BUFFER;
-            ALLOCATED.fetch_add(offset, Ordering::Relaxed);
-        }
+        self.counters.allocations.fetch_add(size, Ordering::Relaxed);
+        self.counters
+            .allocation_count
+            .fetch_add(1, Ordering::Relaxed);
     }
 
     fn remove(&mut self, size: usize) {
-        self.allocation_counters.deallocations += size;
-        self.allocation_counters.deallocation_count += 1;
-        self.buffer += size;
-        if self.buffer > MAX_BUFFER {
-            let offset = self.buffer - TARGET_BUFFER;
-            self.buffer = TARGET_BUFFER;
-            ALLOCATED.fetch_sub(offset, Ordering::Relaxed);
-        }
+        self.counters
+            .deallocations
+            .fetch_add(size, Ordering::Relaxed);
+        self.counters
+            .deallocation_count
+            .fetch_add(1, Ordering::Relaxed);
     }
 
     fn update(&mut self, old_size: usize, new_size: usize) {
-        self.allocation_counters.deallocations += old_size;
-        self.allocation_counters.deallocation_count += 1;
-        self.allocation_counters.allocations += new_size;
-        self.allocation_counters.allocation_count += 1;
-        match old_size.cmp(&new_size) {
-            std::cmp::Ordering::Equal => {}
-            std::cmp::Ordering::Less => {
-                let size = new_size - old_size;
-                if self.buffer >= size {
-                    self.buffer -= size;
-                } else {
-                    let offset = size - self.buffer + TARGET_BUFFER;
-                    self.buffer = TARGET_BUFFER;
-                    ALLOCATED.fetch_add(offset, Ordering::Relaxed);
-                }
-            }
-            std::cmp::Ordering::Greater => {
-                let size = old_size - new_size;
-                self.buffer += size;
-                if self.buffer > MAX_BUFFER {
-                    let offset = self.buffer - TARGET_BUFFER;
-                    self.buffer = TARGET_BUFFER;
-                    ALLOCATED.fetch_sub(offset, Ordering::Relaxed);
-                }
-            }
-        }
+        self.add(new_size);
+        self.remove(old_size);
     }
 
     fn unload(&mut self) {
-        if self.buffer > 0 {
-            ALLOCATED.fetch_sub(self.buffer, Ordering::Relaxed);
-            self.buffer = 0;
+        if self.registered {
+            {
+                let mut guard = ACTIVE.lock().unwrap();
+                let ptr = RegisteredCounters(&self.counters as *const AtomicCounters);
+                let removed = guard.active.remove(&ptr);
+                debug_assert!(removed);
+                guard.allocation_count += self.counters.allocation_count.load(Ordering::Relaxed);
+                guard.deallocation_count +=
+                    self.counters.deallocation_count.load(Ordering::Relaxed);
+                guard.allocations += self.counters.allocations.load(Ordering::Relaxed);
+                guard.deallocations += self.counters.deallocations.load(Ordering::Relaxed);
+            }
+            self.registered = false;
+            self.counters = AtomicCounters::new();
         }
-        self.allocation_counters = AllocationCounters::default();
+    }
+}
+
+/// For the most parts threads managed by tokio have [unload] specifically called, so this `drop`
+/// impl is really for threads not managed by tokio (rayon, chili, etc). Without we would leak
+/// memory in those cases.
+impl Drop for ThreadLocalCounter {
+    fn drop(&mut self) {
+        self.unload()
     }
 }
 
@@ -101,24 +140,51 @@ thread_local! {
   static LOCAL_COUNTER: UnsafeCell<ThreadLocalCounter> = const {UnsafeCell::new(ThreadLocalCounter::new())};
 }
 
-pub fn get() -> usize {
-    ALLOCATED.load(Ordering::Relaxed)
+/// Returns an estimate of the
+pub fn global_counters() -> AllocationCounters {
+    let mut counters = AllocationCounters::new();
+    {
+        let guard = ACTIVE.lock().unwrap();
+        counters.allocation_count = guard.allocation_count;
+        counters.deallocation_count = guard.deallocation_count;
+        counters.allocations = guard.allocations;
+        counters.deallocations = guard.deallocations;
+        for &thread in guard.active.iter() {
+            // SAFETY: the ThreadLocalAllocationCounters cannot be dropped without grabbing the
+            // lock and we are holding the lock right now so this reference is guaranteed to be
+            // valid.
+            let thread = unsafe { &*thread.0 };
+            // TODO re-evaluate memory ordering.
+            counters.allocation_count += thread.allocation_count.load(Ordering::Acquire);
+            counters.deallocation_count += thread.deallocation_count.load(Ordering::Acquire);
+            counters.allocations += thread.allocations.load(Ordering::Acquire);
+            counters.deallocations += thread.deallocations.load(Ordering::Acquire);
+        }
+    }
+    counters
 }
 
 pub fn allocation_counters() -> AllocationCounters {
-    with_local_counter(|local| local.allocation_counters.clone())
+    with_local_counter(|local| local.counters.to_allocation_counters())
 }
 
+/// Resets the counters for the current thread.
+/// This is used to exclude some work from the metrics and as such should be used sparingly.
 pub fn reset_allocation_counters(start: AllocationCounters) {
-    with_local_counter(|local| local.allocation_counters = start);
+    with_local_counter(|local| local.counters = AtomicCounters::from_allocation_counters(start));
 }
 
 fn with_local_counter<T>(f: impl FnOnce(&mut ThreadLocalCounter) -> T) -> T {
     LOCAL_COUNTER.with(|local| {
         let ptr = local.get();
-        // SAFETY: This is a thread local.
+        // SAFETY: This is a thread local, and the functions we pass do not recursively access the
+        // threadlocal
         let mut local = unsafe { NonNull::new_unchecked(ptr) };
-        f(unsafe { local.as_mut() })
+        let local = unsafe { local.as_mut() };
+        if !local.registered {
+            local.register();
+        }
+        f(local)
     })
 }
 
