@@ -120,7 +120,6 @@ export function PseudoHtmlDiff({
       data-nextjs-container-errors-pseudo-html-collapse={isDiffCollapsed}
     >
       <button
-        tabIndex={10} // match CallStackFrame
         data-nextjs-container-errors-pseudo-html-collapse-button
         onClick={() => toggleCollapseHtml(!isDiffCollapsed)}
       >
