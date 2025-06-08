@@ -366,10 +366,7 @@ function getNextFontLinkTags(
   assetPrefix: string = ''
 ) {
   if (!nextFontManifest) {
-    return {
-      preconnect: null,
-      preload: null,
-    }
+    return null
   }
 
   const appFontsEntry = nextFontManifest.pages['/_app']
@@ -379,40 +376,22 @@ function getNextFontLinkTags(
     new Set([...(appFontsEntry ?? []), ...(pageFontsEntry ?? [])])
   )
 
-  // If no font files should preload but there's an entry for the path, add a preconnect tag.
-  const preconnectToSelf = !!(
-    preloadedFontFiles.length === 0 &&
-    (appFontsEntry || pageFontsEntry)
-  )
-
-  return {
-    preconnect: preconnectToSelf ? (
-      <link
-        data-next-font={
-          nextFontManifest.pagesUsingSizeAdjust ? 'size-adjust' : ''
-        }
-        rel="preconnect"
-        href="/"
-        crossOrigin="anonymous"
-      />
-    ) : null,
-    preload: preloadedFontFiles
-      ? preloadedFontFiles.map((fontFile) => {
-          const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFile)![1]
-          return (
-            <link
-              key={fontFile}
-              rel="preload"
-              href={`${assetPrefix}/_next/${encodeURIPath(fontFile)}`}
-              as="font"
-              type={`font/${ext}`}
-              crossOrigin="anonymous"
-              data-next-font={fontFile.includes('-s') ? 'size-adjust' : ''}
-            />
-          )
-        })
-      : null,
-  }
+  return preloadedFontFiles
+    ? preloadedFontFiles.map((fontFile) => {
+      const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFile)![1]
+      return (
+        <link
+          key={fontFile}
+          rel="preload"
+          href={`${assetPrefix}/_next/${encodeURIPath(fontFile)}`}
+          as="font"
+          type={`font/${ext}`}
+          crossOrigin="anonymous"
+          data-next-font={fontFile.includes('-s') ? 'size-adjust' : ''}
+        />
+      )
+    })
+    : null
 }
 
 // Use `React.Component` to avoid errors from the RSC checks because
@@ -820,8 +799,7 @@ export class Head extends React.Component<HeadProps> {
 
         {children}
 
-        {nextFontLinkTags.preconnect}
-        {nextFontLinkTags.preload}
+        {nextFontLinkTags}
 
         {process.env.NEXT_RUNTIME !== 'edge' && inAmpMode && (
           <>
