@@ -87,7 +87,7 @@ impl OutputAsset for EcmascriptDevChunkList {
         // ident, because it must remain stable whenever a chunk is added or
         // removed from the list.
 
-        let ident = AssetIdent::new(Value::new(ident));
+        let ident = AssetIdent::new(ident);
         Ok(this
             .chunking_context
             .chunk_path(Some(Vc::upcast(self)), ident, rcstr!(".js")))
