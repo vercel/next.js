@@ -44,7 +44,7 @@ let startServerSpan: Span | undefined
  */
 async function getProcessIdUsingPort(port: number): Promise<string | null> {
   const timeoutMs = parseInt(
-    process.env.NEXT_PID_DETECTION_TIMEOUT || '100',
+    process.env.NEXT_PID_DETECTION_TIMEOUT || '250',
     10
   )
 
