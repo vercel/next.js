@@ -119,7 +119,7 @@ impl ValueToString for AssetIdent {
 #[turbo_tasks::value_impl]
 impl AssetIdent {
     #[turbo_tasks::function]
-    pub async fn new(ident: AssetIdent) -> Result<Vc<Self>> {
+    pub fn new(ident: AssetIdent) -> Vc<Self> {
         debug_assert!(
             ident.query.is_empty() || ident.query.starts_with("?"),
             "query should be empty or start with a `?`"
@@ -128,7 +128,7 @@ impl AssetIdent {
             ident.fragment.is_empty() || ident.fragment.starts_with("#"),
             "query should be empty or start with a `?`"
         );
-        Ok(ident.cell())
+        ident.cell()
     }
 
     /// Creates an [AssetIdent] from a [Vc<FileSystemPath>]
@@ -200,7 +200,7 @@ impl AssetIdent {
     pub fn with_asset(&self, key: RcStr, asset: ResolvedVc<AssetIdent>) -> Vc<Self> {
         let mut this = self.clone();
         this.add_asset(key, asset);
-        Self::new(Value::new(this))
+        Self::new(this)
     }
 
     #[turbo_tasks::function]
