@@ -8,18 +8,19 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "18.1.0",
-    "react-dom": "18.1.0",
-    "react-tsparticles": "^2.0.6",
-    "tsparticles": "^2.0.6",
-    "tsparticles-engine": "^2.0.6"
+    "next-sitemap": "^4.2.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-tsparticles": "^2.12.2",
+    "tsparticles": "^3.8.1",
+    "tsparticles-engine": "^2.12.0"
   },
   "devDependencies": {
-    "@types/node": "17.0.33",
-    "@types/react": "18.2.8",
-    "@types/react-dom": "18.0.4",
-    "eslint": "^9",
+    "@types/node": "^22.13.9",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "eslint": "^9.21.0",
     "eslint-config-next": "latest",
-    "typescript": "4.6.4"
+    "typescript": "^5.8.2"
   }
 }
