@@ -1,4 +1,4 @@
-import { useState, type HTMLProps } from 'react'
+import React, { useState, type HTMLProps } from 'react'
 import { css } from '../../../../../utils/css'
 import EyeIcon from '../../../../icons/eye-icon'
 import { STORAGE_KEY_POSITION, STORAGE_KEY_THEME } from '../../../../../shared'
@@ -237,14 +237,40 @@ export function UserPreferences({
 function Select({
   children,
   prefix,
+  value,
   ...props
 }: {
   prefix?: React.ReactNode
-} & Omit<React.HTMLProps<HTMLSelectElement>, 'prefix'>) {
+  value?: string | number
+} & Omit<React.HTMLProps<HTMLSelectElement>, 'prefix' | 'value'>) {
+  let displayValue = ''
+  let longestText = ''
+
+  React.Children.forEach(children, (child) => {
+    if (
+      React.isValidElement<React.OptionHTMLAttributes<HTMLOptionElement>>(child)
+    ) {
+      const childText = child.props.children as string
+      if (childText.length > longestText.length) {
+        longestText = childText
+      }
+      if (child.props.value === value) {
+        displayValue = childText
+      }
+    }
+  })
+
   return (
     <div className="select-button">
       {prefix}
-      <select {...props}>{children}</select>
+      <div className="select-value-wrapper">
+        <span>{longestText}</span>
+        <span>{displayValue}</span>
+      </div>
+
+      <select value={value} {...props}>
+        {children}
+      </select>
       <ChevronDownIcon />
     </div>
   )
@@ -328,18 +354,34 @@ export const DEV_TOOLS_INFO_USER_PREFERENCES_STYLES = css`
   }
 
   .select-button {
+    position: relative;
     &:focus-within {
       outline: var(--focus-ring);
     }
 
     select {
       all: unset;
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
     }
 
     option {
       color: var(--color-gray-1000);
       background: var(--color-background-100);
     }
+  }
+
+  .select-value-wrapper {
+    display: grid;
+  }
+
+  .select-value-wrapper > span {
+    grid-area: 1 / 1;
+  }
+  .select-value-wrapper > span:first-child {
+    visibility: hidden;
   }
 
   :global(.icon) {
