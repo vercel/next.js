@@ -49,7 +49,24 @@ async function getProcessIdUsingPort(port: number): Promise<string | null> {
   )
 
   const processLookupController = new AbortController()
+
   const pidPromise = new Promise<string | null>((resolve) => {
+    const handleError = (error: any, context?: string) => {
+      const errorMessage = context
+        ? `${context}: ${error.message || error}`
+        : error.message || error
+      debug('Failed to get process ID for port', port, errorMessage)
+      resolve(null)
+    }
+
+    const handleExecError = (error: any) => {
+      if (processLookupController.signal.aborted) {
+        handleError(error, 'Process lookup aborted due to timeout')
+      } else {
+        handleError(error)
+      }
+    }
+
     try {
       // Use lsof on Unix-like systems (macOS, Linux)
       if (process.platform !== 'win32') {
@@ -58,8 +75,7 @@ async function getProcessIdUsingPort(port: number): Promise<string | null> {
           { signal: processLookupController.signal },
           (error, stdout) => {
             if (error) {
-              debug('Failed to get process ID for port', port, error)
-              resolve(null)
+              handleExecError(error)
               return
             }
             const pid = stdout.trim()
@@ -73,8 +89,7 @@ async function getProcessIdUsingPort(port: number): Promise<string | null> {
           { signal: processLookupController.signal },
           (error, stdout) => {
             if (error) {
-              debug('Failed to get process ID for port', port, error)
-              resolve(null)
+              handleExecError(error)
               return
             }
             const lines = stdout.trim().split('\n')
@@ -89,8 +104,7 @@ async function getProcessIdUsingPort(port: number): Promise<string | null> {
         )
       }
     } catch (error) {
-      debug('Failed to get process ID for port', port, error)
-      resolve(null)
+      handleExecError(error, 'Unexpected error during process lookup')
     }
   })
 
