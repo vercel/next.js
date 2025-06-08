@@ -1,5 +1,8 @@
 import type { MetadataRoute } from '../../../../lib/metadata/types/metadata-interface'
-import { resolveArray } from '../../../../lib/metadata/generate/utils'
+import {
+  escapeXmlValue,
+  resolveArray,
+} from '../../../../lib/metadata/generate/utils'
 
 // convert robots data to txt string
 export function resolveRobots(data: MetadataRoute.Robots): string {
@@ -66,7 +69,7 @@ export function resolveSitemap(data: MetadataRoute.Sitemap): string {
   }
   for (const item of data) {
     content += '<url>\n'
-    content += `<loc>${item.url}</loc>\n`
+    content += `<loc>${escapeXmlValue(item.url)}</loc>\n`
 
     const languages = item.alternates?.languages
     if (languages && Object.keys(languages).length) {
