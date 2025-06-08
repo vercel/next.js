@@ -699,5 +699,10 @@
   "698": "Next DevTools: Can't dispatch %s in this environment. This is a bug in Next.js",
   "699": "Next DevTools: App Dev Overlay is already mounted. This is a bug in Next.js",
   "700": "Next DevTools: Pages Dev Overlay is already mounted. This is a bug in Next.js",
-  "701": "Failed to persist Chrome DevTools workspace UUID. The Chrome DevTools Workspace needs to be reconnected after the next page reload."
+  "701": "Invariant: app-route received invalid cache entry %s",
+  "702": "Invariant: unexpected APP_ROUTE cache data",
+  "703": "Route is configured with dynamic = error which cannot be statically generated.",
+  "704": "Route is configured with dynamic = error be statically generated.",
+  "705": "Route is configured with dynamic = error that cannot be statically generated.",
+  "706": "Failed to persist Chrome DevTools workspace UUID. The Chrome DevTools Workspace needs to be reconnected after the next page reload."
 }

@@ -121,10 +121,7 @@ import { getTracer, isBubbledError, SpanKind } from './lib/trace/tracer'
 import { BaseServerSpan } from './lib/trace/constants'
 import { I18NProvider } from './lib/i18n-provider'
 import { sendResponse } from './send-response'
-import {
-  fromNodeOutgoingHttpHeaders,
-  normalizeNextQueryParam,
-} from './web/utils'
+import { normalizeNextQueryParam } from './web/utils'
 import {
   CACHE_ONE_YEAR,
   MATCHED_PATH_HEADER,
@@ -2689,7 +2686,7 @@ export default abstract class Server<
               isAppRouteRouteModule(routeModule) ||
               isPagesRouteModule(routeModule)
             ) {
-              return result as any as ResponseCacheEntry | null
+              return null
             }
 
             if (!result) {
@@ -3151,7 +3148,8 @@ export default abstract class Server<
       process.env.NEXT_RUNTIME !== 'edge' &&
       // default _error module in dev doesn't have handler yet
       components.ComponentMod.handler &&
-      isPagesRouteModule(components.routeModule)
+      (isPagesRouteModule(components.routeModule) ||
+        isAppRouteRouteModule(components.routeModule))
     ) {
       if (
         routeModule?.isDev &&
@@ -3200,7 +3198,8 @@ export default abstract class Server<
       if (
         ssgCacheKey &&
         !(isOnDemandRevalidate && revalidateOnlyGenerated) &&
-        !isPagesRouteModule(components.routeModule)
+        !isPagesRouteModule(components.routeModule) &&
+        !isAppRouteRouteModule(components.routeModule)
       ) {
         // A cache entry might not be generated if a response is written
         // in `getInitialProps` or `getServerSideProps`, but those shouldn't
@@ -3456,34 +3455,8 @@ export default abstract class Server<
         return null
       }
     } else if (cachedData.kind === CachedRouteKind.APP_ROUTE) {
-      const headers = fromNodeOutgoingHttpHeaders(cachedData.headers)
-
-      if (!(this.minimalMode && isSSG)) {
-        headers.delete(NEXT_CACHE_TAGS_HEADER)
-      }
-
-      // If cache control is already set on the response we don't
-      // override it to allow users to customize it via next.config
-      if (
-        cacheEntry.cacheControl &&
-        !res.getHeader('Cache-Control') &&
-        !headers.get('Cache-Control')
-      ) {
-        headers.set(
-          'Cache-Control',
-          getCacheControlHeader(cacheEntry.cacheControl)
-        )
-      }
-
-      await sendResponse(
-        req,
-        res,
-        new Response(cachedData.body, {
-          headers,
-          status: cachedData.status || 200,
-        })
-      )
-      return null
+      // this is handled inside the app_route handler fully
+      throw new Error(`Invariant: unexpected APP_ROUTE cache data`)
     } else if (cachedData.kind === CachedRouteKind.APP_PAGE) {
       // If the request has a postponed state and it's a resume request we
       // should error.
