@@ -48,23 +48,29 @@ async function getProcessIdUsingPort(port: number): Promise<string | null> {
     10
   )
 
+  const processLookupController = new AbortController()
   const pidPromise = new Promise<string | null>((resolve) => {
     try {
       // Use lsof on Unix-like systems (macOS, Linux)
       if (process.platform !== 'win32') {
-        exec(`lsof -ti:${port}`, (error, stdout) => {
-          if (error) {
-            debug('Failed to get process ID for port', port, error)
-            resolve(null)
-            return
+        exec(
+          `lsof -ti:${port}`,
+          { signal: processLookupController.signal },
+          (error, stdout) => {
+            if (error) {
+              debug('Failed to get process ID for port', port, error)
+              resolve(null)
+              return
+            }
+            const pid = stdout.trim()
+            resolve(pid || null)
           }
-          const pid = stdout.trim()
-          resolve(pid || null)
-        })
+        )
       } else {
         // Use netstat on Windows
         exec(
           `netstat -ano | findstr :${port} | findstr LISTENING`,
+          { signal: processLookupController.signal },
           (error, stdout) => {
             if (error) {
               debug('Failed to get process ID for port', port, error)
@@ -88,14 +94,13 @@ async function getProcessIdUsingPort(port: number): Promise<string | null> {
     }
   })
 
-  const timeoutPromise = new Promise<string | null>((resolve) =>
-    setTimeout(() => {
-      debug('PID detection timed out after', timeoutMs, 'ms for port', port)
-      resolve(null)
-    }, timeoutMs)
-  )
+  setTimeout(() => {
+    processLookupController.abort(
+      `PID detection timed out after ${timeoutMs}ms for port ${port}.`
+    )
+  }, timeoutMs)
 
-  return Promise.race([pidPromise, timeoutPromise])
+  return pidPromise
 }
 
 export interface StartServerOptions {
