@@ -47,12 +47,20 @@ export function tryGitInit(root: string): boolean {
       stdio: 'ignore',
     })
     return true
-  } catch (e) {
+  } catch (e: unknown) {
     if (didInit) {
       try {
-        rmSync(join(root, '.git'), { recursive: true, force: true })
-      } catch (_) {}
+        rmSync(join(root, '.git'), { recursive: true, force: true });
+      } catch (removeError) {
+        console.error("Failed to remove .git directory:", removeError);
+      }
     }
-    return false
+    if (e instanceof Error) {
+      console.error("Git initialization failed:", e.message);
+    } else {
+      console.error("Git initialization failed with an unknown error.");
+    }
+    
+    return false;
   }
 }
