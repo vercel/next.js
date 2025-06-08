@@ -201,6 +201,10 @@ program
     'Path to a HTTPS certificate authority file.'
   )
   .option(
+    '--experimental-https-passphrase, <path>',
+    'Passphrase for certificate file.'
+  )
+  .option(
     '--experimental-upload-trace, <traceUrl>',
     'Reports a subset of the debugging trace to a remote HTTP URL. Includes sensitive data.'
   )

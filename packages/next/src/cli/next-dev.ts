@@ -49,6 +49,7 @@ export type NextDevOptions = {
   experimentalHttpsKey?: string
   experimentalHttpsCert?: string
   experimentalHttpsCa?: string
+  experimentalHttpsPassphrase?: string
   experimentalUploadTrace?: string
 }
 
@@ -359,12 +360,14 @@ const nextDev = async (
         const key = options.experimentalHttpsKey
         const cert = options.experimentalHttpsCert
         const rootCA = options.experimentalHttpsCa
+        const certPassphrase = options.experimentalHttpsPassphrase
 
         if (key && cert) {
           certificate = {
             key: path.resolve(key),
             cert: path.resolve(cert),
             rootCA: rootCA ? path.resolve(rootCA) : undefined,
+            passphrase: certPassphrase,
           }
         } else {
           certificate = await createSelfSignedCertificate(host)
