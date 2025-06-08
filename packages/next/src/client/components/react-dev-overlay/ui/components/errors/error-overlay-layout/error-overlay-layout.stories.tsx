@@ -15,6 +15,10 @@ type Story = StoryObj<typeof ErrorOverlayLayout>
 
 export const Default: Story = {
   args: {
+    error: {
+      name: 'ModuleNotFoundError',
+      message: "Cannot find module './missing-module'",
+    },
     errorType: 'Build Error',
     errorMessage: 'Failed to compile',
     errorCode: 'E001',
