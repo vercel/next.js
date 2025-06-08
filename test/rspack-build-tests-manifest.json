@@ -2153,6 +2153,22 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.sync-attribution.test.ts": {
+    "passed": [
+      "Dynamic IO Errors - With Minification Error Attribution with Sync IO - Guarded RSC with guarded Client sync IO should not error the build sync IO is used inside a Suspense Boundary in a client Component and nothing else is dynamic",
+      "Dynamic IO Errors - With Minification Error Attribution with Sync IO - Guarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
+      "Dynamic IO Errors - With Minification Error Attribution with Sync IO - Unguarded RSC with guarded Client sync IO should error the build with a reason related dynamic data",
+      "Dynamic IO Errors - With Minification Error Attribution with Sync IO - unguarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
+      "Dynamic IO Errors - Without Minification Error Attribution with Sync IO - Guarded RSC with guarded Client sync IO should not error the build sync IO is used inside a Suspense Boundary in a client Component and nothing else is dynamic",
+      "Dynamic IO Errors - Without Minification Error Attribution with Sync IO - Guarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
+      "Dynamic IO Errors - Without Minification Error Attribution with Sync IO - Unguarded RSC with guarded Client sync IO should error the build with a reason related dynamic data",
+      "Dynamic IO Errors - Without Minification Error Attribution with Sync IO - unguarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.sync-dynamic.test.ts": {
     "passed": [
       "Dynamic IO Errors - With Minification Sync Dynamic - With Fallback - client searchParams should not error the build when synchronously reading search params in a client component if all dynamic access is inside a Suspense boundary",
@@ -2740,6 +2756,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/global-not-found/css/global-not-found-css.test.ts": {
+    "passed": [
+      "global-not-found - css should include css for global-not-found properly"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/global-not-found/metadata/metadata.test.ts": {
     "passed": [
       "global-not-found - metadata should render metadata of global-not-found for 404"
@@ -3121,6 +3146,8 @@
   },
   "test/e2e/app-dir/metadata-icons/metadata-icons.test.ts": {
     "passed": [
+      "app-dir - metadata-icons should not contain icon insertion script when metadata is rendered in head",
+      "app-dir - metadata-icons should not contain icon replacement mark in html or after hydration",
       "app-dir - metadata-icons should only have 1 favicon link in nested page",
       "app-dir - metadata-icons should only have 1 favicon link in root page",
       "app-dir - metadata-icons should re-insert the apple icons into the head after navigation",
@@ -3254,7 +3281,7 @@
   },
   "test/e2e/app-dir/metadata-suspense/index.test.ts": {
     "passed": [
-      "app dir - metadata dynamic routes suspense should render metadata in head even root layout is wrapped with Suspense"
+      "app dir - metadata dynamic routes suspense should render metadata in head when root layout is wrapped with Suspense for bot requests"
     ],
     "failed": [],
     "pending": [],
@@ -4707,6 +4734,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/preferred-region/preferred-region.test.ts": {
+    "passed": [
+      "preferred-region should include preferredRegion in functions config manifest for nodejs runtime",
+      "preferred-region should return success from Edge API route",
+      "preferred-region should return success from Node.js API route"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/prefetch-searchparam/prefetch-searchparam.test.ts": {
     "passed": [
       "prefetch-searchparam should set prefetch cache properly on different search params"
@@ -6079,6 +6117,7 @@
       "use-cache should match the expected stale config in the page header",
       "use-cache should not read nor write cached data when draft mode is enabled js disabled",
       "use-cache should not read nor write cached data when draft mode is enabled js enabled",
+      "use-cache should not store a fetch response with no-store in the incremental cache handler during build",
       "use-cache should not use stale caches in server actions that have revalidated",
       "use-cache should override fetch with cookies/auth in use cache properly",
       "use-cache should override fetch with no-store in use cache properly",
@@ -6090,6 +6129,7 @@
       "use-cache should revalidate caches during on-demand revalidation",
       "use-cache should revalidate caches nested in unstable_cache",
       "use-cache should send an SWR cache-control header based on the revalidate and expire values",
+      "use-cache should store a fetch response without no-store in the incremental cache handler during build",
       "use-cache should update after unstable_expireTag correctly",
       "use-cache should use revalidate config in fetch",
       "use-cache usage in node_modules should cache results when using a directive with a handler",
@@ -6420,11 +6460,11 @@
     "runtimeError": false
   },
   "test/e2e/browserslist-extends/index.test.ts": {
-    "passed": [],
-    "failed": ["browserslist-extends should work"],
+    "passed": ["browserslist-extends should work"],
+    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/browserslist/browserslist.test.ts": {
     "passed": [],
@@ -7875,6 +7915,7 @@
       "next/font Fallback fontfaces local Roboto multiple weights and styles",
       "next/font Fallback fontfaces local Roboto multiple weights and styles - variable 1",
       "next/font Fallback fontfaces local Roboto multiple weights and styles - variable 2",
+      "next/font computed styles page using fallback fonts",
       "next/font computed styles page using variables",
       "next/font computed styles page with fonts",
       "next/font import values Variable font without weight range",
@@ -7888,7 +7929,7 @@
       "next/font preload page without fonts",
       "next/font should not have deprecation warning"
     ],
-    "failed": ["next/font computed styles page using fallback fonts"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10300,16 +10341,15 @@
       "CSS Customization production mode Bad CSS Customization should've compiled and prefixed",
       "CSS Customization production mode Bad CSS Customization should've emitted a source map",
       "CSS Customization production mode Basic CSS should compile successfully",
+      "CSS Customization production mode Basic CSS should've compiled and prefixed",
+      "CSS Customization production mode Basic CSS should've emitted a source map",
       "CSS Customization production mode Correct CSS Customization Array should compile successfully",
+      "CSS Customization production mode Correct CSS Customization Array should've compiled and prefixed",
+      "CSS Customization production mode Correct CSS Customization Array should've emitted a source map",
       "CSS Customization production mode Correct CSS Customization custom loader should compile successfully",
       "CSS Customization production mode Correct CSS Customization custom loader should've applied style"
     ],
-    "failed": [
-      "CSS Customization production mode Basic CSS should've compiled and prefixed",
-      "CSS Customization production mode Basic CSS should've emitted a source map",
-      "CSS Customization production mode Correct CSS Customization Array should've compiled and prefixed",
-      "CSS Customization production mode Correct CSS Customization Array should've emitted a source map"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10317,24 +10357,23 @@
   "test/integration/css-features/test/browserslist.test.js": {
     "passed": [
       "Browserslist: New production mode should have compiled successfully",
-      "Browserslist: Old production mode should have compiled successfully"
-    ],
-    "failed": [
       "Browserslist: New production mode should've emitted a single CSS file",
+      "Browserslist: Old production mode should have compiled successfully",
       "Browserslist: Old production mode should've emitted a single CSS file"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/css-features/test/css-modules.test.js": {
     "passed": [
+      "CSS Modules: Import Exports production mode should've emitted a single CSS file",
       "CSS Modules: Import Global CSS production mode should've emitted a single CSS file",
       "Custom Properties: Fail for :root {} in CSS Modules production mode should fail to build",
       "Custom Properties: Fail for global element in CSS Modules production mode should fail to build"
     ],
     "failed": [
-      "CSS Modules: Import Exports production mode should've emitted a single CSS file",
       "CSS Modules: Importing Invalid Global CSS production mode should fail to build"
     ],
     "pending": [],
@@ -10344,11 +10383,10 @@
   "test/integration/css-features/test/index.test.js": {
     "passed": [
       "Custom Properties: Pass-Through IE11 production mode should've emitted a single CSS file",
-      "Custom Properties: Pass-Through Modern production mode should've emitted a single CSS file"
-    ],
-    "failed": [
+      "Custom Properties: Pass-Through Modern production mode should've emitted a single CSS file",
       "Inline Comments: Minify production mode should've emitted a single CSS file"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10371,29 +10409,28 @@
       "Basic CSS Module Support production mode should've emitted a single CSS file",
       "Basic CSS Module Support production mode should've injected the CSS on server render",
       "CSS Module Composes Usage (Basic) production mode should have compiled successfully",
+      "CSS Module Composes Usage (Basic) production mode should've emitted a single CSS file",
+      "CSS Module Composes Usage (External) production mode should've emitted a single CSS file",
       "Can hot reload CSS Module without losing state should update CSS color without remounting <input>",
       "Catch-all Route CSS Module Usage production mode should apply styles correctly",
       "Catch-all Route CSS Module Usage production mode should have compiled successfully",
+      "Catch-all Route CSS Module Usage production mode should've emitted a single CSS file",
       "Dynamic Route CSS Module Usage production mode should apply styles correctly",
       "Dynamic Route CSS Module Usage production mode should have compiled successfully",
+      "Dynamic Route CSS Module Usage production mode should've emitted a single CSS file",
       "Has CSS Module in computed styles in Development should have CSS for page",
       "Has CSS Module in computed styles in Production production mode should have CSS for page",
       "Has CSS Module in computed styles in Production production mode should have compiled successfully",
       "Valid CSS Module Usage from within node_modules production mode should have compiled successfully",
       "Valid CSS Module Usage from within node_modules production mode should've emitted a single CSS file",
       "Valid CSS Module Usage from within node_modules production mode should've prerendered with relevant data",
+      "Valid Nested CSS Module Usage from within node_modules production mode should've emitted a single CSS file",
       "Valid Nested CSS Module Usage from within node_modules production mode should've prerendered with relevant data",
       "cssmodules-pure-no-check usage should apply styles correctly",
       "cssmodules-pure-no-check usage should have compiled successfully",
       "cssmodules-pure-no-check usage should've emitted a CSS file"
     ],
-    "failed": [
-      "CSS Module Composes Usage (Basic) production mode should've emitted a single CSS file",
-      "CSS Module Composes Usage (External) production mode should've emitted a single CSS file",
-      "Catch-all Route CSS Module Usage production mode should've emitted a single CSS file",
-      "Dynamic Route CSS Module Usage production mode should've emitted a single CSS file",
-      "Valid Nested CSS Module Usage from within node_modules production mode should've emitted a single CSS file"
-    ],
+    "failed": [],
     "pending": [
       "Invalid CSS Module Usage in node_modules production mode should fail to build",
       "Invalid Global CSS Module Usage in node_modules production mode should fail to build"
@@ -10409,17 +10446,17 @@
       "Basic Global Support with special characters in path production mode useLightnincsss(true) should've emitted a single CSS file",
       "Basic Global Support with src/ dir production mode useLightnincsss(false) should've emitted a single CSS file",
       "Basic Global Support with src/ dir production mode useLightnincsss(true) should've emitted a single CSS file",
-      "Multi Global Support (reversed) production mode useLightnincsss(true) should've emitted a single CSS file",
-      "Multi Global Support production mode useLightnincsss(true) should've emitted a single CSS file"
-    ],
-    "failed": [
       "CSS URL via `file-loader` and asset prefix (1) production mode should've emitted expected files",
       "CSS URL via `file-loader` and asset prefix (2) production mode should've emitted expected files",
       "CSS URL via `file-loader` production mode useLightnincsss(false) should've emitted expected files",
-      "CSS URL via `file-loader` production mode useLightnincsss(true) should've emitted expected files",
       "Multi Global Support (reversed) production mode useLightnincsss(false) should've emitted a single CSS file",
+      "Multi Global Support (reversed) production mode useLightnincsss(true) should've emitted a single CSS file",
       "Multi Global Support production mode useLightnincsss(false) should've emitted a single CSS file",
-      "Nested @import() Global Support production mode useLightnincsss(false) should've emitted a single CSS file",
+      "Multi Global Support production mode useLightnincsss(true) should've emitted a single CSS file",
+      "Nested @import() Global Support production mode useLightnincsss(false) should've emitted a single CSS file"
+    ],
+    "failed": [
+      "CSS URL via `file-loader` production mode useLightnincsss(true) should've emitted expected files",
       "Nested @import() Global Support production mode useLightnincsss(true) should've emitted a single CSS file"
     ],
     "pending": [],
@@ -10443,6 +10480,7 @@
       "CSS Property Ordering production mode useLightnincsss(true) should have the border width (property ordering)",
       "CSS Support production mode Good CSS Import from node_modules useLightnincsss(false) should've emitted a single CSS file",
       "CSS Support production mode Good CSS Import from node_modules useLightnincsss(true) should've emitted a single CSS file",
+      "CSS Support production mode Good Nested CSS Import from node_modules useLightnincsss(false) should've emitted a single CSS file",
       "CSS Support production mode Good Nested CSS Import from node_modules useLightnincsss(true) should've emitted a single CSS file",
       "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(false) should have CSS for page",
       "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(false) should've preloaded the CSS file and injected it in <head>",
@@ -10453,8 +10491,7 @@
     ],
     "failed": [
       "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(false) should've compiled and prefixed",
-      "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(true) should've compiled and prefixed",
-      "CSS Support production mode Good Nested CSS Import from node_modules useLightnincsss(false) should've emitted a single CSS file"
+      "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(true) should've compiled and prefixed"
     ],
     "pending": [],
     "flakey": [],
@@ -10498,11 +10535,10 @@
       "Ordering with Global CSS and Modules (prod) production mode useLightnincsss(false) should have the correct color (css ordering)",
       "Ordering with Global CSS and Modules (prod) production mode useLightnincsss(true) should have compiled successfully",
       "Ordering with Global CSS and Modules (prod) production mode useLightnincsss(true) should have the correct color (css ordering)",
-      "should handle unresolved files gracefully production mode should build correctly"
-    ],
-    "failed": [
+      "should handle unresolved files gracefully production mode should build correctly",
       "should handle unresolved files gracefully production mode should have correct file references in CSS output"
     ],
+    "failed": [],
     "pending": [
       "CSS Modules Composes Ordering useLightnincsss(false) development mode should have correct color on index page (on hover)",
       "CSS Modules Composes Ordering useLightnincsss(false) development mode should have correct color on index page (on load)",
@@ -17735,10 +17771,11 @@
       "server-side dev errors should show server-side error for gssp page correctly",
       "server-side dev errors should show server-side error for uncaught empty exception correctly",
       "server-side dev errors should show server-side error for uncaught empty rejection correctly",
-      "server-side dev errors should show server-side error for uncaught exception correctly",
+      "server-side dev errors should show server-side error for uncaught exception correctly"
+    ],
+    "failed": [
       "server-side dev errors should show server-side error for uncaught rejection correctly"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false

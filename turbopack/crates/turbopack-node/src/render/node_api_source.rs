@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde_json::Value as JsonValue;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexSet, ResolvedVc, Value, Vc};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{FxIndexSet, ResolvedVc, Vc};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::introspect::{
@@ -107,11 +107,7 @@ impl GetContentSourceContent for NodeApiContentSource {
     }
 
     #[turbo_tasks::function]
-    async fn get(
-        &self,
-        path: RcStr,
-        data: Value<ContentSourceData>,
-    ) -> Result<Vc<ContentSourceContent>> {
+    async fn get(&self, path: RcStr, data: ContentSourceData) -> Result<Vc<ContentSourceContent>> {
         let Some(params) = &*self.route_match.params(path.clone()).await? else {
             anyhow::bail!("Non matching path provided")
         };
@@ -123,7 +119,7 @@ impl GetContentSourceContent for NodeApiContentSource {
             raw_query: Some(raw_query),
             body: Some(body),
             ..
-        } = &*data
+        } = &data
         else {
             anyhow::bail!("Missing request data")
         };
@@ -156,16 +152,11 @@ impl GetContentSourceContent for NodeApiContentSource {
     }
 }
 
-#[turbo_tasks::function]
-fn introspectable_type() -> Vc<RcStr> {
-    Vc::cell("node api content source".into())
-}
-
 #[turbo_tasks::value_impl]
 impl Introspectable for NodeApiContentSource {
     #[turbo_tasks::function]
     fn ty(&self) -> Vc<RcStr> {
-        introspectable_type()
+        Vc::cell(rcstr!("node api content source"))
     }
 
     #[turbo_tasks::function]
@@ -190,13 +181,13 @@ impl Introspectable for NodeApiContentSource {
         for &entry in self.entry.entries().await?.iter() {
             let entry = entry.await?;
             set.insert((
-                ResolvedVc::cell("module".into()),
+                rcstr!("module"),
                 IntrospectableModule::new(Vc::upcast(*entry.module))
                     .to_resolved()
                     .await?,
             ));
             set.insert((
-                ResolvedVc::cell("intermediate asset".into()),
+                rcstr!("intermediate asset"),
                 IntrospectableOutputAsset::new(get_intermediate_asset(
                     *entry.chunking_context,
                     Vc::upcast(*entry.module),

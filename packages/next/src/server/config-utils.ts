@@ -1,7 +1,8 @@
 let installed: boolean = false
 
 export function loadWebpackHook() {
-  const { init: initWebpack } = require('next/dist/compiled/webpack/webpack')
+  const { init: initWebpack } =
+    require('next/dist/compiled/webpack/webpack') as typeof import('next/dist/compiled/webpack/webpack')
   if (installed) {
     return
   }
@@ -10,7 +11,9 @@ export function loadWebpackHook() {
 
   // hook the Node.js require so that webpack requires are
   // routed to the bundled and now initialized webpack version
-  require('../server/require-hook').addHookAliases(
+  ;(
+    require('../server/require-hook') as typeof import('../server/require-hook')
+  ).addHookAliases(
     [
       ['webpack', 'next/dist/compiled/webpack/webpack-lib'],
       ['webpack/package', 'next/dist/compiled/webpack/package'],

@@ -66,8 +66,24 @@ export function UserPreferences({
     setScale(value)
   }
 
+  function handleRestartDevServer() {
+    let endpoint = '/__nextjs_restart_dev'
+
+    if (process.env.__NEXT_TURBOPACK_PERSISTENT_CACHE) {
+      endpoint = '/__nextjs_restart_dev?invalidatePersistentCache'
+    }
+
+    fetch(endpoint, {
+      method: 'POST',
+    }).then(() => {
+      // TODO: poll server status and reload when the server is back up.
+      // https://github.com/vercel/next.js/pull/80005
+    })
+  }
+
   return (
     <DevToolsInfo title="Preferences" {...props}>
+      <h2 className="dev-tools-info-section-title">General</h2>
       <div className="preferences-container">
         <div className="preference-section">
           <div className="preference-header">
@@ -165,6 +181,55 @@ export function UserPreferences({
           </div>
         </div>
       </div>
+      <h2 className="dev-tools-info-section-title">Development Server</h2>
+      <div className="preferences-container">
+        <div className="preference-section">
+          <div className="preference-header">
+            <label id="restart-dev-server">Restart Dev Server</label>
+            <p className="preference-description">
+              Restarts the development server without needing to leave the
+              browser.
+            </p>
+          </div>
+          <div className="preference-control">
+            <button
+              aria-describedby="restart-dev-server"
+              title="Restarts the development server without needing to leave the browser."
+              name="restart-dev-server"
+              data-restart-dev-server
+              className="action-button"
+              onClick={handleRestartDevServer}
+            >
+              <span>Restart</span>
+            </button>
+          </div>
+        </div>
+      </div>
+      {process.env.__NEXT_TURBOPACK_PERSISTENT_CACHE ? (
+        <div className="preferences-container">
+          <div className="preference-section">
+            <div className="preference-header">
+              <label id="reset-bundler-cache">Reset Bundler Cache</label>
+              <p className="preference-description">
+                Clears the bundler cache and restarts the dev server. Helpful if
+                you are seeing stale errors or changes are not appearing.
+              </p>
+            </div>
+            <div className="preference-control">
+              <button
+                aria-describedby="reset-bundler-cache"
+                title="Clears the bundler cache and restarts the dev server. Helpful if you are seeing stale errors or changes are not appearing."
+                name="reset-bundler-cache"
+                data-reset-bundler-cache
+                className="action-button"
+                onClick={handleRestartDevServer}
+              >
+                <span>Reset Cache</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </DevToolsInfo>
   )
 }
@@ -200,7 +265,6 @@ function ThemeIcon({ theme }: { theme: 'dark' | 'light' | 'system' }) {
 
 export const DEV_TOOLS_INFO_USER_PREFERENCES_STYLES = css`
   .preferences-container {
-    padding: 8px 6px;
     width: 100%;
   }
 
@@ -270,6 +334,11 @@ export const DEV_TOOLS_INFO_USER_PREFERENCES_STYLES = css`
 
     select {
       all: unset;
+    }
+
+    option {
+      color: var(--color-gray-1000);
+      background: var(--color-background-100);
     }
   }
 

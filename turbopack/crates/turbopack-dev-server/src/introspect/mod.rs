@@ -2,7 +2,7 @@ use std::{borrow::Cow, fmt::Display};
 
 use anyhow::Result;
 use rustc_hash::FxHashSet;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{File, json::parse_json_with_source_context};
 use turbopack_core::{
@@ -22,22 +22,30 @@ pub struct IntrospectionSource {
     pub roots: FxHashSet<ResolvedVc<Box<dyn Introspectable>>>,
 }
 
+fn introspection_source() -> RcStr {
+    rcstr!("introspection-source")
+}
+
 #[turbo_tasks::value_impl]
 impl Introspectable for IntrospectionSource {
     #[turbo_tasks::function]
     fn ty(&self) -> Vc<RcStr> {
-        Vc::cell("introspection-source".into())
+        Vc::cell(introspection_source())
     }
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<RcStr> {
-        Vc::cell("introspection-source".into())
+        Vc::cell(introspection_source())
     }
 
     #[turbo_tasks::function]
     fn children(&self) -> Vc<IntrospectableChildren> {
-        let name = ResolvedVc::cell("root".into());
-        Vc::cell(self.roots.iter().map(|root| (name, *root)).collect())
+        Vc::cell(
+            self.roots
+                .iter()
+                .map(|root| (rcstr!("root"), *root))
+                .collect(),
+        )
     }
 }
 
@@ -96,7 +104,7 @@ impl GetContentSourceContent for IntrospectionSource {
     async fn get(
         self: ResolvedVc<Self>,
         path: RcStr,
-        _data: turbo_tasks::Value<ContentSourceData>,
+        _data: ContentSourceData,
     ) -> Result<Vc<ContentSourceContent>> {
         // get last segment
         let path = &path[path.rfind('/').unwrap_or(0) + 1..];
@@ -127,9 +135,7 @@ impl GetContentSourceContent for IntrospectionSource {
         let has_children = !children.is_empty();
         let children = children
             .iter()
-            .map(|&(name, child)| async move {
-                let name = name.await;
-                let name = str_or_err(&name);
+            .map(|(name, child)| async move {
                 let ty = child.ty().await;
                 let ty = str_or_err(&ty);
                 let title = child.title().await;

@@ -748,7 +748,7 @@ export async function handleAction({
         const bodySizeLimitBytes =
           bodySizeLimit !== defaultBodySizeLimit
             ? (
-                require('next/dist/compiled/bytes') as typeof import('bytes')
+                require('next/dist/compiled/bytes') as typeof import('next/dist/compiled/bytes')
               ).parse(bodySizeLimit)
             : 1024 * 1024 // 1 MB
 
@@ -757,7 +757,8 @@ export async function handleAction({
           transform(chunk, encoding, callback) {
             size += Buffer.byteLength(chunk, encoding)
             if (size > bodySizeLimitBytes) {
-              const { ApiError } = require('../api-utils')
+              const { ApiError } =
+                require('../api-utils') as typeof import('../api-utils')
 
               callback(
                 new ApiError(

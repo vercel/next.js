@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 
 use super::{
@@ -20,16 +20,11 @@ impl IntrospectableModule {
     }
 }
 
-#[turbo_tasks::function]
-fn ty() -> Vc<RcStr> {
-    Vc::cell("asset".into())
-}
-
 #[turbo_tasks::value_impl]
 impl Introspectable for IntrospectableModule {
     #[turbo_tasks::function]
     fn ty(&self) -> Vc<RcStr> {
-        ty()
+        Vc::cell(rcstr!("asset"))
     }
 
     #[turbo_tasks::function]

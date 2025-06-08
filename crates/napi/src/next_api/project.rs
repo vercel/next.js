@@ -28,7 +28,7 @@ use serde::{Deserialize, Serialize};
 use tokio::{io::AsyncWriteExt, time::Instant};
 use tracing::Instrument;
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Effects, FxIndexSet, NonLocalValue, OperationValue, OperationVc, ReadRef,
     ResolvedVc, TaskInput, TransientInstance, TryJoinIterExt, UpdateInfo, Vc, get_effects,
@@ -48,7 +48,7 @@ use turbopack_core::{
     source_map::{OptionStringifiedSourceMap, SourceMap, Token},
     version::{PartialUpdate, TotalUpdate, Update, VersionState},
 };
-use turbopack_ecmascript_hmr_protocol::{ClientUpdateInstruction, ResourceIdentifier};
+use turbopack_ecmascript_hmr_protocol::{ClientUpdateInstruction, Issue, ResourceIdentifier};
 use turbopack_trace_utils::{
     exit::{ExitHandler, ExitReceiver},
     filter_layer::FilterLayer,
@@ -426,7 +426,7 @@ pub async fn project_new(
     let options: ProjectOptions = options.into();
     let container = turbo_tasks
         .run_once(async move {
-            let project = ProjectContainer::new("next.js".into(), options.dev);
+            let project = ProjectContainer::new(rcstr!("next.js"), options.dev);
             let project = project.to_resolved().await?;
             project.initialize(options).await?;
             Ok(project)
@@ -1079,7 +1079,7 @@ pub fn project_hmr_events(
                 .collect();
             let update_issues = issues
                 .iter()
-                .map(|issue| (&**issue).into())
+                .map(|issue| Issue::from(&**issue))
                 .collect::<Vec<_>>();
 
             let identifier = ResourceIdentifier {

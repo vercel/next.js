@@ -35,6 +35,7 @@ pub struct AssetIdent {
 
 impl AssetIdent {
     pub fn add_modifier(&mut self, modifier: RcStr) {
+        debug_assert!(!modifier.is_empty(), "modifiers cannot be empty.");
         self.modifiers.push(modifier);
     }
 
@@ -183,6 +184,7 @@ impl AssetIdent {
     #[turbo_tasks::function]
     pub fn with_layer(&self, layer: RcStr) -> Vc<Self> {
         let mut this = self.clone();
+        debug_assert!(!layer.is_empty(), "cannot set empty layers names");
         this.layer = Some(layer);
         Self::new(Value::new(this))
     }
@@ -191,6 +193,13 @@ impl AssetIdent {
     pub fn with_content_type(&self, content_type: RcStr) -> Vc<Self> {
         let mut this = self.clone();
         this.content_type = Some(content_type);
+        Self::new(Value::new(this))
+    }
+
+    #[turbo_tasks::function]
+    pub fn with_asset(&self, key: RcStr, asset: ResolvedVc<AssetIdent>) -> Vc<Self> {
+        let mut this = self.clone();
+        this.add_asset(key, asset);
         Self::new(Value::new(this))
     }
 
@@ -274,10 +283,10 @@ impl AssetIdent {
             has_hash = true;
         }
         for modifier in modifiers.iter() {
-            if let Some(default_modifier) = default_modifier {
-                if *modifier == default_modifier {
-                    continue;
-                }
+            if let Some(default_modifier) = default_modifier
+                && *modifier == default_modifier
+            {
+                continue;
             }
             3_u8.deterministic_hash(&mut hasher);
             modifier.deterministic_hash(&mut hasher);
@@ -349,10 +358,10 @@ impl AssetIdent {
         const MAX_FILENAME: usize = 80;
         if name.len() - i > MAX_FILENAME {
             i = name.len() - MAX_FILENAME;
-            if let Some(j) = name[i..].find('_') {
-                if j < 20 {
-                    i += j + 1;
-                }
+            if let Some(j) = name[i..].find('_')
+                && j < 20
+            {
+                i += j + 1;
             }
         }
         if i > 0 {

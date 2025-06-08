@@ -833,7 +833,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 15.4.0-canary.62
+        specifier: 15.4.0-canary.71
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.10.3
@@ -869,6 +869,12 @@ importers:
         specifier: '>=3.3.1'
         version: 5.6.3
 
+  packages/eslint-plugin-internal:
+    devDependencies:
+      eslint:
+        specifier: 9.12.0
+        version: 9.12.0
+
   packages/eslint-plugin-next:
     dependencies:
       fast-glob:
@@ -897,7 +903,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 15.4.0-canary.62
+        specifier: 15.4.0-canary.71
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.15
@@ -1016,19 +1022,19 @@ importers:
         specifier: 1.2.0
         version: 1.2.0
       '@next/font':
-        specifier: 15.4.0-canary.62
+        specifier: 15.4.0-canary.71
         version: link:../font
       '@next/polyfill-module':
-        specifier: 15.4.0-canary.62
+        specifier: 15.4.0-canary.71
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 15.4.0-canary.62
+        specifier: 15.4.0-canary.71
         version: link:../next-polyfill-nomodule
       '@next/react-refresh-utils':
-        specifier: 15.4.0-canary.62
+        specifier: 15.4.0-canary.71
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 15.4.0-canary.62
+        specifier: 15.4.0-canary.71
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1719,7 +1725,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 15.4.0-canary.62
+        specifier: 15.4.0-canary.71
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -8802,10 +8808,6 @@ packages:
   eslint-visitor-keys@3.4.3:
     resolution: {integrity: sha512-wpc+LXeiyiisxPlEkUzU6svyS1frIO3Mgxj1fdy7Pm8Ygzguax2N3Fa/D/ag1WqbOprdI+uY6wMUl8/a2G+iag==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
-
-  eslint-visitor-keys@4.1.0:
-    resolution: {integrity: sha512-Q7lok0mqMUSf5a/AdAZkA5a/gHcO6snwQClVNNvFKCAVlxXucdU8pKydU5ZVZjBx5xr37vGbFFWtLQYreLzrZg==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
   eslint-visitor-keys@4.2.0:
     resolution: {integrity: sha512-UyLnSehNt62FFhSwjZlHmeokpRK59rcz29j+F1/aDgbkbRTk7wIc9XzdoasMUbRNKDM0qQt/+BJ4BrpFeABemw==}
@@ -18223,7 +18225,7 @@ snapshots:
   '@es-joy/jsdoccomment@0.41.0':
     dependencies:
       comment-parser: 1.4.1
-      esquery: 1.5.0
+      esquery: 1.6.0
       jsdoc-type-pratt-parser: 4.0.0
 
   '@esbuild/aix-ppc64@0.23.1':
@@ -18462,7 +18464,6 @@ snapshots:
     dependencies:
       eslint: 9.12.0
       eslint-visitor-keys: 3.4.3
-    optional: true
 
   '@eslint-community/regexpp@4.11.0': {}
 
@@ -21108,7 +21109,7 @@ snapshots:
 
   '@types/acorn@4.0.6':
     dependencies:
-      '@types/estree': 1.0.6
+      '@types/estree': 1.0.7
 
   '@types/amphtml-validator@1.0.0':
     dependencies:
@@ -21234,23 +21235,22 @@ snapshots:
   '@types/eslint-scope@3.7.7':
     dependencies:
       '@types/eslint': 7.28.0
-      '@types/estree': 1.0.6
+      '@types/estree': 1.0.7
 
   '@types/eslint@7.28.0':
     dependencies:
-      '@types/estree': 1.0.6
+      '@types/estree': 1.0.7
       '@types/json-schema': 7.0.15
 
   '@types/estree-jsx@1.0.0':
     dependencies:
-      '@types/estree': 1.0.6
+      '@types/estree': 1.0.7
 
   '@types/estree@0.0.39': {}
 
   '@types/estree@1.0.6': {}
 
-  '@types/estree@1.0.7':
-    optional: true
+  '@types/estree@1.0.7': {}
 
   '@types/events@3.0.0': {}
 
@@ -21775,7 +21775,7 @@ snapshots:
 
   '@typescript-eslint/utils@5.62.0(eslint@9.12.0)(typescript@5.8.2)':
     dependencies:
-      '@eslint-community/eslint-utils': 4.4.0(eslint@9.12.0)
+      '@eslint-community/eslint-utils': 4.5.1(eslint@9.12.0)
       '@types/json-schema': 7.0.15
       '@types/semver': 7.5.6
       '@typescript-eslint/scope-manager': 5.62.0
@@ -21801,7 +21801,7 @@ snapshots:
 
   '@typescript-eslint/utils@8.0.0(eslint@9.12.0)(typescript@5.8.2)':
     dependencies:
-      '@eslint-community/eslint-utils': 4.4.0(eslint@9.12.0)
+      '@eslint-community/eslint-utils': 4.5.1(eslint@9.12.0)
       '@typescript-eslint/scope-manager': 8.0.0
       '@typescript-eslint/types': 8.0.0
       '@typescript-eslint/typescript-estree': 8.0.0(typescript@5.8.2)
@@ -25402,10 +25402,7 @@ snapshots:
 
   eslint-visitor-keys@3.4.3: {}
 
-  eslint-visitor-keys@4.1.0: {}
-
-  eslint-visitor-keys@4.2.0:
-    optional: true
+  eslint-visitor-keys@4.2.0: {}
 
   eslint@7.32.0:
     dependencies:
@@ -25540,7 +25537,7 @@ snapshots:
 
   eslint@9.12.0:
     dependencies:
-      '@eslint-community/eslint-utils': 4.4.0(eslint@9.12.0)
+      '@eslint-community/eslint-utils': 4.5.1(eslint@9.12.0)
       '@eslint-community/regexpp': 4.11.1
       '@eslint/config-array': 0.18.0
       '@eslint/core': 0.6.0
@@ -25550,7 +25547,7 @@ snapshots:
       '@humanfs/node': 0.16.5
       '@humanwhocodes/module-importer': 1.0.1
       '@humanwhocodes/retry': 0.3.1
-      '@types/estree': 1.0.6
+      '@types/estree': 1.0.7
       '@types/json-schema': 7.0.15
       ajv: 6.12.6
       chalk: 4.1.2
@@ -25558,7 +25555,7 @@ snapshots:
       debug: 4.4.0
       escape-string-regexp: 4.0.0
       eslint-scope: 8.1.0
-      eslint-visitor-keys: 4.1.0
+      eslint-visitor-keys: 4.2.0
       espree: 10.2.0
       esquery: 1.6.0
       esutils: 2.0.3
@@ -25582,7 +25579,7 @@ snapshots:
     dependencies:
       acorn: 8.14.0
       acorn-jsx: 5.3.2(acorn@8.14.0)
-      eslint-visitor-keys: 4.1.0
+      eslint-visitor-keys: 4.2.0
 
   espree@7.3.1:
     dependencies:
@@ -25616,7 +25613,7 @@ snapshots:
 
   estree-util-attach-comments@2.1.1:
     dependencies:
-      '@types/estree': 1.0.6
+      '@types/estree': 1.0.7
 
   estree-util-build-jsx@2.2.2:
     dependencies:
@@ -25654,7 +25651,7 @@ snapshots:
 
   estree-walker@3.0.3:
     dependencies:
-      '@types/estree': 1.0.6
+      '@types/estree': 1.0.7
 
   esutils@2.0.3: {}
 
@@ -26756,7 +26753,7 @@ snapshots:
 
   hast-util-to-estree@2.2.1:
     dependencies:
-      '@types/estree': 1.0.6
+      '@types/estree': 1.0.7
       '@types/estree-jsx': 1.0.0
       '@types/hast': 2.3.1
       '@types/unist': 2.0.3
@@ -27503,11 +27500,11 @@ snapshots:
 
   is-reference@1.2.1:
     dependencies:
-      '@types/estree': 1.0.6
+      '@types/estree': 1.0.7
 
   is-reference@3.0.1:
     dependencies:
-      '@types/estree': 1.0.6
+      '@types/estree': 1.0.7
 
   is-regex@1.1.4:
     dependencies:
@@ -29371,7 +29368,7 @@ snapshots:
 
   micromark-extension-mdx-expression@3.0.0:
     dependencies:
-      '@types/estree': 1.0.6
+      '@types/estree': 1.0.7
       devlop: 1.1.0
       micromark-factory-mdx-expression: 2.0.2
       micromark-factory-space: 2.0.1
@@ -29404,7 +29401,7 @@ snapshots:
   micromark-extension-mdx-jsx@3.0.1:
     dependencies:
       '@types/acorn': 4.0.6
-      '@types/estree': 1.0.6
+      '@types/estree': 1.0.7
       devlop: 1.1.0
       estree-util-is-identifier-name: 3.0.0
       micromark-factory-mdx-expression: 2.0.2
@@ -29455,7 +29452,7 @@ snapshots:
 
   micromark-extension-mdxjs-esm@3.0.0:
     dependencies:
-      '@types/estree': 1.0.6
+      '@types/estree': 1.0.7
       devlop: 1.1.0
       micromark-core-commonmark: 2.0.2
       micromark-util-character: 2.1.1
@@ -29538,7 +29535,7 @@ snapshots:
 
   micromark-factory-mdx-expression@2.0.2:
     dependencies:
-      '@types/estree': 1.0.6
+      '@types/estree': 1.0.7
       devlop: 1.1.0
       micromark-factory-space: 2.0.1
       micromark-util-character: 2.1.1
@@ -29656,7 +29653,7 @@ snapshots:
   micromark-util-events-to-acorn@1.2.1:
     dependencies:
       '@types/acorn': 4.0.6
-      '@types/estree': 1.0.6
+      '@types/estree': 1.0.7
       estree-util-visit: 1.2.1
       micromark-util-types: 1.0.2
       uvu: 0.5.6
@@ -29666,7 +29663,7 @@ snapshots:
   micromark-util-events-to-acorn@2.0.2:
     dependencies:
       '@types/acorn': 4.0.6
-      '@types/estree': 1.0.6
+      '@types/estree': 1.0.7
       '@types/unist': 3.0.3
       devlop: 1.1.0
       estree-util-visit: 2.0.0
@@ -30895,7 +30892,7 @@ snapshots:
 
   periscopic@3.1.0:
     dependencies:
-      '@types/estree': 1.0.6
+      '@types/estree': 1.0.7
       estree-walker: 3.0.3
       is-reference: 3.0.1
 
