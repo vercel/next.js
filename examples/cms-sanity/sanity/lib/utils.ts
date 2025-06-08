@@ -1,6 +1,5 @@
-import createImageUrlBuilder from "@sanity/image-url";
-
 import { dataset, projectId } from "@/sanity/lib/api";
+import createImageUrlBuilder from "@sanity/image-url";
 
 const imageBuilder = createImageUrlBuilder({
   projectId: projectId || "",
@@ -21,17 +20,4 @@ export function resolveOpenGraphImage(image: any, width = 1200, height = 627) {
   const url = urlForImage(image)?.width(1200).height(627).fit("crop").url();
   if (!url) return;
   return { url, alt: image?.alt as string, width, height };
-}
-
-export function resolveHref(
-  documentType?: string,
-  slug?: string,
-): string | undefined {
-  switch (documentType) {
-    case "post":
-      return slug ? `/posts/${slug}` : undefined;
-    default:
-      console.warn("Invalid document type:", documentType);
-      return undefined;
-  }
 }

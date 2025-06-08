@@ -4,7 +4,6 @@
  * This file is used for onboarding when you don't have any posts yet and are using the template for the first time.
  * Once you have content, and know where to go to access the Sanity Studio and create content, you can delete this file.
  */
-
 import Link from "next/link";
 import { useSyncExternalStore } from "react";
 

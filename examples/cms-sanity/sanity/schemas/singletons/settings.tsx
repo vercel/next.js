@@ -1,7 +1,6 @@
+import * as demo from "@/sanity/lib/demo";
 import { CogIcon } from "@sanity/icons";
 import { defineArrayMember, defineField, defineType } from "sanity";
-
-import * as demo from "@/sanity/lib/demo";
 
 export default defineType({
   name: "settings",
