@@ -6,6 +6,7 @@ import { outdent } from 'outdent'
 import path from 'path'
 
 const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
+const isRspack = !!process.env.NEXT_RSPACK
 
 describe('pages/ error recovery', () => {
   const { next, isTurbopack } = nextTestSetup({
@@ -55,7 +56,7 @@ describe('pages/ error recovery', () => {
          "stack": [],
        }
       `)
-    } else if (process.env.NEXT_RSPACK) {
+    } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
          "description": "  × Module build failed:",
@@ -63,14 +64,14 @@ describe('pages/ error recovery', () => {
          "label": "Build Error",
          "source": "./index.js
          × Module build failed:
-         ├─▶   ×
-         │     │   x Unexpected eof
-         │     │    ,-[<FIXME-project-root>/index.js:1:1]
-         │     │  1 | export default () => <div/
-         │     │    \`----
-         │     │
-         │
-         ╰─▶ Syntax Error
+         ╰─▶   × Error:   x Unexpected eof
+               │    ,---- 
+               │  1 | export default () => <div/
+               │    \`----
+               │ 
+               │ 
+               │ Caused by:
+               │     Syntax Error
        Import trace for requested module:
        ./index.js
        ./pages/index.js",
@@ -369,7 +370,7 @@ describe('pages/ error recovery', () => {
          "stack": [],
        }
       `)
-    } else if (process.env.NEXT_RSPACK) {
+    } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
          "description": "  × Module build failed:",
@@ -377,20 +378,20 @@ describe('pages/ error recovery', () => {
          "label": "Build Error",
          "source": "./index.js
          × Module build failed:
-         ├─▶   ×
-         │     │   x Expected '{', got 'return'
-         │     │    ,-[<FIXME-project-root>/index.js:5:1]
-         │     │  2 |
-         │     │  3 | class ClassDefault extends React.Component {
-         │     │  4 |   render()
-         │     │  5 |     return <h1>Default Export</h1>;
-         │     │    :     ^^^^^^
-         │     │  6 |   }
-         │     │  7 | }
-         │     │    \`----
-         │     │
-         │
-         ╰─▶ Syntax Error
+         ╰─▶   × Error:   x Expected '{', got 'return'
+               │    ,-[5:1]
+               │  2 |
+               │  3 | class ClassDefault extends React.Component {
+               │  4 |   render()
+               │  5 |     return <h1>Default Export</h1>;
+               │    :     ^^^^^^
+               │  6 |   }
+               │  7 | }
+               │    \`----
+               │ 
+               │ 
+               │ Caused by:
+               │     Syntax Error
        Import trace for requested module:
        ./index.js
        ./pages/index.js",
@@ -454,7 +455,7 @@ describe('pages/ error recovery', () => {
          "stack": [],
        }
       `)
-    } else if (process.env.NEXT_RSPACK) {
+    } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
          "description": "  × Module build failed:",
@@ -570,7 +571,7 @@ describe('pages/ error recovery', () => {
        ]
       `)
     } else {
-      if (process.env.NEXT_RSPACK) {
+      if (isRspack) {
         await expect(browser).toDisplayRedbox(`
          {
            "description": "nooo",
@@ -752,17 +753,17 @@ describe('pages/ error recovery', () => {
     )
     await new Promise((resolve) => setTimeout(resolve, 1000))
 
-    if (process.env.NEXT_RSPACK) {
+    if (isRspack) {
       await expect(browser).toDisplayRedbox(`
             {
               "description": "no 1",
               "environmentLabel": null,
               "label": "Runtime Error",
-              "source": "index.js (5:9) @ <unknown>
+              "source": "index.js (5:9) @ eval
             > 5 |   throw Error('no ' + i)
                 |         ^",
               "stack": [
-                "<unknown> index.js (5:9)",
+                "eval index.js (5:9)",
               ],
             }
           `)
@@ -812,7 +813,7 @@ describe('pages/ error recovery', () => {
          "stack": [],
        }
       `)
-    } else if (process.env.NEXT_RSPACK) {
+    } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
          "description": "  × Module build failed:",
@@ -820,18 +821,18 @@ describe('pages/ error recovery', () => {
          "label": "Build Error",
          "source": "./index.js
          × Module build failed:
-         ├─▶   ×
-         │     │   x Expected '}', got '<eof>'
-         │     │    ,-[<FIXME-project-root>/index.js:7:1]
-         │     │  4 |   i++
-         │     │  5 |   throw Error('no ' + i)
-         │     │  6 | }, 1000)
-         │     │  7 | export default function FunctionNamed() {
-         │     │    :                                         ^
-         │     │    \`----
-         │     │
-         │
-         ╰─▶ Syntax Error
+         ╰─▶   × Error:   x Expected '}', got '<eof>'
+               │    ,-[7:1]
+               │  4 |   i++
+               │  5 |   throw Error('no ' + i)
+               │  6 | }, 1000)
+               │  7 | export default function FunctionNamed() {
+               │    :                                         ^
+               │    \`----
+               │ 
+               │ 
+               │ Caused by:
+               │     Syntax Error
        Import trace for requested module:
        ./index.js
        ./pages/index.js",
@@ -880,7 +881,7 @@ describe('pages/ error recovery', () => {
          "stack": [],
        }
       `)
-    } else if (process.env.NEXT_RSPACK) {
+    } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
          "description": "  × Module build failed:",
@@ -888,18 +889,18 @@ describe('pages/ error recovery', () => {
          "label": "Build Error",
          "source": "./index.js
          × Module build failed:
-         ├─▶   ×
-         │     │   x Expected '}', got '<eof>'
-         │     │    ,-[<FIXME-project-root>/index.js:7:1]
-         │     │  4 |   i++
-         │     │  5 |   throw Error('no ' + i)
-         │     │  6 | }, 1000)
-         │     │  7 | export default function FunctionNamed() {
-         │     │    :                                         ^
-         │     │    \`----
-         │     │
-         │
-         ╰─▶ Syntax Error
+         ╰─▶   × Error:   x Expected '}', got '<eof>'
+               │    ,-[7:1]
+               │  4 |   i++
+               │  5 |   throw Error('no ' + i)
+               │  6 | }, 1000)
+               │  7 | export default function FunctionNamed() {
+               │    :                                         ^
+               │    \`----
+               │ 
+               │ 
+               │ Caused by:
+               │     Syntax Error
        Import trace for requested module:
        ./index.js
        ./pages/index.js",
