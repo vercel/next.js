@@ -42,7 +42,7 @@ turbopack-wasm = { workspace = true }
 
 [dev-dependencies]
 turbo-tasks-malloc = { workspace = true }
-turbopack-create-test-app = { workspace = true }
+criterion = { workspace = true }
 
 
 [build-dependencies]
