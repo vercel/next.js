@@ -207,7 +207,10 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
       const hashFragment = focusAndScrollRef.hashFragment
 
       if (hashFragment) {
-        domNode = getHashFragmentDomNode(hashFragment)
+        // Try to find a matching fragment, otherwise take the document.body
+        // This is done to trigger scrolling to the top of the window
+        // when there's no matching node
+        domNode = getHashFragmentDomNode(hashFragment) || document.body
       }
 
       // `findDOMNode` is tricky because it returns just the first child if the component is a fragment.
@@ -248,6 +251,10 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
         () => {
           // In case of hash scroll, we only need to scroll the element into view
           if (hashFragment) {
+            if (domNode.isSameNode(document.body)) {
+              window.scrollTo(0, 0)
+              return
+            }
             ;(domNode as HTMLElement).scrollIntoView()
 
             return
