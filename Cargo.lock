@@ -9057,6 +9057,7 @@ version = "0.1.0"
 name = "turbo-rcstr"
 version = "0.1.0"
 dependencies = [
+ "bytes-str",
  "codspeed-criterion-compat",
  "napi",
  "new_debug_unreachable",
