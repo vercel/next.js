@@ -28,6 +28,15 @@ env:
 jobs:
   deploy-target:
     runs-on: ubuntu-latest
+    # TL;DR: Only trigger for push events or pull_request events from forks.
+    #
+    # PRs from forks will only trigger a pull_request event where sha and workflow_sha are different.
+    # PRs from vercel/next.js will trigger push and pull_request event. Both events
+    # events from vercel/next.js, will have the sha and workflow_sha.
+    # We only need one run so skip the pull_request event.
+    # The pull_request event would not give us a sha that we can use to query this
+    # workflow which is required for vercel-packages to work.
+    if: ${{ github.event_name != 'pull_request' || github.sha != github.workflow_sha }}
     outputs:
       value: ${{ steps.deploy-target.outputs.value }}
     steps:
