@@ -512,6 +512,30 @@
     "styles": ["normal", "italic"],
     "subsets": ["cyrillic", "cyrillic-ext", "latin", "latin-ext", "vietnamese"]
   },
+  "Alumni Sans SC": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["cyrillic", "cyrillic-ext", "latin", "latin-ext", "vietnamese"]
+  },
   "Amarante": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -1240,6 +1264,19 @@
       }
     ],
     "subsets": ["hebrew", "latin", "latin-ext"]
+  },
+  "Asta Sans": {
+    "weights": ["300", "400", "500", "600", "700", "800", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin"]
   },
   "Astloch": {
     "weights": ["400", "700"],
@@ -3581,6 +3618,19 @@
     ],
     "subsets": ["latin", "latin-ext"]
   },
+  "Edu NSW ACT Cursive": {
+    "weights": ["400", "500", "600", "700", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext"]
+  },
   "Edu NSW ACT Foundation": {
     "weights": ["400", "500", "600", "700", "variable"],
     "styles": ["normal"],
@@ -3593,6 +3643,19 @@
       }
     ],
     "subsets": ["latin"]
+  },
+  "Edu NSW ACT Hand Pre": {
+    "weights": ["400", "500", "600", "700", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext"]
   },
   "Edu QLD Beginner": {
     "weights": ["400", "500", "600", "700", "variable"],
@@ -3607,6 +3670,19 @@
     ],
     "subsets": ["latin"]
   },
+  "Edu QLD Hand": {
+    "weights": ["400", "500", "600", "700", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext", "vietnamese"]
+  },
   "Edu SA Beginner": {
     "weights": ["400", "500", "600", "700", "variable"],
     "styles": ["normal"],
@@ -3619,6 +3695,19 @@
       }
     ],
     "subsets": ["latin"]
+  },
+  "Edu SA Hand": {
+    "weights": ["400", "500", "600", "700", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext"]
   },
   "Edu TAS Beginner": {
     "weights": ["400", "500", "600", "700", "variable"],
@@ -3645,6 +3734,32 @@
       }
     ],
     "subsets": ["latin"]
+  },
+  "Edu VIC WA NT Hand": {
+    "weights": ["400", "500", "600", "700", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext"]
+  },
+  "Edu VIC WA NT Hand Pre": {
+    "weights": ["400", "500", "600", "700", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext"]
   },
   "El Messiri": {
     "weights": ["400", "500", "600", "700", "variable"],
@@ -10135,8 +10250,33 @@
     "subsets": ["latin", "latin-ext", "thai"]
   },
   "Noto Sans Thai Looped": {
-    "weights": ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
     "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 62.5,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
     "subsets": ["latin", "latin-ext", "thai"]
   },
   "Noto Sans Tifinagh": {
@@ -14425,6 +14565,29 @@
     "weights": ["400"],
     "styles": ["normal"],
     "subsets": ["latin"]
+  },
+  "Savate": {
+    "weights": [
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext"]
   },
   "Sawarabi Gothic": {
     "weights": ["400"],
