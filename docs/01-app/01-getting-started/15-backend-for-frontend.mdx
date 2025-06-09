@@ -13,6 +13,12 @@ related:
 
 Next.js supports the "Backend for Frontend" pattern. This lets you create public endpoints to handle HTTP requests and return any content type—not just HTML. You can also access data sources and perform side effects like updating remote data.
 
+If you are starting a new project, using `create-next-app` with the `--api` flag automatically includes an example `route.ts` in your new project’s `app/` folder, demonstrating how to create an API endpoint.
+
+```bash filename="Terminal"
+npx create-next-app@latest --api
+```
+
 > ** Good to know**: Next.js backend capabilities are not a full backend replacement. They serve as an API layer that:
 >
 > - is publicly reachable
