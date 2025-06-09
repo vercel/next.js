@@ -702,7 +702,9 @@ jobs:
 
   buildPassed:
     needs: ['deploy-target', 'build', 'build-wasm', 'build-native']
-    if: always()
+    # If we bailed out early, don't mark this as passed i.e. deploy-target must
+    # have passed. Everything else can be skipped.
+    if: always() && ${{ needs.deploy-target.outputs.value != '' }}
     name: thank you, build
     runs-on: ubuntu-latest
     steps:
