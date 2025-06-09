@@ -8,8 +8,9 @@ use std::{
 
 use anyhow::{Context, Result};
 use criterion::{Criterion, black_box, criterion_group, criterion_main};
-use next_api::project::{
-    DefineEnv, DraftModeOptions, ProjectContainer, ProjectOptions, WatchOptions,
+use next_api::{
+    project::{DefineEnv, DraftModeOptions, ProjectContainer, ProjectOptions, WatchOptions},
+    register,
 };
 use tokio::runtime::Runtime;
 use turbo_rcstr::RcStr;
@@ -335,6 +336,8 @@ impl HmrBenchmark {
 }
 
 fn criterion_hmr_initial_compilation(c: &mut Criterion) {
+    register();
+
     let benchmark = HmrBenchmark::new(100).unwrap();
 
     c.bench_function("hmr_initial_compilation", |b| {
@@ -343,6 +346,8 @@ fn criterion_hmr_initial_compilation(c: &mut Criterion) {
 }
 
 fn criterion_hmr_updates_small(c: &mut Criterion) {
+    register();
+
     let benchmark = HmrBenchmark::new(50).unwrap();
     // Initialize compilation first
     let _ = benchmark.benchmark_initial_compilation().unwrap();
@@ -353,6 +358,8 @@ fn criterion_hmr_updates_small(c: &mut Criterion) {
 }
 
 fn criterion_hmr_updates_medium(c: &mut Criterion) {
+    register();
+
     let benchmark = HmrBenchmark::new(200).unwrap();
     // Initialize compilation first
     let _ = benchmark.benchmark_initial_compilation().unwrap();
@@ -363,6 +370,8 @@ fn criterion_hmr_updates_medium(c: &mut Criterion) {
 }
 
 fn criterion_hmr_updates_large(c: &mut Criterion) {
+    register();
+
     let benchmark = HmrBenchmark::new(500).unwrap();
     // Initialize compilation first
     let _ = benchmark.benchmark_initial_compilation().unwrap();
@@ -373,6 +382,8 @@ fn criterion_hmr_updates_large(c: &mut Criterion) {
 }
 
 fn criterion_hmr_subscription(c: &mut Criterion) {
+    register();
+
     let benchmark = HmrBenchmark::new(100).unwrap();
     // Initialize compilation first
     let _ = benchmark.benchmark_initial_compilation().unwrap();
