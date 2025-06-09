@@ -11,23 +11,23 @@ related:
     - app/guides/forms
 ---
 
-[React Server Components](https://react.dev/reference/rsc/server-components) introduce a new way to build web applications. While they improve performance and simplify data fetching, they also change where and how data is accessed, shifting some of the traditional security assumptions for frontend apps.
+[React Server Components](https://react.dev/reference/rsc/server-components) improve performance and simplify data fetching, but also shift where and how data is accessed, changing some of the traditional security assumptions for handling data in frontend apps.
 
-This guide will help you understand how to approach data security, and how to implement best practices in your Next.js application.
+This guide will help you understand how think about data security in Next.js and how to implement best practices.
 
-## Choosing a data fetching approach
+## Data fetching approaches
 
-Start by choosing a data fetching approach that fits your project:
+There are three main approaches to fetching data in Next.js, depending on the size and age of your project:
 
 - [HTTP APIs](#http-apis): for existing large applications and organizations.
 - [Data Access Layer](#data-access-layer): for new projects.
 - [Component-Level Data Access](#component-level-data-access): for prototypes and learning.
 
-We recommend avoiding mixing approaches. This makes it clear for both developers working in your code base and security auditors what to expect.
+We recommend avoiding mixing approaches. This makes it clear for both developers working in your code base and security auditors what to expect when accessing data.
 
 ### External HTTP APIs
 
-If you're adopting Server Components in an existing project, treat them as untrusted by default. Instead, follow a **Zero Trust** model. Call your custom API endpoints such as REST or GraphQL from Server Components using [`fetch`](/docs/app/api-reference/functions/fetch), just as you would from the client and passing cookies as needed.
+You should follow a **Zero Trust** model when adopting Server Components in an existing project. You can continue calling your existing API endpoints such as REST or GraphQL from Server Components using [`fetch`](/docs/app/api-reference/functions/fetch), just as you would in Client Components.
 
 ```tsx filename="app/page.tsx"
 import { cookies } from 'next/headers'
@@ -49,12 +49,10 @@ export default async function Page() {
 
 This approach works well when:
 
-- You already have secure API layers and security practices in place.
-- Backend teams use other languages.
+- You already have security practices in place.
+- Separate backend teams use other languages or manage APIs independently.
 
-Meanwhile, you still gain the benefits of Server Components by sending less code to the client and inherent data waterfalls can execute with low latency.
-
-> If your project uses `getStaticProps` or `getServerSideProps` to connect directly to a database, consider moving that logic into a Route Handler. This consolidates data access into a single, auditable pattern.
+> **Good to know:** If your project uses `getStaticProps` or `getServerSideProps` to connect directly to a database, consider moving that logic into a Route Handler. This consolidates data access into a single, auditable pattern.
 
 ### Data Access Layer
 
