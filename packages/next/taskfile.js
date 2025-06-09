@@ -3136,8 +3136,7 @@ export async function next_bundle_devtools(task, opts) {
   await task.source('dist').webpack({
     watch: opts.dev,
     config: require('./next-devtools.webpack-config')({
-      // TODO: Use prod variant
-      dev: true,
+      dev: opts.dev,
     }),
     name: 'next-bundle-devtools-dev',
   })
