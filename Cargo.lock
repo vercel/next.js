@@ -7164,8 +7164,7 @@ dependencies = [
 [[package]]
 name = "sourcemap"
 version = "9.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e22afbcb92ce02d23815b9795523c005cb9d3c214f8b7a66318541c240ea7935"
+source = "git+https://github.com/kdy1/rust-sourcemap?branch=main#804d663521d6109b3746d800918d483b97e8e108"
 dependencies = [
  "base64-simd 0.8.0",
  "bitvec",
@@ -9971,6 +9970,7 @@ dependencies = [
  "owo-colors 3.5.0",
  "rustc-hash 2.1.1",
  "serde",
+ "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
  "turbo-tasks-fs",
@@ -10097,6 +10097,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "bitvec",
  "codspeed-criterion-compat",
  "data-encoding",
  "either",

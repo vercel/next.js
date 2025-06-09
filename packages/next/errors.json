@@ -693,5 +693,9 @@
   "692": "Expected clientReferenceManifest to be defined.",
   "693": "%s must not be used within a client component. Next.js should be preventing %s from being included in client components statically, but did not in this case.",
   "694": "createPrerenderPathname was called inside a client component scope.",
-  "695": "Expected workUnitAsyncStorage to have a store."
+  "695": "Expected workUnitAsyncStorage to have a store.",
+  "696": "Next DevTools: Can't dispatch %s in this environment. This is a bug in Next.js",
+  "697": "Next DevTools: Can't render in this environment. This is a bug in Next.js",
+  "698": "Next DevTools: App Dev Overlay is already mounted. This is a bug in Next.js",
+  "699": "Next DevTools: Pages Dev Overlay is already mounted. This is a bug in Next.js"
 }

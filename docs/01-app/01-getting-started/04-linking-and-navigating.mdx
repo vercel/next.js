@@ -29,7 +29,7 @@ There are two types of server rendering, based on _when_ it happens:
 - **Static Rendering (or Prerendering)** happens at build time or during [revalidation](/docs/app/getting-started/caching-and-revalidating) and the result is cached.
 - **Dynamic Rendering** happens at request time in response to a client request.
 
-The trade-off of server rendering is that the client must wait for the server to respond before the new route can be shown. Next.js addresses this delay by [pretching](#prefetching) routes the user is likely to visit and performing [client-side transitions](#client-side-transitions).
+The trade-off of server rendering is that the client must wait for the server to respond before the new route can be shown. Next.js addresses this delay by [prefetching](#prefetching) routes the user is likely to visit and performing [client-side transitions](#client-side-transitions).
 
 > **Good to know**: HTML is also generated for the initial visit.
 

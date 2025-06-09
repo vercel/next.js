@@ -13,7 +13,7 @@ export function ShadowPortal({ children }: { children: React.ReactNode }) {
   // we can assure the root render is not a Transition.
   React.useEffect(() => {
     const ownerDocument = document
-    portalNode.current = ownerDocument.createElement('nextjs-portal')
+    portalNode.current = ownerDocument.querySelector('nextjs-portal')!
     // load default color preference from localstorage
     if (typeof localStorage !== 'undefined') {
       const theme = localStorage.getItem(STORAGE_KEY_THEME)
@@ -26,14 +26,15 @@ export function ShadowPortal({ children }: { children: React.ReactNode }) {
       }
     }
 
-    shadowNode.current = portalNode.current.attachShadow({ mode: 'open' })
-    ownerDocument.body.appendChild(portalNode.current)
-    forceUpdate({})
-    return () => {
-      if (portalNode.current && portalNode.current.ownerDocument) {
-        portalNode.current.ownerDocument.body.removeChild(portalNode.current)
-      }
+    // We can only attach but never detach a shadow root.
+    // So if this is a remount, we don't need to attach a shadow root. Only
+    // on the very first, DOM-wide mount.
+    // This is mostly guarding against faulty _app implementations that
+    // createa React Root in getInitialProps but don't clean it up like test/integration/app-tree/pages/_app.tsx
+    if (portalNode.current.shadowRoot === null) {
+      shadowNode.current = portalNode.current.attachShadow({ mode: 'open' })
     }
+    forceUpdate({})
   }, [])
 
   return shadowNode.current

@@ -4,7 +4,7 @@
 
 use anyhow::{Result, bail};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, TaskInput, ValueToString, Vc};
 use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
@@ -27,7 +27,7 @@ async fn all_in_one() {
         }
         .into();
 
-        let result = my_function(a, b.get_last(), c, Value::new(MyEnumValue::Yeah(42)));
+        let result = my_function(a, b.get_last(), c, MyEnumValue::Yeah(42));
         assert_eq!(*result.my_trait_function().await?, "42");
         assert_eq!(*result.my_trait_function2().await?, "42");
         assert_eq!(*result.my_trait_function3().await?, "4242");
@@ -63,12 +63,12 @@ async fn all_in_one() {
     .unwrap()
 }
 
-#[turbo_tasks::value(transparent, serialization = "auto_for_input")]
+#[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone, Hash)]
 struct MyTransparentValue(u32);
 
-#[turbo_tasks::value(shared, serialization = "auto_for_input")]
-#[derive(Debug, Clone, Hash)]
+#[turbo_tasks::value(shared)]
+#[derive(Debug, Clone, Hash, TaskInput)]
 enum MyEnumValue {
     Yeah(u32),
     Nah,
@@ -159,12 +159,12 @@ async fn my_function(
     a: Vc<MyTransparentValue>,
     b: Vc<MyEnumValue>,
     c: Vc<MyStructValue>,
-    d: Value<MyEnumValue>,
+    d: MyEnumValue,
 ) -> Result<Vc<MyStructValue>> {
     assert_eq!(*a.await?, 4242);
     assert_eq!(*b.await?, MyEnumValue::Yeah(42));
     assert_eq!(c.await?.value, 42);
-    assert_eq!(d.into_value(), MyEnumValue::Yeah(42));
+    assert_eq!(d, MyEnumValue::Yeah(42));
     Ok(c)
 }
 
