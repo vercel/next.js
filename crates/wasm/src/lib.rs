@@ -2,16 +2,17 @@ use std::sync::Arc;
 
 use anyhow::{Context, Error};
 use js_sys::JsString;
-use next_custom_transforms::chain_transforms::{custom_before_pass, TransformOptions};
+use next_custom_transforms::chain_transforms::{TransformOptions, custom_before_pass};
 use swc_core::{
     base::{
+        Compiler,
         config::{JsMinifyOptions, ParseOptions},
-        try_with_handler, Compiler,
+        try_with_handler,
     },
     common::{
+        FileName, FilePathMapping, GLOBALS, Mark, SourceMap,
         comments::{Comments, SingleThreadedComments},
         errors::ColorConfig,
-        FileName, FilePathMapping, Mark, SourceMap, GLOBALS,
     },
     ecma::ast::noop_pass,
 };
@@ -40,7 +41,7 @@ pub fn minify_sync(s: JsString, opts: JsValue) -> Result<JsValue, JsValue> {
         },
         |handler| {
             GLOBALS.set(&Default::default(), || {
-                let fm = c.cm.new_source_file(FileName::Anon.into(), s.into());
+                let fm = c.cm.new_source_file(FileName::Anon.into(), String::from(s));
                 let program = c
                     .minify(fm, handler, &opts, Default::default())
                     .context("failed to minify file")?;
@@ -89,7 +90,7 @@ pub fn transform_sync(s: JsValue, opts: JsValue) -> Result<JsValue, JsValue> {
                             } else {
                                 FileName::Real(opts.swc.filename.clone().into()).into()
                             },
-                            s.into(),
+                            String::from(s),
                         );
                         let cm = c.cm.clone();
                         let file = fm.clone();
@@ -154,7 +155,7 @@ pub fn parse_sync(s: JsString, opts: JsValue) -> Result<JsValue, JsValue> {
         |handler| {
             c.run(|| {
                 GLOBALS.set(&Default::default(), || {
-                    let fm = c.cm.new_source_file(FileName::Anon.into(), s.into());
+                    let fm = c.cm.new_source_file(FileName::Anon.into(), String::from(s));
 
                     let cmts = c.comments().clone();
                     let comments = if opts.comments {
