@@ -35,8 +35,6 @@ To implement this pattern, use:
 
 Route Handlers are public HTTP endpoints. Any client can access them.
 
-To restrict access, implement authentication and authorization. See [Authentication](/app/guides/authentication).
-
 Create a Route Handler using the `route.ts` or `route.js` file convention:
 
 ```ts filename="/app/api/route.ts" switcher
@@ -85,7 +83,9 @@ export function POST(request) {
 
 Avoid exposing sensitive information in error messages sent to the client.
 
-## Many Content Types
+To restrict access, implement authentication and authorization. See [Authentication](/app/guides/authentication).
+
+## Content Types
 
 You can serve more than HTML—JSON, XML, images, files, and plain text are all supported.
 
@@ -185,7 +185,7 @@ export async function POST(request) {
 }
 ```
 
-Always validate data before passing it to other systems:
+> **Good to know**: Validate data before passing it to other systems
 
 ```ts filename="/app/api/send-email/route.ts" switcher
 import { sendMail, validateInputs } from '@/lib/email-transporter'
@@ -265,53 +265,11 @@ export async function POST(request) {
 }
 ```
 
-### Middleware Responses
-
-Use `middleware` to generate a response before the request reaches a route path.
-
-Only one middleware file is allowed per project. Use `config.matcher` to target specific paths.
-
-```ts filename="middleware.ts" switcher
-import { isAuthenticated } from '@lib/auth'
-
-export const config = {
-  matcher: '/api/:function*',
-}
-
-export function middleware(request: Request) {
-  if (!isAuthenticated(request)) {
-    return Response.json(
-      { success: false, message: 'authentication failed' },
-      { status: 401 }
-    )
-  }
-}
-```
-
-```js filename="middleware.js" switcher
-import { isAuthenticated } from '@lib/auth'
-
-export const config = {
-  matcher: '/api/:function*',
-}
-
-export function middleware(request) {
-  if (!isAuthenticated(request)) {
-    return Response.json(
-      { success: false, message: 'authentication failed' },
-      { status: 401 }
-    )
-  }
-}
-```
-
-Learn more about [middleware](/docs/app/api-reference/file-conventions/middleware).
-
 ## Manipulating Data
 
 Route Handlers can transform, filter, and aggregate data from one or more sources. This keeps logic out of the frontend and avoids exposing internal systems.
 
-You can also offload heavy computations to the server and reduce client data usage.
+You can also offload heavy computations to the server and reduce client battery and data usage.
 
 ```ts file="/app/api/weather/route.ts" switcher
 import { parseWeatherData } from '@/lib/weather'
@@ -386,7 +344,7 @@ export async function POST(request: Request, { params }) {
 
   const { slug } = await params
   const pathname = slug.join('/')
-  const proxyURL = new URL(pathname, 'https://example.com')
+  const proxyURL = new URL(pathname, 'https://nextjs.org')
   const proxyRequest = new Request(proxyURL, request)
 
   try {
@@ -413,7 +371,7 @@ export async function POST(request, { params }) {
 
   const { slug } = await params
   const pathname = slug.join('/')
-  const proxyURL = new URL(pathname, 'https://example.org')
+  const proxyURL = new URL(pathname, 'https://nextjs.org')
   const proxyRequest = new Request(proxyURL, request)
 
   try {
@@ -427,31 +385,10 @@ export async function POST(request, { params }) {
 }
 ```
 
-You can also proxy requests using `middleware`:
+Or use:
 
-```ts filename="middleware.ts" switcher
-import { NextResponse } from 'next/server'
-
-export function middleware(request: Request) {
-  if (request.nextUrl.pathname === '/proxy-this-path') {
-    const rewriteUrl = new URL('http://example.org')
-    return NextResponse.rewrite(rewriteUrl)
-  }
-}
-```
-
-```js filename="middleware.js" switcher
-import { NextResponse } from 'next/server'
-
-export function middleware(request) {
-  if (request.nextUrl.pathname === '/proxy-this-path') {
-    const rewriteUrl = new URL('http://example.org')
-    return NextResponse.rewrite(rewriteUrl)
-  }
-}
-```
-
-Or use [`rewrites`](/app/api-reference/config/next-config-js/rewrites) in `next.config.js`.
+- `middleware` [rewrites](#middleware)
+- [`rewrites`](/app/api-reference/config/next-config-js/rewrites) in `next.config.js`.
 
 ## NextRequest and NextResponse
 
@@ -599,7 +536,117 @@ export async function GET(request) {
 }
 ```
 
-## Rate Limiting
+## Redirects
+
+```ts filename="app/api/route.ts" switcher
+import { redirect } from 'next/navigation'
+
+export async function GET(request: Request) {
+  redirect('https://nextjs.org/')
+}
+```
+
+```js filename="app/api/route.js" switcher
+import { redirect } from 'next/navigation'
+
+export async function GET(request) {
+  redirect('https://nextjs.org/')
+}
+```
+
+Learn more about redirects in [`redirect`](/app/api-reference/functions/redirect) and [`permanentRedirect`](/app/api-reference/functions/permanentRedirect)
+
+## Middleware
+
+Only one middleware file is allowed per project. Use `config.matcher` to target specific paths. Learn more about [middleware](/docs/app/api-reference/file-conventions/middleware).
+
+Use `middleware` to generate a response before the request reaches a route path.
+
+```ts filename="middleware.ts" switcher
+import { isAuthenticated } from '@lib/auth'
+
+export const config = {
+  matcher: '/api/:function*',
+}
+
+export function middleware(request: Request) {
+  if (!isAuthenticated(request)) {
+    return Response.json(
+      { success: false, message: 'authentication failed' },
+      { status: 401 }
+    )
+  }
+}
+```
+
+```js filename="middleware.js" switcher
+import { isAuthenticated } from '@lib/auth'
+
+export const config = {
+  matcher: '/api/:function*',
+}
+
+export function middleware(request) {
+  if (!isAuthenticated(request)) {
+    return Response.json(
+      { success: false, message: 'authentication failed' },
+      { status: 401 }
+    )
+  }
+}
+```
+
+You can also proxy requests using `middleware`:
+
+```ts filename="middleware.ts" switcher
+import { NextResponse } from 'next/server'
+
+export function middleware(request: Request) {
+  if (request.nextUrl.pathname === '/proxy-this-path') {
+    const rewriteUrl = new URL('https://nextjs.org')
+    return NextResponse.rewrite(rewriteUrl)
+  }
+}
+```
+
+```js filename="middleware.js" switcher
+import { NextResponse } from 'next/server'
+
+export function middleware(request) {
+  if (request.nextUrl.pathname === '/proxy-this-path') {
+    const rewriteUrl = new URL('https://nextjs.org')
+    return NextResponse.rewrite(rewriteUrl)
+  }
+}
+```
+
+Another type of response `middleware` can produce are redirects:
+
+```ts filename="middleware.ts" switcher
+import { NextResponse } from 'next/server'
+
+export function middleware(request: Request) {
+  if (request.nextUrl.pathname === '/v1/docs') {
+    request.nextUrl.pathname = '/v2/docs'
+    return NextResponse.redirect(request.nextUrl)
+  }
+}
+```
+
+```js filename="middleware.js" switcher
+import { NextResponse } from 'next/server'
+
+export function middleware(request) {
+  if (request.nextUrl.pathname === '/v1/docs') {
+    request.nextUrl.pathname = '/v2/docs'
+    return NextResponse.redirect(request.nextUrl)
+  }
+}
+```
+
+## Security
+
+### Rate Limiting
 
 You can implement rate limiting in your Next.js backend. In addition to code-based checks, enable any rate limiting features provided by your host.
 
@@ -633,6 +680,22 @@ export async function POST(request) {
 }
 ```
 
+### Verify Payloads
+
+Never trust incoming request data. Validate content type and size, and sanitize against XSS before use.
+
+Use timeouts to prevent abuse and protect server resources.
+
+Store user-generated static assets in dedicated services. When possible, upload them from the browser and store the returned URI in your database to reduce request size.
+
+### Access to protected resources
+
+Always verify credentials before granting access. Do not rely on middleware alone for authentication and authorization.
+
+Remove sensitive or unnecessary data from responses and backend logs.
+
+Rotate credentials and API keys regularly.
+
 ## Preflight Requests
 
 Preflight requests use the `OPTIONS` method to ask the server if a request is allowed based on origin, method, and headers.
@@ -659,11 +722,280 @@ export { handler as POST }
 
 This creates a shared handler for `GET` and `POST` requests. The library customizes behavior based on the `method` and `pathname` in the request.
 
+Libraries can also provide a `middleware` factory.
+
+```ts filename="middleware.ts"
+import { createMiddleware } from 'third-party-library'
+
+export default createMiddleware()
+```
+
 ## More Examples
 
-- [Redirect](/app/building-your-application/routing/route-handlers#redirects)
-- [Cookies](/app/building-your-application/routing/route-handlers#cookies)
-- [Streaming](/app/building-your-application/routing/route-handlers#streaming)
+### Cookies
+
+You can read or set cookies with [`cookies`](/docs/app/api-reference/functions/cookies) from `next/headers`. This server function can be called directly in a Route Handler, or nested inside of another function.
+
+Alternatively, you can return a new `Response` using the [`Set-Cookie`](https://developer.mozilla.org/docs/Web/HTTP/Headers/Set-Cookie) header.
+
+```ts filename="app/api/route.ts" switcher
+import { cookies } from 'next/headers'
+
+export async function GET(request: Request) {
+  const cookieStore = await cookies()
+  const token = cookieStore.get('token')
+
+  return new Response('Hello, Next.js!', {
+    status: 200,
+    headers: { 'Set-Cookie': `token=${token.value}` },
+  })
+}
+```
+
+```js filename="app/api/route.js" switcher
+import { cookies } from 'next/headers'
+
+export async function GET(request) {
+  const cookieStore = await cookies()
+  const token = cookieStore.get('token')
+
+  return new Response('Hello, Next.js!', {
+    status: 200,
+    headers: { 'Set-Cookie': `token=${token}` },
+  })
+}
+```
+
+You can also use the underlying Web APIs to read cookies from the request ([`NextRequest`](/docs/app/api-reference/functions/next-request)):
+
+```ts filename="app/api/route.ts" switcher
+import { type NextRequest } from 'next/server'
+
+export async function GET(request: NextRequest) {
+  const token = request.cookies.get('token')
+}
+```
+
+```js filename="app/api/route.js" switcher
+export async function GET(request) {
+  const token = request.cookies.get('token')
+}
+```
+
+### Headers
+
+You can read headers with [`headers`](/docs/app/api-reference/functions/headers) from `next/headers`. This server function can be called directly in a Route Handler, or nested inside of another function.
+
+This `headers` instance is read-only. To set headers, you need to return a new `Response` with new `headers`.
+
+```ts filename="app/api/route.ts" switcher
+import { headers } from 'next/headers'
+
+export async function GET(request: Request) {
+  const headersList = await headers()
+  const referer = headersList.get('referer')
+
+  return new Response('Hello, Next.js!', {
+    status: 200,
+    headers: { referer: referer },
+  })
+}
+```
+
+```js filename="app/api/route.js" switcher
+import { headers } from 'next/headers'
+
+export async function GET(request) {
+  const headersList = await headers()
+  const referer = headersList.get('referer')
+
+  return new Response('Hello, Next.js!', {
+    status: 200,
+    headers: { referer: referer },
+  })
+}
+```
+
+You can also use the underlying Web APIs to read headers from the request ([`NextRequest`](/docs/app/api-reference/functions/next-request)):
+
+```ts filename="app/api/route.ts" switcher
+import { type NextRequest } from 'next/server'
+
+export async function GET(request: NextRequest) {
+  const requestHeaders = new Headers(request.headers)
+}
+```
+
+```js filename="app/api/route.js" switcher
+export async function GET(request) {
+  const requestHeaders = new Headers(request.headers)
+}
+```
+
+### Dynamic Route Segments
+
+Route Handlers can use [Dynamic Segments](/docs/app/api-reference/file-conventions/dynamic-routes) to create request handlers from dynamic data.
+
+```ts filename="app/items/[slug]/route.ts" switcher
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ slug: string }> }
+) {
+  const { slug } = await params // 'a', 'b', or 'c'
+}
+```
+
+```js filename="app/items/[slug]/route.js" switcher
+export async function GET(request, { params }) {
+  const { slug } = await params // 'a', 'b', or 'c'
+}
+```
+
+| Route                       | Example URL | `params`                 |
+| --------------------------- | ----------- | ------------------------ |
+| `app/items/[slug]/route.js` | `/items/a`  | `Promise<{ slug: 'a' }>` |
+| `app/items/[slug]/route.js` | `/items/b`  | `Promise<{ slug: 'b' }>` |
+| `app/items/[slug]/route.js` | `/items/c`  | `Promise<{ slug: 'c' }>` |
+
+### Streaming
+
+Streaming is commonly used in combination with Large Language Models (LLMs), such as OpenAI, for AI-generated content. Learn more about the [AI SDK](https://sdk.vercel.ai/docs/introduction).
+
+```ts filename="app/api/chat/route.ts" switcher
+import { openai } from '@ai-sdk/openai'
+import { StreamingTextResponse, streamText } from 'ai'
+
+export async function POST(req: Request) {
+  const { messages } = await req.json()
+  const result = await streamText({
+    model: openai('gpt-4-turbo'),
+    messages,
+  })
+
+  return new StreamingTextResponse(result.toAIStream())
+}
+```
+
+```js filename="app/api/chat/route.js" switcher
+import { openai } from '@ai-sdk/openai'
+import { StreamingTextResponse, streamText } from 'ai'
+
+export async function POST(req) {
+  const { messages } = await req.json()
+  const result = await streamText({
+    model: openai('gpt-4-turbo'),
+    messages,
+  })
+
+  return new StreamingTextResponse(result.toAIStream())
+}
+```
+
+These abstractions use the Web APIs to create a stream. You can also use the underlying Web APIs directly.
+
+```ts filename="app/api/route.ts" switcher
+// https://developer.mozilla.org/docs/Web/API/ReadableStream#convert_async_iterator_to_stream
+function iteratorToStream(iterator: any) {
+  return new ReadableStream({
+    async pull(controller) {
+      const { value, done } = await iterator.next()
+
+      if (done) {
+        controller.close()
+      } else {
+        controller.enqueue(value)
+      }
+    },
+  })
+}
+
+function sleep(time: number) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, time)
+  })
+}
+
+const encoder = new TextEncoder()
+
+async function* makeIterator() {
+  yield encoder.encode('<p>One</p>')
+  await sleep(200)
+  yield encoder.encode('<p>Two</p>')
+  await sleep(200)
+  yield encoder.encode('<p>Three</p>')
+}
+
+export async function GET() {
+  const iterator = makeIterator()
+  const stream = iteratorToStream(iterator)
+
+  return new Response(stream)
+}
+```
+
+```js filename="app/api/route.js" switcher
+// https://developer.mozilla.org/docs/Web/API/ReadableStream#convert_async_iterator_to_stream
+function iteratorToStream(iterator) {
+  return new ReadableStream({
+    async pull(controller) {
+      const { value, done } = await iterator.next()
+
+      if (done) {
+        controller.close()
+      } else {
+        controller.enqueue(value)
+      }
+    },
+  })
+}
+
+function sleep(time) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, time)
+  })
+}
+
+const encoder = new TextEncoder()
+
+async function* makeIterator() {
+  yield encoder.encode('<p>One</p>')
+  await sleep(200)
+  yield encoder.encode('<p>Two</p>')
+  await sleep(200)
+  yield encoder.encode('<p>Three</p>')
+}
+
+export async function GET() {
+  const iterator = makeIterator()
+  const stream = iteratorToStream(iterator)
+
+  return new Response(stream)
+}
+```
+
+### Segment Config Options
+
+Route Handlers use the same [route segment configuration](/docs/app/api-reference/file-conventions/route-segment-config) as pages and layouts.
+
+```ts filename="app/items/route.ts" switcher
+export const dynamic = 'auto'
+export const dynamicParams = true
+export const revalidate = false
+export const fetchCache = 'auto'
+export const runtime = 'nodejs'
+export const preferredRegion = 'auto'
+```
+
+```js filename="app/items/route.js" switcher
+export const dynamic = 'auto'
+export const dynamicParams = true
+export const revalidate = false
+export const fetchCache = 'auto'
+export const runtime = 'nodejs'
+export const preferredRegion = 'auto'
+```
+
+See the [API reference](/docs/app/api-reference/file-conventions/route-segment-config) for more details.
 
 ## Caveats
 
@@ -671,9 +1003,11 @@ This creates a shared handler for `GET` and `POST` requests. The library customi
 
 Fetch data in Server Components directly from its source, not via Route Handlers.
 
-For Server Components pre-rendered at build time, using Route Handlers will fail the build step.
+For Server Components pre-rendered at build time, using Route Handlers will fail the build step. This is because, while building there is no server listening for these requests.
 
 For Server Components rendered on demand, fetching from Route Handlers is slower due to the extra HTTP round trip between the handler and the render process.
+
+> A server side `fetch` request uses absolute URLs. This implies an HTTP round trip, to an external server. During development, your own development server acts as the external server. At build time there is no server, and at runtime, the server is available through your public facing domain.
 
 Server Components cover most data-fetching needs. However, fetching data client side might be necessary for:
 
@@ -716,17 +1050,3 @@ Some hosts deploy Route Handlers as lambda functions. This means:
 - The environment may not support writing to File System.
 - Long-running handlers may be terminated due to timeouts.
 - WebSockets won’t work because the connection closes on timeout, or after the response is generated.
-
-### Be defensive
-
-Never trust incoming request data. Validate content type and size, and sanitize against XSS before use.
-
-Use timeouts to prevent abuse and protect server resources.
-
-Store user-generated static assets in dedicated services. When possible, upload them from the browser and store the returned URI in your database to reduce request size.
-
-Always verify credentials before granting access. Do not rely on middleware alone for authentication and authorization.
-
-Remove sensitive or unnecessary data from responses and backend logs.
-
-Rotate credentials and API keys regularly.
