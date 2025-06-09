@@ -671,9 +671,9 @@ This creates a shared handler for `GET` and `POST` requests. The library customi
 
 Fetch data in Server Components directly from its source, not via Route Handlers.
 
-For pages pre-rendered at build time, using Route Handlers will fail the build step.
+For Server Components pre-rendered at build time, using Route Handlers will fail the build step.
 
-For pages rendered on demand, fetching from Route Handlers is slower due to the extra HTTP round trip between the handler and the render process.
+For Server Components rendered on demand, fetching from Route Handlers is slower due to the extra HTTP round trip between the handler and the render process.
 
 Server Components cover most data-fetching needs. However, fetching data client side might be necessary for:
 
