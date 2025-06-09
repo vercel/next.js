@@ -5,7 +5,7 @@ use indoc::formatdoc;
 use lightningcss::css_modules::CssModuleReference;
 use swc_core::common::{BytePos, FileName, LineCol, SourceMap};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{FileSystemPath, rope::Rope};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -84,9 +84,7 @@ impl Module for ModuleCssAsset {
             .copied()
             .chain(
                 match *self
-                    .inner(Value::new(ReferenceType::Css(
-                        CssReferenceSubType::Internal,
-                    )))
+                    .inner(ReferenceType::Css(CssReferenceSubType::Internal))
                     .try_into_module()
                     .await?
                 {
@@ -160,15 +158,14 @@ struct ModuleCssClasses(FxIndexMap<String, Vec<ModuleCssClass>>);
 #[turbo_tasks::value_impl]
 impl ModuleCssAsset {
     #[turbo_tasks::function]
-    pub fn inner(&self, ty: Value<ReferenceType>) -> Vc<ProcessResult> {
-        self.asset_context
-            .process(*self.source, Value::new(ty.into_value()))
+    pub fn inner(&self, ty: ReferenceType) -> Vc<ProcessResult> {
+        self.asset_context.process(*self.source, ty)
     }
 
     #[turbo_tasks::function]
     async fn classes(self: Vc<Self>) -> Result<Vc<ModuleCssClasses>> {
         let inner = self
-            .inner(Value::new(ReferenceType::Css(CssReferenceSubType::Analyze)))
+            .inner(ReferenceType::Css(CssReferenceSubType::Analyze))
             .module();
 
         let inner = Vc::try_resolve_sidecast::<Box<dyn ProcessCss>>(inner)
@@ -198,9 +195,7 @@ impl ModuleCssAsset {
                                 original: name.to_string(),
                                 from: CssModuleComposeReference::new(
                                     Vc::upcast(self),
-                                    Request::parse(Value::new(
-                                        RcStr::from(specifier.clone()).into(),
-                                    )),
+                                    Request::parse(RcStr::from(specifier.clone()).into()),
                                 )
                                 .to_resolved()
                                 .await?,

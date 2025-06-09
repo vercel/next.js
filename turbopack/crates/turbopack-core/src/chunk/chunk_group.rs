@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use anyhow::{Context, Result};
 use rustc_hash::FxHashMap;
-use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Value, Vc};
+use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Vc};
 
 use super::{
     Chunk, ChunkGroupContent, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkingContext,
@@ -105,7 +105,7 @@ pub async fn make_chunk_group(
         .into_iter()
         .map(async |module| {
             chunking_context
-                .async_loader_chunk_item(*module, module_graph, Value::new(availability_info))
+                .async_loader_chunk_item(*module, module_graph, availability_info)
                 .to_resolved()
                 .await
         })

@@ -125,13 +125,20 @@ async fn get_update_stream_item_operation(
         Ok(content) => content,
         Err(e) => {
             plain_issues.push(
-                FatalStreamIssue {
-                    resource,
-                    description: StyledString::Text(format!("{}", PrettyPrintError(&e)).into())
-                        .resolved_cell(),
-                }
-                .cell()
-                .into_plain(OptionIssueProcessingPathItems::none())
+                PlainIssue::from_issue(
+                    Vc::upcast(
+                        FatalStreamIssue {
+                            resource,
+                            description: StyledString::Text(
+                                format!("{}", PrettyPrintError(&e)).into(),
+                            )
+                            .resolved_cell(),
+                        }
+                        .cell(),
+                    ),
+                    None,
+                    OptionIssueProcessingPathItems::none(),
+                )
                 .await?,
             );
 
@@ -181,14 +188,14 @@ async fn get_update_stream_item_operation(
             extend_issues(&mut plain_issues, peek_issues(proxy_result_op).await?);
 
             let from = from.get();
-            if let Some(from) = Vc::try_resolve_downcast_type::<ProxyResult>(from).await? {
-                if from.await? == proxy_result_value {
-                    return Ok(UpdateStreamItem::Found {
-                        update: Update::None.cell().await?,
-                        issues: plain_issues,
-                    }
-                    .cell());
+            if let Some(from) = Vc::try_resolve_downcast_type::<ProxyResult>(from).await?
+                && from.await? == proxy_result_value
+            {
+                return Ok(UpdateStreamItem::Found {
+                    update: Update::None.cell().await?,
+                    issues: plain_issues,
                 }
+                .cell());
             }
 
             Ok(UpdateStreamItem::Found {

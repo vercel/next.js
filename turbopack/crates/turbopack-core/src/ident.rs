@@ -4,14 +4,14 @@ use anyhow::Result;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, TaskInput, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher, encode_hex, hash_xxh3_hash64};
 
 use crate::resolve::ModulePart;
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Clone, Debug, Hash)]
+#[turbo_tasks::value]
+#[derive(Clone, Debug, Hash, TaskInput)]
 pub struct AssetIdent {
     /// The primary path of the asset
     pub path: ResolvedVc<FileSystemPath>,
@@ -35,6 +35,7 @@ pub struct AssetIdent {
 
 impl AssetIdent {
     pub fn add_modifier(&mut self, modifier: RcStr) {
+        debug_assert!(!modifier.is_empty(), "modifiers cannot be empty.");
         self.modifiers.push(modifier);
     }
 
@@ -118,7 +119,7 @@ impl ValueToString for AssetIdent {
 #[turbo_tasks::value_impl]
 impl AssetIdent {
     #[turbo_tasks::function]
-    pub async fn new(ident: Value<AssetIdent>) -> Result<Vc<Self>> {
+    pub fn new(ident: AssetIdent) -> Vc<Self> {
         debug_assert!(
             ident.query.is_empty() || ident.query.starts_with("?"),
             "query should be empty or start with a `?`"
@@ -127,13 +128,13 @@ impl AssetIdent {
             ident.fragment.is_empty() || ident.fragment.starts_with("#"),
             "query should be empty or start with a `?`"
         );
-        Ok(ident.into_value().cell())
+        ident.cell()
     }
 
     /// Creates an [AssetIdent] from a [Vc<FileSystemPath>]
     #[turbo_tasks::function]
     pub fn from_path(path: ResolvedVc<FileSystemPath>) -> Vc<Self> {
-        Self::new(Value::new(AssetIdent {
+        Self::new(AssetIdent {
             path,
             query: RcStr::default(),
             fragment: RcStr::default(),
@@ -142,63 +143,71 @@ impl AssetIdent {
             parts: Vec::new(),
             layer: None,
             content_type: None,
-        }))
+        })
     }
 
     #[turbo_tasks::function]
     pub fn with_query(&self, query: RcStr) -> Vc<Self> {
         let mut this = self.clone();
         this.query = query;
-        Self::new(Value::new(this))
+        Self::new(this)
     }
 
     #[turbo_tasks::function]
     pub fn with_fragment(&self, fragment: RcStr) -> Vc<Self> {
         let mut this = self.clone();
         this.fragment = fragment;
-        Self::new(Value::new(this))
+        Self::new(this)
     }
 
     #[turbo_tasks::function]
     pub fn with_modifier(&self, modifier: RcStr) -> Vc<Self> {
         let mut this = self.clone();
         this.add_modifier(modifier);
-        Self::new(Value::new(this))
+        Self::new(this)
     }
 
     #[turbo_tasks::function]
     pub fn with_part(&self, part: ModulePart) -> Vc<Self> {
         let mut this = self.clone();
         this.parts.push(part);
-        Self::new(Value::new(this))
+        Self::new(this)
     }
 
     #[turbo_tasks::function]
     pub fn with_path(&self, path: ResolvedVc<FileSystemPath>) -> Vc<Self> {
         let mut this = self.clone();
         this.path = path;
-        Self::new(Value::new(this))
+        Self::new(this)
     }
 
     #[turbo_tasks::function]
     pub fn with_layer(&self, layer: RcStr) -> Vc<Self> {
         let mut this = self.clone();
+        debug_assert!(!layer.is_empty(), "cannot set empty layers names");
         this.layer = Some(layer);
-        Self::new(Value::new(this))
+        Self::new(this)
     }
 
     #[turbo_tasks::function]
     pub fn with_content_type(&self, content_type: RcStr) -> Vc<Self> {
         let mut this = self.clone();
         this.content_type = Some(content_type);
-        Self::new(Value::new(this))
+        Self::new(this)
+    }
+
+    #[turbo_tasks::function]
+    pub fn with_asset(&self, key: RcStr, asset: ResolvedVc<AssetIdent>) -> Vc<Self> {
+        let mut this = self.clone();
+        this.add_asset(key, asset);
+        Self::new(this)
     }
 
     #[turbo_tasks::function]
     pub async fn rename_as(&self, pattern: RcStr) -> Result<Vc<Self>> {
         let mut this = self.clone();
         this.rename_as_ref(&pattern).await?;
-        Ok(Self::new(Value::new(this)))
+        Ok(Self::new(this))
     }
 
     #[turbo_tasks::function]
@@ -274,10 +283,10 @@ impl AssetIdent {
             has_hash = true;
         }
         for modifier in modifiers.iter() {
-            if let Some(default_modifier) = default_modifier {
-                if *modifier == default_modifier {
-                    continue;
-                }
+            if let Some(default_modifier) = default_modifier
+                && *modifier == default_modifier
+            {
+                continue;
             }
             3_u8.deterministic_hash(&mut hasher);
             modifier.deterministic_hash(&mut hasher);
@@ -349,10 +358,10 @@ impl AssetIdent {
         const MAX_FILENAME: usize = 80;
         if name.len() - i > MAX_FILENAME {
             i = name.len() - MAX_FILENAME;
-            if let Some(j) = name[i..].find('_') {
-                if j < 20 {
-                    i += j + 1;
-                }
+            if let Some(j) = name[i..].find('_')
+                && j < 20
+            {
+                i += j + 1;
             }
         }
         if i > 0 {

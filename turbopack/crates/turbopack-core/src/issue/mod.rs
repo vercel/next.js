@@ -16,14 +16,15 @@ use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     CollectiblesSource, NonLocalValue, OperationVc, RawVc, ReadRef, ResolvedVc, TaskInput,
-    TransientInstance, TransientValue, TryJoinIterExt, Upcast, ValueToString, Vc, emit,
-    trace::TraceRawVcs,
+    TransientInstance, TransientValue, TryJoinIterExt, Upcast, ValueDefault, ValueToString, Vc,
+    emit, trace::TraceRawVcs,
 };
-use turbo_tasks_fs::{FileContent, FileLine, FileLinesContent, FileSystemPath};
+use turbo_tasks_fs::{FileContent, FileLine, FileLinesContent, FileSystem, FileSystemPath};
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
 
 use crate::{
     asset::{Asset, AssetContent},
+    ident::AssetIdent,
     source::Source,
     source_map::{GenerateSourceMap, SourceMap, TokenWithSource},
     source_pos::SourcePos,
@@ -147,38 +148,44 @@ pub trait Issue {
     fn source(self: Vc<Self>) -> Vc<OptionIssueSource> {
         Vc::cell(None)
     }
+}
 
-    async fn into_plain(
-        self: Vc<Self>,
-        processing_path: Vc<OptionIssueProcessingPathItems>,
-    ) -> Result<Vc<PlainIssue>> {
-        let description = match *self.description().await? {
-            Some(description) => Some((*description.await?).clone()),
-            None => None,
-        };
-        let detail = match *self.detail().await? {
-            Some(detail) => Some((*detail.await?).clone()),
-            None => None,
-        };
+// A collectible trait that allows traces to be computed for a given module.
+#[turbo_tasks::value_trait]
+pub trait ImportTracer {
+    fn get_traces(self: Vc<Self>, path: ResolvedVc<FileSystemPath>) -> Vc<ImportTraces>;
+}
 
-        Ok(PlainIssue {
-            severity: *self.severity().await?,
-            file_path: self.file_path().to_string().owned().await?,
-            stage: self.stage().owned().await?,
-            title: self.title().owned().await?,
-            description,
-            detail,
-            documentation_link: self.documentation_link().owned().await?,
-            source: {
-                if let Some(s) = &*self.source().await? {
-                    Some(s.into_plain().await?)
-                } else {
-                    None
-                }
-            },
-            processing_path: processing_path.into_plain().await?,
-        }
-        .cell())
+#[turbo_tasks::value(shared)]
+#[derive(Debug)]
+pub struct DelegatingImportTracer {
+    delegates: AutoSet<ResolvedVc<Box<dyn ImportTracer>>>,
+}
+
+impl DelegatingImportTracer {
+    async fn get_traces(&self, path: Vc<FileSystemPath>) -> Result<Vec<ImportTrace>> {
+        Ok(self
+            .delegates
+            .iter()
+            .map(|d| d.get_traces(path))
+            .try_join()
+            .await?
+            .iter()
+            .flat_map(|v| v.0.iter().cloned())
+            .collect())
+    }
+}
+
+pub type ImportTrace = Vec<ReadRef<AssetIdent>>;
+
+#[turbo_tasks::value(shared)]
+pub struct ImportTraces(pub Vec<ImportTrace>);
+
+#[turbo_tasks::value_impl]
+impl ValueDefault for ImportTraces {
+    #[turbo_tasks::function]
+    fn value_default() -> Vc<Self> {
+        Self::cell(ImportTraces(vec![]))
     }
 }
 
@@ -357,6 +364,7 @@ pub struct CapturedIssues {
     issues: AutoSet<ResolvedVc<Box<dyn Issue>>>,
     #[cfg(feature = "issue_path")]
     processing_path: ResolvedVc<ItemIssueProcessingPath>,
+    tracer: ResolvedVc<DelegatingImportTracer>,
 }
 
 #[turbo_tasks::value_impl]
@@ -384,38 +392,17 @@ impl CapturedIssues {
         self.issues.iter().copied()
     }
 
-    /// Returns an iterator over the issues with the shortest path from the root
-    /// issue to each issue.
-    pub fn iter_with_shortest_path(
-        &self,
-    ) -> impl Iterator<
-        Item = (
-            ResolvedVc<Box<dyn Issue>>,
-            Vc<OptionIssueProcessingPathItems>,
-        ),
-    > + '_ {
-        self.issues.iter().map(|issue| {
-            #[cfg(feature = "issue_path")]
-            let path = self.processing_path.shortest_path(**issue);
-            #[cfg(not(feature = "issue_path"))]
-            let path = OptionIssueProcessingPathItems::none();
-            (*issue, path)
-        })
-    }
-
+    // Returns all the issues as formatted `PlainIssues`.
     pub async fn get_plain_issues(&self) -> Result<Vec<ReadRef<PlainIssue>>> {
         let mut list = self
             .issues
             .iter()
-            .map(|&issue| async move {
+            .map(|issue| async move {
                 #[cfg(feature = "issue_path")]
-                return issue
-                    .into_plain(self.processing_path.shortest_path(*issue))
-                    .await;
+                let processing_path = self.processing_path.shortest_path(**issue);
                 #[cfg(not(feature = "issue_path"))]
-                return issue
-                    .into_plain(OptionIssueProcessingPathItems::none())
-                    .await;
+                let processing_path = OptionIssueProcessingPathItems::none();
+                PlainIssue::from_issue(**issue, Some(*self.tracer), processing_path).await
             })
             .try_join()
             .await?;
@@ -622,6 +609,129 @@ pub struct OptionIssueSource(Option<IssueSource>);
 #[turbo_tasks::value(transparent)]
 pub struct OptionStyledString(Option<ResolvedVc<StyledString>>);
 
+// A structured reference to a file with module level details for displaying in an import trace
+#[derive(
+    Serialize,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Clone,
+    Debug,
+    TraceRawVcs,
+    NonLocalValue,
+    DeterministicHash,
+)]
+#[serde(rename_all = "camelCase")]
+pub struct PlainTraceItem {
+    // The name of the filesystem
+    pub fs_name: RcStr,
+    // The root path of the filesystem, for constructing links
+    pub root_path: RcStr,
+    // The path of the file, relative to the filesystem root
+    pub path: RcStr,
+    // An optional label attached to the module that clarifies where in the module graph it is.
+    pub layer: Option<RcStr>,
+}
+
+impl PlainTraceItem {
+    async fn from_asset_ident(asset: ReadRef<AssetIdent>) -> Result<Self> {
+        // TODO(lukesandberg): How should we display paths? it would be good to display all paths
+        // relative to the cwd or the project root.
+        let fs_path = asset.path.await?;
+        let fs_name = fs_path.fs.to_string().owned().await?;
+        let root_path = fs_path.fs.root().await?.path.clone();
+        let path = fs_path.path.clone();
+        let layer = asset.layer.clone();
+        Ok(Self {
+            fs_name,
+            root_path,
+            path,
+            layer,
+        })
+    }
+}
+
+pub type PlainTrace = Vec<PlainTraceItem>;
+
+// Flatten and simplify this set of import traces into a simpler format for formatting.
+async fn into_plain_trace(traces: Vec<Vec<ReadRef<AssetIdent>>>) -> Result<Vec<PlainTrace>> {
+    let mut plain_traces = traces
+        .into_iter()
+        .map(|trace| async move {
+            let mut plain_trace = trace
+                .into_iter()
+                .filter(|asset| {
+                    // If there are nested assets, this is a synthetic module which is likely to be
+                    // confusing/distracting.  Just skip it.
+                    asset.assets.is_empty()
+                })
+                .map(PlainTraceItem::from_asset_ident)
+                .try_join()
+                .await?;
+
+            // After simplifying the trace, we may end up with apparent duplicates.
+            // Consider this example:
+            // Example import trace:
+            // ./[project]/app/global.scss.css [app-client] (css) [app-client]
+            // ./[project]/app/layout.js [app-client] (ecmascript) [app-client]
+            // ./[project]/app/layout.js [app-rsc] (client reference proxy) [app-rsc]
+            // ./[project]/app/layout.js [app-rsc] (ecmascript) [app-rsc]
+            // ./[project]/app/layout.js [app-rsc] (ecmascript, Next.js Server Component) [app-rsc]
+            //
+            // In that case, there are an number of 'shim modules' that are inserted by next with
+            // different `modifiers` that are used to model the server->client hand off.  The
+            // simplification performed by `PlainTraceItem::from_asset_ident` drops these
+            // 'modifiers' and so we would end up with 'app/layout.js' appearing to be duplicated
+            // several times.  These modules are implementation details of the application so we
+            // just deduplicate them here.
+
+            plain_trace.dedup();
+
+            Ok(plain_trace)
+        })
+        .try_join()
+        .await?;
+
+    // Trim any empty traces and traces that only contain 1 item.  Showing a trace that points to
+    // the file with the issue is not useful.
+    plain_traces.retain(|t| t.len() > 1);
+    // Sort so the shortest traces come first, and break ties by the trace itself to ensure
+    // stability
+    plain_traces.sort_by(|a, b| {
+        // Sort by length first, so that shorter traces come first.
+        a.len().cmp(&b.len()).then_with(|| a.cmp(b))
+    });
+
+    // Now see if there are any overlaps
+    // If two of the traces overlap that means one is a suffix of another one.  Because we are
+    // computing shortest paths in the same graph and the shortest path algorithm we use is
+    // deterministic.
+    // Technically this is a quadratic algorithm since we need to compare each trace with all
+    // subsequent traces, however there are rarely more than 3 traces and certainly never more
+    // than 10.
+    if plain_traces.len() > 1 {
+        let mut i = 0;
+        while i < plain_traces.len() - 1 {
+            let mut j = plain_traces.len() - 1;
+            while j > i {
+                if plain_traces[j].ends_with(&plain_traces[i]) {
+                    // Remove the longer trace.
+                    // This typically happens due to things like server->client transitions where
+                    // the same file appears multiple times under different modules identifiers.
+                    // On the one hand the shorter trace is simpler, on the other hand the longer
+                    // trace might be more 'interesting' and even relevant.
+                    plain_traces.remove(j);
+                }
+                j -= 1;
+            }
+            i += 1;
+        }
+    }
+
+    Ok(plain_traces)
+}
+
 #[turbo_tasks::value(shared, serialization = "none")]
 #[derive(Clone, Debug, PartialOrd, Ord, DeterministicHash, Serialize)]
 pub enum IssueStage {
@@ -679,6 +789,7 @@ pub struct PlainIssue {
 
     pub source: Option<PlainIssueSource>,
     pub processing_path: ReadRef<PlainIssueProcessingPath>,
+    pub import_traces: Vec<PlainTrace>,
 }
 
 fn hash_plain_issue(issue: &PlainIssue, hasher: &mut Xxh3Hash64Hasher, full: bool) {
@@ -701,6 +812,7 @@ fn hash_plain_issue(issue: &PlainIssue, hasher: &mut Xxh3Hash64Hasher, full: boo
 
     if full {
         hasher.write_ref(&issue.processing_path);
+        hasher.write_ref(&issue.import_traces);
     }
 }
 
@@ -722,17 +834,46 @@ impl PlainIssue {
 
 #[turbo_tasks::value_impl]
 impl PlainIssue {
-    /// We need deduplicate issues that can come from unique paths, but
-    /// represent the same underlying problem. Eg, a parse error for a file
-    /// that is compiled in both client and server contexts.
-    ///
-    /// Passing [full] will also hash any sub-issues and processing paths. While
-    /// useful for generating exact matching hashes, it's possible for the
-    /// same issue to pass from multiple processing paths, making for overly
-    /// verbose logging.
+    /// Translate an [Issue] into a [PlainIssue]. A more regular structure suitable for printing and
+    /// serialization.
     #[turbo_tasks::function]
-    pub fn internal_hash(&self, full: bool) -> Vc<u64> {
-        Vc::cell(self.internal_hash_ref(full))
+    pub async fn from_issue(
+        issue: ResolvedVc<Box<dyn Issue>>,
+        import_tracer: Option<ResolvedVc<DelegatingImportTracer>>,
+        processing_path: Vc<OptionIssueProcessingPathItems>,
+    ) -> Result<Vc<Self>> {
+        let description: Option<StyledString> = match *issue.description().await? {
+            Some(description) => Some((*description.await?).clone()),
+            None => None,
+        };
+        let detail = match *issue.detail().await? {
+            Some(detail) => Some((*detail.await?).clone()),
+            None => None,
+        };
+
+        Ok(Self::cell(Self {
+            severity: *issue.severity().await?,
+            file_path: issue.file_path().to_string().owned().await?,
+            stage: issue.stage().owned().await?,
+            title: issue.title().owned().await?,
+            description,
+            detail,
+            documentation_link: issue.documentation_link().owned().await?,
+            source: {
+                if let Some(s) = &*issue.source().await? {
+                    Some(s.into_plain().await?)
+                } else {
+                    None
+                }
+            },
+            processing_path: processing_path.into_plain().await?,
+            import_traces: match import_tracer {
+                Some(tracer) => {
+                    into_plain_trace(tracer.await?.get_traces(issue.file_path()).await?).await?
+                }
+                None => vec![],
+            },
+        }))
     }
 }
 
@@ -942,6 +1083,9 @@ where
                 None,
                 self.peek_collectibles(),
             )),
+            tracer: DelegatingImportTracer::resolved_cell(DelegatingImportTracer {
+                delegates: self.peek_collectibles(),
+            }),
         })
     }
 
@@ -953,6 +1097,9 @@ where
                 None,
                 self.take_collectibles(),
             )),
+            tracer: DelegatingImportTracer::resolved_cell(DelegatingImportTracer {
+                delegates: self.take_collectibles(),
+            }),
         })
     }
 }

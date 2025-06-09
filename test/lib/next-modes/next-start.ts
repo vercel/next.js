@@ -149,7 +149,10 @@ export class NextStartInstance extends NextInstance {
           }
         })
 
-        const serverReadyTimeoutId = this.setServerReadyTimeout(reject)
+        const serverReadyTimeoutId = this.setServerReadyTimeout(
+          reject,
+          this.startServerTimeout
+        )
 
         const readyCb = (msg) => {
           const colorStrippedMsg = stripAnsi(msg)

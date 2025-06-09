@@ -43,7 +43,6 @@ export const BuildError: React.FC<BuildErrorProps> = function BuildError({
       errorMessage={formattedMessage}
       onClose={noop}
       error={error}
-      footerMessage="This error occurred during the build process and can only be dismissed by fixing the error."
       {...props}
     >
       <Terminal content={message} />

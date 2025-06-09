@@ -44,9 +44,7 @@ impl EcmascriptModuleLocalsModule {
 impl Module for EcmascriptModuleLocalsModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        let inner = self.module.ident();
-
-        inner.with_part(ModulePart::locals())
+        self.module.ident().with_part(ModulePart::locals())
     }
 
     #[turbo_tasks::function]

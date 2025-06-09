@@ -16,6 +16,7 @@ serde = { workspace = true }
 new_debug_unreachable = "1.0.6"
 shrink-to-fit = { workspace = true }
 napi = { workspace = true, optional = true }
+rustc-hash = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true }

@@ -100,7 +100,7 @@ impl OutputAsset for SingleItemCssChunk {
         Ok(self.await?.chunking_context.chunk_path(
             Some(Vc::upcast(self)),
             self.ident_for_path(),
-            ".single.css".into(),
+            rcstr!(".single.css"),
         ))
     }
 
@@ -156,21 +156,11 @@ impl GenerateSourceMap for SingleItemCssChunk {
     }
 }
 
-#[turbo_tasks::function]
-fn introspectable_type() -> Vc<RcStr> {
-    Vc::cell("single asset css chunk".into())
-}
-
-#[turbo_tasks::function]
-fn entry_module_key() -> Vc<RcStr> {
-    Vc::cell("entry module".into())
-}
-
 #[turbo_tasks::value_impl]
 impl Introspectable for SingleItemCssChunk {
     #[turbo_tasks::function]
     fn ty(&self) -> Vc<RcStr> {
-        introspectable_type()
+        Vc::cell(rcstr!("single asset css chunk"))
     }
 
     #[turbo_tasks::function]
