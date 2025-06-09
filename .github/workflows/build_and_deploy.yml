@@ -696,17 +696,10 @@ jobs:
 
   buildPassed:
     needs: ['deploy-target', 'build', 'build-wasm', 'build-native']
-    if: always()
+    if: ${{ always() && needs.deploy-target.outputs.value != '' }}
     name: thank you, build
     runs-on: ubuntu-latest
     steps:
-      - name: Waiting for passing build_and_deploy from push event
-        # If we bailed out early, don't mark this as passed i.e. deploy-target must
-        # have passed. Everything else can be skipped.
-        # We assume that a workflow from a different event is still running
-        # and eventually produces a passed job.
-        if: ${{ needs.deploy-target.outputs.value == '' }}
-        run: exit 1
       - run: exit 1
         if: ${{ always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) }}
 
