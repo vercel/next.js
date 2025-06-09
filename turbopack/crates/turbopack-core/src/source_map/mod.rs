@@ -1,11 +1,12 @@
 use std::{borrow::Cow, io::Write, ops::Deref, sync::Arc};
 
 use anyhow::Result;
+use bytes_str::BytesStr;
 use once_cell::sync::Lazy;
 use ref_cast::RefCast;
 use regex::Regex;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use sourcemap::{DecodedMap, SourceMap as RegularMap, SourceMapBuilder, SourceMapIndex};
+use swc_sourcemap::{DecodedMap, SourceMap as RegularMap, SourceMapBuilder, SourceMapIndex};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{
@@ -148,8 +149,8 @@ impl Token {
     }
 }
 
-impl From<sourcemap::Token<'_>> for Token {
-    fn from(t: sourcemap::Token) -> Self {
+impl From<swc_sourcemap::Token<'_>> for Token {
+    fn from(t: swc_sourcemap::Token) -> Self {
         if t.has_source() {
             Token::Original(OriginalToken {
                 generated_line: t.get_dst_line(),
@@ -171,12 +172,12 @@ impl From<sourcemap::Token<'_>> for Token {
     }
 }
 
-impl TryInto<sourcemap::RawToken> for Token {
+impl TryInto<swc_sourcemap::RawToken> for Token {
     type Error = std::num::ParseIntError;
 
-    fn try_into(self) -> Result<sourcemap::RawToken, Self::Error> {
+    fn try_into(self) -> Result<swc_sourcemap::RawToken, Self::Error> {
         Ok(match self {
-            Self::Original(t) => sourcemap::RawToken {
+            Self::Original(t) => swc_sourcemap::RawToken {
                 dst_col: t.generated_column,
                 dst_line: t.generated_line,
                 name_id: match t.name {
@@ -188,7 +189,7 @@ impl TryInto<sourcemap::RawToken> for Token {
                 src_id: t.original_file.parse()?,
                 is_range: false,
             },
-            Self::Synthetic(t) => sourcemap::RawToken {
+            Self::Synthetic(t) => swc_sourcemap::RawToken {
                 dst_col: t.generated_column,
                 dst_line: t.generated_line,
                 name_id: SOURCEMAP_CRATE_NONE_U32,
@@ -273,13 +274,13 @@ impl SourceMap {
                     .sections
                     .iter()
                     .map(|s| {
-                        sourcemap::SourceMapSection::new(
+                        swc_sourcemap::SourceMapSection::new(
                             (s.offset.line, s.offset.column),
                             None,
                             Some(s.map.0.clone()),
                         )
                     })
-                    .collect::<Vec<sourcemap::SourceMapSection>>();
+                    .collect::<Vec<swc_sourcemap::SourceMapSection>>();
                 Arc::new(CrateMapWrapper(DecodedMap::Index(SourceMapIndex::new(
                     None, sections,
                 ))))
@@ -406,10 +407,10 @@ impl SourceMap {
 
     pub async fn with_resolved_sources(&self, origin: Vc<FileSystemPath>) -> Result<Self> {
         async fn resolve_source(
-            source_request: Arc<str>,
-            source_content: Option<Arc<str>>,
+            source_request: BytesStr,
+            source_content: Option<BytesStr>,
             origin: Vc<FileSystemPath>,
-        ) -> Result<(Arc<str>, Arc<str>)> {
+        ) -> Result<(BytesStr, BytesStr)> {
             Ok(
                 if let Some(path) = *origin.parent().try_join((&*source_request).into()).await? {
                     let path_str = path.to_string().await?;
@@ -503,7 +504,7 @@ impl SourceMap {
                         .await?;
                     let mut new_sections = Vec::with_capacity(count);
                     for (offset, map) in sections {
-                        new_sections.push(sourcemap::SourceMapSection::new(
+                        new_sections.push(swc_sourcemap::SourceMapSection::new(
                             offset,
                             // Urls are deprecated and we don't accept them
                             None,
