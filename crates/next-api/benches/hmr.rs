@@ -7,6 +7,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use next_api::project::{
     DefineEnv, DraftModeOptions, ProjectContainer, ProjectOptions, WatchOptions,
 };
@@ -89,14 +90,13 @@ export default function Home() {
         let component_content = format!(
             r#"import React from 'react';
 
-export default function Component{}() {{
-    return <div>Component {}</div>;
+export default function Component{i}() {{
+    return <div>Component {i}</div>;
 }}
-"#,
-            i, i
+"#
         );
 
-        let component_path = src_dir.join(format!("component{}.js", i));
+        let component_path = src_dir.join(format!("component{i}.js"));
         write(&component_path, component_content)?;
         modules.push((component_path, 1));
     }
@@ -145,7 +145,9 @@ impl HmrBenchmark {
         let test_app = create_test_app(module_count)?;
 
         let project_container = rt.block_on(async {
-            let container = ProjectContainer::new(RcStr::from("hmr-benchmark"), true);
+            let container = ProjectContainer::new(RcStr::from("hmr-benchmark"), true)
+                .to_resolved()
+                .await?;
 
             let project_path = test_app.path().to_string_lossy().to_string();
             let root_path = test_app.path().to_string_lossy().to_string();
@@ -177,13 +179,13 @@ impl HmrBenchmark {
                 no_mangling: false,
             };
 
-            // container.initialize(options).await?;
+            container.initialize(options).await?;
             Ok::<_, anyhow::Error>(container)
         })?;
 
         Ok(Self {
             test_app,
-            project_container,
+            project_container: *project_container,
             rt,
         })
     }
@@ -331,41 +333,6 @@ impl HmrBenchmark {
         self.test_app.modules().len()
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_hmr_benchmark_creation() {
-        let benchmark = HmrBenchmark::new(100).unwrap();
-        assert!(benchmark.module_count() > 0);
-    }
-
-    #[test]
-    fn test_initial_compilation_benchmark() {
-        let benchmark = HmrBenchmark::new(50).unwrap();
-        let duration = benchmark.benchmark_initial_compilation().unwrap();
-        println!("Initial compilation took: {:?}", duration);
-        assert!(duration > Duration::from_millis(0));
-    }
-
-    #[test]
-    fn test_hmr_update_benchmark() {
-        let benchmark = HmrBenchmark::new(50).unwrap();
-
-        // First run initial compilation
-        let _ = benchmark.benchmark_initial_compilation().unwrap();
-
-        // Then benchmark HMR updates
-        let duration = benchmark.benchmark_hmr_update(5).unwrap();
-        println!("HMR updates took: {:?}", duration);
-        assert!(duration > Duration::from_millis(0));
-    }
-}
-
-// Criterion benchmarks
-use criterion::{Criterion, black_box, criterion_group, criterion_main};
 
 fn criterion_hmr_initial_compilation(c: &mut Criterion) {
     let benchmark = HmrBenchmark::new(100).unwrap();
