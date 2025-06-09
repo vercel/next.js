@@ -44,6 +44,7 @@ turbo-tasks-env = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbo-tasks-hash = { workspace = true }
 urlencoding = { workspace = true }
+bytes-str = { workspace = true }
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }
