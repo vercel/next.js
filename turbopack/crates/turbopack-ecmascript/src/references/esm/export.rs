@@ -1,10 +1,10 @@
 use std::{borrow::Cow, collections::BTreeMap, ops::ControlFlow};
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use swc_core::{
-    common::DUMMY_SP,
+    common::{DUMMY_SP, SyntaxContext},
     ecma::ast::{
         AssignTarget, ComputedPropName, Expr, ExprStmt, Ident, KeyValueProp, Lit, MemberExpr,
         MemberProp, ObjectLit, Prop, PropName, PropOrSpread, SimpleAssignTarget, Stmt, Str,
@@ -285,23 +285,20 @@ async fn find_export_from_reexports(
 ) -> Result<Vc<FindExportFromReexportsResult>> {
     if let Some(module) =
         Vc::try_resolve_downcast_type::<EcmascriptModulePartAsset>(*module).await?
+        && matches!(module.await?.part, ModulePart::Exports)
     {
-        if matches!(module.await?.part, ModulePart::Exports) {
-            let module_part = EcmascriptModulePartAsset::select_part(
-                *module.await?.full_module,
-                ModulePart::export(export_name.clone()),
-            );
+        let module_part = EcmascriptModulePartAsset::select_part(
+            *module.await?.full_module,
+            ModulePart::export(export_name.clone()),
+        );
 
-            // If we apply this logic to EcmascriptModuleAsset, we will resolve everything in the
-            // target module.
-            if (Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module_part).await?)
-                .is_none()
-            {
-                return Ok(find_export_from_reexports(
-                    Vc::upcast(module_part),
-                    export_name,
-                ));
-            }
+        // If we apply this logic to EcmascriptModuleAsset, we will resolve everything in the
+        // target module.
+        if (Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module_part).await?).is_none() {
+            return Ok(find_export_from_reexports(
+                Vc::upcast(module_part),
+                export_name,
+            ));
         }
     }
 
@@ -395,10 +392,9 @@ pub async fn expand_star_exports(
                 for esm_ref in exports.star_exports.iter() {
                     if let ReferencedAsset::Some(asset) =
                         &*ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?
+                        && checked_modules.insert(**asset)
                     {
-                        if checked_modules.insert(**asset) {
-                            queue.push((**asset, asset.get_exports()));
-                        }
+                        queue.push((**asset, asset.get_exports()));
                     }
                 }
             }
@@ -569,21 +565,38 @@ impl EsmExports {
                     "(() => { throw new Error(\"Failed binding. See build errors!\"); })" as Expr,
                 )),
                 EsmExport::LocalBinding(name, mutable) => {
-                    let local = if name == "default" {
-                        Cow::Owned(magic_identifier::mangle("default export"))
-                    } else {
-                        Cow::Borrowed(name.as_str())
-                    };
-                    let ctxt = parsed
-                        .as_ref()
-                        .and_then(|parsed| {
-                            if let ParseResult::Ok { eval_context, .. } = &**parsed {
-                                eval_context.imports.exports.get(name).map(|id| id.1)
+                    // TODO ideally, this information would just be stored in
+                    // EsmExport::LocalBinding and we wouldn't have to re-correlated this
+                    // information with eval_context.imports.exports to get the syntax context.
+                    let binding = if let Some(parsed) = &parsed {
+                        if let ParseResult::Ok { eval_context, .. } = &**parsed {
+                            if let Some((local, ctxt)) = eval_context.imports.exports.get(exported)
+                            {
+                                Some((Cow::Borrowed(local.as_str()), *ctxt))
                             } else {
-                                None
+                                bail!(
+                                    "Expected export to be in eval context {:?} {:?}",
+                                    exported,
+                                    eval_context.imports,
+                                )
                             }
-                        })
-                        .unwrap_or_default();
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    };
+                    let (local, ctxt) = binding.unwrap_or_else(|| {
+                        // Fallback, shouldn't happen in practice
+                        (
+                            if name == "default" {
+                                Cow::Owned(magic_identifier::mangle("default export"))
+                            } else {
+                                Cow::Borrowed(name.as_str())
+                            },
+                            SyntaxContext::empty(),
+                        )
+                    });
 
                     if *mutable {
                         Some(quote!(

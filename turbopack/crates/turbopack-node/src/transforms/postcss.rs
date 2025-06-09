@@ -3,7 +3,7 @@ use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, Completions, NonLocalValue, ResolvedVc, TaskInput, TryFlatJoinIterExt, Value, Vc,
+    Completion, Completions, NonLocalValue, ResolvedVc, TaskInput, TryFlatJoinIterExt, Vc,
     fxindexmap, trace::TraceRawVcs,
 };
 use turbo_tasks_bytes::stream::SingleValue;
@@ -420,26 +420,22 @@ async fn find_config_in_location(
     location: PostCssConfigLocation,
     source: Vc<Box<dyn Source>>,
 ) -> Result<Option<Vc<FileSystemPath>>> {
-    if let FindContextFileResult::Found(config_path, _) = *find_context_file_or_package_key(
-        project_path,
-        postcss_configs(),
-        Value::new(rcstr!("postcss")),
-    )
-    .await?
+    if let FindContextFileResult::Found(config_path, _) =
+        *find_context_file_or_package_key(project_path, postcss_configs(), rcstr!("postcss"))
+            .await?
     {
         return Ok(Some(*config_path));
     }
 
-    if matches!(location, PostCssConfigLocation::ProjectPathOrLocalPath) {
-        if let FindContextFileResult::Found(config_path, _) = *find_context_file_or_package_key(
+    if matches!(location, PostCssConfigLocation::ProjectPathOrLocalPath)
+        && let FindContextFileResult::Found(config_path, _) = *find_context_file_or_package_key(
             source.ident().path().parent(),
             postcss_configs(),
-            Value::new(rcstr!("postcss")),
+            rcstr!("postcss"),
         )
         .await?
-        {
-            return Ok(Some(*config_path));
-        }
+    {
+        return Ok(Some(*config_path));
     }
 
     Ok(None)

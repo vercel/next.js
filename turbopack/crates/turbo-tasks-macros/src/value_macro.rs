@@ -72,9 +72,7 @@ impl TryFrom<LitStr> for CellMode {
 enum SerializationMode {
     None,
     Auto,
-    AutoForInput,
     Custom,
-    CustomForInput,
 }
 
 impl Parse for SerializationMode {
@@ -91,13 +89,10 @@ impl TryFrom<LitStr> for SerializationMode {
         match lit.value().as_str() {
             "none" => Ok(SerializationMode::None),
             "auto" => Ok(SerializationMode::Auto),
-            "auto_for_input" => Ok(SerializationMode::AutoForInput),
             "custom" => Ok(SerializationMode::Custom),
-            "custom_for_input" => Ok(SerializationMode::CustomForInput),
             _ => Err(Error::new_spanned(
                 &lit,
-                "expected \"none\", \"auto\", \"auto_for_input\", \"custom\" or \
-                 \"custom_for_input\"",
+                "expected \"none\", \"auto\", or \"custom\"",
             )),
         }
     }
@@ -230,38 +225,36 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             fields: Fields::Unnamed(FieldsUnnamed { unnamed, .. }),
             ..
         }) = &mut item
+            && unnamed.len() == 1
         {
-            if unnamed.len() == 1 {
-                let field = unnamed.iter().next().unwrap();
-                inner_type = Some(field.ty.clone());
+            let field = unnamed.iter().next().unwrap();
+            inner_type = Some(field.ty.clone());
 
-                // generate a type string to add to the docs
-                let inner_type_string = inner_type.to_token_stream().to_string();
+            // generate a type string to add to the docs
+            let inner_type_string = inner_type.to_token_stream().to_string();
 
-                // HACK: proc_macro2 inserts whitespace between every token. It's ugly, so
-                // remove it, assuming these whitespace aren't syntatically important. Using
-                // prettyplease (or similar) would be more correct, but slower and add another
-                // dependency.
-                static WHITESPACE_RE: OnceLock<Regex> = OnceLock::new();
-                // Remove whitespace, as long as there is a non-word character (e.g. `>` or `,`)
-                // on either side. Try not to remove whitespace between `dyn Trait`.
-                let whitespace_re = WHITESPACE_RE.get_or_init(|| {
-                    Regex::new(r"\b \B|\B \b|\B \B").expect("WHITESPACE_RE is valid")
-                });
-                let inner_type_string = whitespace_re.replace_all(&inner_type_string, "");
+            // HACK: proc_macro2 inserts whitespace between every token. It's ugly, so
+            // remove it, assuming these whitespace aren't syntatically important. Using
+            // prettyplease (or similar) would be more correct, but slower and add another
+            // dependency.
+            static WHITESPACE_RE: OnceLock<Regex> = OnceLock::new();
+            // Remove whitespace, as long as there is a non-word character (e.g. `>` or `,`)
+            // on either side. Try not to remove whitespace between `dyn Trait`.
+            let whitespace_re = WHITESPACE_RE
+                .get_or_init(|| Regex::new(r"\b \B|\B \b|\B \B").expect("WHITESPACE_RE is valid"));
+            let inner_type_string = whitespace_re.replace_all(&inner_type_string, "");
 
-                // Add a couple blank lines in case there's already a doc comment we're
-                // effectively appending to. If there's not, rustdoc will strip
-                // the leading whitespace.
-                let doc_str = format!(
-                    "\n\nThis is a [transparent value type][turbo_tasks::value#transparent] \
-                     wrapping [`{inner_type_string}`].",
-                );
+            // Add a couple blank lines in case there's already a doc comment we're
+            // effectively appending to. If there's not, rustdoc will strip
+            // the leading whitespace.
+            let doc_str = format!(
+                "\n\nThis is a [transparent value type][turbo_tasks::value#transparent] wrapping \
+                 [`{inner_type_string}`].",
+            );
 
-                attrs.push(parse_quote! {
-                    #[doc = #doc_str]
-                });
-            }
+            attrs.push(parse_quote! {
+                #[doc = #doc_str]
+            });
         }
         if inner_type.is_none() {
             item.span()
@@ -360,17 +353,14 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         #[shrink_to_fit(crate = "turbo_tasks::macro_helpers::shrink_to_fit")]
     }];
     match serialization_mode {
-        SerializationMode::Auto | SerializationMode::AutoForInput => {
-            struct_attributes.push(quote! {
-                #[derive(
-                    turbo_tasks::macro_helpers::serde::Serialize,
-                    turbo_tasks::macro_helpers::serde::Deserialize,
-                )]
-                #[serde(crate = "turbo_tasks::macro_helpers::serde")]
-            })
-        }
-        SerializationMode::None | SerializationMode::Custom | SerializationMode::CustomForInput => {
-        }
+        SerializationMode::Auto => struct_attributes.push(quote! {
+            #[derive(
+                turbo_tasks::macro_helpers::serde::Serialize,
+                turbo_tasks::macro_helpers::serde::Deserialize,
+            )]
+            #[serde(crate = "turbo_tasks::macro_helpers::serde")]
+        }),
+        SerializationMode::None | SerializationMode::Custom => {}
     };
     if inner_type.is_some() {
         // Transparent structs have their own manual `ValueDebug` implementation.
@@ -406,18 +396,6 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 turbo_tasks::ValueType::new_with_any_serialization::<#ident>()
             }
         }
-        SerializationMode::AutoForInput | SerializationMode::CustomForInput => {
-            quote! {
-                turbo_tasks::ValueType::new_with_magic_serialization::<#ident>()
-            }
-        }
-    };
-
-    let for_input_marker = match serialization_mode {
-        SerializationMode::None | SerializationMode::Auto | SerializationMode::Custom => quote! {},
-        SerializationMode::AutoForInput | SerializationMode::CustomForInput => quote! {
-            impl turbo_tasks::TypedForInput for #ident {}
-        },
     };
 
     let value_debug_impl = if inner_type.is_some() {
@@ -463,8 +441,6 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         #into
 
         #value_type_and_register_code
-
-        #for_input_marker
 
         #value_debug_impl
     };

@@ -301,7 +301,7 @@ testing = { version = "12.0.0" }
 
 # Keep consistent with preset_env_base through swc_core
 browserslist-rs = { version = "0.18.0" }
-mdxjs = "1.0.1"
+mdxjs = "1.0.3"
 modularize_imports = { version = "0.86.0" }
 styled_components = { version = "0.114.0" }
 styled_jsx = { version = "0.90.3" }
@@ -417,9 +417,9 @@ triomphe = { git = "https://github.com/sokra/triomphe", branch = "sokra/unstable
 unsize = "1.1.0"
 url = "2.2.2"
 urlencoding = "2.1.2"
-vergen = { git = "https://github.com/bgw/vergen.git", branch = "bgw/no-optional-locks", features = ["cargo"] }
-vergen-gitcl = { git = "https://github.com/bgw/vergen.git", branch = "bgw/no-optional-locks", features = ["cargo"] }
+vergen = { version = "9.0.6", features = ["cargo"] }
+vergen-gitcl = { version = "1.0.8", features = ["cargo"] }
 webbrowser = "0.8.7"
 
 [patch.crates-io]
-mdxjs = { git = "https://github.com/kdy1/mdxjs-rs", branch = "swc-core-26" }
+sourcemap = { git = "https://github.com/kdy1/rust-sourcemap", branch = "main" }

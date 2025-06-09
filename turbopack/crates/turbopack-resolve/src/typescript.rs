@@ -3,7 +3,7 @@ use std::{collections::HashMap, fmt::Write, mem::take};
 use anyhow::Result;
 use serde_json::Value as JsonValue;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, Value, ValueDefault, Vc, fxindexset};
+use turbo_tasks::{ResolvedVc, ValueDefault, Vc, fxindexset};
 use turbo_tasks_fs::{FileContent, FileJsonContent, FileSystemPath};
 use turbopack_core::{
     asset::Asset,
@@ -55,10 +55,10 @@ pub async fn read_tsconfigs(
     let resolve_options = json_only(resolve_options);
     loop {
         // tsc ignores empty config files.
-        if let FileContent::Content(file) = &*data.await? {
-            if file.content().is_empty() {
-                break;
-            }
+        if let FileContent::Content(file) = &*data.await?
+            && file.content().is_empty()
+        {
+            break;
         }
 
         let parsed_data = data.parse_json_with_comments();
@@ -202,10 +202,10 @@ pub async fn read_from_tsconfigs<T>(
     accessor: impl Fn(&JsonValue, ResolvedVc<Box<dyn Source>>) -> Option<T>,
 ) -> Result<Option<T>> {
     for (config, source) in configs.iter() {
-        if let FileJsonContent::Content(json) = &*config.await? {
-            if let Some(result) = accessor(json, *source) {
-                return Ok(Some(result));
-            }
+        if let FileJsonContent::Content(json) = &*config.await?
+            && let Some(result) = accessor(json, *source)
+        {
+            return Ok(Some(result));
         }
     }
     Ok(None)
@@ -258,55 +258,55 @@ pub async fn tsconfig_resolve_options(
 
     let mut all_paths = HashMap::new();
     for (content, source) in configs.iter().rev() {
-        if let FileJsonContent::Content(json) = &*content.await? {
-            if let JsonValue::Object(paths) = &json["compilerOptions"]["paths"] {
-                let mut context_dir = source.ident().path().parent();
-                if let Some(base_url) = json["compilerOptions"]["baseUrl"].as_str() {
-                    if let Some(new_context) = *context_dir.try_join(base_url.into()).await? {
-                        context_dir = *new_context;
-                    }
-                };
-                let context_dir = context_dir.to_resolved().await?;
-                for (key, value) in paths.iter() {
-                    if let JsonValue::Array(vec) = value {
-                        let entries = vec
-                            .iter()
-                            .filter_map(|entry| {
-                                let entry = entry.as_str();
+        if let FileJsonContent::Content(json) = &*content.await?
+            && let JsonValue::Object(paths) = &json["compilerOptions"]["paths"]
+        {
+            let mut context_dir = source.ident().path().parent();
+            if let Some(base_url) = json["compilerOptions"]["baseUrl"].as_str()
+                && let Some(new_context) = *context_dir.try_join(base_url.into()).await?
+            {
+                context_dir = *new_context;
+            };
+            let context_dir = context_dir.to_resolved().await?;
+            for (key, value) in paths.iter() {
+                if let JsonValue::Array(vec) = value {
+                    let entries = vec
+                        .iter()
+                        .filter_map(|entry| {
+                            let entry = entry.as_str();
 
-                                if entry.map(|e| e.ends_with(".d.ts")).unwrap_or_default() {
-                                    return None;
+                            if entry.map(|e| e.ends_with(".d.ts")).unwrap_or_default() {
+                                return None;
+                            }
+
+                            entry.map(|s| {
+                                // tsconfig paths are always relative requests
+                                if s.starts_with("./") || s.starts_with("../") {
+                                    s.into()
+                                } else {
+                                    format!("./{s}").into()
                                 }
-
-                                entry.map(|s| {
-                                    // tsconfig paths are always relative requests
-                                    if s.starts_with("./") || s.starts_with("../") {
-                                        s.into()
-                                    } else {
-                                        format!("./{s}").into()
-                                    }
-                                })
                             })
-                            .collect();
-                        all_paths.insert(
-                            key.to_string(),
-                            ImportMapping::primary_alternatives(entries, Some(context_dir)),
-                        );
-                    } else {
-                        TsConfigIssue {
-                            severity: IssueSeverity::Warning.resolved_cell(),
-                            source_ident: source.ident().to_resolved().await?,
-                            message: format!(
-                                "compilerOptions.paths[{key}] doesn't contains an array as \
-                                 expected\n{key}: {value:#}",
-                                key = serde_json::to_string(key)?,
-                                value = value
-                            )
-                            .into(),
-                        }
-                        .resolved_cell()
-                        .emit()
+                        })
+                        .collect();
+                    all_paths.insert(
+                        key.to_string(),
+                        ImportMapping::primary_alternatives(entries, Some(context_dir)),
+                    );
+                } else {
+                    TsConfigIssue {
+                        severity: IssueSeverity::Warning.resolved_cell(),
+                        source_ident: source.ident().to_resolved().await?,
+                        message: format!(
+                            "compilerOptions.paths[{key}] doesn't contains an array as \
+                             expected\n{key}: {value:#}",
+                            key = serde_json::to_string(key)?,
+                            value = value
+                        )
+                        .into(),
                     }
+                    .resolved_cell()
+                    .emit()
                 }
             }
         }
@@ -401,7 +401,7 @@ pub async fn type_resolve(
         };
         Some(Request::module(
             format!("@types/{m}").into(),
-            Value::new(p.clone()),
+            p.clone(),
             RcStr::default(),
             RcStr::default(),
         ))

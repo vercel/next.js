@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use anyhow::{Context, Result};
 use rustc_hash::FxHashMap;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, ResolvedVc, Value, Vc, fxindexmap};
+use turbo_tasks::{FxIndexMap, ResolvedVc, Vc, fxindexmap};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::{
     reference_type::{CommonJsReferenceSubType, ReferenceType},
@@ -287,7 +287,7 @@ pub async fn get_next_client_fallback_import_map(ty: ClientContextType) -> Resul
 #[turbo_tasks::function]
 pub async fn get_next_server_import_map(
     project_path: ResolvedVc<FileSystemPath>,
-    ty: Value<ServerContextType>,
+    ty: ServerContextType,
     next_config: Vc<NextConfig>,
     next_mode: Vc<NextMode>,
     execution_context: Vc<ExecutionContext>,
@@ -311,8 +311,6 @@ pub async fn get_next_server_import_map(
         [],
     )
     .await?;
-
-    let ty = ty.into_value();
 
     let external = ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Traced)
         .resolved_cell();
@@ -384,7 +382,7 @@ pub async fn get_next_server_import_map(
 #[turbo_tasks::function]
 pub async fn get_next_edge_import_map(
     project_path: ResolvedVc<FileSystemPath>,
-    ty: Value<ServerContextType>,
+    ty: ServerContextType,
     next_config: Vc<NextConfig>,
     next_mode: Vc<NextMode>,
     execution_context: Vc<ExecutionContext>,
@@ -453,7 +451,6 @@ pub async fn get_next_edge_import_map(
     )
     .await?;
 
-    let ty = ty.into_value();
     match &ty {
         ServerContextType::Pages { .. }
         | ServerContextType::PagesData { .. }
@@ -1012,7 +1009,7 @@ pub async fn get_next_package(context_directory: Vc<FileSystemPath>) -> Result<V
     let result = resolve(
         context_directory,
         ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
-        Request::parse(Value::new(Pattern::Constant(rcstr!("next/package.json")))),
+        Request::parse(Pattern::Constant(rcstr!("next/package.json"))),
         node_cjs_resolve_options(context_directory.root()),
     );
     let source = result

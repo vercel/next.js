@@ -5,7 +5,7 @@ use indoc::formatdoc;
 use lightningcss::css_modules::CssModuleReference;
 use swc_core::common::{BytePos, FileName, LineCol, SourceMap};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{FileSystemPath, rope::Rope};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -195,9 +195,7 @@ impl ModuleCssAsset {
                                 original: name.to_string(),
                                 from: CssModuleComposeReference::new(
                                     Vc::upcast(self),
-                                    Request::parse(Value::new(
-                                        RcStr::from(specifier.clone()).into(),
-                                    )),
+                                    Request::parse(RcStr::from(specifier.clone()).into()),
                                 )
                                 .to_resolved()
                                 .await?,

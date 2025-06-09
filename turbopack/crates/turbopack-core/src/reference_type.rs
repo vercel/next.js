@@ -133,30 +133,30 @@ impl ImportContext {
 
         let layers = {
             let mut layers = this.layers.clone();
-            if let Some(attr_layer) = attr_layer {
-                if !layers.contains(&attr_layer) {
-                    layers.push(attr_layer);
-                }
+            if let Some(attr_layer) = attr_layer
+                && !layers.contains(&attr_layer)
+            {
+                layers.push(attr_layer);
             }
             layers
         };
 
         let media = {
             let mut media = this.media.clone();
-            if let Some(attr_media) = attr_media {
-                if !media.contains(&attr_media) {
-                    media.push(attr_media);
-                }
+            if let Some(attr_media) = attr_media
+                && !media.contains(&attr_media)
+            {
+                media.push(attr_media);
             }
             media
         };
 
         let supports = {
             let mut supports = this.supports.clone();
-            if let Some(attr_supports) = attr_supports {
-                if !supports.contains(&attr_supports) {
-                    supports.push(attr_supports);
-                }
+            if let Some(attr_supports) = attr_supports
+                && !supports.contains(&attr_supports)
+            {
+                supports.push(attr_supports);
             }
             supports
         };
