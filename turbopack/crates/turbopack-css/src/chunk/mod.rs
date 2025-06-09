@@ -151,10 +151,11 @@ impl CssChunk {
     }
 
     #[turbo_tasks::function]
-    async fn chunk_items_ident_hash(&self) -> Result<Vc<Option<RcStr>>> {
+    async fn ident_for_path(&self) -> Result<Vc<AssetIdent>> {
         let CssChunkContent { chunk_items, .. } = &*self.content.await?;
-        if chunk_items.is_empty() {
-            Ok(Vc::cell(None))
+
+        let chunk_path = if chunk_items.is_empty() {
+            None
         } else {
             let chunk_item_idents = chunk_items
                 .iter()
@@ -169,51 +170,14 @@ impl CssChunk {
 
             let hash = hasher.finish();
             let hex_hash = encode_hex(hash);
-            Ok(Vc::cell(Some(hex_hash.into())))
-        }
-    }
-
-    #[turbo_tasks::function]
-    async fn ident_for_path(self: Vc<Self>) -> Result<Vc<AssetIdent>> {
-        let this = self.await?;
-
-        let CssChunkContent { chunk_items, .. } = &*this.content.await?;
-
-        let mut common_path = if let Some(chunk_item) = chunk_items.first() {
-            let path = chunk_item.asset_ident().path().to_resolved().await?;
-            Some((path, path.await?))
-        } else {
-            None
+            Some(
+                self.chunking_context
+                    .chunk_root_path()
+                    .join(hex_hash.into()),
+            )
         };
 
-        // The included chunk items and the availability info describe the chunk
-        // uniquely
-        for &chunk_item in chunk_items.iter() {
-            if let Some((common_path_vc, common_path_ref)) = common_path.as_mut() {
-                let path = chunk_item.asset_ident().path().await?;
-                while !path.is_inside_or_equal_ref(common_path_ref) {
-                    let parent = common_path_vc.parent().to_resolved().await?;
-                    if parent == *common_path_vc {
-                        common_path = None;
-                        break;
-                    }
-                    if parent.await?.path.is_empty() {
-                        let hashed_chunk_path = this
-                            .chunking_context
-                            .chunk_root_path()
-                            .join((*(self.chunk_items_ident_hash().await?)).clone().unwrap())
-                            .to_resolved()
-                            .await?;
-                        *common_path_vc = hashed_chunk_path;
-                        *common_path_ref = (*hashed_chunk_path).await?;
-                        break;
-                    }
-                    *common_path_vc = parent;
-                    *common_path_ref = (*common_path_vc).await?;
-                }
-            }
-        }
-
+        let chunk_item_key = chunk_item_key().to_resolved().await?;
         let assets = chunk_items
             .iter()
             .map(|chunk_item| async move {
@@ -226,8 +190,8 @@ impl CssChunk {
             .await?;
 
         let ident = AssetIdent {
-            path: if let Some((common_path, _)) = common_path {
-                common_path
+            path: if let Some(chunk_path) = chunk_path {
+                chunk_path.to_resolved().await?
             } else {
                 ServerFileSystem::new().root().to_resolved().await?
             },
