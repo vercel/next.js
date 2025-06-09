@@ -1,6 +1,7 @@
 use std::{future::Future, sync::Arc};
 
 use anyhow::{Context, Result, anyhow};
+use bytes_str::BytesStr;
 use rustc_hash::FxHashSet;
 use swc_core::{
     base::SwcComments,
@@ -224,11 +225,11 @@ async fn parse_internal(
     Ok(match &*content {
         AssetContent::File(file) => match &*file.await? {
             FileContent::NotFound => ParseResult::NotFound.cell(),
-            FileContent::Content(file) => match file.content().to_str() {
+            FileContent::Content(file) => match file.content().clone().into_bytes() {
                 Ok(string) => {
                     let transforms = &*transforms.await?;
                     match parse_file_content(
-                        string.into_owned(),
+                        string,
                         fs_path_vc,
                         fs_path,
                         ident,
@@ -269,7 +270,7 @@ async fn parse_internal(
 }
 
 async fn parse_file_content(
-    string: String,
+    string: BytesStr,
     fs_path_vc: Vc<FileSystemPath>,
     fs_path: &FileSystemPath,
     ident: &str,
