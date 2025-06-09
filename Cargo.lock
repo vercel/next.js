@@ -4154,6 +4154,7 @@ dependencies = [
  "serde",
  "serde_json",
  "swc_core",
+ "tokio",
  "tracing",
  "turbo-rcstr",
  "turbo-tasks",
