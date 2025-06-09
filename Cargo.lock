@@ -9495,6 +9495,7 @@ dependencies = [
  "async-trait",
  "auto-hash-map",
  "browserslist-rs",
+ "bytes-str",
  "const_format",
  "data-encoding",
  "either",
