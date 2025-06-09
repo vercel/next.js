@@ -225,45 +225,52 @@ async fn parse_internal(
     Ok(match &*content {
         AssetContent::File(file) => match &*file.await? {
             FileContent::NotFound => ParseResult::NotFound.cell(),
-            FileContent::Content(file) => match file.content().clone().into_bytes() {
-                Ok(string) => {
-                    let transforms = &*transforms.await?;
-                    match parse_file_content(
-                        string,
-                        fs_path_vc,
-                        fs_path,
-                        ident,
-                        source.ident().await?.query.clone(),
-                        file_path_hash,
-                        source,
-                        ty,
-                        transforms,
-                    )
-                    .await
-                    {
-                        Ok(result) => result,
-                        Err(e) => {
-                            return Err(e).context(anyhow!(
-                                "Transforming and/or parsing of {} failed",
-                                source.ident().to_string().await?
-                            ));
+            FileContent::Content(file) => {
+                match BytesStr::from_utf8(file.content().clone().into_bytes()) {
+                    Ok(string) => {
+                        let transforms = &*transforms.await?;
+                        match parse_file_content(
+                            string,
+                            fs_path_vc,
+                            fs_path,
+                            ident,
+                            source.ident().await?.query.clone(),
+                            file_path_hash,
+                            source,
+                            ty,
+                            transforms,
+                        )
+                        .await
+                        {
+                            Ok(result) => result,
+                            Err(e) => {
+                                return Err(e).context(anyhow!(
+                                    "Transforming and/or parsing of {} failed",
+                                    source.ident().to_string().await?
+                                ));
+                            }
                         }
                     }
-                }
-                Err(error) => {
-                    let error: RcStr = PrettyPrintError(&error).to_string().into();
-                    ReadSourceIssue {
-                        source,
-                        error: error.clone(),
+                    Err(error) => {
+                        let error: RcStr = PrettyPrintError(
+                            &anyhow::anyhow!(error)
+                                .context("Failed to convert file content to UTF-8"),
+                        )
+                        .to_string()
+                        .into();
+                        ReadSourceIssue {
+                            source,
+                            error: error.clone(),
+                        }
+                        .resolved_cell()
+                        .emit();
+                        ParseResult::Unparseable {
+                            messages: Some(vec![error]),
+                        }
+                        .cell()
                     }
-                    .resolved_cell()
-                    .emit();
-                    ParseResult::Unparseable {
-                        messages: Some(vec![error]),
-                    }
-                    .cell()
                 }
-            },
+            }
         },
         AssetContent::Redirect { .. } => ParseResult::Unparseable { messages: None }.cell(),
     })
