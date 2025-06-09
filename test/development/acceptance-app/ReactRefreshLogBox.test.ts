@@ -11,6 +11,7 @@ describe('ReactRefreshLogBox app', () => {
     skipStart: true,
     patchFileDelay: 1000,
   })
+  const isRspack = Boolean(process.env.NEXT_RSPACK)
 
   test('should strip whitespace correctly with newline', async () => {
     await using sandbox = await createSandbox(next)
@@ -282,6 +283,39 @@ describe('ReactRefreshLogBox app', () => {
          "stack": [],
        }
       `)
+    } else if (isRspack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "  × Module build failed:",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./index.js
+         × Module build failed:
+         ╰─▶   × Error:   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
+               │    ,-[7:1]
+               │  4 |       <p>lol</p>
+               │  5 |     div
+               │  6 |   )
+               │  7 | }
+               │    : ^
+               │    \`----
+               │   x Unexpected eof
+               │    ,-[7:1]
+               │  4 |       <p>lol</p>
+               │  5 |     div
+               │  6 |   )
+               │  7 | }
+               │    \`----
+               │
+               │
+               │ Caused by:
+               │     Syntax Error
+       Import trace for requested module:
+       ./index.js
+       ./app/page.js",
+         "stack": [],
+       }
+      `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
@@ -365,6 +399,23 @@ describe('ReactRefreshLogBox app', () => {
       // TODO(veil): Turbopack is flaky. Possibly related to https://linear.app/vercel/issue/NDX-920/turbopack-errors-after-hmr-have-no-stacktraces-in-affected-chunks
       // Should use `await expect(browser).toDisplayRedbox()`
       await session.assertHasRedbox()
+    } else if (isRspack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": "Child.js (4:11) @ ClickCount.render
+       > 4 |     throw new Error()
+           |           ^",
+         "stack": [
+           "ClickCount.render Child.js (4:11)",
+           "Set.forEach <anonymous> (0:0)",
+           "Home index.js (6:7)",
+           "Page app/page.js (4:10)",
+         ],
+       }
+      `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
@@ -437,6 +488,20 @@ describe('ReactRefreshLogBox app', () => {
          "stack": [],
        }
       `)
+    } else if (isRspack) {
+      await session.assertHasRedbox()
+      expect(await session.getRedboxDescription()).toBe(
+        '  × Module build failed:'
+      )
+      const source = await session.getRedboxSource()
+      expect(source).toContain('× Module build failed:')
+      expect(source).toContain('× SyntaxError')
+      expect(source).toContain('Unknown word')
+      expect(source).toContain('index.module.css')
+      expect(source).toContain('> 1 | .button')
+      expect(source).toContain('Import trace for requested module:')
+      expect(source).toContain('./index.js')
+      expect(source).toContain('./app/page.js')
     } else {
       await expect({ browser, next }).toDisplayRedbox(`
        {
@@ -476,6 +541,28 @@ describe('ReactRefreshLogBox app', () => {
            ./index.js [app-ssr]
            ./app/page.js [app-ssr]
            ./app/page.js [app-rsc]",
+         "stack": [],
+       }
+      `)
+    } else if (isRspack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "  × Module build failed:",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./index.module.css
+         × Module build failed:
+         ╰─▶   × CssSyntaxError
+               │
+               │ (1:1) Selector "button" is not pure (pure selectors must contain at least one local class or id)
+               │
+               │ > 1 | button {}
+               │     | ^
+               │
+       Import trace for requested module:
+       ./index.module.css
+       ./index.js
+       ./app/page.js",
          "stack": [],
        }
       `)
@@ -980,6 +1067,22 @@ describe('ReactRefreshLogBox app', () => {
          ],
        }
       `)
+    } else if (isRspack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "test",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": "index.js (3:11) @ default
+       > 3 |     throw new Error('test')
+           |           ^",
+         "stack": [
+           "default index.js (3:11)",
+           "Set.forEach <anonymous> (0:0)",
+           "Page app/page.js (4:10)",
+         ],
+       }
+      `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
@@ -1082,6 +1185,22 @@ describe('ReactRefreshLogBox app', () => {
            "<FIXME-file-protocol>",
            "<FIXME-file-protocol>",
            "Page index.js (16:8)",
+         ],
+       }
+      `)
+    } else if (isRspack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "Component error",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": "index.js (2:44) @ Index
+       > 2 |   if (typeof window !== 'undefined') throw new Error('Component error')
+           |                                            ^",
+         "stack": [
+           "Index index.js (2:44)",
+           "Set.forEach <anonymous> (0:0)",
+           "Page app/page.js (4:10)",
          ],
        }
       `)
@@ -1391,6 +1510,16 @@ describe('ReactRefreshLogBox app', () => {
          "stack": [],
        }
       `)
+    } else if (isRspack) {
+      await session.assertHasRedbox()
+      const source = await session.getRedboxSource()
+      const description = await session.getRedboxDescription()
+      expect(description).toInclude(
+        "Module not found: Can't resolve 'non-existing-module'"
+      )
+      expect(source).toInclude('./app/module.js')
+      expect(source).toInclude('import "non-existing-module"')
+      expect(source).toInclude('Import trace for requested module')
     } else {
       await expect(browser).toDisplayRedbox(`
        {
@@ -1446,6 +1575,12 @@ describe('ReactRefreshLogBox app', () => {
          "stack": [],
        }
       `)
+    } else if (isRspack) {
+      await session.assertHasRedbox()
+      const source = await session.getRedboxSource()
+      expect(source).toInclude('RspackResolver(NotFound("./boom.css"))')
+      expect(source).toInclude('× Module build failed')
+      expect(source).toInclude('at Resolver.resolve')
     } else {
       await expect(browser).toDisplayRedbox(`
        {
