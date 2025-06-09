@@ -40,11 +40,12 @@ const PARSE_PATTERN =
   /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const|generateImageMetadata|generateSitemaps/
 
 export type MiddlewareMatcher = {
-  regexp: string
-  locale?: false
+  source: string
+  regexp?: string
+  /** @default true */
+  locale?: boolean
   has?: RouteHas[]
   missing?: RouteHas[]
-  originalSource: string
 }
 
 export type MiddlewareConfig = {
