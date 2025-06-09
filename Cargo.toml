@@ -162,7 +162,7 @@ opt-level = "s"
 [profile.release.package.zstd-sys]
 opt-level = 3
 
-[profile.release.package.sourcemap]
+[profile.release.package.swc_sourcemap]
 opt-level = 3
 
 [profile.release.package.turbopack-wasm]
@@ -402,7 +402,7 @@ smallvec = { version = "1.13.1", features = [
   "union",
   "const_new",
 ] }
-sourcemap = "9.2.2"
+swc_sourcemap = "9.2.2"
 strsim = "0.11.1"
 shrink-to-fit = "0.2.10"
 syn = "2.0.100"
@@ -420,6 +420,3 @@ urlencoding = "2.1.2"
 vergen = { version = "9.0.6", features = ["cargo"] }
 vergen-gitcl = { version = "1.0.8", features = ["cargo"] }
 webbrowser = "0.8.7"
-
-[patch.crates-io]
-sourcemap = { git = "https://github.com/kdy1/rust-sourcemap", branch = "main" }
