@@ -96,7 +96,7 @@ impl NodeJsChunkingContextBuilder {
 }
 
 /// A chunking context for build mode.
-#[turbo_tasks::value(serialization = "auto_for_input")]
+#[turbo_tasks::value]
 #[derive(Debug, Clone, Hash, TaskInput)]
 pub struct NodeJsChunkingContext {
     /// The root path of the project
