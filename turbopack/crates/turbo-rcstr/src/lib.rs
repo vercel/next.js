@@ -9,6 +9,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use bytes_str::BytesStr;
 use debug_unreachable::debug_unreachable;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use shrink_to_fit::ShrinkToFit;

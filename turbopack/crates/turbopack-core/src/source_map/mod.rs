@@ -156,11 +156,13 @@ impl From<swc_sourcemap::Token<'_>> for Token {
                 generated_line: t.get_dst_line(),
                 generated_column: t.get_dst_col(),
                 original_file: RcStr::from(
-                    t.get_source().expect("already checked token has source"),
+                    t.get_source()
+                        .expect("already checked token has source")
+                        .clone(),
                 ),
                 original_line: t.get_src_line(),
                 original_column: t.get_src_col(),
-                name: t.get_name().map(RcStr::from),
+                name: t.get_name().cloned().map(RcStr::from),
             })
         } else {
             Token::Synthetic(SyntheticToken {
@@ -483,7 +485,7 @@ impl SourceMap {
                 }
                 DecodedMap::Index(map) => {
                     let count = map.get_section_count() as usize;
-                    let file = map.get_file().map(ToString::to_string);
+                    let file = map.get_file().cloned();
                     let sections = map
                         .sections()
                         .filter_map(|section| {
@@ -574,7 +576,7 @@ impl SourceMap {
                     && let DecodedMap::Regular(map) = &map.map.0
                     && map.get_source_count() == 1
                 {
-                    let source = map.sources().next().unwrap();
+                    let source = map.sources().next().unwrap().clone();
                     *guessed_original_file = Some(RcStr::from(source));
                 }
 
@@ -589,7 +591,10 @@ impl SourceMap {
                         let content = map.get_source_contents(src_id);
 
                         let (name, content) = name.zip(content)?;
-                        Some(sourcemap_content_source(name.into(), content.into()))
+                        Some(sourcemap_content_source(
+                            name.clone().into(),
+                            content.clone().into(),
+                        ))
                     });
                 }
 

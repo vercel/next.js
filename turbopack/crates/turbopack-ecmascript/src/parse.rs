@@ -107,7 +107,7 @@ pub fn generate_js_source_map(
 ) -> Result<Rope> {
     let original_source_map = original_source_map.map(|x| x.to_bytes());
     let input_map = if let Some(original_source_map) = &original_source_map {
-        Some(sourcemap::lazy::decode(original_source_map)?.into_source_map()?)
+        Some(swc_sourcemap::lazy::decode(original_source_map)?.into_source_map()?)
     } else {
         None
     };
