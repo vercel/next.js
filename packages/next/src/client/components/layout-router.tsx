@@ -248,8 +248,11 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
         () => {
           // In case of hash scroll, we only need to scroll the element into view
           if (hashFragment) {
-            ;(domNode as HTMLElement).scrollIntoView()
+            const header = document.querySelector('header')
+            const headerHeight = header?.clientHeight ?? 0
 
+            const y =(domNode as HTMLElement).getBoundingClientRect().top + window.pageYOffset - headerHeight 
+            window.scrollTo({ top: y, behavior: 'smooth' })
             return
           }
           // Store the current viewport height because reading `clientHeight` causes a reflow,
