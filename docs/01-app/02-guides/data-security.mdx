@@ -56,17 +56,15 @@ This approach works well when:
 
 ### Data Access Layer
 
-For new projects, we recommend creating a dedicated Data Access Layer (DAL) within your JavaScript codebase.
+For new projects, we recommend creating a dedicated **Data Access Layer (DAL)**. This is a internal library that controls how and when data is fetched, and what gets passed to your React Components.
 
-This is a internal library that acts similar to HTTP endpoints and control how and when data is fetched, and what gets returned to the UI.
-
-Each function in a DAL should:
+A Data Access Layer should:
 
 - Only run on the server.
-- Perform access checks.
+- Perform authorization checks.
 - Return safe, minimal **Data Transfer Objects (DTOs)** ready to be consumed by the client.
 
-This centralizes all data access logic, making it easier to enforce consistent data access and reduces the risk of authorization bugs. You also get the benefit of sharing an in-memory cache across different parts of a request.
+This approach centralizes all data access logic, making it easier to enforce consistent data access and reduces the risk of authorization bugs. You also get the benefit of sharing an in-memory cache across different parts of a request.
 
 ```ts filename="data/auth.ts"
 import { cache } from 'react'
@@ -136,7 +134,7 @@ export async function Page({ params: { slug } }) {
 
 For quick prototypes and iteration, database queries can be placed directly in Server Components.
 
-This approach makes it easier to accidentally expose private data in the client, for example:
+This approach makes it easier to accidentally expose private data to the client, for example:
 
 ```tsx filename="app/page.tsx"
 import Profile from './components/profile.tsx'
@@ -168,7 +166,7 @@ export default async function Profile({ user }: { user: User }) {
 }
 ```
 
-Instead, the data should be sanitized before passing it to the client:
+You should sanitize the data before passing it to the Client Component:
 
 ```ts filename="data/user.ts"
 import { sql } from './db'
@@ -198,23 +196,23 @@ export default async function Page({
 }
 ```
 
-## Server and Client Components
+## Passing data from server to client
 
 On the initial load, both Server and Client Components run on the server to generate HTML. However, they execute in isolated module systems. This ensures that Server Components can access private data and APIs, while Client Components cannot.
 
-Server Components:
+**Server Components:**
 
 - Run only on the server.
 - Can safely access environment variables, secrets, databases, and internal APIs.
 
-Client Components:
+**Client Components:**
 
 - May run on the server during rendering, but must follow the same security assumptions as code running in the browser.
 - Must not access privileged data or server-only modules.
 
 This ensures the app is secure by default, but it's possible to accidentally expose private data through how data is fetched or passed to components.
 
-### Tainting data
+### Tainting
 
 To prevent accidental exposure of private data to the client, you can use React Taint APIs:
 
@@ -231,7 +229,7 @@ module.exports = {
 }
 ```
 
-This prevents the tainted objects or values from being passed to the client. However, it's an additional layer of protection, you should still filter and sanatize the data before passing it to React's render context.
+This prevents the tainted objects or values from being passed to the client. However, it's an additional layer of protection, you should still filter and sanitize the data in your [DAL](#data-access-layer) before passing it to React's render context.
 
 > **Good to know:**
 >
