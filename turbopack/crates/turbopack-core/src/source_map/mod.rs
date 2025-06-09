@@ -449,14 +449,14 @@ impl SourceMap {
             origin: Vc<FileSystemPath>,
         ) -> Result<RegularMap> {
             let map = &map.0;
-            let file = map.get_file().map(Arc::<str>::from);
+            let file = map.get_file().cloned();
             let tokens = map.tokens().map(|t| t.get_raw_token()).collect();
-            let names = map.names().map(Arc::<str>::from).collect();
+            let names = map.names().cloned().collect();
             let count = map.get_source_count() as usize;
-            let sources = map.sources().map(Arc::<str>::from).collect::<Vec<_>>();
+            let sources = map.sources().cloned().collect::<Vec<_>>();
             let source_contents = map
                 .source_contents()
-                .map(|s| s.map(Arc::<str>::from))
+                .map(|s| s.cloned())
                 .collect::<Vec<_>>();
             let mut new_sources = Vec::with_capacity(count);
             let mut new_source_contents = Vec::with_capacity(count);
