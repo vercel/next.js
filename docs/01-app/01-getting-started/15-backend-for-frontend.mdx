@@ -694,11 +694,19 @@ Server Actions are queued. Using them for data fetching introduces sequential ex
 
 ### `export` mode
 
-`export` mode outputs a static site without a runtime server. Features that require the Next.js runtime are unsupported.
+`export` mode outputs a static site without a runtime server. Features that require the Next.js runtime are [not supported](/app/guides/static-exports#unsupported-features), because this mode produces a static site, and no runtime server.
 
-You can generate static responses for Route Handlers `GET` requests, which are compatible with `export` mode, as long as these don't access dynamic APIs.
+In `export mode`, only `GET` Route Handlers are supported, in combination with the [`dynamic`](/app/api-reference/file-conventions/route-segment-config#dynamic) route segment config, set to `'force-static'`.
 
-- [Unsupported features](/app/guides/static-exports#unsupported-features)
+This can be used to generate static HTML, JSON, TXT, or other files.
+
+```js filename="app/hello-world/route.ts"
+export const dynamic = 'force-static'
+
+export function GET() {
+  return new Response('Hello World', { status: 200 })
+}
+```
 
 ### Deployment environment
 
