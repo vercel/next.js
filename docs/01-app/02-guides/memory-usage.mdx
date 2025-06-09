@@ -127,9 +127,15 @@ If you deploy to Vercel, you can check out the [guide for staging deployments](h
 
 ## Disable source maps
 
-Generating source maps consumes extra memory during the build process.
+Generating source maps and using them in Node.js consumes extra memory during the build process.
 
 You can disable source map generation by adding `productionBrowserSourceMaps: false` and `experimental.serverSourceMaps: false` to your Next.js configuration.
+
+Next.js will use source maps by default during the prerender phase of `next build`.
+If you consistently encounter memory issues during that phase (after "Generating static pages"),
+you can try disabling source maps in that phase by adding `staticPageGenerationSourceMaps: false` to your Next.js configuration.
+Keep in mind that disabling source maps during prerender will negatively impact
+debugging of errors during prerender since the stack trace will be unreadable.
 
 > **Good to know**: Some plugins may turn on source maps and may require custom configuration to disable.
 

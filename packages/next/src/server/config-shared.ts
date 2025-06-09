@@ -566,12 +566,6 @@ export interface ExperimentalConfig {
   serverMinification?: boolean
 
   /**
-   * Enables source maps while generating static pages.
-   * Helps with errors during the prerender phase in `next build`.
-   */
-  enablePrerenderSourceMaps?: boolean
-
-  /**
    * Enables source maps generation for the server production bundle.
    */
   serverSourceMaps?: boolean
@@ -1032,6 +1026,13 @@ export interface NextConfig extends Record<string, any> {
   httpAgentOptions?: { keepAlive?: boolean }
 
   /**
+   * Enables source maps while generating static pages.
+   * Helps with errors during the prerender phase in `next build`.
+   * @default true
+   */
+  staticPageGenerationSourcemaps?: boolean
+
+  /**
    * Timeout after waiting to generate static pages in seconds
    *
    * @default 60
@@ -1253,6 +1254,7 @@ export const defaultConfig = {
   expireTime: process.env.NEXT_PRIVATE_CDN_CONSUMED_SWR_CACHE_CONTROL
     ? undefined
     : 31536000, // one year
+  staticPageGenerationSourcemaps: true,
   staticPageGenerationTimeout: 60,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
@@ -1309,7 +1311,6 @@ export const defaultConfig = {
     appNavFailHandling: false,
     prerenderEarlyExit: true,
     serverMinification: true,
-    enablePrerenderSourceMaps: false,
     serverSourceMaps: false,
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
