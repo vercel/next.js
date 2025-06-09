@@ -2,24 +2,16 @@ import type { HTMLProps } from 'react'
 import { css } from '../../utils/css'
 import type { DevToolsInfoPropsCore } from '../errors/dev-tools-indicator/dev-tools-info/dev-tools-info'
 import { DevToolsInfo } from '../errors/dev-tools-indicator/dev-tools-info/dev-tools-info'
-import {
-  type SegmentNode,
-  useSegmentTreeClientState,
-} from '../../../../shared/lib/devtool/app-segment-tree'
-import type { Trie, TrieNode } from '../../../../shared/lib/devtool/trie'
+import { useSegmentTree, type SegmentTrieNode } from '../../segment-explorer'
 
-function PageSegmentTree({ tree }: { tree: Trie<SegmentNode> | undefined }) {
-  if (!tree) {
-    return null
-  }
+function PageSegmentTree({ tree }: { tree: SegmentTrieNode }) {
   return (
     <div
       className="segment-explorer-content"
       data-nextjs-devtool-segment-explorer
     >
       <PageSegmentTreeLayerPresentation
-        tree={tree}
-        node={tree.getRoot()}
+        node={tree}
         level={0}
         segment=""
         parentSegment=""
@@ -29,16 +21,14 @@ function PageSegmentTree({ tree }: { tree: Trie<SegmentNode> | undefined }) {
 }
 
 function PageSegmentTreeLayerPresentation({
-  tree,
   segment,
   parentSegment,
   node,
   level,
 }: {
-  tree: Trie<SegmentNode>
   segment: string
   parentSegment: string
-  node: TrieNode<SegmentNode>
+  node: SegmentTrieNode
   level: number
 }) {
   const pagePath = node.value?.pagePath || ''
@@ -111,7 +101,6 @@ function PageSegmentTreeLayerPresentation({
             key={childSegment}
             segment={childSegment}
             parentSegment={segment}
-            tree={tree}
             node={child}
             level={hasFileChildren ? level + 1 : level}
           />
@@ -124,14 +113,11 @@ function PageSegmentTreeLayerPresentation({
 export function SegmentsExplorer(
   props: DevToolsInfoPropsCore & HTMLProps<HTMLDivElement>
 ) {
-  const ctx = useSegmentTreeClientState()
-  if (!ctx) {
-    return null
-  }
+  const tree = useSegmentTree()
 
   return (
     <DevToolsInfo title="Segment Explorer" {...props}>
-      <PageSegmentTree tree={ctx.tree} />
+      <PageSegmentTree tree={tree} />
     </DevToolsInfo>
   )
 }
