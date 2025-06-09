@@ -36,10 +36,13 @@ jobs:
     # We only need one run so skip the pull_request event.
     # The pull_request event would not give us a sha that we can use to query this
     # workflow which is required for vercel-packages to work.
-    if: ${{ github.event_name != 'pull_request' || github.sha != github.workflow_sha }}
     outputs:
       value: ${{ steps.deploy-target.outputs.value }}
     steps:
+      - run: |
+          echo "event_name=${{ github.event_name }}"
+          echo "sha=${{ github.sha }}"
+          echo "workflow_sha=${{ github.workflow_sha }}"
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
