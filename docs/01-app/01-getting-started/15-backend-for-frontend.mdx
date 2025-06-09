@@ -717,12 +717,6 @@ Some hosts deploy Route Handlers as lambda functions. This means:
 - Long-running handlers may be terminated due to timeouts.
 - WebSockets won’t work because the connection closes on timeout, or after the response is generated.
 
-### Intercepting downstream response
-
-Middleware lets you run code on incoming requests and generate responses. However, Next.js does not support intercepting outgoing responses natively.
-
-Some hosting providers extend Next.js to support this, but it’s not built-in.
-
 ### Be defensive
 
 Never trust incoming request data. Validate content type and size, and sanitize against XSS before use.
