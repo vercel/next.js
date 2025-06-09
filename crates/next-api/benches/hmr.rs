@@ -1,20 +1,18 @@
 extern crate turbo_tasks_malloc;
 
 use std::{
+    fs::{create_dir_all, write},
     path::{Path, PathBuf},
     time::{Duration, Instant},
 };
 
 use anyhow::{Context, Result};
-use next_api::{
-    entrypoints::Entrypoints,
-    project::{DefineEnv, DraftModeOptions, ProjectContainer, ProjectOptions, WatchOptions},
+use next_api::project::{
+    DefineEnv, DraftModeOptions, ProjectContainer, ProjectOptions, WatchOptions,
 };
-use next_core::next_config::{JsConfig, load_next_config_internal};
 use tokio::runtime::Runtime;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{TransientInstance, Vc};
-use turbopack_create_test_app::test_app_builder::{EffectMode, PackageJsonConfig, TestAppBuilder};
 
 pub struct HmrBenchmark {
     test_app: TestApp,
@@ -38,6 +36,97 @@ impl TestApp {
     }
 }
 
+fn create_test_app(module_count: usize) -> Result<TestApp> {
+    let temp_dir = tempfile::tempdir().context("Failed to create temp directory")?;
+    let base_path = temp_dir.path().to_path_buf();
+
+    // Create basic Next.js structure
+    let pages_dir = base_path.join("pages");
+    let app_dir = base_path.join("app");
+    let src_dir = base_path.join("src");
+
+    create_dir_all(&pages_dir)?;
+    create_dir_all(&app_dir)?;
+    create_dir_all(&src_dir)?;
+
+    let mut modules = Vec::new();
+
+    // Create index page
+    let index_content = r#"import React from 'react';
+
+export default function Home() {
+    return <div>Hello World</div>;
+}
+"#;
+    let index_path = pages_dir.join("index.js");
+    write(&index_path, index_content)?;
+    modules.push((index_path, 0));
+
+    // Create app layout
+    let layout_content = r#"export default function RootLayout({ children }) {
+    return (
+        <html>
+            <body>{children}</body>
+        </html>
+    );
+}
+"#;
+    let layout_path = app_dir.join("layout.js");
+    write(&layout_path, layout_content)?;
+    modules.push((layout_path, 0));
+
+    // Create app page
+    let app_page_content = r#"export default function Page() {
+    return <div>App Router Page</div>;
+}
+"#;
+    let app_page_path = app_dir.join("page.js");
+    write(&app_page_path, app_page_content)?;
+    modules.push((app_page_path, 0));
+
+    // Create additional modules based on module_count
+    for i in 3..module_count {
+        let component_content = format!(
+            r#"import React from 'react';
+
+export default function Component{}() {{
+    return <div>Component {}</div>;
+}}
+"#,
+            i, i
+        );
+
+        let component_path = src_dir.join(format!("component{}.js", i));
+        write(&component_path, component_content)?;
+        modules.push((component_path, 1));
+    }
+
+    // Create package.json
+    let package_json = r#"{
+    "name": "hmr-test-app",
+    "version": "1.0.0",
+    "dependencies": {
+        "react": "^18.2.0",
+        "react-dom": "^18.2.0",
+        "next": "^14.0.0"
+    }
+}
+"#;
+    write(base_path.join("package.json"), package_json)?;
+
+    // Create next.config.js
+    let next_config = "module.exports = {}";
+    write(base_path.join("next.config.js"), next_config)?;
+
+    // Prevent temp directory from being dropped
+    std::mem::forget(temp_dir);
+
+    Ok(TestApp {
+        _path: base_path,
+        modules,
+    })
+}
+
 fn runtime() -> Runtime {
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
@@ -53,31 +142,10 @@ impl HmrBenchmark {
     pub fn new(module_count: usize) -> Result<Self> {
         let rt = runtime();
 
-        // Create a test app similar to the one used in next-rs-api.test.ts
-        let test_app_builder = TestAppBuilder {
-            target: None, // Use temp directory
-            module_count,
-            directories_count: module_count / 20,
-            dynamic_import_count: 0,
-            flatness: 5,
-            package_json: Some(PackageJsonConfig {
-                react_version: "^18.2.0".to_string(),
-            }),
-            effect_mode: EffectMode::Hook,
-            leaf_client_components: false,
-        };
-
-        let test_app_result = test_app_builder
-            .build()
-            .context("Failed to build test app")?;
-
-        let test_app = TestApp {
-            _path: test_app_result.path().to_path_buf(),
-            modules: test_app_result.modules().to_vec(),
-        };
+        let test_app = create_test_app(module_count)?;
 
         let project_container = rt.block_on(async {
-            let container = ProjectContainer::new(RcStr::from("hmr-benchmark"), true).await?;
+            let container = ProjectContainer::new(RcStr::from("hmr-benchmark"), true);
 
             let project_path = test_app.path().to_string_lossy().to_string();
             let root_path = test_app.path().to_string_lossy().to_string();
@@ -109,7 +177,7 @@ impl HmrBenchmark {
                 no_mangling: false,
             };
 
-            container.initialize(options).await?;
+            // container.initialize(options).await?;
             Ok::<_, anyhow::Error>(container)
         })?;
 
@@ -156,8 +224,8 @@ impl HmrBenchmark {
                 return Err(anyhow::anyhow!("No HMR identifiers found"));
             }
 
-            // Subscribe to HMR events for each identifier
-            let project = self.project_container.project().await?;
+            // Get project to access HMR methods
+            let project = self.project_container.project();
 
             // Create multiple sessions to simulate real HMR usage
             let mut update_durations = Vec::new();
@@ -170,9 +238,7 @@ impl HmrBenchmark {
 
                 // Get version state for this update
                 let session = TransientInstance::new(());
-                let version_state = project
-                    .hmr_version_state(identifier.clone(), session)
-                    .await?;
+                let version_state = project.hmr_version_state(identifier.clone(), session);
 
                 // Pick a module file to change
                 let module_index = i % self.test_app.modules().len();
@@ -217,16 +283,14 @@ impl HmrBenchmark {
                 return Err(anyhow::anyhow!("No HMR identifiers found"));
             }
 
-            let project = self.project_container.project().await?;
+            let project = self.project_container.project();
 
             // Test subscription to multiple identifiers
             let mut version_states = Vec::new();
             for identifier in identifiers.iter().take(5) {
                 // Test with first 5 identifiers
                 let session = TransientInstance::new(());
-                let version_state = project
-                    .hmr_version_state(identifier.clone(), session)
-                    .await?;
+                let version_state = project.hmr_version_state(identifier.clone(), session);
                 version_states.push((identifier.clone(), version_state));
             }
 

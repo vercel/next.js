@@ -44,6 +44,7 @@ turbopack-wasm = { workspace = true }
 turbo-tasks-malloc = { workspace = true }
 criterion = { workspace = true }
 tokio = { workspace = true }
+tempfile = { workspace = true }
 
 
 [build-dependencies]
