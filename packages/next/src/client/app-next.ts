@@ -3,12 +3,16 @@
 import './app-webpack'
 import { appBootstrap } from './app-bootstrap'
 
-const instrumentationHooks = require('../lib/require-instrumentation-client')
+const instrumentationHooks =
+  // eslint-disable-next-line @next/internal/typechecked-require -- not a module
+  require('../lib/require-instrumentation-client')
 
 appBootstrap(() => {
-  const { hydrate } = require('./app-index')
+  const { hydrate } = require('./app-index') as typeof import('./app-index')
   // Include app-router and layout-router in the main chunk
+  // eslint-disable-next-line @next/internal/typechecked-require -- Why not relative imports?
   require('next/dist/client/components/app-router')
+  // eslint-disable-next-line @next/internal/typechecked-require -- Why not relative imports?
   require('next/dist/client/components/layout-router')
   hydrate(instrumentationHooks)
 })

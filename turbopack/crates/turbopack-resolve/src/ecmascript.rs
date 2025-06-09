@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{ResolvedVc, Value, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     issue::IssueSource,
     reference_type::{CommonJsReferenceSubType, EcmaScriptModulesReferenceSubType, ReferenceType},
@@ -44,12 +44,12 @@ pub fn get_condition_maps(
 
 pub fn apply_esm_specific_options(
     options: Vc<ResolveOptions>,
-    reference_type: Value<ReferenceType>,
+    reference_type: ReferenceType,
 ) -> Vc<ResolveOptions> {
     apply_esm_specific_options_internal(
         options,
         matches!(
-            reference_type.into_value(),
+            reference_type,
             ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportWithType(_))
         ),
     )
@@ -90,11 +90,11 @@ pub async fn apply_cjs_specific_options(options: Vc<ResolveOptions>) -> Result<V
 pub async fn esm_resolve(
     origin: Vc<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
-    ty: Value<EcmaScriptModulesReferenceSubType>,
+    ty: EcmaScriptModulesReferenceSubType,
     is_optional: bool,
     issue_source: Option<IssueSource>,
 ) -> Result<Vc<ModuleResolveResult>> {
-    let ty = Value::new(ReferenceType::EcmaScriptModules(ty.into_value()));
+    let ty = ReferenceType::EcmaScriptModules(ty);
     let options = apply_esm_specific_options(origin.resolve_options(ty.clone()), ty.clone())
         .resolve()
         .await?;
@@ -109,7 +109,7 @@ pub async fn cjs_resolve(
     is_optional: bool,
 ) -> Result<Vc<ModuleResolveResult>> {
     // TODO pass CommonJsReferenceSubType
-    let ty = Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined));
+    let ty = ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined);
     let options = apply_cjs_specific_options(origin.resolve_options(ty.clone()))
         .resolve()
         .await?;
@@ -124,7 +124,7 @@ pub async fn cjs_resolve_source(
     is_optional: bool,
 ) -> Result<Vc<ResolveResult>> {
     // TODO pass CommonJsReferenceSubType
-    let ty = Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined));
+    let ty = ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined);
     let options = apply_cjs_specific_options(origin.resolve_options(ty.clone()))
         .resolve()
         .await?;
@@ -151,7 +151,7 @@ async fn specific_resolve(
     origin: Vc<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
     options: Vc<ResolveOptions>,
-    reference_type: Value<ReferenceType>,
+    reference_type: ReferenceType,
     is_optional: bool,
     issue_source: Option<IssueSource>,
 ) -> Result<Vc<ModuleResolveResult>> {

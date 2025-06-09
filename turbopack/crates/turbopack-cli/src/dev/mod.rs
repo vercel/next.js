@@ -13,7 +13,7 @@ use owo_colors::OwoColorize;
 use rustc_hash::FxHashSet;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    NonLocalValue, OperationVc, ResolvedVc, TransientInstance, TurboTasks, UpdateInfo, Value, Vc,
+    NonLocalValue, OperationVc, ResolvedVc, TransientInstance, TurboTasks, UpdateInfo, Vc,
     trace::TraceRawVcs,
     util::{FormatBytes, FormatDuration},
 };
@@ -159,29 +159,30 @@ impl TurbopackDevServerBuilder {
             let addr = SocketAddr::new(host, current_port);
             let listen_result = DevServer::listen(addr);
 
-            if let Err(e) = &listen_result {
-                if self.allow_retry && attempts < max_attempts {
-                    // Returned error from `listen` is not `std::io::Error` but `anyhow::Error`,
-                    // so we need to access its source to check if it is
-                    // `std::io::ErrorKind::AddrInUse`.
-                    let should_retry = e
-                        .source()
-                        .and_then(|e| {
-                            e.downcast_ref::<std::io::Error>()
-                                .map(|e| e.kind() == std::io::ErrorKind::AddrInUse)
-                        })
-                        .unwrap_or(false);
+            if let Err(e) = &listen_result
+                && self.allow_retry
+                && attempts < max_attempts
+            {
+                // Returned error from `listen` is not `std::io::Error` but `anyhow::Error`,
+                // so we need to access its source to check if it is
+                // `std::io::ErrorKind::AddrInUse`.
+                let should_retry = e
+                    .source()
+                    .and_then(|e| {
+                        e.downcast_ref::<std::io::Error>()
+                            .map(|e| e.kind() == std::io::ErrorKind::AddrInUse)
+                    })
+                    .unwrap_or(false);
 
-                    if should_retry {
-                        println!(
-                            "{} - Port {} is in use, trying {} instead",
-                            "warn ".yellow(),
-                            current_port,
-                            current_port + 1
-                        );
-                        attempts += 1;
-                        continue;
-                    }
+                if should_retry {
+                    println!(
+                        "{} - Port {} is in use, trying {} instead",
+                        "warn ".yellow(),
+                        current_port,
+                        current_port + 1
+                    );
+                    attempts += 1;
+                    continue;
                 }
             }
 
@@ -309,14 +310,14 @@ async fn source(
         .iter()
         .map(|r| match r {
             EntryRequest::Relative(p) => Request::relative(
-                Value::new(p.clone().into()),
+                p.clone().into(),
                 Default::default(),
                 Default::default(),
                 false,
             ),
             EntryRequest::Module(m, p) => Request::module(
                 m.clone(),
-                Value::new(p.clone().into()),
+                p.clone().into(),
                 Default::default(),
                 Default::default(),
             ),

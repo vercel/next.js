@@ -11,7 +11,7 @@ use serde_with::serde_as;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, NonLocalValue, OperationValue, OperationVc, ResolvedVc, TaskInput, TryJoinIterExt,
-    Value, ValueToString, Vc, trace::TraceRawVcs,
+    ValueToString, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::ProcessEnv;
@@ -191,9 +191,7 @@ async fn webpack_loaders_executor(
         Vc::upcast(FileSource::new(embed_file_path(rcstr!(
             "transforms/webpack-loaders.ts"
         )))),
-        Value::new(ReferenceType::Internal(
-            InnerAssets::empty().to_resolved().await?,
-        )),
+        ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
     ))
 }
 
@@ -571,17 +569,12 @@ impl EvaluateContext for WebpackLoaderContext {
                     bail!("Resolve options are not available in this context");
                 };
                 let lookup_path = self.cwd.join(lookup_path);
-                let request = Request::parse(Value::new(Pattern::Constant(request)));
+                let request = Request::parse(Pattern::Constant(request));
                 let options = resolve_options(lookup_path, *resolve_options_context);
 
                 let options = apply_webpack_resolve_options(options, webpack_options);
 
-                let resolved = resolve(
-                    lookup_path,
-                    Value::new(ReferenceType::Undefined),
-                    request,
-                    options,
-                );
+                let resolved = resolve(lookup_path, ReferenceType::Undefined, request, options);
 
                 let request_str = request.to_string().await?;
                 let lookup_path_str = lookup_path.to_string().await?;

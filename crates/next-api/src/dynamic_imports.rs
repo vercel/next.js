@@ -26,7 +26,7 @@ use next_core::{
 };
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, Vc,
+    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
     debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
@@ -75,11 +75,8 @@ pub(crate) async fn collect_next_dynamic_chunks(
                 }
             };
 
-            let async_loader = chunking_context.async_loader_chunk_item(
-                *module,
-                module_graph,
-                Value::new(availability_info),
-            );
+            let async_loader =
+                chunking_context.async_loader_chunk_item(*module, module_graph, availability_info);
             let async_chunk_group = async_loader.references().to_resolved().await?;
 
             let module_id = dynamic_entry
@@ -133,15 +130,13 @@ pub async fn map_next_dynamic(graph: Vc<SingleModuleGraph>) -> Result<Vc<Dynamic
                 .layer
                 .as_ref()
                 .is_some_and(|layer| *layer == "app-client" || *layer == "client")
-            {
-                if let Some(dynamic_entry_module) =
+                && let Some(dynamic_entry_module) =
                     ResolvedVc::try_downcast_type::<NextDynamicEntryModule>(*module)
-                {
-                    return Ok(Some((
-                        *module,
-                        DynamicImportEntriesMapType::DynamicEntry(dynamic_entry_module),
-                    )));
-                }
+            {
+                return Ok(Some((
+                    *module,
+                    DynamicImportEntriesMapType::DynamicEntry(dynamic_entry_module),
+                )));
             }
             // TODO add this check once these modules have the correct layer
             // if layer.is_some_and(|layer| &**layer == "app-rsc") {

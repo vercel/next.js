@@ -1559,11 +1559,17 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn module_ids(&self) -> Vc<OptionModuleIds> {
-        let Some(module_ids) = self.turbopack.as_ref().and_then(|t| t.module_ids) else {
-            return Vc::cell(None);
-        };
-        Vc::cell(Some(module_ids))
+    pub async fn module_ids(&self, mode: Vc<NextMode>) -> Result<Vc<ModuleIds>> {
+        Ok(match *mode.await? {
+            // Ignore configuration in development mode, HMR only works with `named`
+            NextMode::Development => ModuleIds::Named.cell(),
+            NextMode::Build => self
+                .turbopack
+                .as_ref()
+                .and_then(|t| t.module_ids)
+                .unwrap_or(ModuleIds::Deterministic)
+                .cell(),
+        })
     }
 
     #[turbo_tasks::function]

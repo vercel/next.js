@@ -111,18 +111,17 @@ struct ReplaceGenericsVisitor<'a> {
 
 impl VisitMut for ReplaceGenericsVisitor<'_> {
     fn visit_type_mut(&mut self, node: &mut Type) {
-        if let Type::Path(type_path) = node {
-            if type_path.qself.is_none()
-                && type_path.path.segments.len() == 1
-                && type_path.path.segments[0].arguments.is_none()
-                && self
-                    .generics
-                    .contains(&type_path.path.segments[0].ident.to_string())
-            {
-                // Replace the whole path with ()
-                *node = syn::parse_quote! { () };
-                return;
-            }
+        if let Type::Path(type_path) = node
+            && type_path.qself.is_none()
+            && type_path.path.segments.len() == 1
+            && type_path.path.segments[0].arguments.is_none()
+            && self
+                .generics
+                .contains(&type_path.path.segments[0].ident.to_string())
+        {
+            // Replace the whole path with ()
+            *node = syn::parse_quote! { () };
+            return;
         }
 
         syn::visit_mut::visit_type_mut(self, node);

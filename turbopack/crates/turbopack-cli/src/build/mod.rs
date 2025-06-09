@@ -10,8 +10,7 @@ use rustc_hash::FxHashSet;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    ReadConsistency, ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks, Value, Vc,
-    apply_effects,
+    ReadConsistency, ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks, Vc, apply_effects,
 };
 use turbo_tasks_backend::{
     BackendOptions, NoopBackingStorage, TurboTasksBackend, noop_backing_storage,
@@ -234,9 +233,9 @@ async fn build_internal(
                 build_output_root,
                 build_output_root,
                 build_output_root,
-                Environment::new(Value::new(ExecutionEnvironment::NodeJsLambda(
+                Environment::new(ExecutionEnvironment::NodeJsLambda(
                     NodeJsEnvironment::default().resolved_cell(),
-                )))
+                ))
                 .to_resolved()
                 .await?,
                 runtime_type,
@@ -259,14 +258,14 @@ async fn build_internal(
         .map(|r| async move {
             Ok(match r {
                 EntryRequest::Relative(p) => Request::relative(
-                    Value::new(p.clone().into()),
+                    p.clone().into(),
                     Default::default(),
                     Default::default(),
                     false,
                 ),
                 EntryRequest::Module(m, p) => Request::module(
                     m.clone(),
-                    Value::new(p.clone().into()),
+                    p.clone().into(),
                     Default::default(),
                     Default::default(),
                 ),
@@ -282,7 +281,7 @@ async fn build_internal(
         entry_requests
             .into_iter()
             .map(|request_vc| async move {
-                let ty = Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined));
+                let ty = ReferenceType::Entry(EntryReferenceSubType::Undefined);
                 let request = request_vc.await?;
                 origin
                     .resolve_asset(request_vc, origin.resolve_options(ty.clone()), ty)
@@ -322,7 +321,7 @@ async fn build_internal(
                 build_output_root,
                 build_output_root,
                 build_output_root,
-                Environment::new(Value::new(ExecutionEnvironment::Browser(
+                Environment::new(ExecutionEnvironment::Browser(
                     BrowserEnvironment {
                         dom: true,
                         web_worker: false,
@@ -330,7 +329,7 @@ async fn build_internal(
                         browserslist_query: browserslist_query.clone(),
                     }
                     .resolved_cell(),
-                )))
+                ))
                 .to_resolved()
                 .await?,
                 runtime_type,
@@ -373,9 +372,9 @@ async fn build_internal(
                 build_output_root,
                 build_output_root,
                 build_output_root,
-                Environment::new(Value::new(ExecutionEnvironment::NodeJsLambda(
+                Environment::new(ExecutionEnvironment::NodeJsLambda(
                     NodeJsEnvironment::default().resolved_cell(),
-                )))
+                ))
                 .to_resolved()
                 .await?,
                 runtime_type,
@@ -439,7 +438,7 @@ async fn build_internal(
                                         [ResolvedVc::upcast(ecmascript)].into_iter().collect(),
                                     ),
                                     module_graph,
-                                    Value::new(AvailabilityInfo::Root),
+                                    AvailabilityInfo::Root,
                                 )
                                 .await?
                                 .assets
@@ -462,7 +461,7 @@ async fn build_internal(
                                     EvaluatableAssets::one(*ResolvedVc::upcast(ecmascript)),
                                     module_graph,
                                     OutputAssets::empty(),
-                                    Value::new(AvailabilityInfo::Root),
+                                    AvailabilityInfo::Root,
                                 )
                                 .await?
                                 .asset,

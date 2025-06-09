@@ -116,23 +116,6 @@ impl ValueType {
     }
 
     /// This is internally used by `#[turbo_tasks::value]`
-    pub fn new_with_magic_serialization<
-        T: VcValueType + Debug + Eq + Hash + Serialize + for<'de> Deserialize<'de> + TraceRawVcs,
-    >() -> Self {
-        Self {
-            name: std::any::type_name::<T>().to_string(),
-            traits: AutoSet::new(),
-            trait_methods: AutoMap::new(),
-            magic_serialization: Some((
-                <dyn MagicAny>::as_serialize::<T>,
-                MagicAnyDeserializeSeed::new::<T>(),
-            )),
-            any_serialization: Some((any_as_serialize::<T>, AnyDeserializeSeed::new::<T>())),
-            raw_cell: <T::CellMode as VcCellMode<T>>::raw_cell,
-        }
-    }
-
-    /// This is internally used by `#[turbo_tasks::value]`
     pub fn new_with_any_serialization<
         T: VcValueType + Any + Serialize + for<'de> Deserialize<'de>,
     >() -> Self {

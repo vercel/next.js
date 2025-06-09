@@ -980,6 +980,34 @@ describe('use-cache', () => {
       expect(randomOne).toBe(randomTwo)
     })
   })
+
+  it('shares caches between the page/layout and generateMetadata', async () => {
+    const browser = await next.browser('/generate-metadata')
+    const layoutData = await browser.elementByCss('#layout-data').text()
+    const pageData = await browser.elementByCss('#page-data').text()
+    const title = await browser.eval('document.title')
+
+    expect(layoutData).toBe(pageData)
+    expect(pageData).toBe(title)
+
+    const initialDescription = await browser
+      .elementByCss('meta[name="description"]')
+      .getAttribute('content')
+
+    expect(initialDescription).not.toBe(title)
+
+    await browser.refresh()
+
+    const description = await browser
+      .elementByCss('meta[name="description"]')
+      .getAttribute('content')
+
+    // TODO: After #78703 has landed, we can enable the outer 'use cache' in
+    // generateMetadata, and still have the cached title (a nested cache) be
+    // shared with the page/layout. Then the description will also be cached (by
+    // the outer 'use cache'), and this expectation needs to be flipped.
+    expect(description).not.toBe(initialDescription)
+  })
 })
 
 async function getSanitizedLogs(browser: Playwright): Promise<string[]> {

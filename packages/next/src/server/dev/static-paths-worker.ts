@@ -90,7 +90,9 @@ export async function loadStaticPaths({
   })
 
   // update work memory runtime-config
-  require('../../shared/lib/runtime-config.external').setConfig(config)
+  ;(
+    require('../../shared/lib/runtime-config.external') as typeof import('../../shared/lib/runtime-config.external')
+  ).setConfig(config)
   setHttpClientAndAgentOptions({
     httpAgentOptions,
   })

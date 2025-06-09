@@ -4,7 +4,7 @@ use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc,
+    FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
     debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileSystemPath, glob::Glob};
@@ -276,7 +276,7 @@ impl AliasTemplate for Vc<ImportMapping> {
                         .await?,
                 ),
                 ImportMapping::Dynamic(replacement) => {
-                    (*replacement.replace(capture.clone().cell()).await?).clone()
+                    (*replacement.replace(Pattern::new(capture.clone())).await?).clone()
                 }
             }
             .resolved_cell())
@@ -441,9 +441,7 @@ async fn import_mapping_to_result(
             ImportMapResult::Result(ResolveResult::primary(ResolveResultItem::Empty))
         }
         ReplacedImportMapping::PrimaryAlternative(name, context) => {
-            let request = Request::parse(Value::new(name.clone()))
-                .to_resolved()
-                .await?;
+            let request = Request::parse(name.clone()).to_resolved().await?;
             ImportMapResult::Alias(request, *context)
         }
         ReplacedImportMapping::Alternatives(list) => ImportMapResult::Alternatives(
@@ -556,16 +554,16 @@ impl ResolvedMap {
         let resolved = resolved.await?;
         for (root, glob, mapping) in self.by_glob.iter() {
             let root = root.await?;
-            if let Some(path) = root.get_path_to(&resolved) {
-                if glob.await?.matches(path) {
-                    return Ok(import_mapping_to_result(
-                        *mapping.convert().await?,
-                        lookup_path,
-                        request,
-                    )
-                    .await?
-                    .into());
-                }
+            if let Some(path) = root.get_path_to(&resolved)
+                && glob.await?.matches(path)
+            {
+                return Ok(import_mapping_to_result(
+                    *mapping.convert().await?,
+                    lookup_path,
+                    request,
+                )
+                .await?
+                .into());
             }
         }
         Ok(ImportMapResult::NoEntry.into())

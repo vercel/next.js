@@ -6,7 +6,7 @@ use std::{
 use anyhow::{Context, Result, anyhow};
 use swc_core::ecma::preset_env::{Version, Versions};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TaskInput, Value, Vc};
+use turbo_tasks::{ResolvedVc, TaskInput, Vc};
 use turbo_tasks_env::ProcessEnv;
 
 use crate::target::CompileTarget;
@@ -46,15 +46,13 @@ pub struct Environment {
 #[turbo_tasks::value_impl]
 impl Environment {
     #[turbo_tasks::function]
-    pub fn new(execution: Value<ExecutionEnvironment>) -> Vc<Self> {
-        Self::cell(Environment {
-            execution: execution.into_value(),
-        })
+    pub fn new(execution: ExecutionEnvironment) -> Vc<Self> {
+        Self::cell(Environment { execution })
     }
 }
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Hash, Clone, Copy)]
+#[turbo_tasks::value]
+#[derive(Debug, Hash, Clone, Copy, TaskInput)]
 pub enum ExecutionEnvironment {
     NodeJsBuildTime(ResolvedVc<NodeJsEnvironment>),
     NodeJsLambda(ResolvedVc<NodeJsEnvironment>),
