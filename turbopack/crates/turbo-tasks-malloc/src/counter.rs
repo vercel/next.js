@@ -140,7 +140,10 @@ thread_local! {
   static LOCAL_COUNTER: UnsafeCell<ThreadLocalCounter> = const {UnsafeCell::new(ThreadLocalCounter::new())};
 }
 
-/// Returns an estimate of the
+// stores an estimate of the peak memory allocated.
+static MAX_ALLOCATED: AtomicUsize = AtomicUsize::new(0);
+
+/// Returns an estimate of the total memory statistics
 pub fn global_counters() -> AllocationCounters {
     let mut counters = AllocationCounters::new();
     {
@@ -161,6 +164,11 @@ pub fn global_counters() -> AllocationCounters {
             counters.deallocations += thread.deallocations.load(Ordering::Acquire);
         }
     }
+
+    MAX_ALLOCATED.fetch_max(
+        counters.allocations - counters.deallocations,
+        Ordering::AcqRel,
+    );
     counters
 }
 
@@ -214,29 +222,32 @@ mod tests {
     use super::*;
 
     #[test]
-    fn counting() {
-        let mut expected = get();
-        add(100);
-        // Initial change should fill up the buffer
-        expected += TARGET_BUFFER + 100;
-        assert_eq!(get(), expected);
-        add(100);
-        // Further changes should use the buffer
-        assert_eq!(get(), expected);
-        add(MAX_BUFFER);
-        // Large changes should require more buffer space
-        expected += 100 + MAX_BUFFER;
-        assert_eq!(get(), expected);
-        remove(100);
-        // Small changes should use the buffer
-        // buffer size is now TARGET_BUFFER + 100
-        assert_eq!(get(), expected);
-        remove(MAX_BUFFER);
-        // The buffer should not grow over MAX_BUFFER
-        // buffer size would be TARGET_BUFFER + 100 + MAX_BUFFER
-        // but it will be reduce to TARGET_BUFFER
-        // this means the global counter should reduce by 100 + MAX_BUFFER
-        expected -= MAX_BUFFER + 100;
-        assert_eq!(get(), expected);
+    fn test_2_threads() {
+        let mut t1 = ThreadLocalCounter::new();
+        let mut t2 = ThreadLocalCounter::new();
+
+        assert_eq!(0, global_counters().allocations);
+
+        t1.register();
+        t2.register();
+        assert_eq!(0, global_counters().allocations);
+
+        t1.add(100);
+        t2.add(300);
+        assert_eq!(400, global_counters().allocations);
+
+        t2.remove(300);
+        t1.remove(100);
+        assert_eq!(
+            AllocationCounters {
+                allocations: 400,
+                allocation_count: 2,
+                deallocations: 400,
+                deallocation_count: 2,
+                ..Default::default()
+            },
+            global_counters()
+        );
+        assert_eq!(400, MAX_ALLOCATED.load(Ordering::Acquire));
     }
 }

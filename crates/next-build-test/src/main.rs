@@ -127,8 +127,8 @@ fn main() {
                         noop_backing_storage(),
                     ));
                     let result = main_inner(&tt, strat, factor, limit, files).await;
-                    let memory = TurboMalloc::memory_usage();
-                    tracing::info!("memory usage: {} MiB", memory / 1024 / 1024);
+                    let memory = TurboMalloc::global_allocation_counters();
+                    tracing::info!("memory usage: {}", memory);
                     let start = Instant::now();
                     drop(tt);
                     tracing::info!("drop {:?}", start.elapsed());

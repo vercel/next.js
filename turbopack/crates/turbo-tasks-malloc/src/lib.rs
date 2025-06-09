@@ -25,7 +25,7 @@ impl AllocationInfo {
     }
 }
 
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Clone, Debug, Eq, PartialEq)]
 pub struct AllocationCounters {
     pub allocations: usize,
     pub deallocations: usize,
