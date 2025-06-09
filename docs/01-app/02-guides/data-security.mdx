@@ -17,7 +17,7 @@ This guide will help you understand how think about data security in Next.js and
 
 ## Data fetching approaches
 
-There are three main approaches to fetching data in Next.js, depending on the size and age of your project:
+There are three main approaches we recommend for fetching data in Next.js, depending on the size and age of your project:
 
 - [HTTP APIs](#external-http-apis): for existing large applications and organizations.
 - [Data Access Layer](#data-access-layer): for new projects.
@@ -52,17 +52,15 @@ This approach works well when:
 - You already have security practices in place.
 - Separate backend teams use other languages or manage APIs independently.
 
-> **Good to know:** If your project uses `getStaticProps` or `getServerSideProps` to connect directly to a database, consider moving that logic into a Route Handler. This consolidates data access into a single, auditable pattern.
-
 ### Data Access Layer
 
-For new projects, we recommend creating a dedicated **Data Access Layer (DAL)**. This is a internal library that controls how and when data is fetched, and what gets passed to your React Components.
+For new projects, we recommend creating a dedicated **Data Access Layer (DAL)**. This is a internal library that controls how and when data is fetched, and what gets passed to your render context.
 
 A Data Access Layer should:
 
 - Only run on the server.
 - Perform authorization checks.
-- Return safe, minimal **Data Transfer Objects (DTOs)** ready to be consumed by the client.
+- Return safe, minimal **Data Transfer Objects (DTOs)**.
 
 This approach centralizes all data access logic, making it easier to enforce consistent data access and reduces the risk of authorization bugs. You also get the benefit of sharing an in-memory cache across different parts of a request.
 
@@ -134,7 +132,7 @@ export async function Page({ params: { slug } }) {
 
 For quick prototypes and iteration, database queries can be placed directly in Server Components.
 
-This approach makes it easier to accidentally expose private data to the client, for example:
+This approach, however, makes it easier to accidentally expose private data to the client, for example:
 
 ```tsx filename="app/page.tsx"
 import Profile from './components/profile.tsx'
@@ -144,7 +142,6 @@ export async function Page({ params: { slug } }) {
   const userData = rows[0]
   // EXPOSED: This exposes all the fields in userData to the client because
   // we are passing the data from the Server Component to the Client.
-  // This is similar to returning `userData` in `getServerSideProps`
   return <Profile user={userData} />
 }
 ```
@@ -207,7 +204,7 @@ On the initial load, both Server and Client Components run on the server to gene
 
 **Client Components:**
 
-- May run on the server during rendering, but must follow the same security assumptions as code running in the browser.
+- Run on the server during pre-rendering, but must follow the same security assumptions as code running in the browser.
 - Must not access privileged data or server-only modules.
 
 This ensures the app is secure by default, but it's possible to accidentally expose private data through how data is fetched or passed to components.
@@ -266,13 +263,12 @@ Next.js handles mutations with [Server Actions](https://react.dev/reference/rsc/
 
 ### Built-in Server Actions Security features
 
-By default, when a Server Action is created and exported, it creates a public HTTP endpoint
-and should be treated with the same security assumptions and authorization checks. This means, even if a Server Action or utility function is not imported elsewhere in your code, it's still publicly accessible.
+By default, when a Server Action is created and exported, it creates a public HTTP endpoint and should be treated with the same security assumptions and authorization checks. This means, even if a Server Action or utility function is not imported elsewhere in your code, it's still publicly accessible.
 
 To improve security, Next.js has the following built-in features:
 
 - **Secure action IDs:** Next.js creates encrypted, non-deterministic IDs to allow the client to reference and call the Server Action. These IDs are periodically recalculated between builds for enhanced security.
-- **Dead code elimination:** Unused Server Actions (referenced by their IDs) are removed from client bundle to avoid public access by third-party.
+- **Dead code elimination:** Unused Server Actions (referenced by their IDs) are removed from client bundle to avoid public access.
 
 > **Good to know**:
 >
@@ -283,12 +279,12 @@ To improve security, Next.js has the following built-in features:
 // app/actions.js
 'use server'
 
-// This action **is** used in our application, so Next.js
+// If this action **is** used in our application, Next.js
 // will create a secure ID to allow the client to reference
 // and call the Server Action.
 export async function updateUserAction(formData) {}
 
-// This action **is not** used in our application, so Next.js
+// If this action **is not** used in our application, Next.js
 // will automatically remove this code during `next build`
 // and will not create a public endpoint.
 export async function deleteUserAction(formData) {}
@@ -296,7 +292,7 @@ export async function deleteUserAction(formData) {}
 
 ### Validating client input
 
-You should always validate input from client, as they can be easily modified. For example, URL parameters, headers, and searchParams:
+You should always validate input from client, as they can be easily modified. For example, form data, URL parameters, headers, and searchParams:
 
 ```tsx filename="app/page.tsx"
 // BAD: Trusting searchParams directly
@@ -324,7 +320,7 @@ export default async function Page() {
 
 ### Authentication and authorization
 
-You should ensure that the user is authorized to perform the action. For example:
+You should always ensure that a user is authorized to perform an action. For example:
 
 ```tsx filename="app/actions.ts"
 'use server'
@@ -340,6 +336,8 @@ export function addItem() {
   // ...
 }
 ```
+
+Learn more about [Authentication](/docs/app/guides/authentication) in Next.js.
 
 ### Closures and encryption
 
@@ -389,7 +387,7 @@ Closures are useful when you need to capture a _snapshot_ of data (e.g. `publish
 
 However, for this to happen, the captured variables are sent to the client and back to the server when the action is invoked. To prevent sensitive data from being exposed to the client, Next.js automatically encrypts the closed-over variables. A new private key is generated for each action every time a Next.js application is built. This means actions can only be invoked for a specific build.
 
-> **Good to know:** We don't recommend relying on encryption alone to prevent sensitive values from being exposed on the client. Instead, you should use the [React taint APIs](/docs/app/api-reference/config/next-config-js/taint) to proactively prevent specific data from being sent to the client.
+> **Good to know:** We don't recommend relying on encryption alone to prevent sensitive values from being exposed on the client.
 
 ### Overwriting encryption keys (advanced)
 
@@ -426,7 +424,7 @@ Learn more about [Security and Server Actions](https://nextjs.org/blog/security-
 
 ### Avoiding side-effects during rendering
 
-Mutations (e.g., logging out users, updating databases, invalidating caches) should never be a side-effect, either in Server or Client Components. Next.js explicitly prevents setting cookies or triggering cache revalidation within render methods to avoid unintended side effects.
+Mutations (e.g. logging out users, updating databases, invalidating caches) should never be a side-effect, either in Server or Client Components. Next.js explicitly prevents setting cookies or triggering cache revalidation within render methods to avoid unintended side effects.
 
 ```tsx filename="app/page.tsx"
 // BAD: Triggering a mutation during rendering
