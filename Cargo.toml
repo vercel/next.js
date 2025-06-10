@@ -304,7 +304,7 @@ browserslist-rs = { version = "0.18.0" }
 mdxjs = "1.0.3"
 modularize_imports = { version = "0.87.0" }
 styled_components = { version = "0.115.0" }
-styled_jsx = { version = "0.91.0" }
+styled_jsx = { version = "0.91.1" }
 swc_emotion = { version = "0.91.0" }
 swc_relay = { version = "0.61.0" }
 
