@@ -315,6 +315,9 @@ function getSourcemappedFrameIfPossible(
     ignored,
   }
 
+  /** undefined = not yet computed*/
+  let codeFrame: string | null | undefined
+
   return Object.defineProperty(
     {
       stack: originalFrame,
@@ -323,16 +326,19 @@ function getSourcemappedFrameIfPossible(
     'code',
     {
       get: () => {
-        const sourceContent: string | null =
-          sourceMapConsumer.sourceContentFor(
-            sourcePosition.source,
-            /* returnNullOnMissing */ true
-          ) ?? null
-        return getOriginalCodeFrame(
-          originalFrame,
-          sourceContent,
-          inspectOptions.colors
-        )
+        if (codeFrame === undefined) {
+          const sourceContent: string | null =
+            sourceMapConsumer.sourceContentFor(
+              sourcePosition.source,
+              /* returnNullOnMissing */ true
+            ) ?? null
+          codeFrame = getOriginalCodeFrame(
+            originalFrame,
+            sourceContent,
+            inspectOptions.colors
+          )
+        }
+        return codeFrame
       },
     }
   )
