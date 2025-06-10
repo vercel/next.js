@@ -60,13 +60,13 @@ async function getLoaderModuleNamedExportsByAstGrep(resourcePath: string): Promi
   const extname = path.extname(resourcePath);
   const source = await fs.readFile(resourcePath, 'utf-8')
 
-  const { parse, Lang } = getAstGrep()
+  const { parseAsync, Lang } = getAstGrep()
   const lang = [".js", ".jsx", ".mjs", ".mjsx", ".cjs", ".cjsx"].includes(extname)
     ? Lang.JavaScript
     : extname === ".tsx"
       ? Lang.Tsx
       : Lang.TypeScript;
-  const ast = parse(lang, source)
+  const ast = await parseAsync(lang, source)
   const root = ast.root()
   const nodes = root.findAll({
     rule: {
@@ -129,19 +129,6 @@ async function getLoaderModuleNamedExportsByAstGrep(resourcePath: string): Promi
             },
             {
               has: {
-                field: 'value',
-                pattern: '$_',
-              },
-            },
-          ],
-        },
-        {
-          all: [
-            {
-              kind: 'export_statement',
-            },
-            {
-              has: {
                 kind: 'namespace_export',
                 has: {
                   kind: 'identifier',
@@ -151,9 +138,27 @@ async function getLoaderModuleNamedExportsByAstGrep(resourcePath: string): Promi
             },
           ],
         },
+        {
+          all: [
+            {
+              kind: 'export_statement',
+              not: {
+                pattern: "export default $$$"
+              }
+            },
+            {
+              has: {
+                field: 'declaration',
+                has: {
+                  kind: 'identifier',
+                  pattern: '$ORIGINAL',
+                },
+              },
+            },
+          ],
+        }
       ],
-    },
-    language: Lang.TypeScript,
+    }
   });
   return nodes.map((node: any) => {
     const original = node.getMatch('ORIGINAL');
@@ -161,10 +166,7 @@ async function getLoaderModuleNamedExportsByAstGrep(resourcePath: string): Promi
     if (alias) {
       return alias.text();
     }
-    if (original) {
-      return original.text();
-    }
-    return "default";
+    return original.text();
   })
 }
 
