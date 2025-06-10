@@ -5,6 +5,7 @@ use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 
 use crate::{
     compile_time_info::CompileTimeInfo,
+    ident::LayerName,
     issue::module::emit_unknown_module_type_error,
     module::{Module, OptionModule},
     reference_type::ReferenceType,
@@ -65,7 +66,7 @@ pub trait AssetContext {
 
     /// Gets the layer of the asset context.
     #[turbo_tasks::function]
-    fn layer(self: Vc<Self>) -> Vc<RcStr>;
+    fn layer(self: Vc<Self>) -> Vc<LayerName>;
 
     /// Gets the resolve options for a given path.
     #[turbo_tasks::function]

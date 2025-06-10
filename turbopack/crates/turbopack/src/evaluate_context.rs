@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::Vc;
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystem;
@@ -9,6 +9,7 @@ use turbopack_core::{
     condition::ContextCondition,
     context::AssetContext,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
+    ident::LayerName,
     resolve::options::{ImportMap, ImportMapping},
 };
 use turbopack_ecmascript::TreeShakingMode;
@@ -33,7 +34,7 @@ pub async fn node_evaluate_asset_context(
     execution_context: Vc<ExecutionContext>,
     import_map: Option<Vc<ImportMap>>,
     transitions: Option<Vc<TransitionOptions>>,
-    layer: RcStr,
+    layer: LayerName,
     ignore_dynamic_requests: bool,
 ) -> Result<Vc<Box<dyn AssetContext>>> {
     let mut import_map = if let Some(import_map) = import_map {
@@ -44,7 +45,7 @@ pub async fn node_evaluate_asset_context(
     import_map.insert_wildcard_alias(
         "@vercel/turbopack-node/",
         ImportMapping::PrimaryAlternative(
-            "./*".into(),
+            rcstr!("./*"),
             Some(
                 turbopack_node::embed_js::embed_fs()
                     .root()
@@ -56,10 +57,10 @@ pub async fn node_evaluate_asset_context(
     );
     let import_map = import_map.resolved_cell();
     let node_env: RcStr =
-        if let Some(node_env) = &*execution_context.env().read("NODE_ENV".into()).await? {
-            node_env.as_str().into()
+        if let Some(node_env) = &*execution_context.env().read(rcstr!("NODE_ENV")).await? {
+            node_env.clone()
         } else {
-            "development".into()
+            rcstr!("development")
         };
 
     // base context used for node_modules (and context for app code will be derived
@@ -74,7 +75,7 @@ pub async fn node_evaluate_asset_context(
         ),
         enable_node_externals: true,
         enable_node_native_modules: true,
-        custom_conditions: vec![node_env.clone(), "node".into()],
+        custom_conditions: vec![node_env.clone(), rcstr!("node")],
         ..Default::default()
     };
     // app code context, includes a rule to switch to the node_modules context

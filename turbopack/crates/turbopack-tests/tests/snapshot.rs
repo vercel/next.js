@@ -43,6 +43,7 @@ use turbopack_core::{
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     free_var_references,
+    ident::LayerName,
     issue::IssueDescriptionExt,
     module::Module,
     module_graph::{
@@ -326,12 +327,12 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             enable_typescript: true,
             enable_react: true,
             enable_node_modules: Some(project_root),
-            custom_conditions: vec!["development".into()],
+            custom_conditions: vec![rcstr!("development")],
             rules: vec![(
                 ContextCondition::InDirectory("node_modules".into()),
                 ResolveOptionsContext {
                     enable_node_modules: Some(project_root),
-                    custom_conditions: vec!["development".into()],
+                    custom_conditions: vec![rcstr!("development")],
                     ..Default::default()
                 }
                 .resolved_cell(),
@@ -339,7 +340,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             ..Default::default()
         }
         .cell(),
-        rcstr!("test"),
+        LayerName::new(rcstr!("test"), None),
     ));
 
     let runtime_entries = maybe_load_env(asset_context, *project_path)

@@ -57,7 +57,7 @@ use turbopack_core::{
         availability_info::AvailabilityInfo,
     },
     file_source::FileSource,
-    ident::AssetIdent,
+    ident::{AssetIdent, LayerName},
     module::Module,
     module_graph::{
         GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
@@ -435,7 +435,7 @@ impl AppProject {
             self.project().server_compile_time_info(),
             self.rsc_module_options_context(),
             self.rsc_resolve_options_context(),
-            rcstr!("app-rsc"),
+            LayerName::new(rcstr!("app-rsc"), Some(rcstr!("Server Component"))),
         ))
     }
 
@@ -450,7 +450,10 @@ impl AppProject {
             self.project().edge_compile_time_info(),
             self.edge_rsc_module_options_context(),
             self.edge_rsc_resolve_options_context(),
-            rcstr!("app-edge-rsc"),
+            LayerName::new(
+                rcstr!("app-edge-rsc"),
+                Some(rcstr!("Edge Server Component")),
+            ),
         ))
     }
 
@@ -501,7 +504,7 @@ impl AppProject {
             self.project().server_compile_time_info(),
             self.route_module_options_context(),
             self.route_resolve_options_context(),
-            rcstr!("app-route"),
+            LayerName::new(rcstr!("app-route"), None),
         ))
     }
 
@@ -551,7 +554,7 @@ impl AppProject {
             self.project().edge_compile_time_info(),
             self.edge_route_module_options_context(),
             self.edge_route_resolve_options_context(),
-            rcstr!("app-edge-route"),
+            LayerName::new(rcstr!("app-edge-route"), None),
         ))
     }
 
@@ -578,7 +581,10 @@ impl AppProject {
             self.project().client_compile_time_info(),
             self.client_module_options_context(),
             self.client_resolve_options_context(),
-            rcstr!("app-client"),
+            LayerName::new(
+                rcstr!("app-client"),
+                Some(rcstr!("Client Component Browser")),
+            ),
         ))
     }
 
@@ -661,7 +667,7 @@ impl AppProject {
             self.project().server_compile_time_info(),
             self.ssr_module_options_context(),
             self.ssr_resolve_options_context(),
-            rcstr!("app-ssr"),
+            LayerName::new(rcstr!("app-ssr"), Some(rcstr!("Client Component SSR"))),
         ))
     }
 
@@ -681,7 +687,7 @@ impl AppProject {
             self.project().server_compile_time_info(),
             self.ssr_module_options_context(),
             self.ssr_resolve_options_context(),
-            rcstr!("app-shared"),
+            LayerName::new(rcstr!("app-shared"), None),
         ))
     }
 
@@ -721,7 +727,10 @@ impl AppProject {
             self.project().edge_compile_time_info(),
             self.edge_ssr_module_options_context(),
             self.edge_ssr_resolve_options_context(),
-            rcstr!("app-edge-ssr"),
+            LayerName::new(
+                rcstr!("app-edge-ssr"),
+                Some(rcstr!("Client Component SSR - Edge")),
+            ),
         ))
     }
 
@@ -741,7 +750,7 @@ impl AppProject {
             self.project().edge_compile_time_info(),
             self.edge_ssr_module_options_context(),
             self.edge_ssr_resolve_options_context(),
-            rcstr!("app-edge-shared"),
+            LayerName::new(rcstr!("app-edge-shared"), None),
         ))
     }
 

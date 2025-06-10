@@ -10,11 +10,12 @@ pub use custom_module_type::CustomModuleType;
 pub use module_options_context::*;
 pub use module_rule::*;
 pub use rule_condition::*;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 use turbopack_core::{
     chunk::SourceMapsType,
+    ident::LayerName,
     reference_type::{CssReferenceSubType, ReferenceType, UrlReferenceSubType},
     resolve::options::{ImportMap, ImportMapping},
 };
@@ -468,7 +469,7 @@ impl ModuleOptions {
                     package_import_map_from_import_mapping("postcss".into(), *postcss_package)
                 } else {
                     package_import_map_from_context(
-                        "postcss".into(),
+                        rcstr!("postcss"),
                         path.context("need_path in ModuleOptions::new is incorrect")?,
                     )
                 };
@@ -485,7 +486,7 @@ impl ModuleOptions {
                                     *execution_context,
                                     Some(import_map),
                                     None,
-                                    "postcss".into(),
+                                    LayerName::new(rcstr!("postcss"), None),
                                     true,
                                 ),
                                 *execution_context,
@@ -670,7 +671,7 @@ impl ModuleOptions {
                                     *execution_context,
                                     Some(import_map),
                                     None,
-                                    "webpack_loaders".into(),
+                                    LayerName::new(rcstr!("webpack_loaders"), None),
                                     false,
                                 ),
                                 *execution_context,
