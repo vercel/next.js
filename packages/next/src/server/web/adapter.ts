@@ -34,6 +34,7 @@ import { CloseController } from './web-on-close'
 import { getEdgePreviewProps } from './get-edge-preview-props'
 import { getBuiltinRequestContext } from '../after/builtin-request-context'
 import { getImplicitTags } from '../lib/implicit-tags'
+import { RSC_REDIRECT_STATUS_CODE } from '../../shared/lib/constants'
 
 export class NextRequestHint extends NextRequest {
   sourcePage: string
@@ -95,6 +96,8 @@ function ensureTestApisIntercepted() {
     }
   }
 }
+
+const minimalMode = process.env.NODE_ENV !== 'development'
 
 export async function adapter(
   params: AdapterOptions
@@ -196,7 +199,7 @@ export async function adapter(
     ).IncrementalCache({
       appDir: true,
       fetchCache: true,
-      minimalMode: process.env.NODE_ENV !== 'development',
+      minimalMode: minimalMode,
       fetchCacheKeyPrefix: process.env.__NEXT_FETCH_CACHE_KEY_PREFIX,
       dev: process.env.NODE_ENV === 'development',
       requestHeaders: params.request.headers as any,
@@ -426,6 +429,22 @@ export async function adapter(
         'x-nextjs-redirect',
         getRelativeURL(redirectURL.toString(), requestURL.toString())
       )
+    }
+  }
+
+  // Handles RSC redirects from Middleware.
+  if (minimalMode && process.env.__NEXT_CLIENT_VALIDATE_RSC_REQUEST_HEADERS) {
+    if (
+      isRSCRequest &&
+      response &&
+      response.status >= 300 &&
+      response.status < 400
+    ) {
+      response = new Response(null, {
+        ...response,
+        status: RSC_REDIRECT_STATUS_CODE,
+        headers: response.headers,
+      })
     }
   }
 

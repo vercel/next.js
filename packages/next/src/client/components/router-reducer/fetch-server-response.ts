@@ -28,6 +28,7 @@ import {
   NEXT_DID_POSTPONE_HEADER,
   NEXT_ROUTER_STALE_TIME_HEADER,
 } from '../app-router-headers'
+import { RSC_REDIRECT_STATUS_CODE } from '../../../shared/lib/constants'
 import { callServer } from '../../app-call-server'
 import { findSourceMapURL } from '../../app-find-source-map-url'
 import { PrefetchKind } from './router-reducer-types'
@@ -328,9 +329,6 @@ export async function createFetch(
   // again, but this time we'll append the cache busting search param to prevent
   // a mismatch.
   //
-  // TODO: We can optimize Next.js's built-in middleware APIs by returning a
-  // custom status code, to prevent the browser from automatically following it.
-  //
   // This does not affect Server Action-based redirects; those are encoded
   // differently, as part of the Flight body. It only affects redirects that
   // occur in a middleware or a third-party proxy.
@@ -340,6 +338,25 @@ export async function createFetch(
     // This is to prevent a redirect loop. Same limit used by Chrome.
     const MAX_REDIRECTS = 20
     for (let n = 0; n < MAX_REDIRECTS; n++) {
+      // This is a custom status code used to handle RSC redirects.
+      // We use a custom status code to prevent the browser from automatically
+      // following the redirect, which would require an additional round trip.
+      // Instead, we can handle it on the client and immediately send a new RSC
+      // request to the new location.
+      if (browserResponse.status === RSC_REDIRECT_STATUS_CODE) {
+        const location = browserResponse.headers.get('Location')
+        if (!location) {
+          throw new Error(
+            'Next.js RSC redirect protocol error: Missing Location header. This may indicate either a Next.js bug or that a third-party proxy is not correctly implementing the RSC redirect protocol.'
+          )
+        }
+        fetchUrl = new URL(location, fetchUrl)
+        setCacheBustingSearchParam(fetchUrl, headers)
+        browserResponse = await fetch(fetchUrl, fetchOptions)
+        redirected = true
+        continue
+      }
+
       if (!browserResponse.redirected) {
         // The server did not perform a redirect.
         break
