@@ -2770,8 +2770,14 @@ export declare function Baskervville<
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Baskervville_SC<
   T extends CssVariable | undefined = undefined,
->(options: {
-  weight: '400' | Array<'400'>
+>(options?: {
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
@@ -14784,14 +14790,21 @@ export declare function Nobile<
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Nokora<
   T extends CssVariable | undefined = undefined,
->(options: {
-  weight:
+>(options?: {
+  weight?:
     | '100'
+    | '200'
     | '300'
     | '400'
+    | '500'
+    | '600'
     | '700'
+    | '800'
     | '900'
-    | Array<'100' | '300' | '400' | '700' | '900'>
+    | 'variable'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T

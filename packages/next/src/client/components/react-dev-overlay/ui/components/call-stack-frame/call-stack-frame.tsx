@@ -23,10 +23,6 @@ export const CallStackFrame: React.FC<{
       : undefined
   )
 
-  // Format method to strip out the webpack layer prefix.
-  // e.g. (app-pages-browser)/./app/page.tsx -> ./app/page.tsx
-  const formattedMethod = f.methodName.replace(/^\([\w-]+\)\//, '')
-
   // Formatted file source could be empty. e.g. <anonymous> will be formatted to empty string,
   // we'll skip rendering the frame in this case.
   const fileSource = getFrameSource(f)
@@ -42,9 +38,13 @@ export const CallStackFrame: React.FC<{
       data-nextjs-call-stack-frame-ignored={frame.ignored}
     >
       <div className="call-stack-frame-method-name">
-        <HotlinkedText text={formattedMethod} />
+        <HotlinkedText text={f.methodName} />
         {hasSource && (
-          <button onClick={open} className="open-in-editor-button">
+          <button
+            onClick={open}
+            className="open-in-editor-button"
+            aria-label={`Open ${f.methodName} in editor`}
+          >
             <ExternalIcon width={16} height={16} />
           </button>
         )}

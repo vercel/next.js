@@ -1680,8 +1680,16 @@
     "subsets": ["latin", "latin-ext"]
   },
   "Baskervville SC": {
-    "weights": ["400"],
+    "weights": ["400", "500", "600", "700", "variable"],
     "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ],
     "subsets": ["latin", "latin-ext"]
   },
   "Battambang": {
@@ -8368,8 +8376,27 @@
     "subsets": ["cyrillic", "latin", "latin-ext"]
   },
   "Nokora": {
-    "weights": ["100", "300", "400", "700", "900"],
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
     "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
     "subsets": ["khmer", "latin"]
   },
   "Norican": {

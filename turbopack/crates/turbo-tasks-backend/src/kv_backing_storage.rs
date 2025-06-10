@@ -1,11 +1,22 @@
-use std::{borrow::Borrow, cmp::max, path::PathBuf, sync::Arc};
+use std::{
+    borrow::Borrow,
+    cmp::max,
+    env,
+    path::PathBuf,
+    sync::{Arc, LazyLock, Mutex, PoisonError, Weak},
+};
 
 use anyhow::{Context, Result, anyhow};
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use tracing::Span;
-use turbo_tasks::{SessionId, TaskId, backend::CachedTaskType, turbo_tasks_scope};
+use turbo_tasks::{
+    SessionId, TaskId,
+    backend::CachedTaskType,
+    panic_hooks::{PanicHookGuard, register_panic_hook},
+    turbo_tasks_scope,
+};
 
 use crate::{
     GitVersionInfo,
@@ -83,18 +94,48 @@ fn as_u32(bytes: impl Borrow<[u8]>) -> Result<u32> {
     Ok(n)
 }
 
-pub struct KeyValueDatabaseBackingStorage<T: KeyValueDatabase> {
+// We want to invalidate the cache on panic for most users, but this is a band-aid to underlying
+// problems in turbo-tasks.
+//
+// If we invalidate the cache upon panic and it "fixes" the issue upon restart, users typically
+// won't report bugs to us, and we'll never find root-causes for these problems.
+//
+// These overrides let us avoid the cache invalidation / error suppression within Vercel so that we
+// feel these pain points and fix the root causes of bugs.
+fn should_invalidate_on_panic() -> bool {
+    fn env_is_falsy(key: &str) -> bool {
+        env::var_os(key)
+            .is_none_or(|value| ["".as_ref(), "0".as_ref(), "false".as_ref()].contains(&&*value))
+    }
+    static SHOULD_INVALIDATE: LazyLock<bool> = LazyLock::new(|| {
+        env_is_falsy("TURBO_ENGINE_SKIP_INVALIDATE_ON_PANIC") && env_is_falsy("__NEXT_TEST_MODE")
+    });
+    *SHOULD_INVALIDATE
+}
+
+pub struct KeyValueDatabaseBackingStorageInner<T: KeyValueDatabase> {
     database: T,
     /// Used when calling [`BackingStorage::invalidate`]. Can be `None` in the memory-only/no-op
     /// storage case.
     base_path: Option<PathBuf>,
+    /// Used to skip calling [`invalidate_db`] when the database has already been invalidated.
+    invalidated: Mutex<bool>,
+    _panic_hook_guard: Option<PanicHookGuard>,
+}
+
+pub struct KeyValueDatabaseBackingStorage<T: KeyValueDatabase> {
+    inner: Arc<KeyValueDatabaseBackingStorageInner<T>>,
 }
 
 impl<T: KeyValueDatabase> KeyValueDatabaseBackingStorage<T> {
     pub fn new_in_memory(database: T) -> Self {
         Self {
-            database,
-            base_path: None,
+            inner: Arc::new(KeyValueDatabaseBackingStorageInner {
+                database,
+                base_path: None,
+                invalidated: Mutex::new(false),
+                _panic_hook_guard: None,
+            }),
         }
     }
 
@@ -103,15 +144,44 @@ impl<T: KeyValueDatabase> KeyValueDatabaseBackingStorage<T> {
         version_info: &GitVersionInfo,
         is_ci: bool,
         database: impl FnOnce(PathBuf) -> Result<T>,
-    ) -> Result<Self> {
+    ) -> Result<Self>
+    where
+        T: Send + Sync + 'static,
+    {
         check_db_invalidation_and_cleanup(&base_path)?;
         let versioned_path = handle_db_versioning(&base_path, version_info, is_ci)?;
+        let database = (database)(versioned_path)?;
         Ok(Self {
-            database: (database)(versioned_path)?,
-            base_path: Some(base_path),
+            inner: Arc::new_cyclic(
+                move |weak_inner: &Weak<KeyValueDatabaseBackingStorageInner<T>>| {
+                    let panic_hook_guard = if should_invalidate_on_panic() {
+                        let weak_inner = weak_inner.clone();
+                        Some(register_panic_hook(Box::new(move |_| {
+                            let Some(inner) = weak_inner.upgrade() else {
+                                return;
+                            };
+                            // If a panic happened that must mean something deep inside of turbopack
+                            // or turbo-tasks failed, and it may be hard to recover. We don't want
+                            // the cache to stick around, as that may persist bugs. Make a
+                            // best-effort attempt to invalidate the database (ignoring failures).
+                            let _ = inner.invalidate();
+                        })))
+                    } else {
+                        None
+                    };
+                    KeyValueDatabaseBackingStorageInner {
+                        database,
+                        base_path: Some(base_path),
+                        invalidated: Mutex::new(false),
+                        _panic_hook_guard: panic_hook_guard,
+                    }
+                },
+            ),
         })
     }
+}
 
+impl<T: KeyValueDatabase> KeyValueDatabaseBackingStorageInner<T> {
     fn with_tx<R>(
         &self,
         tx: Option<&T::ReadTransaction<'_>>,
@@ -126,14 +196,38 @@ impl<T: KeyValueDatabase> KeyValueDatabaseBackingStorage<T> {
             Ok(r)
         }
     }
-}
 
-fn get_infra_u32(database: &impl KeyValueDatabase, key: u32) -> Result<Option<u32>> {
-    let tx = database.begin_read_transaction()?;
-    database
-        .get(&tx, KeySpace::Infra, IntKey::new(key).as_ref())?
-        .map(as_u32)
-        .transpose()
+    fn invalidate(&self) -> Result<()> {
+        // `base_path` can be `None` for a `NoopKvDb`
+        if let Some(base_path) = &self.base_path {
+            // Invalidation could happen frequently if there's a bunch of panics. We only need to
+            // invalidate once, so grab a lock.
+            let mut invalidated_guard = self
+                .invalidated
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner);
+            if *invalidated_guard {
+                return Ok(());
+            }
+            // Invalidate first, as it's a very fast atomic operation. `prevent_writes` is allowed
+            // to be slower (e.g. wait for a lock) and is allowed to corrupt the database with
+            // partial writes.
+            invalidate_db(base_path)?;
+            self.database.prevent_writes();
+            // Avoid redundant invalidations from future panics
+            *invalidated_guard = true;
+        }
+        Ok(())
+    }
+
+    /// Used to read the previous session id and the next free task ID from the database.
+    fn get_infra_u32(&self, key: u32) -> Result<Option<u32>> {
+        let tx = self.database.begin_read_transaction()?;
+        self.database
+            .get(&tx, KeySpace::Infra, IntKey::new(key).as_ref())?
+            .map(as_u32)
+            .transpose()
+    }
 }
 
 impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
@@ -149,7 +243,8 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
 
     fn next_free_task_id(&self) -> Result<TaskId> {
         Ok(TaskId::try_from(
-            get_infra_u32(&self.database, META_KEY_NEXT_FREE_TASK_ID)
+            self.inner
+                .get_infra_u32(META_KEY_NEXT_FREE_TASK_ID)
                 .context("Unable to read next free task id from database")?
                 .unwrap_or(1),
         )?)
@@ -157,7 +252,8 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
 
     fn next_session_id(&self) -> Result<SessionId> {
         Ok(SessionId::try_from(
-            get_infra_u32(&self.database, META_KEY_SESSION_ID)
+            self.inner
+                .get_infra_u32(META_KEY_SESSION_ID)
                 .context("Unable to read session id from database")?
                 .unwrap_or(0)
                 + 1,
@@ -178,7 +274,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
             let operations = deserialize_with_good_error(operations.borrow())?;
             Ok(operations)
         }
-        get(&self.database).context("Unable to read uncompleted operations from database")
+        get(&self.inner.database).context("Unable to read uncompleted operations from database")
     }
 
     fn serialize(task: TaskId, data: &Vec<CachedDataItem>) -> Result<SmallVec<[u8; 16]>> {
@@ -203,7 +299,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
             + Sync,
     {
         let _span = tracing::trace_span!("save snapshot", session_id = ?session_id, operations = operations.len());
-        let mut batch = self.database.write_batch()?;
+        let mut batch = self.inner.database.write_batch()?;
 
         // Start organizing the updates in parallel
         match &mut batch {
@@ -380,7 +476,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
     }
 
     fn start_read_transaction(&self) -> Option<Self::ReadTransaction<'_>> {
-        self.database.begin_read_transaction().ok()
+        self.inner.database.begin_read_transaction().ok()
     }
 
     unsafe fn forward_lookup_task_cache(
@@ -388,6 +484,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
         tx: Option<&T::ReadTransaction<'_>>,
         task_type: &CachedTaskType,
     ) -> Result<Option<TaskId>> {
+        let inner = &*self.inner;
         fn lookup<D: KeyValueDatabase>(
             database: &D,
             tx: &D::ReadTransaction<'_>,
@@ -401,12 +498,13 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
             let id = TaskId::try_from(u32::from_le_bytes(bytes)).unwrap();
             Ok(Some(id))
         }
-        if self.database.is_empty() {
+        if inner.database.is_empty() {
             // Checking if the database is empty is a performance optimization
             // to avoid serializing the task type.
             return Ok(None);
         }
-        self.with_tx(tx, |tx| lookup(&self.database, tx, task_type))
+        inner
+            .with_tx(tx, |tx| lookup(&self.inner.database, tx, task_type))
             .with_context(|| format!("Looking up task id for {task_type:?} from database failed"))
     }
 
@@ -415,6 +513,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
         tx: Option<&T::ReadTransaction<'_>>,
         task_id: TaskId,
     ) -> Result<Option<Arc<CachedTaskType>>> {
+        let inner = &*self.inner;
         fn lookup<D: KeyValueDatabase>(
             database: &D,
             tx: &D::ReadTransaction<'_>,
@@ -430,7 +529,8 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
             };
             Ok(Some(deserialize_with_good_error(bytes.borrow())?))
         }
-        self.with_tx(tx, |tx| lookup(&self.database, tx, task_id))
+        inner
+            .with_tx(tx, |tx| lookup(&inner.database, tx, task_id))
             .with_context(|| format!("Looking up task type for {task_id} from database failed"))
     }
 
@@ -440,6 +540,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
         task_id: TaskId,
         category: TaskDataCategory,
     ) -> Result<Vec<CachedDataItem>> {
+        let inner = &*self.inner;
         fn lookup<D: KeyValueDatabase>(
             database: &D,
             tx: &D::ReadTransaction<'_>,
@@ -461,24 +562,17 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
             let result: Vec<CachedDataItem> = deserialize_with_good_error(bytes.borrow())?;
             Ok(result)
         }
-        self.with_tx(tx, |tx| lookup(&self.database, tx, task_id, category))
+        inner
+            .with_tx(tx, |tx| lookup(&inner.database, tx, task_id, category))
             .with_context(|| format!("Looking up data for {task_id} from database failed"))
     }
 
     fn invalidate(&self) -> Result<()> {
-        // `base_path` can be `None` for a `NoopKvDb`
-        if let Some(base_path) = &self.base_path {
-            // Invalidate first, as it's a very fast atomic operation. `prevent_writes` is allowed
-            // to be slower (e.g. wait for a lock) and is allowed to corrupt the database with
-            // partial writes.
-            invalidate_db(base_path)?;
-            self.database.prevent_writes()
-        }
-        Ok(())
+        self.inner.invalidate()
     }
 
     fn shutdown(&self) -> Result<()> {
-        self.database.shutdown()
+        self.inner.database.shutdown()
     }
 }
 

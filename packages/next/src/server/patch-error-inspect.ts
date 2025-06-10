@@ -275,12 +275,6 @@ function getSourcemappedFrameIfPossible(
     }
   }
 
-  const sourceContent: string | null =
-    sourceMapConsumer.sourceContentFor(
-      sourcePosition.source,
-      /* returnNullOnMissing */ true
-    ) ?? null
-
   const applicableSourceMap = findApplicableSourceMapPayload(
     frame,
     sourceMapPayload
@@ -321,16 +315,33 @@ function getSourcemappedFrameIfPossible(
     ignored,
   }
 
-  const codeFrame = getOriginalCodeFrame(
-    originalFrame,
-    sourceContent,
-    inspectOptions.colors
-  )
+  /** undefined = not yet computed*/
+  let codeFrame: string | null | undefined
 
-  return {
-    stack: originalFrame,
-    code: codeFrame,
-  }
+  return Object.defineProperty(
+    {
+      stack: originalFrame,
+      code: null,
+    },
+    'code',
+    {
+      get: () => {
+        if (codeFrame === undefined) {
+          const sourceContent: string | null =
+            sourceMapConsumer.sourceContentFor(
+              sourcePosition.source,
+              /* returnNullOnMissing */ true
+            ) ?? null
+          codeFrame = getOriginalCodeFrame(
+            originalFrame,
+            sourceContent,
+            inspectOptions.colors
+          )
+        }
+        return codeFrame
+      },
+    }
+  )
 }
 
 function parseAndSourceMap(
@@ -372,10 +383,10 @@ function parseAndSourceMap(
       )
 
       if (
-        sourcemappedFrame.code !== null &&
         sourceFrame === null &&
         // TODO: Is this the right choice?
-        !sourcemappedFrame.stack.ignored
+        !sourcemappedFrame.stack.ignored &&
+        sourcemappedFrame.code !== null
       ) {
         sourceFrame = sourcemappedFrame.code
       }

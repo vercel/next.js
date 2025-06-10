@@ -16,7 +16,6 @@ import {
   type OriginalStackFramesResponse,
 } from './shared'
 import { middlewareResponse } from './middleware-response'
-export { getServerError } from '../utils/node-stack-frames'
 export { parseStack } from '../utils/parse-stack'
 export { getSourceMapFromFile }
 

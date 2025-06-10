@@ -37,10 +37,33 @@ describe('browser-chunks', () => {
   it('must not bundle any dev overlay into browser chunks', () => {
     const devOverlaySources = sources.filter((source) => {
       return (
-        /webpack:\/\/_N_E\/(\.\.\/)*src\/client\/components\/react-dev-overlay\//.test(
+        (/webpack:\/\/_N_E\/(\.\.\/)*src\/client\/components\/react-dev-overlay\//.test(
           source
         ) ||
-        /next\/dist\/(esm\/)?client\/components\/react-dev-overlay/.test(source)
+          /next\/dist\/(esm\/)?client\/components\/react-dev-overlay/.test(
+            source
+          )) &&
+        !(
+          // This is not dev-overlay frontend code.
+          // TODO: Move code into dedicated folder to make distinction clearer.
+          (
+            source.endsWith(
+              'client/components/react-dev-overlay/app/errors/use-error-handler.ts'
+            ) ||
+            source.endsWith(
+              'client/components/react-dev-overlay/app/errors/stitched-error.ts'
+            ) ||
+            source.endsWith(
+              'client/components/react-dev-overlay/app/app-dev-overlay-setup.ts'
+            ) ||
+            source.endsWith(
+              'client/components/react-dev-overlay/app/errors/console-error.ts'
+            ) ||
+            source.endsWith(
+              'client/components/react-dev-overlay/app/errors/intercept-console-error.ts'
+            )
+          )
+        )
       )
     })
 

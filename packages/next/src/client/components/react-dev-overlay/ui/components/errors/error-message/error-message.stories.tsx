@@ -6,6 +6,21 @@ const meta: Meta<typeof ErrorMessage> = {
   component: ErrorMessage,
   parameters: {
     layout: 'fullscreen',
+    backgrounds: {
+      default: 'background-100-light',
+    },
+    a11y: {
+      config: {
+        rules: [
+          {
+            id: 'color-contrast',
+            // Manual testing shows no violation.
+            // TODO: We might have setup more explicit backgrounds depending on theme.
+            enabled: false,
+          },
+        ],
+      },
+    },
   },
   decorators: [withShadowPortal],
 }
