@@ -306,7 +306,7 @@ export default async function Page() {
   return <CacheComponent performUpdate={performUpdate} />
 }
 
-async function CachedComponent({
+async function CacheComponent({
   performUpdate,
 }: {
   performUpdate: () => Promise<void>
@@ -330,7 +330,7 @@ export default async function Page() {
   return <CacheComponent performUpdate={performUpdate} />
 }
 
-async function CachedComponent({ performUpdate }) {
+async function CacheComponent({ performUpdate }) {
   'use cache'
   // Do not call performUpdate here
   return <ClientComponent action={performUpdate} />
