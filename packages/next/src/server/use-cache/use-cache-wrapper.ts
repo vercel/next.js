@@ -867,10 +867,12 @@ export function cache(
               workUnitStore.implicitTags.expirationsByCacheKind.get(kind)
 
             if (lazyExpiration) {
-              if (isResolvedLazyResult(lazyExpiration)) {
-                implicitTagsExpiration = lazyExpiration.value
-              } else {
-                implicitTagsExpiration = await lazyExpiration
+              const expiration = isResolvedLazyResult(lazyExpiration)
+                ? lazyExpiration.value
+                : await lazyExpiration
+
+              if (expiration < Infinity) {
+                implicitTagsExpiration = expiration
               }
             }
           }
