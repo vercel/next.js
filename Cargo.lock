@@ -561,7 +561,7 @@ dependencies = [
  "bitflags 2.9.0",
  "cexpr",
  "clang-sys",
- "itertools 0.10.5",
+ "itertools 0.13.0",
  "log",
  "prettyplease",
  "proc-macro2",
@@ -5232,7 +5232,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "157c5a9d7ea5c2ed2d9fb8f495b64759f7816c7eaea54ba3978f0d63000162e3"
 dependencies = [
  "anyhow",
- "itertools 0.10.5",
+ "itertools 0.13.0",
  "proc-macro2",
  "quote",
  "syn 2.0.100",
@@ -6809,9 +6809,9 @@ dependencies = [
 
 [[package]]
 name = "styled_jsx"
-version = "0.91.0"
+version = "0.91.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "31a91494a81f0fd7fca47562e62236855cb1112dc0059d627a40b45117d30c92"
+checksum = "4eeb6bc4423bb2f48d3aad71b09e37ac704fa509b9ddb36540ca321cfb8e91da"
 dependencies = [
  "anyhow",
  "lightningcss",
