@@ -234,13 +234,16 @@ function generateImgAttrs({
   return {
     sizes: !sizes && kind === 'w' ? '100vw' : sizes,
     srcSet: widths
-      .map(
-        (w, i) =>
-          `${loader({ config, src, quality, width: w })} ${
-            kind === 'w' ? w : i + 1
-          }${kind}`
-      )
-      .join(', '),
+    .map(
+      (w, i)=>
+      `${i !== 0 ? "'" : ""}${loader({
+        config,
+        src,
+        quality,
+        width: w
+      })}${i !== widths.length - 1 ?
+        "'" :
+        ""}` + " " + (kind === "w" ? w : i + 1) + kind).join(", "),
 
     // It's intended to keep `src` the last attribute because React updates
     // attributes in order. If we keep `src` the first one, Safari will
