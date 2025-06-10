@@ -871,6 +871,11 @@ export function cache(
                 ? lazyExpiration.value
                 : await lazyExpiration
 
+              // If a cache handler returns an expiration time of Infinity, it
+              // signals to Next.js that it handles checking cache entries for
+              // staleness based on the expiration of the implicit tags passed
+              // into the `get` method. In this case, we keep the default of 0,
+              // which means that the implicit tags are not considered expired.
               if (expiration < Infinity) {
                 implicitTagsExpiration = expiration
               }
