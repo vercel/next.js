@@ -4,6 +4,8 @@ import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import { outdent } from 'outdent'
 
+const isRspack = process.env.NEXT_RSPACK !== undefined
+
 describe('Error Overlay invalid imports', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
@@ -71,6 +73,17 @@ describe('Error Overlay invalid imports', () => {
         'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.
         The error was caused by using 'styled-jsx'. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default."
       `)
+    } else if (isRspack) {
+      // rspack returns absolute paths which will break an inline snapshot test due to unpredictability of the test environment
+      const redboxSource = await session.getRedboxSource()
+      expect(redboxSource).toContain(
+        "'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component."
+      )
+      expect(redboxSource).toContain('Module build failed')
+      expect(redboxSource).toContain('Import trace for requested module')
+      expect(redboxSource).toContain('./app/comp2.js')
+      expect(redboxSource).toContain('./app/comp1.js')
+      expect(redboxSource).toContain('./app/page.js')
     } else {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
               "./app/comp2.js
@@ -153,6 +166,16 @@ describe('Error Overlay invalid imports', () => {
         'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.
         The error was caused by importing 'node_modules/client-only-package'"
       `)
+    } else if (isRspack) {
+      const redboxSource = await session.getRedboxSource()
+      expect(redboxSource).toContain(
+        "'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component."
+      )
+      expect(redboxSource).toContain('Module build failed')
+      expect(redboxSource).toContain('Import trace for requested module')
+      expect(redboxSource).toContain('./app/comp2.js')
+      expect(redboxSource).toContain('./app/comp1.js')
+      expect(redboxSource).toContain('./app/page.js')
     } else {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
         "./app/comp2.js
@@ -233,6 +256,16 @@ describe('Error Overlay invalid imports', () => {
         'server-only' cannot be imported from a Client Component module. It should only be used from a Server Component.
         The error was caused by importing 'node_modules/server-only-package'"
       `)
+    } else if (isRspack) {
+      const redboxSource = await session.getRedboxSource()
+      expect(redboxSource).toContain(
+        "'server-only' cannot be imported from a Client Component module. It should only be used from a Server Component."
+      )
+      expect(redboxSource).toContain('Module build failed')
+      expect(redboxSource).toContain('Import trace for requested module')
+      expect(redboxSource).toContain('./app/comp2.js')
+      expect(redboxSource).toContain('./app/comp1.js')
+      expect(redboxSource).toContain('./app/page.js')
     } else {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
         "./app/comp2.js
