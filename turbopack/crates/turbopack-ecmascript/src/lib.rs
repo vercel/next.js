@@ -61,7 +61,7 @@ use swc_core::{
     common::{
         BytePos, DUMMY_SP, FileName, GLOBALS, Globals, Loc, Mark, SourceFile, SourceMap,
         SourceMapper, Span, SpanSnippetError, SyntaxContext,
-        comments::{Comment, Comments},
+        comments::{Comment, CommentKind, Comments},
         source_map::{FileLinesResult, Files, SourceMapLookupError},
         util::take::Take,
     },
@@ -71,6 +71,7 @@ use swc_core::{
             Script, SourceMapperExt, Stmt,
         },
         codegen::{Emitter, text_writer::JsWriter},
+        utils::StmtLikeInjector,
         visit::{VisitMut, VisitMutWith, VisitMutWithAstPath},
     },
     quote,
@@ -1630,62 +1631,76 @@ async fn process_parse_result(
     with_consumed_parse_result(
         parsed,
         async |mut program, source_map, globals, eval_context, comments| -> Result<CodeGenResult> {
-            let (mut code_gens, retain_syntax_context) = if let Some(scope_hoisting_options) =
-                scope_hoisting_options
-            {
-                let (is_import_mark, module_syntax_contexts) = GLOBALS.set(globals, || {
-                    let is_import_mark = Mark::new();
-                    let module_syntax_contexts: FxIndexMap<_, _> = scope_hoisting_options
-                        .modules
-                        .keys()
-                        .map(|m| {
-                            let mark = Mark::fresh(is_import_mark);
-                            (
-                                *m,
-                                SyntaxContext::empty()
-                                    .apply_mark(is_import_mark)
-                                    .apply_mark(mark),
-                            )
-                        })
-                        .collect();
-                    (is_import_mark, module_syntax_contexts)
-                });
+            let (mut code_gens, retain_syntax_context, prepend_ident_comment) =
+                if let Some(scope_hoisting_options) = scope_hoisting_options {
+                    let (is_import_mark, module_syntax_contexts) = GLOBALS.set(globals, || {
+                        let is_import_mark = Mark::new();
+                        let module_syntax_contexts: FxIndexMap<_, _> = scope_hoisting_options
+                            .modules
+                            .keys()
+                            .map(|m| {
+                                let mark = Mark::fresh(is_import_mark);
+                                (
+                                    *m,
+                                    SyntaxContext::empty()
+                                        .apply_mark(is_import_mark)
+                                        .apply_mark(mark),
+                                )
+                            })
+                            .collect();
+                        (is_import_mark, module_syntax_contexts)
+                    });
 
-                let ctx = ScopeHoistingContext::Some {
-                    module: scope_hoisting_options.module,
-                    modules: scope_hoisting_options.modules,
-                    module_syntax_contexts: &module_syntax_contexts,
-                };
-                let code_gens = options.unwrap().merged_code_gens(ctx).await?;
-                let preserved_exports = match &*scope_hoisting_options.module.get_exports().await? {
-                    EcmascriptExports::EsmExports(exports) => exports
-                        .await?
-                        .exports
-                        .iter()
-                        .filter(|(_, e)| matches!(e, export::EsmExport::LocalBinding(_, _)))
-                        .map(|(name, e)| {
-                            if let Some((sym, ctxt)) = eval_context.imports.exports.get(name) {
-                                Ok((sym.clone(), *ctxt))
-                            } else {
-                                bail!("Couldn't find export {} for binding {:?}", name, e);
-                            }
-                        })
-                        .collect::<Result<FxHashSet<_>>>()?,
-                    _ => Default::default(),
-                };
+                    let ctx = ScopeHoistingContext::Some {
+                        module: scope_hoisting_options.module,
+                        modules: scope_hoisting_options.modules,
+                        module_syntax_contexts: &module_syntax_contexts,
+                    };
+                    let code_gens = options.unwrap().merged_code_gens(ctx).await?;
+                    let preserved_exports =
+                        match &*scope_hoisting_options.module.get_exports().await? {
+                            EcmascriptExports::EsmExports(exports) => exports
+                                .await?
+                                .exports
+                                .iter()
+                                .filter(|(_, e)| matches!(e, export::EsmExport::LocalBinding(_, _)))
+                                .map(|(name, e)| {
+                                    if let Some((sym, ctxt)) =
+                                        eval_context.imports.exports.get(name)
+                                    {
+                                        Ok((sym.clone(), *ctxt))
+                                    } else {
+                                        bail!("Couldn't find export {} for binding {:?}", name, e);
+                                    }
+                                })
+                                .collect::<Result<FxHashSet<_>>>()?,
+                            _ => Default::default(),
+                        };
 
-                (
-                    code_gens,
-                    Some((is_import_mark, module_syntax_contexts, preserved_exports)),
-                )
-            } else if let Some(options) = options {
-                (
-                    options.merged_code_gens(ScopeHoistingContext::None).await?,
-                    None,
-                )
-            } else {
-                (vec![], None)
-            };
+                    let prepend_ident_comment = if matches!(minify, MinifyType::NoMinify) {
+                        Some(Comment {
+                            kind: CommentKind::Line,
+                            span: DUMMY_SP,
+                            text: format!(" MERGED MODULE: {}", ident.to_string().await?).into(),
+                        })
+                    } else {
+                        None
+                    };
+
+                    (
+                        code_gens,
+                        Some((is_import_mark, module_syntax_contexts, preserved_exports)),
+                        prepend_ident_comment,
+                    )
+                } else if let Some(options) = options {
+                    (
+                        options.merged_code_gens(ScopeHoistingContext::None).await?,
+                        None,
+                        None,
+                    )
+                } else {
+                    (vec![], None, None)
+                };
 
             let extra_comments = SwcComments {
                 leading: Default::default(),
@@ -1711,6 +1726,16 @@ async fn process_parse_result(
             }
 
             GLOBALS.set(globals, || {
+                if let Some(prepend_ident_comment) = prepend_ident_comment {
+                    let span = Span::dummy_with_cmt();
+                    extra_comments.add_leading(span.lo, prepend_ident_comment);
+                    let stmt = Stmt::Empty(EmptyStmt { span });
+                    match &mut program {
+                        Program::Module(module) => module.body.prepend_stmt(ModuleItem::Stmt(stmt)),
+                        Program::Script(script) => script.body.prepend_stmt(stmt),
+                    }
+                }
+
                 // let mut p = program.clone();
                 // p.visit_mut_with(&mut DisplayContextVisitor {
                 //     postfix: "individual",
