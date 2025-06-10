@@ -253,8 +253,7 @@ async fn parse_internal(
                     }
                     Err(error) => {
                         let error: RcStr = PrettyPrintError(
-                            &anyhow::anyhow!(error)
-                                .context("Failed to convert file content to UTF-8"),
+                            &anyhow::anyhow!(error).context("failed to convert rope into string"),
                         )
                         .to_string()
                         .into();
