@@ -14,9 +14,9 @@ use swc_core::{
     quote, quote_expr,
 };
 use turbo_esregex::EsRegex;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ResolvedVc, Value, ValueToString, Vc, debug::ValueDebugFormat,
+    FxIndexMap, NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat,
     trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath};
@@ -90,10 +90,10 @@ impl DirList {
         for (_, entry) in entries.iter().flat_map(|m| m.iter()) {
             match entry {
                 DirectoryEntry::File(path) => {
-                    if let Some(relative_path) = root_val.get_relative_path_to(&*path.await?) {
-                        if regex.is_match(&relative_path) {
-                            list.insert(relative_path, DirListEntry::File(*path));
-                        }
+                    if let Some(relative_path) = root_val.get_relative_path_to(&*path.await?)
+                        && regex.is_match(&relative_path)
+                    {
+                        list.insert(relative_path, DirListEntry::File(*path));
                     }
                 }
                 DirectoryEntry::Directory(path) if recursive => {
@@ -188,7 +188,7 @@ impl RequireContextMap {
                 bail!("invariant error: this was already checked in `list_dir`");
             };
 
-            let request = Request::parse(Value::new(origin_relative.clone().into()))
+            let request = Request::parse(origin_relative.clone().into())
                 .to_resolved()
                 .await?;
             let result = cjs_resolve(origin, *request, issue_source.clone(), is_optional)
@@ -355,7 +355,7 @@ impl ModuleReference for ResolvedModuleReference {
 impl ValueToString for ResolvedModuleReference {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell("resolved reference".into())
+        Vc::cell(rcstr!("resolved reference"))
     }
 }
 
@@ -373,16 +373,13 @@ pub struct RequireContextAsset {
     include_subdirs: bool,
 }
 
-#[turbo_tasks::function]
-fn modifier(dir: RcStr, include_subdirs: bool) -> Vc<RcStr> {
-    Vc::cell(
-        format!(
-            "require.context {}/{}",
-            dir,
-            if include_subdirs { "**" } else { "*" },
-        )
-        .into(),
+fn modifier(dir: &RcStr, include_subdirs: bool) -> RcStr {
+    format!(
+        "require.context {}/{}",
+        dir,
+        if include_subdirs { "**" } else { "*" },
     )
+    .into()
 }
 
 #[turbo_tasks::value_impl]
@@ -391,7 +388,7 @@ impl Module for RequireContextAsset {
     fn ident(&self) -> Vc<AssetIdent> {
         self.source
             .ident()
-            .with_modifier(modifier(self.dir.clone(), self.include_subdirs))
+            .with_modifier(modifier(&self.dir, self.include_subdirs))
     }
 
     #[turbo_tasks::function]

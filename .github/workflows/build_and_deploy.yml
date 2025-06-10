@@ -28,6 +28,9 @@ env:
 jobs:
   deploy-target:
     runs-on: ubuntu-latest
+    # Don't trigger this job on `pull_request` events from upstream branches.
+    # Those would already run this job on the `push` event
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork }}
     outputs:
       value: ${{ steps.deploy-target.outputs.value }}
     steps:
@@ -606,6 +609,7 @@ jobs:
       # New release process
       - name: Publish to NPM
         id: changesets
+        # TODO: Change to IS_RELEASE condition when new release becomes stable.
         if: ${{ env.__NEW_RELEASE == 'true' }}
         uses: changesets/action@v1
         with:
@@ -615,6 +619,8 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
 
       - name: Send a Slack notification of the publish status
+        # TODO: Change to IS_RELEASE condition when new release becomes stable.
+        if: ${{ env.__NEW_RELEASE == 'true' && (steps.changesets.outputs.published == 'true' || steps.changesets.outputs.published == 'false') }}
         run: pnpm tsx scripts/release/slack.ts
         env:
           SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
@@ -690,7 +696,7 @@ jobs:
 
   buildPassed:
     needs: ['deploy-target', 'build', 'build-wasm', 'build-native']
-    if: always()
+    if: ${{ always() && needs.deploy-target.outputs.value != '' }}
     name: thank you, build
     runs-on: ubuntu-latest
     steps:

@@ -1,8 +1,8 @@
 use std::fmt;
 
 use anyhow::Result;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, Vc};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack::{
     ModuleAssetContext,
@@ -192,7 +192,7 @@ pub fn get_client_asset_context(
         compile_time_info,
         module_options_context,
         resolve_options_context,
-        Vc::cell("client".into()),
+        rcstr!("client"),
     ));
 
     asset_context
@@ -213,7 +213,7 @@ pub async fn get_client_compile_time_info(
 ) -> Result<Vc<CompileTimeInfo>> {
     let node_env = node_env.await?;
     CompileTimeInfo::builder(
-        Environment::new(Value::new(ExecutionEnvironment::Browser(
+        Environment::new(ExecutionEnvironment::Browser(
             BrowserEnvironment {
                 dom: true,
                 web_worker: false,
@@ -221,7 +221,7 @@ pub async fn get_client_compile_time_info(
                 browserslist_query,
             }
             .resolved_cell(),
-        )))
+        ))
         .to_resolved()
         .await?,
     )

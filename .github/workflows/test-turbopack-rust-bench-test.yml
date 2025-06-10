@@ -42,6 +42,10 @@ jobs:
           check-latest: true
       - run: corepack enable
 
+      # We need to install the dependencies for the benchmark apps
+      - run: pnpm install
+        working-directory: turbopack/benchmark-apps
+
       - name: Build benchmarks for tests
         timeout-minutes: 120
         run: |

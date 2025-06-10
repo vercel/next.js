@@ -193,6 +193,8 @@ export interface NapiTurboEngineOptions {
   memoryLimit?: number
   /** Track dependencies between tasks. If false, any change during build will error. */
   dependencyTracking?: boolean
+  /** Whether the project is running in a CI environment. */
+  isCi?: boolean
 }
 export declare function projectNew(
   options: NapiProjectOptions,
@@ -202,6 +204,13 @@ export declare function projectUpdate(
   project: { __napiType: 'Project' },
   options: NapiPartialProjectOptions
 ): Promise<void>
+/**
+ * Invalidates the persistent cache so that it will be deleted next time that a turbopack project
+ * is created with persistent caching enabled.
+ */
+export declare function projectInvalidatePersistentCache(project: {
+  __napiType: 'Project'
+}): Promise<void>
 /**
  * Runs exit handlers for the project registered using the [`ExitHandler`] API.
  *
@@ -310,9 +319,11 @@ export declare function projectCompilationEventsSubscribe(
 export interface StackFrame {
   isServer: boolean
   isInternal?: boolean
-  originalFile?: string
+  originalFile?: RcStr
   file: RcStr
+  /** 1-indexed, unlike source map tokens */
   line?: number
+  /** 1-indexed, unlike source map tokens */
   column?: number
   methodName?: RcStr
 }
@@ -345,7 +356,7 @@ export interface NapiIssue {
   detail?: any
   source?: NapiIssueSource
   documentationLink: string
-  subIssues: Array<NapiIssue>
+  importTraces: any
 }
 export interface NapiIssueSource {
   source: NapiSource

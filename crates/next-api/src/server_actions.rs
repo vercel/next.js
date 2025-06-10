@@ -18,8 +18,8 @@ use swc_core::{
         utils::find_pat_ids,
     },
 };
-use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, Value, ValueToString, Vc};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{self, File, FileSystemPath, rope::RopeBuilder};
 use turbopack_core::{
     asset::AssetContent,
@@ -92,11 +92,6 @@ pub(crate) async fn create_server_actions_manifest(
     .cell())
 }
 
-#[turbo_tasks::function]
-fn server_actions_loader_modifier() -> Vc<RcStr> {
-    Vc::cell("server actions loader".into())
-}
-
 /// Builds the "action loader" entry point, which reexports every found action
 /// behind a lazy dynamic import.
 ///
@@ -132,14 +127,14 @@ pub(crate) async fn build_server_actions_loader(
     let path = project_path.join(format!(".next-internal/server/app{page_name}/actions.js").into());
     let file = File::from(contents.build());
     let source = VirtualSource::new_with_ident(
-        AssetIdent::from_path(path).with_modifier(server_actions_loader_modifier()),
+        AssetIdent::from_path(path).with_modifier(rcstr!("server actions loader")),
         AssetContent::file(file.into()),
     );
     let import_map = import_map.into_iter().map(|(k, v)| (v, k)).collect();
     let module = asset_context
         .process(
             Vc::upcast(source),
-            Value::new(ReferenceType::Internal(ResolvedVc::cell(import_map))),
+            ReferenceType::Internal(ResolvedVc::cell(import_map)),
         )
         .module();
 
@@ -213,14 +208,12 @@ pub async fn to_rsc_context(
     // module.
     let source = FileSource::new_with_query(
         client_module.ident().path().root().join(entry_path.into()),
-        Vc::cell(entry_query.into()),
+        entry_query.into(),
     );
     let module = asset_context
         .process(
             Vc::upcast(source),
-            Value::new(ReferenceType::EcmaScriptModules(
-                EcmaScriptModulesReferenceSubType::Undefined,
-            )),
+            ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined),
         )
         .module()
         .to_resolved()
@@ -260,13 +253,12 @@ async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap
     };
 
     if let Some(module) = Vc::try_resolve_downcast_type::<EcmascriptModulePartAsset>(module).await?
-    {
-        if matches!(
+        && matches!(
             module.await?.part,
             ModulePart::Evaluation | ModulePart::Facade
-        ) {
-            return Ok(Vc::cell(None));
-        }
+        )
+    {
+        return Ok(Vc::cell(None));
     }
 
     let original_parsed = ecmascript_asset.parse_original().resolve().await?;
@@ -436,12 +428,8 @@ pub async fn map_server_actions(graph: Vc<SingleModuleGraph>) -> Result<Vc<AllMo
         .map(|node| {
             async move {
                 let SingleModuleGraphModuleNode { module } = node;
-                let layer = match module.ident().await?.layer {
-                    Some(l) => Some(l.await?),
-                    None => None,
-                };
                 // TODO: compare module contexts instead?
-                let layer = match layer {
+                let layer = match module.ident().await?.layer.as_ref() {
                     Some(layer) if *layer == "app-rsc" || *layer == "app-edge-rsc" => {
                         ActionLayer::Rsc
                     }

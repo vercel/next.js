@@ -38,10 +38,7 @@ import {
   METADATA_BOUNDARY_NAME,
   VIEWPORT_BOUNDARY_NAME,
 } from './metadata-constants'
-import {
-  AsyncMetadata,
-  AsyncMetadataOutlet,
-} from '../../client/components/metadata/async-metadata'
+import { AsyncMetadataOutlet } from '../../client/components/metadata/async-metadata'
 import { isPostpone } from '../../server/lib/router-utils/is-postpone'
 import { createServerSearchParamsForMetadata } from '../../server/request/search-params'
 import { createServerPathnameForMetadata } from '../../server/request/pathname'
@@ -81,7 +78,7 @@ export function createMetadataComponents({
   ViewportTree: React.ComponentType
   getMetadataReady: () => Promise<void>
   getViewportReady: () => Promise<void>
-  StreamingMetadataOutlet: React.ComponentType
+  StreamingMetadataOutlet: React.ComponentType | null
 } {
   const searchParams = createServerSearchParamsForMetadata(
     parsedQuery,
@@ -211,18 +208,22 @@ export function createMetadataComponents({
       }
     }
   }
-  async function Metadata() {
-    const promise = resolveFinalMetadata()
-    if (serveStreamingMetadata) {
-      return (
-        <div hidden>
-          <Suspense fallback={null}>
-            <AsyncMetadata promise={promise} />
-          </Suspense>
-        </div>
-      )
+
+  function Metadata() {
+    if (!serveStreamingMetadata) {
+      return <MetadataResolver />
     }
-    const metadataState = await promise
+    return (
+      <div hidden>
+        <Suspense fallback={null}>
+          <MetadataResolver />
+        </Suspense>
+      </div>
+    )
+  }
+
+  async function MetadataResolver() {
+    const metadataState = await resolveFinalMetadata()
     return metadataState.metadata
   }
 
@@ -242,12 +243,13 @@ export function createMetadataComponents({
     return undefined
   }
 
-  function StreamingMetadataOutlet() {
-    if (serveStreamingMetadata) {
-      return <AsyncMetadataOutlet promise={resolveFinalMetadata()} />
-    }
-    return null
+  function StreamingMetadataOutletImpl() {
+    return <AsyncMetadataOutlet promise={resolveFinalMetadata()} />
   }
+
+  const StreamingMetadataOutlet = serveStreamingMetadata
+    ? StreamingMetadataOutletImpl
+    : null
 
   return {
     ViewportTree,

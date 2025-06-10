@@ -2,7 +2,7 @@ use std::{fmt::Display, io::Write};
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::{FileContent, FileSystem, VirtualFileSystem, glob::Glob, rope::RopeBuilder};
 use turbopack_core::{
@@ -26,11 +26,6 @@ use crate::{
     },
     utils::StringifyJs,
 };
-
-#[turbo_tasks::function]
-fn layer() -> Vc<RcStr> {
-    Vc::cell("external".into())
-}
 
 #[derive(
     Copy,
@@ -123,12 +118,12 @@ impl CachedExternalModule {
 impl Module for CachedExternalModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        let fs = VirtualFileSystem::new_with_name("externals".into());
+        let fs = VirtualFileSystem::new_with_name(rcstr!("externals"));
 
         AssetIdent::from_path(fs.root().join(self.request.clone()))
-            .with_layer(layer())
-            .with_modifier(Vc::cell(self.request.clone()))
-            .with_modifier(Vc::cell(self.external_type.to_string().into()))
+            .with_layer(rcstr!("external"))
+            .with_modifier(self.request.clone())
+            .with_modifier(self.external_type.to_string().into())
     }
 
     #[turbo_tasks::function]
@@ -217,7 +212,7 @@ pub struct CachedExternalModuleChunkItem {
 // Without this wrapper, VirtualFileSystem::new_with_name always returns a new filesystem
 #[turbo_tasks::function]
 fn external_fs() -> Vc<VirtualFileSystem> {
-    VirtualFileSystem::new_with_name("externals".into())
+    VirtualFileSystem::new_with_name(rcstr!("externals"))
 }
 
 #[turbo_tasks::value_impl]

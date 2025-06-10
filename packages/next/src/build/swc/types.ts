@@ -95,7 +95,13 @@ export interface Issue {
     }
   }
   documentationLink: string
-  subIssues: Issue[]
+  importTraces?: PlainTraceItem[][]
+}
+export interface PlainTraceItem {
+  fsName: string
+  path: string
+  rootPath: string
+  layer?: string
 }
 
 export interface Diagnostics {
@@ -226,6 +232,8 @@ export interface Project {
   compilationEventsSubscribe(): AsyncIterableIterator<
     TurbopackResult<CompilationEvent>
   >
+
+  invalidatePersistentCache(): Promise<void>
 
   shutdown(): Promise<void>
 

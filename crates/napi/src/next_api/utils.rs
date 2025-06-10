@@ -149,6 +149,16 @@ impl NextTurboTasks {
             }
         }
     }
+
+    pub fn invalidate_persistent_cache(&self) -> Result<()> {
+        match self {
+            NextTurboTasks::Memory(_) => {}
+            NextTurboTasks::PersistentCaching(turbo_tasks) => {
+                turbo_tasks.backend().invalidate_storage()?
+            }
+        }
+        Ok(())
+    }
 }
 
 pub fn create_turbo_tasks(
@@ -156,6 +166,7 @@ pub fn create_turbo_tasks(
     persistent_caching: bool,
     _memory_limit: usize,
     dependency_tracking: bool,
+    is_ci: bool,
 ) -> Result<NextTurboTasks> {
     Ok(if persistent_caching {
         let version_info = GitVersionInfo {
@@ -174,7 +185,11 @@ pub fn create_turbo_tasks(
                     dependency_tracking,
                     ..Default::default()
                 },
-                default_backing_storage(&output_path.join("cache/turbopack"), &version_info)?,
+                default_backing_storage(
+                    &output_path.join("cache/turbopack"),
+                    &version_info,
+                    is_ci,
+                )?,
             ),
         ))
     } else {
@@ -284,7 +299,7 @@ pub struct NapiIssue {
     pub detail: Option<serde_json::Value>,
     pub source: Option<NapiIssueSource>,
     pub documentation_link: String,
-    pub sub_issues: Vec<NapiIssue>,
+    pub import_traces: serde_json::Value,
 }
 
 impl From<&PlainIssue> for NapiIssue {
@@ -304,11 +319,7 @@ impl From<&PlainIssue> for NapiIssue {
             severity: issue.severity.as_str().to_string(),
             source: issue.source.as_ref().map(|source| source.into()),
             title: serde_json::to_value(StyledStringSerialize::from(&issue.title)).unwrap(),
-            sub_issues: issue
-                .sub_issues
-                .iter()
-                .map(|issue| (&**issue).into())
-                .collect(),
+            import_traces: serde_json::to_value(&issue.import_traces).unwrap(),
         }
     }
 }

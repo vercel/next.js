@@ -3,6 +3,8 @@ import type { BinaryStreamOf } from './app-render'
 
 import { htmlEscapeJsonString } from '../htmlescape'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
+import { workUnitAsyncStorage } from './work-unit-async-storage.external'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -44,6 +46,24 @@ export function useFlightStream<T>(
     },
     nonce,
   })
+
+  // Edge pages are never prerendered so they necessarily cannot have a workUnitStore type
+  // that requires the nextTick behavior. This is why it is safe to access a node only API here
+  if (process.env.NEXT_RUNTIME !== 'edge') {
+    const workUnitStore = workUnitAsyncStorage.getStore()
+    if (!workUnitStore) {
+      throw new InvariantError('Expected workUnitAsyncStorage to have a store.')
+    }
+    if (workUnitStore.type === 'prerender-client') {
+      const responseOnNextTick = new Promise<T>((r) => {
+        process.nextTick(() => {
+          r(newResponse)
+        })
+      })
+      flightResponses.set(flightStream, responseOnNextTick)
+      return responseOnNextTick
+    }
+  }
 
   flightResponses.set(flightStream, newResponse)
 

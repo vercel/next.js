@@ -1,9 +1,7 @@
 use anyhow::Result;
 use tracing::Instrument;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{
-    FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, ValueToString, Vc,
-};
+use turbo_rcstr::rcstr;
+use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc};
 use turbopack_core::{
     chunk::{ChunkingContext, availability_info::AvailabilityInfo},
     module::Module,
@@ -15,22 +13,12 @@ use crate::{
     next_client_reference::{
         ClientReferenceType,
         ecmascript_client_reference::ecmascript_client_reference_module::{
-            ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG_CLIENT, ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG_SSR,
+            ecmascript_client_reference_merge_tag, ecmascript_client_reference_merge_tag_ssr,
         },
         visit_client_reference::ClientReferenceGraphResult,
     },
     next_server_component::server_component_module::NextServerComponentModule,
 };
-
-#[turbo_tasks::function]
-pub fn client_modules_modifier() -> Vc<RcStr> {
-    Vc::cell("client modules".into())
-}
-
-#[turbo_tasks::function]
-pub fn ssr_modules_modifier() -> Vc<RcStr> {
-    Vc::cell("ssr modules".into())
-}
 
 #[turbo_tasks::value]
 pub struct ClientReferencesChunks {
@@ -51,7 +39,7 @@ pub async fn get_app_client_references_chunks(
     app_client_references: Vc<ClientReferenceGraphResult>,
     module_graph: Vc<ModuleGraph>,
     client_chunking_context: Vc<Box<dyn ChunkingContext>>,
-    client_availability_info: Value<AvailabilityInfo>,
+    client_availability_info: AvailabilityInfo,
     ssr_chunking_context: Option<Vc<Box<dyn ChunkingContext>>>,
 ) -> Result<Vc<ClientReferencesChunks>> {
     async move {
@@ -171,7 +159,7 @@ pub async fn get_app_client_references_chunks(
 
             let chunk_group_info = module_graph.chunk_group_info();
 
-            let mut current_client_availability_info = client_availability_info.into_value();
+            let mut current_client_availability_info = client_availability_info;
             let mut current_client_chunks = OutputAssets::empty().to_resolved().await?;
             let mut current_ssr_availability_info = AvailabilityInfo::Root;
             let mut current_ssr_chunks = OutputAssets::empty().to_resolved().await?;
@@ -224,14 +212,14 @@ pub async fn get_app_client_references_chunks(
                         .entered();
 
                         ssr_chunking_context.chunk_group(
-                            base_ident.with_modifier(ssr_modules_modifier()),
+                            base_ident.with_modifier(rcstr!("ssr modules")),
                             ChunkGroup::IsolatedMerged {
                                 parent: parent_chunk_group,
-                                merge_tag: ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG_SSR.clone(),
+                                merge_tag: ecmascript_client_reference_merge_tag_ssr(),
                                 entries: ssr_modules,
                             },
                             module_graph,
-                            Value::new(current_ssr_availability_info),
+                            current_ssr_availability_info,
                         )
                     })
                 } else {
@@ -262,14 +250,14 @@ pub async fn get_app_client_references_chunks(
                     .entered();
 
                     Some(client_chunking_context.chunk_group(
-                        base_ident.with_modifier(client_modules_modifier()),
+                        base_ident.with_modifier(rcstr!("client modules")),
                         ChunkGroup::IsolatedMerged {
                             parent: parent_chunk_group,
-                            merge_tag: ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG_CLIENT.clone(),
+                            merge_tag: ecmascript_client_reference_merge_tag(),
                             entries: client_modules,
                         },
                         module_graph,
-                        Value::new(current_client_availability_info),
+                        current_client_availability_info,
                     ))
                 } else {
                     None

@@ -51,7 +51,6 @@ export interface ErrorOverlayLayoutProps extends ErrorBaseProps {
   runtimeErrors?: ReadyRuntimeError[]
   activeIdx?: number
   setActiveIndex?: (index: number) => void
-  footerMessage?: string
   dialogResizerRef?: React.RefObject<HTMLDivElement | null>
 }
 
@@ -69,7 +68,6 @@ export function ErrorOverlayLayout({
   runtimeErrors,
   activeIdx,
   setActiveIndex,
-  footerMessage,
   isTurbopack,
   dialogResizerRef,
   // This prop is used to animate the dialog, it comes from a parent component (<ErrorOverlay>)
@@ -90,7 +88,7 @@ export function ErrorOverlayLayout({
   )
 
   const faderRef = React.useRef<HTMLDivElement | null>(null)
-  const hasFooter = Boolean(footerMessage || errorCode)
+  const hasFooter = Boolean(errorCode)
   const dialogRef = React.useRef<HTMLDivElement | null>(null)
   useFocusTrap(dialogRef, null, rendered)
 
@@ -130,14 +128,7 @@ export function ErrorOverlayLayout({
           dialogResizerRef={dialogResizerRef}
           data-has-footer={hasFooter}
           onScroll={onScroll}
-          footer={
-            hasFooter && (
-              <ErrorOverlayFooter
-                footerMessage={footerMessage}
-                errorCode={errorCode}
-              />
-            )
-          }
+          footer={hasFooter && <ErrorOverlayFooter errorCode={errorCode} />}
         >
           <Resizer
             ref={dialogResizerRef}

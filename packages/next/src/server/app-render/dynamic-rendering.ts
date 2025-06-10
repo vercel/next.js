@@ -254,9 +254,6 @@ export function trackDynamicDataInDynamicRender(
   }
 }
 
-// Despite it's name we don't actually abort unless we have a controller to call abort on
-// There are times when we let a prerender run long to discover caches where we want the semantics
-// of tracking dynamic access without terminating the prerender early
 function abortOnSynchronousDynamicDataAccess(
   route: string,
   expression: string,
@@ -288,13 +285,17 @@ export function abortOnSynchronousPlatformIOAccess(
   prerenderStore: PrerenderStoreModern
 ): void {
   const dynamicTracking = prerenderStore.dynamicTracking
+  abortOnSynchronousDynamicDataAccess(route, expression, prerenderStore)
+  // It is important that we set this tracking value after aborting. Aborts are executed
+  // synchronously except for the case where you abort during render itself. By setting this
+  // value late we can use it to determine if any of the aborted tasks are the task that
+  // called the sync IO expression in the first place.
   if (dynamicTracking) {
     if (dynamicTracking.syncDynamicErrorWithStack === null) {
       dynamicTracking.syncDynamicExpression = expression
       dynamicTracking.syncDynamicErrorWithStack = errorWithStack
     }
   }
-  abortOnSynchronousDynamicDataAccess(route, expression, prerenderStore)
 }
 
 export function trackSynchronousPlatformIOAccessInDev(
@@ -328,6 +329,11 @@ export function abortAndThrowOnSynchronousRequestDataAccess(
     // since we need the throw semantics regardless of whether we abort it is easier to land
     // this way. See how this was handled with `abortOnSynchronousPlatformIOAccess` for a closer
     // to ideal implementation
+    abortOnSynchronousDynamicDataAccess(route, expression, prerenderStore)
+    // It is important that we set this tracking value after aborting. Aborts are executed
+    // synchronously except for the case where you abort during render itself. By setting this
+    // value late we can use it to determine if any of the aborted tasks are the task that
+    // called the sync IO expression in the first place.
     const dynamicTracking = prerenderStore.dynamicTracking
     if (dynamicTracking) {
       if (dynamicTracking.syncDynamicErrorWithStack === null) {
@@ -335,7 +341,6 @@ export function abortAndThrowOnSynchronousRequestDataAccess(
         dynamicTracking.syncDynamicErrorWithStack = errorWithStack
       }
     }
-    abortOnSynchronousDynamicDataAccess(route, expression, prerenderStore)
   }
   throw createPrerenderInterruptedError(
     `Route ${route} needs to bail out of prerendering at this point because it used ${expression}.`
@@ -613,7 +618,8 @@ const hasOutletRegex = new RegExp(`\\n\\s+at ${OUTLET_BOUNDARY_NAME}[\\n\\s]`)
 export function trackAllowedDynamicAccess(
   route: string,
   componentStack: string,
-  dynamicValidation: DynamicValidationState
+  dynamicValidation: DynamicValidationState,
+  clientDynamic: DynamicTrackingState
 ) {
   if (hasOutletRegex.test(componentStack)) {
     // We don't need to track that this is dynamic. It is only so when something else is also dynamic.
@@ -635,6 +641,12 @@ export function trackAllowedDynamicAccess(
     // of disallowed
     dynamicValidation.hasAllowedDynamic = true
     return
+  } else if (clientDynamic.syncDynamicErrorWithStack) {
+    // This task was the task that called the sync error.
+    dynamicValidation.dynamicErrors.push(
+      clientDynamic.syncDynamicErrorWithStack
+    )
+    return
   } else {
     const message = `Route "${route}": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense`
     const error = createErrorWithComponentStack(message, componentStack)
@@ -652,19 +664,24 @@ function createErrorWithComponentStack(
   return error
 }
 
+export enum PreludeState {
+  Full = 0,
+  Empty = 1,
+  Errored = 2,
+}
+
 export function throwIfDisallowedDynamic(
   workStore: WorkStore,
-  hasEmptyShell: boolean,
+  prelude: PreludeState,
   dynamicValidation: DynamicValidationState,
-  serverDynamic: DynamicTrackingState,
-  clientDynamic: DynamicTrackingState
+  serverDynamic: DynamicTrackingState
 ): void {
   if (workStore.invalidDynamicUsageError) {
     console.error(workStore.invalidDynamicUsageError)
     throw new StaticGenBailoutError()
   }
 
-  if (hasEmptyShell) {
+  if (prelude !== PreludeState.Full) {
     if (dynamicValidation.hasSuspenseAboveBody) {
       // This route has opted into allowing fully dynamic rendering
       // by including a Suspense boundary above the body. In this case
@@ -678,12 +695,6 @@ export function throwIfDisallowedDynamic(
       // could be completed.
       console.error(serverDynamic.syncDynamicErrorWithStack)
       // We terminate the build/validating render
-      throw new StaticGenBailoutError()
-    }
-
-    if (clientDynamic.syncDynamicErrorWithStack) {
-      // Just like above but within the client render...
-      console.error(clientDynamic.syncDynamicErrorWithStack)
       throw new StaticGenBailoutError()
     }
 
@@ -706,6 +717,16 @@ export function throwIfDisallowedDynamic(
     if (dynamicValidation.hasDynamicViewport) {
       console.error(
         `Route "${workStore.route}" has a \`generateViewport\` that depends on Request data (\`cookies()\`, etc...) or uncached external data (\`fetch(...)\`, etc...) without explicitly allowing fully dynamic rendering. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport`
+      )
+      throw new StaticGenBailoutError()
+    }
+
+    if (prelude === PreludeState.Empty) {
+      // If we ever get this far then we messed up the tracking of invalid dynamic.
+      // We still adhere to the constraint that you must produce a shell but invite the
+      // user to report this as a bug in Next.js.
+      console.error(
+        `Route "${workStore.route}" did not produce a static shell and Next.js was unable to determine a reason. This is a bug in Next.js.`
       )
       throw new StaticGenBailoutError()
     }

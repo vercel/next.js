@@ -34,6 +34,13 @@ impl SharedError {
     }
 }
 
+impl AsRef<dyn StdError> for SharedError {
+    fn as_ref(&self) -> &(dyn StdError + 'static) {
+        let err: &anyhow::Error = &self.inner;
+        err.as_ref()
+    }
+}
+
 impl StdError for SharedError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         self.inner.source()

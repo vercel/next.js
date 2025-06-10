@@ -132,6 +132,7 @@ import {
   createDynamicValidationState,
   trackAllowedDynamicAccess,
   throwIfDisallowedDynamic,
+  PreludeState,
   consumeDynamicAccess,
   type DynamicAccess,
 } from './dynamic-rendering'
@@ -520,7 +521,6 @@ async function generateDynamicRSCPayload(
             />
             {/* Adding requestId as react key to make metadata remount for each render */}
             <ViewportTree key={getFlightViewportKey(requestId)} />
-            {/* Not add requestId as react key to ensure segment prefetch could result consistently if nothing changed */}
             <MetadataTree key={getFlightMetadataKey(requestId)} />
           </React.Fragment>
         ),
@@ -861,8 +861,7 @@ async function getRSCPayload(
         statusCode={ctx.res.statusCode}
         isPossibleServerAction={ctx.isPossibleServerAction}
       />
-      <ViewportTree key={getFlightViewportKey(ctx.requestId)} />
-      {/* Not add requestId as react key to ensure segment prefetch could result consistently if nothing changed */}
+      <ViewportTree />
       <MetadataTree />
     </React.Fragment>
   )
@@ -930,7 +929,6 @@ async function getErrorRSCPayload(
       ViewportBoundary,
     },
     url,
-    requestId,
     workStore,
   } = ctx
 
@@ -949,9 +947,6 @@ async function getErrorRSCPayload(
     serveStreamingMetadata: serveStreamingMetadata,
   })
 
-  // {/* Adding requestId as react key to make metadata remount for each render */}
-  const metadata = <MetadataTree key={getFlightMetadataKey(requestId)} />
-
   const initialHead = (
     <React.Fragment key={flightDataPathHeadKey}>
       <NonIndex
@@ -959,12 +954,11 @@ async function getErrorRSCPayload(
         statusCode={ctx.res.statusCode}
         isPossibleServerAction={ctx.isPossibleServerAction}
       />
-      {/* Adding requestId as react key to make metadata remount for each render */}
-      <ViewportTree key={getFlightViewportKey(requestId)} />
+      <ViewportTree />
       {process.env.NODE_ENV === 'development' && (
         <meta name="next-error" content="not-found" />
       )}
-      {metadata}
+      <MetadataTree />
     </React.Fragment>
   )
 
@@ -984,7 +978,7 @@ async function getErrorRSCPayload(
   const seedData: CacheNodeSeedData = [
     initialTree[0],
     <html id="__next_error__">
-      <head>{metadata}</head>
+      <head></head>
       <body>
         {process.env.NODE_ENV !== 'production' && err ? (
           <template
@@ -1042,7 +1036,6 @@ function App<T>({
   preinitScripts,
   clientReferenceManifest,
   ServerInsertedHTMLProvider,
-  ServerInsertedMetadataProvider,
   gracefullyDegrade,
   nonce,
 }: {
@@ -1050,7 +1043,6 @@ function App<T>({
   preinitScripts: () => void
   clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
   ServerInsertedHTMLProvider: React.ComponentType<{ children: JSX.Element }>
-  ServerInsertedMetadataProvider: React.ComponentType<{ children: JSX.Element }>
   gracefullyDegrade: boolean
   nonce?: string
 }): JSX.Element {
@@ -1090,16 +1082,14 @@ function App<T>({
         nonce,
       }}
     >
-      <ServerInsertedMetadataProvider>
-        <ServerInsertedHTMLProvider>
-          <AppRouter
-            actionQueue={actionQueue}
-            globalErrorComponentAndStyles={response.G}
-            assetPrefix={response.p}
-            gracefullyDegrade={gracefullyDegrade}
-          />
-        </ServerInsertedHTMLProvider>
-      </ServerInsertedMetadataProvider>
+      <ServerInsertedHTMLProvider>
+        <AppRouter
+          actionQueue={actionQueue}
+          globalErrorComponentAndStyles={response.G}
+          assetPrefix={response.p}
+          gracefullyDegrade={gracefullyDegrade}
+        />
+      </ServerInsertedHTMLProvider>
     </HeadManagerContext.Provider>
   )
 }
@@ -1111,7 +1101,6 @@ function ErrorApp<T>({
   reactServerStream,
   preinitScripts,
   clientReferenceManifest,
-  ServerInsertedMetadataProvider,
   ServerInsertedHTMLProvider,
   gracefullyDegrade,
   nonce,
@@ -1119,7 +1108,6 @@ function ErrorApp<T>({
   reactServerStream: BinaryStreamOf<T>
   preinitScripts: () => void
   clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
-  ServerInsertedMetadataProvider: React.ComponentType<{ children: JSX.Element }>
   ServerInsertedHTMLProvider: React.ComponentType<{ children: JSX.Element }>
   gracefullyDegrade: boolean
   nonce?: string
@@ -1151,16 +1139,14 @@ function ErrorApp<T>({
   const actionQueue = createMutableActionQueue(initialState, null)
 
   return (
-    <ServerInsertedMetadataProvider>
-      <ServerInsertedHTMLProvider>
-        <AppRouter
-          actionQueue={actionQueue}
-          globalErrorComponentAndStyles={response.G}
-          assetPrefix={response.p}
-          gracefullyDegrade={gracefullyDegrade}
-        />
-      </ServerInsertedHTMLProvider>
-    </ServerInsertedMetadataProvider>
+    <ServerInsertedHTMLProvider>
+      <AppRouter
+        actionQueue={actionQueue}
+        globalErrorComponentAndStyles={response.G}
+        assetPrefix={response.p}
+        gracefullyDegrade={gracefullyDegrade}
+      />
+    </ServerInsertedHTMLProvider>
   )
 }
 
@@ -1331,24 +1317,30 @@ async function renderToHTMLOrFlightImpl(
     nonce,
   } = parsedRequestHeaders
 
+  const { isStaticGeneration, fallbackRouteParams } = workStore
+
   /**
    * The metadata items array created in next-app-loader with all relevant information
    * that we need to resolve the final metadata.
    */
   let requestId: string
 
-  if (process.env.NEXT_RUNTIME === 'edge') {
+  if (isStaticGeneration) {
+    requestId = Buffer.from(
+      await crypto.subtle.digest('SHA-1', Buffer.from(req.url))
+    ).toString('hex')
+  } else if (process.env.NEXT_RUNTIME === 'edge') {
     requestId = crypto.randomUUID()
   } else {
-    requestId = require('next/dist/compiled/nanoid').nanoid()
+    requestId = (
+      require('next/dist/compiled/nanoid') as typeof import('next/dist/compiled/nanoid')
+    ).nanoid()
   }
 
   /**
    * Dynamic parameters. E.g. when you visit `/dashboard/vercel` which is rendered by `/dashboard/[slug]` the value will be {"slug": "vercel"}.
    */
   const params = renderOpts.params ?? {}
-
-  const { isStaticGeneration, fallbackRouteParams } = workStore
 
   const getDynamicParamFromSegment = makeGetDynamicParamFromSegment(
     params,
@@ -1776,8 +1768,7 @@ async function renderToStream(
 
   const { ServerInsertedHTMLProvider, renderServerInsertedHTML } =
     createServerInsertedHTML()
-  const { ServerInsertedMetadataProvider, getServerInsertedMetadata } =
-    createServerInsertedMetadata(nonce)
+  const getServerInsertedMetadata = createServerInsertedMetadata(nonce)
 
   const tracingMetadata = getTracedMetadata(
     getTracer().getTracePropagationData(),
@@ -1963,8 +1954,9 @@ async function renderToStream(
         // We assume we have dynamic HTML requiring a resume render to complete
         const postponed = getPostponedFromState(postponedState)
 
-        const resume = require('react-dom/server.edge')
-          .resume as (typeof import('react-dom/server.edge'))['resume']
+        const resume = (
+          require('react-dom/server.edge') as typeof import('react-dom/server.edge')
+        ).resume as (typeof import('react-dom/server.edge'))['resume']
 
         const htmlStream = await workUnitAsyncStorage.run(
           requestStore,
@@ -1974,7 +1966,6 @@ async function renderToStream(
             preinitScripts={preinitScripts}
             clientReferenceManifest={clientReferenceManifest}
             ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-            ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
             nonce={nonce}
             gracefullyDegrade={!!botType}
           />,
@@ -2002,7 +1993,9 @@ async function renderToStream(
     }
 
     // This is a regular dynamic render
-    const renderToReadableStream = require('react-dom/server.edge')
+    const renderToReadableStream = (
+      require('react-dom/server.edge') as typeof import('react-dom/server.edge')
+    )
       .renderToReadableStream as (typeof import('react-dom/server.edge'))['renderToReadableStream']
 
     const htmlStream = await workUnitAsyncStorage.run(
@@ -2013,7 +2006,6 @@ async function renderToStream(
         preinitScripts={preinitScripts}
         clientReferenceManifest={clientReferenceManifest}
         ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-        ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
         gracefullyDegrade={!!botType}
         nonce={nonce}
       />,
@@ -2162,11 +2154,11 @@ async function renderToStream(
         requestStore,
         renderToInitialFizzStream,
         {
-          ReactDOMServer: require('react-dom/server.edge'),
+          ReactDOMServer:
+            require('react-dom/server.edge') as typeof import('react-dom/server.edge'),
           element: (
             <ErrorApp
               reactServerStream={errorServerStream}
-              ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
               preinitScripts={errorPreinitScripts}
               clientReferenceManifest={clientReferenceManifest}
@@ -2271,7 +2263,6 @@ async function spawnDynamicValidationInDev(
   // that are provided during the actual prerenderToStream.
   const preinitScripts = () => {}
   const { ServerInsertedHTMLProvider } = createServerInsertedHTML()
-  const { ServerInsertedMetadataProvider } = createServerInsertedMetadata(nonce)
 
   const rootParams = getRootParams(
     ComponentMod.tree,
@@ -2428,8 +2419,9 @@ async function spawnDynamicValidationInDev(
       hmrRefreshHash: undefined,
     }
 
-    const prerender = require('react-dom/static.edge')
-      .prerender as (typeof import('react-dom/static.edge'))['prerender']
+    const prerender = (
+      require('react-dom/static.edge') as typeof import('react-dom/static.edge')
+    ).prerender as (typeof import('react-dom/static.edge'))['prerender']
     const pendingInitialClientResult = workUnitAsyncStorage.run(
       initialClientPrerenderStore,
       prerender,
@@ -2438,7 +2430,6 @@ async function spawnDynamicValidationInDev(
         preinitScripts={preinitScripts}
         clientReferenceManifest={clientReferenceManifest}
         ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-        ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
         gracefullyDegrade={!!botType}
         nonce={nonce}
       />,
@@ -2578,8 +2569,9 @@ async function spawnDynamicValidationInDev(
   let dynamicValidation = createDynamicValidationState()
 
   try {
-    const prerender = require('react-dom/static.edge')
-      .prerender as (typeof import('react-dom/static.edge'))['prerender']
+    const prerender = (
+      require('react-dom/static.edge') as typeof import('react-dom/static.edge')
+    ).prerender as (typeof import('react-dom/static.edge'))['prerender']
     let { prelude: unprocessedPrelude } =
       await prerenderAndAbortInSequentialTasks(
         () =>
@@ -2591,7 +2583,6 @@ async function spawnDynamicValidationInDev(
               preinitScripts={preinitScripts}
               clientReferenceManifest={clientReferenceManifest}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-              ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
               gracefullyDegrade={!!botType}
               nonce={nonce}
             />,
@@ -2607,7 +2598,8 @@ async function spawnDynamicValidationInDev(
                     trackAllowedDynamicAccess(
                       workStore.route,
                       componentStack,
-                      dynamicValidation
+                      dynamicValidation,
+                      clientDynamicTracking
                     )
                   }
                   return
@@ -2625,16 +2617,14 @@ async function spawnDynamicValidationInDev(
       )
 
     const { preludeIsEmpty } = await processPrelude(unprocessedPrelude)
-
     resolveValidation(
       <LogSafely
         fn={throwIfDisallowedDynamic.bind(
           null,
           workStore,
-          preludeIsEmpty,
+          preludeIsEmpty ? PreludeState.Empty : PreludeState.Full,
           dynamicValidation,
-          serverDynamicTracking,
-          clientDynamicTracking
+          serverDynamicTracking
         )}
       />
     )
@@ -2642,14 +2632,12 @@ async function spawnDynamicValidationInDev(
     // Even if the root errors we still want to report any dynamic IO errors
     // that were discovered before the root errored.
 
-    const preludeIsEmpty = true
     let loggingFunction = throwIfDisallowedDynamic.bind(
       null,
       workStore,
-      preludeIsEmpty,
+      PreludeState.Errored,
       dynamicValidation,
-      serverDynamicTracking,
-      clientDynamicTracking
+      serverDynamicTracking
     )
 
     if (process.env.NEXT_DEBUG_BUILD || process.env.__NEXT_VERBOSE_LOGGING) {
@@ -2744,8 +2732,7 @@ async function prerenderToStream(
 
   const { ServerInsertedHTMLProvider, renderServerInsertedHTML } =
     createServerInsertedHTML()
-  const { ServerInsertedMetadataProvider, getServerInsertedMetadata } =
-    createServerInsertedMetadata(nonce)
+  const getServerInsertedMetadata = createServerInsertedMetadata(nonce)
 
   const tracingMetadata = getTracedMetadata(
     getTracer().getTracePropagationData(),
@@ -3027,8 +3014,9 @@ async function prerenderToStream(
           hmrRefreshHash: undefined,
         }
 
-        const prerender = require('react-dom/static.edge')
-          .prerender as (typeof import('react-dom/static.edge'))['prerender']
+        const prerender = (
+          require('react-dom/static.edge') as typeof import('react-dom/static.edge')
+        ).prerender as (typeof import('react-dom/static.edge'))['prerender']
         const pendingInitialClientResult = workUnitAsyncStorage.run(
           initialClientPrerenderStore,
           prerender,
@@ -3037,7 +3025,6 @@ async function prerenderToStream(
             preinitScripts={preinitScripts}
             clientReferenceManifest={clientReferenceManifest}
             ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-            ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
             gracefullyDegrade={!!botType}
             nonce={nonce}
           />,
@@ -3185,8 +3172,9 @@ async function prerenderToStream(
       let clientIsDynamic = false
       let dynamicValidation = createDynamicValidationState()
 
-      const prerender = require('react-dom/static.edge')
-        .prerender as (typeof import('react-dom/static.edge'))['prerender']
+      const prerender = (
+        require('react-dom/static.edge') as typeof import('react-dom/static.edge')
+      ).prerender as (typeof import('react-dom/static.edge'))['prerender']
       let { prelude: unprocessedPrelude, postponed } =
         await prerenderAndAbortInSequentialTasks(
           () =>
@@ -3198,7 +3186,6 @@ async function prerenderToStream(
                 preinitScripts={preinitScripts}
                 clientReferenceManifest={clientReferenceManifest}
                 ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-                ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
                 gracefullyDegrade={!!botType}
                 nonce={nonce}
               />,
@@ -3218,7 +3205,8 @@ async function prerenderToStream(
                       trackAllowedDynamicAccess(
                         workStore.route,
                         componentStack,
-                        dynamicValidation
+                        dynamicValidation,
+                        clientDynamicTracking
                       )
                     }
                     return
@@ -3249,10 +3237,9 @@ async function prerenderToStream(
       if (!allowEmptyStaticShell) {
         throwIfDisallowedDynamic(
           workStore,
-          preludeIsEmpty,
+          preludeIsEmpty ? PreludeState.Empty : PreludeState.Full,
           dynamicValidation,
-          serverDynamicTracking,
-          clientDynamicTracking
+          serverDynamicTracking
         )
       }
 
@@ -3318,8 +3305,9 @@ async function prerenderToStream(
         if (postponed != null) {
           // We postponed but nothing dynamic was used. We resume the render now and immediately abort it
           // so we can set all the postponed boundaries to client render mode before we store the HTML response
-          const resume = require('react-dom/server.edge')
-            .resume as (typeof import('react-dom/server.edge'))['resume']
+          const resume = (
+            require('react-dom/server.edge') as typeof import('react-dom/server.edge')
+          ).resume as (typeof import('react-dom/server.edge'))['resume']
 
           // We don't actually want to render anything so we just pass a stream
           // that never resolves. The resume call is going to abort immediately anyway
@@ -3331,7 +3319,6 @@ async function prerenderToStream(
               preinitScripts={() => {}}
               clientReferenceManifest={clientReferenceManifest}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-              ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
               gracefullyDegrade={!!botType}
               nonce={nonce}
             />,
@@ -3420,8 +3407,9 @@ async function prerenderToStream(
         tags: [...implicitTags.tags],
         prerenderResumeDataCache,
       }
-      const prerender = require('react-dom/static.edge')
-        .prerender as (typeof import('react-dom/static.edge'))['prerender']
+      const prerender = (
+        require('react-dom/static.edge') as typeof import('react-dom/static.edge')
+      ).prerender as (typeof import('react-dom/static.edge'))['prerender']
       const { prelude, postponed } = await workUnitAsyncStorage.run(
         ssrPrerenderStore,
         prerender,
@@ -3430,7 +3418,6 @@ async function prerenderToStream(
           preinitScripts={preinitScripts}
           clientReferenceManifest={clientReferenceManifest}
           ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-          ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
           gracefullyDegrade={!!botType}
           nonce={nonce}
         />,
@@ -3550,8 +3537,9 @@ async function prerenderToStream(
         if (postponed != null) {
           // We postponed but nothing dynamic was used. We resume the render now and immediately abort it
           // so we can set all the postponed boundaries to client render mode before we store the HTML response
-          const resume = require('react-dom/server.edge')
-            .resume as (typeof import('react-dom/server.edge'))['resume']
+          const resume = (
+            require('react-dom/server.edge') as typeof import('react-dom/server.edge')
+          ).resume as (typeof import('react-dom/server.edge'))['resume']
 
           // We don't actually want to render anything so we just pass a stream
           // that never resolves. The resume call is going to abort immediately anyway
@@ -3563,7 +3551,6 @@ async function prerenderToStream(
               preinitScripts={() => {}}
               clientReferenceManifest={clientReferenceManifest}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-              ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
               gracefullyDegrade={!!botType}
               nonce={nonce}
             />,
@@ -3632,7 +3619,9 @@ async function prerenderToStream(
           )
         ))
 
-      const renderToReadableStream = require('react-dom/server.edge')
+      const renderToReadableStream = (
+        require('react-dom/server.edge') as typeof import('react-dom/server.edge')
+      )
         .renderToReadableStream as (typeof import('react-dom/server.edge'))['renderToReadableStream']
 
       const htmlStream = await workUnitAsyncStorage.run(
@@ -3643,7 +3632,6 @@ async function prerenderToStream(
           preinitScripts={preinitScripts}
           clientReferenceManifest={clientReferenceManifest}
           ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-          ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
           gracefullyDegrade={!!botType}
           nonce={nonce}
         />,
@@ -3800,26 +3788,33 @@ async function prerenderToStream(
     )
 
     try {
-      const fizzStream = await renderToInitialFizzStream({
-        ReactDOMServer: require('react-dom/server.edge'),
-        element: (
-          <ErrorApp
-            reactServerStream={errorServerStream}
-            ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
-            ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-            preinitScripts={errorPreinitScripts}
-            clientReferenceManifest={clientReferenceManifest}
-            gracefullyDegrade={!!botType}
-            nonce={nonce}
-          />
-        ),
-        streamOptions: {
-          nonce,
-          // Include hydration scripts in the HTML
-          bootstrapScripts: [errorBootstrapScript],
-          formState,
-        },
-      })
+      // TODO we should use the same prerender semantics that we initially rendered
+      // with in this case too. The only reason why this is ok atm is because it's essentially
+      // an empty page and no user code runs.
+      const fizzStream = await workUnitAsyncStorage.run(
+        prerenderLegacyStore,
+        renderToInitialFizzStream,
+        {
+          ReactDOMServer:
+            require('react-dom/server.edge') as typeof import('react-dom/server.edge'),
+          element: (
+            <ErrorApp
+              reactServerStream={errorServerStream}
+              ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+              preinitScripts={errorPreinitScripts}
+              clientReferenceManifest={clientReferenceManifest}
+              gracefullyDegrade={!!botType}
+              nonce={nonce}
+            />
+          ),
+          streamOptions: {
+            nonce,
+            // Include hydration scripts in the HTML
+            bootstrapScripts: [errorBootstrapScript],
+            formState,
+          },
+        }
+      )
 
       if (shouldGenerateStaticFlightData(workStore)) {
         const flightData = await streamToBuffer(

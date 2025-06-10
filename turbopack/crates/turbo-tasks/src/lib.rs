@@ -31,7 +31,6 @@
 #![feature(thread_local)]
 #![feature(try_trait_v2)]
 #![deny(unsafe_op_in_unsafe_fn)]
-#![feature(result_flattening)]
 #![feature(error_generic_member_access)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
@@ -124,13 +123,12 @@ pub use state::{State, TransientState};
 pub use task::{SharedReference, TypedSharedReference, task_input::TaskInput};
 pub use trait_ref::{IntoTraitRef, TraitRef};
 pub use turbo_tasks_macros::{TaskInput, function, value_impl};
-pub use value::{TransientInstance, TransientValue, Value};
+pub use value::{TransientInstance, TransientValue};
 pub use value_type::{TraitMethod, TraitType, ValueType};
 pub use vc::{
     Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, ReadVcFuture, ResolvedVc,
-    TypedForInput, Upcast, ValueDefault, Vc, VcCast, VcCellNewMode, VcCellSharedMode,
-    VcDefaultRead, VcRead, VcTransparentRead, VcValueTrait, VcValueTraitCast, VcValueType,
-    VcValueTypeCast,
+    Upcast, ValueDefault, Vc, VcCast, VcCellNewMode, VcCellSharedMode, VcDefaultRead, VcRead,
+    VcTransparentRead, VcValueTrait, VcValueTraitCast, VcValueType, VcValueTypeCast,
 };
 
 pub type SliceMap<K, V> = Box<[(K, V)]>;
@@ -240,11 +238,8 @@ macro_rules! fxindexset {
 /// required for persistent caching of tasks to disk.
 ///
 /// - **`"auto"` *(default)*:** Derives the serialization traits and enables serialization.
-/// - **`"auto_for_input"`:** Same as `"auto"`, but also adds the marker trait [`TypedForInput`].
 /// - **`"custom"`:** Prevents deriving the serialization traits, but still enables serialization
 ///   (you must manually implement [`serde::Serialize`] and [`serde::Deserialize`]).
-/// - **`"custom_for_input"`:** Same as `"custom"`, but also adds the marker trait
-///   [`TypedForInput`].
 /// - **`"none"`:** Disables serialization and prevents deriving the traits.
 ///
 /// ## `shared`

@@ -36,7 +36,11 @@ let ServerImpl: typeof NextNodeServer
 
 const getServerImpl = async () => {
   if (ServerImpl === undefined) {
-    ServerImpl = (await Promise.resolve(require('./next-server'))).default
+    ServerImpl = (
+      await Promise.resolve(
+        require('./next-server') as typeof import('./next-server')
+      )
+    ).default
   }
   return ServerImpl
 }
@@ -85,6 +89,8 @@ interface NextWrapperServer {
   revalidate(
     ...args: Parameters<NextNodeServer['revalidate']>
   ): ReturnType<NextNodeServer['revalidate']>
+
+  logErrorWithOriginalStack(err: unknown, type: string): void
 
   render(
     ...args: Parameters<NextNodeServer['render']>
@@ -165,6 +171,14 @@ export class NextServer implements NextWrapperServer {
     }
   }
 
+  async logErrorWithOriginalStack(err: unknown, type: string) {
+    const server = await this.getServer()
+    // this is only available on dev server
+    if ((server as any).logErrorWithOriginalStack) {
+      return (server as any).logErrorWithOriginalStack(err, type)
+    }
+  }
+
   async revalidate(...args: Parameters<NextWrapperServer['revalidate']>) {
     const server = await this.getServer()
     return server.revalidate(...args)
@@ -221,8 +235,9 @@ export class NextServer implements NextWrapperServer {
   ): Promise<NextNodeServer> {
     let ServerImplementation: typeof NextNodeServer
     if (options.dev) {
-      ServerImplementation = require('./dev/next-dev-server')
-        .default as typeof import('./dev/next-dev-server').default
+      ServerImplementation = (
+        require('./dev/next-dev-server') as typeof import('./dev/next-dev-server')
+      ).default as typeof import('./dev/next-dev-server').default
     } else {
       ServerImplementation = await getServerImpl()
     }
@@ -452,6 +467,10 @@ class NextCustomServer implements NextWrapperServer {
     this.server.logError(...args)
   }
 
+  logErrorWithOriginalStack(err: unknown, type: string) {
+    return this.server.logErrorWithOriginalStack(err, type)
+  }
+
   async revalidate(...args: Parameters<NextWrapperServer['revalidate']>) {
     return this.server.revalidate(...args)
   }
@@ -501,7 +520,8 @@ function createServer(
     'typescript' in options &&
     'version' in (options as any).typescript
   ) {
-    const pluginMod: typeof import('./next-typescript') = require('./next-typescript')
+    const pluginMod: typeof import('./next-typescript') =
+      require('./next-typescript') as typeof import('./next-typescript')
     return pluginMod.createTSPlugin(
       options as any
     ) as unknown as NextWrapperServer

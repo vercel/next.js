@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use anyhow::{Result, bail};
 use indoc::formatdoc;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -22,11 +22,6 @@ use turbopack_ecmascript::{
     utils::StringifyJs,
 };
 
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("next/dynamic entry".into())
-}
-
 /// A [`NextDynamicEntryModule`] is a marker asset used to indicate which
 /// dynamic assets should appear in the dynamic manifest.
 #[turbo_tasks::value(shared)]
@@ -42,16 +37,17 @@ impl NextDynamicEntryModule {
     }
 }
 
-#[turbo_tasks::function]
-fn dynamic_ref_description() -> Vc<RcStr> {
-    Vc::cell("next/dynamic reference".into())
+fn dynamic_ref_description() -> RcStr {
+    rcstr!("next/dynamic reference")
 }
 
 #[turbo_tasks::value_impl]
 impl Module for NextDynamicEntryModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        self.module.ident().with_modifier(modifier())
+        self.module
+            .ident()
+            .with_modifier(rcstr!("next/dynamic entry"))
     }
 
     #[turbo_tasks::function]
@@ -108,9 +104,10 @@ impl EcmascriptChunkPlaceable for NextDynamicEntryModule {
         );
 
         let mut exports = BTreeMap::new();
+        let default = rcstr!("default");
         exports.insert(
-            "default".into(),
-            EsmExport::ImportedBinding(module_reference, "default".into(), false),
+            default.clone(),
+            EsmExport::ImportedBinding(module_reference, default, false),
         );
 
         Ok(EcmascriptExports::EsmExports(

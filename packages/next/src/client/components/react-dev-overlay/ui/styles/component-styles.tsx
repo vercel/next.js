@@ -23,6 +23,7 @@ import { DEV_TOOLS_INFO_ROUTE_INFO_STYLES } from '../components/errors/dev-tools
 import { DEV_TOOLS_INFO_USER_PREFERENCES_STYLES } from '../components/errors/dev-tools-indicator/dev-tools-info/user-preferences'
 import { DEV_TOOLS_INFO_RENDER_FILES_STYLES } from '../components/overview/segment-explorer'
 import { FADER_STYLES } from '../components/fader'
+import { RESTART_SERVER_BUTTON_STYLES } from '../components/errors/error-overlay-toolbar/restart-server-button'
 
 export function ComponentStyles() {
   return (
@@ -45,6 +46,7 @@ export function ComponentStyles() {
         ${containerErrorStyles}
         ${containerRuntimeErrorStyles}
         ${versionStaleness}
+        ${RESTART_SERVER_BUTTON_STYLES}
         ${DEV_TOOLS_INDICATOR_STYLES}
         ${DEV_TOOLS_INFO_STYLES}
         ${DEV_TOOLS_INFO_TURBOPACK_INFO_STYLES}

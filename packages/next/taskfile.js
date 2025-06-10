@@ -2835,11 +2835,21 @@ export async function build(task, opts) {
 }
 
 export async function generate_types(task, opts) {
-  await execa(
+  const watchmode = opts.dev
+  const typesPromise = execa(
     'pnpm',
-    ['run', 'types', ...(opts.dev ? ['--watch', '--preserveWatchOutput'] : [])],
+    [
+      'run',
+      'types',
+      ...(watchmode ? ['--watch', '--preserveWatchOutput'] : []),
+    ],
     { stdio: 'inherit' }
   )
+  // In watch-mode the process never completes i.e. the Promise never resolve.
+  // But taskr needs to know that it can start watching the files for the task it has to manually restart.
+  if (!watchmode) {
+    await typesPromise
+  }
 }
 
 export async function check_error_codes(task, opts) {
@@ -3122,6 +3132,16 @@ export async function next_bundle_server(task, opts) {
   })
 }
 
+export async function next_bundle_devtools(task, opts) {
+  await task.source('dist').webpack({
+    watch: opts.dev,
+    config: require('./next-devtools.webpack-config')({
+      dev: opts.dev,
+    }),
+    name: 'next-bundle-devtools-dev',
+  })
+}
+
 export async function next_bundle(task, opts) {
   await task.parallel(
     [
@@ -3142,6 +3162,8 @@ export async function next_bundle(task, opts) {
       'next_bundle_pages_dev_turbo',
       // builds the minimal server
       'next_bundle_server',
+      // devtools
+      'next_bundle_devtools',
     ],
     opts
   )

@@ -79,7 +79,7 @@ describe('segment cache (CDN cache busting)', () => {
       'search param',
     async () => {
       const browser = await webdriver(port, '/')
-      const { status, text } = await browser.eval(async () => {
+      const { status } = await browser.eval(async () => {
         const res = await fetch('/target-page', {
           headers: {
             RSC: '1',
@@ -91,7 +91,44 @@ describe('segment cache (CDN cache busting)', () => {
       })
 
       expect(status).toBe(400)
-      expect(text).toContain('Bad Request')
+    }
+  )
+
+  it(
+    'perform fully prefetched navigation when a third-party proxy ' +
+      'performs a redirect',
+    async () => {
+      let act
+      const browser = await webdriver(port, '/', {
+        beforePageLoad(p: Playwright.Page) {
+          act = createRouterAct(p)
+        },
+      })
+
+      await act(
+        async () => {
+          const linkToggle = await browser.elementByCss(
+            '[data-link-accordion="/redirect-to-target-page"]'
+          )
+          await linkToggle.click()
+        },
+        {
+          includes: 'Target page',
+        }
+      )
+
+      // Navigate to the prefetched target page.
+      await act(async () => {
+        const link = await browser.elementByCss(
+          'a[href="/redirect-to-target-page"]'
+        )
+        await link.click()
+
+        // The page was prefetched, so we're able to render the target
+        // page immediately.
+        const div = await browser.elementById('target-page')
+        expect(await div.text()).toBe('Target page')
+      }, 'no-requests')
     }
   )
 })

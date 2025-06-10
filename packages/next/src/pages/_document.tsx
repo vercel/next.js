@@ -834,7 +834,9 @@ export class Head extends React.Component<HeadProps> {
                 rel="canonical"
                 href={
                   canonicalBase +
-                  require('../server/utils').cleanAmpPath(dangerousAsPath)
+                  (
+                    require('../server/utils') as typeof import('../server/utils')
+                  ).cleanAmpPath(dangerousAsPath)
                 }
               />
             )}
@@ -1004,7 +1006,9 @@ export class NextScript extends React.Component<OriginProps> {
         process.env.NEXT_RUNTIME === 'edge'
           ? new TextEncoder().encode(data).buffer.byteLength
           : Buffer.from(data).byteLength
-      const prettyBytes = require('../lib/pretty-bytes').default
+      const prettyBytes = (
+        require('../lib/pretty-bytes') as typeof import('../lib/pretty-bytes')
+      ).default
 
       if (largePageDataBytes && bytes > largePageDataBytes) {
         if (process.env.NODE_ENV === 'production') {

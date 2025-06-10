@@ -637,6 +637,28 @@ describe('use-cache', () => {
     expect(await browser.elementByCss('#random').text()).toBe(initialValue)
   })
 
+  if (isNextStart) {
+    // TODO: This is an SSG optimization to share fetch responses during SSG
+    // (see #68546). Decide whether we want to keep this feature in the context
+    // of "use cache". Alternatively, instead of de-opting entirely, we might
+    // want a similar optimization using a build-specific default "use cache"
+    // cache handler that utilizes the file system, instead of piggybacking on
+    // the incremental cache handler for inner fetches.
+    it('should store a fetch response without no-store in the incremental cache handler during build', async () => {
+      expect(next.cliOutput).toContain(
+        'cache-handler set fetch cache https://next-data-api-endpoint.vercel.app/api/random'
+      )
+    })
+
+    // The no-store fetch cache option opts the response out of the SSG
+    // optimization to share fetch responses within an export worker.
+    it('should not store a fetch response with no-store in the incremental cache handler during build', async () => {
+      expect(next.cliOutput).not.toContain(
+        'cache-handler set fetch cache https://next-data-api-endpoint.vercel.app/api/random?no-store'
+      )
+    })
+  }
+
   it('should override fetch with cookies/auth in use cache properly', async () => {
     const browser = await next.browser('/cache-fetch-auth-header')
 
@@ -957,6 +979,34 @@ describe('use-cache', () => {
       const randomTwo = await browser.elementByCss('#two').text()
       expect(randomOne).toBe(randomTwo)
     })
+  })
+
+  it('shares caches between the page/layout and generateMetadata', async () => {
+    const browser = await next.browser('/generate-metadata')
+    const layoutData = await browser.elementByCss('#layout-data').text()
+    const pageData = await browser.elementByCss('#page-data').text()
+    const title = await browser.eval('document.title')
+
+    expect(layoutData).toBe(pageData)
+    expect(pageData).toBe(title)
+
+    const initialDescription = await browser
+      .elementByCss('meta[name="description"]')
+      .getAttribute('content')
+
+    expect(initialDescription).not.toBe(title)
+
+    await browser.refresh()
+
+    const description = await browser
+      .elementByCss('meta[name="description"]')
+      .getAttribute('content')
+
+    // TODO: After #78703 has landed, we can enable the outer 'use cache' in
+    // generateMetadata, and still have the cached title (a nested cache) be
+    // shared with the page/layout. Then the description will also be cached (by
+    // the outer 'use cache'), and this expectation needs to be flipped.
+    expect(description).not.toBe(initialDescription)
   })
 })
 

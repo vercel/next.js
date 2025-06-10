@@ -10,7 +10,7 @@ import {
 import type { Request, Response } from 'playwright'
 import fs from 'fs-extra'
 import nodeFs from 'fs'
-import path, { join } from 'path'
+import { join } from 'path'
 import { outdent } from 'outdent'
 
 const GENERIC_RSC_ERROR =
@@ -30,17 +30,6 @@ describe('app-dir action handling', () => {
         'server-only': 'latest',
       },
     })
-
-  if (isNextStart) {
-    it('should trace server action imported by client correctly', async () => {
-      const traceData = await next.readJSON(
-        path.join('.next', 'server', 'app', 'client', 'page.js.nft.json')
-      )
-      expect(traceData.files.some((file) => file.includes('data.txt'))).toBe(
-        true
-      )
-    })
-  }
 
   it('should handle action correctly with middleware rewrite', async () => {
     const browser = await next.browser('/rewrite-to-static-first')

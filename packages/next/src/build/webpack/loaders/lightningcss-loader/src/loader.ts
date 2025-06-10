@@ -305,7 +305,8 @@ export async function LightningCssLoader(
       ),
     })
   }
-  const { loadBindings } = require('next/dist/build/swc')
+  const { loadBindings } =
+    require('../../../../../build/swc') as typeof import('../../../../../build/swc')
 
   const transform =
     implementation?.transformCss ??

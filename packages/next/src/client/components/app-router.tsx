@@ -506,7 +506,9 @@ function Router({
       )
     }
     const HotReloader: typeof import('./react-dev-overlay/app/hot-reloader-client').default =
-      require('./react-dev-overlay/app/hot-reloader-client').default
+      (
+        require('./react-dev-overlay/app/hot-reloader-client') as typeof import('./react-dev-overlay/app/hot-reloader-client')
+      ).default
 
     content = (
       <HotReloader assetPrefix={assetPrefix} globalError={globalError}>
