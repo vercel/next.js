@@ -4,7 +4,7 @@
 "use strict";
 
 __turbopack_context__.s({
-    "default": (()=>__TURBOPACK__default__export__)
+    "default": ()=>__TURBOPACK__default__export__
 });
 const __TURBOPACK__default__export__ = 'foo';
 }),
@@ -12,7 +12,7 @@ const __TURBOPACK__default__export__ = 'foo';
 "use strict";
 
 __turbopack_context__.s({
-    "default": (()=>__TURBOPACK__default__export__)
+    "default": ()=>__TURBOPACK__default__export__
 });
 const __TURBOPACK__default__export__ = 'dep';
 }),
@@ -20,7 +20,7 @@ const __TURBOPACK__default__export__ = 'dep';
 "use strict";
 
 __turbopack_context__.s({
-    "default": (()=>__TURBOPACK__default__export__)
+    "default": ()=>__TURBOPACK__default__export__
 });
 const __TURBOPACK__default__export__ = 'pat';
 }),
@@ -28,7 +28,7 @@ const __TURBOPACK__default__export__ = 'pat';
 "use strict";
 
 __turbopack_context__.s({
-    "default": (()=>__TURBOPACK__default__export__)
+    "default": ()=>__TURBOPACK__default__export__
 });
 const __TURBOPACK__default__export__ = 'import';
 }),

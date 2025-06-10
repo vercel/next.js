@@ -17,7 +17,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 "use strict";
 
 __turbopack_context__.s({
-    "foo": (()=>foo)
+    "foo": ()=>foo
 });
 function foo(value) {
     console.assert(value);
