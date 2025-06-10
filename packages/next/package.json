@@ -87,7 +87,7 @@
     "types": "tsc --project tsconfig.build.json --declaration --emitDeclarationOnly --stripInternal --declarationDir dist",
     "typescript": "tsec --noEmit",
     "ncc-compiled": "taskr ncc",
-    "storybook": "storybook dev -p 6006",
+    "storybook": "BROWSER=none storybook dev -p 6006",
     "build-storybook": "storybook build",
     "test-storybook": "test-storybook"
   },
