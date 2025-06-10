@@ -278,7 +278,7 @@ export default function Default() {
 
 Inside your `@auth` slot, intercept the `/login` route by importing the `<Modal>` component and its children into the `@auth/(.)login/page.tsx` file, and updating the folder name to `/@auth/(.)login/page.tsx`.
 
-```tsx filename="app/@auth/(..)login/page.tsx" switcher
+```tsx filename="app/@auth/(.)login/page.tsx" switcher
 import { Modal } from '@/app/ui/modal'
 import { Login } from '@/app/ui/login'
 
