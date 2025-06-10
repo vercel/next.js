@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{ResolvedVc, Value, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     issue::IssueSource,
     reference_type::{CommonJsReferenceSubType, EcmaScriptModulesReferenceSubType, ReferenceType},
@@ -90,11 +90,11 @@ pub async fn apply_cjs_specific_options(options: Vc<ResolveOptions>) -> Result<V
 pub async fn esm_resolve(
     origin: Vc<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
-    ty: Value<EcmaScriptModulesReferenceSubType>,
+    ty: EcmaScriptModulesReferenceSubType,
     is_optional: bool,
     issue_source: Option<IssueSource>,
 ) -> Result<Vc<ModuleResolveResult>> {
-    let ty = ReferenceType::EcmaScriptModules(ty.into_value());
+    let ty = ReferenceType::EcmaScriptModules(ty);
     let options = apply_esm_specific_options(origin.resolve_options(ty.clone()), ty.clone())
         .resolve()
         .await?;

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, OptionVcExt, ResolvedVc, Value, Vc};
+use turbo_tasks::{FxIndexMap, OptionVcExt, ResolvedVc, Vc};
 use turbo_tasks_env::EnvMap;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{css::chunk::CssChunkType, resolve_options_context::ResolveOptionsContext};
@@ -85,9 +85,9 @@ pub async fn get_edge_compile_time_info(
     define_env: Vc<EnvMap>,
 ) -> Result<Vc<CompileTimeInfo>> {
     CompileTimeInfo::builder(
-        Environment::new(Value::new(ExecutionEnvironment::EdgeWorker(
+        Environment::new(ExecutionEnvironment::EdgeWorker(
             EdgeWorkerEnvironment {}.resolved_cell(),
-        )))
+        ))
         .to_resolved()
         .await?,
     )

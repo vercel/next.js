@@ -1,14 +1,14 @@
 import { useEffect, useTransition } from 'react'
-import { devRenderIndicator } from './dev-render-indicator'
+import { dispatcher } from 'next/dist/compiled/next-devtools'
 
-export const useSyncDevRenderIndicator = () => {
+export const useAppDevRenderingIndicator = () => {
   const [isPending, startTransition] = useTransition()
 
   useEffect(() => {
     if (isPending) {
-      devRenderIndicator.show()
+      dispatcher.renderingIndicatorShow()
     } else {
-      devRenderIndicator.hide()
+      dispatcher.renderingIndicatorHide()
     }
   }, [isPending])
 

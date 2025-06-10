@@ -23,7 +23,7 @@ use crate::{
     tree_shake::{PartId, find_turbopack_part_id_in_asserts},
 };
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
+#[turbo_tasks::value]
 #[derive(Default, Debug, Clone, Hash)]
 pub struct ImportAnnotations {
     // TODO store this in more structured way
@@ -643,13 +643,30 @@ impl Visit for Analyzer<'_> {
 
         self.data.exports.insert(
             rcstr!("default"),
-            (
-                // `EsmModuleItem::code_generation` inserts this variable.
-                magic_identifier::mangle("default export").into(),
-                SyntaxContext::empty(),
-            ),
+            // Mirror what `EsmModuleItem::code_generation` does, these are live bindings if the
+            // class/function has an identifier.
+            match &n.decl {
+                DefaultDecl::Class(ClassExpr { ident, .. })
+                | DefaultDecl::Fn(FnExpr { ident, .. }) => ident.as_ref().map_or_else(
+                    || {
+                        (
+                            magic_identifier::mangle("default export").into(),
+                            SyntaxContext::empty(),
+                        )
+                    },
+                    |ident| (ident.to_id()),
+                ),
+                DefaultDecl::TsInterfaceDecl(_) => {
+                    // not matching, might happen due to eventual consistency
+                    (
+                        magic_identifier::mangle("default export").into(),
+                        SyntaxContext::empty(),
+                    )
+                }
+            },
         );
     }
+
     fn visit_export_default_expr(&mut self, n: &ExportDefaultExpr) {
         self.data.has_exports = true;
 

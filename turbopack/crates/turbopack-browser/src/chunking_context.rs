@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Upcast, Value, ValueToString, Vc,
+    NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Upcast, ValueToString, Vc,
     trace::TraceRawVcs,
 };
 use turbo_tasks_fs::FileSystemPath;
@@ -38,7 +38,7 @@ use crate::ecmascript::{
 };
 
 #[turbo_tasks::value]
-#[derive(Debug, Clone, Copy, Hash)]
+#[derive(Debug, Clone, Copy, Hash, TaskInput)]
 pub enum CurrentChunkMethod {
     StringLiteral,
     DocumentCurrentScript,
@@ -161,7 +161,7 @@ impl BrowserChunkingContextBuilder {
     }
 
     pub fn build(self) -> Vc<BrowserChunkingContext> {
-        BrowserChunkingContext::new(Value::new(self.chunking_context))
+        BrowserChunkingContext::new(self.chunking_context)
     }
 }
 
@@ -171,8 +171,8 @@ impl BrowserChunkingContextBuilder {
 /// It also uses a chunking heuristic that is incremental and cacheable.
 /// It splits "node_modules" separately as these are less likely to change
 /// during development
-#[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Clone, Hash)]
+#[turbo_tasks::value]
+#[derive(Debug, Clone, Hash, TaskInput)]
 pub struct BrowserChunkingContext {
     name: Option<RcStr>,
     /// The root path of the project
@@ -295,8 +295,8 @@ impl BrowserChunkingContext {
 #[turbo_tasks::value_impl]
 impl BrowserChunkingContext {
     #[turbo_tasks::function]
-    fn new(this: Value<BrowserChunkingContext>) -> Vc<Self> {
-        this.into_value().cell()
+    fn new(this: BrowserChunkingContext) -> Vc<Self> {
+        this.cell()
     }
 
     #[turbo_tasks::function]
@@ -323,7 +323,7 @@ impl BrowserChunkingContext {
         ident: Vc<AssetIdent>,
         evaluatable_assets: Vc<EvaluatableAssets>,
         other_chunks: Vc<OutputAssets>,
-        source: Value<EcmascriptDevChunkListSource>,
+        source: EcmascriptDevChunkListSource,
     ) -> Vc<Box<dyn OutputAsset>> {
         Vc::upcast(EcmascriptDevChunkList::new(
             self,
@@ -565,7 +565,7 @@ impl ChunkingContext for BrowserChunkingContext {
                         ident,
                         EvaluatableAssets::empty(),
                         Vc::cell(assets.clone()),
-                        Value::new(EcmascriptDevChunkListSource::Dynamic),
+                        EcmascriptDevChunkListSource::Dynamic,
                     )
                     .to_resolved()
                     .await?,
@@ -634,7 +634,7 @@ impl ChunkingContext for BrowserChunkingContext {
                         ident,
                         entries,
                         other_assets,
-                        Value::new(EcmascriptDevChunkListSource::Entry),
+                        EcmascriptDevChunkListSource::Entry,
                     )
                     .to_resolved()
                     .await?,

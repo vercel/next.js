@@ -70,8 +70,8 @@ pub use transform::{
 };
 use turbo_rcstr::rcstr;
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Value,
-    ValueToString, Vc, trace::TraceRawVcs,
+    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString, Vc,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
@@ -110,8 +110,20 @@ use crate::{
     transform::remove_shebang,
 };
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Hash, Debug, Clone, Copy, Default, TaskInput)]
+#[derive(
+    Eq,
+    PartialEq,
+    Hash,
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    TaskInput,
+    TraceRawVcs,
+    NonLocalValue,
+    Serialize,
+    Deserialize,
+)]
 pub enum SpecifiedModuleType {
     #[default]
     Automatic,
@@ -145,7 +157,7 @@ pub enum TreeShakingMode {
 #[turbo_tasks::value(transparent)]
 pub struct OptionTreeShaking(pub Option<TreeShakingMode>);
 
-#[turbo_tasks::value(shared, serialization = "auto_for_input")]
+#[turbo_tasks::value(shared)]
 #[derive(Hash, Debug, Default, Copy, Clone)]
 pub struct EcmascriptOptions {
     pub refresh: bool,
@@ -173,8 +185,8 @@ pub struct EcmascriptOptions {
     pub keep_last_successful_parse: bool,
 }
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Hash, Debug, Copy, Clone)]
+#[turbo_tasks::value]
+#[derive(Hash, Debug, Copy, Clone, TaskInput)]
 pub enum EcmascriptModuleAssetType {
     /// Module with EcmaScript code
     Ecmascript,
@@ -235,7 +247,7 @@ impl EcmascriptModuleAssetBuilder {
             EcmascriptModuleAsset::new_with_inner_assets(
                 *self.source,
                 *self.asset_context,
-                Value::new(self.ty),
+                self.ty,
                 *self.transforms,
                 *self.options,
                 *self.compile_time_info,
@@ -245,7 +257,7 @@ impl EcmascriptModuleAssetBuilder {
             EcmascriptModuleAsset::new(
                 *self.source,
                 *self.asset_context,
-                Value::new(self.ty),
+                self.ty,
                 *self.transforms,
                 *self.options,
                 *self.compile_time_info,
@@ -501,8 +513,7 @@ impl EcmascriptModuleAsset {
     pub fn new(
         source: ResolvedVc<Box<dyn Source>>,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
-
-        ty: Value<EcmascriptModuleAssetType>,
+        ty: EcmascriptModuleAssetType,
         transforms: ResolvedVc<EcmascriptInputTransforms>,
         options: ResolvedVc<EcmascriptOptions>,
         compile_time_info: ResolvedVc<CompileTimeInfo>,
@@ -510,7 +521,7 @@ impl EcmascriptModuleAsset {
         Self::cell(EcmascriptModuleAsset {
             source,
             asset_context,
-            ty: ty.into_value(),
+            ty,
             transforms,
             options,
 
@@ -524,7 +535,7 @@ impl EcmascriptModuleAsset {
     pub async fn new_with_inner_assets(
         source: ResolvedVc<Box<dyn Source>>,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
-        ty: Value<EcmascriptModuleAssetType>,
+        ty: EcmascriptModuleAssetType,
         transforms: ResolvedVc<EcmascriptInputTransforms>,
         options: ResolvedVc<EcmascriptOptions>,
         compile_time_info: ResolvedVc<CompileTimeInfo>,
@@ -543,7 +554,7 @@ impl EcmascriptModuleAsset {
             Ok(Self::cell(EcmascriptModuleAsset {
                 source,
                 asset_context,
-                ty: ty.into_value(),
+                ty,
                 transforms,
                 options,
                 compile_time_info,
@@ -570,7 +581,7 @@ impl EcmascriptModuleAsset {
 
     #[turbo_tasks::function]
     pub fn parse(&self) -> Vc<ParseResult> {
-        parse(*self.source, Value::new(self.ty), *self.transforms)
+        parse(*self.source, self.ty, *self.transforms)
     }
 }
 
@@ -613,7 +624,7 @@ impl Module for EcmascriptModuleAsset {
         }
         ident.add_modifier(rcstr!("ecmascript"));
         ident.layer = Some(self.asset_context.layer().owned().await?);
-        Ok(AssetIdent::new(Value::new(ident)))
+        Ok(AssetIdent::new(ident))
     }
 
     #[turbo_tasks::function]

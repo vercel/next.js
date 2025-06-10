@@ -26,7 +26,7 @@ use graph::{AggregatedGraph, AggregatedGraphNodeContent, aggregate};
 use module_options::{ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, ModuleType};
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexSet, ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 pub use turbopack_core::condition;
 use turbopack_core::{
@@ -646,9 +646,9 @@ async fn process_default_internal(
 
 #[turbo_tasks::function]
 async fn externals_tracing_module_context(ty: ExternalType) -> Result<Vc<ModuleAssetContext>> {
-    let env = Environment::new(Value::new(ExecutionEnvironment::NodeJsLambda(
+    let env = Environment::new(ExecutionEnvironment::NodeJsLambda(
         NodeJsEnvironment::default().resolved_cell(),
-    )))
+    ))
     .to_resolved()
     .await?;
 

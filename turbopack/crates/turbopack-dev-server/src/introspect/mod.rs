@@ -104,7 +104,7 @@ impl GetContentSourceContent for IntrospectionSource {
     async fn get(
         self: ResolvedVc<Self>,
         path: RcStr,
-        _data: turbo_tasks::Value<ContentSourceData>,
+        _data: ContentSourceData,
     ) -> Result<Vc<ContentSourceContent>> {
         // get last segment
         let path = &path[path.rfind('/').unwrap_or(0) + 1..];
