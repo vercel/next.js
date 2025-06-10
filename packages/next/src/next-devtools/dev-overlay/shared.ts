@@ -29,6 +29,7 @@ export interface OverlayState {
   debugInfo: DebugInfo
   routerType: 'pages' | 'app'
   isErrorOverlayOpen: boolean
+  isDevToolsPanelOpen: boolean
 }
 export type OverlayDispatch = React.Dispatch<DispatcherEvent>
 
@@ -49,6 +50,7 @@ export const ACTION_BUILDING_INDICATOR_SHOW = 'building-indicator-show'
 export const ACTION_BUILDING_INDICATOR_HIDE = 'building-indicator-hide'
 export const ACTION_RENDERING_INDICATOR_SHOW = 'rendering-indicator-show'
 export const ACTION_RENDERING_INDICATOR_HIDE = 'rendering-indicator-hide'
+export const ACTION_DEV_TOOLS_PANEL_TOGGLE = 'dev-tools-panel-toggle'
 
 export const STORAGE_KEY_THEME = '__nextjs-dev-tools-theme'
 export const STORAGE_KEY_POSITION = '__nextjs-dev-tools-position'
@@ -121,6 +123,10 @@ export interface RenderingIndicatorHideAction {
   type: typeof ACTION_RENDERING_INDICATOR_HIDE
 }
 
+export interface DevToolsPanelToggleAction {
+  type: typeof ACTION_DEV_TOOLS_PANEL_TOGGLE
+}
+
 export type DispatcherEvent =
   | BuildOkAction
   | BuildErrorAction
@@ -139,6 +145,7 @@ export type DispatcherEvent =
   | BuildingIndicatorHideAction
   | RenderingIndicatorShowAction
   | RenderingIndicatorHideAction
+  | DevToolsPanelToggleAction
 
 const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX =
   // 1st group: v8
@@ -177,6 +184,7 @@ export const INITIAL_OVERLAY_STATE: Omit<
   refreshState: { type: 'idle' },
   versionInfo: { installed: '0.0.0', staleness: 'unknown' },
   debugInfo: { devtoolsFrontendUrl: undefined },
+  isDevToolsPanelOpen: false,
 }
 
 function getInitialState(
@@ -338,6 +346,9 @@ export function useErrorOverlayReducer(
         }
         case ACTION_RENDERING_INDICATOR_HIDE: {
           return { ...state, renderingIndicator: false }
+        }
+        case ACTION_DEV_TOOLS_PANEL_TOGGLE: {
+          return { ...state, isDevToolsPanelOpen: !state.isDevToolsPanelOpen }
         }
         default: {
           return state

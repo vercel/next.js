@@ -12,6 +12,7 @@ import { DarkTheme } from './styles/dark-theme'
 import { useDevToolsScale } from './components/errors/dev-tools-indicator/dev-tools-info/preferences'
 import type { HydrationErrorState } from '../shared/hydration-error'
 import { DevToolsIndicator as DevToolsIndicatorNew } from './components/devtools-indicator/devtools-indicator'
+import { DevToolsPanel } from './components/dev-tools-panel/dev-tools-panel'
 
 export function DevOverlay({
   state,
@@ -55,6 +56,8 @@ export function DevOverlay({
                     isBuildError={isBuildError}
                   />
                 ))}
+
+              {state.isDevToolsPanelOpen && <DevToolsPanel />}
 
               <ErrorOverlay
                 state={state}
