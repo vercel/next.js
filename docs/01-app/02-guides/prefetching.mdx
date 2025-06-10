@@ -83,7 +83,7 @@ For example, you might have to only trigger prefetches on hover, instead of when
 import Link from 'next/link'
 import { useState } from 'react'
 
-function HoverPrefetchLink({
+export function HoverPrefetchLink({
   href,
   children,
 }: {
@@ -316,7 +316,7 @@ To reduce resource usage without disabling prefetch entirely, you can defer pref
 import Link from 'next/link'
 import { useState } from 'react'
 
-function HoverPrefetchLink({
+export function HoverPrefetchLink({
   href,
   children,
 }: {
@@ -343,7 +343,7 @@ function HoverPrefetchLink({
 import Link from 'next/link'
 import { useState } from 'react'
 
-function HoverPrefetchLink({ href, children }) {
+export function HoverPrefetchLink({ href, children }) {
   const [active, setActive] = useState(false)
 
   return (
