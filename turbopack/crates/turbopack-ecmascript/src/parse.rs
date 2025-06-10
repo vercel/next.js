@@ -15,9 +15,12 @@ use swc_core::{
         ast::{EsVersion, Id, ObjectPatProp, Pat, Program, VarDecl},
         lints::{config::LintConfig, rules::LintParams},
         parser::{EsSyntax, Parser, Syntax, TsSyntax, lexer::Lexer},
-        transforms::base::{
-            helpers::{HELPERS, Helpers},
-            resolver,
+        transforms::{
+            base::{
+                helpers::{HELPERS, Helpers},
+                resolver,
+            },
+            optimization::simplify::dce::{self, dce},
         },
         visit::{Visit, VisitMutWith, VisitWith, noop_visit_type},
     },
@@ -453,6 +456,13 @@ async fn parse_file_content(
                     Some(messages.unwrap_or_else(|| vec![String::clone(&fm.src).into()]));
                 return Ok(ParseResult::Unparseable { messages });
             }
+
+                parsed_program.mutate(swc_core::common::pass::Repeat::new(dce(dce::Config{
+                    module_mark: None,
+                    top_level: true,
+                    top_retain: vec![],
+                    preserve_imports_with_side_effects: true,
+                }, unresolved_mark)));
 
             parsed_program.visit_mut_with(
                 &mut swc_core::ecma::transforms::base::helpers::inject_helpers(unresolved_mark),
