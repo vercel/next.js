@@ -10,13 +10,13 @@ autobenches = false
 bench = false
 
 [target.'cfg(not(any(target_os = "linux", target_family = "wasm", target_env = "musl")))'.dependencies]
-mimalloc = { version = "0.1.42", features = [], optional = true }
+jemallocator = { version = "0.5.4", optional = true }
 
 [target.'cfg(all(target_os = "linux", not(any(target_family = "wasm", target_env = "musl"))))'.dependencies]
-mimalloc = { version = "0.1.42", features = [
-  "local_dynamic_tls",
-], optional = true }
+jemallocator = { version = "0.5.4", optional = true }
 
 [features]
-custom_allocator = ["dep:mimalloc"]
+custom_allocator = ["dep:jemallocator"]
 default = ["custom_allocator"]
+
+[dependencies]

@@ -3239,6 +3239,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "af150ab688ff2122fcef229be89cb50dd66af9e01a4ff320cc137eecc9bacc38"
 
 [[package]]
+name = "jemalloc-sys"
+version = "0.5.4+5.3.0-patched"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ac6c1946e1cea1788cbfde01c993b52a10e2da07f4bac608228d1bed20bfebf2"
+dependencies = [
+ "cc",
+ "libc",
+]
+
+[[package]]
+name = "jemallocator"
+version = "0.5.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a0de374a9f8e63150e6f5e8a60cc14c668226d7a347d8aee1a45766e3c4dd3bc"
+dependencies = [
+ "jemalloc-sys",
+ "libc",
+]
+
+[[package]]
 name = "jiff"
 version = "0.2.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3500,16 +3520,6 @@ checksum = "c571b676ddfc9a8c12f1f3d3085a7b163966a8fd8098a90640953ce5f6170161"
 dependencies = [
  "cfg-if",
  "windows-sys 0.48.0",
-]
-
-[[package]]
-name = "libmimalloc-sys"
-version = "0.1.38"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e7bb23d733dfcc8af652a78b7bf232f0e967710d044732185e561e47c0336b6"
-dependencies = [
- "cc",
- "libc",
 ]
 
 [[package]]
@@ -3881,15 +3891,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.100",
-]
-
-[[package]]
-name = "mimalloc"
-version = "0.1.42"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e9186d86b79b52f4a77af65604b51225e8db1d6ee7e3f41aec1e40829c71a176"
-dependencies = [
- "libmimalloc-sys",
 ]
 
 [[package]]
@@ -9328,7 +9329,7 @@ dependencies = [
 name = "turbo-tasks-malloc"
 version = "0.1.0"
 dependencies = [
- "mimalloc",
+ "jemallocator",
 ]
 
 [[package]]
