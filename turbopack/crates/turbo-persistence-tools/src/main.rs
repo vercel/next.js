@@ -39,7 +39,7 @@ fn main() -> Result<()> {
         {
             println!(
                 "  SST {sequence_number:08}.sst: {min_hash:016x} - {max_hash:016x} (p = 1/{})",
-                u64::MAX / (max_hash - min_hash)
+                u64::MAX / (max_hash - min_hash + 1)
             );
             println!("    AQMF {aqmf_entries} entries = {} KiB", aqmf_size / 1024);
             println!(
