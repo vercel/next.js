@@ -507,7 +507,7 @@ export default function Page() {
 
 ### Preventing environment poisoning
 
-JavaScript modules can be shared between both Server and Client Components modules. This means it's possible to accidentanlly import server-only code into the client. For example, consider the following function:
+JavaScript modules can be shared between both Server and Client Components modules. This means it's possible to accidentally import server-only code into the client. For example, consider the following function:
 
 ```ts filename="lib/data.ts" switcher
 export async function getData() {

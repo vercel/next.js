@@ -61,7 +61,7 @@ See the [`fetch` API reference](/docs/app/api-reference/functions/fetch) to lear
 
 `unstable_cache` allows you to cache the result of database queries and other async functions. To use it, wrap `unstable_cache` around the function. For example:
 
-```tsx filename="app/lib/data.ts swichter
+```tsx filename="app/lib/data.ts switcher
 import { db } from '@/lib/db'
 export async function getUserById(id: string) {
   return db
