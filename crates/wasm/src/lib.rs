@@ -2,17 +2,16 @@ use std::sync::Arc;
 
 use anyhow::{Context, Error};
 use js_sys::JsString;
-use next_custom_transforms::chain_transforms::{TransformOptions, custom_before_pass};
+use next_custom_transforms::chain_transforms::{custom_before_pass, TransformOptions};
 use swc_core::{
     base::{
-        Compiler,
         config::{JsMinifyOptions, ParseOptions},
-        try_with_handler,
+        try_with_handler, Compiler,
     },
     common::{
-        FileName, FilePathMapping, GLOBALS, Mark, SourceMap,
         comments::{Comments, SingleThreadedComments},
         errors::ColorConfig,
+        FileName, FilePathMapping, Mark, SourceMap, GLOBALS,
     },
     ecma::ast::noop_pass,
 };
