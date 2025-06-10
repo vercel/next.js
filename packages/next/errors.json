@@ -697,5 +697,6 @@
   "696": "Next DevTools: Can't dispatch %s in this environment. This is a bug in Next.js",
   "697": "Next DevTools: Can't render in this environment. This is a bug in Next.js",
   "698": "Next DevTools: App Dev Overlay is already mounted. This is a bug in Next.js",
-  "699": "Next DevTools: Pages Dev Overlay is already mounted. This is a bug in Next.js"
+  "699": "Next DevTools: Pages Dev Overlay is already mounted. This is a bug in Next.js",
+  "700": "@ast-grep/napi is not available. Please make sure `next-rspack` is correctly installed."
 }

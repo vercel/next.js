@@ -54,18 +54,22 @@ export function decodeFromBase64<T extends object>(str: string): T {
 
 // Currently, the loadModule method is not supported in Rspack.
 // Use ast-grep to extract named exports from the module.
-async function getLoaderModuleNamedExportsByAstGrep(resourcePath: string): Promise<string[]> {
+async function getLoaderModuleNamedExportsByAstGrep(
+  resourcePath: string
+): Promise<string[]> {
   const fs = await import('node:fs/promises')
   const path = await import('node:path')
-  const extname = path.extname(resourcePath);
+  const extname = path.extname(resourcePath)
   const source = await fs.readFile(resourcePath, 'utf-8')
 
   const { parseAsync, Lang } = getAstGrep()
-  const lang = [".js", ".jsx", ".mjs", ".mjsx", ".cjs", ".cjsx"].includes(extname)
+  const lang = ['.js', '.jsx', '.mjs', '.mjsx', '.cjs', '.cjsx'].includes(
+    extname
+  )
     ? Lang.JavaScript
-    : extname === ".tsx"
+    : extname === '.tsx'
       ? Lang.Tsx
-      : Lang.TypeScript;
+      : Lang.TypeScript
   const ast = await parseAsync(lang, source)
   const root = ast.root()
   const nodes = root.findAll({
@@ -143,8 +147,8 @@ async function getLoaderModuleNamedExportsByAstGrep(resourcePath: string): Promi
             {
               kind: 'export_statement',
               not: {
-                pattern: "export default $$$"
-              }
+                pattern: 'export default $$$',
+              },
             },
             {
               has: {
@@ -156,17 +160,17 @@ async function getLoaderModuleNamedExportsByAstGrep(resourcePath: string): Promi
               },
             },
           ],
-        }
+        },
       ],
-    }
-  });
+    },
+  })
   return nodes.map((node: any) => {
-    const original = node.getMatch('ORIGINAL');
-    const alias = node.getMatch('ALIAS');
+    const original = node.getMatch('ORIGINAL')
+    const alias = node.getMatch('ALIAS')
     if (alias) {
-      return alias.text();
+      return alias.text()
     }
-    return original.text();
+    return original.text()
   })
 }
 
@@ -175,7 +179,7 @@ export async function getLoaderModuleNamedExports(
   context: webpack.LoaderContext<any>
 ): Promise<string[]> {
   if (process.env.NEXT_RSPACK) {
-    return getLoaderModuleNamedExportsByAstGrep(resourcePath);
+    return getLoaderModuleNamedExportsByAstGrep(resourcePath)
   }
 
   const mod = await new Promise<webpack.NormalModule>((res, rej) => {
