@@ -49,10 +49,10 @@ export default function NavLink() {
 }
 ```
 
-| **Context**       | **Prefetched payload**           | **Cache TTL**      |
-| ----------------- | -------------------------------- | ------------------ |
-| No `loading.js`   | Entire page                      | Until app reload   |
-| With `loading.js` | Layout to first loading boundary | 30s (configurable) |
+| **Context**       | **Prefetched payload**           | **Client Cache TTL**                                                           |
+| ----------------- | -------------------------------- | ------------------------------------------------------------------------------ |
+| No `loading.js`   | Entire page                      | Until app reload                                                               |
+| With `loading.js` | Layout to first loading boundary | 30s ([configurable](/docs/app/api-reference/config/next-config-js/staleTimes)) |
 
 Automatic prefetching runs only in production. Disable with `prefetch={false}` or use the wrapper in [Disabled Prefetch](#disabled-prefetch).
 
