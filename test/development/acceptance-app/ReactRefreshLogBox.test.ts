@@ -489,6 +489,8 @@ describe('ReactRefreshLogBox app', () => {
        }
       `)
     } else if (isRspack) {
+      // rspack returns error content that contains absolute paths which are non deterministic
+      // using toContain instead of inline snapshot to check redbox content for correctness
       await session.assertHasRedbox()
       expect(await session.getRedboxDescription()).toBe(
         '  × Module build failed:'
