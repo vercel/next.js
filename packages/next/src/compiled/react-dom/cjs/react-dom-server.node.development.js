@@ -8311,11 +8311,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.2.0-canary-280ff6fe-20250606" !== isomorphicReactPackageVersion)
+      if ("19.2.0-canary-56408a5b-20250610" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.2.0-canary-280ff6fe-20250606\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.2.0-canary-56408a5b-20250610\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     function createDrainHandler(destination, request) {
@@ -8359,7 +8359,41 @@
         options ? options.formState : void 0
       );
     }
-    function createFakeWritable(readable) {
+    function createFakeWritableFromReadableStreamController$1(controller) {
+      return {
+        write: function (chunk) {
+          "string" === typeof chunk && (chunk = textEncoder.encode(chunk));
+          controller.enqueue(chunk);
+          return !0;
+        },
+        end: function () {
+          controller.close();
+        },
+        destroy: function (error) {
+          "function" === typeof controller.error
+            ? controller.error(error)
+            : controller.close();
+        }
+      };
+    }
+    function createFakeWritableFromReadableStreamController(controller) {
+      return {
+        write: function (chunk) {
+          "string" === typeof chunk && (chunk = textEncoder.encode(chunk));
+          controller.enqueue(chunk);
+          return !0;
+        },
+        end: function () {
+          controller.close();
+        },
+        destroy: function (error) {
+          "function" === typeof controller.error
+            ? controller.error(error)
+            : controller.close();
+        }
+      };
+    }
+    function createFakeWritableFromReadable(readable) {
       return {
         write: function (chunk) {
           return readable.push(chunk);
@@ -9905,6 +9939,79 @@
       flushedByteSize = 0;
     ensureCorrectIsomorphicReactVersion();
     ensureCorrectIsomorphicReactVersion();
+    exports.prerender = function (children, options) {
+      return new Promise(function (resolve, reject) {
+        var onHeaders = options ? options.onHeaders : void 0,
+          onHeadersImpl;
+        onHeaders &&
+          (onHeadersImpl = function (headersDescriptor) {
+            onHeaders(new Headers(headersDescriptor));
+          });
+        var resources = createResumableState(
+            options ? options.identifierPrefix : void 0,
+            options ? options.unstable_externalRuntimeSrc : void 0,
+            options ? options.bootstrapScriptContent : void 0,
+            options ? options.bootstrapScripts : void 0,
+            options ? options.bootstrapModules : void 0
+          ),
+          request = createPrerenderRequest(
+            children,
+            resources,
+            createRenderState(
+              resources,
+              void 0,
+              options ? options.unstable_externalRuntimeSrc : void 0,
+              options ? options.importMap : void 0,
+              onHeadersImpl,
+              options ? options.maxHeadersLength : void 0
+            ),
+            createRootFormatContext(options ? options.namespaceURI : void 0),
+            options ? options.progressiveChunkSize : void 0,
+            options ? options.onError : void 0,
+            function () {
+              var writable,
+                result = {
+                  prelude: new ReadableStream(
+                    {
+                      type: "bytes",
+                      start: function (controller) {
+                        writable =
+                          createFakeWritableFromReadableStreamController(
+                            controller
+                          );
+                      },
+                      pull: function () {
+                        startFlowing(request, writable);
+                      },
+                      cancel: function (reason) {
+                        request.destination = null;
+                        abort(request, reason);
+                      }
+                    },
+                    { highWaterMark: 0 }
+                  )
+                };
+              resolve(result);
+            },
+            void 0,
+            void 0,
+            reject,
+            options ? options.onPostpone : void 0
+          );
+        if (options && options.signal) {
+          var signal = options.signal;
+          if (signal.aborted) abort(request, signal.reason);
+          else {
+            var listener = function () {
+              abort(request, signal.reason);
+              signal.removeEventListener("abort", listener);
+            };
+            signal.addEventListener("abort", listener);
+          }
+        }
+        startWork(request);
+      });
+    };
     exports.prerenderToNodeStream = function (children, options) {
       return new Promise(function (resolve, reject) {
         var resumableState = createResumableState(
@@ -9934,7 +10041,7 @@
                     startFlowing(request, writable);
                   }
                 }),
-                writable = createFakeWritable(readable);
+                writable = createFakeWritableFromReadable(readable);
               resolve({ prelude: readable });
             },
             void 0,
@@ -9995,5 +10102,87 @@
         }
       };
     };
-    exports.version = "19.2.0-canary-280ff6fe-20250606";
+    exports.renderToReadableStream = function (children, options) {
+      return new Promise(function (resolve, reject) {
+        var onFatalError,
+          onAllReady,
+          allReady = new Promise(function (res, rej) {
+            onAllReady = res;
+            onFatalError = rej;
+          }),
+          onHeaders = options ? options.onHeaders : void 0,
+          onHeadersImpl;
+        onHeaders &&
+          (onHeadersImpl = function (headersDescriptor) {
+            onHeaders(new Headers(headersDescriptor));
+          });
+        var resumableState = createResumableState(
+            options ? options.identifierPrefix : void 0,
+            options ? options.unstable_externalRuntimeSrc : void 0,
+            options ? options.bootstrapScriptContent : void 0,
+            options ? options.bootstrapScripts : void 0,
+            options ? options.bootstrapModules : void 0
+          ),
+          request = createRequest(
+            children,
+            resumableState,
+            createRenderState(
+              resumableState,
+              options ? options.nonce : void 0,
+              options ? options.unstable_externalRuntimeSrc : void 0,
+              options ? options.importMap : void 0,
+              onHeadersImpl,
+              options ? options.maxHeadersLength : void 0
+            ),
+            createRootFormatContext(options ? options.namespaceURI : void 0),
+            options ? options.progressiveChunkSize : void 0,
+            options ? options.onError : void 0,
+            onAllReady,
+            function () {
+              var writable,
+                stream = new ReadableStream(
+                  {
+                    type: "bytes",
+                    start: function (controller) {
+                      writable =
+                        createFakeWritableFromReadableStreamController$1(
+                          controller
+                        );
+                    },
+                    pull: function () {
+                      startFlowing(request, writable);
+                    },
+                    cancel: function (reason) {
+                      request.destination = null;
+                      abort(request, reason);
+                    }
+                  },
+                  { highWaterMark: 0 }
+                );
+              stream.allReady = allReady;
+              resolve(stream);
+            },
+            function (error) {
+              allReady.catch(function () {});
+              reject(error);
+            },
+            onFatalError,
+            options ? options.onPostpone : void 0,
+            options ? options.formState : void 0
+          );
+        if (options && options.signal) {
+          var signal = options.signal;
+          if (signal.aborted) abort(request, signal.reason);
+          else {
+            var listener = function () {
+              abort(request, signal.reason);
+              signal.removeEventListener("abort", listener);
+            };
+            signal.addEventListener("abort", listener);
+          }
+        }
+        startWork(request);
+      });
+    };
+    exports.version = "19.2.0-canary-56408a5b-20250610";
   })();

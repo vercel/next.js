@@ -2351,66 +2351,46 @@
           : rootTask
         : null;
     }
-    function initializeFakeTask(response, debugInfo, childEnvironmentName) {
+    function initializeFakeTask(response, debugInfo) {
       if (!supportsCreateTask || null == debugInfo.stack) return null;
+      var cachedEntry = debugInfo.debugTask;
+      if (void 0 !== cachedEntry) return cachedEntry;
       var useEnclosingLine = void 0 === debugInfo.key,
         stack = debugInfo.stack,
         env =
           null == debugInfo.env ? response._rootEnvironmentName : debugInfo.env;
-      if (env !== childEnvironmentName)
-        return (
-          (debugInfo =
-            null == debugInfo.owner
-              ? null
-              : initializeFakeTask(response, debugInfo.owner, env)),
-          buildFakeTask(
-            response,
-            debugInfo,
-            stack,
-            '"use ' + childEnvironmentName.toLowerCase() + '"',
-            env,
-            useEnclosingLine
-          )
-        );
-      childEnvironmentName = debugInfo.debugTask;
-      if (void 0 !== childEnvironmentName) return childEnvironmentName;
-      childEnvironmentName =
+      cachedEntry =
+        null == debugInfo.owner || null == debugInfo.owner.env
+          ? response._rootEnvironmentName
+          : debugInfo.owner.env;
+      var ownerTask =
         null == debugInfo.owner
           ? null
-          : initializeFakeTask(response, debugInfo.owner, env);
-      return (debugInfo.debugTask = buildFakeTask(
-        response,
-        childEnvironmentName,
-        stack,
-        void 0 !== debugInfo.key
-          ? "<" + (debugInfo.name || "...") + ">"
-          : void 0 !== debugInfo.name
-            ? debugInfo.name || "unknown"
-            : "await " + (debugInfo.awaited.name || "unknown"),
-        env,
-        useEnclosingLine
-      ));
-    }
-    function buildFakeTask(
-      response,
-      ownerTask,
-      stack,
-      taskName,
-      env,
-      useEnclosingLine
-    ) {
-      taskName = console.createTask.bind(console, taskName);
-      stack = buildFakeCallStack(
+          : initializeFakeTask(response, debugInfo.owner);
+      env =
+        env !== cachedEntry
+          ? '"use ' + env.toLowerCase() + '"'
+          : void 0 !== debugInfo.key
+            ? "<" + (debugInfo.name || "...") + ">"
+            : void 0 !== debugInfo.name
+              ? debugInfo.name || "unknown"
+              : "await " + (debugInfo.awaited.name || "unknown");
+      env = console.createTask.bind(console, env);
+      useEnclosingLine = buildFakeCallStack(
         response,
         stack,
-        env,
+        cachedEntry,
         useEnclosingLine,
-        taskName
+        env
       );
-      return null === ownerTask
-        ? ((response = getRootTask(response, env)),
-          null != response ? response.run(stack) : stack())
-        : ownerTask.run(stack);
+      null === ownerTask
+        ? ((response = getRootTask(response, cachedEntry)),
+          (response =
+            null != response
+              ? response.run(useEnclosingLine)
+              : useEnclosingLine()))
+        : (response = ownerTask.run(useEnclosingLine));
+      return (debugInfo.debugTask = response);
     }
     function fakeJSXCallSite() {
       return Error("react-stack-top-frame");
@@ -2427,18 +2407,15 @@
           initializeFakeStack(response, debugInfo.owner));
     }
     function resolveDebugInfo(response, id, debugInfo) {
-      var env =
-        void 0 === debugInfo.env
-          ? response._rootEnvironmentName
-          : debugInfo.env;
-      void 0 !== debugInfo.stack &&
-        initializeFakeTask(response, debugInfo, env);
-      null === debugInfo.owner && null != response._debugRootOwner
-        ? ((env = debugInfo),
-          (env.owner = response._debugRootOwner),
-          (env.debugStack = response._debugRootStack))
-        : void 0 !== debugInfo.stack &&
-          initializeFakeStack(response, debugInfo);
+      void 0 !== debugInfo.stack && initializeFakeTask(response, debugInfo);
+      if (null == debugInfo.owner && null != response._debugRootOwner) {
+        var _componentInfoOrAsyncInfo = debugInfo;
+        _componentInfoOrAsyncInfo.owner = response._debugRootOwner;
+        _componentInfoOrAsyncInfo.stack = null;
+        _componentInfoOrAsyncInfo.debugStack = response._debugRootStack;
+        _componentInfoOrAsyncInfo.debugTask = response._debugRootTask;
+      } else
+        void 0 !== debugInfo.stack && initializeFakeStack(response, debugInfo);
       "number" === typeof debugInfo.time &&
         (debugInfo = { time: debugInfo.time + response._timeOrigin });
       response = getChunk(response, id);
@@ -2518,23 +2495,20 @@
       }
     }
     function initializeIOInfo(response, ioInfo) {
-      var env =
-        void 0 === ioInfo.env ? response._rootEnvironmentName : ioInfo.env;
       void 0 !== ioInfo.stack &&
-        (initializeFakeTask(response, ioInfo, env),
+        (initializeFakeTask(response, ioInfo),
         initializeFakeStack(response, ioInfo));
       ioInfo.start += response._timeOrigin;
       ioInfo.end += response._timeOrigin;
-      env = ioInfo.start;
-      var endTime = ioInfo.end;
+      var startTime = ioInfo.start,
+        endTime = ioInfo.end;
       if (supportsUserTiming && 0 <= endTime) {
         var name = ioInfo.name,
-          env$jscomp$0 = ioInfo.env;
+          env = ioInfo.env;
         response =
-          env$jscomp$0 === response._rootEnvironmentName ||
-          void 0 === env$jscomp$0
+          env === response._rootEnvironmentName || void 0 === env
             ? name
-            : name + " [" + env$jscomp$0 + "]";
+            : name + " [" + env + "]";
         ioInfo = ioInfo.debugTask;
         name = getIOColor(name);
         ioInfo
@@ -2542,7 +2516,7 @@
               console.timeStamp.bind(
                 console,
                 response,
-                0 > env ? 0 : env,
+                0 > startTime ? 0 : startTime,
                 endTime,
                 "Server Requests \u269b",
                 void 0,
@@ -2551,7 +2525,7 @@
             )
           : console.timeStamp(
               response,
-              0 > env ? 0 : env,
+              0 > startTime ? 0 : startTime,
               endTime,
               "Server Requests \u269b",
               void 0,
@@ -2613,9 +2587,9 @@
       resolveBuffer(response, id, constructor);
     }
     function flushComponentPerformance(
-      response,
+      response$jscomp$0,
       root,
-      trackIdx$jscomp$0,
+      trackIdx$jscomp$1,
       trackTime,
       parentEndTime
     ) {
@@ -2628,10 +2602,10 @@
           null !== root.component
         ) {
           var componentInfo = root.component,
-            trackIdx = trackIdx$jscomp$0;
+            trackIdx = trackIdx$jscomp$1;
           if (supportsUserTiming && 0 <= previousEndTime && 10 > trackIdx) {
-            response =
-              componentInfo.env === response._rootEnvironmentName
+            response$jscomp$0 =
+              componentInfo.env === response$jscomp$0._rootEnvironmentName
                 ? "primary-light"
                 : "secondary-light";
             var entryName = componentInfo.name + " [deduped]";
@@ -2644,7 +2618,7 @@
                     previousEndTime,
                     trackNames[trackIdx],
                     "Server Components \u269b",
-                    response
+                    response$jscomp$0
                   )
                 )
               : console.timeStamp(
@@ -2653,222 +2627,235 @@
                   previousEndTime,
                   trackNames[trackIdx],
                   "Server Components \u269b",
-                  response
+                  response$jscomp$0
                 );
           }
         }
-        root.track = trackIdx$jscomp$0;
+        root.track = trackIdx$jscomp$1;
         return root;
       }
       entryName = root._children;
       "resolved_model" === root.status && initializeModelChunk(root);
       if ((previousEndTime = root._debugInfo)) {
-        for (trackIdx = 1; trackIdx < previousEndTime.length; trackIdx++)
-          if (
-            "string" === typeof previousEndTime[trackIdx].name &&
-            ((componentInfo = previousEndTime[trackIdx - 1]),
-            "number" === typeof componentInfo.time)
-          ) {
-            trackIdx = componentInfo.time;
-            trackIdx < trackTime && trackIdx$jscomp$0++;
+        for (
+          componentInfo = trackIdx = 0;
+          componentInfo < previousEndTime.length;
+          componentInfo++
+        ) {
+          var info = previousEndTime[componentInfo];
+          "number" === typeof info.time && (trackIdx = info.time);
+          if ("string" === typeof info.name) {
+            trackIdx < trackTime && trackIdx$jscomp$1++;
             trackTime = trackIdx;
             break;
           }
+        }
         for (trackIdx = previousEndTime.length - 1; 0 <= trackIdx; trackIdx--)
-          (componentInfo = previousEndTime[trackIdx]),
+          if (
+            ((componentInfo = previousEndTime[trackIdx]),
             "number" === typeof componentInfo.time &&
-              componentInfo.time > parentEndTime &&
-              (parentEndTime = componentInfo.time);
+              componentInfo.time > parentEndTime)
+          ) {
+            parentEndTime = componentInfo.time;
+            break;
+          }
       }
       trackIdx = {
-        track: trackIdx$jscomp$0,
+        track: trackIdx$jscomp$1,
         endTime: -Infinity,
         component: null
       };
       root._children = trackIdx;
       componentInfo = -Infinity;
-      var childTrackIdx = trackIdx$jscomp$0,
-        childTrackTime = trackTime;
-      for (trackTime = 0; trackTime < entryName.length; trackTime++) {
-        childTrackTime = flushComponentPerformance(
-          response,
-          entryName[trackTime],
-          childTrackIdx,
-          childTrackTime,
+      info = trackIdx$jscomp$1;
+      for (var _i4 = 0; _i4 < entryName.length; _i4++) {
+        var childResult = flushComponentPerformance(
+          response$jscomp$0,
+          entryName[_i4],
+          info,
+          trackTime,
           parentEndTime
         );
-        null !== childTrackTime.component &&
-          (trackIdx.component = childTrackTime.component);
-        childTrackIdx = childTrackTime.track;
-        var childEndTime = childTrackTime.endTime;
-        childTrackTime = childEndTime;
-        childEndTime > componentInfo && (componentInfo = childEndTime);
+        null !== childResult.component &&
+          (trackIdx.component = childResult.component);
+        info = childResult.track;
+        childResult = childResult.endTime;
+        childResult > trackTime && (trackTime = childResult);
+        childResult > componentInfo && (componentInfo = childResult);
       }
-      if (previousEndTime)
+      if (previousEndTime) {
+        var componentEndTime = 0,
+          isLastComponent = !0;
+        info = parentEndTime = -1;
         for (
-          entryName = 0,
-            childTrackTime = !0,
-            parentEndTime = previousEndTime.length - 1;
-          0 <= parentEndTime;
-          parentEndTime--
+          entryName = previousEndTime.length - 1;
+          0 <= entryName;
+          entryName--
         )
           if (
-            ((trackTime = previousEndTime[parentEndTime]),
-            "number" === typeof trackTime.time &&
-              (trackTime.time > componentInfo &&
-                (componentInfo = trackTime.time),
-              0 === entryName && (entryName = trackTime.time)),
-            "string" === typeof trackTime.name && 0 < parentEndTime)
+            ((trackTime = previousEndTime[entryName]),
+            "number" === typeof trackTime.time)
           ) {
-            childTrackIdx = previousEndTime[parentEndTime - 1];
-            if ("number" === typeof childTrackIdx.time) {
-              childTrackIdx = childTrackIdx.time;
-              if (
-                childTrackTime &&
-                "rejected" === root.status &&
-                root.reason !== response._closedReason
-              ) {
-                entryName = trackIdx$jscomp$0;
-                childTrackTime = childTrackIdx;
-                childEndTime = componentInfo;
-                var error = root.reason;
-                if (supportsUserTiming) {
-                  var env = trackTime.env,
-                    name = trackTime.name;
-                  env =
-                    env === response._rootEnvironmentName || void 0 === env
-                      ? name
-                      : name + " [" + env + "]";
-                  "undefined" !== typeof performance &&
-                  "function" === typeof performance.measure
-                    ? performance.measure(env, {
-                        start: 0 > childTrackTime ? 0 : childTrackTime,
-                        end: childEndTime,
-                        detail: {
-                          devtools: {
-                            color: "error",
-                            track: trackNames[entryName],
-                            trackGroup: "Server Components \u269b",
-                            tooltipText: env + " Errored",
-                            properties: [
-                              [
-                                "Error",
-                                "object" === typeof error &&
-                                null !== error &&
-                                "string" === typeof error.message
-                                  ? String(error.message)
-                                  : String(error)
-                              ]
-                            ]
-                          }
-                        }
-                      })
+            0 === componentEndTime && (componentEndTime = trackTime.time);
+            trackTime = trackTime.time;
+            if (-1 < info)
+              for (--info; info > entryName; info--)
+                if (
+                  ((_i4 = previousEndTime[info]), "string" === typeof _i4.name)
+                ) {
+                  componentEndTime > componentInfo &&
+                    (componentInfo = componentEndTime);
+                  var response = response$jscomp$0;
+                  childResult = _i4;
+                  var trackIdx$jscomp$0 = trackIdx$jscomp$1,
+                    startTime = trackTime,
+                    componentEndTime$jscomp$0 = componentEndTime,
+                    childrenEndTime = componentInfo;
+                  isLastComponent &&
+                  "rejected" === root.status &&
+                  root.reason !== response._closedReason
+                    ? ((isLastComponent = trackIdx$jscomp$0),
+                      (componentEndTime = startTime),
+                      (componentEndTime$jscomp$0 = childrenEndTime),
+                      (childrenEndTime = root.reason),
+                      supportsUserTiming &&
+                        ((startTime = childResult.env),
+                        (childResult = childResult.name),
+                        (childResult =
+                          startTime === response._rootEnvironmentName ||
+                          void 0 === startTime
+                            ? childResult
+                            : childResult + " [" + startTime + "]"),
+                        "undefined" !== typeof performance &&
+                        "function" === typeof performance.measure
+                          ? performance.measure(childResult, {
+                              start:
+                                0 > componentEndTime ? 0 : componentEndTime,
+                              end: componentEndTime$jscomp$0,
+                              detail: {
+                                devtools: {
+                                  color: "error",
+                                  track: trackNames[isLastComponent],
+                                  trackGroup: "Server Components \u269b",
+                                  tooltipText: childResult + " Errored",
+                                  properties: [
+                                    [
+                                      "Error",
+                                      "object" === typeof childrenEndTime &&
+                                      null !== childrenEndTime &&
+                                      "string" ===
+                                        typeof childrenEndTime.message
+                                        ? String(childrenEndTime.message)
+                                        : String(childrenEndTime)
+                                    ]
+                                  ]
+                                }
+                              }
+                            })
+                          : console.timeStamp(
+                              childResult,
+                              0 > componentEndTime ? 0 : componentEndTime,
+                              componentEndTime$jscomp$0,
+                              trackNames[isLastComponent],
+                              "Server Components \u269b",
+                              "error"
+                            )))
+                    : ((isLastComponent = trackIdx$jscomp$0),
+                      (componentEndTime = startTime),
+                      supportsUserTiming &&
+                        0 <= childrenEndTime &&
+                        10 > isLastComponent &&
+                        ((startTime = childResult.env),
+                        (trackIdx$jscomp$0 = childResult.name),
+                        (response =
+                          startTime === response._rootEnvironmentName),
+                        (componentEndTime$jscomp$0 -= componentEndTime),
+                        (componentEndTime$jscomp$0 =
+                          0.5 > componentEndTime$jscomp$0
+                            ? response
+                              ? "primary-light"
+                              : "secondary-light"
+                            : 50 > componentEndTime$jscomp$0
+                              ? response
+                                ? "primary"
+                                : "secondary"
+                              : 500 > componentEndTime$jscomp$0
+                                ? response
+                                  ? "primary-dark"
+                                  : "secondary-dark"
+                                : "error"),
+                        (response =
+                          response || void 0 === startTime
+                            ? trackIdx$jscomp$0
+                            : trackIdx$jscomp$0 + " [" + startTime + "]"),
+                        (childResult = childResult.debugTask)
+                          ? childResult.run(
+                              console.timeStamp.bind(
+                                console,
+                                response,
+                                0 > componentEndTime ? 0 : componentEndTime,
+                                childrenEndTime,
+                                trackNames[isLastComponent],
+                                "Server Components \u269b",
+                                componentEndTime$jscomp$0
+                              )
+                            )
+                          : console.timeStamp(
+                              response,
+                              0 > componentEndTime ? 0 : componentEndTime,
+                              childrenEndTime,
+                              trackNames[isLastComponent],
+                              "Server Components \u269b",
+                              componentEndTime$jscomp$0
+                            )));
+                  componentEndTime = trackTime;
+                  trackIdx.component = _i4;
+                  isLastComponent = !1;
+                } else if (
+                  _i4.awaited &&
+                  (parentEndTime > componentInfo &&
+                    (componentInfo = parentEndTime),
+                  (childrenEndTime = _i4),
+                  (_i4 = trackIdx$jscomp$1),
+                  (childResult = trackTime),
+                  (response = parentEndTime),
+                  supportsUserTiming && 0 < response)
+                ) {
+                  startTime = childrenEndTime.env;
+                  trackIdx$jscomp$0 = childrenEndTime.awaited.name;
+                  var isPrimaryEnv =
+                    startTime === response$jscomp$0._rootEnvironmentName;
+                  componentEndTime$jscomp$0 = getIOColor(trackIdx$jscomp$0);
+                  startTime =
+                    "await " +
+                    (isPrimaryEnv || void 0 === startTime
+                      ? trackIdx$jscomp$0
+                      : trackIdx$jscomp$0 + " [" + startTime + "]");
+                  (childrenEndTime = childrenEndTime.debugTask)
+                    ? childrenEndTime.run(
+                        console.timeStamp.bind(
+                          console,
+                          startTime,
+                          0 > childResult ? 0 : childResult,
+                          response,
+                          trackNames[_i4],
+                          "Server Components \u269b",
+                          componentEndTime$jscomp$0
+                        )
+                      )
                     : console.timeStamp(
-                        env,
-                        0 > childTrackTime ? 0 : childTrackTime,
-                        childEndTime,
-                        trackNames[entryName],
+                        startTime,
+                        0 > childResult ? 0 : childResult,
+                        response,
+                        trackNames[_i4],
                         "Server Components \u269b",
-                        "error"
+                        componentEndTime$jscomp$0
                       );
                 }
-              } else if (
-                ((childTrackTime = trackIdx$jscomp$0),
-                (childEndTime = childTrackIdx),
-                (error = componentInfo),
-                supportsUserTiming && 0 <= error && 10 > childTrackTime)
-              ) {
-                env = trackTime.env;
-                name = trackTime.name;
-                var isPrimaryEnv = env === response._rootEnvironmentName;
-                entryName -= childEndTime;
-                entryName =
-                  0.5 > entryName
-                    ? isPrimaryEnv
-                      ? "primary-light"
-                      : "secondary-light"
-                    : 50 > entryName
-                      ? isPrimaryEnv
-                        ? "primary"
-                        : "secondary"
-                      : 500 > entryName
-                        ? isPrimaryEnv
-                          ? "primary-dark"
-                          : "secondary-dark"
-                        : "error";
-                env =
-                  isPrimaryEnv || void 0 === env
-                    ? name
-                    : name + " [" + env + "]";
-                (name = trackTime.debugTask)
-                  ? name.run(
-                      console.timeStamp.bind(
-                        console,
-                        env,
-                        0 > childEndTime ? 0 : childEndTime,
-                        error,
-                        trackNames[childTrackTime],
-                        "Server Components \u269b",
-                        entryName
-                      )
-                    )
-                  : console.timeStamp(
-                      env,
-                      0 > childEndTime ? 0 : childEndTime,
-                      error,
-                      trackNames[childTrackTime],
-                      "Server Components \u269b",
-                      entryName
-                    );
-              }
-              trackIdx.component = trackTime;
-              entryName = childTrackIdx;
-            }
-            childTrackTime = !1;
-          } else if (
-            trackTime.awaited &&
-            0 < parentEndTime &&
-            parentEndTime < previousEndTime.length - 2 &&
-            ((childEndTime = previousEndTime[parentEndTime - 1]),
-            (error = previousEndTime[parentEndTime + 1]),
-            "number" === typeof childEndTime.time &&
-              "number" === typeof error.time &&
-              ((childTrackIdx = trackTime),
-              (trackTime = trackIdx$jscomp$0),
-              (childEndTime = childEndTime.time),
-              (error = error.time),
-              supportsUserTiming && 0 < error))
-          ) {
-            name = childTrackIdx.env;
-            isPrimaryEnv = childTrackIdx.awaited.name;
-            var isPrimaryEnv$jscomp$0 = name === response._rootEnvironmentName;
-            env = getIOColor(isPrimaryEnv);
-            name =
-              "await " +
-              (isPrimaryEnv$jscomp$0 || void 0 === name
-                ? isPrimaryEnv
-                : isPrimaryEnv + " [" + name + "]");
-            (childTrackIdx = childTrackIdx.debugTask)
-              ? childTrackIdx.run(
-                  console.timeStamp.bind(
-                    console,
-                    name,
-                    0 > childEndTime ? 0 : childEndTime,
-                    error,
-                    trackNames[trackTime],
-                    "Server Components \u269b",
-                    env
-                  )
-                )
-              : console.timeStamp(
-                  name,
-                  0 > childEndTime ? 0 : childEndTime,
-                  error,
-                  trackNames[trackTime],
-                  "Server Components \u269b",
-                  env
-                );
+            parentEndTime = trackTime;
+            info = entryName;
           }
+      }
       trackIdx.endTime = componentInfo;
       return trackIdx;
     }
@@ -3054,10 +3041,7 @@
                 !1,
                 type
               )),
-              (type =
-                null === key
-                  ? null
-                  : initializeFakeTask(response, key, validated)),
+              (type = null === key ? null : initializeFakeTask(response, key)),
               null === type
                 ? ((type = response._debugRootTask),
                   (normalizedStackTrace =
@@ -3394,7 +3378,7 @@
               JSCompiler_inline_result
             );
             if (null != owner) {
-              var task = initializeFakeTask(response, owner, env);
+              var task = initializeFakeTask(response, owner);
               initializeFakeStack(response, owner);
               if (null !== task) {
                 task.run(callStack);

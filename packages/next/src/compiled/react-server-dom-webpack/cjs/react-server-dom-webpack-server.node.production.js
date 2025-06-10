@@ -15,6 +15,26 @@ require("crypto");
 var async_hooks = require("async_hooks"),
   ReactDOM = require("react-dom"),
   React = require("react"),
+  REACT_LEGACY_ELEMENT_TYPE = Symbol.for("react.element"),
+  REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
+  REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"),
+  REACT_CONTEXT_TYPE = Symbol.for("react.context"),
+  REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref"),
+  REACT_SUSPENSE_TYPE = Symbol.for("react.suspense"),
+  REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"),
+  REACT_MEMO_TYPE = Symbol.for("react.memo"),
+  REACT_LAZY_TYPE = Symbol.for("react.lazy"),
+  REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel");
+Symbol.for("react.postpone");
+var MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
+function getIteratorFn(maybeIterable) {
+  if (null === maybeIterable || "object" !== typeof maybeIterable) return null;
+  maybeIterable =
+    (MAYBE_ITERATOR_SYMBOL && maybeIterable[MAYBE_ITERATOR_SYMBOL]) ||
+    maybeIterable["@@iterator"];
+  return "function" === typeof maybeIterable ? maybeIterable : null;
+}
+var ASYNC_ITERATOR = Symbol.asyncIterator,
   scheduleMicrotask = queueMicrotask,
   currentView = null,
   writtenBytes = 0,
@@ -441,26 +461,6 @@ function createTemporaryReference(temporaryReferences, id) {
   temporaryReferences.set(reference, id);
   return reference;
 }
-var REACT_LEGACY_ELEMENT_TYPE = Symbol.for("react.element"),
-  REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
-  REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"),
-  REACT_CONTEXT_TYPE = Symbol.for("react.context"),
-  REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref"),
-  REACT_SUSPENSE_TYPE = Symbol.for("react.suspense"),
-  REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"),
-  REACT_MEMO_TYPE = Symbol.for("react.memo"),
-  REACT_LAZY_TYPE = Symbol.for("react.lazy"),
-  REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel");
-Symbol.for("react.postpone");
-var MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
-function getIteratorFn(maybeIterable) {
-  if (null === maybeIterable || "object" !== typeof maybeIterable) return null;
-  maybeIterable =
-    (MAYBE_ITERATOR_SYMBOL && maybeIterable[MAYBE_ITERATOR_SYMBOL]) ||
-    maybeIterable["@@iterator"];
-  return "function" === typeof maybeIterable ? maybeIterable : null;
-}
-var ASYNC_ITERATOR = Symbol.asyncIterator;
 function noop() {}
 var SuspenseException = Error(
   "Suspense Exception: This is not a real error! It's an implementation detail of `use` to interrupt the current render. You must either rethrow it immediately, or move the `use` call outside of the `try/catch` block. Capturing without rethrowing will lead to unexpected behavior.\n\nTo handle async errors, wrap your component in an error boundary, or call the promise's `.catch` method and pass the result to `use`."
@@ -2706,7 +2706,24 @@ function createCancelHandler(request, reason) {
     abort(request, Error(reason));
   };
 }
-function createFakeWritable(readable) {
+function createFakeWritableFromReadableStreamController(controller) {
+  return {
+    write: function (chunk) {
+      "string" === typeof chunk && (chunk = textEncoder.encode(chunk));
+      controller.enqueue(chunk);
+      return !0;
+    },
+    end: function () {
+      controller.close();
+    },
+    destroy: function (error) {
+      "function" === typeof controller.error
+        ? controller.error(error)
+        : controller.close();
+    }
+  };
+}
+function createFakeWritableFromNodeReadable(readable) {
   return {
     write: function (chunk) {
       return readable.push(chunk);
@@ -2779,6 +2796,37 @@ exports.decodeReply = function (body, webpackMap, options) {
   close(body);
   return webpackMap;
 };
+exports.decodeReplyFromAsyncIterable = function (
+  iterable,
+  webpackMap,
+  options
+) {
+  function progress(entry) {
+    if (entry.done) close(response);
+    else {
+      var _entry$value = entry.value;
+      entry = _entry$value[0];
+      _entry$value = _entry$value[1];
+      "string" === typeof _entry$value
+        ? resolveField(response, entry, _entry$value)
+        : response._formData.append(entry, _entry$value);
+      iterator.next().then(progress, error);
+    }
+  }
+  function error(reason) {
+    reportGlobalError(response, reason);
+    "function" === typeof iterator.throw &&
+      iterator.throw(reason).then(error, error);
+  }
+  var iterator = iterable[ASYNC_ITERATOR](),
+    response = createResponse(
+      webpackMap,
+      "",
+      options ? options.temporaryReferences : void 0
+    );
+  iterator.next().then(progress, error);
+  return getChunk(response, 0);
+};
 exports.decodeReplyFromBusboy = function (busboyStream, webpackMap, options) {
   var response = createResponse(
       webpackMap,
@@ -2800,12 +2848,12 @@ exports.decodeReplyFromBusboy = function (busboyStream, webpackMap, options) {
         "React doesn't accept base64 encoded file uploads because we don't expect form data passed from a browser to ever encode data that way. If that's the wrong assumption, we can easily fix it."
       );
     pendingFiles++;
-    var JSCompiler_object_inline_chunks_244 = [];
+    var JSCompiler_object_inline_chunks_252 = [];
     value.on("data", function (chunk) {
-      JSCompiler_object_inline_chunks_244.push(chunk);
+      JSCompiler_object_inline_chunks_252.push(chunk);
     });
     value.on("end", function () {
-      var blob = new Blob(JSCompiler_object_inline_chunks_244, {
+      var blob = new Blob(JSCompiler_object_inline_chunks_252, {
         type: mimeType
       });
       response._formData.append(name, blob, filename);
@@ -2890,6 +2938,99 @@ exports.renderToPipeableStream = function (model, webpackMap, options) {
     }
   };
 };
+exports.renderToReadableStream = function (model, webpackMap, options) {
+  var request = new RequestInstance(
+    20,
+    model,
+    webpackMap,
+    options ? options.onError : void 0,
+    options ? options.identifierPrefix : void 0,
+    options ? options.onPostpone : void 0,
+    options ? options.temporaryReferences : void 0,
+    void 0,
+    void 0,
+    noop,
+    noop
+  );
+  if (options && options.signal) {
+    var signal = options.signal;
+    if (signal.aborted) abort(request, signal.reason);
+    else {
+      var listener = function () {
+        abort(request, signal.reason);
+        signal.removeEventListener("abort", listener);
+      };
+      signal.addEventListener("abort", listener);
+    }
+  }
+  var writable;
+  return new ReadableStream(
+    {
+      type: "bytes",
+      start: function (controller) {
+        writable = createFakeWritableFromReadableStreamController(controller);
+        startWork(request);
+      },
+      pull: function () {
+        startFlowing(request, writable);
+      },
+      cancel: function (reason) {
+        request.destination = null;
+        abort(request, reason);
+      }
+    },
+    { highWaterMark: 0 }
+  );
+};
+exports.unstable_prerender = function (model, webpackMap, options) {
+  return new Promise(function (resolve, reject) {
+    var request = new RequestInstance(
+      21,
+      model,
+      webpackMap,
+      options ? options.onError : void 0,
+      options ? options.identifierPrefix : void 0,
+      options ? options.onPostpone : void 0,
+      options ? options.temporaryReferences : void 0,
+      void 0,
+      void 0,
+      function () {
+        var writable,
+          stream = new ReadableStream(
+            {
+              type: "bytes",
+              start: function (controller) {
+                writable =
+                  createFakeWritableFromReadableStreamController(controller);
+              },
+              pull: function () {
+                startFlowing(request, writable);
+              },
+              cancel: function (reason) {
+                request.destination = null;
+                abort(request, reason);
+              }
+            },
+            { highWaterMark: 0 }
+          );
+        resolve({ prelude: stream });
+      },
+      reject
+    );
+    if (options && options.signal) {
+      var signal = options.signal;
+      if (signal.aborted) abort(request, signal.reason);
+      else {
+        var listener = function () {
+          abort(request, signal.reason);
+          signal.removeEventListener("abort", listener);
+        };
+        signal.addEventListener("abort", listener);
+      }
+    }
+    startWork(request);
+  });
+};
 exports.unstable_prerenderToNodeStream = function (model, webpackMap, options) {
   return new Promise(function (resolve, reject) {
     var request = new RequestInstance(
@@ -2908,7 +3049,7 @@ exports.unstable_prerenderToNodeStream = function (model, webpackMap, options) {
               startFlowing(request, writable);
             }
           }),
-          writable = createFakeWritable(readable);
+          writable = createFakeWritableFromNodeReadable(readable);
         resolve({ prelude: readable });
       },
       reject

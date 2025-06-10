@@ -6874,7 +6874,7 @@ function flushCompletedQueues(request, destination) {
             Error(
               "This rendered a large document (>" +
                 Math.round(blockingRenderMaxSize / 1e3) +
-                ") without any Suspense boundaries around most of it. That can delay initial paint longer than necessary. To improve load performance, add a <Suspense> or <SuspenseList> around the content you expect to be below the header or below the fold. In the meantime, the content will deopt to paint arbitrary incomplete pieces of HTML."
+                " kB) without any Suspense boundaries around most of it. That can delay initial paint longer than necessary. To improve load performance, add a <Suspense> or <SuspenseList> around the content you expect to be below the header or below the fold. In the meantime, the content will deopt to paint arbitrary incomplete pieces of HTML."
             ),
             {},
             null
@@ -7228,13 +7228,13 @@ function addToReplayParent(node, parentKeyPath, trackedPostpones) {
 }
 var isomorphicReactPackageVersion$jscomp$inline_866 = React.version;
 if (
-  "19.2.0-experimental-280ff6fe-20250606" !==
+  "19.2.0-experimental-56408a5b-20250610" !==
   isomorphicReactPackageVersion$jscomp$inline_866
 )
   throw Error(
     'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
       (isomorphicReactPackageVersion$jscomp$inline_866 +
-        "\n  - react-dom:  19.2.0-experimental-280ff6fe-20250606\nLearn more: https://react.dev/warnings/version-mismatch")
+        "\n  - react-dom:  19.2.0-experimental-56408a5b-20250610\nLearn more: https://react.dev/warnings/version-mismatch")
   );
 exports.renderToReadableStream = function (children, options) {
   return new Promise(function (resolve, reject) {
@@ -7325,4 +7325,4 @@ exports.renderToReadableStream = function (children, options) {
     startWork(request);
   });
 };
-exports.version = "19.2.0-experimental-280ff6fe-20250606";
+exports.version = "19.2.0-experimental-56408a5b-20250610";
