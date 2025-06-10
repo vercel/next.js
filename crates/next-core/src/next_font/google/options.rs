@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, Value, Vc, fxindexset, trace::TraceRawVcs,
+    FxIndexMap, FxIndexSet, NonLocalValue, TaskInput, Vc, fxindexset, trace::TraceRawVcs,
 };
 
 use super::request::{NextFontRequest, OneOrManyStrings};
@@ -11,8 +11,8 @@ const ALLOWED_DISPLAY_VALUES: &[&str] = &["auto", "block", "swap", "fallback", "
 
 pub(super) type FontData = FxIndexMap<RcStr, FontDataEntry>;
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Clone, Debug, PartialOrd, Ord, Hash)]
+#[turbo_tasks::value]
+#[derive(Clone, Debug, PartialOrd, Ord, Hash, TaskInput)]
 pub(super) struct NextFontGoogleOptions {
     /// Name of the requested font from Google. Contains literal spaces.
     pub font_family: RcStr,
@@ -38,8 +38,8 @@ impl NextFontGoogleOptions {
 #[turbo_tasks::value_impl]
 impl NextFontGoogleOptions {
     #[turbo_tasks::function]
-    pub fn new(options: Value<NextFontGoogleOptions>) -> Vc<NextFontGoogleOptions> {
-        Self::cell(options.into_value())
+    pub fn new(options: NextFontGoogleOptions) -> Vc<NextFontGoogleOptions> {
+        Self::cell(options)
     }
 }
 
@@ -55,6 +55,7 @@ impl NextFontGoogleOptions {
     Deserialize,
     TraceRawVcs,
     NonLocalValue,
+    TaskInput,
 )]
 pub(super) enum FontWeights {
     Variable,

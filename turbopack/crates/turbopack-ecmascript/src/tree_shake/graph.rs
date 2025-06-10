@@ -20,7 +20,7 @@ use swc_core::{
             PropName, PropOrSpread, Stmt, Str, VarDecl, VarDeclKind, VarDeclarator, op,
         },
         atoms::Atom,
-        utils::{ExprCtx, ExprExt, find_pat_ids, private_ident, quote_ident},
+        utils::{ExprCtx, ExprExt, find_pat_ids, quote_ident},
     },
 };
 use turbo_rcstr::RcStr;
@@ -1007,8 +1007,14 @@ impl DepGraph {
                             DefaultDecl::TsInterfaceDecl(_) => unreachable!(),
                         };
 
+                        // Mirror what `EsmModuleItem::code_generation` does, these are live
+                        // bindings if the class/function has an identifier.
                         let default_var = id.unwrap_or_else(|| {
-                            private_ident!(magic_identifier::mangle("default export"))
+                            Ident::new(
+                                magic_identifier::mangle("default export").into(),
+                                DUMMY_SP,
+                                Default::default(),
+                            )
                         });
 
                         {
@@ -1073,8 +1079,13 @@ impl DepGraph {
                         exports.push((default_var.to_id(), "default".into()));
                     }
                     ModuleDecl::ExportDefaultExpr(export) => {
-                        let default_var =
-                            private_ident!(magic_identifier::mangle("default export"));
+                        // Mirror what `EsmModuleItem::code_generation` does, these are live
+                        // bindings if the class/function has an identifier.
+                        let default_var = Ident::new(
+                            magic_identifier::mangle("default export").into(),
+                            DUMMY_SP,
+                            Default::default(),
+                        );
 
                         {
                             // For

@@ -54,10 +54,3 @@ where
     T: VcValueTrait + ?Sized,
 {
 }
-
-/// Marker trait that a turbo_tasks::value is prepared for serialization as
-/// [`Value<...>`][crate::Value] input.
-///
-/// Either use [`#[turbo_tasks::value(serialization = "auto_for_input")]`][macro@crate::value] or
-/// avoid [`Value<...>`][crate::Value] in favor of a real [Vc][crate::Vc].
-pub trait TypedForInput: VcValueType {}

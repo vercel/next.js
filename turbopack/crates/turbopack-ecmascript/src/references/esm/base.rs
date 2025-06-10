@@ -6,7 +6,7 @@ use swc_core::{
     quote,
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{
@@ -143,7 +143,7 @@ impl EsmAssetReference {
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
         issue_source: IssueSource,
-        annotations: Value<ImportAnnotations>,
+        annotations: ImportAnnotations,
         export_name: Option<ModulePart>,
         import_externals: bool,
     ) -> Self {
@@ -151,7 +151,7 @@ impl EsmAssetReference {
             origin,
             request,
             issue_source,
-            annotations: annotations.into_value(),
+            annotations,
             export_name,
             import_externals,
         }
@@ -225,7 +225,7 @@ impl ModuleReference for EsmAssetReference {
         let result = esm_resolve(
             self.get_origin().resolve().await?,
             *self.request,
-            Value::new(ty),
+            ty,
             false,
             Some(self.issue_source.clone()),
         )

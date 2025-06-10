@@ -19,7 +19,7 @@ use futures::{TryStreamExt, stream::Stream as StreamTrait};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    Completion, NonLocalValue, OperationVc, ResolvedVc, Upcast, Value, ValueDefault, Vc,
+    Completion, NonLocalValue, OperationVc, ResolvedVc, TaskInput, Upcast, ValueDefault, Vc,
     trace::TraceRawVcs, util::SharedError,
 };
 use turbo_tasks_bytes::{Bytes, Stream, StreamRead};
@@ -72,8 +72,7 @@ pub trait GetContentSourceContent {
     }
 
     /// Get the content
-    fn get(self: Vc<Self>, path: RcStr, data: Value<ContentSourceData>)
-    -> Vc<ContentSourceContent>;
+    fn get(self: Vc<Self>, path: RcStr, data: ContentSourceData) -> Vc<ContentSourceContent>;
 }
 
 #[turbo_tasks::value(transparent)]
@@ -109,11 +108,7 @@ pub trait ContentSourceSideEffect {
 #[turbo_tasks::value_impl]
 impl GetContentSourceContent for ContentSourceContent {
     #[turbo_tasks::function]
-    fn get(
-        self: Vc<Self>,
-        _path: RcStr,
-        _data: Value<ContentSourceData>,
-    ) -> Vc<ContentSourceContent> {
+    fn get(self: Vc<Self>, _path: RcStr, _data: ContentSourceData) -> Vc<ContentSourceContent> {
         self
     }
 }
@@ -181,8 +176,19 @@ impl HeaderList {
 /// Note that you might not receive information that has not been requested via
 /// `ContentSource::vary()`. So make sure to request all information that's
 /// needed.
-#[turbo_tasks::value(shared, serialization = "auto_for_input")]
-#[derive(Clone, Debug, Hash, Default)]
+#[derive(
+    PartialEq,
+    Eq,
+    NonLocalValue,
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+    Clone,
+    Debug,
+    Hash,
+    Default,
+    TaskInput,
+)]
 pub struct ContentSourceData {
     /// HTTP method, if requested.
     pub method: Option<RcStr>,
@@ -316,7 +322,7 @@ impl ContentSourceDataFilter {
 /// Describes additional information that need to be sent to requests to
 /// ContentSource. By sending these information ContentSource responses are
 /// cached-keyed by them and they can access them.
-#[turbo_tasks::value(shared, serialization = "auto_for_input")]
+#[turbo_tasks::value(shared)]
 #[derive(Debug, Default, Clone, Hash)]
 pub struct ContentSourceDataVary {
     pub method: bool,

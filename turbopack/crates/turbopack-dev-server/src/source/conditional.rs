@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{Completion, ResolvedVc, State, Value, Vc};
+use turbo_tasks::{Completion, ResolvedVc, State, Vc};
 use turbopack_core::introspect::{Introspectable, IntrospectableChildren};
 
 use super::{
@@ -149,7 +149,7 @@ impl GetContentSourceContent for ActivateOnGetContentSource {
     async fn get(
         self: ResolvedVc<Self>,
         path: RcStr,
-        data: Value<ContentSourceData>,
+        data: ContentSourceData,
     ) -> Result<Vc<ContentSourceContent>> {
         turbo_tasks::emit(ResolvedVc::upcast::<Box<dyn ContentSourceSideEffect>>(self));
         Ok(self.await?.get_content.get(path, data))

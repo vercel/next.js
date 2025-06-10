@@ -1016,7 +1016,7 @@ pub fn get_relative_path_to(path: &str, other_path: &str) -> String {
 }
 
 #[turbo_tasks::value]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub struct FileSystemPath {
     pub fs: ResolvedVc<Box<dyn FileSystem>>,
     pub path: RcStr,
