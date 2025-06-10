@@ -57,7 +57,13 @@ export const setCacheBustingSearchParam = (
   const rawQuery = existingSearch.startsWith('?')
     ? existingSearch.slice(1)
     : existingSearch
-  const pairs = rawQuery.split('&').filter(Boolean)
-  pairs.push(`${NEXT_RSC_UNION_QUERY}=${uniqueCacheKey}`)
+
+  // Always remove any existing cache busting param and add a fresh one to ensure
+  // we have the correct value based on current request headers
+  const pairs = rawQuery
+    .split('&')
+    .filter((pair) => !pair.startsWith(`${NEXT_RSC_UNION_QUERY}=`))
+    .filter(Boolean)
+
   url.search = pairs.length ? `?${pairs.join('&')}` : ''
 }
