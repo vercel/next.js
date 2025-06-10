@@ -21,6 +21,7 @@ import type { NodeNextResponse, NodeNextRequest } from '../base-http/node'
 import type { RouteEnsurer } from '../route-matcher-managers/dev-route-matcher-manager'
 import type { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
 
+import * as React from 'react'
 import fs from 'fs'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import { join as pathJoin } from 'path'
@@ -67,21 +68,21 @@ import type { ServerOnInstrumentationRequestError } from '../app-render/types'
 import type { ServerComponentsHmrCache } from '../response-cache'
 import { logRequests } from './log-requests'
 import { FallbackMode } from '../../lib/fallback'
-import type { PagesDevOverlayType } from '../../client/components/react-dev-overlay/pages/pages-dev-overlay'
+import type { PagesDevOverlayBridgeType } from '../../client/components/react-dev-overlay/pages/pages-dev-overlay-bridge'
 import {
   ensureInstrumentationRegistered,
   getInstrumentationModule,
 } from '../lib/router-utils/instrumentation-globals.external'
 
 // Load ReactDevOverlay only when needed
-let ReactDevOverlayImpl: PagesDevOverlayType
-const ReactDevOverlay: PagesDevOverlayType = (props) => {
-  if (ReactDevOverlayImpl === undefined) {
-    ReactDevOverlayImpl = (
-      require('../../client/components/react-dev-overlay/pages/pages-dev-overlay') as typeof import('../../client/components/react-dev-overlay/pages/pages-dev-overlay')
-    ).PagesDevOverlay as PagesDevOverlayType
+let PagesDevOverlayBridgeImpl: PagesDevOverlayBridgeType
+const ReactDevOverlay: PagesDevOverlayBridgeType = (props) => {
+  if (PagesDevOverlayBridgeImpl === undefined) {
+    PagesDevOverlayBridgeImpl = (
+      require('../../client/components/react-dev-overlay/pages/pages-dev-overlay-bridge') as typeof import('../../client/components/react-dev-overlay/pages/pages-dev-overlay-bridge')
+    ).PagesDevOverlayBridge
   }
-  return ReactDevOverlayImpl(props)
+  return React.createElement(PagesDevOverlayBridgeImpl, props)
 }
 
 export interface Options extends ServerOptions {

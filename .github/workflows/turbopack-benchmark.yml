@@ -5,10 +5,6 @@ on:
   push:
     branches:
       - canary
-    paths:
-      - '**/crates/**'
-      - '**/Cargo.toml'
-      - '**/Cargo.lock'
   pull_request:
     types: ['opened', 'reopened', 'synchronize', 'labeled']
     paths:
@@ -30,29 +26,6 @@ env:
   TURBO_TOKEN: ${{ secrets.HOSTED_TURBO_TOKEN }}
 
 jobs:
-  benchmark-tiny:
-    name: Benchmark Rust Crates (tiny)
-    runs-on: ['self-hosted', 'linux', 'x64', 'metal']
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Rust toolchain
-        uses: ./.github/actions/setup-rust
-
-      - name: Install cargo-codspeed
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-codspeed@2.10.1
-
-      - name: Build the benchmark target(s)
-        run: cargo codspeed build -p turbo-rcstr
-
-      - name: Run the benchmarks
-        uses: CodSpeedHQ/action@v3
-        with:
-          run: cargo codspeed run
-          token: ${{ secrets.CODSPEED_TOKEN }}
-
   benchmark-small-apps:
     name: Benchmark Rust Crates (small apps)
     runs-on: ['self-hosted', 'linux', 'x64', 'metal']

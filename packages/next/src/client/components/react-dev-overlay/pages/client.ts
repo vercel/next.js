@@ -1,21 +1,8 @@
-import * as Bus from './bus'
+import { dispatcher } from 'next/dist/compiled/next-devtools'
 import {
   attachHydrationErrorState,
   storeHydrationErrorStateFromConsoleArgs,
 } from './hydration-error-state'
-import {
-  ACTION_BEFORE_REFRESH,
-  ACTION_BUILDING_INDICATOR_HIDE,
-  ACTION_BUILD_ERROR,
-  ACTION_BUILD_OK,
-  ACTION_BUILDING_INDICATOR_SHOW,
-  ACTION_DEV_INDICATOR,
-  ACTION_REFRESH,
-  ACTION_STATIC_INDICATOR,
-  ACTION_UNHANDLED_ERROR,
-  ACTION_UNHANDLED_REJECTION,
-  ACTION_VERSION_INFO,
-} from '../shared'
 import type { VersionInfo } from '../../../../server/dev/parse-version-info'
 import type { DevIndicatorServerState } from '../../../../server/dev/dev-indicator-server-state'
 
@@ -35,10 +22,7 @@ function handleError(error: unknown) {
     error.name !== 'ModuleBuildError' &&
     error.name !== 'ModuleNotFoundError'
   ) {
-    Bus.emit({
-      type: ACTION_UNHANDLED_ERROR,
-      reason: error,
-    })
+    dispatcher.onUnhandledError(error)
   }
 }
 
@@ -68,10 +52,7 @@ function onUnhandledRejection(ev: PromiseRejectionEvent) {
     return
   }
 
-  Bus.emit({
-    type: ACTION_UNHANDLED_REJECTION,
-    reason: reason,
-  })
+  dispatcher.onUnhandledRejection(reason)
 }
 
 export function register() {
@@ -90,39 +71,39 @@ export function register() {
 }
 
 export function onBuildOk() {
-  Bus.emit({ type: ACTION_BUILD_OK })
+  dispatcher.onBuildOk()
 }
 
 export function onBuildError(message: string) {
-  Bus.emit({ type: ACTION_BUILD_ERROR, message })
+  dispatcher.onBuildError(message)
 }
 
 export function onRefresh() {
-  Bus.emit({ type: ACTION_REFRESH })
+  dispatcher.onRefresh()
 }
 
 export function onBeforeRefresh() {
-  Bus.emit({ type: ACTION_BEFORE_REFRESH })
+  dispatcher.onBeforeRefresh()
 }
 
 export function onVersionInfo(versionInfo: VersionInfo) {
-  Bus.emit({ type: ACTION_VERSION_INFO, versionInfo })
+  dispatcher.onVersionInfo(versionInfo)
 }
 
 export function onStaticIndicator(isStatic: boolean) {
-  Bus.emit({ type: ACTION_STATIC_INDICATOR, staticIndicator: isStatic })
+  dispatcher.onStaticIndicator(isStatic)
 }
 
 export function onDevIndicator(devIndicatorsState: DevIndicatorServerState) {
-  Bus.emit({ type: ACTION_DEV_INDICATOR, devIndicator: devIndicatorsState })
+  dispatcher.onDevIndicator(devIndicatorsState)
 }
 
 export function buildingIndicatorShow() {
-  Bus.emit({ type: ACTION_BUILDING_INDICATOR_SHOW })
+  dispatcher.buildingIndicatorShow()
 }
 
 export function buildingIndicatorHide() {
-  Bus.emit({ type: ACTION_BUILDING_INDICATOR_HIDE })
+  dispatcher.buildingIndicatorHide()
 }
 
 export { getErrorByType } from '../utils/get-error-by-type'
