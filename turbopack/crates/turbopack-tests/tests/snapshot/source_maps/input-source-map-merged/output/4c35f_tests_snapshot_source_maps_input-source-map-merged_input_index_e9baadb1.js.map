@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 5, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/input-source-map-merged/input/sourcemapped.js"],"sourcesContent":["export function runExternalSourceMapped(fn) {\n    return fn();\n}\n//# sourceMappingURL=sourcemapped.js.map"],"names":[],"mappings":";;;;;AAAO,SAAS,wBAAwB,EAAE;IACtC,OAAO;AACX,EACA,wCAAwC;;AAFzB"}}]
+}
