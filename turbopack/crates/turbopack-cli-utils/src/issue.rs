@@ -223,13 +223,13 @@ pub fn format_issue(
             // We don't put the layer in the header for the single case. Either they are all the
             // same in which case it should be clear from the filename or they are different and we
             // need to print them on the items anyway.
-            writeln!(styled_issue, "Example import trace:").unwrap();
+            writeln!(styled_issue, "Import trace:").unwrap();
             format_trace_items(&mut styled_issue, "  ", get_layer(trace).is_none(), trace);
         } else {
             // When there are multiple traces we:
             // * display the layer in the header if the trace has a consistent layer
             // * label the traces with their index, unless the layer is sufficiently unique.
-            styled_issue.push_str("Example import traces:\n");
+            styled_issue.push_str("Import traces:\n");
             let traces_and_layers: Vec<_> = traces.iter().map(|t| (get_layer(t), t)).collect();
             let every_trace_has_a_distinct_layer = traces_and_layers
                 .iter()

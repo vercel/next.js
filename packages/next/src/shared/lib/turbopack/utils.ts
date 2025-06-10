@@ -215,7 +215,7 @@ export function formatIssue(issue: Issue) {
     if (importTraces.length > 1) {
       // We end up with multiple traces when the file with the error is reachable from multiple
       // different entry points (e.g. ssr, client)
-      message += 'Example import traces:\n'
+      message += 'Import traces:\n'
       const tracesAndLayers: Array<[string | undefined, PlainTraceItem[]]> =
         importTraces.map((trace) => [getLayer(trace), trace])
       const everyTraceHasADistinctLayer =
@@ -240,7 +240,7 @@ export function formatIssue(issue: Issue) {
     } else {
       const trace = importTraces[0]
       // We only display the layer if there is more than one for the trace
-      message += `Example import trace:\n${formatIssueTrace(trace, '  ', getLayer(trace) === undefined)}`
+      message += `Import trace:\n${formatIssueTrace(trace, '  ', getLayer(trace) === undefined)}`
     }
   }
   if (documentationLink) {

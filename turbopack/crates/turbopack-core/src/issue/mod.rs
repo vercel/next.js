@@ -681,7 +681,7 @@ async fn into_plain_trace(traces: Vec<Vec<ReadRef<AssetIdent>>>) -> Result<Vec<P
 
             // After simplifying the trace, we may end up with apparent duplicates.
             // Consider this example:
-            // Example import trace:
+            // Import trace:
             // ./[project]/app/global.scss.css [app-client] (css) [app-client]
             // ./[project]/app/layout.js [app-client] (ecmascript) [app-client]
             // ./[project]/app/layout.js [app-rsc] (client reference proxy) [app-rsc]

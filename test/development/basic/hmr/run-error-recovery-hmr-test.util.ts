@@ -613,7 +613,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
 
          Expression expected
 
-         Example import traces:
+         Import traces:
            client:
              ./components/parse-error.js
              ./pages/hmr/about9.js
