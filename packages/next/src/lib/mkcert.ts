@@ -99,8 +99,27 @@ export async function createSelfSignedCertificate(
   host?: string,
   certDir: string = 'certificates'
 ): Promise<SelfSignedCertificate | undefined> {
+  // Executable name
+  const executableName = 'mkcert'
+  let binaryPath: string | undefined = ''
+
   try {
-    const binaryPath = await downloadBinary()
+    // Try to find the executable path using 'which' command
+    binaryPath = execSync(
+      `${process.platform === 'win32' ? 'where' : 'which'} ${executableName}`,
+      { encoding: 'utf-8' }
+    ).trim()
+
+    // Check if the executable file exists and is executable
+    fs.accessSync(binaryPath, fs.constants.X_OK)
+
+    binaryPath = executableName
+  } catch (err) {}
+
+  try {
+    if (!binaryPath) {
+      binaryPath = await downloadBinary()
+    }
     if (!binaryPath) throw new Error('missing mkcert binary')
 
     const resolvedCertDir = path.resolve(process.cwd(), `./${certDir}`)
