@@ -33,9 +33,20 @@ When navigating to the new page, there's no full page reload or browser loading 
 
 ## Automatic prefetch
 
-```tsx
+```tsx filename="app/ui/nav-link.tsx" switcher
 import Link from 'next/link'
-;<Link href="/about">About</Link>
+
+export default function NavLink() {
+  return <Link href="/about">About</Link>
+}
+```
+
+```jsx filename="app/ui/nav-link.js" switcher
+import Link from 'next/link'
+
+export default function NavLink() {
+  return <Link href="/about">About</Link>
+}
 ```
 
 | **Context**       | **Prefetched payload**           | **Cache TTL**      |
