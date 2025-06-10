@@ -24,18 +24,6 @@ declare let __turbopack_load__: any
 
 initialize({})
   .then(() => {
-    // for the page loader
-    ;(self as any).__turbopack_load_page_chunks__ = (
-      page: string,
-      chunksData: any
-    ) => {
-      const chunkPromises = chunksData.map(__turbopack_load__)
-
-      Promise.all(chunkPromises).catch((err) =>
-        console.error('failed to load chunks for page ' + page, err)
-      )
-    }
-
     return hydrate({ beforeRender: displayContent })
   })
   .catch((err) => {

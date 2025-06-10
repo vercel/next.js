@@ -53,7 +53,6 @@ import {
   removeRouteSuffix,
 } from '../../../server/dev/turbopack-utils'
 import { tryToParsePath } from '../../../lib/try-to-parse-path'
-import type { Entrypoints } from '../../../build/swc/types'
 
 interface InstrumentationDefinition {
   files: string[]
@@ -422,7 +421,6 @@ export class TurbopackManifestLoader {
   }
 
   private async writeBuildManifest(
-    entrypoints: Entrypoints,
     devRewrites: SetupOpts['fsChecker']['rewrites'] | undefined,
     productionRewrites: CustomRoutes['rewrites'] | undefined
   ): Promise<void> {
@@ -469,31 +467,19 @@ export class TurbopackManifestLoader {
       )};`
     )
 
-    const pagesKeys = [...entrypoints.page.keys()]
-    if (entrypoints.global.app) {
-      pagesKeys.push('/_app')
-    }
-    if (entrypoints.global.error) {
-      pagesKeys.push('/_error')
-    }
-
+    const pagesKeys = Object.keys(buildManifest.pages)
     const sortedPageKeys = getSortedRoutes(pagesKeys)
-    const content: ClientBuildManifest = {
+    const clientBuildManifest: ClientBuildManifest = {
       __rewrites: normalizeRewritesForBuildManifest(rewrites) as any,
-      ...Object.fromEntries(
-        sortedPageKeys.map((pathname) => [
-          pathname,
-          [`static/chunks/pages${pathname === '/' ? '/index' : pathname}.js`],
-        ])
-      ),
+      ...(buildManifest.pages as any),
       sortedPages: sortedPageKeys,
     }
-    const buildManifestJs = `self.__BUILD_MANIFEST = ${JSON.stringify(
-      content
+    const clientBuildManifestJs = `self.__BUILD_MANIFEST = ${JSON.stringify(
+      clientBuildManifest
     )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
     await writeFileAtomic(
       join(this.distDir, 'static', this.buildId, '_buildManifest.js'),
-      buildManifestJs
+      clientBuildManifestJs
     )
     await writeFileAtomic(
       join(this.distDir, 'static', this.buildId, '_ssgManifest.js'),
@@ -754,16 +740,14 @@ export class TurbopackManifestLoader {
   async writeManifests({
     devRewrites,
     productionRewrites,
-    entrypoints,
   }: {
     devRewrites: SetupOpts['fsChecker']['rewrites'] | undefined
     productionRewrites: CustomRoutes['rewrites'] | undefined
-    entrypoints: Entrypoints
   }) {
     await this.writeActionManifest()
     await this.writeAppBuildManifest()
     await this.writeAppPathsManifest()
-    await this.writeBuildManifest(entrypoints, devRewrites, productionRewrites)
+    await this.writeBuildManifest(devRewrites, productionRewrites)
     await this.writeFallbackBuildManifest()
     await this.writeMiddlewareManifest()
     await this.writeClientMiddlewareManifest()

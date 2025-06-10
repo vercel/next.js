@@ -222,7 +222,6 @@ export async function turbopackBuild(): Promise<{
     await manifestLoader.writeManifests({
       devRewrites: undefined,
       productionRewrites: rewrites,
-      entrypoints: currentEntrypoints,
     })
 
     const shutdownPromise = project.shutdown()

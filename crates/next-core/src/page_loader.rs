@@ -65,6 +65,10 @@ pub async fn create_page_loader_entry_module(
     Ok(module)
 }
 
+// This is only used in development mode. A special chunk is emitted for each page that contains the
+// page's chunks. This chunk is used to load the page's chunks in the browser on navigation.
+// In production, the page's chunks are loaded by the page loader using the build manifest.
+// The reason we need this in development is that the chunks are not known ahead of time.
 #[turbo_tasks::value(shared)]
 pub struct PageLoaderAsset {
     pub server_root: ResolvedVc<FileSystemPath>,

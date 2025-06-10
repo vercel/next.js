@@ -1124,7 +1124,6 @@ export async function createHotReloaderTurbopack(
   await manifestLoader.writeManifests({
     devRewrites: opts.fsChecker.rewrites,
     productionRewrites: undefined,
-    entrypoints: currentEntrypoints,
   })
 
   async function handleProjectUpdates() {

@@ -243,7 +243,6 @@ export async function handleRouteType({
         await manifestLoader.writeManifests({
           devRewrites,
           productionRewrites,
-          entrypoints,
         })
 
         processIssues(
@@ -334,7 +333,6 @@ export async function handleRouteType({
       await manifestLoader.writeManifests({
         devRewrites,
         productionRewrites,
-        entrypoints,
       })
 
       processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
@@ -397,7 +395,6 @@ export async function handleRouteType({
       await manifestLoader.writeManifests({
         devRewrites,
         productionRewrites,
-        entrypoints,
       })
 
       processIssues(currentEntryIssues, key, writtenEndpoint, dev, logErrors)
@@ -423,7 +420,6 @@ export async function handleRouteType({
       await manifestLoader.writeManifests({
         devRewrites,
         productionRewrites,
-        entrypoints,
       })
       processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
 
@@ -688,7 +684,6 @@ export async function handleEntrypoints({
     await manifestLoader.writeManifests({
       devRewrites,
       productionRewrites: undefined,
-      entrypoints: currentEntrypoints,
     })
 
     dev.serverFields.actualInstrumentationHookFile = '/instrumentation'
@@ -756,7 +751,6 @@ export async function handleEntrypoints({
           await manifestLoader.writeManifests({
             devRewrites,
             productionRewrites: undefined,
-            entrypoints: currentEntrypoints,
           })
 
           finishBuilding?.()
@@ -947,7 +941,6 @@ export async function handlePagesErrorRoute({
   await manifestLoader.writeManifests({
     devRewrites,
     productionRewrites,
-    entrypoints,
   })
 }
 
