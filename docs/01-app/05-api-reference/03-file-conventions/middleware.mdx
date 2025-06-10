@@ -12,6 +12,21 @@ The `middleware.js|ts` file is used to write [Middleware](/docs/app/api-referenc
 
 Middleware executes before routes are rendered. It's particularly useful for implementing custom server-side logic like authentication, logging, or handling redirects.
 
+## Use Cases
+
+Some common scenarios where Middleware is effective include:
+
+- Quick redirects after reading parts of the incoming request
+- Rewriting to different pages based on A/B tests or experiments
+- Modifying headers for all pages or a subset of pages
+
+Middleware is _not_ a good fit for:
+
+- Slow data fetching
+- Session management
+
+## Convention
+
 Use the file `middleware.ts` (or .js) in the root of your project to define Middleware. For example, at the same level as `app` or `pages`, or inside `src` if applicable.
 
 ```tsx filename="middleware.ts" switcher
@@ -39,6 +54,8 @@ export const config = {
   matcher: '/about/:path*',
 }
 ```
+
+> **Note**: While only one `middleware.ts` file is supported per project, you can still organize your middleware logic modularly. Break out middleware functionalities into separate `.ts` or `.js` files and import them into your main `middleware.ts` file. This allows for cleaner management of route-specific middleware, aggregated in the `middleware.ts` for centralized control. By enforcing a single middleware file, it simplifies configuration, prevents potential conflicts, and optimizes performance by avoiding multiple middleware layers.
 
 ## Exports
 
