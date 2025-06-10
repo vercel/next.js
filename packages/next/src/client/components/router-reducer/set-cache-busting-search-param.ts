@@ -65,5 +65,6 @@ export const setCacheBustingSearchParam = (
     .filter((pair) => !pair.startsWith(`${NEXT_RSC_UNION_QUERY}=`))
     .filter(Boolean)
 
+  pairs.push(`${NEXT_RSC_UNION_QUERY}=${uniqueCacheKey}`)
   url.search = pairs.length ? `?${pairs.join('&')}` : ''
 }
