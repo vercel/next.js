@@ -13,7 +13,7 @@ related:
 
 [React Server Components](https://react.dev/reference/rsc/server-components) improve performance and simplify data fetching, but also shift where and how data is accessed, changing some of the traditional security assumptions for handling data in frontend apps.
 
-This guide will help you understand how think about data security in Next.js and how to implement best practices.
+This guide will help you understand how to think about data security in Next.js and how to implement best practices.
 
 ## Data fetching approaches
 
@@ -457,7 +457,7 @@ export default function Page() {
 }
 ```
 
-> **Good to know:** Next.js uses (`POST` requests) to handle mutations. This prevents accidental side-effects from GET requests, reducing Cross-Site Request Forgery (CSRF) risks.
+> **Good to know:** Next.js uses `POST` requests to handle mutations. This prevents accidental side-effects from GET requests, reducing Cross-Site Request Forgery (CSRF) risks.
 
 ## Auditing
 
