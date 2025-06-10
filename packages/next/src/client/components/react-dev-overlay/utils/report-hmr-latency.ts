@@ -20,13 +20,14 @@ export default function reportHmrLatency(
   updatedModules: ReadonlyArray<string | number>,
   startMsSinceEpoch: number,
   endMsSinceEpoch: number,
-  hasUpdate: boolean = true
+  hasUpdate = true
 ) {
-  const latencyMs = endMsSinceEpoch - startMsSinceEpoch
-  console.log(`[Fast Refresh] done in ${latencyMs}ms`)
   if (!hasUpdate) {
     return
   }
+
+  const latencyMs = endMsSinceEpoch - startMsSinceEpoch
+  console.log(`[Fast Refresh] done in ${latencyMs}ms`)
   sendMessage(
     JSON.stringify({
       event: 'client-hmr-latency',
