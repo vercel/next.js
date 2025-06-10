@@ -1513,6 +1513,8 @@ describe('ReactRefreshLogBox app', () => {
        }
       `)
     } else if (isRspack) {
+      // rspack returns error content that contains absolute paths which are non deterministic
+      // using toInclude instead of inline snapshot to check redbox content for correctness
       await session.assertHasRedbox()
       const source = await session.getRedboxSource()
       const description = await session.getRedboxDescription()
