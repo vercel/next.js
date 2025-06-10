@@ -99,7 +99,7 @@ function HoverPrefetchLink({
 
 You can extend the `<Link>` component to create your own custom prefetching strategy. For example, using the [ForesightJS](https://foresightjs.com/docs/integrations/nextjs) library which prefetches links by predicting the direction of the user's cursor.
 
-You can also use [`useRouter`](/docs/app/api-reference/functions/use-router) to recreate some of the some of the native `<Link>` behavior, this allows you to build your custom prefetching strategy. But be aware this opts you into maintaining prefetching, cache invalidation, and accessibility concerns.
+Alternatively, you can use [`useRouter`](/docs/app/api-reference/functions/use-router) to recreate some of the some of the native `<Link>` behavior. However, be aware this opts you into maintaining prefetching and cache invalidation.
 
 ```tsx
 'use client'
