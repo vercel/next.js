@@ -73,7 +73,6 @@ fn main() {
             tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
                 .on_thread_stop(|| {
-                    TurboMalloc::thread_stop();
                     tracing::debug!("threads stopped");
                 })
                 .build()

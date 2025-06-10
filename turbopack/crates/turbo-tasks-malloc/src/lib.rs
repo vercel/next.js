@@ -6,7 +6,7 @@ use std::{
     marker::PhantomData,
 };
 
-use self::counter::{add, flush, global_counters, remove, update};
+use self::counter::{add, global_counters, remove, update};
 
 #[derive(Default, Clone, Debug)]
 pub struct AllocationInfo {
@@ -129,10 +129,6 @@ impl TurboMalloc {
     // Returns statistics for all allocations in the application that are tracked by TurboMalloc.
     pub fn global_allocation_counters() -> AllocationCounters {
         global_counters()
-    }
-
-    pub fn thread_stop() {
-        flush();
     }
 
     pub fn allocation_counters() -> AllocationCounters {
