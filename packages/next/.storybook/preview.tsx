@@ -1,4 +1,18 @@
 import type { Preview } from '@storybook/react'
+import { useInsertionEffect } from 'react'
+
+function CreatePortalNode() {
+  useInsertionEffect(() => {
+    const portalNode = document.createElement('nextjs-portal')
+    document.body.appendChild(portalNode)
+
+    return () => {
+      document.body.removeChild(portalNode)
+    }
+  })
+
+  return null
+}
 
 const preview: Preview = {
   parameters: {
@@ -28,6 +42,14 @@ const preview: Preview = {
       manual: true,
     },
   },
+  decorators: [
+    (Story) => (
+      <>
+        <CreatePortalNode />
+        <Story />
+      </>
+    ),
+  ],
 }
 
 export default preview

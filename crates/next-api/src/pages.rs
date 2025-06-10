@@ -29,8 +29,8 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, Value, ValueToString, Vc,
-    fxindexmap, fxindexset, trace::TraceRawVcs,
+    Completion, FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, ValueToString, Vc, fxindexmap,
+    fxindexset, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{
     self, File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
@@ -629,14 +629,13 @@ impl PagesProject {
                 client_module_context,
                 self.project().project_path().join(rcstr!("_")),
             )),
-            Request::parse(Value::new(Pattern::Constant(
+            Request::parse(Pattern::Constant(
                 match *self.project().next_mode().await? {
-                    NextMode::Development => "next/dist/client/next-dev-turbopack.js",
-                    NextMode::Build => "next/dist/client/next-turbopack.js",
-                }
-                .into(),
-            ))),
-            Value::new(EcmaScriptModulesReferenceSubType::Undefined),
+                    NextMode::Development => rcstr!("next/dist/client/next-dev-turbopack.js"),
+                    NextMode::Build => rcstr!("next/dist/client/next-turbopack.js"),
+                },
+            )),
+            EcmaScriptModulesReferenceSubType::Undefined,
             false,
             None,
         )

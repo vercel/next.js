@@ -62,6 +62,7 @@ function PageSegmentTree({ tree }: { tree: Trie<SegmentNode> | undefined }) {
         tree={tree}
         node={tree.getRoot()}
         level={0}
+        segment=""
       />
     </div>
   )
@@ -69,22 +70,40 @@ function PageSegmentTree({ tree }: { tree: Trie<SegmentNode> | undefined }) {
 
 function PageSegmentTreeLayerPresentation({
   tree,
+  segment,
   node,
   level,
 }: {
   tree: Trie<SegmentNode>
+  segment: string
   node: TrieNode<SegmentNode>
   level: number
 }) {
-  const segments = node.value?.pagePath?.split('/') || []
-  const fileName = segments[segments.length - 1] || ''
+  const pagePath = node.value?.pagePath || ''
   const nodeName = node.value?.type
-  const pagePathPrefix = segments.slice(0, -1).join('/')
+
+  const segments = pagePath.split('/') || []
+  const fileName = segments.pop() || ''
+  const childrenKeys = Object.keys(node.children)
+
+  const sortedChildrenKeys = childrenKeys.sort((a, b) => {
+    // Prioritize if it's a file convention like layout or page,
+    // then the rest parallel routes.
+    const aHasExt = a.includes('.')
+    const bHasExt = b.includes('.')
+    if (aHasExt && !bHasExt) return -1
+    if (!aHasExt && bHasExt) return 1
+    // Otherwise sort alphabetically
+    return a.localeCompare(b)
+  })
 
   return (
-    <div className="segment-explorer-item">
-      {!fileName || level === 0 ? null : (
-        <div className="segment-explorer-item-row">
+    <div
+      className="segment-explorer-item"
+      data-nextjs-devtool-segment-explorer-segment={segment}
+    >
+      {fileName ? (
+        <div className={cx('segment-explorer-item-row')}>
           <div className="segment-explorer-line">
             <div className={`segment-explorer-line-text-${nodeName}`}>
               <span
@@ -95,25 +114,46 @@ function PageSegmentTreeLayerPresentation({
               >
                 {nodeName === 'layout' ? ICONS.layout : ICONS.page}
               </span>
-              {pagePathPrefix === '' ? '' : `${pagePathPrefix}/`}
               <span className="segment-explorer-filename-path">{fileName}</span>
             </div>
           </div>
         </div>
-      )}
+      ) : segment ? (
+        <div className={'segment-explorer-item-row'}>
+          <div className="segment-explorer-line">
+            <div className={`segment-explorer-line-text-${nodeName}`}>
+              <span
+                className={cx(
+                  'segment-explorer-line-icon',
+                  `segment-explorer-line-icon-${nodeName}`
+                )}
+              ></span>
+              <span className="segment-explorer-filename-path">
+                {`${segment}/`}
+              </span>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
-      <div className="tree-node-expanded-rendered-children">
-        {Object.entries(node.children).map(
-          ([key, child]) =>
+      <div
+        className="segment-explorer-segment-children"
+        data-nextjs-devtool-segment-explorer-level={level}
+      >
+        {sortedChildrenKeys.map((childSegment) => {
+          const child = node.children[childSegment]
+          return (
             child && (
               <PageSegmentTreeLayerPresentation
-                key={key}
+                key={childSegment}
+                segment={childSegment}
                 tree={tree}
                 node={child}
                 level={level + 1}
               />
             )
-        )}
+          )
+        })}
       </div>
     </div>
   )
@@ -148,6 +188,13 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
     padding: 2px 0;
   }
 
+  [data-nextjs-devtool-segment-explorer-level].segment-explorer-segment-children {
+    padding-left: 20px;
+  }
+  [data-nextjs-devtool-segment-explorer-level='0'].segment-explorer-segment-children {
+    padding-left: 0px;
+  }
+
   .segment-explorer-filename-path {
     display: inline-block;
   }
@@ -168,12 +215,9 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
   .segment-explorer-line-icon-page {
     color: inherit;
   }
-  .segment-explorer-line-icon-layout {
-    color: var(--color-gray-1-00);
-  }
 
   .segment-explorer-line-text-page {
-    color: var(--color-blue-900);
+    color: var(--color-gray-1000);
     font-weight: 500;
   }
 `
