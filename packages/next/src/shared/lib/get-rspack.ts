@@ -17,6 +17,23 @@ export function getRspackCore() {
   }
 }
 
+export function getAstGrep() {
+  warnRspack()
+  try {
+    const paths = [require.resolve('next-rspack')]
+    // eslint-disable-next-line import/no-extraneous-dependencies
+    return require(require.resolve('@ast-grep/napi', { paths }))
+  } catch (e) {
+    if (e instanceof Error && 'code' in e && e.code === 'MODULE_NOT_FOUND') {
+      throw new Error(
+        '@ast-grep/napi is not available. Please make sure `next-rspack` is correctly installed.'
+      )
+    }
+
+    throw e
+  }
+}
+
 export function getRspackReactRefresh() {
   warnRspack()
   try {
