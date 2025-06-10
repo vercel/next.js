@@ -76,7 +76,7 @@ pub enum ModuleRuleEffect {
     Ignore,
 }
 
-#[turbo_tasks::value(serialization = "auto_for_input", shared)]
+#[turbo_tasks::value(shared)]
 #[derive(Hash, Debug, Copy, Clone)]
 pub enum ModuleType {
     Ecmascript {

@@ -23,7 +23,7 @@ use crate::{
     tree_shake::{PartId, find_turbopack_part_id_in_asserts},
 };
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
+#[turbo_tasks::value]
 #[derive(Default, Debug, Clone, Hash)]
 pub struct ImportAnnotations {
     // TODO store this in more structured way

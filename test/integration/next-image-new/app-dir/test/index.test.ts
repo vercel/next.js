@@ -1568,25 +1568,26 @@ function runTests(mode: 'dev' | 'server') {
   })
 
   it('should be valid HTML', async () => {
-    let browser
-    try {
-      browser = await webdriver(appPort, '/valid-html-w3c')
-      await waitFor(1000)
-      expect(await browser.hasElementByCssSelector('img')).toBeTruthy()
-      const url = await browser.url()
-      const result = (await validateHTML({
-        url,
-        format: 'json',
-        isLocal: true,
-        validator: 'whatwg',
-      })) as any
-      expect(result.isValid).toBe(true)
-      expect(result.errors).toEqual([])
-    } finally {
-      if (browser) {
-        await browser.close()
-      }
-    }
+    // `html-validator` underlying API (W3C validator or Nu HTML Checker) ignores or overrides custom headers.
+    // So we need to use a custom User-Agent to avoid streaming metadata.
+    // Otherwise the HTML will failed with validation which requires title to be rendered under the `head` tag.
+    const html = await renderViaHTTP(appPort, '/valid-html-w3c', null, {
+      headers: {
+        'User-Agent': 'Discordbot',
+      },
+    })
+
+    const result = (await validateHTML({
+      data: html,
+      format: 'json',
+      isLocal: true,
+      validator: 'whatwg',
+    })) as any
+    expect(result.isValid).toBe(true)
+    expect(result.errors).toEqual([])
+
+    const $ = cheerio.load(html)
+    expect($('img').length).toBeGreaterThan(0)
   })
 
   it('should call callback ref cleanups when unmounting', async () => {

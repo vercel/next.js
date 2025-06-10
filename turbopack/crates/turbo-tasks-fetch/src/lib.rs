@@ -87,7 +87,7 @@ pub async fn fetch(
 
             Ok(Vc::cell(Ok(HttpResponse {
                 status,
-                body: HttpResponseBody::resolved_cell(HttpResponseBody(body)),
+                body: HttpResponseBody(body).resolved_cell(),
             }
             .resolved_cell())))
         }
