@@ -29,7 +29,7 @@ When navigating to the new page, there's no full page reload or browser loading 
 | [**Client Cache TTL**](/docs/app/deep-dive/caching#full-route-cache) | 5 min (default) | Off unless enabled                           |
 | **Server roundtrip on click**                                        | No              | Yes (streamed after shell)                   |
 
-> **Good to know:** During the initial navigation, the browser fetches the HTML, RSC Payload, and JS Bundle. For subsequent navigations, the browser will fetch the RSC Payload for Server Components and JS bundle for Client Components.
+> **Good to know:** During the initial navigation, the browser fetches the HTML, JavaScript, and React Server Components (RSC) Payload. For subsequent navigations, the browser will fetch the RSC Payload for Server Components and JS bundle for Client Components.
 
 ## Automatic prefetch
 
