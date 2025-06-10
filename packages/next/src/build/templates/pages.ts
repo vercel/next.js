@@ -43,6 +43,7 @@ import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
 import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { normalizeLocalePath } from '../../shared/lib/i18n/normalize-locale-path'
+import { RSC_HEADER } from '../../client/components/app-router-headers'
 
 // Re-export the component (should be the default export).
 export default hoist(userland, 'default')
@@ -499,6 +500,10 @@ export async function handler(
         }
 
         if (isIsrFallback) {
+          const isRSCRequest =
+            getRequestMeta(req, 'isRSCRequest') ??
+            Boolean(req.headers[RSC_HEADER])
+
           const fallbackResponse = await routeModule.getResponseCache(req).get(
             routeModule.isDev
               ? null
@@ -509,12 +514,15 @@ export async function handler(
               previousCacheEntry: previousFallbackCacheEntry = null,
             }) => {
               if (!routeModule.isDev) {
-                return toResponseCacheEntry(previousFallbackCacheEntry)
+                return toResponseCacheEntry(previousFallbackCacheEntry, {
+                  isRscRequest: isRSCRequest,
+                })
               }
               return doRender()
             },
             {
               routeKind: RouteKind.PAGES,
+              isRscRequest: isRSCRequest,
               isFallback: true,
               isRoutePPREnabled: false,
               isOnDemandRevalidate: false,

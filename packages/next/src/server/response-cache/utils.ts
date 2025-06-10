@@ -9,6 +9,7 @@ import {
 
 import RenderResult from '../render-result'
 import { RouteKind } from '../route-kind'
+import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 
 export async function fromResponseCacheEntry(
   cacheEntry: ResponseCacheEntry
@@ -39,7 +40,8 @@ export async function fromResponseCacheEntry(
 }
 
 export async function toResponseCacheEntry(
-  response: IncrementalResponseCacheEntry | null
+  response: IncrementalResponseCacheEntry | null,
+  { isRscRequest }: { isRscRequest: boolean }
 ): Promise<ResponseCacheEntry | null> {
   if (!response) return null
 
@@ -62,7 +64,14 @@ export async function toResponseCacheEntry(
               html: RenderResult.fromStatic(response.value.html),
               rscData: response.value.rscData,
               headers: response.value.headers,
-              status: response.value.status,
+              status:
+                // RSC redirect is embedded in the payload itself and handled by client router directly
+                // This makes it consistent with how it's handled in minimalMode
+                isRscRequest &&
+                response.value.status &&
+                RedirectStatusCode[response.value.status]
+                  ? 200
+                  : response.value.status,
               postponed: response.value.postponed,
               segmentData: response.value.segmentData,
             } satisfies CachedAppPageValue)
