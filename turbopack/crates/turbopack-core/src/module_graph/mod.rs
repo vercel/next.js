@@ -1,12 +1,17 @@
 use std::{
-    collections::{BinaryHeap, HashSet, VecDeque},
+    collections::{BinaryHeap, HashSet, VecDeque, hash_map::Entry},
     future::Future,
 };
 
 use anyhow::{Context, Result, bail};
+use auto_hash_map::AutoSet;
 use petgraph::{
+    Directed,
     graph::{DiGraph, EdgeIndex, NodeIndex},
-    visit::{Dfs, EdgeRef, IntoNodeReferences, NodeIndexable, VisitMap, Visitable},
+    visit::{
+        Dfs, EdgeRef, IntoNeighbors, IntoNodeReferences, NodeIndexable, Reversed, VisitMap,
+        Visitable,
+    },
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
@@ -18,10 +23,11 @@ use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
     trace::TraceRawVcs,
 };
+use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
     chunk::{AsyncModuleInfo, ChunkingContext, ChunkingType},
-    issue::Issue,
+    issue::{ImportTrace, ImportTracer, ImportTraces, Issue},
     module::Module,
     module_graph::{
         async_module_info::{AsyncModulesInfo, compute_async_module_info},
@@ -222,12 +228,13 @@ impl SingleModuleGraph {
         let node_count = visited_nodes.0.len();
         drop(visited_nodes);
 
-        let mut graph = DiGraph::with_capacity(
-            node_count,
-            // From real world measurements each module has about 3-4 children
-            // If it has more this would cause an additional allocation, but that's fine
-            node_count * 4,
-        );
+        let mut graph: petgraph::Graph<SingleModuleGraphNode, ChunkingType, Directed> =
+            DiGraph::with_capacity(
+                node_count,
+                // From real world measurements each module has about 3-4 children
+                // If it has more this would cause an additional allocation, but that's fine
+                node_count * 4,
+            );
 
         let mut number_of_modules = 0;
         let mut modules: FxHashMap<ResolvedVc<Box<dyn Module>>, NodeIndex> =
@@ -328,13 +335,18 @@ impl SingleModuleGraph {
             }
         }
 
-        Ok(SingleModuleGraph {
+        let graph = SingleModuleGraph {
             graph: TracedDiGraph::new(graph),
             number_of_modules,
             modules,
             entries: entries.clone(),
         }
-        .cell())
+        .cell();
+
+        turbo_tasks::emit(ResolvedVc::upcast::<Box<dyn ImportTracer>>(
+            ModuleGraphImportTracer::new(graph).to_resolved().await?,
+        ));
+        Ok(graph)
     }
 
     fn get_module(&self, module: ResolvedVc<Box<dyn Module>>) -> Result<NodeIndex> {
@@ -689,6 +701,219 @@ impl SingleModuleGraph {
                 }
             }
         }
+    }
+
+    /// For each issue computes a (possibly empty) list of traces from the file that produced the
+    /// issue to roots in this module graph.
+    /// There are potentially multiple traces because a given file may get assigned to multiple
+    /// modules depend on how it is used in the application.  Consider a simple utility that is used
+    /// by SSR pages, client side code, and the edge runtime.  This may lead to there being 3
+    /// traces.
+    /// The returned map is guaranteed to have an entry for every issue.
+    pub async fn compute_import_traces_for_issues(
+        &self,
+        issues: &AutoSet<ResolvedVc<Box<dyn Issue>>>,
+    ) -> Result<FxHashMap<ResolvedVc<Box<dyn Issue>>, Vec<ImportTrace>>> {
+        let issue_paths = issues
+            .iter()
+            .map(|issue| async move { Ok((*issue.file_path().await?).clone()) })
+            .try_join()
+            .await?;
+        let mut file_path_to_traces: FxHashMap<FileSystemPath, Vec<ImportTrace>> =
+            FxHashMap::with_capacity_and_hasher(issue_paths.len(), Default::default());
+        // initialize an empty vec for each path we care about
+        for issue in &issue_paths {
+            file_path_to_traces.entry(issue.clone()).or_default();
+        }
+
+        {
+            let modules = self
+                .modules
+                .iter()
+                .map(|(module, &index)| async move {
+                    Ok(((*module.ident().path().await?).clone(), index))
+                })
+                .try_join()
+                .await?;
+            // Reverse the graph so we can find paths to roots
+            let reversed_graph = Reversed(&self.graph.0);
+            for (path, module_idx) in modules {
+                if let Entry::Occupied(mut entry) = file_path_to_traces.entry(path) {
+                    // compute the path from this index to a root of the graph.
+                    let Some((_, path)) = petgraph::algo::astar(
+                        &reversed_graph,
+                        module_idx,
+                        |n| reversed_graph.neighbors(n).next().is_none(),
+                        // Edge weights
+                        |e| match e.weight() {
+                            // Prefer following normal imports/requires when we can
+                            ChunkingType::Parallel { .. } => 0,
+                            _ => 1,
+                        },
+                        // `astar` can be accelerated with a distance estimation heuristic, as long
+                        // as our estimate is never > the actual distance.
+                        // However we don't have a mechanism, so just
+                        // estimate 0 which essentially makes this behave like
+                        // dijktra's shortest path algorithm.  `petgraph` has an implementation of
+                        // dijkstra's but it doesn't report  paths, just distances.
+                        // NOTE: dijkstra's with integer weights can be accelerated with incredibly
+                        // efficient priority queue structures (basically with only 0 and 1 as
+                        // weights you can use a `VecDeque`!).  However,
+                        // this is unlikely to be a performance concern.
+                        // Furthermore, if computing paths _does_ become a performance concern, the
+                        // solution would be a hand written implementation of dijkstras so we can
+                        // hoist redundant work out of this loop.
+                        |_| 0,
+                    ) else {
+                        unreachable!("there must be a path to a root");
+                    };
+                    // Represent the path as a sequence of AssetIdents
+                    // TODO: consider hinting at various transitions (e.g. was this an
+                    // import/require/dynamic-import?)
+                    let path = path
+                        .into_iter()
+                        .map(async |n| {
+                            Ok(self
+                                .graph
+                                .node_weight(n)
+                                .unwrap()
+                                .module()
+                                .ident()
+                                .await?
+                                .clone())
+                        })
+                        .try_join()
+                        .await?;
+                    entry.get_mut().push(path);
+                }
+            }
+        }
+        let mut issue_to_traces: FxHashMap<ResolvedVc<Box<dyn Issue>>, Vec<ImportTrace>> =
+            FxHashMap::with_capacity_and_hasher(issues.len(), Default::default());
+        // Map filepaths back to issues
+        // We can do this by zipping the issue_paths with the issues since they are in the same
+        // order.
+        for (path, issue) in issue_paths.iter().zip(issues) {
+            if let Some(traces) = file_path_to_traces.get(path) {
+                issue_to_traces.insert(*issue, traces.clone());
+            }
+        }
+        Ok(issue_to_traces)
+    }
+}
+
+#[turbo_tasks::value]
+struct ModuleGraphImportTracer {
+    graph: ResolvedVc<SingleModuleGraph>,
+}
+
+#[turbo_tasks::value(shared)]
+struct PathToModulesMap {
+    map: FxHashMap<FileSystemPath, Vec<ResolvedVc<Box<dyn Module>>>>,
+}
+
+#[turbo_tasks::value_impl]
+impl ModuleGraphImportTracer {
+    #[turbo_tasks::function]
+    fn new(graph: ResolvedVc<SingleModuleGraph>) -> Vc<Self> {
+        Self::cell(Self { graph })
+    }
+
+    // Compute this mapping on demand since it might not always be needed.
+    #[turbo_tasks::function]
+    async fn path_to_modules(&self) -> Result<Vc<PathToModulesMap>> {
+        let path_and_modules = self
+            .graph
+            .await?
+            .modules
+            .iter()
+            .map(|(&module, _)| async move { Ok((module.ident().path().owned().await?, module)) })
+            .try_join()
+            .await?;
+        let mut map: FxHashMap<FileSystemPath, Vec<ResolvedVc<Box<dyn Module>>>> =
+            FxHashMap::default();
+        for (path, module) in path_and_modules {
+            map.entry(path).or_default().push(module)
+        }
+        Ok(PathToModulesMap::cell(PathToModulesMap { map }))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ImportTracer for ModuleGraphImportTracer {
+    #[turbo_tasks::function]
+    async fn get_traces(
+        self: Vc<Self>,
+        path: ResolvedVc<FileSystemPath>,
+    ) -> Result<Vc<ImportTraces>> {
+        let path_to_modules = self.path_to_modules().await?;
+        let Some(modules) = path_to_modules.map.get(&*path.await?) else {
+            return Ok(Vc::default()); // This isn't unusual, the file just might not be in this
+            // graph.
+        };
+        debug_assert!(!modules.is_empty(), "modules should not be an empty vec");
+        let graph = &*self.await?.graph.await?;
+
+        let reversed_graph = Reversed(&graph.graph.0);
+        return Ok(ImportTraces::cell(ImportTraces(
+            modules
+                .iter()
+                .map(|m| async move {
+                    let Some(&module_idx) = graph.modules.get(m) else {
+                        // The only way this could really happen is if `path_to_modules` is computed
+                        // from a different graph than graph`.  Just error out.
+                        bail!("inconsistent read?")
+                    };
+                    // compute the path from this index to a root of the graph.
+                    let Some((_, path)) = petgraph::algo::astar(
+                        &reversed_graph,
+                        module_idx,
+                        |n| reversed_graph.neighbors(n).next().is_none(),
+                        // Edge weights
+                        |e| match e.weight() {
+                            // Prefer following normal imports/requires when we can
+                            ChunkingType::Parallel { .. } => 0,
+                            _ => 1,
+                        },
+                        // `astar` can be accelerated with a distance estimation heuristic, as long
+                        // as our estimate is never > the actual distance.
+                        // However we don't have a mechanism, so just
+                        // estimate 0 which essentially makes this behave like
+                        // dijktra's shortest path algorithm.  `petgraph` has an implementation of
+                        // dijkstra's but it doesn't report  paths, just distances.
+                        // NOTE: dijkstra's with integer weights can be accelerated with incredibly
+                        // efficient priority queue structures (basically with only 0 and 1 as
+                        // weights you can use a `VecDeque`!).  However,
+                        // this is unlikely to be a performance concern.
+                        // Furthermore, if computing paths _does_ become a performance concern, the
+                        // solution would be a hand written implementation of dijkstras so we can
+                        // hoist redundant work out of this loop.
+                        |_| 0,
+                    ) else {
+                        unreachable!("there must be a path to a root");
+                    };
+
+                    // Represent the path as a sequence of AssetIdents
+                    // TODO: consider hinting at various transitions (e.g. was this an
+                    // import/require/dynamic-import?)
+                    let path = path
+                        .into_iter()
+                        .map(async |n| {
+                            graph
+                                .graph
+                                .node_weight(n)
+                                .unwrap() // This is safe since `astar`` only returns indices from the graph
+                                .module()
+                                .ident()
+                                .await
+                        })
+                        .try_join()
+                        .await?;
+                    Ok(path)
+                })
+                .try_join()
+                .await?,
+        )));
     }
 }
 
@@ -1299,6 +1524,7 @@ pub struct SingleModuleGraphModuleNode {
 #[derive(Clone, Debug, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
 pub enum SingleModuleGraphNode {
     Module(SingleModuleGraphModuleNode),
+    // Models a module that is referenced but has already been visited by an earlier graph.
     VisitedModule {
         idx: GraphNodeIndex,
         module: ResolvedVc<Box<dyn Module>>,

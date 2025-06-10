@@ -121,7 +121,7 @@ graph TD
 graph TD
     N0["Items: [ItemId(0, ImportOfModule)]"];
     N1["Items: [ItemId(0, ImportBinding(0))]"];
-    N2["Items: [ItemId(1, VarDeclarator(0)), ItemId(2, Normal), ItemId(3, Normal), ItemId(Export((&quot;__TURBOPACK__default__export__&quot;, #4), &quot;default&quot;))]"];
+    N2["Items: [ItemId(1, VarDeclarator(0)), ItemId(2, Normal), ItemId(3, Normal), ItemId(Export((&quot;__TURBOPACK__default__export__&quot;, #0), &quot;default&quot;))]"];
     N1 --> N0;
 ```
 # Entrypoints

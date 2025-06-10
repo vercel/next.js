@@ -28,7 +28,6 @@
 
 #![feature(trivial_bounds)]
 #![feature(min_specialization)]
-#![feature(thread_local)]
 #![feature(try_trait_v2)]
 #![deny(unsafe_op_in_unsafe_fn)]
 #![feature(error_generic_member_access)]
@@ -63,6 +62,7 @@ mod native_function;
 mod no_move_vec;
 mod once_map;
 mod output;
+pub mod panic_hooks;
 pub mod persisted_graph;
 pub mod primitives;
 mod raw_vc;
@@ -84,7 +84,7 @@ mod value;
 mod value_type;
 mod vc;
 
-use std::{cell::RefCell, hash::BuildHasherDefault, panic};
+use std::hash::BuildHasherDefault;
 
 pub use anyhow::{Error, Result};
 use auto_hash_map::AutoSet;
@@ -123,13 +123,12 @@ pub use state::{State, TransientState};
 pub use task::{SharedReference, TypedSharedReference, task_input::TaskInput};
 pub use trait_ref::{IntoTraitRef, TraitRef};
 pub use turbo_tasks_macros::{TaskInput, function, value_impl};
-pub use value::{TransientInstance, TransientValue, Value};
+pub use value::{TransientInstance, TransientValue};
 pub use value_type::{TraitMethod, TraitType, ValueType};
 pub use vc::{
     Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, ReadVcFuture, ResolvedVc,
-    TypedForInput, Upcast, ValueDefault, Vc, VcCast, VcCellNewMode, VcCellSharedMode,
-    VcDefaultRead, VcRead, VcTransparentRead, VcValueTrait, VcValueTraitCast, VcValueType,
-    VcValueTypeCast,
+    Upcast, ValueDefault, Vc, VcCast, VcCellNewMode, VcCellSharedMode, VcDefaultRead, VcRead,
+    VcTransparentRead, VcValueTrait, VcValueTraitCast, VcValueType, VcValueTypeCast,
 };
 
 pub type SliceMap<K, V> = Box<[(K, V)]>;
@@ -239,11 +238,8 @@ macro_rules! fxindexset {
 /// required for persistent caching of tasks to disk.
 ///
 /// - **`"auto"` *(default)*:** Derives the serialization traits and enables serialization.
-/// - **`"auto_for_input"`:** Same as `"auto"`, but also adds the marker trait [`TypedForInput`].
 /// - **`"custom"`:** Prevents deriving the serialization traits, but still enables serialization
 ///   (you must manually implement [`serde::Serialize`] and [`serde::Deserialize`]).
-/// - **`"custom_for_input"`:** Same as `"custom"`, but also adds the marker trait
-///   [`TypedForInput`].
 /// - **`"none"`:** Disables serialization and prevents deriving the traits.
 ///
 /// ## `shared`
@@ -304,19 +300,6 @@ pub type TaskIdSet = AutoSet<TaskId, BuildHasherDefault<FxHasher>, 2>;
 
 pub mod test_helpers {
     pub use super::manager::{current_task_for_testing, with_turbo_tasks_for_testing};
-}
-
-thread_local! {
-    /// The location of the last error that occurred in the current thread.
-    ///
-    /// Used for debugging when errors are sent to telemetry
-    pub(crate) static LAST_ERROR_LOCATION: RefCell<Option<String>> = const { RefCell::new(None) };
-}
-
-pub fn handle_panic(info: &panic::PanicHookInfo<'_>) {
-    LAST_ERROR_LOCATION.with_borrow_mut(|loc| {
-        *loc = info.location().map(|l| l.to_string());
-    });
 }
 
 pub fn register() {

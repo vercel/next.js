@@ -28,7 +28,7 @@ petgraph = { workspace = true }
 regex = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true }
-serde_json = { workspace = true }
+serde_json = { workspace = true, features = ["raw_value"] }
 sourcemap = { workspace = true }
 smallvec = { workspace = true }
 strsim = { workspace = true }
@@ -71,6 +71,7 @@ swc_core = { workspace = true, features = [
   "testing",
   "base",
 ] }
+bitvec = "1.0.1"
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }

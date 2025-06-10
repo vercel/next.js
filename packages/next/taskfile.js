@@ -3132,6 +3132,16 @@ export async function next_bundle_server(task, opts) {
   })
 }
 
+export async function next_bundle_devtools(task, opts) {
+  await task.source('dist').webpack({
+    watch: opts.dev,
+    config: require('./next-devtools.webpack-config')({
+      dev: opts.dev,
+    }),
+    name: 'next-bundle-devtools-dev',
+  })
+}
+
 export async function next_bundle(task, opts) {
   await task.parallel(
     [
@@ -3152,6 +3162,8 @@ export async function next_bundle(task, opts) {
       'next_bundle_pages_dev_turbo',
       // builds the minimal server
       'next_bundle_server',
+      // devtools
+      'next_bundle_devtools',
     ],
     opts
   )

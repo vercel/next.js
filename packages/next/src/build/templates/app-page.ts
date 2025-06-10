@@ -233,16 +233,6 @@ export async function handler(
   const botType = getBotType(userAgent)
   const isHtmlBot = isHtmlBotRequest(req)
   const shouldWaitOnAllReady = isHtmlBot && isRoutePPREnabled
-  let serveStreamingMetadata = shouldServeStreamingMetadata(
-    userAgent,
-    // @ts-expect-error update for readonly
-    nextConfig.htmlLimitedBots
-  )
-
-  if (isHtmlBot && isRoutePPREnabled) {
-    isIsr = false
-    serveStreamingMetadata = false
-  }
 
   // If this is a dynamic route with PPR enabled and the default route
   // matches were set, then we should pass the fallback route params to
@@ -313,6 +303,24 @@ export async function handler(
   // request.
   const isRevalidate =
     isIsr && !supportsDynamicResponse && !postponed && !isDynamicRSCRequest
+
+  let serveStreamingMetadata =
+    // During the export phase of `next build` we're hard-coding
+    // `serveStreamingMetadata` to `true`, so we need to do the same during
+    // revalidation.
+    isRevalidate ||
+    // Otherwise we're checking the user agent to decide if we should
+    // serve streaming metadata.
+    shouldServeStreamingMetadata(
+      userAgent,
+      // @ts-expect-error update for readonly
+      nextConfig.htmlLimitedBots
+    )
+
+  if (isHtmlBot && isRoutePPREnabled) {
+    isIsr = false
+    serveStreamingMetadata = false
+  }
 
   const method = req.method || 'GET'
   const tracer = getTracer()
