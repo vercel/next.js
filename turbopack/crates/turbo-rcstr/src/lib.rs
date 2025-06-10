@@ -161,6 +161,16 @@ impl Borrow<str> for RcStr {
     }
 }
 
+impl From<BytesStr> for RcStr {
+    fn from(s: BytesStr) -> Self {
+        let bytes: Vec<u8> = s.into_bytes().into();
+        RcStr::from(unsafe {
+            // Safety: BytesStr are valid utf-8
+            String::from_utf8_unchecked(bytes)
+        })
+    }
+}
+
 impl From<Arc<String>> for RcStr {
     fn from(s: Arc<String>) -> Self {
         match Arc::try_unwrap(s) {
