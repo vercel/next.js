@@ -157,6 +157,8 @@ Cached data can be revalidated in two ways, with:
 - **Time-based Revalidation**: Revalidate data after a certain amount of time has passed and a new request is made. This is useful for data that changes infrequently and freshness is not as critical.
 - **On-demand Revalidation:** Revalidate data based on an event (e.g. form submission). On-demand revalidation can use a tag-based or path-based approach to revalidate groups of data at once. This is useful when you want to ensure the latest data is shown as soon as possible (e.g. when content from your headless CMS is updated).
 
+> **Good to know**: In development environments, if the request header contains cache-control: no-store, it ensures that data is always fetched fresh from the source, bypassing the cache entirely.
+
 #### Time-based Revalidation
 
 To revalidate data at a timed interval, you can use the `next.revalidate` option of `fetch` to set the cache lifetime of a resource (in seconds).
