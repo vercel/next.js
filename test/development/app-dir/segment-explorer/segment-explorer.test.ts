@@ -26,35 +26,24 @@ describe('segment-explorer', () => {
   it('should render the segment explorer for parallel routes', async () => {
     const browser = await next.browser('/parallel-routes')
     expect(await getSegmentExplorerContent(browser)).toMatchInlineSnapshot(`
-     "app/
-     layout.tsx
-     parallel-routes/
-     layout.tsx
-     page.tsx
-     @bar/
-     layout.tsx
-     page.tsx
-     @foo/
-     layout.tsx
-     page.tsx"
+     "applayout.tsx
+     parallel-routeslayout.tsx
+     parallel-routespage.tsx
+     @barlayout.tsx
+     @barpage.tsx
+     @foolayout.tsx
+     @foopage.tsx"
     `)
   })
 
   it('should render the segment explorer for nested routes', async () => {
     const browser = await next.browser('/blog/~/grid')
     expect(await getSegmentExplorerContent(browser)).toMatchInlineSnapshot(`
-     "app/
-     layout.tsx
-     (v2)/
-     layout.tsx
-     blog/
-     (team)/
-     layout.tsx
-     ~/
-     (overview)/
-     layout.tsx
-     grid/
-     page.tsx"
+     "applayout.tsx
+     (v2)layout.tsx
+     (team)layout.tsx
+     (overview)layout.tsx
+     gridpage.tsx"
     `)
   })
 })

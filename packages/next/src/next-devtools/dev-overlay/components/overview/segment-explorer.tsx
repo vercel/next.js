@@ -9,46 +9,6 @@ import {
 } from '../../../../shared/lib/devtool/app-segment-tree'
 import type { Trie, TrieNode } from '../../../../shared/lib/devtool/trie'
 
-const IconLayout = (props: React.SVGProps<SVGSVGElement>) => {
-  return (
-    <svg
-      {...props}
-      viewBox="0 0 16 16"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M16 12.5L15.9873 12.7559C15.8677 13.9323 14.9323 14.8677 13.7559 14.9873L13.5 15H2.5L2.24414 14.9873C1.06772 14.8677 0.132274 13.9323 0.0126953 12.7559L0 12.5V1H16V12.5ZM1.5 6.25488V12.5C1.5 13.0523 1.94772 13.5 2.5 13.5H4.99512V6.25488H1.5ZM6.24512 6.25488V13.5H13.5C14.0523 13.5 14.5 13.0523 14.5 12.5V6.25488H6.24512ZM1.5 5.00488H14.5V2.5H1.5V5.00488Z"
-        fill="currentColor"
-      />
-    </svg>
-  )
-}
-
-const IconPage = (props: React.SVGProps<SVGSVGElement>) => {
-  return (
-    <svg
-      {...props}
-      viewBox="0 0 16 16"
-      fill="none"
-      strokeLinejoin="round"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M14.5 6.5V13.5C14.5 14.8807 13.3807 16 12 16H4C2.61929 16 1.5 14.8807 1.5 13.5V1.5V0H3H8H9.08579C9.351 0 9.60536 0.105357 9.79289 0.292893L14.2071 4.70711C14.3946 4.89464 14.5 5.149 14.5 5.41421V6.5ZM13 6.5V13.5C13 14.0523 12.5523 14.5 12 14.5H4C3.44772 14.5 3 14.0523 3 13.5V1.5H8V5V6.5H9.5H13ZM9.5 2.12132V5H12.3787L9.5 2.12132Z"
-        fill="currentColor"
-      />
-    </svg>
-  )
-}
-
-const ICONS = {
-  layout: <IconLayout width={16} />,
-  page: <IconPage width={16} />,
-}
-
 function PageSegmentTree({ tree }: { tree: Trie<SegmentNode> | undefined }) {
   if (!tree) {
     return null
@@ -63,6 +23,7 @@ function PageSegmentTree({ tree }: { tree: Trie<SegmentNode> | undefined }) {
         node={tree.getRoot()}
         level={0}
         segment=""
+        parentSegment=""
       />
     </div>
   )
@@ -71,11 +32,13 @@ function PageSegmentTree({ tree }: { tree: Trie<SegmentNode> | undefined }) {
 function PageSegmentTreeLayerPresentation({
   tree,
   segment,
+  parentSegment,
   node,
   level,
 }: {
   tree: Trie<SegmentNode>
   segment: string
+  parentSegment: string
   node: TrieNode<SegmentNode>
   level: number
 }) {
@@ -97,6 +60,12 @@ function PageSegmentTreeLayerPresentation({
     return a.localeCompare(b)
   })
 
+  // check if it has file children
+  const hasFileChildren = sortedChildrenKeys.some((key) => {
+    const childNode = node.children[key]
+    return !!childNode?.value?.type
+  })
+
   return (
     <div
       className="segment-explorer-item"
@@ -106,38 +75,28 @@ function PageSegmentTreeLayerPresentation({
         <div className={cx('segment-explorer-item-row')}>
           <div className="segment-explorer-line">
             <div className={`segment-explorer-line-text-${nodeName}`}>
-              <span
-                className={cx(
-                  'segment-explorer-line-icon',
-                  `segment-explorer-line-icon-${nodeName}`
+              <div className="segment-explorer-filename">
+                {parentSegment && (
+                  <span className="segment-explorer-filename--path">
+                    {parentSegment}
+                  </span>
                 )}
-              >
-                {nodeName === 'layout' ? ICONS.layout : ICONS.page}
-              </span>
-              <span className="segment-explorer-filename-path">{fileName}</span>
-            </div>
-          </div>
-        </div>
-      ) : segment ? (
-        <div className={'segment-explorer-item-row'}>
-          <div className="segment-explorer-line">
-            <div className={`segment-explorer-line-text-${nodeName}`}>
-              <span
-                className={cx(
-                  'segment-explorer-line-icon',
-                  `segment-explorer-line-icon-${nodeName}`
-                )}
-              ></span>
-              <span className="segment-explorer-filename-path">
-                {`${segment}/`}
-              </span>
+                <span className="segment-explorer-filename--name">
+                  {fileName}
+                </span>
+              </div>
             </div>
           </div>
         </div>
       ) : null}
 
       <div
-        className="segment-explorer-segment-children"
+        className={cx(
+          'segment-explorer-children',
+          // If it's children levels, show indents if there's any file at that level.
+          // Otherwise it's empty folder, no need to show indents.
+          level > 0 && hasFileChildren && 'segment-explorer-children--intended'
+        )}
         data-nextjs-devtool-segment-explorer-level={level}
       >
         {sortedChildrenKeys.map((childSegment) => {
@@ -147,6 +106,7 @@ function PageSegmentTreeLayerPresentation({
               <PageSegmentTreeLayerPresentation
                 key={childSegment}
                 segment={childSegment}
+                parentSegment={segment}
                 tree={tree}
                 node={child}
                 level={level + 1}
@@ -188,20 +148,15 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
     padding: 2px 0;
   }
 
-  [data-nextjs-devtool-segment-explorer-level].segment-explorer-segment-children {
-    padding-left: 20px;
-  }
-  [data-nextjs-devtool-segment-explorer-level='0'].segment-explorer-segment-children {
-    padding-left: 0px;
+  .segment-explorer-children--intended {
+    padding-left: 16px;
   }
 
-  .segment-explorer-filename-path {
-    display: inline-block;
+  .segment-explorer-filename--path {
+    margin-right: 8px;
   }
-
-  .segment-explorer-filename-path a {
-    color: inherit;
-    text-decoration: inherit;
+  .segment-explorer-filename--name {
+    color: var(--color-gray-800);
   }
 
   .segment-explorer-line {
@@ -209,15 +164,7 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
     cursor: default;
   }
 
-  .segment-explorer-line-icon {
-    margin-right: 4px;
-  }
-  .segment-explorer-line-icon-page {
-    color: inherit;
-  }
-
-  .segment-explorer-line-text-page {
+  .segment-explorer-line {
     color: var(--color-gray-1000);
-    font-weight: 500;
   }
 `
