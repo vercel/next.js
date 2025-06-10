@@ -98,7 +98,7 @@ swc_core = { workspace = true, features = [
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 lightningcss-napi = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
-turbo-rcstr = { workspace = true }
+turbo-rcstr = { workspace = true, features = ["napi"] }
 turbo-tasks = { workspace = true }
 turbo-tasks-backend = { workspace = true }
 turbo-tasks-fs = { workspace = true }

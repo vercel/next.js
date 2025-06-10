@@ -15,8 +15,10 @@ turbo-tasks-hash = { workspace = true }
 serde = { workspace = true }
 new_debug_unreachable = "1.0.6"
 shrink-to-fit = { workspace = true }
-napi = { workspace = true, optional = true }
 rustc-hash = { workspace = true }
+
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+napi = { workspace = true, optional = true }
 
 [dev-dependencies]
 criterion = { workspace = true }
