@@ -292,21 +292,21 @@ turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
 # SWC crates
-swc_core = { version = "26.4.4", features = [
+swc_core = { version = "27.0.1", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
   "parallel_rayon",
 ] }
-testing = { version = "12.0.0" }
+testing = { version = "13.0.0" }
 
 # Keep consistent with preset_env_base through swc_core
 browserslist-rs = { version = "0.18.0" }
 mdxjs = "1.0.3"
-modularize_imports = { version = "0.86.0" }
-styled_components = { version = "0.114.0" }
-styled_jsx = { version = "0.90.3" }
-swc_emotion = { version = "0.90.0" }
-swc_relay = { version = "0.60.0" }
+modularize_imports = { version = "0.87.0" }
+styled_components = { version = "0.115.0" }
+styled_jsx = { version = "0.91.0" }
+swc_emotion = { version = "0.91.0" }
+swc_relay = { version = "0.61.0" }
 
 # General Deps
 chromiumoxide = { version = "0.5.4", features = [
@@ -421,3 +421,6 @@ urlencoding = "2.1.2"
 vergen = { version = "9.0.6", features = ["cargo"] }
 vergen-gitcl = { version = "1.0.8", features = ["cargo"] }
 webbrowser = "0.8.7"
+
+[patch.crates-io]
+mdxjs = { git = "https://github.com/kdy1/mdxjs-rs.git", branch = "swc-core-27" }
