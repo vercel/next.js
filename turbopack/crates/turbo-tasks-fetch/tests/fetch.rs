@@ -13,25 +13,26 @@ static REGISTRATION: Registration = register!(turbo_tasks_fetch::register);
 #[tokio::test]
 async fn basic_get() {
     run(&REGISTRATION, || async {
-        let server = httpmock::MockServer::start();
-        let resource_mock = server.mock(|when, then| {
-            when.path("/foo.woff");
-            then.status(200).body("responsebody");
-        });
+        let mut server = mockito::Server::new_async().await;
+        let resource_mock = server
+            .mock("GET", "/foo.woff")
+            .with_body("responsebody")
+            .create_async()
+            .await;
 
-        let result = &*fetch(server.url("/foo.woff").into(), None, Vc::cell(None))
-            .await
-            .unwrap();
-        resource_mock.assert();
+        let response = &*fetch(
+            RcStr::from(format!("{}/foo.woff", server.url())),
+            /* user_agent */ None,
+            /* proxy */ Vc::cell(None),
+        )
+        .await?
+        .unwrap()
+        .await?;
 
-        match result {
-            Err(_) => panic!(),
-            Ok(response) => {
-                let response = response.await?;
-                assert_eq!(response.status, 200);
-                assert_eq!(*response.body.to_string().await?, "responsebody");
-            }
-        }
+        resource_mock.assert_async().await;
+
+        assert_eq!(response.status, 200);
+        assert_eq!(*response.body.to_string().await?, "responsebody");
         anyhow::Ok(())
     })
     .await
@@ -41,24 +42,27 @@ async fn basic_get() {
 #[tokio::test]
 async fn sends_user_agent() {
     run(&REGISTRATION, || async {
-        let server = httpmock::MockServer::start();
-        let resource_mock = server.mock(|when, then| {
-            when.path("/foo.woff").header("User-Agent", "foo");
-            then.status(200).body("responsebody");
-        });
+        let mut server = mockito::Server::new_async().await;
+        let resource_mock = server
+            .mock("GET", "/foo.woff")
+            .match_header("User-Agent", "mock-user-agent")
+            .with_body("responsebody")
+            .create_async()
+            .await;
 
-        let result = &*fetch(
-            server.url("/foo.woff").into(),
-            Some(rcstr!("foo")),
-            Vc::cell(None),
+        eprintln!("{}", server.url());
+
+        let response = &*fetch(
+            RcStr::from(format!("{}/foo.woff", server.url())),
+            Some(rcstr!("mock-user-agent")),
+            /* proxy */ Vc::cell(None),
         )
-        .await
-        .unwrap();
-        resource_mock.assert();
+        .await?
+        .unwrap()
+        .await?;
 
-        let Ok(response) = result else { panic!() };
+        resource_mock.assert_async().await;
 
-        let response = response.await?;
         assert_eq!(response.status, 200);
         assert_eq!(*response.body.to_string().await?, "responsebody");
         anyhow::Ok(())
@@ -72,32 +76,34 @@ async fn sends_user_agent() {
 #[tokio::test]
 async fn invalidation_does_not_invalidate() {
     run(&REGISTRATION, || async {
-        let server = httpmock::MockServer::start();
-        let resource_mock = server.mock(|when, then| {
-            when.path("/foo.woff").header("User-Agent", "foo");
-            then.status(200).body("responsebody");
-        });
+        let mut server = mockito::Server::new_async().await;
+        let resource_mock = server
+            .mock("GET", "/foo.woff")
+            .with_body("responsebody")
+            .with_header("Cache-Control", "no-store")
+            .create_async()
+            .await;
 
-        let url: RcStr = server.url("/foo.woff").into();
-        let user_agent = Some(rcstr!("foo"));
-        let proxy = Vc::cell(None);
-        let result = &*fetch(url.clone(), user_agent.clone(), proxy).await?;
-        resource_mock.assert();
+        let url = RcStr::from(format!("{}/foo.woff", server.url()));
+        let proxy_vc = Vc::cell(None);
+        let response = &*fetch(url.clone(), /* user_agent */ None, proxy_vc)
+            .await?
+            .unwrap()
+            .await?;
 
-        let Ok(response_vc) = result else { panic!() };
-        let response = response_vc.await?;
+        resource_mock.assert_async().await;
+
         assert_eq!(response.status, 200);
         assert_eq!(*response.body.to_string().await?, "responsebody");
 
-        let second_result = &*fetch(url, user_agent, proxy).await?;
-        let Ok(second_response_vc) = second_result else {
-            panic!()
-        };
-        let second_response = second_response_vc.await?;
+        let second_response = &*fetch(url.clone(), /* user_agent */ None, proxy_vc)
+            .await?
+            .unwrap()
+            .await?;
 
-        // Assert that a second request is never sent -- the result is cached via turbo
-        // tasks
-        resource_mock.assert_hits(1);
+        // Assert that a second request is never sent -- the result is cached via turbo tasks
+        resource_mock.expect(1).assert_async().await;
+
         assert_eq!(response, second_response);
         anyhow::Ok(())
     })
@@ -108,47 +114,58 @@ async fn invalidation_does_not_invalidate() {
 #[tokio::test]
 async fn errors_on_failed_connection() {
     run(&REGISTRATION, || async {
-        let url = rcstr!("https://doesnotexist/foo.woff");
-        let result = &*fetch(url.clone(), None, Vc::cell(None)).await?;
-        let Err(err_vc) = result else {
-            panic!()
-        };
-        let err = &*err_vc.await?;
+        // Try to connect to port 0 on localhost, which is never valid and immediately returns
+        // `ECONNREFUSED`.
+        // Other values (e.g. domain name, reservered IP address block) may result in long timeouts.
+        let url = rcstr!("http://127.0.0.1:0/foo.woff");
+        let response_vc = fetch(url.clone(), None, Vc::cell(None));
+        let err_vc = &*response_vc.await?.unwrap_err();
+        let err = err_vc.await?;
+
         assert_eq!(*err.kind.await?, FetchErrorKind::Connect);
         assert_eq!(*err.url.await?, url);
 
         let issue = err_vc.to_issue(IssueSeverity::Error.into(), get_issue_context());
         assert_eq!(*issue.severity().await?, IssueSeverity::Error);
-        assert_eq!(*issue.description().await?.unwrap().await?, StyledString::Text(rcstr!("There was an issue establishing a connection while requesting https://doesnotexist/foo.woff.")));
+        assert_eq!(
+            *issue.description().await?.unwrap().await?,
+            StyledString::Text(rcstr!(
+                "There was an issue establishing a connection while requesting \
+                http://127.0.0.1:0/foo.woff."
+            ))
+        );
         anyhow::Ok(())
     })
-    .await.unwrap()
+    .await
+    .unwrap()
 }
 
 #[tokio::test]
 async fn errors_on_404() {
     run(&REGISTRATION, || async {
-        let server = httpmock::MockServer::start();
-        let resource_url: RcStr = server.url("/").into();
-        let result = &*fetch(resource_url.clone(), None, Vc::cell(None))
-            .await
-            .unwrap();
-        let Err(err_vc) = result else { panic!() };
-        let err = &*err_vc.await?;
+        let mut server = mockito::Server::new_async().await;
+        let resource_mock = server
+            .mock("GET", "/")
+            .with_status(404)
+            .create_async()
+            .await;
+
+        let url = RcStr::from(server.url());
+        let response_vc = fetch(url.clone(), None, Vc::cell(None));
+        let err_vc = &*response_vc.await?.unwrap_err();
+        let err = err_vc.await?;
+
+        resource_mock.assert_async().await;
         assert!(matches!(*err.kind.await?, FetchErrorKind::Status(404)));
-        assert_eq!(*err.url.await?, resource_url);
+        assert_eq!(*err.url.await?, url);
 
         let issue = err_vc.to_issue(IssueSeverity::Error.into(), get_issue_context());
         assert_eq!(*issue.severity().await?, IssueSeverity::Error);
         assert_eq!(
             *issue.description().await?.unwrap().await?,
-            StyledString::Text(
-                format!(
-                    "Received response with status 404 when requesting {}",
-                    &resource_url
-                )
-                .into()
-            )
+            StyledString::Text(RcStr::from(format!(
+                "Received response with status 404 when requesting {url}"
+            )))
         );
         anyhow::Ok(())
     })
