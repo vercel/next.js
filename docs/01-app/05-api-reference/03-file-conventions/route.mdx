@@ -184,6 +184,7 @@ You can read headers with [`headers`](/docs/app/api-reference/functions/headers)
 
 ```ts filename="route.ts" switcher
 import { headers } from 'next/headers'
+import type { NextRequest } from 'next/server'
 
 export async function GET(request: NextRequest) {
   const headersList = await headers()
