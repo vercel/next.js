@@ -43,11 +43,7 @@ let startServerSpan: Span | undefined
  * Get the process ID (PID) of the process using the specified port
  */
 async function getProcessIdUsingPort(port: number): Promise<string | null> {
-  const timeoutMs = parseInt(
-    process.env.NEXT_PID_DETECTION_TIMEOUT || '250',
-    10
-  )
-
+  const timeoutMs = 250
   const processLookupController = new AbortController()
 
   const pidPromise = new Promise<string | null>((resolve) => {
