@@ -157,7 +157,7 @@ export async function GET(request) {
 
   return new Response('Hello, Next.js!', {
     status: 200,
-    headers: { 'Set-Cookie': `token=${token}` },
+    headers: { 'Set-Cookie': `token=${token.value}` },
   })
 }
 ```
