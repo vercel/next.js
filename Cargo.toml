@@ -328,7 +328,7 @@ async-compression = { version = "0.3.13", default-features = false, features = [
 async-trait = "0.1.64"
 bitfield = "0.18.0"
 bytes = "1.1.0"
-bytes-str = "0.2.4"
+bytes-str = "0.2.6"
 chrono = "0.4.23"
 clap = { version = "4.5.2", features = ["derive"] }
 concurrent-queue = "2.5.0"
