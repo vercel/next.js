@@ -7,8 +7,6 @@ description: Learn how to use Middleware to run code before a request is complet
 
 Middleware allows you to run code before a request is completed. Then, based on the incoming request, you can modify the response by rewriting, redirecting, modifying the request or response headers, or responding directly.
 
-Middleware runs before cached content and routes are matched. See [Matching Paths](#matcher) for more details.
-
 ## Use Cases
 
 Some common scenarios where Middleware is effective include:
@@ -58,5 +56,3 @@ export const config = {
   matcher: '/about/:path*',
 }
 ```
-
-                                                               |
