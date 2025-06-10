@@ -53,6 +53,7 @@ export default class ResponseCache implements ResponseCacheBase {
     responseGenerator: ResponseGenerator,
     context: {
       routeKind: RouteKind
+      isRscRequest: boolean
       isOnDemandRevalidate?: boolean
       isPrefetch?: boolean
       incrementalCache: IncrementalResponseCache
@@ -198,6 +199,8 @@ export default class ResponseCache implements ResponseCacheBase {
       }
     )
 
-    return toResponseCacheEntry(response)
+    return toResponseCacheEntry(response, {
+      isRscRequest: context.isRscRequest,
+    })
   }
 }
