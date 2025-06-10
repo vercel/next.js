@@ -156,6 +156,7 @@ const runtimeErrors: ReadyRuntimeError[] = [
 
 export const Default: Story = {
   args: {
+    getSquashedHydrationErrorDetails: () => null,
     runtimeErrors,
     versionInfo: {
       installed: '15.0.0',
@@ -188,6 +189,7 @@ export const VeryLongErrorMessage: Story = {
 
 export const WithHydrationWarning: Story = {
   args: {
+    ...Default.args,
     runtimeErrors: [
       {
         id: 1,
