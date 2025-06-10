@@ -127,16 +127,17 @@ function ManualPrefetchLink({
     }
   }, [href, router])
 
-<a
-  href={href}
-  onClick={(event) => {
-    event.preventDefault()
-    router.push(href)
-  }}
->
-  {children}
-</a>
-
+  return (
+    <a
+      href={href}
+      onClick={(event) => {
+        event.preventDefault()
+        router.push(href)
+      }}
+    >
+      {children}
+    </a>
+  )
 }
 ```
 
@@ -239,7 +240,7 @@ export function AnalyticsTracker() {
 }
 ```
 
-```jsx filename="app/dashboard/page.js" switcher
+```jsx filename="app/ui/analytics-tracker.js" switcher
 'use client'
 
 import { useEffect } from 'react'
