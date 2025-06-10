@@ -2467,12 +2467,9 @@ var completeSegmentScript1Full = stringToPrecomputedChunk(
 stringToPrecomputedChunk('<template data-rsi="" data-sid="');
 stringToPrecomputedChunk('" data-pid="');
 var completeBoundaryScriptFunctionOnly = stringToPrecomputedChunk(
-  '$RB=[];$RV=function(c){$RT=performance.now();for(var a=0;a<c.length;a+=2){var b=c[a],h=c[a+1],e=b.parentNode;if(e){var f=b.previousSibling,g=0;do{if(b&&8===b.nodeType){var d=b.data;if("/$"===d||"/&"===d)if(0===g)break;else g--;else"$"!==d&&"$?"!==d&&"$~"!==d&&"$!"!==d&&"&"!==d||g++}d=b.nextSibling;e.removeChild(b);b=d}while(b);for(;h.firstChild;)e.insertBefore(h.firstChild,b);f.data="$";f._reactRetry&&f._reactRetry()}}c.length=0};$RC=function(c,a){if(a=document.getElementById(a))if(a.parentNode.removeChild(a),c=document.getElementById(c))c.previousSibling.data="$~",$RB.push(c,a),2===$RB.length&&setTimeout($RV.bind(null,$RB),("number"!==typeof $RT?0:$RT)+300-performance.now())};'
-);
-stringToPrecomputedChunk(
-  '$RV=function(w,f){function h(a,d){var k=a.getAttribute(d);k&&(d=a.style,l.push(a,d.viewTransitionName,d.viewTransitionClass),"auto"!==k&&(d.viewTransitionClass=k),(a=a.getAttribute("vt-name"))||(a="\\u00abT"+F++ +"\\u00bb"),d.viewTransitionName=a,x=!0)}var x=!1,F=0,l=[];try{var e=document.__reactViewTransition;if(e){e.finished.finally($RV.bind(null,f));return}var m=new Map;for(e=1;e<f.length;e+=2)for(var g=f[e].querySelectorAll("[vt-share]"),c=0;c<g.length;c++){var b=g[c];m.set(b.getAttribute("vt-name"),b)}for(g=0;g<f.length;g+=2){var y=f[g],t=y.parentNode;if(t){var r=t.getBoundingClientRect();if(r.left||r.top||r.width||r.height){b=y;for(e=0;b;){if(8===b.nodeType){var p=b.data;if("/$"===p)if(0===e)break;else e--;else"$"!==p&&"$?"!==p&&"$~"!==p&&"$!"!==p||e++}else if(1===b.nodeType){c=b;var z=c.getAttribute("vt-name"),u=m.get(z);h(c,u?"vt-share":"vt-exit");u&&(h(u,"vt-share"),m.set(z,null));var A=c.querySelectorAll("[vt-share]");for(c=0;c<A.length;c++){var B=A[c],C=B.getAttribute("vt-name"),D=m.get(C);\nD&&(h(B,"vt-share"),h(D,"vt-share"),m.set(C,null))}}b=b.nextSibling}for(var q=f[g+1].firstElementChild;q;)null!==m.get(q.getAttribute("vt-name"))&&h(q,"vt-enter"),q=q.nextElementSibling;b=t;do for(var n=b.firstElementChild;n;){var E=n.getAttribute("vt-update");E&&"none"!==E&&!l.includes(n)&&h(n,"vt-update");n=n.nextElementSibling}while((b=b.parentNode)&&1===b.nodeType&&"none"!==b.getAttribute("vt-update"))}}}if(x){var v=document.__reactViewTransition=document.startViewTransition({update:function(){w(f,\ndocument.documentElement.clientHeight);return Promise.race([document.fonts.ready,new Promise(function(a){return setTimeout(a,500)})])},types:[]});v.ready.finally(function(){for(var a=l.length-3;0<=a;a-=3){var d=l[a],k=d.style;k.viewTransitionName=l[a+1];k.viewTransitionClass=l[a+1];""===d.getAttribute("style")&&d.removeAttribute("style")}});v.finished.finally(function(){document.__reactViewTransition===v&&(document.__reactViewTransition=null)});$RB=[];return}}catch(a){}w(f)}.bind(null,$RV);'
-);
-var completeBoundaryScript1Partial = stringToPrecomputedChunk('$RC("'),
+    '$RB=[];$RV=function(b){$RT=performance.now();for(var a=0;a<b.length;a+=2){var c=b[a],h=b[a+1],e=c.parentNode;if(e){var f=c.previousSibling,g=0;do{if(c&&8===c.nodeType){var d=c.data;if("/$"===d||"/&"===d)if(0===g)break;else g--;else"$"!==d&&"$?"!==d&&"$~"!==d&&"$!"!==d&&"&"!==d||g++}d=c.nextSibling;e.removeChild(c);c=d}while(c);for(;h.firstChild;)e.insertBefore(h.firstChild,c);f.data="$";f._reactRetry&&f._reactRetry()}}b.length=0};$RC=function(b,a){if(a=document.getElementById(a))if(a.parentNode.removeChild(a),b=document.getElementById(b))b.previousSibling.data="$~",$RB.push(b,a),2===$RB.length&&(b="number"!==typeof $RT?0:$RT,a=performance.now(),setTimeout($RV.bind(null,$RB),2300>a&&2E3<a?2300-a:b+300-a))};'
+  ),
+  completeBoundaryScript1Partial = stringToPrecomputedChunk('$RC("'),
   completeBoundaryWithStylesScript1FullPartial = stringToPrecomputedChunk(
     '$RM=new Map;$RR=function(n,w,p){function u(q){this._p=null;q()}for(var r=new Map,t=document,h,b,e=t.querySelectorAll("link[data-precedence],style[data-precedence]"),v=[],k=0;b=e[k++];)"not all"===b.getAttribute("media")?v.push(b):("LINK"===b.tagName&&$RM.set(b.getAttribute("href"),b),r.set(b.dataset.precedence,h=b));e=0;b=[];var l,a;for(k=!0;;){if(k){var f=p[e++];if(!f){k=!1;e=0;continue}var c=!1,m=0;var d=f[m++];if(a=$RM.get(d)){var g=a._p;c=!0}else{a=t.createElement("link");a.href=d;a.rel=\n"stylesheet";for(a.dataset.precedence=l=f[m++];g=f[m++];)a.setAttribute(g,f[m++]);g=a._p=new Promise(function(q,x){a.onload=u.bind(a,q);a.onerror=u.bind(a,x)});$RM.set(d,a)}d=a.getAttribute("media");!g||d&&!matchMedia(d).matches||b.push(g);if(c)continue}else{a=v[e++];if(!a)break;l=a.getAttribute("data-precedence");a.removeAttribute("media")}c=r.get(l)||h;c===h&&(h=a);r.set(l,a);c?c.parentNode.insertBefore(a,c.nextSibling):(c=t.head,c.insertBefore(a,c.firstChild))}if(p=document.getElementById(n))p.previousSibling.data=\n"$~";Promise.all(b).then($RC.bind(null,n,w),$RX.bind(null,n,"CSS failed to load"))};$RR("'
   ),
@@ -2671,7 +2668,7 @@ function pushCompletedShellIdAttribute(target, resumableState) {
     ((resumableState.instructions |= 32),
     target.push(
       completedShellIdAttributeStart,
-      escapeTextForBrowser("\u00ab" + resumableState.idPrefix + "R\u00bb"),
+      escapeTextForBrowser("_" + resumableState.idPrefix + "R_"),
       attributeEnd
     ));
 }
@@ -3694,9 +3691,9 @@ var HooksDispatcher = {
         );
       overflow = localIdCounter++;
       JSCompiler_inline_result =
-        "\u00ab" + resumableState.idPrefix + "R" + JSCompiler_inline_result;
+        "_" + resumableState.idPrefix + "R_" + JSCompiler_inline_result;
       0 < overflow && (JSCompiler_inline_result += "H" + overflow.toString(32));
-      return JSCompiler_inline_result + "\u00bb";
+      return JSCompiler_inline_result + "_";
     },
     useSyncExternalStore: function (subscribe, getSnapshot, getServerSnapshot) {
       if (void 0 === getServerSnapshot)
@@ -4372,7 +4369,11 @@ function renderSuspenseListRows(request, task, keyPath, rows, revealOrder) {
     var resumeSlots = task.replay.slots;
     if (null !== resumeSlots && "object" === typeof resumeSlots)
       for (var n = 0; n < keyPath; n++) {
-        var i = "backwards" !== revealOrder ? n : keyPath - 1 - n,
+        var i =
+            "backwards" !== revealOrder &&
+            "unstable_legacy-backwards" !== revealOrder
+              ? n
+              : keyPath - 1 - n,
           node = rows[i];
         task.row = previousSuspenseListRow = createSuspenseListRow(
           previousSuspenseListRow
@@ -4389,7 +4390,8 @@ function renderSuspenseListRows(request, task, keyPath, rows, revealOrder) {
     else
       for (resumeSlots = 0; resumeSlots < keyPath; resumeSlots++)
         (n =
-          "backwards" !== revealOrder
+          "backwards" !== revealOrder &&
+          "unstable_legacy-backwards" !== revealOrder
             ? resumeSlots
             : keyPath - 1 - resumeSlots),
           (i = rows[n]),
@@ -4399,7 +4401,10 @@ function renderSuspenseListRows(request, task, keyPath, rows, revealOrder) {
           renderNode(request, task, i, n),
           0 === --previousSuspenseListRow.pendingTasks &&
             finishSuspenseListRow(request, previousSuspenseListRow);
-  } else if ("backwards" !== revealOrder)
+  } else if (
+    "backwards" !== revealOrder &&
+    "unstable_legacy-backwards" !== revealOrder
+  )
     for (revealOrder = 0; revealOrder < keyPath; revealOrder++)
       (resumeSlots = rows[revealOrder]),
         (task.row = previousSuspenseListRow =
@@ -4755,7 +4760,11 @@ function renderElement(request, task, keyPath, type, props, ref) {
         a: {
           type = props.children;
           props = props.revealOrder;
-          if ("forwards" === props || "backwards" === props) {
+          if (
+            "forwards" === props ||
+            "backwards" === props ||
+            "unstable_legacy-backwards" === props
+          ) {
             if (isArrayImpl(type)) {
               renderSuspenseListRows(request, task, keyPath, type, props);
               break a;
@@ -5819,7 +5828,10 @@ function queueCompletedSegment(boundary, segment) {
     var childSegment = segment.children[0];
     childSegment.id = segment.id;
     childSegment.parentFlushed = !0;
-    1 === childSegment.status && queueCompletedSegment(boundary, childSegment);
+    (1 !== childSegment.status &&
+      3 !== childSegment.status &&
+      4 !== childSegment.status) ||
+      queueCompletedSegment(boundary, childSegment);
   } else boundary.completedSegments.push(segment);
 }
 function finishedSegment(request, boundary, segment) {
@@ -5854,7 +5866,7 @@ function finishedTask(request$jscomp$0, boundary, row, segment) {
         (0 === boundary.status && (boundary.status = 1),
         null !== segment &&
           segment.parentFlushed &&
-          1 === segment.status &&
+          (1 === segment.status || 3 === segment.status) &&
           queueCompletedSegment(boundary, segment),
         boundary.parentFlushed &&
           request$jscomp$0.completedBoundaries.push(boundary),
@@ -5934,9 +5946,9 @@ function finishedTask(request$jscomp$0, boundary, row, segment) {
         }
       }
     else
-      null !== segment &&
-        segment.parentFlushed &&
-        1 === segment.status &&
+      null === segment ||
+        !segment.parentFlushed ||
+        (1 !== segment.status && 3 !== segment.status) ||
         (queueCompletedSegment(boundary, segment),
         1 === boundary.completedSegments.length &&
           boundary.parentFlushed &&
@@ -6253,6 +6265,8 @@ function flushSubtree(request, destination, segment, hoistableState) {
       chunkIdx < chunks.length &&
         (r = writeChunkAndReturn(destination, chunks[chunkIdx]));
       return r;
+    case 3:
+      return !0;
     default:
       throw Error(
         "Aborted, errored or already flushed boundaries should not be flushed again. This is a bug in React."
@@ -6442,7 +6456,8 @@ function flushCompletedQueues(request, destination) {
         var completedPreambleSegments = request.completedPreambleSegments;
         if (null === completedPreambleSegments) return;
         flushedByteSize = request.byteSize;
-        var renderState = request.renderState,
+        var resumableState = request.resumableState,
+          renderState = request.renderState,
           preamble = renderState.preamble,
           htmlChunks = preamble.htmlChunks,
           headChunks = preamble.headChunks,
@@ -6485,17 +6500,18 @@ function flushCompletedQueues(request, destination) {
         renderState.scripts.clear();
         renderState.bulkPreloads.forEach(flushResource, destination);
         renderState.bulkPreloads.clear();
+        htmlChunks || headChunks || (resumableState.instructions |= 32);
         var hoistableChunks = renderState.hoistableChunks;
         for (i$jscomp$0 = 0; i$jscomp$0 < hoistableChunks.length; i$jscomp$0++)
           writeChunk(destination, hoistableChunks[i$jscomp$0]);
         for (
-          renderState = hoistableChunks.length = 0;
-          renderState < completedPreambleSegments.length;
-          renderState++
+          resumableState = hoistableChunks.length = 0;
+          resumableState < completedPreambleSegments.length;
+          resumableState++
         ) {
-          var segments = completedPreambleSegments[renderState];
-          for (preamble = 0; preamble < segments.length; preamble++)
-            flushSegment(request, destination, segments[preamble], null);
+          var segments = completedPreambleSegments[resumableState];
+          for (renderState = 0; renderState < segments.length; renderState++)
+            flushSegment(request, destination, segments[renderState], null);
         }
         var preamble$jscomp$0 = request.renderState.preamble,
           headChunks$jscomp$0 = preamble$jscomp$0.headChunks;
@@ -6520,13 +6536,13 @@ function flushCompletedQueues(request, destination) {
             (0 !== request.trackedPostpones.rootNodes.length ||
               null !== request.trackedPostpones.rootSlots))
         ) {
-          var resumableState = request.resumableState;
-          if (0 === (resumableState.instructions & 64)) {
-            resumableState.instructions |= 64;
+          var resumableState$jscomp$0 = request.resumableState;
+          if (0 === (resumableState$jscomp$0.instructions & 64)) {
+            resumableState$jscomp$0.instructions |= 64;
             writeChunk(destination, renderState$jscomp$0.startInlineScript);
-            if (0 === (resumableState.instructions & 32)) {
-              resumableState.instructions |= 32;
-              var shellId = "\u00ab" + resumableState.idPrefix + "R\u00bb";
+            if (0 === (resumableState$jscomp$0.instructions & 32)) {
+              resumableState$jscomp$0.instructions |= 32;
+              var shellId = "_" + resumableState$jscomp$0.idPrefix + "R_";
               writeChunk(destination, completedShellIdAttributeStart);
               writeChunk(destination, escapeTextForBrowser(shellId));
               writeChunk(destination, attributeEnd);
@@ -6574,7 +6590,7 @@ function flushCompletedQueues(request, destination) {
       for (i = 0; i < clientRenderedBoundaries.length; i++) {
         var boundary = clientRenderedBoundaries[i];
         renderState$jscomp$1 = destination;
-        var resumableState$jscomp$0 = request.resumableState,
+        var resumableState$jscomp$1 = request.resumableState,
           renderState$jscomp$2 = request.renderState,
           id = boundary.rootSegmentID,
           errorDigest = boundary.errorDigest;
@@ -6583,8 +6599,8 @@ function flushCompletedQueues(request, destination) {
           renderState$jscomp$2.startInlineScript
         );
         writeChunk(renderState$jscomp$1, endOfStartTag);
-        0 === (resumableState$jscomp$0.instructions & 4)
-          ? ((resumableState$jscomp$0.instructions |= 4),
+        0 === (resumableState$jscomp$1.instructions & 4)
+          ? ((resumableState$jscomp$1.instructions |= 4),
             writeChunk(renderState$jscomp$1, clientRenderScript1Full))
           : writeChunk(renderState$jscomp$1, clientRenderScript1Partial);
         writeChunk(renderState$jscomp$1, renderState$jscomp$2.boundaryPrefix);
@@ -6785,11 +6801,11 @@ function addToReplayParent(node, parentKeyPath, trackedPostpones) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.2.0-canary-14094f80-20250529" !== isomorphicReactPackageVersion)
+  if ("19.2.0-canary-280ff6fe-20250606" !== isomorphicReactPackageVersion)
     throw Error(
       'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
         (isomorphicReactPackageVersion +
-          "\n  - react-dom:  19.2.0-canary-14094f80-20250529\nLearn more: https://react.dev/warnings/version-mismatch")
+          "\n  - react-dom:  19.2.0-canary-280ff6fe-20250606\nLearn more: https://react.dev/warnings/version-mismatch")
     );
 }
 ensureCorrectIsomorphicReactVersion();
@@ -6938,4 +6954,4 @@ exports.renderToPipeableStream = function (children, options) {
     }
   };
 };
-exports.version = "19.2.0-canary-14094f80-20250529";
+exports.version = "19.2.0-canary-280ff6fe-20250606";
