@@ -465,7 +465,7 @@ export default function ViewCount({ initialViews }) {
   const [isPending, startTransition] = useTransition()
 
   useEffect(() => {
-    starTransition(async () => {
+    startTransition(async () => {
       const updatedViews = await incrementViews()
       setViews(updatedViews)
     })
