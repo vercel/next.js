@@ -11,12 +11,12 @@ declare global {
   }
 }
 
-let currDataLayerName: string | undefined = undefined
+let currDataLayerName: string = 'dataLayer'
 
 export function GoogleAnalytics(props: GAParams) {
-  const { gaId, debugMode, dataLayerName = 'dataLayer', nonce } = props
+  const { gaId, debugMode, dataLayerName, nonce } = props
 
-  if (currDataLayerName === undefined) {
+  if (dataLayerName) {
     currDataLayerName = dataLayerName
   }
 
@@ -57,11 +57,6 @@ export function GoogleAnalytics(props: GAParams) {
 }
 
 export function sendGAEvent(..._args: Object[]) {
-  if (currDataLayerName === undefined) {
-    console.warn(`@next/third-parties: GA has not been initialized`)
-    return
-  }
-
   if (window[currDataLayerName]) {
     window[currDataLayerName].push(arguments)
   } else {
