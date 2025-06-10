@@ -15207,11 +15207,10 @@
       "nested index.js production mode should ssr page /index",
       "nested index.js production mode should ssr page /index/index",
       "nested index.js production mode should ssr page /index/project",
-      "nested index.js production mode should ssr page /index/user"
-    ],
-    "failed": [
+      "nested index.js production mode should ssr page /index/user",
       "nested index.js production mode should follow link to /index/index"
     ],
+    "failed": [],
     "pending": [
       "nested index.js development mode should 404 on /index/index/index",
       "nested index.js development mode should client render page /",
@@ -16868,11 +16867,10 @@
   },
   "test/integration/prerender-export/test/index.test.js": {
     "passed": [
-      "SSG Prerender export production mode export mode should copy prerender files and honor exportTrailingSlash"
-    ],
-    "failed": [
+      "SSG Prerender export production mode export mode should copy prerender files and honor exportTrailingSlash",
       "SSG Prerender export production mode export mode should navigate between pages successfully"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
