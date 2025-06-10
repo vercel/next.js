@@ -5,7 +5,7 @@ import {
   type ErrorSourceType,
 } from '../../../../shared/lib/error-source'
 
-export function getFilesystemFrame(frame: StackFrame): StackFrame {
+function getFilesystemFrame(frame: StackFrame): StackFrame {
   const f: StackFrame = { ...frame }
 
   if (typeof f.file === 'string') {

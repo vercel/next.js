@@ -5,13 +5,16 @@ import { useEffect, startTransition, useRef } from 'react'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import formatWebpackMessages from '../../../components/react-dev-overlay/utils/format-webpack-messages'
 import { useRouter } from '../../../components/navigation'
-import { REACT_REFRESH_FULL_RELOAD } from '../shared'
-import { reportInvalidHmrMessage } from '../shared'
+import {
+  REACT_REFRESH_FULL_RELOAD,
+  REACT_REFRESH_FULL_RELOAD_FROM_ERROR,
+  reportInvalidHmrMessage,
+} from '../shared'
 import { dispatcher } from 'next/dist/compiled/next-devtools'
-import { ReplaySsrOnlyErrors } from '../../../components/react-dev-overlay/app/replay-ssr-only-errors'
+import { ReplaySsrOnlyErrors } from '../../../components/react-dev-overlay/app/errors/replay-ssr-only-errors'
 import { AppDevOverlayErrorBoundary } from '../../../components/react-dev-overlay/app/app-dev-overlay-error-boundary'
-import { useErrorHandler } from '../../../components/errors/use-error-handler'
-import { RuntimeErrorHandler } from '../../../components/errors/runtime-error-handler'
+import { useErrorHandler } from '../../../components/react-dev-overlay/app/errors/use-error-handler'
+import { RuntimeErrorHandler } from '../../../components/react-dev-overlay/runtime-error-handler'
 import {
   useSendMessage,
   useTurbopack,
@@ -23,7 +26,6 @@ import type {
   HMR_ACTION_TYPES,
   TurbopackMsgToBrowser,
 } from '../../../../server/dev/hot-reloader-types'
-import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from '../shared'
 import { useUntrackedPathname } from '../../../components/navigation-untracked'
 import type { GlobalErrorComponent } from '../../../components/global-error'
 import reportHmrLatency from '../../../components/react-dev-overlay/utils/report-hmr-latency'
