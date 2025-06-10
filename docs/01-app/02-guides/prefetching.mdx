@@ -43,7 +43,7 @@ import Link from 'next/link'
 | No `loading.js`   | Entire page                      | Until app reload   |
 | With `loading.js` | Layout to first loading boundary | 30s (configurable) |
 
-Automatic prefetching runs only in production. Disable with `prefetch={false}` or use the wrapper in [Disabled Prefetch](https://chatgpt.com/c/680aafde-6590-800e-a5ac-91e20ae3ff0d#disabled-prefetch).
+Automatic prefetching runs only in production. Disable with `prefetch={false}` or use the wrapper in [Disabled Prefetch](#disabled-prefetch).
 
 ## Manual prefetch
 
@@ -184,7 +184,7 @@ The scheduler prioritizes likely navigations while minimizing unused downloads.
 
 ### Partial Prerendering (PPR)
 
-With PPR is enabled, a page is divided into a static shell and a streamed dynamic section:
+When PPR is enabled, a page is divided into a static shell and a streamed dynamic section:
 
 - The shell, which can be prefetched, streams immediately
 - Dynamic data streams when ready
