@@ -1433,27 +1433,19 @@ async fn merge_modules(
             };
 
         let mut inserted = FxHashSet::with_capacity_and_hasher(contents.len(), Default::default());
-
         inserted.extend(entries.iter().map(|(_, i)| *i));
-
-        let mut merged_ast = swc_core::ecma::ast::Module {
-            span: DUMMY_SP,
-            shebang: None,
-            body: entries
-                .iter()
-                .map(|(_, i)| prepare_module(&contents[*i], &mut programs[*i]))
-                .flatten_ok()
-                .collect::<Result<Vec<_>>>()?,
-        };
 
         // Replace inserted `__turbopack_merged_esm__(i);` statements with the corresponding
         // ith-module
-        let mut i = 0;
-        loop {
-            if i >= merged_ast.body.len() {
-                break;
-            }
-            if let ModuleItem::Stmt(Stmt::Expr(ExprStmt { expr, .. })) = &merged_ast.body[i]
+        let mut queue = entries
+            .iter()
+            .map(|(_, i)| prepare_module(&contents[*i], &mut programs[*i]))
+            .flatten_ok()
+            .rev()
+            .collect::<Result<Vec<_>>>()?;
+        let mut result = vec![];
+        while let Some(item) = queue.pop() {
+            if let ModuleItem::Stmt(Stmt::Expr(ExprStmt { expr, .. })) = &item
                 && let Expr::Call(CallExpr {
                     callee: Callee::Expr(callee),
                     args,
@@ -1463,24 +1455,24 @@ async fn merge_modules(
             {
                 let index = args[0].expr.as_lit().unwrap().as_num().unwrap().value as usize;
 
+                // Only insert once, otherwise the module was already executed
                 if inserted.insert(index) {
-                    merged_ast.body.splice(
-                        i..=i,
-                        prepare_module(&contents[index], &mut programs[index])?,
+                    queue.extend(
+                        prepare_module(&contents[index], &mut programs[index])?
+                            .into_iter()
+                            .rev(),
                     );
-
-                    // Don't increment, the ith item has just changed
-                    continue;
-                } else {
-                    // Already inserted (and thus already executed), remove the placeholder
-                    merged_ast.body[i] =
-                        ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
                 }
+            } else {
+                result.push(item);
             }
-
-            i += 1;
         }
-        let mut merged_ast = Program::Module(merged_ast);
+
+        let mut merged_ast = Program::Module(swc_core::ecma::ast::Module {
+            body: result,
+            span: DUMMY_SP,
+            shebang: None,
+        });
 
         // let mut p = merged_ast.clone();
         // p.visit_mut_with(&mut DisplayContextVisitor {
