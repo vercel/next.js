@@ -561,7 +561,7 @@ dependencies = [
  "bitflags 2.9.0",
  "cexpr",
  "clang-sys",
- "itertools 0.13.0",
+ "itertools 0.10.5",
  "log",
  "prettyplease",
  "proc-macro2",
@@ -2693,7 +2693,7 @@ dependencies = [
  "httpdate",
  "itoa",
  "pin-project-lite",
- "socket2 0.5.10",
+ "socket2 0.4.9",
  "tokio",
  "tower-service",
  "tracing",
@@ -3807,7 +3807,7 @@ dependencies = [
 [[package]]
 name = "mdxjs"
 version = "1.0.3"
-source = "git+https://github.com/kdy1/mdxjs-rs.git?branch=swc-core-27#52d6440a21c65f6616c5317043db064ff887aa5c"
+source = "git+https://github.com/kdy1/mdxjs-rs.git?branch=swc-core-27#c6a48c2da7e179ab9ae1b73b253872b7f73ef798"
 dependencies = [
  "markdown",
  "rustc-hash 2.1.1",
@@ -5232,7 +5232,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "157c5a9d7ea5c2ed2d9fb8f495b64759f7816c7eaea54ba3978f0d63000162e3"
 dependencies = [
  "anyhow",
- "itertools 0.13.0",
+ "itertools 0.10.5",
  "proc-macro2",
  "quote",
  "syn 2.0.100",
