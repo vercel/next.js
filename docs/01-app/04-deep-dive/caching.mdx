@@ -368,7 +368,7 @@ When configuring the different caching mechanisms, it's important to understand 
 ### Data Cache and Client-side Router cache
 
 - To immediately invalidate the Data Cache and Router cache, you can use [`revalidatePath`](#revalidatepath) or [`revalidateTag`](#fetch-optionsnexttags-and-revalidatetag) in a [Server Action](/docs/app/getting-started/updating-data).
-- Revalidating the Data Cache in a [Route Handler](/docs/app/building-your-application/routing/route-handlers) **will not** immediately invalidate the Router Cache as the Route Handler isn't tied to a specific route. This means Router Cache will continue to serve the previous payload until a hard refresh, or the automatic invalidation period has elapsed.
+- Revalidating the Data Cache in a [Route Handler](/docs/app/api-reference/file-conventions/route) **will not** immediately invalidate the Router Cache as the Route Handler isn't tied to a specific route. This means Router Cache will continue to serve the previous payload until a hard refresh, or the automatic invalidation period has elapsed.
 
 ## APIs
 
@@ -472,7 +472,7 @@ revalidateTag('a')
 
 There are two places you can use `revalidateTag`, depending on what you're trying to achieve:
 
-1. [Route Handlers](/docs/app/building-your-application/routing/route-handlers) - to revalidate data in response of a third party event (e.g. webhook). This will not invalidate the Router Cache immediately as the Router Handler isn't tied to a specific route.
+1. [Route Handlers](/docs/app/api-reference/file-conventions/route) - to revalidate data in response of a third party event (e.g. webhook). This will not invalidate the Router Cache immediately as the Router Handler isn't tied to a specific route.
 2. [Server Actions](/docs/app/getting-started/updating-data) - to revalidate data after a user action (e.g. form submission). This will invalidate the Router Cache for the associated route.
 
 ### `revalidatePath`
@@ -485,7 +485,7 @@ revalidatePath('/')
 
 There are two places you can use `revalidatePath`, depending on what you're trying to achieve:
 
-1. [Route Handlers](/docs/app/building-your-application/routing/route-handlers) - to revalidate data in response to a third party event (e.g. webhook).
+1. [Route Handlers](/docs/app/api-reference/file-conventions/route) - to revalidate data in response to a third party event (e.g. webhook).
 2. [Server Actions](/docs/app/getting-started/updating-data) - to revalidate data after a user interaction (e.g. form submission, clicking a button).
 
 See the [`revalidatePath` API reference](/docs/app/api-reference/functions/revalidatePath) for more information.
