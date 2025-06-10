@@ -232,8 +232,13 @@ export function useErrorOverlayReducer(
         getOwnerStack(event.error) !== getOwnerStack(pendingEvent.error)
       )
     })
-    pendingEvents.push(pendingEvent)
-    return pendingEvents
+    // If there's nothing filtered out, the event is a brand new error
+    if (pendingEvents.length === events.length) {
+      pendingEvents.push(pendingEvent)
+      return pendingEvents
+    }
+    // Otherwise remain the same events
+    return events
   }
 
   return useReducer((state: OverlayState, action: BusEvent): OverlayState => {
