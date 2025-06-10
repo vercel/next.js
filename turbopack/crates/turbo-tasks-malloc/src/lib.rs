@@ -84,7 +84,7 @@ fn base_alloc() -> &'static impl GlobalAlloc {
         feature = "custom_allocator",
         not(any(target_family = "wasm", target_env = "musl"))
     ))]
-    return &mimalloc::MiMalloc;
+    return &tcmalloc2::TcMalloc;
     #[cfg(any(
         not(feature = "custom_allocator"),
         any(target_family = "wasm", target_env = "musl")

@@ -10,13 +10,14 @@ autobenches = false
 bench = false
 
 [target.'cfg(not(any(target_os = "linux", target_family = "wasm", target_env = "musl")))'.dependencies]
-mimalloc = { version = "0.1.42", features = [], optional = true }
+tcmalloc2 = {version = "*", optional = true}
 
 [target.'cfg(all(target_os = "linux", not(any(target_family = "wasm", target_env = "musl"))))'.dependencies]
-mimalloc = { version = "0.1.42", features = [
-  "local_dynamic_tls",
-], optional = true }
+tcmalloc2 = {version = "*", optional = true}
+
 
 [features]
-custom_allocator = ["dep:mimalloc"]
+custom_allocator = ["dep:tcmalloc2"]
 default = ["custom_allocator"]
+
+[dependencies]
