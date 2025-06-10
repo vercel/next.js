@@ -19,6 +19,15 @@ impl SstFilter {
 
     /// Phase 1: Apply the filter to the meta file and update the state in the filter.
     pub fn apply_filter(&mut self, meta: &mut MetaFile) {
+        // Already obsolete entries need to be considered for usage computation
+        for seq in meta.obsolete_entries() {
+            if let Some(state) = self.0.get_mut(seq) {
+                if matches!(state, SstState::UnusedObsolete) {
+                    // the obsolete state is used now
+                    *state = SstState::Obsolete;
+                }
+            }
+        }
         meta.retain_entries(|seq| match self.0.entry(seq) {
             Entry::Occupied(mut e) => {
                 let state = e.get_mut();
