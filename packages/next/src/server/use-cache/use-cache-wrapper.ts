@@ -53,6 +53,7 @@ import type { Params } from '../request/params'
 import React from 'react'
 import { createLazyResult, isResolvedLazyResult } from '../lib/lazy-result'
 import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
+import { isReactLargeShellError } from '../app-render/react-large-shell-error'
 
 type CacheKeyParts =
   | [buildId: string, id: string, args: unknown[]]
@@ -398,6 +399,12 @@ async function generateCacheEntryImpl(
 
     if (digest) {
       return digest
+    }
+
+    if (isReactLargeShellError(error)) {
+      // TODO: Aggregate
+      console.error(error)
+      return undefined
     }
 
     if (process.env.NODE_ENV !== 'development') {
