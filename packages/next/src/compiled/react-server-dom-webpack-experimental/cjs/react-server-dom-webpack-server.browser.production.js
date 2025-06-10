@@ -556,13 +556,7 @@ function useId() {
   if (null === currentRequest$1)
     throw Error("useId can only be used while React is rendering");
   var id = currentRequest$1.identifierCount++;
-  return (
-    "\u00ab" +
-    currentRequest$1.identifierPrefix +
-    "S" +
-    id.toString(32) +
-    "\u00bb"
-  );
+  return "_" + currentRequest$1.identifierPrefix + "S_" + id.toString(32) + "_";
 }
 function use(usable) {
   if (
@@ -868,8 +862,8 @@ function serializeReadableStream(request, task, stream) {
             tryStreamTask(request, streamTask),
             enqueueFlush(request),
             reader.read().then(progress, error);
-        } catch (x$10) {
-          error(x$10);
+        } catch (x$9) {
+          error(x$9);
         }
   }
   function error(reason) {
@@ -943,8 +937,8 @@ function serializeAsyncIterable(request, task, iterable, iterator) {
             tryStreamTask(request, streamTask),
             enqueueFlush(request),
             iterator.next().then(progress, error);
-        } catch (x$11) {
-          error(x$11);
+        } catch (x$10) {
+          error(x$10);
         }
   }
   function error(reason) {
@@ -2030,12 +2024,12 @@ function abort(request, reason) {
                 ? Error("The render was aborted by the server with a promise.")
                 : reason,
           digest = logRecoverableError(request, error, null),
-          errorId$28 = request.nextChunkId++;
-        request.fatalError = errorId$28;
+          errorId$27 = request.nextChunkId++;
+        request.fatalError = errorId$27;
         request.pendingChunks++;
-        emitErrorChunk(request, errorId$28, digest, error);
+        emitErrorChunk(request, errorId$27, digest, error);
         abortableTasks.forEach(function (task) {
-          return abortTask(task, request, errorId$28);
+          return abortTask(task, request, errorId$27);
         });
       }
       abortableTasks.clear();
@@ -2043,7 +2037,7 @@ function abort(request, reason) {
     }
     var abortListeners = request.abortListeners;
     if (0 < abortListeners.size) {
-      var error$29 =
+      var error$28 =
         "object" === typeof reason &&
         null !== reason &&
         reason.$$typeof === REACT_POSTPONE_TYPE
@@ -2056,15 +2050,15 @@ function abort(request, reason) {
               ? Error("The render was aborted by the server with a promise.")
               : reason;
       abortListeners.forEach(function (callback) {
-        return callback(error$29);
+        return callback(error$28);
       });
       abortListeners.clear();
       callOnAllReadyIfReady(request);
     }
     null !== request.destination &&
       flushCompletedChunks(request, request.destination);
-  } catch (error$30) {
-    logRecoverableError(request, error$30, null), fatalError(request, error$30);
+  } catch (error$29) {
+    logRecoverableError(request, error$29, null), fatalError(request, error$29);
   }
 }
 function resolveServerReference(bundlerConfig, id) {
@@ -2522,8 +2516,8 @@ function parseReadableStream(response, reference, type) {
             (previousBlockedChunk = chunk));
       } else {
         chunk = previousBlockedChunk;
-        var chunk$33 = createPendingChunk(response);
-        chunk$33.then(
+        var chunk$32 = createPendingChunk(response);
+        chunk$32.then(
           function (v) {
             return controller.enqueue(v);
           },
@@ -2531,10 +2525,10 @@ function parseReadableStream(response, reference, type) {
             return controller.error(e);
           }
         );
-        previousBlockedChunk = chunk$33;
+        previousBlockedChunk = chunk$32;
         chunk.then(function () {
-          previousBlockedChunk === chunk$33 && (previousBlockedChunk = null);
-          resolveModelChunk(chunk$33, json, -1);
+          previousBlockedChunk === chunk$32 && (previousBlockedChunk = null);
+          resolveModelChunk(chunk$32, json, -1);
         });
       }
     },
