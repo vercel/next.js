@@ -87,7 +87,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         };
 
         let ident = &sig.ident;
-        // This effectively parses and removes the function annotation ensureing that macro doesn't
+        // This effectively parses and removes the function annotation ensuring that macro doesn't
         // run after us.
         let (func_args, attrs) = split_function_attributes(item, attrs);
         let func_args = func_args
