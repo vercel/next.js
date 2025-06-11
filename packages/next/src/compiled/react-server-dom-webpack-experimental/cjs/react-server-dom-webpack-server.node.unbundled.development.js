@@ -12,6 +12,14 @@
 "production" !== process.env.NODE_ENV &&
   (function () {
     function voidHandler() {}
+    function getIteratorFn(maybeIterable) {
+      if (null === maybeIterable || "object" !== typeof maybeIterable)
+        return null;
+      maybeIterable =
+        (MAYBE_ITERATOR_SYMBOL && maybeIterable[MAYBE_ITERATOR_SYMBOL]) ||
+        maybeIterable["@@iterator"];
+      return "function" === typeof maybeIterable ? maybeIterable : null;
+    }
     function _defineProperty(obj, key, value) {
       a: if ("object" == typeof key && key) {
         var e = key[Symbol.toPrimitive];
@@ -354,14 +362,6 @@
       reference = new Proxy(reference, proxyHandlers);
       temporaryReferences.set(reference, id);
       return reference;
-    }
-    function getIteratorFn(maybeIterable) {
-      if (null === maybeIterable || "object" !== typeof maybeIterable)
-        return null;
-      maybeIterable =
-        (MAYBE_ITERATOR_SYMBOL && maybeIterable[MAYBE_ITERATOR_SYMBOL]) ||
-        maybeIterable["@@iterator"];
-      return "function" === typeof maybeIterable ? maybeIterable : null;
     }
     function noop() {}
     function trackUsedThenable(thenableState, thenable, index) {
@@ -920,17 +920,22 @@
         task.debugStack,
         task.debugTask
       );
-      (task = thenable._debugInfo) &&
-        forwardDebugInfo(request, newTask.id, task);
       switch (thenable.status) {
         case "fulfilled":
           return (
+            (task = thenable._debugInfo) &&
+              forwardDebugInfo(request, newTask, task),
             (newTask.model = thenable.value),
             pingTask(request, newTask),
             newTask.id
           );
         case "rejected":
-          return erroredTask(request, newTask, thenable.reason), newTask.id;
+          return (
+            (task = thenable._debugInfo) &&
+              forwardDebugInfo(request, newTask, task),
+            erroredTask(request, newTask, thenable.reason),
+            newTask.id
+          );
         default:
           if (request.status === ABORTING)
             return (
@@ -958,10 +963,14 @@
       }
       thenable.then(
         function (value) {
+          var _debugInfo2 = thenable._debugInfo;
+          _debugInfo2 && forwardDebugInfo(request, newTask, _debugInfo2);
           newTask.model = value;
           pingTask(request, newTask);
         },
         function (reason) {
+          var _debugInfo3 = thenable._debugInfo;
+          _debugInfo3 && forwardDebugInfo(request, newTask, _debugInfo3);
           newTask.status === PENDING$1 &&
             (erroredTask(request, newTask, reason), enqueueFlush(request));
         }
@@ -1106,7 +1115,7 @@
       task = streamTask.id.toString(16) + ":" + (isIterator ? "x" : "X") + "\n";
       request.completedRegularChunks.push(task);
       (iterable = iterable._debugInfo) &&
-        forwardDebugInfo(request, streamTask.id, iterable);
+        forwardDebugInfo(request, streamTask, iterable);
       var aborted = !1;
       request.abortListeners.add(abortIterable);
       callIteratorInDEV(iterator, progress, error);
@@ -1245,39 +1254,40 @@
     ) {
       var prevThenableState = task.thenableState;
       task.thenableState = null;
-      if (null === debugID) return outlineTask(request, task);
-      if (null !== prevThenableState)
-        var componentDebugInfo = prevThenableState._componentDebugInfo;
-      else {
-        var componentDebugID = debugID;
-        componentDebugInfo = Component.displayName || Component.name || "";
-        var componentEnv = (0, request.environmentName)();
-        request.pendingChunks++;
-        componentDebugInfo = {
-          name: componentDebugInfo,
-          env: componentEnv,
-          key: key,
-          owner: task.debugOwner
-        };
-        componentDebugInfo.stack =
-          null === task.debugStack
-            ? null
-            : filterStackTrace(request, parseStackTrace(task.debugStack, 1));
-        componentDebugInfo.props = props;
-        componentDebugInfo.debugStack = task.debugStack;
-        componentDebugInfo.debugTask = task.debugTask;
-        outlineComponentInfo(request, componentDebugInfo);
-        task.timed = !0;
-        emitTimingChunk(
-          request,
-          componentDebugID,
-          (task.time = performance.now())
-        );
-        emitDebugChunk(request, componentDebugID, componentDebugInfo);
-        task.environmentName = componentEnv;
-        2 === validated &&
-          warnForMissingKey(request, key, componentDebugInfo, task.debugTask);
-      }
+      if (canEmitDebugInfo)
+        if (null !== prevThenableState)
+          var componentDebugInfo = prevThenableState._componentDebugInfo;
+        else {
+          var componentDebugID = task.id;
+          componentDebugInfo = Component.displayName || Component.name || "";
+          var componentEnv = (0, request.environmentName)();
+          request.pendingChunks++;
+          componentDebugInfo = {
+            name: componentDebugInfo,
+            env: componentEnv,
+            key: key,
+            owner: task.debugOwner
+          };
+          componentDebugInfo.stack =
+            null === task.debugStack
+              ? null
+              : filterStackTrace(request, parseStackTrace(task.debugStack, 1));
+          componentDebugInfo.props = props;
+          componentDebugInfo.debugStack = task.debugStack;
+          componentDebugInfo.debugTask = task.debugTask;
+          outlineComponentInfo(request, componentDebugInfo);
+          task.timed = !0;
+          emitTimingChunk(
+            request,
+            componentDebugID,
+            (task.time = performance.now())
+          );
+          emitDebugChunk(request, componentDebugID, componentDebugInfo);
+          task.environmentName = componentEnv;
+          2 === validated &&
+            warnForMissingKey(request, key, componentDebugInfo, task.debugTask);
+        }
+      else return outlineTask(request, task);
       thenableIndexCounter = 0;
       thenableState = prevThenableState;
       currentComponentDebugInfo = componentDebugInfo;
@@ -1382,8 +1392,8 @@
           task.implicitSlot ? [request] : request
         );
       if ((i = children._debugInfo)) {
-        if (null === debugID) return outlineTask(request, task);
-        forwardDebugInfo(request, debugID, i);
+        if (canEmitDebugInfo) forwardDebugInfo(request, task, i);
+        else return outlineTask(request, task);
         children = Array.from(children);
       }
       return children;
@@ -1561,7 +1571,7 @@
         case 3:
           return null;
         case 1:
-          if (node.end < cutOff) return null;
+          if (node.end <= request.timeOrigin) return null;
           var awaited = node.awaited,
             match = null;
           null !== awaited &&
@@ -1572,7 +1582,7 @@
                 ? (0 > cutOff.end && (cutOff.end = node.end), (match = cutOff))
                 : (match = node)));
           node = node.debugInfo;
-          null !== node && forwardDebugInfo(request, task.id, node);
+          null !== node && forwardDebugInfo(request, task, node);
           return match;
         case 4:
         case 2:
@@ -1589,33 +1599,37 @@
             )),
             null !== visited)
           ) {
+            awaited = node.start;
             var endTime =
               4 === node.tag
                 ? visited.end < node.start
                   ? node.start
                   : visited.end
                 : node.end;
-            endTime < cutOff ||
-              ((awaited = filterStackTrace(
+            if (endTime <= request.timeOrigin) return null;
+            if (awaited < cutOff) match = visited;
+            else if (
+              ((cutOff = filterStackTrace(
                 request,
                 parseStackTrace(node.stack, 1)
               )),
-              0 === awaited.length
-                ? (match = visited)
-                : (0 > visited.end && (visited.end = endTime),
-                  serializeIONode(request, visited),
-                  (endTime = (0, request.environmentName)()),
-                  node.start <= cutOff
-                    ? emitTimingChunk(request, task.id, cutOff)
-                    : emitTimingChunk(request, task.id, node.start),
-                  request.pendingChunks++,
-                  emitDebugChunk(request, task.id, {
-                    awaited: visited,
-                    env: endTime,
-                    owner: node.owner,
-                    stack: awaited
-                  }),
-                  emitTimingChunk(request, task.id, node.end)));
+              0 === cutOff.length)
+            )
+              match = visited;
+            else {
+              0 > visited.end && (visited.end = endTime);
+              serializeIONode(request, visited);
+              var env = (0, request.environmentName)();
+              emitTimingChunk(request, task.id, awaited);
+              request.pendingChunks++;
+              emitDebugChunk(request, task.id, {
+                awaited: visited,
+                env: env,
+                owner: node.owner,
+                stack: cutOff
+              });
+              emitTimingChunk(request, task.id, endTime);
+            }
           }
           4 === node.tag
             ? ((node = node.debugInfo.deref()),
@@ -1624,7 +1638,7 @@
                   ? null
                   : node._debugInfo))
             : (node = node.debugInfo);
-          null !== node && forwardDebugInfo(request, task.id, node);
+          null !== node && forwardDebugInfo(request, task, node);
           return match;
         default:
           throw Error("Unknown AsyncSequence tag. This is a bug in React.");
@@ -1633,14 +1647,16 @@
     function emitAsyncSequence(request, task, node, cutOff) {
       var visited = new Set();
       node = visitAsyncNode(request, task, node, cutOff, visited);
-      null !== node &&
-        (0 > node.end && (node.end = performance.now()),
-        serializeIONode(request, node),
-        request.pendingChunks++,
-        (visited = (0, request.environmentName)()),
-        emitTimingChunk(request, task.id, cutOff),
-        emitDebugChunk(request, task.id, { awaited: node, env: visited }),
-        emitTimingChunk(request, task.id, node.end));
+      if (null !== node) {
+        0 > node.end && (node.end = performance.now());
+        serializeIONode(request, node);
+        request.pendingChunks++;
+        visited = (0, request.environmentName)();
+        var awaitEndTime = node.end < cutOff ? cutOff : node.end;
+        emitTimingChunk(request, task.id, cutOff);
+        emitDebugChunk(request, task.id, { awaited: node, env: visited });
+        emitTimingChunk(request, task.id, awaitEndTime);
+      }
     }
     function pingTask(request, task) {
       task.timed = !0;
@@ -2024,10 +2040,10 @@
                     _writtenObjects.set(value, elementReference)));
             }
             if (serializedSize > MAX_ROW_SIZE) return deferTask(request, task);
-            if ((_existingReference = value._debugInfo)) {
-              if (null === debugID) return outlineTask(request, task);
-              forwardDebugInfo(request, debugID, _existingReference);
-            }
+            if ((_existingReference = value._debugInfo))
+              if (canEmitDebugInfo)
+                forwardDebugInfo(request, task, _existingReference);
+              else return outlineTask(request, task);
             _existingReference = value.props;
             var refProp = _existingReference.ref;
             task.debugOwner = value._owner;
@@ -2053,10 +2069,10 @@
             task.thenableState = null;
             elementReference = callLazyInitInDEV(value);
             if (request.status === ABORTING) throw null;
-            if ((_writtenObjects = value._debugInfo)) {
-              if (null === debugID) return outlineTask(request, task);
-              forwardDebugInfo(request, debugID, _writtenObjects);
-            }
+            if ((_writtenObjects = value._debugInfo))
+              if (canEmitDebugInfo)
+                forwardDebugInfo(request, task, _writtenObjects);
+              else return outlineTask(request, task);
             return renderModelDestructive(
               request,
               task,
@@ -2472,11 +2488,19 @@
         objectLimit = { objectLimit: objectLimit };
         var componentDebugInfo = {
           name: componentInfo.name,
-          env: componentInfo.env,
-          key: componentInfo.key,
-          owner: componentInfo.owner
+          key: componentInfo.key
         };
-        componentDebugInfo.stack = componentInfo.stack;
+        null != componentInfo.env &&
+          (componentDebugInfo.env = componentInfo.env);
+        null != componentInfo.owner &&
+          (componentDebugInfo.owner = componentInfo.owner);
+        null == componentInfo.stack && null != componentInfo.debugStack
+          ? (componentDebugInfo.stack = filterStackTrace(
+              request,
+              parseStackTrace(componentInfo.debugStack, 1)
+            ))
+          : null != componentInfo.stack &&
+            (componentDebugInfo.stack = componentInfo.stack);
         componentDebugInfo.props = componentInfo.props;
         objectLimit = outlineConsoleValue(
           request,
@@ -2864,44 +2888,72 @@
       request.pendingChunks++;
       request.completedRegularChunks.push(":N" + timeOrigin + "\n");
     }
-    function forwardDebugInfo(request$jscomp$0, id$jscomp$0, debugInfo) {
-      for (var i = 0; i < debugInfo.length; i++)
-        if ("number" === typeof debugInfo[i].time)
-          emitTimingChunk(request$jscomp$0, id$jscomp$0, debugInfo[i].time);
-        else if (
-          (request$jscomp$0.pendingChunks++,
-          "string" === typeof debugInfo[i].name)
-        )
-          outlineComponentInfo(request$jscomp$0, debugInfo[i]),
-            emitDebugChunk(request$jscomp$0, id$jscomp$0, debugInfo[i]);
-        else if (debugInfo[i].awaited) {
-          var ioInfo = debugInfo[i].awaited;
-          var request = request$jscomp$0,
-            ioInfo$jscomp$0 = ioInfo;
-          if (!request.writtenObjects.has(ioInfo$jscomp$0)) {
-            request.pendingChunks++;
-            var id = request.nextChunkId++,
-              owner = ioInfo$jscomp$0.owner;
-            null != owner && outlineComponentInfo(request, owner);
-            emitIOInfoChunk(
-              request,
-              id,
-              ioInfo$jscomp$0.name,
-              ioInfo$jscomp$0.start,
-              ioInfo$jscomp$0.end,
-              ioInfo$jscomp$0.env,
-              owner,
-              ioInfo$jscomp$0.stack
-            );
-            request.writtenObjects.set(ioInfo$jscomp$0, serializeByValueID(id));
+    function forwardDebugInfo(request$jscomp$0, task, debugInfo) {
+      var id = task.id;
+      task = task.time;
+      for (var i = 0; i < debugInfo.length; i++) {
+        var info = debugInfo[i];
+        if ("number" === typeof info.time)
+          emitTimingChunk(
+            request$jscomp$0,
+            id,
+            info.time < task ? task : info.time
+          );
+        else if ("string" === typeof info.name)
+          outlineComponentInfo(request$jscomp$0, info),
+            request$jscomp$0.pendingChunks++,
+            emitDebugChunk(request$jscomp$0, id, info);
+        else if (info.awaited) {
+          var ioInfo = info.awaited;
+          if (!(ioInfo.end <= request$jscomp$0.timeOrigin)) {
+            var request = request$jscomp$0,
+              ioInfo$jscomp$0 = ioInfo;
+            if (!request.writtenObjects.has(ioInfo$jscomp$0)) {
+              request.pendingChunks++;
+              var id$jscomp$0 = request.nextChunkId++,
+                owner = ioInfo$jscomp$0.owner;
+              null != owner && outlineComponentInfo(request, owner);
+              var debugStack =
+                null == ioInfo$jscomp$0.stack &&
+                null != ioInfo$jscomp$0.debugStack
+                  ? filterStackTrace(
+                      request,
+                      parseStackTrace(ioInfo$jscomp$0.debugStack, 1)
+                    )
+                  : ioInfo$jscomp$0.stack;
+              emitIOInfoChunk(
+                request,
+                id$jscomp$0,
+                ioInfo$jscomp$0.name,
+                ioInfo$jscomp$0.start,
+                ioInfo$jscomp$0.end,
+                ioInfo$jscomp$0.env,
+                owner,
+                debugStack
+              );
+              request.writtenObjects.set(
+                ioInfo$jscomp$0,
+                serializeByValueID(id$jscomp$0)
+              );
+            }
+            debugStack =
+              null == info.stack && null != info.debugStack
+                ? filterStackTrace(
+                    request$jscomp$0,
+                    parseStackTrace(info.debugStack, 1)
+                  )
+                : info.stack;
+            ioInfo = { awaited: ioInfo };
+            null != info.env && (ioInfo.env = info.env);
+            null != info.owner && (ioInfo.owner = info.owner);
+            null != debugStack && (ioInfo.stack = debugStack);
+            request$jscomp$0.pendingChunks++;
+            emitDebugChunk(request$jscomp$0, id, ioInfo);
           }
-          emitDebugChunk(request$jscomp$0, id$jscomp$0, {
-            awaited: ioInfo,
-            env: debugInfo[i].env,
-            owner: debugInfo[i].owner,
-            stack: debugInfo[i].stack
-          });
-        } else emitDebugChunk(request$jscomp$0, id$jscomp$0, debugInfo[i]);
+        } else
+          request$jscomp$0.pendingChunks++,
+            emitDebugChunk(request$jscomp$0, id, info);
+      }
     }
     function emitTimingChunk(request, id, timestamp) {
       request.pendingChunks++;
@@ -2964,12 +3016,12 @@
     }
     function retryTask(request, task) {
       if (task.status === PENDING$1) {
-        var prevDebugID = debugID;
+        var prevCanEmitDebugInfo = canEmitDebugInfo;
         task.status = RENDERING;
         var parentSerializedSize = serializedSize;
         try {
           modelRoot = task.model;
-          debugID = task.id;
+          canEmitDebugInfo = !0;
           var resolvedModel = renderModelDestructive(
             request,
             task,
@@ -2977,7 +3029,7 @@
             "",
             task.model
           );
-          debugID = null;
+          canEmitDebugInfo = !1;
           modelRoot = resolvedModel;
           task.keyPath = null;
           task.implicitSlot = !1;
@@ -3029,18 +3081,20 @@
             } else erroredTask(request, task, x);
           }
         } finally {
-          (debugID = prevDebugID), (serializedSize = parentSerializedSize);
+          (canEmitDebugInfo = prevCanEmitDebugInfo),
+            (serializedSize = parentSerializedSize);
         }
       }
     }
     function tryStreamTask(request, task) {
-      var prevDebugID = debugID;
-      debugID = null;
+      var prevCanEmitDebugInfo = canEmitDebugInfo;
+      canEmitDebugInfo = !1;
       var parentSerializedSize = serializedSize;
       try {
         emitChunk(request, task, task.model);
       } finally {
-        (serializedSize = parentSerializedSize), (debugID = prevDebugID);
+        (serializedSize = parentSerializedSize),
+          (canEmitDebugInfo = prevCanEmitDebugInfo);
       }
     }
     function performWork(request) {
@@ -3982,7 +4036,24 @@
         abort(request, Error(reason));
       };
     }
-    function createFakeWritable(readable) {
+    function createFakeWritableFromReadableStreamController(controller) {
+      return {
+        write: function (chunk) {
+          "string" === typeof chunk && (chunk = textEncoder.encode(chunk));
+          controller.enqueue(chunk);
+          return !0;
+        },
+        end: function () {
+          controller.close();
+        },
+        destroy: function (error) {
+          "function" === typeof controller.error
+            ? controller.error(error)
+            : controller.close();
+        }
+      };
+    }
+    function createFakeWritableFromNodeReadable(readable) {
       return {
         write: function (chunk) {
           return readable.push(chunk);
@@ -4001,6 +4072,20 @@
     var async_hooks = require("async_hooks"),
       ReactDOM = require("react-dom"),
       React = require("react"),
+      REACT_LEGACY_ELEMENT_TYPE = Symbol.for("react.element"),
+      REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
+      REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"),
+      REACT_CONTEXT_TYPE = Symbol.for("react.context"),
+      REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref"),
+      REACT_SUSPENSE_TYPE = Symbol.for("react.suspense"),
+      REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"),
+      REACT_MEMO_TYPE = Symbol.for("react.memo"),
+      REACT_LAZY_TYPE = Symbol.for("react.lazy"),
+      REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"),
+      REACT_POSTPONE_TYPE = Symbol.for("react.postpone"),
+      REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
+      MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
+      ASYNC_ITERATOR = Symbol.asyncIterator,
       scheduleMicrotask = queueMicrotask,
       currentView = null,
       writtenBytes = 0,
@@ -4245,20 +4330,6 @@
           );
         }
       },
-      REACT_LEGACY_ELEMENT_TYPE = Symbol.for("react.element"),
-      REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
-      REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"),
-      REACT_CONTEXT_TYPE = Symbol.for("react.context"),
-      REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref"),
-      REACT_SUSPENSE_TYPE = Symbol.for("react.suspense"),
-      REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"),
-      REACT_MEMO_TYPE = Symbol.for("react.memo"),
-      REACT_LAZY_TYPE = Symbol.for("react.lazy"),
-      REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"),
-      REACT_POSTPONE_TYPE = Symbol.for("react.postpone"),
-      REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
-      MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
-      ASYNC_ITERATOR = Symbol.asyncIterator,
       SuspenseException = Error(
         "Suspense Exception: This is not a real error! It's an implementation detail of `use` to interrupt the current render. You must either rethrow it immediately, or move the `use` call outside of the `try/catch` block. Capturing without rethrowing will lead to unexpected behavior.\n\nTo handle async errors, wrap your component in an error boundary, or call the promise's `.catch` method and pass the result to `use`."
       ),
@@ -4552,7 +4623,7 @@
         ReactSharedInternalsServer.TaintRegistryPendingRequests,
       defaultPostponeHandler = noop,
       currentRequest = null,
-      debugID = null,
+      canEmitDebugInfo = !1,
       serializedSize = 0,
       MAX_ROW_SIZE = 3200,
       modelRoot = !1,
@@ -4649,6 +4720,37 @@
       close(body);
       return webpackMap;
     };
+    exports.decodeReplyFromAsyncIterable = function (
+      iterable,
+      webpackMap,
+      options
+    ) {
+      function progress(entry) {
+        if (entry.done) close(response);
+        else {
+          var _entry$value = entry.value;
+          entry = _entry$value[0];
+          _entry$value = _entry$value[1];
+          "string" === typeof _entry$value
+            ? resolveField(response, entry, _entry$value)
+            : response._formData.append(entry, _entry$value);
+          iterator.next().then(progress, error);
+        }
+      }
+      function error(reason) {
+        reportGlobalError(response, reason);
+        "function" === typeof iterator.throw &&
+          iterator.throw(reason).then(error, error);
+      }
+      var iterator = iterable[ASYNC_ITERATOR](),
+        response = createResponse(
+          webpackMap,
+          "",
+          options ? options.temporaryReferences : void 0
+        );
+      iterator.next().then(progress, error);
+      return getChunk(response, 0);
+    };
     exports.decodeReplyFromBusboy = function (
       busboyStream,
       webpackMap,
@@ -4674,12 +4776,12 @@
             "React doesn't accept base64 encoded file uploads because we don't expect form data passed from a browser to ever encode data that way. If that's the wrong assumption, we can easily fix it."
           );
         pendingFiles++;
-        var JSCompiler_object_inline_chunks_174 = [];
+        var JSCompiler_object_inline_chunks_183 = [];
         value.on("data", function (chunk) {
-          JSCompiler_object_inline_chunks_174.push(chunk);
+          JSCompiler_object_inline_chunks_183.push(chunk);
         });
         value.on("end", function () {
-          var blob = new Blob(JSCompiler_object_inline_chunks_174, {
+          var blob = new Blob(JSCompiler_object_inline_chunks_183, {
             type: mimeType
           });
           response._formData.append(name, blob, filename);
@@ -4766,6 +4868,98 @@
         }
       };
     };
+    exports.renderToReadableStream = function (model, webpackMap, options) {
+      var request = createRequest(
+        model,
+        webpackMap,
+        options ? options.onError : void 0,
+        options ? options.identifierPrefix : void 0,
+        options ? options.onPostpone : void 0,
+        options ? options.temporaryReferences : void 0,
+        options ? options.environmentName : void 0,
+        options ? options.filterStackFrame : void 0
+      );
+      if (options && options.signal) {
+        var signal = options.signal;
+        if (signal.aborted) abort(request, signal.reason);
+        else {
+          var listener = function () {
+            abort(request, signal.reason);
+            signal.removeEventListener("abort", listener);
+          };
+          signal.addEventListener("abort", listener);
+        }
+      }
+      var writable;
+      return new ReadableStream(
+        {
+          type: "bytes",
+          start: function (controller) {
+            writable =
+              createFakeWritableFromReadableStreamController(controller);
+            startWork(request);
+          },
+          pull: function () {
+            startFlowing(request, writable);
+          },
+          cancel: function (reason) {
+            request.destination = null;
+            abort(request, reason);
+          }
+        },
+        { highWaterMark: 0 }
+      );
+    };
+    exports.unstable_prerender = function (model, webpackMap, options) {
+      return new Promise(function (resolve, reject) {
+        var request = createPrerenderRequest(
+          model,
+          webpackMap,
+          function () {
+            var writable,
+              stream = new ReadableStream(
+                {
+                  type: "bytes",
+                  start: function (controller) {
+                    writable =
+                      createFakeWritableFromReadableStreamController(
+                        controller
+                      );
+                  },
+                  pull: function () {
+                    startFlowing(request, writable);
+                  },
+                  cancel: function (reason) {
+                    request.destination = null;
+                    abort(request, reason);
+                  }
+                },
+                { highWaterMark: 0 }
+              );
+            resolve({ prelude: stream });
+          },
+          reject,
+          options ? options.onError : void 0,
+          options ? options.identifierPrefix : void 0,
+          options ? options.onPostpone : void 0,
+          options ? options.temporaryReferences : void 0,
+          options ? options.environmentName : void 0,
+          options ? options.filterStackFrame : void 0
+        );
+        if (options && options.signal) {
+          var signal = options.signal;
+          if (signal.aborted) abort(request, signal.reason);
+          else {
+            var listener = function () {
+              abort(request, signal.reason);
+              signal.removeEventListener("abort", listener);
+            };
+            signal.addEventListener("abort", listener);
+          }
+        }
+        startWork(request);
+      });
+    };
     exports.unstable_prerenderToNodeStream = function (
       model,
       webpackMap,
@@ -4781,7 +4975,7 @@
                   startFlowing(request, writable);
                 }
               }),
-              writable = createFakeWritable(readable);
+              writable = createFakeWritableFromNodeReadable(readable);
             resolve({ prelude: readable });
           },
           reject,
