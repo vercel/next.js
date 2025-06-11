@@ -467,15 +467,15 @@ describe('ReactRefreshLogBox app', () => {
        Selector "button" is not pure. Pure selectors must contain at least one local class or id.
        Example import traces:
          #1:
-           ./index.module.css [app-client]
-           ./index.js [app-client]
-           ./app/page.js [app-client]
-           ./app/page.js [app-rsc]
+           ./index.module.css [Client Component Browser]
+           ./index.js [Client Component Browser]
+           ./app/page.js [Client Component Browser]
+           ./app/page.js [Server Component]
          #2:
-           ./index.module.css [app-ssr]
-           ./index.js [app-ssr]
-           ./app/page.js [app-ssr]
-           ./app/page.js [app-rsc]",
+           ./index.module.css [Client Component SSR]
+           ./index.js [Client Component SSR]
+           ./app/page.js [Client Component SSR]
+           ./app/page.js [Server Component]",
          "stack": [],
        }
       `)
