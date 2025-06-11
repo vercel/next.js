@@ -9,7 +9,7 @@ use turbopack_core::{
     },
     module::Module,
     reference::ModuleReference,
-    resolve::{ModulePart, ModuleResolveResult},
+    resolve::{ExportUsage, ModulePart, ModuleResolveResult},
 };
 
 use super::{
@@ -27,6 +27,7 @@ use crate::{
 pub struct EcmascriptModulePartReference {
     pub module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     pub part: Option<ModulePart>,
+    pub remove_unused_exports: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -35,17 +36,27 @@ impl EcmascriptModulePartReference {
     pub fn new_part(
         module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
         part: ModulePart,
+        remove_unused_exports: bool,
     ) -> Vc<Self> {
         EcmascriptModulePartReference {
             module,
             part: Some(part),
+            remove_unused_exports,
         }
         .cell()
     }
 
     #[turbo_tasks::function]
-    pub fn new(module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>) -> Vc<Self> {
-        EcmascriptModulePartReference { module, part: None }.cell()
+    pub fn new(
+        module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+        remove_unused_exports: bool,
+    ) -> Vc<Self> {
+        EcmascriptModulePartReference {
+            module,
+            part: None,
+            remove_unused_exports,
+        }
+        .cell()
     }
 }
 
@@ -79,9 +90,13 @@ impl ModuleReference for EcmascriptModulePartReference {
                 | ModulePart::Evaluation
                 | ModulePart::Facade
                 | ModulePart::RenamedExport { .. }
-                | ModulePart::RenamedNamespace { .. } => Vc::upcast(
-                    EcmascriptModuleFacadeModule::new(*self.module, part.clone()),
-                ),
+                | ModulePart::RenamedNamespace { .. } => {
+                    Vc::upcast(EcmascriptModuleFacadeModule::new(
+                        *self.module,
+                        part.clone(),
+                        self.remove_unused_exports,
+                    ))
+                }
                 ModulePart::Export(..) | ModulePart::Internal(..) => {
                     bail!(
                         "Unexpected ModulePart \"{}\" for EcmascriptModulePartReference",
@@ -94,6 +109,7 @@ impl ModuleReference for EcmascriptModulePartReference {
         } else {
             ResolvedVc::upcast(self.module)
         };
+
         Ok(*ModuleResolveResult::module(module))
     }
 }
@@ -106,6 +122,15 @@ impl ChunkableModuleReference for EcmascriptModulePartReference {
             inherit_async: true,
             hoisted: true,
         }))
+    }
+
+    #[turbo_tasks::function]
+    fn export_usage(&self) -> Vc<ExportUsage> {
+        match &self.part {
+            Some(ModulePart::Export(export)) => ExportUsage::named(export.clone()),
+            Some(ModulePart::Evaluation) => ExportUsage::evaluation(),
+            _ => ExportUsage::all(),
+        }
     }
 }
 
