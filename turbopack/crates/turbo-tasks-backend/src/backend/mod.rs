@@ -1671,6 +1671,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         let has_children = !new_children.is_empty();
 
+        // If the task is not stateful and has no children, it does not have a way to be invalidated
+        // and we can mark it as immutable.
+        if !stateful && !has_children {
+            task.mark_as_immutable();
+        }
+
         // Prepare all new children
         if has_children {
             prepare_new_children(task_id, &mut task, &new_children, &mut queue);
