@@ -404,7 +404,7 @@ smallvec = { version = "1.13.1", features = [
   "union",
   "const_new",
 ] }
-swc_sourcemap = "9.2.2"
+swc_sourcemap = "9.3.2"
 strsim = "0.11.1"
 shrink-to-fit = "0.2.10"
 syn = "2.0.100"
