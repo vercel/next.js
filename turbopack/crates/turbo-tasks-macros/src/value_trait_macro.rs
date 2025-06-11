@@ -90,9 +90,9 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         // This effectively parses and removes the function annotation ensuring that that macro
         // doesn't run after us.
         let (func_args, attrs) = split_function_attributes(item, attrs);
-        let func_args = func_args
-            .inspect_err(|err| errors.push(err.to_compile_error()))
-            .unwrap_or_default();
+        let Ok(func_args) = func_args.inspect_err(|err| errors.push(err.to_compile_error())) else {
+            continue;
+        };
         if let Some(span) = func_args.operation {
             span.unwrap()
                 .error("trait items cannot be operations")

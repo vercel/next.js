@@ -19,7 +19,6 @@ struct MyStruct;
 
 #[turbo_tasks::value_impl]
 impl MyTrait for MyStruct {
-    #[turbo_tasks::function]
     fn item(&self) -> bool {
         true
     }

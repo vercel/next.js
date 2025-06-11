@@ -78,9 +78,11 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
             {
                 let ident = &sig.ident;
                 let (func_args, attrs) = split_function_attributes(item, attrs);
-                let func_args = func_args
-                    .inspect_err(|err| errors.push(err.to_compile_error()))
-                    .unwrap_or_default();
+                let Ok(func_args) =
+                    func_args.inspect_err(|err| errors.push(err.to_compile_error()))
+                else {
+                    continue;
+                };
                 let local = func_args.local.is_some();
                 let is_self_used = func_args.operation.is_some() || is_self_used(block);
 
@@ -182,9 +184,12 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 let ident = &sig.ident;
 
                 let (func_args, attrs) = split_function_attributes(item, attrs);
-                let func_args = func_args
-                    .inspect_err(|err| errors.push(err.to_compile_error()))
-                    .unwrap_or_default();
+                let Ok(func_args) =
+                    func_args.inspect_err(|err| errors.push(err.to_compile_error()))
+                else {
+                    continue;
+                };
+
                 let local = func_args.local.is_some();
                 let is_self_used = func_args.operation.is_some() || is_self_used(block);
 
