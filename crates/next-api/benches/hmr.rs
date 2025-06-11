@@ -2,6 +2,7 @@ extern crate turbo_tasks_malloc;
 
 use std::{
     fs::{create_dir_all, write},
+    mem::forget,
     path::{Path, PathBuf},
     process::Command,
     sync::Arc,
@@ -280,10 +281,10 @@ impl HmrBenchmark {
             update_durations.push(update_start.elapsed());
         }
 
-        // Log individual update times for analysis
-        for (i, duration) in update_durations.iter().enumerate() {
-            println!("HMR update {} took: {:?}", i + 1, duration);
-        }
+        // // Log individual update times for analysis
+        // for (i, duration) in update_durations.iter().enumerate() {
+        //     println!("HMR update {} took: {:?}", i + 1, duration);
+        // }
 
         Ok(start_time.elapsed())
     }
@@ -406,7 +407,7 @@ fn setup_everything(module_count: usize) -> Arc<Setup> {
     let rt = Arc::new(setup_runtime());
     let tt = setup_turbo_tasks();
 
-    rt.clone().block_on(async move {
+    let arc = rt.clone().block_on(async move {
         tt.clone()
             .run_once(async move {
                 let benchmark = setup_benchmark(module_count).await;
@@ -416,14 +417,17 @@ fn setup_everything(module_count: usize) -> Arc<Setup> {
             })
             .await
             .unwrap()
-    })
+    });
+
+    // I don't know why this is needed, but it is required to avoid dropping tokio runtime from
+    // async scope
+    forget(arc.clone());
+    arc
 }
 
 #[divan::bench]
 fn hmr_initial_compilation(bencher: divan::Bencher) {
     let setup = setup_everything(100);
-
-    let _guard = setup.clone();
 
     bencher.with_inputs(|| setup.clone()).bench_values(|setup| {
         setup.clone().rt.block_on(async move {
@@ -442,8 +446,6 @@ fn hmr_initial_compilation(bencher: divan::Bencher) {
 #[divan::bench(sample_size = 10)]
 fn hmr_updates_small_5(bencher: divan::Bencher) {
     let setup = setup_everything(100);
-
-    let _guard = setup.clone();
 
     bencher.with_inputs(|| setup.clone()).bench_values(|setup| {
         setup.clone().rt.block_on(async move {
@@ -464,8 +466,6 @@ fn hmr_updates_small_5(bencher: divan::Bencher) {
 fn hmr_updates_medium_10(bencher: divan::Bencher) {
     let setup = setup_everything(200);
 
-    let _guard = setup.clone();
-
     bencher.with_inputs(|| setup.clone()).bench_values(|setup| {
         setup.clone().rt.block_on(async move {
             setup.clone().tt.run_once(Box::pin(async move {
@@ -485,8 +485,6 @@ fn hmr_updates_medium_10(bencher: divan::Bencher) {
 fn hmr_updates_large_20(bencher: divan::Bencher) {
     let setup = setup_everything(500);
 
-    let _guard = setup.clone();
-
     bencher.with_inputs(|| setup.clone()).bench_values(|setup| {
         setup.clone().rt.block_on(async move {
             setup.clone().tt.run_once(Box::pin(async move {
@@ -505,8 +503,6 @@ fn hmr_updates_large_20(bencher: divan::Bencher) {
 #[divan::bench(sample_size = 10)]
 fn hmr_subscription(bencher: divan::Bencher) {
     let setup = setup_everything(100);
-
-    let _guard = setup.clone();
 
     bencher.with_inputs(|| setup.clone()).bench_values(|setup| {
         setup.clone().rt.block_on(async move {
