@@ -1,5 +1,6 @@
+use std::sync::LazyLock;
+
 use anyhow::{Ok, Result};
-use lazy_static::lazy_static;
 use regex::Regex;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
@@ -89,12 +90,12 @@ fn split_off_query_fragment(mut raw: &str) -> (Pattern, RcStr, RcStr) {
     (Pattern::Constant(RcStr::from(raw)), query, hash)
 }
 
-lazy_static! {
-    static ref WINDOWS_PATH: Regex = Regex::new(r"^[A-Za-z]:\\|\\\\").unwrap();
-    static ref URI_PATH: Regex = Regex::new(r"^([^/\\:]+:)(.+)$").unwrap();
-    static ref DATA_URI_REMAINDER: Regex = Regex::new(r"^([^;,]*)(?:;([^,]+))?,(.*)$").unwrap();
-    static ref MODULE_PATH: Regex = Regex::new(r"^((?:@[^/]+/)?[^/]+)(.*)$").unwrap();
-}
+static WINDOWS_PATH: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[A-Za-z]:\\|\\\\").unwrap());
+static URI_PATH: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^([^/\\:]+:)(.+)$").unwrap());
+static DATA_URI_REMAINDER: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^([^;,]*)(?:;([^,]+))?,(.*)$").unwrap());
+static MODULE_PATH: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^((?:@[^/]+/)?[^/]+)(.*)$").unwrap());
 
 impl Request {
     /// Turns the request into a string.

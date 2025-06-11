@@ -14,9 +14,7 @@ members = [
   "turbopack/xtask",
 ]
 
-exclude = [
-  "crates/next-error-code-swc-plugin",
-]
+exclude = ["crates/next-error-code-swc-plugin"]
 
 [workspace.lints.clippy]
 too_many_arguments = "allow"
@@ -350,15 +348,14 @@ image = { version = "0.25.0", default-features = false }
 indexmap = "2.7.1"
 indoc = "2.0.0"
 itertools = "0.10.5"
-lazy_static = "1.4.0"
 lightningcss = { version = "1.0.0-alpha.66", features = [
   "serde",
   "visitor",
   "into_owned",
 ] }
 lightningcss-napi = { version = "0.4.4", default-features = false, features = [
-  "visitor"
-]}
+  "visitor",
+] }
 markdown = "1.0.0-alpha.18"
 mime = "0.3.16"
 napi = { version = "2", default-features = false, features = [
@@ -418,8 +415,12 @@ triomphe = { git = "https://github.com/sokra/triomphe", branch = "sokra/unstable
 unsize = "1.1.0"
 url = "2.2.2"
 urlencoding = "2.1.2"
-vergen = { version = "9.0.6", features = ["cargo"] }
-vergen-gitcl = { version = "1.0.8", features = ["cargo"] }
+vergen = { version = "9.0.6", features = [
+  "cargo",
+] }
+vergen-gitcl = { version = "1.0.8", features = [
+  "cargo",
+] }
 webbrowser = "0.8.7"
 
 [patch.crates-io]
