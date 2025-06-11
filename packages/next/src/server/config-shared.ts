@@ -1379,7 +1379,9 @@ export const defaultConfig = {
     viewTransition: false,
     routerBFCache: false,
     removeUncaughtErrorAndRejectionListeners: false,
-    validateRSCRequestHeaders: false,
+    validateRSCRequestHeaders:
+      // TODO: remove once we've confirmed this mode is stable
+      !!process.env.__NEXT_TEST_MODE,
     staleTimes: {
       dynamic: 0,
       static: 300,
