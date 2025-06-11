@@ -1,7 +1,6 @@
 import type webpack from 'webpack'
 import { RSC_MODULE_TYPES } from '../../../shared/lib/constants'
 import { getModuleBuildInfo } from './get-module-build-info'
-import { getAstGrep } from '../../../shared/lib/get-rspack'
 
 const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif', 'ico', 'svg']
 const imageRegex = new RegExp(`\\.(${imageExtensions.join('|')})$`)
@@ -52,134 +51,15 @@ export function decodeFromBase64<T extends object>(str: string): T {
   return JSON.parse(Buffer.from(str, 'base64').toString('utf8'))
 }
 
-// Currently, the loadModule method is not supported in Rspack.
-// Use ast-grep to extract named exports from the module.
-async function getLoaderModuleNamedExportsByAstGrep(
-  resourcePath: string
-): Promise<string[]> {
-  const fs = await import('node:fs/promises')
-  const path = await import('node:path')
-  const extname = path.extname(resourcePath)
-  const source = await fs.readFile(resourcePath, 'utf-8')
-
-  const { parseAsync, Lang } = getAstGrep()
-  const lang = ['.js', '.jsx', '.mjs', '.mjsx', '.cjs', '.cjsx'].includes(
-    extname
-  )
-    ? Lang.JavaScript
-    : extname === '.tsx'
-      ? Lang.Tsx
-      : Lang.TypeScript
-  const ast = await parseAsync(lang, source)
-  const root = ast.root()
-  const nodes = root.findAll({
-    rule: {
-      any: [
-        {
-          all: [
-            {
-              kind: 'export_specifier',
-            },
-            {
-              has: {
-                field: 'alias',
-                pattern: '$ALIAS',
-              },
-            },
-            {
-              has: {
-                field: 'name',
-                pattern: '$ORIGINAL',
-              },
-            },
-          ],
-        },
-        {
-          all: [
-            {
-              kind: 'export_specifier',
-            },
-            {
-              has: {
-                kind: 'identifier',
-                pattern: '$ORIGINAL',
-              },
-            },
-          ],
-        },
-        {
-          all: [
-            {
-              kind: 'export_statement',
-            },
-            {
-              has: {
-                field: 'declaration',
-                has: {
-                  kind: 'variable_declarator',
-                  has: {
-                    field: 'name',
-                    pattern: '$ORIGINAL',
-                  },
-                },
-              },
-            },
-          ],
-        },
-        {
-          all: [
-            {
-              kind: 'export_statement',
-            },
-            {
-              has: {
-                kind: 'namespace_export',
-                has: {
-                  kind: 'identifier',
-                  pattern: '$ALIAS',
-                },
-              },
-            },
-          ],
-        },
-        {
-          all: [
-            {
-              kind: 'export_statement',
-              not: {
-                pattern: 'export default $$$',
-              },
-            },
-            {
-              has: {
-                field: 'declaration',
-                has: {
-                  kind: 'identifier',
-                  pattern: '$ORIGINAL',
-                },
-              },
-            },
-          ],
-        },
-      ],
-    },
-  })
-  return nodes.map((node: any) => {
-    const original = node.getMatch('ORIGINAL')
-    const alias = node.getMatch('ALIAS')
-    if (alias) {
-      return alias.text()
-    }
-    return original.text()
-  })
-}
-
 export async function getLoaderModuleNamedExports(
   resourcePath: string,
   context: webpack.LoaderContext<any>
 ): Promise<string[]> {
   if (process.env.NEXT_RSPACK) {
-    return getLoaderModuleNamedExportsByAstGrep(resourcePath)
+    // Currently, the loadModule method is not supported in Rspack.
+    // Use getModuleNamedExports (implemented by us using SWC) to extract named exports from the module.
+    const binding = require('../../swc') as typeof import('../../swc')
+    return binding.getModuleNamedExports(resourcePath)
   }
 
   const mod = await new Promise<webpack.NormalModule>((res, rej) => {

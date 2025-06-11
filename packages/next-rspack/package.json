@@ -7,7 +7,6 @@
   },
   "types": "index.d.ts",
   "dependencies": {
-    "@ast-grep/napi": "0.38.5",
     "@rspack/core": "1.3.12",
     "@rspack/plugin-react-refresh": "1.2.0",
     "react-refresh": "0.12.0"

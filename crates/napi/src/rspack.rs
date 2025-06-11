@@ -2,12 +2,15 @@ use std::{fs, path::PathBuf, sync::Arc};
 
 use napi::bindgen_prelude::*;
 use swc_core::{
-    base::{config::ParseOptions, try_with_handler},
+    base::{
+        config::{IsModule, ParseOptions},
+        try_with_handler,
+    },
     common::{
         FileName, FilePathMapping, GLOBALS, SourceMap, comments::Comments, errors::ColorConfig,
     },
     ecma::{
-        ast::{Decl, Id},
+        ast::{Decl, EsVersion, Id},
         atoms::Atom,
         parser::{EsSyntax, Syntax, TsSyntax},
         utils::find_pat_ids,
@@ -15,8 +18,6 @@ use swc_core::{
     },
     node::MapErr,
 };
-use swc_core::base::config::IsModule;
-use swc_core::binding_macros::wasm::EsVersion;
 
 struct Finder {
     pub named_exports: Vec<Atom>,
@@ -165,7 +166,7 @@ impl Task for FinderTask {
     }
 }
 
-#[napi]
+#[napi(ts_return_type = "Promise<string[]>")]
 pub fn get_module_named_exports(resource_path: String) -> AsyncTask<FinderTask> {
     AsyncTask::new(FinderTask {
         resource_path: Some(resource_path),

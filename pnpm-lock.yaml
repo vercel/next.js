@@ -1684,9 +1684,6 @@ importers:
 
   packages/next-rspack:
     dependencies:
-      '@ast-grep/napi':
-        specifier: 0.38.5
-        version: 0.38.5
       '@rspack/core':
         specifier: 1.3.12
         version: 1.3.12(@swc/helpers@0.5.15)
@@ -1949,64 +1946,6 @@ packages:
     resolution: {integrity: sha512-I/vUDVFiU4uFK8hyxlc1ssFReDRFTSjXrZbXCtt9EgvM83x+VuoejGJtLK7R3QA85/tHjiRerW+6XFJTQS7RXw==}
     engines: {node: '>= 12.0.0'}
     hasBin: true
-
-  '@ast-grep/napi-darwin-arm64@0.38.5':
-    resolution: {integrity: sha512-Ky60f2O2Od7ySDLF8QOPX5PvdNw/1DGlqxLvKYF1wJUMAY3/7ZRGxDSZ+m3BwvYCMhvKCLWSthQ3eMuZyEUZzQ==}
-    engines: {node: '>= 10'}
-    cpu: [arm64]
-    os: [darwin]
-
-  '@ast-grep/napi-darwin-x64@0.38.5':
-    resolution: {integrity: sha512-4AOenxM5lC9nzSnTPmmDDYUG3Rrh4VjbmWf6JbZPhvhdgMnKigbFVvv2BqhzxBtI8MxJ86jNmuI3KW1QYc+V1A==}
-    engines: {node: '>= 10'}
-    cpu: [x64]
-    os: [darwin]
-
-  '@ast-grep/napi-linux-arm64-gnu@0.38.5':
-    resolution: {integrity: sha512-8ePpkH15Patg4PdwreB64YXaIynyaNm6RbnkMKnZ6jFYnAa00NeWZ7lv1vdD01q5pzI4k3jx6deBGEvgRZ8hww==}
-    engines: {node: '>= 10'}
-    cpu: [arm64]
-    os: [linux]
-
-  '@ast-grep/napi-linux-arm64-musl@0.38.5':
-    resolution: {integrity: sha512-TG1e6AgRXksJuBMEVKV75h6aNoaE1IpIR4WB0CM6VTK84vjAlCh70XvFbqicowpCPJkWoQ2fhy4Ux+B8YykpJA==}
-    engines: {node: '>= 10'}
-    cpu: [arm64]
-    os: [linux]
-
-  '@ast-grep/napi-linux-x64-gnu@0.38.5':
-    resolution: {integrity: sha512-BD8PEBras1EfbRHpZXUXJrAfaXcCL2ZZTgk+BNd/p//CWGqVQRbbVib5irRRETJf804ElXPD7uLV6IWeQP5u+w==}
-    engines: {node: '>= 10'}
-    cpu: [x64]
-    os: [linux]
-
-  '@ast-grep/napi-linux-x64-musl@0.38.5':
-    resolution: {integrity: sha512-fJyehG0xPe9Hvp64o4N1gVIbJ3oBXvMaN81pXSTcMP9QI5v/H40igZ4XoPkobSGittPr7x3ooDv9WIwuzc4pxA==}
-    engines: {node: '>= 10'}
-    cpu: [x64]
-    os: [linux]
-
-  '@ast-grep/napi-win32-arm64-msvc@0.38.5':
-    resolution: {integrity: sha512-25wyag97kE6nv1hHaNuPgORYbSUndgsAUKCSarsEDI5BBp6h0YDdFY+VzM+SH62F0RBqj0bkpud38UblftfgFw==}
-    engines: {node: '>= 10'}
-    cpu: [arm64]
-    os: [win32]
-
-  '@ast-grep/napi-win32-ia32-msvc@0.38.5':
-    resolution: {integrity: sha512-9ZmG9xAxxxMbDvhf2QQ0bq/e9BJ+TVXFsj9Fp5Ju7dkyCRFwLGquL/RapE/jz/L11zfu+Z7EVZfmp1RnmGxpWw==}
-    engines: {node: '>= 10'}
-    cpu: [ia32]
-    os: [win32]
-
-  '@ast-grep/napi-win32-x64-msvc@0.38.5':
-    resolution: {integrity: sha512-DNeLIwkK/BKyYX5ymmeioqpXOXGcOxj2OgLpWiyk/VawwQe6uGgrH97k3pRku513dzHKayfizvU2igjj9oTJuA==}
-    engines: {node: '>= 10'}
-    cpu: [x64]
-    os: [win32]
-
-  '@ast-grep/napi@0.38.5':
-    resolution: {integrity: sha512-lhuekQ5khQd70GaHatR+Ge4AcYtdYjzO372TlXI7cQOdvDcrL5MOR7CnQXvUe1cuJHTx2UJd42KK6z6Qza8Tjw==}
-    engines: {node: '>= 10'}
 
   '@babel/code-frame@7.12.11':
     resolution: {integrity: sha512-Zt1yodBx1UcyiePMSkWnU4hPqhwq7hGi2nFL1LeA3EUl+q2LQx16MISgJ0+z7dnmgvP9QtIleuETGOiOH1RcIw==}
@@ -8619,9 +8558,6 @@ packages:
 
   es-module-lexer@1.6.0:
     resolution: {integrity: sha512-qqnD1yMU6tk/jnaMosogGySTZP8YtUgAffA9nMN+E/rjxcfRQ6IEk7IiozUjgxKoFHBGjTLnrHB/YC45r/59EQ==}
-
-  es-module-lexer@1.7.0:
-    resolution: {integrity: sha512-jEQoCwk8hyb2AZziIOLhDqpm5+2ww5uIE6lkO/6jcOCusfk6LhMHpXXfBLXTZ7Ydyt0j4VoUQv6uGNYbdW+kBA==}
 
   es-object-atoms@1.0.0:
     resolution: {integrity: sha512-MZ4iQ6JwHOBQjahnjwaC1ZtIBH+2ohjamzAO3oaHcXYup7qxjF2fixyH+Q71voWHeOkI2q/TnJao/KfXYIZWbw==}
@@ -16980,45 +16916,6 @@ snapshots:
       '@ast-grep/cli-win32-ia32-msvc': 0.31.0
       '@ast-grep/cli-win32-x64-msvc': 0.31.0
 
-  '@ast-grep/napi-darwin-arm64@0.38.5':
-    optional: true
-
-  '@ast-grep/napi-darwin-x64@0.38.5':
-    optional: true
-
-  '@ast-grep/napi-linux-arm64-gnu@0.38.5':
-    optional: true
-
-  '@ast-grep/napi-linux-arm64-musl@0.38.5':
-    optional: true
-
-  '@ast-grep/napi-linux-x64-gnu@0.38.5':
-    optional: true
-
-  '@ast-grep/napi-linux-x64-musl@0.38.5':
-    optional: true
-
-  '@ast-grep/napi-win32-arm64-msvc@0.38.5':
-    optional: true
-
-  '@ast-grep/napi-win32-ia32-msvc@0.38.5':
-    optional: true
-
-  '@ast-grep/napi-win32-x64-msvc@0.38.5':
-    optional: true
-
-  '@ast-grep/napi@0.38.5':
-    optionalDependencies:
-      '@ast-grep/napi-darwin-arm64': 0.38.5
-      '@ast-grep/napi-darwin-x64': 0.38.5
-      '@ast-grep/napi-linux-arm64-gnu': 0.38.5
-      '@ast-grep/napi-linux-arm64-musl': 0.38.5
-      '@ast-grep/napi-linux-x64-gnu': 0.38.5
-      '@ast-grep/napi-linux-x64-musl': 0.38.5
-      '@ast-grep/napi-win32-arm64-msvc': 0.38.5
-      '@ast-grep/napi-win32-ia32-msvc': 0.38.5
-      '@ast-grep/napi-win32-x64-msvc': 0.38.5
-
   '@babel/code-frame@7.12.11':
     dependencies:
       '@babel/highlight': 7.22.20
@@ -25038,9 +24935,6 @@ snapshots:
       safe-array-concat: 1.1.2
 
   es-module-lexer@1.6.0: {}
-
-  es-module-lexer@1.7.0:
-    optional: true
 
   es-object-atoms@1.0.0:
     dependencies:
@@ -35008,7 +34902,7 @@ snapshots:
     dependencies:
       cac: 6.7.14
       debug: 4.4.0
-      es-module-lexer: 1.7.0
+      es-module-lexer: 1.6.0
       pathe: 2.0.3
       vite: 6.2.5(@types/node@20.17.6)(sass@1.54.0)(tsx@4.19.2)
     transitivePeerDependencies:
