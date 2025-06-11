@@ -27,8 +27,8 @@ npx create-next-app@latest --api
 
 To implement this pattern, use:
 
-- [Route Handlers](/app/building-your-application/routing/route-handlers)
-- [`middleware`](/app/api-reference/file-conventions/middleware)
+- [Route Handlers](/docs/app/building-your-application/routing/route-handlers)
+- [`middleware`](/docs/app/api-reference/file-conventions/middleware)
 - In Pages Router, [API Routes](/pages/building-your-application/routing/api-routes).
 
 ## Public Endpoints
@@ -83,7 +83,7 @@ export function POST(request) {
 
 Avoid exposing sensitive information in error messages sent to the client.
 
-To restrict access, implement authentication and authorization. See [Authentication](/app/guides/authentication).
+To restrict access, implement authentication and authorization. See [Authentication](/docs/app/guides/authentication).
 
 ## Content Types
 
@@ -91,11 +91,11 @@ You can serve more than HTML—JSON, XML, images, files, and plain text are all 
 
 Next.js uses file conventions for common endpoints:
 
-- [`sitemap.xml`](/app/api-reference/file-conventions/metadata/sitemap)
-- [`opengraph-image.jpg`, `twitter-image`](/app/api-reference/file-conventions/metadata/opengraph-image)
-- [favicon, app icon, and apple-icon](/app/api-reference/file-conventions/metadata/app-icons)
-- [`manifest.json`](/app/api-reference/file-conventions/metadata/manifest)
-- [`robots.txt`](/app/api-reference/file-conventions/metadata/robots)
+- [`sitemap.xml`](/docs/app/api-reference/file-conventions/metadata/sitemap)
+- [`opengraph-image.jpg`, `twitter-image`](/docs/app/api-reference/file-conventions/metadata/opengraph-image)
+- [favicon, app icon, and apple-icon](/docs/app/api-reference/file-conventions/metadata/app-icons)
+- [`manifest.json`](/docs/app/api-reference/file-conventions/metadata/manifest)
+- [`robots.txt`](/docs/app/api-reference/file-conventions/metadata/robots)
 
 You can also define custom ones, such as:
 
@@ -388,7 +388,7 @@ export async function POST(request, { params }) {
 Or use:
 
 - `middleware` [rewrites](#middleware)
-- [`rewrites`](/app/api-reference/config/next-config-js/rewrites) in `next.config.js`.
+- [`rewrites`](/docs/app/api-reference/config/next-config-js/rewrites) in `next.config.js`.
 
 ## NextRequest and NextResponse
 
@@ -396,7 +396,7 @@ Next.js extends the [`Request`](https://developer.mozilla.org/en-US/docs/Web/API
 
 Both provide methods for reading and manipulating cookies.
 
-`NextRequest` includes the [`nextUrl`](/app/api-reference/functions/next-request#nexturl) property, which exposes parsed values from the incoming request, for example, it makes it easier to access request pathname and search params.
+`NextRequest` includes the [`nextUrl`](/docs/app/api-reference/functions/next-request#nexturl) property, which exposes parsed values from the incoming request, for example, it makes it easier to access request pathname and search params.
 
 `NextResponse` provides helpers like `next()`, `json()`, `redirect()`, and `rewrite()`.
 
@@ -438,7 +438,7 @@ export async function GET(request) {
 }
 ```
 
-Learn more about [`NextRequest`](/app/api-reference/functions/next-request) and [`NextResponse`](/app/api-reference/functions/next-response).
+Learn more about [`NextRequest`](/docs/app/api-reference/functions/next-request) and [`NextResponse`](/docs/app/api-reference/functions/next-response).
 
 ## Webhooks and Callback URLs
 
@@ -554,7 +554,7 @@ export async function GET(request) {
 }
 ```
 
-Learn more about redirects in [`redirect`](/app/api-reference/functions/redirect) and [`permanentRedirect`](/app/api-reference/functions/permanentRedirect)
+Learn more about redirects in [`redirect`](/docs/app/api-reference/functions/redirect) and [`permanentRedirect`](/docs/app/api-reference/functions/permanentRedirect)
 
 ## Middleware
 
@@ -702,7 +702,7 @@ Preflight requests use the `OPTIONS` method to ask the server if a request is al
 
 If `OPTIONS` is not defined, Next.js adds it automatically and sets the `Allow` header based on the other defined methods.
 
-- [CORS](/app/building-your-application/routing/route-handlers#cors)
+- [CORS](/docs/app/building-your-application/routing/route-handlers#cors)
 
 ## Library patterns
 
@@ -1028,9 +1028,9 @@ Server Actions are queued. Using them for data fetching introduces sequential ex
 
 ### `export` mode
 
-`export` mode outputs a static site without a runtime server. Features that require the Next.js runtime are [not supported](/app/guides/static-exports#unsupported-features), because this mode produces a static site, and no runtime server.
+`export` mode outputs a static site without a runtime server. Features that require the Next.js runtime are [not supported](/docs/app/guides/static-exports#unsupported-features), because this mode produces a static site, and no runtime server.
 
-In `export mode`, only `GET` Route Handlers are supported, in combination with the [`dynamic`](/app/api-reference/file-conventions/route-segment-config#dynamic) route segment config, set to `'force-static'`.
+In `export mode`, only `GET` Route Handlers are supported, in combination with the [`dynamic`](/docs/app/api-reference/file-conventions/route-segment-config#dynamic) route segment config, set to `'force-static'`.
 
 This can be used to generate static HTML, JSON, TXT, or other files.
 
