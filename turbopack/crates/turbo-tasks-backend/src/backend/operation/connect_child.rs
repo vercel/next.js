@@ -23,8 +23,13 @@ pub enum ConnectChildOperation {
 }
 
 impl ConnectChildOperation {
-    pub fn run(parent_task_id: TaskId, child_task_id: TaskId, mut ctx: impl ExecuteContext) {
-        if !ctx.should_track_children() {
+    pub fn run(
+        parent_task_id: TaskId,
+        child_task_id: TaskId,
+        is_immutable: bool,
+        mut ctx: impl ExecuteContext,
+    ) {
+        if !ctx.should_track_children() || is_immutable {
             let mut task = ctx.task(child_task_id, TaskDataCategory::All);
             if !task.has_key(&CachedDataItemKey::Output {}) {
                 let description = ctx.get_task_desc_fn(child_task_id);

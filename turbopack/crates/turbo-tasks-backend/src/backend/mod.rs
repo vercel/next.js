@@ -407,9 +407,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         tx: Option<&'l B::ReadTransaction<'tx>>,
         parent_task: TaskId,
         child_task: TaskId,
+        is_immutable: bool,
         turbo_tasks: &'l dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
-        operation::ConnectChildOperation::run(parent_task, child_task, unsafe {
+        operation::ConnectChildOperation::run(parent_task, child_task, is_immutable, unsafe {
             self.execute_context_with_tx(tx, turbo_tasks)
         });
     }
@@ -418,11 +419,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         &self,
         parent_task: TaskId,
         child_task: TaskId,
+        is_immutable: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
         operation::ConnectChildOperation::run(
             parent_task,
             child_task,
+            is_immutable,
             self.execute_context(turbo_tasks),
         );
     }
@@ -1140,9 +1143,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     ) -> TaskId {
         if let Some(task_id) = self.task_cache.lookup_forward(&task_type) {
             self.track_cache_hit(&task_type);
-            if !is_immutable {
-                self.connect_child(parent_task, task_id, turbo_tasks);
-            }
+            self.connect_child(parent_task, task_id, is_immutable, turbo_tasks);
             return task_id;
         }
 
@@ -1181,10 +1182,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
         };
 
-        if !is_immutable {
-            // Safety: `tx` is a valid transaction from `self.backend.backing_storage`.
-            unsafe { self.connect_child_with_tx(tx.as_ref(), parent_task, task_id, turbo_tasks) };
-        }
+        // Safety: `tx` is a valid transaction from `self.backend.backing_storage`.
+        unsafe {
+            self.connect_child_with_tx(tx.as_ref(), parent_task, task_id, is_immutable, turbo_tasks)
+        };
 
         task_id
     }
@@ -1205,9 +1206,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
         if let Some(task_id) = self.task_cache.lookup_forward(&task_type) {
             self.track_cache_hit(&task_type);
-            if !is_immutable {
-                self.connect_child(parent_task, task_id, turbo_tasks);
-            }
+            self.connect_child(parent_task, task_id, is_immutable, turbo_tasks);
             return task_id;
         }
 
@@ -1219,15 +1218,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             unsafe {
                 self.transient_task_id_factory.reuse(task_id);
             }
-            if !is_immutable {
-                self.connect_child(parent_task, existing_task_id, turbo_tasks);
-            }
+            self.connect_child(parent_task, existing_task_id, is_immutable, turbo_tasks);
             return existing_task_id;
         }
 
-        if !is_immutable {
-            self.connect_child(parent_task, task_id, turbo_tasks);
-        }
+        self.connect_child(parent_task, task_id, is_immutable, turbo_tasks);
 
         task_id
     }
@@ -2261,7 +2256,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
         self.assert_not_persistent_calling_transient(parent_task, task, None);
-        ConnectChildOperation::run(parent_task, task, self.execute_context(turbo_tasks));
+        ConnectChildOperation::run(parent_task, task, false, self.execute_context(turbo_tasks));
     }
 
     fn create_transient_task(&self, task_type: TransientTaskType) -> TaskId {
