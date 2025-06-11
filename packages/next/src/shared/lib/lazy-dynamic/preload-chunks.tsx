@@ -58,6 +58,7 @@ export function PreloadChunks({
               href={href}
               rel="stylesheet"
               as="style"
+              crossOrigin={process.env.__NEXT_CROSS_ORIGIN!}
             />
           )
         } else {
@@ -65,6 +66,7 @@ export function PreloadChunks({
           preload(href, {
             as: 'script',
             fetchPriority: 'low',
+            crossOrigin: process.env.__NEXT_CROSS_ORIGIN!
           })
           return null
         }
