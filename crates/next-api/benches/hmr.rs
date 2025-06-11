@@ -125,12 +125,12 @@ export default function Component{i}() {{
     write(base_path.join("next.config.js"), next_config)?;
 
     // Run `npm install`
-    let status = Command::new("npm")
+    let output = Command::new("npm")
         .current_dir(&base_path)
         .args(["install"])
-        .status()?;
+        .output()?;
 
-    if !status.success() {
+    if !output.status.success() {
         return Err(anyhow::anyhow!("Failed to run `npm install`"));
     }
 
@@ -467,11 +467,13 @@ where
 }
 
 criterion_group!(
-    hmr_benches,
-    criterion_hmr_initial_compilation,
-    criterion_hmr_updates_small,
-    criterion_hmr_updates_medium,
-    criterion_hmr_updates_large,
-    criterion_hmr_subscription
+    name = hmr_benches;
+    config = Criterion::default().sample_size(10);
+    targets =
+        criterion_hmr_initial_compilation,
+        criterion_hmr_updates_small,
+        criterion_hmr_updates_medium,
+        criterion_hmr_updates_large,
+        criterion_hmr_subscription
 );
 criterion_main!(hmr_benches);
