@@ -57,9 +57,11 @@ impl ValueDebugString {
 /// ```
 #[turbo_tasks::value_trait(no_debug)]
 pub trait ValueDebug {
+    #[turbo_tasks::function]
     fn dbg(self: Vc<Self>) -> Vc<ValueDebugString>;
 
     /// Like `dbg`, but with a depth limit.
+    #[turbo_tasks::function]
     fn dbg_depth(self: Vc<Self>, depth: usize) -> Vc<ValueDebugString>;
 }
 
