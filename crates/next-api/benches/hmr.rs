@@ -419,7 +419,7 @@ fn setup_everything(module_count: usize) -> Setup {
     })
 }
 
-#[divan::bench]
+#[divan::bench(sample_size = 10)]
 fn hmr_initial_compilation(bencher: divan::Bencher) {
     bencher.with_inputs(|| setup_everything(100)).bench_values(
         |Setup { rt, tt, benchmark }: Setup| {
@@ -433,7 +433,7 @@ fn hmr_initial_compilation(bencher: divan::Bencher) {
     );
 }
 
-#[divan::bench]
+#[divan::bench(sample_size = 10)]
 fn hmr_updates_small_5(bencher: divan::Bencher) {
     bencher.with_inputs(|| setup_everything(100)).bench_values(
         |Setup { rt, tt, benchmark }: Setup| {
@@ -448,7 +448,7 @@ fn hmr_updates_small_5(bencher: divan::Bencher) {
     );
 }
 
-#[divan::bench]
+#[divan::bench(sample_size = 10)]
 fn hmr_updates_medium_10(bencher: divan::Bencher) {
     bencher.with_inputs(|| setup_everything(200)).bench_values(
         |Setup { rt, tt, benchmark }: Setup| {
@@ -463,7 +463,7 @@ fn hmr_updates_medium_10(bencher: divan::Bencher) {
     );
 }
 
-#[divan::bench]
+#[divan::bench(sample_size = 10)]
 fn hmr_updates_large_20(bencher: divan::Bencher) {
     bencher.with_inputs(|| setup_everything(500)).bench_values(
         |Setup { rt, tt, benchmark }: Setup| {
@@ -478,7 +478,7 @@ fn hmr_updates_large_20(bencher: divan::Bencher) {
     );
 }
 
-#[divan::bench]
+#[divan::bench(sample_size = 10)]
 fn hmr_subscription(bencher: divan::Bencher) {
     bencher.with_inputs(|| setup_everything(100)).bench_values(
         |Setup { rt, tt, benchmark }: Setup| {
