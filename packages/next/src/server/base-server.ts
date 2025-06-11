@@ -121,10 +121,7 @@ import { getTracer, isBubbledError, SpanKind } from './lib/trace/tracer'
 import { BaseServerSpan } from './lib/trace/constants'
 import { I18NProvider } from './lib/i18n-provider'
 import { sendResponse } from './send-response'
-import {
-  fromNodeOutgoingHttpHeaders,
-  normalizeNextQueryParam,
-} from './web/utils'
+import { normalizeNextQueryParam } from './web/utils'
 import {
   CACHE_ONE_YEAR,
   MATCHED_PATH_HEADER,
@@ -169,6 +166,7 @@ import {
 } from './lib/streaming-metadata'
 import { InvariantError } from '../shared/lib/invariant-error'
 import { decodeQueryPathParameter } from './lib/decode-query-path-parameter'
+import { NoFallbackError } from '../shared/lib/no-fallback-error.external'
 import { getCacheHandlers } from './use-cache/handlers'
 import { fixMojibake } from './lib/fix-mojibake'
 import { computeCacheBustingSearchParam } from '../shared/lib/router/utils/cache-busting-search-param'
@@ -302,8 +300,6 @@ export type RequestContext<
   renderOpts: RenderOpts
 }
 
-export class NoFallbackError extends Error {}
-
 // Internal wrapper around build errors at development
 // time, to prevent us from propagating or logging them
 export class WrappedBuildError extends Error {
@@ -417,7 +413,6 @@ export default abstract class Server<
 
   protected abstract getIncrementalCache(options: {
     requestHeaders: Record<string, undefined | string | string[]>
-    requestProtocol: 'http' | 'https'
   }): Promise<import('./lib/incremental-cache').IncrementalCache>
 
   protected abstract getResponseCache(options: {
@@ -1452,21 +1447,8 @@ export default abstract class Server<
         !(this.serverOptions as any).webServerConfig &&
         !getRequestMeta(req, 'incrementalCache')
       ) {
-        let protocol: 'http:' | 'https:' = 'https:'
-
-        try {
-          const parsedFullUrl = new URL(
-            getRequestMeta(req, 'initURL') || '/',
-            'http://n'
-          )
-          protocol = parsedFullUrl.protocol as 'https:' | 'http:'
-        } catch {}
-
         const incrementalCache = await this.getIncrementalCache({
           requestHeaders: Object.assign({}, req.headers),
-          requestProtocol: protocol.substring(0, protocol.length - 1) as
-            | 'http'
-            | 'https',
         })
 
         incrementalCache.resetRequestCache()
@@ -2495,15 +2477,6 @@ export default abstract class Server<
       ssgCacheKey =
         ssgCacheKey === '/index' && pathname === '/' ? '/' : ssgCacheKey
     }
-    let protocol: 'http:' | 'https:' = 'https:'
-
-    try {
-      const parsedFullUrl = new URL(
-        getRequestMeta(req, 'initURL') || '/',
-        'http://n'
-      )
-      protocol = parsedFullUrl.protocol as 'https:' | 'http:'
-    } catch {}
 
     // use existing incrementalCache instance if available
     const incrementalCache: import('./lib/incremental-cache').IncrementalCache =
@@ -2512,9 +2485,6 @@ export default abstract class Server<
         ? (globalThis as any).__incrementalCache
         : await this.getIncrementalCache({
             requestHeaders: Object.assign({}, req.headers),
-            requestProtocol: protocol.substring(0, protocol.length - 1) as
-              | 'http'
-              | 'https',
           })
 
     // TODO: investigate, this is not safe across multiple concurrent requests
@@ -2667,19 +2637,12 @@ export default abstract class Server<
             const parsedInitUrl = parseUrl(
               getRequestMeta(req, 'initURL') || req.url
             )
-            request.url =
-              req.url = `${parsedInitUrl.pathname}${parsedInitUrl.search || ''}`
+            request.url = `${parsedInitUrl.pathname}${parsedInitUrl.search || ''}`
 
             // propagate the request context for dev
             setRequestMeta(request, getRequestMeta(req))
-            addRequestMeta(request, 'postponed', postponed)
             addRequestMeta(request, 'projectDir', this.dir)
             addRequestMeta(request, 'isIsrFallback', pagesFallback)
-            addRequestMeta(
-              request,
-              'renderFallbackShell',
-              Boolean(fallbackRouteParams)
-            )
             addRequestMeta(request, 'query', query)
             addRequestMeta(request, 'params', opts.params)
             addRequestMeta(
@@ -2687,6 +2650,7 @@ export default abstract class Server<
               'ampValidator',
               this.renderOpts.ampValidator
             )
+            addRequestMeta(request, 'minimalMode', this.minimalMode)
 
             if (renderOpts.err) {
               addRequestMeta(request, 'invokeError', renderOpts.err)
@@ -2700,20 +2664,35 @@ export default abstract class Server<
               }
             ) => Promise<RenderResult> = components.ComponentMod.handler
 
-            result = await handler(request, response, {
+            const maybeDevRequest =
+              // we need to capture fetch metrics when they are set
+              // and can't wait for handler to resolve as the fetch
+              // metrics are logged on response close which happens
+              // before handler resolves
+              process.env.NODE_ENV === 'development'
+                ? new Proxy(request, {
+                    get(target: any, prop) {
+                      if (typeof target[prop] === 'function') {
+                        return target[prop].bind(target)
+                      }
+                      return target[prop]
+                    },
+                    set(target: any, prop, value) {
+                      if (prop === 'fetchMetrics') {
+                        ;(req as any).fetchMetrics = value
+                      }
+                      target[prop] = value
+                      return true
+                    },
+                  })
+                : request
+
+            result = await handler(maybeDevRequest, response, {
               waitUntil: this.getWaitUntil(),
             })
 
-            // this is handled fully in handler
-            if (isAppRouteRouteModule(routeModule)) {
-              return result as any as ResponseCacheEntry | null
-            }
-
-            if (!result) {
-              throw new Error(
-                `Invariant: missing result from invoking ${pathname} handler`
-              )
-            }
+            // response is handled fully in handler
+            return null
           } else {
             if (isPagesRouteModule(routeModule)) {
               // Due to the way we pass data by mutating `renderOpts`, we can't extend
@@ -3073,7 +3052,7 @@ export default abstract class Server<
             }
           )
         }
-        // If this is a app router page, PPR is enabled, and PFPR is also
+        // If this is a app router page, PPR is enabled, and PPR is also
         // enabled, then we should use the fallback renderer.
         else if (
           isRoutePPREnabled &&
@@ -3164,6 +3143,34 @@ export default abstract class Server<
       })
     }
 
+    if (
+      process.env.NEXT_RUNTIME !== 'edge' &&
+      // default _error module in dev doesn't have handler yet
+      components.ComponentMod.handler &&
+      (isPagesRouteModule(components.routeModule) ||
+        isAppRouteRouteModule(components.routeModule) ||
+        isAppPageRouteModule(components.routeModule))
+    ) {
+      if (
+        routeModule?.isDev &&
+        isDynamicRoute(pathname) &&
+        (components.getStaticPaths || isAppPath)
+      ) {
+        await this.getStaticPaths({
+          pathname,
+          requestHeaders: req.headers,
+          page: components.page,
+          isAppPath,
+        })
+      }
+      await doRender({
+        postponed: undefined,
+        pagesFallback: false,
+        fallbackRouteParams: null,
+      })
+      return null
+    }
+
     const cacheEntry = await this.responseCache.get(
       ssgCacheKey,
       responseGenerator,
@@ -3188,7 +3195,13 @@ export default abstract class Server<
     }
 
     if (!cacheEntry) {
-      if (ssgCacheKey && !(isOnDemandRevalidate && revalidateOnlyGenerated)) {
+      if (
+        ssgCacheKey &&
+        !(isOnDemandRevalidate && revalidateOnlyGenerated) &&
+        !isPagesRouteModule(components.routeModule) &&
+        !isAppRouteRouteModule(components.routeModule) &&
+        !isAppPageRouteModule(components.routeModule)
+      ) {
         // A cache entry might not be generated if a response is written
         // in `getInitialProps` or `getServerSideProps`, but those shouldn't
         // have a cache key. If we do have a cache key but we don't end up
@@ -3443,34 +3456,8 @@ export default abstract class Server<
         return null
       }
     } else if (cachedData.kind === CachedRouteKind.APP_ROUTE) {
-      const headers = fromNodeOutgoingHttpHeaders(cachedData.headers)
-
-      if (!(this.minimalMode && isSSG)) {
-        headers.delete(NEXT_CACHE_TAGS_HEADER)
-      }
-
-      // If cache control is already set on the response we don't
-      // override it to allow users to customize it via next.config
-      if (
-        cacheEntry.cacheControl &&
-        !res.getHeader('Cache-Control') &&
-        !headers.get('Cache-Control')
-      ) {
-        headers.set(
-          'Cache-Control',
-          getCacheControlHeader(cacheEntry.cacheControl)
-        )
-      }
-
-      await sendResponse(
-        req,
-        res,
-        new Response(cachedData.body, {
-          headers,
-          status: cachedData.status || 200,
-        })
-      )
-      return null
+      // this is handled inside the app_route handler fully
+      throw new Error(`Invariant: unexpected APP_ROUTE cache data`)
     } else if (cachedData.kind === CachedRouteKind.APP_PAGE) {
       // If the request has a postponed state and it's a resume request we
       // should error.

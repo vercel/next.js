@@ -172,7 +172,7 @@ export default function ClientComponent({ updateItemAction }) {
 There are two main ways you can invoke a Server Function:
 
 1. [Forms](#forms) in Server and Client Components
-2. [Event Handlers](#event-handlers) in Client Components
+2. [Event Handlers](#event-handlers) and [useEffect](#useeffect) in Client Components
 
 ### Forms
 
@@ -428,7 +428,7 @@ export async function exampleAction() {
 }
 ```
 
-### `useEffect`
+### useEffect
 
 You can use the React [`useEffect`](https://react.dev/reference/react/useEffect) hook to invoke a Server Action when the component mounts or a dependency changes. This is useful for mutations that depend on global events or need to be triggered automatically. For example, `onKeyDown` for app shortcuts, an intersection observer hook for infinite scrolling, or when the component mounts to update a view count:
 

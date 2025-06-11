@@ -154,8 +154,8 @@ async fn apply_module_type(
                     }
                 }
 
-                let options = options.await?;
-                match options.tree_shaking_mode {
+                let options_value = options.await?;
+                match options_value.tree_shaking_mode {
                     Some(TreeShakingMode::ModuleFragments) => {
                         Vc::upcast(EcmascriptModulePartAsset::select_part(
                             *module,
@@ -170,6 +170,7 @@ async fn apply_module_type(
                                         Vc::upcast(EcmascriptModuleFacadeModule::new(
                                             Vc::upcast(*module),
                                             part,
+                                            options.await?.remove_unused_exports,
                                         ))
                                     } else {
                                         Vc::upcast(*module)
@@ -187,18 +188,21 @@ async fn apply_module_type(
                                                 EcmascriptModuleFacadeModule::new(
                                                     Vc::upcast(*module),
                                                     ModulePart::exports(),
+                                                    options.await?.remove_unused_exports,
                                                 )
                                                 .resolve()
                                                 .await?,
                                             ),
                                             part,
                                             side_effect_free_packages,
+                                            options.await?.remove_unused_exports,
                                         )
                                     } else {
                                         apply_reexport_tree_shaking(
                                             Vc::upcast(*module),
                                             part,
                                             side_effect_free_packages,
+                                            options.await?.remove_unused_exports,
                                         )
                                     }
                                 }
@@ -212,6 +216,7 @@ async fn apply_module_type(
                             Vc::upcast(EcmascriptModuleFacadeModule::new(
                                 Vc::upcast(*module),
                                 ModulePart::facade(),
+                                options.await?.remove_unused_exports,
                             ))
                         } else {
                             Vc::upcast(*module)
@@ -275,6 +280,7 @@ async fn apply_reexport_tree_shaking(
     module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
     part: ModulePart,
     side_effect_free_packages: Vc<Glob>,
+    remove_unused_exports: bool,
 ) -> Result<Vc<Box<dyn Module>>> {
     if let ModulePart::Export(export) = &part {
         let FollowExportsResult {
@@ -289,12 +295,14 @@ async fn apply_reexport_tree_shaking(
                 Vc::upcast(EcmascriptModuleFacadeModule::new(
                     **final_module,
                     ModulePart::renamed_export(new_export.clone(), export.clone()),
+                    remove_unused_exports,
                 ))
             }
         } else {
             Vc::upcast(EcmascriptModuleFacadeModule::new(
                 **final_module,
                 ModulePart::renamed_namespace(export.clone()),
+                remove_unused_exports,
             ))
         };
         return Ok(module);
