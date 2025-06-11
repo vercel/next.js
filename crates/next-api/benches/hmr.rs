@@ -4,6 +4,7 @@ use std::{
     fs::{create_dir_all, write},
     path::{Path, PathBuf},
     process::Command,
+    sync::Arc,
     time::{Duration, Instant},
 };
 
@@ -17,7 +18,7 @@ use serde_json::json;
 use tempfile::TempDir;
 use tokio::runtime::Runtime;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{TransientInstance, TurboTasks, Vc};
+use turbo_tasks::{TransientInstance, TurboTasks, Vc, backend::Backend};
 use turbo_tasks_backend::noop_backing_storage;
 
 pub struct HmrBenchmark {
@@ -378,7 +379,7 @@ fn setup_runtime() -> Runtime {
     runtime()
 }
 
-fn setup_turbo_tasks() -> TurboTasks<turbo_tasks_backend::TurboTasksBackend> {
+fn setup_turbo_tasks() -> Arc<TurboTasks<impl Backend>> {
     TurboTasks::new(turbo_tasks_backend::TurboTasksBackend::new(
         turbo_tasks_backend::BackendOptions {
             storage_mode: None,
