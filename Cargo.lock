@@ -4163,6 +4163,7 @@ dependencies = [
  "turbo-tasks-env",
  "turbo-tasks-fs",
  "turbo-tasks-malloc",
+ "turbo-tasks-testing",
  "turbopack",
  "turbopack-browser",
  "turbopack-core",
