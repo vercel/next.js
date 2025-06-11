@@ -133,7 +133,7 @@ export default function RootLayout({ children }) {
 
 ## Local fonts
 
-To use a local font, import your font from `next/font/local` and specify the [`src`](/docs/app/api-reference/components/font#src) of your local font file. Fonts can be stored in the [`public`](/docs/app/api-reference/file-conventions/public-folder) folder. For example:
+To use a local font, import your font from `next/font/local` and specify the [`src`](/docs/app/api-reference/components/font#src) of your local font file. Fonts can be stored in the [`public`](/docs/app/api-reference/file-conventions/public-folder) folder or co-located inside the `app` folder. For example:
 
 ```tsx filename="app/layout.tsx" switcher
 import localFont from 'next/font/local'
