@@ -1,17 +1,17 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, Vc};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath};
 use turbopack_core::{
     asset::Asset,
     file_source::FileSource,
-    introspect::{source::IntrospectableSource, Introspectable, IntrospectableChildren},
+    introspect::{Introspectable, IntrospectableChildren, source::IntrospectableSource},
     version::VersionedContentExt,
 };
 
 use super::{
-    route_tree::{BaseSegment, RouteTree, RouteTrees, RouteType},
     ContentSource, ContentSourceContent, ContentSourceData, GetContentSourceContent,
+    route_tree::{BaseSegment, RouteTree, RouteTrees, RouteType},
 };
 
 #[turbo_tasks::value(shared)]
@@ -98,7 +98,7 @@ impl StaticAssetsContentSourceItem {
 #[turbo_tasks::value_impl]
 impl GetContentSourceContent for StaticAssetsContentSourceItem {
     #[turbo_tasks::function]
-    fn get(&self, _path: RcStr, _data: Value<ContentSourceData>) -> Vc<ContentSourceContent> {
+    fn get(&self, _path: RcStr, _data: ContentSourceData) -> Vc<ContentSourceContent> {
         let content = Vc::upcast::<Box<dyn Asset>>(FileSource::new(*self.path)).content();
         ContentSourceContent::static_content(content.versioned())
     }
@@ -108,7 +108,7 @@ impl GetContentSourceContent for StaticAssetsContentSourceItem {
 impl Introspectable for StaticAssetsContentSource {
     #[turbo_tasks::function]
     fn ty(&self) -> Vc<RcStr> {
-        Vc::cell("static assets directory content source".into())
+        Vc::cell(rcstr!("static assets directory content source"))
     }
 
     #[turbo_tasks::function]
@@ -140,10 +140,11 @@ impl Introspectable for StaticAssetsContentSource {
                             .to_resolved()
                             .await?,
                         ),
-                        DirectoryEntry::Other(_) => todo!("what's DirectoryContent::Other?"),
-                        DirectoryEntry::Error => todo!(),
+                        DirectoryEntry::Other(_) | DirectoryEntry::Error => {
+                            todo!("unsupported DirectoryContent variant: {entry:?}")
+                        }
                     };
-                    Ok((ResolvedVc::cell(name.clone()), child))
+                    Ok((name.clone(), child))
                 }
             })
             .try_join()

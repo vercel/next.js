@@ -2,10 +2,10 @@
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 
-use anyhow::{bail, Result};
-use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
-use turbo_tasks_testing::{register, run, Registration};
+use anyhow::{Result, bail};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{ResolvedVc, TaskInput, ValueToString, Vc};
+use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 
@@ -27,7 +27,7 @@ async fn all_in_one() {
         }
         .into();
 
-        let result = my_function(a, b.get_last(), c, Value::new(MyEnumValue::Yeah(42)));
+        let result = my_function(a, b.get_last(), c, MyEnumValue::Yeah(42));
         assert_eq!(*result.my_trait_function().await?, "42");
         assert_eq!(*result.my_trait_function2().await?, "42");
         assert_eq!(*result.my_trait_function3().await?, "4242");
@@ -63,12 +63,12 @@ async fn all_in_one() {
     .unwrap()
 }
 
-#[turbo_tasks::value(transparent, serialization = "auto_for_input")]
+#[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone, Hash)]
 struct MyTransparentValue(u32);
 
-#[turbo_tasks::value(shared, serialization = "auto_for_input")]
-#[derive(Debug, Clone, Hash)]
+#[turbo_tasks::value(shared)]
+#[derive(Debug, Clone, Hash, TaskInput)]
 enum MyEnumValue {
     Yeah(u32),
     Nah,
@@ -93,7 +93,7 @@ impl ValueToString for MyEnumValue {
     fn to_string(&self) -> Vc<RcStr> {
         match self {
             MyEnumValue::Yeah(value) => Vc::cell(value.to_string().into()),
-            MyEnumValue::Nah => Vc::cell("nah".into()),
+            MyEnumValue::Nah => Vc::cell(rcstr!("nah")),
             MyEnumValue::More(more) => more.to_string(),
         }
     }
@@ -141,7 +141,7 @@ impl MyTrait for MyStructValue {
 
 #[turbo_tasks::value_trait]
 trait MyTrait: ValueToString {
-    // TODO #[turbo_tasks::function]
+    #[turbo_tasks::function]
     async fn my_trait_function(self: Vc<Self>) -> Result<Vc<RcStr>> {
         if *self.to_string().await? != "42" {
             bail!("my_trait_function must only be called with 42 as value")
@@ -150,7 +150,9 @@ trait MyTrait: ValueToString {
         Ok(self.to_string())
     }
 
+    #[turbo_tasks::function]
     fn my_trait_function2(self: Vc<Self>) -> Vc<RcStr>;
+    #[turbo_tasks::function]
     fn my_trait_function3(self: Vc<Self>) -> Vc<RcStr>;
 }
 
@@ -159,17 +161,18 @@ async fn my_function(
     a: Vc<MyTransparentValue>,
     b: Vc<MyEnumValue>,
     c: Vc<MyStructValue>,
-    d: Value<MyEnumValue>,
+    d: MyEnumValue,
 ) -> Result<Vc<MyStructValue>> {
     assert_eq!(*a.await?, 4242);
     assert_eq!(*b.await?, MyEnumValue::Yeah(42));
     assert_eq!(c.await?.value, 42);
-    assert_eq!(d.into_value(), MyEnumValue::Yeah(42));
+    assert_eq!(d, MyEnumValue::Yeah(42));
     Ok(c)
 }
 
 #[turbo_tasks::value_trait]
 trait Add {
+    #[turbo_tasks::function]
     fn add(self: Vc<Self>, other: Vc<Box<dyn Add>>) -> Vc<Self>;
 }
 

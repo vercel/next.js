@@ -4,39 +4,42 @@ use anyhow::Result;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, TaskInput, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64, DeterministicHash, Xxh3Hash64Hasher};
+use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher, encode_hex, hash_xxh3_hash64};
 
 use crate::resolve::ModulePart;
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Clone, Debug, Hash)]
+#[turbo_tasks::value]
+#[derive(Clone, Debug, Hash, TaskInput)]
 pub struct AssetIdent {
     /// The primary path of the asset
     pub path: ResolvedVc<FileSystemPath>,
-    /// The query string of the asset (e.g. `?foo=bar`)
-    pub query: ResolvedVc<RcStr>,
-    /// The fragment of the asset (e.g. `#foo`)
-    pub fragment: Option<ResolvedVc<RcStr>>,
+    /// The query string of the asset this is either the empty string or a query string that starts
+    /// with a `?` (e.g. `?foo=bar`)
+    pub query: RcStr,
+    /// The fragment of the asset, this is either the empty string or a fragment string that starts
+    /// with a `#` (e.g. `#foo`)
+    pub fragment: RcStr,
     /// The assets that are nested in this asset
-    pub assets: Vec<(ResolvedVc<RcStr>, ResolvedVc<AssetIdent>)>,
+    pub assets: Vec<(RcStr, ResolvedVc<AssetIdent>)>,
     /// The modifiers of this asset (e.g. `client chunks`)
-    pub modifiers: Vec<ResolvedVc<RcStr>>,
+    pub modifiers: Vec<RcStr>,
     /// The parts of the asset that are (ECMAScript) modules
     pub parts: Vec<ModulePart>,
     /// The asset layer the asset was created from.
-    pub layer: Option<ResolvedVc<RcStr>>,
+    pub layer: Option<RcStr>,
     /// The MIME content type, if this asset was created from a data URL.
     pub content_type: Option<RcStr>,
 }
 
 impl AssetIdent {
-    pub fn add_modifier(&mut self, modifier: ResolvedVc<RcStr>) {
+    pub fn add_modifier(&mut self, modifier: RcStr) {
+        debug_assert!(!modifier.is_empty(), "modifiers cannot be empty.");
         self.modifiers.push(modifier);
     }
 
-    pub fn add_asset(&mut self, key: ResolvedVc<RcStr>, asset: ResolvedVc<AssetIdent>) {
+    pub fn add_asset(&mut self, key: RcStr, asset: ResolvedVc<AssetIdent>) {
         self.assets.push((key, asset));
     }
 
@@ -57,14 +60,10 @@ impl ValueToString for AssetIdent {
     async fn to_string(&self) -> Result<Vc<RcStr>> {
         let mut s = self.path.to_string().owned().await?.into_owned();
 
-        let query = self.query.await?;
-        if !query.is_empty() {
-            write!(s, "{}", &*query)?;
-        }
-
-        if let Some(fragment) = &self.fragment {
-            write!(s, "#{}", fragment.await?)?;
-        }
+        // The query string is either empty or non-empty starting with `?` so we can just concat
+        s.push_str(&self.query);
+        // ditto for fragment
+        s.push_str(&self.fragment);
 
         if !self.assets.is_empty() {
             s.push_str(" {");
@@ -74,16 +73,15 @@ impl ValueToString for AssetIdent {
                     s.push(',');
                 }
 
-                let key_str = key.await?;
                 let asset_str = asset.to_string().await?;
-                write!(s, " {} => {:?}", key_str, asset_str)?;
+                write!(s, " {key} => {asset_str:?}")?;
             }
 
             s.push_str(" }");
         }
 
         if let Some(layer) = &self.layer {
-            write!(s, " [{}]", layer.await?)?;
+            write!(s, " [{layer}]")?;
         }
 
         if !self.modifiers.is_empty() {
@@ -94,14 +92,14 @@ impl ValueToString for AssetIdent {
                     s.push_str(", ");
                 }
 
-                s.push_str(&modifier.await?);
+                s.push_str(modifier);
             }
 
             s.push(')');
         }
 
         if let Some(content_type) = &self.content_type {
-            write!(s, " <{}>", content_type)?;
+            write!(s, " <{content_type}>")?;
         }
 
         if !self.parts.is_empty() {
@@ -109,7 +107,7 @@ impl ValueToString for AssetIdent {
                 if !matches!(part, ModulePart::Facade) {
                     // facade is not included in ident as switching between facade and non-facade
                     // shouldn't change the ident
-                    write!(s, " <{}>", part)?;
+                    write!(s, " <{part}>")?;
                 }
             }
         }
@@ -121,82 +119,100 @@ impl ValueToString for AssetIdent {
 #[turbo_tasks::value_impl]
 impl AssetIdent {
     #[turbo_tasks::function]
-    pub fn new(ident: Value<AssetIdent>) -> Vc<Self> {
-        ident.into_value().cell()
+    pub fn new(ident: AssetIdent) -> Vc<Self> {
+        debug_assert!(
+            ident.query.is_empty() || ident.query.starts_with("?"),
+            "query should be empty or start with a `?`"
+        );
+        debug_assert!(
+            ident.fragment.is_empty() || ident.fragment.starts_with("#"),
+            "query should be empty or start with a `?`"
+        );
+        ident.cell()
     }
 
     /// Creates an [AssetIdent] from a [Vc<FileSystemPath>]
     #[turbo_tasks::function]
     pub fn from_path(path: ResolvedVc<FileSystemPath>) -> Vc<Self> {
-        Self::new(Value::new(AssetIdent {
+        Self::new(AssetIdent {
             path,
-            query: ResolvedVc::cell(RcStr::default()),
-            fragment: None,
+            query: RcStr::default(),
+            fragment: RcStr::default(),
             assets: Vec::new(),
             modifiers: Vec::new(),
             parts: Vec::new(),
             layer: None,
             content_type: None,
-        }))
+        })
     }
 
     #[turbo_tasks::function]
-    pub fn with_query(&self, query: ResolvedVc<RcStr>) -> Vc<Self> {
+    pub fn with_query(&self, query: RcStr) -> Vc<Self> {
         let mut this = self.clone();
         this.query = query;
-        Self::new(Value::new(this))
+        Self::new(this)
     }
 
     #[turbo_tasks::function]
-    pub fn with_modifier(&self, modifier: ResolvedVc<RcStr>) -> Vc<Self> {
+    pub fn with_fragment(&self, fragment: RcStr) -> Vc<Self> {
+        let mut this = self.clone();
+        this.fragment = fragment;
+        Self::new(this)
+    }
+
+    #[turbo_tasks::function]
+    pub fn with_modifier(&self, modifier: RcStr) -> Vc<Self> {
         let mut this = self.clone();
         this.add_modifier(modifier);
-        Self::new(Value::new(this))
+        Self::new(this)
     }
 
     #[turbo_tasks::function]
     pub fn with_part(&self, part: ModulePart) -> Vc<Self> {
         let mut this = self.clone();
         this.parts.push(part);
-        Self::new(Value::new(this))
+        Self::new(this)
     }
 
     #[turbo_tasks::function]
     pub fn with_path(&self, path: ResolvedVc<FileSystemPath>) -> Vc<Self> {
         let mut this = self.clone();
         this.path = path;
-        Self::new(Value::new(this))
+        Self::new(this)
     }
 
     #[turbo_tasks::function]
-    pub fn with_layer(&self, layer: ResolvedVc<RcStr>) -> Vc<Self> {
+    pub fn with_layer(&self, layer: RcStr) -> Vc<Self> {
         let mut this = self.clone();
+        debug_assert!(!layer.is_empty(), "cannot set empty layers names");
         this.layer = Some(layer);
-        Self::new(Value::new(this))
+        Self::new(this)
     }
 
     #[turbo_tasks::function]
     pub fn with_content_type(&self, content_type: RcStr) -> Vc<Self> {
         let mut this = self.clone();
         this.content_type = Some(content_type);
-        Self::new(Value::new(this))
+        Self::new(this)
+    }
+
+    #[turbo_tasks::function]
+    pub fn with_asset(&self, key: RcStr, asset: ResolvedVc<AssetIdent>) -> Vc<Self> {
+        let mut this = self.clone();
+        this.add_asset(key, asset);
+        Self::new(this)
     }
 
     #[turbo_tasks::function]
     pub async fn rename_as(&self, pattern: RcStr) -> Result<Vc<Self>> {
         let mut this = self.clone();
         this.rename_as_ref(&pattern).await?;
-        Ok(Self::new(Value::new(this)))
+        Ok(Self::new(this))
     }
 
     #[turbo_tasks::function]
     pub fn path(&self) -> Vc<FileSystemPath> {
         *self.path
-    }
-
-    #[turbo_tasks::function]
-    pub fn query(&self) -> Vc<RcStr> {
-        *self.query
     }
 
     /// Computes a unique output asset name for the given asset identifier.
@@ -209,6 +225,10 @@ impl AssetIdent {
         context_path: Vc<FileSystemPath>,
         expected_extension: RcStr,
     ) -> Result<Vc<RcStr>> {
+        debug_assert!(
+            expected_extension.starts_with("."),
+            "the extension should include the leading '.', got '{expected_extension}'"
+        );
         // TODO(PACK-2140): restrict character set to A–Za–z0–9-_.~'()
         // to be compatible with all operating systems + URLs.
 
@@ -246,29 +266,27 @@ impl AssetIdent {
             layer,
             content_type,
         } = self;
-        let query = query.await?;
         if !query.is_empty() {
             0_u8.deterministic_hash(&mut hasher);
             query.deterministic_hash(&mut hasher);
             has_hash = true;
         }
-        if let Some(fragment) = fragment {
+        if !fragment.is_empty() {
             1_u8.deterministic_hash(&mut hasher);
-            fragment.await?.deterministic_hash(&mut hasher);
+            fragment.deterministic_hash(&mut hasher);
             has_hash = true;
         }
         for (key, ident) in assets.iter() {
             2_u8.deterministic_hash(&mut hasher);
-            key.await?.deterministic_hash(&mut hasher);
+            key.deterministic_hash(&mut hasher);
             ident.to_string().await?.deterministic_hash(&mut hasher);
             has_hash = true;
         }
         for modifier in modifiers.iter() {
-            let modifier = modifier.await?;
-            if let Some(default_modifier) = default_modifier {
-                if *modifier == default_modifier {
-                    continue;
-                }
+            if let Some(default_modifier) = default_modifier
+                && *modifier == default_modifier
+            {
+                continue;
             }
             3_u8.deterministic_hash(&mut hasher);
             modifier.deterministic_hash(&mut hasher);
@@ -300,18 +318,14 @@ impl AssetIdent {
                     5_u8.deterministic_hash(&mut hasher);
                     id.deterministic_hash(&mut hasher);
                 }
-                ModulePart::InternalEvaluation(id) => {
-                    6_u8.deterministic_hash(&mut hasher);
-                    id.deterministic_hash(&mut hasher);
-                }
                 ModulePart::Locals => {
-                    7_u8.deterministic_hash(&mut hasher);
+                    6_u8.deterministic_hash(&mut hasher);
                 }
                 ModulePart::Exports => {
-                    8_u8.deterministic_hash(&mut hasher);
+                    7_u8.deterministic_hash(&mut hasher);
                 }
                 ModulePart::Facade => {
-                    9_u8.deterministic_hash(&mut hasher);
+                    8_u8.deterministic_hash(&mut hasher);
                 }
             }
 
@@ -319,7 +333,7 @@ impl AssetIdent {
         }
         if let Some(layer) = layer {
             5_u8.deterministic_hash(&mut hasher);
-            layer.await?.deterministic_hash(&mut hasher);
+            layer.deterministic_hash(&mut hasher);
             has_hash = true;
         }
         if let Some(content_type) = content_type {
@@ -331,7 +345,7 @@ impl AssetIdent {
         if has_hash {
             let hash = encode_hex(hasher.finish());
             let truncated_hash = &hash[..8];
-            write!(name, "_{}", truncated_hash)?;
+            write!(name, "_{truncated_hash}")?;
         }
 
         // Location in "path" where hashed and named parts are split.
@@ -344,10 +358,10 @@ impl AssetIdent {
         const MAX_FILENAME: usize = 80;
         if name.len() - i > MAX_FILENAME {
             i = name.len() - MAX_FILENAME;
-            if let Some(j) = name[i..].find('_') {
-                if j < 20 {
-                    i += j + 1;
-                }
+            if let Some(j) = name[i..].find('_')
+                && j < 20
+            {
+                i += j + 1;
             }
         }
         if i > 0 {

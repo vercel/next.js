@@ -7,7 +7,7 @@ use std::{
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
     atoms::Atom,
-    common::{comments::Comments, pass::AstNodePath, Mark, Span, Spanned, SyntaxContext, GLOBALS},
+    common::{GLOBALS, Mark, Span, Spanned, SyntaxContext, comments::Comments, pass::AstNodePath},
     ecma::{
         ast::*,
         atoms::atom,
@@ -20,13 +20,13 @@ use turbo_tasks::ResolvedVc;
 use turbopack_core::source::Source;
 
 use super::{
-    is_unresolved_id, ConstantNumber, ConstantValue, ImportMap, JsValue, ObjectPart,
-    WellKnownFunctionKind,
+    ConstantNumber, ConstantValue, ImportMap, JsValue, ObjectPart, WellKnownFunctionKind,
+    is_unresolved_id,
 };
 use crate::{
-    analyzer::{is_unresolved, WellKnownObjectKind},
-    utils::{unparen, AstPathRange},
     SpecifiedModuleType,
+    analyzer::{WellKnownObjectKind, is_unresolved},
+    utils::{AstPathRange, unparen},
 };
 
 #[derive(Debug, Clone)]
@@ -896,10 +896,10 @@ impl Analyzer<'_> {
                         self.visit_opt_ident(ident, &mut ast_path);
 
                         // We cannot analyze recursive IIFE
-                        if let Some(ident) = ident {
-                            if contains_ident_ref(&function.body, &ident.to_id()) {
-                                return false;
-                            }
+                        if let Some(ident) = ident
+                            && contains_ident_ref(&function.body, &ident.to_id())
+                        {
+                            return false;
                         }
                     }
 
@@ -1389,23 +1389,22 @@ impl VisitAstPath for Analyzer<'_> {
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
         // We handle `define(function (require) {})` here.
-        if let Callee::Expr(callee) = &n.callee {
-            if n.args.len() == 1 {
-                if let Some(require_var_id) = extract_var_from_umd_factory(callee, &n.args) {
-                    self.add_value(
-                        require_var_id,
-                        JsValue::unknown_if(
-                            self.eval_context
-                                .imports
-                                .get_attributes(n.callee.span())
-                                .ignore,
-                            JsValue::WellKnownFunction(WellKnownFunctionKind::Require),
-                            true,
-                            "ignored require",
-                        ),
-                    );
-                }
-            }
+        if let Callee::Expr(callee) = &n.callee
+            && n.args.len() == 1
+            && let Some(require_var_id) = extract_var_from_umd_factory(callee, &n.args)
+        {
+            self.add_value(
+                require_var_id,
+                JsValue::unknown_if(
+                    self.eval_context
+                        .imports
+                        .get_attributes(n.callee.span())
+                        .ignore,
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::Require),
+                    true,
+                    "ignored require",
+                ),
+            );
         }
 
         if self.check_iife(n, ast_path) {
@@ -1516,10 +1515,9 @@ impl VisitAstPath for Analyzer<'_> {
         decl: &'ast FnDecl,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        let old = replace(
-            &mut self.cur_fn_return_values,
-            Some(get_fn_init_return_vals(decl.function.body.as_ref())),
-        );
+        let old = self
+            .cur_fn_return_values
+            .replace(get_fn_init_return_vals(decl.function.body.as_ref()));
         let old_ident = self.cur_fn_ident;
         self.cur_fn_ident = decl.function.span.lo.0;
         decl.visit_children_with_ast_path(self, ast_path);
@@ -1540,10 +1538,9 @@ impl VisitAstPath for Analyzer<'_> {
         expr: &'ast FnExpr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        let old = replace(
-            &mut self.cur_fn_return_values,
-            Some(get_fn_init_return_vals(expr.function.body.as_ref())),
-        );
+        let old = self
+            .cur_fn_return_values
+            .replace(get_fn_init_return_vals(expr.function.body.as_ref()));
         let old_ident = self.cur_fn_ident;
         self.cur_fn_ident = expr.function.span.lo.0;
         expr.visit_children_with_ast_path(self, ast_path);
@@ -1648,10 +1645,30 @@ impl VisitAstPath for Analyzer<'_> {
         n: &'ast VarDeclarator,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        if self.var_decl_kind.is_some() {
-            if let Some(init) = &n.init {
-                self.current_value = Some(self.eval_context.eval(init));
-            }
+        if self.var_decl_kind.is_some()
+            && let Some(init) = &n.init
+        {
+            // For case like
+            //
+            // if (shouldRun()) {
+            //   var x = true;
+            // }
+            // if (x) {
+            // }
+            //
+            // The variable `x` is undefined
+
+            let should_include_undefined = matches!(self.var_decl_kind, Some(VarDeclKind::Var))
+                && is_lexically_block_scope(ast_path);
+            let init_value = self.eval_context.eval(init);
+            self.current_value = Some(if should_include_undefined {
+                JsValue::alternatives(vec![
+                    init_value,
+                    JsValue::Constant(ConstantValue::Undefined),
+                ])
+            } else {
+                init_value
+            });
         }
         {
             let mut ast_path =
@@ -1860,21 +1877,20 @@ impl VisitAstPath for Analyzer<'_> {
                         ))
                     );
 
-                    if !is_lhs {
-                        if let Some(prop) = self.eval_context.eval_member_prop(&member.prop) {
-                            if let Some(prop_str) = prop.as_str() {
-                                // a namespace member access like
-                                // `import * as ns from "..."; ns.exportName`
-                                self.add_effect(Effect::ImportedBinding {
-                                    esm_reference_index,
-                                    export: Some(prop_str.into()),
-                                    ast_path: as_parent_path_skip(ast_path, 1),
-                                    span: member.span(),
-                                    in_try: is_in_try(ast_path),
-                                });
-                                return;
-                            }
-                        }
+                    if !is_lhs
+                        && let Some(prop) = self.eval_context.eval_member_prop(&member.prop)
+                        && let Some(prop_str) = prop.as_str()
+                    {
+                        // a namespace member access like
+                        // `import * as ns from "..."; ns.exportName`
+                        self.add_effect(Effect::ImportedBinding {
+                            esm_reference_index,
+                            export: Some(prop_str.into()),
+                            ast_path: as_parent_path_skip(ast_path, 1),
+                            span: member.span(),
+                            in_try: is_in_try(ast_path),
+                        });
+                        return;
                     }
                 }
             }
@@ -2185,6 +2201,23 @@ impl VisitAstPath for Analyzer<'_> {
     }
 }
 
+fn is_lexically_block_scope(ast_path: &mut AstNodePath<AstParentNodeRef>) -> bool {
+    let mut iter = ast_path.iter().rev().peekable();
+
+    while let Some(cur) = iter.next() {
+        // If it's a block statement, we need to check if it's Function#body
+        if matches!(cur.kind(), AstParentKind::BlockStmt(..)) {
+            if let Some(next) = iter.peek() {
+                return !matches!(next.kind(), AstParentKind::Function(FunctionField::Body));
+            }
+            return false;
+        }
+    }
+
+    // This `var` is not in a block scope
+    false
+}
+
 impl Analyzer<'_> {
     fn add_conditional_if_effect_with_early_return(
         &mut self,
@@ -2397,16 +2430,15 @@ impl Analyzer<'_> {
 fn extract_var_from_umd_factory(callee: &Expr, args: &[ExprOrSpread]) -> Option<Id> {
     match unparen(callee) {
         Expr::Ident(Ident { sym, .. }) => {
-            if &**sym == "define" {
-                if let Expr::Fn(FnExpr { function, .. }) = &*args[0].expr {
-                    let params = &*function.params;
-                    if params.len() == 1 {
-                        if let Pat::Ident(param) = &params[0].pat {
-                            if &*param.id.sym == "require" {
-                                return Some(param.to_id());
-                            }
-                        }
-                    }
+            if &**sym == "define"
+                && let Expr::Fn(FnExpr { function, .. }) = &*args[0].expr
+            {
+                let params = &*function.params;
+                if params.len() == 1
+                    && let Pat::Ident(param) = &params[0].pat
+                    && &*param.id.sym == "require"
+                {
+                    return Some(param.to_id());
                 }
             }
         }
@@ -2419,18 +2451,16 @@ fn extract_var_from_umd_factory(callee: &Expr, args: &[ExprOrSpread]) -> Option<
         // treated as a well-known require.
         Expr::Fn(FnExpr { function, .. }) => {
             let params = &*function.params;
-            if params.len() == 1 {
-                if let Some(FnExpr { function, .. }) =
+            if params.len() == 1
+                && let Some(FnExpr { function, .. }) =
                     args.first().and_then(|arg| arg.expr.as_fn_expr())
+            {
+                let params = &*function.params;
+                if !params.is_empty()
+                    && let Pat::Ident(param) = &params[0].pat
+                    && &*param.id.sym == "require"
                 {
-                    let params = &*function.params;
-                    if !params.is_empty() {
-                        if let Pat::Ident(param) = &params[0].pat {
-                            if &*param.id.sym == "require" {
-                                return Some(param.to_id());
-                            }
-                        }
-                    }
+                    return Some(param.to_id());
                 }
             }
         }

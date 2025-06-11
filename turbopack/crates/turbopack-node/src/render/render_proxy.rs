@@ -1,15 +1,16 @@
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use async_stream::try_stream as generator;
 use futures::{
-    channel::mpsc::{unbounded, UnboundedSender},
-    pin_mut, SinkExt, StreamExt, TryStreamExt,
+    SinkExt, StreamExt, TryStreamExt,
+    channel::mpsc::{UnboundedSender, unbounded},
+    pin_mut,
 };
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    duration_span, mark_finished, prevent_gc, trace::TraceRawVcs, util::SharedError, RawVc,
-    ResolvedVc, TaskInput, ValueToString, Vc,
+    RawVc, ResolvedVc, TaskInput, ValueToString, Vc, duration_span, mark_finished, prevent_gc,
+    trace::TraceRawVcs, util::SharedError,
 };
 use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::ProcessEnv;
@@ -23,8 +24,8 @@ use turbopack_core::{
 use turbopack_dev_server::source::{Body, ProxyResult};
 
 use super::{
-    issue::RenderingIssue, RenderData, RenderProxyIncomingMessage, RenderProxyOutgoingMessage,
-    ResponseHeaders,
+    RenderData, RenderProxyIncomingMessage, RenderProxyOutgoingMessage, ResponseHeaders,
+    issue::RenderingIssue,
 };
 use crate::{
     get_intermediate_asset, get_renderer_pool_operation, pool::NodeJsOperation,
@@ -114,7 +115,7 @@ async fn proxy_error(
     let status_code = 500;
     let body = error_html(
         status_code,
-        "An error occurred while proxying the request to Node.js".into(),
+        rcstr!("An error occurred while proxying the request to Node.js"),
         format!("{message}\n\n{}", details.join("\n")).into(),
     )
     .owned()
@@ -288,8 +289,8 @@ async fn render_stream_internal(
                 yield RenderItem::Headers(ResponseHeaders {
                     status,
                     headers: vec![(
-                        "content-type".into(),
-                        "text/html; charset=utf-8".into(),
+                        rcstr!("content-type"),
+                        rcstr!("text/html; charset=utf-8"),
                     )],
                 });
                 yield RenderItem::BodyChunk(body.into_owned().into_bytes().into());

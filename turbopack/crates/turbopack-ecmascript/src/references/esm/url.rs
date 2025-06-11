@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 use swc_core::{
     ecma::ast::{Expr, ExprOrSpread, NewExpr},
@@ -6,8 +6,8 @@ use swc_core::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, TaskInput, Value,
-    ValueToString, Vc,
+    NonLocalValue, ResolvedVc, TaskInput, ValueToString, Vc, debug::ValueDebugFormat,
+    trace::TraceRawVcs,
 };
 use turbopack_core::{
     chunk::{
@@ -20,7 +20,7 @@ use turbopack_core::{
     reference::ModuleReference,
     reference_type::{ReferenceType, UrlReferenceSubType},
     resolve::{
-        origin::ResolveOrigin, parse::Request, url_resolve, ExternalType, ModuleResolveResult,
+        ExternalType, ModuleResolveResult, origin::ResolveOrigin, parse::Request, url_resolve,
     },
 };
 
@@ -106,7 +106,7 @@ impl ModuleReference for UrlAssetReference {
         url_resolve(
             *self.origin,
             *self.request,
-            Value::new(ReferenceType::Url(UrlReferenceSubType::EcmaScriptNewUrl)),
+            ReferenceType::Url(UrlReferenceSubType::EcmaScriptNewUrl),
             Some(self.issue_source.clone()),
             self.in_try,
         )
@@ -127,7 +127,10 @@ impl ValueToString for UrlAssetReference {
 impl ChunkableModuleReference for UrlAssetReference {
     #[turbo_tasks::function]
     fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Parallel))
+        Vc::cell(Some(ChunkingType::Parallel {
+            inherit_async: false,
+            hoisted: false,
+        }))
     }
 }
 
@@ -306,11 +309,10 @@ impl UrlAssetReferenceCodeGen {
                                     *expr = request.as_str().into()
                                 }
 
-                                if let Some(rewrite) = &rewrite_url_base {
-                                    if let Some(ExprOrSpread { box expr, spread: None }) = args.get_mut(1) {
+                                if let Some(rewrite) = &rewrite_url_base
+                                    && let Some(ExprOrSpread { box expr, spread: None }) = args.get_mut(1) {
                                         *expr = rewrite.clone();
                                     }
-                                }
                             }
                         }));
                     }

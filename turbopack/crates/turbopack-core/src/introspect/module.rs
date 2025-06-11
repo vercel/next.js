@@ -1,10 +1,10 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 
 use super::{
-    utils::{children_from_module_references, content_to_details},
     Introspectable, IntrospectableChildren,
+    utils::{children_from_module_references, content_to_details},
 };
 use crate::{asset::Asset, module::Module};
 
@@ -20,16 +20,11 @@ impl IntrospectableModule {
     }
 }
 
-#[turbo_tasks::function]
-fn ty() -> Vc<RcStr> {
-    Vc::cell("asset".into())
-}
-
 #[turbo_tasks::value_impl]
 impl Introspectable for IntrospectableModule {
     #[turbo_tasks::function]
     fn ty(&self) -> Vc<RcStr> {
-        ty()
+        Vc::cell(rcstr!("asset"))
     }
 
     #[turbo_tasks::function]

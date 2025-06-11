@@ -1,1 +1,1 @@
-import "../../../side-effects-optimization/mui-utils/input/index.js";
+import '../../../side-effects-optimization/mui-utils/input/index.js'

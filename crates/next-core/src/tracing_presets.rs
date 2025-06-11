@@ -1,6 +1,6 @@
 use once_cell::sync::Lazy;
 use turbopack_trace_utils::tracing_presets::{
-    TRACING_OVERVIEW_TARGETS, TRACING_TURBOPACK_TARGETS, TRACING_TURBO_TASKS_TARGETS,
+    TRACING_OVERVIEW_TARGETS, TRACING_TURBO_TASKS_TARGETS, TRACING_TURBOPACK_TARGETS,
 };
 
 pub static TRACING_NEXT_OVERVIEW_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {

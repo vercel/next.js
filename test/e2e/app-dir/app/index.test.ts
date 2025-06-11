@@ -323,6 +323,27 @@ describe('app dir - basic', () => {
     expect(res.headers.get('Content-Type')).toBe('text/x-component')
   })
 
+  it('should return the `vary` header from edge runtime', async () => {
+    const res = await next.fetch('/dashboard')
+    expect(res.headers.get('x-edge-runtime')).toBe('1')
+    expect(res.headers.get('vary')).toBe(
+      'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Router-Segment-Prefetch'
+    )
+  })
+
+  it('should return the `vary` header from pages for flight requests', async () => {
+    const res = await next.fetch('/', {
+      headers: {
+        ['RSC'.toString()]: '1',
+      },
+    })
+    expect(res.headers.get('vary')).toBe(
+      isNextDeploy
+        ? 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Router-Segment-Prefetch'
+        : 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Router-Segment-Prefetch, Accept-Encoding'
+    )
+  })
+
   it('should pass props from getServerSideProps in root layout', async () => {
     const $ = await next.render$('/dashboard')
     expect($('title').first().text()).toBe('hello world')
@@ -1704,6 +1725,57 @@ describe('app dir - basic', () => {
         const browser = await next.browser('/script-nonce')
 
         await retry(async () => {
+          await browser.elementByCss('#get-order').click()
+          const order = JSON.parse(await browser.elementByCss('#order').text())
+          expect(order?.length).toBe(2)
+        })
+      }
+    })
+
+    it('should pass manual `nonce`', async () => {
+      const html = await next.render('/script-manual-nonce')
+      const $ = cheerio.load(html)
+      let scripts = $('script, link[rel="preload"][as="script"]')
+
+      scripts = scripts.filter((_, element) =>
+        (element.attribs.src || element.attribs.href)?.startsWith('/test')
+      )
+
+      expect(scripts.length).toBeGreaterThan(0)
+
+      scripts.each((_, element) => {
+        expect(element.attribs.nonce).toBeTruthy()
+      })
+
+      if (!isNextDev) {
+        const browser = await next.browser('/script-manual-nonce')
+
+        await retry(async () => {
+          await browser.elementByCss('#get-order').click()
+          const order = JSON.parse(await browser.elementByCss('#order').text())
+          expect(order?.length).toBe(2)
+        })
+      }
+    })
+
+    it('should pass manual `nonce` pages', async () => {
+      const html = await next.render('/pages-script-manual-nonce')
+      const $ = cheerio.load(html)
+      let scripts = $('script, link[rel="preload"][as="script"]')
+
+      scripts = scripts.filter((_, element) =>
+        (element.attribs.src || element.attribs.href)?.startsWith('/test')
+      )
+
+      expect(scripts.length).toBeGreaterThan(0)
+
+      scripts.each((_, element) => {
+        expect(element.attribs.nonce).toBeTruthy()
+      })
+
+      if (!isNextDev) {
+        await retry(async () => {
+          const browser = await next.browser('/pages-script-manual-nonce')
           await browser.elementByCss('#get-order').click()
           const order = JSON.parse(await browser.elementByCss('#order').text())
           expect(order?.length).toBe(2)

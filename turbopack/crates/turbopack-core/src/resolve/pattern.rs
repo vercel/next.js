@@ -1,26 +1,26 @@
 use std::{
-    collections::{hash_map::Entry, VecDeque},
+    collections::{VecDeque, hash_map::Entry},
     fmt::Display,
     mem::take,
+    sync::LazyLock,
 };
 
 use anyhow::Result;
-use lazy_static::lazy_static;
 use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, Value, ValueToString,
-    Vc,
+    NonLocalValue, ResolvedVc, TaskInput, ValueToString, Vc, debug::ValueDebugFormat,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{
-    util::normalize_path, FileSystemPath, LinkContent, LinkType, RawDirectoryContent,
-    RawDirectoryEntry,
+    FileSystemPath, LinkContent, LinkType, RawDirectoryContent, RawDirectoryEntry,
+    util::normalize_path,
 };
 
-#[turbo_tasks::value(shared, serialization = "auto_for_input")]
+#[turbo_tasks::value]
 #[derive(Hash, Clone, Debug, Default)]
 pub enum Pattern {
     Constant(RcStr),
@@ -30,21 +30,31 @@ pub enum Pattern {
     Concatenation(Vec<Pattern>),
 }
 
+/// manually implement TaskInput to avoid recursion in the implementation of `resolve_input` in the
+/// derived implementation.  We can instead use the default implementation since `Pattern` contains
+/// no VCs.
+impl TaskInput for Pattern {
+    fn is_transient(&self) -> bool {
+        // We contain no vcs so they cannot be transient.
+        false
+    }
+}
+
 fn concatenation_push_or_merge_item(list: &mut Vec<Pattern>, pat: Pattern) {
-    if let Pattern::Constant(ref s) = pat {
-        if let Some(Pattern::Constant(ref mut last)) = list.last_mut() {
-            let mut buf = last.to_string();
-            buf.push_str(s);
-            *last = buf.into();
-            return;
-        }
+    if let Pattern::Constant(ref s) = pat
+        && let Some(Pattern::Constant(last)) = list.last_mut()
+    {
+        let mut buf = last.to_string();
+        buf.push_str(s);
+        *last = buf.into();
+        return;
     }
     list.push(pat);
 }
 
 fn concatenation_push_front_or_merge_item(list: &mut Vec<Pattern>, pat: Pattern) {
     if let Pattern::Constant(s) = pat {
-        if let Some(Pattern::Constant(ref mut first)) = list.iter_mut().next() {
+        if let Some(Pattern::Constant(first)) = list.iter_mut().next() {
             let mut buf = s.into_owned();
             buf.push_str(first);
 
@@ -122,9 +132,11 @@ impl Pattern {
         }
     }
 
+    /// Whether the pattern has any significant constant parts (everything except `/`).
+    /// E.g. `<dynamic>/<dynamic>` doesn't really have constant parts
     pub fn has_constant_parts(&self) -> bool {
         match self {
-            Pattern::Constant(_) => true,
+            Pattern::Constant(str) => str != "/",
             Pattern::Dynamic => false,
             Pattern::Alternatives(list) | Pattern::Concatenation(list) => {
                 list.iter().any(|p| p.has_constant_parts())
@@ -396,7 +408,7 @@ impl Pattern {
                 concatenation_extend_or_merge_items(&mut more, take(list).into_iter());
                 *list = more;
             }
-            (Pattern::Concatenation(ref mut list), pat) => {
+            (Pattern::Concatenation(list), pat) => {
                 concatenation_push_front_or_merge_item(list, pat);
             }
             (this, Pattern::Concatenation(mut list)) => {
@@ -799,7 +811,6 @@ impl Pattern {
                 .then_some(0)
         }
     }
-
     fn match_internal<'a>(
         &self,
         mut value: &'a str,
@@ -835,11 +846,11 @@ impl Pattern {
                 }
             }
             Pattern::Dynamic => {
-                lazy_static! {
-                    static ref FORBIDDEN: Regex =
-                        Regex::new(r"(/|^)(ROOT|\.|/|(node_modules|__tests?__)(/|$))").unwrap();
-                    static ref FORBIDDEN_MATCH: Regex = Regex::new(r"\.d\.ts$|\.map$").unwrap();
-                }
+                static FORBIDDEN: LazyLock<Regex> = LazyLock::new(|| {
+                    Regex::new(r"(/|^)(ROOT|\.|/|(node_modules|__tests?__)(/|$))").unwrap()
+                });
+                static FORBIDDEN_MATCH: LazyLock<Regex> =
+                    LazyLock::new(|| Regex::new(r"\.d\.ts$|\.map$").unwrap());
                 if let Some(m) = FORBIDDEN.find(value) {
                     MatchResult::Consumed {
                         remaining: value,
@@ -857,7 +868,7 @@ impl Pattern {
                 }
             }
             Pattern::Alternatives(_) => {
-                panic!("for matching a Pattern must be normalized {:?}", self)
+                panic!("for matching a Pattern must be normalized {self:?}")
             }
             Pattern::Concatenation(list) => {
                 for part in list {
@@ -921,11 +932,11 @@ impl Pattern {
                 }
             }
             Pattern::Dynamic => {
-                lazy_static! {
-                    static ref FORBIDDEN: Regex =
-                        Regex::new(r"(/|^)(ROOT|\.|/|(node_modules|__tests?__)(/|$))").unwrap();
-                    static ref FORBIDDEN_MATCH: Regex = Regex::new(r"\.d\.ts$|\.map$").unwrap();
-                }
+                static FORBIDDEN: LazyLock<Regex> = LazyLock::new(|| {
+                    Regex::new(r"(/|^)(ROOT|\.|/|(node_modules|__tests?__)(/|$))").unwrap()
+                });
+                static FORBIDDEN_MATCH: LazyLock<Regex> =
+                    LazyLock::new(|| Regex::new(r"\.d\.ts$|\.map$").unwrap());
                 if let Some(m) = FORBIDDEN.find(value) {
                     MatchResult::Consumed {
                         remaining: value,
@@ -941,7 +952,7 @@ impl Pattern {
                 }
             }
             Pattern::Alternatives(_) => {
-                panic!("for matching a Pattern must be normalized {:?}", self)
+                panic!("for matching a Pattern must be normalized {self:?}")
             }
             Pattern::Concatenation(list) => {
                 for part in list {
@@ -957,10 +968,10 @@ impl Pattern {
                         }
                     }
                 }
-                if let Some(offset) = any_offset {
-                    if offset == value.len() {
-                        dynamics.push_back(value);
-                    }
+                if let Some(offset) = any_offset
+                    && offset == value.len()
+                {
+                    dynamics.push_back(value);
                 }
                 MatchResult::Consumed {
                     remaining: value,
@@ -1035,11 +1046,11 @@ impl Pattern {
                 }
             }
             Pattern::Dynamic => {
-                lazy_static! {
-                    static ref FORBIDDEN: Regex =
-                        Regex::new(r"(/|^)(\.|(node_modules|__tests?__)(/|$))").unwrap();
-                    static ref FORBIDDEN_MATCH: Regex = Regex::new(r"\.d\.ts$|\.map$").unwrap();
-                }
+                static FORBIDDEN: LazyLock<Regex> = LazyLock::new(|| {
+                    Regex::new(r"(/|^)(\.|(node_modules|__tests?__)(/|$))").unwrap()
+                });
+                static FORBIDDEN_MATCH: LazyLock<Regex> =
+                    LazyLock::new(|| Regex::new(r"\.d\.ts$|\.map$").unwrap());
                 if let Some(m) = FORBIDDEN.find(value) {
                     NextConstantUntilResult::Consumed(value, Some(m.start()))
                 } else if FORBIDDEN_MATCH.find(value).is_some() {
@@ -1056,16 +1067,16 @@ impl Pattern {
                 while let Some(part) = iter.next() {
                     match part.next_constants_internal(value, any_offset) {
                         NextConstantUntilResult::NoMatch => {
-                            return NextConstantUntilResult::NoMatch
+                            return NextConstantUntilResult::NoMatch;
                         }
                         NextConstantUntilResult::PartialDynamic => {
-                            return NextConstantUntilResult::PartialDynamic
+                            return NextConstantUntilResult::PartialDynamic;
                         }
                         NextConstantUntilResult::Partial(r, end) => {
                             return NextConstantUntilResult::Partial(
                                 r,
                                 end && iter.next().is_none(),
-                            )
+                            );
                         }
                         NextConstantUntilResult::Consumed(new_value, new_any_offset) => {
                             value = new_value;
@@ -1168,16 +1179,17 @@ impl Pattern {
 }
 
 impl Pattern {
-    pub fn new(pattern: Pattern) -> Vc<Self> {
-        Pattern::new_internal(Value::new(pattern))
+    pub fn new(mut pattern: Pattern) -> Vc<Self> {
+        pattern.normalize();
+        Pattern::new_internal(pattern)
     }
 }
 
 #[turbo_tasks::value_impl]
 impl Pattern {
     #[turbo_tasks::function]
-    fn new_internal(pattern: Value<Pattern>) -> Vc<Self> {
-        Self::cell(pattern.into_value())
+    fn new_internal(pattern: Pattern) -> Vc<Self> {
+        Self::cell(pattern)
     }
 }
 
@@ -1646,16 +1658,12 @@ pub async fn read_matches(
                                         lookup_dir.join(key.clone()).to_resolved().await?;
                                     if let LinkContent::Link { link_type, .. } =
                                         &*fs_path.read_link().await?
+                                        && link_type.contains(LinkType::DIRECTORY)
                                     {
-                                        if link_type.contains(LinkType::DIRECTORY) {
-                                            results.push((
-                                                pos,
-                                                PatternMatch::Directory(
-                                                    prefix.clone().into(),
-                                                    fs_path,
-                                                ),
-                                            ));
-                                        }
+                                        results.push((
+                                            pos,
+                                            PatternMatch::Directory(prefix.clone().into(), fs_path),
+                                        ));
                                     }
                                 }
                                 if let Some(pos) = pat.could_match_position(&prefix) {
@@ -1663,16 +1671,12 @@ pub async fn read_matches(
                                         lookup_dir.join(key.clone()).to_resolved().await?;
                                     if let LinkContent::Link { link_type, .. } =
                                         &*fs_path.read_link().await?
+                                        && link_type.contains(LinkType::DIRECTORY)
                                     {
-                                        if link_type.contains(LinkType::DIRECTORY) {
-                                            results.push((
-                                                pos,
-                                                PatternMatch::Directory(
-                                                    prefix.clone().into(),
-                                                    fs_path,
-                                                ),
-                                            ));
-                                        }
+                                        results.push((
+                                            pos,
+                                            PatternMatch::Directory(prefix.clone().into(), fs_path),
+                                        ));
                                     }
                                 }
                                 prefix.truncate(len)
@@ -1737,7 +1741,7 @@ mod tests {
     use rstest::*;
     use turbo_rcstr::RcStr;
 
-    use super::{longest_common_prefix, longest_common_suffix, split_last_segment, Pattern};
+    use super::{Pattern, longest_common_prefix, longest_common_suffix, split_last_segment};
 
     #[test]
     fn longest_common_prefix_test() {
@@ -1828,9 +1832,11 @@ mod tests {
 
     #[test]
     fn with_normalized_path() {
-        assert!(Pattern::Constant("a/../..".into())
-            .with_normalized_path()
-            .is_none());
+        assert!(
+            Pattern::Constant("a/../..".into())
+                .with_normalized_path()
+                .is_none()
+        );
         assert_eq!(
             Pattern::Constant("a/b/../c".into())
                 .with_normalized_path()

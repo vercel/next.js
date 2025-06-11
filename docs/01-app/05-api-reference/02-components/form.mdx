@@ -1,9 +1,9 @@
 ---
-title: Form
+title: Form Component
 description: Learn how to use the `<Form>` component to handle form submissions and search params updates with client-side navigation.
 ---
 
-The `<Form>` component extends the HTML `<form>` element to provide <AppOnly>[**prefetching**](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching) of [loading UI](/docs/app/building-your-application/routing/loading-ui-and-streaming),</AppOnly> **client-side navigation** on submission, and **progressive enhancement**.
+The `<Form>` component extends the HTML `<form>` element to provide <AppOnly>[**prefetching**](/docs/app/getting-started/linking-and-navigating#prefetching) of [loading UI](/docs/app/api-reference/file-conventions/loading),</AppOnly> **client-side navigation** on submission, and **progressive enhancement**.
 
 It's useful for forms that update URL search params as it reduces the boilerplate code needed to achieve the above.
 
@@ -84,8 +84,8 @@ The behavior of the `<Form>` component depends on whether the `action` prop is p
 <AppOnly>
 
 - When `action` is a **string**, the `<Form>` behaves like a native HTML form that uses a **`GET`** method. The form data is encoded into the URL as search params, and when the form is submitted, it navigates to the specified URL. In addition, Next.js:
-  - [Prefetches](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching) the path when the form becomes visible, this preloads shared UI (e.g. `layout.js` and `loading.js`), resulting in faster navigation.
-  - Performs a [client-side navigation](/docs/app/building-your-application/routing/linking-and-navigating#5-soft-navigation) instead of a full page reload when the form is submitted. This retains shared UI and client-side state.
+  - [Prefetches](/docs/app/getting-started/linking-and-navigating#prefetching) the path when the form becomes visible, this preloads shared UI (e.g. `layout.js` and `loading.js`), resulting in faster navigation.
+  - Performs a [client-side navigation](/docs/app/getting-started/linking-and-navigating#client-side-transitions) instead of a full page reload when the form is submitted. This retains shared UI and client-side state.
 - When `action` is a **function** (Server Action), `<Form>` behaves like a [React form](https://react.dev/reference/react-dom/components/form), executing the action when the form is submitted.
 
 </AppOnly>
@@ -93,7 +93,7 @@ The behavior of the `<Form>` component depends on whether the `action` prop is p
 <PagesOnly>
 
 - When `action` is a **string**, the `<Form>` behaves like a native HTML form that uses a **`GET`** method. The form data is encoded into the URL as search params, and when the form is submitted, it navigates to the specified URL. In addition, Next.js:
-  - Performs a [client-side navigation](/docs/app/building-your-application/routing/linking-and-navigating#5-soft-navigation) instead of a full page reload when the form is submitted. This retains shared UI and client-side state.
+  - Performs a [client-side navigation](/docs/app/getting-started/linking-and-navigating#client-side-transitions) instead of a full page reload when the form is submitted. This retains shared UI and client-side state.
 
 </PagesOnly>
 
@@ -333,7 +333,7 @@ export default function Page() {
 }
 ```
 
-After a mutation, it's common to redirect to the new resource. You can use the [`redirect`](/docs/app/building-your-application/routing/redirecting) function from `next/navigation` to navigate to the new post page.
+After a mutation, it's common to redirect to the new resource. You can use the [`redirect`](/docs/app/guides/redirecting) function from `next/navigation` to navigate to the new post page.
 
 > **Good to know**: Since the "destination" of the form submission is not known until the action is executed, `<Form>` cannot automatically prefetch shared UI.
 
@@ -401,6 +401,6 @@ export default async function PostPage({ params }) {
 }
 ```
 
-See the [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) docs for more examples.
+See the [Server Actions](/docs/app/getting-started/updating-data) docs for more examples.
 
 </AppOnly>

@@ -8,16 +8,16 @@ use anyhow::Result;
 use auto_hash_map::AutoSet;
 use rustc_hash::FxHashSet;
 use tokio::time::sleep;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{emit, CollectiblesSource, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
-use turbo_tasks_testing::{register, run, Registration};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{CollectiblesSource, ResolvedVc, ValueToString, Vc, emit};
+use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 
 #[tokio::test]
 async fn transitive_emitting() {
     run(&REGISTRATION, || async {
-        let result_op = my_transitive_emitting_function("".into(), "".into());
+        let result_op = my_transitive_emitting_function(rcstr!(""), rcstr!(""));
         let result_val = result_op.connect().strongly_consistent().await?;
         let list = result_op.peek_collectibles::<Box<dyn ValueToString>>();
         assert_eq!(list.len(), 2);
@@ -35,8 +35,8 @@ async fn transitive_emitting() {
 #[tokio::test]
 async fn transitive_emitting_indirect() {
     run(&REGISTRATION, || async {
-        let result_op = my_transitive_emitting_function("".into(), "".into());
-        let collectibles_op = my_transitive_emitting_function_collectibles("".into(), "".into());
+        let result_op = my_transitive_emitting_function(rcstr!(""), rcstr!(""));
+        let collectibles_op = my_transitive_emitting_function_collectibles(rcstr!(""), rcstr!(""));
         let list = collectibles_op.connect().strongly_consistent().await?;
         assert_eq!(list.len(), 2);
         let mut expected = ["123", "42"].into_iter().collect::<FxHashSet<_>>();
@@ -103,34 +103,34 @@ async fn taking_collectibles_extra_layer() {
 #[tokio::test]
 async fn taking_collectibles_parallel() {
     run(&REGISTRATION, || async {
-        let result_op = my_transitive_emitting_function("".into(), "a".into());
+        let result_op = my_transitive_emitting_function(rcstr!(""), rcstr!("a"));
         let result_val = result_op.connect().strongly_consistent().await?;
         let list = result_op.take_collectibles::<Box<dyn ValueToString>>();
         assert_eq!(list.len(), 2);
         assert_eq!(result_val.0, 0);
 
-        let result_op = my_transitive_emitting_function("".into(), "b".into());
-        let result_val = result_op.connect().strongly_consistent().await?;
-        let list = result_op.take_collectibles::<Box<dyn ValueToString>>();
-        assert_eq!(list.len(), 2);
-        assert_eq!(result_val.0, 0);
-
-        let result_op =
-            my_transitive_emitting_function_with_child_scope("".into(), "b".into(), "1".into());
+        let result_op = my_transitive_emitting_function(rcstr!(""), rcstr!("b"));
         let result_val = result_op.connect().strongly_consistent().await?;
         let list = result_op.take_collectibles::<Box<dyn ValueToString>>();
         assert_eq!(list.len(), 2);
         assert_eq!(result_val.0, 0);
 
         let result_op =
-            my_transitive_emitting_function_with_child_scope("".into(), "b".into(), "2".into());
+            my_transitive_emitting_function_with_child_scope(rcstr!(""), rcstr!("b"), rcstr!("1"));
         let result_val = result_op.connect().strongly_consistent().await?;
         let list = result_op.take_collectibles::<Box<dyn ValueToString>>();
         assert_eq!(list.len(), 2);
         assert_eq!(result_val.0, 0);
 
         let result_op =
-            my_transitive_emitting_function_with_child_scope("".into(), "c".into(), "3".into());
+            my_transitive_emitting_function_with_child_scope(rcstr!(""), rcstr!("b"), rcstr!("2"));
+        let result_val = result_op.connect().strongly_consistent().await?;
+        let list = result_op.take_collectibles::<Box<dyn ValueToString>>();
+        assert_eq!(list.len(), 2);
+        assert_eq!(result_val.0, 0);
+
+        let result_op =
+            my_transitive_emitting_function_with_child_scope(rcstr!(""), rcstr!("c"), rcstr!("3"));
         let result_val = result_op.connect().strongly_consistent().await?;
         let list = result_op.take_collectibles::<Box<dyn ValueToString>>();
         assert_eq!(list.len(), 2);
@@ -145,7 +145,7 @@ async fn taking_collectibles_parallel() {
 #[tokio::test]
 async fn taking_collectibles_with_resolve() {
     run(&REGISTRATION, || async {
-        let result_op = my_transitive_emitting_function_with_resolve("resolve".into());
+        let result_op = my_transitive_emitting_function_with_resolve(rcstr!("resolve"));
         result_op.connect().strongly_consistent().await?;
         let list = result_op.take_collectibles::<Box<dyn ValueToString>>();
         assert_eq!(list.len(), 2);
@@ -161,7 +161,7 @@ struct Collectibles(AutoSet<ResolvedVc<Box<dyn ValueToString>>>);
 
 #[turbo_tasks::function(operation)]
 async fn my_collecting_function() -> Result<Vc<Thing>> {
-    let result_op = my_transitive_emitting_function("".into(), "".into());
+    let result_op = my_transitive_emitting_function(rcstr!(""), rcstr!(""));
     let result_vc = result_op.connect();
     result_vc.await?;
     result_op.take_collectibles::<Box<dyn ValueToString>>();
@@ -182,13 +182,13 @@ async fn my_collecting_function_indirect() -> Result<Vc<Thing>> {
 
 #[turbo_tasks::function(operation)]
 async fn my_multi_emitting_function() -> Result<Vc<Thing>> {
-    my_transitive_emitting_function("".into(), "a".into())
+    my_transitive_emitting_function(rcstr!(""), rcstr!("a"))
         .connect()
         .await?;
-    my_transitive_emitting_function("".into(), "b".into())
+    my_transitive_emitting_function(rcstr!(""), rcstr!("b"))
         .connect()
         .await?;
-    my_emitting_function("".into()).await?;
+    my_emitting_function(rcstr!("")).await?;
     Ok(Thing::cell(Thing(0)))
 }
 
@@ -206,14 +206,7 @@ async fn my_transitive_emitting_function_collectibles(
 ) -> Result<Vc<Collectibles>> {
     let result_op = my_transitive_emitting_function(key, key2);
     Ok(Vc::cell(
-        result_op
-            .peek_collectibles::<Box<dyn ValueToString>>()
-            .into_iter()
-            .map(|v| v.to_resolved())
-            .try_join()
-            .await?
-            .into_iter()
-            .collect(),
+        result_op.peek_collectibles::<Box<dyn ValueToString>>(),
     ))
 }
 

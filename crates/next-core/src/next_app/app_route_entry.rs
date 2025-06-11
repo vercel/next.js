@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{fxindexmap, ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc, fxindexmap};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::ModuleAssetContext;
 use turbopack_core::{
@@ -16,7 +16,7 @@ use crate::{
     next_config::{NextConfig, OutputType},
     next_edge::entry::wrap_edge_entry,
     parse_segment_config_from_source,
-    util::{load_next_js_template, NextRuntime},
+    util::{NextRuntime, load_next_js_template},
 };
 
 /// Computes the entry for a Next.js app route.
@@ -93,7 +93,7 @@ pub async fn get_app_route_entry(
     let userland_module = module_asset_context
         .process(
             source,
-            Value::new(ReferenceType::Entry(EntryReferenceSubType::AppRoute)),
+            ReferenceType::Entry(EntryReferenceSubType::AppRoute),
         )
         .module()
         .to_resolved()
@@ -106,7 +106,7 @@ pub async fn get_app_route_entry(
     let mut rsc_entry = module_asset_context
         .process(
             Vc::upcast(virtual_source),
-            Value::new(ReferenceType::Internal(ResolvedVc::cell(inner_assets))),
+            ReferenceType::Internal(ResolvedVc::cell(inner_assets)),
         )
         .module();
 
@@ -162,7 +162,7 @@ async fn wrap_edge_route(
     let wrapped = asset_context
         .process(
             Vc::upcast(source),
-            Value::new(ReferenceType::Internal(ResolvedVc::cell(inner_assets))),
+            ReferenceType::Internal(ResolvedVc::cell(inner_assets)),
         )
         .module();
 

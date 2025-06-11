@@ -1,6 +1,6 @@
 use std::{cmp::Ordering, collections::BTreeSet};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use turbo_rcstr::RcStr;
 use turbo_tasks::FxIndexSet;
 
@@ -88,13 +88,13 @@ pub(super) fn get_font_axes(
             for axis in defineable_axes {
                 if axis.tag == "wght" {
                     weight_axis = Some(format!("{}..{}", axis.min, axis.max).into());
-                } else if let Some(selected_variable_axes) = selected_variable_axes {
-                    if selected_variable_axes.contains(&axis.tag) {
-                        variable_axes.push((
-                            axis.tag.clone(),
-                            format!("{}..{}", axis.min, axis.max).into(),
-                        ));
-                    }
+                } else if let Some(selected_variable_axes) = selected_variable_axes
+                    && selected_variable_axes.contains(&axis.tag)
+                {
+                    variable_axes.push((
+                        axis.tag.clone(),
+                        format!("{}..{}", axis.min, axis.max).into(),
+                    ));
                 }
             }
 
@@ -168,13 +168,13 @@ pub(super) fn get_stylesheet_url(
 
     if weights.is_empty() {
         let mut variant = vec![];
-        if let Some(variable_axes) = &axes.variable_axes {
-            if !variable_axes.is_empty() {
-                for (key, val) in variable_axes {
-                    variant.push((key.as_str(), VariantValue::String(val.clone())));
-                }
-                variants.push(variant);
+        if let Some(variable_axes) = &axes.variable_axes
+            && !variable_axes.is_empty()
+        {
+            for (key, val) in variable_axes {
+                variant.push((key.as_str(), VariantValue::String(val.clone())));
             }
+            variants.push(variant);
         }
     } else {
         for wght in &weights {
@@ -296,9 +296,9 @@ mod tests {
 
     use super::get_font_axes;
     use crate::next_font::google::{
-        options::{FontData, FontWeights},
-        util::{get_stylesheet_url, FontAxes, FontAxesWeights, FontStyle},
         GOOGLE_FONTS_STYLESHEET_URL,
+        options::{FontData, FontWeights},
+        util::{FontAxes, FontAxesWeights, FontStyle, get_stylesheet_url},
     };
 
     #[test]

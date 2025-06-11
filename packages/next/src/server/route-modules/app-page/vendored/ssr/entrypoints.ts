@@ -32,8 +32,10 @@ function getAltProxyForBindingsDEV(
 
 let ReactServerDOMTurbopackClientEdge, ReactServerDOMWebpackClientEdge
 if (process.env.TURBOPACK) {
-  // eslint-disable-next-line import/no-extraneous-dependencies
-  ReactServerDOMTurbopackClientEdge = require('react-server-dom-turbopack/client.edge')
+  ReactServerDOMTurbopackClientEdge =
+    // @ts-expect-error -- TODO: Add types
+    // eslint-disable-next-line import/no-extraneous-dependencies
+    require('react-server-dom-turbopack/client.edge') as typeof import('react-server-dom-turbopack/client.edge')
   if (process.env.NODE_ENV === 'development') {
     ReactServerDOMWebpackClientEdge = getAltProxyForBindingsDEV(
       'Turbopack',
@@ -41,8 +43,9 @@ if (process.env.TURBOPACK) {
     )
   }
 } else {
-  // eslint-disable-next-line import/no-extraneous-dependencies
-  ReactServerDOMWebpackClientEdge = require('react-server-dom-webpack/client.edge')
+  ReactServerDOMWebpackClientEdge =
+    // eslint-disable-next-line import/no-extraneous-dependencies
+    require('react-server-dom-webpack/client.edge') as typeof import('react-server-dom-webpack/client.edge')
   if (process.env.NODE_ENV === 'development') {
     ReactServerDOMTurbopackClientEdge = getAltProxyForBindingsDEV(
       'Webpack',

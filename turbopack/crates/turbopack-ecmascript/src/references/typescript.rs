@@ -1,13 +1,13 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     context::AssetContext,
     file_source::FileSource,
     reference::ModuleReference,
     reference_type::{ReferenceType, TypeScriptReferenceSubType},
-    resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
+    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
 };
 use turbopack_resolve::typescript::type_resolve;
 
@@ -85,9 +85,7 @@ impl ModuleReference for TsReferencePathAssetReference {
                     .asset_context()
                     .process(
                         Vc::upcast(FileSource::new(**path)),
-                        Value::new(ReferenceType::TypeScript(
-                            TypeScriptReferenceSubType::Undefined,
-                        )),
+                        ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined),
                     )
                     .module()
                     .to_resolved()
@@ -131,9 +129,9 @@ impl ModuleReference for TsReferenceTypeAssetReference {
             *self.origin,
             Request::module(
                 self.module.clone(),
-                Value::new(RcStr::default().into()),
-                Vc::<RcStr>::default(),
-                Vc::<RcStr>::default(),
+                RcStr::default().into(),
+                RcStr::default(),
+                RcStr::default(),
             ),
         )
     }

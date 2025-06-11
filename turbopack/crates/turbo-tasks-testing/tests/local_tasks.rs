@@ -3,8 +3,8 @@
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use anyhow::Result;
-use turbo_tasks::{test_helpers::current_task_for_testing, Vc};
-use turbo_tasks_testing::{register, run, Registration};
+use turbo_tasks::{Vc, test_helpers::current_task_for_testing};
+use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 
@@ -47,7 +47,9 @@ fn get_non_local_task_id() -> Vc<u32> {
 
 #[turbo_tasks::value_trait]
 trait SomeTrait {
+    #[turbo_tasks::function]
     fn get_local_task_id(self: Vc<Self>) -> Vc<u32>;
+    #[turbo_tasks::function]
     fn get_non_local_task_id(self: Vc<Self>) -> Vc<u32>;
 }
 #[turbo_tasks::value(shared)]

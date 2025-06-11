@@ -3,7 +3,7 @@ name = "turbo-tasks-macros"
 version = "0.1.0"
 description = "TBD"
 license = "MIT"
-edition = "2021"
+edition = "2024"
 
 [lib]
 proc-macro = true
@@ -19,5 +19,5 @@ proc-macro2 = { workspace = true }
 quote = { workspace = true }
 regex = { workspace = true }
 rustc-hash = { workspace = true }
-syn = { workspace = true, features = ["full", "extra-traits", "visit-mut"] }
+syn = { workspace = true, features = ["full", "extra-traits", "visit", "visit-mut"] }
 turbo-tasks-macros-shared = { workspace = true }

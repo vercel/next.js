@@ -2,9 +2,9 @@ use std::{
     env::current_dir,
     iter::FromIterator,
     path::{Path, PathBuf},
-    sync::Arc,
 };
 
+use bytes_str::BytesStr;
 use next_custom_transforms::transforms::{
     amp_attributes::amp_attributes,
     cjs_optimizer::cjs_optimizer,
@@ -21,6 +21,7 @@ use next_custom_transforms::transforms::{
     server_actions::{self, server_actions, ServerActionsMode},
     shake_exports::{shake_exports, Config as ShakeExportsConfig},
     strip_page_exports::{next_transform_strip_page_exports, ExportFilter},
+    track_dynamic_imports::track_dynamic_imports,
     warn_for_edge_runtime::warn_for_edge_runtime,
 };
 use rustc_hash::FxHashSet;
@@ -365,8 +366,8 @@ fn next_ssg_fixture(input: PathBuf) {
                     next: false.into(),
                     runtime: None,
                     import_source: Some("".into()),
-                    pragma: Some(Arc::new("__jsx".into())),
-                    pragma_frag: Some(Arc::new("__jsxFrag".into())),
+                    pragma: Some(BytesStr::from_str_slice("__jsx")),
+                    pragma_frag: Some(BytesStr::from_str_slice("__jsxFrag")),
                     throw_if_namespace: false.into(),
                     development: false.into(),
                     refresh: Default::default(),
@@ -537,18 +538,26 @@ fn next_font_loaders_fixture(input: PathBuf) {
     );
 }
 
-#[fixture("tests/fixture/server-actions/**/input.js")]
+#[fixture("tests/fixture/server-actions/**/input.*")]
 fn server_actions_fixture(input: PathBuf) {
-    let output = input.parent().unwrap().join("output.js");
+    let (input_syntax, extension) = if input.extension() == Some("ts".as_ref()) {
+        (Syntax::Typescript(Default::default()), "ts")
+    } else {
+        (syntax(), "js")
+    };
+
+    let output = input.parent().unwrap().join(format!("output.{extension}"));
     let is_react_server_layer = input.iter().any(|s| s.to_str() == Some("server-graph"));
     let is_development = input.iter().any(|s| s.to_str() == Some("development"));
+
     let mode = if input.iter().any(|s| s.to_str() == Some("turbopack")) {
         ServerActionsMode::Turbopack
     } else {
         ServerActionsMode::Webpack
     };
+
     test_fixture(
-        syntax(),
+        input_syntax,
         &|tr| {
             (
                 resolver(Mark::new(), Mark::new(), false),
@@ -793,8 +802,8 @@ fn run_stip_page_exports_test(input: &Path, output: &Path, mode: ExportFilter) {
                     next: false.into(),
                     runtime: None,
                     import_source: Some("".into()),
-                    pragma: Some(Arc::new("__jsx".into())),
-                    pragma_frag: Some(Arc::new("__jsxFrag".into())),
+                    pragma: Some(BytesStr::from_str_slice("__jsx")),
+                    pragma_frag: Some(BytesStr::from_str_slice("__jsxFrag")),
                     throw_if_namespace: false.into(),
                     development: false.into(),
                     ..Default::default()
@@ -925,6 +934,29 @@ fn test_source_maps(input: PathBuf) {
         FixtureTestConfig {
             module: Some(true),
             sourcemap: true,
+            ..Default::default()
+        },
+    );
+}
+
+#[fixture("tests/fixture/track-dynamic-imports/**/input.js")]
+fn track_dynamic_imports_fixture(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            let unresolved_mark = Mark::new();
+            let top_level_mark = Mark::new();
+            (
+                resolver(unresolved_mark, top_level_mark, false),
+                track_dynamic_imports(unresolved_mark),
+            )
+        },
+        &input,
+        &output,
+        FixtureTestConfig {
+            // auto detect script/module to test CJS handling
+            module: None,
             ..Default::default()
         },
     );

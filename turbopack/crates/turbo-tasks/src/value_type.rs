@@ -1,5 +1,5 @@
 use std::{
-    any::{type_name, Any},
+    any::{Any, type_name},
     borrow::Cow,
     fmt::{
         Debug, Display, Formatter, {self},
@@ -13,13 +13,13 @@ use serde::{Deserialize, Serialize};
 use tracing::Span;
 
 use crate::{
+    RawVc, VcValueType,
     id::{FunctionId, TraitTypeId},
     magic_any::{AnyDeserializeSeed, MagicAny, MagicAnyDeserializeSeed, MagicAnySerializeSeed},
     registry::{register_trait_type, register_value_type},
     task::shared_reference::TypedSharedReference,
     trace::TraceRawVcs,
     vc::VcCellMode,
-    RawVc, VcValueType,
 };
 
 type MagicSerializationFn = fn(&dyn MagicAny) -> &dyn erased_serde::Serialize;
@@ -111,23 +111,6 @@ impl ValueType {
             trait_methods: AutoMap::new(),
             magic_serialization: None,
             any_serialization: None,
-            raw_cell: <T::CellMode as VcCellMode<T>>::raw_cell,
-        }
-    }
-
-    /// This is internally used by `#[turbo_tasks::value]`
-    pub fn new_with_magic_serialization<
-        T: VcValueType + Debug + Eq + Hash + Serialize + for<'de> Deserialize<'de> + TraceRawVcs,
-    >() -> Self {
-        Self {
-            name: std::any::type_name::<T>().to_string(),
-            traits: AutoSet::new(),
-            trait_methods: AutoMap::new(),
-            magic_serialization: Some((
-                <dyn MagicAny>::as_serialize::<T>,
-                MagicAnyDeserializeSeed::new::<T>(),
-            )),
-            any_serialization: Some((any_as_serialize::<T>, AnyDeserializeSeed::new::<T>())),
             raw_cell: <T::CellMode as VcCellMode<T>>::raw_cell,
         }
     }

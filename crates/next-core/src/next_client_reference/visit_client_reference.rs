@@ -6,10 +6,10 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
+    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
     trace::TraceRawVcs,
-    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::css::chunk::CssChunkPlaceable;
@@ -19,8 +19,8 @@ use turbopack_core::{
 
 use crate::{
     next_client_reference::{
-        ecmascript_client_reference::ecmascript_client_reference_module::EcmascriptClientReferenceModule,
         CssClientReferenceModule,
+        ecmascript_client_reference::ecmascript_client_reference_module::EcmascriptClientReferenceModule,
     },
     next_server_component::server_component_module::NextServerComponentModule,
     next_server_utility::server_utility_module::NextServerUtilityModule,
@@ -151,7 +151,10 @@ pub struct ServerEntries {
 }
 
 #[turbo_tasks::function]
-pub async fn find_server_entries(entry: ResolvedVc<Box<dyn Module>>) -> Result<Vc<ServerEntries>> {
+pub async fn find_server_entries(
+    entry: ResolvedVc<Box<dyn Module>>,
+    include_traced: bool,
+) -> Result<Vc<ServerEntries>> {
     async move {
         let entry_path = entry.ident().path().to_resolved().await?;
         let graph = AdjacencyMap::new()
@@ -166,6 +169,7 @@ pub async fn find_server_entries(entry: ResolvedVc<Box<dyn Module>>) -> Result<V
                 }],
                 VisitClientReference {
                     stop_at_server_entries: true,
+                    include_traced,
                 },
             )
             .await
@@ -198,6 +202,8 @@ pub async fn find_server_entries(entry: ResolvedVc<Box<dyn Module>>) -> Result<V
 }
 
 struct VisitClientReference {
+    /// Whether to walk ChunkingType::Traced references
+    include_traced: bool,
     /// Used to discover ServerComponents and ServerUtils
     stop_at_server_entries: bool,
 }
@@ -300,6 +306,7 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
 
     fn edges(&mut self, node: &VisitClientReferenceNode) -> Self::EdgesFuture {
         let node = node.clone();
+        let include_traced = self.include_traced;
         async move {
             let parent_module = match node.ty {
                 // This should never occur since we always skip visiting these
@@ -314,11 +321,12 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                 }
             };
 
-            let referenced_modules = primary_chunkable_referenced_modules(*parent_module).await?;
+            let referenced_modules =
+                primary_chunkable_referenced_modules(*parent_module, include_traced).await?;
 
             let referenced_modules = referenced_modules
                 .iter()
-                .flat_map(|(chunking_type, modules)| match chunking_type {
+                .flat_map(|(chunking_type, _, modules)| match chunking_type {
                     ChunkingType::Traced => None,
                     _ => Some(modules.iter()),
                 })

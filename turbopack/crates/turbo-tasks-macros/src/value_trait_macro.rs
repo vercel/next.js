@@ -1,16 +1,16 @@
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{quote, quote_spanned};
-use syn::{
-    parse_macro_input, parse_quote, spanned::Spanned, ItemTrait, TraitItem, TraitItemMethod,
-};
+use syn::{ItemTrait, TraitItem, TraitItemFn, parse_macro_input, parse_quote, spanned::Spanned};
 use turbo_tasks_macros_shared::{
-    get_trait_default_impl_function_id_ident, get_trait_default_impl_function_ident,
-    get_trait_type_id_ident, get_trait_type_ident, ValueTraitArguments,
+    ValueTraitArguments, get_trait_default_impl_function_id_ident,
+    get_trait_default_impl_function_ident, get_trait_type_id_ident, get_trait_type_ident,
+    is_self_used,
 };
 
 use crate::func::{
-    filter_inline_attributes, DefinitionContext, FunctionArguments, NativeFn, TurboFn,
+    DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes,
+    split_function_attributes,
 };
 
 pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
@@ -30,6 +30,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         auto_token,
         generics,
         brace_token: _,
+        restriction: _,
     } = &item;
 
     if unsafety.is_some() {
@@ -68,9 +69,10 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
     let mut trait_methods: Vec<TokenStream2> = Vec::new();
     let mut native_functions = Vec::new();
     let mut items = Vec::with_capacity(raw_items.len());
+    let mut errors = Vec::new();
 
     for item in raw_items.iter() {
-        let TraitItem::Method(TraitItemMethod {
+        let TraitItem::Fn(TraitItemFn {
             sig,
             default,
             attrs,
@@ -85,10 +87,18 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         };
 
         let ident = &sig.ident;
+        // This effectively parses and removes the function annotation ensuring that that macro
+        // doesn't run after us.
+        let (func_args, attrs) = split_function_attributes(item, attrs);
+        let Ok(func_args) = func_args.inspect_err(|err| errors.push(err.to_compile_error())) else {
+            continue;
+        };
+        if let Some(span) = func_args.operation {
+            span.unwrap()
+                .error("trait items cannot be operations")
+                .emit();
+        }
 
-        // Value trait method declarations don't have `#[turbo_tasks::function]`
-        // annotations on them, though their `impl`s do. It may make sense to require it
-        // in the future when defining a default implementation.
         let Some(turbo_fn) = TurboFn::new(
             sig,
             DefinitionContext::ValueTrait,
@@ -108,11 +118,13 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         });
 
         let default = if let Some(default) = default {
+            let is_self_used = is_self_used(default);
             let inline_function_ident = turbo_fn.inline_ident();
             let inline_extension_trait_ident =
-                Ident::new(&format!("{}_{}_inline", trait_ident, ident), ident.span());
-            let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(default);
-            let inline_attrs = filter_inline_attributes(&attrs[..]);
+                Ident::new(&format!("{trait_ident}_{ident}_inline"), ident.span());
+            let (inline_signature, inline_block) =
+                turbo_fn.inline_signature_and_block(default, is_self_used);
+            let inline_attrs = filter_inline_attributes(attrs.iter().copied());
 
             let native_function = NativeFn {
                 function_path_string: format!("{trait_ident}::{ident}"),
@@ -120,6 +132,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                     <Box<dyn #trait_ident> as #inline_extension_trait_ident>::#inline_function_ident
                 },
                 is_method: turbo_fn.is_method(),
+                is_self_used,
                 filter_trait_call_args: turbo_fn.filter_trait_call_args(),
                 // `local` is currently unsupported here because:
                 // - The `#[turbo_tasks::function]` macro needs to be present for us to read this
@@ -177,10 +190,10 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             None
         };
 
-        items.push(TraitItem::Method(TraitItemMethod {
+        items.push(TraitItem::Fn(TraitItemFn {
             sig: turbo_fn.trait_signature(),
             default,
-            attrs: attrs.clone(),
+            attrs: attrs.iter().map(|a| (*a).clone()).collect(),
             semi_token: Default::default(),
         }));
     }
@@ -255,6 +268,8 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         )*
 
         #value_debug_impl
+
+        #(#errors)*
     };
     expanded.into()
 }

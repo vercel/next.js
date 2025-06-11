@@ -1,10 +1,10 @@
 use std::{
-    collections::{hash_map::Entry, VecDeque},
+    collections::{VecDeque, hash_map::Entry},
     hash::BuildHasherDefault,
     mem::take,
 };
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use either::Either;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
@@ -12,18 +12,18 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_prehash::BuildHasherExt;
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput,
-    TryJoinIterExt, ValueToString, Vc,
+    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString,
+    Vc, trace::TraceRawVcs,
 };
 
 use crate::{
     chunk::{ChunkableModule, ChunkingType},
     module::Module,
     module_graph::{
+        GraphTraversalAction, ModuleGraph,
         chunk_group_info::{ChunkGroupInfo, ChunkGroupKey, RoaringBitmapWrapper},
         module_batch::{ModuleBatch, ModuleBatchGroup, ModuleOrBatch},
-        traced_di_graph::{iter_neighbors_rev, TracedDiGraph},
-        GraphTraversalAction, ModuleGraph,
+        traced_di_graph::{TracedDiGraph, iter_neighbors_rev},
     },
 };
 #[turbo_tasks::value]
@@ -297,7 +297,13 @@ impl PreBatches {
                 std::iter::once(ResolvedVc::upcast(entry)),
                 &mut state,
                 |parent_info, node, state| {
-                    let ty = parent_info.map_or(&ChunkingType::Parallel, |(_, ty)| ty);
+                    let ty = parent_info.map_or(
+                        &ChunkingType::Parallel {
+                            inherit_async: false,
+                            hoisted: false,
+                        },
+                        |(_, ty)| &ty.chunking_type,
+                    );
                     let module = node.module;
                     if !ty.is_parallel() {
                         state.items.push(PreBatchItem::NonParallelEdge(
@@ -361,7 +367,7 @@ pub async fn compute_module_batches(
                     // Already a boundary module, can skip check
                     return Ok(());
                 };
-                if ty.is_parallel() {
+                if ty.chunking_type.is_parallel() {
                     let parent_chunk_groups = chunk_group_info
                         .module_chunk_groups
                         .get(&parent.module)
@@ -392,7 +398,7 @@ pub async fn compute_module_batches(
         // cycles that include boundary modules
         module_graph
             .traverse_cycles(
-                |ty| ty.is_parallel(),
+                |ref_data| ref_data.chunking_type.is_parallel(),
                 |cycle| {
                     if cycle
                         .iter()
@@ -584,26 +590,24 @@ pub async fn compute_module_batches(
                         &pre_batches,
                         batches_with_item_index[0].0,
                         batches_with_item_index[0].1 + selected_items,
-                    ) {
-                        if parallel_module_to_pre_batch.get(next_module).unwrap().len()
-                            == batches.len()
-                            && batches_with_item_index[1..]
-                                .iter()
-                                .all(|&(batch_idx, item_idx)| {
-                                    get_item_at(&pre_batches, batch_idx, item_idx + selected_items)
-                                        == Some(&PreBatchItem::ParallelModule(*next_module))
-                                })
-                        {
-                            selected_items += 1;
-                            continue;
-                        }
+                    ) && parallel_module_to_pre_batch.get(next_module).unwrap().len()
+                        == batches.len()
+                        && batches_with_item_index[1..]
+                            .iter()
+                            .all(|&(batch_idx, item_idx)| {
+                                get_item_at(&pre_batches, batch_idx, item_idx + selected_items)
+                                    == Some(&PreBatchItem::ParallelModule(*next_module))
+                            })
+                    {
+                        selected_items += 1;
+                        continue;
                     }
                     break;
                 }
                 extracted_shared_items += selected_items;
 
                 // Check if a batch is completely selected. In that case we can replace all other
-                // occurences with a reference to that batch
+                // occurrences with a reference to that batch
                 let exact_match = batches_with_item_index
                     .iter()
                     .find(|&&(batch_idx, item_idx)| {
@@ -611,7 +615,7 @@ pub async fn compute_module_batches(
                             && pre_batches.batches[batch_idx].items.len() == selected_items
                     });
                 if let Some(&(exact_match, _)) = exact_match {
-                    // Replace all other occurences with a reference to the exact match
+                    // Replace all other occurrences with a reference to the exact match
                     for &(batch_index, item_start) in batches_with_item_index.iter() {
                         if batch_index != exact_match {
                             pre_batches.batches[batch_index].items.splice(
@@ -629,7 +633,7 @@ pub async fn compute_module_batches(
                         }
                     }
                 } else {
-                    // Create a new batch of the shared part and replace all occurences with a
+                    // Create a new batch of the shared part and replace all occurrences with a
                     // reference to that batch
                     let first_batch_index = batches_with_item_index[0].0;
                     let first_batch_item_index = batches_with_item_index[0].1;
@@ -688,7 +692,13 @@ pub async fn compute_module_batches(
                         PreBatchItem::ParallelModule(module)
                     } else {
                         pre_batches.single_module_entries.insert(module);
-                        PreBatchItem::NonParallelEdge(ChunkingType::Parallel, module)
+                        PreBatchItem::NonParallelEdge(
+                            ChunkingType::Parallel {
+                                inherit_async: false,
+                                hoisted: false,
+                            },
+                            module,
+                        )
                     }
                 } else {
                     item
@@ -846,25 +856,27 @@ pub async fn compute_module_batches(
                             index,
                             batch_indicies[idx],
                             ModuleBatchesGraphEdge {
-                                ty: ChunkingType::Parallel,
+                                ty: ChunkingType::Parallel {
+                                    inherit_async: false,
+                                    hoisted: false,
+                                },
                                 module: None,
                             },
                         );
                     }
                     PreBatchItem::NonParallelEdge(ty, module) => {
-                        if let Some(chunkable_module) = ResolvedVc::try_downcast(module) {
-                            if let Some(batch) = pre_batches.entries.get(&chunkable_module).copied()
-                            {
-                                graph.add_edge(
-                                    index,
-                                    batch_indicies[batch],
-                                    ModuleBatchesGraphEdge {
-                                        ty,
-                                        module: Some(module),
-                                    },
-                                );
-                                continue;
-                            }
+                        if let Some(chunkable_module) = ResolvedVc::try_downcast(module)
+                            && let Some(batch) = pre_batches.entries.get(&chunkable_module).copied()
+                        {
+                            graph.add_edge(
+                                index,
+                                batch_indicies[batch],
+                                ModuleBatchesGraphEdge {
+                                    ty,
+                                    module: Some(module),
+                                },
+                            );
+                            continue;
                         }
                         let idx = pre_batches
                             .single_module_entries
@@ -892,11 +904,11 @@ pub async fn compute_module_batches(
         let mut entries = FxHashMap::default();
         for chunk_group in &chunk_group_info.chunk_groups {
             for module in chunk_group.entries() {
-                if let Some(chunkable_module) = ResolvedVc::try_downcast(module) {
-                    if let Some(batch) = pre_batches.entries.get(&chunkable_module).copied() {
-                        entries.insert(module, batch_indicies[batch]);
-                        continue;
-                    }
+                if let Some(chunkable_module) = ResolvedVc::try_downcast(module)
+                    && let Some(batch) = pre_batches.entries.get(&chunkable_module).copied()
+                {
+                    entries.insert(module, batch_indicies[batch]);
+                    continue;
                 }
                 let idx = pre_batches
                     .single_module_entries

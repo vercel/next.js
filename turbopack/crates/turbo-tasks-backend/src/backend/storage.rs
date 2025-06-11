@@ -1,9 +1,12 @@
 use std::{
     hash::Hash,
     ops::{Deref, DerefMut},
+    sync::{Arc, atomic::AtomicBool},
     thread::available_parallelism,
 };
 
+use bitfield::bitfield;
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use turbo_tasks::{FxDashMap, TaskId};
 
 use crate::{
@@ -13,11 +16,8 @@ use crate::{
         CachedDataItemValue, CachedDataItemValueRef, CachedDataItemValueRefMut, OutputValue,
     },
     data_storage::{AutoMapStorage, OptionStorage},
-    utils::dash_map_multi::{get_multiple_mut, RefMut},
+    utils::dash_map_multi::{RefMut, get_multiple_mut},
 };
-
-const META_UNRESTORED: u32 = 1 << 31;
-const DATA_UNRESTORED: u32 = 1 << 30;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TaskDataCategory {
@@ -27,13 +27,19 @@ pub enum TaskDataCategory {
 }
 
 impl TaskDataCategory {
-    pub fn flag(&self) -> u32 {
+    pub fn into_specific(self) -> SpecificTaskDataCategory {
         match self {
-            TaskDataCategory::Meta => META_UNRESTORED,
-            TaskDataCategory::Data => DATA_UNRESTORED,
-            TaskDataCategory::All => META_UNRESTORED | DATA_UNRESTORED,
+            TaskDataCategory::Meta => SpecificTaskDataCategory::Meta,
+            TaskDataCategory::Data => SpecificTaskDataCategory::Data,
+            TaskDataCategory::All => unreachable!(),
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SpecificTaskDataCategory {
+    Meta,
+    Data,
 }
 
 impl IntoIterator for TaskDataCategory {
@@ -79,52 +85,129 @@ impl Iterator for TaskDataCategoryIterator {
     }
 }
 
-pub struct PersistanceState {
-    value: u32,
+bitfield! {
+    // Note: Due to alignment in InnerStorage it doesn't matter if this struct is 1 or 4 bytes.
+    #[derive(Clone, Default)]
+    pub struct InnerStorageState(u32);
+    impl Debug;
+    pub meta_restored, set_meta_restored: 0;
+    pub data_restored, set_data_restored: 1;
+    /// Item was modified before snapshot mode was entered.
+    pub meta_modified, set_meta_modified: 2;
+    pub data_modified, set_data_modified: 3;
+    /// Item was modified after snapshot mode was entered. A snapshot was taken.
+    pub meta_snapshot, set_meta_snapshot: 4;
+    pub data_snapshot, set_data_snapshot: 4;
 }
 
-impl Default for PersistanceState {
-    fn default() -> Self {
+impl InnerStorageState {
+    pub fn set_restored(&mut self, category: TaskDataCategory) {
+        match category {
+            TaskDataCategory::Meta => {
+                self.set_meta_restored(true);
+            }
+            TaskDataCategory::Data => {
+                self.set_data_restored(true);
+            }
+            TaskDataCategory::All => {
+                self.set_meta_restored(true);
+                self.set_data_restored(true);
+            }
+        }
+    }
+
+    pub fn is_restored(&self, category: TaskDataCategory) -> bool {
+        match category {
+            TaskDataCategory::Meta => self.meta_restored(),
+            TaskDataCategory::Data => self.data_restored(),
+            TaskDataCategory::All => self.meta_restored() && self.data_restored(),
+        }
+    }
+
+    pub fn any_snapshot(&self) -> bool {
+        self.meta_snapshot() || self.data_snapshot()
+    }
+
+    pub fn any_modified(&self) -> bool {
+        self.meta_modified() || self.data_modified()
+    }
+}
+
+pub struct InnerStorageSnapshot {
+    aggregation_number: OptionStorage<AggregationNumber>,
+    output_dependent: AutoMapStorage<TaskId, ()>,
+    output: OptionStorage<OutputValue>,
+    upper: AutoMapStorage<TaskId, u32>,
+    dynamic: DynamicStorage,
+    pub meta_modified: bool,
+    pub data_modified: bool,
+}
+
+impl From<&InnerStorage> for InnerStorageSnapshot {
+    fn from(inner: &InnerStorage) -> Self {
         Self {
-            value: META_UNRESTORED | DATA_UNRESTORED,
+            aggregation_number: inner.aggregation_number.clone(),
+            output_dependent: inner.output_dependent.clone(),
+            output: inner.output.clone(),
+            upper: inner.upper.clone(),
+            dynamic: inner.dynamic.snapshot_for_persisting(),
+            meta_modified: inner.state.meta_modified(),
+            data_modified: inner.state.data_modified(),
         }
     }
 }
 
-impl PersistanceState {
-    pub fn set_restored(&mut self, category: TaskDataCategory) {
-        self.value &= !category.flag();
+impl InnerStorageSnapshot {
+    pub fn iter_all(
+        &self,
+    ) -> impl Iterator<Item = (CachedDataItemKey, CachedDataItemValueRef<'_>)> {
+        use crate::data_storage::Storage;
+        self.dynamic
+            .iter_all()
+            .chain(self.aggregation_number.iter().map(|(_, value)| {
+                (
+                    CachedDataItemKey::AggregationNumber {},
+                    CachedDataItemValueRef::AggregationNumber { value },
+                )
+            }))
+            .chain(self.output.iter().map(|(_, value)| {
+                (
+                    CachedDataItemKey::Output {},
+                    CachedDataItemValueRef::Output { value },
+                )
+            }))
+            .chain(self.upper.iter().map(|(k, value)| {
+                (
+                    CachedDataItemKey::Upper { task: *k },
+                    CachedDataItemValueRef::Upper { value },
+                )
+            }))
+            .chain(self.output_dependent.iter().map(|(k, value)| {
+                (
+                    CachedDataItemKey::OutputDependent { task: *k },
+                    CachedDataItemValueRef::OutputDependent { value },
+                )
+            }))
     }
 
-    pub fn add_persisting_item(&mut self) {
-        // TODO add when we need to track unpersisted items
-        // self.value += 1;
-    }
-
-    pub fn add_persisting_items(&mut self, _count: u32) {
-        // TODO add when we need to track unpersisted items
-        // self.value += count;
-    }
-
-    // TODO remove when we need to track unpersisted items
-    #[allow(dead_code)]
-    pub fn finish_persisting_items(&mut self, _count: u32) {
-        // TODO add when we need to track unpersisted items
-        // self.value -= count;
-    }
-
-    pub fn is_restored(&self, category: TaskDataCategory) -> bool {
-        (self.value & category.flag()) == 0
+    pub fn len(&self) -> usize {
+        use crate::data_storage::Storage;
+        self.dynamic.len()
+            + self.aggregation_number.len()
+            + self.output.len()
+            + self.upper.len()
+            + self.output_dependent.len()
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct InnerStorage {
     aggregation_number: OptionStorage<AggregationNumber>,
     output_dependent: AutoMapStorage<TaskId, ()>,
     output: OptionStorage<OutputValue>,
-    upper: AutoMapStorage<TaskId, i32>,
+    upper: AutoMapStorage<TaskId, u32>,
     dynamic: DynamicStorage,
-    persistance_state: PersistanceState,
+    state: InnerStorageState,
 }
 
 impl InnerStorage {
@@ -135,16 +218,16 @@ impl InnerStorage {
             output: Default::default(),
             upper: Default::default(),
             dynamic: DynamicStorage::new(),
-            persistance_state: PersistanceState::default(),
+            state: InnerStorageState::default(),
         }
     }
 
-    pub fn persistance_state(&self) -> &PersistanceState {
-        &self.persistance_state
+    pub fn state(&self) -> &InnerStorageState {
+        &self.state
     }
 
-    pub fn persistance_state_mut(&mut self) -> &mut PersistanceState {
-        &mut self.persistance_state
+    pub fn state_mut(&mut self) -> &mut InnerStorageState {
+        &mut self.state
     }
 }
 
@@ -497,9 +580,33 @@ impl InnerStorage {
                 )
             }))
     }
+
+    pub fn len(&self) -> usize {
+        use crate::data_storage::Storage;
+        self.dynamic.len()
+            + self.aggregation_number.len()
+            + self.output.len()
+            + self.upper.len()
+            + self.output_dependent.len()
+    }
+}
+
+enum ModifiedState {
+    /// It was modified before snapshot mode was entered, but it was not accessed during snapshot
+    /// mode.
+    Modified,
+    /// Snapshot(Some):
+    /// It was modified before snapshot mode was entered and it was accessed again during snapshot
+    /// mode. A copy of the version of the item when snapshot mode was entered is stored here.
+    /// Snapshot(None):
+    /// It was not modified before snapshot mode was entered, but it was accessed during snapshot
+    /// mode. Or the snapshot was already taken out by the snapshot operation.
+    Snapshot(Option<Box<InnerStorageSnapshot>>),
 }
 
 pub struct Storage {
+    snapshot_mode: AtomicBool,
+    modified: FxDashMap<TaskId, ModifiedState>,
     map: FxDashMap<TaskId, Box<InnerStorage>>,
 }
 
@@ -508,6 +615,12 @@ impl Storage {
         let shard_amount =
             (available_parallelism().map_or(4, |v| v.get()) * 64).next_power_of_two();
         Self {
+            snapshot_mode: AtomicBool::new(false),
+            modified: FxDashMap::with_capacity_and_hasher_and_shard_amount(
+                1024,
+                Default::default(),
+                shard_amount,
+            ),
             map: FxDashMap::with_capacity_and_hasher_and_shard_amount(
                 1024 * 1024,
                 Default::default(),
@@ -516,12 +629,158 @@ impl Storage {
         }
     }
 
+    /// Processes every modified item (resp. a snapshot of it) with the given functions and returns
+    /// the results. Ends snapshot mode afterwards.
+    /// preprocess is potentially called within a lock, so it should be fast.
+    /// process is called outside of locks, so it could do more expensive operations.
+    pub fn take_snapshot<
+        'l,
+        T,
+        R,
+        PP: for<'a> Fn(TaskId, &'a InnerStorage) -> T + Sync,
+        P: Fn(TaskId, T) -> R + Sync,
+        PS: Fn(TaskId, Box<InnerStorageSnapshot>) -> R + Sync,
+    >(
+        &'l self,
+        preprocess: &'l PP,
+        process: &'l P,
+        process_snapshot: &'l PS,
+    ) -> Vec<SnapshotShard<'l, PP, P, PS>> {
+        if !self.snapshot_mode() {
+            self.start_snapshot();
+        }
+
+        let guard = Arc::new(SnapshotGuard { storage: self });
+
+        // The number of shards is much larger than the number of threads, so the effect of the
+        // locks held is negligible.
+        self.modified
+            .shards()
+            .par_iter()
+            .with_max_len(1)
+            .map(|shard| {
+                let mut direct_snapshots: Vec<(TaskId, Box<InnerStorageSnapshot>)> = Vec::new();
+                let mut modified: Vec<TaskId> = Vec::new();
+                {
+                    // Take the snapshots from the modified map
+                    let guard = shard.write();
+                    // Safety: guard must outlive the iterator.
+                    for bucket in unsafe { guard.iter() } {
+                        // Safety: the guard guarantees that the bucket is not removed and the ptr
+                        // is valid.
+                        let (key, shared_value) = unsafe { bucket.as_mut() };
+                        let modified_state = shared_value.get_mut();
+                        match modified_state {
+                            ModifiedState::Modified => {
+                                modified.push(*key);
+                            }
+                            ModifiedState::Snapshot(snapshot) => {
+                                if let Some(snapshot) = snapshot.take() {
+                                    direct_snapshots.push((*key, snapshot));
+                                }
+                            }
+                        }
+                    }
+                    // Safety: guard must outlive the iterator.
+                    drop(guard);
+                }
+
+                SnapshotShard {
+                    direct_snapshots,
+                    modified,
+                    storage: self,
+                    guard: Some(guard.clone()),
+                    process,
+                    preprocess,
+                    process_snapshot,
+                }
+            })
+            .collect::<Vec<_>>()
+    }
+
+    /// Start snapshot mode.
+    pub fn start_snapshot(&self) {
+        self.snapshot_mode
+            .store(true, std::sync::atomic::Ordering::Release);
+    }
+
+    /// End snapshot mode.
+    /// Items that have snapshots will be kept as modified since they have been accessed during the
+    /// snapshot mode. Items that are modified will be removed and considered as unmodified.
+    /// When items are accessed in future they will be marked as modified.
+    fn end_snapshot(&self) {
+        // We are still in snapshot mode, so all accessed items would be stored as snapshot.
+        // This means we can start by removing all modified items.
+        let mut removed_modified = Vec::new();
+        self.modified.retain(|key, inner| {
+            if matches!(inner, ModifiedState::Modified) {
+                removed_modified.push(*key);
+                false
+            } else {
+                true
+            }
+        });
+
+        // We also need to unset all the modified flags.
+        for key in removed_modified {
+            if let Some(mut inner) = self.map.get_mut(&key) {
+                let state = inner.state_mut();
+                state.set_data_modified(false);
+                state.set_meta_modified(false);
+            }
+        }
+
+        // Now modified only contains snapshots.
+        // We leave snapshot mode. Any access would be stored as modified and not as snapshot.
+        self.snapshot_mode
+            .store(false, std::sync::atomic::Ordering::Release);
+
+        // We can change all the snapshots to modified now.
+        let mut removed_snapshots = Vec::new();
+        for mut item in self.modified.iter_mut() {
+            match item.value() {
+                ModifiedState::Snapshot(_) => {
+                    removed_snapshots.push(*item.key());
+                    *item.value_mut() = ModifiedState::Modified;
+                }
+                ModifiedState::Modified => {
+                    // This means it was concurrently modified.
+                    // It's already in the correct state.
+                }
+            }
+        }
+
+        // And update the flags
+        for key in removed_snapshots {
+            if let Some(mut inner) = self.map.get_mut(&key) {
+                let state = inner.state_mut();
+                if state.meta_snapshot() {
+                    state.set_meta_snapshot(false);
+                    state.set_meta_modified(true);
+                }
+                if state.data_snapshot() {
+                    state.set_data_snapshot(false);
+                    state.set_data_modified(true);
+                }
+            }
+        }
+
+        // Remove excessive capacity in modified
+        self.modified.shrink_to_fit();
+    }
+
+    fn snapshot_mode(&self) -> bool {
+        self.snapshot_mode
+            .load(std::sync::atomic::Ordering::Acquire)
+    }
+
     pub fn access_mut(&self, key: TaskId) -> StorageWriteGuard<'_> {
         let inner = match self.map.entry(key) {
             dashmap::mapref::entry::Entry::Occupied(e) => e.into_ref(),
             dashmap::mapref::entry::Entry::Vacant(e) => e.insert(Box::new(InnerStorage::new())),
         };
         StorageWriteGuard {
+            storage: self,
             inner: inner.into(),
         }
     }
@@ -533,14 +792,85 @@ impl Storage {
     ) -> (StorageWriteGuard<'_>, StorageWriteGuard<'_>) {
         let (a, b) = get_multiple_mut(&self.map, key1, key2, || Box::new(InnerStorage::new()));
         (
-            StorageWriteGuard { inner: a },
-            StorageWriteGuard { inner: b },
+            StorageWriteGuard {
+                storage: self,
+                inner: a,
+            },
+            StorageWriteGuard {
+                storage: self,
+                inner: b,
+            },
         )
     }
 }
 
 pub struct StorageWriteGuard<'a> {
+    storage: &'a Storage,
     inner: RefMut<'a, TaskId, Box<InnerStorage>>,
+}
+
+impl StorageWriteGuard<'_> {
+    /// Tracks mutation of this task
+    pub fn track_modification(&mut self, category: SpecificTaskDataCategory) {
+        let state = self.inner.state();
+        let snapshot = match category {
+            SpecificTaskDataCategory::Meta => state.meta_snapshot(),
+            SpecificTaskDataCategory::Data => state.data_snapshot(),
+        };
+        if !snapshot {
+            let modified = match category {
+                SpecificTaskDataCategory::Meta => state.meta_modified(),
+                SpecificTaskDataCategory::Data => state.data_modified(),
+            };
+            match (self.storage.snapshot_mode(), modified) {
+                (false, false) => {
+                    // Not in snapshot mode and item is unmodified
+                    if !state.any_snapshot() && !state.any_modified() {
+                        self.storage
+                            .modified
+                            .insert(*self.inner.key(), ModifiedState::Modified);
+                    }
+                    let state = self.inner.state_mut();
+                    match category {
+                        SpecificTaskDataCategory::Meta => state.set_meta_modified(true),
+                        SpecificTaskDataCategory::Data => state.set_data_modified(true),
+                    }
+                }
+                (false, true) => {
+                    // Not in snapshot mode and item is already modfied
+                    // Do nothing
+                }
+                (true, false) => {
+                    // In snapshot mode and item is unmodified (so it's not part of the snapshot)
+                    if !state.any_snapshot() {
+                        self.storage
+                            .modified
+                            .insert(*self.inner.key(), ModifiedState::Snapshot(None));
+                    }
+                    let state = self.inner.state_mut();
+                    match category {
+                        SpecificTaskDataCategory::Meta => state.set_meta_snapshot(true),
+                        SpecificTaskDataCategory::Data => state.set_data_snapshot(true),
+                    }
+                }
+                (true, true) => {
+                    // In snapshot mode and item is modified (so it's part of the snapshot)
+                    // We need to store the original version that is part of the snapshot
+                    if !state.any_snapshot() {
+                        self.storage.modified.insert(
+                            *self.inner.key(),
+                            ModifiedState::Snapshot(Some(Box::new((&**self.inner).into()))),
+                        );
+                    }
+                    let state = self.inner.state_mut();
+                    match category {
+                        SpecificTaskDataCategory::Meta => state.set_meta_snapshot(true),
+                        SpecificTaskDataCategory::Data => state.set_data_snapshot(true),
+                    }
+                }
+            }
+        }
+    }
 }
 
 impl Deref for StorageWriteGuard<'_> {
@@ -558,9 +888,7 @@ impl DerefMut for StorageWriteGuard<'_> {
 }
 
 macro_rules! count {
-    ($task:ident, $key:ident) => {{
-        $task.count($crate::data::CachedDataItemType::$key)
-    }};
+    ($task:ident, $key:ident) => {{ $task.count($crate::data::CachedDataItemType::$key) }};
 }
 
 macro_rules! get {
@@ -749,3 +1077,61 @@ pub(crate) use iter_many;
 pub(crate) use remove;
 pub(crate) use update;
 pub(crate) use update_count;
+
+pub struct SnapshotGuard<'l> {
+    storage: &'l Storage,
+}
+
+impl Drop for SnapshotGuard<'_> {
+    fn drop(&mut self) {
+        self.storage.end_snapshot();
+    }
+}
+
+pub struct SnapshotShard<'l, PP, P, PS> {
+    direct_snapshots: Vec<(TaskId, Box<InnerStorageSnapshot>)>,
+    modified: Vec<TaskId>,
+    storage: &'l Storage,
+    guard: Option<Arc<SnapshotGuard<'l>>>,
+    process: &'l P,
+    preprocess: &'l PP,
+    process_snapshot: &'l PS,
+}
+
+impl<'l, T, R, PP, P, PS> Iterator for SnapshotShard<'l, PP, P, PS>
+where
+    PP: for<'a> Fn(TaskId, &'a InnerStorage) -> T + Sync,
+    P: Fn(TaskId, T) -> R + Sync,
+    PS: Fn(TaskId, Box<InnerStorageSnapshot>) -> R + Sync,
+{
+    type Item = R;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some((task_id, snapshot)) = self.direct_snapshots.pop() {
+            return Some((self.process_snapshot)(task_id, snapshot));
+        }
+        while let Some(task_id) = self.modified.pop() {
+            let inner = self.storage.map.get(&task_id).unwrap();
+            let state = inner.state();
+            if !state.any_snapshot() {
+                let preprocessed = (self.preprocess)(task_id, &inner);
+                drop(inner);
+                return Some((self.process)(task_id, preprocessed));
+            } else {
+                drop(inner);
+                let maybe_snapshot = {
+                    let mut modified_state = self.storage.modified.get_mut(&task_id).unwrap();
+                    let ModifiedState::Snapshot(snapshot) = &mut *modified_state else {
+                        unreachable!("The snapshot bit was set, so it must be in Snapshot state");
+                    };
+                    snapshot.take()
+                };
+                if let Some(snapshot) = maybe_snapshot {
+                    return Some((self.process_snapshot)(task_id, snapshot));
+                }
+            }
+        }
+        self.guard = None;
+        None
+    }
+}

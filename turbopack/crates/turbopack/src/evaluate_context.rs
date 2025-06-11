@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::Vc;
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystem;
 use turbopack_core::{
@@ -16,16 +16,16 @@ use turbopack_node::execution_context::ExecutionContext;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 use crate::{
+    ModuleAssetContext,
     module_options::{EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions},
     transition::TransitionOptions,
-    ModuleAssetContext,
 };
 
 #[turbo_tasks::function]
 pub fn node_build_environment() -> Vc<Environment> {
-    Environment::new(Value::new(ExecutionEnvironment::NodeJsBuildTime(
+    Environment::new(ExecutionEnvironment::NodeJsBuildTime(
         NodeJsEnvironment::default().resolved_cell(),
-    )))
+    ))
 }
 
 #[turbo_tasks::function]
@@ -115,6 +115,6 @@ pub async fn node_evaluate_asset_context(
         }
         .cell(),
         resolve_options_context,
-        Vc::cell(layer),
+        layer,
     )))
 }

@@ -1,5 +1,6 @@
 import type { FlightRouterState } from '../../../../server/app-render/types'
 import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
+import { DEFAULT_SEGMENT_KEY } from '../../../../shared/lib/segment'
 import { createRouterCacheKey } from '../create-router-cache-key'
 
 export function findHeadInCache(
@@ -22,28 +23,22 @@ function findHeadInCacheImpl(
 
   // First try the 'children' parallel route if it exists
   // when starting from the "root", this corresponds with the main page component
-  if (parallelRoutes.children) {
-    const [segment, childParallelRoutes] = parallelRoutes.children
-    const childSegmentMap = cache.parallelRoutes.get('children')
-    if (childSegmentMap) {
-      const cacheKey = createRouterCacheKey(segment)
-      const cacheNode = childSegmentMap.get(cacheKey)
-      if (cacheNode) {
-        const item = findHeadInCacheImpl(
-          cacheNode,
-          childParallelRoutes,
-          keyPrefix + '/' + cacheKey
-        )
-        if (item) return item
-      }
-    }
+  const parallelRoutesKeys = Object.keys(parallelRoutes).filter(
+    (key) => key !== 'children'
+  )
+
+  // if we are at the root, we need to check the children slot first
+  if ('children' in parallelRoutes) {
+    parallelRoutesKeys.unshift('children')
   }
 
-  // if we didn't find metadata in the page slot, check the other parallel routes
-  for (const key in parallelRoutes) {
-    if (key === 'children') continue // already checked above
-
+  for (const key of parallelRoutesKeys) {
     const [segment, childParallelRoutes] = parallelRoutes[key]
+    // If the parallel is not matched and using the default segment,
+    // skip searching the head from it.
+    if (segment === DEFAULT_SEGMENT_KEY) {
+      continue
+    }
     const childSegmentMap = cache.parallelRoutes.get(key)
     if (!childSegmentMap) {
       continue

@@ -1,5 +1,5 @@
-use anyhow::{bail, Context, Result};
-use turbo_tasks::{FxIndexMap, ResolvedVc, Value, ValueToString, Vc};
+use anyhow::{Context, Result, bail};
+use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
@@ -59,11 +59,7 @@ pub async fn bootstrap(
         );
     };
     let path = if let Some((name, ext)) = path.rsplit_once('.') {
-        if !ext.contains('/') {
-            name
-        } else {
-            path
-        }
+        if !ext.contains('/') { name } else { path }
     } else {
         path
     };
@@ -89,9 +85,7 @@ pub async fn bootstrap(
                     .into(),
                 ),
             )),
-            Value::new(ReferenceType::Internal(
-                InnerAssets::empty().to_resolved().await?,
-            )),
+            ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
         )
         .module()
         .to_resolved()
@@ -104,7 +98,7 @@ pub async fn bootstrap(
     let asset = asset_context
         .process(
             bootstrap_asset,
-            Value::new(ReferenceType::Internal(ResolvedVc::cell(inner_assets))),
+            ReferenceType::Internal(ResolvedVc::cell(inner_assets)),
         )
         .module()
         .to_resolved()

@@ -3,15 +3,15 @@
 #![feature(arbitrary_self_types_pointers)]
 
 use tokio::{
-    sync::{watch, Notify},
-    time::{sleep, timeout, Duration},
+    sync::{Notify, watch},
+    time::{Duration, sleep, timeout},
 };
 use turbo_tasks::{
-    prevent_gc,
+    State, TransientInstance, Vc, prevent_gc,
     trace::{TraceRawVcs, TraceRawVcsContext},
-    turbo_tasks, State, TransientInstance, Vc,
+    turbo_tasks,
 };
-use turbo_tasks_testing::{register, run, Registration};
+use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 

@@ -1,9 +1,10 @@
 use std::io::Write;
 
 use anyhow::Result;
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_env::ProcessEnv;
-use turbo_tasks_fs::{rope::RopeBuilder, File, FileSystemPath};
+use turbo_tasks_fs::{File, FileSystemPath, rope::RopeBuilder};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     ident::AssetIdent,
@@ -37,7 +38,7 @@ impl ProcessEnvAsset {
 impl Source for ProcessEnvAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        AssetIdent::from_path(self.root.join(".env.js".into()))
+        AssetIdent::from_path(self.root.join(rcstr!(".env.js")))
     }
 }
 

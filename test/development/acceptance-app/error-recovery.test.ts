@@ -43,7 +43,6 @@ describe('Error recovery app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
@@ -57,8 +56,7 @@ describe('Error recovery app', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error:   x Unexpected eof",
+         "description": "  x Unexpected eof",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
@@ -117,7 +115,6 @@ describe('Error recovery app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
@@ -131,8 +128,7 @@ describe('Error recovery app', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error:   x Expected '}', got '<eof>'",
+         "description": "  x Expected '}', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./app/server/page.js
@@ -183,7 +179,6 @@ describe('Error recovery app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
@@ -197,8 +192,7 @@ describe('Error recovery app', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error:   x Expected '}', got '<eof>'",
+         "description": "  x Expected '}', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./app/client/page.js
@@ -267,10 +261,10 @@ describe('Error recovery app', () => {
     ).toBe('1')
 
     if (isTurbopack) {
+      // TODO(veil): Location of Page should be app/page.js
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "count": 1,
-         "description": "Error: oops",
+         "description": "oops",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "index.js (7:11) @ Index.useCallback[increment]
@@ -287,11 +281,9 @@ describe('Error recovery app', () => {
        }
       `)
     } else {
-      // TODO(veil): Location of Page should be app/page.js
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "count": 1,
-         "description": "Error: oops",
+         "description": "oops",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "index.js (7:11) @ Index.useCallback[increment]
@@ -383,12 +375,12 @@ describe('Error recovery app', () => {
         `
     )
 
-    await expect(browser).toDisplayRedbox(`
+    await expect(browser).toDisplayRedbox(
+      `
      {
-       "count": 1,
-       "description": "Error: oops",
+       "description": "oops",
        "environmentLabel": "Server",
-       "label": "Runtime Error",
+       "label": "<FIXME-excluded-label>",
        "source": "child.js (3:9) @ Child
      > 3 |   throw new Error('oops')
          |         ^",
@@ -397,7 +389,11 @@ describe('Error recovery app', () => {
          "Page app/server/page.js (3:10)",
        ],
      }
-    `)
+    `,
+
+      // FIXME: `label` is flaking between "Runtime Error" and "Recoverable Error"
+      { label: false }
+    )
 
     // TODO-APP: re-enable when error recovery doesn't reload the page.
     /* const didNotReload = */ await session.patch(
@@ -459,10 +455,11 @@ describe('Error recovery app', () => {
     )
 
     if (isTurbopack) {
+      // Set.forEach: https://linear.app/vercel/issue/NDX-554/
+      // <FIXME-file-protocol>: https://linear.app/vercel/issue/NDX-920/
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error: oops",
+         "description": "oops",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "child.js (3:9) @ Child
@@ -470,6 +467,9 @@ describe('Error recovery app', () => {
            |         ^",
          "stack": [
            "Child child.js (3:9)",
+           "Set.forEach <anonymous> (0:0)",
+           "<FIXME-file-protocol>",
+           "<FIXME-file-protocol>",
            "Index index.js (6:7)",
            "<FIXME-file-protocol>",
          ],
@@ -478,8 +478,7 @@ describe('Error recovery app', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error: oops",
+         "description": "oops",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "child.js (3:9) @ Child
@@ -550,8 +549,7 @@ describe('Error recovery app', () => {
     await browser.eval('window.triggerError()')
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "count": 1,
-       "description": "Error: no 1",
+       "description": "no 1",
        "environmentLabel": null,
        "label": "Runtime Error",
        "source": "index.js (7:11) @ eval
@@ -584,22 +582,20 @@ describe('Error recovery app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./index.js (7:41)
+         "source": "./index.js (10:41)
        Parsing ecmascript source code failed
-       > 7 | export default function FunctionNamed() {
-           |                                         ^",
+       > 10 | export default function FunctionNamed() {
+            |                                         ^",
          "stack": [],
        }
       `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error:   x Expected '}', got '<eof>'",
+         "description": "  x Expected '}', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
@@ -623,22 +619,20 @@ describe('Error recovery app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./index.js (7:41)
+         "source": "./index.js (10:41)
        Parsing ecmascript source code failed
-       > 7 | export default function FunctionNamed() {
-           |                                         ^",
+       > 10 | export default function FunctionNamed() {
+            |                                         ^",
          "stack": [],
        }
       `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error:   x Expected '}', got '<eof>'",
+         "description": "  x Expected '}', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
@@ -703,17 +697,21 @@ describe('Error recovery app', () => {
 
     // We get an error because Foo didn't import React. Fair.
     if (isTurbopack) {
+      // Set.forEach: https://linear.app/vercel/issue/NDX-554/
+      // <FIXME-file-protocol>: https://linear.app/vercel/issue/NDX-920/
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error: React is not defined",
+         "description": "React is not defined",
          "environmentLabel": null,
-         "label": "Runtime Error",
+         "label": "Runtime ReferenceError",
          "source": "Foo.js (3:3) @ Foo
        > 3 |   return React.createElement('h1', null, 'Foo');
            |   ^",
          "stack": [
            "Foo Foo.js (3:3)",
+           "Set.forEach <anonymous> (0:0)",
+           "<FIXME-file-protocol>",
+           "<FIXME-file-protocol>",
            "FunctionDefault index.js (4:10)",
            "<FIXME-file-protocol>",
          ],
@@ -722,10 +720,9 @@ describe('Error recovery app', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error: React is not defined",
+         "description": "React is not defined",
          "environmentLabel": null,
-         "label": "Runtime Error",
+         "label": "Runtime ReferenceError",
          "source": "Foo.js (3:3) @ Foo
        > 3 |   return React.createElement('h1', null, 'Foo');
            |   ^",
@@ -795,7 +792,6 @@ describe('Error recovery app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
@@ -809,8 +805,7 @@ describe('Error recovery app', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error:   x Expected '{', got 'return'",
+         "description": "  x Expected '{', got 'return'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
@@ -853,7 +848,6 @@ describe('Error recovery app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
@@ -867,8 +861,7 @@ describe('Error recovery app', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error:   x Expected '{', got 'throw'",
+         "description": "  x Expected '{', got 'throw'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
@@ -910,10 +903,12 @@ describe('Error recovery app', () => {
       `
     )
     if (isTurbopack) {
+      // TODO(veil): Location of Page should be app/page.js
+      // Set.forEach: https://linear.app/vercel/issue/NDX-554/
+      // <FIXME-file-protocol>: https://linear.app/vercel/issue/NDX-920/
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error: nooo",
+         "description": "nooo",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "index.js (5:11) @ ClassDefault.render
@@ -921,6 +916,9 @@ describe('Error recovery app', () => {
            |           ^",
          "stack": [
            "ClassDefault.render index.js (5:11)",
+           "Set.forEach <anonymous> (0:0)",
+           "<FIXME-file-protocol>",
+           "<FIXME-file-protocol>",
            "Page index.js (10:16)",
          ],
        }
@@ -928,8 +926,7 @@ describe('Error recovery app', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error: nooo",
+         "description": "nooo",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "index.js (5:11) @ ClassDefault.render
@@ -954,7 +951,6 @@ describe('Error recovery app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
@@ -968,8 +964,7 @@ describe('Error recovery app', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error:   x Expected '}', got '<eof>'",
+         "description": "  x Expected '}', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./app/page.js

@@ -142,7 +142,6 @@ export interface IncrementalResponseCacheEntry {
    */
   isStale?: boolean | -1
   isMiss?: boolean
-  isFallback: boolean | undefined
   value: Exclude<IncrementalCacheValue, CachedFetchValue> | null
 }
 
@@ -178,7 +177,6 @@ export type ResponseCacheEntry = {
   value: ResponseCacheValue | null
   isStale?: boolean | -1
   isMiss?: boolean
-  isFallback: boolean | undefined
 }
 
 /**
@@ -189,6 +187,7 @@ export type ResponseGenerator = (state: {
   hasResolved: boolean
   previousCacheEntry?: IncrementalResponseCacheEntry | null
   isRevalidating?: boolean
+  span?: any
 }) => Promise<ResponseCacheEntry | null>
 
 export const enum IncrementalCacheKind {

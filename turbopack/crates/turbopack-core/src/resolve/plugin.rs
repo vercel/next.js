@@ -1,12 +1,12 @@
 use anyhow::Result;
 use rustc_hash::FxHashSet;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, Vc};
-use turbo_tasks_fs::{glob::Glob, FileSystemPath};
+use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 
 use crate::{
     reference_type::ReferenceType,
-    resolve::{parse::Request, ResolveResultOption},
+    resolve::{ResolveResultOption, parse::Request},
 };
 
 /// A condition which determines if the hooks of a resolve plugin gets called.
@@ -30,10 +30,10 @@ impl AfterResolvePluginCondition {
 
         let path = fs_path.await?;
 
-        if let Some(path) = root.get_path_to(&path) {
-            if glob.execute(path) {
-                return Ok(Vc::cell(true));
-            }
+        if let Some(path) = root.get_path_to(&path)
+            && glob.matches(path)
+        {
+            return Ok(Vc::cell(true));
         }
 
         Ok(Vc::cell(false))
@@ -66,7 +66,7 @@ impl BeforeResolvePluginCondition {
     pub async fn matches(&self, request: Vc<Request>) -> Result<Vc<bool>> {
         Ok(Vc::cell(match self {
             BeforeResolvePluginCondition::Request(glob) => match request.await?.request() {
-                Some(request) => glob.await?.execute(request.as_str()),
+                Some(request) => glob.await?.matches(request.as_str()),
                 None => false,
             },
             BeforeResolvePluginCondition::Modules(modules) => {
@@ -82,12 +82,14 @@ impl BeforeResolvePluginCondition {
 
 #[turbo_tasks::value_trait]
 pub trait BeforeResolvePlugin {
+    #[turbo_tasks::function]
     fn before_resolve_condition(self: Vc<Self>) -> Vc<BeforeResolvePluginCondition>;
 
+    #[turbo_tasks::function]
     fn before_resolve(
         self: Vc<Self>,
         lookup_path: Vc<FileSystemPath>,
-        reference_type: Value<ReferenceType>,
+        reference_type: ReferenceType,
         request: Vc<Request>,
     ) -> Vc<ResolveResultOption>;
 }
@@ -95,16 +97,18 @@ pub trait BeforeResolvePlugin {
 #[turbo_tasks::value_trait]
 pub trait AfterResolvePlugin {
     /// A condition which determines if the hooks gets called.
+    #[turbo_tasks::function]
     fn after_resolve_condition(self: Vc<Self>) -> Vc<AfterResolvePluginCondition>;
 
     /// This hook gets called when a full filepath has been resolved and the
     /// condition matches. If a value is returned it replaces the resolve
     /// result.
+    #[turbo_tasks::function]
     fn after_resolve(
         self: Vc<Self>,
         fs_path: Vc<FileSystemPath>,
         lookup_path: Vc<FileSystemPath>,
-        reference_type: Value<ReferenceType>,
+        reference_type: ReferenceType,
         request: Vc<Request>,
     ) -> Vc<ResolveResultOption>;
 }

@@ -1,41 +1,40 @@
 use std::{
     env::current_dir,
     mem::forget,
-    path::{PathBuf, MAIN_SEPARATOR},
+    path::{MAIN_SEPARATOR, PathBuf},
     sync::Arc,
 };
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use rustc_hash::FxHashSet;
 use tracing::Instrument;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    apply_effects, ReadConsistency, ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks,
-    Value, Vc,
+    ReadConsistency, ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks, Vc, apply_effects,
 };
 use turbo_tasks_backend::{
-    noop_backing_storage, BackendOptions, NoopBackingStorage, TurboTasksBackend,
+    BackendOptions, NoopBackingStorage, TurboTasksBackend, noop_backing_storage,
 };
 use turbo_tasks_fs::FileSystem;
 use turbopack::{
     css::chunk::CssChunkType, ecmascript::chunk::EcmascriptChunkType,
     global_module_ids::get_global_module_id_strategy,
 };
-use turbopack_browser::{BrowserChunkingContext, ContentHashing};
+use turbopack_browser::{BrowserChunkingContext, ContentHashing, CurrentChunkMethod};
 use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkingConfig, ChunkingContext, EvaluatableAsset,
-        EvaluatableAssets, MangleType, MinifyType, SourceMapsType,
+        ChunkingConfig, ChunkingContext, EvaluatableAsset, EvaluatableAssets, MangleType,
+        MinifyType, SourceMapsType, availability_info::AvailabilityInfo,
     },
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     ident::AssetIdent,
-    issue::{handle_issues, IssueReporter, IssueSeverity},
+    issue::{IssueReporter, IssueSeverity, handle_issues},
     module::Module,
     module_graph::{
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
         ModuleGraph,
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
     },
     output::{OutputAsset, OutputAssets},
     reference::all_assets_from_entries,
@@ -52,9 +51,9 @@ use turbopack_nodejs::NodeJsChunkingContext;
 
 use crate::{
     arguments::{BuildArguments, Target},
-    contexts::{get_client_asset_context, get_client_compile_time_info, NodeEnv},
+    contexts::{NodeEnv, get_client_asset_context, get_client_compile_time_info},
     util::{
-        normalize_dirs, normalize_entries, output_fs, project_fs, EntryRequest, NormalizedDirs,
+        EntryRequest, NormalizedDirs, normalize_dirs, normalize_entries, output_fs, project_fs,
     },
 };
 
@@ -199,7 +198,7 @@ async fn build_internal(
     target: Target,
 ) -> Result<Vc<()>> {
     let output_fs = output_fs(project_dir.clone());
-    let project_fs = project_fs(root_dir.clone());
+    let project_fs = project_fs(root_dir.clone(), /* watch= */ false);
     let project_relative = project_dir.strip_prefix(&*root_dir).unwrap();
     let project_relative: RcStr = project_relative
         .strip_prefix(MAIN_SEPARATOR)
@@ -208,12 +207,12 @@ async fn build_internal(
         .into();
     let root_path = project_fs.root().to_resolved().await?;
     let project_path = root_path.join(project_relative).to_resolved().await?;
-    let build_output_root = output_fs.root().join("dist".into()).to_resolved().await?;
+    let build_output_root = output_fs.root().join(rcstr!("dist")).to_resolved().await?;
 
     let node_env = NodeEnv::Production.cell();
 
     let build_output_root_to_root_path = project_path
-        .join("dist".into())
+        .join(rcstr!("dist"))
         .await?
         .get_relative_path_to(&*root_path.await?)
         .context("Project path is in root path")?;
@@ -230,13 +229,13 @@ async fn build_internal(
             NodeJsChunkingContext::builder(
                 project_path,
                 build_output_root,
-                ResolvedVc::cell(build_output_root_to_root_path.clone()),
+                build_output_root_to_root_path.clone(),
                 build_output_root,
                 build_output_root,
                 build_output_root,
-                Environment::new(Value::new(ExecutionEnvironment::NodeJsLambda(
+                Environment::new(ExecutionEnvironment::NodeJsLambda(
                     NodeJsEnvironment::default().resolved_cell(),
-                )))
+                ))
                 .to_resolved()
                 .await?,
                 runtime_type,
@@ -259,14 +258,14 @@ async fn build_internal(
         .map(|r| async move {
             Ok(match r {
                 EntryRequest::Relative(p) => Request::relative(
-                    Value::new(p.clone().into()),
+                    p.clone().into(),
                     Default::default(),
                     Default::default(),
                     false,
                 ),
                 EntryRequest::Module(m, p) => Request::module(
                     m.clone(),
-                    Value::new(p.clone().into()),
+                    p.clone().into(),
                     Default::default(),
                     Default::default(),
                 ),
@@ -276,13 +275,13 @@ async fn build_internal(
         .await?)
         .to_vec();
 
-    let origin = PlainResolveOrigin::new(asset_context, project_fs.root().join("_".into()));
+    let origin = PlainResolveOrigin::new(asset_context, project_fs.root().join(rcstr!("_")));
     let project_dir = &project_dir;
     let entries = async move {
         entry_requests
             .into_iter()
             .map(|request_vc| async move {
-                let ty = Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined));
+                let ty = ReferenceType::Entry(EntryReferenceSubType::Undefined);
                 let request = request_vc.await?;
                 origin
                     .resolve_asset(request_vc, origin.resolve_options(ty.clone()), ty)
@@ -303,8 +302,10 @@ async fn build_internal(
     .instrument(tracing::info_span!("resolve entries"))
     .await?;
 
-    let module_graph =
-        ModuleGraph::from_modules(Vc::cell(vec![ChunkGroupEntry::Entry(entries.clone())]));
+    let module_graph = ModuleGraph::from_modules(
+        Vc::cell(vec![ChunkGroupEntry::Entry(entries.clone())]),
+        false,
+    );
     let module_id_strategy = ResolvedVc::upcast(
         get_global_module_id_strategy(module_graph)
             .to_resolved()
@@ -316,11 +317,11 @@ async fn build_internal(
             let mut builder = BrowserChunkingContext::builder(
                 project_path,
                 build_output_root,
-                ResolvedVc::cell(build_output_root_to_root_path),
+                build_output_root_to_root_path,
                 build_output_root,
                 build_output_root,
                 build_output_root,
-                Environment::new(Value::new(ExecutionEnvironment::Browser(
+                Environment::new(ExecutionEnvironment::Browser(
                     BrowserEnvironment {
                         dom: true,
                         web_worker: false,
@@ -328,13 +329,14 @@ async fn build_internal(
                         browserslist_query: browserslist_query.clone(),
                     }
                     .resolved_cell(),
-                )))
+                ))
                 .to_resolved()
                 .await?,
                 runtime_type,
             )
             .source_maps(source_maps_type)
             .module_id_strategy(module_id_strategy)
+            .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
             .minify_type(minify_type);
 
             match *node_env.await? {
@@ -366,13 +368,13 @@ async fn build_internal(
             let mut builder = NodeJsChunkingContext::builder(
                 project_path,
                 build_output_root,
-                ResolvedVc::cell(build_output_root_to_root_path),
+                build_output_root_to_root_path,
                 build_output_root,
                 build_output_root,
                 build_output_root,
-                Environment::new(Value::new(ExecutionEnvironment::NodeJsLambda(
+                Environment::new(ExecutionEnvironment::NodeJsLambda(
                     NodeJsEnvironment::default().resolved_cell(),
-                )))
+                ))
                 .to_resolved()
                 .await?,
                 runtime_type,
@@ -430,13 +432,13 @@ async fn build_internal(
                                                     .unwrap()
                                                     .into(),
                                             )
-                                            .with_extension("entry.js".into()),
+                                            .with_extension(rcstr!("entry.js")),
                                     ),
                                     ChunkGroup::Entry(
                                         [ResolvedVc::upcast(ecmascript)].into_iter().collect(),
                                     ),
                                     module_graph,
-                                    Value::new(AvailabilityInfo::Root),
+                                    AvailabilityInfo::Root,
                                 )
                                 .await?
                                 .assets
@@ -455,11 +457,11 @@ async fn build_internal(
                                                 .unwrap()
                                                 .into(),
                                         )
-                                        .with_extension("entry.js".into()),
+                                        .with_extension(rcstr!("entry.js")),
                                     EvaluatableAssets::one(*ResolvedVc::upcast(ecmascript)),
                                     module_graph,
                                     OutputAssets::empty(),
-                                    Value::new(AvailabilityInfo::Root),
+                                    AvailabilityInfo::Root,
                                 )
                                 .await?
                                 .asset,

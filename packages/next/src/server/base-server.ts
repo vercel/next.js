@@ -50,7 +50,6 @@ import type {
   AppPageRouteModule,
 } from './route-modules/app-page/module'
 import type { PagesAPIRouteMatch } from './route-matches/pages-api-route-match'
-import type { AppRouteRouteHandlerContext } from './route-modules/app-route/module'
 import type {
   Server as HTTPServer,
   IncomingMessage,
@@ -84,7 +83,7 @@ import RenderResult from './render-result'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import * as Log from '../build/output/log'
-import { getPreviouslyRevalidatedTags, getUtils } from './server-utils'
+import { getPreviouslyRevalidatedTags, getServerUtils } from './server-utils'
 import isError, { getProperError } from '../lib/is-error'
 import {
   addRequestMeta,
@@ -104,6 +103,7 @@ import {
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_DID_POSTPONE_HEADER,
   NEXT_URL,
+  NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_IS_PRERENDER_HEADER,
 } from '../client/components/app-router-headers'
 import type {
@@ -121,23 +121,14 @@ import { getTracer, isBubbledError, SpanKind } from './lib/trace/tracer'
 import { BaseServerSpan } from './lib/trace/constants'
 import { I18NProvider } from './lib/i18n-provider'
 import { sendResponse } from './send-response'
-import {
-  fromNodeOutgoingHttpHeaders,
-  normalizeNextQueryParam,
-  toNodeOutgoingHttpHeaders,
-} from './web/utils'
+import { normalizeNextQueryParam } from './web/utils'
 import {
   CACHE_ONE_YEAR,
-  INFINITE_CACHE,
   MATCHED_PATH_HEADER,
   NEXT_CACHE_TAGS_HEADER,
   NEXT_RESUME_HEADER,
 } from '../lib/constants'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
-import {
-  NextRequestAdapter,
-  signalFromNodeResponse,
-} from './web/spec-extension/adapters/next-request'
 import { matchNextDataPathname } from './lib/match-next-data-pathname'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
 import { decodePathParams } from './lib/router-utils/decode-path-params'
@@ -161,14 +152,13 @@ import {
   getBuiltinRequestContext,
   type WaitUntil,
 } from './after/builtin-request-context'
-import { ENCODED_TAGS } from './stream-utils/encodedTags'
+import { ENCODED_TAGS } from './stream-utils/encoded-tags'
 import { NextRequestHint } from './web/adapter'
 import { getRevalidateReason } from './instrumentation/utils'
 import { RouteKind } from './route-kind'
 import type { RouteModule } from './route-modules/route-module'
 import { FallbackMode, parseFallbackField } from '../lib/fallback'
 import { toResponseCacheEntry } from './response-cache/utils'
-import { scheduleOnNextTick } from '../lib/scheduler'
 import { SegmentPrefixRSCPathnameNormalizer } from './normalizers/request/segment-prefix-rsc'
 import {
   shouldServeStreamingMetadata,
@@ -176,7 +166,10 @@ import {
 } from './lib/streaming-metadata'
 import { InvariantError } from '../shared/lib/invariant-error'
 import { decodeQueryPathParameter } from './lib/decode-query-path-parameter'
+import { NoFallbackError } from '../shared/lib/no-fallback-error.external'
 import { getCacheHandlers } from './use-cache/handlers'
+import { fixMojibake } from './lib/fix-mojibake'
+import { computeCacheBustingSearchParam } from '../shared/lib/router/utils/cache-busting-search-param'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -307,8 +300,6 @@ export type RequestContext<
   renderOpts: RenderOpts
 }
 
-export class NoFallbackError extends Error {}
-
 // Internal wrapper around build errors at development
 // time, to prevent us from propagating or logging them
 export class WrappedBuildError extends Error {
@@ -422,7 +413,6 @@ export default abstract class Server<
 
   protected abstract getIncrementalCache(options: {
     requestHeaders: Record<string, undefined | string | string[]>
-    requestProtocol: 'http' | 'https'
   }): Promise<import('./lib/incremental-cache').IncrementalCache>
 
   protected abstract getResponseCache(options: {
@@ -479,7 +469,9 @@ export default abstract class Server<
     this.serverOptions = options
 
     this.dir =
-      process.env.NEXT_RUNTIME === 'edge' ? dir : require('path').resolve(dir)
+      process.env.NEXT_RUNTIME === 'edge'
+        ? dir
+        : (require('path') as typeof import('path')).resolve(dir)
 
     this.quiet = quiet
     this.loadEnvConfig({ dev })
@@ -496,7 +488,10 @@ export default abstract class Server<
     this.distDir =
       process.env.NEXT_RUNTIME === 'edge'
         ? this.nextConfig.distDir
-        : require('path').join(this.dir, this.nextConfig.distDir)
+        : (require('path') as typeof import('path')).join(
+            this.dir,
+            this.nextConfig.distDir
+          )
     this.publicDir = this.getPublicDir()
     this.hasStaticDir = !minimalMode && this.getHasStaticDir()
 
@@ -563,6 +558,7 @@ export default abstract class Server<
     }
 
     this.renderOpts = {
+      dir: this.dir,
       supportsDynamicResponse: true,
       trailingSlash: this.nextConfig.trailingSlash,
       deploymentId: this.nextConfig.deploymentId,
@@ -595,12 +591,12 @@ export default abstract class Server<
           ? publicRuntimeConfig
           : undefined,
 
-      // @ts-expect-error internal field not publicly exposed
       isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
       // `htmlLimitedBots` is passed to server as serialized config in string format
       htmlLimitedBots: this.nextConfig.htmlLimitedBots,
       experimental: {
         expireTime: this.nextConfig.expireTime,
+        staleTimes: this.nextConfig.experimental.staleTimes,
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
         dynamicIO: this.nextConfig.experimental.dynamicIO ?? false,
         clientSegmentCache:
@@ -614,6 +610,8 @@ export default abstract class Server<
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
       reactMaxHeadersLength: this.nextConfig.reactMaxHeadersLength,
+      devtoolSegmentExplorer:
+        this.nextConfig.experimental.devtoolSegmentExplorer,
     }
 
     // Initialize next/config with the environment configuration
@@ -1096,7 +1094,7 @@ export default abstract class Server<
           // x-matched-path is the source of truth, it tells what page
           // should be rendered because we don't process rewrites in minimalMode
           let { pathname: matchedPath } = new URL(
-            req.headers[MATCHED_PATH_HEADER] as string,
+            fixMojibake(req.headers[MATCHED_PATH_HEADER] as string),
             'http://localhost'
           )
 
@@ -1131,6 +1129,8 @@ export default abstract class Server<
           matchedPath = this.normalize(matchedPath)
           const normalizedUrlPath = this.stripNextDataPath(urlPathname)
 
+          matchedPath = denormalizePagePath(matchedPath)
+
           // Perform locale detection and normalization.
           const localeAnalysisResult = this.i18nProvider?.analyze(matchedPath, {
             defaultLocale,
@@ -1151,11 +1151,15 @@ export default abstract class Server<
             }
           }
 
-          // TODO: check if this is needed any more?
-          matchedPath = denormalizePagePath(matchedPath)
-
           let srcPathname = matchedPath
           let pageIsDynamic = isDynamicRoute(srcPathname)
+          let paramsResult: {
+            params: ParsedUrlQuery | false
+            hasValidParams: boolean
+          } = {
+            params: false,
+            hasValidParams: false,
+          }
 
           if (!pageIsDynamic) {
             const match = await this.matchers.match(srcPathname, {
@@ -1165,8 +1169,15 @@ export default abstract class Server<
             // Update the source pathname to the matched page's pathname.
             if (match) {
               srcPathname = match.definition.pathname
-              // The page is dynamic if the params are defined.
-              pageIsDynamic = typeof match.params !== 'undefined'
+
+              // The page is dynamic if the params are defined. We know at this
+              // stage that the matched path is not a static page if the params
+              // were parsed from the matched path header.
+              if (typeof match.params !== 'undefined') {
+                pageIsDynamic = true
+                paramsResult.params = match.params
+                paramsResult.hasValidParams = true
+              }
             }
           }
 
@@ -1177,7 +1188,7 @@ export default abstract class Server<
             matchedPath = localeAnalysisResult.pathname
           }
 
-          const utils = getUtils({
+          const utils = getServerUtils({
             pageIsDynamic,
             page: srcPathname,
             i18n: this.nextConfig.i18n,
@@ -1196,21 +1207,26 @@ export default abstract class Server<
             parsedUrl.pathname = `/${defaultLocale}${parsedUrl.pathname}`
           }
 
+          // Store a copy of `parsedUrl.query` before calling handleRewrites.
+          // Since `handleRewrites` might add new queries to `parsedUrl.query`.
+          const originQueryParams = { ...parsedUrl.query }
+
           const pathnameBeforeRewrite = parsedUrl.pathname
           const rewriteParamKeys = Object.keys(
             utils.handleRewrites(req, parsedUrl)
           )
+
+          // Create a copy of the query params to avoid mutating the original
+          // object. This prevents any overlapping query params that have the
+          // same normalized key from causing issues.
+          const queryParams = { ...parsedUrl.query }
           const didRewrite = pathnameBeforeRewrite !== parsedUrl.pathname
 
           if (didRewrite && parsedUrl.pathname) {
             addRequestMeta(req, 'rewroteURL', parsedUrl.pathname)
           }
 
-          // Create a copy of the query params to avoid mutating the original
-          // object. This prevents any overlapping query params that have the
-          // same normalized key from causing issues.
-          const queryParams = { ...parsedUrl.query }
-
+          const routeParamKeys = new Set<string>()
           for (const [key, value] of Object.entries(parsedUrl.query)) {
             const normalizedKey = normalizeNextQueryParam(key)
             if (!normalizedKey) continue
@@ -1218,6 +1234,7 @@ export default abstract class Server<
             // Remove the prefixed key from the query params because we want
             // to consume it for the dynamic route matcher.
             delete parsedUrl.query[key]
+            routeParamKeys.add(normalizedKey)
 
             if (typeof value === 'undefined') continue
 
@@ -1230,10 +1247,14 @@ export default abstract class Server<
           if (pageIsDynamic) {
             let params: ParsedUrlQuery | false = {}
 
-            let paramsResult = utils.normalizeDynamicRouteParams(
-              queryParams,
-              false
-            )
+            // If we don't already have valid params, try to parse them from
+            // the query params.
+            if (!paramsResult.hasValidParams) {
+              paramsResult = utils.normalizeDynamicRouteParams(
+                queryParams,
+                false
+              )
+            }
 
             // for prerendered ISR paths we attempt parsing the route
             // params from the URL directly as route-matches may not
@@ -1319,19 +1340,24 @@ export default abstract class Server<
               }
             }
 
-            // handle the actual dynamic route name being requested
+            // If the pathname being requested is the same as the source
+            // pathname, and we don't have valid params, we want to use the
+            // default route matches.
             if (
               utils.defaultRouteMatches &&
               normalizedUrlPath === srcPathname &&
-              !paramsResult.hasValidParams &&
-              !utils.normalizeDynamicRouteParams({ ...params }, true)
-                .hasValidParams
+              !paramsResult.hasValidParams
             ) {
               params = utils.defaultRouteMatches
 
-              // Mark that the default route matches were set on the request
-              // during routing.
-              addRequestMeta(req, 'didSetDefaultRouteMatches', true)
+              // If the route matches header is an empty string, we want to
+              // render a fallback shell. This is because we know this came from
+              // a prerender (it has the header) but it's values were filtered
+              // out (because the allowQuery was empty). If it was undefined
+              // then we know that the request is hitting the lambda directly.
+              if (routeMatchesHeader === '') {
+                addRequestMeta(req, 'renderFallbackShell', true)
+              }
             }
 
             if (params) {
@@ -1366,10 +1392,18 @@ export default abstract class Server<
           }
 
           if (pageIsDynamic || didRewrite) {
-            utils.normalizeVercelUrl(req, [
+            utils.normalizeCdnUrl(req, [
               ...rewriteParamKeys,
               ...Object.keys(utils.defaultRouteRegex?.groups || {}),
             ])
+          }
+          // Remove the route `params` keys from `parsedUrl.query` if they are
+          // not in the original query params.
+          // If it's used in both route `params` and query `searchParams`, it should be kept.
+          for (const key of routeParamKeys) {
+            if (!(key in originQueryParams)) {
+              delete parsedUrl.query[key]
+            }
           }
           parsedUrl.pathname = matchedPath
           url.pathname = parsedUrl.pathname
@@ -1413,25 +1447,14 @@ export default abstract class Server<
         !(this.serverOptions as any).webServerConfig &&
         !getRequestMeta(req, 'incrementalCache')
       ) {
-        let protocol: 'http:' | 'https:' = 'https:'
-
-        try {
-          const parsedFullUrl = new URL(
-            getRequestMeta(req, 'initURL') || '/',
-            'http://n'
-          )
-          protocol = parsedFullUrl.protocol as 'https:' | 'http:'
-        } catch {}
-
         const incrementalCache = await this.getIncrementalCache({
           requestHeaders: Object.assign({}, req.headers),
-          requestProtocol: protocol.substring(0, protocol.length - 1) as
-            | 'http'
-            | 'https',
         })
 
         incrementalCache.resetRequestCache()
         addRequestMeta(req, 'incrementalCache', incrementalCache)
+        // This is needed for pages router to leverage unstable_cache
+        // TODO: re-work this handling to not use global and use a AsyncStore
         ;(globalThis as any).__incrementalCache = incrementalCache
       }
 
@@ -1694,9 +1717,11 @@ export default abstract class Server<
   public async prepare(): Promise<void> {
     if (this.prepared) return
 
-    if (this.preparedPromise === null) {
-      // Get instrumentation module
+    // Get instrumentation module
+    if (!this.instrumentation) {
       this.instrumentation = await this.loadInstrumentationModule()
+    }
+    if (this.preparedPromise === null) {
       this.preparedPromise = this.prepareImpl().then(() => {
         this.prepared = true
         this.preparedPromise = null
@@ -1764,14 +1789,13 @@ export default abstract class Server<
     >
   ): Promise<void> {
     const ua = partialContext.req.headers['user-agent'] || ''
-    const isBotRequest = isBot(ua)
 
     const ctx: RequestContext<ServerRequest, ServerResponse> = {
       ...partialContext,
       renderOpts: {
         ...this.renderOpts,
-        supportsDynamicResponse: !isBotRequest,
-        botType: getBotType(ua),
+        // `renderOpts.botType` is accumulated in `this.renderImpl()`
+        supportsDynamicResponse: !this.renderOpts.botType,
         serveStreamingMetadata: shouldServeStreamingMetadata(
           ua,
           this.nextConfig.htmlLimitedBots
@@ -1902,6 +1926,9 @@ export default abstract class Server<
       pathname = '/'
     }
 
+    const ua = req.headers['user-agent'] || ''
+    this.renderOpts.botType = getBotType(ua)
+
     // we allow custom servers to call render for all URLs
     // so check if we need to serve a static _next file or not.
     // we don't modify the URL for _next/data request but still
@@ -1980,16 +2007,21 @@ export default abstract class Server<
     isAppPath: boolean,
     resolvedPathname: string
   ): void {
+    const baseVaryHeader = `${RSC_HEADER}, ${NEXT_ROUTER_STATE_TREE_HEADER}, ${NEXT_ROUTER_PREFETCH_HEADER}, ${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}`
+    const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
+
     let addedNextUrlToVary = false
 
     if (isAppPath && this.pathCouldBeIntercepted(resolvedPathname)) {
       // Interception route responses can vary based on the `Next-URL` header.
       // We use the Vary header to signal this behavior to the client to properly cache the response.
-      res.appendHeader('vary', `${NEXT_URL}`)
+      res.appendHeader('vary', `${baseVaryHeader}, ${NEXT_URL}`)
       addedNextUrlToVary = true
+    } else if (isAppPath || isRSCRequest) {
+      // We don't need to include `Next-URL` in the Vary header for non-interception routes since it won't affect the response.
+      // We also set this header for pages to avoid caching issues when navigating between pages and app.
+      res.appendHeader('vary', baseVaryHeader)
     }
-    // For other cases such as App Router requests or RSC requests we don't need to set vary header since we already
-    // have the _rsc query with the unique hash value.
 
     if (!addedNextUrlToVary) {
       // Remove `Next-URL` from the request headers we determined it wasn't necessary to include in the Vary header.
@@ -2022,6 +2054,45 @@ export default abstract class Server<
     const isPossibleServerAction = getIsPossibleServerAction(req)
     const hasGetInitialProps = !!components.Component?.getInitialProps
     let isSSG = !!components.getStaticProps
+
+    // Not all CDNs respect the Vary header when caching. We must assume that
+    // only the URL is used to vary the responses. The Next client computes a
+    // hash of the header values and sends it as a search param. Before
+    // responding to a request, we must verify that the hash matches the
+    // expected value. Neglecting to do this properly can lead to cache
+    // poisoning attacks on certain CDNs.
+    // TODO: This is verification only runs during per-segment prefetch
+    // requests, since those are the only ones that both vary on a custom
+    // header and are cacheable. But for safety, we should run this
+    // verification for all requests, once we confirm the behavior is correct.
+    // Will need to update our test suite, since there are a handlful of unit
+    // tests that send fetch requests with custom headers but without a
+    // corresponding cache-busting search param.
+    // TODO: Consider not using custom request headers at all, and instead fully
+    // encode everything into the search param.
+    if (
+      !this.minimalMode &&
+      this.nextConfig.experimental.validateRSCRequestHeaders &&
+      this.isAppSegmentPrefetchEnabled &&
+      getRequestMeta(req, 'segmentPrefetchRSCRequest')
+    ) {
+      const headers = req.headers
+      const expectedHash = computeCacheBustingSearchParam(
+        headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()],
+        headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER.toLowerCase()],
+        headers[NEXT_ROUTER_STATE_TREE_HEADER.toLowerCase()],
+        headers[NEXT_URL.toLowerCase()]
+      )
+      const actualHash = getRequestMeta(req, 'cacheBustingSearchParam') ?? null
+      if (expectedHash !== actualHash) {
+        // The hash sent by the client does not match the expected value.
+        // Respond with an error.
+        res.statusCode = 400
+        res.setHeader('content-type', 'text/plain')
+        res.body('').send()
+        return null
+      }
+    }
 
     // Compute the iSSG cache key. We use the rewroteUrl since
     // pages with fallback: false are allowed to be rewritten to
@@ -2406,25 +2477,15 @@ export default abstract class Server<
       ssgCacheKey =
         ssgCacheKey === '/index' && pathname === '/' ? '/' : ssgCacheKey
     }
-    let protocol: 'http:' | 'https:' = 'https:'
-
-    try {
-      const parsedFullUrl = new URL(
-        getRequestMeta(req, 'initURL') || '/',
-        'http://n'
-      )
-      protocol = parsedFullUrl.protocol as 'https:' | 'http:'
-    } catch {}
 
     // use existing incrementalCache instance if available
     const incrementalCache: import('./lib/incremental-cache').IncrementalCache =
-      (globalThis as any).__incrementalCache ||
-      (await this.getIncrementalCache({
-        requestHeaders: Object.assign({}, req.headers),
-        requestProtocol: protocol.substring(0, protocol.length - 1) as
-          | 'http'
-          | 'https',
-      }))
+      process.env.NEXT_RUNTIME === 'edge' &&
+      (globalThis as any).__incrementalCache
+        ? (globalThis as any).__incrementalCache
+        : await this.getIncrementalCache({
+            requestHeaders: Object.assign({}, req.headers),
+          })
 
     // TODO: investigate, this is not safe across multiple concurrent requests
     incrementalCache.resetRequestCache()
@@ -2551,237 +2612,177 @@ export default abstract class Server<
       let result: RenderResult
 
       if (routeModule) {
-        if (isAppRouteRouteModule(routeModule)) {
-          if (
-            // The type check here ensures that `req` is correctly typed, and the
-            // environment variable check provides dead code elimination.
-            process.env.NEXT_RUNTIME === 'edge' ||
-            !isNodeNextRequest(req) ||
-            !isNodeNextResponse(res)
-          ) {
-            throw new Error(
-              'Invariant: App Route Route Modules cannot be used in the edge runtime'
-            )
-          }
-
-          const context: AppRouteRouteHandlerContext = {
-            params: opts.params,
-            prerenderManifest,
-            renderOpts: {
-              experimental: {
-                dynamicIO: renderOpts.experimental.dynamicIO,
-                authInterrupts: renderOpts.experimental.authInterrupts,
-              },
-              supportsDynamicResponse,
-              incrementalCache,
-              cacheLifeProfiles: this.nextConfig.experimental?.cacheLife,
-              isRevalidate: isSSG,
-              waitUntil: this.getWaitUntil(),
-              onClose: res.onClose.bind(res),
-              onAfterTaskError: undefined,
-              onInstrumentationRequestError:
-                this.renderOpts.onInstrumentationRequestError,
-            },
-            sharedContext: {
-              buildId: this.buildId,
-            },
-          }
-
-          try {
-            const request = NextRequestAdapter.fromNodeNextRequest(
-              req,
-              signalFromNodeResponse(res.originalResponse)
-            )
-
-            const response = await routeModule.handle(request, context)
-
-            ;(req as any).fetchMetrics = (
-              context.renderOpts as any
-            ).fetchMetrics
-
-            const cacheTags = context.renderOpts.collectedTags
-
-            // If the request is for a static response, we can cache it so long
-            // as it's not edge.
-            if (isSSG) {
-              const blob = await response.blob()
-
-              // Copy the headers from the response.
-              const headers = toNodeOutgoingHttpHeaders(response.headers)
-
-              if (cacheTags) {
-                headers[NEXT_CACHE_TAGS_HEADER] = cacheTags
-              }
-
-              if (!headers['content-type'] && blob.type) {
-                headers['content-type'] = blob.type
-              }
-
-              const revalidate =
-                typeof context.renderOpts.collectedRevalidate === 'undefined' ||
-                context.renderOpts.collectedRevalidate >= INFINITE_CACHE
-                  ? false
-                  : context.renderOpts.collectedRevalidate
-
-              const expire =
-                typeof context.renderOpts.collectedExpire === 'undefined' ||
-                context.renderOpts.collectedExpire >= INFINITE_CACHE
-                  ? undefined
-                  : context.renderOpts.collectedExpire
-
-              // Create the cache entry for the response.
-              const cacheEntry: ResponseCacheEntry = {
-                value: {
-                  kind: CachedRouteKind.APP_ROUTE,
-                  status: response.status,
-                  body: Buffer.from(await blob.arrayBuffer()),
-                  headers,
-                },
-                cacheControl: { revalidate, expire },
-                isFallback: false,
-              }
-
-              return cacheEntry
-            }
-            let pendingWaitUntil = context.renderOpts.pendingWaitUntil
-
-            // Attempt using provided waitUntil if available
-            // if it's not we fallback to sendResponse's handling
-            if (pendingWaitUntil) {
-              if (context.renderOpts.waitUntil) {
-                context.renderOpts.waitUntil(pendingWaitUntil)
-                pendingWaitUntil = undefined
-              }
-            }
-
-            // Send the response now that we have copied it into the cache.
-            await sendResponse(
-              req,
-              res,
-              response,
-              context.renderOpts.pendingWaitUntil
-            )
-            return null
-          } catch (err) {
-            await this.instrumentationOnRequestError(err, req, {
-              routerKind: 'App Router',
-              routePath: pathname,
-              routeType: 'route',
-              revalidateReason: getRevalidateReason(renderOpts),
-            })
-
-            // If this is during static generation, throw the error again.
-            if (isSSG) throw err
-
-            Log.error(err)
-
-            // Otherwise, send a 500 response.
-            await sendResponse(req, res, new Response(null, { status: 500 }))
-
-            return null
-          }
-        } else if (
+        if (
+          isAppRouteRouteModule(routeModule) ||
           isPagesRouteModule(routeModule) ||
           isAppPageRouteModule(routeModule)
         ) {
           // An OPTIONS request to a page handler is invalid.
-          if (req.method === 'OPTIONS' && !is404Page) {
+          if (
+            req.method === 'OPTIONS' &&
+            !is404Page &&
+            !isAppRouteRouteModule(routeModule)
+          ) {
             await sendResponse(req, res, new Response(null, { status: 400 }))
             return null
           }
 
-          if (isPagesRouteModule(routeModule)) {
-            // Due to the way we pass data by mutating `renderOpts`, we can't extend
-            // the object here but only updating its `clientReferenceManifest` and
-            // `nextFontManifest` properties.
-            // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
-            renderOpts.nextFontManifest = this.nextFontManifest
-            renderOpts.clientReferenceManifest =
-              components.clientReferenceManifest
+          const request = isNodeNextRequest(req) ? req.originalRequest : req
+          const response = isNodeNextResponse(res) ? res.originalResponse : res
 
-            const request = isNodeNextRequest(req) ? req.originalRequest : req
-            const response = isNodeNextResponse(res)
-              ? res.originalResponse
-              : res
+          if (
+            components.ComponentMod.handler &&
+            process.env.NEXT_RUNTIME !== 'edge'
+          ) {
+            const parsedInitUrl = parseUrl(
+              getRequestMeta(req, 'initURL') || req.url
+            )
+            request.url = `${parsedInitUrl.pathname?.replace(/(\.prefetch\.rsc|\.rsc)$/, '')}${parsedInitUrl.search || ''}`
 
-            // Call the built-in render method on the module.
-            try {
-              result = await routeModule.render(
-                request as any,
-                response as any,
-                {
-                  page: pathname,
-                  params: opts.params,
-                  query,
-                  renderOpts,
-                  sharedContext: {
-                    buildId: this.buildId,
-                    deploymentId: this.nextConfig.deploymentId,
-                    customServer: this.serverOptions.customServer || undefined,
-                  },
-                  renderContext: {
-                    isFallback: pagesFallback,
-                    isDraftMode: renderOpts.isDraftMode,
-                    developmentNotFoundSourcePage: getRequestMeta(
-                      req,
-                      'developmentNotFoundSourcePage'
-                    ),
-                  },
-                }
-              )
-            } catch (err) {
-              await this.instrumentationOnRequestError(err, req, {
-                routerKind: 'Pages Router',
-                routePath: pathname,
-                routeType: 'render',
-                revalidateReason: getRevalidateReason({
-                  isRevalidate: isSSG,
-                  isOnDemandRevalidate: renderOpts.isOnDemandRevalidate,
-                }),
-              })
-              throw err
-            }
-          } else {
-            const module = components.routeModule as AppPageRouteModule
+            // propagate the request context for dev
+            setRequestMeta(request, getRequestMeta(req))
+            addRequestMeta(request, 'projectDir', this.dir)
+            addRequestMeta(request, 'isIsrFallback', pagesFallback)
+            addRequestMeta(request, 'query', query)
+            addRequestMeta(request, 'params', opts.params)
+            addRequestMeta(
+              request,
+              'ampValidator',
+              this.renderOpts.ampValidator
+            )
+            addRequestMeta(request, 'minimalMode', this.minimalMode)
 
-            // Due to the way we pass data by mutating `renderOpts`, we can't extend the
-            // object here but only updating its `nextFontManifest` field.
-            // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
-            renderOpts.nextFontManifest = this.nextFontManifest
-
-            const context: AppPageRouteHandlerContext = {
-              page: is404Page ? '/404' : pathname,
-              params: opts.params,
-              query,
-              fallbackRouteParams,
-              renderOpts,
-              serverComponentsHmrCache: this.getServerComponentsHmrCache(),
-              sharedContext: {
-                buildId: this.buildId,
-              },
+            if (renderOpts.err) {
+              addRequestMeta(request, 'invokeError', renderOpts.err)
             }
 
-            // TODO: adapt for putting the RDC inside the postponed data
-            // If we're in dev, and this isn't a prefetch or a server action,
-            // we should seed the resume data cache.
-            if (
-              this.nextConfig.experimental.dynamicIO &&
-              this.renderOpts.dev &&
-              !isPrefetchRSCRequest &&
-              !isPossibleServerAction
-            ) {
-              const warmup = await module.warmup(req, res, context)
-
-              // If the warmup is successful, we should use the resume data
-              // cache from the warmup.
-              if (warmup.metadata.devRenderResumeDataCache) {
-                renderOpts.devRenderResumeDataCache =
-                  warmup.metadata.devRenderResumeDataCache
+            const handler: (
+              req: ServerRequest | IncomingMessage,
+              res: ServerResponse | HTTPServerResponse,
+              ctx: {
+                waitUntil: ReturnType<Server['getWaitUntil']>
               }
-            }
+            ) => Promise<RenderResult> = components.ComponentMod.handler
 
-            // Call the built-in render method on the module.
-            result = await module.render(req, res, context)
+            const maybeDevRequest =
+              // we need to capture fetch metrics when they are set
+              // and can't wait for handler to resolve as the fetch
+              // metrics are logged on response close which happens
+              // before handler resolves
+              process.env.NODE_ENV === 'development'
+                ? new Proxy(request, {
+                    get(target: any, prop) {
+                      if (typeof target[prop] === 'function') {
+                        return target[prop].bind(target)
+                      }
+                      return target[prop]
+                    },
+                    set(target: any, prop, value) {
+                      if (prop === 'fetchMetrics') {
+                        ;(req as any).fetchMetrics = value
+                      }
+                      target[prop] = value
+                      return true
+                    },
+                  })
+                : request
+
+            result = await handler(maybeDevRequest, response, {
+              waitUntil: this.getWaitUntil(),
+            })
+
+            // response is handled fully in handler
+            return null
+          } else {
+            if (isPagesRouteModule(routeModule)) {
+              // Due to the way we pass data by mutating `renderOpts`, we can't extend
+              // the object here but only updating its `clientReferenceManifest` and
+              // `nextFontManifest` properties.
+              // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
+              renderOpts.nextFontManifest = this.nextFontManifest
+              renderOpts.clientReferenceManifest =
+                components.clientReferenceManifest
+
+              // Call the built-in render method on the module.
+              try {
+                result = await routeModule.render(
+                  request as any,
+                  response as any,
+                  {
+                    page: pathname,
+                    params: opts.params,
+                    query,
+                    renderOpts,
+                    sharedContext: {
+                      buildId: this.buildId,
+                      deploymentId: this.nextConfig.deploymentId,
+                      customServer:
+                        this.serverOptions.customServer || undefined,
+                    },
+                    renderContext: {
+                      isFallback: pagesFallback,
+                      isDraftMode: renderOpts.isDraftMode,
+                      developmentNotFoundSourcePage: getRequestMeta(
+                        req,
+                        'developmentNotFoundSourcePage'
+                      ),
+                    },
+                  }
+                )
+              } catch (err) {
+                await this.instrumentationOnRequestError(err, req, {
+                  routerKind: 'Pages Router',
+                  routePath: pathname,
+                  routeType: 'render',
+                  revalidateReason: getRevalidateReason({
+                    isRevalidate: isSSG,
+                    isOnDemandRevalidate: renderOpts.isOnDemandRevalidate,
+                  }),
+                })
+                throw err
+              }
+            } else {
+              const module = components.routeModule as AppPageRouteModule
+
+              // Due to the way we pass data by mutating `renderOpts`, we can't extend the
+              // object here but only updating its `nextFontManifest` field.
+              // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
+              renderOpts.nextFontManifest = this.nextFontManifest
+
+              const context: AppPageRouteHandlerContext = {
+                page: is404Page ? '/404' : pathname,
+                params: opts.params,
+                query,
+                fallbackRouteParams,
+                renderOpts,
+                serverComponentsHmrCache: this.getServerComponentsHmrCache(),
+                sharedContext: {
+                  buildId: this.buildId,
+                },
+              }
+
+              // TODO: adapt for putting the RDC inside the postponed data
+              // If we're in dev, and this isn't a prefetch or a server action,
+              // we should seed the resume data cache.
+              if (
+                this.nextConfig.experimental.dynamicIO &&
+                this.renderOpts.dev &&
+                !isPrefetchRSCRequest &&
+                !isPossibleServerAction
+              ) {
+                const warmup = await module.warmup(req, res, context)
+
+                // If the warmup is successful, we should use the resume data
+                // cache from the warmup.
+                if (warmup.metadata.devRenderResumeDataCache) {
+                  renderOpts.devRenderResumeDataCache =
+                    warmup.metadata.devRenderResumeDataCache
+                }
+              }
+
+              // Call the built-in render method on the module.
+              result = await module.render(req, res, context)
+            }
           }
         } else {
           throw new Error('Invariant: Unknown route module type')
@@ -2845,7 +2846,6 @@ export default abstract class Server<
         return {
           value: null,
           cacheControl,
-          isFallback: false,
         } satisfies ResponseCacheEntry
       }
 
@@ -2857,7 +2857,6 @@ export default abstract class Server<
             props: metadata.pageData ?? metadata.flightData,
           } satisfies CachedRedirectValue,
           cacheControl,
-          isFallback: false,
         } satisfies ResponseCacheEntry
       }
 
@@ -2875,11 +2874,10 @@ export default abstract class Server<
             headers,
             rscData: metadata.flightData,
             postponed: metadata.postponed,
-            status: res.statusCode,
+            status: metadata.statusCode,
             segmentData: metadata.segmentData,
           } satisfies CachedAppPageValue,
           cacheControl,
-          isFallback: !!fallbackRouteParams,
         } satisfies ResponseCacheEntry
       }
 
@@ -2892,7 +2890,6 @@ export default abstract class Server<
           status: isAppPath ? res.statusCode : undefined,
         } satisfies CachedPageValue,
         cacheControl,
-        isFallback: pagesFallback,
       }
     }
 
@@ -2980,7 +2977,6 @@ export default abstract class Server<
       // When experimental compile is used, no pages have been prerendered,
       // so they should all be blocking.
 
-      // @ts-expect-error internal field
       if (this.nextConfig.experimental.isExperimentalCompile) {
         fallbackMode = FallbackMode.BLOCKING_STATIC_RENDER
       }
@@ -3056,7 +3052,7 @@ export default abstract class Server<
             }
           )
         }
-        // If this is a app router page, PPR is enabled, and PFPR is also
+        // If this is a app router page, PPR is enabled, and PPR is also
         // enabled, then we should use the fallback renderer.
         else if (
           isRoutePPREnabled &&
@@ -3075,7 +3071,7 @@ export default abstract class Server<
                 postponed: undefined,
                 pagesFallback: undefined,
                 fallbackRouteParams:
-                  // If we're in production of we're debugging the fallback
+                  // If we're in production or we're debugging the fallback
                   // shell then we should postpone when dynamic params are
                   // accessed.
                   isProduction || isDebugFallbackShell
@@ -3119,7 +3115,6 @@ export default abstract class Server<
       ) {
         return {
           cacheControl: { revalidate: 1, expire: undefined },
-          isFallback: false,
           value: {
             kind: CachedRouteKind.PAGES,
             html: RenderResult.fromStatic(''),
@@ -3136,8 +3131,7 @@ export default abstract class Server<
       const fallbackRouteParams =
         isDynamic &&
         isRoutePPREnabled &&
-        (getRequestMeta(req, 'didSetDefaultRouteMatches') ||
-          isDebugFallbackShell)
+        (getRequestMeta(req, 'renderFallbackShell') || isDebugFallbackShell)
           ? getFallbackRouteParams(pathname)
           : null
 
@@ -3147,6 +3141,34 @@ export default abstract class Server<
         pagesFallback: undefined,
         fallbackRouteParams,
       })
+    }
+
+    if (
+      process.env.NEXT_RUNTIME !== 'edge' &&
+      // default _error module in dev doesn't have handler yet
+      components.ComponentMod.handler &&
+      (isPagesRouteModule(components.routeModule) ||
+        isAppRouteRouteModule(components.routeModule) ||
+        isAppPageRouteModule(components.routeModule))
+    ) {
+      if (
+        routeModule?.isDev &&
+        isDynamicRoute(pathname) &&
+        (components.getStaticPaths || isAppPath)
+      ) {
+        await this.getStaticPaths({
+          pathname,
+          requestHeaders: req.headers,
+          page: components.page,
+          isAppPath,
+        })
+      }
+      await doRender({
+        postponed: undefined,
+        pagesFallback: false,
+        fallbackRouteParams: null,
+      })
+      return null
     }
 
     const cacheEntry = await this.responseCache.get(
@@ -3173,7 +3195,13 @@ export default abstract class Server<
     }
 
     if (!cacheEntry) {
-      if (ssgCacheKey && !(isOnDemandRevalidate && revalidateOnlyGenerated)) {
+      if (
+        ssgCacheKey &&
+        !(isOnDemandRevalidate && revalidateOnlyGenerated) &&
+        !isPagesRouteModule(components.routeModule) &&
+        !isAppRouteRouteModule(components.routeModule) &&
+        !isAppPageRouteModule(components.routeModule)
+      ) {
         // A cache entry might not be generated if a response is written
         // in `getInitialProps` or `getServerSideProps`, but those shouldn't
         // have a cache key. If we do have a cache key but we don't end up
@@ -3182,46 +3210,6 @@ export default abstract class Server<
         throw new Error('invariant: cache entry required but not generated')
       }
       return null
-    }
-
-    // If we're not in minimal mode and the cache entry that was returned was a
-    // app page fallback, then we need to kick off the dynamic shell generation.
-    if (
-      ssgCacheKey &&
-      !this.minimalMode &&
-      isRoutePPREnabled &&
-      cacheEntry.value?.kind === CachedRouteKind.APP_PAGE &&
-      cacheEntry.isFallback &&
-      !isOnDemandRevalidate &&
-      // When we're debugging the fallback shell, we don't want to regenerate
-      // the route shell.
-      !isDebugFallbackShell &&
-      process.env.DISABLE_ROUTE_SHELL_GENERATION !== 'true'
-    ) {
-      scheduleOnNextTick(async () => {
-        try {
-          await this.responseCache.get(
-            ssgCacheKey,
-            () =>
-              doRender({
-                // We're an on-demand request, so we don't need to pass in the
-                // fallbackRouteParams.
-                fallbackRouteParams: null,
-                pagesFallback: undefined,
-                postponed: undefined,
-              }),
-            {
-              routeKind: RouteKind.APP_PAGE,
-              incrementalCache,
-              isOnDemandRevalidate: true,
-              isPrefetch: false,
-              isRoutePPREnabled: true,
-            }
-          )
-        } catch (err) {
-          console.error('Error occurred while rendering dynamic shell', err)
-        }
-      })
     }
 
     const didPostpone =
@@ -3468,34 +3456,8 @@ export default abstract class Server<
         return null
       }
     } else if (cachedData.kind === CachedRouteKind.APP_ROUTE) {
-      const headers = fromNodeOutgoingHttpHeaders(cachedData.headers)
-
-      if (!(this.minimalMode && isSSG)) {
-        headers.delete(NEXT_CACHE_TAGS_HEADER)
-      }
-
-      // If cache control is already set on the response we don't
-      // override it to allow users to customize it via next.config
-      if (
-        cacheEntry.cacheControl &&
-        !res.getHeader('Cache-Control') &&
-        !headers.get('Cache-Control')
-      ) {
-        headers.set(
-          'Cache-Control',
-          getCacheControlHeader(cacheEntry.cacheControl)
-        )
-      }
-
-      await sendResponse(
-        req,
-        res,
-        new Response(cachedData.body, {
-          headers,
-          status: cachedData.status || 200,
-        })
-      )
-      return null
+      // this is handled inside the app_route handler fully
+      throw new Error(`Invariant: unexpected APP_ROUTE cache data`)
     } else if (cachedData.kind === CachedRouteKind.APP_PAGE) {
       // If the request has a postponed state and it's a resume request we
       // should error.
@@ -3779,6 +3741,17 @@ export default abstract class Server<
     let page = pathname
     const bubbleNoFallback =
       getRequestMeta(ctx.req, 'bubbleNoFallback') ?? false
+
+    if (
+      !this.minimalMode &&
+      this.nextConfig.experimental.validateRSCRequestHeaders
+    ) {
+      addRequestMeta(
+        ctx.req,
+        'cacheBustingSearchParam',
+        query[NEXT_RSC_UNION_QUERY]
+      )
+    }
     delete query[NEXT_RSC_UNION_QUERY]
 
     const options: MatchOptions = {

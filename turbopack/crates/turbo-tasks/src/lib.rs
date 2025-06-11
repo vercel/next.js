@@ -29,14 +29,13 @@
 #![feature(trivial_bounds)]
 #![feature(min_specialization)]
 #![feature(try_trait_v2)]
-#![feature(hash_extract_if)]
 #![deny(unsafe_op_in_unsafe_fn)]
-#![feature(result_flattening)]
 #![feature(error_generic_member_access)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 #![feature(new_zeroed_alloc)]
 #![feature(never_type)]
+#![feature(downcast_unchecked)]
 
 pub mod backend;
 mod capture_future;
@@ -58,10 +57,12 @@ pub mod macro_helpers;
 mod magic_any;
 mod manager;
 mod marker_trait;
+pub mod message_queue;
 mod native_function;
 mod no_move_vec;
 mod once_map;
 mod output;
+pub mod panic_hooks;
 pub mod persisted_graph;
 pub mod primitives;
 mod raw_vc;
@@ -87,26 +88,28 @@ use std::hash::BuildHasherDefault;
 
 pub use anyhow::{Error, Result};
 use auto_hash_map::AutoSet;
+pub use capture_future::TurboTasksPanic;
 pub use collectibles::CollectiblesSource;
 pub use completion::{Completion, Completions};
 pub use display::ValueToString;
-pub use effect::{apply_effects, effect, get_effects, Effects};
+pub use effect::{ApplyEffectsContext, Effects, apply_effects, effect, get_effects};
 pub use id::{
-    FunctionId, LocalTaskId, SessionId, TaskId, TraitTypeId, ValueTypeId, TRANSIENT_TASK_BIT,
+    ExecutionId, FunctionId, LocalTaskId, SessionId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId,
+    ValueTypeId,
 };
 pub use invalidation::{
-    get_invalidator, DynamicEqHash, InvalidationReason, InvalidationReasonKind,
-    InvalidationReasonSet, Invalidator,
+    DynamicEqHash, InvalidationReason, InvalidationReasonKind, InvalidationReasonSet, Invalidator,
+    get_invalidator,
 };
 pub use join_iter_ext::{JoinIterExt, TryFlatJoinIterExt, TryJoinIterExt};
 pub use key_value_pair::KeyValuePair;
 pub use magic_any::MagicAny;
 pub use manager::{
+    CurrentCellRef, ReadConsistency, TaskPersistence, TurboTasks, TurboTasksApi,
+    TurboTasksBackendApi, TurboTasksBackendApiExt, TurboTasksCallApi, Unused, UpdateInfo,
     dynamic_call, emit, mark_finished, mark_root, mark_session_dependent, mark_stateful,
     prevent_gc, run_once, run_once_with_reason, spawn_blocking, spawn_thread, trait_call,
-    turbo_tasks, turbo_tasks_scope, CurrentCellRef, ReadConsistency, TaskPersistence, TurboTasks,
-    TurboTasksApi, TurboTasksBackendApi, TurboTasksBackendApiExt, TurboTasksCallApi, Unused,
-    UpdateInfo,
+    turbo_tasks, turbo_tasks_scope,
 };
 pub use output::OutputContent;
 pub use raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveTypeError};
@@ -117,16 +120,15 @@ pub use scope::scope;
 pub use serialization_invalidation::SerializationInvalidator;
 pub use shrink_to_fit::ShrinkToFit;
 pub use state::{State, TransientState};
-pub use task::{task_input::TaskInput, SharedReference, TypedSharedReference};
+pub use task::{SharedReference, TypedSharedReference, task_input::TaskInput};
 pub use trait_ref::{IntoTraitRef, TraitRef};
-pub use turbo_tasks_macros::{function, value_impl, value_trait, KeyValuePair, TaskInput};
-pub use value::{TransientInstance, TransientValue, Value};
+pub use turbo_tasks_macros::{TaskInput, function, value_impl};
+pub use value::{TransientInstance, TransientValue};
 pub use value_type::{TraitMethod, TraitType, ValueType};
 pub use vc::{
     Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, ReadVcFuture, ResolvedVc,
-    TypedForInput, Upcast, ValueDefault, Vc, VcCast, VcCellNewMode, VcCellSharedMode,
-    VcDefaultRead, VcRead, VcTransparentRead, VcValueTrait, VcValueTraitCast, VcValueType,
-    VcValueTypeCast,
+    Upcast, ValueDefault, Vc, VcCast, VcCellNewMode, VcCellSharedMode, VcDefaultRead, VcRead,
+    VcTransparentRead, VcValueTrait, VcValueTraitCast, VcValueType, VcValueTypeCast,
 };
 
 pub type SliceMap<K, V> = Box<[(K, V)]>;
@@ -236,11 +238,8 @@ macro_rules! fxindexset {
 /// required for persistent caching of tasks to disk.
 ///
 /// - **`"auto"` *(default)*:** Derives the serialization traits and enables serialization.
-/// - **`"auto_for_input"`:** Same as `"auto"`, but also adds the marker trait [`TypedForInput`].
 /// - **`"custom"`:** Prevents deriving the serialization traits, but still enables serialization
 ///   (you must manually implement [`serde::Serialize`] and [`serde::Deserialize`]).
-/// - **`"custom_for_input"`:** Same as `"custom"`, but also adds the marker trait
-///   [`TypedForInput`].
 /// - **`"none"`:** Disables serialization and prevents deriving the traits.
 ///
 /// ## `shared`
@@ -275,6 +274,27 @@ macro_rules! fxindexset {
 /// [`NonLocalValue`]s.
 #[rustfmt::skip]
 pub use turbo_tasks_macros::value;
+
+/// Allows this trait to be used as part of a trait object inside of a value
+/// cell, in the form of `Vc<dyn MyTrait>`.
+///
+/// ## Arguments
+///
+/// Example: `#[turbo_tasks::value_trait(no_debug, resolved)]`
+///
+/// ### 'no_debug`
+///
+/// Disables the automatic implementation of [`ValueDebug`][crate::debug::ValueDebug].
+///
+/// Example: `#[turbo_tasks::value_trait(no_debug)]`
+///
+/// ### 'resolved`
+///
+/// Adds [`NonLocalValue`] as a supertrait of this trait.
+///
+/// Example: `#[turbo_tasks::value_trait(resolved)]`
+#[rustfmt::skip]
+pub use turbo_tasks_macros::value_trait;
 
 pub type TaskIdSet = AutoSet<TaskId, BuildHasherDefault<FxHasher>, 2>;
 

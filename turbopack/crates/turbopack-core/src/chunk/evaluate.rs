@@ -1,5 +1,5 @@
-use anyhow::{bail, Result};
-use turbo_tasks::{ResolvedVc, Upcast, Value, ValueToString, Vc};
+use anyhow::{Result, bail};
+use turbo_tasks::{ResolvedVc, Upcast, ValueToString, Vc};
 
 use super::ChunkableModule;
 use crate::{
@@ -42,10 +42,7 @@ async fn to_evaluatable(
     asset_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<Box<dyn EvaluatableAsset>>> {
     let module = asset_context
-        .process(
-            asset,
-            Value::new(ReferenceType::Entry(EntryReferenceSubType::Runtime)),
-        )
+        .process(asset, ReferenceType::Entry(EntryReferenceSubType::Runtime))
         .module();
     let Some(entry) = Vc::try_resolve_downcast::<Box<dyn EvaluatableAsset>>(module).await? else {
         bail!(

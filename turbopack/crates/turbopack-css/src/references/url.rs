@@ -8,17 +8,17 @@ use lightningcss::{
 };
 use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
     issue::IssueSource,
     output::OutputAsset,
     reference::ModuleReference,
     reference_type::{ReferenceType, UrlReferenceSubType},
-    resolve::{origin::ResolveOrigin, parse::Request, url_resolve, ModuleResolveResult},
+    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request, url_resolve},
 };
 
-use crate::{embed::CssEmbed, StyleSheetLike};
+use crate::{StyleSheetLike, embed::CssEmbed};
 
 #[turbo_tasks::value(into = "new")]
 pub enum ReferencedAsset {
@@ -54,17 +54,16 @@ impl UrlAssetReference {
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<ReferencedAsset>> {
-        if let Some(module) = *self.resolve_reference().first_module().await? {
-            if let Some(embeddable) = Vc::try_resolve_downcast::<Box<dyn CssEmbed>>(*module).await?
-            {
-                return Ok(ReferencedAsset::Some(
-                    embeddable
-                        .embedded_asset(chunking_context)
-                        .to_resolved()
-                        .await?,
-                )
-                .into());
-            }
+        if let Some(module) = *self.resolve_reference().first_module().await?
+            && let Some(embeddable) = Vc::try_resolve_downcast::<Box<dyn CssEmbed>>(*module).await?
+        {
+            return Ok(ReferencedAsset::Some(
+                embeddable
+                    .embedded_asset(chunking_context)
+                    .to_resolved()
+                    .await?,
+            )
+            .into());
         }
         Ok(ReferencedAsset::cell(ReferencedAsset::None))
     }
@@ -77,7 +76,7 @@ impl ModuleReference for UrlAssetReference {
         url_resolve(
             *self.origin,
             *self.request,
-            Value::new(ReferenceType::Url(UrlReferenceSubType::CssUrl)),
+            ReferenceType::Url(UrlReferenceSubType::CssUrl),
             Some(self.issue_source.clone()),
             false,
         )

@@ -3,7 +3,7 @@ pub use collect_exported_const_visitor::Const;
 use collect_exports_visitor::CollectExportsVisitor;
 use once_cell::sync::Lazy;
 use regex::Regex;
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use swc_core::{
     atoms::Atom,
@@ -11,6 +11,8 @@ use swc_core::{
     common::GLOBALS,
     ecma::{ast::Program, visit::VisitWith},
 };
+
+use crate::transforms::page_static_info::collect_exported_const_visitor::GetMut;
 
 pub mod collect_exported_const_visitor;
 pub mod collect_exports_visitor;
@@ -209,15 +211,13 @@ pub fn collect_rsc_module_info(
 /// error.
 pub fn extract_exported_const_values(
     source_ast: &Program,
-    properties_to_extract: FxHashSet<Atom>,
-) -> FxHashMap<Atom, Option<Const>> {
+    properties_to_extract: &mut impl GetMut<Atom, Option<Const>>,
+) {
     GLOBALS.set(&Default::default(), || {
         let mut visitor =
             collect_exported_const_visitor::CollectExportedConstVisitor::new(properties_to_extract);
 
-        source_ast.visit_with(&mut visitor);
-
-        visitor.properties
+        visitor.check_program(source_ast);
     })
 }
 
@@ -286,6 +286,7 @@ mod tests {
                     )
                 },
             )
+            .map_err(|e| e.to_pretty_error())
             .map(|p| (p, comments))
         })
     }

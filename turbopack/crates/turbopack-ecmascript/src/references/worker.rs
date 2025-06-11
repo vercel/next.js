@@ -1,23 +1,22 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 use swc_core::{
     common::util::take::Take,
     ecma::ast::{Expr, ExprOrSpread, Lit, NewExpr},
     quote_expr,
 };
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, Value, ValueToString,
-    Vc,
+    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
     chunk::{ChunkableModule, ChunkableModuleReference, ChunkingContext},
-    issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity, IssueSource, StyledString},
+    issue::{IssueExt, IssueSeverity, IssueSource, StyledString, code_gen::CodeGenerationIssue},
     module::Module,
     module_graph::ModuleGraph,
     reference::ModuleReference,
     reference_type::{ReferenceType, WorkerReferenceSubType},
-    resolve::{origin::ResolveOrigin, parse::Request, url_resolve, ModuleResolveResult},
+    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request, url_resolve},
 };
 
 use crate::{
@@ -61,7 +60,7 @@ impl WorkerAssetReference {
             *self.origin,
             *self.request,
             // TODO support more worker types
-            Value::new(ReferenceType::Worker(WorkerReferenceSubType::WebWorker)),
+            ReferenceType::Worker(WorkerReferenceSubType::WebWorker),
             Some(self.issue_source.clone()),
             self.in_try,
         );
@@ -72,8 +71,8 @@ impl WorkerAssetReference {
         let Some(chunkable) = ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(module) else {
             CodeGenerationIssue {
                 severity: IssueSeverity::Bug.resolved_cell(),
-                title: StyledString::Text("non-ecmascript placeable asset".into()).resolved_cell(),
-                message: StyledString::Text("asset is not placeable in ESM chunks".into())
+                title: StyledString::Text(rcstr!("non-ecmascript placeable asset")).resolved_cell(),
+                message: StyledString::Text(rcstr!("asset is not placeable in ESM chunks"))
                     .resolved_cell(),
                 path: self.origin.origin_path().to_resolved().await?,
             }
@@ -158,15 +157,13 @@ impl WorkerAssetReferenceCodeGen {
                                 item_id: Expr = item_id
                             );
 
-                            if let Some(opts) = args.get_mut(1) {
-                                if opts.spread.is_none(){
+                            if let Some(opts) = args.get_mut(1)
+                                && opts.spread.is_none(){
                                     *opts.expr = *quote_expr!(
                                         "{...$opts, type: undefined}",
                                         opts: Expr = (*opts.expr).take()
                                     );
                                 }
-
-                            }
                             return;
                         }
                         // These are SWC bugs: https://github.com/swc-project/swc/issues/5394

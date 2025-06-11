@@ -1,5 +1,4 @@
 import { nextTestSetup } from 'e2e-utils'
-import type * as Playwright from 'playwright'
 import { createRouterAct } from '../router-act'
 
 describe('segment cache (search params)', () => {
@@ -15,7 +14,7 @@ describe('segment cache (search params)', () => {
   it('when fetching with PPR, does not include search params in the cache key', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/search-params', {
-      beforePageLoad(page: Playwright.Page) {
+      beforePageLoad(page) {
         act = createRouterAct(page)
       },
     })
@@ -71,7 +70,7 @@ describe('segment cache (search params)', () => {
   it('when fetching without PPR (e.g. prefetch={true}), includes the search params in the cache key', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/search-params', {
-      beforePageLoad(page: Playwright.Page) {
+      beforePageLoad(page) {
         act = createRouterAct(page)
       },
     })

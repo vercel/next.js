@@ -1,4 +1,6 @@
-use std::{any::Any, fmt::Debug, future::Future, hash::Hash, sync::Arc, time::Duration};
+use std::{
+    collections::BTreeMap, fmt::Debug, future::Future, hash::Hash, sync::Arc, time::Duration,
+};
 
 use anyhow::Result;
 use either::Either;
@@ -6,14 +8,12 @@ use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 
 use crate::{
-    trace::TraceRawVcs, MagicAny, ResolvedVc, TaskId, TransientInstance, TransientValue, Value,
-    ValueTypeId, Vc,
+    MagicAny, ResolvedVc, TaskId, TransientInstance, TransientValue, ValueTypeId, Vc,
+    trace::TraceRawVcs,
 };
 
 /// Trait to implement in order for a type to be accepted as a
 /// [`#[turbo_tasks::function]`][crate::function] argument.
-///
-/// See also [`ConcreteTaskInput`].
 pub trait TaskInput: Send + Sync + Clone + Debug + PartialEq + Eq + Hash + TraceRawVcs {
     fn resolve_input(&self) -> impl Future<Output = Result<Self>> + Send + '_ {
         async { Ok(self.clone()) }
@@ -48,7 +48,8 @@ impl_task_input! {
     RcStr,
     TaskId,
     ValueTypeId,
-    Duration
+    Duration,
+    String
 }
 
 impl<T> TaskInput for Vec<T>
@@ -141,7 +142,7 @@ where
     }
 
     fn is_transient(&self) -> bool {
-        self.node.get_task_id().is_transient()
+        self.node.is_transient()
     }
 
     async fn resolve_input(&self) -> Result<Self> {
@@ -165,29 +166,6 @@ where
 
     async fn resolve_input(&self) -> Result<Self> {
         Ok(*self)
-    }
-}
-
-impl<T> TaskInput for Value<T>
-where
-    T: Any
-        + std::fmt::Debug
-        + Clone
-        + std::hash::Hash
-        + Eq
-        + Send
-        + Sync
-        + Serialize
-        + for<'de> Deserialize<'de>
-        + TraceRawVcs
-        + 'static,
-{
-    fn is_resolved(&self) -> bool {
-        true
-    }
-
-    fn is_transient(&self) -> bool {
-        false
     }
 }
 
@@ -282,6 +260,32 @@ where
     }
 }
 
+impl<K, V> TaskInput for BTreeMap<K, V>
+where
+    K: TaskInput + Ord,
+    V: TaskInput,
+{
+    async fn resolve_input(&self) -> Result<Self> {
+        let mut new_map = BTreeMap::new();
+        for (k, v) in self {
+            new_map.insert(
+                TaskInput::resolve_input(k).await?,
+                TaskInput::resolve_input(v).await?,
+            );
+        }
+        Ok(new_map)
+    }
+
+    fn is_resolved(&self) -> bool {
+        self.iter()
+            .all(|(k, v)| TaskInput::is_resolved(k) || TaskInput::is_resolved(v))
+    }
+
+    fn is_transient(&self) -> bool {
+        self.iter()
+            .any(|(k, v)| TaskInput::is_transient(k) || TaskInput::is_transient(v))
+    }
+}
 macro_rules! tuple_impls {
     ( $( $name:ident )+ ) => {
         impl<$($name: TaskInput),+> TaskInput for ($($name,)+)
@@ -324,6 +328,7 @@ tuple_impls! { A B C D E F G H I J K L }
 
 #[cfg(test)]
 mod tests {
+    use turbo_rcstr::rcstr;
     use turbo_tasks_macros::TaskInput;
 
     use super::*;
@@ -366,7 +371,7 @@ mod tests {
         )]
         struct MultipleUnnamedFields(u32, RcStr);
 
-        assert_task_input(MultipleUnnamedFields(42, "42".into()));
+        assert_task_input(MultipleUnnamedFields(42, rcstr!("42")));
         Ok(())
     }
 
@@ -395,7 +400,7 @@ mod tests {
 
         assert_task_input(MultipleNamedFields {
             named: 42,
-            other: "42".into(),
+            other: rcstr!("42"),
         });
         Ok(())
     }
@@ -408,7 +413,7 @@ mod tests {
         struct GenericField<T>(T);
 
         assert_task_input(GenericField(42));
-        assert_task_input(GenericField(RcStr::from("42")));
+        assert_task_input(GenericField(rcstr!("42")));
         Ok(())
     }
 
@@ -450,7 +455,7 @@ mod tests {
     fn test_multiple_variants_and_heterogeneous_fields() -> Result<()> {
         assert_task_input(MultipleVariantsAndHeterogeneousFields::Variant5 {
             named: 42,
-            other: "42".into(),
+            other: rcstr!("42"),
         });
         Ok(())
     }
@@ -470,12 +475,12 @@ mod tests {
 
         assert_task_input(NestedVariants::Variant5 {
             named: OneVariant::Variant,
-            other: "42".into(),
+            other: rcstr!("42"),
         });
         assert_task_input(NestedVariants::Variant2(
             MultipleVariantsAndHeterogeneousFields::Variant5 {
                 named: 42,
-                other: "42".into(),
+                other: rcstr!("42"),
             },
         ));
         Ok(())

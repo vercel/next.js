@@ -7,9 +7,9 @@ const defaultCacheHandler =
  * @type {import('next/dist/server/lib/cache-handlers/types').CacheHandlerV2}
  */
 const cacheHandler = {
-  async get(cacheKey) {
-    console.log('ModernCustomCacheHandler::get', cacheKey)
-    return defaultCacheHandler.get(cacheKey)
+  async get(cacheKey, softTags) {
+    console.log('ModernCustomCacheHandler::get', cacheKey, softTags)
+    return defaultCacheHandler.get(cacheKey, softTags)
   },
 
   async set(cacheKey, pendingEntry) {
@@ -24,7 +24,9 @@ const cacheHandler = {
 
   async getExpiration(...tags) {
     console.log('ModernCustomCacheHandler::getExpiration', JSON.stringify(tags))
-    return defaultCacheHandler.getExpiration(...tags)
+    // Expecting soft tags in `get` to be used by the cache handler for checking
+    // the expiration of a cache entry, instead of letting Next.js handle it.
+    return Infinity
   },
 
   async expireTags(...tags) {

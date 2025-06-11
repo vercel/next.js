@@ -1,14 +1,14 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, Vc};
-use turbo_tasks_fs::{glob::Glob, FileSystemPath};
+use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 
 use crate::{
     compile_time_info::CompileTimeInfo,
     issue::module::emit_unknown_module_type_error,
     module::{Module, OptionModule},
     reference_type::ReferenceType,
-    resolve::{options::ResolveOptions, parse::Request, ModuleResolveResult, ResolveResult},
+    resolve::{ModuleResolveResult, ResolveResult, options::ResolveOptions, parse::Request},
     source::Source,
 };
 
@@ -60,43 +60,51 @@ impl ProcessResult {
 #[turbo_tasks::value_trait]
 pub trait AssetContext {
     /// Gets the compile time info of the asset context.
+    #[turbo_tasks::function]
     fn compile_time_info(self: Vc<Self>) -> Vc<CompileTimeInfo>;
 
     /// Gets the layer of the asset context.
+    #[turbo_tasks::function]
     fn layer(self: Vc<Self>) -> Vc<RcStr>;
 
     /// Gets the resolve options for a given path.
+    #[turbo_tasks::function]
     fn resolve_options(
         self: Vc<Self>,
         origin_path: Vc<FileSystemPath>,
-        reference_type: Value<ReferenceType>,
+        reference_type: ReferenceType,
     ) -> Vc<ResolveOptions>;
 
     /// Resolves an request to an [ModuleResolveResult].
+    #[turbo_tasks::function]
     fn resolve_asset(
         self: Vc<Self>,
         origin_path: Vc<FileSystemPath>,
         request: Vc<Request>,
         resolve_options: Vc<ResolveOptions>,
-        reference_type: Value<ReferenceType>,
+        reference_type: ReferenceType,
     ) -> Vc<ModuleResolveResult>;
 
     /// Process a source into a module.
+    #[turbo_tasks::function]
     fn process(
         self: Vc<Self>,
         asset: Vc<Box<dyn Source>>,
-        reference_type: Value<ReferenceType>,
+        reference_type: ReferenceType,
     ) -> Vc<ProcessResult>;
 
     /// Process an [ResolveResult] into an [ModuleResolveResult].
+    #[turbo_tasks::function]
     fn process_resolve_result(
         self: Vc<Self>,
         result: Vc<ResolveResult>,
-        reference_type: Value<ReferenceType>,
+        reference_type: ReferenceType,
     ) -> Vc<ModuleResolveResult>;
 
     /// Gets a new AssetContext with the transition applied.
+    #[turbo_tasks::function]
     fn with_transition(self: Vc<Self>, transition: RcStr) -> Vc<Box<dyn AssetContext>>;
 
+    #[turbo_tasks::function]
     fn side_effect_free_packages(self: Vc<Self>) -> Vc<Glob>;
 }

@@ -10,24 +10,24 @@ use std::path::PathBuf;
 use anyhow::{Context, Result};
 use dunce::canonicalize;
 use serde::{Deserialize, Serialize};
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Registry};
-use turbo_rcstr::RcStr;
+use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    apply_effects, debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, Completion,
-    NonLocalValue, OperationVc, ResolvedVc, TryJoinIterExt, TurboTasks, Value, Vc,
+    Completion, NonLocalValue, OperationVc, ResolvedVc, TaskInput, TurboTasks, Vc, apply_effects,
+    debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs,
 };
-use turbo_tasks_backend::{noop_backing_storage, BackendOptions, TurboTasksBackend};
+use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::CommandLineProcessEnv;
 use turbo_tasks_fs::{
-    json::parse_json_with_source_context, util::sys_to_unix, DiskFileSystem, FileContent,
-    FileSystem, FileSystemEntryType, FileSystemPath,
+    DiskFileSystem, FileContent, FileSystem, FileSystemEntryType, FileSystemPath,
+    json::parse_json_with_source_context, util::sys_to_unix,
 };
 use turbopack::{
-    css::chunk::CssChunkType,
-    ecmascript::{chunk::EcmascriptChunkType, TreeShakingMode},
-    module_options::{EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions},
     ModuleAssetContext,
+    css::chunk::CssChunkType,
+    ecmascript::{TreeShakingMode, chunk::EcmascriptChunkType},
+    module_options::{EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions},
 };
 use turbopack_core::{
     chunk::ChunkingConfig,
@@ -37,11 +37,11 @@ use turbopack_core::{
     context::AssetContext,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
-    issue::{Issue, IssueDescriptionExt},
+    issue::IssueDescriptionExt,
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
-        options::{ImportMap, ImportMapping},
         ExternalTraced, ExternalType,
+        options::{ImportMap, ImportMapping},
     },
     source::Source,
 };
@@ -49,7 +49,7 @@ use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_node::{debug::should_debug, evaluate::evaluate};
 use turbopack_nodejs::NodeJsChunkingContext;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
-use turbopack_test_utils::jest::JestRunResult;
+use turbopack_test_utils::{jest::JestRunResult, snapshot::UPDATE};
 use turbopack_trace_utils::{
     filter_layer::FilterLayer, raw_trace::RawTraceLayer, trace_writer::TraceWriter,
     tracing_presets::TRACING_TURBO_TASKS_TARGETS,
@@ -74,7 +74,7 @@ struct JsResult {
 }
 
 #[turbo_tasks::value]
-#[derive(Copy, Clone, Debug, Hash)]
+#[derive(Copy, Clone, Debug, Hash, TaskInput)]
 enum IssueSnapshotMode {
     Snapshots,
     NoSnapshots,
@@ -155,11 +155,11 @@ fn get_messages(js_results: JsResult) -> Vec<String> {
     }
 
     for uncaught_exception in js_results.uncaught_exceptions {
-        messages.push(format!("Uncaught exception: {}", uncaught_exception));
+        messages.push(format!("Uncaught exception: {uncaught_exception}"));
     }
 
     for unhandled_rejection in js_results.unhandled_rejections {
-        messages.push(format!("Unhandled rejection: {}", unhandled_rejection));
+        messages.push(format!("Unhandled rejection: {unhandled_rejection}"));
     }
 
     messages
@@ -193,15 +193,14 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
     let tt = TurboTasks::new(TurboTasksBackend::new(
         BackendOptions {
             storage_mode: None,
-            dependency_tracking: false,
+            dependency_tracking: *UPDATE,
             ..Default::default()
         },
         noop_backing_storage(),
     ));
     let result = tt
         .run_once(async move {
-            let emit_op =
-                run_inner_operation(resource.to_str().unwrap().into(), Value::new(snapshot_mode));
+            let emit_op = run_inner_operation(resource.to_str().unwrap().into(), snapshot_mode);
             let result = emit_op.read_strongly_consistent().owned().await?;
             apply_effects(emit_op).await?;
 
@@ -217,11 +216,11 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
 #[turbo_tasks::function(operation)]
 async fn run_inner_operation(
     resource: RcStr,
-    snapshot_mode: Value<IssueSnapshotMode>,
+    snapshot_mode: IssueSnapshotMode,
 ) -> Result<Vc<JsResult>> {
     let prepared_test = prepare_test(resource).to_resolved().await?;
     let run_result_op = run_test_operation(prepared_test);
-    if *snapshot_mode == IssueSnapshotMode::Snapshots {
+    if snapshot_mode == IssueSnapshotMode::Snapshots {
         snapshot_issues(*prepared_test, run_result_op).await?;
     }
 
@@ -242,6 +241,8 @@ async fn run_inner_operation(
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct TestOptions {
     tree_shaking_mode: Option<TreeShakingMode>,
+    #[serde(default)]
+    remove_unused_exports: bool,
 }
 
 #[turbo_tasks::value]
@@ -256,15 +257,15 @@ struct PreparedTest {
 #[turbo_tasks::function]
 async fn prepare_test(resource: RcStr) -> Result<Vc<PreparedTest>> {
     let resource_path = canonicalize(&resource)?;
-    assert!(resource_path.exists(), "{} does not exist", resource);
+    assert!(resource_path.exists(), "{resource} does not exist");
     assert!(
         resource_path.is_dir(),
         "{} is not a directory. Execution tests must be directories.",
         resource_path.to_str().unwrap()
     );
 
-    let root_fs = DiskFileSystem::new("workspace".into(), REPO_ROOT.clone(), vec![]);
-    let project_fs = DiskFileSystem::new("project".into(), REPO_ROOT.clone(), vec![]);
+    let root_fs = DiskFileSystem::new(rcstr!("workspace"), REPO_ROOT.clone(), vec![]);
+    let project_fs = DiskFileSystem::new(rcstr!("project"), REPO_ROOT.clone(), vec![]);
     let project_root = project_fs.root().to_resolved().await?;
 
     let relative_path = resource_path.strip_prefix(&*REPO_ROOT).context(format!(
@@ -277,16 +278,16 @@ async fn prepare_test(resource: RcStr) -> Result<Vc<PreparedTest>> {
     let project_path = project_root.join(relative_path.clone());
     let tests_path = project_fs
         .root()
-        .join("turbopack/crates/turbopack-tests".into());
+        .join(rcstr!("turbopack/crates/turbopack-tests"));
 
-    let options_file = path.join("options.json".into());
+    let options_file = path.join(rcstr!("options.json"));
 
     let mut options = TestOptions::default();
-    if matches!(*options_file.get_type().await?, FileSystemEntryType::File) {
-        if let FileContent::Content(content) = &*options_file.read().await? {
-            options =
-                serde_json::from_reader(content.read()).context("Unable to parse options.json")?;
-        }
+    if matches!(*options_file.get_type().await?, FileSystemEntryType::File)
+        && let FileContent::Content(content) = &*options_file.read().await?
+    {
+        options =
+            serde_json::from_reader(content.read()).context("Unable to parse options.json")?;
     }
 
     Ok(PreparedTest {
@@ -309,21 +310,21 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         ref options,
     } = *prepared_test.await?;
 
-    let jest_entry_path = tests_path.join("js/jest-entry.ts".into());
-    let test_path = project_path.join("input/index.js".into());
+    let jest_entry_path = tests_path.join(rcstr!("js/jest-entry.ts"));
+    let test_path = project_path.join(rcstr!("input/index.js"));
 
-    let chunk_root_path = path.join("output".into()).to_resolved().await?;
-    let static_root_path = path.join("static".into()).to_resolved().await?;
+    let chunk_root_path = path.join(rcstr!("output")).to_resolved().await?;
+    let static_root_path = path.join(rcstr!("static")).to_resolved().await?;
 
     let chunk_root_path_in_root_path_offset = project_path
-        .join("output".into())
+        .join(rcstr!("output"))
         .await?
         .get_relative_path_to(&*project_root.await?)
         .context("Project path is in root path")?;
 
-    let env = Environment::new(Value::new(ExecutionEnvironment::NodeJsBuildTime(
+    let env = Environment::new(ExecutionEnvironment::NodeJsBuildTime(
         NodeJsEnvironment::default().resolved_cell(),
-    )))
+    ))
     .to_resolved()
     .await?;
 
@@ -343,7 +344,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     import_map.insert_wildcard_alias(
         "esm-external/",
         ImportMapping::External(
-            Some("*".into()),
+            Some(rcstr!("*")),
             ExternalType::EcmaScriptModule,
             ExternalTraced::Untraced,
         )
@@ -377,22 +378,24 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                 ContextCondition::InDirectory("node_modules".into()),
                 ModuleOptionsContext {
                     tree_shaking_mode: options.tree_shaking_mode,
+                    remove_unused_exports: options.remove_unused_exports,
                     ..Default::default()
                 }
                 .resolved_cell(),
             )],
+            remove_unused_exports: options.remove_unused_exports,
             ..Default::default()
         }
         .into(),
         ResolveOptionsContext {
             enable_typescript: true,
             enable_node_modules: Some(project_root),
-            custom_conditions: vec!["development".into()],
+            custom_conditions: vec![rcstr!("development")],
             rules: vec![(
                 ContextCondition::InDirectory("node_modules".into()),
                 ResolveOptionsContext {
                     enable_node_modules: Some(project_root),
-                    custom_conditions: vec!["development".into()],
+                    custom_conditions: vec![rcstr!("development")],
                     browser: true,
                     ..Default::default()
                 }
@@ -404,13 +407,13 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
             ..Default::default()
         }
         .cell(),
-        Vc::cell("test".into()),
+        rcstr!("test"),
     ));
 
     let chunking_context = NodeJsChunkingContext::builder(
         project_root,
         chunk_root_path,
-        ResolvedVc::cell(chunk_root_path_in_root_path_offset),
+        chunk_root_path_in_root_path_offset,
         static_root_path,
         chunk_root_path,
         static_root_path,
@@ -439,9 +442,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     let test_asset = asset_context
         .process(
             Vc::upcast(test_source),
-            Value::new(ReferenceType::Internal(
-                InnerAssets::empty().to_resolved().await?,
-            )),
+            ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
         )
         .module()
         .to_resolved()
@@ -450,9 +451,9 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     let jest_entry_asset = asset_context
         .process(
             Vc::upcast(jest_entry_source),
-            Value::new(ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
-                "TESTS".into() => test_asset,
-            }))),
+            ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
+                rcstr!("TESTS") => test_asset,
+            })),
         )
         .module();
 
@@ -507,15 +508,11 @@ async fn snapshot_issues(
 
     let captured_issues = run_result_op.peek_issues_with_path().await?;
 
-    let plain_issues = captured_issues
-        .iter_with_shortest_path()
-        .map(|(issue_vc, path)| async move { issue_vc.into_plain(path).await })
-        .try_join()
-        .await?;
+    let plain_issues = captured_issues.get_plain_issues().await?;
 
     turbopack_test_utils::snapshot::snapshot_issues(
         plain_issues,
-        path.join("issues".into()),
+        path.join(rcstr!("issues")),
         &REPO_ROOT,
     )
     .await

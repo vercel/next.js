@@ -1,6 +1,9 @@
 import type { LoadComponentsReturnType } from '../load-components'
 import type { ServerRuntime, SizeLimit } from '../../types'
-import type { NextConfigComplete } from '../../server/config-shared'
+import type {
+  ExperimentalConfig,
+  NextConfigComplete,
+} from '../../server/config-shared'
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 import type { ParsedUrlQuery } from 'querystring'
@@ -94,7 +97,23 @@ export type FlightRouterState = [
    */
   refresh?: 'refetch' | 'refresh' | 'inside-shared-layout' | null,
   isRootLayout?: boolean,
+  /**
+   * Only present when responding to a tree prefetch request. Indicates whether
+   * there is a loading boundary somewhere in the tree. The client cache uses
+   * this to determine if it can skip the data prefetch request.
+   */
+  hasLoadingBoundary?: HasLoadingBoundary,
 ]
+
+export const enum HasLoadingBoundary {
+  // There is a loading boundary in this particular segment
+  SegmentHasLoadingBoundary = 1,
+  // There is a loading boundary somewhere in the subtree (but not in
+  // this segment)
+  SubtreeHasLoadingBoundary = 2,
+  // There is no loading boundary in this segment or any of its descendants
+  SubtreeHasNoLoadingBoundary = 3,
+}
 
 /**
  * Individual Flight response path
@@ -163,6 +182,7 @@ export type ServerOnInstrumentationRequestError = (
 ) => void | Promise<void>
 
 export interface RenderOptsPartial {
+  dir?: string
   previewProps: __ApiPreviewProps | undefined
   err?: Error | null
   dev?: boolean
@@ -182,6 +202,8 @@ export interface RenderOptsPartial {
   cacheLifeProfiles?: {
     [profile: string]: import('../use-cache/cache-life').CacheLife
   }
+  isOnDemandRevalidate?: boolean
+  isPossibleServerAction?: boolean
   setIsrStatus?: (key: string, value: boolean | null) => void
   isRevalidate?: boolean
   nextExport?: boolean
@@ -211,6 +233,7 @@ export interface RenderOptsPartial {
      */
     isRoutePPREnabled?: boolean
     expireTime: number | undefined
+    staleTimes: ExperimentalConfig['staleTimes'] | undefined
     clientTraceMetadata: string[] | undefined
     dynamicIO: boolean
     clientSegmentCache: boolean | 'client-only'
@@ -246,6 +269,19 @@ export interface RenderOptsPartial {
   reactMaxHeadersLength: number | undefined
 
   isStaticGeneration?: boolean
+
+  /**
+   * When true, the page is prerendered as a fallback shell, while allowing any
+   * dynamic accesses to result in an empty shell. This is the case when there
+   * are also routes prerendered with a more complete set of params.
+   * Prerendering those routes would catch any invalid dynamic accesses.
+   */
+  allowEmptyStaticShell?: boolean
+
+  /**
+   * next config experimental.devtoolSegmentExplorer
+   */
+  devtoolSegmentExplorer?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType<AppPageModule> &

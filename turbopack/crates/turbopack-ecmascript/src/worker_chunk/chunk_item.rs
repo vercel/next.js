@@ -1,23 +1,23 @@
 use anyhow::Result;
 use indoc::formatdoc;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, Vc};
+use turbo_rcstr::rcstr;
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
     chunk::{
-        availability_info::AvailabilityInfo, ChunkData, ChunkItem, ChunkType, ChunkingContext,
-        ChunkingContextExt, ChunksData,
+        ChunkData, ChunkItem, ChunkType, ChunkingContext, ChunkingContextExt, ChunksData,
+        availability_info::AvailabilityInfo,
     },
     ident::AssetIdent,
     module::Module,
-    module_graph::{chunk_group_info::ChunkGroup, ModuleGraph},
+    module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
     output::OutputAssets,
 };
 
 use super::module::WorkerLoaderModule;
 use crate::{
     chunk::{
-        data::EcmascriptChunkData, EcmascriptChunkItem, EcmascriptChunkItemContent,
-        EcmascriptChunkType,
+        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkType,
+        data::EcmascriptChunkData,
     },
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_WORKER_BLOB_URL},
     utils::StringifyJs,
@@ -30,11 +30,6 @@ pub struct WorkerLoaderChunkItem {
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
-#[turbo_tasks::function]
-pub fn worker_modifier() -> Vc<RcStr> {
-    Vc::cell("worker".into())
-}
-
 #[turbo_tasks::value_impl]
 impl WorkerLoaderChunkItem {
     #[turbo_tasks::function]
@@ -42,10 +37,10 @@ impl WorkerLoaderChunkItem {
         let module = self.module.await?;
 
         Ok(self.chunking_context.evaluated_chunk_group_assets(
-            module.inner.ident().with_modifier(worker_modifier()),
+            module.inner.ident().with_modifier(rcstr!("worker")),
             ChunkGroup::Isolated(ResolvedVc::upcast(module.inner)),
             *self.module_graph,
-            Value::new(AvailabilityInfo::Root),
+            AvailabilityInfo::Root,
         ))
     }
 
@@ -83,11 +78,6 @@ impl EcmascriptChunkItem for WorkerLoaderChunkItem {
         }
         .into())
     }
-}
-
-#[turbo_tasks::function]
-fn chunk_reference_description() -> Vc<RcStr> {
-    Vc::cell("worker chunk".into())
 }
 
 #[turbo_tasks::value_impl]

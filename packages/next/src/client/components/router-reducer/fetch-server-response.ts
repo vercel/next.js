@@ -6,9 +6,9 @@
 const { createFromReadableStream } = (
   !!process.env.NEXT_RUNTIME
     ? // eslint-disable-next-line import/no-extraneous-dependencies
-      require('react-server-dom-webpack/client.edge')
+      (require('react-server-dom-webpack/client.edge') as typeof import('react-server-dom-webpack/client.edge'))
     : // eslint-disable-next-line import/no-extraneous-dependencies
-      require('react-server-dom-webpack/client')
+      (require('react-server-dom-webpack/client') as typeof import('react-server-dom-webpack/client'))
 ) as typeof import('react-server-dom-webpack/client')
 
 import type {
@@ -187,9 +187,13 @@ export async function fetchServerResponse(
     const contentType = res.headers.get('content-type') || ''
     const interception = !!res.headers.get('vary')?.includes(NEXT_URL)
     const postponed = !!res.headers.get(NEXT_DID_POSTPONE_HEADER)
-    const staleTimeHeader = res.headers.get(NEXT_ROUTER_STALE_TIME_HEADER)
+    const staleTimeHeaderSeconds = res.headers.get(
+      NEXT_ROUTER_STALE_TIME_HEADER
+    )
     const staleTime =
-      staleTimeHeader !== null ? parseInt(staleTimeHeader, 10) : -1
+      staleTimeHeaderSeconds !== null
+        ? parseInt(staleTimeHeaderSeconds, 10) * 1000
+        : -1
     let isFlightResponse = contentType.startsWith(RSC_CONTENT_TYPE_HEADER)
 
     if (process.env.NODE_ENV === 'production') {
@@ -216,7 +220,9 @@ export async function fetchServerResponse(
     // In dev, the Webpack runtime is minimal for each page.
     // We need to ensure the Webpack runtime is updated before executing client-side JS of the new page.
     if (process.env.NODE_ENV !== 'production' && !process.env.TURBOPACK) {
-      await require('../react-dev-overlay/app/hot-reloader-client').waitForWebpackRuntimeHotUpdate()
+      await (
+        require('../../dev/hot-reloader/app/hot-reloader-app') as typeof import('../../dev/hot-reloader/app/hot-reloader-app')
+      ).waitForWebpackRuntimeHotUpdate()
     }
 
     // Handle the `fetch` readable stream that can be unwrapped by `React.use`.
@@ -261,18 +267,29 @@ export async function fetchServerResponse(
   }
 }
 
-export function createFetch(
+// This is a subset of the standard Response type. We use a custom type for
+// this so we can limit which details about the response leak into the rest of
+// the codebase. For example, there's some custom logic for manually following
+// redirects, so "redirected" in this type could be a composite of multiple
+// browser fetch calls; however, this fact should not leak to the caller.
+export type RSCResponse = {
+  ok: boolean
+  redirected: boolean
+  headers: Headers
+  body: ReadableStream<Uint8Array> | null
+  status: number
+  url: string
+}
+
+export async function createFetch(
   url: URL,
   headers: RequestHeaders,
   fetchPriority: 'auto' | 'high' | 'low' | null,
   signal?: AbortSignal
-) {
-  const fetchUrl = new URL(url)
-
+): Promise<RSCResponse> {
   // TODO: In output: "export" mode, the headers do nothing. Omit them (and the
   // cache busting search param) from the request so they're
   // maximally cacheable.
-  setCacheBustingSearchParam(fetchUrl, headers)
 
   if (process.env.__NEXT_TEST_MODE && fetchPriority !== null) {
     headers['Next-Test-Fetch-Priority'] = fetchPriority
@@ -282,13 +299,103 @@ export function createFetch(
     headers['x-deployment-id'] = process.env.NEXT_DEPLOYMENT_ID
   }
 
-  return fetch(fetchUrl, {
+  const fetchOptions: RequestInit = {
     // Backwards compat for older browsers. `same-origin` is the default in modern browsers.
     credentials: 'same-origin',
     headers,
     priority: fetchPriority || undefined,
     signal,
-  })
+  }
+  // `fetchUrl` is slightly different from `url` because we add a cache-busting
+  // search param to it. This should not leak outside of this function, so we
+  // track them separately.
+  let fetchUrl = new URL(url)
+  setCacheBustingSearchParam(fetchUrl, headers)
+  let browserResponse = await fetch(fetchUrl, fetchOptions)
+
+  // If the server responds with a redirect (e.g. 307), and the redirected
+  // location does not contain the cache busting search param set in the
+  // original request, the response is likely invalid — when following the
+  // redirect, the browser forwards the request headers, but since the cache
+  // busting search param is missing, the server will reject the request due to
+  // a mismatch.
+  //
+  // Ideally, we would be able to intercept the redirect response and perform it
+  // manually, instead of letting the browser automatically follow it, but this
+  // is not allowed by the fetch API.
+  //
+  // So instead, we must "replay" the redirect by fetching the new location
+  // again, but this time we'll append the cache busting search param to prevent
+  // a mismatch.
+  //
+  // TODO: We can optimize Next.js's built-in middleware APIs by returning a
+  // custom status code, to prevent the browser from automatically following it.
+  //
+  // This does not affect Server Action-based redirects; those are encoded
+  // differently, as part of the Flight body. It only affects redirects that
+  // occur in a middleware or a third-party proxy.
+
+  let redirected = browserResponse.redirected
+  if (process.env.__NEXT_CLIENT_VALIDATE_RSC_REQUEST_HEADERS) {
+    // This is to prevent a redirect loop. Same limit used by Chrome.
+    const MAX_REDIRECTS = 20
+    for (let n = 0; n < MAX_REDIRECTS; n++) {
+      if (!browserResponse.redirected) {
+        // The server did not perform a redirect.
+        break
+      }
+      const responseUrl = new URL(browserResponse.url, fetchUrl)
+      if (responseUrl.origin !== fetchUrl.origin) {
+        // The server redirected to an external URL. The rest of the logic below
+        // is not relevant, because it only applies to internal redirects.
+        break
+      }
+      if (
+        responseUrl.searchParams.get(NEXT_RSC_UNION_QUERY) ===
+        fetchUrl.searchParams.get(NEXT_RSC_UNION_QUERY)
+      ) {
+        // The redirected URL already includes the cache busting search param.
+        // This was probably intentional. Regardless, there's no reason to
+        // issue another request to this URL because it already has the param
+        // value that we would have added below.
+        break
+      }
+      // The RSC request was redirected. Assume the response is invalid.
+      //
+      // Append the cache busting search param to the redirected URL and
+      // fetch again.
+      fetchUrl = new URL(responseUrl)
+      setCacheBustingSearchParam(fetchUrl, headers)
+      browserResponse = await fetch(fetchUrl, fetchOptions)
+      // We just performed a manual redirect, so this is now true.
+      redirected = true
+    }
+  }
+
+  // Remove the cache busting search param from the response URL, to prevent it
+  // from leaking outside of this function.
+  const responseUrl = new URL(browserResponse.url, fetchUrl)
+  responseUrl.searchParams.delete(NEXT_RSC_UNION_QUERY)
+
+  const rscResponse: RSCResponse = {
+    url: responseUrl.href,
+
+    // This is true if any redirects occurred, either automatically by the
+    // browser, or manually by us. So it's different from
+    // `browserResponse.redirected`, which only tells us whether the browser
+    // followed a redirect, and only for the last response in the chain.
+    redirected,
+
+    // These can be copied from the last browser response we received. We
+    // intentionally only expose the subset of fields that are actually used
+    // elsewhere in the codebase.
+    ok: browserResponse.ok,
+    headers: browserResponse.headers,
+    body: browserResponse.body,
+    status: browserResponse.status,
+  }
+
+  return rscResponse
 }
 
 export function createFromNextReadableStream(

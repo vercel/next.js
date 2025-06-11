@@ -1,5 +1,5 @@
 use crate::{
-    vc::cell_mode::VcCellMode, NonLocalValue, ShrinkToFit, TraitTypeId, ValueTypeId, VcRead,
+    NonLocalValue, ShrinkToFit, TraitTypeId, ValueTypeId, VcRead, vc::cell_mode::VcCellMode,
 };
 
 /// A trait implemented on all values types that can be put into a Value Cell
@@ -54,10 +54,3 @@ where
     T: VcValueTrait + ?Sized,
 {
 }
-
-/// Marker trait that a turbo_tasks::value is prepared for serialization as
-/// [`Value<...>`][crate::Value] input.
-///
-/// Either use [`#[turbo_tasks::value(serialization = "auto_for_input")]`][macro@crate::value] or
-/// avoid [`Value<...>`][crate::Value] in favor of a real [Vc][crate::Vc].
-pub trait TypedForInput: VcValueType {}

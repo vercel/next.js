@@ -6,20 +6,19 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput,
-    TryJoinIterExt, ValueToString, Vc,
+    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString,
+    Vc, trace::TraceRawVcs,
 };
 
 use crate::{
     chunk::{
-        chunk_item_batch::attach_async_info_to_chunkable_module, ChunkItem,
-        ChunkItemBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo, ChunkType,
-        ChunkableModule, ChunkingContext, ChunkingType,
+        ChunkItem, ChunkItemBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo, ChunkType,
+        ChunkableModule, ChunkingContext, chunk_item_batch::attach_async_info_to_chunkable_module,
     },
     module::{Module, StyleType},
     module_graph::{
-        module_batch::ModuleOrBatch, module_batches::ModuleBatchesGraphEdge, GraphTraversalAction,
-        ModuleGraph,
+        GraphTraversalAction, ModuleGraph, module_batch::ModuleOrBatch,
+        module_batches::ModuleBatchesGraphEdge,
     },
 };
 
@@ -98,13 +97,10 @@ pub async fn compute_style_groups(
             entries.iter().copied(),
             &mut (),
             |parent_info, module, _| {
-                if let Some((_, ModuleBatchesGraphEdge { ty, .. })) = parent_info {
-                    if !matches!(
-                        ty,
-                        ChunkingType::Parallel | ChunkingType::ParallelInheritAsync
-                    ) {
-                        return Ok(GraphTraversalAction::Exclude);
-                    }
+                if let Some((_, ModuleBatchesGraphEdge { ty, .. })) = parent_info
+                    && !ty.is_parallel()
+                {
+                    return Ok(GraphTraversalAction::Exclude);
                 }
                 if visited.insert(module) {
                     Ok(GraphTraversalAction::Continue)
@@ -113,13 +109,10 @@ pub async fn compute_style_groups(
                 }
             },
             |parent_info, item, _| {
-                if let Some((_, ModuleBatchesGraphEdge { ty, .. })) = parent_info {
-                    if !matches!(
-                        ty,
-                        ChunkingType::Parallel | ChunkingType::ParallelInheritAsync
-                    ) {
-                        return;
-                    }
+                if let Some((_, ModuleBatchesGraphEdge { ty, .. })) = parent_info
+                    && !ty.is_parallel()
+                {
+                    return;
                 }
                 items_in_postorder.insert(*item);
             },
@@ -208,16 +201,15 @@ pub async fn compute_style_groups(
 
                 // module is a dependency of dependent when it's included in all chunk groups of
                 // dependent with an index lower than the index of the dependent
-                let is_dependent =
-                    info.chunk_group_indicies.len() >= dependent_info.chunk_group_indicies.len()
-                        && dependent_info.chunk_group_indicies.iter().all(
-                            |(idx, &dependent_pos)| {
-                                info.chunk_group_indicies
-                                    .get(idx)
-                                    .is_some_and(|&module_pos| module_pos < dependent_pos)
-                            },
-                        );
-                is_dependent
+                info.chunk_group_indicies.len() >= dependent_info.chunk_group_indicies.len()
+                    && dependent_info
+                        .chunk_group_indicies
+                        .iter()
+                        .all(|(idx, &dependent_pos)| {
+                            info.chunk_group_indicies
+                                .get(idx)
+                                .is_some_and(|&module_pos| module_pos < dependent_pos)
+                        })
             })
             .collect::<Vec<_>>();
 
@@ -323,12 +315,12 @@ pub async fn compute_style_groups(
                     continue;
                 }
                 // In loose mode we only check if the dependencies are not violated
-                if let Some(dependents) = module_dependents.get(&module) {
-                    if dependents.iter().any(|m| new_chunk_modules.contains(m)) {
-                        // A dependent of the module is already in the chunk, which would violate
-                        // the order
-                        continue;
-                    }
+                if let Some(dependents) = module_dependents.get(&module)
+                    && dependents.iter().any(|m| new_chunk_modules.contains(m))
+                {
+                    // A dependent of the module is already in the chunk, which would violate
+                    // the order
+                    continue;
                 }
 
                 // Global CSS must not leak into unrelated chunks

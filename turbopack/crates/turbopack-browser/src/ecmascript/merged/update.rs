@@ -14,7 +14,7 @@ use turbopack_core::{
 
 use super::{
     super::{
-        update::{update_ecmascript_chunk, EcmascriptChunkUpdate},
+        update::{EcmascriptChunkUpdate, update_ecmascript_chunk},
         version::EcmascriptBrowserChunkVersion,
     },
     content::EcmascriptBrowserMergedChunkContent,

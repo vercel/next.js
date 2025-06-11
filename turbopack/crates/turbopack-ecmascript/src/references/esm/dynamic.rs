@@ -1,14 +1,13 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use swc_core::{
-    common::{util::take::Take, DUMMY_SP},
+    common::{DUMMY_SP, util::take::Take},
     ecma::ast::{CallExpr, Callee, Expr, ExprOrSpread, Lit},
     quote_expr,
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, Value, ValueToString,
-    Vc,
+    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext, ChunkingType, ChunkingTypeOption},
@@ -18,9 +17,9 @@ use turbopack_core::{
     reference::ModuleReference,
     reference_type::EcmaScriptModulesReferenceSubType,
     resolve::{
+        ModuleResolveResult,
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
-        ModuleResolveResult,
     },
 };
 use turbopack_resolve::ecmascript::esm_resolve;
@@ -59,7 +58,7 @@ impl EsmAsyncAssetReference {
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
         issue_source: IssueSource,
-        annotations: Value<ImportAnnotations>,
+        annotations: ImportAnnotations,
         in_try: bool,
         import_externals: bool,
     ) -> Self {
@@ -67,7 +66,7 @@ impl EsmAsyncAssetReference {
             origin,
             request,
             issue_source,
-            annotations: annotations.into_value(),
+            annotations,
             in_try,
             import_externals,
         }
@@ -81,7 +80,7 @@ impl ModuleReference for EsmAsyncAssetReference {
         esm_resolve(
             self.get_origin().resolve().await?,
             *self.request,
-            Value::new(EcmaScriptModulesReferenceSubType::DynamicImport),
+            EcmaScriptModulesReferenceSubType::DynamicImport,
             self.in_try,
             Some(self.issue_source.clone()),
         )

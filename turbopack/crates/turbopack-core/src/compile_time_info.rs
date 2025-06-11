@@ -1,6 +1,7 @@
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ResolvedVc, Vc};
+use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::environment::Environment;
@@ -100,8 +101,8 @@ macro_rules! free_var_references {
 
 // TODO: replace with just a `serde_json::Value`
 // https://linear.app/vercel/issue/WEB-1641/compiletimedefinevalue-should-just-use-serde-jsonvalue
-#[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Clone, Hash)]
+#[turbo_tasks::value]
+#[derive(Debug, Clone, Hash, TaskInput)]
 pub enum CompileTimeDefineValue {
     Bool(bool),
     String(RcStr),
@@ -138,7 +139,7 @@ impl From<serde_json::Value> for CompileTimeDefineValue {
     }
 }
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
+#[turbo_tasks::value]
 #[derive(Debug, Clone, Hash)]
 pub enum DefineableNameSegment {
     Name(RcStr),
@@ -200,6 +201,14 @@ impl CompileTimeDefines {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
+pub enum InputRelativeConstant {
+    // The project relative directory name of the source file
+    DirName,
+    // The project relative file name of the source file.
+    FileName,
+}
+
 #[turbo_tasks::value]
 #[derive(Debug, Clone)]
 pub enum FreeVarReference {
@@ -211,6 +220,7 @@ pub enum FreeVarReference {
     Ident(RcStr),
     Member(RcStr, RcStr),
     Value(CompileTimeDefineValue),
+    InputRelative(InputRelativeConstant),
     Error(RcStr),
 }
 

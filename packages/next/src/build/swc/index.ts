@@ -16,10 +16,7 @@ import type {
   TurbopackRuleConfigItemOrShortcut,
 } from '../../server/config-shared'
 import { isDeepStrictEqual } from 'util'
-import {
-  type DefineEnvPluginOptions,
-  getDefineEnv,
-} from '../webpack/plugins/define-env-plugin'
+import { type DefineEnvOptions, getDefineEnv } from '../define-env'
 import { getReactCompilerLoader } from '../get-babel-loader-config'
 import type {
   NapiPartialProjectOptions,
@@ -27,6 +24,7 @@ import type {
 } from './generated-native'
 import type {
   Binding,
+  CompilationEvent,
   DefineEnv,
   Endpoint,
   HmrIdentifiers,
@@ -388,11 +386,12 @@ export function createDefineEnv({
   config,
   dev,
   distDir,
+  projectPath,
   fetchCacheKeyPrefix,
   hasRewrites,
   middlewareMatchers,
 }: Omit<
-  DefineEnvPluginOptions,
+  DefineEnvOptions,
   'isClient' | 'isNodeOrEdgeCompilation' | 'isEdgeServer' | 'isNodeServer'
 >): DefineEnv {
   let defineEnv: DefineEnv = {
@@ -409,11 +408,11 @@ export function createDefineEnv({
         config,
         dev,
         distDir,
+        projectPath,
         fetchCacheKeyPrefix,
         hasRewrites,
         isClient: variant === 'client',
         isEdgeServer: variant === 'edge',
-        isNodeOrEdgeCompilation: variant === 'nodejs' || variant === 'edge',
         isNodeServer: variant === 'nodejs',
         middlewareMatchers,
       })
@@ -712,6 +711,22 @@ function bindingToApi(
       )
     }
 
+    compilationEventsSubscribe() {
+      return subscribe<TurbopackResult<CompilationEvent>>(
+        true,
+        async (callback) => {
+          binding.projectCompilationEventsSubscribe(
+            this._nativeProject,
+            callback
+          )
+        }
+      )
+    }
+
+    invalidatePersistentCache(): Promise<void> {
+      return binding.projectInvalidatePersistentCache(this._nativeProject)
+    }
+
     shutdown(): Promise<void> {
       return binding.projectShutdown(this._nativeProject)
     }
@@ -872,6 +887,33 @@ function bindingToApi(
         loaderFile:
           './' + path.relative(projectPath, nextConfig.images.loaderFile),
       }
+    }
+
+    const conditions: (typeof nextConfig)['turbopack']['conditions'] =
+      nextConfigSerializable.turbopack?.conditions
+    if (conditions) {
+      type SerializedConditions = {
+        [key: string]: {
+          path:
+            | { type: 'regex'; value: { source: string; flags: string } }
+            | { type: 'glob'; value: string }
+        }
+      }
+
+      const serializedConditions: SerializedConditions = {}
+      for (const [key, value] of Object.entries(conditions)) {
+        serializedConditions[key] = {
+          ...value,
+          path:
+            value.path instanceof RegExp
+              ? {
+                  type: 'regex',
+                  value: { source: value.path.source, flags: value.path.flags },
+                }
+              : { type: 'glob', value: value.path },
+        }
+      }
+      nextConfigSerializable.turbopack.conditions = serializedConditions
     }
 
     return JSON.stringify(nextConfigSerializable, null, 2)
@@ -1104,6 +1146,11 @@ async function loadWasm(importPath = '') {
             return bindings.mdxCompileSync(src, getMdxOptions(options))
           },
         },
+        reactCompiler: {
+          isReactCompilerRequired(_filename: string) {
+            return Promise.resolve(true)
+          },
+        },
       }
       return wasmBindings
     } catch (e: any) {
@@ -1250,7 +1297,7 @@ function loadNative(importPath?: string) {
         createProject: bindingToApi(customBindings ?? bindings, false),
         startTurbopackTraceServer(traceFilePath) {
           Log.warn(
-            'Turbopack trace server started. View trace at https://turbo-trace-viewer.vercel.app/'
+            'Turbopack trace server started. View trace at https://trace.nextjs.org'
           )
           ;(customBindings ?? bindings).startTurbopackTraceServer(traceFilePath)
         },
@@ -1273,6 +1320,11 @@ function loadNative(importPath?: string) {
               transformAttrOptions
             )
           },
+        },
+      },
+      reactCompiler: {
+        isReactCompilerRequired: (filename: string) => {
+          return bindings.isReactCompilerRequired(filename)
         },
       },
     }
@@ -1318,6 +1370,13 @@ export async function minify(
 ): Promise<{ code: string; map: any }> {
   let bindings = await loadBindings()
   return bindings.minify(src, options)
+}
+
+export async function isReactCompilerRequired(
+  filename: string
+): Promise<boolean> {
+  let bindings = await loadBindings()
+  return bindings.reactCompiler.isReactCompilerRequired(filename)
 }
 
 export async function parse(src: string, options: any): Promise<any> {

@@ -1,1 +1,1 @@
-export default "pat";
+export default 'pat'

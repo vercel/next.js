@@ -1,6 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use swc_core::ecma::ast::Program;
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString};
@@ -66,8 +67,10 @@ impl Issue for UnsupportedSwcEcmaTransformPluginsIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Unsupported SWC EcmaScript transform plugins on this platform.".into())
-            .cell()
+        StyledString::Text(rcstr!(
+            "Unsupported SWC EcmaScript transform plugins on this platform."
+        ))
+        .cell()
     }
 
     #[turbo_tasks::function]
@@ -130,7 +133,7 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
                     util::take::Take,
                 },
                 ecma::ast::Module,
-                plugin::proxies::{HostCommentsStorage, COMMENTS},
+                plugin::proxies::{COMMENTS, HostCommentsStorage},
                 plugin_runner::plugin_module_bytes::PluginModuleBytes,
             };
 
@@ -186,7 +189,7 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
                         PluginSerializedBytes::try_serialize(&module_program)?;
 
                     let transform_metadata_context = Arc::new(TransformPluginMetadataContext::new(
-                        Some(ctx.file_name_str.to_string()),
+                        Some(ctx.file_path_str.to_string()),
                         //[TODO]: Support env-related variable injection, i.e process.env.NODE_ENV
                         "development".to_string(),
                         None,
@@ -206,6 +209,7 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
                                 ctx.source_map,
                                 &ctx.unresolved_mark,
                                 &transform_metadata_context,
+                                None,
                                 plugin_module,
                                 Some(plugin_config),
                                 runtime,

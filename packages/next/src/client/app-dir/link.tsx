@@ -133,7 +133,7 @@ type InternalLinkProps = {
    * Prefetching is only enabled in production.
    *
    * - In the **App Router**:
-   *   - `null` (default): Prefetch behavior depends on static vs dynamic routes:
+   *   - `"auto"`, `null`, `undefined` (default): Prefetch behavior depends on static vs dynamic routes:
    *     - Static routes: fully prefetched
    *     - Dynamic routes: partial prefetch to the nearest segment with a `loading.js`
    *   - `true`: Always prefetch the full route and data.
@@ -151,7 +151,7 @@ type InternalLinkProps = {
    * </Link>
    * ```
    */
-  prefetch?: boolean | null
+  prefetch?: boolean | 'auto' | null
 
   /**
    * (unstable) Switch to a dynamic prefetch on hover. Effectively the same as
@@ -271,30 +271,28 @@ function linkClicked(
 
   e.preventDefault()
 
-  const navigate = () => {
-    if (onNavigate) {
-      let isDefaultPrevented = false
+  if (onNavigate) {
+    let isDefaultPrevented = false
 
-      onNavigate({
-        preventDefault: () => {
-          isDefaultPrevented = true
-        },
-      })
+    onNavigate({
+      preventDefault: () => {
+        isDefaultPrevented = true
+      },
+    })
 
-      if (isDefaultPrevented) {
-        return
-      }
+    if (isDefaultPrevented) {
+      return
     }
+  }
 
+  React.startTransition(() => {
     dispatchNavigateAction(
       as || href,
       replace ? 'replace' : 'push',
       scroll ?? true,
       linkInstanceRef.current
     )
-  }
-
-  React.startTransition(navigate)
+  })
 }
 
 function formatStringOrUrl(urlObjOrString: UrlObject | string): string {
@@ -366,7 +364,9 @@ export default function LinkComponent(
    * - 'unstable_dynamicOnHover': this starts in "auto" mode, but switches to "full" when the link is hovered
    */
   const appPrefetchKind =
-    prefetchProp === null ? PrefetchKind.AUTO : PrefetchKind.FULL
+    prefetchProp === null || prefetchProp === 'auto'
+      ? PrefetchKind.AUTO
+      : PrefetchKind.FULL
 
   if (process.env.NODE_ENV !== 'production') {
     function createPropError(args: {
@@ -455,7 +455,6 @@ export default function LinkComponent(
         key === 'scroll' ||
         key === 'shallow' ||
         key === 'passHref' ||
-        key === 'prefetch' ||
         key === 'legacyBehavior' ||
         key === 'unstable_dynamicOnHover'
       ) {
@@ -463,6 +462,18 @@ export default function LinkComponent(
           throw createPropError({
             key,
             expected: '`boolean`',
+            actual: valType,
+          })
+        }
+      } else if (key === 'prefetch') {
+        if (
+          props[key] != null &&
+          valType !== 'boolean' &&
+          props[key] !== 'auto'
+        ) {
+          throw createPropError({
+            key,
+            expected: '`boolean | "auto"`',
             actual: valType,
           })
         }

@@ -1,15 +1,5 @@
-use std::sync::Arc;
-
-use anyhow::{bail, Result};
-use swc_core::{
-    common::{util::take::Take, Globals},
-    ecma::{
-        ast::Program,
-        codegen::{text_writer::JsWriter, Emitter},
-    },
-};
+use anyhow::Result;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::rope::RopeBuilder;
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkingContext},
     ident::AssetIdent,
@@ -19,11 +9,11 @@ use turbopack_core::{
 
 use super::module::EcmascriptModuleFacadeModule;
 use crate::{
+    EcmascriptAnalyzable, EcmascriptOptions,
     chunk::{
-        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemOptions,
-        EcmascriptChunkPlaceable, EcmascriptChunkType, EcmascriptExports,
+        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
+        EcmascriptChunkType,
     },
-    process_content_with_code_gens,
 };
 
 /// The chunk item for [EcmascriptModuleFacadeModule].
@@ -47,82 +37,23 @@ impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let chunking_context = self.chunking_context;
-        let exports = self.module.get_exports();
-        let EcmascriptExports::EsmExports(exports) = *exports.await? else {
-            bail!("Expected EsmExports");
-        };
+        let module_graph = self.module_graph;
 
-        let externals = *chunking_context
-            .environment()
-            .supports_commonjs_externals()
-            .await?;
+        let content =
+            self.module
+                .module_content(*module_graph, *chunking_context, async_module_info);
 
         let async_module_options = self
             .module
             .get_async_module()
             .module_options(async_module_info);
 
-        let async_module = async_module_options.owned().await?;
-
-        let mut code = RopeBuilder::default();
-
-        let esm_code_gens = self
-            .module
-            .code_generation(
-                *self.module_graph,
-                *chunking_context,
-                *self.module.await?.parsed,
-            )
-            .await?;
-        let additional_code_gens = [
-            self.module
-                .async_module()
-                .code_generation(
-                    async_module_info,
-                    self.module.references(),
-                    *chunking_context,
-                )
-                .await?,
-            exports
-                .code_generation(
-                    *self.module_graph,
-                    *chunking_context,
-                    *self.module.await?.parsed,
-                )
-                .await?,
-        ];
-        let code_gens = esm_code_gens.iter().chain(additional_code_gens.iter());
-
-        let mut program = Program::Module(swc_core::ecma::ast::Module::dummy());
-        process_content_with_code_gens(&mut program, &Globals::new(), None, code_gens);
-
-        let mut bytes: Vec<u8> = vec![];
-
-        let source_map: Arc<swc_core::common::SourceMap> = Default::default();
-
-        let mut emitter = Emitter {
-            cfg: swc_core::ecma::codegen::Config::default(),
-            cm: source_map.clone(),
-            comments: None,
-            wr: JsWriter::new(source_map.clone(), "\n", &mut bytes, None),
-        };
-
-        emitter.emit_program(&program)?;
-
-        code.push_bytes(&bytes);
-
-        Ok(EcmascriptChunkItemContent {
-            inner_code: code.build(),
-            source_map: None,
-            options: EcmascriptChunkItemOptions {
-                strict: true,
-                externals,
-                async_module,
-                ..Default::default()
-            },
-            ..Default::default()
-        }
-        .cell())
+        Ok(EcmascriptChunkItemContent::new(
+            content,
+            *chunking_context,
+            EcmascriptOptions::default().cell(),
+            async_module_options,
+        ))
     }
 }
 

@@ -2,8 +2,8 @@ use std::io::Write;
 
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{fxindexmap, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
-use turbo_tasks_fs::{self, rope::RopeBuilder, File, FileSystemPath};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc, fxindexmap};
+use turbo_tasks_fs::{self, File, FileSystemPath, rope::RopeBuilder};
 use turbopack::ModuleAssetContext;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -27,7 +27,7 @@ use crate::{
     next_edge::entry::wrap_edge_entry,
     next_server_component::NextServerComponentTransition,
     parse_segment_config_from_loader_tree,
-    util::{file_content_rope, load_next_js_template, NextRuntime},
+    util::{NextRuntime, file_content_rope, load_next_js_template},
 };
 
 /// Computes the entry for a Next.js app page.
@@ -88,7 +88,7 @@ pub async fn get_app_page_entry(
             "VAR_MODULE_GLOBAL_ERROR" => if inner_assets.contains_key(GLOBAL_ERROR) {
                 GLOBAL_ERROR.into()
              } else {
-                "next/dist/client/components/error-boundary".into()
+                "next/dist/client/components/global-error".into()
             },
         },
         fxindexmap! {
@@ -109,16 +109,14 @@ pub async fn get_app_page_entry(
 
     let file = File::from(result.build());
     let source = VirtualSource::new_with_ident(
-        source
-            .ident()
-            .with_query(Vc::cell(format!("?{}", query).into())),
+        source.ident().with_query(RcStr::from(format!("?{query}"))),
         AssetContent::file(file.into()),
     );
 
     let mut rsc_entry = module_asset_context
         .process(
             Vc::upcast(source),
-            Value::new(ReferenceType::Internal(ResolvedVc::cell(inner_assets))),
+            ReferenceType::Internal(ResolvedVc::cell(inner_assets)),
         )
         .module();
 
@@ -198,7 +196,7 @@ async fn wrap_edge_page(
     let wrapped = asset_context
         .process(
             Vc::upcast(source),
-            Value::new(ReferenceType::Internal(ResolvedVc::cell(inner_assets))),
+            ReferenceType::Internal(ResolvedVc::cell(inner_assets)),
         )
         .module();
 

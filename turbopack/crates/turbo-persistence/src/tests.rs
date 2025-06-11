@@ -1,9 +1,9 @@
-use std::time::Instant;
+use std::{fs, time::Instant};
 
 use anyhow::Result;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
-use crate::{db::TurboPersistence, write_batch::WriteBatch};
+use crate::{constants::MAX_MEDIUM_VALUE_SIZE, db::TurboPersistence, write_batch::WriteBatch};
 
 #[test]
 fn full_cycle() -> Result<()> {
@@ -50,10 +50,32 @@ fn full_cycle() -> Result<()> {
 
     test_case(
         &mut test_cases,
+        "Many SST files",
+        |batch| {
+            for i in 10..100u8 {
+                batch.put(0, vec![i], vec![i].into())?;
+                unsafe { batch.flush(0)? };
+            }
+            Ok(())
+        },
+        |db| {
+            let Some(value) = db.get(0, &[42u8])? else {
+                panic!("Value not found");
+            };
+            assert_eq!(&*value, &[42]);
+            assert_eq!(db.get(0, &[42u8, 42])?, None);
+            assert_eq!(db.get(0, &[1u8])?, None);
+            assert_eq!(db.get(0, &[255u8])?, None);
+            Ok(())
+        },
+    );
+
+    test_case(
+        &mut test_cases,
         "Families",
         |batch| {
             for i in 0..16u8 {
-                batch.put(i as usize, vec![i], vec![i].into())?;
+                batch.put(u32::from(i), vec![i], vec![i].into())?;
             }
             Ok(())
         },
@@ -89,41 +111,46 @@ fn full_cycle() -> Result<()> {
         },
     );
 
+    const BLOB_SIZE: usize = 65 * 1024 * 1024;
+    #[expect(clippy::assertions_on_constants)]
+    {
+        assert!(BLOB_SIZE > MAX_MEDIUM_VALUE_SIZE);
+    }
     test_case(
         &mut test_cases,
         "Large keys and values (blob files)",
         |batch| {
-            for i in 0..20u8 {
-                batch.put(
-                    0,
-                    vec![i; 10 * 1024 * 1024],
-                    vec![i; 10 * 1024 * 1024].into(),
-                )?;
+            for i in 0..2u8 {
+                batch.put(0, vec![i; BLOB_SIZE], vec![i; BLOB_SIZE].into())?;
             }
             Ok(())
         },
         |db| {
-            for i in 0..20u8 {
-                let Some(value) = db.get(0, &vec![i; 10 * 1024 * 1024])? else {
+            for i in 0..2u8 {
+                let key_and_value = vec![i; BLOB_SIZE];
+                let Some(value) = db.get(0, &key_and_value)? else {
                     panic!("Value not found");
                 };
-                assert_eq!(&*value, &vec![i; 10 * 1024 * 1024]);
+                assert_eq!(&*value, &key_and_value);
             }
             Ok(())
         },
     );
 
+    fn different_sizes_range() -> impl Iterator<Item = u8> {
+        (10..20).map(|value| value * 10)
+    }
     test_case(
         &mut test_cases,
         "Different sizes keys and values",
         |batch| {
-            for i in 100..200u8 {
+            for i in different_sizes_range() {
                 batch.put(0, vec![i; i as usize], vec![i; i as usize].into())?;
             }
             Ok(())
         },
         |db| {
-            for i in 100..200u8 {
+            for i in different_sizes_range() {
                 let Some(value) = db.get(0, &vec![i; i as usize])? else {
                     panic!("Value not found");
                 };
@@ -351,18 +378,20 @@ fn persist_changes() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
 
+    const READ_COUNT: u32 = 2_000; // we'll read every 10th value, so writes are 10x this value
     fn put(b: &WriteBatch<(u8, [u8; 4]), 1>, key: u8, value: u8) -> Result<()> {
-        for i in 0..2000000u32 {
+        for i in 0..(READ_COUNT * 10) {
             b.put(0, (key, i.to_be_bytes()), vec![value].into())?;
         }
         Ok(())
     }
     fn check(db: &TurboPersistence, key: u8, value: u8) -> Result<()> {
-        for i in 0..200000u32 {
+        for i in 0..READ_COUNT {
+            // read every 10th item
             let i = i * 10;
             assert_eq!(
                 db.get(0, &(key, i.to_be_bytes()))?.as_deref(),
-                Some(&[value][..])
+                Some(&[value][..]),
             );
         }
         Ok(())
@@ -426,7 +455,7 @@ fn persist_changes() -> Result<()> {
     {
         let db = TurboPersistence::open(path.to_path_buf())?;
 
-        db.compact(1.0, 3)?;
+        db.compact(1.0, 3, u64::MAX)?;
 
         check(&db, 1, 13)?;
         check(&db, 2, 22)?;
@@ -444,6 +473,182 @@ fn persist_changes() -> Result<()> {
         check(&db, 3, 31)?;
 
         db.shutdown()?;
+    }
+
+    Ok(())
+}
+
+#[test]
+fn partial_compaction() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    const READ_COUNT: u32 = 2_000; // we'll read every 10th value, so writes are 10x this value
+    fn put(b: &WriteBatch<(u8, [u8; 4]), 1>, key: u8, value: u8) -> Result<()> {
+        for i in 0..(READ_COUNT * 10) {
+            b.put(0, (key, i.to_be_bytes()), vec![value].into())?;
+        }
+        Ok(())
+    }
+    fn check(db: &TurboPersistence, key: u8, value: u8) -> Result<()> {
+        for i in 0..READ_COUNT {
+            // read every 10th item
+            let i = i * 10;
+            assert_eq!(
+                db.get(0, &(key, i.to_be_bytes()))?.as_deref(),
+                Some(&[value][..]),
+                "Key {key} {i} expected {value}"
+            );
+        }
+        Ok(())
+    }
+
+    for i in 0..50 {
+        println!("--- Iteration {i} ---");
+        println!("Add more entries");
+        {
+            let db = TurboPersistence::open(path.to_path_buf())?;
+            let b = db.write_batch::<_, 1>()?;
+            put(&b, i, i)?;
+            put(&b, i + 1, i)?;
+            put(&b, i + 2, i)?;
+            db.commit_write_batch(b)?;
+
+            for j in 0..i {
+                check(&db, j, j)?;
+            }
+            check(&db, i, i)?;
+            check(&db, i + 1, i)?;
+            check(&db, i + 2, i)?;
+
+            db.shutdown()?;
+        }
+
+        println!("Compaction");
+        {
+            let db = TurboPersistence::open(path.to_path_buf())?;
+
+            db.compact(3.0, 3, u64::MAX)?;
+
+            for j in 0..i {
+                check(&db, j, j)?;
+            }
+            check(&db, i, i)?;
+            check(&db, i + 1, i)?;
+            check(&db, i + 2, i)?;
+
+            db.shutdown()?;
+        }
+
+        println!("Restore check");
+        {
+            let db = TurboPersistence::open(path.to_path_buf())?;
+
+            for j in 0..i {
+                check(&db, j, j)?;
+            }
+            check(&db, i, i)?;
+            check(&db, i + 1, i)?;
+            check(&db, i + 2, i)?;
+
+            db.shutdown()?;
+        }
+    }
+
+    Ok(())
+}
+
+#[test]
+fn merge_file_removal() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    let _ = fs::remove_dir_all(path);
+
+    const READ_COUNT: u32 = 2_000; // we'll read every 10th value, so writes are 10x this value
+    fn put(b: &WriteBatch<(u8, [u8; 4]), 1>, key: u8, value: u32) -> Result<()> {
+        for i in 0..(READ_COUNT * 10) {
+            b.put(
+                0,
+                (key, i.to_be_bytes()),
+                value.to_be_bytes().to_vec().into(),
+            )?;
+        }
+        Ok(())
+    }
+    fn check(db: &TurboPersistence, key: u8, value: u32) -> Result<()> {
+        for i in 0..READ_COUNT {
+            // read every 10th item
+            let i = i * 10;
+            assert_eq!(
+                db.get(0, &(key, i.to_be_bytes()))?.as_deref(),
+                Some(&value.to_be_bytes()[..]),
+                "Key {key} {i} expected {value}"
+            );
+        }
+        Ok(())
+    }
+    fn iter_bits(v: u32) -> impl Iterator<Item = u8> {
+        (0..32u8).filter(move |i| v & (1 << i) != 0)
+    }
+
+    {
+        println!("--- Init ---");
+        let db = TurboPersistence::open(path.to_path_buf())?;
+        let b = db.write_batch::<_, 1>()?;
+        for j in 0..=255 {
+            put(&b, j, 0)?;
+        }
+        db.commit_write_batch(b)?;
+        db.shutdown()?;
+    }
+
+    let mut expected_values = [0; 256];
+
+    for i in 1..50 {
+        println!("--- Iteration {i} ---");
+        let i = i * 37;
+        println!("Add more entries");
+        {
+            let db = TurboPersistence::open(path.to_path_buf())?;
+            let b = db.write_batch::<_, 1>()?;
+            for j in iter_bits(i) {
+                println!("Put {j} = {i}");
+                expected_values[j as usize] = i;
+                put(&b, j, i)?;
+            }
+            db.commit_write_batch(b)?;
+
+            for j in 0..32 {
+                check(&db, j, expected_values[j as usize])?;
+            }
+
+            db.shutdown()?;
+        }
+
+        println!("Compaction");
+        {
+            let db = TurboPersistence::open(path.to_path_buf())?;
+
+            db.compact(3.0, 3, u64::MAX)?;
+
+            for j in 0..32 {
+                check(&db, j, expected_values[j as usize])?;
+            }
+
+            db.shutdown()?;
+        }
+
+        println!("Restore check");
+        {
+            let db = TurboPersistence::open(path.to_path_buf())?;
+
+            for j in 0..32 {
+                check(&db, j, expected_values[j as usize])?;
+            }
+
+            db.shutdown()?;
+        }
     }
 
     Ok(())

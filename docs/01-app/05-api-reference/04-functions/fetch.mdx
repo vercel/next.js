@@ -5,7 +5,7 @@ description: API reference for the extended fetch function.
 
 Next.js extends the [Web `fetch()` API](https://developer.mozilla.org/docs/Web/API/Fetch_API) to allow each request on the server to set its own persistent caching and revalidation semantics.
 
-In the browser, the `cache` option indicates how a fetch request will interact with the _browser's_ HTTP cache. With this extension, `cache` indicates how a _server-side_ fetch request will interact with the framework's persistent [Data Cache](/docs/app/building-your-application/caching#data-cache).
+In the browser, the `cache` option indicates how a fetch request will interact with the _browser's_ HTTP cache. With this extension, `cache` indicates how a _server-side_ fetch request will interact with the framework's persistent [Data Cache](/docs/app/deep-dive/caching#data-cache).
 
 You can call `fetch` with `async` and `await` directly within Server Components.
 
@@ -43,13 +43,13 @@ Since Next.js extends the [Web `fetch()` API](https://developer.mozilla.org/docs
 
 ### `options.cache`
 
-Configure how the request should interact with Next.js [Data Cache](/docs/app/building-your-application/caching#data-cache).
+Configure how the request should interact with Next.js [Data Cache](/docs/app/deep-dive/caching#data-cache).
 
 ```ts
 fetch(`https://...`, { cache: 'force-cache' | 'no-store' })
 ```
 
-- **`auto no cache`** (default): Next.js fetches the resource from the remote server on every request in development, but will fetch once during `next build` because the route will be statically prerendered. If [Dynamic APIs](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) are detected on the route, Next.js will fetch the resource on every request.
+- **`auto no cache`** (default): Next.js fetches the resource from the remote server on every request in development, but will fetch once during `next build` because the route will be statically prerendered. If [Dynamic APIs](/docs/app/getting-started/partial-prerendering#dynamic-rendering) are detected on the route, Next.js will fetch the resource on every request.
 - **`no-store`**: Next.js fetches the resource from the remote server on every request, even if Dynamic APIs are not detected on the route.
 - **`force-cache`**: Next.js looks for a matching request in its Data Cache.
   - If there is a match and it is fresh, it will be returned from the cache.
@@ -91,6 +91,12 @@ Next.js caches `fetch` responses in Server Components across Hot Module Replacem
 By default, the [HMR cache](/docs/app/api-reference/config/next-config-js/serverComponentsHmrCache) applies to all fetch requests, including those with the default `auto no cache` and `cache: 'no-store'` option. This means uncached requests will not show fresh data between HMR refreshes. However, the cache will be cleared on navigation or full-page reloads.
 
 See the [`serverComponentsHmrCache`](/docs/app/api-reference/config/next-config-js/serverComponentsHmrCache) docs for more information.
+
+### Hard refresh and caching in development
+
+In development mode, if the request includes the `cache-control: no-cache` header, `options.cache`, `options.next.revalidate`, and `options.next.tags` are ignored, and the `fetch` request is served from the source.
+
+Browsers typically include `cache-control: no-cache` when the cache is disabled in developer tools or during a hard refresh.
 
 ## Version History
 

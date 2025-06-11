@@ -58,7 +58,9 @@ async function cliPrompt(cwd: string): Promise<{ config?: any }> {
 
   try {
     const cliSelect = (
-      await Promise.resolve(require('next/dist/compiled/cli-select'))
+      await Promise.resolve(
+        require('next/dist/compiled/cli-select') as typeof import('next/dist/compiled/cli-select')
+      )
     ).default
     const { value } = await cliSelect({
       values: await getESLintPromptValues(cwd),

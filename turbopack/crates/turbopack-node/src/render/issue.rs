@@ -1,7 +1,7 @@
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{Issue, IssueStage, OptionStyledString, StyledString};
-
 #[turbo_tasks::value(shared)]
 #[derive(Copy, Clone)]
 pub struct RenderingIssue {
@@ -14,7 +14,7 @@ pub struct RenderingIssue {
 impl Issue for RenderingIssue {
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Error during SSR Rendering".into()).cell()
+        StyledString::Text(rcstr!("Error during SSR Rendering")).cell()
     }
 
     #[turbo_tasks::function]
@@ -36,12 +36,12 @@ impl Issue for RenderingIssue {
     async fn detail(&self) -> Vc<OptionStyledString> {
         let mut details = vec![];
 
-        if let Some(status) = self.status {
-            if status != 0 {
-                details.push(StyledString::Text(
-                    format!("Node.js exit code: {status}").into(),
-                ));
-            }
+        if let Some(status) = self.status
+            && status != 0
+        {
+            details.push(StyledString::Text(
+                format!("Node.js exit code: {status}").into(),
+            ));
         }
 
         Vc::cell(Some(StyledString::Stack(details).resolved_cell()))

@@ -1,0 +1,7 @@
+{
+  "name": "styled-components",
+  "private": true,
+  "dependencies": {
+    "styled-components": "6.1.16"
+  }
+}

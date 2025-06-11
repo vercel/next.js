@@ -7,7 +7,7 @@ use next_core::{
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, Vc,
+    NonLocalValue, ResolvedVc, TryFlatJoinIterExt, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack::css::chunk::CssChunkPlaceable;
 use turbopack_core::{module::Module, module_graph::SingleModuleGraph};

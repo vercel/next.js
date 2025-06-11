@@ -25,6 +25,10 @@ unsafe impl<K: Eq + Hash + Sync, V: Sync> Send for RefMut<'_, K, V> {}
 unsafe impl<K: Eq + Hash + Sync, V: Sync> Sync for RefMut<'_, K, V> {}
 
 impl<K: Eq + Hash, V> RefMut<'_, K, V> {
+    pub fn key(&self) -> &K {
+        self.pair().0
+    }
+
     pub fn value(&self) -> &V {
         self.pair().1
     }
@@ -119,7 +123,7 @@ where
             .find_or_find_insert_slot(h1, eq1, hash_entry)
             .unwrap_or_else(|slot| unsafe {
                 // SAFETY: This slot was previously returned by `find_or_find_insert_slot`, and no
-                // mutation of the table has occured since that call.
+                // mutation of the table has occurred since that call.
                 guard.insert_in_slot(h1, slot, (key1.clone(), SharedValue::new(insert_with())))
             });
 
@@ -215,7 +219,7 @@ mod tests {
         let indicies = (0..THREADS)
             .map(|_| {
                 let mut vec = (0..N).collect::<Vec<_>>();
-                vec.shuffle(&mut rand::thread_rng());
+                vec.shuffle(&mut rand::rng());
                 vec
             })
             .collect::<Vec<_>>();

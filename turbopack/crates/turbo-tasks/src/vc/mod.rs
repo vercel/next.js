@@ -28,13 +28,13 @@ pub use self::{
     operation::{OperationValue, OperationVc},
     read::{ReadOwnedVcFuture, ReadVcFuture, VcDefaultRead, VcRead, VcTransparentRead},
     resolved::ResolvedVc,
-    traits::{Dynamic, TypedForInput, Upcast, VcValueTrait, VcValueType},
+    traits::{Dynamic, Upcast, VcValueTrait, VcValueType},
 };
 use crate::{
+    CellId, RawVc, ResolveTypeError,
     debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString},
     registry,
     trace::{TraceRawVcs, TraceRawVcsContext},
-    CellId, RawVc, ResolveTypeError,
 };
 
 type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
@@ -75,61 +75,46 @@ type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
 ///
 /// ## Subtypes
 ///
-/// There are a couple of "subtypes" of `Vc`. These can both be cheaply converted back into a `Vc`.
+/// There are a couple of explicit "subtypes" of `Vc`. These can both be cheaply converted back into
+/// a `Vc`.
 ///
-/// - **[`ResolvedVc`]:** A reference to a cell constructed within a task, as part of a [`Vc::cell`]
-///   or `value_type.cell()` constructor. As the cell has been constructed at least once, the
-///   concrete type of the cell is known (allowing [downcasting][ResolvedVc::try_downcast]). This is
-///   stored as a combination of a task id, a type id, and a cell id.
+/// - **[`ResolvedVc`]:** *(aka [`RawVc::TaskCell`])* A reference to a cell constructed within a
+///   task, as part of a [`Vc::cell`] or `value_type.cell()` constructor. As the cell has been
+///   constructed at least once, the concrete type of the cell is known (allowing
+///   [downcasting][ResolvedVc::try_downcast]). This is stored as a combination of a task id, a type
+///   id, and a cell id.
 ///
-/// - **[`OperationVc`]:** The synchronous return value of a [`turbo_tasks::function`]. Internally,
-///   this is stored using a task id. Exact type information of trait types (i.e. `Vc<Box<dyn
-///   Trait>>`) is not known because the function may not have finished execution yet. Operations
-///   must first be [`connected`][OperationVc::connect]ed before being read.
+/// - **[`OperationVc`]:** *(aka [`RawVc::TaskOutput`])* The synchronous return value of a
+///   [`turbo_tasks::function`]. Internally, this is stored using a task id. Exact type information
+///   of trait types (i.e. `Vc<Box<dyn Trait>>`) is not known because the function may not have
+///   finished execution yet. [`OperationVc`]s must first be [`connect`][OperationVc::connect]ed
+///   before being read.
 ///
 /// [`ResolvedVc`] is almost always preferred over the more awkward [`OperationVc`] API, but
-/// [`OperationVc`] can be useful inside of [`State`] or when dealing with [collectibles].
-///
-/// In addition to these potentially-explicit representations of a `Vc`, there's another internal
-/// representation of a `Vc`, known as a "Local `Vc`".
-///
-/// - **Local Operation or Cell:** Same as [`ResolvedVc`] or [`OperationVc`], but these values are
-///   stored in task-local state that is freed after their parent non-local task exits. These values
-///   are sometimes created when calling a [`turbo_tasks::function`] as an optimization. [Converting
-///   a local `Vc` to a `ResolvedVc`][Vc::to_resolved] will construct a new
-///   [non-local][NonLocalValue] cell.
+/// [`OperationVc`] can be useful when dealing with [collectibles], when you need to [read the
+/// result of a function with strong consistency][OperationVc::read_strongly_consistent], or with
+/// [`State`].
 ///
 /// These many representations are stored internally using a type-erased [`RawVc`]. Type erasure
 /// reduces the [monomorphization] (and therefore binary size and compilation time) required to
 /// support `Vc` and its subtypes.
 ///
-/// <div class="warning">
-/// <p>
-/// Local <code>Vc</code>s are not valid outside of their parent task, so they must be implicitly
-/// (e.g. as an argument or return type) or explicitly (e.g. via <a
-/// href="#method.to_resolved"><code>Vc::to_resolved</code></a>) be converted to a non-local <a
-/// href="struct.ResolvedVc.html"><code>ResolvedVc</code></a> or <a
-/// href="struct.VcOperation.html"><code>VcOperation</code></a> before crossing task boundaries.
-/// </p>
-/// <p>
-/// For this reason, <code>Vc</code> types (which are potentially local) will be disallowed as
-/// fields in <a href="attr.value.html"><code>turbo_tasks::value</code></a>s in the future.
-/// </p>
-/// </div>
+/// |                 | Representation                     | Equality        | Downcasting                | Strong Consistency     | Collectibles      | [Non-Local]  |
+/// |-----------------|------------------------------------|-----------------|----------------------------|------------------------|-------------------|--------------|
+/// | [`Vc`]          | [One of many][RawVc]               | ❌ [Broken][eq] | ⚠️  After resolution        | ❌ Eventual            | ❌ No             | ❌ [No][loc] |
+/// | [`ResolvedVc`]  | [Task Id + Type Id + Cell Id][rtc] | ✅ Yes\*        | ✅ [Yes, cheaply][resolve] | ❌ Eventual            | ❌ No             | ✅ Yes       |
+/// | [`OperationVc`] | [Task Id][rto]                     | ✅ Yes\*        | ⚠️  After resolution        | ✅ [Supported][strong] | ✅ [Yes][collect] | ✅ Yes       |
 ///
-/// |                 | Representation?             | [Non-Local?] | Equality?               | Can be Downcast?           |
-/// |-----------------|-----------------------------|--------------|-------------------------|----------------------------|
-/// | [`Vc`]          | One of many                 | ⚠️  Maybe     | ❌ Not recommended      | ⚠️  After resolution        |
-/// | [`ResolvedVc`]  | Task Id + Type Id + Cell Id | ✅ Yes       | ✅ Yes, [see docs][rvc] | ✅ [Yes, cheaply][resolve] |
-/// | [`OperationVc`] | Task Id                     | ✅ Yes       | ✅ Yes, [see docs][ovc] | ⚠️  After resolution        |
+/// *\* see the type's documentation for details*
 ///
 /// [Non-Local]: NonLocalValue
-/// [rvc]: ResolvedVc
-/// [ovc]: ResolvedVc
+/// [rtc]: RawVc::TaskCell
+/// [rto]: RawVc::TaskOutput
+/// [loc]: #optimization-local-outputs
+/// [eq]: #equality--hashing
 /// [resolve]: ResolvedVc::try_downcast
-///
-/// See the documentation for [`ResolvedVc`] and [`OperationVc`] for more details about these
-/// subtypes.
+/// [strong]: OperationVc::read_strongly_consistent
+/// [collect]: crate::CollectiblesSource
 ///
 ///
 /// ## Execution Model
@@ -153,16 +138,32 @@ type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
 /// [`Hash`].
 ///
 ///
+/// ## Optimization: Local Outputs
+///
+/// In addition to the potentially-explicit "resolved" and "operation" representations of a `Vc`,
+/// there's another internal representation of a `Vc`, known as a "Local `Vc`", or
+/// [`RawVc::LocalOutput`].
+///
+/// This is a special case of the synchronous return value of a [`turbo_tasks::function`] when some
+/// of its arguments have not yet been resolved. These are stored in task-local state that is freed
+/// after their parent non-local task exits.
+///
+/// We prevent potentially-local `Vc`s from escaping the lifetime of a function using the
+/// [`NonLocalValue`] marker trait alongside some fallback runtime checks. We do this to avoid some
+/// ergonomic challenges that would come from using lifetime annotations with `Vc`.
+///
+///
 /// [tracing]: crate::trace::TraceRawVcs
 /// [`ReadRef`]: crate::ReadRef
 /// [`turbo_tasks::function`]: crate::function
 /// [monomorphization]: https://doc.rust-lang.org/book/ch10-01-syntax.html#performance-of-code-using-generics
 /// [`State`]: crate::State
 /// [book-cells]: https://turbopack-rust-docs.vercel.sh/turbo-engine/cells.html
-/// [collectibles]: CollectiblesSource
+/// [collectibles]: crate::CollectiblesSource
 #[must_use]
 #[derive(Serialize, Deserialize)]
 #[serde(transparent, bound = "")]
+#[repr(transparent)]
 pub struct Vc<T>
 where
     T: ?Sized,
@@ -280,7 +281,7 @@ where
     type Target = *const *mut *const T;
 
     fn deref(&self) -> &Self::Target {
-        extern "C" {
+        unsafe extern "C" {
             #[link_name = "\n\nERROR: you tried to dereference a `Vc<T>`\n"]
             fn trigger() -> !;
         }
@@ -306,7 +307,7 @@ where
     type Target = VcDeref<T>;
 
     fn deref(&self) -> &Self::Target {
-        extern "C" {
+        unsafe extern "C" {
             #[link_name = "\n\nERROR: you tried to dereference a `Vc<T>`\n"]
             fn trigger() -> !;
         }
@@ -420,15 +421,8 @@ where
         }
     }
 
-    /// Resolve the reference until it points to a cell directly.
-    ///
-    /// Resolving will wait for task execution to be finished, so that the
-    /// returned `Vc` points to a cell that stores a value.
-    ///
-    /// Resolving is necessary to compare identities of `Vc`s.
-    ///
-    /// This is async and will rethrow any fatal error that happened during task
-    /// execution.
+    /// Do not use this: Use [`Vc::to_resolved`] instead. If you must have a resolved [`Vc`] type
+    /// and not a [`ResolvedVc`] type, simply deref the result of [`Vc::to_resolved`].
     pub async fn resolve(self) -> Result<Vc<T>> {
         Ok(Self {
             node: self.node.resolve().await?,
@@ -437,7 +431,7 @@ where
     }
 
     /// Resolve the reference until it points to a cell directly, and wrap the
-    /// result in a [`ResolvedVc`], which strongly guarantees that the
+    /// result in a [`ResolvedVc`], which statically guarantees that the
     /// [`Vc`] was resolved.
     pub async fn to_resolved(self) -> Result<ResolvedVc<T>> {
         Ok(ResolvedVc {
@@ -445,9 +439,13 @@ where
         })
     }
 
-    /// Returns `true` if the reference is resolved.
+    /// Returns `true` if the reference is resolved, meaning the underlying [`RawVc`] uses the
+    /// [`RawVc::TaskCell`] representation.
     ///
-    /// See also [`Vc::resolve`].
+    /// If you need resolved [`Vc`] value, it's typically better to use the [`ResolvedVc`] type to
+    /// enforce your requirements statically instead of dynamically at runtime.
+    ///
+    /// See also [`ResolvedVc::to_resolved`] and [`RawVc::is_resolved`].
     pub fn is_resolved(self) -> bool {
         self.node.is_resolved()
     }

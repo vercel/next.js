@@ -1,12 +1,12 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{Completion, ResolvedVc, State, TryJoinIterExt, Value, Vc};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{Completion, ResolvedVc, State, Vc};
 use turbopack_core::introspect::{Introspectable, IntrospectableChildren};
 
 use super::{
-    route_tree::{MapGetContentSourceContent, RouteTree, RouteTrees},
     ContentSource, ContentSourceData, ContentSourceDataVary, ContentSourceSideEffect,
     GetContentSourceContent,
+    route_tree::{MapGetContentSourceContent, RouteTree, RouteTrees},
 };
 use crate::source::{ContentSourceContent, ContentSources};
 
@@ -90,38 +90,20 @@ impl MapGetContentSourceContent for ConditionalContentSourceMapper {
     }
 }
 
-#[turbo_tasks::function]
-fn introspectable_type() -> Vc<RcStr> {
-    Vc::cell("conditional content source".into())
-}
-
-#[turbo_tasks::function]
-fn activator_key() -> Vc<RcStr> {
-    Vc::cell("activator".into())
-}
-
-#[turbo_tasks::function]
-fn action_key() -> Vc<RcStr> {
-    Vc::cell("action".into())
-}
-
 #[turbo_tasks::value_impl]
 impl Introspectable for ConditionalContentSource {
     #[turbo_tasks::function]
     fn ty(&self) -> Vc<RcStr> {
-        introspectable_type()
+        Vc::cell(rcstr!("conditional content source"))
     }
 
     #[turbo_tasks::function]
     fn details(&self) -> Vc<RcStr> {
-        Vc::cell(
-            if *self.activated.get() {
-                "activated"
-            } else {
-                "not activated"
-            }
-            .into(),
-        )
+        Vc::cell(if *self.activated.get() {
+            rcstr!("activated")
+        } else {
+            rcstr!("not activated")
+        })
     }
 
     #[turbo_tasks::function]
@@ -139,16 +121,12 @@ impl Introspectable for ConditionalContentSource {
         Ok(Vc::cell(
             [
                 ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.activator)
-                    .map(|i| (activator_key(), i)),
+                    .map(|i| (rcstr!("activator"), i)),
                 ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.action)
-                    .map(|i| (action_key(), i)),
+                    .map(|i| (rcstr!("action"), i)),
             ]
             .into_iter()
             .flatten()
-            .map(|(k, v)| async move { Ok((k.to_resolved().await?, v)) })
-            .try_join()
-            .await?
-            .into_iter()
             .collect(),
         ))
     }
@@ -171,7 +149,7 @@ impl GetContentSourceContent for ActivateOnGetContentSource {
     async fn get(
         self: ResolvedVc<Self>,
         path: RcStr,
-        data: Value<ContentSourceData>,
+        data: ContentSourceData,
     ) -> Result<Vc<ContentSourceContent>> {
         turbo_tasks::emit(ResolvedVc::upcast::<Box<dyn ContentSourceSideEffect>>(self));
         Ok(self.await?.get_content.get(path, data))

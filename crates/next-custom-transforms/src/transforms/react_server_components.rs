@@ -315,7 +315,7 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
             let msg = if source == "Component" {
                 "You’re importing a class component. It only works in a Client Component but none of its parents are marked with \"use client\", so they're Server Components by default.\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components\n\n".to_string()
             } else {
-                format!("You're importing a component that needs `{source}`. This React hook only works in a client component. To fix, mark the file (or its parent) with the `\"use client\"` directive.\n\n Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client\n\n")
+                format!("You're importing a component that needs `{source}`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `\"use client\"` directive.\n\n Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client\n\n")
             };
 
             (msg, vec![span])
@@ -346,12 +346,12 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
             _ => (format!("\"{source}\" is deprecated."), vec![span]),
         },
         RSCErrorKind::NextSsrDynamicFalseNotAllowed(span) => (
-            "`ssr: false` is not allowed with `next/dynamic` in Server Components. Please move it into a client component."
+            "`ssr: false` is not allowed with `next/dynamic` in Server Components. Please move it into a Client Component."
                 .to_string(),
             vec![span],
         ),
         RSCErrorKind::NextRscErrIncompatibleRouteSegmentConfig(span, segment, property) => (
-            format!("Route segment config \"{}\" is not compatible with `nextConfig.{}`. Please remove it.", segment, property),
+            format!("Route segment config \"{segment}\" is not compatible with `nextConfig.{property}`. Please remove it."),
             vec![span],
         ),
     };
@@ -640,7 +640,7 @@ impl ReactServerComponentValidator {
             invalid_client_imports: vec![Atom::from("server-only"), Atom::from("next/headers")],
 
             invalid_client_lib_apis_mapping: FxHashMap::from_iter([
-                ("next/server", vec!["after"]),
+                ("next/server", vec!["after", "unstable_rootParams"]),
                 (
                     "next/cache",
                     vec![

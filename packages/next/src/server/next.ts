@@ -27,12 +27,20 @@ import { formatUrl } from '../shared/lib/router/utils/format-url'
 import type { ServerFields } from './lib/router-utils/setup-dev-bundler'
 import type { ServerInitResult } from './lib/render-server'
 import { AsyncCallbackSet } from './lib/async-callback-set'
+import {
+  RouterServerContextSymbol,
+  routerServerGlobal,
+} from './lib/router-utils/router-server-context'
 
 let ServerImpl: typeof NextNodeServer
 
 const getServerImpl = async () => {
   if (ServerImpl === undefined) {
-    ServerImpl = (await Promise.resolve(require('./next-server'))).default
+    ServerImpl = (
+      await Promise.resolve(
+        require('./next-server') as typeof import('./next-server')
+      )
+    ).default
   }
   return ServerImpl
 }
@@ -77,6 +85,12 @@ interface NextWrapperServer {
   // legacy methods that we left exposed in the past
 
   logError(...args: Parameters<NextNodeServer['logError']>): void
+
+  revalidate(
+    ...args: Parameters<NextNodeServer['revalidate']>
+  ): ReturnType<NextNodeServer['revalidate']>
+
+  logErrorWithOriginalStack(err: unknown, type: string): void
 
   render(
     ...args: Parameters<NextNodeServer['render']>
@@ -157,6 +171,19 @@ export class NextServer implements NextWrapperServer {
     }
   }
 
+  async logErrorWithOriginalStack(err: unknown, type: string) {
+    const server = await this.getServer()
+    // this is only available on dev server
+    if ((server as any).logErrorWithOriginalStack) {
+      return (server as any).logErrorWithOriginalStack(err, type)
+    }
+  }
+
+  async revalidate(...args: Parameters<NextWrapperServer['revalidate']>) {
+    const server = await this.getServer()
+    return server.revalidate(...args)
+  }
+
   async render(...args: Parameters<NextWrapperServer['render']>) {
     const server = await this.getServer()
     return server.render(...args)
@@ -208,8 +235,9 @@ export class NextServer implements NextWrapperServer {
   ): Promise<NextNodeServer> {
     let ServerImplementation: typeof NextNodeServer
     if (options.dev) {
-      ServerImplementation = require('./dev/next-dev-server')
-        .default as typeof import('./dev/next-dev-server').default
+      ServerImplementation = (
+        require('./dev/next-dev-server') as typeof import('./dev/next-dev-server')
+      ).default as typeof import('./dev/next-dev-server').default
     } else {
       ServerImplementation = await getServerImpl()
     }
@@ -237,7 +265,6 @@ export class NextServer implements NextWrapperServer {
           path.join(dir, config.distDir, SERVER_FILES_MANIFEST)
         ).config
 
-        // @ts-expect-error internal field
         config.experimental.isExperimentalCompile =
           serializedConfig.experimental.isExperimentalCompile
       } catch (_) {
@@ -414,6 +441,22 @@ class NextCustomServer implements NextWrapperServer {
 
   setAssetPrefix(assetPrefix: string): void {
     this.server.setAssetPrefix(assetPrefix)
+
+    // update the router-server nextConfig instance as
+    // this is the source of truth for "handler" in serverful
+    const relativeProjectDir = path.relative(
+      process.cwd(),
+      this.options.dir || ''
+    )
+
+    if (
+      routerServerGlobal[RouterServerContextSymbol]?.[relativeProjectDir]
+        ?.nextConfig
+    ) {
+      routerServerGlobal[RouterServerContextSymbol][
+        relativeProjectDir
+      ].nextConfig.assetPrefix = assetPrefix
+    }
   }
 
   getUpgradeHandler(): UpgradeHandler {
@@ -422,6 +465,14 @@ class NextCustomServer implements NextWrapperServer {
 
   logError(...args: Parameters<NextWrapperServer['logError']>) {
     this.server.logError(...args)
+  }
+
+  logErrorWithOriginalStack(err: unknown, type: string) {
+    return this.server.logErrorWithOriginalStack(err, type)
+  }
+
+  async revalidate(...args: Parameters<NextWrapperServer['revalidate']>) {
+    return this.server.revalidate(...args)
   }
 
   async renderToHTML(...args: Parameters<NextWrapperServer['renderToHTML']>) {
@@ -469,7 +520,8 @@ function createServer(
     'typescript' in options &&
     'version' in (options as any).typescript
   ) {
-    const pluginMod: typeof import('./next-typescript') = require('./next-typescript')
+    const pluginMod: typeof import('./next-typescript') =
+      require('./next-typescript') as typeof import('./next-typescript')
     return pluginMod.createTSPlugin(
       options as any
     ) as unknown as NextWrapperServer

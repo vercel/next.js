@@ -73,24 +73,30 @@ export const buildCustomRoute = <T>(
   item: T & { source: string },
   basePath?: string,
   caseSensitive?: boolean
-): T & { match: PatchMatcher; check?: boolean } => {
+): T & { match: PatchMatcher; check?: boolean; regex: string } => {
   const restrictedRedirectPaths = ['/_next'].map((p) =>
     basePath ? `${basePath}${p}` : p
   )
+  let builtRegex = ''
   const match = getPathMatch(item.source, {
     strict: true,
     removeUnnamedParams: true,
-    regexModifier: !(item as any).internal
-      ? (regex: string) =>
-          modifyRouteRegex(
-            regex,
-            type === 'redirect' ? restrictedRedirectPaths : undefined
-          )
-      : undefined,
+    regexModifier: (regex: string) => {
+      if (!(item as any).internal) {
+        regex = modifyRouteRegex(
+          regex,
+          type === 'redirect' ? restrictedRedirectPaths : undefined
+        )
+      }
+      builtRegex = regex
+      return builtRegex
+    },
     sensitive: caseSensitive,
   })
+
   return {
     ...item,
+    regex: builtRegex,
     ...(type === 'rewrite' ? { check: true } : {}),
     match,
   }
@@ -320,11 +326,13 @@ export async function setupFsCheck(opts: {
       dynamicRoutes: {},
       notFoundRoutes: [],
       preview: {
-        previewModeId: require('crypto').randomBytes(16).toString('hex'),
-        previewModeSigningKey: require('crypto')
+        previewModeId: (require('crypto') as typeof import('crypto'))
+          .randomBytes(16)
+          .toString('hex'),
+        previewModeSigningKey: (require('crypto') as typeof import('crypto'))
           .randomBytes(32)
           .toString('hex'),
-        previewModeEncryptionKey: require('crypto')
+        previewModeEncryptionKey: (require('crypto') as typeof import('crypto'))
           .randomBytes(32)
           .toString('hex'),
       },

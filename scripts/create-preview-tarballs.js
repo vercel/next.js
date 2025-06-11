@@ -6,7 +6,8 @@ const path = require('node:path')
 
 async function main() {
   const [
-    commitSha,
+    githubSha,
+    githubWorkflowSha,
     tarballDirectory = path.join(os.tmpdir(), 'vercel-nextjs-preview-tarballs'),
   ] = process.argv.slice(2)
   const repoRoot = path.resolve(__dirname, '..')
@@ -14,7 +15,7 @@ async function main() {
   await fs.mkdir(tarballDirectory, { recursive: true })
 
   const [{ stdout: shortSha }, { stdout: dateString }] = await Promise.all([
-    execa('git', ['rev-parse', '--short', commitSha]),
+    execa('git', ['rev-parse', '--short', githubSha]),
     // Source: https://github.com/facebook/react/blob/767f52237cf7892ad07726f21e3e8bacfc8af839/scripts/release/utils.js#L114
     execa(`git`, [
       'show',
@@ -22,7 +23,7 @@ async function main() {
       '--no-show-signature',
       '--format=%cd',
       '--date=format:%Y%m%d',
-      commitSha,
+      githubSha,
     ]),
   ])
 
@@ -97,16 +98,18 @@ async function main() {
   ])
   const packages = JSON.parse(lernaListJson.stdout)
   const packagesByVersion = new Map()
+  // vercel-packages finds GH artifacts via the head SHA because that's the only
+  // API GitHub offers.
   for (const packageInfo of packages) {
     packagesByVersion.set(
       packageInfo.name,
-      `https://vercel-packages.vercel.app/next/commits/${commitSha}/${packageInfo.name}`
+      `https://vercel-packages.vercel.app/next/commits/${githubWorkflowSha}/${packageInfo.name}`
     )
   }
   for (const nextSwcPackageName of nextSwcPackageNames) {
     packagesByVersion.set(
       nextSwcPackageName,
-      `https://vercel-packages.vercel.app/next/commits/${commitSha}/${nextSwcPackageName}`
+      `https://vercel-packages.vercel.app/next/commits/${githubWorkflowSha}/${nextSwcPackageName}`
     )
   }
 

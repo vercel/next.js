@@ -44,7 +44,7 @@ type RunnerFn = (params: RunnerFnParams) => Promise<FetchEventResult>
 function withTaggedErrors(fn: RunnerFn): RunnerFn {
   if (process.env.NODE_ENV === 'development') {
     const { getServerError } =
-      require('../../../client/components/react-dev-overlay/server/middleware-webpack') as typeof import('../../../client/components/react-dev-overlay/server/middleware-webpack')
+      require('../../dev/node-stack-frames') as typeof import('../../dev/node-stack-frames')
 
     return (params) =>
       fn(params)
@@ -77,6 +77,7 @@ export async function getRuntimeContext(
   })
 
   if (params.incrementalCache) {
+    runtime.context.globalThis.__incrementalCacheShared = true
     runtime.context.globalThis.__incrementalCache = params.incrementalCache
   }
 

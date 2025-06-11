@@ -8,18 +8,18 @@ use std::{
 
 use anyhow::Result;
 use tokio::{spawn, time::sleep};
-use turbo_rcstr::RcStr;
-use turbo_tasks::{util::FormatDuration, ReadConsistency, TurboTasks, UpdateInfo, Value, Vc};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{ReadConsistency, TurboTasks, UpdateInfo, Vc, util::FormatDuration};
+use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
-use turbo_tasks_memory::MemoryBackend;
 use turbopack::{emit_with_completion, register};
 use turbopack_core::{
+    PROJECT_FILESYSTEM_NAME,
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     rebase::RebasedAsset,
-    PROJECT_FILESYSTEM_NAME,
 };
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
@@ -27,7 +27,10 @@ use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 async fn main() -> Result<()> {
     register();
 
-    let tt = TurboTasks::new(MemoryBackend::default());
+    let tt = TurboTasks::new(TurboTasksBackend::new(
+        BackendOptions::default(),
+        noop_backing_storage(),
+    ));
     let start = Instant::now();
 
     let task = tt.spawn_root_task(|| {
@@ -38,33 +41,31 @@ async fn main() -> Result<()> {
 
             // Smart Pointer cast
             let fs: Vc<Box<dyn FileSystem>> = Vc::upcast(disk_fs);
-            let input = fs.root().join("demo".into());
-            let output = fs.root().join("out".into());
-            let entry = fs.root().join("demo/index.js".into());
+            let input = fs.root().join(rcstr!("demo"));
+            let output = fs.root().join(rcstr!("out"));
+            let entry = fs.root().join(rcstr!("demo/index.js"));
 
             let source = FileSource::new(entry);
             let module_asset_context = turbopack::ModuleAssetContext::new(
                 Default::default(),
-                CompileTimeInfo::new(Environment::new(Value::new(
-                    ExecutionEnvironment::NodeJsLambda(
-                        NodeJsEnvironment::default().resolved_cell(),
-                    ),
+                CompileTimeInfo::new(Environment::new(ExecutionEnvironment::NodeJsLambda(
+                    NodeJsEnvironment::default().resolved_cell(),
                 ))),
                 Default::default(),
                 ResolveOptionsContext {
                     enable_typescript: true,
                     enable_react: true,
                     enable_node_modules: Some(fs.root().to_resolved().await?),
-                    custom_conditions: vec!["development".into()],
+                    custom_conditions: vec![rcstr!("development")],
                     ..Default::default()
                 }
                 .cell(),
-                Vc::cell("default".into()),
+                rcstr!("default"),
             );
             let module = module_asset_context
                 .process(
                     Vc::upcast(source),
-                    Value::new(turbopack_core::reference_type::ReferenceType::Undefined),
+                    turbopack_core::reference_type::ReferenceType::Undefined,
                 )
                 .module();
             let rebased = RebasedAsset::new(module, input, output);

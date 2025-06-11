@@ -1,8 +1,7 @@
 // imports polyfill from `@next/polyfill-module` after build.
 import '../build/polyfills/polyfill-module'
 
-import './components/globals/patch-console'
-import './components/globals/handle-global-errors'
+import '../next-devtools/userspace/app/app-dev-overlay-setup'
 
 import ReactDOMClient from 'react-dom/client'
 import React, { use } from 'react'
@@ -25,6 +24,7 @@ import type { InitialRSCPayload } from '../server/app-render/types'
 import { createInitialRouterState } from './components/router-reducer/create-initial-router-state'
 import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runtime'
 import { setAppBuildId } from './app-build-id'
+import { isBot } from '../shared/lib/router/utils/is-bot'
 
 /// <reference types="react-dom/experimental" />
 
@@ -169,6 +169,7 @@ function ServerRoot({
 
   const router = (
     <AppRouter
+      gracefullyDegrade={isBot(window.navigator.userAgent)}
       actionQueue={actionQueue}
       globalErrorComponentAndStyles={initialRSCPayload.G}
       assetPrefix={initialRSCPayload.p}
@@ -271,7 +272,7 @@ export function hydrate(
     // Server rendering failed, fall back to client-side rendering
     if (process.env.NODE_ENV !== 'production') {
       const { createRootLevelDevOverlayElement } =
-        require('./components/react-dev-overlay/app/client-entry') as typeof import('./components/react-dev-overlay/app/client-entry')
+        require('../next-devtools/userspace/app/client-entry') as typeof import('../next-devtools/userspace/app/client-entry')
 
       // Note this won't cause hydration mismatch because we are doing CSR w/o hydration
       element = createRootLevelDevOverlayElement(element)

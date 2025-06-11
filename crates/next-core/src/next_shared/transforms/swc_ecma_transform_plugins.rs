@@ -35,14 +35,14 @@ pub async fn get_swc_ecma_transform_rule_impl(
     plugin_configs: &[(RcStr, serde_json::Value)],
     enable_mdx_rs: bool,
 ) -> Result<Option<ModuleRule>> {
-    use anyhow::{bail, Context};
-    use turbo_tasks::{TryJoinIterExt, Value};
+    use anyhow::bail;
+    use turbo_tasks::TryFlatJoinIterExt;
     use turbo_tasks_fs::FileContent;
     use turbopack::{resolve_options, resolve_options_context::ResolveOptionsContext};
     use turbopack_core::{
         asset::Asset,
         reference_type::{CommonJsReferenceSubType, ReferenceType},
-        resolve::{handle_resolve_error, parse::Request, pattern::Pattern, resolve},
+        resolve::{handle_resolve_error, parse::Request, resolve},
     };
     use turbopack_ecmascript_plugins::transform::swc_ecma_transform_plugins::{
         SwcEcmaTransformPluginsTransformer, SwcPluginModule,
@@ -58,7 +58,7 @@ pub async fn get_swc_ecma_transform_rule_impl(
             // one for implicit package name resolves to node_modules,
             // and one for explicit path to a .wasm binary.
             // Current resolve will fail with latter.
-            let request = Request::parse(Value::new(Pattern::Constant(name.as_str().into())));
+            let request = Request::parse_string(name.clone());
             let resolve_options = resolve_options(
                 *project_path,
                 ResolveOptionsContext {
@@ -72,36 +72,40 @@ pub async fn get_swc_ecma_transform_rule_impl(
             let plugin_wasm_module_resolve_result = handle_resolve_error(
                 resolve(
                     *project_path,
-                    Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)),
+                    ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
                     request,
                     resolve_options,
                 )
                 .as_raw_module_result(),
-                Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)),
+                ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
+                // TODO proper error location
                 *project_path,
                 request,
                 resolve_options,
                 false,
+                // TODO proper error location
                 None,
             )
             .await?;
-            let plugin_module = plugin_wasm_module_resolve_result
-                .first_module()
-                .await?
-                .context("Expected to find module")?;
+
+            let Some(plugin_module) = &*plugin_wasm_module_resolve_result.first_module().await?
+            else {
+                // Ignore unresolveable plugin modules, handle_resolve_error has already emitted an
+                // issue.
+                return Ok(None);
+            };
 
             let content = &*plugin_module.content().file_content().await?;
-
             let FileContent::Content(file) = content else {
                 bail!("Expected file content for plugin module");
             };
 
-            Ok((
-                SwcPluginModule::new(name, file.content().to_bytes()?.to_vec()).resolved_cell(),
+            Ok(Some((
+                SwcPluginModule::new(name, file.content().to_bytes().to_vec()).resolved_cell(),
                 config.clone(),
-            ))
+            )))
         })
-        .try_join()
+        .try_flat_join()
         .await?;
 
     Ok(Some(get_ecma_transform_rule(

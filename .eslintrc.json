@@ -48,7 +48,7 @@
         "jest/no-export": "off",
         "jest/no-standalone-expect": [
           "error",
-          { "additionalTestBlockFunctions": ["retry"] }
+          { "additionalTestBlockFunctions": ["retry", "itCI", "itHeaded"] }
         ]
       }
     },
@@ -126,8 +126,10 @@
       }
     },
     {
-      "files": ["packages/**/*.tsx?"],
+      "files": ["packages/**/*.ts", "packages/**/*.tsx"],
+      "plugins": ["@next/eslint-plugin-internal"],
       "rules": {
+        "@next/internal/typechecked-require": "error",
         "jsdoc/no-types": "error",
         "jsdoc/no-undefined-types": "error"
       }
@@ -166,6 +168,7 @@
       "files": ["packages/**"],
       "excludedFiles": [
         "packages/next/taskfile*.js",
+        "packages/next/next-devtools.webpack-config.js",
         "packages/next/next-runtime.webpack-config.js"
       ],
       "rules": {
@@ -294,6 +297,17 @@
     "no-octal": "error",
     "no-octal-escape": "error",
     "no-regex-spaces": "error",
+    "no-restricted-imports": [
+      "error",
+      {
+        "patterns": [
+          {
+            "group": ["*/next-devtools/dev-overlay*"],
+            "message": "Use `next/dist/compiled/next-devtools` (`src/next-devtools/dev-overlay/entrypoint.ts`) instead. Prefer `src/next-devtools/shared/` for shared utils."
+          }
+        ]
+      }
+    ],
     "no-restricted-syntax": [
       "error",
       "WithStatement",

@@ -57,9 +57,11 @@ impl ValueDebugString {
 /// ```
 #[turbo_tasks::value_trait(no_debug)]
 pub trait ValueDebug {
+    #[turbo_tasks::function]
     fn dbg(self: Vc<Self>) -> Vc<ValueDebugString>;
 
     /// Like `dbg`, but with a depth limit.
+    #[turbo_tasks::function]
     fn dbg_depth(self: Vc<Self>, depth: usize) -> Vc<ValueDebugString>;
 }
 
@@ -72,7 +74,7 @@ pub trait ValueDebugFormat {
 
 impl ValueDebugFormat for String {
     fn value_debug_format(&self, _depth: usize) -> ValueDebugFormatString {
-        ValueDebugFormatString::Sync(format!("{:#?}", self))
+        ValueDebugFormatString::Sync(format!("{self:#?}"))
     }
 }
 
@@ -96,7 +98,7 @@ where
             return ValueDebugFormatString::Sync(std::any::type_name::<Self>().to_string());
         }
 
-        ValueDebugFormatString::Sync(format!("{:#?}", self))
+        ValueDebugFormatString::Sync(format!("{self:#?}"))
     }
 }
 
@@ -153,7 +155,7 @@ where
                     }
                 }
             }
-            Ok(format!("{:#?}", values_string))
+            Ok(format!("{values_string:#?}"))
         }))
     }
 }
@@ -184,7 +186,7 @@ where
                     }
                 }
             }
-            Ok(format!("{:#?}", values_string))
+            Ok(format!("{values_string:#?}"))
         }))
     }
 }
@@ -215,7 +217,7 @@ where
                     }
                 }
             }
-            Ok(format!("{:#?}", values_string))
+            Ok(format!("{values_string:#?}"))
         }))
     }
 }
@@ -234,7 +236,7 @@ where
             .iter()
             .map(|(key, value)| {
                 (
-                    format!("{:#?}", key),
+                    format!("{key:#?}"),
                     value.value_debug_format(depth.saturating_sub(1)),
                 )
             })
@@ -252,7 +254,7 @@ where
                     }
                 }
             }
-            Ok(format!("{:#?}", values_string))
+            Ok(format!("{values_string:#?}"))
         }))
     }
 }
@@ -271,7 +273,7 @@ where
             .iter()
             .map(|(key, value)| {
                 (
-                    format!("{:#?}", key),
+                    format!("{key:#?}"),
                     value.value_debug_format(depth.saturating_sub(1)),
                 )
             })
@@ -289,7 +291,7 @@ where
                     }
                 }
             }
-            Ok(format!("{:#?}", values_string))
+            Ok(format!("{values_string:#?}"))
         }))
     }
 }
@@ -317,7 +319,7 @@ where
                 };
                 values_string.insert(PassthroughDebug::new_string(value));
             }
-            Ok(format!("{:#?}", values_string))
+            Ok(format!("{values_string:#?}"))
         }))
     }
 }
@@ -358,7 +360,7 @@ where
                     PassthroughDebug::new_string(value),
                 );
             }
-            Ok(format!("{:#?}", values_string))
+            Ok(format!("{values_string:#?}"))
         }))
     }
 }

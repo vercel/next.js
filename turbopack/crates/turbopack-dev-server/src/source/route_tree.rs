@@ -4,8 +4,8 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    fxindexmap, trace::TraceRawVcs, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput,
-    TryJoinIterExt, ValueToString, Vc,
+    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString, Vc,
+    fxindexmap, trace::TraceRawVcs,
 };
 
 use super::{GetContentSourceContent, GetContentSourceContents};
@@ -207,7 +207,7 @@ impl ValueToString for RouteTree {
         let mut result = "RouteTree(".to_string();
         for segment in base {
             match segment {
-                BaseSegment::Static(str) => write!(result, "/{}", str)?,
+                BaseSegment::Static(str) => write!(result, "/{str}")?,
                 BaseSegment::Dynamic => result.push_str("/[dynamic]"),
             }
         }
@@ -216,7 +216,7 @@ impl ValueToString for RouteTree {
         }
         for (key, tree) in static_segments {
             let tree = tree.to_string().await?;
-            write!(result, "{}: {}, ", key, tree)?;
+            write!(result, "{key}: {tree}, ")?;
         }
         if !sources.is_empty() {
             write!(result, "{} x source, ", sources.len())?;
@@ -399,6 +399,7 @@ impl RouteTree {
 /// Transformation functor
 #[turbo_tasks::value_trait]
 pub trait MapGetContentSourceContent {
+    #[turbo_tasks::function]
     fn map_get_content(
         self: Vc<Self>,
         get_content: Vc<Box<dyn GetContentSourceContent>>,

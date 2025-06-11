@@ -5,8 +5,8 @@
 use std::sync::Mutex;
 
 use anyhow::Result;
-use turbo_tasks::{get_invalidator, IntoTraitRef, Invalidator, TraitRef, Vc};
-use turbo_tasks_testing::{register, run, Registration};
+use turbo_tasks::{IntoTraitRef, Invalidator, TraitRef, Vc, get_invalidator};
+use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 
@@ -79,6 +79,7 @@ impl Counter {
 
 #[turbo_tasks::value_trait]
 trait CounterTrait {
+    #[turbo_tasks::function]
     fn get_value(&self) -> Vc<CounterValue>;
 }
 
@@ -94,6 +95,7 @@ impl CounterTrait for Counter {
 
 #[turbo_tasks::value_trait]
 trait CounterValueTrait {
+    #[turbo_tasks::function]
     fn get_value(&self) -> Vc<CounterValue>;
 }
 

@@ -5,7 +5,7 @@ description: API Reference for the after function.
 
 `after` allows you to schedule work to be executed after a response (or prerender) is finished. This is useful for tasks and other side effects that should not block the response, such as logging and analytics.
 
-It can be used in [Server Components](/docs/app/building-your-application/rendering/server-components) (including [`generateMetadata`](https://nextjs.org/docs/app/api-reference/functions/generate-metadata)), [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations), [Route Handlers](/docs/app/building-your-application/routing/route-handlers), and [Middleware](/docs/app/building-your-application/routing/middleware).
+It can be used in [Server Components](/docs/app/getting-started/server-and-client-components) (including [`generateMetadata`](https://nextjs.org/docs/app/api-reference/functions/generate-metadata)), [Server Actions](/docs/app/getting-started/updating-data), [Route Handlers](/docs/app/building-your-application/routing/route-handlers), and [Middleware](/docs/app/api-reference/file-conventions/middleware).
 
 The function accepts a callback that will be executed after the response (or prerender) is finished:
 
@@ -37,7 +37,7 @@ export default function Layout({ children }) {
 }
 ```
 
-> **Good to know:** `after` is not a [Dynamic API](/docs/app/building-your-application/rendering/server-components#dynamic-apis) and calling it does not cause a route to become dynamic. If it's used within a static page, the callback will execute at build time, or whenever a page is revalidated.
+> **Good to know:** `after` is not a [Dynamic API](/docs/app/getting-started/partial-prerendering#dynamic-rendering) and calling it does not cause a route to become dynamic. If it's used within a static page, the callback will execute at build time, or whenever a page is revalidated.
 
 ## Reference
 
@@ -55,20 +55,11 @@ export default function Layout({ children }) {
 - You can use React `cache` to deduplicate functions called inside `after`.
 - `after` can be nested inside other `after` calls, for example, you can create utility functions that wrap `after` calls to add additional functionality.
 
-## Alternatives
-
-The use case for `after` is to process secondary tasks without blocking the primary response. It's similar to using the platform's [`waitUntil()`](https://vercel.com/docs/functions/functions-api-reference) or removing `await` from a promise, but with the following differences:
-
-- **`waitUntil()`**: accepts a promise and enqueues a task to be executed during the lifecycle of the request, whereas `after` accepts a callback that will be executed **after** the response is finished.
-- **Removing `await`**: starts executing during the response, which uses resources. It's also not reliable in serverless environments as the function stops computation immediately after the response is sent, potentially interrupting the task.
-
-We recommend using `after` as it has been designed to consider other Next.js APIs and contexts.
-
 ## Examples
 
 ### With request APIs
 
-You can use request APIs such as [`cookies`](/docs/app/api-reference/functions/cookies) and [`headers`](/docs/app/api-reference/functions/headers) inside `after` in [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) and [Route Handlers](/docs/app/api-reference/file-conventions/route). This is useful for logging activity after a mutation. For example:
+You can use request APIs such as [`cookies`](/docs/app/api-reference/functions/cookies) and [`headers`](/docs/app/api-reference/functions/headers) inside `after` in [Server Actions](/docs/app/getting-started/updating-data) and [Route Handlers](/docs/app/api-reference/file-conventions/route). This is useful for logging activity after a mutation. For example:
 
 ```ts filename="app/api/route.ts" highlight={2,7-9} switcher
 import { after } from 'next/server'
@@ -120,7 +111,70 @@ export async function POST(request) {
 }
 ```
 
-However, you cannot use these request APIs inside `after` in [Server Components](/docs/app/building-your-application/rendering/server-components). This is because Next.js needs to know which part of the tree access the request APIs to support [Partial Prerendering](/docs/app/building-your-application/rendering/partial-prerendering), but `after` runs after React's rendering lifecycle.
+However, you cannot use these request APIs inside `after` in [Server Components](/docs/app/getting-started/server-and-client-components). This is because Next.js needs to know which part of the tree access the request APIs to support [Partial Prerendering](/docs/app/getting-started/partial-prerendering), but `after` runs after React's rendering lifecycle.
+
+## Platform Support
+
+| Deployment Option                                                   | Supported         |
+| ------------------------------------------------------------------- | ----------------- |
+| [Node.js server](/docs/app/getting-started/deploying#nodejs-server) | Yes               |
+| [Docker container](/docs/app/getting-started/deploying#docker)      | Yes               |
+| [Static export](/docs/app/getting-started/deploying#static-export)  | No                |
+| [Adapters](/docs/app/getting-started/deploying#adapters)            | Platform-specific |
+
+Learn how to [configure `after`](/docs/app/guides/self-hosting#after) when self-hosting Next.js.
+
+<details id="after-serverless">
+  <summary>Reference: supporting `after` for serverless platforms</summary>
+  Using `after` in a serverless context requires waiting for asynchronous tasks to finish after the response has been sent. In Next.js and Vercel, this is achieved using a primitive called `waitUntil(promise)`, which extends the lifetime of a serverless invocation until all promises passed to [`waitUntil`](https://vercel.com/docs/functions/functions-api-reference#waituntil) have settled.
+
+If you want your users to be able to run `after`, you will have to provide your implementation of `waitUntil` that behaves in an analogous way.
+
+When `after` is called, Next.js will access `waitUntil` like this:
+
+```jsx
+const RequestContext = globalThis[Symbol.for('@next/request-context')]
+const contextValue = RequestContext?.get()
+const waitUntil = contextValue?.waitUntil
+```
+
+Which means that `globalThis[Symbol.for('@next/request-context')]` is expected to contain an object like this:
+
+```tsx
+type NextRequestContext = {
+  get(): NextRequestContextValue | undefined
+}
+
+type NextRequestContextValue = {
+  waitUntil?: (promise: Promise<any>) => void
+}
+```
+
+Here is an example of the implementation.
+
+```tsx
+import { AsyncLocalStorage } from 'node:async_hooks'
+
+const RequestContextStorage = new AsyncLocalStorage<NextRequestContextValue>()
+
+// Define and inject the accessor that next.js will use
+const RequestContext: NextRequestContext = {
+  get() {
+    return RequestContextStorage.getStore()
+  },
+}
+globalThis[Symbol.for('@next/request-context')] = RequestContext
+
+const handler = (req, res) => {
+  const contextValue = { waitUntil: YOUR_WAITUNTIL }
+  // Provide the value
+  return RequestContextStorage.run(contextValue, () => nextJsHandler(req, res))
+}
+```
+
+</details>
+
+## Version History
 
 | Version History | Description                  |
 | --------------- | ---------------------------- |

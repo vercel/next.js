@@ -1,5 +1,5 @@
 /* eslint-disable jest/no-standalone-expect */
-import { nextTestSetup } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import {
   assertHasRedbox,
   retry,
@@ -7,7 +7,7 @@ import {
   waitFor,
   getRedboxSource,
 } from 'next-test-utils'
-import type { Page, Request, Response, Route } from 'playwright'
+import type { Request, Response } from 'playwright'
 import fs from 'fs-extra'
 import nodeFs from 'fs'
 import { join } from 'path'
@@ -20,6 +20,11 @@ describe('app-dir action handling', () => {
   const { next, isNextDev, isNextStart, isNextDeploy, isTurbopack } =
     nextTestSetup({
       files: __dirname,
+      overrideFiles: process.env.TEST_NODE_MIDDLEWARE
+        ? {
+            'middleware.js': new FileRef(join(__dirname, 'middleware-node.js')),
+          }
+        : {},
       dependencies: {
         nanoid: '4.0.1',
         'server-only': 'latest',
@@ -30,7 +35,7 @@ describe('app-dir action handling', () => {
     const browser = await next.browser('/rewrite-to-static-first')
     let actionRequestStatus: number | undefined
 
-    browser.on('response', async (res: Response) => {
+    browser.on('response', async (res) => {
       if (
         res.url().includes('rewrite-to-static-first') &&
         res.request().method() === 'POST'
@@ -100,8 +105,8 @@ describe('app-dir action handling', () => {
   it('should propagate errors from a `text/plain` response to an error boundary', async () => {
     const customErrorText = 'Custom error!'
     const browser = await next.browser('/error-handling', {
-      beforePageLoad(page: Page) {
-        page.route('**/error-handling', async (route: Route) => {
+      beforePageLoad(page) {
+        page.route('**/error-handling', async (route) => {
           const requestHeaders = await route.request().allHeaders()
           if (requestHeaders['next-action']) {
             await route.fulfill({
@@ -124,8 +129,8 @@ describe('app-dir action handling', () => {
   it('should trigger an error boundary for action responses with an invalid content-type', async () => {
     const customErrorText = 'Custom error!'
     const browser = await next.browser('/error-handling', {
-      beforePageLoad(page: Page) {
-        page.route('**/error-handling', async (route: Route) => {
+      beforePageLoad(page) {
+        page.route('**/error-handling', async (route) => {
           const requestHeaders = await route.request().allHeaders()
           if (requestHeaders['next-action']) {
             await route.fulfill({
@@ -727,7 +732,7 @@ describe('app-dir action handling', () => {
   it('should reset the form state when the action redirects to itself', async () => {
     const browser = await next.browser('/self-redirect')
     const requests = []
-    browser.on('request', async (req: Request) => {
+    browser.on('request', async (req) => {
       const url = new URL(req.url())
 
       if (url.pathname === '/self-redirect') {
@@ -820,7 +825,7 @@ describe('app-dir action handling', () => {
   it('should be possible to catch network errors', async () => {
     const browser = await next.browser('/catching-error', {
       beforePageLoad(page) {
-        page.route('**/catching-error', (route: Route) => {
+        page.route('**/catching-error', (route) => {
           if (route.request().method() !== 'POST') {
             route.fallback()
             return
@@ -892,7 +897,15 @@ describe('app-dir action handling', () => {
       await browser
         .elementByCss(`[href='/delayed-action/${runtime}/other']`)
         .click()
-        .waitForElementByCss('#other-page')
+
+      // wait for url to change
+      await retry(async () => {
+        expect(await browser.url()).toBe(
+          `${next.url}/delayed-action/${runtime}/other`
+        )
+      })
+
+      await browser.waitForElementByCss('#other-page')
 
       await retry(async () => {
         expect(
@@ -918,8 +931,8 @@ describe('app-dir action handling', () => {
     async (runtime) => {
       let redirectResponseCode
       const browser = await next.browser(`/delayed-action/${runtime}`, {
-        beforePageLoad(page: Page) {
-          page.on('response', async (res: Response) => {
+        beforePageLoad(page) {
+          page.on('response', async (res) => {
             const headers = await res.allHeaders().catch(() => ({}))
             if (headers['x-action-redirect']) {
               redirectResponseCode = res.status()
@@ -1117,7 +1130,7 @@ describe('app-dir action handling', () => {
         const requests: Request[] = []
         const responses: Response[] = []
 
-        browser.on('request', (req: Request) => {
+        browser.on('request', (req) => {
           const url = req.url()
 
           if (
@@ -1128,7 +1141,7 @@ describe('app-dir action handling', () => {
           }
         })
 
-        browser.on('response', (res: Response) => {
+        browser.on('response', (res) => {
           const url = res.url()
 
           if (
@@ -1234,7 +1247,7 @@ describe('app-dir action handling', () => {
         const requests: Request[] = []
         const responses: Response[] = []
 
-        browser.on('request', (req: Request) => {
+        browser.on('request', (req) => {
           const url = req.url()
 
           if (
@@ -1245,7 +1258,7 @@ describe('app-dir action handling', () => {
           }
         })
 
-        browser.on('response', (res: Response) => {
+        browser.on('response', (res) => {
           const url = res.url()
 
           if (
@@ -1526,8 +1539,11 @@ describe('app-dir action handling', () => {
           .elementByCss('#thankyounext')
           .text()
 
-        // Should be the same number
-        expect(thankYouNext).toEqual(newThankYouNext)
+        // Should be the same number although in serverless
+        // it might be eventually consistent
+        if (!isNextDeploy) {
+          expect(thankYouNext).toEqual(newThankYouNext)
+        }
 
         await browser.elementByCss('#back').click()
 
@@ -1641,14 +1657,14 @@ describe('app-dir action handling', () => {
 
       const browser = await next.browser('/redirects', {
         beforePageLoad(page) {
-          page.on('request', (request: Request) => {
+          page.on('request', (request) => {
             const url = new URL(request.url())
             if (request.method() === 'POST') {
               postRequests.push(url.pathname)
             }
           })
 
-          page.on('response', (response: Response) => {
+          page.on('response', (response) => {
             const url = new URL(response.url())
             const status = response.status()
 
@@ -1675,14 +1691,14 @@ describe('app-dir action handling', () => {
 
       const browser = await next.browser('/redirects', {
         beforePageLoad(page) {
-          page.on('request', (request: Request) => {
+          page.on('request', (request) => {
             const url = new URL(request.url())
             if (request.method() === 'POST') {
               postRequests.push(url.pathname)
             }
           })
 
-          page.on('response', (response: Response) => {
+          page.on('response', (response) => {
             const url = new URL(response.url())
             const status = response.status()
 
@@ -1769,14 +1785,14 @@ describe('app-dir action handling', () => {
 
         const browser = await next.browser('/redirects', {
           beforePageLoad(page) {
-            page.on('request', (request: Request) => {
+            page.on('request', (request) => {
               const url = new URL(request.url())
               if (request.method() === 'POST') {
                 postRequests.push(`${url.pathname}${url.search}`)
               }
             })
 
-            page.on('response', (response: Response) => {
+            page.on('response', (response) => {
               const url = new URL(response.url())
               const status = response.status()
 

@@ -18,19 +18,19 @@ We built Turbopack to push the performance of Next.js, including:
 
 ## Getting started
 
-To enable Turbopack in your Next.js project, use the `--turbopack` flag when running the development server:
+To enable Turbopack in your Next.js project, add the `--turbopack` flag to the `dev` and `build` scripts in your `package.json` file:
 
 ```json filename="package.json" highlight={3}
 {
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build",
+    "build": "next build --turbopack",
     "start": "next start"
   }
 }
 ```
 
-Currently, Turbopack only supports `next dev`. Build (`next build`) is **not yet** supported. We are actively working on production support as Turbopack moves closer to stability.
+Currently, Turbopack for `dev` is stable, while `build` is in alpha. We are actively working on production support as Turbopack moves closer to stability.
 
 ## Supported features
 
@@ -95,14 +95,14 @@ Turbopack in Next.js has **zero-configuration** for the common use cases. Below 
 
 Some features are not yet implemented or not planned:
 
-- **Production Builds** (`next build`)
-  Turbopack currently only supports `next dev`. Support for production builds is in active development.
 - **Legacy CSS Modules features**
   - Standalone `:local` and `:global` pseudo-classes (only the function variant `:global(...)` is supported).
   - The `@value` rule (superseded by CSS variables).
   - `:import` and `:export` ICSS rules.
+  - `composes` in `.module.css` composing a `.css` file. In webpack this would treat the `.css` file as a CSS Module, with Turbopack the `.css` file will always be global. This means that if you want to use `composes` in a CSS Module, you need to change the `.css` file to a `.module.css` file.
+  - `@import` in CSS Modules importing `.css` as a CSS Module. In webpack this would treat the `.css` file as a CSS Module, with Turbopack the `.css` file will always be global. This means that if you want to use `@import` in a CSS Module, you need to change the `.css` file to a `.module.css` file.
 - **`webpack()` configuration** in `next.config.js`
-  Turbopack replaces webpack, so `webpack()` configs are not recognized. Use the [`experimental.turbo` config](/docs/app/api-reference/config/next-config-js/turbopack) instead.
+  Turbopack replaces webpack, so `webpack()` configs are not recognized. Use the [`turbopack` config](/docs/app/api-reference/config/next-config-js/turbopack) instead.
 - **AMP**
   Not planned for Turbopack support in Next.js.
 - **Yarn PnP**
@@ -166,3 +166,10 @@ This will produce a `.next/trace-turbopack` file. Include that file when creatin
 Turbopack is a **Rust-based**, **incremental** bundler designed to make local development and builds fast—especially for large applications. It is integrated into Next.js, offering zero-config CSS, React, and TypeScript support.
 
 Stay tuned for more updates as we continue to improve Turbopack and add production build support. In the meantime, give it a try with `next dev --turbopack` and let us know your feedback.
+
+## Version Changes
+
+| Version   | Changes                          |
+| --------- | -------------------------------- |
+| `v15.3.0` | Experimental support for `build` |
+| `v15.0.0` | Turbopack for `dev` stable       |

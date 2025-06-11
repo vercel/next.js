@@ -4,7 +4,7 @@
 
 use anyhow::Result;
 use turbo_tasks::Vc;
-use turbo_tasks_testing::{register, run, Registration};
+use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 
@@ -153,19 +153,27 @@ fn wrap_trait_value(v: Vc<Box<dyn ValueTrait>>) -> Vc<Box<dyn ValueTrait>> {
 
 #[turbo_tasks::value_trait]
 trait ValueTrait {
+    #[turbo_tasks::function]
     fn static_trait_method() -> Vc<u32>;
+    #[turbo_tasks::function]
     async fn async_static_trait_method() -> Result<Vc<u32>>;
+    #[turbo_tasks::function]
     fn default_static_trait_method() -> Vc<u32> {
         Vc::cell(42)
     }
+    #[turbo_tasks::function]
     async fn default_async_static_trait_method() -> Result<Vc<u32>> {
         Ok(Vc::cell(42))
     }
+    #[turbo_tasks::function]
     fn trait_method(&self) -> Vc<u32>;
+    #[turbo_tasks::function]
     fn async_trait_method(&self) -> Result<Vc<u32>>;
+    #[turbo_tasks::function]
     fn default_trait_method(self: Vc<Self>) -> Vc<u32> {
         Vc::cell(42)
     }
+    #[turbo_tasks::function]
     async fn default_async_trait_method(self: Vc<Self>) -> Result<Vc<u32>> {
         Ok(Vc::cell(42))
     }

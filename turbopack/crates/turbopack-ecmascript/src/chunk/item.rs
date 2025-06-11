@@ -1,23 +1,24 @@
 use std::io::Write;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
+use turbo_rcstr::rcstr;
 use turbo_tasks::{
-    trace::TraceRawVcs, NonLocalValue, ResolvedVc, TaskInput, Upcast, ValueToString, Vc,
+    NonLocalValue, ResolvedVc, TaskInput, Upcast, ValueToString, Vc, trace::TraceRawVcs,
 };
-use turbo_tasks_fs::{rope::Rope, FileSystemPath};
+use turbo_tasks_fs::{FileSystemPath, rope::Rope};
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkingContext},
     code_builder::{Code, CodeBuilder},
     error::PrettyPrintError,
-    issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity, StyledString},
+    issue::{IssueExt, IssueSeverity, StyledString, code_gen::CodeGenerationIssue},
     source_map::utils::fileify_source_map,
 };
 
 use crate::{
+    EcmascriptModuleContent, EcmascriptOptions,
     references::async_module::{AsyncModuleOptions, OptionAsyncModuleOptions},
     utils::FormatIter,
-    EcmascriptModuleContent, EcmascriptOptions,
 };
 
 #[turbo_tasks::value(shared)]
@@ -87,11 +88,7 @@ impl EcmascriptChunkItemContent {
 
     #[turbo_tasks::function]
     pub async fn module_factory(&self) -> Result<Vc<Code>> {
-        let mut args = vec![
-            "g: global",
-            // HACK
-            "__dirname",
-        ];
+        let mut args = Vec::new();
         if self.options.async_module.is_some() {
             args.push("a: __turbopack_async_module__");
         }
@@ -109,7 +106,6 @@ impl EcmascriptChunkItemContent {
             args.push("u: __turbopack_wasm_module__");
         }
         let mut code = CodeBuilder::default();
-        let args = FormatIter(|| args.iter().copied().intersperse(", "));
         if self.options.this {
             code += "(function(__turbopack_context__) {\n";
         } else {
@@ -120,12 +116,15 @@ impl EcmascriptChunkItemContent {
         } else {
             code += "\n";
         }
-        writeln!(code, "var {{ {} }} = __turbopack_context__;", args)?;
+        if !args.is_empty() {
+            let args = FormatIter(|| args.iter().copied().intersperse(", "));
+            writeln!(code, "var {{ {args} }} = __turbopack_context__;")?;
+        }
 
         if self.options.async_module.is_some() {
             code += "__turbopack_async_module__(async (__turbopack_handle_async_dependencies__, \
                      __turbopack_async_result__) => { try {\n";
-        } else {
+        } else if !args.is_empty() {
             code += "{\n";
         }
 
@@ -144,7 +143,7 @@ impl EcmascriptChunkItemContent {
                  }}, {});",
                 opts.has_top_level_await
             )?;
-        } else {
+        } else if !args.is_empty() {
             code += "}";
         }
 
@@ -215,7 +214,9 @@ impl EcmascriptChunkItemWithAsyncInfo {
 
 #[turbo_tasks::value_trait]
 pub trait EcmascriptChunkItem: ChunkItem {
+    #[turbo_tasks::function]
     fn content(self: Vc<Self>) -> Vc<EcmascriptChunkItemContent>;
+    #[turbo_tasks::function]
     fn content_with_async_module_info(
         self: Vc<Self>,
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
@@ -225,6 +226,7 @@ pub trait EcmascriptChunkItem: ChunkItem {
 
     /// Specifies which availablility information the chunk item needs for code
     /// generation
+    #[turbo_tasks::function]
     fn need_async_module_info(self: Vc<Self>) -> Vc<bool> {
         Vc::cell(false)
     }
@@ -266,15 +268,14 @@ async fn module_factory_with_code_generation_issue(
                     .await;
                 let id = id.as_ref().map_or_else(|_| "unknown", |id| &**id);
                 let error = error.context(format!(
-                    "An error occurred while generating the chunk item {}",
-                    id
+                    "An error occurred while generating the chunk item {id}"
                 ));
                 let error_message = format!("{}", PrettyPrintError(&error)).into();
                 let js_error_message = serde_json::to_string(&error_message)?;
                 CodeGenerationIssue {
                     severity: IssueSeverity::Error.resolved_cell(),
                     path: chunk_item.asset_ident().path().to_resolved().await?,
-                    title: StyledString::Text("Code generation for chunk item errored".into())
+                    title: StyledString::Text(rcstr!("Code generation for chunk item errored"))
                         .resolved_cell(),
                     message: StyledString::Text(error_message).resolved_cell(),
                 }
