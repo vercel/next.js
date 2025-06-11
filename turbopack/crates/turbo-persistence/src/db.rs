@@ -525,7 +525,12 @@ impl TurboPersistence {
                         (seq, range.min_hash, range.max_hash, size)
                     })
                     .collect::<Vec<_>>();
-                (meta.sequence_number(), meta.family(), ssts)
+                (
+                    meta.sequence_number(),
+                    meta.family(),
+                    ssts,
+                    meta.obsolete_sst_files().to_vec(),
+                )
             })
             .collect::<Vec<_>>();
 
@@ -606,7 +611,7 @@ impl TurboPersistence {
             writeln!(log, "Time {time}")?;
             let span = time.until(Timestamp::now())?;
             writeln!(log, "Commit {seq:08} {keys_written} keys in {span:#}")?;
-            for (seq, family, ssts) in new_meta_info {
+            for (seq, family, ssts, obsolete) in new_meta_info {
                 writeln!(log, "{seq:08} META family:{family}",)?;
                 for (seq, min, max, size) in ssts {
                     writeln!(
@@ -614,6 +619,9 @@ impl TurboPersistence {
                         "  {seq:08} SST  {min:016x}-{max:016x} {} MiB",
                         size / 1024 / 1024
                     )?;
+                }
+                for seq in obsolete {
+                    writeln!(log, "  {seq:08} OBSOLETE SST")?;
                 }
             }
             new_sst_files.sort_unstable_by_key(|(seq, _)| *seq);

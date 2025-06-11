@@ -202,7 +202,6 @@ export function Errors({
 
       {errorDetails.reactOutputComponentDiff ? (
         <PseudoHtmlDiff
-          className="nextjs__container_errors__component-stack"
           reactOutputComponentDiff={errorDetails.reactOutputComponentDiff || ''}
         />
       ) : null}
