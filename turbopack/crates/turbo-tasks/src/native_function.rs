@@ -7,6 +7,7 @@ use tracing::Span;
 
 use crate::{
     RawVc, TaskInput, TaskPersistence,
+    invalidation::allow_invalidator,
     magic_any::{MagicAny, MagicAnyDeserializeSeed, MagicAnySerializeSeed},
     registry::register_function,
     task::{
@@ -239,7 +240,14 @@ impl NativeFunction {
     /// Executed the function
     pub fn execute(&'static self, this: Option<RawVc>, arg: &dyn MagicAny) -> NativeTaskFuture {
         match (self.implementation).functor(this, arg) {
-            Ok(functor) => functor,
+            Ok(functor) => {
+                #[cfg(debug_assertions)]
+                if self.function_meta.invalidator {
+                    return Box::pin(allow_invalidator(functor));
+                }
+
+                functor
+            }
             Err(err) => Box::pin(async { Err(err) }),
         }
     }
