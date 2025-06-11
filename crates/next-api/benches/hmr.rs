@@ -18,7 +18,9 @@ use serde_json::json;
 use tempfile::TempDir;
 use tokio::runtime::Runtime;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{TransientInstance, TurboTasks, Vc, backend::Backend};
+use turbo_tasks::{
+    TransientInstance, TurboTasks, TurboTasksApi, Vc, backend::Backend, trace::TraceRawVcs,
+};
 use turbo_tasks_backend::noop_backing_storage;
 
 pub struct HmrBenchmark {
@@ -388,6 +390,33 @@ fn setup_turbo_tasks() -> Arc<TurboTasks<impl Backend>> {
         },
         noop_backing_storage(),
     ))
+}
+
+#[derive(TraceRawVcs)]
+struct Setup {
+    #[turbo_tasks(trace_ignore)]
+    rt: Arc<Runtime>,
+    #[turbo_tasks(trace_ignore)]
+    tt: Arc<dyn TurboTasksApi>,
+    #[turbo_tasks(trace_ignore)]
+    benchmark: HmrBenchmark,
+}
+
+fn setup_everything() -> Setup {
+    let rt = Arc::new(setup_runtime());
+    let tt = setup_turbo_tasks();
+
+    rt.clone().block_on(async move {
+        tt.clone()
+            .run_once(async move {
+                let benchmark = setup_benchmark(100).await;
+                benchmark.benchmark_initial_compilation().await.unwrap();
+
+                Ok(Setup { rt, tt, benchmark })
+            })
+            .await
+            .unwrap()
+    })
 }
 
 #[divan::bench]
