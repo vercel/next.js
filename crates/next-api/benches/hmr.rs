@@ -108,9 +108,9 @@ export default function Component{i}() {{
     "name": "hmr-test-app",
     "version": "1.0.0",
     "dependencies": {
-        "react": "^18.2.0",
-        "react-dom": "^18.2.0",
-        "next": "^14.0.0"
+        "react": "^19.0.0",
+        "react-dom": "^19.0.0",
+        "next": "^15.0.0"
     }
 }
 "#;
