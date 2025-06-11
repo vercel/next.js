@@ -99,21 +99,29 @@ impl ParseResult {
     }
 }
 
+/// `original_source_maps_complete` indicates whether the `original_source_maps` cover the whole
+/// map, i.e. whether every module that ended up in `mappings` had an original sourcemap.
 #[instrument(level = Level::INFO, skip_all)]
-pub fn generate_js_source_map(
+pub fn generate_js_source_map<'a>(
     files_map: &impl Files,
     mappings: Vec<(BytePos, LineCol)>,
-    original_source_map: Option<&Rope>,
+    original_source_maps: impl IntoIterator<Item = &'a Rope>,
+    original_source_maps_complete: bool,
     inline_sources_content: bool,
 ) -> Result<Rope> {
-    let original_source_map = original_source_map.map(|x| x.to_bytes());
-    let input_map = if let Some(original_source_map) = &original_source_map {
-        Some(swc_sourcemap::lazy::decode(original_source_map)?.into_source_map()?)
-    } else {
-        None
-    };
+    let original_source_maps = original_source_maps
+        .into_iter()
+        .map(|map| map.to_bytes())
+        .collect::<Vec<_>>();
+    let original_source_maps = original_source_maps
+        .iter()
+        .map(|map| Ok(swc_sourcemap::lazy::decode(map)?.into_source_map()?))
+        .collect::<Result<Vec<_>>>()?;
 
-    let new_mappings = build_source_map(
+    let fast_path_single_original_source_map =
+        original_source_maps.len() == 1 && original_source_maps_complete;
+
+    let mut new_mappings = build_source_map(
         files_map,
         &mappings,
         None,
@@ -124,32 +132,37 @@ pub fn generate_js_source_map(
             // In other words, we don't need the content of `B` in source map chain of A -> B -> C.
             // We only need the source content of `A`, and a way to map the content of `B` back to
             // `A`, while constructing the final source map, `C`.
-            inline_sources_content: inline_sources_content && input_map.is_none(),
+            inline_sources_content: inline_sources_content && !fast_path_single_original_source_map,
         },
     );
 
-    match input_map {
-        Some(mut map) => {
-            // TODO: Make this more efficient
-            map.adjust_mappings(new_mappings);
+    if original_source_maps.is_empty() {
+        // We don't convert sourcemap::SourceMap into raw_sourcemap::SourceMap because we don't
+        // need to adjust mappings
 
-            // TODO: Enable this when we have a way to handle the ignore list
-            // add_default_ignore_list(&mut map);
-            let map = map.into_raw_sourcemap();
-            let result = serde_json::to_vec(&map)?;
-            Ok(Rope::from(result))
-        }
-        None => {
-            // We don't convert sourcemap::SourceMap into raw_sourcemap::SourceMap because we don't
-            // need to adjust mappings
-            let mut map = new_mappings;
+        add_default_ignore_list(&mut new_mappings);
 
-            add_default_ignore_list(&mut map);
+        let mut result = vec![];
+        new_mappings.to_writer(&mut result)?;
+        Ok(Rope::from(result))
+    } else if fast_path_single_original_source_map {
+        let mut map = original_source_maps.into_iter().next().unwrap();
+        // TODO: Make this more efficient
+        map.adjust_mappings(new_mappings);
 
-            let mut result = vec![];
-            map.to_writer(&mut result)?;
-            Ok(Rope::from(result))
-        }
+        // TODO: Enable this when we have a way to handle the ignore list
+        // add_default_ignore_list(&mut map);
+        let map = map.into_raw_sourcemap();
+        let result = serde_json::to_vec(&map)?;
+        Ok(Rope::from(result))
+    } else {
+        let mut map = new_mappings.adjust_mappings_from_multiple(original_source_maps);
+
+        add_default_ignore_list(&mut map);
+
+        let mut result = vec![];
+        map.to_writer(&mut result)?;
+        Ok(Rope::from(result))
     }
 }
 

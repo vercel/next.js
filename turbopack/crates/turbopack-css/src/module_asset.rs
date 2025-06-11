@@ -423,7 +423,7 @@ fn generate_minimal_source_map(filename: String, source: String) -> Result<Rope>
     }
     let sm: Arc<SourceMap> = Default::default();
     sm.new_source_file(FileName::Custom(filename).into(), source);
-    let map = generate_js_source_map(&*sm, mappings, None, true)?;
+    let map = generate_js_source_map(&*sm, mappings, None, true, true)?;
     Ok(map)
 }
 

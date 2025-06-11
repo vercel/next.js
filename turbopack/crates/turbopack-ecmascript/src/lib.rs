@@ -83,8 +83,8 @@ pub use transform::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString, Vc,
-    trace::TraceRawVcs,
+    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt,
+    ValueToString, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
@@ -1221,7 +1221,7 @@ impl EcmascriptModuleContent {
             .try_join()
             .await?;
 
-        let (merged_ast, comments, source_maps) =
+        let (merged_ast, comments, source_maps, original_source_maps) =
             merge_modules(contents, &entries, &globals_merged).await?;
 
         let last_options = module_options.last().unwrap().await?;
@@ -1240,8 +1240,9 @@ impl EcmascriptModuleContent {
             eval_context: None,
             is_esm: true,
             generate_source_map: last_options.generate_source_map,
-            // TODO
-            original_source_map: None,
+            original_source_map: CodeGenResultOriginalSourceMap::ScopeHoisting(
+                original_source_maps,
+            ),
             minify: *module_options
                 .first()
                 .unwrap()
@@ -1280,6 +1281,7 @@ async fn merge_modules(
     Program,
     Vec<CodeGenResultComments>,
     Vec<CodeGenResultSourceMap>,
+    SmallVec<[ResolvedVc<Box<dyn GenerateSourceMap>>; 1]>,
 )> {
     struct SetSyntaxContextVisitor<'a> {
         header_width: u32,
@@ -1511,7 +1513,18 @@ async fn merge_modules(
         .map(|(_, content)| std::mem::take(&mut content.source_map))
         .collect::<Vec<_>>();
 
-    Ok((merged_ast, comments, source_maps))
+    let original_source_maps = contents
+        .iter_mut()
+        .flat_map(|(_, content)| match content.original_source_map {
+            CodeGenResultOriginalSourceMap::ScopeHoisting(_) => unreachable!(
+                "Didn't expect nested CodeGenResultOriginalSourceMap::ScopeHoisting: {:?}",
+                content.original_source_map
+            ),
+            CodeGenResultOriginalSourceMap::Single(map) => map,
+        })
+        .collect();
+
+    Ok((merged_ast, comments, source_maps, original_source_maps))
 }
 
 // struct DisplayContextVisitor {
@@ -1599,7 +1612,7 @@ struct CodeGenResult {
     eval_context: Option<EvalContext>,
     is_esm: bool,
     generate_source_map: bool,
-    original_source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
+    original_source_map: CodeGenResultOriginalSourceMap,
     minify: MinifyType,
     scope_hoisting_syntax_contexts:
         Option<FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable + 'static>>, SyntaxContext>>,
@@ -1786,7 +1799,7 @@ async fn process_parse_result(
                 eval_context: Some(eval_context.into_owned()),
                 is_esm,
                 generate_source_map,
-                original_source_map,
+                original_source_map: CodeGenResultOriginalSourceMap::Single(original_source_map),
                 minify,
                 scope_hoisting_syntax_contexts: retain_syntax_context.map(|(_, ctxts, _)| ctxts),
             })
@@ -1821,7 +1834,7 @@ async fn process_parse_result(
                         eval_context: None,
                         is_esm: false,
                         generate_source_map: false,
-                        original_source_map: None,
+                        original_source_map: CodeGenResultOriginalSourceMap::Single(None),
                         minify: MinifyType::NoMinify,
                         scope_hoisting_syntax_contexts: None,
                     }
@@ -1848,7 +1861,7 @@ async fn process_parse_result(
                         eval_context: None,
                         is_esm: false,
                         generate_source_map: false,
-                        original_source_map: None,
+                        original_source_map: CodeGenResultOriginalSourceMap::Single(None),
                         minify: MinifyType::NoMinify,
                         scope_hoisting_syntax_contexts: None,
                     }
@@ -1979,16 +1992,20 @@ async fn emit_content(
     }
 
     let source_map = if generate_source_map {
-        if let Some(original_source_map) = original_source_map {
-            Some(generate_js_source_map(
-                &*source_map,
-                mappings,
-                original_source_map.generate_source_map().await?.as_ref(),
-                true,
-            )?)
-        } else {
-            Some(generate_js_source_map(&*source_map, mappings, None, true)?)
-        }
+        Some(generate_js_source_map(
+            &*source_map,
+            mappings,
+            original_source_map
+                .iter()
+                .map(|map| map.generate_source_map())
+                .try_flat_join()
+                .await?,
+            matches!(
+                original_source_map,
+                CodeGenResultOriginalSourceMap::Single(_)
+            ),
+            true,
+        )?)
     } else {
         None
     };
@@ -2163,6 +2180,19 @@ impl Files for CodeGenResultSourceMap {
         }
     }
 
+    fn is_in_file(&self, f: &Arc<SourceFile>, raw_pos: BytePos) -> bool {
+        match self {
+            CodeGenResultSourceMap::Single { .. } => f.start_pos <= raw_pos && raw_pos < f.end_pos,
+            CodeGenResultSourceMap::ScopeHoisting { .. } => {
+                // let (module, pos) = CodeGenResultComments::decode_bytepos(*header_width, pos);
+
+                // TODO optimize this, unfortunately, `SourceFile` doesn't know which `module` it
+                // belongs from.
+                false
+            }
+        }
+    }
+
     fn map_raw_pos(&self, pos: BytePos) -> BytePos {
         match self {
             CodeGenResultSourceMap::Single { .. } => pos,
@@ -2238,15 +2268,20 @@ impl SourceMapper for CodeGenResultSourceMap {
                 header_width,
                 source_maps,
             } => {
-                let (module, lo_lhs) =
+                let (module_lhs, lo_lhs) =
                     CodeGenResultComments::decode_bytepos(*header_width, sp_lhs.lo);
-                source_maps[module].merge_spans(
+                let (module_rhs, lo_rhs) =
+                    CodeGenResultComments::decode_bytepos(*header_width, sp_rhs.lo);
+                if module_lhs != module_rhs {
+                    return None;
+                }
+                source_maps[module_lhs].merge_spans(
                     Span {
                         lo: lo_lhs,
                         hi: CodeGenResultComments::decode_bytepos(*header_width, sp_lhs.hi).1,
                     },
                     Span {
-                        lo: CodeGenResultComments::decode_bytepos(*header_width, sp_rhs.lo).1,
+                        lo: lo_rhs,
                         hi: CodeGenResultComments::decode_bytepos(*header_width, sp_rhs.hi).1,
                     },
                 )
@@ -2290,6 +2325,23 @@ impl SourceMapper for CodeGenResultSourceMap {
 impl SourceMapperExt for CodeGenResultSourceMap {
     fn get_code_map(&self) -> &dyn SourceMapper {
         self
+    }
+}
+
+#[derive(Debug)]
+enum CodeGenResultOriginalSourceMap {
+    Single(Option<ResolvedVc<Box<dyn GenerateSourceMap>>>),
+    ScopeHoisting(SmallVec<[ResolvedVc<Box<dyn GenerateSourceMap>>; 1]>),
+}
+
+impl CodeGenResultOriginalSourceMap {
+    fn iter(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn GenerateSourceMap>>> {
+        match self {
+            CodeGenResultOriginalSourceMap::Single(map) => Either::Left(map.iter().copied()),
+            CodeGenResultOriginalSourceMap::ScopeHoisting(maps) => {
+                Either::Right(maps.iter().copied())
+            }
+        }
     }
 }
 
