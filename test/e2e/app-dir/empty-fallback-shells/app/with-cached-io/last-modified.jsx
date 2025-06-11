@@ -1,9 +1,12 @@
+import { getSentinelValue } from './sentinel'
+
 export async function LastModified({ params }) {
   const { slug } = await params
 
   return (
-    <p data-testid={`page-${slug}`}>
-      Page /{slug} last modified: {new Date().toISOString()}
+    <p id="last-modified">
+      Page /{slug} last modified: {new Date().toISOString()} (
+      {getSentinelValue()})
     </p>
   )
 }

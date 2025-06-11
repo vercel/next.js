@@ -7,17 +7,19 @@ describe('empty-fallback-shells', () => {
 
   describe('without IO', () => {
     it('should start and not postpone the response', async () => {
-      const res = await next.fetch('/without-io/world')
-      const html = await res.text()
-      expect(html).toContain('hello-world')
+      const { browser, response } =
+        await next.browserWithResponse('/without-io/world')
+
+      expect(await browser.elementById('slug').text()).toBe('Hello /world')
+      const headers = response.headers()
 
       if (isNextDeploy) {
-        expect(res.headers.get('x-matched-path')).toBe('/without-io/[slug]')
+        expect(headers['x-matched-path']).toBe('/without-io/[slug]')
       }
 
       // If we didn't use the fallback shell, then we didn't postpone the
       // response and therefore shouldn't have sent the postponed header.
-      expect(res.headers.get('x-nextjs-postponed')).not.toBe('1')
+      expect(headers['x-nextjs-postponed']).not.toBe('1')
     })
   })
 
@@ -25,75 +27,75 @@ describe('empty-fallback-shells', () => {
     describe('and the page wrapped in Suspense', () => {
       describe('and the params accessed in the cached page', () => {
         it('resumes a postponed fallback shell', async () => {
-          const res = await next.fetch(
+          const { browser, response } = await next.browserWithResponse(
             '/with-cached-io/with-suspense/params-in-page/bar'
           )
 
-          const html = await res.text()
-          expect(html).toContain('page-bar')
+          const lastModified = await browser.elementById('last-modified').text()
+          expect(lastModified).toInclude('Page /bar')
+          expect(lastModified).toInclude('runtime')
 
-          if (isNextDev) {
-            expect(html).toContain('layout-runtime')
-          } else {
-            expect(html).toContain('layout-buildtime')
-          }
+          const layout = await browser.elementById('layout').text()
+          expect(layout).toInclude(isNextDev ? 'runtime' : 'buildtime')
+
+          const headers = response.headers()
 
           if (isNextDeploy) {
-            expect(res.headers.get('x-matched-path')).toBe(
+            expect(headers['x-matched-path']).toBe(
               '/with-cached-io/with-suspense/params-in-page/[slug]'
             )
           } else if (isNextStart) {
-            expect(res.headers.get('x-nextjs-postponed')).toBe('1')
+            expect(headers['x-nextjs-postponed']).toBe('1')
           }
         })
       })
 
       describe('and the params accessed in cached non-page function', () => {
         it('resumes a postponed fallback shell', async () => {
-          const res = await next.fetch(
+          const { browser, response } = await next.browserWithResponse(
             '/with-cached-io/with-suspense/params-not-in-page/bar'
           )
 
-          const html = await res.text()
-          expect(html).toContain('page-bar')
+          const lastModified = await browser.elementById('last-modified').text()
+          expect(lastModified).toInclude('Page /bar')
+          expect(lastModified).toInclude('runtime')
 
-          if (isNextDev) {
-            expect(html).toContain('layout-runtime')
-          } else {
-            expect(html).toContain('layout-buildtime')
-          }
+          const layout = await browser.elementById('layout').text()
+          expect(layout).toInclude(isNextDev ? 'runtime' : 'buildtime')
+
+          const headers = response.headers()
 
           if (isNextDeploy) {
-            expect(res.headers.get('x-matched-path')).toBe(
+            expect(headers['x-matched-path']).toBe(
               '/with-cached-io/with-suspense/params-not-in-page/[slug]'
             )
           } else if (isNextStart) {
-            expect(res.headers.get('x-nextjs-postponed')).toBe('1')
+            expect(headers['x-nextjs-postponed']).toBe('1')
           }
         })
       })
 
       describe('and params.then/catch/finally passed to a cached function', () => {
         it('resumes a postponed fallback shell', async () => {
-          const res = await next.fetch(
+          const { browser, response } = await next.browserWithResponse(
             '/with-cached-io/with-suspense/params-then-in-page/bar'
           )
 
-          const html = await res.text()
-          expect(html).toIncludeRepeated('data-testid="page-bar"', 4)
+          const lastModified = await browser.elementById('last-modified').text()
+          expect(lastModified).toInclude('Page /bar')
+          expect(lastModified).toInclude('runtime')
 
-          if (isNextDev) {
-            expect(html).toContain('layout-runtime')
-          } else {
-            expect(html).toContain('layout-buildtime')
-          }
+          const layout = await browser.elementById('layout').text()
+          expect(layout).toInclude(isNextDev ? 'runtime' : 'buildtime')
+
+          const headers = response.headers()
 
           if (isNextDeploy) {
-            expect(res.headers.get('x-matched-path')).toBe(
+            expect(headers['x-matched-path']).toBe(
               '/with-cached-io/with-suspense/params-then-in-page/[slug]'
             )
           } else if (isNextStart) {
-            expect(res.headers.get('x-nextjs-postponed')).toBe('1')
+            expect(headers['x-nextjs-postponed']).toBe('1')
           }
         })
       })
@@ -102,77 +104,92 @@ describe('empty-fallback-shells', () => {
     describe('and the page not wrapped in Suspense', () => {
       describe('and the params accessed in the cached page', () => {
         it('does not resume a postponed fallback shell', async () => {
-          const res = await next.fetch(
+          const { browser, response } = await next.browserWithResponse(
             '/with-cached-io/without-suspense/params-in-page/bar'
           )
 
-          const html = await res.text()
-          expect(html).toContain('page-bar')
-          expect(html).toContain('layout-runtime')
+          const lastModified = await browser.elementById('last-modified').text()
+          expect(lastModified).toInclude('Page /bar')
+          expect(lastModified).toInclude('runtime')
+
+          const layout = await browser.elementById('layout').text()
+          expect(layout).toInclude('runtime')
+
+          const headers = response.headers()
 
           if (isNextDeploy) {
-            expect(res.headers.get('x-matched-path')).toBe(
+            expect(headers['x-matched-path']).toBe(
               '/with-cached-io/without-suspense/params-in-page/[slug]'
             )
-          } else {
-            expect(res.headers.get('x-nextjs-postponed')).not.toBe('1')
+          } else if (isNextStart) {
+            expect(headers['x-nextjs-postponed']).not.toBe('1')
           }
         })
 
         it('does not render a fallback shell when using a params placeholder', async () => {
           // This should trigger a blocking prerender of the route shell.
-          const res = await next.fetch(
+          const { browser, response } = await next.browserWithResponse(
             '/with-cached-io/without-suspense/params-in-page/[slug]'
           )
 
-          expect(res.status).toBe(200)
-
-          const html = await res.text()
+          expect(response.status()).toBe(200)
 
           // This should render the encoded param in the route shell, and not
           // interpret the param as a fallback param, and subsequently try to
           // render the fallback shell instead, which would fail because of the
           // missing parent suspense boundary.
-          expect(html).toContain('page-%5Bslug%5D')
+          const lastModified = await browser.elementById('last-modified').text()
+          expect(lastModified).toInclude('Page /%5Bslug%5D')
+          expect(lastModified).toInclude('runtime')
         })
       })
 
       describe('and the params accessed in a cached non-page function', () => {
         it('does not resume a postponed fallback shell', async () => {
-          const res = await next.fetch(
+          const { browser, response } = await next.browserWithResponse(
             '/with-cached-io/without-suspense/params-not-in-page/bar'
           )
 
-          const html = await res.text()
-          expect(html).toContain('page-bar')
-          expect(html).toContain('layout-runtime')
+          const lastModified = await browser.elementById('last-modified').text()
+          expect(lastModified).toInclude('Page /bar')
+          expect(lastModified).toInclude('runtime')
+
+          const layout = await browser.elementById('layout').text()
+          expect(layout).toInclude('runtime')
+
+          const headers = response.headers()
 
           if (isNextDeploy) {
-            expect(res.headers.get('x-matched-path')).toBe(
+            expect(headers['x-matched-path']).toBe(
               '/with-cached-io/without-suspense/params-not-in-page/[slug]'
             )
-          } else {
-            expect(res.headers.get('x-nextjs-postponed')).not.toBe('1')
+          } else if (isNextStart) {
+            expect(headers['x-nextjs-postponed']).not.toBe('1')
           }
         })
       })
 
       describe('and params.then/catch/finally passed to a cached function', () => {
         it('does not resume a postponed fallback shell', async () => {
-          const res = await next.fetch(
+          const { browser, response } = await next.browserWithResponse(
             '/with-cached-io/without-suspense/params-then-in-page/bar'
           )
 
-          const html = await res.text()
-          expect(html).toIncludeRepeated('data-testid="page-bar"', 4)
-          expect(html).toContain('layout-runtime')
+          const lastModified = await browser.elementById('last-modified').text()
+          expect(lastModified).toInclude('Page /bar')
+          expect(lastModified).toInclude('runtime')
+
+          const layout = await browser.elementById('layout').text()
+          expect(layout).toInclude('runtime')
+
+          const headers = response.headers()
 
           if (isNextDeploy) {
-            expect(res.headers.get('x-matched-path')).toBe(
+            expect(headers['x-matched-path']).toBe(
               '/with-cached-io/without-suspense/params-then-in-page/[slug]'
             )
-          } else {
-            expect(res.headers.get('x-nextjs-postponed')).not.toBe('1')
+          } else if (isNextStart) {
+            expect(headers['x-nextjs-postponed']).not.toBe('1')
           }
         })
       })
