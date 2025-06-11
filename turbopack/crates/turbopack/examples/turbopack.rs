@@ -61,7 +61,7 @@ async fn main() -> Result<()> {
                     ..Default::default()
                 }
                 .cell(),
-                LayerName::new(rcstr!("default"), None),
+                LayerName::new(rcstr!("default")),
             );
             let module = module_asset_context
                 .process(

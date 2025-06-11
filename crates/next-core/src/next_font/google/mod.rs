@@ -699,7 +699,7 @@ async fn get_mock_stylesheet(
         execution_context,
         None,
         None,
-        LayerName::new(rcstr!("next_font"), None),
+        LayerName::new(rcstr!("next_font")),
         false,
     );
     let loader_path = mock_fs.root().join(rcstr!("loader.js"));

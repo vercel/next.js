@@ -364,7 +364,7 @@ async fn node_file_trace_operation(
             ..Default::default()
         }
         .cell(),
-        LayerName::new(rcstr!("test"), None),
+        LayerName::new(rcstr!("test")),
     );
     let module = module_asset_context
         .process(Vc::upcast(source), ReferenceType::Undefined)

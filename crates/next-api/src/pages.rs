@@ -366,7 +366,7 @@ impl PagesProject {
             self.project().client_compile_time_info(),
             self.client_module_options_context(),
             self.client_resolve_options_context(),
-            LayerName::new(rcstr!("client"), Some(rcstr!("Browser"))),
+            LayerName::with_user_friendly_name(rcstr!("client"), rcstr!("Browser")),
         )
     }
 
@@ -377,7 +377,7 @@ impl PagesProject {
             self.project().server_compile_time_info(),
             self.ssr_module_options_context(),
             self.ssr_resolve_options_context(),
-            LayerName::new(rcstr!("ssr"), Some(rcstr!("SSR"))),
+            LayerName::with_user_friendly_name(rcstr!("ssr"), rcstr!("SSR")),
         )
     }
 
@@ -390,7 +390,7 @@ impl PagesProject {
             self.project().server_compile_time_info(),
             self.api_module_options_context(),
             self.ssr_resolve_options_context(),
-            LayerName::new(rcstr!("api"), None),
+            LayerName::new(rcstr!("api")),
         )
     }
 
@@ -401,7 +401,7 @@ impl PagesProject {
             self.project().server_compile_time_info(),
             self.ssr_data_module_options_context(),
             self.ssr_resolve_options_context(),
-            LayerName::new(rcstr!("ssr-data"), None),
+            LayerName::new(rcstr!("ssr-data")),
         )
     }
 
@@ -412,7 +412,7 @@ impl PagesProject {
             self.project().edge_compile_time_info(),
             self.edge_ssr_module_options_context(),
             self.edge_ssr_resolve_options_context(),
-            LayerName::new(rcstr!("edge-ssr"), Some(rcstr!("Edge SSR"))),
+            LayerName::with_user_friendly_name(rcstr!("edge-ssr"), rcstr!("Edge SSR")),
         )
     }
 
@@ -423,7 +423,7 @@ impl PagesProject {
             self.project().edge_compile_time_info(),
             self.edge_api_module_options_context(),
             self.edge_ssr_resolve_options_context(),
-            LayerName::new(rcstr!("edge-api"), None),
+            LayerName::new(rcstr!("edge-api")),
         )
     }
 
@@ -434,7 +434,7 @@ impl PagesProject {
             self.project().edge_compile_time_info(),
             self.edge_ssr_data_module_options_context(),
             self.edge_ssr_resolve_options_context(),
-            LayerName::new(rcstr!("edge-ssr-data"), None),
+            LayerName::new(rcstr!("edge-ssr-data")),
         )
     }
 

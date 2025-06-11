@@ -1310,7 +1310,7 @@ impl Project {
                 self.next_config(),
                 self.execution_context(),
             ),
-            LayerName::new(rcstr!("middleware-edge"), None),
+            LayerName::new(rcstr!("middleware-edge")),
         )))
     }
 
@@ -1364,7 +1364,7 @@ impl Project {
                 self.next_config(),
                 self.execution_context(),
             ),
-            LayerName::new(rcstr!("middleware"), None),
+            LayerName::new(rcstr!("middleware")),
         )))
     }
 
@@ -1476,7 +1476,7 @@ impl Project {
                 self.next_config(),
                 self.execution_context(),
             ),
-            LayerName::new(rcstr!("instrumentation"), None),
+            LayerName::new(rcstr!("instrumentation")),
         )))
     }
 
@@ -1531,7 +1531,7 @@ impl Project {
                 self.next_config(),
                 self.execution_context(),
             ),
-            LayerName::new(rcstr!("instrumentation-edge"), None),
+            LayerName::new(rcstr!("instrumentation-edge")),
         )))
     }
 

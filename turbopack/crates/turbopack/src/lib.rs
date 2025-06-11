@@ -691,7 +691,7 @@ async fn externals_tracing_module_context(ty: ExternalType) -> Result<Vc<ModuleA
         }
         .cell(),
         resolve_options.cell(),
-        LayerName::new(rcstr!("externals-tracing"), None),
+        LayerName::new(rcstr!("externals-tracing")),
     ))
 }
 

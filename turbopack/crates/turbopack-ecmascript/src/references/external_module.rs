@@ -121,7 +121,7 @@ impl Module for CachedExternalModule {
         let fs = VirtualFileSystem::new_with_name(rcstr!("externals"));
 
         AssetIdent::from_path(fs.root().join(self.request.clone()))
-            .with_layer(LayerName::new(rcstr!("external"), None))
+            .with_layer(LayerName::new(rcstr!("external")))
             .with_modifier(self.request.clone())
             .with_modifier(self.external_type.to_string().into())
     }

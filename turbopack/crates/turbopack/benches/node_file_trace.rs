@@ -114,7 +114,7 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
                         ..Default::default()
                     }
                     .cell(),
-                    LayerName::new(rcstr!("node_file_trace"), None),
+                    LayerName::new(rcstr!("node_file_trace")),
                 );
                 let module = module_asset_context
                     .process(Vc::upcast(source), ReferenceType::Undefined)

@@ -19,7 +19,14 @@ pub struct LayerName {
 }
 
 impl LayerName {
-    pub fn new(name: RcStr, user_friendly_name: Option<RcStr>) -> Self {
+    pub fn new(name: RcStr) -> Self {
+        Self::new_impl(name, None)
+    }
+    pub fn with_user_friendly_name(name: RcStr, user_friendly_name: RcStr) -> Self {
+        Self::new_impl(name, Some(user_friendly_name))
+    }
+
+    fn new_impl(name: RcStr, user_friendly_name: Option<RcStr>) -> Self {
         debug_assert!(!name.is_empty());
         debug_assert!(
             user_friendly_name.is_none() || !user_friendly_name.as_ref().unwrap().is_empty()
@@ -29,6 +36,7 @@ impl LayerName {
             user_friendly_name,
         }
     }
+
     /// Returns a user friendly name for this layer
     pub fn user_friendly_name(&self) -> RcStr {
         self.user_friendly_name
