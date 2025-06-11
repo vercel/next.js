@@ -6,9 +6,8 @@ related:
   title: API Reference
   description: Learn more about Route Handlers and Middleware
   links:
-    - app/building-your-application/routing/route-handlers
     - app/api-reference/file-conventions/route
-    - app/building-your-application/routing/middleware
+    - app/api-reference/file-conventions/middleware
     - app/guides/backend-for-frontend
 ---
 
@@ -125,15 +124,14 @@ export default function Page() {
 export async function POST(request) {}
 ```
 
-Read more about how Route Handlers [complement your frontend application](/docs/app/guides/backend-for-frontend), or explore the Route Handlers [API Reference]().
+Read more about how Route Handlers [complement your frontend application](/docs/app/guides/backend-for-frontend), or explore the Route Handlers [API Reference](/docs/app/api-reference/file-conventions/route).
 
 ## Middleware
 
-{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
 Middleware allows you to run code before a request is completed. Then, based on the incoming request, you can modify the response by rewriting, redirecting, modifying the request or response headers, or responding directly.
 
-### Use Cases
+### Use cases
 
 Some common scenarios where Middleware is effective include:
 
