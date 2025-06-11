@@ -691,7 +691,6 @@ function doRender(input: RenderRouteInfo): Promise<any> {
       if (!currentHrefs.has(href)) {
         const styleTag = document.createElement('style')
         styleTag.setAttribute('data-n-href', href)
-        styleTag.setAttribute('media', 'x')
 
         if (nonce) {
           styleTag.setAttribute('nonce', nonce)
