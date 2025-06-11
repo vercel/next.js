@@ -1,7 +1,6 @@
 ---
-title: How to upgrade your Next.js app
-nav_title: Upgrading
-description: Learn how to upgrade your Next.js application to the latest version.
+title: Upgrading
+description: Learn how to upgrade your Next.js application to the latest version or canary.
 related:
   title: Version guides
   description: See the version guides for in-depth upgrade instructions.
@@ -15,13 +14,25 @@ related:
 To update to the latest version of Next.js, you can use the `upgrade` codemod:
 
 ```bash filename="Terminal"
-npx @next/codemod@canary upgrade latest
+npx @next/codemod@latest upgrade latest
 ```
 
 If you prefer to upgrade manually, install the latest Next.js and React versions:
 
-```bash filename="Terminal"
+```bash package="pnpm"
+pnpm i next@latest react@latest react-dom@latest eslint-config-next@latest
+```
+
+```bash package="npm"
 npm i next@latest react@latest react-dom@latest eslint-config-next@latest
+```
+
+```bash package="yarn"
+yarn add next@latest react@latest react-dom@latest eslint-config-next@latest
+```
+
+```bash package="bun"
+bun add next@latest react@latest react-dom@latest eslint-config-next@latest
 ```
 
 ## Canary version

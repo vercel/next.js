@@ -51,7 +51,7 @@ impl Environment {
     }
 }
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
+#[turbo_tasks::value]
 #[derive(Debug, Hash, Clone, Copy, TaskInput)]
 pub enum ExecutionEnvironment {
     NodeJsBuildTime(ResolvedVc<NodeJsEnvironment>),

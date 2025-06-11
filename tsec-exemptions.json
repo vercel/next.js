@@ -16,7 +16,7 @@
     "packages/next/src/client/components/errors/graceful-degrade-boundary.tsx"
   ],
   "ban-script-appendchild-calls": [
-    "packages/next/src/client/components/react-dev-overlay/app/app-dev-overlay.browser.tsx"
+    "packages/next/src/next-devtools/dev-overlay.browser.tsx"
   ],
   "ban-script-content-assignments": ["packages/next/src/client/script.tsx"],
   "ban-script-src-assignments": [

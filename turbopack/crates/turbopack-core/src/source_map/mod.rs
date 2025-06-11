@@ -1,11 +1,12 @@
 use std::{borrow::Cow, io::Write, ops::Deref, sync::Arc};
 
 use anyhow::Result;
+use bytes_str::BytesStr;
 use once_cell::sync::Lazy;
 use ref_cast::RefCast;
 use regex::Regex;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use sourcemap::{DecodedMap, SourceMap as RegularMap, SourceMapBuilder, SourceMapIndex};
+use swc_sourcemap::{DecodedMap, SourceMap as RegularMap, SourceMapBuilder, SourceMapIndex};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{
@@ -42,9 +43,11 @@ impl OptionStringifiedSourceMap {
 #[turbo_tasks::value_trait]
 pub trait GenerateSourceMap {
     /// Generates a usable source map, capable of both tracing and stringifying.
+    #[turbo_tasks::function]
     fn generate_source_map(self: Vc<Self>) -> Vc<OptionStringifiedSourceMap>;
 
     /// Returns an individual section of the larger source map, if found.
+    #[turbo_tasks::function]
     fn by_section(self: Vc<Self>, _section: RcStr) -> Vc<OptionStringifiedSourceMap> {
         Vc::cell(None)
     }
@@ -148,18 +151,20 @@ impl Token {
     }
 }
 
-impl From<sourcemap::Token<'_>> for Token {
-    fn from(t: sourcemap::Token) -> Self {
+impl From<swc_sourcemap::Token<'_>> for Token {
+    fn from(t: swc_sourcemap::Token) -> Self {
         if t.has_source() {
             Token::Original(OriginalToken {
                 generated_line: t.get_dst_line(),
                 generated_column: t.get_dst_col(),
                 original_file: RcStr::from(
-                    t.get_source().expect("already checked token has source"),
+                    t.get_source()
+                        .expect("already checked token has source")
+                        .clone(),
                 ),
                 original_line: t.get_src_line(),
                 original_column: t.get_src_col(),
-                name: t.get_name().map(RcStr::from),
+                name: t.get_name().cloned().map(RcStr::from),
             })
         } else {
             Token::Synthetic(SyntheticToken {
@@ -171,12 +176,12 @@ impl From<sourcemap::Token<'_>> for Token {
     }
 }
 
-impl TryInto<sourcemap::RawToken> for Token {
+impl TryInto<swc_sourcemap::RawToken> for Token {
     type Error = std::num::ParseIntError;
 
-    fn try_into(self) -> Result<sourcemap::RawToken, Self::Error> {
+    fn try_into(self) -> Result<swc_sourcemap::RawToken, Self::Error> {
         Ok(match self {
-            Self::Original(t) => sourcemap::RawToken {
+            Self::Original(t) => swc_sourcemap::RawToken {
                 dst_col: t.generated_column,
                 dst_line: t.generated_line,
                 name_id: match t.name {
@@ -188,7 +193,7 @@ impl TryInto<sourcemap::RawToken> for Token {
                 src_id: t.original_file.parse()?,
                 is_range: false,
             },
-            Self::Synthetic(t) => sourcemap::RawToken {
+            Self::Synthetic(t) => swc_sourcemap::RawToken {
                 dst_col: t.generated_column,
                 dst_line: t.generated_line,
                 name_id: SOURCEMAP_CRATE_NONE_U32,
@@ -273,13 +278,13 @@ impl SourceMap {
                     .sections
                     .iter()
                     .map(|s| {
-                        sourcemap::SourceMapSection::new(
+                        swc_sourcemap::SourceMapSection::new(
                             (s.offset.line, s.offset.column),
                             None,
                             Some(s.map.0.clone()),
                         )
                     })
-                    .collect::<Vec<sourcemap::SourceMapSection>>();
+                    .collect::<Vec<swc_sourcemap::SourceMapSection>>();
                 Arc::new(CrateMapWrapper(DecodedMap::Index(SourceMapIndex::new(
                     None, sections,
                 ))))
@@ -406,10 +411,10 @@ impl SourceMap {
 
     pub async fn with_resolved_sources(&self, origin: Vc<FileSystemPath>) -> Result<Self> {
         async fn resolve_source(
-            source_request: Arc<str>,
-            source_content: Option<Arc<str>>,
+            source_request: BytesStr,
+            source_content: Option<BytesStr>,
             origin: Vc<FileSystemPath>,
-        ) -> Result<(Arc<str>, Arc<str>)> {
+        ) -> Result<(BytesStr, BytesStr)> {
             Ok(
                 if let Some(path) = *origin.parent().try_join((&*source_request).into()).await? {
                     let path_str = path.to_string().await?;
@@ -448,14 +453,14 @@ impl SourceMap {
             origin: Vc<FileSystemPath>,
         ) -> Result<RegularMap> {
             let map = &map.0;
-            let file = map.get_file().map(Arc::<str>::from);
+            let file = map.get_file().cloned();
             let tokens = map.tokens().map(|t| t.get_raw_token()).collect();
-            let names = map.names().map(Arc::<str>::from).collect();
+            let names = map.names().cloned().collect();
             let count = map.get_source_count() as usize;
-            let sources = map.sources().map(Arc::<str>::from).collect::<Vec<_>>();
+            let sources = map.sources().cloned().collect::<Vec<_>>();
             let source_contents = map
                 .source_contents()
-                .map(|s| s.map(Arc::<str>::from))
+                .map(|s| s.cloned())
                 .collect::<Vec<_>>();
             let mut new_sources = Vec::with_capacity(count);
             let mut new_source_contents = Vec::with_capacity(count);
@@ -482,7 +487,7 @@ impl SourceMap {
                 }
                 DecodedMap::Index(map) => {
                     let count = map.get_section_count() as usize;
-                    let file = map.get_file().map(ToString::to_string);
+                    let file = map.get_file().cloned();
                     let sections = map
                         .sections()
                         .filter_map(|section| {
@@ -503,7 +508,7 @@ impl SourceMap {
                         .await?;
                     let mut new_sections = Vec::with_capacity(count);
                     for (offset, map) in sections {
-                        new_sections.push(sourcemap::SourceMapSection::new(
+                        new_sections.push(swc_sourcemap::SourceMapSection::new(
                             offset,
                             // Urls are deprecated and we don't accept them
                             None,
@@ -573,7 +578,7 @@ impl SourceMap {
                     && let DecodedMap::Regular(map) = &map.map.0
                     && map.get_source_count() == 1
                 {
-                    let source = map.sources().next().unwrap();
+                    let source = map.sources().next().unwrap().clone();
                     *guessed_original_file = Some(RcStr::from(source));
                 }
 
@@ -588,7 +593,10 @@ impl SourceMap {
                         let content = map.get_source_contents(src_id);
 
                         let (name, content) = name.zip(content)?;
-                        Some(sourcemap_content_source(name.into(), content.into()))
+                        Some(sourcemap_content_source(
+                            name.clone().into(),
+                            content.clone().into(),
+                        ))
                     });
                 }
 

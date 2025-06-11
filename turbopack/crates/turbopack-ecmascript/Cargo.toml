@@ -15,6 +15,8 @@ workspace = true
 [dependencies]
 anyhow = { workspace = true }
 async-trait = { workspace = true }
+auto-hash-map = { workspace = true }
+bytes-str = { workspace = true }
 data-encoding = { workspace = true }
 either = { workspace = true }
 indexmap = { workspace = true }
@@ -29,7 +31,7 @@ regex = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["raw_value"] }
-sourcemap = { workspace = true }
+swc_sourcemap = { workspace = true }
 smallvec = { workspace = true }
 strsim = { workspace = true }
 tokio = { workspace = true }

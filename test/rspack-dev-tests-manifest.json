@@ -2454,6 +2454,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/error-overlay/duplicate-runtime-error/duplicate-runtime-error.test.ts": {
+    "passed": [
+      "duplicate-runtime-error should not rerender the overlay for the same runtime error"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-dir/error-overlay/error-ignored-frames/error-ignored-frames.test.ts": {
     "passed": [
       "error-ignored-frames should be able to collapse ignored frames in client component",
@@ -2639,7 +2648,10 @@
     "runtimeError": false
   },
   "test/development/app-dir/segment-explorer/segment-explorer.test.ts": {
-    "passed": ["segment-explorer should render the segment explorer"],
+    "passed": [
+      "segment-explorer should render the segment explorer for nested routes",
+      "segment-explorer should render the segment explorer for parallel routes"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -2943,14 +2955,14 @@
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover from 404 after a page has been added",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover from 404 after a page has been added with dynamic segments",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover from errors in getInitialProps in client",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover from errors in the render function",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should show the error on all pages"
     ],
     "failed": [
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should detect runtime errors on the module scope",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should not continously poll a custom error page",
-      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover after loader parse error in an imported file",
-      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover from errors in the render function"
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover after loader parse error in an imported file"
     ],
     "pending": [],
     "flakey": [],
@@ -3411,6 +3423,15 @@
       "dev indicator - route type getStaticPaths should be marked static on first load",
       "dev indicator - route type getStaticPaths should update when going from dynamic -> static",
       "dev indicator - route type should have route type as static by default for static page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/dev-indicator/dev-rendering-indicator.test.ts": {
+    "passed": [
+      "Dev Rendering Indicator Shows build indicator when page is built from modifying"
     ],
     "failed": [],
     "pending": [],
@@ -4286,6 +4307,7 @@
       "app-dir action handling should be possible to catch regular errors",
       "app-dir action handling should bundle external libraries if they are on the action layer",
       "app-dir action handling should forward action request to a worker that contains the action handler (edge)",
+      "app-dir action handling should forward action request to a worker that contains the action handler (node)",
       "app-dir action handling should handle action correctly with middleware rewrite",
       "app-dir action handling should handle actions executed in quick succession",
       "app-dir action handling should handle basic actions correctly",
@@ -4325,9 +4347,7 @@
       "app-dir action handling should trigger an error boundary for action responses with an invalid content-type",
       "app-dir action handling should work with interception routes"
     ],
-    "failed": [
-      "app-dir action handling should forward action request to a worker that contains the action handler (node)"
-    ],
+    "failed": [],
     "pending": [
       "app-dir action handling fetch actions should handle unstable_expireTag + redirect",
       "app-dir action handling server actions render client components client component imported action should support importing client components from actions"
@@ -5208,7 +5228,6 @@
       "app dir - basic searchParams prop server component should have the correct search params on middleware rewrite",
       "app dir - basic searchParams prop server component should have the correct search params on rewrite",
       "app dir - basic server components Loading should render loading.js in browser for slow layout",
-      "app dir - basic server components Loading should render loading.js in browser for slow layout and page",
       "app dir - basic server components Loading should render loading.js in browser for slow page",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout and page",
@@ -5223,6 +5242,7 @@
       "app dir - basic server components dynamic routes should only pass params that apply to the layout",
       "app dir - basic server components middleware should strip internal query parameters from requests to middleware for redirect",
       "app dir - basic server components middleware should strip internal query parameters from requests to middleware for rewrite",
+      "app dir - basic server components next/router should support router.back and router.forward",
       "app dir - basic server components should include client component layout with server component route should include it client-side",
       "app dir - basic server components should include client component layout with server component route should include it server-side",
       "app dir - basic server components should not serve .client.js as a path",
@@ -5266,7 +5286,7 @@
     ],
     "failed": [
       "app dir - basic <Link /> should navigate to pages dynamic route from pages page if it overlaps with an app page",
-      "app dir - basic server components next/router should support router.back and router.forward"
+      "app dir - basic server components Loading should render loading.js in browser for slow layout and page"
     ],
     "pending": [
       "app dir - basic HMR should HMR correctly when changing the component type",
@@ -8198,6 +8218,7 @@
       "ppr-metadata-streaming dynamic metadata should generate metadata in body when page is fully dynamic",
       "ppr-metadata-streaming partial shell should insert metadata into body with dynamic metadata and wrapped under layout Suspense boundary",
       "ppr-metadata-streaming partial shell should insert metadata into head with dynamic metadata and dynamic page wrapped under layout Suspense boundary",
+      "ppr-metadata-streaming partial shell should not yield hydration errors after revalidation",
       "ppr-metadata-streaming static metadata should generate metadata in head when page is fully static",
       "ppr-metadata-streaming static metadata should insert metadata in body when page is dynamic page content"
     ],
@@ -9632,6 +9653,7 @@
       "use-cache can reference server actions in \"use cache\" functions",
       "use-cache renders the not-found page when `notFound()` is used",
       "use-cache replays logs from \"use cache\" functions",
+      "use-cache shares caches between the page/layout and generateMetadata",
       "use-cache should be able to revalidate a page using unstable_expireTag",
       "use-cache should cache complex args",
       "use-cache should cache fetch without no-store",
@@ -10034,6 +10056,33 @@
     "passed": [
       "children-page with app dir should show the content if you have a page named children",
       "children-page with pages dir should show the content if you have a page named children"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/chrome-devtools-workspace/chrome-devtools-workspace-base-path.test.ts": {
+    "passed": [
+      "chrome-devtools-workspace basePath should be able to connect to Chrome DevTools in dev with a configured basePath"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/chrome-devtools-workspace/chrome-devtools-workspace-custom-disable.test.ts": {
+    "passed": [
+      "chrome-devtools-workspace custom disable can be disabled by providing your own endpoint"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/chrome-devtools-workspace/chrome-devtools-workspace.test.ts": {
+    "passed": [
+      "chrome-devtools-workspace default should be able to connect to Chrome DevTools in dev"
     ],
     "failed": [],
     "pending": [],

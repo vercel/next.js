@@ -7,8 +7,7 @@ use anyhow::{Result, bail};
 use swc_core::common::pass::Either;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, ValueDefault, ValueToString,
-    Vc,
+    FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueDefault, ValueToString, Vc,
 };
 use turbo_tasks_fs::{
     File, FileSystem, FileSystemPath,
@@ -201,7 +200,7 @@ impl CssChunk {
             content_type: None,
         };
 
-        Ok(AssetIdent::new(Value::new(ident)))
+        Ok(AssetIdent::new(ident))
     }
 }
 
@@ -408,6 +407,7 @@ pub struct CssChunkItemContent {
 
 #[turbo_tasks::value_trait]
 pub trait CssChunkItem: ChunkItem {
+    #[turbo_tasks::function]
     fn content(self: Vc<Self>) -> Vc<CssChunkItemContent>;
 }
 

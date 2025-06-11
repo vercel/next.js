@@ -21,6 +21,7 @@ import type { NodeNextResponse, NodeNextRequest } from '../base-http/node'
 import type { RouteEnsurer } from '../route-matcher-managers/dev-route-matcher-manager'
 import type { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
 
+import * as React from 'react'
 import fs from 'fs'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import { join as pathJoin } from 'path'
@@ -32,6 +33,7 @@ import {
   PAGES_MANIFEST,
   APP_PATHS_MANIFEST,
   COMPILER_NAMES,
+  PRERENDER_MANIFEST,
 } from '../../shared/lib/constants'
 import Server, { WrappedBuildError } from '../next-server'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
@@ -66,22 +68,23 @@ import { decorateServerError } from '../../shared/lib/error-source'
 import type { ServerOnInstrumentationRequestError } from '../app-render/types'
 import type { ServerComponentsHmrCache } from '../response-cache'
 import { logRequests } from './log-requests'
-import { FallbackMode } from '../../lib/fallback'
-import type { PagesDevOverlayType } from '../../client/components/react-dev-overlay/pages/pages-dev-overlay'
+import { FallbackMode, fallbackModeToFallbackField } from '../../lib/fallback'
+import type { PagesDevOverlayBridgeType } from '../../next-devtools/userspace/pages/pages-dev-overlay-setup'
 import {
   ensureInstrumentationRegistered,
   getInstrumentationModule,
 } from '../lib/router-utils/instrumentation-globals.external'
+import type { PrerenderManifest } from '../../build'
 
 // Load ReactDevOverlay only when needed
-let ReactDevOverlayImpl: PagesDevOverlayType
-const ReactDevOverlay: PagesDevOverlayType = (props) => {
-  if (ReactDevOverlayImpl === undefined) {
-    ReactDevOverlayImpl = (
-      require('../../client/components/react-dev-overlay/pages/pages-dev-overlay') as typeof import('../../client/components/react-dev-overlay/pages/pages-dev-overlay')
-    ).PagesDevOverlay as PagesDevOverlayType
+let PagesDevOverlayBridgeImpl: PagesDevOverlayBridgeType
+const ReactDevOverlay: PagesDevOverlayBridgeType = (props) => {
+  if (PagesDevOverlayBridgeImpl === undefined) {
+    PagesDevOverlayBridgeImpl = (
+      require('../../next-devtools/userspace/pages/pages-dev-overlay-setup') as typeof import('../../next-devtools/userspace/pages/pages-dev-overlay-setup')
+    ).PagesDevOverlayBridge
   }
-  return ReactDevOverlayImpl(props)
+  return React.createElement(PagesDevOverlayBridgeImpl, props)
 }
 
 export interface Options extends ServerOptions {
@@ -847,9 +850,10 @@ export default class DevServer extends Server {
       `staticPaths-${pathname}`,
       []
     )
-      .then((res) => {
+      .then(async (res) => {
         const { prerenderedRoutes: staticPaths, fallbackMode: fallback } =
           res.value
+
         if (!isAppPath && this.nextConfig.output === 'export') {
           if (fallback === FallbackMode.BLOCKING_STATIC_RENDER) {
             throw new Error(
@@ -868,6 +872,32 @@ export default class DevServer extends Server {
         } = {
           staticPaths: staticPaths?.map((route) => route.pathname),
           fallbackMode: fallback,
+        }
+
+        if (res.value?.fallbackMode !== undefined) {
+          // we write the static paths to partial manifest for
+          // fallback handling inside of entry handler's
+          const rawExistingManifest = await fs.promises.readFile(
+            pathJoin(this.distDir, PRERENDER_MANIFEST),
+            'utf8'
+          )
+          const existingManifest: PrerenderManifest =
+            JSON.parse(rawExistingManifest)
+          for (const staticPath of value.staticPaths || []) {
+            existingManifest.routes[staticPath] = {} as any
+          }
+          existingManifest.dynamicRoutes[pathname] = {
+            fallback: fallbackModeToFallbackField(res.value.fallbackMode, page),
+          } as any
+
+          const updatedManifest = JSON.stringify(existingManifest)
+
+          if (updatedManifest !== rawExistingManifest) {
+            await fs.promises.writeFile(
+              pathJoin(this.distDir, PRERENDER_MANIFEST),
+              updatedManifest
+            )
+          }
         }
         this.staticPathsCache.set(pathname, value)
         return value

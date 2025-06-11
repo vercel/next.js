@@ -201,7 +201,6 @@
       "app-dir action handling should support setting cookies when redirecting (no javascript)",
       "app-dir action handling should support setting cookies when redirecting (with javascript)",
       "app-dir action handling should support uploading files",
-      "app-dir action handling should trace server action imported by client correctly",
       "app-dir action handling should trigger a refresh for a server action that also dispatches a navigation event",
       "app-dir action handling should trigger a refresh for a server action that gets discarded due to a navigation",
       "app-dir action handling should trigger an error boundary for action responses with an invalid content-type",
@@ -336,7 +335,6 @@
       "app-dir action handling should support setting cookies when redirecting (no javascript)",
       "app-dir action handling should support setting cookies when redirecting (with javascript)",
       "app-dir action handling should support uploading files",
-      "app-dir action handling should trace server action imported by client correctly",
       "app-dir action handling should trigger a refresh for a server action that also dispatches a navigation event",
       "app-dir action handling should trigger a refresh for a server action that gets discarded due to a navigation",
       "app-dir action handling should trigger an error boundary for action responses with an invalid content-type",
@@ -4613,6 +4611,7 @@
       "ppr-metadata-streaming html limited bots should serve partial static shell when normal UA requests the PPR page",
       "ppr-metadata-streaming partial shell should insert metadata into body with dynamic metadata and wrapped under layout Suspense boundary",
       "ppr-metadata-streaming partial shell should insert metadata into head with dynamic metadata and dynamic page wrapped under layout Suspense boundary",
+      "ppr-metadata-streaming partial shell should not yield hydration errors after revalidation",
       "ppr-metadata-streaming static metadata should generate metadata in head when page is fully static",
       "ppr-metadata-streaming static metadata should insert metadata in body when page is dynamic page content"
     ],
@@ -5550,6 +5549,7 @@
   },
   "test/e2e/app-dir/segment-cache/cdn-cache-busting/cdn-cache-busting.test.ts": {
     "passed": [
+      "segment cache (CDN cache busting) perform fully prefetched navigation when a third-party proxy performs a redirect",
       "segment cache (CDN cache busting) perform fully prefetched navigation with a CDN that doesn't respect the Vary header",
       "segment cache (CDN cache busting) prevent cache poisoning attacks by responding with an error if a custom header is sent during a prefetch without a corresponding cache-busting search param"
     ],
@@ -6102,6 +6102,7 @@
     "passed": [
       "use-cache can reference server actions in \"use cache\" functions",
       "use-cache renders the not-found page when `notFound()` is used",
+      "use-cache shares caches between the page/layout and generateMetadata",
       "use-cache should be able to revalidate a page using unstable_expireTag",
       "use-cache should cache complex args",
       "use-cache should cache fetch without no-store",
@@ -6509,6 +6510,33 @@
     "passed": [
       "children-page with app dir should show the content if you have a page named children",
       "children-page with pages dir should show the content if you have a page named children"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/chrome-devtools-workspace/chrome-devtools-workspace-base-path.test.ts": {
+    "passed": [
+      "chrome-devtools-workspace basePath should be able to connect to Chrome DevTools in dev with a configured basePath"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/chrome-devtools-workspace/chrome-devtools-workspace-custom-disable.test.ts": {
+    "passed": [
+      "chrome-devtools-workspace custom disable can be disabled by providing your own endpoint"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/chrome-devtools-workspace/chrome-devtools-workspace.test.ts": {
+    "passed": [
+      "chrome-devtools-workspace default should be able to connect to Chrome DevTools in dev"
     ],
     "failed": [],
     "pending": [],
@@ -17764,17 +17792,17 @@
   },
   "test/integration/server-side-dev-errors/test/index.test.js": {
     "passed": [
-      "server-side dev errors should show server-side error for api route correctly",
-      "server-side dev errors should show server-side error for dynamic api route correctly",
       "server-side dev errors should show server-side error for dynamic gssp page correctly",
       "server-side dev errors should show server-side error for gsp page correctly",
       "server-side dev errors should show server-side error for gssp page correctly",
       "server-side dev errors should show server-side error for uncaught empty exception correctly",
       "server-side dev errors should show server-side error for uncaught empty rejection correctly",
-      "server-side dev errors should show server-side error for uncaught exception correctly"
+      "server-side dev errors should show server-side error for uncaught exception correctly",
+      "server-side dev errors should show server-side error for uncaught rejection correctly"
     ],
     "failed": [
-      "server-side dev errors should show server-side error for uncaught rejection correctly"
+      "server-side dev errors should show server-side error for api route correctly",
+      "server-side dev errors should show server-side error for dynamic api route correctly"
     ],
     "pending": [],
     "flakey": [],
@@ -18357,6 +18385,15 @@
   },
   "test/production/app-dir-prevent-304-caching/index.test.ts": {
     "passed": ["app-dir-prevent-304-caching should not cache 304 status"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/app-dir/action-tracing/action-tracing.test.ts": {
+    "passed": [
+      "action-tracing should trace server action imported by client correctly"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -19198,8 +19235,9 @@
   },
   "test/production/exported-runtimes-value-validation/index.test.ts": {
     "passed": [
-      "Exported runtimes value validation fails to build on malformed input",
-      "Exported runtimes value validation warns on unrecognized runtimes value"
+      "Exported runtimes value validation fails the build on invalid middleware matcher",
+      "Exported runtimes value validation fails the build on unrecognized runtimes value",
+      "Exported runtimes value validation fails to build on malformed input"
     ],
     "failed": [],
     "pending": [],
@@ -19868,6 +19906,15 @@
   },
   "test/production/typescript-basic/typechecking.test.ts": {
     "passed": ["typechecking should typecheck"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/typescript-checked-side-effect-imports/index.test.ts": {
+    "passed": [
+      "Imports of server/client-only with noUncheckedSideEffectImports Should build without typescript errors"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],

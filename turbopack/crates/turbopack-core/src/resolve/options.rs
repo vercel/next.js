@@ -690,7 +690,9 @@ pub async fn resolve_modules_options(
 
 #[turbo_tasks::value_trait]
 pub trait ImportMappingReplacement {
+    #[turbo_tasks::function]
     fn replace(self: Vc<Self>, capture: Vc<Pattern>) -> Vc<ReplacedImportMapping>;
+    #[turbo_tasks::function]
     fn result(
         self: Vc<Self>,
         lookup_path: Vc<FileSystemPath>,

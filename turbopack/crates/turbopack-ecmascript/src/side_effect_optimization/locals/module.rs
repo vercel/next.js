@@ -22,6 +22,7 @@ use crate::{
         async_module::OptionAsyncModule,
         esm::{EsmExport, EsmExports},
     },
+    simple_tree_shake::get_module_export_usages,
 };
 
 /// A module derived from an original ecmascript module that only contains the
@@ -44,9 +45,7 @@ impl EcmascriptModuleLocalsModule {
 impl Module for EcmascriptModuleLocalsModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        let inner = self.module.ident();
-
-        inner.with_part(ModulePart::locals())
+        self.module.ident().with_part(ModulePart::locals())
     }
 
     #[turbo_tasks::function]
@@ -110,6 +109,16 @@ impl EcmascriptAnalyzable for EcmascriptModuleLocalsModule {
             .reference_module_source_maps(Vc::upcast(self))
             .await?;
 
+        let export_usage_info = if original_module.options().await?.remove_unused_exports {
+            Some(
+                get_module_export_usages(*module_graph, Vc::upcast(self))
+                    .to_resolved()
+                    .await?,
+            )
+        } else {
+            None
+        };
+
         Ok(EcmascriptModuleContentOptions {
             parsed,
             ident: self.ident().to_resolved().await?,
@@ -125,6 +134,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleLocalsModule {
             original_source_map: analyze_result.source_map,
             exports,
             async_module_info,
+            export_usage_info,
         }
         .cell())
     }

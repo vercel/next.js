@@ -179,9 +179,11 @@ class Container extends React.Component<{
     if (process.env.NODE_ENV === 'production') {
       return this.props.children
     } else {
-      const { PagesDevOverlay } =
-        require('./components/react-dev-overlay/pages/pages-dev-overlay') as typeof import('./components/react-dev-overlay/pages/pages-dev-overlay')
-      return <PagesDevOverlay>{this.props.children}</PagesDevOverlay>
+      const { PagesDevOverlayBridge } =
+        require('../next-devtools/userspace/pages/pages-dev-overlay-setup') as typeof import('../next-devtools/userspace/pages/pages-dev-overlay-setup')
+      return (
+        <PagesDevOverlayBridge>{this.props.children}</PagesDevOverlayBridge>
+      )
     }
   }
 }
@@ -915,10 +917,9 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
   }
 
   if (process.env.NODE_ENV === 'development') {
-    const getServerError: typeof import('./components/react-dev-overlay/pages/client').getServerError =
-      (
-        require('./components/react-dev-overlay/pages/client') as typeof import('./components/react-dev-overlay/pages/client')
-      ).getServerError
+    const getServerError = (
+      require('../server/dev/node-stack-frames') as typeof import('../server/dev/node-stack-frames')
+    ).getServerError
     // Server-side runtime errors need to be re-thrown on the client-side so
     // that the overlay is rendered.
     if (initialErr) {

@@ -5,12 +5,12 @@ import {
   setOwnerStackIfAvailable,
   setComponentStack,
   coerceError,
-} from '../components/errors/stitched-error'
-import { handleClientError } from '../components/errors/use-error-handler'
+} from '../../next-devtools/userspace/app/errors/stitched-error'
+import { handleClientError } from '../../next-devtools/userspace/app/errors/use-error-handler'
 import { isNextRouterError } from '../components/is-next-router-error'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { reportGlobalError } from './report-global-error'
-import { originConsoleError } from '../components/globals/intercept-console-error'
+import { originConsoleError } from '../../next-devtools/userspace/app/errors/intercept-console-error'
 import { ErrorBoundaryHandler } from '../components/error-boundary'
 import DefaultErrorBoundary from '../components/global-error'
 
@@ -24,7 +24,7 @@ export function onCaughtError(
 
   if (process.env.NODE_ENV !== 'production') {
     const { AppDevOverlayErrorBoundary } =
-      require('../components/react-dev-overlay/app/app-dev-overlay-error-boundary') as typeof import('../components/react-dev-overlay/app/app-dev-overlay-error-boundary')
+      require('../../next-devtools/userspace/app/app-dev-overlay-error-boundary') as typeof import('../../next-devtools/userspace/app/app-dev-overlay-error-boundary')
 
     isImplicitErrorBoundary =
       errorBoundaryComponent === AppDevOverlayErrorBoundary

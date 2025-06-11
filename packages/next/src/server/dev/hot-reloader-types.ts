@@ -6,7 +6,7 @@ import type getBaseWebpackConfig from '../../build/webpack-config'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 import type { Project, Update as TurbopackUpdate } from '../../build/swc/types'
 import type { VersionInfo } from './parse-version-info'
-import type { DebugInfo } from '../../client/components/react-dev-overlay/types'
+import type { DebugInfo } from '../../next-devtools/shared/types'
 import type { DevIndicatorServerState } from './dev-indicator-server-state'
 
 export const enum HMR_ACTIONS_SENT_TO_BROWSER {

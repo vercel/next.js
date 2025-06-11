@@ -198,7 +198,7 @@ describe('app dir - basepath', () => {
 
     expect(firstResponse.status()).toEqual(303)
     // Since this is an external request to a resource outside of NextJS
-    // we expect to see a seperate request resolving the external URL.
+    // we expect to see a separate request resolving the external URL.
     expect(secondResponse.status()).toEqual(200)
   })
 })

@@ -27,7 +27,7 @@
       // TODO: Enable types by telling Turbopack to ignore this alias.
       // tsconfig#paths are for type locations not source locations.
       // "next/dist/compiled/next-devtools": [
-      //   "./src/client/components/react-dev-overlay/app/entrypoint.d.ts"
+      //   "./src/next-devtools/entrypoint.ts"
       // ],
       "next/dist/shared/lib/image-loader": ["./src/shared/lib/image-loader.ts"]
     }

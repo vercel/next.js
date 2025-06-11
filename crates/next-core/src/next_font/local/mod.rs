@@ -3,7 +3,7 @@ use font_fallback::FontFallbackResult;
 use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, Value, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{
     FileContent, FileSystemPath, glob::Glob, json::parse_json_with_source_context,
 };
@@ -226,7 +226,7 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                     path,
                     preload,
                     has_size_adjust: size_adjust,
-                } = font_file_options_from_query_map(query).await?;
+                } = font_file_options_from_query_map(query)?;
 
                 let (filename, ext) = split_extension(&path);
                 let ext = ext.with_context(|| format!("font {} needs an extension", &path))?;
@@ -303,11 +303,10 @@ fn font_options_from_query_map(query: RcStr) -> Result<Vc<NextFontLocalOptions>>
         bail!("Expected one entry");
     };
 
-    options_from_request(&parse_json_with_source_context(&json)?)
-        .map(|o| NextFontLocalOptions::new(Value::new(o)))
+    options_from_request(&parse_json_with_source_context(&json)?).map(NextFontLocalOptions::new)
 }
 
-async fn font_file_options_from_query_map(query: &RcStr) -> Result<NextFontLocalFontFileOptions> {
+fn font_file_options_from_query_map(query: &RcStr) -> Result<NextFontLocalFontFileOptions> {
     let query_map = qstring::QString::from(query.as_str());
 
     if query_map.len() != 1 {

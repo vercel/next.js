@@ -1,12 +1,9 @@
 /* globals __webpack_hash__ */
 import { displayContent } from './fouc'
 import initOnDemandEntries from './on-demand-entries-client'
-import {
-  addMessageListener,
-  connectHMR,
-} from '../components/react-dev-overlay/pages/websocket'
+import { addMessageListener, connectHMR } from './hot-reloader/pages/websocket'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../server/dev/hot-reloader-types'
-import { reportInvalidHmrMessage } from '../components/react-dev-overlay/shared'
+import { reportInvalidHmrMessage } from './hot-reloader/shared'
 
 /// <reference types="webpack/module.d.ts" />
 

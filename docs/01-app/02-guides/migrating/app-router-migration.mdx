@@ -111,7 +111,7 @@ We recommend reducing the combined complexity of these updates by breaking down 
   - Use `layout.js` to define UI that is shared across multiple routes.
   - `.js`, `.jsx`, or `.tsx` file extensions can be used for special files.
 - You can colocate other files inside the `app` directory such as components, styles, tests, and more. [Learn more](/docs/app/building-your-application/routing).
-- Data fetching functions like `getServerSideProps` and `getStaticProps` have been replaced with [a new API](/docs/app/building-your-application/data-fetching) inside `app`. `getStaticPaths` has been replaced with [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params).
+- Data fetching functions like `getServerSideProps` and `getStaticProps` have been replaced with [a new API](/docs/app/getting-started/fetching-data) inside `app`. `getStaticPaths` has been replaced with [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params).
 - `pages/_app.js` and `pages/_document.js` have been replaced with a single `app/layout.js` root layout. [Learn more](/docs/app/api-reference/file-conventions/layout#root-layout).
 - `pages/_error.js` has been replaced with more granular `error.js` special files. [Learn more](/docs/app/getting-started/error-handling).
 - `pages/404.js` has been replaced with the [`not-found.js`](/docs/app/api-reference/file-conventions/not-found) file.
@@ -326,7 +326,7 @@ export default function Page() {
 ### Step 4: Migrating Pages
 
 - Pages in the [`app` directory](/docs/app/building-your-application/routing) are [Server Components](/docs/app/getting-started/server-and-client-components) by default. This is different from the `pages` directory where pages are [Client Components](/docs/app/getting-started/server-and-client-components).
-- [Data fetching](/docs/app/building-your-application/data-fetching) has changed in `app`. `getServerSideProps`, `getStaticProps` and `getInitialProps` have been replaced with a simpler API.
+- [Data fetching](/docs/app/getting-started/fetching-data) has changed in `app`. `getServerSideProps`, `getStaticProps` and `getInitialProps` have been replaced with a simpler API.
 - The `app` directory uses nested folders to define routes and a special `page.js` file to make a route segment publicly accessible.
 - | `pages` Directory | `app` Directory       | Route          |
   | ----------------- | --------------------- | -------------- |
@@ -485,7 +485,7 @@ This is the `useRouter` hook from the `pages` directory, but intended to be used
 
 ### Step 6: Migrating Data Fetching Methods
 
-The `pages` directory uses `getServerSideProps` and `getStaticProps` to fetch data for pages. Inside the `app` directory, these previous data fetching functions are replaced with a [simpler API](/docs/app/building-your-application/data-fetching) built on top of `fetch()` and `async` React Server Components.
+The `pages` directory uses `getServerSideProps` and `getStaticProps` to fetch data for pages. Inside the `app` directory, these previous data fetching functions are replaced with a [simpler API](/docs/app/getting-started/fetching-data) built on top of `fetch()` and `async` React Server Components.
 
 ```tsx filename="app/page.tsx" switcher
 export default async function Page() {

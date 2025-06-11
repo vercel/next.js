@@ -31,6 +31,8 @@ By default, Next.js will cache as much as possible to improve performance and re
 
 Caching behavior changes depending on whether the route is statically or dynamically rendered, data is cached or uncached, and whether a request is part of an initial visit or a subsequent navigation. Depending on your use case, you can configure the caching behavior for individual routes and data requests.
 
+Fetch caching is **not** supported in `middleware`. Any fetches done inside of your `middleware` will be uncached.
+
 ## Request Memoization
 
 Next.js extends the [`fetch` API](#fetch) to automatically **memoize** requests that have the same URL and options. This means you can call a fetch function for the same data in multiple places in a React component tree while only executing it once.
@@ -125,6 +127,8 @@ Next.js has a built-in Data Cache that **persists** the result of data fetches a
 > **Good to know**: In the browser, the `cache` option of `fetch` indicates how a request will interact with the browser's HTTP cache, in Next.js, the `cache` option indicates how a server-side request will interact with the server's Data Cache.
 
 You can use the [`cache`](#fetch-optionscache) and [`next.revalidate`](#fetch-optionsnextrevalidate) options of `fetch` to configure the caching behavior.
+
+In development mode, `fetch` data is [reused for Hot Module Replacement (HMR)](/docs/app/api-reference/functions/fetch#fetch-default-auto-no-store-and-cache-no-store-not-showing-fresh-data-in-development), and caching options are ignored for [hard refreshes](/docs/app/api-reference/functions/fetch#hard-refresh-and-caching-in-development).
 
 **How the Data Cache Works**
 
@@ -365,7 +369,7 @@ When configuring the different caching mechanisms, it's important to understand 
 
 ### Data Cache and Client-side Router cache
 
-- To immediately invalidate the Data Cache and Router cache, you can use [`revalidatePath`](#revalidatepath) or [`revalidateTag`](#fetch-optionsnexttags-and-revalidatetag) in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
+- To immediately invalidate the Data Cache and Router cache, you can use [`revalidatePath`](#revalidatepath) or [`revalidateTag`](#fetch-optionsnexttags-and-revalidatetag) in a [Server Action](/docs/app/getting-started/updating-data).
 - Revalidating the Data Cache in a [Route Handler](/docs/app/building-your-application/routing/route-handlers) **will not** immediately invalidate the Router Cache as the Route Handler isn't tied to a specific route. This means Router Cache will continue to serve the previous payload until a hard refresh, or the automatic invalidation period has elapsed.
 
 ## APIs
@@ -471,7 +475,7 @@ revalidateTag('a')
 There are two places you can use `revalidateTag`, depending on what you're trying to achieve:
 
 1. [Route Handlers](/docs/app/building-your-application/routing/route-handlers) - to revalidate data in response of a third party event (e.g. webhook). This will not invalidate the Router Cache immediately as the Router Handler isn't tied to a specific route.
-2. [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) - to revalidate data after a user action (e.g. form submission). This will invalidate the Router Cache for the associated route.
+2. [Server Actions](/docs/app/getting-started/updating-data) - to revalidate data after a user action (e.g. form submission). This will invalidate the Router Cache for the associated route.
 
 ### `revalidatePath`
 
@@ -484,7 +488,7 @@ revalidatePath('/')
 There are two places you can use `revalidatePath`, depending on what you're trying to achieve:
 
 1. [Route Handlers](/docs/app/building-your-application/routing/route-handlers) - to revalidate data in response to a third party event (e.g. webhook).
-2. [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) - to revalidate data after a user interaction (e.g. form submission, clicking a button).
+2. [Server Actions](/docs/app/getting-started/updating-data) - to revalidate data after a user interaction (e.g. form submission, clicking a button).
 
 See the [`revalidatePath` API reference](/docs/app/api-reference/functions/revalidatePath) for more information.
 
