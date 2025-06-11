@@ -422,8 +422,9 @@ function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
           AppTree,
         },
       }
+
       return Promise.resolve(
-        renderErrorProps.props?.err
+        renderErrorProps.props
           ? renderErrorProps.props
           : loadGetInitialProps(App, appCtx)
       ).then((initProps) =>
@@ -995,7 +996,20 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
     App: CachedApp,
     initial: true,
     Component: CachedComponent,
-    props: initialData.props,
+    /**
+     * Initial props from server is invalid when server has no error(initialData.err)
+     * but client has error(initialErr), such that loadGetInitialProps would be called
+     * in the client side.
+     *
+     * Moreover, For the reference @see https://github.com/vercel/next.js/pull/21240
+     *
+     * The old fix introduced a new bug, the renderErrorProps.props never has an `err`
+     * property, which means server side error.getInitialProps's result will never be used
+     * as a client initial props(client will always call the error.getInitialProps).
+     *
+     * This fix can also resolve top module error issue(#21240).
+     */
+    props: initialErr && !initialData.err ? undefined : initialData.props,
     err: initialErr,
     isHydratePass: true,
   }
