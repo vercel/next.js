@@ -32,8 +32,8 @@ lazy_static = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 rustc-hash = { workspace = true }
-react_remove_properties = "0.40.0"
-remove_console = "0.41.0"
+react_remove_properties = "0.41.0"
+remove_console = "0.42.0"
 itertools = { workspace = true }
 percent-encoding = "2.3.1"
 serde_path_to_error = { workspace = true }
