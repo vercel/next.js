@@ -1,8 +1,7 @@
-import type { HTMLProps } from 'react'
-import { css } from '../../utils/css'
+import { useRef, type HTMLProps } from 'react'
+import { css } from '../../../utils/css'
 import type { DevToolsInfoPropsCore } from '../errors/dev-tools-indicator/dev-tools-info/dev-tools-info'
 import { DevToolsInfo } from '../errors/dev-tools-indicator/dev-tools-info/dev-tools-info'
-import { cx } from '../../utils/cx'
 import {
   type SegmentNode,
   useSegmentTreeClientState,
@@ -10,6 +9,7 @@ import {
 import type { Trie, TrieNode } from '../../../../shared/lib/devtool/trie'
 
 function PageSegmentTree({ tree }: { tree: Trie<SegmentNode> | undefined }) {
+  const nodeCountRef = useRef(0)
   if (!tree) {
     return null
   }
@@ -24,6 +24,7 @@ function PageSegmentTree({ tree }: { tree: Trie<SegmentNode> | undefined }) {
         level={0}
         segment=""
         parentSegment=""
+        nodeCountRef={nodeCountRef}
       />
     </div>
   )
@@ -35,18 +36,21 @@ function PageSegmentTreeLayerPresentation({
   parentSegment,
   node,
   level,
+  nodeCountRef,
 }: {
   tree: Trie<SegmentNode>
   segment: string
   parentSegment: string
   node: TrieNode<SegmentNode>
   level: number
+  nodeCountRef: React.RefObject<number>
 }) {
   const pagePath = node.value?.pagePath || ''
   const nodeName = node.value?.type
+  const isFile = !!nodeName
 
   const segments = pagePath.split('/') || []
-  const fileName = segments.pop() || ''
+  const fileName = isFile ? segments.pop() || '' : ''
   const childrenKeys = Object.keys(node.children)
 
   const sortedChildrenKeys = childrenKeys.sort((a, b) => {
@@ -60,25 +64,45 @@ function PageSegmentTreeLayerPresentation({
     return a.localeCompare(b)
   })
 
+  if (isFile) {
+    nodeCountRef.current++
+  }
+
   // check if it has file children
   const hasFileChildren = sortedChildrenKeys.some((key) => {
     const childNode = node.children[key]
     return !!childNode?.value?.type
   })
 
+  const folderName =
+    parentSegment ||
+    // If it's the 1st level and contains a file, use 'app' as the folder name
+    (level === 1 && isFile ? 'app' : '')
+
+  const segLevel = nodeCountRef.current % 2 === 0 ? 'even' : 'odd'
+
   return (
     <div
       className="segment-explorer-item"
       data-nextjs-devtool-segment-explorer-segment={segment}
     >
-      {fileName ? (
-        <div className={cx('segment-explorer-item-row')}>
+      {isFile ? (
+        <div
+          className="segment-explorer-item-row"
+          data-nextjs-devtool-segment-explorer-level={segLevel}
+          style={{
+            // If it's children levels, show indents if there's any file at that level.
+            // Otherwise it's empty folder, no need to show indents.
+            // level > 0 && hasFileChildren && 'segment-explorer-children--intended'
+            ...(level > 0 && isFile && { paddingLeft: `${level * 8}px` }),
+          }}
+        >
           <div className="segment-explorer-line">
             <div className={`segment-explorer-line-text-${nodeName}`}>
               <div className="segment-explorer-filename">
-                {parentSegment && (
+                {folderName && (
                   <span className="segment-explorer-filename--path">
-                    {parentSegment}
+                    {folderName}
                   </span>
                 )}
                 <span className="segment-explorer-filename--name">
@@ -90,31 +114,23 @@ function PageSegmentTreeLayerPresentation({
         </div>
       ) : null}
 
-      <div
-        className={cx(
-          'segment-explorer-children',
-          // If it's children levels, show indents if there's any file at that level.
-          // Otherwise it's empty folder, no need to show indents.
-          level > 0 && hasFileChildren && 'segment-explorer-children--intended'
-        )}
-        data-nextjs-devtool-segment-explorer-level={level}
-      >
-        {sortedChildrenKeys.map((childSegment) => {
-          const child = node.children[childSegment]
-          return (
-            child && (
-              <PageSegmentTreeLayerPresentation
-                key={childSegment}
-                segment={childSegment}
-                parentSegment={segment}
-                tree={tree}
-                node={child}
-                level={level + 1}
-              />
-            )
-          )
-        })}
-      </div>
+      {sortedChildrenKeys.map((childSegment) => {
+        const child = node.children[childSegment]
+        if (!child) {
+          return null
+        }
+        return (
+          <PageSegmentTreeLayerPresentation
+            key={childSegment}
+            segment={childSegment}
+            parentSegment={segment}
+            tree={tree}
+            node={child}
+            level={hasFileChildren ? level + 1 : level}
+            nodeCountRef={nodeCountRef}
+          />
+        )
+      })}
     </div>
   )
 }
@@ -137,15 +153,14 @@ export function SegmentsExplorer(
 export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
   .segment-explorer-content {
     overflow-y: auto;
-    padding: 0 12px;
     font-size: var(--size-14);
+    margin: -8px -16px;
   }
 
   .segment-explorer-item-row {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 2px 0;
+    padding: 2px 24px;
   }
 
   .segment-explorer-children--intended {
@@ -166,5 +181,12 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
 
   .segment-explorer-line {
     color: var(--color-gray-1000);
+  }
+
+  [data-nextjs-devtool-segment-explorer-level='odd'] {
+    background-color: var(--color-gray-100);
+  }
+  [data-nextjs-devtool-segment-explorer-level='even'] {
+    background-color: var(--color-gray-50);
   }
 `
