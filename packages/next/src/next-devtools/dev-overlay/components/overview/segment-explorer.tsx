@@ -154,13 +154,14 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
   .segment-explorer-content {
     overflow-y: auto;
     font-size: var(--size-14);
-    margin: -8px -16px;
+    margin: -12px -8px;
   }
 
   .segment-explorer-item-row {
     display: flex;
     align-items: center;
-    padding: 2px 24px;
+    padding: 4px 24px;
+    border-radius: 6px;
   }
 
   .segment-explorer-children--intended {
@@ -185,8 +186,5 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
 
   [data-nextjs-devtool-segment-explorer-level='odd'] {
     background-color: var(--color-gray-100);
-  }
-  [data-nextjs-devtool-segment-explorer-level='even'] {
-    background-color: var(--color-gray-50);
   }
 `
