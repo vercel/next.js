@@ -8,7 +8,6 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use criterion::{Criterion, criterion_group, criterion_main};
 use next_api::{
     project::{DefineEnv, DraftModeOptions, ProjectContainer, ProjectOptions, WatchOptions},
     register,
@@ -370,142 +369,120 @@ impl HmrBenchmark {
     }
 }
 
-fn criterion_hmr_initial_compilation(c: &mut Criterion) {
+async fn setup_benchmark(module_count: usize) -> HmrBenchmark {
     register();
-
-    c.bench_function("hmr_initial_compilation", |b| {
-        b.iter_custom(|iter_count| {
-            block_on(move || async move {
-                let benchmark: HmrBenchmark = HmrBenchmark::new(100).await.unwrap();
-
-                let start = Instant::now();
-                for _ in 0..iter_count {
-                    let _ = benchmark.benchmark_initial_compilation().await.unwrap();
-                }
-                Ok(start.elapsed())
-            })
-        })
-    });
+    HmrBenchmark::new(module_count).await.unwrap()
 }
 
-fn criterion_hmr_updates_small(c: &mut Criterion) {
-    register();
-
-    c.bench_function("hmr_updates_small_5", |b| {
-        b.iter_custom(|iter_count| {
-            block_on(move || async move {
-                let benchmark = HmrBenchmark::new(100).await.unwrap();
-
-                // Initialize compilation first
-                let _ = benchmark.benchmark_initial_compilation().await.unwrap();
-
-                let start = Instant::now();
-                for _ in 0..iter_count {
-                    let _ = benchmark.benchmark_hmr_update(5).await.unwrap();
-                }
-
-                Ok(start.elapsed())
-            })
-        })
-    });
+fn setup_runtime() -> Runtime {
+    runtime()
 }
 
-fn criterion_hmr_updates_medium(c: &mut Criterion) {
-    register();
-
-    c.bench_function("hmr_updates_medium_10", |b| {
-        b.iter_custom(|iter_count| {
-            block_on(move || async move {
-                let benchmark = HmrBenchmark::new(200).await.unwrap();
-                let _ = benchmark.benchmark_initial_compilation().await.unwrap();
-
-                let start = Instant::now();
-                for _ in 0..iter_count {
-                    let _ = benchmark.benchmark_hmr_update(10).await.unwrap();
-                }
-
-                Ok(start.elapsed())
-            })
-        })
-    });
-}
-
-fn criterion_hmr_updates_large(c: &mut Criterion) {
-    register();
-
-    c.bench_function("hmr_updates_large_20", |b| {
-        b.iter_custom(|iter_count| {
-            block_on(move || async move {
-                let benchmark = HmrBenchmark::new(500).await.unwrap();
-                let _ = benchmark.benchmark_initial_compilation().await.unwrap();
-
-                let start = Instant::now();
-                for _ in 0..iter_count {
-                    let _ = benchmark.benchmark_hmr_update(20).await.unwrap();
-                }
-
-                Ok(start.elapsed())
-            })
-        })
-    });
-}
-
-fn criterion_hmr_subscription(c: &mut Criterion) {
-    register();
-
-    c.bench_function("hmr_subscription", |b| {
-        b.iter_custom(|iter_count| {
-            block_on(move || async move {
-                let benchmark = HmrBenchmark::new(100).await.unwrap();
-                let _ = benchmark.benchmark_initial_compilation().await.unwrap();
-
-                let start = Instant::now();
-                for _ in 0..iter_count {
-                    let _ = benchmark.benchmark_hmr_subscription().await.unwrap();
-                }
-
-                Ok(start.elapsed())
-            })
-        })
-    });
-}
-
-fn block_on<F, Fut>(functor: F) -> Duration
-where
-    F: FnOnce() -> Fut + Clone + Send + Sync + 'static,
-    Fut: Future<Output = Result<Duration>> + Send + Sync + 'static,
-{
-    let rt = runtime();
-
-    let tt = TurboTasks::new(turbo_tasks_backend::TurboTasksBackend::new(
+fn setup_turbo_tasks() -> TurboTasks<turbo_tasks_backend::TurboTasksBackend> {
+    TurboTasks::new(turbo_tasks_backend::TurboTasksBackend::new(
         turbo_tasks_backend::BackendOptions {
             storage_mode: None,
             dependency_tracking: true,
             ..Default::default()
         },
         noop_backing_storage(),
-    ));
-
-    rt.block_on(async move {
-        tt.run_once(async move {
-            let _dur_future = functor();
-
-            Ok(_dur_future.await)
-        })
-        .await
-        .unwrap()
-        .unwrap()
-    })
+    ))
 }
 
-criterion_group!(
-    name = hmr_benches;
-    config = Criterion::default().sample_size(10);
-    targets =
-        criterion_hmr_initial_compilation,
-        criterion_hmr_updates_small,
-        criterion_hmr_updates_medium,
-        criterion_hmr_updates_large,
-        criterion_hmr_subscription
-);
-criterion_main!(hmr_benches);
+#[divan::bench]
+fn hmr_initial_compilation(bencher: divan::Bencher) {
+    let rt = setup_runtime();
+    let tt = setup_turbo_tasks();
+
+    bencher.bench(|| {
+        rt.block_on(async {
+            tt.run_once(async {
+                let benchmark = setup_benchmark(100).await;
+                benchmark.benchmark_initial_compilation().await.unwrap();
+                Ok(())
+            })
+            .await
+            .unwrap()
+        })
+    });
+}
+
+#[divan::bench]
+fn hmr_updates_small_5(bencher: divan::Bencher) {
+    let rt = setup_runtime();
+    let tt = setup_turbo_tasks();
+
+    bencher.bench(|| {
+        rt.block_on(async {
+            tt.run_once(async {
+                let benchmark = setup_benchmark(100).await;
+                let _ = benchmark.benchmark_initial_compilation().await.unwrap();
+                benchmark.benchmark_hmr_update(5).await.unwrap();
+                Ok(())
+            })
+            .await
+            .unwrap()
+        })
+    });
+}
+
+#[divan::bench]
+fn hmr_updates_medium_10(bencher: divan::Bencher) {
+    let rt = setup_runtime();
+    let tt = setup_turbo_tasks();
+
+    bencher.bench(|| {
+        rt.block_on(async {
+            tt.run_once(async {
+                let benchmark = setup_benchmark(200).await;
+                let _ = benchmark.benchmark_initial_compilation().await.unwrap();
+                benchmark.benchmark_hmr_update(10).await.unwrap();
+                Ok(())
+            })
+            .await
+            .unwrap()
+        })
+    });
+}
+
+#[divan::bench]
+fn hmr_updates_large_20(bencher: divan::Bencher) {
+    let rt = setup_runtime();
+    let tt = setup_turbo_tasks();
+
+    bencher.bench(|| {
+        rt.block_on(async {
+            tt.run_once(async {
+                let benchmark = setup_benchmark(500).await;
+                let _ = benchmark.benchmark_initial_compilation().await.unwrap();
+                benchmark.benchmark_hmr_update(20).await.unwrap();
+                Ok(())
+            })
+            .await
+            .unwrap()
+        })
+    });
+}
+
+#[divan::bench]
+fn hmr_subscription(bencher: divan::Bencher) {
+    let rt = setup_runtime();
+    let tt = setup_turbo_tasks();
+
+    bencher.bench(|| {
+        rt.block_on(async {
+            tt.run_once(async {
+                let benchmark = setup_benchmark(100).await;
+                let _ = benchmark.benchmark_initial_compilation().await.unwrap();
+                benchmark.benchmark_hmr_subscription().await.unwrap();
+                Ok(())
+            })
+            .await
+            .unwrap()
+        })
+    });
+}
+
+fn main() {
+    divan::main();
+}
