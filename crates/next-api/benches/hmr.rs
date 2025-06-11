@@ -12,6 +12,7 @@ use criterion::{Criterion, criterion_group, criterion_main};
 use next_api::{
     project::{DefineEnv, DraftModeOptions, ProjectContainer, ProjectOptions, WatchOptions},
     register,
+    route::endpoint_write_to_disk,
 };
 use serde_json::json;
 use tempfile::TempDir;
@@ -327,7 +328,32 @@ impl HmrBenchmark {
         let start_time = Instant::now();
 
         let entrypoints = self.project_container.entrypoints();
-        let _result = entrypoints.await?;
+        let result = entrypoints.await?;
+
+        for route in result.routes.values() {
+            match route {
+                next_api::route::Route::Page {
+                    html_endpoint,
+                    data_endpoint,
+                } => {
+                    let _ = endpoint_write_to_disk(**html_endpoint).await?;
+                    let _ = endpoint_write_to_disk(**data_endpoint).await?;
+                }
+                next_api::route::Route::PageApi { endpoint } => {
+                    let _ = endpoint_write_to_disk(**endpoint).await?;
+                }
+                next_api::route::Route::AppPage(app_page_routes) => {
+                    for route in app_page_routes.iter() {
+                        let _ = endpoint_write_to_disk(*route.html_endpoint).await?;
+                        let _ = endpoint_write_to_disk(*route.rsc_endpoint).await?;
+                    }
+                }
+                next_api::route::Route::AppRoute { endpoint, .. } => {
+                    let _ = endpoint_write_to_disk(**endpoint).await?;
+                }
+                next_api::route::Route::Conflict => {}
+            }
+        }
 
         Ok(start_time.elapsed())
     }
