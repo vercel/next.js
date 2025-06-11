@@ -2641,14 +2641,8 @@ export default abstract class Server<
 
             // propagate the request context for dev
             setRequestMeta(request, getRequestMeta(req))
-            addRequestMeta(request, 'postponed', postponed)
             addRequestMeta(request, 'projectDir', this.dir)
             addRequestMeta(request, 'isIsrFallback', pagesFallback)
-            addRequestMeta(
-              request,
-              'renderFallbackShell',
-              Boolean(fallbackRouteParams)
-            )
             addRequestMeta(request, 'query', query)
             addRequestMeta(request, 'params', opts.params)
             addRequestMeta(
@@ -2661,7 +2655,6 @@ export default abstract class Server<
             if (renderOpts.err) {
               addRequestMeta(request, 'invokeError', renderOpts.err)
             }
-            response.statusCode = res.statusCode
 
             const handler: (
               req: ServerRequest | IncomingMessage,
@@ -2670,30 +2663,36 @@ export default abstract class Server<
                 waitUntil: ReturnType<Server['getWaitUntil']>
               }
             ) => Promise<RenderResult> = components.ComponentMod.handler
-            result = await handler(request, response, {
+
+            const maybeDevRequest =
+              // we need to capture fetch metrics when they are set
+              // and can't wait for handler to resolve as the fetch
+              // metrics are logged on response close which happens
+              // before handler resolves
+              process.env.NODE_ENV === 'development'
+                ? new Proxy(request, {
+                    get(target: any, prop) {
+                      if (typeof target[prop] === 'function') {
+                        return target[prop].bind(target)
+                      }
+                      return target[prop]
+                    },
+                    set(target: any, prop, value) {
+                      if (prop === 'fetchMetrics') {
+                        ;(req as any).fetchMetrics = value
+                      }
+                      target[prop] = value
+                      return true
+                    },
+                  })
+                : request
+
+            result = await handler(maybeDevRequest, response, {
               waitUntil: this.getWaitUntil(),
             })
-            if (response.hasHeader('Cache-Control')) {
-              res.setHeader(
-                'Cache-Control',
-                response.getHeader('Cache-Control') as string
-              )
-            }
-            setRequestMeta(req, getRequestMeta(request))
 
-            // this is handled fully in handler
-            if (
-              isAppRouteRouteModule(routeModule) ||
-              isPagesRouteModule(routeModule)
-            ) {
-              return null
-            }
-
-            if (!result) {
-              throw new Error(
-                `Invariant: missing result from invoking ${pathname} handler`
-              )
-            }
+            // response is handled fully in handler
+            return null
           } else {
             if (isPagesRouteModule(routeModule)) {
               // Due to the way we pass data by mutating `renderOpts`, we can't extend
@@ -3053,7 +3052,7 @@ export default abstract class Server<
             }
           )
         }
-        // If this is a app router page, PPR is enabled, and PFPR is also
+        // If this is a app router page, PPR is enabled, and PPR is also
         // enabled, then we should use the fallback renderer.
         else if (
           isRoutePPREnabled &&
@@ -3149,7 +3148,8 @@ export default abstract class Server<
       // default _error module in dev doesn't have handler yet
       components.ComponentMod.handler &&
       (isPagesRouteModule(components.routeModule) ||
-        isAppRouteRouteModule(components.routeModule))
+        isAppRouteRouteModule(components.routeModule) ||
+        isAppPageRouteModule(components.routeModule))
     ) {
       if (
         routeModule?.isDev &&
@@ -3199,7 +3199,8 @@ export default abstract class Server<
         ssgCacheKey &&
         !(isOnDemandRevalidate && revalidateOnlyGenerated) &&
         !isPagesRouteModule(components.routeModule) &&
-        !isAppRouteRouteModule(components.routeModule)
+        !isAppRouteRouteModule(components.routeModule) &&
+        !isAppPageRouteModule(components.routeModule)
       ) {
         // A cache entry might not be generated if a response is written
         // in `getInitialProps` or `getServerSideProps`, but those shouldn't

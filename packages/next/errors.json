@@ -704,5 +704,7 @@
   "703": "Route is configured with dynamic = error which cannot be statically generated.",
   "704": "Route is configured with dynamic = error be statically generated.",
   "705": "Route is configured with dynamic = error that cannot be statically generated.",
-  "706": "Failed to persist Chrome DevTools workspace UUID. The Chrome DevTools Workspace needs to be reconnected after the next page reload."
+  "706": "Invariant: static responses cannot be streamed %s",
+  "707": "Invariant app-page handler received invalid cache entry %s",
+  "708": "Failed to persist Chrome DevTools workspace UUID. The Chrome DevTools Workspace needs to be reconnected after the next page reload."
 }

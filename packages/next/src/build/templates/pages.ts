@@ -226,16 +226,18 @@ export async function handler(
 
     const prerenderInfo = prerenderManifest.dynamicRoutes[srcPage]
 
-    if (prerenderInfo.fallback === false && !isPrerendered) {
-      throw new NoFallbackError()
-    }
+    if (prerenderInfo) {
+      if (prerenderInfo.fallback === false && !isPrerendered) {
+        throw new NoFallbackError()
+      }
 
-    if (
-      typeof prerenderInfo.fallback === 'string' &&
-      !isPrerendered &&
-      !isNextDataRequest
-    ) {
-      isIsrFallback = true
+      if (
+        typeof prerenderInfo.fallback === 'string' &&
+        !isPrerendered &&
+        !isNextDataRequest
+      ) {
+        isIsrFallback = true
+      }
     }
   }
 
@@ -589,7 +591,7 @@ export async function handler(
         return
       }
 
-      if (!getRequestMeta(req, 'minimalMode')) {
+      if (hasStaticProps && !getRequestMeta(req, 'minimalMode')) {
         res.setHeader(
           'x-nextjs-cache',
           isOnDemandRevalidate

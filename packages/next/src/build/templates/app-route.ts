@@ -24,6 +24,7 @@ import {
 import { decodePathParams } from '../../server/lib/router-utils/decode-path-params'
 import { getCacheControlHeader } from '../../server/lib/cache-control'
 import { INFINITE_CACHE, NEXT_CACHE_TAGS_HEADER } from '../../lib/constants'
+import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
 import {
   CachedRouteKind,
   type ResponseCacheEntry,
@@ -114,6 +115,7 @@ export async function handler(
     params,
     nextConfig,
     parsedUrl,
+    isDraftMode,
     prerenderManifest,
     routerServerContext,
     isOnDemandRevalidate,
@@ -141,9 +143,20 @@ export async function handler(
       prerenderManifest.routes[resolvedPathname]
   )
 
+  if (isIsr && !isDraftMode) {
+    const isPrerendered = Boolean(prerenderManifest.routes[resolvedPathname])
+    const prerenderInfo = prerenderManifest.dynamicRoutes[normalizedSrcPage]
+
+    if (prerenderInfo) {
+      if (prerenderInfo.fallback === false && !isPrerendered) {
+        throw new NoFallbackError()
+      }
+    }
+  }
+
   let cacheKey: string | null = null
 
-  if (isIsr && !routeModule.isDev) {
+  if (isIsr && !routeModule.isDev && !isDraftMode) {
     cacheKey = resolvedPathname
     // ensure /index and / is normalized to one key
     cacheKey = cacheKey === '/index' ? '/' : cacheKey
@@ -272,8 +285,8 @@ export async function handler(
           // Attempt using provided waitUntil if available
           // if it's not we fallback to sendResponse's handling
           if (pendingWaitUntil) {
-            if (context.renderOpts.waitUntil) {
-              context.renderOpts.waitUntil(pendingWaitUntil)
+            if (ctx.waitUntil) {
+              ctx.waitUntil(pendingWaitUntil)
               pendingWaitUntil = undefined
             }
           }
@@ -387,6 +400,14 @@ export async function handler(
               : cacheEntry.isStale
                 ? 'STALE'
                 : 'HIT'
+        )
+      }
+
+      // Draft mode should never be cached
+      if (isDraftMode) {
+        res.setHeader(
+          'Cache-Control',
+          'private, no-cache, no-store, max-age=0, must-revalidate'
         )
       }
 
