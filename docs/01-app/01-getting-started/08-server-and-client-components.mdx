@@ -177,22 +177,6 @@ To reduce the size of your client JavaScript bundles, add `'use client'` to spec
 
 For example, the `<Layout>` component contains mostly static elements like a logo and navigation links, but includes an interactive search bar. `<Search />` is interactive and needs to be a Client Component, however, the rest of the layout can remain a Server Component.
 
-```tsx filename="app/ui/search.tsx" highlight={1} switcher
-'use client'
-
-export default function Search() {
-  // ...
-}
-```
-
-```jsx filename="app/ui/search.js" highlight={1} switcher
-'use client'
-
-export default function Search() {
-  // ...
-}
-```
-
 ```tsx filename="app/layout.tsx" switcher
 // Client Component
 import Search from './search'
@@ -230,6 +214,22 @@ export default function Layout({ children }) {
       <main>{children}</main>
     </>
   )
+}
+```
+
+```tsx filename="app/ui/search.tsx" highlight={1} switcher
+'use client'
+
+export default function Search() {
+  // ...
+}
+```
+
+```jsx filename="app/ui/search.js" highlight={1} switcher
+'use client'
+
+export default function Search() {
+  // ...
 }
 ```
 
