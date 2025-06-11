@@ -1622,7 +1622,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             // new_children list now.
             AggregationUpdateQueue::run(
                 AggregationUpdateJob::DecreaseActiveCounts {
-                    task_ids: new_children.into_iter().collect(),
+                    task_ids: new_children.into_keys().collect(),
                 },
                 &mut ctx,
             );
@@ -1635,6 +1635,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         // take the children from the task to process them
         let mut new_children = take(new_children);
+
+        new_children.retain(|_, is_immutable| !*is_immutable);
 
         // handle stateful
         if stateful {
@@ -1686,7 +1688,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         if has_children {
             old_edges.extend(
                 iter_many!(task, Child { task } => task)
-                    .filter(|task| !new_children.remove(task))
+                    .filter(|task| new_children.remove(task).is_none())
                     .map(OutdatedEdge::Child),
             );
         } else {
@@ -1717,7 +1719,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     }),
             );
         }
-        if self.should_track_dependencies() {
+        if !task.is_immutable() && self.should_track_dependencies() {
             old_edges.extend(iter_many!(task, OutdatedCellDependency { target } => OutdatedEdge::CellDependency(target)));
             old_edges.extend(iter_many!(task, OutdatedOutputDependency { target } => OutdatedEdge::OutputDependency(target)));
             old_edges.extend(
@@ -1783,7 +1785,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             // that. (We already filtered out the old children from that list)
             AggregationUpdateQueue::run(
                 AggregationUpdateJob::DecreaseActiveCounts {
-                    task_ids: new_children.into_iter().collect(),
+                    task_ids: new_children.into_keys().collect(),
                 },
                 &mut ctx,
             );
