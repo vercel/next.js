@@ -7,7 +7,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use criterion::{Criterion, black_box, criterion_group, criterion_main};
+use criterion::{Criterion, criterion_group, criterion_main};
 use next_api::{
     project::{DefineEnv, DraftModeOptions, ProjectContainer, ProjectOptions, WatchOptions},
     register,
@@ -15,11 +15,11 @@ use next_api::{
 use tokio::runtime::Runtime;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{TransientInstance, Vc};
+use turbo_tasks_testing::VcStorage;
 
 pub struct HmrBenchmark {
     test_app: TestApp,
     project_container: Vc<ProjectContainer>,
-    rt: Runtime,
 }
 
 #[derive(Debug)]
@@ -140,12 +140,10 @@ fn runtime() -> Runtime {
 }
 
 impl HmrBenchmark {
-    pub fn new(module_count: usize) -> Result<Self> {
-        let rt = runtime();
-
+    pub async fn new(module_count: usize) -> Result<Self> {
         let test_app = create_test_app(module_count)?;
 
-        let project_container = rt.block_on(async {
+        let project_container = {
             let container = ProjectContainer::new(RcStr::from("hmr-benchmark"), true)
                 .to_resolved()
                 .await?;
@@ -182,12 +180,11 @@ impl HmrBenchmark {
 
             container.initialize(options).await?;
             Ok::<_, anyhow::Error>(container)
-        })?;
+        }?;
 
         Ok(Self {
             test_app,
             project_container: *project_container,
-            rt,
         })
     }
 
@@ -206,125 +203,114 @@ impl HmrBenchmark {
     }
 
     /// Benchmark HMR update detection and processing
-    pub fn benchmark_hmr_update(&self, num_updates: usize) -> Result<Duration> {
+    pub async fn benchmark_hmr_update(&self, num_updates: usize) -> Result<Duration> {
         let start_time = Instant::now();
 
-        self.rt.block_on(async {
-            // Get entrypoints to trigger initial compilation
-            let entrypoints = self.project_container.entrypoints();
-            let initial_result = entrypoints.await?;
+        // Get entrypoints to trigger initial compilation
+        let entrypoints = self.project_container.entrypoints();
+        let initial_result = entrypoints.await?;
 
-            // Check if we have routes available
-            if initial_result.routes.is_empty() {
-                return Err(anyhow::anyhow!("No routes found in entrypoints"));
-            }
+        // Check if we have routes available
+        if initial_result.routes.is_empty() {
+            return Err(anyhow::anyhow!("No routes found in entrypoints"));
+        }
 
-            // Get HMR identifiers
-            let hmr_identifiers = self.project_container.hmr_identifiers();
-            let identifiers = hmr_identifiers.await?;
+        // Get HMR identifiers
+        let hmr_identifiers = self.project_container.hmr_identifiers();
+        let identifiers = hmr_identifiers.await?;
 
-            if identifiers.is_empty() {
-                return Err(anyhow::anyhow!("No HMR identifiers found"));
-            }
+        if identifiers.is_empty() {
+            return Err(anyhow::anyhow!("No HMR identifiers found"));
+        }
 
-            // Get project to access HMR methods
-            let project = self.project_container.project();
+        // Get project to access HMR methods
+        let project = self.project_container.project();
 
-            // Create multiple sessions to simulate real HMR usage
-            let mut update_durations = Vec::new();
+        // Create multiple sessions to simulate real HMR usage
+        let mut update_durations = Vec::new();
 
-            for i in 0..num_updates {
-                let update_start = Instant::now();
+        for i in 0..num_updates {
+            let update_start = Instant::now();
 
-                // Use different identifiers for each update
-                let identifier = &identifiers[i % identifiers.len()];
+            // Use different identifiers for each update
+            let identifier = &identifiers[i % identifiers.len()];
 
-                // Get version state for this update
-                let session = TransientInstance::new(());
-                let version_state = project.hmr_version_state(identifier.clone(), session);
+            // Get version state for this update
+            let session = TransientInstance::new(());
+            let version_state = project.hmr_version_state(identifier.clone(), session);
 
-                // Pick a module file to change
-                let module_index = i % self.test_app.modules().len();
-                let (module_path, _) = &self.test_app.modules()[module_index];
+            // Pick a module file to change
+            let module_index = i % self.test_app.modules().len();
+            let (module_path, _) = &self.test_app.modules()[module_index];
 
-                // Make a file change
-                self.make_file_change(module_path, i)?;
+            // Make a file change
+            self.make_file_change(module_path, i)?;
 
-                // Wait for HMR update and measure time
-                let _update_result = project
-                    .hmr_update(identifier.clone(), version_state)
-                    .await?;
+            // Wait for HMR update and measure time
+            let _update_result = project
+                .hmr_update(identifier.clone(), version_state)
+                .await?;
 
-                update_durations.push(update_start.elapsed());
-            }
+            update_durations.push(update_start.elapsed());
+        }
 
-            // Log individual update times for analysis
-            for (i, duration) in update_durations.iter().enumerate() {
-                println!("HMR update {} took: {:?}", i + 1, duration);
-            }
-
-            Ok::<_, anyhow::Error>(())
-        })?;
+        // Log individual update times for analysis
+        for (i, duration) in update_durations.iter().enumerate() {
+            println!("HMR update {} took: {:?}", i + 1, duration);
+        }
 
         Ok(start_time.elapsed())
     }
 
     /// Benchmark HMR subscription and event handling
-    pub fn benchmark_hmr_subscription(&self) -> Result<Duration> {
+    pub async fn benchmark_hmr_subscription(&self) -> Result<Duration> {
         let start_time = Instant::now();
 
-        self.rt.block_on(async {
-            // Get entrypoints first
-            let entrypoints = self.project_container.entrypoints();
-            let _initial_result = entrypoints.await?;
+        // Get entrypoints first
+        let entrypoints = self.project_container.entrypoints();
+        let _initial_result = entrypoints.await?;
 
-            // Get HMR identifiers
-            let hmr_identifiers = self.project_container.hmr_identifiers();
-            let identifiers = hmr_identifiers.await?;
+        // Get HMR identifiers
+        let hmr_identifiers = self.project_container.hmr_identifiers();
+        let identifiers = hmr_identifiers.await?;
 
-            if identifiers.is_empty() {
-                return Err(anyhow::anyhow!("No HMR identifiers found"));
+        if identifiers.is_empty() {
+            return Err(anyhow::anyhow!("No HMR identifiers found"));
+        }
+
+        let project = self.project_container.project();
+
+        // Test subscription to multiple identifiers
+        let mut version_states = Vec::new();
+        for identifier in identifiers.iter().take(5) {
+            // Test with first 5 identifiers
+            let session = TransientInstance::new(());
+            let version_state = project.hmr_version_state(identifier.clone(), session);
+            version_states.push((identifier.clone(), version_state));
+        }
+
+        // Simulate multiple rapid updates
+        for (i, (identifier, version_state)) in version_states.iter().enumerate() {
+            // Make a file change
+            if let Some((module_path, _)) = self.test_app.modules().get(i) {
+                self.make_file_change(module_path, i * 100)?;
+
+                // Check for update
+                let _update_result = project
+                    .hmr_update(identifier.clone(), *version_state)
+                    .await?;
             }
-
-            let project = self.project_container.project();
-
-            // Test subscription to multiple identifiers
-            let mut version_states = Vec::new();
-            for identifier in identifiers.iter().take(5) {
-                // Test with first 5 identifiers
-                let session = TransientInstance::new(());
-                let version_state = project.hmr_version_state(identifier.clone(), session);
-                version_states.push((identifier.clone(), version_state));
-            }
-
-            // Simulate multiple rapid updates
-            for (i, (identifier, version_state)) in version_states.iter().enumerate() {
-                // Make a file change
-                if let Some((module_path, _)) = self.test_app.modules().get(i) {
-                    self.make_file_change(module_path, i * 100)?;
-
-                    // Check for update
-                    let _update_result = project
-                        .hmr_update(identifier.clone(), *version_state)
-                        .await?;
-                }
-            }
-
-            Ok::<_, anyhow::Error>(())
-        })?;
+        }
 
         Ok(start_time.elapsed())
     }
 
     /// Benchmark initial project setup and entrypoint detection
-    pub fn benchmark_initial_compilation(&self) -> Result<Duration> {
+    pub async fn benchmark_initial_compilation(&self) -> Result<Duration> {
         let start_time = Instant::now();
 
-        self.rt.block_on(async {
-            let entrypoints = self.project_container.entrypoints();
-            let _result = entrypoints.await?;
-            Ok::<_, anyhow::Error>(())
-        })?;
+        let entrypoints = self.project_container.entrypoints();
+        let _result = entrypoints.await?;
 
         Ok(start_time.elapsed())
     }
@@ -338,58 +324,126 @@ impl HmrBenchmark {
 fn criterion_hmr_initial_compilation(c: &mut Criterion) {
     register();
 
-    let benchmark = HmrBenchmark::new(100).unwrap();
-
     c.bench_function("hmr_initial_compilation", |b| {
-        b.iter(|| black_box(benchmark.benchmark_initial_compilation().unwrap()))
+        b.iter_custom(|iter_count| {
+            let rt = runtime();
+
+            let mut dur = Duration::default();
+
+            for _ in 0..iter_count {
+                rt.block_on(VcStorage::with(async move {
+                    let benchmark = HmrBenchmark::new(100).await.unwrap();
+
+                    let start = Instant::now();
+                    let _ = benchmark.benchmark_initial_compilation().await.unwrap();
+                    dur += start.elapsed();
+                }));
+            }
+
+            dur
+        })
     });
 }
 
 fn criterion_hmr_updates_small(c: &mut Criterion) {
     register();
 
-    let benchmark = HmrBenchmark::new(50).unwrap();
-    // Initialize compilation first
-    let _ = benchmark.benchmark_initial_compilation().unwrap();
-
     c.bench_function("hmr_updates_small_5", |b| {
-        b.iter(|| black_box(benchmark.benchmark_hmr_update(5).unwrap()))
+        b.iter_custom(|iter_count| {
+            let rt = runtime();
+
+            let mut dur = Duration::default();
+
+            for _ in 0..iter_count {
+                rt.block_on(VcStorage::with(async move {
+                    let benchmark = HmrBenchmark::new(100).await.unwrap();
+
+                    // Initialize compilation first
+                    let _ = benchmark.benchmark_initial_compilation().await.unwrap();
+
+                    let start = Instant::now();
+                    let _ = benchmark.benchmark_hmr_update(5).await.unwrap();
+                    dur += start.elapsed();
+                }));
+            }
+
+            dur
+        })
     });
 }
 
 fn criterion_hmr_updates_medium(c: &mut Criterion) {
     register();
 
-    let benchmark = HmrBenchmark::new(200).unwrap();
-    // Initialize compilation first
-    let _ = benchmark.benchmark_initial_compilation().unwrap();
-
     c.bench_function("hmr_updates_medium_10", |b| {
-        b.iter(|| black_box(benchmark.benchmark_hmr_update(10).unwrap()))
+        b.iter_custom(|iter_count| {
+            let rt = runtime();
+
+            let mut dur = Duration::default();
+
+            for _ in 0..iter_count {
+                rt.block_on(VcStorage::with(async move {
+                    let benchmark = HmrBenchmark::new(200).await.unwrap();
+                    let _ = benchmark.benchmark_initial_compilation().await.unwrap();
+
+                    let start = Instant::now();
+                    let _ = benchmark.benchmark_hmr_update(10).await.unwrap();
+                    dur += start.elapsed();
+                }));
+            }
+
+            dur
+        })
     });
 }
 
 fn criterion_hmr_updates_large(c: &mut Criterion) {
     register();
 
-    let benchmark = HmrBenchmark::new(500).unwrap();
-    // Initialize compilation first
-    let _ = benchmark.benchmark_initial_compilation().unwrap();
-
     c.bench_function("hmr_updates_large_20", |b| {
-        b.iter(|| black_box(benchmark.benchmark_hmr_update(20).unwrap()))
+        b.iter_custom(|iter_count| {
+            let rt = runtime();
+
+            let mut dur = Duration::default();
+
+            for _ in 0..iter_count {
+                rt.block_on(VcStorage::with(async move {
+                    let benchmark = HmrBenchmark::new(500).await.unwrap();
+                    let _ = benchmark.benchmark_initial_compilation().await.unwrap();
+
+                    let start = Instant::now();
+                    let _ = benchmark.benchmark_hmr_update(20).await.unwrap();
+                    dur += start.elapsed();
+                }));
+            }
+
+            dur
+        })
     });
 }
 
 fn criterion_hmr_subscription(c: &mut Criterion) {
     register();
 
-    let benchmark = HmrBenchmark::new(100).unwrap();
-    // Initialize compilation first
-    let _ = benchmark.benchmark_initial_compilation().unwrap();
-
     c.bench_function("hmr_subscription", |b| {
-        b.iter(|| black_box(benchmark.benchmark_hmr_subscription().unwrap()))
+        b.iter_custom(|iter_count| {
+            let rt = runtime();
+
+            let mut dur = Duration::default();
+
+            for _ in 0..iter_count {
+                rt.block_on(VcStorage::with(async move {
+                    let benchmark = HmrBenchmark::new(100).await.unwrap();
+                    let _ = benchmark.benchmark_initial_compilation().await.unwrap();
+
+                    let start = Instant::now();
+                    let _ = benchmark.benchmark_hmr_subscription().await.unwrap();
+                    dur += start.elapsed();
+                }));
+            }
+
+            dur
+        })
     });
 }
 
