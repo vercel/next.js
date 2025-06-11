@@ -68,7 +68,7 @@ import { decorateServerError } from '../../shared/lib/error-source'
 import type { ServerOnInstrumentationRequestError } from '../app-render/types'
 import type { ServerComponentsHmrCache } from '../response-cache'
 import { logRequests } from './log-requests'
-import { FallbackMode } from '../../lib/fallback'
+import { FallbackMode, fallbackModeToFallbackField } from '../../lib/fallback'
 import type { PagesDevOverlayBridgeType } from '../../client/components/react-dev-overlay/pages/pages-dev-overlay-setup'
 import {
   ensureInstrumentationRegistered,
@@ -853,6 +853,7 @@ export default class DevServer extends Server {
       .then(async (res) => {
         const { prerenderedRoutes: staticPaths, fallbackMode: fallback } =
           res.value
+
         if (!isAppPath && this.nextConfig.output === 'export') {
           if (fallback === FallbackMode.BLOCKING_STATIC_RENDER) {
             throw new Error(
@@ -873,33 +874,30 @@ export default class DevServer extends Server {
           fallbackMode: fallback,
         }
 
-        // we write the static paths to partial manifest for
-        // fallback handling inside of entry handler's
-        const rawExistingManifest = await fs.promises.readFile(
-          pathJoin(this.distDir, PRERENDER_MANIFEST),
-          'utf8'
-        )
-        const existingManifest: PrerenderManifest =
-          JSON.parse(rawExistingManifest)
-        for (const staticPath of value.staticPaths || []) {
-          existingManifest.routes[staticPath] = {} as any
-        }
-        existingManifest.dynamicRoutes[pathname] = {
-          fallback:
-            value.fallbackMode === FallbackMode.PRERENDER
-              ? `${pathname}.html`
-              : value.fallbackMode === FallbackMode.BLOCKING_STATIC_RENDER
-                ? null
-                : false,
-        } as any
-
-        const updatedManifest = JSON.stringify(existingManifest)
-
-        if (updatedManifest !== rawExistingManifest) {
-          await fs.promises.writeFile(
+        if (res.value?.fallbackMode !== undefined) {
+          // we write the static paths to partial manifest for
+          // fallback handling inside of entry handler's
+          const rawExistingManifest = await fs.promises.readFile(
             pathJoin(this.distDir, PRERENDER_MANIFEST),
-            updatedManifest
+            'utf8'
           )
+          const existingManifest: PrerenderManifest =
+            JSON.parse(rawExistingManifest)
+          for (const staticPath of value.staticPaths || []) {
+            existingManifest.routes[staticPath] = {} as any
+          }
+          existingManifest.dynamicRoutes[pathname] = {
+            fallback: fallbackModeToFallbackField(res.value.fallbackMode, page),
+          } as any
+
+          const updatedManifest = JSON.stringify(existingManifest)
+
+          if (updatedManifest !== rawExistingManifest) {
+            await fs.promises.writeFile(
+              pathJoin(this.distDir, PRERENDER_MANIFEST),
+              updatedManifest
+            )
+          }
         }
         this.staticPathsCache.set(pathname, value)
         return value
