@@ -1140,7 +1140,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     ) -> TaskId {
         if let Some(task_id) = self.task_cache.lookup_forward(&task_type) {
             self.track_cache_hit(&task_type);
-            self.connect_child(parent_task, task_id, turbo_tasks);
+            if !is_immutable {
+                self.connect_child(parent_task, task_id, turbo_tasks);
+            }
             return task_id;
         }
 
@@ -1179,8 +1181,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
         };
 
-        // Safety: `tx` is a valid transaction from `self.backend.backing_storage`.
-        unsafe { self.connect_child_with_tx(tx.as_ref(), parent_task, task_id, turbo_tasks) };
+        if !is_immutable {
+            // Safety: `tx` is a valid transaction from `self.backend.backing_storage`.
+            unsafe { self.connect_child_with_tx(tx.as_ref(), parent_task, task_id, turbo_tasks) };
+        }
 
         task_id
     }
@@ -1201,7 +1205,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
         if let Some(task_id) = self.task_cache.lookup_forward(&task_type) {
             self.track_cache_hit(&task_type);
-            self.connect_child(parent_task, task_id, turbo_tasks);
+            if !is_immutable {
+                self.connect_child(parent_task, task_id, turbo_tasks);
+            }
             return task_id;
         }
 
@@ -1213,11 +1219,15 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             unsafe {
                 self.transient_task_id_factory.reuse(task_id);
             }
-            self.connect_child(parent_task, existing_task_id, turbo_tasks);
+            if !is_immutable {
+                self.connect_child(parent_task, existing_task_id, turbo_tasks);
+            }
             return existing_task_id;
         }
 
-        self.connect_child(parent_task, task_id, turbo_tasks);
+        if !is_immutable {
+            self.connect_child(parent_task, task_id, turbo_tasks);
+        }
 
         task_id
     }
@@ -2590,7 +2600,7 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId {
         self.0
-            .get_or_create_persistent_task(task_type, parent_task, turbo_tasks)
+            .get_or_create_persistent_task(task_type, parent_task, is_immutable, turbo_tasks)
     }
 
     fn get_or_create_transient_task(
@@ -2601,7 +2611,7 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId {
         self.0
-            .get_or_create_transient_task(task_type, parent_task, turbo_tasks)
+            .get_or_create_transient_task(task_type, parent_task, is_immutable, turbo_tasks)
     }
 
     fn invalidate_task(&self, task_id: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
