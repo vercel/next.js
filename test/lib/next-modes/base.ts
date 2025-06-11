@@ -680,7 +680,6 @@ export class NextInstance {
   public async browserWithResponse(
     ...args: Parameters<OmitFirstArgument<typeof webdriver>>
   ): Promise<{ browser: Playwright; response: Response }> {
-    console.log('browserWithResponse', args)
     const [url, options = {}] = args
 
     let resolveResponse: (response: Response) => void
