@@ -2633,7 +2633,10 @@
     "runtimeError": false
   },
   "test/development/app-dir/segment-explorer/segment-explorer.test.ts": {
-    "passed": ["segment-explorer should render the segment explorer"],
+    "passed": [
+      "segment-explorer should render the segment explorer for nested routes",
+      "segment-explorer should render the segment explorer for parallel routes"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -3398,6 +3401,15 @@
       "dev indicator - route type getStaticPaths should be marked static on first load",
       "dev indicator - route type getStaticPaths should update when going from dynamic -> static",
       "dev indicator - route type should have route type as static by default for static page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/dev-indicator/dev-rendering-indicator.test.ts": {
+    "passed": [
+      "Dev Rendering Indicator Shows build indicator when page is built from modifying"
     ],
     "failed": [],
     "pending": [],
@@ -8058,6 +8070,7 @@
       "ppr-metadata-streaming dynamic metadata should generate metadata in body when page is fully dynamic",
       "ppr-metadata-streaming partial shell should insert metadata into body with dynamic metadata and wrapped under layout Suspense boundary",
       "ppr-metadata-streaming partial shell should insert metadata into head with dynamic metadata and dynamic page wrapped under layout Suspense boundary",
+      "ppr-metadata-streaming partial shell should not yield hydration errors after revalidation",
       "ppr-metadata-streaming static metadata should generate metadata in head when page is fully static",
       "ppr-metadata-streaming static metadata should insert metadata in body when page is dynamic page content"
     ],
@@ -9490,6 +9503,7 @@
       "use-cache can reference server actions in \"use cache\" functions",
       "use-cache renders the not-found page when `notFound()` is used",
       "use-cache replays logs from \"use cache\" functions",
+      "use-cache shares caches between the page/layout and generateMetadata",
       "use-cache should be able to revalidate a page using unstable_expireTag",
       "use-cache should cache complex args",
       "use-cache should cache fetch without no-store",

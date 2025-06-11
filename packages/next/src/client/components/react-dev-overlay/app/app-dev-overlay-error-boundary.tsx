@@ -1,6 +1,6 @@
 import { PureComponent } from 'react'
 import { dispatcher } from 'next/dist/compiled/next-devtools'
-import { RuntimeErrorHandler } from '../../errors/runtime-error-handler'
+import { RuntimeErrorHandler } from '../runtime-error-handler'
 import { ErrorBoundary } from '../../error-boundary'
 import DefaultGlobalError, {
   type GlobalErrorComponent,

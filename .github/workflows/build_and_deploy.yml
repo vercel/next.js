@@ -28,6 +28,9 @@ env:
 jobs:
   deploy-target:
     runs-on: ubuntu-latest
+    # Don't trigger this job on `pull_request` events from upstream branches.
+    # Those would already run this job on the `push` event
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork }}
     outputs:
       value: ${{ steps.deploy-target.outputs.value }}
     steps:
@@ -693,7 +696,7 @@ jobs:
 
   buildPassed:
     needs: ['deploy-target', 'build', 'build-wasm', 'build-native']
-    if: always()
+    if: ${{ always() && needs.deploy-target.outputs.value != '' }}
     name: thank you, build
     runs-on: ubuntu-latest
     steps:

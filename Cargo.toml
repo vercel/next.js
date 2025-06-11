@@ -250,7 +250,7 @@ next-custom-transforms = { path = "crates/next-custom-transforms" }
 # Turbopack
 auto-hash-map = { path = "turbopack/crates/turbo-tasks-auto-hash-map" }
 turbo-prehash = { path = "turbopack/crates/turbo-prehash" }
-turbo-rcstr = { path = "turbopack/crates/turbo-rcstr", features = ["napi"] }
+turbo-rcstr = { path = "turbopack/crates/turbo-rcstr" }
 turbo-esregex = { path = "turbopack/crates/turbo-esregex" }
 turbo-persistence = { path = "turbopack/crates/turbo-persistence" }
 turbo-tasks-malloc = { path = "turbopack/crates/turbo-tasks-malloc", default-features = false }

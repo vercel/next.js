@@ -15,22 +15,17 @@ type Story = StoryObj<typeof PseudoHtmlDiff>
 
 export const TextMismatch: Story = {
   args: {
-    reactOutputComponentDiff: undefined,
-  },
-}
-
-export const TextInTagMismatch: Story = {
-  args: {
-    reactOutputComponentDiff: undefined,
+    reactOutputComponentDiff: `<Page>
+  <Layout>
+    <div>
+-     Server content
++     Client content`,
   },
 }
 
 export const ReactUnifiedMismatch: Story = {
   args: {
-    reactOutputComponentDiff: `<Page>
-  <Layout>
-    <div>
--     <p>Server content</p>
-+     <p>Client content</p>`,
+    reactOutputComponentDiff:
+      '<Page>\n  <Layout>\n    <div>asd\n-     <p>Server content</p>\n+     <p>Client content</p>',
   },
 }
