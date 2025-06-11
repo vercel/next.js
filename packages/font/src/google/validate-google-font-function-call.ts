@@ -16,7 +16,7 @@ type FontOptions = {
   subsets: string[]
 }
 /**
- * Validate the data recieved from next-swc next-transform-font on next/font/google calls
+ * Validate the data received from next-swc next-transform-font on next/font/google calls
  */
 export function validateGoogleFontFunctionCall(
   functionName: string,
@@ -46,7 +46,7 @@ export function validateGoogleFontFunctionCall(
 
   const availableSubsets = fontFamilyData.subsets
   if (availableSubsets.length === 0) {
-    // If the font doesn't have any preloadeable subsets, disable preload
+    // If the font doesn't have any preloadable subsets, disable preload
     preload = false
   } else if (preload) {
     if (!subsets) {
