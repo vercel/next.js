@@ -773,106 +773,6 @@ impl MergeableModule for EcmascriptModuleAsset {
                 .collect::<Result<Vec<_>>>()?,
             self.options().to_resolved().await?,
         )))
-
-        // let modules = modules.await?;
-
-        // async fn is_eligible(
-        //     module: ResolvedVc<Box<dyn MergeableModule>>,
-        // ) -> Result<Option<ResolvedVc<Box<dyn EcmascriptAnalyzable>>>> {
-        //     if let Some(analyzable) =
-        //         ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(module)
-        //     {
-        //         if let Some(placeable) =
-        //             ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module)
-        //         {
-        //             if matches!(
-        //                 &*placeable.get_exports().await?,
-        //                 |EcmascriptExports::DynamicNamespace| EcmascriptExports::CommonJs
-        //                     | EcmascriptExports::EmptyCommonJs
-        //                     | EcmascriptExports::Value
-        //             ) {
-        //                 return Ok(None);
-        //             }
-        //         }
-        //         Ok(Some(analyzable))
-        //     } else {
-        //         Ok(None)
-        //     }
-        // }
-
-        // // let mut start_idx = None;
-        // // let mut length = 0;
-        // // for i in 0..modules.len() {
-        // //     let module = modules[i];
-        // //     if let Some(module) = is_eligible(module).await? {
-        // //         if start_idx.is_some() {
-        // //             continue;
-        // //         } else {
-        // //             start_idx = Some(i);
-        // //         }
-        // //     } else {
-        // //         if let Some(start_idx) = start_idx
-        // //             && (i - start_idx) >= 2
-        // //         {
-        // //             // We found a sequence of modules containing least 2 modules
-        // //             length = i - start_idx;
-        // //             break;
-        // //         } else {
-        // //             start_idx = None;
-        // //         }
-        // //     }
-        // // }
-        // // let Some(start_idx) = start_idx else {
-        // //     return Ok(MergeableModuleResult::not_merged());
-        // // };
-        // // let consumed_modules = modules[start_idx..start_idx + length].to_vec();
-
-        // let mut modules = modules.iter().zip(0u32..);
-        // let mut merged_modules = vec![];
-        // let mut start_index = 0;
-        // while let Some(((first, exposed), first_i)) = modules.next() {
-        //     // Skip some modules, try to find the first eligible module
-        //     if let Some(first) = is_eligible(*first).await? {
-        //         if merged_modules.is_empty() {
-        //             start_index = first_i;
-        //         }
-        //         merged_modules.push((first, *exposed));
-
-        //         // Consume as many modules as possible to merge together
-        //         for ((m, exposed), _) in &mut modules {
-        //             if let Some(m) = is_eligible(*m).await? {
-        //                 merged_modules.push((m, *exposed));
-        //             } else {
-        //                 break;
-        //             }
-        //         }
-
-        //         // List has ended or incompatible module encountered
-        //         if merged_modules.len() > 1 {
-        //             // ... but we successfully found something to merge.
-        //             break;
-        //         }
-
-        //         // Only a single module, ignore and try to find a bigger sequence in the
-        // remaining         // list.
-        //         merged_modules.clear();
-        //     }
-        // }
-
-        // if merged_modules.len() > 1 {
-        //     Ok(MergeableModuleResult::Merged {
-        //         consumed: merged_modules.len() as u32,
-        //         skipped: start_index,
-        //         merged_module: ResolvedVc::upcast(MergedEcmascriptModule::new(
-        //             merged_modules,
-        //             // TODO where to get options from?
-        //             self.options().to_resolved().await?,
-        //         )),
-        //     }
-        //     .cell())
-        // } else {
-        //     Ok(MergeableModuleResult::not_merged())
-        // }
     }
 }
 
@@ -1475,19 +1375,7 @@ async fn merge_modules(
             span: DUMMY_SP,
             shebang: None,
         });
-
-        // let mut p = merged_ast.clone();
-        // p.visit_mut_with(&mut DisplayContextVisitor {
-        //     postfix: "individual",
-        //     mark: None,
-        // });
-        // println!("----b before {}", swc_core::ecma::codegen::to_code(&p),);
         merged_ast.visit_mut_with(&mut swc_core::ecma::transforms::base::hygiene::hygiene());
-        // println!(
-        //     "----b after  {}",
-        //     swc_core::ecma::codegen::to_code(&merged_ast),
-        // );
-        // merged_ast.visit_mut_with(&mut DisplayContextVisitor { postfix: "merged" });
 
         anyhow::Ok((merged_ast, inserted))
     })?;
@@ -1526,26 +1414,6 @@ async fn merge_modules(
 
     Ok((merged_ast, comments, source_maps, original_source_maps))
 }
-
-// struct DisplayContextVisitor {
-//     postfix: &'static str,
-//     mark: Option<Mark>,
-// }
-// impl VisitMut for DisplayContextVisitor {
-//     fn visit_mut_ident(&mut self, ident: &mut swc_core::ecma::ast::Ident) {
-//         if &*ident.sym != "__turbopack_merged__" {
-//             let has_mark = self.mark.is_some_and(|mark| ident.ctxt.has_mark(mark));
-//             ident.sym = format!(
-//                 "{}$$${}{}{}",
-//                 ident.sym,
-//                 self.postfix,
-//                 ident.ctxt.as_u32(),
-//                 if has_mark { "___" } else { "" }
-//             )
-//             .into();
-//         }
-//     }
-// }
 
 /// Provides information about the other modules in the current scope hoisting group.
 #[derive(Clone, Copy)]
@@ -1741,28 +1609,13 @@ async fn process_parse_result(
                     }
                 }
 
-                // let mut p = program.clone();
-                // p.visit_mut_with(&mut DisplayContextVisitor {
-                //     postfix: "individual",
-                //     mark: retain_syntax_context.as_ref().map(|v| v.0),
-                // });
                 if let Some((is_import_mark, _, preserved_exports)) = &retain_syntax_context {
-                    // println!(
-                    //     "----a before {} {:?}",
-                    //     swc_core::ecma::codegen::to_code(&p),
-                    //     preserved_exports
-                    // );
                     program.visit_mut_with(&mut hygiene_rename_only(
                         Some(top_level_mark),
                         *is_import_mark,
                         preserved_exports,
                     ));
-                    // println!(
-                    //     "----a after  {}",
-                    //     swc_core::ecma::codegen::to_code(&program)
-                    // );
                 } else {
-                    // println!("----x before {}", swc_core::ecma::codegen::to_code(&p),);
                     program.visit_mut_with(
                         &mut swc_core::ecma::transforms::base::hygiene::hygiene_with_config(
                             swc_core::ecma::transforms::base::hygiene::Config {
@@ -1771,14 +1624,7 @@ async fn process_parse_result(
                             },
                         ),
                     );
-                    // println!(
-                    //     "----x after  {}",
-                    //     swc_core::ecma::codegen::to_code(&program)
-                    // );
                 }
-                // program.visit_mut_with(&mut DisplayContextVisitor {
-                //     postfix: "individual",
-                // });
                 program.visit_mut_with(&mut swc_core::ecma::transforms::base::fixer::fixer(None));
 
                 // we need to remove any shebang before bundling as it's only valid as the first

@@ -25,9 +25,6 @@ pub struct MergedModuleInfo {
     /// A map of modules to the merged module containing the module plus additional modules.
     #[allow(clippy::type_complexity)]
     pub replacements: FxHashMap<ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn ChunkableModule>>>,
-    // #[allow(clippy::type_complexity)]
-    // pub replacements_included:
-    //     FxHashMap<ResolvedVc<Box<dyn Module>>, Vec<ResolvedVc<Box<dyn Module>>>>,
     /// A map of modules that are already contained as values in replacements.
     pub included: FxHashSet<ResolvedVc<Box<dyn Module>>>,
 }
@@ -85,15 +82,6 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         let mut entry_modules =
             FxHashSet::with_capacity_and_hasher(module_count, Default::default());
 
-        // let idents = graphs
-        //     .iter()
-        //     .flat_map(|g| g.graph.node_weights())
-        //     .map(async |n| Ok((n.module(), n.module().ident().to_string().await?)))
-        //     .try_join()
-        //     .await?
-        //     .into_iter()
-        //     .collect::<FxIndexMap<_, _>>();
-
         let mergeable = graphs
             .iter()
             .flat_map(|g| g.iter_nodes())
@@ -134,14 +122,6 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                             )
                         });
                     let module = node.module;
-
-                    // println!(
-                    //     "{} -> {} {:?} {:?}",
-                    //     parent_module.map_or("".to_string(), |p| idents[&p].to_string()),
-                    //     idents[&module],
-                    //     parent_module,
-                    //     module,
-                    // );
 
                     Ok(if parent_module.is_some_and(|p| p == module) {
                         // A self-reference
@@ -219,21 +199,6 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             .await?;
 
         span.record("visit_count", visit_count);
-
-        // {
-        //     let mut x: FxIndexMap<RoaringBitmapWrapper, Vec<ReadRef<RcStr>>> =
-        // Default::default();     for (k, v) in &module_merged_groups {
-        //         x.entry(v.clone())
-        //             .or_default()
-        //             .push(k.ident().to_string().await?);
-        //     }
-        //     println!(
-        //         "list candidates {} {} {:#?}",
-        //         visit_count,
-        //         module_merged_groups.len(),
-        //         x.iter().filter(|(_, v)| v.len() > 1).collect::<Vec<_>>()
-        //     );
-        // }
 
         #[derive(Debug, PartialEq, Eq, Hash)]
         struct ListOccurence {
@@ -357,25 +322,8 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                     },
                 )
                 .await?;
-
-            // println!(
-            //     "lists {:#?}",
-            //     chunk_lists
-            //         .iter()
-            //         .map(async |(b, l)| Ok((
-            //             b,
-            //             lists[*l]
-            //                 .iter()
-            //                 .map(|m| m.ident().to_string())
-            //                 .try_join()
-            //                 .await?
-            //         )))
-            //         .try_join()
-            //         .await?
-            // );
         }
 
-        // TODO sort lists_reverse_indices somehow?
         // We use list.pop() below, so reverse order using negation
         lists_reverse_indices
             .sort_by_cached_key(|_, b| b.iter().map(|o| o.entry).min().map(|v| -(v as i64)));
@@ -422,42 +370,11 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             )
             .await?;
 
-        // println!(
-        //     "pre-split lists {:#?}",
-        //     lists
-        //         .iter()
-        //         .map(|m| m.iter().map(|m| m.ident().to_string()).try_join())
-        //         .try_join()
-        //         .await?,
-        //     // lists
-        //     //     .iter()
-        //     //     .filter(|(_, v)| v.len() > 1)
-        //     //     .map(|(_, l)| l.iter().map(|m| m.ident().to_string()).try_join())
-        //     //     .try_join()
-        //     //     .await?
-        // );
-
-        // println!(
-        //     "lists_reverse_indices {:#?}",
-        //     lists_reverse_indices
-        //         .iter()
-        //         .map(async |(m, l)| Ok((m.ident().to_string().await?, l)))
-        //         .try_join()
-        //         .await?,
-        //     // lists
-        //     //     .iter()
-        //     //     .filter(|(_, v)| v.len() > 1)
-        //     //     .map(|(_, l)| l.iter().map(|m| m.ident().to_string()).try_join())
-        //     //     .try_join()
-        //     //     .await?
-        // );
-
         while let Some((_, common_occurences)) = lists_reverse_indices.pop() {
             if common_occurences.len() < 2 {
                 // Module exists only in one list, no need to split
                 continue;
             }
-            // println!("{:?} {:?}", m.ident().to_string().await?, common_occurences);
             // The module occurs in multiple lists, which need to split up so that there is exactly
             // one list containing the module.
 
@@ -483,16 +400,6 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 common_length -= 1;
                 break;
             }
-
-            // println!(
-            //     "{:?} {:?}",
-            //     lists[first_occurence.list]
-            //         .iter()
-            //         .map(|m| m.ident().to_string())
-            //         .try_join()
-            //         .await?,
-            //     (first_occurence.entry..first_occurence.entry +
-            // common_length).collect::<Vec<_>>(), );
 
             // Split into three lists:
             // - "common" [occurrence.entry .. occurrence.entry + common_length) -- same for all
@@ -554,25 +461,6 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                     }
                 }
 
-                // println!(
-                //     "{} {:#?} {:#?} {:#?}",
-                //     common_length,
-                //     list.iter()
-                //         .map(|m| m.ident().to_string())
-                //         .try_join()
-                //         .await?,
-                //     common_list
-                //         .iter()
-                //         .map(|m| m.ident().to_string())
-                //         .try_join()
-                //         .await?,
-                //     after_list
-                //         .iter()
-                //         .map(|m| m.ident().to_string())
-                //         .try_join()
-                //         .await?
-                // );
-
                 // The occurences for the "before" list (`list`) are still valid, need to update the
                 // occurences for the "after" list
                 if !after_list.is_empty() {
@@ -597,50 +485,6 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 }
             }
         }
-
-        // println!(
-        //     "lists {:#?}",
-        //     lists
-        //         .iter()
-        //         .map(|m| m.iter().map(|m| m.ident().to_string()).try_join())
-        //         .try_join()
-        //         .await?,
-        //     // lists
-        //     //     .iter()
-        //     //     .filter(|(_, v)| v.len() > 1)
-        //     //     .map(|(_, l)| l.iter().map(|m| m.ident().to_string()).try_join())
-        //     //     .try_join()
-        //     //     .await?
-        // );
-        // println!(
-        //     "exposed_modules {:#?}",
-        //     exposed_modules
-        //         .iter()
-        //         .map(|m| m.ident().to_string())
-        //         .try_join()
-        //         .await?,
-        //     // lists
-        //     //     .iter()
-        //     //     .filter(|(_, v)| v.len() > 1)
-        //     //     .map(|(_, l)| l.iter().map(|m| m.ident().to_string()).try_join())
-        //     //     .try_join()
-        //     //     .await?
-        // );
-
-        // println!(
-        //     "lists_reverse_indices {:#?}",
-        //     lists_reverse_indices
-        //         .iter()
-        //         .map(async |(m, l)| Ok((m.ident().to_string().await?, l)))
-        //         .try_join()
-        //         .await?,
-        //     // lists
-        //     //     .iter()
-        //     //     .filter(|(_, v)| v.len() > 1)
-        //     //     .map(|(_, l)| l.iter().map(|m| m.ident().to_string()).try_join())
-        //     //     .try_join()
-        //     //     .await?
-        // );
 
         // Dedupe the lists
         let lists = lists.into_iter().collect::<FxHashSet<_>>();
@@ -676,38 +520,6 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                     .map(|&m| (m, exposed_modules.contains(&ResolvedVc::upcast(m))))
                     .collect::<Vec<_>>();
 
-                // println!(
-                //     "merged {:#?} {:#?} {:#?}",
-                //     list.iter()
-                //         .map(|m| m.ident().to_string())
-                //         .try_join()
-                //         .await?,
-                //     list.iter()
-                //         .map(async |m| {
-                //             Ok(
-                //                 if let Some(refs) =
-                //                     intra_group_references_rev.get(&ResolvedVc::upcast(*m))
-                //                 {
-                //                     Some(
-                //                         refs.iter()
-                //                             .map(|r| r.ident().to_string())
-                //                             .try_join()
-                //                             .await?,
-                //                     )
-                //                 } else {
-                //                     None
-                //                 },
-                //             )
-                //         })
-                //         .try_join()
-                //         .await?,
-                //     entries
-                //         .iter()
-                //         .map(|m| m.ident().to_string())
-                //         .try_join()
-                //         .await?
-                // );
-
                 let entry = *list.last().unwrap();
                 let result = entry
                     .merge(
@@ -726,75 +538,6 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                         .map(ResolvedVc::upcast)
                         .collect::<Vec<_>>(),
                 )))
-
-                // let mut resulting_list = vec![];
-                // let mut included: Vec<ResolvedVc<Box<dyn Module>>> = vec![];
-                // let mut i = 0;
-                // while i < list.len() - 1 {
-                //     let first = list[i];
-                //     let modules = list[i..]
-                //         .iter()
-                //         .map(|&m| (m, exposed_modules.contains(&ResolvedVc::upcast(m))))
-                //         .collect::<Vec<_>>();
-                //     match *first.merge(MergeableModules::interned(modules)).await? {
-                //         MergeableModuleResult::Merged {
-                //             merged_module,
-                //             consumed,
-                //             skipped,
-                //         } => {
-                //             // println!(
-                //             //     "accepted from {:?} {:#?} {:?} consumed {} {:#?} skipped {}
-                //             // {:#?}",     first.ident().to_string().
-                //             // await?,     list[i..]
-                //             //         .iter()
-                //             //         .map(|m| m.ident().to_string())
-                //             //         .try_join()
-                //             //         .await?,
-                //             //     merged_module.ident().to_string().await?,
-                //             //     consumed,
-                //             //     list.iter()
-                //             //         .skip(i)
-                //             //         .skip(skipped as usize)
-                //             //         .take(consumed as usize)
-                //             //         .map(|m| m.ident().to_string())
-                //             //         .try_join()
-                //             //         .await?,
-                //             //     skipped,
-                //             //     list.iter()
-                //             //         .skip(i)
-                //             //         .take(skipped as usize)
-                //             //         .map(|m| m.ident().to_string())
-                //             //         .try_join()
-                //             //         .await?,
-                //             // );
-
-                //             let mut current_included = list[i..]
-                //                 .iter()
-                //                 .skip(skipped as usize)
-                //                 .take(consumed as usize);
-                //             // The first module should not be `included` but `replaced`
-                //             let first = *current_included.next().unwrap();
-                //             debug_assert!(
-                //                 first.ident().to_string().await?
-                //                     == merged_module.ident().to_string().await?,
-                //                 "{} == {}",
-                //                 first.ident().to_string().await?,
-                //                 merged_module.ident().to_string().await?
-                //             );
-                //             resulting_list.push((
-                //                 ResolvedVc::upcast::<Box<dyn Module>>(first),
-                //                 merged_module,
-                //             ));
-                //             included.extend(current_included.copied().map(ResolvedVc::upcast));
-                //             i += (skipped + consumed) as usize;
-                //         }
-                //         MergeableModuleResult::NotMerged => {
-                //             // None of them are mergeable.
-                //             return Ok(None);
-                //         }
-                //     }
-                // }
-                // Ok(Some((resulting_list, included)))
             })
             .try_join()
             .await?;
@@ -804,11 +547,6 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             ResolvedVc<Box<dyn Module>>,
             ResolvedVc<Box<dyn ChunkableModule>>,
         > = Default::default();
-        // #[allow(clippy::type_complexity)]
-        // let mut replacements_included: FxHashMap<
-        //     ResolvedVc<Box<dyn Module>>,
-        //     Vec<ResolvedVc<Box<dyn Module>>>,
-        // > = Default::default();
         let mut included: FxHashSet<ResolvedVc<Box<dyn Module>>> = FxHashSet::default();
 
         for (original, replacement, replacement_included) in result.into_iter().flatten() {
@@ -819,26 +557,6 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
 
         span.record("merged_groups", replacements.len());
         span.record("included_modules", included.len());
-
-        // println!(
-        //     "included {:#?}",
-        //     included
-        //         .iter()
-        //         .map(|m| m.ident().to_string())
-        //         .try_join()
-        //         .await?
-        // );
-        // println!(
-        //     "replacements {:#?}",
-        //     replacements
-        //         .iter()
-        //         .map(async |(k, v)| Ok((
-        //             k.ident().to_string().await?,
-        //             v.ident().to_string().await?
-        //         )))
-        //         .try_join()
-        //         .await?
-        // );
 
         Ok(MergedModuleInfo {
             replacements,

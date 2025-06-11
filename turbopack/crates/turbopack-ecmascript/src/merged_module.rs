@@ -130,14 +130,6 @@ impl EcmascriptChunkItem for MergedEcmascriptModuleChunkItem {
         let module = self.module.await?;
         let modules = &module.modules;
         let entries = &module.entries;
-        // println!(
-        //     "merged chunk item: {:?}",
-        //     modules
-        //         .iter()
-        //         .map(|m| m.ident().to_string())
-        //         .try_join()
-        //         .await?
-        // );
         let options = modules
             .iter()
             .map(|(m, _)| {
