@@ -29,7 +29,7 @@ impl ConnectChildOperation {
         is_immutable: bool,
         mut ctx: impl ExecuteContext,
     ) {
-        if !ctx.should_track_children() || is_immutable {
+        if !ctx.should_track_children() {
             let mut task = ctx.task(child_task_id, TaskDataCategory::All);
             if !task.has_key(&CachedDataItemKey::Output {}) {
                 let description = ctx.get_task_desc_fn(child_task_id);
@@ -71,7 +71,7 @@ impl ConnectChildOperation {
             });
         }
 
-        if ctx.should_track_activeness() {
+        if ctx.should_track_activeness() && !is_immutable {
             queue.push(AggregationUpdateJob::IncreaseActiveCount {
                 task: child_task_id,
             });
