@@ -23,7 +23,9 @@ export default function reportHmrLatency(
   hasUpdate: boolean = true
 ) {
   const latencyMs = endMsSinceEpoch - startMsSinceEpoch
-  console.log(`[Fast Refresh] done in ${latencyMs}ms`)
+  if (!isNaN(latencyMs)) {
+    console.log(`[Fast Refresh] done in ${latencyMs}ms`);
+  }
   if (!hasUpdate) {
     return
   }
