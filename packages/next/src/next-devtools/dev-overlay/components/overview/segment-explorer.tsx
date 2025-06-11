@@ -66,10 +66,8 @@ function PageSegmentTreeLayerPresentation({
     return !!childNode?.value?.type
   })
 
-  const folderName =
-    parentSegment ||
-    // If it's the 1st level and contains a file, use 'app' as the folder name
-    (level === 1 && isFile ? 'app' : '')
+  // If it's the 1st level and contains a file, use 'app' as the folder name
+  const folderName = level === 1 && isFile ? 'app' : parentSegment
 
   return (
     <>
@@ -83,7 +81,6 @@ function PageSegmentTreeLayerPresentation({
             style={{
               // If it's children levels, show indents if there's any file at that level.
               // Otherwise it's empty folder, no need to show indents.
-              // level > 0 && hasFileChildren && 'segment-explorer-children--intended'
               ...(level > 0 && isFile && { paddingLeft: `${level * 8}px` }),
             }}
           >
