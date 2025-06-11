@@ -71,7 +71,7 @@ impl ConnectChildOperation {
             });
         }
 
-        if ctx.should_track_activeness() && !is_immutable {
+        if !is_immutable && ctx.should_track_activeness() {
             queue.push(AggregationUpdateJob::IncreaseActiveCount {
                 task: child_task_id,
             });
