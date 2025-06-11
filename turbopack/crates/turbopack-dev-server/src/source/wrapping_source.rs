@@ -16,6 +16,7 @@ use super::{
 /// [ContentSourceContent].
 #[turbo_tasks::value_trait]
 pub trait ContentSourceProcessor {
+    #[turbo_tasks::function]
     fn process(self: Vc<Self>, content: Vc<ContentSourceContent>) -> Vc<ContentSourceContent>;
 }
 

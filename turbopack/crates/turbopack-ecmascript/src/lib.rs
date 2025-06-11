@@ -294,24 +294,30 @@ impl core::fmt::Debug for EcmascriptModuleAsset {
 
 #[turbo_tasks::value_trait]
 pub trait EcmascriptParsable {
+    #[turbo_tasks::function]
     fn failsafe_parse(self: Vc<Self>) -> Result<Vc<ParseResult>>;
 
+    #[turbo_tasks::function]
     fn parse_original(self: Vc<Self>) -> Result<Vc<ParseResult>>;
 
+    #[turbo_tasks::function]
     fn ty(self: Vc<Self>) -> Result<Vc<EcmascriptModuleAssetType>>;
 }
 
 #[turbo_tasks::value_trait]
 pub trait EcmascriptAnalyzable: Module + Asset {
+    #[turbo_tasks::function]
     fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult>;
 
     /// Generates module contents without an analysis pass. This is useful for
     /// transforming code that is not a module, e.g. runtime code.
+    #[turbo_tasks::function]
     async fn module_content_without_analysis(
         self: Vc<Self>,
         generate_source_map: bool,
     ) -> Result<Vc<EcmascriptModuleContent>>;
 
+    #[turbo_tasks::function]
     async fn module_content_options(
         self: Vc<Self>,
         module_graph: Vc<ModuleGraph>,
@@ -319,6 +325,7 @@ pub trait EcmascriptAnalyzable: Module + Asset {
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptModuleContentOptions>>;
 
+    #[turbo_tasks::function]
     async fn module_content(
         self: Vc<Self>,
         module_graph: Vc<ModuleGraph>,

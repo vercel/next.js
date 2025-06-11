@@ -43,9 +43,11 @@ impl OptionStringifiedSourceMap {
 #[turbo_tasks::value_trait]
 pub trait GenerateSourceMap {
     /// Generates a usable source map, capable of both tracing and stringifying.
+    #[turbo_tasks::function]
     fn generate_source_map(self: Vc<Self>) -> Vc<OptionStringifiedSourceMap>;
 
     /// Returns an individual section of the larger source map, if found.
+    #[turbo_tasks::function]
     fn by_section(self: Vc<Self>, _section: RcStr) -> Vc<OptionStringifiedSourceMap> {
         Vc::cell(None)
     }
