@@ -561,7 +561,7 @@ Now, if you try to import the module into a Client Component, there will be a bu
 
 The corresponding [`client-only` package](https://www.npmjs.com/package/client-only) can be used to mark modules that contain client-only logic like code that accesses the `window` object.
 
-In Next.js, installing `server-only`, or `client-only` is **optional**. Linting rules that prevent usage of extraneous dependencies, not declared in `package.json` may raise an issue if `server-only` or `client-only`, are not installed.
+In Next.js, installing `server-only` or `client-only` is **optional**. However, if your linting rules flag extraneous dependencies, you may install them to avoid issues.
 
 ```bash package="npm"
 npm install server-only
@@ -579,6 +579,6 @@ pnpm add server-only
 bun add server-only
 ```
 
-Next.js implements custom handling of `server-only` and `client-only` import declarations, in order to produce more accurate error for modules used in the wrong environment. The contents of these packages from `NPM` are not used by Next.js.
+Next.js handles `server-only` and `client-only` imports internally to provide clearer error messages when a module is used in the wrong environment. The contents of these packages from NPM are not used by Next.js.
 
 Next.js also provides its own type declarations for `server-only` and `client-only`, for TypeScript configurations where [`noUncheckedSideEffectImports`](https://www.typescriptlang.org/tsconfig/#noUncheckedSideEffectImports) is active.
