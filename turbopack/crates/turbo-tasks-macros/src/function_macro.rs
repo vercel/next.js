@@ -67,6 +67,7 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
         filter_trait_call_args: None, // not a trait method
         local,
         invalidator,
+        immutable: sig.asyncness.is_none() && !invalidator,
     };
     let native_function_ident = get_native_function_ident(ident);
     let native_function_ty = native_fn.ty();
