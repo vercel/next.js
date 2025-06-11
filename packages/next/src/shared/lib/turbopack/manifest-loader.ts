@@ -467,11 +467,20 @@ export class TurbopackManifestLoader {
       )};`
     )
 
+    const pagesEntries: Record<string, readonly string[]> = {}
+
+    for (const key in buildManifest.pages) {
+      // Filter out anything that doesn't end in `.js`.
+      pagesEntries[key] = buildManifest.pages[key].filter((item) =>
+        item.endsWith('.js')
+      )
+    }
+
     const pagesKeys = Object.keys(buildManifest.pages)
     const sortedPageKeys = getSortedRoutes(pagesKeys)
     const clientBuildManifest: ClientBuildManifest = {
       __rewrites: normalizeRewritesForBuildManifest(rewrites) as any,
-      ...(buildManifest.pages as any),
+      ...pagesEntries,
       sortedPages: sortedPageKeys,
     }
     const clientBuildManifestJs = `self.__BUILD_MANIFEST = ${JSON.stringify(
