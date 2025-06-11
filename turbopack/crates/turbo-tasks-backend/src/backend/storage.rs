@@ -98,6 +98,7 @@ bitfield! {
     /// Item was modified after snapshot mode was entered. A snapshot was taken.
     pub meta_snapshot, set_meta_snapshot: 4;
     pub data_snapshot, set_data_snapshot: 5;
+    pub is_immutable, set_is_immutable: 6;
 }
 
 impl InnerStorageState {

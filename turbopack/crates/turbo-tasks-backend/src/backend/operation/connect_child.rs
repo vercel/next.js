@@ -78,6 +78,10 @@ impl ConnectChildOperation {
             });
         } else {
             let mut task = ctx.task(child_task_id, TaskDataCategory::All);
+            if is_immutable {
+                task.mark_as_immutable();
+            }
+
             if !task.has_key(&CachedDataItemKey::Output {}) {
                 let description = ctx.get_task_desc_fn(child_task_id);
                 let should_schedule = task.add(CachedDataItem::new_scheduled(description));
