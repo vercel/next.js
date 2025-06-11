@@ -6,9 +6,8 @@ related:
   title: API Reference
   description: Learn more about Route Handlers and Middleware
   links:
-    - app/building-your-application/routing/route-handlers
     - app/api-reference/file-conventions/route
-    - app/building-your-application/routing/middleware
+    - app/api-reference/file-conventions/middleware
 ---
 
 Next.js supports the "Backend for Frontend" pattern. This lets you create public endpoints to handle HTTP requests and return any content type—not just HTML. You can also access data sources and perform side effects like updating remote data.
@@ -85,7 +84,7 @@ Avoid exposing sensitive information in error messages sent to the client.
 
 To restrict access, implement authentication and authorization. See [Authentication](/docs/app/guides/authentication).
 
-## Content Types
+## Content types
 
 You can serve more than HTML—JSON, XML, images, files, and plain text are all supported.
 
@@ -165,7 +164,7 @@ export async function GET(request) {
 
 Sanitize any input used to generate markup.
 
-### Consuming Request Payloads
+### Consuming request payloads
 
 Use Request [instance methods](https://developer.mozilla.org/en-US/docs/Web/API/Request#instance_methods) like `.json()`, `.formData()`, or `.text()` to access the request body.
 
@@ -265,7 +264,7 @@ export async function POST(request) {
 }
 ```
 
-## Manipulating Data
+## Manipulating data
 
 Route Handlers can transform, filter, and aggregate data from one or more sources. This keeps logic out of the frontend and avoids exposing internal systems.
 
@@ -327,7 +326,7 @@ export async function POST(request) {
 
 > **Good to know**: This example uses `POST` to avoid putting geo-location data in the URL. `GET` requests may be cached or logged, which could expose sensitive info.
 
-## Proxying to a Backend
+## Proxying to a backend
 
 You can use a Route Handler as a proxy to another backend. Add validation logic before forwarding the request.
 
@@ -440,7 +439,7 @@ export async function GET(request) {
 
 Learn more about [`NextRequest`](/docs/app/api-reference/functions/next-request) and [`NextResponse`](/docs/app/api-reference/functions/next-response).
 
-## Webhooks and Callback URLs
+## Webhooks and callback URLs
 
 Use Route Handlers to receive event notifications from third-party applications.
 
@@ -646,7 +645,7 @@ export function middleware(request) {
 
 ## Security
 
-### Rate Limiting
+### Rate limiting
 
 You can implement rate limiting in your Next.js backend. In addition to code-based checks, enable any rate limiting features provided by your host.
 
@@ -680,7 +679,7 @@ export async function POST(request) {
 }
 ```
 
-### Verify Payloads
+### Verify payloads
 
 Never trust incoming request data. Validate content type and size, and sanitize against XSS before use.
 
@@ -730,7 +729,7 @@ import { createMiddleware } from 'third-party-library'
 export default createMiddleware()
 ```
 
-## More Examples
+## More examples
 
 ### Cookies
 
