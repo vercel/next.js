@@ -258,6 +258,7 @@ describe('Error Overlay invalid imports', () => {
         The error was caused by importing 'node_modules/server-only-package'"
       `)
     } else if (isRspack) {
+      // rspack returns absolute paths which will break an inline snapshot test due to unpredictability of the test environment
       const redboxSource = await session.getRedboxSource()
       expect(redboxSource).toContain(
         "'server-only' cannot be imported from a Client Component module. It should only be used from a Server Component."
