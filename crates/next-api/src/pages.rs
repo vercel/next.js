@@ -366,7 +366,7 @@ impl PagesProject {
             self.project().client_compile_time_info(),
             self.client_module_options_context(),
             self.client_resolve_options_context(),
-            LayerName::new(rcstr!("pages-client"), Some(rcstr!("Browser"))),
+            LayerName::new(rcstr!("client"), Some(rcstr!("Browser"))),
         )
     }
 
@@ -377,7 +377,7 @@ impl PagesProject {
             self.project().server_compile_time_info(),
             self.ssr_module_options_context(),
             self.ssr_resolve_options_context(),
-            LayerName::new(rcstr!("pages-ssr"), Some(rcstr!("SSR"))),
+            LayerName::new(rcstr!("ssr"), Some(rcstr!("SSR"))),
         )
     }
 
@@ -390,7 +390,7 @@ impl PagesProject {
             self.project().server_compile_time_info(),
             self.api_module_options_context(),
             self.ssr_resolve_options_context(),
-            LayerName::new(rcstr!("pages-api"), None),
+            LayerName::new(rcstr!("api"), None),
         )
     }
 
