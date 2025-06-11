@@ -1,3 +1,4 @@
 {
-  "treeShakingMode": "reexports-only"
+  "treeShakingMode": "reexports-only",
+  "scopeHoisting": false
 }
