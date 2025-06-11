@@ -143,7 +143,13 @@ export default function Component{i}() {{
 }
 
 fn load_next_config() -> RcStr {
-    serde_json::to_string(&json!({})).unwrap().into()
+    serde_json::to_string(&json!({
+        "sassOptions": {
+
+        },
+    }))
+    .unwrap()
+    .into()
 }
 
 fn runtime() -> Runtime {
