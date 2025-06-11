@@ -23,7 +23,6 @@ import { addRequestMeta, getRequestMeta } from '../request-meta'
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import setupCompression from 'next/dist/compiled/compression'
-import { NoFallbackError } from '../base-server'
 import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
 import { isPostpone } from './router-utils/is-postpone'
 import { parseUrl as parseUrlUtil } from '../../shared/lib/router/utils/parse-url'
@@ -51,6 +50,7 @@ import type { ServerInitResult } from './render-server'
 import { filterInternalHeaders } from './server-ipc/utils'
 import { blockCrossSite } from './router-utils/block-cross-site'
 import { traceGlobals } from '../../trace/shared'
+import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
 import {
   RouterServerContextSymbol,
   routerServerGlobal,
@@ -686,10 +686,11 @@ export async function initialize(opts: {
     nextConfig: config,
     hostname: handlers.server.hostname,
     revalidate: handlers.server.revalidate.bind(handlers.server),
+    render404: handlers.server.render404.bind(handlers.server),
     experimentalTestProxy: renderServerOpts.experimentalTestProxy,
     logErrorWithOriginalStack: opts.dev
       ? handlers.server.logErrorWithOriginalStack.bind(handlers.server)
-      : (err: unknown) => Log.error(err),
+      : (err: unknown) => !opts.quiet && Log.error(err),
     setIsrStatus: devBundlerService?.setIsrStatus.bind(devBundlerService),
   }
 
