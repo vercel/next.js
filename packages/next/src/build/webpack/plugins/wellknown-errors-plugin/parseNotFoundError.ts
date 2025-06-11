@@ -3,7 +3,7 @@ import { SimpleWebpackError } from './simpleWebpackError'
 import {
   createOriginalStackFrame,
   getIgnoredSources,
-} from '../../../../client/components/react-dev-overlay/server/middleware-webpack'
+} from '../../../../server/dev/middleware-webpack'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 
 // Based on https://github.com/webpack/webpack/blob/fcdd04a833943394bbb0a9eeb54a962a24cc7e41/lib/stats/DefaultStatsFactoryPlugin.js#L422-L431

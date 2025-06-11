@@ -180,7 +180,7 @@ class Container extends React.Component<{
       return this.props.children
     } else {
       const { PagesDevOverlayBridge } =
-        require('./components/react-dev-overlay/pages/pages-dev-overlay-setup') as typeof import('./components/react-dev-overlay/pages/pages-dev-overlay-setup')
+        require('../next-devtools/userspace/pages/pages-dev-overlay-setup') as typeof import('../next-devtools/userspace/pages/pages-dev-overlay-setup')
       return (
         <PagesDevOverlayBridge>{this.props.children}</PagesDevOverlayBridge>
       )
@@ -918,7 +918,7 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
 
   if (process.env.NODE_ENV === 'development') {
     const getServerError = (
-      require('./components/react-dev-overlay/utils/node-stack-frames') as typeof import('./components/react-dev-overlay/utils/node-stack-frames')
+      require('../server/dev/node-stack-frames') as typeof import('../server/dev/node-stack-frames')
     ).getServerError
     // Server-side runtime errors need to be re-thrown on the client-side so
     // that the overlay is rendered.

@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react'
 import { useEffect, startTransition, useRef } from 'react'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
-import formatWebpackMessages from '../../../components/react-dev-overlay/utils/format-webpack-messages'
+import formatWebpackMessages from '../../../../shared/lib/format-webpack-messages'
 import { useRouter } from '../../../components/navigation'
 import {
   REACT_REFRESH_FULL_RELOAD,
@@ -11,10 +11,10 @@ import {
   reportInvalidHmrMessage,
 } from '../shared'
 import { dispatcher } from 'next/dist/compiled/next-devtools'
-import { ReplaySsrOnlyErrors } from '../../../components/react-dev-overlay/app/errors/replay-ssr-only-errors'
-import { AppDevOverlayErrorBoundary } from '../../../components/react-dev-overlay/app/app-dev-overlay-error-boundary'
-import { useErrorHandler } from '../../../components/react-dev-overlay/app/errors/use-error-handler'
-import { RuntimeErrorHandler } from '../../../components/react-dev-overlay/runtime-error-handler'
+import { ReplaySsrOnlyErrors } from '../../../../next-devtools/userspace/app/errors/replay-ssr-only-errors'
+import { AppDevOverlayErrorBoundary } from '../../../../next-devtools/userspace/app/app-dev-overlay-error-boundary'
+import { useErrorHandler } from '../../../../next-devtools/userspace/app/errors/use-error-handler'
+import { RuntimeErrorHandler } from '../../runtime-error-handler'
 import {
   useSendMessage,
   useTurbopack,
@@ -28,8 +28,8 @@ import type {
 } from '../../../../server/dev/hot-reloader-types'
 import { useUntrackedPathname } from '../../../components/navigation-untracked'
 import type { GlobalErrorComponent } from '../../../components/global-error'
-import reportHmrLatency from '../../../components/react-dev-overlay/utils/report-hmr-latency'
-import { TurbopackHmr } from '../../../components/react-dev-overlay/utils/turbopack-hot-reloader-common'
+import reportHmrLatency from '../../report-hmr-latency'
+import { TurbopackHmr } from '../turbopack-hot-reloader-common'
 import { NEXT_HMR_REFRESH_HASH_COOKIE } from '../../../components/app-router-headers'
 
 let mostRecentCompilationHash: any = null
