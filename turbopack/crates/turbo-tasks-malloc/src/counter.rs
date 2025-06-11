@@ -1,147 +1,36 @@
 use std::{
     cell::UnsafeCell,
     ptr::NonNull,
-    sync::atomic::{AtomicUsize, Ordering},
+    sync::{
+        LazyLock,
+        atomic::{AtomicUsize, Ordering},
+    },
 };
 
 use crate::AllocationCounters;
 
-static GLOBAL: [AtomicCounters; 128] = [
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-    AtomicCounters::new(),
-];
+static GLOBAL: LazyLock<Vec<AtomicCounters>> = LazyLock::new(|| {
+    let size = match std::thread::available_parallelism() {
+        Ok(s) => s.into(),
+        Err(_) => 128,
+    };
+    let mut vec = Vec::with_capacity(size);
+    for _ in 0..size {
+        vec.push(AtomicCounters::new());
+    }
+    vec
+});
+
 static INDEX: AtomicUsize = AtomicUsize::new(0);
-fn get_index() -> usize {
-    INDEX.fetch_add(1, Ordering::AcqRel) & (GLOBAL.len() - 1)
+
+/// Returns a reference to an entry in global
+fn get_global_ref() -> &'static AtomicCounters {
+    let index = INDEX.fetch_add(1, Ordering::AcqRel) & (GLOBAL.len() - 1);
+
+    GLOBAL.get(index).unwrap()
 }
 
-#[repr(align(64))] // cache line aligned
+#[repr(align(64))] // cache line aligned to reduce false sharing between adjacent entries
 struct AtomicCounters {
     allocations: AtomicUsize,
     deallocations: AtomicUsize,
@@ -162,13 +51,13 @@ impl AtomicCounters {
 
 struct ThreadLocalCounter {
     counters: AllocationCounters,
-    index: Option<usize>,
+    global: Option<&'static AtomicCounters>,
 }
 
 impl ThreadLocalCounter {
     const fn new() -> Self {
         Self {
-            index: None,
+            global: None,
             counters: AllocationCounters::new(),
         }
     }
@@ -204,7 +93,7 @@ static MAX_ALLOCATED: AtomicUsize = AtomicUsize::new(0);
 /// Returns an estimate of the total memory statistics
 pub fn global_counters() -> AllocationCounters {
     let mut counters = AllocationCounters::new();
-    for global in &GLOBAL {
+    for global in GLOBAL.iter() {
         counters.allocation_count += global.allocation_count.load(Ordering::Acquire);
         counters.deallocation_count += global.deallocation_count.load(Ordering::Acquire);
         counters.allocations += global.allocations.load(Ordering::Acquire);
@@ -236,15 +125,7 @@ fn with_local_counter<T>(f: impl FnOnce(&mut ThreadLocalCounter, &AtomicCounters
         // threadlocal
         let mut local = unsafe { NonNull::new_unchecked(ptr) };
         let local = unsafe { local.as_mut() };
-        let global = &GLOBAL[match local.index {
-            None => {
-                let index = get_index();
-                local.index = Some(index);
-                index
-            }
-            Some(index) => index,
-        }];
-
+        let global = *local.global.get_or_insert_with(get_global_ref);
         f(local, global)
     })
 }
