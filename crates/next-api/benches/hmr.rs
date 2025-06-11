@@ -419,78 +419,108 @@ fn setup_everything(module_count: usize) -> Setup {
     })
 }
 
-#[divan::bench(sample_size = 10)]
+#[divan::bench]
 fn hmr_initial_compilation(bencher: divan::Bencher) {
-    bencher.with_inputs(|| setup_everything(100)).bench_values(
-        |Setup { rt, tt, benchmark }: Setup| {
-            rt.block_on(async move {
-                tt.run_once(Box::pin(async move {
-                    benchmark.benchmark_initial_compilation().await.unwrap();
-                    Ok(())
-                }));
-            })
-        },
-    );
+    let setup = Arc::new(setup_everything(100));
+
+    let _guard = setup.clone();
+
+    bencher.with_inputs(|| setup.clone()).bench_values(|setup| {
+        setup.clone().rt.block_on(async move {
+            setup.clone().tt.run_once(Box::pin(async move {
+                setup
+                    .benchmark
+                    .benchmark_initial_compilation()
+                    .await
+                    .unwrap();
+                Ok(())
+            }));
+        })
+    });
 }
 
 #[divan::bench(sample_size = 10)]
 fn hmr_updates_small_5(bencher: divan::Bencher) {
-    bencher.with_inputs(|| setup_everything(100)).bench_values(
-        |Setup { rt, tt, benchmark }: Setup| {
-            rt.block_on(async move {
-                tt.run_once(Box::pin(async move {
-                    let _ = benchmark.benchmark_initial_compilation().await.unwrap();
-                    benchmark.benchmark_hmr_update(5).await.unwrap();
-                    Ok(())
-                }));
-            })
-        },
-    );
+    let setup = Arc::new(setup_everything(100));
+
+    let _guard = setup.clone();
+
+    bencher.with_inputs(|| setup.clone()).bench_values(|setup| {
+        setup.clone().rt.block_on(async move {
+            setup.clone().tt.run_once(Box::pin(async move {
+                let _ = setup
+                    .benchmark
+                    .benchmark_initial_compilation()
+                    .await
+                    .unwrap();
+                setup.benchmark.benchmark_hmr_update(5).await.unwrap();
+                Ok(())
+            }));
+        })
+    });
 }
 
 #[divan::bench(sample_size = 10)]
 fn hmr_updates_medium_10(bencher: divan::Bencher) {
-    bencher.with_inputs(|| setup_everything(200)).bench_values(
-        |Setup { rt, tt, benchmark }: Setup| {
-            rt.block_on(async move {
-                tt.run_once(Box::pin(async move {
-                    let _ = benchmark.benchmark_initial_compilation().await.unwrap();
-                    benchmark.benchmark_hmr_update(10).await.unwrap();
-                    Ok(())
-                }));
-            })
-        },
-    );
+    let setup = Arc::new(setup_everything(200));
+
+    let _guard = setup.clone();
+
+    bencher.with_inputs(|| setup.clone()).bench_values(|setup| {
+        setup.clone().rt.block_on(async move {
+            setup.clone().tt.run_once(Box::pin(async move {
+                let _ = setup
+                    .benchmark
+                    .benchmark_initial_compilation()
+                    .await
+                    .unwrap();
+                setup.benchmark.benchmark_hmr_update(10).await.unwrap();
+                Ok(())
+            }));
+        })
+    });
 }
 
 #[divan::bench(sample_size = 10)]
 fn hmr_updates_large_20(bencher: divan::Bencher) {
-    bencher.with_inputs(|| setup_everything(500)).bench_values(
-        |Setup { rt, tt, benchmark }: Setup| {
-            rt.block_on(async move {
-                tt.run_once(Box::pin(async move {
-                    let _ = benchmark.benchmark_initial_compilation().await.unwrap();
-                    benchmark.benchmark_hmr_update(20).await.unwrap();
-                    Ok(())
-                }));
-            })
-        },
-    );
+    let setup = Arc::new(setup_everything(500));
+
+    let _guard = setup.clone();
+
+    bencher.with_inputs(|| setup.clone()).bench_values(|setup| {
+        setup.clone().rt.block_on(async move {
+            setup.clone().tt.run_once(Box::pin(async move {
+                let _ = setup
+                    .benchmark
+                    .benchmark_initial_compilation()
+                    .await
+                    .unwrap();
+                setup.benchmark.benchmark_hmr_update(20).await.unwrap();
+                Ok(())
+            }));
+        })
+    });
 }
 
 #[divan::bench(sample_size = 10)]
 fn hmr_subscription(bencher: divan::Bencher) {
-    bencher.with_inputs(|| setup_everything(100)).bench_values(
-        |Setup { rt, tt, benchmark }: Setup| {
-            rt.block_on(async move {
-                tt.run_once(Box::pin(async move {
-                    let _ = benchmark.benchmark_initial_compilation().await.unwrap();
-                    benchmark.benchmark_hmr_subscription().await.unwrap();
-                    Ok(())
-                }));
-            })
-        },
-    );
+    let setup = Arc::new(setup_everything(100));
+
+    let _guard = setup.clone();
+
+    bencher.with_inputs(|| setup.clone()).bench_values(|setup| {
+        setup.clone().rt.block_on(async move {
+            setup.clone().tt.run_once(Box::pin(async move {
+                let _ = setup
+                    .benchmark
+                    .benchmark_initial_compilation()
+                    .await
+                    .unwrap();
+                setup.benchmark.benchmark_hmr_subscription().await.unwrap();
+                Ok(())
+            }));
+        })
+    });
 }
 
 fn main() {
