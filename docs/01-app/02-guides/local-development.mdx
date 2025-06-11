@@ -195,6 +195,23 @@ It provides detailed information about the time taken for each module to compile
 1. Once the trace server is running you can view the trace at https://trace.nextjs.org/.
 1. By default the trace viewer will aggregate timings, in order to see each individual time you can switch from "Aggregated in order" to "Spans in order" at the top right of the viewer.
 
+## Editor configuration 
+### Custom editor tab labels for App directory key files 
+
+If you are using a [Code-OSS](https://github.com/microsoft/vscode)-based IDE (such as VSCode, Cursor, Windsurf, etc.), it is recommended to add the following to your `settings.json` file:
+```json
+ "workbench.editor.customLabels.patterns": {
+    "**/app/**/page.tsx": "${dirname} - page.tsx",
+    "**/app/**/layout.tsx": "${dirname} - layout.tsx",
+    "**/app/**/error.tsx": "${dirname} - error.tsx",
+    "**/app/**/not-found.tsx": "${dirname} - not-found.tsx",
+    "**/app/**/loading.tsx": "${dirname} - loading.tsx"
+  }
+```
+
+
+This configuration makes it easier to differentiate between pages by adding the folder name as a prefix to the tab title. It improves navigation and helps quickly locate the correct page.tsx for a specific route.
+
 ## Still having problems?
 
 Share the trace file generated in the [Turbopack Tracing](#turbopack-tracing) section and share it on [GitHub Discussions](https://github.com/vercel/next.js/discussions) or [Discord](https://nextjs.org/discord).
