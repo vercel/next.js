@@ -13,6 +13,7 @@ import cheerio from 'cheerio'
 import { once } from 'events'
 import { Playwright } from 'next-webdriver'
 import escapeStringRegexp from 'escape-string-regexp'
+import { Page, Response } from 'playwright'
 
 type Event = 'stdout' | 'stderr' | 'error' | 'destroy'
 export type InstallCommand =
@@ -664,12 +665,55 @@ export class NextInstance {
   }
 
   /**
-   * Create new browser window for the Next.js app.
+   * Create a new browser window for the Next.js app.
    */
   public async browser(
     ...args: Parameters<OmitFirstArgument<typeof webdriver>>
   ): Promise<Playwright> {
     return webdriver(this.url, ...args)
+  }
+
+  /**
+   * Create a new browser window for the Next.js app, and also return the page's
+   * response.
+   */
+  public async browserWithResponse(
+    ...args: Parameters<OmitFirstArgument<typeof webdriver>>
+  ): Promise<{ browser: Playwright; response: Response }> {
+    const [url, options = {}] = args
+
+    let resolveResponse: (response: Response) => void
+
+    const responsePromise = new Promise<Response>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        reject(`Timed out waiting for the response of ${url}`)
+      }, 10_000)
+
+      resolveResponse = (response: Response) => {
+        clearTimeout(timer)
+        resolve(response)
+      }
+    })
+
+    const absoluteUrl = new URL(url, this.url).href
+
+    const [browser, response] = await Promise.all([
+      webdriver(this.url, url, {
+        ...options,
+        beforePageLoad(page: Page) {
+          options.beforePageLoad?.(page)
+
+          page.on('response', async (response) => {
+            if (response.url() === absoluteUrl) {
+              resolveResponse(response)
+            }
+          })
+        },
+      }),
+      responsePromise,
+    ])
+
+    return { browser, response }
   }
 
   /**
