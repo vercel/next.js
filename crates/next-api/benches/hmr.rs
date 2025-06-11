@@ -15,7 +15,7 @@ use next_api::{
 use serde_json::json;
 use tokio::runtime::Runtime;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{Completion, TransientInstance, TurboTasks, Vc};
+use turbo_tasks::{TransientInstance, TurboTasks, Vc};
 use turbo_tasks_backend::noop_backing_storage;
 
 pub struct HmrBenchmark {
@@ -331,20 +331,15 @@ fn criterion_hmr_initial_compilation(c: &mut Criterion) {
 
     c.bench_function("hmr_initial_compilation", |b| {
         b.iter_custom(|iter_count| {
-            let mut dur = Duration::default();
+            block_on(move || async move {
+                let benchmark: HmrBenchmark = HmrBenchmark::new(100).await.unwrap();
 
-            for _ in 0..iter_count {
-                dur += block_on(|| async move {
-                    let benchmark: HmrBenchmark = HmrBenchmark::new(100).await.unwrap();
-
-                    let start = Instant::now();
+                let start = Instant::now();
+                for _ in 0..iter_count {
                     let _ = benchmark.benchmark_initial_compilation().await.unwrap();
-
-                    Ok(start.elapsed())
-                });
-            }
-
-            dur
+                }
+                Ok(start.elapsed())
+            })
         })
     });
 }
@@ -354,23 +349,19 @@ fn criterion_hmr_updates_small(c: &mut Criterion) {
 
     c.bench_function("hmr_updates_small_5", |b| {
         b.iter_custom(|iter_count| {
-            let mut dur = Duration::default();
+            block_on(move || async move {
+                let benchmark = HmrBenchmark::new(100).await.unwrap();
 
-            for _ in 0..iter_count {
-                dur += block_on(|| async move {
-                    let benchmark = HmrBenchmark::new(100).await.unwrap();
+                // Initialize compilation first
+                let _ = benchmark.benchmark_initial_compilation().await.unwrap();
 
-                    // Initialize compilation first
-                    let _ = benchmark.benchmark_initial_compilation().await.unwrap();
-
-                    let start = Instant::now();
+                let start = Instant::now();
+                for _ in 0..iter_count {
                     let _ = benchmark.benchmark_hmr_update(5).await.unwrap();
+                }
 
-                    Ok(start.elapsed())
-                });
-            }
-
-            dur
+                Ok(start.elapsed())
+            })
         })
     });
 }
@@ -380,21 +371,17 @@ fn criterion_hmr_updates_medium(c: &mut Criterion) {
 
     c.bench_function("hmr_updates_medium_10", |b| {
         b.iter_custom(|iter_count| {
-            let mut dur = Duration::default();
+            block_on(move || async move {
+                let benchmark = HmrBenchmark::new(200).await.unwrap();
+                let _ = benchmark.benchmark_initial_compilation().await.unwrap();
 
-            for _ in 0..iter_count {
-                dur += block_on(|| async move {
-                    let benchmark = HmrBenchmark::new(200).await.unwrap();
-                    let _ = benchmark.benchmark_initial_compilation().await.unwrap();
-
-                    let start = Instant::now();
+                let start = Instant::now();
+                for _ in 0..iter_count {
                     let _ = benchmark.benchmark_hmr_update(10).await.unwrap();
+                }
 
-                    Ok(start.elapsed())
-                });
-            }
-
-            dur
+                Ok(start.elapsed())
+            })
         })
     });
 }
@@ -404,21 +391,17 @@ fn criterion_hmr_updates_large(c: &mut Criterion) {
 
     c.bench_function("hmr_updates_large_20", |b| {
         b.iter_custom(|iter_count| {
-            let mut dur = Duration::default();
+            block_on(move || async move {
+                let benchmark = HmrBenchmark::new(500).await.unwrap();
+                let _ = benchmark.benchmark_initial_compilation().await.unwrap();
 
-            for _ in 0..iter_count {
-                dur += block_on(|| async move {
-                    let benchmark = HmrBenchmark::new(500).await.unwrap();
-                    let _ = benchmark.benchmark_initial_compilation().await.unwrap();
-
-                    let start = Instant::now();
+                let start = Instant::now();
+                for _ in 0..iter_count {
                     let _ = benchmark.benchmark_hmr_update(20).await.unwrap();
+                }
 
-                    Ok(start.elapsed())
-                });
-            }
-
-            dur
+                Ok(start.elapsed())
+            })
         })
     });
 }
@@ -428,28 +411,24 @@ fn criterion_hmr_subscription(c: &mut Criterion) {
 
     c.bench_function("hmr_subscription", |b| {
         b.iter_custom(|iter_count| {
-            let mut dur = Duration::default();
+            block_on(move || async move {
+                let benchmark = HmrBenchmark::new(100).await.unwrap();
+                let _ = benchmark.benchmark_initial_compilation().await.unwrap();
 
-            for _ in 0..iter_count {
-                dur += block_on(|| async move {
-                    let benchmark = HmrBenchmark::new(100).await.unwrap();
-                    let _ = benchmark.benchmark_initial_compilation().await.unwrap();
-
-                    let start = Instant::now();
+                let start = Instant::now();
+                for _ in 0..iter_count {
                     let _ = benchmark.benchmark_hmr_subscription().await.unwrap();
+                }
 
-                    Ok(start.elapsed())
-                });
-            }
-
-            dur
+                Ok(start.elapsed())
+            })
         })
     });
 }
 
 fn block_on<F, Fut>(functor: F) -> Duration
 where
-    F: FnOnce() -> Fut + Clone + Send + Sync,
+    F: FnOnce() -> Fut + Clone + Send + Sync + 'static,
     Fut: Future<Output = Result<Duration>> + Send + Sync + 'static,
 {
     let rt = runtime();
@@ -464,20 +443,15 @@ where
     ));
 
     rt.block_on(async move {
-        tt.spawn_root_task({
-            let functor = functor.clone();
+        tt.run_once(async move {
+            let _dur_future = functor();
 
-            || {
-                let _dur_future = functor();
-
-                async move {
-                    let dur = _dur_future.await.unwrap();
-
-                    Ok(Completion::new())
-                }
-            }
-        });
-    });
+            Ok(_dur_future.await)
+        })
+        .await
+        .unwrap()
+        .unwrap()
+    })
 }
 
 criterion_group!(
