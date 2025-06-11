@@ -402,14 +402,14 @@ struct Setup {
     benchmark: HmrBenchmark,
 }
 
-fn setup_everything() -> Setup {
+fn setup_everything(module_count: usize) -> Setup {
     let rt = Arc::new(setup_runtime());
     let tt = setup_turbo_tasks();
 
     rt.clone().block_on(async move {
         tt.clone()
             .run_once(async move {
-                let benchmark = setup_benchmark(100).await;
+                let benchmark = setup_benchmark(module_count).await;
                 benchmark.benchmark_initial_compilation().await.unwrap();
 
                 Ok(Setup { rt, tt, benchmark })
@@ -421,96 +421,76 @@ fn setup_everything() -> Setup {
 
 #[divan::bench]
 fn hmr_initial_compilation(bencher: divan::Bencher) {
-    let rt = setup_runtime();
-    let tt = setup_turbo_tasks();
-
-    bencher.bench(|| {
-        rt.block_on(async {
-            tt.run_once(async {
-                let benchmark = setup_benchmark(100).await;
-                benchmark.benchmark_initial_compilation().await.unwrap();
-                Ok(())
+    bencher.with_inputs(|| setup_everything(100)).bench_values(
+        |Setup { rt, tt, benchmark }: Setup| {
+            rt.block_on(async move {
+                tt.run_once(Box::pin(async move {
+                    benchmark.benchmark_initial_compilation().await.unwrap();
+                    Ok(())
+                }));
             })
-            .await
-            .unwrap()
-        })
-    });
+        },
+    );
 }
 
 #[divan::bench]
 fn hmr_updates_small_5(bencher: divan::Bencher) {
-    let rt = setup_runtime();
-    let tt = setup_turbo_tasks();
-
-    bencher.bench(|| {
-        rt.block_on(async {
-            tt.run_once(async {
-                let benchmark = setup_benchmark(100).await;
-                let _ = benchmark.benchmark_initial_compilation().await.unwrap();
-                benchmark.benchmark_hmr_update(5).await.unwrap();
-                Ok(())
+    bencher.with_inputs(|| setup_everything(100)).bench_values(
+        |Setup { rt, tt, benchmark }: Setup| {
+            rt.block_on(async move {
+                tt.run_once(Box::pin(async move {
+                    let _ = benchmark.benchmark_initial_compilation().await.unwrap();
+                    benchmark.benchmark_hmr_update(5).await.unwrap();
+                    Ok(())
+                }));
             })
-            .await
-            .unwrap()
-        })
-    });
+        },
+    );
 }
 
 #[divan::bench]
 fn hmr_updates_medium_10(bencher: divan::Bencher) {
-    let rt = setup_runtime();
-    let tt = setup_turbo_tasks();
-
-    bencher.bench(|| {
-        rt.block_on(async {
-            tt.run_once(async {
-                let benchmark = setup_benchmark(200).await;
-                let _ = benchmark.benchmark_initial_compilation().await.unwrap();
-                benchmark.benchmark_hmr_update(10).await.unwrap();
-                Ok(())
+    bencher.with_inputs(|| setup_everything(200)).bench_values(
+        |Setup { rt, tt, benchmark }: Setup| {
+            rt.block_on(async move {
+                tt.run_once(Box::pin(async move {
+                    let _ = benchmark.benchmark_initial_compilation().await.unwrap();
+                    benchmark.benchmark_hmr_update(10).await.unwrap();
+                    Ok(())
+                }));
             })
-            .await
-            .unwrap()
-        })
-    });
+        },
+    );
 }
 
 #[divan::bench]
 fn hmr_updates_large_20(bencher: divan::Bencher) {
-    let rt = setup_runtime();
-    let tt = setup_turbo_tasks();
-
-    bencher.bench(|| {
-        rt.block_on(async {
-            tt.run_once(async {
-                let benchmark = setup_benchmark(500).await;
-                let _ = benchmark.benchmark_initial_compilation().await.unwrap();
-                benchmark.benchmark_hmr_update(20).await.unwrap();
-                Ok(())
+    bencher.with_inputs(|| setup_everything(500)).bench_values(
+        |Setup { rt, tt, benchmark }: Setup| {
+            rt.block_on(async move {
+                tt.run_once(Box::pin(async move {
+                    let _ = benchmark.benchmark_initial_compilation().await.unwrap();
+                    benchmark.benchmark_hmr_update(20).await.unwrap();
+                    Ok(())
+                }));
             })
-            .await
-            .unwrap()
-        })
-    });
+        },
+    );
 }
 
 #[divan::bench]
 fn hmr_subscription(bencher: divan::Bencher) {
-    let rt = setup_runtime();
-    let tt = setup_turbo_tasks();
-
-    bencher.bench(|| {
-        rt.block_on(async {
-            tt.run_once(async {
-                let benchmark = setup_benchmark(100).await;
-                let _ = benchmark.benchmark_initial_compilation().await.unwrap();
-                benchmark.benchmark_hmr_subscription().await.unwrap();
-                Ok(())
+    bencher.with_inputs(|| setup_everything(100)).bench_values(
+        |Setup { rt, tt, benchmark }: Setup| {
+            rt.block_on(async move {
+                tt.run_once(Box::pin(async move {
+                    let _ = benchmark.benchmark_initial_compilation().await.unwrap();
+                    benchmark.benchmark_hmr_subscription().await.unwrap();
+                    Ok(())
+                }));
             })
-            .await
-            .unwrap()
-        })
-    });
+        },
+    );
 }
 
 fn main() {
