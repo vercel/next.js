@@ -19,7 +19,6 @@ export function EditorLink({ file, location }: EditorLinkProps) {
     <div
       data-with-open-in-editor-link
       data-with-open-in-editor-link-import-trace
-      tabIndex={10}
       role={'link'}
       onClick={open}
       title={'Click to open in your editor'}

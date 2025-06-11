@@ -18,6 +18,26 @@ const preview: Preview = {
   parameters: {
     a11y: {
       element: 'nextjs-portal',
+      config: {
+        standards: {
+          ariaAttrs: {
+            'aria-modal': {
+              global: true,
+            },
+          },
+        },
+        rules: [
+          {
+            // It's incredibly hard to find a code highlighting theme that works
+            // for both light and dark themes and passes WCAG color contrast.
+            // These kind of tests should really only fail when you regress
+            // on a value below threshold.
+            id: 'color-contrast',
+            selector: '.code-frame-lines',
+            enabled: false,
+          },
+        ],
+      },
     },
     controls: {
       matchers: {

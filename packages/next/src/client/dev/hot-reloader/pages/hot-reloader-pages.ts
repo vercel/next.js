@@ -32,21 +32,11 @@
 
 /// <reference types="webpack/module.d.ts" />
 
-import {
-  register,
-  onBuildError,
-  onBuildOk,
-  onBeforeRefresh,
-  onRefresh,
-  onVersionInfo,
-  onStaticIndicator,
-  onDevIndicator,
-  buildingIndicatorHide,
-  buildingIndicatorShow,
-} from './client'
+import { dispatcher } from 'next/dist/compiled/next-devtools'
+import { register } from '../../../components/react-dev-overlay/pages/pages-dev-overlay-setup'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { addMessageListener, sendMessage } from './websocket'
-import formatWebpackMessages from '../utils/format-webpack-messages'
+import formatWebpackMessages from '../../../components/react-dev-overlay/utils/format-webpack-messages'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../../server/dev/hot-reloader-types'
 import type {
   HMR_ACTION_TYPES,
@@ -57,9 +47,9 @@ import {
   REACT_REFRESH_FULL_RELOAD_FROM_ERROR,
   reportInvalidHmrMessage,
 } from '../shared'
-import { RuntimeErrorHandler } from '../../errors/runtime-error-handler'
-import reportHmrLatency from '../utils/report-hmr-latency'
-import { TurbopackHmr } from '../utils/turbopack-hot-reloader-common'
+import { RuntimeErrorHandler } from '../../../components/react-dev-overlay/runtime-error-handler'
+import reportHmrLatency from '../../../components/react-dev-overlay/utils/report-hmr-latency'
+import { TurbopackHmr } from '../../../components/react-dev-overlay/utils/turbopack-hot-reloader-common'
 
 // This alternative WebpackDevServer combines the functionality of:
 // https://github.com/webpack/webpack-dev-server/blob/webpack-1/client/index.js
@@ -144,7 +134,7 @@ function handleSuccess() {
         hmrUpdate.hasUpdates
       )
     }
-    onBuildOk()
+    dispatcher.onBuildOk()
   } else {
     const isHotUpdate =
       !isFirstCompilation ||
@@ -211,7 +201,7 @@ function handleErrors(errors: any) {
 
   // Only show the first error.
 
-  onBuildError(formatted.errors[0])
+  dispatcher.onBuildError(formatted.errors[0])
 
   // Also log them to the console.
   if (typeof console !== 'undefined' && typeof console.error === 'function') {
@@ -257,7 +247,7 @@ export function handleStaticIndicator() {
       window.location.pathname in isrManifest ||
       (!isDynamicPage && !hasAppGetInitialProps)
 
-    onStaticIndicator(isPageStatic)
+    dispatcher.onStaticIndicator(isPageStatic)
   }
 }
 
@@ -274,7 +264,7 @@ function processMessage(obj: HMR_ACTION_TYPES) {
       break
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.BUILDING: {
-      buildingIndicatorShow()
+      dispatcher.buildingIndicatorShow()
 
       if (process.env.TURBOPACK) {
         turbopackHmr!.onBuilding()
@@ -286,15 +276,15 @@ function processMessage(obj: HMR_ACTION_TYPES) {
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.BUILT:
     case HMR_ACTIONS_SENT_TO_BROWSER.SYNC: {
-      buildingIndicatorHide()
+      dispatcher.buildingIndicatorHide()
 
       if (obj.hash) handleAvailableHash(obj.hash)
 
       const { errors, warnings } = obj
 
       // Is undefined when it's a 'built' event
-      if ('versionInfo' in obj) onVersionInfo(obj.versionInfo)
-      if ('devIndicator' in obj) onDevIndicator(obj.devIndicator)
+      if ('versionInfo' in obj) dispatcher.onVersionInfo(obj.versionInfo)
+      if ('devIndicator' in obj) dispatcher.onDevIndicator(obj.devIndicator)
 
       const hasErrors = Boolean(errors && errors.length)
       if (hasErrors) {
@@ -357,7 +347,7 @@ function processMessage(obj: HMR_ACTION_TYPES) {
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE: {
       turbopackHmr!.onTurbopackMessage(obj)
-      onBeforeRefresh()
+      dispatcher.onBeforeRefresh()
       for (const listener of turbopackMessageListeners) {
         listener({
           type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
@@ -368,7 +358,7 @@ function processMessage(obj: HMR_ACTION_TYPES) {
         console.warn(REACT_REFRESH_FULL_RELOAD_FROM_ERROR)
         performFullReload(null)
       }
-      onRefresh()
+      dispatcher.onRefresh()
       break
     }
     default: {
@@ -417,7 +407,7 @@ function tryApplyUpdatesWebpack() {
   }
 
   if (!isUpdateAvailable() || !canApplyUpdates()) {
-    onBuildOk()
+    dispatcher.onBuildOk()
     return
   }
 
@@ -435,7 +425,7 @@ function tryApplyUpdatesWebpack() {
       return
     }
 
-    onBuildOk()
+    dispatcher.onBuildOk()
 
     if (isUpdateAvailable()) {
       // While we were updating, there was a new update! Do it again.
@@ -443,7 +433,7 @@ function tryApplyUpdatesWebpack() {
       return
     }
 
-    onRefresh()
+    dispatcher.onRefresh()
     reportHmrLatency(
       sendMessage,
       updatedModules,
@@ -472,7 +462,7 @@ function tryApplyUpdatesWebpack() {
       // We should always handle an update, even if updatedModules is empty (but
       // non-null) for any reason. That's what webpack would normally do:
       // https://github.com/webpack/webpack/blob/3aa6b6bc3a64/lib/hmr/HotModuleReplacement.runtime.js#L296-L298
-      onBeforeRefresh()
+      dispatcher.onBeforeRefresh()
       // https://webpack.js.org/api/hot-module-replacement/#apply
       return module.hot.apply()
     })

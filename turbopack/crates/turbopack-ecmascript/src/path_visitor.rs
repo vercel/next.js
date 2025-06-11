@@ -225,7 +225,7 @@ mod tests {
     #[test]
     fn path_visitor() {
         run_test(false, |cm, _handler| {
-            let fm = cm.new_source_file(FileName::Anon.into(), "('foo', 'bar', ['baz']);".into());
+            let fm = cm.new_source_file(FileName::Anon.into(), "('foo', 'bar', ['baz']);");
 
             let m = parse(&fm);
 

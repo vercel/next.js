@@ -50,10 +50,9 @@ import { CollapseIcon } from '../../icons/collapse-icon'
  */
 export function PseudoHtmlDiff({
   reactOutputComponentDiff,
-  ...props
 }: {
   reactOutputComponentDiff: string
-} & React.HTMLAttributes<HTMLPreElement>) {
+}) {
   const [isDiffCollapsed, toggleCollapseHtml] = useState(true)
 
   const htmlComponents = useMemo(() => {
@@ -120,13 +119,14 @@ export function PseudoHtmlDiff({
       data-nextjs-container-errors-pseudo-html-collapse={isDiffCollapsed}
     >
       <button
-        tabIndex={10} // match CallStackFrame
+        aria-expanded={!isDiffCollapsed}
+        aria-label="complete Component Stack"
         data-nextjs-container-errors-pseudo-html-collapse-button
         onClick={() => toggleCollapseHtml(!isDiffCollapsed)}
       >
         <CollapseIcon collapsed={isDiffCollapsed} />
       </button>
-      <pre {...props}>
+      <pre className="nextjs__container_errors__component-stack">
         <code>{htmlComponents}</code>
       </pre>
     </div>
