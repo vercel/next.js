@@ -9,6 +9,7 @@ import {
   nextBuild,
   nextStart,
   retry,
+  getPageFilesFromBuildManifest,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { check } from 'next-test-utils'
@@ -45,11 +46,14 @@ const clientNavigation = (context, isProd = false) => {
 
     if (isProd) {
       it('should hard navigate to URL on failing to load missing bundle', async () => {
+        const files = getPageFilesFromBuildManifest(appDir, '/missing')
         const browser = await webdriver(context.appPort, '/to-missing-link', {
           beforePageLoad(page) {
-            page.route('**/pages/missing**', (route) => {
-              route.abort('internetdisconnected')
-            })
+            for (const file of files) {
+              page.route(`**/_next/${file}`, (route) => {
+                route.abort('internetdisconnected')
+              })
+            }
           },
         })
         await browser.eval(() => (window.beforeNav = 'hi'))
