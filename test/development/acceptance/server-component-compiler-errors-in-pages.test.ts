@@ -65,11 +65,11 @@ describe('Error Overlay for server components compiler errors in pages', () => {
        You're importing a component that needs "next/headers". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
 
        Import traces:
-         client:
+         Browser:
            ./components/Comp.js
            ./pages/index.js
 
-         ssr:
+         SSR:
            ./components/Comp.js
            ./pages/index.js"
       `)
@@ -150,11 +150,11 @@ describe('Error Overlay for server components compiler errors in pages', () => {
        You're importing a component that needs "server-only". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
 
        Import traces:
-         client:
+         Browser:
            ./components/Comp.js
            ./pages/index.js
 
-         ssr:
+         SSR:
            ./components/Comp.js
            ./pages/index.js"
       `)
@@ -237,11 +237,11 @@ describe('Error Overlay for server components compiler errors in pages', () => {
        You're importing a component that needs "after". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
 
        Import traces:
-         client:
+         Browser:
            ./components/Comp.js
            ./pages/index.js
 
-         ssr:
+         SSR:
            ./components/Comp.js
            ./pages/index.js"
       `)
