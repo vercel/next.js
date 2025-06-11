@@ -38,7 +38,7 @@ There are a few ways you can handle redirects in Next.js. This page will go thro
 
 ## `redirect` function
 
-The `redirect` function allows you to redirect the user to another URL. You can call `redirect` in [Server Components](/docs/app/getting-started/server-and-client-components), [Route Handlers](/docs/app/building-your-application/routing/route-handlers), and [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
+The `redirect` function allows you to redirect the user to another URL. You can call `redirect` in [Server Components](/docs/app/getting-started/server-and-client-components), [Route Handlers](/docs/app/building-your-application/routing/route-handlers), and [Server Actions](/docs/app/getting-started/updating-data).
 
 `redirect` is often used after a mutation or event. For example, creating a post:
 
@@ -90,7 +90,7 @@ See the [`redirect` API reference](/docs/app/api-reference/functions/redirect) f
 
 ## `permanentRedirect` function
 
-The `permanentRedirect` function allows you to **permanently** redirect the user to another URL. You can call `permanentRedirect` in [Server Components](/docs/app/getting-started/server-and-client-components), [Route Handlers](/docs/app/building-your-application/routing/route-handlers), and [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
+The `permanentRedirect` function allows you to **permanently** redirect the user to another URL. You can call `permanentRedirect` in [Server Components](/docs/app/getting-started/server-and-client-components), [Route Handlers](/docs/app/building-your-application/routing/route-handlers), and [Server Actions](/docs/app/getting-started/updating-data).
 
 `permanentRedirect` is often used after a mutation or event that changes an entity's canonical URL, such as updating a user's profile URL after they change their username:
 
@@ -289,7 +289,7 @@ See the [`redirects` API reference](/docs/app/api-reference/config/next-config-j
 > **Good to know**:
 >
 > - `redirects` can return a 307 (Temporary Redirect) or 308 (Permanent Redirect) status code with the `permanent` option.
-> - `redirects` may have a limit on platforms. For example, on Vercel, there's a limit of 1,024 redirects. To manage a large number of redirects (1000+), consider creating a custom solution using [Middleware](/docs/app/building-your-application/routing/middleware). See [managing redirects at scale](#managing-redirects-at-scale-advanced) for more.
+> - `redirects` may have a limit on platforms. For example, on Vercel, there's a limit of 1,024 redirects. To manage a large number of redirects (1000+), consider creating a custom solution using [Middleware](/docs/app/api-reference/file-conventions/middleware). See [managing redirects at scale](#managing-redirects-at-scale-advanced) for more.
 > - `redirects` runs **before** Middleware.
 
 ## `NextResponse.redirect` in Middleware
@@ -344,7 +344,7 @@ export const config = {
 >
 > - Middleware runs **after** `redirects` in `next.config.js` and **before** rendering.
 
-See the [Middleware](/docs/app/building-your-application/routing/middleware) documentation for more information.
+See the [Middleware](/docs/app/api-reference/file-conventions/middleware) documentation for more information.
 
 ## Managing redirects at scale (advanced)
 
@@ -376,7 +376,7 @@ Consider the following data structure:
 }
 ```
 
-In [Middleware](/docs/app/building-your-application/routing/middleware), you can read from a database such as Vercel's [Edge Config](https://vercel.com/docs/edge-config/get-started) or [Redis](https://vercel.com/docs/redis), and redirect the user based on the incoming request:
+In [Middleware](/docs/app/api-reference/file-conventions/middleware), you can read from a database such as Vercel's [Edge Config](https://vercel.com/docs/edge-config/get-started) or [Redis](https://vercel.com/docs/redis), and redirect the user based on the incoming request:
 
 ```ts filename="middleware.ts" switcher
 import { NextResponse, NextRequest } from 'next/server'

@@ -30,7 +30,7 @@ The examples on this page walk through basic username and password auth for educ
 
 ### Sign-up and login functionality
 
-You can use the [`<form>`](https://react.dev/reference/react-dom/components/form) element with React's [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) and `useActionState` to capture user credentials, validate form fields, and call your Authentication Provider's API or database.
+You can use the [`<form>`](https://react.dev/reference/react-dom/components/form) element with React's [Server Actions](/docs/app/getting-started/updating-data) and `useActionState` to capture user credentials, validate form fields, and call your Authentication Provider's API or database.
 
 Since Server Actions always execute on the server, they provide a secure environment for handling authentication logic.
 
@@ -1023,7 +1023,7 @@ For both cases, we recommend:
 
 ### Optimistic checks with Middleware (Optional)
 
-There are some cases where you may want to use [Middleware](/docs/app/building-your-application/routing/middleware) and redirect users based on permissions:
+There are some cases where you may want to use [Middleware](/docs/app/api-reference/file-conventions/middleware) and redirect users based on permissions:
 
 - To perform optimistic checks. Since Middleware runs on every route, it's a good way to centralize redirect logic and pre-filter unauthorized users.
 - To protect static routes that share data between users (e.g. content behind a paywall).
@@ -1403,7 +1403,7 @@ export const getUser = cache(async () => {
 
 ### Server Actions
 
-Treat [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) with the same security considerations as public-facing API endpoints, and verify if the user is allowed to perform a mutation.
+Treat [Server Actions](/docs/app/getting-started/updating-data) with the same security considerations as public-facing API endpoints, and verify if the user is allowed to perform a mutation.
 
 In the example below, we check the user's role before allowing the action to proceed:
 
