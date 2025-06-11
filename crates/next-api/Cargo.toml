@@ -45,6 +45,7 @@ turbo-tasks-malloc = { workspace = true }
 criterion = { workspace = true }
 tokio = { workspace = true }
 tempfile = { workspace = true }
+turbo-tasks-testing.workspace = true
 
 
 [build-dependencies]
