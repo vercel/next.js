@@ -2354,66 +2354,46 @@
           : rootTask
         : null;
     }
-    function initializeFakeTask(response, debugInfo, childEnvironmentName) {
+    function initializeFakeTask(response, debugInfo) {
       if (!supportsCreateTask || null == debugInfo.stack) return null;
+      var cachedEntry = debugInfo.debugTask;
+      if (void 0 !== cachedEntry) return cachedEntry;
       var useEnclosingLine = void 0 === debugInfo.key,
         stack = debugInfo.stack,
         env =
           null == debugInfo.env ? response._rootEnvironmentName : debugInfo.env;
-      if (env !== childEnvironmentName)
-        return (
-          (debugInfo =
-            null == debugInfo.owner
-              ? null
-              : initializeFakeTask(response, debugInfo.owner, env)),
-          buildFakeTask(
-            response,
-            debugInfo,
-            stack,
-            '"use ' + childEnvironmentName.toLowerCase() + '"',
-            env,
-            useEnclosingLine
-          )
-        );
-      childEnvironmentName = debugInfo.debugTask;
-      if (void 0 !== childEnvironmentName) return childEnvironmentName;
-      childEnvironmentName =
+      cachedEntry =
+        null == debugInfo.owner || null == debugInfo.owner.env
+          ? response._rootEnvironmentName
+          : debugInfo.owner.env;
+      var ownerTask =
         null == debugInfo.owner
           ? null
-          : initializeFakeTask(response, debugInfo.owner, env);
-      return (debugInfo.debugTask = buildFakeTask(
-        response,
-        childEnvironmentName,
-        stack,
-        void 0 !== debugInfo.key
-          ? "<" + (debugInfo.name || "...") + ">"
-          : void 0 !== debugInfo.name
-            ? debugInfo.name || "unknown"
-            : "await " + (debugInfo.awaited.name || "unknown"),
-        env,
-        useEnclosingLine
-      ));
-    }
-    function buildFakeTask(
-      response,
-      ownerTask,
-      stack,
-      taskName,
-      env,
-      useEnclosingLine
-    ) {
-      taskName = console.createTask.bind(console, taskName);
-      stack = buildFakeCallStack(
+          : initializeFakeTask(response, debugInfo.owner);
+      env =
+        env !== cachedEntry
+          ? '"use ' + env.toLowerCase() + '"'
+          : void 0 !== debugInfo.key
+            ? "<" + (debugInfo.name || "...") + ">"
+            : void 0 !== debugInfo.name
+              ? debugInfo.name || "unknown"
+              : "await " + (debugInfo.awaited.name || "unknown");
+      env = console.createTask.bind(console, env);
+      useEnclosingLine = buildFakeCallStack(
         response,
         stack,
-        env,
+        cachedEntry,
         useEnclosingLine,
-        taskName
+        env
       );
-      return null === ownerTask
-        ? ((response = getRootTask(response, env)),
-          null != response ? response.run(stack) : stack())
-        : ownerTask.run(stack);
+      null === ownerTask
+        ? ((response = getRootTask(response, cachedEntry)),
+          (response =
+            null != response
+              ? response.run(useEnclosingLine)
+              : useEnclosingLine()))
+        : (response = ownerTask.run(useEnclosingLine));
+      return (debugInfo.debugTask = response);
     }
     function fakeJSXCallSite() {
       return Error("react-stack-top-frame");
@@ -2430,18 +2410,15 @@
           initializeFakeStack(response, debugInfo.owner));
     }
     function resolveDebugInfo(response, id, debugInfo) {
-      var env =
-        void 0 === debugInfo.env
-          ? response._rootEnvironmentName
-          : debugInfo.env;
-      void 0 !== debugInfo.stack &&
-        initializeFakeTask(response, debugInfo, env);
-      null === debugInfo.owner && null != response._debugRootOwner
-        ? ((env = debugInfo),
-          (env.owner = response._debugRootOwner),
-          (env.debugStack = response._debugRootStack))
-        : void 0 !== debugInfo.stack &&
-          initializeFakeStack(response, debugInfo);
+      void 0 !== debugInfo.stack && initializeFakeTask(response, debugInfo);
+      if (null == debugInfo.owner && null != response._debugRootOwner) {
+        var _componentInfoOrAsyncInfo = debugInfo;
+        _componentInfoOrAsyncInfo.owner = response._debugRootOwner;
+        _componentInfoOrAsyncInfo.stack = null;
+        _componentInfoOrAsyncInfo.debugStack = response._debugRootStack;
+        _componentInfoOrAsyncInfo.debugTask = response._debugRootTask;
+      } else
+        void 0 !== debugInfo.stack && initializeFakeStack(response, debugInfo);
       "number" === typeof debugInfo.time &&
         (debugInfo = { time: debugInfo.time + response._timeOrigin });
       response = getChunk(response, id);
@@ -2521,23 +2498,20 @@
       }
     }
     function initializeIOInfo(response, ioInfo) {
-      var env =
-        void 0 === ioInfo.env ? response._rootEnvironmentName : ioInfo.env;
       void 0 !== ioInfo.stack &&
-        (initializeFakeTask(response, ioInfo, env),
+        (initializeFakeTask(response, ioInfo),
         initializeFakeStack(response, ioInfo));
       ioInfo.start += response._timeOrigin;
       ioInfo.end += response._timeOrigin;
-      env = ioInfo.start;
-      var endTime = ioInfo.end;
+      var startTime = ioInfo.start,
+        endTime = ioInfo.end;
       if (supportsUserTiming && 0 <= endTime) {
         var name = ioInfo.name,
-          env$jscomp$0 = ioInfo.env;
+          env = ioInfo.env;
         response =
-          env$jscomp$0 === response._rootEnvironmentName ||
-          void 0 === env$jscomp$0
+          env === response._rootEnvironmentName || void 0 === env
             ? name
-            : name + " [" + env$jscomp$0 + "]";
+            : name + " [" + env + "]";
         ioInfo = ioInfo.debugTask;
         name = getIOColor(name);
         ioInfo
@@ -2545,7 +2519,7 @@
               console.timeStamp.bind(
                 console,
                 response,
-                0 > env ? 0 : env,
+                0 > startTime ? 0 : startTime,
                 endTime,
                 "Server Requests \u269b",
                 void 0,
@@ -2554,7 +2528,7 @@
             )
           : console.timeStamp(
               response,
-              0 > env ? 0 : env,
+              0 > startTime ? 0 : startTime,
               endTime,
               "Server Requests \u269b",
               void 0,
@@ -3136,10 +3110,7 @@
                 !1,
                 type
               )),
-              (type =
-                null === key
-                  ? null
-                  : initializeFakeTask(response, key, validated)),
+              (type = null === key ? null : initializeFakeTask(response, key)),
               null === type
                 ? ((type = response._debugRootTask),
                   (normalizedStackTrace =
@@ -3404,7 +3375,7 @@
               JSCompiler_inline_result
             );
             if (null != owner) {
-              var task = initializeFakeTask(response, owner, env);
+              var task = initializeFakeTask(response, owner);
               initializeFakeStack(response, owner);
               if (null !== task) {
                 task.run(callStack);

@@ -846,17 +846,22 @@
         task.debugStack,
         task.debugTask
       );
-      (task = thenable._debugInfo) &&
-        forwardDebugInfo(request, newTask.id, task);
       switch (thenable.status) {
         case "fulfilled":
           return (
+            (task = thenable._debugInfo) &&
+              forwardDebugInfo(request, newTask, task),
             (newTask.model = thenable.value),
             pingTask(request, newTask),
             newTask.id
           );
         case "rejected":
-          return erroredTask(request, newTask, thenable.reason), newTask.id;
+          return (
+            (task = thenable._debugInfo) &&
+              forwardDebugInfo(request, newTask, task),
+            erroredTask(request, newTask, thenable.reason),
+            newTask.id
+          );
         default:
           if (request.status === ABORTING)
             return (
@@ -882,10 +887,14 @@
       }
       thenable.then(
         function (value) {
+          var _debugInfo2 = thenable._debugInfo;
+          _debugInfo2 && forwardDebugInfo(request, newTask, _debugInfo2);
           newTask.model = value;
           pingTask(request, newTask);
         },
         function (reason) {
+          var _debugInfo3 = thenable._debugInfo;
+          _debugInfo3 && forwardDebugInfo(request, newTask, _debugInfo3);
           newTask.status === PENDING$1 &&
             (erroredTask(request, newTask, reason), enqueueFlush(request));
         }
@@ -1027,7 +1036,7 @@
       task = streamTask.id.toString(16) + ":" + (isIterator ? "x" : "X") + "\n";
       request.completedRegularChunks.push(stringToChunk(task));
       (iterable = iterable._debugInfo) &&
-        forwardDebugInfo(request, streamTask.id, iterable);
+        forwardDebugInfo(request, streamTask, iterable);
       var aborted = !1;
       request.abortListeners.add(abortIterable);
       callIteratorInDEV(iterator, progress, error);
@@ -1167,33 +1176,34 @@
     ) {
       var prevThenableState = task.thenableState;
       task.thenableState = null;
-      if (null === debugID) return outlineTask(request, task);
-      if (null !== prevThenableState)
-        var componentDebugInfo = prevThenableState._componentDebugInfo;
-      else {
-        var componentDebugID = debugID;
-        componentDebugInfo = Component.displayName || Component.name || "";
-        var componentEnv = (0, request.environmentName)();
-        request.pendingChunks++;
-        componentDebugInfo = {
-          name: componentDebugInfo,
-          env: componentEnv,
-          key: key,
-          owner: task.debugOwner
-        };
-        componentDebugInfo.stack =
-          null === task.debugStack
-            ? null
-            : filterStackTrace(request, parseStackTrace(task.debugStack, 1));
-        componentDebugInfo.props = props;
-        componentDebugInfo.debugStack = task.debugStack;
-        componentDebugInfo.debugTask = task.debugTask;
-        outlineComponentInfo(request, componentDebugInfo);
-        emitDebugChunk(request, componentDebugID, componentDebugInfo);
-        task.environmentName = componentEnv;
-        2 === validated &&
-          warnForMissingKey(request, key, componentDebugInfo, task.debugTask);
-      }
+      if (canEmitDebugInfo)
+        if (null !== prevThenableState)
+          var componentDebugInfo = prevThenableState._componentDebugInfo;
+        else {
+          var componentDebugID = task.id;
+          componentDebugInfo = Component.displayName || Component.name || "";
+          var componentEnv = (0, request.environmentName)();
+          request.pendingChunks++;
+          componentDebugInfo = {
+            name: componentDebugInfo,
+            env: componentEnv,
+            key: key,
+            owner: task.debugOwner
+          };
+          componentDebugInfo.stack =
+            null === task.debugStack
+              ? null
+              : filterStackTrace(request, parseStackTrace(task.debugStack, 1));
+          componentDebugInfo.props = props;
+          componentDebugInfo.debugStack = task.debugStack;
+          componentDebugInfo.debugTask = task.debugTask;
+          outlineComponentInfo(request, componentDebugInfo);
+          emitDebugChunk(request, componentDebugID, componentDebugInfo);
+          task.environmentName = componentEnv;
+          2 === validated &&
+            warnForMissingKey(request, key, componentDebugInfo, task.debugTask);
+        }
+      else return outlineTask(request, task);
       thenableIndexCounter = 0;
       thenableState = prevThenableState;
       currentComponentDebugInfo = componentDebugInfo;
@@ -1272,8 +1282,8 @@
           task.implicitSlot ? [request] : request
         );
       if ((i = children._debugInfo)) {
-        if (null === debugID) return outlineTask(request, task);
-        forwardDebugInfo(request, debugID, i);
+        if (canEmitDebugInfo) forwardDebugInfo(request, task, i);
+        else return outlineTask(request, task);
         children = Array.from(children);
       }
       return children;
@@ -1805,10 +1815,10 @@
                     _writtenObjects.set(value, elementReference)));
             }
             if (serializedSize > MAX_ROW_SIZE) return deferTask(request, task);
-            if ((_existingReference = value._debugInfo)) {
-              if (null === debugID) return outlineTask(request, task);
-              forwardDebugInfo(request, debugID, _existingReference);
-            }
+            if ((_existingReference = value._debugInfo))
+              if (canEmitDebugInfo)
+                forwardDebugInfo(request, task, _existingReference);
+              else return outlineTask(request, task);
             _existingReference = value.props;
             var refProp = _existingReference.ref;
             task.debugOwner = value._owner;
@@ -1834,10 +1844,10 @@
             task.thenableState = null;
             elementReference = callLazyInitInDEV(value);
             if (request.status === ABORTING) throw null;
-            if ((_writtenObjects = value._debugInfo)) {
-              if (null === debugID) return outlineTask(request, task);
-              forwardDebugInfo(request, debugID, _writtenObjects);
-            }
+            if ((_writtenObjects = value._debugInfo))
+              if (canEmitDebugInfo)
+                forwardDebugInfo(request, task, _writtenObjects);
+              else return outlineTask(request, task);
             return renderModelDestructive(
               request,
               task,
@@ -2200,11 +2210,19 @@
         objectLimit = { objectLimit: objectLimit };
         var componentDebugInfo = {
           name: componentInfo.name,
-          env: componentInfo.env,
-          key: componentInfo.key,
-          owner: componentInfo.owner
+          key: componentInfo.key
         };
-        componentDebugInfo.stack = componentInfo.stack;
+        null != componentInfo.env &&
+          (componentDebugInfo.env = componentInfo.env);
+        null != componentInfo.owner &&
+          (componentDebugInfo.owner = componentInfo.owner);
+        null == componentInfo.stack && null != componentInfo.debugStack
+          ? (componentDebugInfo.stack = filterStackTrace(
+              request,
+              parseStackTrace(componentInfo.debugStack, 1)
+            ))
+          : null != componentInfo.stack &&
+            (componentDebugInfo.stack = componentInfo.stack);
         componentDebugInfo.props = componentInfo.props;
         objectLimit = outlineConsoleValue(
           request,
@@ -2522,46 +2540,66 @@
       methodName = stringToChunk(":W" + json + "\n");
       request.completedRegularChunks.push(methodName);
     }
-    function forwardDebugInfo(request$jscomp$0, id$jscomp$0, debugInfo) {
-      for (var i = 0; i < debugInfo.length; i++)
-        if ("number" !== typeof debugInfo[i].time)
-          if (
-            (request$jscomp$0.pendingChunks++,
-            "string" === typeof debugInfo[i].name)
-          )
-            outlineComponentInfo(request$jscomp$0, debugInfo[i]),
-              emitDebugChunk(request$jscomp$0, id$jscomp$0, debugInfo[i]);
-          else if (debugInfo[i].awaited) {
-            var ioInfo = debugInfo[i].awaited;
-            var request = request$jscomp$0,
-              ioInfo$jscomp$0 = ioInfo;
-            if (!request.writtenObjects.has(ioInfo$jscomp$0)) {
-              request.pendingChunks++;
-              var id = request.nextChunkId++,
-                owner = ioInfo$jscomp$0.owner;
-              null != owner && outlineComponentInfo(request, owner);
-              emitIOInfoChunk(
-                request,
-                id,
-                ioInfo$jscomp$0.name,
-                ioInfo$jscomp$0.start,
-                ioInfo$jscomp$0.end,
-                ioInfo$jscomp$0.env,
-                owner,
-                ioInfo$jscomp$0.stack
-              );
-              request.writtenObjects.set(
-                ioInfo$jscomp$0,
-                serializeByValueID(id)
-              );
+    function forwardDebugInfo(request$jscomp$0, task, debugInfo) {
+      task = task.id;
+      for (var i = 0; i < debugInfo.length; i++) {
+        var info = debugInfo[i];
+        if ("number" !== typeof info.time)
+          if ("string" === typeof info.name)
+            outlineComponentInfo(request$jscomp$0, info),
+              request$jscomp$0.pendingChunks++,
+              emitDebugChunk(request$jscomp$0, task, info);
+          else if (info.awaited) {
+            var ioInfo = info.awaited;
+            if (!(ioInfo.end <= request$jscomp$0.timeOrigin)) {
+              var request = request$jscomp$0,
+                ioInfo$jscomp$0 = ioInfo;
+              if (!request.writtenObjects.has(ioInfo$jscomp$0)) {
+                request.pendingChunks++;
+                var id = request.nextChunkId++,
+                  owner = ioInfo$jscomp$0.owner;
+                null != owner && outlineComponentInfo(request, owner);
+                var debugStack =
+                  null == ioInfo$jscomp$0.stack &&
+                  null != ioInfo$jscomp$0.debugStack
+                    ? filterStackTrace(
+                        request,
+                        parseStackTrace(ioInfo$jscomp$0.debugStack, 1)
+                      )
+                    : ioInfo$jscomp$0.stack;
+                emitIOInfoChunk(
+                  request,
+                  id,
+                  ioInfo$jscomp$0.name,
+                  ioInfo$jscomp$0.start,
+                  ioInfo$jscomp$0.end,
+                  ioInfo$jscomp$0.env,
+                  owner,
+                  debugStack
+                );
+                request.writtenObjects.set(
+                  ioInfo$jscomp$0,
+                  serializeByValueID(id)
+                );
+              }
+              debugStack =
+                null == info.stack && null != info.debugStack
+                  ? filterStackTrace(
+                      request$jscomp$0,
+                      parseStackTrace(info.debugStack, 1)
+                    )
+                  : info.stack;
+              ioInfo = { awaited: ioInfo };
+              null != info.env && (ioInfo.env = info.env);
+              null != info.owner && (ioInfo.owner = info.owner);
+              null != debugStack && (ioInfo.stack = debugStack);
+              request$jscomp$0.pendingChunks++;
+              emitDebugChunk(request$jscomp$0, task, ioInfo);
             }
-            emitDebugChunk(request$jscomp$0, id$jscomp$0, {
-              awaited: ioInfo,
-              env: debugInfo[i].env,
-              owner: debugInfo[i].owner,
-              stack: debugInfo[i].stack
-            });
-          } else emitDebugChunk(request$jscomp$0, id$jscomp$0, debugInfo[i]);
+          } else
+            request$jscomp$0.pendingChunks++,
+              emitDebugChunk(request$jscomp$0, task, info);
+      }
     }
     function emitChunk(request, task, value) {
       var id = task.id;
@@ -2605,12 +2643,12 @@
     }
     function retryTask(request, task) {
       if (task.status === PENDING$1) {
-        var prevDebugID = debugID;
+        var prevCanEmitDebugInfo = canEmitDebugInfo;
         task.status = RENDERING;
         var parentSerializedSize = serializedSize;
         try {
           modelRoot = task.model;
-          debugID = task.id;
+          canEmitDebugInfo = !0;
           var resolvedModel = renderModelDestructive(
             request,
             task,
@@ -2618,7 +2656,7 @@
             "",
             task.model
           );
-          debugID = null;
+          canEmitDebugInfo = !1;
           modelRoot = resolvedModel;
           task.keyPath = null;
           task.implicitSlot = !1;
@@ -2662,18 +2700,20 @@
             } else erroredTask(request, task, x);
           }
         } finally {
-          (debugID = prevDebugID), (serializedSize = parentSerializedSize);
+          (canEmitDebugInfo = prevCanEmitDebugInfo),
+            (serializedSize = parentSerializedSize);
         }
       }
     }
     function tryStreamTask(request, task) {
-      var prevDebugID = debugID;
-      debugID = null;
+      var prevCanEmitDebugInfo = canEmitDebugInfo;
+      canEmitDebugInfo = !1;
       var parentSerializedSize = serializedSize;
       try {
         emitChunk(request, task, task.model);
       } finally {
-        (serializedSize = parentSerializedSize), (debugID = prevDebugID);
+        (serializedSize = parentSerializedSize),
+          (canEmitDebugInfo = prevCanEmitDebugInfo);
       }
     }
     function performWork(request) {
@@ -4053,7 +4093,7 @@
       PRERENDER = 21,
       defaultPostponeHandler = noop,
       currentRequest = null,
-      debugID = null,
+      canEmitDebugInfo = !1,
       serializedSize = 0,
       MAX_ROW_SIZE = 3200,
       modelRoot = !1,
