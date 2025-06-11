@@ -12,7 +12,7 @@ use turbo_tasks_fs::{
 
 use crate::SOURCE_URL_PROTOCOL;
 
-pub fn add_default_ignore_list(map: &mut sourcemap::SourceMap) {
+pub fn add_default_ignore_list(map: &mut swc_sourcemap::SourceMap) {
     let mut ignored_ids = HashSet::new();
 
     for (source_id, source) in map.sources().enumerate() {

@@ -1,6 +1,7 @@
 use std::{future::Future, sync::Arc};
 
 use anyhow::{Context, Result, anyhow};
+use bytes_str::BytesStr;
 use rustc_hash::FxHashSet;
 use swc_core::{
     base::SwcComments,
@@ -107,7 +108,7 @@ pub fn generate_js_source_map(
 ) -> Result<Rope> {
     let original_source_map = original_source_map.map(|x| x.to_bytes());
     let input_map = if let Some(original_source_map) = &original_source_map {
-        Some(sourcemap::lazy::decode(original_source_map)?.into_source_map()?)
+        Some(swc_sourcemap::lazy::decode(original_source_map)?.into_source_map()?)
     } else {
         None
     };
@@ -224,52 +225,58 @@ async fn parse_internal(
     Ok(match &*content {
         AssetContent::File(file) => match &*file.await? {
             FileContent::NotFound => ParseResult::NotFound.cell(),
-            FileContent::Content(file) => match file.content().to_str() {
-                Ok(string) => {
-                    let transforms = &*transforms.await?;
-                    match parse_file_content(
-                        string.into_owned(),
-                        fs_path_vc,
-                        fs_path,
-                        ident,
-                        source.ident().await?.query.clone(),
-                        file_path_hash,
-                        source,
-                        ty,
-                        transforms,
-                    )
-                    .await
-                    {
-                        Ok(result) => result,
-                        Err(e) => {
-                            return Err(e).context(anyhow!(
-                                "Transforming and/or parsing of {} failed",
-                                source.ident().to_string().await?
-                            ));
+            FileContent::Content(file) => {
+                match BytesStr::from_utf8(file.content().clone().into_bytes()) {
+                    Ok(string) => {
+                        let transforms = &*transforms.await?;
+                        match parse_file_content(
+                            string,
+                            fs_path_vc,
+                            fs_path,
+                            ident,
+                            source.ident().await?.query.clone(),
+                            file_path_hash,
+                            source,
+                            ty,
+                            transforms,
+                        )
+                        .await
+                        {
+                            Ok(result) => result,
+                            Err(e) => {
+                                return Err(e).context(anyhow!(
+                                    "Transforming and/or parsing of {} failed",
+                                    source.ident().to_string().await?
+                                ));
+                            }
                         }
                     }
-                }
-                Err(error) => {
-                    let error: RcStr = PrettyPrintError(&error).to_string().into();
-                    ReadSourceIssue {
-                        source,
-                        error: error.clone(),
+                    Err(error) => {
+                        let error: RcStr = PrettyPrintError(
+                            &anyhow::anyhow!(error).context("failed to convert rope into string"),
+                        )
+                        .to_string()
+                        .into();
+                        ReadSourceIssue {
+                            source,
+                            error: error.clone(),
+                        }
+                        .resolved_cell()
+                        .emit();
+                        ParseResult::Unparseable {
+                            messages: Some(vec![error]),
+                        }
+                        .cell()
                     }
-                    .resolved_cell()
-                    .emit();
-                    ParseResult::Unparseable {
-                        messages: Some(vec![error]),
-                    }
-                    .cell()
                 }
-            },
+            }
         },
         AssetContent::Redirect { .. } => ParseResult::Unparseable { messages: None }.cell(),
     })
 }
 
 async fn parse_file_content(
-    string: String,
+    string: BytesStr,
     fs_path_vc: Vc<FileSystemPath>,
     fs_path: &FileSystemPath,
     ident: &str,
@@ -450,7 +457,7 @@ async fn parse_file_content(
                     None
                 };
                 let messages =
-                    Some(messages.unwrap_or_else(|| vec![String::clone(&fm.src).into()]));
+                    Some(messages.unwrap_or_else(|| vec![fm.src.clone().into()]));
                 return Ok(ParseResult::Unparseable { messages });
             }
 
