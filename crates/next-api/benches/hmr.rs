@@ -3,6 +3,7 @@ extern crate turbo_tasks_malloc;
 use std::{
     fs::{create_dir_all, write},
     path::{Path, PathBuf},
+    process::Command,
     time::{Duration, Instant},
 };
 
@@ -13,6 +14,7 @@ use next_api::{
     register,
 };
 use serde_json::json;
+use tempfile::TempDir;
 use tokio::runtime::Runtime;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{TransientInstance, TurboTasks, Vc};
@@ -26,6 +28,8 @@ pub struct HmrBenchmark {
 #[derive(Debug)]
 pub struct TestApp {
     _path: PathBuf,
+    /// Prevent temp directory from being dropped
+    _dir: TempDir,
     modules: Vec<(PathBuf, usize)>,
 }
 
@@ -120,11 +124,19 @@ export default function Component{i}() {{
     let next_config = "module.exports = {}";
     write(base_path.join("next.config.js"), next_config)?;
 
-    // Prevent temp directory from being dropped
-    std::mem::forget(temp_dir);
+    // Run `npm install`
+    let status = Command::new("npm")
+        .current_dir(&base_path)
+        .args(["install"])
+        .status()?;
+
+    if !status.success() {
+        return Err(anyhow::anyhow!("Failed to run `npm install`"));
+    }
 
     Ok(TestApp {
         _path: base_path,
+        _dir: temp_dir,
         modules,
     })
 }
