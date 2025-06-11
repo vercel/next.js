@@ -724,6 +724,14 @@ export class AppRouteRouteModule extends RouteModule<
               case 'force-dynamic': {
                 // Routes of generated paths should be dynamic
                 workStore.forceDynamic = true
+                if (workStore.isStaticGeneration) {
+                  const err = new DynamicServerError(
+                    'Route is configured with dynamic = error which cannot be statically generated.'
+                  )
+                  workStore.dynamicUsageDescription = err.message
+                  workStore.dynamicUsageStack = err.stack
+                  throw err
+                }
                 break
               }
               case 'force-static':

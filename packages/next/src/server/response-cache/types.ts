@@ -187,6 +187,7 @@ export type ResponseGenerator = (state: {
   hasResolved: boolean
   previousCacheEntry?: IncrementalResponseCacheEntry | null
   isRevalidating?: boolean
+  span?: any
 }) => Promise<ResponseCacheEntry | null>
 
 export const enum IncrementalCacheKind {
