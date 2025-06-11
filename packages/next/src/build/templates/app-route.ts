@@ -5,16 +5,9 @@ import {
 } from '../../server/route-modules/app-route/module.compiled'
 import { RouteKind } from '../../server/route-kind'
 import { patchFetch as _patchFetch } from '../../server/lib/patch-fetch'
-
-import * as userland from 'VAR_USERLAND'
-import {
-  RouterServerContextSymbol,
-  routerServerGlobal,
-} from '../../server/lib/router-utils/router-server-context'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { getRequestMeta } from '../../server/request-meta'
 import { getTracer, type Span, SpanKind } from '../../server/lib/trace/tracer'
-import type { ServerOnInstrumentationRequestError } from '../../server/app-render/types'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { NodeNextRequest, NodeNextResponse } from '../../server/base-http/node'
 import {
@@ -24,12 +17,21 @@ import {
 import { BaseServerSpan } from '../../server/lib/trace/constants'
 import { getRevalidateReason } from '../../server/instrumentation/utils'
 import { sendResponse } from '../../server/send-response'
-import { toNodeOutgoingHttpHeaders } from '../../server/web/utils'
+import {
+  fromNodeOutgoingHttpHeaders,
+  toNodeOutgoingHttpHeaders,
+} from '../../server/web/utils'
+import { decodePathParams } from '../../server/lib/router-utils/decode-path-params'
+import { getCacheControlHeader } from '../../server/lib/cache-control'
 import { INFINITE_CACHE, NEXT_CACHE_TAGS_HEADER } from '../../lib/constants'
+import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
 import {
   CachedRouteKind,
   type ResponseCacheEntry,
+  type ResponseGenerator,
 } from '../../server/response-cache'
+
+import * as userland from 'VAR_USERLAND'
 
 // These are injected by the loader afterwards. This is injected as a variable
 // instead of a replacement because this could also be `undefined` instead of
@@ -111,52 +113,54 @@ export async function handler(
   const {
     buildId,
     params,
+    nextConfig,
     parsedUrl,
-    serverFilesManifest,
+    isDraftMode,
     prerenderManifest,
+    routerServerContext,
     isOnDemandRevalidate,
+    revalidateOnlyGenerated,
   } = prepareResult
 
-  const routerServerContext =
-    routerServerGlobal[RouterServerContextSymbol]?.[
-      process.env.__NEXT_RELATIVE_PROJECT_DIR || ''
-    ]
+  const normalizedSrcPage = normalizeAppPath(srcPage)
 
-  const onInstrumentationRequestError =
-    routeModule.instrumentationOnRequestError.bind(routeModule)
+  // TODO: rework this to not be necessary as a middleware
+  // rewrite should not need to pass this context like this
+  // maybe we rely on rewrite header instead
+  let resolvedPathname = getRequestMeta(req, 'rewroteURL')
 
-  const onError: ServerOnInstrumentationRequestError = (
-    err,
-    _,
-    errorContext
-  ) => {
-    if (routerServerContext?.logErrorWithOriginalStack) {
-      routerServerContext.logErrorWithOriginalStack(err, 'app-dir')
-    } else {
-      console.error(err)
-    }
-    return onInstrumentationRequestError(
-      req,
-      err,
-      {
-        path: req.url || '/',
-        headers: req.headers,
-        method: req.method || 'GET',
-      },
-      errorContext
-    )
+  if (!resolvedPathname) {
+    resolvedPathname = parsedUrl.pathname || '/'
   }
 
-  const nextConfig =
-    routerServerContext?.nextConfig || serverFilesManifest.config
+  if (resolvedPathname === '/index') {
+    resolvedPathname = '/'
+  }
+  resolvedPathname = decodePathParams(resolvedPathname)
 
-  const pathname = parsedUrl.pathname || '/'
-  const normalizedSrcPage = normalizeAppPath(srcPage)
   let isIsr = Boolean(
     prerenderManifest.dynamicRoutes[normalizedSrcPage] ||
-      prerenderManifest.routes[normalizedSrcPage] ||
-      prerenderManifest.routes[pathname]
+      prerenderManifest.routes[resolvedPathname]
   )
+
+  if (isIsr && !isDraftMode) {
+    const isPrerendered = Boolean(prerenderManifest.routes[resolvedPathname])
+    const prerenderInfo = prerenderManifest.dynamicRoutes[normalizedSrcPage]
+
+    if (prerenderInfo) {
+      if (prerenderInfo.fallback === false && !isPrerendered) {
+        throw new NoFallbackError()
+      }
+    }
+  }
+
+  let cacheKey: string | null = null
+
+  if (isIsr && !routeModule.isDev && !isDraftMode) {
+    cacheKey = resolvedPathname
+    // ensure /index and / is normalized to one key
+    cacheKey = cacheKey === '/index' ? '/' : cacheKey
+  }
 
   const supportsDynamicResponse: boolean =
     // If we're in development, we always support dynamic HTML
@@ -192,7 +196,13 @@ export async function handler(
         res.on('close', cb)
       },
       onAfterTaskError: undefined,
-      onInstrumentationRequestError: onError,
+      onInstrumentationRequestError: (error, _request, errorContext) =>
+        routeModule.onRequestError(
+          req,
+          error,
+          errorContext,
+          routerServerContext
+        ),
     },
     sharedContext: {
       buildId,
@@ -249,14 +259,194 @@ export async function handler(
       })
     }
 
-    let response: Response
+    const handleResponse = async (currentSpan?: Span) => {
+      const responseGenerator: ResponseGenerator = async ({
+        previousCacheEntry,
+      }) => {
+        try {
+          if (
+            !getRequestMeta(req, 'minimalMode') &&
+            isOnDemandRevalidate &&
+            revalidateOnlyGenerated &&
+            !previousCacheEntry
+          ) {
+            res.statusCode = 404
+            // on-demand revalidate always sets this header
+            res.setHeader('x-nextjs-cache', 'REVALIDATED')
+            res.end('This page could not be found')
+            return null
+          }
+
+          const response = await invokeRouteModule(currentSpan)
+
+          ;(req as any).fetchMetrics = (context.renderOpts as any).fetchMetrics
+          let pendingWaitUntil = context.renderOpts.pendingWaitUntil
+
+          // Attempt using provided waitUntil if available
+          // if it's not we fallback to sendResponse's handling
+          if (pendingWaitUntil) {
+            if (ctx.waitUntil) {
+              ctx.waitUntil(pendingWaitUntil)
+              pendingWaitUntil = undefined
+            }
+          }
+          const cacheTags = context.renderOpts.collectedTags
+
+          // If the request is for a static response, we can cache it so long
+          // as it's not edge.
+          if (isIsr) {
+            const blob = await response.blob()
+
+            // Copy the headers from the response.
+            const headers = toNodeOutgoingHttpHeaders(response.headers)
+
+            if (cacheTags) {
+              headers[NEXT_CACHE_TAGS_HEADER] = cacheTags
+            }
+
+            if (!headers['content-type'] && blob.type) {
+              headers['content-type'] = blob.type
+            }
+
+            const revalidate =
+              typeof context.renderOpts.collectedRevalidate === 'undefined' ||
+              context.renderOpts.collectedRevalidate >= INFINITE_CACHE
+                ? false
+                : context.renderOpts.collectedRevalidate
+
+            const expire =
+              typeof context.renderOpts.collectedExpire === 'undefined' ||
+              context.renderOpts.collectedExpire >= INFINITE_CACHE
+                ? undefined
+                : context.renderOpts.collectedExpire
+
+            // Create the cache entry for the response.
+            const cacheEntry: ResponseCacheEntry = {
+              value: {
+                kind: CachedRouteKind.APP_ROUTE,
+                status: response.status,
+                body: Buffer.from(await blob.arrayBuffer()),
+                headers,
+              },
+              cacheControl: { revalidate, expire },
+            }
+
+            return cacheEntry
+          } else {
+            // send response without caching if not ISR
+            await sendResponse(
+              nodeNextReq,
+              nodeNextRes,
+              response,
+              context.renderOpts.pendingWaitUntil
+            )
+            return null
+          }
+        } catch (err) {
+          // if this is a background revalidate we need to report
+          // the request error here as it won't be bubbled
+          if (previousCacheEntry?.isStale) {
+            await routeModule.onRequestError(
+              req,
+              err,
+              {
+                routerKind: 'App Router',
+                routePath: srcPage,
+                routeType: 'route',
+                revalidateReason: getRevalidateReason({
+                  isRevalidate,
+                  isOnDemandRevalidate,
+                }),
+              },
+              routerServerContext
+            )
+          }
+          throw err
+        }
+      }
+
+      const cacheEntry = await routeModule.handleResponse({
+        req,
+        nextConfig,
+        cacheKey,
+        routeKind: RouteKind.APP_ROUTE,
+        isFallback: false,
+        prerenderManifest,
+        isRoutePPREnabled: false,
+        isOnDemandRevalidate,
+        revalidateOnlyGenerated,
+        responseGenerator,
+        waitUntil: ctx.waitUntil,
+      })
+
+      // we don't create a cacheEntry for ISR
+      if (!isIsr) {
+        return null
+      }
+
+      if (cacheEntry?.value?.kind !== CachedRouteKind.APP_ROUTE) {
+        throw new Error(
+          `Invariant: app-route received invalid cache entry ${cacheEntry?.value?.kind}`
+        )
+      }
+
+      if (!getRequestMeta(req, 'minimalMode')) {
+        res.setHeader(
+          'x-nextjs-cache',
+          isOnDemandRevalidate
+            ? 'REVALIDATED'
+            : cacheEntry.isMiss
+              ? 'MISS'
+              : cacheEntry.isStale
+                ? 'STALE'
+                : 'HIT'
+        )
+      }
+
+      // Draft mode should never be cached
+      if (isDraftMode) {
+        res.setHeader(
+          'Cache-Control',
+          'private, no-cache, no-store, max-age=0, must-revalidate'
+        )
+      }
+
+      const headers = fromNodeOutgoingHttpHeaders(cacheEntry.value.headers)
+
+      if (!(getRequestMeta(req, 'minimalMode') && isIsr)) {
+        headers.delete(NEXT_CACHE_TAGS_HEADER)
+      }
+
+      // If cache control is already set on the response we don't
+      // override it to allow users to customize it via next.config
+      if (
+        cacheEntry.cacheControl &&
+        !res.getHeader('Cache-Control') &&
+        !headers.get('Cache-Control')
+      ) {
+        headers.set(
+          'Cache-Control',
+          getCacheControlHeader(cacheEntry.cacheControl)
+        )
+      }
+
+      await sendResponse(
+        nodeNextReq,
+        nodeNextRes,
+        new Response(cacheEntry.value.body, {
+          headers,
+          status: cacheEntry.value.status || 200,
+        })
+      )
+      return null
+    }
 
     // TODO: activeSpan code path is for when wrapped by
     // next-server can be removed when this is no longer used
     if (activeSpan) {
-      response = await invokeRouteModule(activeSpan)
+      await handleResponse(activeSpan)
     } else {
-      response = await tracer.withPropagatedContext(req.headers, () =>
+      await tracer.withPropagatedContext(req.headers, () =>
         tracer.trace(
           BaseServerSpan.handleRequest,
           {
@@ -267,79 +457,14 @@ export async function handler(
               'http.target': req.url,
             },
           },
-          invokeRouteModule
+          handleResponse
         )
       )
     }
-
-    ;(req as any).fetchMetrics = (context.renderOpts as any).fetchMetrics
-
-    const cacheTags = context.renderOpts.collectedTags
-
-    // If the request is for a static response, we can cache it so long
-    // as it's not edge.
-    if (isIsr) {
-      const blob = await response.blob()
-
-      // Copy the headers from the response.
-      const headers = toNodeOutgoingHttpHeaders(response.headers)
-
-      if (cacheTags) {
-        headers[NEXT_CACHE_TAGS_HEADER] = cacheTags
-      }
-
-      if (!headers['content-type'] && blob.type) {
-        headers['content-type'] = blob.type
-      }
-
-      const revalidate =
-        typeof context.renderOpts.collectedRevalidate === 'undefined' ||
-        context.renderOpts.collectedRevalidate >= INFINITE_CACHE
-          ? false
-          : context.renderOpts.collectedRevalidate
-
-      const expire =
-        typeof context.renderOpts.collectedExpire === 'undefined' ||
-        context.renderOpts.collectedExpire >= INFINITE_CACHE
-          ? undefined
-          : context.renderOpts.collectedExpire
-
-      // Create the cache entry for the response.
-      const cacheEntry: ResponseCacheEntry = {
-        value: {
-          kind: CachedRouteKind.APP_ROUTE,
-          status: response.status,
-          body: Buffer.from(await blob.arrayBuffer()),
-          headers,
-        },
-        cacheControl: { revalidate, expire },
-      }
-
-      return cacheEntry
-    }
-    let pendingWaitUntil = context.renderOpts.pendingWaitUntil
-
-    // Attempt using provided waitUntil if available
-    // if it's not we fallback to sendResponse's handling
-    if (pendingWaitUntil) {
-      if (context.renderOpts.waitUntil) {
-        context.renderOpts.waitUntil(pendingWaitUntil)
-        pendingWaitUntil = undefined
-      }
-    }
-
-    // Send the response now that we have copied it into the cache.
-    await sendResponse(
-      nodeNextReq,
-      nodeNextRes,
-      response,
-      context.renderOpts.pendingWaitUntil
-    )
-    return null
   } catch (err) {
     // if we aren't wrapped by base-server handle here
     if (!activeSpan) {
-      await onError(err, req, {
+      await routeModule.onRequestError(req, err, {
         routerKind: 'App Router',
         routePath: normalizedSrcPage,
         routeType: 'route',

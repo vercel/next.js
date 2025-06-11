@@ -22,7 +22,8 @@ use turbopack_core::{
     reference::ModuleReference,
     reference_type::{EcmaScriptModulesReferenceSubType, ImportWithType},
     resolve::{
-        ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem, RequestKey,
+        ExportUsage, ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem,
+        RequestKey,
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
     },
@@ -287,6 +288,15 @@ impl ChunkableModuleReference for EsmAssetReference {
                 })
             },
         ))
+    }
+
+    #[turbo_tasks::function]
+    fn export_usage(&self) -> Vc<ExportUsage> {
+        match &self.export_name {
+            Some(ModulePart::Export(export_name)) => ExportUsage::named(export_name.clone()),
+            Some(ModulePart::Evaluation) => ExportUsage::evaluation(),
+            _ => ExportUsage::all(),
+        }
     }
 }
 

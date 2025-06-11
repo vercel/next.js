@@ -22,6 +22,7 @@ mod path_visitor;
 pub mod references;
 pub mod runtime_functions;
 pub mod side_effect_optimization;
+pub mod simple_tree_shake;
 pub(crate) mod special_cases;
 pub(crate) mod static_code;
 mod swc_comments;
@@ -106,6 +107,7 @@ use crate::{
         analyse_ecmascript_module, async_module::OptionAsyncModule, esm::base::EsmAssetReferences,
     },
     side_effect_optimization::reference::EcmascriptModulePartReference,
+    simple_tree_shake::{ModuleExportUsageInfo, get_module_export_usages},
     swc_comments::ImmutableComments,
     transform::remove_shebang,
 };
@@ -143,9 +145,9 @@ pub enum SpecifiedModuleType {
     Default,
     Serialize,
     Deserialize,
+    TaskInput,
     TraceRawVcs,
     NonLocalValue,
-    TaskInput,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum TreeShakingMode {
@@ -183,6 +185,8 @@ pub struct EcmascriptOptions {
     /// parsing fails. This is useful to keep the module graph structure intact when syntax errors
     /// are temporarily introduced.
     pub keep_last_successful_parse: bool,
+
+    pub remove_unused_exports: bool,
 }
 
 #[turbo_tasks::value]
@@ -449,7 +453,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
 
     #[turbo_tasks::function]
     async fn module_content_options(
-        self: Vc<Self>,
+        self: ResolvedVc<Self>,
         module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         async_module_info: Option<ResolvedVc<AsyncModuleInfo>>,
@@ -461,8 +465,18 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
 
         let module_type_result = *self.determine_module_type().await?;
         let generate_source_map = *chunking_context
-            .reference_module_source_maps(Vc::upcast(self))
+            .reference_module_source_maps(Vc::upcast(*self))
             .await?;
+
+        let export_usage_info = if self.options().await?.remove_unused_exports {
+            Some(
+                get_module_export_usages(*module_graph, Vc::upcast(*self))
+                    .to_resolved()
+                    .await?,
+            )
+        } else {
+            None
+        };
 
         Ok(EcmascriptModuleContentOptions {
             parsed,
@@ -479,6 +493,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
             original_source_map: analyze_ref.source_map,
             exports: analyze_ref.exports,
             async_module_info,
+            export_usage_info,
         }
         .cell())
     }
@@ -832,6 +847,7 @@ pub struct EcmascriptModuleContentOptions {
     original_source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
     exports: ResolvedVc<EcmascriptExports>,
     async_module_info: Option<ResolvedVc<AsyncModuleInfo>>,
+    export_usage_info: Option<ResolvedVc<ModuleExportUsageInfo>>,
 }
 
 impl EcmascriptModuleContentOptions {
@@ -847,6 +863,7 @@ impl EcmascriptModuleContentOptions {
             async_module,
             exports,
             async_module_info,
+            export_usage_info,
             ..
         } = self;
 
@@ -868,7 +885,7 @@ impl EcmascriptModuleContentOptions {
                 if let EcmascriptExports::EsmExports(exports) = *exports.await? {
                     Some(
                         exports
-                            .code_generation(**module_graph, **chunking_context, Some(**parsed))
+                            .code_generation(**chunking_context, Some(**parsed), *export_usage_info)
                             .await?,
                     )
                 } else {

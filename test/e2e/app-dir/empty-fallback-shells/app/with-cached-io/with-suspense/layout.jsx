@@ -7,8 +7,8 @@ export default async function Layout({ children }) {
   return (
     <html>
       <body>
-        <div data-testid={`layout-${getSentinelValue()}`}>
-          Layout: {new Date().toISOString()}
+        <div id="layout">
+          Layout: {new Date().toISOString()} ({getSentinelValue()})
         </div>
         <Suspense fallback={<p>Loading...</p>}>{children}</Suspense>
       </body>

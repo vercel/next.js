@@ -25,7 +25,7 @@ import type { CacheControl } from './lib/cache-control'
 import type { WaitUntil } from './after/builtin-request-context'
 
 import fs from 'fs'
-import { join } from 'path'
+import { join, relative } from 'path'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 import {
@@ -58,7 +58,7 @@ import type {
   NextEnabledDirectories,
   BaseRequestHandler,
 } from './base-server'
-import BaseServer, { NoFallbackError } from './base-server'
+import BaseServer from './base-server'
 import { getMaybePagePath, getPagePath } from './require'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
@@ -110,10 +110,15 @@ import type { UnwrapPromise } from '../lib/coalesced-function'
 import { populateStaticEnv } from '../lib/static-env'
 import { isPostpone } from './lib/router-utils/is-postpone'
 import { NodeModuleLoader } from './lib/module-loader/node-module-loader'
+import { NoFallbackError } from '../shared/lib/no-fallback-error.external'
 import {
   ensureInstrumentationRegistered,
   getInstrumentationModule,
 } from './lib/router-utils/instrumentation-globals.external'
+import {
+  RouterServerContextSymbol,
+  routerServerGlobal,
+} from './lib/router-utils/router-server-context'
 
 export * from './base-server'
 
@@ -493,10 +498,8 @@ export default class NextNodeServer extends BaseServer<
 
   protected async getIncrementalCache({
     requestHeaders,
-    requestProtocol,
   }: {
     requestHeaders: IncrementalCache['requestHeaders']
-    requestProtocol: 'http' | 'https'
   }) {
     const dev = !!this.renderOpts.dev
     let CacheHandler: any
@@ -519,7 +522,6 @@ export default class NextNodeServer extends BaseServer<
       fs: this.getCacheFilesystem(),
       dev,
       requestHeaders,
-      requestProtocol,
       allowedRevalidateHeaderKeys:
         this.nextConfig.experimental.allowedRevalidateHeaderKeys,
       minimalMode: this.minimalMode,
@@ -1096,6 +1098,19 @@ export default class NextNodeServer extends BaseServer<
     // This is a catch-all route, there should be no fallbacks so mark it as
     // such.
     addRequestMeta(req, 'bubbleNoFallback', true)
+
+    // TODO: this is only needed until route-module can handle
+    // rendering/serving the 404 directly with next-server
+    if (!routerServerGlobal[RouterServerContextSymbol]) {
+      routerServerGlobal[RouterServerContextSymbol] = {}
+    }
+    const relativeProjectDir = relative(process.cwd(), this.dir)
+
+    if (!routerServerGlobal[RouterServerContextSymbol][relativeProjectDir]) {
+      routerServerGlobal[RouterServerContextSymbol][relativeProjectDir] = {
+        render404: this.render404.bind(this),
+      }
+    }
 
     try {
       // next.js core assumes page path without trailing slash

@@ -1,6 +1,6 @@
 export default async function Page({ params }) {
   const { slug } = await params
-  return <div data-testid={`hello-${slug}`}>Hello /{slug}</div>
+  return <div id="slug">Hello /{slug}</div>
 }
 
 export async function generateStaticParams() {

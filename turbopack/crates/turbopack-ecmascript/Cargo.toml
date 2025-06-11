@@ -15,6 +15,7 @@ workspace = true
 [dependencies]
 anyhow = { workspace = true }
 async-trait = { workspace = true }
+auto-hash-map = { workspace = true }
 bytes-str = { workspace = true }
 data-encoding = { workspace = true }
 either = { workspace = true }

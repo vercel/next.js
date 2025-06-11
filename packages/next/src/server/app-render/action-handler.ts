@@ -52,6 +52,7 @@ import type { TemporaryReferenceSet } from 'react-server-dom-webpack/server.edge
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { executeRevalidates } from '../revalidation-utils'
+import { getRequestMeta } from '../request-meta'
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -160,8 +161,7 @@ async function createForwardedActionResponse(
   res: BaseNextResponse,
   host: Host,
   workerPathname: string,
-  basePath: string,
-  workStore: WorkStore
+  basePath: string
 ) {
   if (!host) {
     throw new Error(
@@ -176,7 +176,8 @@ async function createForwardedActionResponse(
   // with the response from the forwarded worker
   forwardedHeaders.set('x-action-forwarded', '1')
 
-  const proto = workStore.incrementalCache?.requestProtocol || 'https'
+  const proto =
+    getRequestMeta(req, 'initProtocol')?.replace(/:+$/, '') || 'https'
 
   // For standalone or the serverful mode, use the internal origin directly
   // other than the host headers from the request.
@@ -306,7 +307,8 @@ async function createRedirectRenderResult(
     const forwardedHeaders = getForwardedHeaders(req, res)
     forwardedHeaders.set(RSC_HEADER, '1')
 
-    const proto = workStore.incrementalCache?.requestProtocol || 'https'
+    const proto =
+      getRequestMeta(req, 'initProtocol')?.replace(/:+$/, '') || 'https'
 
     // For standalone or the serverful mode, use the internal origin directly
     // other than the host headers from the request.
@@ -616,8 +618,7 @@ export async function handleAction({
           res,
           host,
           forwardedWorker,
-          ctx.renderOpts.basePath,
-          workStore
+          ctx.renderOpts.basePath
         ),
       }
     }
