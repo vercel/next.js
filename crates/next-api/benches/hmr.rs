@@ -402,7 +402,7 @@ struct Setup {
     benchmark: HmrBenchmark,
 }
 
-fn setup_everything(module_count: usize) -> Setup {
+fn setup_everything(module_count: usize) -> Arc<Setup> {
     let rt = Arc::new(setup_runtime());
     let tt = setup_turbo_tasks();
 
@@ -412,7 +412,7 @@ fn setup_everything(module_count: usize) -> Setup {
                 let benchmark = setup_benchmark(module_count).await;
                 benchmark.benchmark_initial_compilation().await.unwrap();
 
-                Ok(Setup { rt, tt, benchmark })
+                Ok(Arc::new(Setup { rt, tt, benchmark }))
             })
             .await
             .unwrap()
@@ -421,7 +421,7 @@ fn setup_everything(module_count: usize) -> Setup {
 
 #[divan::bench]
 fn hmr_initial_compilation(bencher: divan::Bencher) {
-    let setup = Arc::new(setup_everything(100));
+    let setup = setup_everything(100);
 
     let _guard = setup.clone();
 
@@ -441,7 +441,7 @@ fn hmr_initial_compilation(bencher: divan::Bencher) {
 
 #[divan::bench(sample_size = 10)]
 fn hmr_updates_small_5(bencher: divan::Bencher) {
-    let setup = Arc::new(setup_everything(100));
+    let setup = setup_everything(100);
 
     let _guard = setup.clone();
 
@@ -462,7 +462,7 @@ fn hmr_updates_small_5(bencher: divan::Bencher) {
 
 #[divan::bench(sample_size = 10)]
 fn hmr_updates_medium_10(bencher: divan::Bencher) {
-    let setup = Arc::new(setup_everything(200));
+    let setup = setup_everything(200);
 
     let _guard = setup.clone();
 
@@ -483,7 +483,7 @@ fn hmr_updates_medium_10(bencher: divan::Bencher) {
 
 #[divan::bench(sample_size = 10)]
 fn hmr_updates_large_20(bencher: divan::Bencher) {
-    let setup = Arc::new(setup_everything(500));
+    let setup = setup_everything(500);
 
     let _guard = setup.clone();
 
@@ -504,7 +504,7 @@ fn hmr_updates_large_20(bencher: divan::Bencher) {
 
 #[divan::bench(sample_size = 10)]
 fn hmr_subscription(bencher: divan::Bencher) {
-    let setup = Arc::new(setup_everything(100));
+    let setup = setup_everything(100);
 
     let _guard = setup.clone();
 
