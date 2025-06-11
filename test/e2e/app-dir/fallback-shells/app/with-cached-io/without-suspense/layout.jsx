@@ -6,8 +6,8 @@ export default async function Layout({ children }) {
   return (
     <html>
       <body>
-        <div id="layout">
-          Layout: {new Date().toISOString()} ({getSentinelValue()})
+        <div id="root-layout">
+          Root Layout: {new Date().toISOString()} ({getSentinelValue()})
         </div>
         {children}
       </body>
