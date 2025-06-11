@@ -1787,7 +1787,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let mut queue = AggregationUpdateQueue::new();
 
         if has_children {
-            let has_active_count = ctx.should_track_activeness()
+            let has_active_count = !task.is_immutable()
+                && ctx.should_track_activeness()
                 && get!(task, Activeness).map_or(false, |activeness| activeness.active_counter > 0);
             connect_children(
                 task_id,
@@ -2281,7 +2282,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     effective: u32::MAX,
                 },
             });
-            if self.should_track_activeness() {
+            if !task.state().is_immutable() && self.should_track_activeness() {
                 task.add(CachedDataItem::Activeness {
                     value: ActivenessState::new_root(root_type, task_id),
                 });
