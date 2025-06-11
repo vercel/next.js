@@ -667,6 +667,7 @@ pub trait Backend: Sync + Send {
         &self,
         task_type: CachedTaskType,
         parent_task: TaskId,
+        is_immutable: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId;
 
@@ -674,6 +675,7 @@ pub trait Backend: Sync + Send {
         &self,
         task_type: CachedTaskType,
         parent_task: TaskId,
+        is_immutable: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId;
 
