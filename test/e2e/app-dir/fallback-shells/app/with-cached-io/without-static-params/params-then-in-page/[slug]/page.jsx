@@ -10,7 +10,3 @@ export default async function Page({ params }) {
     </>
   )
 }
-
-export async function generateStaticParams() {
-  return [{ slug: 'foo' }]
-}
