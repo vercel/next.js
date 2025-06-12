@@ -637,7 +637,11 @@ impl ReactServerComponentValidator {
                 Atom::from("next/router"),
             ],
 
-            invalid_client_imports: vec![Atom::from("server-only"), Atom::from("next/headers")],
+            invalid_client_imports: vec![
+                Atom::from("server-only"),
+                Atom::from("next/headers"),
+                Atom::from("next/root-params"),
+            ],
 
             invalid_client_lib_apis_mapping: FxHashMap::from_iter([
                 ("next/server", vec!["after", "unstable_rootParams"]),
