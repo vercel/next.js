@@ -7,9 +7,9 @@ title: Missing Suspense boundary with useSearchParams
 Reading search parameters through `useSearchParams()` without a Suspense boundary will opt the entire page into client-side rendering. This could cause your page to be blank until the client-side JavaScript has loaded.
 
 Common scenarios include:
-Directly calling `useSearchParams()` in a page or component without wrapping it in <Suspense>.
+Directly calling `useSearchParams()` in a page or component without wrapping it in `<Suspense>`.
 
-- A provider (e.g., a query or context provider) in the component tree using `useSearchParams()` without proper <Suspense> wrapping, triggering the CSR bailout indirectly.
+- A provider (e.g., a query or context provider) in the component tree using `useSearchParams()` without proper `<Suspense>` wrapping, triggering the CSR bailout indirectly.
 - A deeply nested component that uses `useSearchParams()` without being wrapped in a Suspense boundary, causing the entire page to be rendered on the client side.
 
 ## Possible Ways to Fix It
