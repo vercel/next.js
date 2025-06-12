@@ -67,11 +67,13 @@ impl Version for ProxyResult {
 pub trait GetContentSourceContent {
     /// Specifies data requirements for the get function. Restricting data
     /// passed allows to cache the get method.
+    #[turbo_tasks::function]
     fn vary(self: Vc<Self>) -> Vc<ContentSourceDataVary> {
         ContentSourceDataVary::default().cell()
     }
 
     /// Get the content
+    #[turbo_tasks::function]
     fn get(self: Vc<Self>, path: RcStr, data: ContentSourceData) -> Vc<ContentSourceContent>;
 }
 
@@ -102,6 +104,7 @@ pub enum ContentSourceContent {
 /// is handled.
 #[turbo_tasks::value_trait]
 pub trait ContentSourceSideEffect {
+    #[turbo_tasks::function]
     fn apply(self: Vc<Self>) -> Vc<Completion>;
 }
 
@@ -417,9 +420,11 @@ impl ContentSourceDataVary {
 /// A source of content that the dev server uses to respond to http requests.
 #[turbo_tasks::value_trait]
 pub trait ContentSource {
+    #[turbo_tasks::function]
     fn get_routes(self: Vc<Self>) -> Vc<RouteTree>;
 
     /// Gets any content sources wrapped in this content source.
+    #[turbo_tasks::function]
     fn get_children(self: Vc<Self>) -> Vc<ContentSources> {
         ContentSources::empty()
     }

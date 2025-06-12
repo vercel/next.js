@@ -7,7 +7,7 @@ import type { CloneableBody } from './body-streams'
 import type { RouteMatch } from './route-matches/route-match'
 import type { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 import type { ServerComponentsHmrCache } from './response-cache'
-import type { PagesDevOverlayBridgeType } from '../client/components/react-dev-overlay/pages/pages-dev-overlay-setup'
+import type { PagesDevOverlayBridgeType } from '../next-devtools/userspace/pages/pages-dev-overlay-setup'
 
 // FIXME: (wyattjoh) this is a temporary solution to allow us to pass data between bundled modules
 export const NEXT_REQUEST_META = Symbol.for('NextInternalRequestMeta')
@@ -225,6 +225,12 @@ export interface RequestMeta {
    * ErrorOverlay component to use in development for pages router
    */
   PagesErrorDebug?: PagesDevOverlayBridgeType
+
+  /**
+   * Whether server is in minimal mode (this will be replaced with more
+   * specific flags in future)
+   */
+  minimalMode?: boolean
 }
 
 /**

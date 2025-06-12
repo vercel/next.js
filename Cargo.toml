@@ -14,9 +14,7 @@ members = [
   "turbopack/xtask",
 ]
 
-exclude = [
-  "crates/next-error-code-swc-plugin",
-]
+exclude = ["crates/next-error-code-swc-plugin"]
 
 [workspace.lints.clippy]
 too_many_arguments = "allow"
@@ -162,7 +160,7 @@ opt-level = "s"
 [profile.release.package.zstd-sys]
 opt-level = 3
 
-[profile.release.package.sourcemap]
+[profile.release.package.swc_sourcemap]
 opt-level = 3
 
 [profile.release.package.turbopack-wasm]
@@ -292,21 +290,21 @@ turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
 # SWC crates
-swc_core = { version = "26.4.4", features = [
+swc_core = { version = "27.0.2", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
   "parallel_rayon",
 ] }
-testing = { version = "12.0.0" }
+testing = { version = "13.0.0" }
 
 # Keep consistent with preset_env_base through swc_core
 browserslist-rs = { version = "0.18.0" }
 mdxjs = "1.0.3"
-modularize_imports = { version = "0.86.0" }
-styled_components = { version = "0.114.0" }
-styled_jsx = { version = "0.90.3" }
-swc_emotion = { version = "0.90.0" }
-swc_relay = { version = "0.60.0" }
+modularize_imports = { version = "0.87.0" }
+styled_components = { version = "0.115.0" }
+styled_jsx = { version = "0.91.1" }
+swc_emotion = { version = "0.91.0" }
+swc_relay = { version = "0.61.0" }
 
 # General Deps
 chromiumoxide = { version = "0.5.4", features = [
@@ -328,6 +326,7 @@ async-compression = { version = "0.3.13", default-features = false, features = [
 async-trait = "0.1.64"
 bitfield = "0.18.0"
 bytes = "1.1.0"
+bytes-str = "0.2.6"
 chrono = "0.4.23"
 clap = { version = "4.5.2", features = ["derive"] }
 concurrent-queue = "2.5.0"
@@ -349,15 +348,14 @@ image = { version = "0.25.0", default-features = false }
 indexmap = "2.7.1"
 indoc = "2.0.0"
 itertools = "0.10.5"
-lazy_static = "1.4.0"
 lightningcss = { version = "1.0.0-alpha.66", features = [
   "serde",
   "visitor",
   "into_owned",
 ] }
 lightningcss-napi = { version = "0.4.4", default-features = false, features = [
-  "visitor"
-]}
+  "visitor",
+] }
 markdown = "1.0.0-alpha.18"
 mime = "0.3.16"
 napi = { version = "2", default-features = false, features = [
@@ -402,7 +400,7 @@ smallvec = { version = "1.13.1", features = [
   "union",
   "const_new",
 ] }
-sourcemap = "9.2.2"
+swc_sourcemap = "9.2.2"
 strsim = "0.11.1"
 shrink-to-fit = "0.2.10"
 syn = "2.0.100"
@@ -417,9 +415,13 @@ triomphe = { git = "https://github.com/sokra/triomphe", branch = "sokra/unstable
 unsize = "1.1.0"
 url = "2.2.2"
 urlencoding = "2.1.2"
-vergen = { version = "9.0.6", features = ["cargo"] }
-vergen-gitcl = { version = "1.0.8", features = ["cargo"] }
+vergen = { version = "9.0.6", features = [
+  "cargo",
+] }
+vergen-gitcl = { version = "1.0.8", features = [
+  "cargo",
+] }
 webbrowser = "0.8.7"
 
 [patch.crates-io]
-sourcemap = { git = "https://github.com/kdy1/rust-sourcemap", branch = "main" }
+mdxjs = { git = "https://github.com/kdy1/mdxjs-rs.git", branch = "swc-core-27" }

@@ -289,13 +289,16 @@ pub async fn finalize_css(
 
 #[turbo_tasks::value_trait]
 pub trait ParseCss {
+    #[turbo_tasks::function]
     async fn parse_css(self: Vc<Self>) -> Result<Vc<ParseCssResult>>;
 }
 
 #[turbo_tasks::value_trait]
 pub trait ProcessCss: ParseCss {
+    #[turbo_tasks::function]
     async fn get_css_with_placeholder(self: Vc<Self>) -> Result<Vc<CssWithPlaceholderResult>>;
 
+    #[turbo_tasks::function]
     async fn finalize_css(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
@@ -588,11 +591,11 @@ fn generate_css_source_map(source_map: &parcel_sourcemap::SourceMap) -> Result<R
     let mut builder = SourceMapBuilder::new(None);
 
     for src in source_map.get_sources() {
-        builder.add_source(&format!("{SOURCE_URL_PROTOCOL}///{src}"));
+        builder.add_source(format!("{SOURCE_URL_PROTOCOL}///{src}").into());
     }
 
     for (idx, content) in source_map.get_sources_content().iter().enumerate() {
-        builder.set_source_contents(idx as _, Some(content));
+        builder.set_source_contents(idx as _, Some(content.clone().into()));
     }
 
     for m in source_map.get_mappings() {

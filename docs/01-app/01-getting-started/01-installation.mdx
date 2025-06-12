@@ -1,7 +1,6 @@
 ---
-title: How to set up a new Next.js project
-nav_title: Installation
-description: Create a new Next.js application with the `create-next-app` CLI, and set up TypeScript, ESLint, and Module Path Aliases.
+title: Installation
+description: Learn how to create a new Next.js application with the `create-next-app` CLI, and set up TypeScript, ESLint, and Module Path Aliases.
 ---
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
@@ -41,8 +40,20 @@ After the prompts, [`create-next-app`](/docs/app/api-reference/cli/create-next-a
 
 To manually create a new Next.js app, install the required packages:
 
-```bash filename="Terminal"
-npm install next@latest react@latest react-dom@latest
+```bash package="pnpm"
+pnpm i next@latest react@latest react-dom@latest
+```
+
+```bash package="npm"
+npm i next@latest react@latest react-dom@latest
+```
+
+```bash package="yarn"
+yarn add next@latest react@latest react-dom@latest
+```
+
+```bash package="bun"
+bun add next@latest react@latest react-dom@latest
 ```
 
 Then, add the following scripts to your `package.json` file:

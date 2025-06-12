@@ -202,6 +202,8 @@ export interface RenderOptsPartial {
   cacheLifeProfiles?: {
     [profile: string]: import('../use-cache/cache-life').CacheLife
   }
+  isOnDemandRevalidate?: boolean
+  isPossibleServerAction?: boolean
   setIsrStatus?: (key: string, value: boolean | null) => void
   isRevalidate?: boolean
   nextExport?: boolean

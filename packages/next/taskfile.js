@@ -2579,6 +2579,13 @@ export async function next_compile(task, opts) {
       'nextbuildstatic',
       'nextbuildstatic_esm',
       'nextbuild_esm',
+      'next_devtools_entrypoint',
+      'next_devtools_server',
+      'next_devtools_server_esm',
+      'next_devtools_shared',
+      'next_devtools_shared_esm',
+      'next_devtools_userspace',
+      'next_devtools_userspace_esm',
       'pages',
       'pages_esm',
       'lib',
@@ -2718,6 +2725,67 @@ export async function client_esm(task, opts) {
     .source('src/client/**/!(*.test|*.stories).+(js|ts|tsx|woff2)')
     .swc('client', { dev: opts.dev, esm: true })
     .target('dist/esm/client')
+}
+
+export async function next_devtools_entrypoint(task, opts) {
+  await task
+    .source('src/next-devtools/dev-overlay.shim.ts')
+    .swc('client', { dev: opts.dev, interopClientDefaultExport: true })
+    .target('dist/next-devtools')
+}
+
+export async function next_devtools_server(task, opts) {
+  await task
+    .source(
+      'src/next-devtools/server/**/!(*.test|*.stories).+(js|ts|tsx|woff2)'
+    )
+    .swc('client', { dev: opts.dev, interopClientDefaultExport: true })
+    .target('dist/next-devtools/server')
+}
+
+export async function next_devtools_server_esm(task, opts) {
+  await task
+    .source(
+      'src/next-devtools/server/**/!(*.test|*.stories).+(js|ts|tsx|woff2)'
+    )
+    .swc('client', { dev: opts.dev, esm: true })
+    .target('dist/esm/next-devtools/server')
+}
+
+export async function next_devtools_shared(task, opts) {
+  await task
+    .source(
+      'src/next-devtools/shared/**/!(*.test|*.stories).+(js|ts|tsx|woff2)'
+    )
+    .swc('client', { dev: opts.dev, interopClientDefaultExport: true })
+    .target('dist/next-devtools/shared')
+}
+
+export async function next_devtools_shared_esm(task, opts) {
+  await task
+    .source(
+      'src/next-devtools/shared/**/!(*.test|*.stories).+(js|ts|tsx|woff2)'
+    )
+    .swc('client', { dev: opts.dev, esm: true })
+    .target('dist/esm/next-devtools/shared')
+}
+
+export async function next_devtools_userspace(task, opts) {
+  await task
+    .source(
+      'src/next-devtools/userspace/**/!(*.test|*.stories).+(js|ts|tsx|woff2)'
+    )
+    .swc('client', { dev: opts.dev, interopClientDefaultExport: true })
+    .target('dist/next-devtools/userspace')
+}
+
+export async function next_devtools_userspace_esm(task, opts) {
+  await task
+    .source(
+      'src/next-devtools/userspace/**/!(*.test|*.stories).+(js|ts|tsx|woff2)'
+    )
+    .swc('client', { dev: opts.dev, esm: true })
+    .target('dist/esm/next-devtools/userspace')
 }
 
 // export is a reserved keyword for functions
@@ -2882,6 +2950,19 @@ export default async function (task) {
   await task.watch(
     'src/build',
     ['nextbuild', 'nextbuild_esm', 'nextbuildjest'],
+    opts
+  )
+  await task.watch(
+    'src/next-devtools',
+    [
+      'next_devtools_entrypoint',
+      'next_devtools_server',
+      'next_devtools_server_esm',
+      'next_devtools_shared',
+      'next_devtools_shared_esm',
+      'next_devtools_userspace',
+      'next_devtools_userspace_esm',
+    ],
     opts
   )
   await task.watch('src/experimental/testing', 'experimental_testing', opts)

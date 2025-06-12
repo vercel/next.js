@@ -18,10 +18,13 @@ use crate::references::{
 
 #[turbo_tasks::value_trait]
 pub trait EcmascriptChunkPlaceable: ChunkableModule + Module + Asset {
+    #[turbo_tasks::function]
     fn get_exports(self: Vc<Self>) -> Vc<EcmascriptExports>;
+    #[turbo_tasks::function]
     fn get_async_module(self: Vc<Self>) -> Vc<OptionAsyncModule> {
         Vc::cell(None)
     }
+    #[turbo_tasks::function]
     fn is_marked_as_side_effect_free(
         self: Vc<Self>,
         side_effect_free_packages: Vc<Glob>,

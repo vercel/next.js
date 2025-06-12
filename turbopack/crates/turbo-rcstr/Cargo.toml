@@ -16,6 +16,7 @@ serde = { workspace = true }
 new_debug_unreachable = "1.0.6"
 shrink-to-fit = { workspace = true }
 rustc-hash = { workspace = true }
+bytes-str = { workspace = true }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 napi = { workspace = true, optional = true }

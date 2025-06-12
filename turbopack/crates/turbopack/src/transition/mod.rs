@@ -22,11 +22,13 @@ use crate::{
 #[turbo_tasks::value_trait]
 pub trait Transition {
     /// Apply modifications/wrapping to the source asset
+    #[turbo_tasks::function]
     fn process_source(self: Vc<Self>, asset: Vc<Box<dyn Source>>) -> Vc<Box<dyn Source>> {
         asset
     }
 
     /// Apply modifications to the compile-time information
+    #[turbo_tasks::function]
     fn process_compile_time_info(
         self: Vc<Self>,
         compile_time_info: Vc<CompileTimeInfo>,
@@ -35,6 +37,7 @@ pub trait Transition {
     }
 
     /// Apply modifications/wrapping to the module options context
+    #[turbo_tasks::function]
     fn process_module_options_context(
         self: Vc<Self>,
         module_options_context: Vc<ModuleOptionsContext>,
@@ -43,6 +46,7 @@ pub trait Transition {
     }
 
     /// Apply modifications/wrapping to the resolve options context
+    #[turbo_tasks::function]
     fn process_resolve_options_context(
         self: Vc<Self>,
         resolve_options_context: Vc<ResolveOptionsContext>,
@@ -51,6 +55,7 @@ pub trait Transition {
     }
 
     /// Apply modifications/wrapping to the transition options
+    #[turbo_tasks::function]
     fn process_transition_options(
         self: Vc<Self>,
         transition_options: Vc<TransitionOptions>,
@@ -59,6 +64,7 @@ pub trait Transition {
     }
 
     /// Apply modifications/wrapping to the final asset
+    #[turbo_tasks::function]
     fn process_module(
         self: Vc<Self>,
         module: Vc<Box<dyn Module>>,
@@ -68,6 +74,7 @@ pub trait Transition {
     }
 
     /// Apply modifications to the context
+    #[turbo_tasks::function]
     async fn process_context(
         self: Vc<Self>,
         module_asset_context: Vc<ModuleAssetContext>,
@@ -92,6 +99,7 @@ pub trait Transition {
     }
 
     /// Apply modification on the processing of the asset
+    #[turbo_tasks::function]
     async fn process(
         self: Vc<Self>,
         asset: Vc<Box<dyn Source>>,

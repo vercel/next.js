@@ -82,8 +82,10 @@ impl BeforeResolvePluginCondition {
 
 #[turbo_tasks::value_trait]
 pub trait BeforeResolvePlugin {
+    #[turbo_tasks::function]
     fn before_resolve_condition(self: Vc<Self>) -> Vc<BeforeResolvePluginCondition>;
 
+    #[turbo_tasks::function]
     fn before_resolve(
         self: Vc<Self>,
         lookup_path: Vc<FileSystemPath>,
@@ -95,11 +97,13 @@ pub trait BeforeResolvePlugin {
 #[turbo_tasks::value_trait]
 pub trait AfterResolvePlugin {
     /// A condition which determines if the hooks gets called.
+    #[turbo_tasks::function]
     fn after_resolve_condition(self: Vc<Self>) -> Vc<AfterResolvePluginCondition>;
 
     /// This hook gets called when a full filepath has been resolved and the
     /// condition matches. If a value is returned it replaces the resolve
     /// result.
+    #[turbo_tasks::function]
     fn after_resolve(
         self: Vc<Self>,
         fs_path: Vc<FileSystemPath>,

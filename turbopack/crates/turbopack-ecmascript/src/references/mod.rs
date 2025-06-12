@@ -18,14 +18,20 @@ pub mod unreachable;
 pub mod util;
 pub mod worker;
 
-use std::{borrow::Cow, collections::BTreeMap, future::Future, mem::take, ops::Deref, sync::Arc};
+use std::{
+    borrow::Cow,
+    collections::BTreeMap,
+    future::Future,
+    mem::take,
+    ops::Deref,
+    sync::{Arc, LazyLock},
+};
 
 use anyhow::{Result, bail};
 use constant_condition::{ConstantConditionCodeGen, ConstantConditionValue};
 use constant_value::ConstantValueCodeGen;
 use either::Either;
 use indexmap::map::Entry;
-use lazy_static::lazy_static;
 use num_traits::Zero;
 use once_cell::sync::Lazy;
 use parking_lot::Mutex;
@@ -632,15 +638,14 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             if let Some(comments) = comments.get_leading(pos) {
                 for comment in comments.iter() {
                     if let CommentKind::Line = comment.kind {
-                        lazy_static! {
-                            static ref REFERENCE_PATH: Regex =
-                                Regex::new(r#"^/\s*<reference\s*path\s*=\s*["'](.+)["']\s*/>\s*$"#)
-                                    .unwrap();
-                            static ref REFERENCE_TYPES: Regex = Regex::new(
-                                r#"^/\s*<reference\s*types\s*=\s*["'](.+)["']\s*/>\s*$"#
-                            )
-                            .unwrap();
-                        }
+                        static REFERENCE_PATH: LazyLock<Regex> = LazyLock::new(|| {
+                            Regex::new(r#"^/\s*<reference\s*path\s*=\s*["'](.+)["']\s*/>\s*$"#)
+                                .unwrap()
+                        });
+                        static REFERENCE_TYPES: LazyLock<Regex> = LazyLock::new(|| {
+                            Regex::new(r#"^/\s*<reference\s*types\s*=\s*["'](.+)["']\s*/>\s*$"#)
+                                .unwrap()
+                        });
                         let text = &comment.text;
                         if let Some(m) = REFERENCE_PATH.captures(text) {
                             let path = &m[1];
@@ -673,10 +678,8 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             let mut paths_by_pos = Vec::new();
             for (pos, comments) in comments.trailing.iter() {
                 for comment in comments.iter().rev() {
-                    lazy_static! {
-                        static ref SOURCE_MAP_FILE_REFERENCE: Regex =
-                            Regex::new(r"# sourceMappingURL=(.*)$").unwrap();
-                    }
+                    static SOURCE_MAP_FILE_REFERENCE: LazyLock<Regex> =
+                        LazyLock::new(|| Regex::new(r"# sourceMappingURL=(.*)$").unwrap());
                     if let Some(m) = SOURCE_MAP_FILE_REFERENCE.captures(&comment.text) {
                         let path = m.get(1).unwrap().as_str();
                         paths_by_pos.push((pos, path));
@@ -687,10 +690,9 @@ pub(crate) async fn analyse_ecmascript_module_internal(
 
             let mut source_map_from_comment = false;
             if let Some((_, path)) = paths_by_pos.into_iter().max_by_key(|&(pos, _)| pos) {
-                lazy_static! {
-                    static ref JSON_DATA_URL_BASE64: Regex =
-                        Regex::new(r"^data:application\/json;(?:charset=utf-8;)?base64").unwrap();
-                }
+                static JSON_DATA_URL_BASE64: LazyLock<Regex> = LazyLock::new(|| {
+                    Regex::new(r"^data:application\/json;(?:charset=utf-8;)?base64").unwrap()
+                });
                 let origin_path = origin.origin_path();
                 if path.ends_with(".map") {
                     let source_map_origin = origin_path.parent().join(path.into());
@@ -2585,10 +2587,9 @@ async fn handle_free_var_reference(
                         ),
                         Default::default(),
                         match state.tree_shaking_mode {
-                            Some(TreeShakingMode::ModuleFragments)
-                            | Some(TreeShakingMode::ReexportsOnly) => {
-                                export.clone().map(ModulePart::export)
-                            }
+                            Some(
+                                TreeShakingMode::ModuleFragments | TreeShakingMode::ReexportsOnly,
+                            ) => export.clone().map(ModulePart::export),
                             None => None,
                         },
                         state.import_externals,
