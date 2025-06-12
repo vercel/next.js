@@ -85,7 +85,7 @@ trait CounterTrait {
 
 #[turbo_tasks::value_impl]
 impl CounterTrait for Counter {
-    #[turbo_tasks::function(invalidator)]
+    #[turbo_tasks::function]
     async fn get_value(&self) -> Result<Vc<CounterValue>> {
         let mut lock = self.value.lock().unwrap();
         lock.1 = Some(get_invalidator());
