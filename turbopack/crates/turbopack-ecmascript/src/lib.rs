@@ -91,8 +91,8 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
         AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext, EvaluatableAsset,
-        MergeableModule, MergeableModules, MergeableModulesExposed, MinifyType,
-        ModuleChunkItemIdExt, ModuleId,
+        MergeableModule, MergeableModuleExposure, MergeableModules, MergeableModulesExposed,
+        MinifyType, ModuleChunkItemIdExt, ModuleId,
     },
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
@@ -1063,7 +1063,10 @@ impl EcmascriptModuleContent {
     ///   merged module (used to determine execution order).
     #[turbo_tasks::function]
     pub async fn new_merged(
-        modules: Vec<(ResolvedVc<Box<dyn EcmascriptAnalyzable>>, bool)>,
+        modules: Vec<(
+            ResolvedVc<Box<dyn EcmascriptAnalyzable>>,
+            MergeableModuleExposure,
+        )>,
         module_options: Vec<Vc<EcmascriptModuleContentOptions>>,
         entries: Vec<ResolvedVc<Box<dyn EcmascriptAnalyzable>>>,
     ) -> Result<Vc<Self>> {
@@ -1156,8 +1159,15 @@ impl EcmascriptModuleContent {
         let first_entry = entries.first().unwrap().0;
         let additional_ids = modules
             .keys()
-            // Skip the first entry, which is the name of the chunk item
-            .filter(|m| **m != first_entry)
+            // Additionally set this module factory for all modules that are exposed. The whole
+            // group might be imported via a different entry import in different chunks (we only
+            // ensure that the modules are in the same order, not that they form a subgraph that is
+            // always imported from the same root module).
+            //
+            // Also skip the first entry, which is the name of the chunk item.
+            .filter(|m| {
+                **m != first_entry && *modules.get(*m).unwrap() == MergeableModuleExposure::External
+            })
             .map(|m| {
                 m.chunk_item_id(*last_options.chunking_context)
                     .to_resolved()
@@ -1422,7 +1432,8 @@ pub enum ScopeHoistingContext<'a> {
         /// The current module when scope hoisting
         module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
         /// All modules in the current group, and whether they should expose their exports
-        modules: &'a FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, bool>,
+        modules:
+            &'a FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, MergeableModuleExposure>,
         /// To import a specifier from another module, apply this context to the Ident
         module_syntax_contexts:
             &'a FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, SyntaxContext>,
@@ -1444,7 +1455,7 @@ impl<'a> ScopeHoistingContext<'a> {
         match self {
             ScopeHoistingContext::Some {
                 module, modules, ..
-            } => !(*modules.get(module).unwrap()),
+            } => !modules.get(module).unwrap().is_exposed(),
             ScopeHoistingContext::None => false,
         }
     }
@@ -1488,7 +1499,7 @@ struct CodeGenResult {
 
 struct ScopeHoistingOptions<'a> {
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
-    modules: &'a FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, bool>,
+    modules: &'a FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, MergeableModuleExposure>,
 }
 
 async fn process_parse_result(

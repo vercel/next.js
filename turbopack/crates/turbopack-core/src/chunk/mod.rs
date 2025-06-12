@@ -109,23 +109,6 @@ impl ChunkableModules {
     }
 }
 
-#[turbo_tasks::value(shared)]
-pub enum MergeableModuleResult {
-    Merged {
-        merged_module: ResolvedVc<Box<dyn ChunkableModule>>,
-        consumed: u32,
-        skipped: u32,
-    },
-    NotMerged,
-}
-#[turbo_tasks::value_impl]
-impl MergeableModuleResult {
-    #[turbo_tasks::function]
-    pub fn not_merged() -> Vc<Self> {
-        MergeableModuleResult::NotMerged.cell()
-    }
-}
-
 /// A [Module] that can be merged with other [Module]s (to perform scope hoisting)
 // TODO currently this is only used for ecmascript modules, and with the current API cannot be used
 // with other module types (as a MergeableModule cannot prevent itself from being merged with other
@@ -159,13 +142,53 @@ impl MergeableModules {
     }
 }
 
+/// Whether a given module needs to be exposed (depending on how it is imported by other modules)
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    TaskInput,
+    Hash,
+)]
+pub enum MergeableModuleExposure {
+    // Only individual export of this module are used, and only within this group.
+    None,
+    // Individual exports and the namespace object of this module are used, but only within this
+    // group.
+    Internal,
+    // The exports of this module are read from outside this group.
+    External,
+}
+
+impl MergeableModuleExposure {
+    pub fn is_exposed(&self) -> bool {
+        self != &MergeableModuleExposure::None
+    }
+}
+
 #[turbo_tasks::value(transparent)]
-pub struct MergeableModulesExposed(Vec<(ResolvedVc<Box<dyn MergeableModule>>, bool)>);
+pub struct MergeableModulesExposed(
+    Vec<(
+        ResolvedVc<Box<dyn MergeableModule>>,
+        MergeableModuleExposure,
+    )>,
+);
 
 #[turbo_tasks::value_impl]
 impl MergeableModulesExposed {
     #[turbo_tasks::function]
-    pub fn interned(modules: Vec<(ResolvedVc<Box<dyn MergeableModule>>, bool)>) -> Vc<Self> {
+    pub fn interned(
+        modules: Vec<(
+            ResolvedVc<Box<dyn MergeableModule>>,
+            MergeableModuleExposure,
+        )>,
+    ) -> Vc<Self> {
         Vc::cell(modules)
     }
 }

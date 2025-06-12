@@ -2,7 +2,10 @@ use anyhow::Result;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
+    chunk::{
+        AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext,
+        MergeableModuleExposure,
+    },
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
@@ -16,14 +19,20 @@ use crate::{
 
 #[turbo_tasks::value(shared)]
 pub(crate) struct MergedEcmascriptModule {
-    modules: Vec<(ResolvedVc<Box<dyn EcmascriptAnalyzable>>, bool)>,
+    modules: Vec<(
+        ResolvedVc<Box<dyn EcmascriptAnalyzable>>,
+        MergeableModuleExposure,
+    )>,
     entries: Vec<ResolvedVc<Box<dyn EcmascriptAnalyzable>>>,
     options: ResolvedVc<EcmascriptOptions>,
 }
 
 impl MergedEcmascriptModule {
     pub fn new(
-        modules: Vec<(ResolvedVc<Box<dyn EcmascriptAnalyzable>>, bool)>,
+        modules: Vec<(
+            ResolvedVc<Box<dyn EcmascriptAnalyzable>>,
+            MergeableModuleExposure,
+        )>,
         entries: Vec<ResolvedVc<Box<dyn EcmascriptAnalyzable>>>,
         options: ResolvedVc<EcmascriptOptions>,
     ) -> ResolvedVc<Self> {

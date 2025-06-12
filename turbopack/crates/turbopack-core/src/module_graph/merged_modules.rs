@@ -10,7 +10,8 @@ use turbo_tasks::{
 
 use crate::{
     chunk::{
-        ChunkableModule, ChunkingType, MergeableModule, MergeableModules, MergeableModulesExposed,
+        ChunkableModule, ChunkingType, MergeableModule, MergeableModuleExposure, MergeableModules,
+        MergeableModulesExposed,
     },
     module::Module,
     module_graph::{
@@ -331,7 +332,9 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         // Modules that are referenced from outside the group, so their exports need to be exposed.
         // Initially these are set based on the bitmaps (and namespace imports), but more modules
         // might need to be exposed if the lists are split up further below.
-        let mut exposed_modules: FxHashSet<ResolvedVc<Box<dyn Module>>> =
+        let mut exposed_modules_imported: FxHashSet<ResolvedVc<Box<dyn Module>>> =
+            FxHashSet::with_capacity_and_hasher(module_merged_groups.len(), Default::default());
+        let mut exposed_modules_namespace: FxHashSet<ResolvedVc<Box<dyn Module>>> =
             FxHashSet::with_capacity_and_hasher(module_merged_groups.len(), Default::default());
 
         module_graph
@@ -354,17 +357,20 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                         }
                     }
 
-                    if parent_info.is_none_or(|(parent, r)| {
-                        (module_merged_groups.get(&parent.module).unwrap()
-                            != module_merged_groups.get(&module).unwrap())
-                            || matches!(r.export, ExportUsage::All)
+                    if parent_info.is_none_or(|(parent, _)| {
+                        module_merged_groups.get(&parent.module).unwrap()
+                            != module_merged_groups.get(&module).unwrap()
                     }) {
                         // This module needs to be exposed:
                         // - referenced from another group or
-                        // - a namespace import or an entry module or
                         // - an entry module (TODO assume it will be required for Node/Edge, but not
                         // necessarily needed for browser),
-                        exposed_modules.insert(module);
+                        exposed_modules_imported.insert(module);
+                    }
+                    if parent_info.is_some_and(|(_, r)| matches!(r.export, ExportUsage::All)) {
+                        // This module needs to be exposed:
+                        // - namespace import from another group
+                        exposed_modules_namespace.insert(module);
                     }
                 },
             )
@@ -440,7 +446,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 for m in &common_list {
                     let m = ResolvedVc::upcast(*m);
                     if let Some(refs) = intra_group_references.get(&m) {
-                        exposed_modules.extend(
+                        exposed_modules_imported.extend(
                             before_list
                                 .iter()
                                 .map(|n| ResolvedVc::upcast(*n))
@@ -451,7 +457,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 for m in &after_list {
                     let m = ResolvedVc::upcast(*m);
                     if let Some(refs) = intra_group_references.get(&m) {
-                        exposed_modules.extend(
+                        exposed_modules_imported.extend(
                             before_list
                                 .iter()
                                 .chain(common_list.iter())
@@ -503,7 +509,10 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                     .map(|&m| ResolvedVc::upcast::<Box<dyn Module>>(m))
                     .collect::<FxIndexSet<_>>();
 
-                // Group entries are not referenced by any other module in the group
+                // Group entries are not referenced by any other module in the group. This list is
+                // needed because the merged module is created by recursively inlining modules when
+                // they are imported, but this process has to start somewhere (= with these
+                // entries).
                 let entries = list
                     .iter()
                     .filter(|m| {
@@ -517,7 +526,18 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
 
                 let list_exposed = list
                     .iter()
-                    .map(|&m| (m, exposed_modules.contains(&ResolvedVc::upcast(m))))
+                    .map(|&m| {
+                        (
+                            m,
+                            if exposed_modules_imported.contains(&ResolvedVc::upcast(m)) {
+                                MergeableModuleExposure::External
+                            } else if exposed_modules_namespace.contains(&ResolvedVc::upcast(m)) {
+                                MergeableModuleExposure::Internal
+                            } else {
+                                MergeableModuleExposure::None
+                            },
+                        )
+                    })
                     .collect::<Vec<_>>();
 
                 let entry = *list.last().unwrap();
