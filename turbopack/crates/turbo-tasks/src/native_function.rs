@@ -144,6 +144,10 @@ pub struct FunctionMeta {
     /// task-local state. The function call itself will not be cached, but cells will be created on
     /// the parent task.
     pub local: bool,
+
+    /// If true, the function will be allowed to call `get_invalidator` . If this is false, the
+    /// `get_invalidator` function will panic on calls.
+    pub invalidator: bool,
 }
 
 /// A native (rust) turbo-tasks function. It's used internally by
@@ -235,7 +239,14 @@ impl NativeFunction {
     /// Executed the function
     pub fn execute(&'static self, this: Option<RawVc>, arg: &dyn MagicAny) -> NativeTaskFuture {
         match (self.implementation).functor(this, arg) {
-            Ok(functor) => functor,
+            Ok(functor) => {
+                #[cfg(debug_assertions)]
+                if self.function_meta.invalidator {
+                    return Box::pin(crate::invalidation::allow_invalidator(functor));
+                }
+
+                functor
+            }
             Err(err) => Box::pin(async { Err(err) }),
         }
     }
