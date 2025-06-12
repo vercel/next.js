@@ -34,5 +34,37 @@ const config: StorybookConfig = {
       },
     },
   }),
+  webpackFinal: async (config) => {
+    // Exclude tailwind.css from all existing CSS rules
+    config.module?.rules?.forEach((rule) => {
+      if (
+        rule &&
+        typeof rule === 'object' &&
+        'test' in rule &&
+        rule.test?.toString().includes('css')
+      ) {
+        rule.exclude = rule.exclude
+          ? [rule.exclude, /tailwind\.css$/].flat()
+          : /tailwind\.css$/
+      }
+    })
+
+    // Add our custom rule for tailwind.css
+    config.module?.rules?.push({
+      test: /tailwind\.css$/,
+      use: [
+        {
+          loader: 'style-loader',
+          options: {
+            injectType: 'lazyStyleTag',
+            insert: require.resolve('../next-devtools-inject-tailwind.js'),
+          },
+        },
+        'css-loader',
+        'postcss-loader',
+      ],
+    })
+    return config
+  },
 }
 export default config
