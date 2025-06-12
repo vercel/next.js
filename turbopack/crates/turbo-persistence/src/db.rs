@@ -1,5 +1,6 @@
 use std::{
     any::{Any, TypeId},
+    borrow::Cow,
     collections::HashSet,
     fs::{self, File, OpenOptions, ReadDir},
     io::{BufWriter, Write},
@@ -1050,7 +1051,7 @@ impl TurboPersistence {
                     let index_in_meta = ssts_with_ranges[index].index_in_meta;
                     let meta_file = &meta_files[meta_index];
                     let entry = meta_file.entry(index_in_meta);
-                    let aqmf = entry.raw_aqmf(meta_file.aqmf_data()).to_vec();
+                    let aqmf = Cow::Borrowed(entry.raw_aqmf(meta_file.aqmf_data()));
                     let meta = StaticSortedFileBuilderMeta {
                         min_hash: entry.min_hash(),
                         max_hash: entry.max_hash(),
