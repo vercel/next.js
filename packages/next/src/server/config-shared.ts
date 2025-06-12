@@ -768,6 +768,11 @@ export interface ExperimentalConfig {
          */
         showSourceLocation?: boolean
       }
+
+  /**
+   * Enable accessing root params via the `next/root-params` module.
+   */
+  rootParams?: boolean
 }
 
 export type ExportPathMap = {
