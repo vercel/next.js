@@ -300,12 +300,12 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
             #[doc(hidden)]
             #[allow(non_snake_case)]
             pub(crate) fn #register(value: &mut turbo_tasks::ValueType) {
-                let fat_pointer: *const dyn #trait_path = std::ptr::null::<#ty>() as *const dyn #trait_path;
+                // NOTE(lukesandberg): This relies on the nightly ptr_metadata feature.  Alternatively
+                // we could generate a function that does the downcasting and pass that up to register_trait.
+                // This would avoid the nightly feature.
+                let fat_pointer: *const dyn #trait_path = ::std::ptr::null::<#ty>() as *const dyn #trait_path;
                 let metadata = turbo_tasks::macro_helpers::metadata(fat_pointer);
-                value.register_trait(
-                    <Box<dyn #trait_path> as turbo_tasks::VcValueTrait>::get_trait_type_id(),
-                    metadata
-                );
+                value.register_trait(metadata);
                 #(#trait_registers)*
             }
 

@@ -38,7 +38,7 @@ pub struct ValueType {
     /// A readable name of the type
     pub name: String,
     /// Set of traits available along with their vtabls.
-    pub traits: AutoMap<TraitTypeId, DynMetadata<dyn Any + Send + Sync>>,
+    pub traits: AutoMap<TraitTypeId, Box<dyn Any + Send + Sync>>,
     /// List of trait methods available
     pub trait_methods: AutoMap<(TraitTypeId, Cow<'static, str>), FunctionId>,
 
@@ -181,38 +181,28 @@ impl ValueType {
     }
 
     /// This is internally used by `#[turbo_tasks::value_impl]`
-    pub fn register_trait<T: ?Sized>(
-        &mut self,
-        trait_type: TraitTypeId,
-        meta: std::ptr::DynMetadata<T>,
-    ) where
+    pub fn register_trait<T: ?Sized>(&mut self, meta: std::ptr::DynMetadata<T>)
+    where
         Box<T>: VcValueTrait,
     {
-        let meta = unsafe {
-            // Safety: DynMetadata does not store T. (And it can't, because T of DynMetadata is
-            // not Sized)
-            std::mem::transmute::<DynMetadata<T>, DynMetadata<dyn Any + Send + Sync>>(meta)
-        };
-
-        self.traits.insert(trait_type, meta);
+        self.traits.insert(
+            <Box<T> as VcValueTrait>::get_trait_type_id(),
+            Box::new(meta),
+        );
     }
 
     /// Composes a fat pointer from a `dyn Any` for the given trait_id
-    pub(crate) fn as_trait_ptr<T>(
-        &self,
-        trait_type: TraitTypeId,
-        ptr: *const (dyn Any + Send + Sync),
-    ) -> *const T
+    pub(crate) fn as_trait_ptr<T>(&self, ptr: *const (dyn Any + Send + Sync)) -> *const T
     where
         T: std::ptr::Pointee<Metadata = std::ptr::DynMetadata<T>> + ?Sized,
+        Box<T>: VcValueTrait,
     {
-        let vtable = *self.traits.get(&trait_type).unwrap();
-        let vtable = unsafe {
-            // Safety: DynMetadata does not store T. (And it can't, because T of DynMetadata is
-            // not Sized)
-            std::mem::transmute::<DynMetadata<dyn Any + Send + Sync>, DynMetadata<T>>(vtable)
-        };
-        std::ptr::from_raw_parts::<T>(ptr as *const (), vtable)
+        let trait_type = <Box<T> as VcValueTrait>::get_trait_type_id();
+        // It is a bug in the caller if they pass a
+        let vtable = self.traits.get(&trait_type).unwrap();
+        let typed_vtable = vtable.downcast_ref::<DynMetadata<T>>().unwrap();
+
+        std::ptr::from_raw_parts::<T>(ptr as *const (), *typed_vtable)
     }
 
     pub fn has_trait(&self, trait_type: &TraitTypeId) -> bool {

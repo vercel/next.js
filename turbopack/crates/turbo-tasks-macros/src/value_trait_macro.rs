@@ -107,6 +107,8 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                         }
                         FnArg::Typed(pat) => match &*pat.pat {
                             Pat::Ident(pat_ident) => &pat_ident.ident,
+                            // We could support more complex patterns without too much effort just
+                            // as we do for normal functions.  For now we just disallow them.
                             _ => {
                                 pat.span()
                                     .unwrap()
