@@ -1100,12 +1100,10 @@ export default class Router implements BaseRouter {
 
       for (const { as: curAs, allowMatchCurrent } of pathsToCheck) {
         if (curAs) {
-          const asNoSlash = removeTrailingSlash(
-            new URL(curAs, 'http://n').pathname
+          const asNoSlash = removeBasePath(
+            removeTrailingSlash(new URL(curAs, 'http://n').pathname)
           )
-          const asNoSlashLocale = addBasePath(
-            addLocale(asNoSlash, locale || this.locale)
-          )
+          const asNoSlashLocale = addLocale(asNoSlash, locale || this.locale)
 
           if (
             allowMatchCurrent ||
@@ -1141,9 +1139,7 @@ export default class Router implements BaseRouter {
                 return true
               }
               handleHardNavigation({
-                url: addBasePath(
-                  addLocale(as, locale || this.locale, this.defaultLocale)
-                ),
+                url: addLocale(as, locale || this.locale, this.defaultLocale),
                 router: this,
               })
               return new Promise(() => {})
