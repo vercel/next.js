@@ -1,8 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { DevToolsIndicator } from './devtools-indicator'
-import { withShadowPortal } from '../../storybook/with-shadow-portal'
-import type { VersionInfo } from '../../../../server/dev/parse-version-info'
 import type { OverlayState } from '../../shared'
+
+import { DevToolsIndicator } from './devtools-indicator'
+import { INITIAL_OVERLAY_STATE } from '../../shared'
+import { withShadowPortal } from '../../storybook/with-shadow-portal'
 
 const meta: Meta<typeof DevToolsIndicator> = {
   component: DevToolsIndicator,
@@ -38,44 +39,15 @@ const meta: Meta<typeof DevToolsIndicator> = {
 export default meta
 type Story = StoryObj<typeof DevToolsIndicator>
 
-// Mock version info for stories
-const mockVersionInfo: VersionInfo = {
-  installed: '15.1.2',
-  staleness: 'stale-major',
-}
-
 const state: OverlayState = {
+  ...INITIAL_OVERLAY_STATE,
   routerType: 'app',
-  nextId: 1,
-  buildError: null,
-  errors: [],
-  refreshState: { type: 'idle' },
-  disableDevIndicator: false,
-  showIndicator: true,
-  versionInfo: mockVersionInfo,
-  notFound: false,
-  buildingIndicator: false,
-  renderingIndicator: false,
-  staticIndicator: true,
-  debugInfo: { devtoolsFrontendUrl: undefined },
   isErrorOverlayOpen: false,
 }
 
-export const StaticRoute: Story = {
+export const Default: Story = {
   args: {
-    errorCount: 0,
     state,
-    dispatch: () => {},
-  },
-}
-
-export const DynamicRoute: Story = {
-  args: {
-    errorCount: 0,
-    state: {
-      ...state,
-      staticIndicator: false,
-    },
     dispatch: () => {},
   },
 }
