@@ -180,7 +180,7 @@ impl ValueType {
     }
 
     /// This is internally used by `#[turbo_tasks::value_impl]`
-    pub fn register_trait<T: ?Sized>(&mut self, trait_type: TraitTypeId) {
+    pub fn register_trait(&mut self, trait_type: TraitTypeId) {
         self.traits.insert(trait_type);
     }
 

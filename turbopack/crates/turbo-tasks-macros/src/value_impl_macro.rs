@@ -302,7 +302,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
             #[doc(hidden)]
             #[allow(non_snake_case)]
             pub(crate) fn #register_trait_methods(value: &mut turbo_tasks::ValueType) {
-                // value.register_trait(<Box<dyn #trait_path> as turbo_tasks::VcValueTrait>::get_trait_type_id());
+                value.register_trait(<Box<dyn #trait_path> as turbo_tasks::VcValueTrait>::get_trait_type_id());
                 #(#trait_registers)*
             }
             #[doc(hidden)]
