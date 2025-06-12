@@ -706,5 +706,10 @@
   "705": "Route is configured with dynamic = error that cannot be statically generated.",
   "706": "Invariant: static responses cannot be streamed %s",
   "707": "Invariant app-page handler received invalid cache entry %s",
-  "708": "Failed to persist Chrome DevTools workspace UUID. The Chrome DevTools Workspace needs to be reconnected after the next page reload."
+  "708": "Failed to persist Chrome DevTools workspace UUID. The Chrome DevTools Workspace needs to be reconnected after the next page reload.",
+  "709": "Route %s used %s inside \\`\"use cache\"\\` or \\`unstable_cache\\`. Support for this API inside cache scopes is planned for a future version of Next.js.",
+  "710": "%s must not be used within a client component. Next.js should be preventing it from being included in client components statically, but did not in this case.",
+  "711": "Route %s used %s in Pages Router. This API is only available within App Router.",
+  "712": "\\`unstable_rootParams\\` must not be used within a client component. Next.js should be preventing it from being included in client components statically, but did not in this case.",
+  "713": "Missing workStore in %s"
 }

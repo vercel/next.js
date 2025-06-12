@@ -51,6 +51,8 @@
     "amp.d.ts",
     "og.js",
     "og.d.ts",
+    "root-params.js",
+    "root-params.d.ts",
     "types.d.ts",
     "types.js",
     "index.d.ts",
