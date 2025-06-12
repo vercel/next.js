@@ -36,7 +36,7 @@ const singletonRouter: SingletonRouterBase = {
 
 // Create public properties and methods of the router in the singletonRouter
 const urlPropertyFields = [
-  // 'pathname',
+  'pathname',
   'route',
   'query',
   'asPath',
@@ -86,19 +86,6 @@ function getRouter(): Router {
   }
   return singletonRouter.router
 }
-
-urlPropertyFields.forEach((field) => {
-  // Here we need to use Object.defineProperty because we need to return
-  // the property assigned to the actual router
-  // The value might get changed as we change routes and this is the
-  // proper way to access it
-  Object.defineProperty(singletonRouter, field, {
-    get() {
-      const router = getRouter()
-      return router[field] as string
-    },
-  })
-})
 
 coreMethodFields.forEach((field) => {
   // We don't really know the types here, so we add them later instead
