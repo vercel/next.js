@@ -64,22 +64,24 @@ This will ensure the page does not de-opt to client-side rendering.
 
 ## Debugging Steps
 If you encounter a CSR bailout but cannot identify the source, the issue may stem from a provider or parent component rather than the page itself. Follow these steps to debug:
-Check for the Error Message: Look for the Next.js warning in the console, such as A client component is reading search params without a Suspense boundary. This indicates a CSR bailout.
 
-### 1. Inspect the Component Tree:
+### 1. Check for the Error Message: 
+- Look for the Next.js warning in the console, such as A client component is reading search params without a Suspense boundary. This indicates a CSR bailout.
+
+### 2. Inspect the Component Tree:
 - Review your page and layout components for direct calls to `useSearchParams()`.
 - Check for providers (e.g., `QueryClientProvider`, custom context providers) that might internally call `useSearchParams()`.
 - Use React Developer Tools to inspect the component hierarchy and identify where `useSearchParams()` is used.
 
-### 2. Search for `useSearchParams` Usage:
+### 3. Search for `useSearchParams` Usage:
 - Run a global search in your codebase for `useSearchParams` to locate all instances.
 - Verify that each usage is wrapped in a `<Suspense>` boundary.
 
-### 3. Test with Incremental Suspense:
+### 4. Test with Incremental Suspense:
 - Temporarily wrap individual components or providers in `<Suspense>` boundaries to isolate the problematic component.
 - Example: If a provider in layout.tsx is suspected, wrap it in `<Suspense>` and observe if the bailout resolves.
 
-### 4. Check Third-Party Libraries:
+### 5. Check Third-Party Libraries:
 - Some libraries (e.g., query or state management libraries like `nuqs`) may internally use `useSearchParams()`. Check their documentation or source code.
 - Ensure the library’s provider is wrapped in `<Suspense>` if it relies on `useSearchParams()`.
 
