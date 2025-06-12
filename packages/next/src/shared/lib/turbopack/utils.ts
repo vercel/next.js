@@ -63,10 +63,69 @@ export class TurbopackInternalError extends Error {
 export function isWellKnownError(issue: Issue): boolean {
   const { title } = issue
   const formattedTitle = renderStyledStringToErrorAnsi(title)
-  // TODO: add more well known errors
+
+  // Module resolution errors
   if (
     formattedTitle.includes('Module not found') ||
-    formattedTitle.includes('Unknown module type')
+    formattedTitle.includes('Unknown module type') ||
+    formattedTitle.includes("Can't resolve") ||
+    formattedTitle.includes('Failed to resolve module')
+  ) {
+    return true
+  }
+
+  // Syntax errors
+  if (
+    formattedTitle.includes('Syntax error') ||
+    formattedTitle.includes('Unexpected token') ||
+    formattedTitle.includes('Parsing error')
+  ) {
+    return true
+  }
+
+  // Import/Export errors
+  if (
+    formattedTitle.includes('Invalid import') ||
+    formattedTitle.includes('Invalid export') ||
+    formattedTitle.includes('Unexpected export') ||
+    formattedTitle.includes('Unexpected import')
+  ) {
+    return true
+  }
+
+  // Build configuration errors
+  if (
+    formattedTitle.includes('Invalid webpack configuration') ||
+    formattedTitle.includes('Invalid resolve alias') ||
+    formattedTitle.includes('Invalid loader configuration')
+  ) {
+    return true
+  }
+
+  // Type errors
+  if (
+    formattedTitle.includes('Type error') ||
+    formattedTitle.includes('Type mismatch') ||
+    formattedTitle.includes('Type checking failed')
+  ) {
+    return true
+  }
+
+  // CSS/SCSS errors
+  if (
+    formattedTitle.includes('CSS syntax error') ||
+    formattedTitle.includes('SCSS syntax error') ||
+    formattedTitle.includes('Invalid CSS')
+  ) {
+    return true
+  }
+
+  // Next.js specific errors
+  if (
+    formattedTitle.includes('Invalid page configuration') ||
+    formattedTitle.includes('Invalid API route') ||
+    formattedTitle.includes('Invalid middleware') ||
+    formattedTitle.includes('Invalid app directory')
   ) {
     return true
   }
