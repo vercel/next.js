@@ -34,7 +34,7 @@ export function RestartServerButton({ error }: { error: Error }) {
   function handleClick() {
     let endpoint = '/__nextjs_restart_dev'
 
-    if (process.env.__NEXT_TURBOPACK_PERSISTENT_CACHE) {
+    if (process.env.__NEXT_BUNDLER_HAS_PERSISTENT_CACHE) {
       endpoint = '/__nextjs_restart_dev?invalidatePersistentCache'
     }
 
@@ -52,7 +52,7 @@ export function RestartServerButton({ error }: { error: Error }) {
       className="restart-dev-server-button"
       onClick={handleClick}
       title={
-        process.env.__NEXT_TURBOPACK_PERSISTENT_CACHE
+        process.env.__NEXT_BUNDLER_HAS_PERSISTENT_CACHE
           ? 'Clears the bundler cache and restarts the dev server. Helpful if you are seeing stale errors or changes are not appearing.'
           : 'Restarts the development server without needing to leave the browser.'
       }
