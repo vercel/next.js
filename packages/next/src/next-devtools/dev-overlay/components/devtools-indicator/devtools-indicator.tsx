@@ -3,8 +3,8 @@ import type { OverlayState, OverlayDispatch } from '../../shared'
 import type { DevToolsScale } from '../errors/dev-tools-indicator/dev-tools-info/preferences'
 
 import { useState, useRef } from 'react'
+import { NextLogo } from './next-logo'
 import { Toast } from '../toast'
-import { NextLogo } from '../errors/dev-tools-indicator/next-logo'
 import {
   MENU_CURVE,
   MENU_DURATION_MS,
