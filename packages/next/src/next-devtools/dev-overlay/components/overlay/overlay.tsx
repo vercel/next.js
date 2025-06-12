@@ -10,7 +10,6 @@ export type OverlayProps = {
 const Overlay: React.FC<OverlayProps> = function Overlay({
   className,
   children,
-  fixed,
   ...props
 }) {
   React.useEffect(() => {
@@ -22,10 +21,6 @@ const Overlay: React.FC<OverlayProps> = function Overlay({
 
   return (
     <div data-nextjs-dialog-overlay className={className} {...props}>
-      <div
-        data-nextjs-dialog-backdrop
-        data-nextjs-dialog-backdrop-fixed={fixed ? true : undefined}
-      />
       {children}
     </div>
   )
