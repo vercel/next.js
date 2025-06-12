@@ -44,7 +44,7 @@ export function DevOverlay({
                     dispatch={dispatch}
                     errorCount={totalErrorCount}
                     isBuildError={isBuildError}
-                  ></DevToolsIndicatorNew>
+                  />
                 ) : (
                   <DevToolsIndicator
                     scale={scale}
