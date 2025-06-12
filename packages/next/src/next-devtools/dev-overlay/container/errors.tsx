@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, Suspense } from 'react'
 import type { DebugInfo } from '../../shared/types'
-import { Overlay } from '../components/overlay'
+import { Overlay, OverlayBackdrop } from '../components/overlay'
 import { RuntimeError } from './runtime-error'
 import { getErrorSource } from '../../../shared/lib/error-source'
 import { HotlinkedText } from '../components/hot-linked-text'
@@ -139,7 +139,11 @@ export function Errors({
 
   if (isLoading) {
     // TODO: better loading state
-    return <Overlay />
+    return (
+      <Overlay>
+        <OverlayBackdrop />
+      </Overlay>
+    )
   }
 
   if (!activeError) {
