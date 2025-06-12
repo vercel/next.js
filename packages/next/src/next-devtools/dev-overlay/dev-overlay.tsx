@@ -6,12 +6,12 @@ import { ComponentStyles } from './styles/component-styles'
 import { CssReset } from './styles/css-reset'
 import { Colors } from './styles/colors'
 import { ErrorOverlay } from './components/errors/error-overlay/error-overlay'
-import { DevToolsIndicator } from './components/devtools-indicator/dev-tools-indicator'
+import { DevToolsIndicator } from './components/devtools-indicator/devtools-indicator'
 import { RenderError } from './container/runtime-error/render-error'
 import { DarkTheme } from './styles/dark-theme'
 import { useDevToolsScale } from './components/errors/dev-tools-indicator/dev-tools-info/preferences'
 import type { HydrationErrorState } from '../shared/hydration-error'
-import { DevToolsIndicator as DevToolsIndicatorNew } from './components/devtools-indicator/dev-tools-indicator'
+import { DevToolsIndicator as DevToolsIndicatorNew } from './components/devtools-indicator/devtools-indicator'
 
 export function DevOverlay({
   state,

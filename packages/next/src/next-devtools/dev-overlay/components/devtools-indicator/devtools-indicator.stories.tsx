@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { DevToolsIndicator } from './dev-tools-indicator'
+import { DevToolsIndicator } from './devtools-indicator'
 import { withShadowPortal } from '../../storybook/with-shadow-portal'
 import type { VersionInfo } from '../../../../server/dev/parse-version-info'
 import type { OverlayState } from '../../shared'
