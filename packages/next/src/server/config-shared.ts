@@ -699,6 +699,11 @@ export interface ExperimentalConfig {
    * Enable segment viewer for the app directory in dev tool.
    */
   devtoolSegmentExplorer?: boolean
+
+  /**
+   * Enable accessing root params via the `next/root-params` module.
+   */
+  rootParams?: boolean
 }
 
 export type ExportPathMap = {
