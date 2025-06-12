@@ -1,7 +1,6 @@
 export type OverlayBackDropProps = {
-  className?: string
   fixed?: boolean
-}
+} & React.HTMLAttributes<HTMLDivElement>
 
 export function OverlayBackdrop({ fixed, ...props }: OverlayBackDropProps) {
   return (
