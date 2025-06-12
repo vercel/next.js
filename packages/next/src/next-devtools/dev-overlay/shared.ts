@@ -50,7 +50,7 @@ export const ACTION_BUILDING_INDICATOR_SHOW = 'building-indicator-show'
 export const ACTION_BUILDING_INDICATOR_HIDE = 'building-indicator-hide'
 export const ACTION_RENDERING_INDICATOR_SHOW = 'rendering-indicator-show'
 export const ACTION_RENDERING_INDICATOR_HIDE = 'rendering-indicator-hide'
-export const ACTION_DEV_TOOLS_PANEL_TOGGLE = 'dev-tools-panel-toggle'
+export const ACTION_DEVTOOLS_PANEL_TOGGLE = 'dev-tools-panel-toggle'
 
 export const STORAGE_KEY_THEME = '__nextjs-dev-tools-theme'
 export const STORAGE_KEY_POSITION = '__nextjs-dev-tools-position'
@@ -124,7 +124,7 @@ export interface RenderingIndicatorHideAction {
 }
 
 export interface DevToolsPanelToggleAction {
-  type: typeof ACTION_DEV_TOOLS_PANEL_TOGGLE
+  type: typeof ACTION_DEVTOOLS_PANEL_TOGGLE
 }
 
 export type DispatcherEvent =
@@ -347,7 +347,7 @@ export function useErrorOverlayReducer(
         case ACTION_RENDERING_INDICATOR_HIDE: {
           return { ...state, renderingIndicator: false }
         }
-        case ACTION_DEV_TOOLS_PANEL_TOGGLE: {
+        case ACTION_DEVTOOLS_PANEL_TOGGLE: {
           return { ...state, isDevToolsPanelOpen: !state.isDevToolsPanelOpen }
         }
         default: {
