@@ -561,10 +561,15 @@ function fetchNextData({
         })
       })
       .then((data) => {
+        const isExistxMiddlewareCacheValue = 
+        data.response.headers.get('x-middleware-cache')
+          .split(',')
+          .map(v => v.trim())
+          .some(v => ['private', 'no-cache', 'no-store', 'max-age=0', 'must-revalidate'].includes(v))
         if (
           !persistCache ||
           process.env.NODE_ENV !== 'production' ||
-          data.response.headers.get('x-middleware-cache') === 'no-cache'
+          isExistxMiddlewareCacheValue
         ) {
           delete inflightCache[cacheKey]
         }
