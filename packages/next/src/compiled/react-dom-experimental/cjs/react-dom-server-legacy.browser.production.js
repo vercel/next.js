@@ -726,14 +726,28 @@ function flattenOptionChildren(children) {
   return content;
 }
 function injectFormReplayingRuntime(resumableState, renderState) {
-  0 !== (resumableState.instructions & 16) ||
-    renderState.externalRuntimeScript ||
-    ((resumableState.instructions |= 16),
-    renderState.bootstrapChunks.unshift(
-      renderState.startInlineScript,
-      'addEventListener("submit",function(a){if(!a.defaultPrevented){var c=a.target,d=a.submitter,e=c.action,b=d;if(d){var f=d.getAttribute("formAction");null!=f&&(e=f,b=null)}"javascript:throw new Error(\'React form unexpectedly submitted.\')"===e&&(a.preventDefault(),b?(a=document.createElement("input"),a.name=b.name,a.value=b.value,b.parentNode.insertBefore(a,b),b=new FormData(c),a.parentNode.removeChild(a)):b=new FormData(c),a=c.ownerDocument||c,(a.$$reactFormReplay=a.$$reactFormReplay||[]).push(c,d,b))}});',
-      "\x3c/script>"
-    ));
+  if (
+    0 === (resumableState.instructions & 16) &&
+    !renderState.externalRuntimeScript
+  ) {
+    resumableState.instructions |= 16;
+    var preamble = renderState.preamble,
+      bootstrapChunks = renderState.bootstrapChunks;
+    (preamble.htmlChunks || preamble.headChunks) && 0 === bootstrapChunks.length
+      ? (bootstrapChunks.push(renderState.startInlineScript),
+        pushCompletedShellIdAttribute(bootstrapChunks, resumableState),
+        bootstrapChunks.push(
+          ">",
+          'addEventListener("submit",function(a){if(!a.defaultPrevented){var c=a.target,d=a.submitter,e=c.action,b=d;if(d){var f=d.getAttribute("formAction");null!=f&&(e=f,b=null)}"javascript:throw new Error(\'React form unexpectedly submitted.\')"===e&&(a.preventDefault(),b?(a=document.createElement("input"),a.name=b.name,a.value=b.value,b.parentNode.insertBefore(a,b),b=new FormData(c),a.parentNode.removeChild(a)):b=new FormData(c),a=c.ownerDocument||c,(a.$$reactFormReplay=a.$$reactFormReplay||[]).push(c,d,b))}});',
+          "\x3c/script>"
+        ))
+      : bootstrapChunks.unshift(
+          renderState.startInlineScript,
+          ">",
+          'addEventListener("submit",function(a){if(!a.defaultPrevented){var c=a.target,d=a.submitter,e=c.action,b=d;if(d){var f=d.getAttribute("formAction");null!=f&&(e=f,b=null)}"javascript:throw new Error(\'React form unexpectedly submitted.\')"===e&&(a.preventDefault(),b?(a=document.createElement("input"),a.name=b.name,a.value=b.value,b.parentNode.insertBefore(a,b),b=new FormData(c),a.parentNode.removeChild(a)):b=new FormData(c),a=c.ownerDocument||c,(a.$$reactFormReplay=a.$$reactFormReplay||[]).push(c,d,b))}});',
+          "\x3c/script>"
+        );
+  }
 }
 function pushLinkImpl(target, props) {
   target.push(startChunkForTag("link"));
@@ -2168,6 +2182,15 @@ function preloadLateStyles(styleQueue) {
   styleQueue.sheets.forEach(preloadLateStyle, this);
   styleQueue.sheets.clear();
 }
+function pushCompletedShellIdAttribute(target, resumableState) {
+  0 === (resumableState.instructions & 32) &&
+    ((resumableState.instructions |= 32),
+    target.push(
+      ' id="',
+      escapeTextForBrowser("\u00ab" + resumableState.idPrefix + "R\u00bb"),
+      '"'
+    ));
+}
 function writeStyleResourceDependenciesInJS(destination, hoistableState) {
   destination.push("[");
   var nextArrayOpenBrackChunk = "[";
@@ -2775,23 +2798,25 @@ function createRenderState(resumableState, generateStaticMarkup) {
     bootstrapScripts = resumableState.bootstrapScripts,
     bootstrapModules = resumableState.bootstrapModules;
   void 0 !== bootstrapScriptContent &&
+    (bootstrapChunks.push("<script"),
+    pushCompletedShellIdAttribute(bootstrapChunks, resumableState),
     bootstrapChunks.push(
-      "<script>",
+      ">",
       ("" + bootstrapScriptContent).replace(scriptRegex, scriptReplacer),
       "\x3c/script>"
-    );
+    ));
   bootstrapScriptContent = idPrefix + "P:";
-  var JSCompiler_object_inline_segmentPrefix_1708 = idPrefix + "S:";
+  var JSCompiler_object_inline_segmentPrefix_1751 = idPrefix + "S:";
   idPrefix += "B:";
-  var JSCompiler_object_inline_preamble_1711 = createPreambleState(),
-    JSCompiler_object_inline_preconnects_1721 = new Set(),
-    JSCompiler_object_inline_fontPreloads_1722 = new Set(),
-    JSCompiler_object_inline_highImagePreloads_1723 = new Set(),
-    JSCompiler_object_inline_styles_1724 = new Map(),
-    JSCompiler_object_inline_bootstrapScripts_1725 = new Set(),
-    JSCompiler_object_inline_scripts_1726 = new Set(),
-    JSCompiler_object_inline_bulkPreloads_1727 = new Set(),
-    JSCompiler_object_inline_preloads_1728 = {
+  var JSCompiler_object_inline_preamble_1754 = createPreambleState(),
+    JSCompiler_object_inline_preconnects_1764 = new Set(),
+    JSCompiler_object_inline_fontPreloads_1765 = new Set(),
+    JSCompiler_object_inline_highImagePreloads_1766 = new Set(),
+    JSCompiler_object_inline_styles_1767 = new Map(),
+    JSCompiler_object_inline_bootstrapScripts_1768 = new Set(),
+    JSCompiler_object_inline_scripts_1769 = new Set(),
+    JSCompiler_object_inline_bulkPreloads_1770 = new Set(),
+    JSCompiler_object_inline_preloads_1771 = {
       images: new Map(),
       stylesheets: new Map(),
       scripts: new Map(),
@@ -2828,16 +2853,22 @@ function createRenderState(resumableState, generateStaticMarkup) {
       scriptConfig.moduleScriptResources[href] = null;
       scriptConfig = [];
       pushLinkImpl(scriptConfig, props);
-      JSCompiler_object_inline_bootstrapScripts_1725.add(scriptConfig);
-      bootstrapChunks.push('<script src="', escapeTextForBrowser(src));
+      JSCompiler_object_inline_bootstrapScripts_1768.add(scriptConfig);
+      bootstrapChunks.push('<script src="', escapeTextForBrowser(src), '"');
       "string" === typeof integrity &&
-        bootstrapChunks.push('" integrity="', escapeTextForBrowser(integrity));
+        bootstrapChunks.push(
+          ' integrity="',
+          escapeTextForBrowser(integrity),
+          '"'
+        );
       "string" === typeof crossOrigin &&
         bootstrapChunks.push(
-          '" crossorigin="',
-          escapeTextForBrowser(crossOrigin)
+          ' crossorigin="',
+          escapeTextForBrowser(crossOrigin),
+          '"'
         );
-      bootstrapChunks.push('" async="">\x3c/script>');
+      pushCompletedShellIdAttribute(bootstrapChunks, resumableState);
+      bootstrapChunks.push(' async="">\x3c/script>');
     }
   if (void 0 !== bootstrapModules)
     for (
@@ -2869,25 +2900,32 @@ function createRenderState(resumableState, generateStaticMarkup) {
         (props.moduleScriptResources[scriptConfig] = null),
         (props = []),
         pushLinkImpl(props, integrity),
-        JSCompiler_object_inline_bootstrapScripts_1725.add(props),
+        JSCompiler_object_inline_bootstrapScripts_1768.add(props),
         bootstrapChunks.push(
           '<script type="module" src="',
-          escapeTextForBrowser(i)
+          escapeTextForBrowser(i),
+          '"'
         ),
         "string" === typeof crossOrigin &&
           bootstrapChunks.push(
-            '" integrity="',
-            escapeTextForBrowser(crossOrigin)
+            ' integrity="',
+            escapeTextForBrowser(crossOrigin),
+            '"'
           ),
         "string" === typeof src &&
-          bootstrapChunks.push('" crossorigin="', escapeTextForBrowser(src)),
-        bootstrapChunks.push('" async="">\x3c/script>');
+          bootstrapChunks.push(
+            ' crossorigin="',
+            escapeTextForBrowser(src),
+            '"'
+          ),
+        pushCompletedShellIdAttribute(bootstrapChunks, resumableState),
+        bootstrapChunks.push(' async="">\x3c/script>');
   return {
     placeholderPrefix: bootstrapScriptContent,
-    segmentPrefix: JSCompiler_object_inline_segmentPrefix_1708,
+    segmentPrefix: JSCompiler_object_inline_segmentPrefix_1751,
     boundaryPrefix: idPrefix,
-    startInlineScript: "<script>",
-    preamble: JSCompiler_object_inline_preamble_1711,
+    startInlineScript: "<script",
+    preamble: JSCompiler_object_inline_preamble_1754,
     externalRuntimeScript: null,
     bootstrapChunks: bootstrapChunks,
     importMapChunks: [],
@@ -2903,14 +2941,14 @@ function createRenderState(resumableState, generateStaticMarkup) {
     charsetChunks: [],
     viewportChunks: [],
     hoistableChunks: [],
-    preconnects: JSCompiler_object_inline_preconnects_1721,
-    fontPreloads: JSCompiler_object_inline_fontPreloads_1722,
-    highImagePreloads: JSCompiler_object_inline_highImagePreloads_1723,
-    styles: JSCompiler_object_inline_styles_1724,
-    bootstrapScripts: JSCompiler_object_inline_bootstrapScripts_1725,
-    scripts: JSCompiler_object_inline_scripts_1726,
-    bulkPreloads: JSCompiler_object_inline_bulkPreloads_1727,
-    preloads: JSCompiler_object_inline_preloads_1728,
+    preconnects: JSCompiler_object_inline_preconnects_1764,
+    fontPreloads: JSCompiler_object_inline_fontPreloads_1765,
+    highImagePreloads: JSCompiler_object_inline_highImagePreloads_1766,
+    styles: JSCompiler_object_inline_styles_1767,
+    bootstrapScripts: JSCompiler_object_inline_bootstrapScripts_1768,
+    scripts: JSCompiler_object_inline_scripts_1769,
+    bulkPreloads: JSCompiler_object_inline_bulkPreloads_1770,
+    preloads: JSCompiler_object_inline_preloads_1771,
     stylesToHoist: !1,
     generateStaticMarkup: generateStaticMarkup
   };
@@ -3704,6 +3742,7 @@ function RequestInstance(
   this.fatalError = null;
   this.pendingRootTasks = this.allPendingTasks = this.nextSegmentId = 0;
   this.completedPreambleSegments = this.completedRootSegment = null;
+  this.byteSize = 0;
   this.abortableTasks = abortSet;
   this.pingedTasks = [];
   this.clientRenderedBoundaries = [];
@@ -4396,9 +4435,10 @@ function renderElement(request, task, keyPath, type, props, ref) {
                 ),
                 (contentRootSegment.status = 1),
                 queueCompletedSegment(newBoundary, contentRootSegment),
-                0 === newBoundary.pendingTasks && 0 === newBoundary.status)
+                0 === newBoundary.pendingTasks &&
+                  0 === newBoundary.status &&
+                  ((newBoundary.status = 1), !(500 < newBoundary.byteSize)))
               ) {
-                newBoundary.status = 1;
                 0 === request.pendingRootTasks &&
                   task.blockedPreamble &&
                   preparePreamble(request);
@@ -5481,8 +5521,12 @@ function finishedTask(request, boundary, segment) {
             boundary.parentFlushed &&
               request.completedBoundaries.push(boundary),
             1 === boundary.status &&
-              (boundary.fallbackAbortableTasks.forEach(abortTaskSoft, request),
-              boundary.fallbackAbortableTasks.clear(),
+              (500 < boundary.byteSize ||
+                (boundary.fallbackAbortableTasks.forEach(
+                  abortTaskSoft,
+                  request
+                ),
+                boundary.fallbackAbortableTasks.clear()),
               0 === request.pendingRootTasks &&
                 null === request.trackedPostpones &&
                 null !== boundary.contentPreamble &&
@@ -5821,6 +5865,7 @@ function flushSubtree(request, destination, segment, hoistableState) {
       throw Error(formatProdErrorMessage(390));
   }
 }
+var flushedByteSize = 0;
 function flushSegment(request, destination, segment, hoistableState) {
   var boundary = segment.boundary;
   if (null === boundary)
@@ -5865,7 +5910,10 @@ function flushSegment(request, destination, segment, hoistableState) {
       flushSubtree(request, destination, segment, hoistableState),
       destination.push("\x3c!--/$--\x3e")
     );
-  if (boundary.byteSize > request.progressiveChunkSize)
+  if (
+    500 < boundary.byteSize &&
+    flushedByteSize + boundary.byteSize > request.progressiveChunkSize
+  )
     return (
       (boundary.rootSegmentID = request.nextSegmentId++),
       request.completedBoundaries.push(boundary),
@@ -5877,6 +5925,7 @@ function flushSegment(request, destination, segment, hoistableState) {
       flushSubtree(request, destination, segment, hoistableState),
       destination.push("\x3c!--/$--\x3e")
     );
+  flushedByteSize += boundary.byteSize;
   hoistableState &&
     ((segment = boundary.contentState),
     segment.styles.forEach(hoistStyleQueueDependency, hoistableState),
@@ -5902,6 +5951,7 @@ function flushSegmentContainer(request, destination, segment, hoistableState) {
   return writeEndSegment(destination, segment.parentFormatContext);
 }
 function flushCompletedBoundary(request, destination, boundary) {
+  flushedByteSize = boundary.byteSize;
   for (
     var completedSegments = boundary.completedSegments, i = 0;
     i < completedSegments.length;
@@ -5928,11 +5978,12 @@ function flushCompletedBoundary(request, destination, boundary) {
   var scriptFormat = 0 === completedSegments.streamingFormat;
   scriptFormat
     ? (destination.push(request.startInlineScript),
+      destination.push(">"),
       requiresStyleInsertion
         ? 0 === (completedSegments.instructions & 2)
           ? ((completedSegments.instructions |= 10),
             destination.push(
-              '$RC=function(b,d,e){d=document.getElementById(d);d.parentNode.removeChild(d);var a=document.getElementById(b);if(a){b=a.previousSibling;if(e)b.data="$!",a.setAttribute("data-dgst",e);else{e=b.parentNode;a=b.nextSibling;var f=0;do{if(a&&8===a.nodeType){var c=a.data;if("/$"===c||"/&"===c)if(0===f)break;else f--;else"$"!==c&&"$?"!==c&&"$!"!==c&&"&"!==c||f++}c=a.nextSibling;e.removeChild(a);a=c}while(a);for(;d.firstChild;)e.insertBefore(d.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}};$RM=new Map;\n$RR=function(t,u,y){function v(n){this._p=null;n()}for(var w=$RC,p=$RM,q=new Map,r=document,g,b,h=r.querySelectorAll("link[data-precedence],style[data-precedence]"),x=[],k=0;b=h[k++];)"not all"===b.getAttribute("media")?x.push(b):("LINK"===b.tagName&&p.set(b.getAttribute("href"),b),q.set(b.dataset.precedence,g=b));b=0;h=[];var l,a;for(k=!0;;){if(k){var e=y[b++];if(!e){k=!1;b=0;continue}var c=!1,m=0;var d=e[m++];if(a=p.get(d)){var f=a._p;c=!0}else{a=r.createElement("link");a.href=\nd;a.rel="stylesheet";for(a.dataset.precedence=l=e[m++];f=e[m++];)a.setAttribute(f,e[m++]);f=a._p=new Promise(function(n,z){a.onload=v.bind(a,n);a.onerror=v.bind(a,z)});p.set(d,a)}d=a.getAttribute("media");!f||d&&!matchMedia(d).matches||h.push(f);if(c)continue}else{a=x[b++];if(!a)break;l=a.getAttribute("data-precedence");a.removeAttribute("media")}c=q.get(l)||g;c===g&&(g=a);q.set(l,a);c?c.parentNode.insertBefore(a,c.nextSibling):(c=r.head,c.insertBefore(a,c.firstChild))}Promise.all(h).then(w.bind(null,\nt,u,""),w.bind(null,t,u,"Resource failed to load"))};$RR("'
+              '$RC=function(b,d,e){if(d=document.getElementById(d)){d.parentNode.removeChild(d);var a=document.getElementById(b);if(a){b=a.previousSibling;if(e)b.data="$!",a.setAttribute("data-dgst",e);else{e=b.parentNode;a=b.nextSibling;var f=0;do{if(a&&8===a.nodeType){var c=a.data;if("/$"===c||"/&"===c)if(0===f)break;else f--;else"$"!==c&&"$?"!==c&&"$!"!==c&&"&"!==c||f++}c=a.nextSibling;e.removeChild(a);a=c}while(a);for(;d.firstChild;)e.insertBefore(d.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}}};$RM=new Map;\n$RR=function(t,u,y){function v(n){this._p=null;n()}for(var w=$RC,p=$RM,q=new Map,r=document,g,b,h=r.querySelectorAll("link[data-precedence],style[data-precedence]"),x=[],k=0;b=h[k++];)"not all"===b.getAttribute("media")?x.push(b):("LINK"===b.tagName&&p.set(b.getAttribute("href"),b),q.set(b.dataset.precedence,g=b));b=0;h=[];var l,a;for(k=!0;;){if(k){var e=y[b++];if(!e){k=!1;b=0;continue}var c=!1,m=0;var d=e[m++];if(a=p.get(d)){var f=a._p;c=!0}else{a=r.createElement("link");a.href=\nd;a.rel="stylesheet";for(a.dataset.precedence=l=e[m++];f=e[m++];)a.setAttribute(f,e[m++]);f=a._p=new Promise(function(n,z){a.onload=v.bind(a,n);a.onerror=v.bind(a,z)});p.set(d,a)}d=a.getAttribute("media");!f||d&&!matchMedia(d).matches||h.push(f);if(c)continue}else{a=x[b++];if(!a)break;l=a.getAttribute("data-precedence");a.removeAttribute("media")}c=q.get(l)||g;c===g&&(g=a);q.set(l,a);c?c.parentNode.insertBefore(a,c.nextSibling):(c=r.head,c.insertBefore(a,c.firstChild))}Promise.all(h).then(w.bind(null,\nt,u,""),w.bind(null,t,u,"Resource failed to load"))};$RR("'
             ))
           : 0 === (completedSegments.instructions & 8)
             ? ((completedSegments.instructions |= 8),
@@ -5943,7 +5994,7 @@ function flushCompletedBoundary(request, destination, boundary) {
         : 0 === (completedSegments.instructions & 2)
           ? ((completedSegments.instructions |= 2),
             destination.push(
-              '$RC=function(b,d,e){d=document.getElementById(d);d.parentNode.removeChild(d);var a=document.getElementById(b);if(a){b=a.previousSibling;if(e)b.data="$!",a.setAttribute("data-dgst",e);else{e=b.parentNode;a=b.nextSibling;var f=0;do{if(a&&8===a.nodeType){var c=a.data;if("/$"===c||"/&"===c)if(0===f)break;else f--;else"$"!==c&&"$?"!==c&&"$!"!==c&&"&"!==c||f++}c=a.nextSibling;e.removeChild(a);a=c}while(a);for(;d.firstChild;)e.insertBefore(d.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}};$RC("'
+              '$RC=function(b,d,e){if(d=document.getElementById(d)){d.parentNode.removeChild(d);var a=document.getElementById(b);if(a){b=a.previousSibling;if(e)b.data="$!",a.setAttribute("data-dgst",e);else{e=b.parentNode;a=b.nextSibling;var f=0;do{if(a&&8===a.nodeType){var c=a.data;if("/$"===c||"/&"===c)if(0===f)break;else f--;else"$"!==c&&"$?"!==c&&"$!"!==c&&"&"!==c||f++}c=a.nextSibling;e.removeChild(a);a=c}while(a);for(;d.firstChild;)e.insertBefore(d.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}}};$RC("'
             ))
           : destination.push('$RC("'))
     : requiresStyleInsertion
@@ -5988,6 +6039,7 @@ function flushPartiallyCompletedSegment(
   request = request.renderState;
   (segment = 0 === boundary.streamingFormat)
     ? (destination.push(request.startInlineScript),
+      destination.push(">"),
       0 === (boundary.instructions & 1)
         ? ((boundary.instructions |= 1),
           destination.push(
@@ -6015,14 +6067,15 @@ function flushCompletedQueues(request, destination) {
         if (5 === completedRootSegment.status) return;
         var completedPreambleSegments = request.completedPreambleSegments;
         if (null === completedPreambleSegments) return;
-        var renderState = request.renderState;
+        flushedByteSize = request.byteSize;
+        var resumableState = request.resumableState,
+          renderState = request.renderState;
         if (
           (0 !== request.allPendingTasks ||
             null !== request.trackedPostpones) &&
           renderState.externalRuntimeScript
         ) {
           var _renderState$external = renderState.externalRuntimeScript,
-            resumableState = request.resumableState,
             src = _renderState$external.src,
             chunks = _renderState$external.chunks;
           resumableState.scriptResources.hasOwnProperty(src) ||
@@ -6071,32 +6124,30 @@ function flushCompletedQueues(request, destination) {
         renderState.scripts.clear();
         renderState.bulkPreloads.forEach(flushResource, destination);
         renderState.bulkPreloads.clear();
+        if (htmlChunks || headChunks) {
+          var shellId = "\u00ab" + resumableState.idPrefix + "R\u00bb";
+          destination.push('<link rel="expect" href="#');
+          var chunk$jscomp$0 = escapeTextForBrowser(shellId);
+          destination.push(chunk$jscomp$0);
+          destination.push('" blocking="render"/>');
+        }
         var hoistableChunks = renderState.hoistableChunks;
         for (i$jscomp$0 = 0; i$jscomp$0 < hoistableChunks.length; i$jscomp$0++)
           destination.push(hoistableChunks[i$jscomp$0]);
         for (
-          renderState = hoistableChunks.length = 0;
-          renderState < completedPreambleSegments.length;
-          renderState++
+          resumableState = hoistableChunks.length = 0;
+          resumableState < completedPreambleSegments.length;
+          resumableState++
         ) {
-          var segments = completedPreambleSegments[renderState];
-          for (
-            _renderState$external = 0;
-            _renderState$external < segments.length;
-            _renderState$external++
-          )
-            flushSegment(
-              request,
-              destination,
-              segments[_renderState$external],
-              null
-            );
+          var segments = completedPreambleSegments[resumableState];
+          for (renderState = 0; renderState < segments.length; renderState++)
+            flushSegment(request, destination, segments[renderState], null);
         }
         var preamble$jscomp$0 = request.renderState.preamble,
           headChunks$jscomp$0 = preamble$jscomp$0.headChunks;
         if (preamble$jscomp$0.htmlChunks || headChunks$jscomp$0) {
-          var chunk$jscomp$0 = endChunkForTag("head");
-          destination.push(chunk$jscomp$0);
+          var chunk$jscomp$1 = endChunkForTag("head");
+          destination.push(chunk$jscomp$1);
         }
         var bodyChunks = preamble$jscomp$0.bodyChunks;
         if (bodyChunks)
@@ -6108,11 +6159,26 @@ function flushCompletedQueues(request, destination) {
             destination.push(bodyChunks[completedPreambleSegments]);
         flushSegment(request, destination, completedRootSegment, null);
         request.completedRootSegment = null;
-        writeBootstrap(destination, request.renderState);
+        var resumableState$jscomp$0 = request.resumableState,
+          renderState$jscomp$0 = request.renderState,
+          preamble$jscomp$1 = renderState$jscomp$0.preamble;
+        if (
+          (preamble$jscomp$1.htmlChunks || preamble$jscomp$1.headChunks) &&
+          0 === (resumableState$jscomp$0.instructions & 32)
+        ) {
+          var bootstrapChunks = renderState$jscomp$0.bootstrapChunks;
+          bootstrapChunks.push(startChunkForTag("template"));
+          pushCompletedShellIdAttribute(
+            bootstrapChunks,
+            resumableState$jscomp$0
+          );
+          bootstrapChunks.push(">", endChunkForTag("template"));
+        }
+        writeBootstrap(destination, renderState$jscomp$0);
       }
-      var renderState$jscomp$0 = request.renderState;
+      var renderState$jscomp$1 = request.renderState;
       completedRootSegment = 0;
-      var viewportChunks$jscomp$0 = renderState$jscomp$0.viewportChunks;
+      var viewportChunks$jscomp$0 = renderState$jscomp$1.viewportChunks;
       for (
         completedRootSegment = 0;
         completedRootSegment < viewportChunks$jscomp$0.length;
@@ -6120,21 +6186,21 @@ function flushCompletedQueues(request, destination) {
       )
         destination.push(viewportChunks$jscomp$0[completedRootSegment]);
       viewportChunks$jscomp$0.length = 0;
-      renderState$jscomp$0.preconnects.forEach(flushResource, destination);
-      renderState$jscomp$0.preconnects.clear();
-      renderState$jscomp$0.fontPreloads.forEach(flushResource, destination);
-      renderState$jscomp$0.fontPreloads.clear();
-      renderState$jscomp$0.highImagePreloads.forEach(
+      renderState$jscomp$1.preconnects.forEach(flushResource, destination);
+      renderState$jscomp$1.preconnects.clear();
+      renderState$jscomp$1.fontPreloads.forEach(flushResource, destination);
+      renderState$jscomp$1.fontPreloads.clear();
+      renderState$jscomp$1.highImagePreloads.forEach(
         flushResource,
         destination
       );
-      renderState$jscomp$0.highImagePreloads.clear();
-      renderState$jscomp$0.styles.forEach(preloadLateStyles, destination);
-      renderState$jscomp$0.scripts.forEach(flushResource, destination);
-      renderState$jscomp$0.scripts.clear();
-      renderState$jscomp$0.bulkPreloads.forEach(flushResource, destination);
-      renderState$jscomp$0.bulkPreloads.clear();
-      var hoistableChunks$jscomp$0 = renderState$jscomp$0.hoistableChunks;
+      renderState$jscomp$1.highImagePreloads.clear();
+      renderState$jscomp$1.styles.forEach(preloadLateStyles, destination);
+      renderState$jscomp$1.scripts.forEach(flushResource, destination);
+      renderState$jscomp$1.scripts.clear();
+      renderState$jscomp$1.bulkPreloads.forEach(flushResource, destination);
+      renderState$jscomp$1.bulkPreloads.clear();
+      var hoistableChunks$jscomp$0 = renderState$jscomp$1.hoistableChunks;
       for (
         completedRootSegment = 0;
         completedRootSegment < hoistableChunks$jscomp$0.length;
@@ -6145,40 +6211,41 @@ function flushCompletedQueues(request, destination) {
       var clientRenderedBoundaries = request.clientRenderedBoundaries;
       for (i = 0; i < clientRenderedBoundaries.length; i++) {
         var boundary = clientRenderedBoundaries[i];
-        renderState$jscomp$0 = destination;
-        var resumableState$jscomp$0 = request.resumableState,
-          renderState$jscomp$1 = request.renderState,
+        renderState$jscomp$1 = destination;
+        var resumableState$jscomp$1 = request.resumableState,
+          renderState$jscomp$2 = request.renderState,
           id = boundary.rootSegmentID,
           errorDigest = boundary.errorDigest,
-          scriptFormat = 0 === resumableState$jscomp$0.streamingFormat;
+          scriptFormat = 0 === resumableState$jscomp$1.streamingFormat;
         scriptFormat
-          ? (renderState$jscomp$0.push(renderState$jscomp$1.startInlineScript),
-            0 === (resumableState$jscomp$0.instructions & 4)
-              ? ((resumableState$jscomp$0.instructions |= 4),
-                renderState$jscomp$0.push(
+          ? (renderState$jscomp$1.push(renderState$jscomp$2.startInlineScript),
+            renderState$jscomp$1.push(">"),
+            0 === (resumableState$jscomp$1.instructions & 4)
+              ? ((resumableState$jscomp$1.instructions |= 4),
+                renderState$jscomp$1.push(
                   '$RX=function(b,c,d,e,f){var a=document.getElementById(b);a&&(b=a.previousSibling,b.data="$!",a=a.dataset,c&&(a.dgst=c),d&&(a.msg=d),e&&(a.stck=e),f&&(a.cstck=f),b._reactRetry&&b._reactRetry())};;$RX("'
                 ))
-              : renderState$jscomp$0.push('$RX("'))
-          : renderState$jscomp$0.push('<template data-rxi="" data-bid="');
-        renderState$jscomp$0.push(renderState$jscomp$1.boundaryPrefix);
-        var chunk$jscomp$1 = id.toString(16);
-        renderState$jscomp$0.push(chunk$jscomp$1);
-        scriptFormat && renderState$jscomp$0.push('"');
+              : renderState$jscomp$1.push('$RX("'))
+          : renderState$jscomp$1.push('<template data-rxi="" data-bid="');
+        renderState$jscomp$1.push(renderState$jscomp$2.boundaryPrefix);
+        var chunk$jscomp$2 = id.toString(16);
+        renderState$jscomp$1.push(chunk$jscomp$2);
+        scriptFormat && renderState$jscomp$1.push('"');
         if (errorDigest)
           if (scriptFormat) {
-            renderState$jscomp$0.push(",");
-            var chunk$jscomp$2 = escapeJSStringsForInstructionScripts(
+            renderState$jscomp$1.push(",");
+            var chunk$jscomp$3 = escapeJSStringsForInstructionScripts(
               errorDigest || ""
             );
-            renderState$jscomp$0.push(chunk$jscomp$2);
+            renderState$jscomp$1.push(chunk$jscomp$3);
           } else {
-            renderState$jscomp$0.push('" data-dgst="');
-            var chunk$jscomp$3 = escapeTextForBrowser(errorDigest || "");
-            renderState$jscomp$0.push(chunk$jscomp$3);
+            renderState$jscomp$1.push('" data-dgst="');
+            var chunk$jscomp$4 = escapeTextForBrowser(errorDigest || "");
+            renderState$jscomp$1.push(chunk$jscomp$4);
           }
         var JSCompiler_inline_result = scriptFormat
-          ? renderState$jscomp$0.push(")\x3c/script>")
-          : renderState$jscomp$0.push('"></template>');
+          ? renderState$jscomp$1.push(")\x3c/script>")
+          : renderState$jscomp$1.push('"></template>');
         if (!JSCompiler_inline_result) {
           request.destination = null;
           i++;
@@ -6204,6 +6271,7 @@ function flushCompletedQueues(request, destination) {
         a: {
           clientRenderedBoundaries = request;
           boundary = destination;
+          flushedByteSize = boundary$67.byteSize;
           var completedSegments = boundary$67.completedSegments;
           for (
             JSCompiler_inline_result = 0;
@@ -6393,4 +6461,4 @@ exports.renderToString = function (children, options) {
     'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToReadableStream" which supports Suspense on the server'
   );
 };
-exports.version = "19.2.0-experimental-197d6a04-20250424";
+exports.version = "19.2.0-experimental-e9db3cc2-20250501";
