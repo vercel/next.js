@@ -194,7 +194,6 @@ import {
   trackPendingImport,
   trackPendingModules,
 } from './module-loading/track-module-loading.external'
-import { isUseCacheTimeoutError } from '../use-cache/use-cache-errors'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -2980,29 +2979,6 @@ async function prerenderToStream(
       // We don't need to continue the prerender process if we already
       // detected invalid dynamic usage in the initial prerender phase.
       if (workStore.invalidDynamicUsageError) {
-        if (
-          isUseCacheTimeoutError(workStore.invalidDynamicUsageError) &&
-          allowEmptyStaticShell
-        ) {
-          // If this is a "use cache" timeout error, and empty shells are
-          // allowed (i.e. we're prerendering a fallback shell, and there are
-          // also more specific routes prerendered) we return an empty shell.
-          return {
-            digestErrorsMap: reactServerErrorsByDigest,
-            ssrErrors: allCapturedErrors,
-            stream: new ReadableStream({
-              start(controller) {
-                controller.close()
-              },
-            }),
-            collectedRevalidate: INFINITE_CACHE,
-            collectedExpire: INFINITE_CACHE,
-            collectedStale: selectStaleTime(INFINITE_CACHE),
-            collectedTags: null,
-          }
-        }
-
-        // Otherwise we throw the error to fail the build.
         throw workStore.invalidDynamicUsageError
       }
 
