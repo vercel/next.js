@@ -1,6 +1,6 @@
 use std::iter;
 
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use either::Either;
 use indoc::formatdoc;
 use itertools::Itertools;
@@ -103,6 +103,13 @@ pub async fn insert_next_root_params_mapping(
 ) -> Result<()> {
     match ty {
         ServerContextType::AppRSC { .. } | ServerContextType::AppRoute { .. } => {
+            let collected_root_params = collected_root_params.ok_or_else(|| {
+                anyhow!(
+                    "Invariant: Root params should have been collected for context {:?}. This is \
+                     a bug in Next.js.",
+                    ty
+                )
+            })?;
             import_map.insert_exact_alias(
                 "next/root-params",
                 get_next_root_params_mapping(collected_root_params)
@@ -122,7 +129,7 @@ pub async fn insert_next_root_params_mapping(
 
 #[turbo_tasks::function]
 async fn get_next_root_params_mapping(
-    collected_root_params: Option<Vc<CollectedRootParams>>,
+    collected_root_params: Vc<CollectedRootParams>,
 ) -> Result<Vc<ImportMapping>> {
     // This mapping goes into the global resolve options, so we want to avoid invalidating it if
     // value of `collected_root_params` changes (which would invalidate everything else compiled
@@ -141,13 +148,13 @@ async fn get_next_root_params_mapping(
 
 #[turbo_tasks::value]
 struct NextRootParamsMapper {
-    collected_root_params: Option<ResolvedVc<CollectedRootParams>>,
+    collected_root_params: ResolvedVc<CollectedRootParams>,
 }
 
 #[turbo_tasks::value_impl]
 impl NextRootParamsMapper {
     #[turbo_tasks::function]
-    pub fn new(collected_root_params: Option<ResolvedVc<CollectedRootParams>>) -> Vc<Self> {
+    pub fn new(collected_root_params: ResolvedVc<CollectedRootParams>) -> Vc<Self> {
         NextRootParamsMapper {
             collected_root_params,
         }
@@ -157,31 +164,28 @@ impl NextRootParamsMapper {
     #[turbo_tasks::function]
     async fn import_map_result(&self) -> Result<Vc<ImportMapResult>> {
         // Generate a virtual 'next/root-params' module based on the root params we collected.
-        let module_content = match self.collected_root_params {
+        let module_content = {
+            let collected_root_params = self.collected_root_params.await?;
             // If there's no root params, export nothing.
-            None => "export {}".to_string(),
-            Some(collected_root_params_vc) => {
-                let collected_root_params = collected_root_params_vc.await?;
-                if collected_root_params.is_empty() {
-                    "export {}".to_string()
-                } else {
-                    iter::once(formatdoc!(
-                        r#"
+            if collected_root_params.is_empty() {
+                "export {}".to_string()
+            } else {
+                iter::once(formatdoc!(
+                    r#"
                         import {{ getRootParam }} from 'next/dist/server/request/root-params';
                     "#,
-                    ))
-                    .chain(collected_root_params.iter().map(|param_name| {
-                        formatdoc!(
-                            r#"
+                ))
+                .chain(collected_root_params.iter().map(|param_name| {
+                    formatdoc!(
+                        r#"
                             export function {PARAM_NAME}() {{
                                 return getRootParam('{PARAM_NAME}');
                             }}
                         "#,
-                            PARAM_NAME = param_name,
-                        )
-                    }))
-                    .join("\n")
-                }
+                        PARAM_NAME = param_name,
+                    )
+                }))
+                .join("\n")
             }
         };
 
