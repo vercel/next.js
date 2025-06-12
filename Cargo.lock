@@ -4216,7 +4216,6 @@ dependencies = [
  "indoc",
  "itertools 0.10.5",
  "lazy-regex",
- "lazy_static",
  "mime_guess",
  "modularize_imports",
  "next-custom-transforms",
@@ -4268,7 +4267,6 @@ dependencies = [
  "hex",
  "indexmap 2.7.1",
  "indoc",
- "lazy_static",
  "modularize_imports",
  "once_cell",
  "pathdiff",
@@ -6964,9 +6962,9 @@ dependencies = [
 
 [[package]]
 name = "swc_common"
-version = "12.0.0"
+version = "12.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "84c376d04a9e50083b31962550590199c78a1c0f6b88e48ea9f46c95623074dc"
+checksum = "fd2adffdd9f42af6cfefa16b1aaa8a0984a21854637ef9d89332dd29420d4b23"
 dependencies = [
  "anyhow",
  "ast_node",
@@ -7061,9 +7059,9 @@ dependencies = [
 
 [[package]]
 name = "swc_core"
-version = "27.0.1"
+version = "27.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "44216725e29a980e3081bb4afea465f486121af281114f6218d448aba9fc81f3"
+checksum = "0041e206e665457382fdd594bf18ae983d08ac5bf535b6351ca902b5e06e79b1"
 dependencies = [
  "binding_macros",
  "par-core",
@@ -9361,7 +9359,6 @@ dependencies = [
  "anyhow",
  "codspeed-criterion-compat",
  "difference",
- "lazy_static",
  "regex",
  "rstest",
  "rstest_reuse",
@@ -9513,7 +9510,6 @@ dependencies = [
  "either",
  "futures",
  "indexmap 2.7.1",
- "lazy_static",
  "once_cell",
  "patricia_tree",
  "petgraph 0.6.3",
@@ -9627,7 +9623,6 @@ dependencies = [
  "either",
  "indexmap 2.7.1",
  "indoc",
- "lazy_static",
  "num-bigint",
  "num-traits",
  "once_cell",
@@ -9831,7 +9826,6 @@ name = "turbopack-resolve"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "lazy_static",
  "regex",
  "serde",
  "serde_json",

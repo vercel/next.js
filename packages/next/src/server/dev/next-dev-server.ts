@@ -69,7 +69,7 @@ import type { ServerOnInstrumentationRequestError } from '../app-render/types'
 import type { ServerComponentsHmrCache } from '../response-cache'
 import { logRequests } from './log-requests'
 import { FallbackMode, fallbackModeToFallbackField } from '../../lib/fallback'
-import type { PagesDevOverlayBridgeType } from '../../client/components/react-dev-overlay/pages/pages-dev-overlay-setup'
+import type { PagesDevOverlayBridgeType } from '../../next-devtools/userspace/pages/pages-dev-overlay-setup'
 import {
   ensureInstrumentationRegistered,
   getInstrumentationModule,
@@ -81,7 +81,7 @@ let PagesDevOverlayBridgeImpl: PagesDevOverlayBridgeType
 const ReactDevOverlay: PagesDevOverlayBridgeType = (props) => {
   if (PagesDevOverlayBridgeImpl === undefined) {
     PagesDevOverlayBridgeImpl = (
-      require('../../client/components/react-dev-overlay/pages/pages-dev-overlay-setup') as typeof import('../../client/components/react-dev-overlay/pages/pages-dev-overlay-setup')
+      require('../../next-devtools/userspace/pages/pages-dev-overlay-setup') as typeof import('../../next-devtools/userspace/pages/pages-dev-overlay-setup')
     ).PagesDevOverlayBridge
   }
   return React.createElement(PagesDevOverlayBridgeImpl, props)
