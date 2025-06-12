@@ -7,6 +7,10 @@ on:
   pull_request:
     types: [opened, synchronize]
   workflow_dispatch:
+    inputs:
+      ref:
+        description: 'The Git ref to build and deploy'
+        required: false
 
 env:
   NAPI_CLI_VERSION: 2.16.2
@@ -100,6 +104,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 25
+          ref: ${{ github.event.inputs.ref || github.ref_name || github.sha }}
 
       - id: get-store-path
         run: echo STORE_PATH=$(pnpm store path) >> $GITHUB_OUTPUT
@@ -320,6 +325,7 @@ jobs:
           # crates/napi/build.rs uses git-describe to find the most recent git tag. It's okay if
           # this fails, but fetch with enough depth that we're likely to find a recent tag.
           fetch-depth: 100
+          ref: ${{ github.event.inputs.ref || github.ref_name || github.sha }}
 
       - name: Setup node
         uses: actions/setup-node@v4
@@ -447,6 +453,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref_name || github.sha }}
 
       - name: Setup node
         uses: actions/setup-node@v4
