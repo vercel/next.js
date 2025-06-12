@@ -12,7 +12,9 @@ import {
 import {
   ACTION_DEVTOOLS_PANEL_TOGGLE,
   ACTION_ERROR_OVERLAY_TOGGLE,
+  ACTION_ERROR_OVERLAY_CLOSE,
   STORAGE_KEY_POSITION,
+  ACTION_DEVTOOLS_PANEL_CLOSE,
 } from '../../shared'
 import { getInitialPosition } from '../errors/dev-tools-indicator/dev-tools-info/preferences'
 import { Draggable } from '../errors/dev-tools-indicator/draggable'
@@ -38,10 +40,12 @@ export function DevToolsIndicator({
   const [vertical, horizontal] = position.split('-', 2)
 
   const toggleErrorOverlay = () => {
+    dispatch({ type: ACTION_DEVTOOLS_PANEL_CLOSE })
     dispatch({ type: ACTION_ERROR_OVERLAY_TOGGLE })
   }
 
   const toggleDevToolsPanel = () => {
+    dispatch({ type: ACTION_ERROR_OVERLAY_CLOSE })
     dispatch({ type: ACTION_DEVTOOLS_PANEL_TOGGLE })
   }
 
