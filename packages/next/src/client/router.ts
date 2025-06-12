@@ -11,11 +11,17 @@ type SingletonRouterBase = {
   ready(cb: () => any): void
 }
 
+// When importing and using only SingletonRouter, urlPropertyFields does not exist.
+type SingletonStaticRouter = Omit<
+  NextRouter,
+  (typeof urlPropertyFields)[number]
+>
+
 export { Router }
 
 export type { NextRouter }
 
-export type SingletonRouter = SingletonRouterBase & NextRouter
+export type SingletonRouter = SingletonRouterBase & SingletonStaticRouter
 
 const singletonRouter: SingletonRouterBase = {
   router: null, // holds the actual router instance
@@ -30,7 +36,7 @@ const singletonRouter: SingletonRouterBase = {
 
 // Create public properties and methods of the router in the singletonRouter
 const urlPropertyFields = [
-  'pathname',
+  // 'pathname',
   'route',
   'query',
   'asPath',
