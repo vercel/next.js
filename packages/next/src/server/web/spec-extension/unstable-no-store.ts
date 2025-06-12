@@ -7,8 +7,8 @@ import { markCurrentScopeAsDynamic } from '../../app-render/dynamic-rendering'
  *
  * It marks the current scope as dynamic.
  *
- * - In [non-PPR](https://nextjs.org/docs/app/api-reference/next-config-js/partial-prerendering) cases this will make a static render
- * halt and mark the page as dynamic.
+ * - In [non-PPR](https://nextjs.org/docs/app/api-reference/config/next-config-js/partial-prerendering) cases this will make a static
+ * render halt and mark the page as dynamic.
  * - In PPR cases this will postpone the render at this location.
  *
  * If we are inside a cache scope then this function does nothing.
