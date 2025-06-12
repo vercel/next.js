@@ -80,6 +80,8 @@ function PageSegmentTreeLayerPresentation({
                   {folderName && (
                     <span className="segment-explorer-filename--path">
                       {folderName}
+                      {/* hidden slashes for testing snapshots */}
+                      <small>{'/'}</small>
                     </span>
                   )}
                   <span className="segment-explorer-filename--name">
@@ -150,6 +152,9 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
 
   .segment-explorer-filename--path {
     margin-right: 8px;
+  }
+  .segment-explorer-filename--path small {
+    width: 0;
   }
   .segment-explorer-filename--name {
     color: var(--color-gray-800);

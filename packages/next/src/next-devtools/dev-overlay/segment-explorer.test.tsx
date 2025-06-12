@@ -75,7 +75,7 @@ describe('Segment Explorer', () => {
     })
   })
 
-  test.failing('remove node in the middle', () => {
+  test('remove node in the middle', () => {
     insertSegmentNode({ pagePath: '/a/b/@sidebar/page.js', type: 'page' })
     insertSegmentNode({ pagePath: '/a/b/page.js', type: 'page' })
     insertSegmentNode({ pagePath: '/a/b/layout.js', type: 'layout' })
