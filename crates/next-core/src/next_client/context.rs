@@ -1,6 +1,7 @@
 use std::iter::once;
 
 use anyhow::Result;
+use either::Either;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, OptionVcExt, ResolvedVc, TaskInput, Vc};
 use turbo_tasks_env::EnvMap;
@@ -47,6 +48,7 @@ use crate::{
         get_next_client_fallback_import_map, get_next_client_import_map,
         get_next_client_resolved_map,
     },
+    next_root_params::get_invalid_next_root_params_resolve_plugin,
     next_shared::{
         resolve::{
             ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin,
@@ -172,7 +174,7 @@ pub async fn get_client_resolve_options_context(
             .to_resolved()
             .await?;
     let custom_conditions = vec![mode.await?.condition().into()];
-    let resolve_options_context = ResolveOptionsContext {
+    let mut resolve_options_context = ResolveOptionsContext {
         enable_node_modules: Some(project_path.root().to_resolved().await?),
         custom_conditions,
         import_map: Some(next_client_import_map),
@@ -204,6 +206,22 @@ pub async fn get_client_resolve_options_context(
         )],
         ..Default::default()
     };
+
+    if let Some(invalid_next_root_params_resolve_plugin) =
+        get_invalid_next_root_params_resolve_plugin(
+            *next_config.enable_root_params().await?,
+            Either::Right(ty),
+            project_path,
+        )
+    {
+        resolve_options_context
+            .before_resolve_plugins
+            .push(ResolvedVc::upcast(
+                invalid_next_root_params_resolve_plugin
+                    .to_resolved()
+                    .await?,
+            ))
+    }
 
     Ok(ResolveOptionsContext {
         enable_typescript: true,
