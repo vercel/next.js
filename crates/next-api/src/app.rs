@@ -504,7 +504,7 @@ impl AppProject {
             self.project().server_compile_time_info(),
             self.route_module_options_context(),
             self.route_resolve_options_context(),
-            LayerName::new(rcstr!("app-route")),
+            LayerName::with_user_friendly_name(rcstr!("app-route"), rcstr!("App Route")),
         ))
     }
 
@@ -554,7 +554,7 @@ impl AppProject {
             self.project().edge_compile_time_info(),
             self.edge_route_module_options_context(),
             self.edge_route_resolve_options_context(),
-            LayerName::new(rcstr!("app-edge-route")),
+            LayerName::with_user_friendly_name(rcstr!("app-edge-route"), rcstr!("Edge App Route")),
         ))
     }
 

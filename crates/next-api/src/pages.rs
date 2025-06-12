@@ -390,7 +390,7 @@ impl PagesProject {
             self.project().server_compile_time_info(),
             self.api_module_options_context(),
             self.ssr_resolve_options_context(),
-            LayerName::new(rcstr!("api")),
+            LayerName::with_user_friendly_name(rcstr!("api"), rcstr!("Route")),
         )
     }
 
@@ -423,7 +423,7 @@ impl PagesProject {
             self.project().edge_compile_time_info(),
             self.edge_api_module_options_context(),
             self.edge_ssr_resolve_options_context(),
-            LayerName::new(rcstr!("edge-api")),
+            LayerName::with_user_friendly_name(rcstr!("edge-api"), rcstr!("Edge Route")),
         )
     }
 
