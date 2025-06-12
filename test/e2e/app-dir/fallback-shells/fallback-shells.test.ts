@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('empty-fallback-shells', () => {
+describe('fallback-shells', () => {
   const { next, isNextDev, isNextDeploy, isNextStart } = nextTestSetup({
     files: __dirname,
   })
