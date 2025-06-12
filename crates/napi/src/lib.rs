@@ -30,7 +30,6 @@ DEALINGS IN THE SOFTWARE.
 //#![deny(clippy::all)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
-#![feature(ptr_metadata)]
 
 #[macro_use]
 extern crate napi_derive;

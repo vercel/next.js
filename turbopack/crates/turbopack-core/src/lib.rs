@@ -7,7 +7,6 @@
 #![feature(iter_intersperse)]
 #![feature(map_try_insert)]
 #![feature(hash_set_entry)]
-#![feature(ptr_metadata)]
 
 pub mod asset;
 pub mod changed;

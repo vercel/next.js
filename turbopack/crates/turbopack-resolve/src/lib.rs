@@ -1,6 +1,5 @@
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
-#![feature(ptr_metadata)]
 
 pub mod ecmascript;
 pub mod node_native_binding;

@@ -1,6 +1,5 @@
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
-#![feature(ptr_metadata)]
 #![allow(clippy::needless_return)] // clippy bug causes false positive
 
 use std::sync::Mutex;

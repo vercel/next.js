@@ -1,7 +1,6 @@
 #![allow(dead_code)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
-#![feature(ptr_metadata)]
 
 use turbo_tasks::{OperationVc, Vc};
 

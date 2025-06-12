@@ -2,7 +2,6 @@
 #![feature(associated_type_defaults)]
 #![feature(iter_collect_into)]
 #![feature(box_patterns)]
-#![feature(ptr_metadata)]
 
 mod backend;
 mod backing_storage;

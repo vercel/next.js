@@ -301,7 +301,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
             #[allow(non_snake_case)]
             pub(crate) fn #register(value: &mut turbo_tasks::ValueType) {
                 let fat_pointer: *const dyn #trait_path = std::ptr::null::<#ty>() as *const dyn #trait_path;
-                let metadata = std::ptr::metadata(fat_pointer);
+                let metadata = turbo_tasks::macro_helpers::metadata(fat_pointer);
                 value.register_trait(
                     <Box<dyn #trait_path> as turbo_tasks::VcValueTrait>::get_trait_type_id(),
                     metadata

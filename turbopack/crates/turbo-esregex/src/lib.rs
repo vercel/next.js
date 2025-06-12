@@ -1,5 +1,4 @@
 #![feature(arbitrary_self_types_pointers)]
-#![feature(ptr_metadata)]
 
 use anyhow::{Result, bail};
 

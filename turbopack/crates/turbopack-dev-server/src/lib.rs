@@ -5,7 +5,6 @@
 #![feature(str_split_remainder)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
-#![feature(ptr_metadata)]
 
 pub mod html;
 mod http;
