@@ -55,7 +55,6 @@ var REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
   REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"),
   REACT_STRICT_MODE_TYPE = Symbol.for("react.strict_mode"),
   REACT_PROFILER_TYPE = Symbol.for("react.profiler"),
-  REACT_PROVIDER_TYPE = Symbol.for("react.provider"),
   REACT_CONSUMER_TYPE = Symbol.for("react.consumer"),
   REACT_CONTEXT_TYPE = Symbol.for("react.context"),
   REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref"),
@@ -3566,7 +3565,7 @@ function getComponentNameFromType(type) {
       case REACT_PORTAL_TYPE:
         return "Portal";
       case REACT_CONTEXT_TYPE:
-        return (type.displayName || "Context") + ".Provider";
+        return type.displayName || "Context";
       case REACT_CONSUMER_TYPE:
         return (type._context.displayName || "Context") + ".Consumer";
       case REACT_FORWARD_REF_TYPE:
@@ -5675,7 +5674,6 @@ function renderElement(request, task, keyPath, type, props, ref) {
         case REACT_MEMO_TYPE:
           renderElement(request, task, keyPath, type.type, props, ref);
           return;
-        case REACT_PROVIDER_TYPE:
         case REACT_CONTEXT_TYPE:
           var children$jscomp$2 = props.children,
             prevKeyPath$jscomp$6 = task.keyPath,
@@ -7743,12 +7741,12 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.2.0-experimental-b6c0aa88-20250609" !== isomorphicReactPackageVersion)
+  if ("19.2.0-experimental-b7e2de63-20250611" !== isomorphicReactPackageVersion)
     throw Error(
       formatProdErrorMessage(
         527,
         isomorphicReactPackageVersion,
-        "19.2.0-experimental-b6c0aa88-20250609"
+        "19.2.0-experimental-b7e2de63-20250611"
       )
     );
 }
@@ -8003,4 +8001,4 @@ exports.resumeAndPrerender = function (children, postponedState, options) {
     startWork(request);
   });
 };
-exports.version = "19.2.0-experimental-b6c0aa88-20250609";
+exports.version = "19.2.0-experimental-b7e2de63-20250611";

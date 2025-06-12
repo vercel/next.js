@@ -154,6 +154,8 @@ var PROMISE_PROTOTYPE = Promise.prototype,
           return;
         case "defaultProps":
           return;
+        case "_debugInfo":
+          return;
         case "toJSON":
           return;
         case Symbol.toPrimitive:
@@ -190,6 +192,8 @@ function getReference(target, name) {
     case "name":
       return target.name;
     case "defaultProps":
+      return;
+    case "_debugInfo":
       return;
     case "toJSON":
       return;
@@ -424,6 +428,8 @@ var requestStorage = new async_hooks.AsyncLocalStorage(),
         case "displayName":
           return;
         case "defaultProps":
+          return;
+        case "_debugInfo":
           return;
         case "toJSON":
           return;
@@ -977,9 +983,10 @@ function readThenable(thenable) {
   if ("rejected" === thenable.status) throw thenable.reason;
   throw thenable;
 }
-function createLazyWrapperAroundWakeable(wakeable) {
+function createLazyWrapperAroundWakeable(request, task, wakeable) {
   switch (wakeable.status) {
     case "fulfilled":
+      return wakeable.value;
     case "rejected":
       break;
     default:
@@ -1008,9 +1015,7 @@ function processServerComponentReturnValue(request, task, Component, result) {
   )
     return result;
   if ("function" === typeof result.then)
-    return "fulfilled" === result.status
-      ? result.value
-      : createLazyWrapperAroundWakeable(result);
+    return createLazyWrapperAroundWakeable(request, task, result);
   var iteratorFn = getIteratorFn(result);
   return iteratorFn
     ? ((request = {}),

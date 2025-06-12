@@ -155,6 +155,8 @@
           return target.name;
         case "defaultProps":
           return;
+        case "_debugInfo":
+          return;
         case "toJSON":
           return;
         case Symbol.toPrimitive:
@@ -233,9 +235,15 @@
       var owner = componentStorage.getStore();
       return owner ? owner : null;
     }
-    function getCurrentAsyncSequence() {
-      var currentNode = pendingOperations.get(async_hooks.executionAsyncId());
-      return void 0 === currentNode ? null : currentNode;
+    function resolvePromiseOrAwaitNode(unresolvedNode, endTime) {
+      unresolvedNode.tag = 3 === unresolvedNode.tag ? 1 : 2;
+      var promise = unresolvedNode.debugInfo.deref();
+      unresolvedNode.debugInfo =
+        void 0 === promise || void 0 === promise._debugInfo
+          ? null
+          : promise._debugInfo;
+      unresolvedNode.end = endTime;
+      return unresolvedNode;
     }
     function collectStackTrace(error, structuredStackTrace) {
       for (
@@ -367,7 +375,8 @@
     function trackUsedThenable(thenableState, thenable, index) {
       index = thenableState[index];
       void 0 === index
-        ? thenableState.push(thenable)
+        ? (thenableState.push(thenable),
+          (thenableState._stacks || (thenableState._stacks = [])).push(Error()))
         : index !== thenable && (thenable.then(noop, noop), (thenable = index));
       switch (thenable.status) {
         case "fulfilled":
@@ -923,16 +932,26 @@
       switch (thenable.status) {
         case "fulfilled":
           return (
-            (task = thenable._debugInfo) &&
-              forwardDebugInfo(request, newTask, task),
+            forwardDebugInfoFromThenable(
+              request,
+              newTask,
+              thenable,
+              null,
+              null
+            ),
             (newTask.model = thenable.value),
             pingTask(request, newTask),
             newTask.id
           );
         case "rejected":
           return (
-            (task = thenable._debugInfo) &&
-              forwardDebugInfo(request, newTask, task),
+            forwardDebugInfoFromThenable(
+              request,
+              newTask,
+              thenable,
+              null,
+              null
+            ),
             erroredTask(request, newTask, thenable.reason),
             newTask.id
           );
@@ -963,19 +982,17 @@
       }
       thenable.then(
         function (value) {
-          var _debugInfo2 = thenable._debugInfo;
-          _debugInfo2 && forwardDebugInfo(request, newTask, _debugInfo2);
+          forwardDebugInfoFromCurrentContext(request, newTask, thenable);
           newTask.model = value;
           pingTask(request, newTask);
         },
         function (reason) {
-          var _debugInfo3 = thenable._debugInfo;
-          _debugInfo3 && forwardDebugInfo(request, newTask, _debugInfo3);
           newTask.status === PENDING$1 &&
-            (erroredTask(request, newTask, reason), enqueueFlush(request));
+            ((newTask.timed = !0),
+            erroredTask(request, newTask, reason),
+            enqueueFlush(request));
         }
       );
-      newTask.timed = !0;
       return newTask.id;
     }
     function serializeReadableStream(request, task, stream) {
@@ -1131,33 +1148,38 @@
       if ("rejected" === thenable.status) throw thenable.reason;
       throw thenable;
     }
-    function createLazyWrapperAroundWakeable(wakeable) {
+    function createLazyWrapperAroundWakeable(request, task, wakeable) {
       switch (wakeable.status) {
         case "fulfilled":
+          return (
+            forwardDebugInfoFromThenable(request, task, wakeable, null, null),
+            wakeable.value
+          );
         case "rejected":
+          forwardDebugInfoFromThenable(request, task, wakeable, null, null);
           break;
         default:
           "string" !== typeof wakeable.status &&
             ((wakeable.status = "pending"),
             wakeable.then(
               function (fulfilledValue) {
+                forwardDebugInfoFromCurrentContext(request, task, wakeable);
                 "pending" === wakeable.status &&
                   ((wakeable.status = "fulfilled"),
                   (wakeable.value = fulfilledValue));
               },
               function (error) {
+                forwardDebugInfoFromCurrentContext(request, task, wakeable);
                 "pending" === wakeable.status &&
                   ((wakeable.status = "rejected"), (wakeable.reason = error));
               }
             ));
       }
-      var lazyType = {
+      return {
         $$typeof: REACT_LAZY_TYPE,
         _payload: wakeable,
         _init: readThenable
       };
-      lazyType._debugInfo = wakeable._debugInfo || [];
-      return lazyType;
     }
     function callWithDebugContextInDEV(request, task, callback, arg) {
       var componentDebugInfo = {
@@ -1199,9 +1221,7 @@
               resolvedValue.$$typeof === REACT_ELEMENT_TYPE &&
               (resolvedValue._store.validated = 1);
           }, voidHandler),
-          "fulfilled" === result.status
-            ? result.value
-            : createLazyWrapperAroundWakeable(result)
+          createLazyWrapperAroundWakeable(request, task, result)
         );
       result.$$typeof === REACT_ELEMENT_TYPE && (result._store.validated = 1);
       var iteratorFn = getIteratorFn(result);
@@ -1276,12 +1296,7 @@
           componentDebugInfo.debugStack = task.debugStack;
           componentDebugInfo.debugTask = task.debugTask;
           outlineComponentInfo(request, componentDebugInfo);
-          task.timed = !0;
-          emitTimingChunk(
-            request,
-            componentDebugID,
-            (task.time = performance.now())
-          );
+          advanceTaskTime(request, task, performance.now());
           emitDebugChunk(request, componentDebugID, componentDebugInfo);
           task.environmentName = componentEnv;
           2 === validated &&
@@ -1318,6 +1333,21 @@
             props.then(voidHandler, voidHandler),
           null)
         );
+      validated = thenableState;
+      if (null !== validated)
+        for (
+          prevThenableState = validated._stacks || (validated._stacks = []),
+            componentDebugID = 0;
+          componentDebugID < validated.length;
+          componentDebugID++
+        )
+          forwardDebugInfoFromThenable(
+            request,
+            task,
+            validated[componentDebugID],
+            componentDebugInfo,
+            prevThenableState[componentDebugID]
+          );
       props = processServerComponentReturnValue(
         request,
         task,
@@ -1325,13 +1355,13 @@
         props
       );
       Component = task.keyPath;
-      validated = task.implicitSlot;
+      componentDebugInfo = task.implicitSlot;
       null !== key
         ? (task.keyPath = null === Component ? key : Component + "," + key)
         : null === Component && (task.implicitSlot = !0);
       request = renderModelDestructive(request, task, emptyRoot, "", props);
       task.keyPath = Component;
-      task.implicitSlot = validated;
+      task.implicitSlot = componentDebugInfo;
       return request;
     }
     function warnForMissingKey(request, key, componentDebugInfo, debugTask) {
@@ -1560,11 +1590,12 @@
       task = task.implicitSlot && null !== key ? [request] : request;
       return task;
     }
-    function visitAsyncNode(request, task, node, cutOff, visited) {
+    function visitAsyncNode(request, task, node, visited, cutOff) {
       if (visited.has(node)) return null;
       visited.add(node);
       null !== node.previous &&
-        visitAsyncNode(request, task, node.previous, cutOff, visited);
+        node.end > request.timeOrigin &&
+        visitAsyncNode(request, task, node.previous, visited, cutOff);
       switch (node.tag) {
         case 0:
           return node;
@@ -1575,39 +1606,41 @@
           var awaited = node.awaited,
             match = null;
           null !== awaited &&
-            ((cutOff = visitAsyncNode(request, task, awaited, cutOff, visited)),
+            ((cutOff = visitAsyncNode(request, task, awaited, visited, cutOff)),
             null !== cutOff &&
-              (0 ===
-              filterStackTrace(request, parseStackTrace(node.stack, 1)).length
-                ? (0 > cutOff.end && (cutOff.end = node.end), (match = cutOff))
-                : (match = node)));
+              (match =
+                1 === cutOff.tag
+                  ? cutOff
+                  : 0 ===
+                      filterStackTrace(request, parseStackTrace(node.stack, 1))
+                        .length
+                    ? cutOff
+                    : node));
           node = node.debugInfo;
-          null !== node && forwardDebugInfo(request, task, node);
+          null === node ||
+            visited.has(node) ||
+            (visited.add(node), forwardDebugInfo(request, task, node));
           return match;
         case 4:
+          return null;
         case 2:
           awaited = node.awaited;
           match = null;
           if (
             null !== awaited &&
-            ((visited = visitAsyncNode(
+            ((awaited = visitAsyncNode(
               request,
               task,
               awaited,
-              cutOff,
-              visited
+              visited,
+              cutOff
             )),
-            null !== visited)
+            null !== awaited)
           ) {
-            awaited = node.start;
-            var endTime =
-              4 === node.tag
-                ? visited.end < node.start
-                  ? node.start
-                  : visited.end
-                : node.end;
+            var startTime = node.start,
+              endTime = node.end;
             if (endTime <= request.timeOrigin) return null;
-            if (awaited < cutOff) match = visited;
+            if (startTime < cutOff) match = awaited;
             else if (
               ((cutOff = filterStackTrace(
                 request,
@@ -1615,57 +1648,63 @@
               )),
               0 === cutOff.length)
             )
-              match = visited;
+              match = awaited;
             else {
-              0 > visited.end && (visited.end = endTime);
-              serializeIONode(request, visited);
+              serializeIONode(request, awaited);
               var env = (0, request.environmentName)();
-              emitTimingChunk(request, task.id, awaited);
+              advanceTaskTime(request, task, startTime);
               request.pendingChunks++;
               emitDebugChunk(request, task.id, {
-                awaited: visited,
+                awaited: awaited,
                 env: env,
                 owner: node.owner,
                 stack: cutOff
               });
-              emitTimingChunk(request, task.id, endTime);
+              markOperationEndTime(request, task, endTime);
             }
           }
-          4 === node.tag
-            ? ((node = node.debugInfo.deref()),
-              (node =
-                void 0 === node || void 0 === node._debugInfo
-                  ? null
-                  : node._debugInfo))
-            : (node = node.debugInfo);
-          null !== node && forwardDebugInfo(request, task, node);
+          node = node.debugInfo;
+          null === node ||
+            visited.has(node) ||
+            (visited.add(node), forwardDebugInfo(request, task, node));
           return match;
         default:
           throw Error("Unknown AsyncSequence tag. This is a bug in React.");
       }
     }
-    function emitAsyncSequence(request, task, node, cutOff) {
+    function emitAsyncSequence(
+      request,
+      task,
+      node,
+      alreadyForwardedDebugInfo,
+      owner,
+      stack
+    ) {
       var visited = new Set();
-      node = visitAsyncNode(request, task, node, cutOff, visited);
-      if (null !== node) {
-        0 > node.end && (node.end = performance.now());
-        serializeIONode(request, node);
-        request.pendingChunks++;
-        visited = (0, request.environmentName)();
-        var awaitEndTime = node.end < cutOff ? cutOff : node.end;
-        emitTimingChunk(request, task.id, cutOff);
-        emitDebugChunk(request, task.id, { awaited: node, env: visited });
-        emitTimingChunk(request, task.id, awaitEndTime);
-      }
+      alreadyForwardedDebugInfo && visited.add(alreadyForwardedDebugInfo);
+      node = visitAsyncNode(request, task, node, visited, task.time);
+      null !== node &&
+        (serializeIONode(request, node),
+        request.pendingChunks++,
+        (alreadyForwardedDebugInfo = (0, request.environmentName)()),
+        (alreadyForwardedDebugInfo = {
+          awaited: node,
+          env: alreadyForwardedDebugInfo
+        }),
+        null != owner && (alreadyForwardedDebugInfo.owner = owner),
+        null != stack &&
+          (alreadyForwardedDebugInfo.stack = filterStackTrace(
+            request,
+            parseStackTrace(stack, 1)
+          )),
+        emitDebugChunk(request, task.id, alreadyForwardedDebugInfo),
+        markOperationEndTime(request, task, node.end));
     }
     function pingTask(request, task) {
       task.timed = !0;
-      var sequence = getCurrentAsyncSequence();
-      null !== sequence &&
-        emitAsyncSequence(request, task, sequence, task.time);
-      sequence = request.pingedTasks;
-      sequence.push(task);
-      1 === sequence.length &&
+      var pingedTasks = request.pingedTasks;
+      pingedTasks.push(task);
+      1 === pingedTasks.length &&
         ((request.flushScheduled = null !== request.destination),
         request.type === PRERENDER || request.status === OPENING
           ? scheduleMicrotask(function () {
@@ -2889,16 +2928,10 @@
       request.completedRegularChunks.push(":N" + timeOrigin + "\n");
     }
     function forwardDebugInfo(request$jscomp$0, task, debugInfo) {
-      var id = task.id;
-      task = task.time;
-      for (var i = 0; i < debugInfo.length; i++) {
+      for (var id = task.id, i = 0; i < debugInfo.length; i++) {
         var info = debugInfo[i];
         if ("number" === typeof info.time)
-          emitTimingChunk(
-            request$jscomp$0,
-            id,
-            info.time < task ? task : info.time
-          );
+          markOperationEndTime(request$jscomp$0, task, info.time);
         else if ("string" === typeof info.name)
           outlineComponentInfo(request$jscomp$0, info),
             request$jscomp$0.pendingChunks++,
@@ -2955,11 +2988,52 @@
             emitDebugChunk(request$jscomp$0, id, info);
       }
     }
+    function forwardDebugInfoFromThenable(
+      request,
+      task,
+      thenable,
+      owner,
+      stack
+    ) {
+      var debugInfo;
+      (debugInfo = thenable._debugInfo) &&
+        forwardDebugInfo(request, task, debugInfo);
+      try {
+        var asyncId = getAsyncId.call(thenable);
+      } catch (x) {}
+      void 0 === asyncId
+        ? (thenable = null)
+        : ((thenable = pendingOperations.get(asyncId)),
+          (thenable = void 0 === thenable ? null : thenable));
+      null !== thenable &&
+        emitAsyncSequence(request, task, thenable, debugInfo, owner, stack);
+    }
+    function forwardDebugInfoFromCurrentContext(request, task, thenable) {
+      (thenable = thenable._debugInfo) &&
+        forwardDebugInfo(request, task, thenable);
+      var sequence = pendingOperations.get(async_hooks.executionAsyncId());
+      sequence = void 0 === sequence ? null : sequence;
+      null !== sequence &&
+        emitAsyncSequence(request, task, sequence, thenable, null, null);
+    }
     function emitTimingChunk(request, id, timestamp) {
       request.pendingChunks++;
       timestamp -= request.timeOrigin;
       id = id.toString(16) + ':D{"time":' + timestamp + "}\n";
       request.completedRegularChunks.push(id);
+    }
+    function advanceTaskTime(request, task, timestamp) {
+      timestamp > task.time
+        ? (emitTimingChunk(request, task.id, timestamp),
+          (task.time = timestamp))
+        : task.timed || emitTimingChunk(request, task.id, task.time);
+      task.timed = !0;
+    }
+    function markOperationEndTime(request, task, timestamp) {
+      timestamp > task.time
+        ? (emitTimingChunk(request, task.id, timestamp),
+          (task.time = timestamp))
+        : emitTimingChunk(request, task.id, task.time);
     }
     function emitChunk(request, task, value) {
       var id = task.id;
@@ -2997,8 +3071,7 @@
                                     emitModelChunk(request, task.id, value));
     }
     function erroredTask(request, task, error) {
-      task.timed &&
-        emitTimingChunk(request, task.id, (task.time = performance.now()));
+      task.timed && markOperationEndTime(request, task, performance.now());
       task.status = ERRORED$1;
       if (
         "object" === typeof error &&
@@ -3037,8 +3110,7 @@
           currentEnv !== task.environmentName &&
             (request.pendingChunks++,
             emitDebugChunk(request, task.id, { env: currentEnv }));
-          task.timed &&
-            emitTimingChunk(request, task.id, (task.time = performance.now()));
+          task.timed && markOperationEndTime(request, task, performance.now());
           if ("object" === typeof resolvedModel && null !== resolvedModel)
             request.writtenObjects.set(
               resolvedModel,
@@ -3121,8 +3193,7 @@
     function abortTask(task, request, errorId) {
       task.status !== RENDERING &&
         ((task.status = ABORTED),
-        task.timed &&
-          emitTimingChunk(request, task.id, (task.time = performance.now())),
+        task.timed && markOperationEndTime(request, task, performance.now()),
         (errorId = serializeByValueID(errorId)),
         (task = encodeReferenceChunk(request, task.id, errorId)),
         request.completedErrorChunks.push(task));
@@ -4148,6 +4219,8 @@
               return;
             case "defaultProps":
               return;
+            case "_debugInfo":
+              return;
             case "toJSON":
               return;
             case Symbol.toPrimitive:
@@ -4323,7 +4396,9 @@
       }
     };
     var currentOwner = null,
+      getAsyncId = async_hooks.AsyncResource.prototype.asyncId,
       pendingOperations = new Map(),
+      lastRanAwait = null,
       framesToSkip = 0,
       collectedStackTrace = null,
       identifierRegExp = /^[a-zA-Z_$][0-9a-zA-Z_$]*$/,
@@ -4343,6 +4418,8 @@
             case "displayName":
               return;
             case "defaultProps":
+              return;
+            case "_debugInfo":
               return;
             case "toJSON":
               return;
@@ -4586,37 +4663,54 @@
             }
             pendingOperations.set(asyncId, resource);
           },
+          before: function (asyncId) {
+            asyncId = pendingOperations.get(asyncId);
+            if (void 0 !== asyncId)
+              switch (asyncId.tag) {
+                case 0:
+                  lastRanAwait = null;
+                  asyncId.end = performance.now();
+                  break;
+                case 4:
+                  lastRanAwait = resolvePromiseOrAwaitNode(
+                    asyncId,
+                    performance.now()
+                  );
+                  break;
+                case 2:
+                  lastRanAwait = asyncId;
+                  break;
+                case 3:
+                  resolvePromiseOrAwaitNode(
+                    asyncId,
+                    performance.now()
+                  ).previous = lastRanAwait;
+                  lastRanAwait = null;
+                  break;
+                default:
+                  lastRanAwait = null;
+              }
+          },
           promiseResolve: function (asyncId) {
             var node = pendingOperations.get(asyncId);
             if (void 0 !== node) {
               switch (node.tag) {
                 case 4:
-                  node.tag = 2;
-                  var resolvedNode = node;
-                  break;
                 case 3:
-                  node.tag = 1;
-                  resolvedNode = node;
+                  node = resolvePromiseOrAwaitNode(node, performance.now());
                   break;
-                case 0:
+                case 2:
+                case 1:
+                  break;
+                default:
                   throw Error(
                     "A Promise should never be an IO_NODE. This is a bug in React."
                   );
-                default:
-                  throw Error(
-                    "A Promise should never be resolved twice. This is a bug in React or Node.js."
-                  );
               }
-              resolvedNode.end = performance.now();
-              node = node.debugInfo.deref();
-              resolvedNode.debugInfo =
-                void 0 === node || void 0 === node._debugInfo
-                  ? null
-                  : node._debugInfo;
-              node = async_hooks.executionAsyncId();
-              asyncId !== node &&
-                ((asyncId = pendingOperations.get(node)),
-                (resolvedNode.awaited = void 0 === asyncId ? null : asyncId));
+              var currentAsyncId = async_hooks.executionAsyncId();
+              asyncId !== currentAsyncId &&
+                ((asyncId = pendingOperations.get(currentAsyncId)),
+                (node.awaited = void 0 === asyncId ? null : asyncId));
             }
           },
           destroy: function (asyncId) {
@@ -4813,12 +4907,12 @@
             "React doesn't accept base64 encoded file uploads because we don't expect form data passed from a browser to ever encode data that way. If that's the wrong assumption, we can easily fix it."
           );
         pendingFiles++;
-        var JSCompiler_object_inline_chunks_183 = [];
+        var JSCompiler_object_inline_chunks_190 = [];
         value.on("data", function (chunk) {
-          JSCompiler_object_inline_chunks_183.push(chunk);
+          JSCompiler_object_inline_chunks_190.push(chunk);
         });
         value.on("end", function () {
-          var blob = new Blob(JSCompiler_object_inline_chunks_183, {
+          var blob = new Blob(JSCompiler_object_inline_chunks_190, {
             type: mimeType
           });
           response._formData.append(name, blob, filename);

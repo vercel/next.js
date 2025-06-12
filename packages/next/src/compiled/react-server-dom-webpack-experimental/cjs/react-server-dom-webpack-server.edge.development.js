@@ -137,6 +137,8 @@
           return target.name;
         case "defaultProps":
           return;
+        case "_debugInfo":
+          return;
         case "toJSON":
           return;
         case Symbol.toPrimitive:
@@ -340,7 +342,8 @@
     function trackUsedThenable(thenableState, thenable, index) {
       index = thenableState[index];
       void 0 === index
-        ? thenableState.push(thenable)
+        ? (thenableState.push(thenable),
+          (thenableState._stacks || (thenableState._stacks = [])).push(Error()))
         : index !== thenable && (thenable.then(noop, noop), (thenable = index));
       switch (thenable.status) {
         case "fulfilled":
@@ -905,16 +908,26 @@
       switch (thenable.status) {
         case "fulfilled":
           return (
-            (task = thenable._debugInfo) &&
-              forwardDebugInfo(request, newTask, task),
+            forwardDebugInfoFromThenable(
+              request,
+              newTask,
+              thenable,
+              null,
+              null
+            ),
             (newTask.model = thenable.value),
             pingTask(request, newTask),
             newTask.id
           );
         case "rejected":
           return (
-            (task = thenable._debugInfo) &&
-              forwardDebugInfo(request, newTask, task),
+            forwardDebugInfoFromThenable(
+              request,
+              newTask,
+              thenable,
+              null,
+              null
+            ),
             erroredTask(request, newTask, thenable.reason),
             newTask.id
           );
@@ -945,19 +958,17 @@
       }
       thenable.then(
         function (value) {
-          var _debugInfo2 = thenable._debugInfo;
-          _debugInfo2 && forwardDebugInfo(request, newTask, _debugInfo2);
+          forwardDebugInfoFromCurrentContext(request, newTask, thenable);
           newTask.model = value;
           pingTask(request, newTask);
         },
         function (reason) {
-          var _debugInfo3 = thenable._debugInfo;
-          _debugInfo3 && forwardDebugInfo(request, newTask, _debugInfo3);
           newTask.status === PENDING$1 &&
-            (erroredTask(request, newTask, reason), enqueueFlush(request));
+            ((newTask.timed = !0),
+            erroredTask(request, newTask, reason),
+            enqueueFlush(request));
         }
       );
-      newTask.timed = !0;
       return newTask.id;
     }
     function serializeReadableStream(request, task, stream) {
@@ -1114,33 +1125,38 @@
       if ("rejected" === thenable.status) throw thenable.reason;
       throw thenable;
     }
-    function createLazyWrapperAroundWakeable(wakeable) {
+    function createLazyWrapperAroundWakeable(request, task, wakeable) {
       switch (wakeable.status) {
         case "fulfilled":
+          return (
+            forwardDebugInfoFromThenable(request, task, wakeable, null, null),
+            wakeable.value
+          );
         case "rejected":
+          forwardDebugInfoFromThenable(request, task, wakeable, null, null);
           break;
         default:
           "string" !== typeof wakeable.status &&
             ((wakeable.status = "pending"),
             wakeable.then(
               function (fulfilledValue) {
+                forwardDebugInfoFromCurrentContext(request, task, wakeable);
                 "pending" === wakeable.status &&
                   ((wakeable.status = "fulfilled"),
                   (wakeable.value = fulfilledValue));
               },
               function (error) {
+                forwardDebugInfoFromCurrentContext(request, task, wakeable);
                 "pending" === wakeable.status &&
                   ((wakeable.status = "rejected"), (wakeable.reason = error));
               }
             ));
       }
-      var lazyType = {
+      return {
         $$typeof: REACT_LAZY_TYPE,
         _payload: wakeable,
         _init: readThenable
       };
-      lazyType._debugInfo = wakeable._debugInfo || [];
-      return lazyType;
     }
     function callWithDebugContextInDEV(request, task, callback, arg) {
       var componentDebugInfo = {
@@ -1182,9 +1198,7 @@
               resolvedValue.$$typeof === REACT_ELEMENT_TYPE &&
               (resolvedValue._store.validated = 1);
           }, voidHandler),
-          "fulfilled" === result.status
-            ? result.value
-            : createLazyWrapperAroundWakeable(result)
+          createLazyWrapperAroundWakeable(request, task, result)
         );
       result.$$typeof === REACT_ELEMENT_TYPE && (result._store.validated = 1);
       var iteratorFn = getIteratorFn(result);
@@ -1259,12 +1273,12 @@
           componentDebugInfo.debugStack = task.debugStack;
           componentDebugInfo.debugTask = task.debugTask;
           outlineComponentInfo(request, componentDebugInfo);
+          var timestamp = performance.now();
+          timestamp > task.time
+            ? (emitTimingChunk(request, task.id, timestamp),
+              (task.time = timestamp))
+            : task.timed || emitTimingChunk(request, task.id, task.time);
           task.timed = !0;
-          emitTimingChunk(
-            request,
-            componentDebugID,
-            (task.time = performance.now())
-          );
           emitDebugChunk(request, componentDebugID, componentDebugInfo);
           task.environmentName = componentEnv;
           2 === validated &&
@@ -1312,6 +1326,21 @@
             props.then(voidHandler, voidHandler),
           null)
         );
+      validated = thenableState;
+      if (null !== validated)
+        for (
+          prevThenableState = validated._stacks || (validated._stacks = []),
+            componentDebugID = 0;
+          componentDebugID < validated.length;
+          componentDebugID++
+        )
+          forwardDebugInfoFromThenable(
+            request,
+            task,
+            validated[componentDebugID],
+            componentDebugInfo,
+            prevThenableState[componentDebugID]
+          );
       props = processServerComponentReturnValue(
         request,
         task,
@@ -1319,13 +1348,13 @@
         props
       );
       Component = task.keyPath;
-      validated = task.implicitSlot;
+      componentDebugInfo = task.implicitSlot;
       null !== key
         ? (task.keyPath = null === Component ? key : Component + "," + key)
         : null === Component && (task.implicitSlot = !0);
       request = renderModelDestructive(request, task, emptyRoot, "", props);
       task.keyPath = Component;
-      task.implicitSlot = validated;
+      task.implicitSlot = componentDebugInfo;
       return request;
     }
     function warnForMissingKey(request, key, componentDebugInfo, debugTask) {
@@ -2760,16 +2789,10 @@
       request.completedRegularChunks.push(timeOrigin);
     }
     function forwardDebugInfo(request$jscomp$0, task, debugInfo) {
-      var id = task.id;
-      task = task.time;
-      for (var i = 0; i < debugInfo.length; i++) {
+      for (var id = task.id, i = 0; i < debugInfo.length; i++) {
         var info = debugInfo[i];
         if ("number" === typeof info.time)
-          emitTimingChunk(
-            request$jscomp$0,
-            id,
-            info.time < task ? task : info.time
-          );
+          markOperationEndTime(request$jscomp$0, task, info.time);
         else if ("string" === typeof info.name)
           outlineComponentInfo(request$jscomp$0, info),
             request$jscomp$0.pendingChunks++,
@@ -2826,12 +2849,26 @@
             emitDebugChunk(request$jscomp$0, id, info);
       }
     }
+    function forwardDebugInfoFromThenable(request, task, thenable) {
+      (thenable = thenable._debugInfo) &&
+        forwardDebugInfo(request, task, thenable);
+    }
+    function forwardDebugInfoFromCurrentContext(request, task, thenable) {
+      (thenable = thenable._debugInfo) &&
+        forwardDebugInfo(request, task, thenable);
+    }
     function emitTimingChunk(request, id, timestamp) {
       request.pendingChunks++;
       timestamp -= request.timeOrigin;
       id = id.toString(16) + ':D{"time":' + timestamp + "}\n";
       id = stringToChunk(id);
       request.completedRegularChunks.push(id);
+    }
+    function markOperationEndTime(request, task, timestamp) {
+      timestamp > task.time
+        ? (emitTimingChunk(request, task.id, timestamp),
+          (task.time = timestamp))
+        : emitTimingChunk(request, task.id, task.time);
     }
     function emitChunk(request, task, value) {
       var id = task.id;
@@ -2869,8 +2906,7 @@
                                     emitModelChunk(request, task.id, value));
     }
     function erroredTask(request, task, error) {
-      task.timed &&
-        emitTimingChunk(request, task.id, (task.time = performance.now()));
+      task.timed && markOperationEndTime(request, task, performance.now());
       task.status = ERRORED$1;
       if (
         "object" === typeof error &&
@@ -2909,8 +2945,7 @@
           currentEnv !== task.environmentName &&
             (request.pendingChunks++,
             emitDebugChunk(request, task.id, { env: currentEnv }));
-          task.timed &&
-            emitTimingChunk(request, task.id, (task.time = performance.now()));
+          task.timed && markOperationEndTime(request, task, performance.now());
           if ("object" === typeof resolvedModel && null !== resolvedModel)
             request.writtenObjects.set(
               resolvedModel,
@@ -2992,8 +3027,7 @@
     function abortTask(task, request, errorId) {
       task.status !== RENDERING &&
         ((task.status = ABORTED),
-        task.timed &&
-          emitTimingChunk(request, task.id, (task.time = performance.now())),
+        task.timed && markOperationEndTime(request, task, performance.now()),
         (errorId = serializeByValueID(errorId)),
         (task = encodeReferenceChunk(request, task.id, errorId)),
         request.completedErrorChunks.push(task));
@@ -3977,6 +4011,8 @@
               return;
             case "defaultProps":
               return;
+            case "_debugInfo":
+              return;
             case "toJSON":
               return;
             case Symbol.toPrimitive:
@@ -4174,6 +4210,8 @@
             case "displayName":
               return;
             case "defaultProps":
+              return;
+            case "_debugInfo":
               return;
             case "toJSON":
               return;

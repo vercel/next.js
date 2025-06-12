@@ -137,6 +137,8 @@
           return target.name;
         case "defaultProps":
           return;
+        case "_debugInfo":
+          return;
         case "toJSON":
           return;
         case Symbol.toPrimitive:
@@ -873,16 +875,14 @@
       switch (thenable.status) {
         case "fulfilled":
           return (
-            (task = thenable._debugInfo) &&
-              forwardDebugInfo(request, newTask, task),
+            forwardDebugInfoFromThenable(request, newTask, thenable),
             (newTask.model = thenable.value),
             pingTask(request, newTask),
             newTask.id
           );
         case "rejected":
           return (
-            (task = thenable._debugInfo) &&
-              forwardDebugInfo(request, newTask, task),
+            forwardDebugInfoFromThenable(request, newTask, thenable),
             erroredTask(request, newTask, thenable.reason),
             newTask.id
           );
@@ -911,14 +911,11 @@
       }
       thenable.then(
         function (value) {
-          var _debugInfo2 = thenable._debugInfo;
-          _debugInfo2 && forwardDebugInfo(request, newTask, _debugInfo2);
+          forwardDebugInfoFromCurrentContext(request, newTask, thenable);
           newTask.model = value;
           pingTask(request, newTask);
         },
         function (reason) {
-          var _debugInfo3 = thenable._debugInfo;
-          _debugInfo3 && forwardDebugInfo(request, newTask, _debugInfo3);
           newTask.status === PENDING$1 &&
             (erroredTask(request, newTask, reason), enqueueFlush(request));
         }
@@ -1077,33 +1074,38 @@
       if ("rejected" === thenable.status) throw thenable.reason;
       throw thenable;
     }
-    function createLazyWrapperAroundWakeable(wakeable) {
+    function createLazyWrapperAroundWakeable(request, task, wakeable) {
       switch (wakeable.status) {
         case "fulfilled":
+          return (
+            forwardDebugInfoFromThenable(request, task, wakeable),
+            wakeable.value
+          );
         case "rejected":
+          forwardDebugInfoFromThenable(request, task, wakeable);
           break;
         default:
           "string" !== typeof wakeable.status &&
             ((wakeable.status = "pending"),
             wakeable.then(
               function (fulfilledValue) {
+                forwardDebugInfoFromCurrentContext(request, task, wakeable);
                 "pending" === wakeable.status &&
                   ((wakeable.status = "fulfilled"),
                   (wakeable.value = fulfilledValue));
               },
               function (error) {
+                forwardDebugInfoFromCurrentContext(request, task, wakeable);
                 "pending" === wakeable.status &&
                   ((wakeable.status = "rejected"), (wakeable.reason = error));
               }
             ));
       }
-      var lazyType = {
+      return {
         $$typeof: REACT_LAZY_TYPE,
         _payload: wakeable,
         _init: readThenable
       };
-      lazyType._debugInfo = wakeable._debugInfo || [];
-      return lazyType;
     }
     function callWithDebugContextInDEV(request, task, callback, arg) {
       var componentDebugInfo = {
@@ -1145,9 +1147,7 @@
               resolvedValue.$$typeof === REACT_ELEMENT_TYPE &&
               (resolvedValue._store.validated = 1);
           }, voidHandler),
-          "fulfilled" === result.status
-            ? result.value
-            : createLazyWrapperAroundWakeable(result)
+          createLazyWrapperAroundWakeable(request, task, result)
         );
       result.$$typeof === REACT_ELEMENT_TYPE && (result._store.validated = 1);
       var iteratorFn = getIteratorFn(result);
@@ -1269,6 +1269,18 @@
             props.then(voidHandler, voidHandler),
           null)
         );
+      validated = thenableState;
+      if (null !== validated)
+        for (
+          prevThenableState = 0;
+          prevThenableState < validated.length;
+          prevThenableState++
+        )
+          forwardDebugInfoFromThenable(
+            request,
+            task,
+            validated[prevThenableState]
+          );
       props = processServerComponentReturnValue(
         request,
         task,
@@ -2684,6 +2696,14 @@
               emitDebugChunk(request$jscomp$0, task, info);
       }
     }
+    function forwardDebugInfoFromThenable(request, task, thenable) {
+      (thenable = thenable._debugInfo) &&
+        forwardDebugInfo(request, task, thenable);
+    }
+    function forwardDebugInfoFromCurrentContext(request, task, thenable) {
+      (thenable = thenable._debugInfo) &&
+        forwardDebugInfo(request, task, thenable);
+    }
     function emitChunk(request, task, value) {
       var id = task.id;
       "string" === typeof value && null !== byteLengthOfChunk
@@ -3770,6 +3790,8 @@
               return;
             case "defaultProps":
               return;
+            case "_debugInfo":
+              return;
             case "toJSON":
               return;
             case Symbol.toPrimitive:
@@ -3967,6 +3989,8 @@
             case "displayName":
               return;
             case "defaultProps":
+              return;
+            case "_debugInfo":
               return;
             case "toJSON":
               return;
