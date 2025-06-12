@@ -113,7 +113,13 @@ export async function generateMetadata({ params, searchParams }, parent) {
 export default function Page({ params, searchParams }) {}
 ```
 
-Behind-the-scenes, Next.js will stream metadata separately from the UI and inject the metadata into the HTML as soon as it's resolved.
+### Streaming metadata
+
+For dynamically rendered pages, if resolving `generateMetadata` would potentially block rendering, then Next.js defers to stream the resolved metadata separately and injects it into the HTML as soon as it's ready.
+
+Statically rendered pages don’t use this behavior since metadata is resolved at build time.
+
+Learn more about [streaming metadata](/docs/app/api-reference/functions/generate-metadata#streaming-metadata).
 
 ### Memoizing data requests
 
