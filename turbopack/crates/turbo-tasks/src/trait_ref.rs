@@ -88,7 +88,7 @@ where
     }
 }
 
-// #[cfg(not(rust_analyzer))]
+#[cfg(not(rust_analyzer))]
 impl<U> std::ops::Deref for TraitRef<Box<U>>
 where
     Box<U>: VcValueTrait<ValueTrait = U>,
