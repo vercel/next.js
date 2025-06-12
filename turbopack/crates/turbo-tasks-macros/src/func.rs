@@ -733,6 +733,9 @@ pub struct FunctionArguments {
     /// task-local state. The function call itself will not be cached, but cells will be created on
     /// the parent task.
     pub local: Option<Span>,
+    /// If true, the function will be allowed to call `get_invalidator` . If this is false, the
+    /// `get_invalidator` function will panic on calls.
+    pub invalidator: Option<Span>,
 }
 
 impl Parse for FunctionArguments {
@@ -760,11 +763,14 @@ impl Parse for FunctionArguments {
                 ("local", Meta::Path(_)) => {
                     parsed_args.local = Some(meta.span());
                 }
+                ("invalidator", Meta::Path(_)) => {
+                    parsed_args.invalidator = Some(meta.span());
+                }
                 (_, meta) => {
                     return Err(syn::Error::new_spanned(
                         meta,
                         "unexpected token, expected one of: \"fs\", \"network\", \"operation\", \
-                         \"local\"",
+                         \"local\", \"invalidator\"",
                     ));
                 }
             }
@@ -1092,6 +1098,7 @@ pub struct NativeFn {
     pub is_self_used: bool,
     pub filter_trait_call_args: Option<FilterTraitCallArgsTokens>,
     pub local: bool,
+    pub invalidator: bool,
 }
 
 impl NativeFn {
@@ -1107,6 +1114,7 @@ impl NativeFn {
             is_self_used,
             filter_trait_call_args,
             local,
+            invalidator,
         } = self;
 
         if *is_method {
@@ -1133,6 +1141,7 @@ impl NativeFn {
                             #function_path_string.to_owned(),
                             turbo_tasks::macro_helpers::FunctionMeta {
                                 local: #local,
+                                invalidator: #invalidator,
                             },
                             #arg_filter,
                             #function_path,
@@ -1147,6 +1156,7 @@ impl NativeFn {
                             #function_path_string.to_owned(),
                             turbo_tasks::macro_helpers::FunctionMeta {
                                 local: #local,
+                                invalidator: #invalidator,
                             },
                             #arg_filter,
                             #function_path,
@@ -1162,6 +1172,7 @@ impl NativeFn {
                         #function_path_string.to_owned(),
                         turbo_tasks::macro_helpers::FunctionMeta {
                             local: #local,
+                            invalidator: #invalidator,
                         },
                         #function_path,
                     )

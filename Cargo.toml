@@ -336,6 +336,7 @@ criterion = { package = "codspeed-criterion-compat", version = "2.10.1" }
 crossbeam-channel = "0.5.8"
 dashmap = "6.1.0"
 data-encoding = "2.3.3"
+divan = { version = "2.10.1", package = "codspeed-divan-compat" }
 dhat = { version = "0.3.2" }
 dunce = "1.0.3"
 either = "1.9.0"
