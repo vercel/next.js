@@ -669,7 +669,11 @@ async function warmupDevRender(
     workStore,
   } = ctx
 
-  const { dev, onInstrumentationRequestError } = renderOpts
+  const {
+    allowEmptyStaticShell = false,
+    dev,
+    onInstrumentationRequestError,
+  } = renderOpts
 
   if (!dev) {
     throw new InvariantError(
@@ -711,6 +715,7 @@ async function warmupDevRender(
     controller: prerenderController,
     cacheSignal,
     dynamicTracking: null,
+    allowEmptyStaticShell,
     revalidate: INFINITE_CACHE,
     expire: INFINITE_CACHE,
     stale: INFINITE_CACHE,
@@ -2263,7 +2268,8 @@ async function spawnDynamicValidationInDev(
     renderOpts,
     workStore,
   } = ctx
-  const { botType } = renderOpts
+
+  const { allowEmptyStaticShell = false, botType } = renderOpts
 
   // These values are placeholder values for this validating render
   // that are provided during the actual prerenderToStream.
@@ -2311,6 +2317,7 @@ async function spawnDynamicValidationInDev(
     // the final prerender.
     cacheSignal,
     dynamicTracking: null,
+    allowEmptyStaticShell,
     revalidate: INFINITE_CACHE,
     expire: INFINITE_CACHE,
     stale: INFINITE_CACHE,
@@ -2418,6 +2425,7 @@ async function spawnDynamicValidationInDev(
       // is module loading, which has it's own cache signal
       cacheSignal: null,
       dynamicTracking: null,
+      allowEmptyStaticShell,
       revalidate: INFINITE_CACHE,
       expire: INFINITE_CACHE,
       stale: INFINITE_CACHE,
@@ -2504,6 +2512,7 @@ async function spawnDynamicValidationInDev(
     // All caches we could read must already be filled so no tracking is necessary
     cacheSignal: null,
     dynamicTracking: serverDynamicTracking,
+    allowEmptyStaticShell,
     revalidate: INFINITE_CACHE,
     expire: INFINITE_CACHE,
     stale: INFINITE_CACHE,
@@ -2567,6 +2576,7 @@ async function spawnDynamicValidationInDev(
     // No APIs require a cacheSignal through the workUnitStore during the HTML prerender
     cacheSignal: null,
     dynamicTracking: clientDynamicTracking,
+    allowEmptyStaticShell,
     revalidate: INFINITE_CACHE,
     expire: INFINITE_CACHE,
     stale: INFINITE_CACHE,
@@ -2906,6 +2916,7 @@ async function prerenderToStream(
         // the final prerender.
         cacheSignal,
         dynamicTracking: null,
+        allowEmptyStaticShell,
         revalidate: INFINITE_CACHE,
         expire: INFINITE_CACHE,
         stale: INFINITE_CACHE,
@@ -3029,6 +3040,7 @@ async function prerenderToStream(
           // is module loading, which has it's own cache signal
           cacheSignal: null,
           dynamicTracking: null,
+          allowEmptyStaticShell,
           revalidate: INFINITE_CACHE,
           expire: INFINITE_CACHE,
           stale: INFINITE_CACHE,
@@ -3115,6 +3127,7 @@ async function prerenderToStream(
         // All caches we could read must already be filled so no tracking is necessary
         cacheSignal: null,
         dynamicTracking: serverDynamicTracking,
+        allowEmptyStaticShell,
         revalidate: INFINITE_CACHE,
         expire: INFINITE_CACHE,
         stale: INFINITE_CACHE,
@@ -3186,6 +3199,7 @@ async function prerenderToStream(
         // No APIs require a cacheSignal through the workUnitStore during the HTML prerender
         cacheSignal: null,
         dynamicTracking: clientDynamicTracking,
+        allowEmptyStaticShell,
         revalidate: INFINITE_CACHE,
         expire: INFINITE_CACHE,
         stale: INFINITE_CACHE,

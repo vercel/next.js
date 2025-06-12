@@ -391,6 +391,7 @@ export class AppRouteRouteModule extends RouteModule<
               // During prospective render we don't use a controller
               // because we need to let all caches fill.
               dynamicTracking,
+              allowEmptyStaticShell: false,
               revalidate: defaultRevalidate,
               expire: INFINITE_CACHE,
               stale: INFINITE_CACHE,
@@ -481,6 +482,7 @@ export class AppRouteRouteModule extends RouteModule<
             controller: finalController,
             cacheSignal: null,
             dynamicTracking,
+            allowEmptyStaticShell: false,
             revalidate: defaultRevalidate,
             expire: INFINITE_CACHE,
             stale: INFINITE_CACHE,
