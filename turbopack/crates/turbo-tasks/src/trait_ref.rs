@@ -97,11 +97,10 @@ where
     type Target = U;
 
     fn deref(&self) -> &Self::Target {
-        // This lookup will fail if the valuye type stored does not actually implement the trait,
+        // This lookup will fail if the value type stored does not actually implement the trait,
         // which implies a bug in either the registry code or the macro code.
-        let metadata = <Box<U> as VcValueTrait>::get_impl_vtables()
-            .get(&self.shared_reference.type_id)
-            .unwrap();
+        let metadata =
+            <Box<U> as VcValueTrait>::get_impl_vtables().get(self.shared_reference.type_id);
         let downcast_ptr = std::ptr::from_raw_parts(
             self.shared_reference.reference.0.as_ptr() as *const (),
             metadata,

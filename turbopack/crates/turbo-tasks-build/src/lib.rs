@@ -154,6 +154,7 @@ pub fn generate_register() {
                 entry.global_name,
             )
             .unwrap();
+            // Register all the trait items for each impl so we can dispatch to them as turbotasks
             for trait_ident in &entry.trait_idents {
                 writeln!(
                     values_code,
@@ -164,6 +165,8 @@ pub fn generate_register() {
                 .unwrap();
             }
             writeln!(values_code, "}}, #[allow(unused_variables)] |value_id| {{").unwrap();
+            // Register all the vtables for the impls so we can dispatch to them as normal indirect
+            // trait calls.
             for trait_ident in &entry.trait_idents {
                 writeln!(
                     values_code,

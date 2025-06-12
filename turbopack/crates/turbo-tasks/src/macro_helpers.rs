@@ -91,8 +91,8 @@ impl<T: ?Sized> VTableRegistry<T> {
         debug_assert!(prev.is_none(), "{id} was already registered");
     }
 
-    pub(crate) fn get(&self, id: &ValueTypeId) -> Option<DynMetadata<T>> {
-        self.map.get(id).map(|r| *r.value())
+    pub(crate) fn get(&self, id: ValueTypeId) -> DynMetadata<T> {
+        *self.map.get(&id).unwrap().value()
     }
 }
 
