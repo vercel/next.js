@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Vc, VcValueTrait,
-    registry::{self, get_value_type},
+    registry::get_value_type,
     task::shared_reference::TypedSharedReference,
     vc::{ReadVcFuture, VcValueTraitCast, cast::VcCast},
 };
@@ -88,20 +88,24 @@ where
     }
 }
 
-#[cfg(not(rust_analyzer))]
+// #[cfg(not(rust_analyzer))]
 impl<U> std::ops::Deref for TraitRef<Box<U>>
 where
-    Box<U>: VcValueTrait,
+    Box<U>: VcValueTrait<ValueTrait = U>,
     U: std::ptr::Pointee<Metadata = std::ptr::DynMetadata<U>> + ?Sized,
 {
     type Target = U;
 
     fn deref(&self) -> &Self::Target {
-        let downcast_ptr = registry::get_value_type(self.shared_reference.type_id)
-            .as_trait_ptr::<Self::Target>(self.shared_reference.reference.0.as_ptr());
-        // SAFETY: the shared reference is guaranteed to outlive &self, and the returned reference
-        // is guaranteed to have a lifetime shorter than or equal to `&self` so this reference will
-        // not outlive the pointee
+        // This lookup will fail if the valuye type stored does not actually implement the trait,
+        // which implies a bug in either the registry code or the macro code.
+        let metadata = <Box<U> as VcValueTrait>::get_impl_vtables()
+            .get(&self.shared_reference.type_id)
+            .unwrap();
+        let downcast_ptr = std::ptr::from_raw_parts(
+            self.shared_reference.reference.0.as_ptr() as *const (),
+            metadata,
+        );
         unsafe { &*downcast_ptr }
     }
 }

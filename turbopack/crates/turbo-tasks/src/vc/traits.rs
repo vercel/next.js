@@ -1,5 +1,6 @@
 use crate::{
-    NonLocalValue, ShrinkToFit, TraitTypeId, ValueTypeId, VcRead, vc::cell_mode::VcCellMode,
+    NonLocalValue, ShrinkToFit, TraitTypeId, ValueTypeId, VcRead, macro_helpers::VTableRegistry,
+    vc::cell_mode::VcCellMode,
 };
 
 /// A trait implemented on all values types that can be put into a Value Cell
@@ -26,8 +27,15 @@ pub unsafe trait VcValueType: ShrinkToFit + Sized + Send + Sync + 'static {
 /// A trait implemented on all values trait object references that can be put
 /// into a Value Cell ([`Vc<Box<dyn Trait>>`][crate::Vc]).
 pub trait VcValueTrait: NonLocalValue + Send + Sync + 'static {
+    // The conrete type of the value_trait implementing VcValueTrait
+    type ValueTrait: ?Sized;
+
     /// Returns the type id of the trait object.
     fn get_trait_type_id() -> TraitTypeId;
+
+    /// Returns the vtable for an implementation of this trait.
+    /// Panics if ValueTypeId does not implement the trait.
+    fn get_impl_vtables() -> &'static VTableRegistry<Self::ValueTrait>;
 }
 
 /// Marker trait that indicates that a [`Vc<Self>`][crate::Vc] can be upcasted

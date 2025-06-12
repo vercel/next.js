@@ -7,7 +7,7 @@ use syn::{
 use turbo_tasks_macros_shared::{
     ValueTraitArguments, get_trait_default_impl_function_id_ident,
     get_trait_default_impl_function_ident, get_trait_type_id_ident, get_trait_type_ident,
-    is_self_used,
+    get_trait_type_vtable_registry, is_self_used,
 };
 
 use crate::func::{
@@ -67,6 +67,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
 
     let trait_type_ident = get_trait_type_ident(trait_ident);
     let trait_type_id_ident = get_trait_type_id_ident(trait_ident);
+    let trait_type_vtable_registry = get_trait_type_vtable_registry(trait_ident);
     let mut dynamic_trait_fns = Vec::new();
     let mut trait_methods: Vec<TokenStream2> = Vec::new();
     let mut native_functions = Vec::new();
@@ -120,7 +121,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                     };
                     args.push(ident);
                 }
-                // Add a dummy implementation that dereferneces the box and delegates to the
+                // Add a dummy implementation that derefences the box and delegates to the
                 // actual implementation.
                 dynamic_trait_fns.push(quote! {
                     #sig {
@@ -287,10 +288,19 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             turbo_tasks::macro_helpers::Lazy::new(|| {
                 turbo_tasks::registry::get_trait_type_id(&#trait_type_ident)
             });
+        #[doc(hidden)]
+        static #trait_type_vtable_registry: turbo_tasks::macro_helpers::Lazy<turbo_tasks::macro_helpers::VTableRegistry<dyn # trait_ident>> =
+            turbo_tasks::macro_helpers::Lazy::new(turbo_tasks::macro_helpers::VTableRegistry::new);
 
         impl turbo_tasks::VcValueTrait for Box<dyn #trait_ident> {
+            type ValueTrait = dyn #trait_ident;
+
             fn get_trait_type_id() -> turbo_tasks::TraitTypeId {
                 *#trait_type_id_ident
+            }
+
+            fn get_impl_vtables() -> &'static turbo_tasks::macro_helpers::VTableRegistry<Self::ValueTrait> {
+                &*#trait_type_vtable_registry
             }
         }
 

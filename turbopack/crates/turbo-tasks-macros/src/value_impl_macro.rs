@@ -10,8 +10,8 @@ use syn::{
 };
 use turbo_tasks_macros_shared::{
     get_inherent_impl_function_id_ident, get_inherent_impl_function_ident, get_path_ident,
-    get_register_trait_methods_ident, get_trait_impl_function_id_ident,
-    get_trait_impl_function_ident, get_type_ident, is_self_used,
+    get_register_trait_impls_ident, get_register_trait_methods_ident,
+    get_trait_impl_function_id_ident, get_trait_impl_function_ident, get_type_ident, is_self_used,
 };
 
 use crate::func::{
@@ -180,7 +180,9 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
 
         let (impl_generics, _, where_clause) = generics.split_for_impl();
 
-        let register = get_register_trait_methods_ident(&trait_ident, ty_ident);
+        let register_trait_methods: Ident =
+            get_register_trait_methods_ident(&trait_ident, ty_ident);
+        let register_trait_impls: Ident = get_register_trait_impls_ident(&trait_ident, ty_ident);
 
         let mut trait_registers = Vec::new();
         let mut trait_functions = Vec::with_capacity(items.len());
@@ -299,14 +301,19 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
         quote! {
             #[doc(hidden)]
             #[allow(non_snake_case)]
-            pub(crate) fn #register(value: &mut turbo_tasks::ValueType) {
+            pub(crate) fn #register_trait_methods(value: &mut turbo_tasks::ValueType) {
+                // value.register_trait(<Box<dyn #trait_path> as turbo_tasks::VcValueTrait>::get_trait_type_id());
+                #(#trait_registers)*
+            }
+            #[doc(hidden)]
+            #[allow(non_snake_case)]
+            pub(crate) fn #register_trait_impls(value_id: turbo_tasks::ValueTypeId) {
                 // NOTE(lukesandberg): This relies on the nightly ptr_metadata feature.  Alternatively
                 // we could generate a function that does the downcasting and pass that up to register_trait.
                 // This would avoid the nightly feature.
                 let fat_pointer: *const dyn #trait_path = ::std::ptr::null::<#ty>() as *const dyn #trait_path;
                 let metadata = turbo_tasks::macro_helpers::metadata(fat_pointer);
-                value.register_trait(metadata);
-                #(#trait_registers)*
+                turbo_tasks::macro_helpers::register_trait_impl::<dyn #trait_path, Box<dyn #trait_path>>(value_id, metadata);
             }
 
             // NOTE(alexkirsz) We can't have a general `turbo_tasks::Upcast<Box<dyn Trait>> for T where T: Trait` because

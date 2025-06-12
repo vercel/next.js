@@ -496,13 +496,14 @@ pub fn value_type_and_register(
         #[allow(non_snake_case)]
         pub(crate) fn #register_value_type_ident(
             global_name: &'static str,
-            f: impl FnOnce(&mut turbo_tasks::ValueType),
+            init: impl FnOnce(&mut turbo_tasks::ValueType),
+            register_traits: impl FnOnce(turbo_tasks::ValueTypeId),
         ) {
             #value_type_init_ident.get_or_init(|| {
                 let mut value = #new_value_type;
-                f(&mut value);
+                init(&mut value);
                 value
-            }).register(global_name);
+            }).register(global_name, register_traits);
         }
 
         unsafe impl #impl_generics turbo_tasks::VcValueType for #ty #where_clause {

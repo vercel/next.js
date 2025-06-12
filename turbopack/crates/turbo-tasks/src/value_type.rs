@@ -3,16 +3,15 @@ use std::{
     borrow::Cow,
     fmt::{self, Debug, Display, Formatter},
     hash::Hash,
-    ptr::DynMetadata,
     sync::Arc,
 };
 
-use auto_hash_map::AutoMap;
+use auto_hash_map::{AutoMap, AutoSet};
 use serde::{Deserialize, Serialize};
 use tracing::Span;
 
 use crate::{
-    RawVc, VcValueTrait, VcValueType,
+    RawVc, VcValueType,
     id::{FunctionId, TraitTypeId},
     magic_any::{AnyDeserializeSeed, MagicAny, MagicAnyDeserializeSeed, MagicAnySerializeSeed},
     registry::{register_trait_type, register_value_type},
@@ -37,8 +36,8 @@ type RawCellFactoryFn = fn(TypedSharedReference) -> RawVc;
 pub struct ValueType {
     /// A readable name of the type
     pub name: String,
-    /// Set of traits available along with their vtabls.
-    pub traits: AutoMap<TraitTypeId, Box<dyn Any + Send + Sync>>,
+    /// Set of traits available
+    pub traits: AutoSet<TraitTypeId>,
     /// List of trait methods available
     pub trait_methods: AutoMap<(TraitTypeId, Cow<'static, str>), FunctionId>,
 
@@ -106,7 +105,7 @@ impl ValueType {
     pub fn new<T: VcValueType>() -> Self {
         Self {
             name: std::any::type_name::<T>().to_string(),
-            traits: AutoMap::new(),
+            traits: AutoSet::new(),
             trait_methods: AutoMap::new(),
             magic_serialization: None,
             any_serialization: None,
@@ -120,7 +119,7 @@ impl ValueType {
     >() -> Self {
         Self {
             name: std::any::type_name::<T>().to_string(),
-            traits: AutoMap::new(),
+            traits: AutoSet::new(),
             trait_methods: AutoMap::new(),
             magic_serialization: None,
             any_serialization: Some((any_as_serialize::<T>, AnyDeserializeSeed::new::<T>())),
@@ -181,40 +180,27 @@ impl ValueType {
     }
 
     /// This is internally used by `#[turbo_tasks::value_impl]`
-    pub fn register_trait<T: ?Sized>(&mut self, meta: std::ptr::DynMetadata<T>)
-    where
-        Box<T>: VcValueTrait,
-    {
-        self.traits.insert(
-            <Box<T> as VcValueTrait>::get_trait_type_id(),
-            Box::new(meta),
-        );
-    }
-
-    /// Composes a fat pointer from a `dyn Any` for the given trait_id
-    pub(crate) fn as_trait_ptr<T>(&self, ptr: *const (dyn Any + Send + Sync)) -> *const T
-    where
-        T: std::ptr::Pointee<Metadata = std::ptr::DynMetadata<T>> + ?Sized,
-        Box<T>: VcValueTrait,
-    {
-        let trait_type = <Box<T> as VcValueTrait>::get_trait_type_id();
-        // It is a bug in the caller if they pass a
-        let vtable = self.traits.get(&trait_type).unwrap();
-        let typed_vtable = vtable.downcast_ref::<DynMetadata<T>>().unwrap();
-
-        std::ptr::from_raw_parts::<T>(ptr as *const (), *typed_vtable)
+    pub fn register_trait<T: ?Sized>(&mut self, trait_type: TraitTypeId) {
+        self.traits.insert(trait_type);
     }
 
     pub fn has_trait(&self, trait_type: &TraitTypeId) -> bool {
-        self.traits.contains_key(trait_type)
+        self.traits.contains(trait_type)
     }
 
     pub fn traits_iter(&self) -> impl Iterator<Item = TraitTypeId> + '_ {
-        self.traits.iter().map(|v| *v.0)
+        self.traits.iter().cloned()
     }
 
-    pub fn register(&'static self, global_name: &'static str) {
-        register_value_type(global_name, self)
+    pub fn register(
+        &'static self,
+        global_name: &'static str,
+        register_traits: impl FnOnce(crate::ValueTypeId),
+    ) {
+        let id = register_value_type(global_name, self);
+        if let Some(id) = id {
+            register_traits(id);
+        }
     }
 }
 

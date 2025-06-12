@@ -16,9 +16,9 @@ use syn::{
 };
 use turbo_tasks_macros_shared::{
     GenericTypeInput, PrimitiveInput, get_impl_function_ident, get_native_function_ident,
-    get_path_ident, get_register_trait_methods_ident, get_register_value_type_ident,
-    get_trait_default_impl_function_ident, get_trait_impl_function_ident, get_trait_type_ident,
-    get_type_ident,
+    get_path_ident, get_register_trait_impls_ident, get_register_trait_methods_ident,
+    get_register_value_type_ident, get_trait_default_impl_function_ident,
+    get_trait_impl_function_ident, get_trait_type_ident, get_type_ident,
 };
 
 pub fn generate_register() {
@@ -154,12 +154,22 @@ pub fn generate_register() {
                 entry.global_name,
             )
             .unwrap();
-            for trait_ident in entry.trait_idents {
+            for trait_ident in &entry.trait_idents {
                 writeln!(
                     values_code,
                     "    crate{}::{}(value);",
                     mod_path,
-                    get_register_trait_methods_ident(&trait_ident, &ident),
+                    get_register_trait_methods_ident(trait_ident, &ident),
+                )
+                .unwrap();
+            }
+            writeln!(values_code, "}}, #[allow(unused_variables)] |value_id| {{").unwrap();
+            for trait_ident in &entry.trait_idents {
+                writeln!(
+                    values_code,
+                    "    crate{}::{}(value_id);",
+                    mod_path,
+                    get_register_trait_impls_ident(trait_ident, &ident),
                 )
                 .unwrap();
             }
