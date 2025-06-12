@@ -18,7 +18,7 @@ If you are starting a new project, using `create-next-app` with the `--api` flag
 npx create-next-app@latest --api
 ```
 
-> ** Good to know**: Next.js backend capabilities are not a full backend replacement. They serve as an API layer that:
+> **Good to know**: Next.js backend capabilities are not a full backend replacement. They serve as an API layer that:
 >
 > - is publicly reachable
 > - handles any HTTP request
@@ -28,7 +28,7 @@ To implement this pattern, use:
 
 - [Route Handlers](/docs/app/api-reference/file-conventions/route)
 - [`middleware`](/docs/app/api-reference/file-conventions/middleware)
-- In Pages Router, [API Routes](/pages/building-your-application/routing/api-routes).
+- In Pages Router, [API Routes](/pages/building-your-application/routing/api-routes)
 
 ## Public Endpoints
 
@@ -46,7 +46,7 @@ export function GET(request) {}
 
 This handles `GET` requests sent to `/api`.
 
-Use `try/catch` blocks for operations that may fail:
+Use `try/catch` blocks for operations that may throw an exception:
 
 ```ts filename="/app/api/route.ts" switcher
 import { submit } from '@/lib/submit'
@@ -86,7 +86,7 @@ To restrict access, implement authentication and authorization. See [Authenticat
 
 ## Content types
 
-You can serve more than HTML—JSON, XML, images, files, and plain text are all supported.
+Route Handlers let you serve non-UI responses, including JSON, XML, images, files, and plain text.
 
 Next.js uses file conventions for common endpoints:
 
@@ -101,6 +101,8 @@ You can also define custom ones, such as:
 - `llms.txt`
 - `rss.xml`
 - `.well-known`
+
+For example, `app/rss.xml/route.ts` creates a Route Handler for `rss.xml`.
 
 ```ts filename="/app/rss.xml/route.ts" switcher
 export async function GET(request: Request) {
