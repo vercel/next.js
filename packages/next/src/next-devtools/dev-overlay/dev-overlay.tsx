@@ -39,13 +39,17 @@ export function DevOverlay({
             <>
               {state.showIndicator &&
                 (process.env.__NEXT_DEVTOOL_NEW_PANEL_UI ? (
-                  <DevToolsIndicatorNew
-                    scale={scale}
-                    state={state}
-                    dispatch={dispatch}
-                    errorCount={totalErrorCount}
-                    isBuildError={isBuildError}
-                  />
+                  <>
+                    <DevToolsIndicatorNew
+                      scale={scale}
+                      state={state}
+                      dispatch={dispatch}
+                      errorCount={totalErrorCount}
+                      isBuildError={isBuildError}
+                    />
+
+                    {state.isDevToolsPanelOpen && <DevToolsPanel />}
+                  </>
                 ) : (
                   <DevToolsIndicator
                     scale={scale}
@@ -56,9 +60,6 @@ export function DevOverlay({
                     isBuildError={isBuildError}
                   />
                 ))}
-
-              {process.env.__NEXT_DEVTOOL_NEW_PANEL_UI &&
-                state.isDevToolsPanelOpen && <DevToolsPanel />}
 
               <ErrorOverlay
                 state={state}
