@@ -2,7 +2,6 @@ import type { CSSProperties, Dispatch, SetStateAction } from 'react'
 import {
   ACTION_ERROR_OVERLAY_OPEN,
   ACTION_ERROR_OVERLAY_TOGGLE,
-  ACTION_DEV_TOOLS_PANEL_TOGGLE,
   STORAGE_KEY_POSITION,
   type OverlayDispatch,
   type OverlayState,
@@ -235,11 +234,6 @@ function DevToolsPopover({
   }
 
   function onTriggerClick() {
-    if (process.env.__NEXT_DEVTOOL_NEW_PANEL_UI) {
-      dispatch({ type: ACTION_DEV_TOOLS_PANEL_TOGGLE })
-      return
-    }
-
     if (open === OVERLAYS.Root) {
       setOpen(null)
     } else {
@@ -311,130 +305,124 @@ function DevToolsPopover({
         />
       </Draggable>
 
-      {process.env.__NEXT_DEVTOOL_NEW_PANEL_UI ? null : (
-        <>
-          {/* Route Info */}
-          <RouteInfo
-            isOpen={isRouteInfoOpen}
-            close={closeToRootMenu}
-            triggerRef={triggerRef}
-            style={popover}
-            routerType={routerType}
-            routeType={isStaticRoute ? 'Static' : 'Dynamic'}
-          />
+      {/* Route Info */}
+      <RouteInfo
+        isOpen={isRouteInfoOpen}
+        close={closeToRootMenu}
+        triggerRef={triggerRef}
+        style={popover}
+        routerType={routerType}
+        routeType={isStaticRoute ? 'Static' : 'Dynamic'}
+      />
 
-          {/* Turbopack Info */}
-          <TurbopackInfo
-            isOpen={isTurbopackInfoOpen}
-            close={closeToRootMenu}
-            triggerRef={triggerRef}
-            style={popover}
-          />
+      {/* Turbopack Info */}
+      <TurbopackInfo
+        isOpen={isTurbopackInfoOpen}
+        close={closeToRootMenu}
+        triggerRef={triggerRef}
+        style={popover}
+      />
 
-          {/* Preferences */}
-          <UserPreferences
-            isOpen={isPreferencesOpen}
-            close={closeToRootMenu}
-            triggerRef={triggerRef}
-            style={popover}
-            hide={handleHideDevtools}
-            setPosition={setPosition}
-            position={position}
-            scale={scale}
-            setScale={setScale}
-          />
+      {/* Preferences */}
+      <UserPreferences
+        isOpen={isPreferencesOpen}
+        close={closeToRootMenu}
+        triggerRef={triggerRef}
+        style={popover}
+        hide={handleHideDevtools}
+        setPosition={setPosition}
+        position={position}
+        scale={scale}
+        setScale={setScale}
+      />
 
-          {/* Page Segment Explorer */}
-          {process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER ? (
-            <SegmentsExplorer
-              isOpen={isSegmentExplorerOpen}
-              close={closeToRootMenu}
-              triggerRef={triggerRef}
-              style={popover}
-            />
-          ) : null}
+      {/* Page Segment Explorer */}
+      {process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER ? (
+        <SegmentsExplorer
+          isOpen={isSegmentExplorerOpen}
+          close={closeToRootMenu}
+          triggerRef={triggerRef}
+          style={popover}
+        />
+      ) : null}
 
-          {/* Dropdown Menu */}
-          {menuMounted && (
-            <div
-              ref={menuRef}
-              id="nextjs-dev-tools-menu"
-              role="menu"
-              dir="ltr"
-              aria-orientation="vertical"
-              aria-label="Next.js Dev Tools Items"
-              tabIndex={-1}
-              className="dev-tools-indicator-menu"
-              onKeyDown={onMenuKeydown}
-              data-rendered={menuRendered}
-              style={popover}
-            >
-              <Context.Provider
-                value={{
-                  closeMenu,
-                  selectedIndex,
-                  setSelectedIndex,
-                }}
-              >
-                <div className="dev-tools-indicator-inner">
-                  {issueCount > 0 && (
-                    <MenuItem
-                      title={`${issueCount} ${issueCount === 1 ? 'issue' : 'issues'} found. Click to view details in the dev overlay.`}
-                      index={0}
-                      label="Issues"
-                      value={<IssueCount>{issueCount}</IssueCount>}
-                      onClick={openErrorOverlay}
-                    />
-                  )}
-                  <MenuItem
-                    title={`Current route is ${isStaticRoute ? 'static' : 'dynamic'}.`}
-                    label="Route"
-                    index={1}
-                    value={isStaticRoute ? 'Static' : 'Dynamic'}
-                    onClick={() => setOpen(OVERLAYS.Route)}
-                    data-nextjs-route-type={
-                      isStaticRoute ? 'static' : 'dynamic'
-                    }
-                  />
-                  {isTurbopack ? (
-                    <MenuItem
-                      title="Turbopack is enabled."
-                      label="Turbopack"
-                      value="Enabled"
-                    />
-                  ) : (
-                    <MenuItem
-                      index={2}
-                      title="Learn about Turbopack and how to enable it in your application."
-                      label="Try Turbopack"
-                      value={<ChevronRight />}
-                      onClick={() => setOpen(OVERLAYS.Turbo)}
-                    />
-                  )}
-                </div>
-
-                <div className="dev-tools-indicator-footer">
-                  <MenuItem
-                    data-preferences
-                    label="Preferences"
-                    value={<GearIcon />}
-                    onClick={() => setOpen(OVERLAYS.Preferences)}
-                    index={isTurbopack ? 2 : 3}
-                  />
-                  {process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER ? (
-                    <MenuItem
-                      data-segment-explorer
-                      label="Segment Explorer"
-                      value={<ChevronRight />}
-                      onClick={() => setOpen(OVERLAYS.SegmentExplorer)}
-                      index={isTurbopack ? 3 : 4}
-                    />
-                  ) : null}
-                </div>
-              </Context.Provider>
+      {/* Dropdown Menu */}
+      {menuMounted && (
+        <div
+          ref={menuRef}
+          id="nextjs-dev-tools-menu"
+          role="menu"
+          dir="ltr"
+          aria-orientation="vertical"
+          aria-label="Next.js Dev Tools Items"
+          tabIndex={-1}
+          className="dev-tools-indicator-menu"
+          onKeyDown={onMenuKeydown}
+          data-rendered={menuRendered}
+          style={popover}
+        >
+          <Context.Provider
+            value={{
+              closeMenu,
+              selectedIndex,
+              setSelectedIndex,
+            }}
+          >
+            <div className="dev-tools-indicator-inner">
+              {issueCount > 0 && (
+                <MenuItem
+                  title={`${issueCount} ${issueCount === 1 ? 'issue' : 'issues'} found. Click to view details in the dev overlay.`}
+                  index={0}
+                  label="Issues"
+                  value={<IssueCount>{issueCount}</IssueCount>}
+                  onClick={openErrorOverlay}
+                />
+              )}
+              <MenuItem
+                title={`Current route is ${isStaticRoute ? 'static' : 'dynamic'}.`}
+                label="Route"
+                index={1}
+                value={isStaticRoute ? 'Static' : 'Dynamic'}
+                onClick={() => setOpen(OVERLAYS.Route)}
+                data-nextjs-route-type={isStaticRoute ? 'static' : 'dynamic'}
+              />
+              {isTurbopack ? (
+                <MenuItem
+                  title="Turbopack is enabled."
+                  label="Turbopack"
+                  value="Enabled"
+                />
+              ) : (
+                <MenuItem
+                  index={2}
+                  title="Learn about Turbopack and how to enable it in your application."
+                  label="Try Turbopack"
+                  value={<ChevronRight />}
+                  onClick={() => setOpen(OVERLAYS.Turbo)}
+                />
+              )}
             </div>
-          )}
-        </>
+
+            <div className="dev-tools-indicator-footer">
+              <MenuItem
+                data-preferences
+                label="Preferences"
+                value={<GearIcon />}
+                onClick={() => setOpen(OVERLAYS.Preferences)}
+                index={isTurbopack ? 2 : 3}
+              />
+              {process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER ? (
+                <MenuItem
+                  data-segment-explorer
+                  label="Segment Explorer"
+                  value={<ChevronRight />}
+                  onClick={() => setOpen(OVERLAYS.SegmentExplorer)}
+                  index={isTurbopack ? 3 : 4}
+                />
+              ) : null}
+            </div>
+          </Context.Provider>
+        </div>
       )}
     </Toast>
   )
