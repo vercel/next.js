@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { openDevToolsIndicatorPopover } from 'next-test-utils'
+import { openDevToolsIndicatorPopover, retry } from 'next-test-utils'
 import { Playwright } from 'next-webdriver'
 
 async function getSegmentExplorerContent(browser: Playwright) {
@@ -44,6 +44,26 @@ describe('segment-explorer', () => {
      (team)layout.tsx
      (overview)layout.tsx
      gridpage.tsx"
+    `)
+  })
+
+  it('should cleanup on soft navigation', async () => {
+    const browser = await next.browser('/soft-navigation/a')
+    expect(await getSegmentExplorerContent(browser)).toMatchInlineSnapshot(`
+     "applayout.tsx
+     apage.tsx"
+    `)
+
+    await browser.elementByCss('[href="/soft-navigation/b"]').click()
+    await retry(async () => {
+      expect(await browser.elementByCss('body').text()).toContain('Page B')
+    })
+
+    // FIXME: Should no longer contain /soft-navigation/a/page.js
+    expect(await getSegmentExplorerContent(browser)).toMatchInlineSnapshot(`
+     "applayout.tsx
+     apage.tsx
+     bpage.tsx"
     `)
   })
 })
