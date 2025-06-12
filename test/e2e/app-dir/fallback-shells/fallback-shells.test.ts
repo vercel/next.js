@@ -198,6 +198,33 @@ describe('fallback-shells', () => {
             }
           })
         })
+
+        describe('and the params transformed with an async function and then passed to a cached function', () => {
+          it('resumes a postponed fallback shell', async () => {
+            const { browser, response } = await next.browserWithResponse(
+              '/with-cached-io/with-static-params/with-suspense/params-transformed/bar'
+            )
+
+            const lastModified = await browser
+              .elementById('last-modified')
+              .text()
+            expect(lastModified).toInclude('Page /bar')
+            expect(lastModified).toInclude('runtime')
+
+            const layout = await browser.elementById('root-layout').text()
+            expect(layout).toInclude(isNextDev ? 'runtime' : 'buildtime')
+
+            const headers = response.headers()
+
+            if (isNextDeploy) {
+              expect(headers['x-matched-path']).toBe(
+                '/with-cached-io/with-static-params/with-suspense/params-transformed/[slug]'
+              )
+            } else if (isNextStart) {
+              expect(headers['x-nextjs-postponed']).toBe('1')
+            }
+          })
+        })
       })
 
       describe('and the page not wrapped in Suspense', () => {
@@ -294,6 +321,33 @@ describe('fallback-shells', () => {
             if (isNextDeploy) {
               expect(headers['x-matched-path']).toBe(
                 '/with-cached-io/with-static-params/without-suspense/params-then-in-page/[slug]'
+              )
+            } else if (isNextStart) {
+              expect(headers['x-nextjs-postponed']).not.toBe('1')
+            }
+          })
+        })
+
+        describe('and the params transformed with an async function and then passed to a cached function', () => {
+          it('does not resume a postponed fallback shell', async () => {
+            const { browser, response } = await next.browserWithResponse(
+              '/with-cached-io/with-static-params/without-suspense/params-transformed/bar'
+            )
+
+            const lastModified = await browser
+              .elementById('last-modified')
+              .text()
+            expect(lastModified).toInclude('Page /bar')
+            expect(lastModified).toInclude('runtime')
+
+            const layout = await browser.elementById('root-layout').text()
+            expect(layout).toInclude('runtime')
+
+            const headers = response.headers()
+
+            if (isNextDeploy) {
+              expect(headers['x-matched-path']).toBe(
+                '/with-cached-io/with-static-params/without-suspense/params-transformed/[slug]'
               )
             } else if (isNextStart) {
               expect(headers['x-nextjs-postponed']).not.toBe('1')

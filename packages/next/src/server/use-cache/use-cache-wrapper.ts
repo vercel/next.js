@@ -831,6 +831,30 @@ export function cache(
           if (cacheSignal) {
             cacheSignal.endRead()
           }
+
+          // If `allowEmptyStaticShell` is true, and a prefilled resume data
+          // cache was provided, then a cache miss means that params were part
+          // of the cache key. In this case, we can make this cache function a
+          // dynamic hole in the shell (or produce an empty shell if there's no
+          // parent suspense boundary). Currently, this also includes layouts
+          // and pages that don't read params, which will be improved when we
+          // implement NAR-136. Otherwise, we assume that if params are passed
+          // explicitly into a "use cache" function, that the params are also
+          // accessed. This allows us to abort early, and treat the function as
+          // dynamic, instead of waiting for the timeout to be reached. Compared
+          // to the instrumentation-based params bailout we do here, this also
+          // covers the case where params are transformed with an async
+          // function, before being passed into the "use cache" function, which
+          // escapes the instrumentation.
+          if (
+            workUnitStore?.type === 'prerender' &&
+            workUnitStore.allowEmptyStaticShell
+          ) {
+            return makeHangingPromise(
+              workUnitStore.renderSignal,
+              'dynamic "use cache"'
+            )
+          }
         }
       }
 
