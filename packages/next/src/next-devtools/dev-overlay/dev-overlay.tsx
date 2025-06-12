@@ -6,7 +6,7 @@ import { ComponentStyles } from './styles/component-styles'
 import { CssReset } from './styles/css-reset'
 import { Colors } from './styles/colors'
 import { ErrorOverlay } from './components/errors/error-overlay/error-overlay'
-import { DevToolsIndicator } from './components/devtools-indicator/devtools-indicator'
+import { DevToolsIndicator } from './components/errors/dev-tools-indicator/dev-tools-indicator'
 import { RenderError } from './container/runtime-error/render-error'
 import { DarkTheme } from './styles/dark-theme'
 import { useDevToolsScale } from './components/errors/dev-tools-indicator/dev-tools-info/preferences'
@@ -40,7 +40,6 @@ export function DevOverlay({
                 (process.env.__NEXT_DEVTOOL_NEW_PANEL_UI ? (
                   <DevToolsIndicatorNew
                     scale={scale}
-                    setScale={setScale}
                     state={state}
                     dispatch={dispatch}
                     errorCount={totalErrorCount}
