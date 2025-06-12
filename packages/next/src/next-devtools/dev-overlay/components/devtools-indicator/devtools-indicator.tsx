@@ -10,7 +10,7 @@ import {
   MENU_DURATION_MS,
 } from '../errors/dev-tools-indicator/utils'
 import {
-  ACTION_DEV_TOOLS_PANEL_TOGGLE,
+  ACTION_DEVTOOLS_PANEL_TOGGLE,
   ACTION_ERROR_OVERLAY_TOGGLE,
   STORAGE_KEY_POSITION,
 } from '../../shared'
@@ -42,7 +42,7 @@ export function DevToolsIndicator({
   }
 
   const toggleDevToolsPanel = () => {
-    dispatch({ type: ACTION_DEV_TOOLS_PANEL_TOGGLE })
+    dispatch({ type: ACTION_DEVTOOLS_PANEL_TOGGLE })
   }
 
   return (
