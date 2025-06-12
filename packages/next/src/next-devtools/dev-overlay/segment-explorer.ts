@@ -55,9 +55,11 @@ const createSegmentTreeStore = (): {
 const { subscribe, getSnapshot, getServerSnapshot } = createSegmentTreeStore()
 
 function createTrie<Value = string>({
-  getKey = (k) => k as unknown as string,
+  getCharacters = (item: Value) => [item] as string[],
+  compare = (a: Value | undefined, b: Value | undefined) => a === b,
 }: {
-  getKey: (k: Value) => string
+  getCharacters?: (item: Value) => string[]
+  compare?: (a: Value | undefined, b: Value | undefined) => boolean
 }): Trie<Value> {
   const root: TrieNode<Value> = {
     value: undefined,
@@ -72,8 +74,7 @@ function createTrie<Value = string>({
 
   function insert(value: Value) {
     let currentNode = root
-    const key = getKey(value)
-    const segments = key.split('/')
+    const segments = getCharacters(value)
 
     for (const segment of segments) {
       if (!currentNode.children[segment]) {
@@ -91,8 +92,31 @@ function createTrie<Value = string>({
     markUpdated()
   }
 
-  function remove(_: Value) {
-    // TODO Implement remove functionality
+  function remove(value: Value) {
+    let currentNode = root
+    const segments = getCharacters(value)
+    const stack: TrieNode<Value>[] = []
+    let found = true
+    for (const segment of segments) {
+      if (!currentNode.children[segment]) {
+        found = false
+        break
+      }
+      stack.push(currentNode)
+      currentNode = currentNode.children[segment]!
+    }
+    // If the value is not found, skip removal
+    if (!found || !compare(currentNode.value, value)) {
+      return
+    }
+    currentNode.value = undefined
+    for (let i = stack.length - 1; i >= 0; i--) {
+      const parentNode = stack[i]
+      const segment = segments[i]
+      if (Object.keys(parentNode.children[segment]!.children).length === 0) {
+        delete parentNode.children[segment]
+      }
+    }
 
     markUpdated()
   }
@@ -113,7 +137,11 @@ export type SegmentTrie = Trie<SegmentNode>
 export type SegmentTrieNode = TrieNode<SegmentNode>
 
 const trie: SegmentTrie = createTrie({
-  getKey: (item) => item.pagePath,
+  compare: (a, b) => {
+    if (!a || !b) return false
+    return a.pagePath === b.pagePath && a.type === b.type
+  },
+  getCharacters: (item) => item.pagePath.split('/'),
 })
 export const insertSegmentNode = trie.insert
 export const removeSegmentNode = trie.remove
