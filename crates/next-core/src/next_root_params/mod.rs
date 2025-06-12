@@ -10,7 +10,12 @@ use turbopack_core::{
     asset::AssetContent,
     resolve::{
         ResolveResult,
-        options::{ImportMap, ImportMapping},
+        options::{
+            ImportMap, ImportMapResult, ImportMapping, ImportMappingReplacement,
+            ReplacedImportMapping,
+        },
+        parse::Request,
+        pattern::Pattern,
     },
     virtual_source::VirtualSource,
 };
@@ -108,6 +113,8 @@ pub async fn insert_next_root_params_mapping(
         _ => {
             // `get_invalid_next_root_params_resolve_plugin` already triggered an error for other
             // contexts, so we can ignore them here.
+            // (and if we missed something there, it'll resolve to the stub `next/root-params.js`
+            // file which throws a runtime error when imported)
         }
     };
     Ok(())
@@ -117,37 +124,95 @@ pub async fn insert_next_root_params_mapping(
 async fn get_next_root_params_mapping(
     collected_root_params: Option<Vc<CollectedRootParams>>,
 ) -> Result<Vc<ImportMapping>> {
-    let module_content = match collected_root_params {
-        // If there's no root params, export nothing.
-        None => "export {}".to_string(),
-        Some(collected_root_params_vc) => {
-            let collected_root_params = collected_root_params_vc.to_resolved().await?.await?;
-            iter::once(formatdoc!(
-                r#"
-                    import {{ getRootParam }} from 'next/dist/server/request/root-params';
-                "#,
-            ))
-            .chain(collected_root_params.iter().map(|param_name| {
-                formatdoc!(
-                    r#"
-                        export function {PARAM_NAME}() {{
-                            return getRootParam('{PARAM_NAME}');
-                        }}
-                    "#,
-                    PARAM_NAME = param_name,
-                )
-            }))
-            .join("\n")
-        }
-    };
-
-    let source = VirtualSource::new(
-        next_js_file_path("root-params.js".into()),
-        AssetContent::file(FileContent::Content(module_content.into()).cell()),
-    )
-    .to_resolved()
-    .await?;
-
-    let mapping = ImportMapping::Direct(ResolveResult::source(ResolvedVc::upcast(source)));
+    // This mapping goes into the global resolve options, so we want to avoid invalidating it if
+    // value of `collected_root_params` changes (which would invalidate everything else compiled
+    // using those resolve options!).
+    // We can achieve this by using a dynamic import mapping
+    // which only reads `collected_root_params` when producing a mapping result. That way, if
+    // `collected_root_params` changes, the resolve options will remain the same, and
+    // only the mapping result will be invalidated.
+    let mapping = ImportMapping::Dynamic(ResolvedVc::upcast(
+        NextRootParamsMapper::new(collected_root_params)
+            .to_resolved()
+            .await?,
+    ));
     Ok(mapping.cell())
+}
+
+#[turbo_tasks::value]
+struct NextRootParamsMapper {
+    collected_root_params: Option<ResolvedVc<CollectedRootParams>>,
+}
+
+#[turbo_tasks::value_impl]
+impl NextRootParamsMapper {
+    #[turbo_tasks::function]
+    pub fn new(collected_root_params: Option<ResolvedVc<CollectedRootParams>>) -> Vc<Self> {
+        NextRootParamsMapper {
+            collected_root_params,
+        }
+        .cell()
+    }
+
+    #[turbo_tasks::function]
+    async fn import_map_result(&self) -> Result<Vc<ImportMapResult>> {
+        // Generate a virtual 'next/root-params' module based on the root params we collected.
+        let module_content = match self.collected_root_params {
+            // If there's no root params, export nothing.
+            None => "export {}".to_string(),
+            Some(collected_root_params_vc) => {
+                let collected_root_params = collected_root_params_vc.await?;
+                if collected_root_params.is_empty() {
+                    "export {}".to_string()
+                } else {
+                    iter::once(formatdoc!(
+                        r#"
+                        import {{ getRootParam }} from 'next/dist/server/request/root-params';
+                    "#,
+                    ))
+                    .chain(collected_root_params.iter().map(|param_name| {
+                        formatdoc!(
+                            r#"
+                            export function {PARAM_NAME}() {{
+                                return getRootParam('{PARAM_NAME}');
+                            }}
+                        "#,
+                            PARAM_NAME = param_name,
+                        )
+                    }))
+                    .join("\n")
+                }
+            }
+        };
+
+        let virtual_source = VirtualSource::new(
+            next_js_file_path("root-params.js".into()),
+            AssetContent::file(FileContent::Content(module_content.into()).cell()),
+        )
+        .to_resolved()
+        .await?;
+
+        let import_map_result =
+            ImportMapResult::Result(ResolveResult::source(ResolvedVc::upcast(virtual_source)));
+        Ok(import_map_result.cell())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ImportMappingReplacement for NextRootParamsMapper {
+    #[turbo_tasks::function]
+    fn replace(&self, _capture: Vc<Pattern>) -> Vc<ReplacedImportMapping> {
+        ReplacedImportMapping::Ignore.cell()
+    }
+
+    #[turbo_tasks::function]
+    async fn result(
+        self: Vc<Self>,
+        _lookup_path: Vc<FileSystemPath>,
+        _request: Vc<Request>,
+    ) -> Vc<ImportMapResult> {
+        // Delegate to an inner function that only depends on `collected_root_params` --
+        // we want to return the same cell regardless of the arguments we received here.
+        self.import_map_result()
+    }
 }
