@@ -1140,7 +1140,7 @@ impl EcmascriptModuleContent {
                 header_width,
                 comments,
             },
-            eval_context: None,
+            export_contexts: None,
             is_esm: true,
             generate_source_map: last_options.generate_source_map,
             original_source_map: CodeGenResultOriginalSourceMap::ScopeHoisting(
@@ -1200,8 +1200,8 @@ async fn merge_modules(
         /// The export syntax contexts in the current AST, which will be mapped to merged_ctxts
         reverse_module_contexts:
             FxIndexMap<SyntaxContext, ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
-        eval_contexts:
-            &'a FxHashMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, &'a EvalContext>,
+        export_contexts:
+            &'a FxHashMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, &'a FxHashMap<RcStr, Id>>,
         unique_contexts_cache: &'a mut FxHashMap<
             (ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, SyntaxContext),
             SyntaxContext,
@@ -1234,11 +1234,11 @@ async fn merge_modules(
             // if ctxt.has_mark(self.export_mark) {
             if let Some(&module) = self.reverse_module_contexts.get(ctxt) {
                 // let module = *self.reverse_module_contexts.get(ctxt).unwrap();
-                let eval_context = self.eval_contexts.get(&module).unwrap();
+                let eval_context_exports = self.export_contexts.get(&module).unwrap();
                 // TODO looking up an Atom in a Map<RcStr, _>
                 let sym_rc_str: RcStr = sym.as_str().into();
                 let (local, local_ctxt) = if let Some((local, local_ctxt)) =
-                    eval_context.imports.exports.get(&sym_rc_str)
+                    eval_context_exports.get(&sym_rc_str)
                 {
                     (Some(local), *local_ctxt)
                 } else if sym.starts_with("__TURBOPACK__imported__module__$") {
@@ -1302,9 +1302,9 @@ async fn merge_modules(
         .map(|(_, content)| content.program.take())
         .collect::<Vec<_>>();
 
-    let eval_contexts = contents
+    let export_contexts = contents
         .iter()
-        .map(|(module, content)| (*module, content.eval_context.as_ref().unwrap()))
+        .map(|(module, content)| (*module, content.export_contexts.as_ref().unwrap()))
         .collect::<FxHashMap<_, _>>();
 
     let (merged_ast, inserted) = GLOBALS.set(globals_merged, || {
@@ -1333,7 +1333,7 @@ async fn merge_modules(
                                 .iter()
                                 .map(|(m, ctxt)| (*ctxt, *m))
                                 .collect(),
-                            eval_contexts: &eval_contexts,
+                            export_contexts: &export_contexts,
                             unique_contexts_cache: &mut unique_contexts_cache,
                         });
                     });
@@ -1488,7 +1488,7 @@ struct CodeGenResult {
     program: Program,
     source_map: CodeGenResultSourceMap,
     comments: CodeGenResultComments,
-    eval_context: Option<EvalContext>,
+    export_contexts: Option<FxHashMap<RcStr, Id>>,
     is_esm: bool,
     generate_source_map: bool,
     original_source_map: CodeGenResultOriginalSourceMap,
@@ -1515,6 +1515,25 @@ async fn process_parse_result(
     with_consumed_parse_result(
         parsed,
         async |mut program, source_map, globals, eval_context, comments| -> Result<CodeGenResult> {
+            let (top_level_mark, is_esm, export_contexts) = eval_context
+                .map_either(
+                    |e| {
+                        (
+                            e.top_level_mark,
+                            e.is_esm(specified_module_type),
+                            Cow::Owned(e.imports.exports),
+                        )
+                    },
+                    |e| {
+                        (
+                            e.top_level_mark,
+                            e.is_esm(specified_module_type),
+                            Cow::Borrowed(&e.imports.exports),
+                        )
+                    },
+                )
+                .into_inner();
+
             let (mut code_gens, retain_syntax_context, prepend_ident_comment) =
                 if let Some(scope_hoisting_options) = scope_hoisting_options {
                     let (is_import_mark, module_syntax_contexts) = GLOBALS.set(globals, || {
@@ -1549,9 +1568,7 @@ async fn process_parse_result(
                                 .iter()
                                 .filter(|(_, e)| matches!(e, export::EsmExport::LocalBinding(_, _)))
                                 .map(|(name, e)| {
-                                    if let Some((sym, ctxt)) =
-                                        eval_context.imports.exports.get(name)
-                                    {
+                                    if let Some((sym, ctxt)) = export_contexts.get(name) {
                                         Ok((sym.clone(), *ctxt))
                                     } else {
                                         bail!("Couldn't find export {} for binding {:?}", name, e);
@@ -1590,9 +1607,6 @@ async fn process_parse_result(
                 leading: Default::default(),
                 trailing: Default::default(),
             };
-
-            let top_level_mark = eval_context.top_level_mark;
-            let is_esm = eval_context.is_esm(specified_module_type);
 
             process_content_with_code_gens(&mut program, globals, &mut code_gens);
 
@@ -1653,7 +1667,7 @@ async fn process_parse_result(
                     extra_comments,
                 },
                 // TODO ideally don't clone here at all
-                eval_context: Some(eval_context.into_owned()),
+                export_contexts: Some(export_contexts.into_owned()),
                 is_esm,
                 generate_source_map,
                 original_source_map: CodeGenResultOriginalSourceMap::Single(original_source_map),
@@ -1688,7 +1702,7 @@ async fn process_parse_result(
                         }),
                         source_map: CodeGenResultSourceMap::default(),
                         comments: CodeGenResultComments::Empty,
-                        eval_context: None,
+                        export_contexts: None,
                         is_esm: false,
                         generate_source_map: false,
                         original_source_map: CodeGenResultOriginalSourceMap::Single(None),
@@ -1715,7 +1729,7 @@ async fn process_parse_result(
                         }),
                         source_map: CodeGenResultSourceMap::default(),
                         comments: CodeGenResultComments::Empty,
-                        eval_context: None,
+                        export_contexts: None,
                         is_esm: false,
                         generate_source_map: false,
                         original_source_map: CodeGenResultOriginalSourceMap::Single(None),
@@ -1736,7 +1750,7 @@ async fn with_consumed_parse_result<T>(
         Program,
         &Arc<SourceMap>,
         &Arc<Globals>,
-        Cow<'_, EvalContext>,
+        Either<EvalContext, &'_ EvalContext>,
         Either<ImmutableComments, Arc<ImmutableComments>>,
     ) -> Result<T>,
     error: impl AsyncFnOnce(&ParseResult) -> Result<T>,
@@ -1756,7 +1770,7 @@ async fn with_consumed_parse_result<T>(
                     program.take(),
                     &*source_map,
                     &*globals,
-                    Cow::Owned(std::mem::replace(
+                    Either::Left(std::mem::replace(
                         eval_context,
                         EvalContext {
                             unresolved_mark: eval_context.unresolved_mark,
@@ -1785,7 +1799,7 @@ async fn with_consumed_parse_result<T>(
                         program.clone(),
                         source_map,
                         globals,
-                        Cow::Borrowed(eval_context),
+                        Either::Right(eval_context),
                         Either::Right(comments.clone()),
                     )
                 }
@@ -1806,11 +1820,11 @@ async fn emit_content(
         program,
         source_map,
         comments,
-        eval_context: _,
         is_esm,
         generate_source_map,
         original_source_map,
         minify,
+        export_contexts: _,
         scope_hoisting_syntax_contexts: _,
     } = content;
 
