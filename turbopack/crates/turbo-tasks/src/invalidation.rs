@@ -19,21 +19,18 @@ use crate::{
     util::StaticOrArc,
 };
 
-#[cfg(debug_assertions)]
 task_local! {
-    static ALLOW_INVALIDATOR: ();
+    static DISALLOW_INVALIDATOR: ();
 }
 
-#[cfg(debug_assertions)]
-pub fn allow_invalidator<R>(f: impl Future<Output = R>) -> impl Future<Output = R> {
-    ALLOW_INVALIDATOR.scope((), f)
+pub fn disallow_invalidator<R>(f: impl Future<Output = R>) -> impl Future<Output = R> {
+    DISALLOW_INVALIDATOR.scope((), f)
 }
 
 /// Get an [`Invalidator`] that can be used to invalidate the current task
 /// based on external events.
 pub fn get_invalidator() -> Invalidator {
-    #[cfg(debug_assertions)]
-    if ALLOW_INVALIDATOR.try_with(|_| {}).is_err() {
+    if DISALLOW_INVALIDATOR.try_with(|_| {}).is_ok() {
         panic!(
             "Invalidator can only be used in the turbo-tasks function that has \
              #[turbo_tasks::function(invalidator)] attribute"

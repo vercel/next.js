@@ -240,9 +240,8 @@ impl NativeFunction {
     pub fn execute(&'static self, this: Option<RawVc>, arg: &dyn MagicAny) -> NativeTaskFuture {
         match (self.implementation).functor(this, arg) {
             Ok(functor) => {
-                #[cfg(debug_assertions)]
-                if self.function_meta.invalidator {
-                    return Box::pin(crate::invalidation::allow_invalidator(functor));
+                if !self.function_meta.invalidator {
+                    return Box::pin(crate::invalidation::disallow_invalidator(functor));
                 }
 
                 functor
