@@ -111,6 +111,13 @@ impl ConstantString {
         }
     }
 
+    pub fn as_rcstr(&self) -> RcStr {
+        match self {
+            Self::Atom(s) => RcStr::from(s.as_str()),
+            Self::RcStr(s) => s.clone(),
+        }
+    }
+
     pub fn as_atom(&self) -> Cow<Atom> {
         match self {
             Self::Atom(s) => Cow::Borrowed(s),
