@@ -5,6 +5,7 @@ import type { EdgeAppRouteLoaderQuery } from './webpack/loaders/next-edge-app-ro
 import type { NextConfigComplete } from '../server/config-shared'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type {
+  AppPageStaticInfo,
   ProxyConfig,
   ProxyMatcher,
   PageStaticInfo,
@@ -517,6 +518,7 @@ export async function createEntrypoints(
               page,
               name: serverBundlePath,
               pagePath: absolutePagePath,
+              rootParams: (staticInfo as AppPageStaticInfo).rootParams!,
               appDir,
               appPaths: matchedAppPaths,
               allNormalizedAppPaths: Object.keys(appPathsPerRoute),
@@ -596,6 +598,7 @@ export async function createEntrypoints(
                 name: serverBundlePath,
                 page,
                 pagePath: absolutePagePath,
+                rootParams: (staticInfo as AppPageStaticInfo).rootParams!,
                 appDir: appDir!,
                 appPaths: matchedAppPaths,
                 allNormalizedAppPaths: Object.keys(appPathsPerRoute),

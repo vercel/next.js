@@ -38,6 +38,7 @@ import {
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
 import { isProxyFile } from '../utils'
+import type { ParamInfo } from '../webpack/loaders/next-root-params-loader'
 
 const PARSE_PATTERN =
   /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const|generateImageMetadata|generateSitemaps|middleware|proxy/
@@ -83,6 +84,7 @@ export interface AppPageStaticInfo {
   preferredRegion: AppSegmentConfig['preferredRegion'] | undefined
   maxDuration: number | undefined
   hadUnsupportedValue: boolean
+  rootParams: ParamInfo[] | undefined
 }
 
 export interface PagesPageStaticInfo {
@@ -621,6 +623,7 @@ export async function getAppPageStaticInfo({
       preferredRegion: undefined,
       maxDuration: undefined,
       hadUnsupportedValue: false,
+      rootParams: undefined,
     }
   }
 
@@ -720,6 +723,7 @@ export async function getAppPageStaticInfo({
     preferredRegion: config.preferredRegion,
     maxDuration: config.maxDuration,
     hadUnsupportedValue,
+    rootParams: undefined,
   }
 }
 

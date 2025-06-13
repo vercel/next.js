@@ -190,6 +190,7 @@ export interface AppRouteRouteModuleOptions
    * spent here is not incorrectly attributed to application-code in timing.
    */
   readonly getUserland?: () => AppRouteUserlandModule
+  readonly rootParamNames: string[]
 }
 
 /**
@@ -225,6 +226,7 @@ export class AppRouteRouteModule extends RouteModule<
 
   public readonly resolvedPagePath: string
   public readonly nextConfigOutput: NextConfig['output'] | undefined
+  public readonly rootParamNames: AppRouteRouteModuleOptions['rootParamNames']
 
   // Set in the constructor when userland is provided as a factory. Cleared
   // after the first access so userland is only loaded once.
@@ -283,6 +285,7 @@ export class AppRouteRouteModule extends RouteModule<
     distDir,
     relativeProjectDir,
     resolvedPagePath,
+    rootParamNames,
     nextConfigOutput,
   }: AppRouteRouteModuleOptions) {
     const isLazy = typeof userland === 'function'
@@ -296,6 +299,7 @@ export class AppRouteRouteModule extends RouteModule<
     this.resolvedPagePath = resolvedPagePath
     this.nextConfigOutput = nextConfigOutput
     this._getUserland = getUserland
+    this.rootParamNames = rootParamNames
 
     if (!isLazy) {
       this._userlandFactory = null
@@ -849,6 +853,7 @@ export class AppRouteRouteModule extends RouteModule<
     const requestStore = createRequestStoreForAPI(
       req,
       req.nextUrl,
+      {}, // TODO: real rootParams
       implicitTags,
       undefined,
       context.previewProps

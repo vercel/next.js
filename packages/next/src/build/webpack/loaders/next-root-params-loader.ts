@@ -4,6 +4,7 @@ import * as fs from 'node:fs/promises'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
 import { getSegmentParam } from '../../../shared/lib/router/utils/get-segment-param'
+import type { DynamicParamTypes } from '../../../shared/lib/app-router-types'
 
 export type RootParamsLoaderOpts = {
   appDir: string
@@ -144,7 +145,9 @@ async function findRootLayouts({
   return visit(appDir)
 }
 
-function getParamsFromLayoutFilePath({
+export type ParamInfo = { param: string; type: DynamicParamTypes }
+
+export function getParamsFromLayoutFilePath({
   appDir,
   layoutFilePath,
 }: {

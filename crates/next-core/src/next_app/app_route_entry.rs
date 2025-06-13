@@ -83,7 +83,10 @@ pub async fn get_app_route_entry(
             ("VAR_RESOLVED_PAGE_PATH", &path.to_string_ref().await?),
             ("VAR_USERLAND", &inner),
         ],
-        [("nextConfigOutput", output_type)],
+        [
+            ("nextConfigOutput", output_type),
+            // "rootParamNames" => ... // TODO(root-params)
+        ],
         [],
     )
     .await?;
