@@ -84,6 +84,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     continue;
                 };
                 let local = func_args.local.is_some();
+                let invalidator = func_args.invalidator.is_some();
                 let is_self_used = func_args.operation.is_some() || is_self_used(block);
 
                 let Some(turbo_fn) =
@@ -106,6 +107,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     is_self_used,
                     filter_trait_call_args: None, // not a trait method
                     local,
+                    invalidator,
                 };
 
                 let native_function_ident = get_inherent_impl_function_ident(ty_ident, ident);
@@ -191,6 +193,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 };
 
                 let local = func_args.local.is_some();
+                let invalidator = func_args.invalidator.is_some();
                 let is_self_used = func_args.operation.is_some() || is_self_used(block);
 
                 let Some(turbo_fn) =
@@ -223,6 +226,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     is_self_used,
                     filter_trait_call_args: turbo_fn.filter_trait_call_args(),
                     local,
+                    invalidator,
                 };
 
                 let native_function_ident =
