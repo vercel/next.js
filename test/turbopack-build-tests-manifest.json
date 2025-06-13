@@ -15227,6 +15227,7 @@
       "nested index.js production mode should client render page /index/user",
       "nested index.js production mode should follow link to /",
       "nested index.js production mode should follow link to /index",
+      "nested index.js production mode should follow link to /index/index",
       "nested index.js production mode should follow link to /index/project",
       "nested index.js production mode should follow link to /index/user",
       "nested index.js production mode should not find a link to /index/index/index",
@@ -15234,8 +15235,7 @@
       "nested index.js production mode should ssr page /index",
       "nested index.js production mode should ssr page /index/index",
       "nested index.js production mode should ssr page /index/project",
-      "nested index.js production mode should ssr page /index/user",
-      "nested index.js production mode should follow link to /index/index"
+      "nested index.js production mode should ssr page /index/user"
     ],
     "failed": [],
     "pending": [
