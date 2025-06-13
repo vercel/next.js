@@ -48,7 +48,7 @@ fn make_state() -> Vc<ValueContainer> {
     .cell()
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(invalidator)]
 async fn func2(input: Vc<ValueContainer>) -> Result<Vc<Value>> {
     let state = input.await?;
     let value = state.state.get();
@@ -56,7 +56,7 @@ async fn func2(input: Vc<ValueContainer>) -> Result<Vc<Value>> {
     Ok(func(input, -*value))
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(invalidator)]
 async fn func(input: Vc<ValueContainer>, nesting: i32) -> Result<Vc<Value>> {
     let state = input.await?;
     let value = state.state.get();
