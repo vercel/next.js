@@ -28,6 +28,14 @@ export const Default: Story = {
   args: {
     state,
     dispatch: () => {},
-    issueCount: 1,
+    issueCount: 0,
+  },
+}
+
+export const WithIssues: Story = {
+  args: {
+    state,
+    dispatch: () => {},
+    issueCount: 3,
   },
 }
