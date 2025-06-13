@@ -5,6 +5,7 @@ import type {
   ExportRouteResult,
   WorkerRenderOpts,
   ExportPagesResult,
+  ExportPathEntry,
 } from './types'
 
 import '../server/node-environment'
@@ -69,8 +70,7 @@ async function exportPageImpl(
   fileWriter: MultiFileWriter
 ): Promise<ExportRouteResult | undefined> {
   const {
-    path,
-    pathMap,
+    exportPath,
     distDir,
     pagesDataDir,
     buildExport = false,
@@ -83,6 +83,9 @@ async function exportPageImpl(
     ampValidatorPath,
     trailingSlash,
     sriEnabled,
+    renderOpts: commonRenderOpts,
+    outDir: commonOutDir,
+    buildId,
   } = input
 
   if (enableExperimentalReact) {
@@ -90,6 +93,7 @@ async function exportPageImpl(
   }
 
   const {
+    path,
     page,
 
     // The parameters that are currently unknown.
@@ -111,7 +115,7 @@ async function exportPageImpl(
 
     // Pull the original query out.
     query: originalQuery = {},
-  } = pathMap
+  } = exportPath
 
   const fallbackRouteParams: FallbackRouteParams | null =
     getFallbackRouteParams(_fallbackRouteParams)
@@ -119,23 +123,23 @@ async function exportPageImpl(
   let query = { ...originalQuery }
   const pathname = normalizeAppPath(page)
   const isDynamic = isDynamicRoute(page)
-  const outDir = isAppDir ? join(distDir, 'server/app') : input.outDir
+  const outDir = isAppDir ? join(distDir, 'server/app') : commonOutDir
 
   const filePath = normalizePagePath(path)
   const ampPath = `${filePath}.amp`
   let renderAmpPath = ampPath
 
-  let updatedPath = pathMap._ssgPath || path
-  let locale = pathMap._locale || input.renderOpts.locale
+  let updatedPath = exportPath._ssgPath || path
+  let locale = exportPath._locale || commonRenderOpts.locale
 
-  if (input.renderOpts.locale) {
-    const localePathResult = normalizeLocalePath(path, input.renderOpts.locales)
+  if (commonRenderOpts.locale) {
+    const localePathResult = normalizeLocalePath(path, commonRenderOpts.locales)
 
     if (localePathResult.detectedLocale) {
       updatedPath = localePathResult.pathname
       locale = localePathResult.detectedLocale
 
-      if (locale === input.renderOpts.defaultLocale) {
+      if (locale === commonRenderOpts.defaultLocale) {
         renderAmpPath = `${normalizePagePath(updatedPath)}.amp`
       }
     }
@@ -148,7 +152,7 @@ async function exportPageImpl(
   // Check if the page is a specified dynamic route
   const { pathname: nonLocalizedPath } = normalizeLocalePath(
     path,
-    input.renderOpts.locales
+    commonRenderOpts.locales
   )
 
   let params: Params | undefined
@@ -182,8 +186,8 @@ async function exportPageImpl(
   if (
     locale &&
     buildExport &&
-    input.renderOpts.domainLocales &&
-    input.renderOpts.domainLocales.some(
+    commonRenderOpts.domainLocales &&
+    commonRenderOpts.domainLocales.some(
       (dl) => dl.defaultLocale === locale || dl.locales?.includes(locale || '')
     )
   ) {
@@ -192,7 +196,7 @@ async function exportPageImpl(
 
   envConfig.setConfig({
     serverRuntimeConfig,
-    publicRuntimeConfig: input.renderOpts.runtimeConfig,
+    publicRuntimeConfig: commonRenderOpts.runtimeConfig,
   })
 
   const getHtmlFilename = (p: string) =>
@@ -244,18 +248,18 @@ async function exportPageImpl(
       params,
       page,
       components.routeModule as AppRouteRouteModule,
-      input.renderOpts.incrementalCache,
-      input.renderOpts.cacheLifeProfiles,
+      commonRenderOpts.incrementalCache,
+      commonRenderOpts.cacheLifeProfiles,
       htmlFilepath,
       fileWriter,
-      input.renderOpts.experimental,
-      input.buildId
+      commonRenderOpts.experimental,
+      buildId
     )
   }
 
   const renderOpts: WorkerRenderOpts = {
     ...components,
-    ...input.renderOpts,
+    ...commonRenderOpts,
     ampPath: renderAmpPath,
     params,
     optimizeCss,
@@ -269,7 +273,7 @@ async function exportPageImpl(
     serveStreamingMetadata: true,
     allowEmptyStaticShell,
     experimental: {
-      ...input.renderOpts.experimental,
+      ...commonRenderOpts.experimental,
       isRoutePPREnabled,
     },
   }
@@ -280,9 +284,7 @@ async function exportPageImpl(
 
   // Handle App Pages
   if (isAppDir) {
-    const sharedContext: AppSharedContext = {
-      buildId: input.buildId,
-    }
+    const sharedContext: AppSharedContext = { buildId }
 
     return exportAppPage(
       req,
@@ -302,13 +304,13 @@ async function exportPageImpl(
   }
 
   const sharedContext: PagesSharedContext = {
-    buildId: input.buildId,
-    deploymentId: input.renderOpts.deploymentId,
+    buildId,
+    deploymentId: commonRenderOpts.deploymentId,
     customServer: undefined,
   }
 
   const renderContext: PagesRenderContext = {
-    isFallback: pathMap._pagesFallback ?? false,
+    isFallback: exportPath._pagesFallback ?? false,
     isDraftMode: false,
     developmentNotFoundSourcePage: undefined,
   }
@@ -342,8 +344,7 @@ export async function exportPages(
   input: ExportPagesInput
 ): Promise<ExportPagesResult> {
   const {
-    exportPathMap,
-    paths,
+    exportPaths,
     dir,
     distDir,
     outDir,
@@ -385,9 +386,11 @@ export async function exportPages(
     nextConfig.experimental.staticGenerationMaxConcurrency ?? 8
   const results: ExportPagesResult = []
 
-  const exportPageWithRetry = async (path: string, maxAttempts: number) => {
-    const pathMap = exportPathMap[path]
-    const { page } = exportPathMap[path]
+  const exportPageWithRetry = async (
+    exportPath: ExportPathEntry,
+    maxAttempts: number
+  ) => {
+    const { page, path } = exportPath
     const pageKey = page !== path ? `${page}: ${path}` : path
     let attempt = 0
     let result
@@ -400,8 +403,7 @@ export async function exportPages(
       try {
         result = await Promise.race<ExportPageResult | undefined>([
           exportPage({
-            path,
-            pathMap,
+            exportPath,
             distDir,
             outDir,
             pagesDataDir,
@@ -495,16 +497,16 @@ export async function exportPages(
       attempt++
     }
 
-    return { result, path, pageKey }
+    return { result, path, page, pageKey }
   }
 
-  for (let i = 0; i < paths.length; i += maxConcurrency) {
-    const subset = paths.slice(i, i + maxConcurrency)
+  for (let i = 0; i < exportPaths.length; i += maxConcurrency) {
+    const subset = exportPaths.slice(i, i + maxConcurrency)
 
     const subsetResults = await Promise.all(
-      subset.map((path) =>
+      subset.map((exportPath) =>
         exportPageWithRetry(
-          path,
+          exportPath,
           nextConfig.experimental.staticGenerationRetryCount ?? 1
         )
       )
@@ -519,7 +521,10 @@ export async function exportPages(
 async function exportPage(
   input: ExportPageInput
 ): Promise<ExportPageResult | undefined> {
-  trace('export-page', input.parentSpanId).setAttribute('path', input.path)
+  trace('export-page', input.parentSpanId).setAttribute(
+    'path',
+    input.exportPath.path
+  )
 
   // Configure the http agent.
   setHttpClientAndAgentOptions({
@@ -559,7 +564,7 @@ async function exportPage(
     }
   } catch (err) {
     console.error(
-      `Error occurred prerendering page "${input.path}". Read more: https://nextjs.org/docs/messages/prerender-error`
+      `Error occurred prerendering page "${input.exportPath.path}". Read more: https://nextjs.org/docs/messages/prerender-error`
     )
 
     // bailoutToCSRError errors should not leak to the user as they are not actionable; they're

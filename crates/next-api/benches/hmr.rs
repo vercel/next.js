@@ -231,8 +231,6 @@ impl HmrBenchmark {
 
     /// Benchmark HMR update detection and processing
     pub async fn benchmark_hmr_update(&self, num_updates: usize) -> Result<Duration> {
-        let start_time = Instant::now();
-
         // Get entrypoints to trigger initial compilation
         let entrypoints = self.project_container.entrypoints();
         let initial_result = entrypoints.await?;
@@ -281,12 +279,7 @@ impl HmrBenchmark {
             update_durations.push(update_start.elapsed());
         }
 
-        // // Log individual update times for analysis
-        // for (i, duration) in update_durations.iter().enumerate() {
-        //     println!("HMR update {} took: {:?}", i + 1, duration);
-        // }
-
-        Ok(start_time.elapsed())
+        Ok(update_durations.iter().sum::<Duration>())
     }
 
     /// Benchmark HMR subscription and event handling
@@ -425,98 +418,53 @@ fn setup_everything(module_count: usize) -> Arc<Setup> {
     arc
 }
 
-#[divan::bench]
-fn hmr_initial_compilation(bencher: divan::Bencher) {
-    let setup = setup_everything(100);
+fn bench_update(bencher: divan::Bencher, module_count: usize, num_updates: usize) {
+    let s = setup_everything(module_count);
 
-    bencher.with_inputs(|| setup.clone()).bench_values(|setup| {
-        setup.clone().rt.block_on(async move {
-            setup.clone().tt.run_once(Box::pin(async move {
-                setup
-                    .benchmark
-                    .benchmark_initial_compilation()
-                    .await
-                    .unwrap();
-                Ok(())
-            }));
+    bencher
+        .with_inputs(|| {
+            let setup = s.clone();
+
+            setup.clone().rt.block_on(async move {
+                setup.clone().tt.run_once(Box::pin(async move {
+                    let _ = setup
+                        .benchmark
+                        .benchmark_initial_compilation()
+                        .await
+                        .unwrap();
+                    Ok(())
+                }));
+            });
+
+            s.clone()
         })
-    });
+        .bench_values(|setup| {
+            setup.clone().rt.block_on(async move {
+                setup.clone().tt.run_once(Box::pin(async move {
+                    setup
+                        .benchmark
+                        .benchmark_hmr_update(num_updates)
+                        .await
+                        .unwrap();
+                    Ok(())
+                }));
+            })
+        });
 }
 
-#[divan::bench(sample_size = 10)]
+#[divan::bench(sample_size = 10000, max_time = 60)]
 fn hmr_updates_small_5(bencher: divan::Bencher) {
-    let setup = setup_everything(100);
-
-    bencher.with_inputs(|| setup.clone()).bench_values(|setup| {
-        setup.clone().rt.block_on(async move {
-            setup.clone().tt.run_once(Box::pin(async move {
-                let _ = setup
-                    .benchmark
-                    .benchmark_initial_compilation()
-                    .await
-                    .unwrap();
-                setup.benchmark.benchmark_hmr_update(5).await.unwrap();
-                Ok(())
-            }));
-        })
-    });
+    bench_update(bencher, 100, 5);
 }
 
-#[divan::bench(sample_size = 10)]
+#[divan::bench(sample_size = 10000, max_time = 60)]
 fn hmr_updates_medium_10(bencher: divan::Bencher) {
-    let setup = setup_everything(200);
-
-    bencher.with_inputs(|| setup.clone()).bench_values(|setup| {
-        setup.clone().rt.block_on(async move {
-            setup.clone().tt.run_once(Box::pin(async move {
-                let _ = setup
-                    .benchmark
-                    .benchmark_initial_compilation()
-                    .await
-                    .unwrap();
-                setup.benchmark.benchmark_hmr_update(10).await.unwrap();
-                Ok(())
-            }));
-        })
-    });
+    bench_update(bencher, 200, 10);
 }
 
-#[divan::bench(sample_size = 10)]
+#[divan::bench(sample_size = 10000, max_time = 60)]
 fn hmr_updates_large_20(bencher: divan::Bencher) {
-    let setup = setup_everything(500);
-
-    bencher.with_inputs(|| setup.clone()).bench_values(|setup| {
-        setup.clone().rt.block_on(async move {
-            setup.clone().tt.run_once(Box::pin(async move {
-                let _ = setup
-                    .benchmark
-                    .benchmark_initial_compilation()
-                    .await
-                    .unwrap();
-                setup.benchmark.benchmark_hmr_update(20).await.unwrap();
-                Ok(())
-            }));
-        })
-    });
-}
-
-#[divan::bench(sample_size = 10)]
-fn hmr_subscription(bencher: divan::Bencher) {
-    let setup = setup_everything(100);
-
-    bencher.with_inputs(|| setup.clone()).bench_values(|setup| {
-        setup.clone().rt.block_on(async move {
-            setup.clone().tt.run_once(Box::pin(async move {
-                let _ = setup
-                    .benchmark
-                    .benchmark_initial_compilation()
-                    .await
-                    .unwrap();
-                setup.benchmark.benchmark_hmr_subscription().await.unwrap();
-                Ok(())
-            }));
-        })
-    });
+    bench_update(bencher, 500, 20);
 }
 
 fn main() {

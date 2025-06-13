@@ -21,12 +21,13 @@ export interface AmpValidation {
   }
 }
 
-type PathMap = ExportPathMap[keyof ExportPathMap]
+export type ExportPathEntry = ExportPathMap[keyof ExportPathMap] & {
+  path: string
+}
 
 export interface ExportPagesInput {
   buildId: string
-  paths: string[]
-  exportPathMap: ExportPathMap
+  exportPaths: ExportPathEntry[]
   parentSpanId: number
   dir: string
   distDir: string
@@ -43,8 +44,7 @@ export interface ExportPagesInput {
 
 export interface ExportPageInput {
   buildId: string
-  path: string
-  pathMap: PathMap
+  exportPath: ExportPathEntry
   distDir: string
   outDir: string
   pagesDataDir: string
@@ -86,6 +86,7 @@ export type ExportPageResult = ExportRouteResult & {
 export type ExportPagesResult = {
   result: ExportPageResult | undefined
   path: string
+  page: string
   pageKey: string
 }[]
 
