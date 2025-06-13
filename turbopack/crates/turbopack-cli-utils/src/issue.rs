@@ -430,7 +430,7 @@ impl IssueReporter for ConsoleUi {
         &self,
         issues: TransientInstance<CapturedIssues>,
         source: TransientValue<RawVc>,
-        min_failing_severity: Vc<IssueSeverity>,
+        min_failing_severity: IssueSeverity,
     ) -> Result<Vc<bool>> {
         let issues = &*issues;
         let LogOptions {
@@ -466,7 +466,7 @@ impl IssueReporter for ConsoleUi {
             }
 
             let severity = plain_issue.severity;
-            if severity <= *min_failing_severity.await? {
+            if severity <= min_failing_severity {
                 has_fatal = true;
             }
 

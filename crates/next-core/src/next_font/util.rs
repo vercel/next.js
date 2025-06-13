@@ -97,7 +97,7 @@ pub(crate) async fn can_use_next_font(
                 StyledString::Code(request.path),
             ])
             .resolved_cell(),
-            severity: IssueSeverity::Error.resolved_cell(),
+            severity: IssueSeverity::Error,
         }
         .resolved_cell()
         .emit();

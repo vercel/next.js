@@ -1,9 +1,7 @@
 use std::{
     any::{Any, type_name},
     borrow::Cow,
-    fmt::{
-        Debug, Display, Formatter, {self},
-    },
+    fmt::{self, Debug, Display, Formatter},
     hash::Hash,
     sync::Arc,
 };
@@ -38,7 +36,7 @@ type RawCellFactoryFn = fn(TypedSharedReference) -> RawVc;
 pub struct ValueType {
     /// A readable name of the type
     pub name: String,
-    /// List of traits available
+    /// Set of traits available
     pub traits: AutoSet<TraitTypeId>,
     /// List of trait methods available
     pub trait_methods: AutoMap<(TraitTypeId, Cow<'static, str>), FunctionId>,
@@ -191,11 +189,18 @@ impl ValueType {
     }
 
     pub fn traits_iter(&self) -> impl Iterator<Item = TraitTypeId> + '_ {
-        self.traits.iter().copied()
+        self.traits.iter().cloned()
     }
 
-    pub fn register(&'static self, global_name: &'static str) {
-        register_value_type(global_name, self)
+    pub fn register(
+        &'static self,
+        global_name: &'static str,
+        register_traits: impl FnOnce(crate::ValueTypeId),
+    ) {
+        let id = register_value_type(global_name, self);
+        if let Some(id) = id {
+            register_traits(id);
+        }
     }
 }
 

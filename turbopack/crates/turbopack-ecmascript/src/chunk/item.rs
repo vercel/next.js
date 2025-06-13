@@ -273,7 +273,7 @@ async fn module_factory_with_code_generation_issue(
                 let error_message = format!("{}", PrettyPrintError(&error)).into();
                 let js_error_message = serde_json::to_string(&error_message)?;
                 CodeGenerationIssue {
-                    severity: IssueSeverity::Error.resolved_cell(),
+                    severity: IssueSeverity::Error,
                     path: chunk_item.asset_ident().path().to_resolved().await?,
                     title: StyledString::Text(rcstr!("Code generation for chunk item errored"))
                         .resolved_cell(),

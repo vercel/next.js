@@ -598,7 +598,7 @@ struct ConflictIssue {
     path: ResolvedVc<FileSystemPath>,
     title: ResolvedVc<StyledString>,
     description: ResolvedVc<StyledString>,
-    severity: ResolvedVc<IssueSeverity>,
+    severity: IssueSeverity,
 }
 
 #[turbo_tasks::value_impl]
@@ -608,9 +608,8 @@ impl Issue for ConflictIssue {
         IssueStage::AppStructure.cell()
     }
 
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        *self.severity
+    fn severity(&self) -> IssueSeverity {
+        self.severity
     }
 
     #[turbo_tasks::function]
@@ -1209,7 +1208,7 @@ impl Project {
                                 .into(),
                         )
                         .resolved_cell(),
-                        severity: IssueSeverity::Error.resolved_cell(),
+                        severity: IssueSeverity::Error,
                     }
                     .resolved_cell()
                     .emit();

@@ -26,7 +26,10 @@ impl SharedReference {
 
 /// A reference to a piece of data with type information
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
-pub struct TypedSharedReference(pub ValueTypeId, pub SharedReference);
+pub struct TypedSharedReference {
+    pub type_id: ValueTypeId,
+    pub reference: SharedReference,
+}
 
 impl SharedReference {
     pub fn downcast<T: Any + Send + Sync>(self) -> Result<triomphe::Arc<T>, Self> {
@@ -41,13 +44,16 @@ impl SharedReference {
     }
 
     pub fn into_typed(self, type_id: ValueTypeId) -> TypedSharedReference {
-        TypedSharedReference(type_id, self)
+        TypedSharedReference {
+            type_id,
+            reference: self,
+        }
     }
 }
 
 impl TypedSharedReference {
     pub fn into_untyped(self) -> SharedReference {
-        self.1
+        self.reference
     }
 }
 
@@ -55,7 +61,7 @@ impl Deref for TypedSharedReference {
     type Target = SharedReference;
 
     fn deref(&self) -> &Self::Target {
-        &self.1
+        &self.reference
     }
 }
 
@@ -97,7 +103,10 @@ impl Serialize for TypedSharedReference {
     where
         S: serde::Serializer,
     {
-        let TypedSharedReference(ty, SharedReference(arc)) = self;
+        let TypedSharedReference {
+            type_id: ty,
+            reference: SharedReference(arc),
+        } = self;
         let value_type = registry::get_value_type(*ty);
         if let Some(serializable) = value_type.any_as_serializable(arc) {
             let mut t = serializer.serialize_tuple(2)?;
@@ -121,7 +130,11 @@ impl Display for SharedReference {
 
 impl Display for TypedSharedReference {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "value of type {}", registry::get_value_type(self.0).name)
+        write!(
+            f,
+            "value of type {}",
+            registry::get_value_type(self.type_id).name
+        )
     }
 }
 
@@ -149,7 +162,10 @@ impl<'de> Deserialize<'de> for TypedSharedReference {
                         {
                             if let Some(value) = seq.next_element_seed(seed)? {
                                 let arc = triomphe::Arc::<dyn Any + Send + Sync>::from(value);
-                                Ok(TypedSharedReference(ty, SharedReference(arc)))
+                                Ok(TypedSharedReference {
+                                    type_id: ty,
+                                    reference: SharedReference(arc),
+                                })
                             } else {
                                 Err(serde::de::Error::invalid_length(
                                     1,
