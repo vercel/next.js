@@ -297,7 +297,7 @@ However, disabling prefetching comes with trade-offs:
 - **Static routes** will only be fetched when the user clicks the link.
 - **Dynamic routes** will need to be rendered on the server first before the client can navigate to it.
 
-To reduce resouce usage without fully disabling prefetch, you can prefetch only on hover. This limits prefetching to routes the user is more _likely_ to visit, rather all links in the viewport.
+To reduce resource usage without fully disabling prefetch, you can prefetch only on hover. This limits prefetching to routes the user is more _likely_ to visit, rather all links in the viewport.
 
 ```tsx filename="app/ui/hover-prefetch-link.tsx" switcher
 'use client'
