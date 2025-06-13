@@ -11,6 +11,11 @@ const nextConfig = {
   experimental: {
     ppr: true,
   },
+  redirects() {
+    return [
+      { source: '/', destination: '/vercel/vercel-site', permanent: false },
+    ]
+  },
 }
 
 module.exports = nextConfig
