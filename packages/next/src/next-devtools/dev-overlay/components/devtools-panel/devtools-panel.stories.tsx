@@ -22,6 +22,11 @@ const state: OverlayState = {
   routerType: 'app',
   isErrorOverlayOpen: false,
   isDevToolsPanelOpen: true,
+  versionInfo: {
+    installed: '15.0.0',
+    expected: '15.0.0',
+    staleness: 'fresh',
+  },
 }
 
 export const Default: Story = {
