@@ -62,6 +62,13 @@ type OmitFirstArgument<F> = F extends (
 // prettier-ignore
 const nextjsReactPeerVersion = "19.1.0";
 
+/**
+ * Strips extended path prefixes from Windows filenames.
+ */
+function stripExtendedPathPrefix(filename: string) {
+  return filename.startsWith('\\\\?\\') ? filename.slice(4) : filename
+}
+
 export class NextInstance {
   protected files: ResolvedFileConfig
   protected overrideFiles: ResolvedFileConfig
@@ -135,7 +142,10 @@ export class NextInstance {
         filter(source) {
           // we don't copy a package.json as it's manually written
           // via the createNextInstall process
-          if (path.relative(files.fsPath, source) === 'package.json') {
+          if (
+            path.relative(files.fsPath, stripExtendedPathPrefix(source)) ===
+            'package.json'
+          ) {
             return false
           }
           return true
