@@ -1802,7 +1802,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 new_children,
                 &mut queue,
                 has_active_count,
-                ctx.should_track_activeness(),
+                !task.is_immutable() && ctx.should_track_activeness(),
             );
         }
 
