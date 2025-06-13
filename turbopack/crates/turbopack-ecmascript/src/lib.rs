@@ -37,6 +37,7 @@ pub mod worker_chunk;
 
 use std::{
     borrow::Cow,
+    collections::hash_map::Entry,
     fmt::{Debug, Display, Formatter},
     mem::take,
     sync::Arc,
@@ -67,8 +68,8 @@ use swc_core::{
     },
     ecma::{
         ast::{
-            self, CallExpr, Callee, EmptyStmt, Expr, ExprStmt, Id, Ident, ModuleItem, Program,
-            Script, SourceMapperExt, Stmt,
+            self, CallExpr, Callee, Decl, EmptyStmt, Expr, ExprStmt, Id, Ident, ModuleItem,
+            Program, Script, SourceMapperExt, Stmt,
         },
         codegen::{Emitter, text_writer::JsWriter},
         utils::StmtLikeInjector,
@@ -1342,6 +1343,8 @@ async fn merge_modules(
         // Start with inserting the entry points, and recursively inline all their imports.
         inserted.extend(entry_points.iter().map(|(_, i)| *i));
 
+        let mut inserted_imports = FxHashMap::default();
+
         // Replace inserted `__turbopack_merged_esm__(i);` statements with the corresponding
         // ith-module.
         let mut queue = entry_points
@@ -1352,27 +1355,68 @@ async fn merge_modules(
             .collect::<Result<Vec<_>>>()?;
         let mut result = vec![];
         while let Some(item) = queue.pop() {
-            if let ModuleItem::Stmt(Stmt::Expr(ExprStmt { expr, .. })) = &item
-                && let Expr::Call(CallExpr {
-                    callee: Callee::Expr(callee),
-                    args,
-                    ..
-                }) = &**expr
-                && callee.is_ident_ref_to("__turbopack_merged_esm__")
-            {
-                let index = args[0].expr.as_lit().unwrap().as_num().unwrap().value as usize;
+            if let ModuleItem::Stmt(stmt) = &item {
+                match stmt {
+                    Stmt::Expr(ExprStmt { expr, .. }) => {
+                        if let Expr::Call(CallExpr {
+                            callee: Callee::Expr(callee),
+                            args,
+                            ..
+                        }) = &**expr
+                            && callee.is_ident_ref_to("__turbopack_merged_esm__")
+                        {
+                            let index =
+                                args[0].expr.as_lit().unwrap().as_num().unwrap().value as usize;
 
-                // Only insert once, otherwise the module was already executed
-                if inserted.insert(index) {
-                    queue.extend(
-                        prepare_module(&contents[index], &mut programs[index])?
-                            .into_iter()
-                            .rev(),
-                    );
+                            // Only insert once, otherwise the module was already executed
+                            if inserted.insert(index) {
+                                queue.extend(
+                                    prepare_module(&contents[index], &mut programs[index])?
+                                        .into_iter()
+                                        .rev(),
+                                );
+                            }
+                            continue;
+                        }
+                    }
+                    Stmt::Decl(Decl::Var(var)) => {
+                        if let [decl] = &*var.decls
+                            && let Some(name) = decl.name.as_ident()
+                            && name.sym.starts_with("__TURBOPACK__imported__module__$")
+                        {
+                            // var __TURBOPACK__imported__module__$... =
+                            // __turbopack_context__.i("...");
+
+                            // Even if these imports are not side-effect free, they only execute
+                            // once, so no need to insert multiple times.
+                            match inserted_imports.entry(name.sym.clone()) {
+                                Entry::Occupied(entry) => {
+                                    // If the import was already inserted, we can skip it. The
+                                    // variable mapping minifies better but is unfortunately
+                                    // necessary as the syntax contexts of the two imports are
+                                    // different.
+                                    let entry_ctxt = *entry.get();
+                                    let new = Ident::new(name.sym.clone(), DUMMY_SP, name.ctxt);
+                                    let old = Ident::new(name.sym.clone(), DUMMY_SP, entry_ctxt);
+                                    result.push(ModuleItem::Stmt(
+                                        quote!("var $new = $old;" as Stmt,
+                                            new: Ident = new,
+                                            old: Ident = old
+                                        ),
+                                    ));
+                                    continue;
+                                }
+                                Entry::Vacant(entry) => {
+                                    entry.insert(name.ctxt);
+                                }
+                            }
+                        }
+                    }
+                    _ => (),
                 }
-            } else {
-                result.push(item);
             }
+
+            result.push(item);
         }
 
         let mut merged_ast = Program::Module(swc_core::ecma::ast::Module {
