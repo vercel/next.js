@@ -37,6 +37,14 @@ export function ShadowPortal({ children }: { children: React.ReactNode }) {
     if (portalNode.current.shadowRoot === null) {
       shadowNode.current = portalNode.current.attachShadow({ mode: 'open' })
 
+      // Storybook injects the Tailwind style tag from .storybook/main.ts on each full load.
+      // When navigating to a different story, the injected style tag is removed within the iframe.
+      // To re-inject the style tag, we need to call `unuse()` since the `use()` function only runs
+      // once unless unused.
+      if (process.env.STORYBOOK) {
+        tailwindCss.unuse()
+      }
+
       // Injecting Tailwind to the Shadow DOM with Webpack style-loader.
       // The target is passed to the next-devtools-inject-tailwind.js file which runs on the browser.
       // x-ref: https://webpack.js.org/loaders/style-loader/#lazystyletag
