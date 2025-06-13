@@ -944,13 +944,17 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                       name: bundlePath,
                       page,
                       appPaths: entryData.appPaths,
-                      pagePath: posix.join(
-                        APP_DIR_ALIAS,
-                        relative(
-                          this.appDir!,
-                          entryData.absolutePagePath
-                        ).replace(/\\/g, '/')
-                      ),
+                      pagePath: entryData.absolutePagePath.startsWith(
+                        this.appDir!
+                      )
+                        ? posix.join(
+                            APP_DIR_ALIAS,
+                            relative(
+                              this.appDir!,
+                              entryData.absolutePagePath
+                            ).replace(/\\/g, '/')
+                          )
+                        : entryData.absolutePagePath,
                       appDir: this.appDir!,
                       pageExtensions: this.config.pageExtensions,
                       rootDir: this.dir,
