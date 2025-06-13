@@ -1,6 +1,8 @@
 # Welcome to Next.js
 
-This is the most minimal starter for your Next.js project.
+
+This example demonstrates the differences in ETag behavior between Next.js 14 and 15 for static pre-rendered pages. It showcases how caching mechanisms have changed, particularly how ETags are generated and handled for static content, which affects browser caching and content revalidation.
+
 
 ## Deploy your own
 
