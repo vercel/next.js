@@ -22,4 +22,17 @@ describe('app-root-param-getters - simple', () => {
       await assertNoRedbox(browser)
     }
   })
+
+  // root params currently don't work in route handlers.
+  it.failing(
+    'should allow reading root params in a route handler',
+    async () => {
+      const params = { lang: 'en', locale: 'us' }
+      const response = await next.fetch(
+        `/${params.lang}/${params.locale}/route-handler`
+      )
+      expect(response.status).toBe(200)
+      expect(await response.json()).toEqual(params)
+    }
+  )
 })
