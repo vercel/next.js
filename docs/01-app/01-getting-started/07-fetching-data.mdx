@@ -478,7 +478,7 @@ async function Playlists({ artistID }) {
 }
 ```
 
-To improve the user experience, you should use [React `<Suspense>`](/docs/app/getting-started/linking-and-navigating#streaming) to show a `fallback` while data is being fetch. This will enable [streaming](#streaming) and prevent the whole route from being blocked by the sequential data requests.
+To improve the user experience, you should use [React `<Suspense>`](/docs/app/getting-started/linking-and-navigating#streaming) to show a `fallback` while data is being fetched. This will enable [streaming](#streaming) and prevent the whole route from being blocked by the sequential data requests.
 
 ### Parallel data fetching
 
@@ -486,7 +486,7 @@ Parallel data fetching happens when data requests in a route are eagerly initiat
 
 By default, [layouts and pages](/docs/app/getting-started/layouts-and-pages) are rendered in parallel. So each segment starts fetching data as soon as possible.
 
-However, within _any_ component, multiple `async`/`await` requests can still be sequential if placed after the other. For example, `getAlbums` will be blocked until `getArtist` is resolved:
+However, within _any_ component, multiple `async`/`await` requests can still be sequential if placed after one another. For example, `getAlbums` will be blocked until `getArtist` is resolved:
 
 ```tsx filename="app/artist/[username]/page.tsx" switcher
 import { getArtist, getAlbums } from '@/app/lib/data'
@@ -570,7 +570,7 @@ export default async function Page({ params }) {
 
 ### Preloading data
 
-You can preload data by creating an utility function that you eagerly call above blocking requests. `<Item>` conditionally renders based on the `checkIsAvailable()` function.
+You can preload data by creating a utility function that you eagerly call above blocking requests. `<Item>` conditionally renders based on the `checkIsAvailable()` function.
 
 You can call `preload()` before `checkIsAvailable()` to eagerly initiate `<Item/>` data dependencies. By the time `<Item/>` is rendered, its data has already been fetched.
 
