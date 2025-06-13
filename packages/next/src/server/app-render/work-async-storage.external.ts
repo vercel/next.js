@@ -35,7 +35,7 @@ export interface WorkStore {
   readonly cacheLifeProfiles?: { [profile: string]: CacheLife }
 
   readonly isOnDemandRevalidate?: boolean
-  readonly isPrerendering?: boolean
+  readonly isBuildTimePrerendering?: boolean
   readonly isRevalidate?: boolean
 
   forceDynamic?: boolean
