@@ -26,7 +26,7 @@ impl ConnectChildOperation {
     pub fn run(
         parent_task_id: TaskId,
         child_task_id: TaskId,
-        is_immutable: bool,
+        mut is_immutable: bool,
         mut ctx: impl ExecuteContext,
     ) {
         if !ctx.should_track_children() {
@@ -44,6 +44,12 @@ impl ConnectChildOperation {
             }
             return;
         }
+
+        if !is_immutable {
+            let task = ctx.task(child_task_id, TaskDataCategory::All);
+            is_immutable = task.is_immutable();
+        }
+
         let mut parent_task = ctx.task(parent_task_id, TaskDataCategory::All);
         let Some(InProgressState::InProgress(box InProgressStateInner { new_children, .. })) =
             get_mut!(parent_task, InProgress)
