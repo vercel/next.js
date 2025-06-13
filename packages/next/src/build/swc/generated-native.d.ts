@@ -392,6 +392,15 @@ export declare function isReactCompilerRequired(
 export declare function getModuleNamedExports(
   resourcePath: string
 ): Promise<string[]>
+export interface NapiSourceDiagnostic {
+  severity: string
+  message: string
+  loc: NapiIssueSourceRange
+}
+export declare function warnForEdgeRuntime(
+  source: string,
+  isProduction: boolean
+): Promise<NapiSourceDiagnostic[]>
 export declare function transform(
   src: string | Buffer | undefined,
   isModule: boolean,

@@ -21,6 +21,7 @@ import { getReactCompilerLoader } from '../get-babel-loader-config'
 import type {
   NapiPartialProjectOptions,
   NapiProjectOptions,
+  NapiSourceDiagnostic,
 } from './generated-native'
 import type {
   Binding,
@@ -1159,6 +1160,14 @@ async function loadWasm(importPath = '') {
               '`rspack.getModuleNamedExports` is not supported by the wasm bindings.'
             )
           },
+          warnForEdgeRuntime: function (
+            _source: string,
+            _isProduction: boolean
+          ): Promise<NapiSourceDiagnostic[]> {
+            throw new Error(
+              '`rspack.warnForEdgeRuntime` is not supported by the wasm bindings.'
+            )
+          },
         },
       }
       return wasmBindings
@@ -1342,6 +1351,12 @@ function loadNative(importPath?: string) {
         ): Promise<string[]> {
           return bindings.getModuleNamedExports(resourcePath)
         },
+        warnForEdgeRuntime: function (
+          source: string,
+          isProduction: boolean
+        ): Promise<NapiSourceDiagnostic[]> {
+          return bindings.warnForEdgeRuntime(source, isProduction)
+        },
       },
     }
     return nativeBindings
@@ -1465,4 +1480,12 @@ export async function getModuleNamedExports(
 ): Promise<string[]> {
   const bindings = await loadBindings()
   return bindings.rspack.getModuleNamedExports(resourcePath)
+}
+
+export async function warnForEdgeRuntime(
+  source: string,
+  isProduction: boolean
+): Promise<NapiSourceDiagnostic[]> {
+  const bindings = await loadBindings()
+  return bindings.rspack.warnForEdgeRuntime(source, isProduction)
 }

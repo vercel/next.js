@@ -1,4 +1,4 @@
-use std::{fs, path::PathBuf, sync::Arc};
+use std::{cell::RefCell, fs, path::PathBuf, sync::Arc};
 
 use napi::bindgen_prelude::*;
 use swc_core::{
@@ -7,17 +7,20 @@ use swc_core::{
         try_with_handler,
     },
     common::{
-        FileName, FilePathMapping, GLOBALS, SourceMap, comments::Comments, errors::ColorConfig,
+        FileName, FilePathMapping, GLOBALS, Mark, SourceMap, SyntaxContext, comments::Comments,
+        errors::ColorConfig,
     },
     ecma::{
         ast::{Decl, EsVersion, Id},
         atoms::Atom,
         parser::{EsSyntax, Syntax, TsSyntax},
-        utils::find_pat_ids,
-        visit::{Visit, VisitWith},
+        utils::{ExprCtx, find_pat_ids},
+        visit::{Visit, VisitMutWith, VisitWith},
     },
     node::MapErr,
 };
+
+use crate::next_api::utils::{NapiIssueSourceRange, NapiSourcePos};
 
 struct Finder {
     pub named_exports: Vec<Atom>,
@@ -170,5 +173,143 @@ impl Task for FinderTask {
 pub fn get_module_named_exports(resource_path: String) -> AsyncTask<FinderTask> {
     AsyncTask::new(FinderTask {
         resource_path: Some(resource_path),
+    })
+}
+
+#[napi(object)]
+pub struct NapiSourceDiagnostic {
+    pub severity: &'static str,
+    pub message: String,
+    pub loc: NapiIssueSourceRange,
+}
+
+pub struct AnalyzeTask {
+    pub source: Option<String>,
+    pub is_production: bool,
+}
+
+impl Task for AnalyzeTask {
+    type Output = Vec<NapiSourceDiagnostic>;
+    type JsValue = Vec<NapiSourceDiagnostic>;
+
+    fn compute(&mut self) -> Result<Self::Output> {
+        GLOBALS.set(&Default::default(), || {
+            let c =
+                swc_core::base::Compiler::new(Arc::new(SourceMap::new(FilePathMapping::empty())));
+
+            let options = ParseOptions {
+                comments: false,
+                syntax: Syntax::Es(EsSyntax {
+                    jsx: true,
+                    fn_bind: true,
+                    decorators: true,
+                    decorators_before_export: true,
+                    export_default_from: true,
+                    import_attributes: true,
+                    allow_super_outside_method: true,
+                    allow_return_outside_function: true,
+                    auto_accessors: true,
+                    explicit_resource_management: true,
+                }),
+                is_module: IsModule::Unknown,
+                target: EsVersion::default(),
+            };
+            let comments = c.comments().clone();
+            let comments: Option<&dyn Comments> = if options.comments {
+                Some(&comments)
+            } else {
+                None
+            };
+            let source = self.source.take().unwrap();
+            let fm =
+                c.cm.new_source_file(Arc::new(FileName::Anon), source);
+            let mut program = try_with_handler(
+                c.cm.clone(),
+                swc_core::base::HandlerOpts {
+                    color: ColorConfig::Never,
+                    skip_filename: false,
+                },
+                |handler| {
+                    c.parse_js(
+                        fm,
+                        handler,
+                        options.target,
+                        options.syntax,
+                        options.is_module,
+                        comments,
+                    )
+                },
+            )
+            .map_err(|e| e.to_pretty_error())
+            .convert_err()?;
+
+            let diagnostics = RefCell::new(Vec::new());
+            let top_level_mark = Mark::fresh(Mark::root());
+            let unresolved_mark = Mark::fresh(Mark::root());
+            let mut resolver_visitor = swc_core::ecma::transforms::base::resolver(unresolved_mark, top_level_mark, true);
+            let mut analyze_visitor = next_custom_transforms::transforms::warn_for_edge_runtime::warn_for_edge_runtime_with_handlers(
+                c.cm.clone(),
+                ExprCtx {
+                    is_unresolved_ref_safe: true,
+                    unresolved_ctxt: SyntaxContext::empty().apply_mark(unresolved_mark),
+                    in_strict: false,
+                    remaining_depth: 4,
+                },
+                false,
+                self.is_production,
+                |span, msg| {
+                    let start = c.cm.lookup_char_pos(span.lo);
+                    let end = c.cm.lookup_char_pos(span.hi);
+                    diagnostics.borrow_mut().push(NapiSourceDiagnostic {
+                        severity: "Warning",
+                        message: msg,
+                        loc: NapiIssueSourceRange {
+                            start: NapiSourcePos {
+                                line: start.line as u32,
+                                column: start.col_display as u32,
+                            },
+                            end: NapiSourcePos {
+                                line: end.line as u32,
+                                column: end.col_display as u32,
+                            }
+                        }
+                    });
+                },
+                |span, msg| {
+                    let start = c.cm.lookup_char_pos(span.lo);
+                    let end = c.cm.lookup_char_pos(span.hi);
+                    diagnostics.borrow_mut().push(NapiSourceDiagnostic {
+                        severity: "Error",
+                        message: msg,
+                        loc: NapiIssueSourceRange {
+                            start: NapiSourcePos {
+                                line: start.line as u32,
+                                column: start.col_display as u32,
+                            },
+                            end: NapiSourcePos {
+                                line: end.line as u32,
+                                column: end.col_display as u32,
+                            }
+                        }
+                    });
+                });
+
+                program.visit_mut_with(&mut resolver_visitor);
+                program.visit_with(&mut analyze_visitor);
+
+            Ok(diagnostics.take())
+        })
+    }
+
+    fn resolve(&mut self, _env: Env, output: Self::Output) -> Result<Self::JsValue> {
+        Ok(output)
+    }
+}
+
+#[napi(ts_return_type = "Promise<NapiSourceDiagnostic[]>")]
+pub fn warn_for_edge_runtime(source: String, is_production: bool) -> AsyncTask<AnalyzeTask> {
+    AsyncTask::new(AnalyzeTask {
+        source: Some(source),
+        is_production,
     })
 }

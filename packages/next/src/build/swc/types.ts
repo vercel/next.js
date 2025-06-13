@@ -4,6 +4,7 @@ import type {
   ExternalObject,
   RefCell,
   NapiTurboEngineOptions,
+  NapiSourceDiagnostic,
 } from './generated-native'
 
 export type { NapiTurboEngineOptions as TurboEngineOptions }
@@ -46,6 +47,10 @@ export interface Binding {
 
   rspack: {
     getModuleNamedExports(resourcePath: string): Promise<string[]>
+    warnForEdgeRuntime(
+      source: string,
+      isProduction: boolean
+    ): Promise<NapiSourceDiagnostic[]>
   }
 }
 

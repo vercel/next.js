@@ -567,6 +567,47 @@ Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`,
   }
 }
 
+async function codeAnalyzerBySwc(
+  compilation: webpack.Compilation,
+  modules: Iterable<webpack.Module>,
+  dev: boolean
+) {
+  const binding = require('../../swc') as typeof import('../../swc')
+  for (const module of modules) {
+    if (
+      module.layer !== WEBPACK_LAYERS.middleware &&
+      module.layer !== WEBPACK_LAYERS.apiEdge
+    ) {
+      continue
+    }
+    if (module.constructor.name !== 'NormalModule') {
+      continue
+    }
+    const originalSource = (module as webpack.NormalModule).originalSource()
+    if (!originalSource) {
+      continue
+    }
+    const source = originalSource.source()
+    if (typeof source !== 'string') {
+      continue
+    }
+    const diagnostics = await binding.warnForEdgeRuntime(source, !dev)
+    for (const diagnostic of diagnostics) {
+      const webpackError = buildWebpackError({
+        message: diagnostic.message,
+        loc: diagnostic.loc,
+        compilation,
+        entryModule: module,
+      })
+      if (diagnostic.severity === 'Warning') {
+        compilation.warnings.push(webpackError)
+      } else {
+        compilation.errors.push(webpackError)
+      }
+    }
+  }
+}
+
 function getExtractMetadata(params: {
   compilation: webpack.Compilation
   compiler: webpack.Compiler
@@ -784,18 +825,22 @@ export default class MiddlewarePlugin {
 
   public apply(compiler: webpack.Compiler) {
     compiler.hooks.compilation.tap(NAME, (compilation, params) => {
-      const { hooks } = params.normalModuleFactory
-      /**
-       * This is the static code analysis phase.
-       */
-      const codeAnalyzer = getCodeAnalyzer({
-        dev: this.dev,
-        compiler,
-        compilation,
-      })
-
       // parser hooks aren't available in rspack
-      if (!process.env.NEXT_RSPACK) {
+      if (process.env.NEXT_RSPACK) {
+        compilation.hooks.finishModules.tapPromise(NAME, async (modules) => {
+          await codeAnalyzerBySwc(compilation, modules, this.dev)
+        })
+      } else {
+        const { hooks } = params.normalModuleFactory
+        /**
+         * This is the static code analysis phase.
+         */
+        const codeAnalyzer = getCodeAnalyzer({
+          dev: this.dev,
+          compiler,
+          compilation,
+        })
+
         hooks.parser.for('javascript/auto').tap(NAME, codeAnalyzer)
         hooks.parser.for('javascript/dynamic').tap(NAME, codeAnalyzer)
         hooks.parser.for('javascript/esm').tap(NAME, codeAnalyzer)
