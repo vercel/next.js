@@ -3105,9 +3105,9 @@ async fn emit_resolve_error_issue(
     source: Option<IssueSource>,
 ) -> Result<()> {
     let severity = if is_optional || resolve_options.await?.loose_errors {
-        IssueSeverity::Warning.resolved_cell()
+        IssueSeverity::Warning
     } else {
-        IssueSeverity::Error.resolved_cell()
+        IssueSeverity::Error
     };
     ResolvingIssue {
         severity,
@@ -3132,9 +3132,9 @@ async fn emit_unresolvable_issue(
     source: Option<IssueSource>,
 ) -> Result<()> {
     let severity = if is_optional || resolve_options.await?.loose_errors {
-        IssueSeverity::Warning.resolved_cell()
+        IssueSeverity::Warning
     } else {
-        IssueSeverity::Error.resolved_cell()
+        IssueSeverity::Error
     };
     ResolvingIssue {
         severity,
@@ -3150,11 +3150,11 @@ async fn emit_unresolvable_issue(
     Ok(())
 }
 
-async fn error_severity(resolve_options: Vc<ResolveOptions>) -> Result<ResolvedVc<IssueSeverity>> {
+async fn error_severity(resolve_options: Vc<ResolveOptions>) -> Result<IssueSeverity> {
     Ok(if resolve_options.await?.loose_errors {
-        IssueSeverity::Warning.resolved_cell()
+        IssueSeverity::Warning
     } else {
-        IssueSeverity::Error.resolved_cell()
+        IssueSeverity::Error
     })
 }
 

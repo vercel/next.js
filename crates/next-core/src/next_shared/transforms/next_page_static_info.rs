@@ -8,6 +8,7 @@ use swc_core::{
     atoms::{Atom, atom},
     ecma::ast::Program,
 };
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
@@ -151,9 +152,8 @@ pub struct PageStaticInfoIssue {
 
 #[turbo_tasks::value_impl]
 impl Issue for PageStaticInfoIssue {
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        self.severity.into()
+    fn severity(&self) -> IssueSeverity {
+        self.severity
     }
 
     #[turbo_tasks::function]
@@ -163,7 +163,7 @@ impl Issue for PageStaticInfoIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Invalid page configuration".into()).cell()
+        StyledString::Text(rcstr!("Invalid page configuration")).cell()
     }
 
     #[turbo_tasks::function]

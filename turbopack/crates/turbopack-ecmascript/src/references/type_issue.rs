@@ -70,12 +70,11 @@ impl Issue for SpecifiedModuleTypeIssue {
         ))
     }
 
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
+    fn severity(&self) -> IssueSeverity {
         match self.specified_type {
-            SpecifiedModuleType::CommonJs => IssueSeverity::Error.cell(),
-            SpecifiedModuleType::EcmaScript => IssueSeverity::Warning.cell(),
-            SpecifiedModuleType::Automatic => IssueSeverity::Hint.cell(),
+            SpecifiedModuleType::CommonJs => IssueSeverity::Error,
+            SpecifiedModuleType::EcmaScript => IssueSeverity::Warning,
+            SpecifiedModuleType::Automatic => IssueSeverity::Hint,
         }
     }
 

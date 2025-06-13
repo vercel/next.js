@@ -248,8 +248,8 @@ impl NextFontGoogleCssModuleReplacer {
                         NextFontIssue {
                             path: css_virtual_path.to_resolved().await?,
                             title: StyledString::Line(vec![
-                                StyledString::Code("next/font:".into()),
-                                StyledString::Text(" error:".into()),
+                                StyledString::Code(rcstr!("next/font:")),
+                                StyledString::Text(rcstr!(" error:")),
                             ])
                             .resolved_cell(),
                             description: StyledString::Text(
@@ -260,7 +260,7 @@ impl NextFontGoogleCssModuleReplacer {
                                 .into(),
                             )
                             .resolved_cell(),
-                            severity: IssueSeverity::Error.resolved_cell(),
+                            severity: IssueSeverity::Error,
                         }
                         .resolved_cell()
                         .emit();
@@ -272,8 +272,8 @@ impl NextFontGoogleCssModuleReplacer {
                         NextFontIssue {
                             path: css_virtual_path.to_resolved().await?,
                             title: StyledString::Line(vec![
-                                StyledString::Code("next/font:".into()),
-                                StyledString::Text(" warning:".into()),
+                                StyledString::Code(rcstr!("next/font:")),
+                                StyledString::Text(rcstr!(" warning:")),
                             ])
                             .resolved_cell(),
                             description: StyledString::Text(
@@ -285,7 +285,7 @@ impl NextFontGoogleCssModuleReplacer {
                                 .into(),
                             )
                             .resolved_cell(),
-                            severity: IssueSeverity::Warning.resolved_cell(),
+                            severity: IssueSeverity::Warning,
                         }
                         .resolved_cell()
                         .emit();
@@ -663,7 +663,7 @@ async fn fetch_from_google_fonts(
     Ok(match *result {
         Ok(r) => Some(*r.await?.body),
         Err(err) => {
-            err.to_issue(IssueSeverity::Warning.into(), virtual_path)
+            err.to_issue(IssueSeverity::Warning, virtual_path)
                 .to_resolved()
                 .await?
                 .emit();

@@ -125,8 +125,8 @@ async fn errors_on_failed_connection() {
         assert_eq!(*err.kind.await?, FetchErrorKind::Connect);
         assert_eq!(*err.url.await?, url);
 
-        let issue = err_vc.to_issue(IssueSeverity::Error.into(), get_issue_context());
-        assert_eq!(*issue.severity().await?, IssueSeverity::Error);
+        let issue = err_vc.to_issue(IssueSeverity::Error, get_issue_context());
+        assert_eq!(issue.await?.severity(), IssueSeverity::Error);
         assert_eq!(
             *issue.description().await?.unwrap().await?,
             StyledString::Text(rcstr!(
@@ -159,8 +159,8 @@ async fn errors_on_404() {
         assert!(matches!(*err.kind.await?, FetchErrorKind::Status(404)));
         assert_eq!(*err.url.await?, url);
 
-        let issue = err_vc.to_issue(IssueSeverity::Error.into(), get_issue_context());
-        assert_eq!(*issue.severity().await?, IssueSeverity::Error);
+        let issue = err_vc.to_issue(IssueSeverity::Error, get_issue_context());
+        assert_eq!(issue.await?.severity(), IssueSeverity::Error);
         assert_eq!(
             *issue.description().await?.unwrap().await?,
             StyledString::Text(RcStr::from(format!(

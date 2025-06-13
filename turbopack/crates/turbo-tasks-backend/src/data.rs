@@ -702,7 +702,7 @@ impl CachedDataItemValueRef<'_> {
         match self {
             CachedDataItemValueRef::Output { value } => !value.is_transient(),
             CachedDataItemValueRef::CellData { value } => {
-                registry::get_value_type(value.0).is_serializable()
+                registry::get_value_type(value.type_id).is_serializable()
             }
             _ => true,
         }

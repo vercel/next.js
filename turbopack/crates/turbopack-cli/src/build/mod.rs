@@ -170,7 +170,7 @@ impl TurbopackBuildBuilder {
             handle_issues(
                 build_result_op,
                 issue_reporter,
-                IssueSeverity::Error.into(),
+                IssueSeverity::Error,
                 None,
                 None,
             )

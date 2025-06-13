@@ -885,6 +885,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "packages/next/src/next-devtools/dev-overlay/segment-explorer.test.tsx": {
+    "passed": [
+      "Segment Explorer add complex structure",
+      "Segment Explorer remove node in the middle"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "packages/next/src/next-devtools/dev-overlay/utils/css.test.ts": {
     "passed": [
       "css template literal tag should combines strings and interpolations correctly",
@@ -2643,6 +2653,7 @@
   },
   "test/development/app-dir/segment-explorer/segment-explorer.test.ts": {
     "passed": [
+      "segment-explorer should cleanup on soft navigation",
       "segment-explorer should render the segment explorer for nested routes",
       "segment-explorer should render the segment explorer for parallel routes"
     ],

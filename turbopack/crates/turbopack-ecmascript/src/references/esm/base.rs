@@ -455,9 +455,8 @@ pub struct InvalidExport {
 
 #[turbo_tasks::value_impl]
 impl Issue for InvalidExport {
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        IssueSeverity::Error.into()
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
     }
 
     #[turbo_tasks::function]

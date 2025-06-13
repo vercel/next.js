@@ -885,6 +885,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "packages/next/src/next-devtools/dev-overlay/segment-explorer.test.tsx": {
+    "passed": [
+      "Segment Explorer add complex structure",
+      "Segment Explorer remove node in the middle"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "packages/next/src/next-devtools/dev-overlay/utils/css.test.ts": {
     "passed": [
       "css template literal tag should combines strings and interpolations correctly",
@@ -1924,10 +1934,11 @@
   "test/development/acceptance-app/editor-links.test.ts": {
     "passed": [
       "Error overlay - editor links opening links in import traces should be possible to open import trace files on RSC parse error",
-      "Error overlay - editor links opening links in import traces should be possible to open import trace files on module not found error",
       "Error overlay - editor links should be possible to open source file on build error"
     ],
-    "failed": [],
+    "failed": [
+      "Error overlay - editor links opening links in import traces should be possible to open import trace files on module not found error"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2321,8 +2332,8 @@
     "runtimeError": false
   },
   "test/development/app-dir/build-error-logs/build-error-logs.test.ts": {
-    "passed": [],
-    "failed": ["build-error-logs should only log error a single time"],
+    "passed": ["build-error-logs should only log error a single time"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2648,6 +2659,7 @@
   },
   "test/development/app-dir/segment-explorer/segment-explorer.test.ts": {
     "passed": [
+      "segment-explorer should cleanup on soft navigation",
       "segment-explorer should render the segment explorer for nested routes",
       "segment-explorer should render the segment explorer for parallel routes"
     ],
@@ -2796,7 +2808,7 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/development/basic/allowed-dev-origins.test.ts": {
     "passed": [

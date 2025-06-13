@@ -563,7 +563,7 @@ impl PostCssTransformedAsset {
 struct PostCssTransformIssue {
     source: ResolvedVc<FileSystemPath>,
     description: RcStr,
-    severity: ResolvedVc<IssueSeverity>,
+    severity: IssueSeverity,
     title: RcStr,
 }
 
@@ -586,9 +586,8 @@ impl Issue for PostCssTransformIssue {
         ))
     }
 
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        *self.severity
+    fn severity(&self) -> IssueSeverity {
+        self.severity
     }
 
     #[turbo_tasks::function]

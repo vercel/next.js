@@ -1,6 +1,7 @@
 //! TODO(WEB-741) Remove this file once Sass is supported.
 
 use anyhow::Result;
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 use turbopack_core::{
@@ -64,9 +65,8 @@ struct UnsupportedSassModuleIssue {
 
 #[turbo_tasks::value_impl]
 impl Issue for UnsupportedSassModuleIssue {
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        IssueSeverity::Warning.into()
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Warning
     }
 
     #[turbo_tasks::function]
@@ -74,7 +74,7 @@ impl Issue for UnsupportedSassModuleIssue {
         Ok(StyledString::Text(
             format!(
                 "Unsupported Sass request: {}",
-                self.request.await?.request().as_deref().unwrap_or("N/A")
+                self.request.await?.request().unwrap_or(rcstr!("N/A"))
             )
             .into(),
         )
@@ -89,8 +89,10 @@ impl Issue for UnsupportedSassModuleIssue {
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
         Vc::cell(Some(
-            StyledString::Text("Turbopack does not yet support importing Sass modules.".into())
-                .resolved_cell(),
+            StyledString::Text(rcstr!(
+                "Turbopack does not yet support importing Sass modules."
+            ))
+            .resolved_cell(),
         ))
     }
 
