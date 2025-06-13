@@ -611,18 +611,27 @@ pub struct Storage {
 }
 
 impl Storage {
-    pub fn new() -> Self {
+    pub fn new(small_preallocation: bool) -> Self {
+        let map_capacity: usize = if small_preallocation {
+            1024
+        } else {
+            1024 * 1024
+        };
+        let modified_capacity: usize = if small_preallocation { 0 } else { 1024 };
+        let shard_factor: usize = if small_preallocation { 4 } else { 64 };
+
         let shard_amount =
-            (available_parallelism().map_or(4, |v| v.get()) * 64).next_power_of_two();
+            (available_parallelism().map_or(4, |v| v.get()) * shard_factor).next_power_of_two();
+
         Self {
             snapshot_mode: AtomicBool::new(false),
             modified: FxDashMap::with_capacity_and_hasher_and_shard_amount(
-                1024,
+                modified_capacity,
                 Default::default(),
                 shard_amount,
             ),
             map: FxDashMap::with_capacity_and_hasher_and_shard_amount(
-                1024 * 1024,
+                map_capacity,
                 Default::default(),
                 shard_amount,
             ),
