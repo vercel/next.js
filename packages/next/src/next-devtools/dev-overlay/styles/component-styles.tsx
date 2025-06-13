@@ -24,6 +24,7 @@ import { DEV_TOOLS_INFO_USER_PREFERENCES_STYLES } from '../components/errors/dev
 import { DEV_TOOLS_INFO_RENDER_FILES_STYLES } from '../components/overview/segment-explorer'
 import { FADER_STYLES } from '../components/fader'
 import { RESTART_SERVER_BUTTON_STYLES } from '../components/errors/error-overlay-toolbar/restart-server-button'
+import { DEVTOOLS_PANEL_STYLES } from '../components/devtools-panel/devtools-panel'
 
 export function ComponentStyles() {
   return (
@@ -54,6 +55,7 @@ export function ComponentStyles() {
         ${DEV_TOOLS_INFO_USER_PREFERENCES_STYLES}
         ${DEV_TOOLS_INFO_RENDER_FILES_STYLES}
         ${FADER_STYLES}
+        ${DEVTOOLS_PANEL_STYLES}
       `}
     </style>
   )
