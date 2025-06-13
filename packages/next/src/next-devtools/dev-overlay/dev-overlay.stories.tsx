@@ -141,7 +141,7 @@ export const Default: Story = {
           }}
         />
         <DevOverlay
-          state={{ ...state, isErrorOverlayOpen: true }}
+          state={state}
           dispatch={dispatch}
           getSquashedHydrationErrorDetails={
             // Testing like App Router where we no longer quash hydration errors
@@ -175,7 +175,7 @@ export const WithPanel: Story = {
           }}
         />
         <DevOverlay
-          state={{ ...state, isDevToolsPanelOpen: true }}
+          state={state}
           dispatch={dispatch}
           getSquashedHydrationErrorDetails={
             // Testing like App Router where we no longer quash hydration errors
