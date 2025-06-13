@@ -23,7 +23,7 @@ pub(crate) struct MergedEcmascriptModule {
         ResolvedVc<Box<dyn EcmascriptAnalyzable>>,
         MergeableModuleExposure,
     )>,
-    entries: Vec<ResolvedVc<Box<dyn EcmascriptAnalyzable>>>,
+    entry_points: Vec<ResolvedVc<Box<dyn EcmascriptAnalyzable>>>,
     options: ResolvedVc<EcmascriptOptions>,
 }
 
@@ -33,12 +33,12 @@ impl MergedEcmascriptModule {
             ResolvedVc<Box<dyn EcmascriptAnalyzable>>,
             MergeableModuleExposure,
         )>,
-        entries: Vec<ResolvedVc<Box<dyn EcmascriptAnalyzable>>>,
+        entry_points: Vec<ResolvedVc<Box<dyn EcmascriptAnalyzable>>>,
         options: ResolvedVc<EcmascriptOptions>,
     ) -> ResolvedVc<Self> {
         MergedEcmascriptModule {
             modules,
-            entries,
+            entry_points,
             options,
         }
         .resolved_cell()
@@ -59,7 +59,7 @@ impl Module for MergedEcmascriptModule {
     fn ident(&self) -> Vc<AssetIdent> {
         // This purposely reuses the module's ident as it has replaced the original module, thus
         // there can never be a collision.
-        self.entries.first().unwrap().ident()
+        self.entry_points.first().unwrap().ident()
     }
 
     #[turbo_tasks::function]
@@ -138,7 +138,7 @@ impl EcmascriptChunkItem for MergedEcmascriptModuleChunkItem {
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let module = self.module.await?;
         let modules = &module.modules;
-        let entries = &module.entries;
+        let entry_points = &module.entry_points;
         let options = modules
             .iter()
             .map(|(m, _)| {
@@ -156,7 +156,7 @@ impl EcmascriptChunkItem for MergedEcmascriptModuleChunkItem {
         let content = EcmascriptModuleContent::new_merged(
             modules.clone(),
             options,
-            entries.iter().map(|m| **m).collect(),
+            entry_points.iter().map(|m| **m).collect(),
         );
 
         // Currently, merged modules never include async modules.

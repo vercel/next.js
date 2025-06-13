@@ -749,7 +749,7 @@ impl MergeableModule for EcmascriptModuleAsset {
     async fn merge(
         self: Vc<Self>,
         modules: Vc<MergeableModulesExposed>,
-        entries: Vc<MergeableModules>,
+        entry_points: Vc<MergeableModules>,
     ) -> Result<Vc<Box<dyn ChunkableModule>>> {
         Ok(Vc::upcast(*MergedEcmascriptModule::new(
             modules
@@ -763,7 +763,7 @@ impl MergeableModule for EcmascriptModuleAsset {
                     ))
                 })
                 .collect::<Result<Vec<_>>>()?,
-            entries
+            entry_points
                 .await?
                 .iter()
                 .map(|m| {
@@ -1068,7 +1068,7 @@ impl EcmascriptModuleContent {
             MergeableModuleExposure,
         )>,
         module_options: Vec<Vc<EcmascriptModuleContentOptions>>,
-        entries: Vec<ResolvedVc<Box<dyn EcmascriptAnalyzable>>>,
+        entry_points: Vec<ResolvedVc<Box<dyn EcmascriptAnalyzable>>>,
     ) -> Result<Vc<Self>> {
         let modules = modules
             .into_iter()
@@ -1079,7 +1079,7 @@ impl EcmascriptModuleContent {
                 )
             })
             .collect::<FxIndexMap<_, _>>();
-        let entries = entries
+        let entry_points = entry_points
             .into_iter()
             .map(|m| {
                 let m = ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(m).unwrap();
@@ -1125,7 +1125,7 @@ impl EcmascriptModuleContent {
             .await?;
 
         let (merged_ast, comments, source_maps, original_source_maps) =
-            merge_modules(contents, &entries, &globals_merged).await?;
+            merge_modules(contents, &entry_points, &globals_merged).await?;
 
         // Use the options from an arbitrary module, since they should all be the same.
         let options = module_options.last().unwrap().await?;
@@ -1151,7 +1151,7 @@ impl EcmascriptModuleContent {
             scope_hoisting_syntax_contexts: None,
         };
 
-        let first_entry = entries.first().unwrap().0;
+        let first_entry = entry_points.first().unwrap().0;
         let additional_ids = modules
             .keys()
             // Additionally set this module factory for all modules that are exposed. The whole
@@ -1183,7 +1183,7 @@ impl EcmascriptModuleContent {
 #[allow(clippy::type_complexity)]
 async fn merge_modules(
     mut contents: Vec<(ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, CodeGenResult)>,
-    entries: &Vec<(ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, usize)>,
+    entry_points: &Vec<(ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, usize)>,
     globals_merged: &'_ Globals,
 ) -> Result<(
     Program,
@@ -1339,11 +1339,12 @@ async fn merge_modules(
             };
 
         let mut inserted = FxHashSet::with_capacity_and_hasher(contents.len(), Default::default());
-        inserted.extend(entries.iter().map(|(_, i)| *i));
+        // Start with inserting the entry points, and recursively inline all their imports.
+        inserted.extend(entry_points.iter().map(|(_, i)| *i));
 
         // Replace inserted `__turbopack_merged_esm__(i);` statements with the corresponding
-        // ith-module
-        let mut queue = entries
+        // ith-module.
+        let mut queue = entry_points
             .iter()
             .map(|(_, i)| prepare_module(&contents[*i], &mut programs[*i]))
             .flatten_ok()

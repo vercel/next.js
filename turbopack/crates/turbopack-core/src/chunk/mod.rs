@@ -122,13 +122,16 @@ pub trait MergeableModule: Module + Asset {
         Vc::cell(true)
     }
 
-    /// Create a new module representing the merged content of the given `modules``, `entries` are
-    /// all entries in `modules` that are not imported from within the group.
+    /// Create a new module representing the merged content of the given `modules`.
+    ///
+    /// Group entry points are not referenced by any other module in the group. This list is needed
+    /// because the merged module is created by recursively inlining modules when they are imported,
+    /// but this process has to start somewhere (= with these entry points).
     #[turbo_tasks::function]
     fn merge(
         self: Vc<Self>,
         modules: Vc<MergeableModulesExposed>,
-        entries: Vc<MergeableModules>,
+        entry_points: Vc<MergeableModules>,
     ) -> Vc<Box<dyn ChunkableModule>>;
 }
 #[turbo_tasks::value(transparent)]

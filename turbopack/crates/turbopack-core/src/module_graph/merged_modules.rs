@@ -220,7 +220,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             }
         }
 
-        // A list of all different execution traces (orders) of all modules, initially a union of
+        // A list of all different execution traces (orderings) of all modules, initially a union of
         // the partition of each chunk's modules (one for each ESM subtree in each chunks), but
         // further split up later on.
         let mut lists = vec![];
@@ -247,7 +247,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
 
         // TODO try to parallelize this loop somehow
         for chunk_group in &chunk_group_info.chunk_groups {
-            // A partition of all modules in the chunk into several execution traces (orders),
+            // A partition of all modules in the chunk into several execution traces (orderings),
             // stored in the top-level lists and referenced here by index.
             let mut chunk_lists: FxHashMap<RoaringBitmapWrapper, usize> =
                 FxHashMap::with_capacity_and_hasher(
@@ -495,7 +495,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         // Dedupe the lists
         let lists = lists.into_iter().collect::<FxHashSet<_>>();
 
-        // Call MergeableModule impl to merge the modules (or not, if they are rejected).
+        // Call MergeableModule impl to merge the modules.
         let result = lists
             .into_iter()
             .map(async |list| {
@@ -509,11 +509,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                     .map(|&m| ResolvedVc::upcast::<Box<dyn Module>>(m))
                     .collect::<FxIndexSet<_>>();
 
-                // Group entries are not referenced by any other module in the group. This list is
-                // needed because the merged module is created by recursively inlining modules when
-                // they are imported, but this process has to start somewhere (= with these
-                // entries).
-                let entries = list
+                let entry_points = list
                     .iter()
                     .filter(|m| {
                         intra_group_references_rev
@@ -522,7 +518,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                     })
                     .map(|m| **m)
                     .collect::<Vec<_>>();
-                debug_assert_ne!(entries.len(), 0);
+                debug_assert_ne!(entry_points.len(), 0);
 
                 let list_exposed = list
                     .iter()
@@ -544,7 +540,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 let result = entry
                     .merge(
                         MergeableModulesExposed::interned(list_exposed),
-                        MergeableModules::interned(entries),
+                        MergeableModules::interned(entry_points),
                     )
                     .to_resolved()
                     .await?;
@@ -571,7 +567,6 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
 
         for (original, replacement, replacement_included) in result.into_iter().flatten() {
             replacements.insert(original, replacement);
-            // replacements_included.insert(original, replacement_included.clone());
             included.extend(replacement_included);
         }
 
@@ -580,7 +575,6 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
 
         Ok(MergedModuleInfo {
             replacements,
-            // replacements_included,
             included,
         }
         .cell())
