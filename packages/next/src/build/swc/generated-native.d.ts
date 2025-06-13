@@ -389,6 +389,9 @@ export declare function isReactCompilerRequired(
   filename: string,
   signal?: AbortSignal | undefined | null
 ): Promise<boolean>
+export declare function getModuleNamedExports(
+  resourcePath: string
+): Promise<string[]>
 export declare function transform(
   src: string | Buffer | undefined,
   isModule: boolean,

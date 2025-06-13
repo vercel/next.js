@@ -5,6 +5,7 @@ use lightningcss::{
     css_modules::{CssModuleExport, CssModuleExports, Pattern, Segment},
     stylesheet::{ParserOptions, PrinterOptions, StyleSheet, ToCssResult},
     targets::{Features, Targets},
+    traits::ToCss,
     values::url::Url,
     visit_types,
     visitor::Visit,
@@ -523,8 +524,11 @@ impl CssError {
             CssError::CssSelectorInModuleNotPure { selector } => {
                 ParsingIssue {
                     file,
-                    msg: format!("{CSS_MODULE_ERROR}, (lightningcss, {selector})").into(),
-
+                    msg: format!(
+                        "Selector \"{selector}\" is not pure. Pure selectors must contain at \
+                         least one local class or id."
+                    )
+                    .into(),
                     source: None,
                 }
                 .resolved_cell()
@@ -533,9 +537,6 @@ impl CssError {
         }
     }
 }
-
-const CSS_MODULE_ERROR: &str =
-    "Selector is not pure (pure selectors must contain at least one local class or id)";
 
 /// We only visit top-level selectors.
 impl lightningcss::visitor::Visitor<'_> for CssValidator {
@@ -578,8 +579,14 @@ impl lightningcss::visitor::Visitor<'_> for CssValidator {
         }
 
         if is_selector_problematic(selector) {
+            let selector_string = selector
+                .to_css_string(PrinterOptions {
+                    minify: false,
+                    ..Default::default()
+                })
+                .expect("selector.to_css_string should not fail");
             self.errors.push(CssError::CssSelectorInModuleNotPure {
-                selector: format!("{selector:?}"),
+                selector: selector_string,
             });
         }
 

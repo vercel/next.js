@@ -27,6 +27,11 @@ import type { DebugInfo } from './shared/types'
 import { DevOverlay } from './dev-overlay/dev-overlay'
 import type { DevIndicatorServerState } from '../server/dev/dev-indicator-server-state'
 import type { VersionInfo } from '../server/dev/parse-version-info'
+import {
+  insertSegmentNode,
+  removeSegmentNode,
+  type SegmentNode,
+} from './dev-overlay/segment-explorer'
 
 export interface Dispatcher {
   onBuildOk(): void
@@ -46,6 +51,14 @@ export interface Dispatcher {
   buildingIndicatorShow(): void
   renderingIndicatorHide(): void
   renderingIndicatorShow(): void
+  segmentExplorerNodeAdd(
+    nodeType: SegmentNode['type'],
+    pagePath: SegmentNode['pagePath']
+  ): void
+  segmentExplorerNodeRemove(
+    nodeType: SegmentNode['type'],
+    pagePath: SegmentNode['pagePath']
+  ): void
 }
 
 type Dispatch = ReturnType<typeof useErrorOverlayReducer>[1]
@@ -131,6 +144,24 @@ export const dispatcher: Dispatcher = {
   renderingIndicatorShow: createQueuable((dispatch: Dispatch) => {
     dispatch({ type: ACTION_RENDERING_INDICATOR_SHOW })
   }),
+  segmentExplorerNodeAdd: createQueuable(
+    (
+      _: Dispatch,
+      nodeType: SegmentNode['type'],
+      pagePath: SegmentNode['pagePath']
+    ) => {
+      insertSegmentNode({ type: nodeType, pagePath })
+    }
+  ),
+  segmentExplorerNodeRemove: createQueuable(
+    (
+      _: Dispatch,
+      nodeType: SegmentNode['type'],
+      pagePath: SegmentNode['pagePath']
+    ) => {
+      removeSegmentNode({ type: nodeType, pagePath })
+    }
+  ),
 }
 
 function replayQueuedEvents(dispatch: NonNullable<typeof maybeDispatch>) {
