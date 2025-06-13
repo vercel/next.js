@@ -231,8 +231,6 @@ impl HmrBenchmark {
 
     /// Benchmark HMR update detection and processing
     pub async fn benchmark_hmr_update(&self, num_updates: usize) -> Result<Duration> {
-        let start_time = Instant::now();
-
         // Get entrypoints to trigger initial compilation
         let entrypoints = self.project_container.entrypoints();
         let initial_result = entrypoints.await?;
@@ -281,12 +279,7 @@ impl HmrBenchmark {
             update_durations.push(update_start.elapsed());
         }
 
-        // // Log individual update times for analysis
-        // for (i, duration) in update_durations.iter().enumerate() {
-        //     println!("HMR update {} took: {:?}", i + 1, duration);
-        // }
-
-        Ok(start_time.elapsed())
+        Ok(update_durations.iter().sum::<Duration>())
     }
 
     /// Benchmark HMR subscription and event handling
@@ -443,7 +436,7 @@ fn hmr_initial_compilation(bencher: divan::Bencher) {
     });
 }
 
-#[divan::bench(sample_size = 10)]
+#[divan::bench(max_time = 60)]
 fn hmr_updates_small_5(bencher: divan::Bencher) {
     let setup = setup_everything(100);
 
@@ -462,7 +455,7 @@ fn hmr_updates_small_5(bencher: divan::Bencher) {
     });
 }
 
-#[divan::bench(sample_size = 10)]
+#[divan::bench(max_time = 60)]
 fn hmr_updates_medium_10(bencher: divan::Bencher) {
     let setup = setup_everything(200);
 
@@ -481,7 +474,7 @@ fn hmr_updates_medium_10(bencher: divan::Bencher) {
     });
 }
 
-#[divan::bench(sample_size = 10)]
+#[divan::bench(max_time = 60)]
 fn hmr_updates_large_20(bencher: divan::Bencher) {
     let setup = setup_everything(500);
 
@@ -500,7 +493,7 @@ fn hmr_updates_large_20(bencher: divan::Bencher) {
     });
 }
 
-#[divan::bench(sample_size = 10)]
+#[divan::bench(max_time = 60)]
 fn hmr_subscription(bencher: divan::Bencher) {
     let setup = setup_everything(100);
 
