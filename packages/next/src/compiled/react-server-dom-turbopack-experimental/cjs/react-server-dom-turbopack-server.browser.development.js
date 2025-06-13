@@ -1377,21 +1377,6 @@
       getAsyncIterator = getAsyncIterator.call(children);
       return serializeAsyncIterable(request, task, children, getAsyncIterator);
     }
-    function deferTask(request, task) {
-      task = createTask(
-        request,
-        task.model,
-        task.keyPath,
-        task.implicitSlot,
-        request.abortableTasks,
-        task.time,
-        task.debugOwner,
-        task.debugStack,
-        task.debugTask
-      );
-      pingTask(request, task);
-      return serializeLazyID(task.id);
-    }
     function outlineTask(request, task) {
       task = createTask(
         request,
@@ -1902,7 +1887,6 @@
                       _existingReference + ":" + parentPropertyName),
                     _writtenObjects.set(value, elementReference)));
             }
-            if (serializedSize > MAX_ROW_SIZE) return deferTask(request, task);
             if ((_existingReference = value._debugInfo))
               if (canEmitDebugInfo)
                 forwardDebugInfo(request, task, _existingReference);
@@ -1928,7 +1912,6 @@
                 _writtenObjects.set(request, elementReference));
             return request;
           case REACT_LAZY_TYPE:
-            if (serializedSize > MAX_ROW_SIZE) return deferTask(request, task);
             task.thenableState = null;
             elementReference = callLazyInitInDEV(value);
             if (request.status === ABORTING) throw null;
@@ -2099,7 +2082,6 @@
         return (
           (task = TaintRegistryValues.get(value)),
           void 0 !== task && throwTaintViolation(task.message),
-          (serializedSize += value.length),
           "Z" === value[value.length - 1] &&
           parent[parentPropertyName] instanceof Date
             ? "$D" + value
@@ -4325,8 +4307,6 @@
       defaultPostponeHandler = noop,
       currentRequest = null,
       canEmitDebugInfo = !1,
-      serializedSize = 0,
-      MAX_ROW_SIZE = 3200,
       modelRoot = !1,
       emptyRoot = {},
       chunkCache = new Map(),

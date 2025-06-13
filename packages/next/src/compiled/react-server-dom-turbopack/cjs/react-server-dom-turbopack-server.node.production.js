@@ -1070,18 +1070,6 @@ function renderFragment(request, task, children) {
       task.implicitSlot ? [request] : request)
     : children;
 }
-var serializedSize = 0;
-function deferTask(request, task) {
-  task = createTask(
-    request,
-    task.model,
-    task.keyPath,
-    task.implicitSlot,
-    request.abortableTasks
-  );
-  pingTask(request, task);
-  return "$L" + task.id.toString(16);
-}
 function renderElement(request, task, type, key, ref, props) {
   if (null !== ref && void 0 !== ref)
     throw Error(
@@ -1376,7 +1364,6 @@ function renderModelDestructive(
                 ((elementReference = parent + ":" + parentPropertyName),
                 writtenObjects.set(value, elementReference)));
         }
-        if (3200 < serializedSize) return deferTask(request, task);
         parentPropertyName = value.props;
         parent = parentPropertyName.ref;
         request = renderElement(
@@ -1394,7 +1381,6 @@ function renderModelDestructive(
             writtenObjects.set(request, elementReference));
         return request;
       case REACT_LAZY_TYPE:
-        if (3200 < serializedSize) return deferTask(request, task);
         task.thenableState = null;
         parentPropertyName = value._init;
         value = parentPropertyName(value._payload);
@@ -1544,7 +1530,6 @@ function renderModelDestructive(
     return value;
   }
   if ("string" === typeof value) {
-    serializedSize += value.length;
     if (
       "Z" === value[value.length - 1] &&
       parent[parentPropertyName] instanceof Date

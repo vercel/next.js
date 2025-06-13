@@ -1378,21 +1378,6 @@
       getAsyncIterator = getAsyncIterator.call(children);
       return serializeAsyncIterable(request, task, children, getAsyncIterator);
     }
-    function deferTask(request, task) {
-      task = createTask(
-        request,
-        task.model,
-        task.keyPath,
-        task.implicitSlot,
-        request.abortableTasks,
-        0,
-        task.debugOwner,
-        task.debugStack,
-        task.debugTask
-      );
-      pingTask(request, task);
-      return serializeLazyID(task.id);
-    }
     function outlineTask(request, task) {
       task = createTask(
         request,
@@ -1408,7 +1393,7 @@
       retryTask(request, task);
       return task.status === COMPLETED
         ? serializeByValueID(task.id)
-        : serializeLazyID(task.id);
+        : "$L" + task.id.toString(16);
     }
     function renderElement(request, task, type, key, ref, props, validated) {
       if (null !== ref && void 0 !== ref)
@@ -1601,9 +1586,6 @@
     function serializeByValueID(id) {
       return "$" + id.toString(16);
     }
-    function serializeLazyID(id) {
-      return "$L" + id.toString(16);
-    }
     function serializeNumber(number) {
       return Number.isFinite(number)
         ? 0 === number && -Infinity === 1 / number
@@ -1632,7 +1614,7 @@
         existingId = writtenClientReferences.get(clientReferenceKey);
       if (void 0 !== existingId)
         return parent[0] === REACT_ELEMENT_TYPE && "1" === parentPropertyName
-          ? serializeLazyID(existingId)
+          ? "$L" + existingId.toString(16)
           : serializeByValueID(existingId);
       try {
         var config = request.bundlerConfig,
@@ -1669,7 +1651,7 @@
         request.completedImportChunks.push(processedChunk);
         writtenClientReferences.set(clientReferenceKey, importId);
         return parent[0] === REACT_ELEMENT_TYPE && "1" === parentPropertyName
-          ? serializeLazyID(importId)
+          ? "$L" + importId.toString(16)
           : serializeByValueID(importId);
       } catch (x) {
         return (
@@ -1814,7 +1796,7 @@
           return (
             (task.status = ABORTED),
             (task = request.fatalError),
-            parent ? serializeLazyID(task) : serializeByValueID(task)
+            parent ? "$L" + task.toString(16) : serializeByValueID(task)
           );
         key =
           thrownValue === SuspenseException
@@ -1843,7 +1825,7 @@
             (task.keyPath = prevKeyPath),
             (task.implicitSlot = prevImplicitSlot),
             parent
-              ? serializeLazyID(request.id)
+              ? "$L" + request.id.toString(16)
               : serializeByValueID(request.id)
           );
         task.keyPath = prevKeyPath;
@@ -1853,7 +1835,7 @@
         task = logRecoverableError(request, key, task);
         emitErrorChunk(request, prevKeyPath, task, key);
         return parent
-          ? serializeLazyID(prevKeyPath)
+          ? "$L" + prevKeyPath.toString(16)
           : serializeByValueID(prevKeyPath);
       }
     }
@@ -1885,7 +1867,6 @@
                       _existingReference + ":" + parentPropertyName),
                     _writtenObjects.set(value, elementReference)));
             }
-            if (serializedSize > MAX_ROW_SIZE) return deferTask(request, task);
             if ((_existingReference = value._debugInfo))
               if (canEmitDebugInfo)
                 forwardDebugInfo(request, task, _existingReference);
@@ -1911,7 +1892,6 @@
                 _writtenObjects.set(request, elementReference));
             return request;
           case REACT_LAZY_TYPE:
-            if (serializedSize > MAX_ROW_SIZE) return deferTask(request, task);
             task.thenableState = null;
             elementReference = callLazyInitInDEV(value);
             if (request.status === ABORTING) throw null;
@@ -2077,17 +2057,14 @@
         return value;
       }
       if ("string" === typeof value)
-        return (
-          (serializedSize += value.length),
-          "Z" === value[value.length - 1] &&
+        return "Z" === value[value.length - 1] &&
           parent[parentPropertyName] instanceof Date
-            ? "$D" + value
-            : 1024 <= value.length && null !== byteLengthOfChunk
-              ? serializeLargeTextString(request, value)
-              : "$" === value[0]
-                ? "$" + value
-                : value
-        );
+          ? "$D" + value
+          : 1024 <= value.length && null !== byteLengthOfChunk
+            ? serializeLargeTextString(request, value)
+            : "$" === value[0]
+              ? "$" + value
+              : value;
       if ("boolean" === typeof value) return value;
       if ("number" === typeof value) return serializeNumber(value);
       if ("undefined" === typeof value) return "$undefined";
@@ -4172,8 +4149,6 @@
       defaultPostponeHandler = noop,
       currentRequest = null,
       canEmitDebugInfo = !1,
-      serializedSize = 0,
-      MAX_ROW_SIZE = 3200,
       modelRoot = !1,
       emptyRoot = {},
       asyncModuleCache = new Map(),
