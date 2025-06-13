@@ -12,9 +12,7 @@ const nextConfig = {
     ppr: true,
   },
   redirects() {
-    return [
-      { source: '/', destination: '/vercel/vercel-site', permanent: false },
-    ]
+    return [{ source: '/', destination: '/foo', permanent: false }]
   },
 }
 
