@@ -289,7 +289,7 @@
     "p-limit": "3.1.0",
     "p-queue": "6.6.2",
     "path-browserify": "1.0.1",
-    "path-to-regexp": "6.1.0",
+    "path-to-regexp": "6.3.0",
     "picomatch": "4.0.1",
     "postcss-flexbugs-fixes": "5.0.2",
     "postcss-modules-extract-imports": "3.0.0",
