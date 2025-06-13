@@ -51,6 +51,7 @@ pub mod minify;
 pub mod next_api;
 pub mod parse;
 pub mod react_compiler;
+pub mod rspack;
 pub mod transform;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod turbo_trace_server;
