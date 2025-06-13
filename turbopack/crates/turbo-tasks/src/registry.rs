@@ -1,3 +1,5 @@
+#![allow(static_mut_refs)]
+
 use std::{fmt::Debug, hash::Hash, num::NonZeroU64, ops::Deref};
 
 use dashmap::mapref::entry::Entry;
@@ -8,7 +10,6 @@ use crate::{
     id::{FunctionId, TraitTypeId, ValueTypeId},
     id_factory::IdFactory,
     native_function::NativeFunction,
-    no_move_vec::NoMoveVec,
 };
 
 static FUNCTION_ID_FACTORY: IdFactory<FunctionId> = IdFactory::new_const(
@@ -18,8 +19,7 @@ static FUNCTION_ID_FACTORY: IdFactory<FunctionId> = IdFactory::new_const(
 static FUNCTIONS_BY_NAME: Lazy<FxDashMap<&'static str, FunctionId>> = Lazy::new(FxDashMap::default);
 static FUNCTIONS_BY_VALUE: Lazy<FxDashMap<&'static NativeFunction, FunctionId>> =
     Lazy::new(FxDashMap::default);
-static FUNCTIONS: Lazy<NoMoveVec<(&'static NativeFunction, &'static str)>> =
-    Lazy::new(NoMoveVec::new);
+static mut FUNCTIONS: Vec<(&'static NativeFunction, &'static str)> = Vec::new();
 
 static VALUE_TYPE_ID_FACTORY: IdFactory<ValueTypeId> = IdFactory::new_const(
     ValueTypeId::MIN.to_non_zero_u64(),
@@ -29,7 +29,7 @@ static VALUE_TYPES_BY_NAME: Lazy<FxDashMap<&'static str, ValueTypeId>> =
     Lazy::new(FxDashMap::default);
 static VALUE_TYPES_BY_VALUE: Lazy<FxDashMap<&'static ValueType, ValueTypeId>> =
     Lazy::new(FxDashMap::default);
-static VALUE_TYPES: Lazy<NoMoveVec<(&'static ValueType, &'static str)>> = Lazy::new(NoMoveVec::new);
+static mut VALUE_TYPES: Vec<(&'static ValueType, &'static str)> = Vec::new();
 
 static TRAIT_TYPE_ID_FACTORY: IdFactory<TraitTypeId> = IdFactory::new_const(
     TraitTypeId::MIN.to_non_zero_u64(),
@@ -39,27 +39,21 @@ static TRAIT_TYPES_BY_NAME: Lazy<FxDashMap<&'static str, TraitTypeId>> =
     Lazy::new(FxDashMap::default);
 static TRAIT_TYPES_BY_VALUE: Lazy<FxDashMap<&'static TraitType, TraitTypeId>> =
     Lazy::new(FxDashMap::default);
-static TRAIT_TYPES: Lazy<NoMoveVec<(&'static TraitType, &'static str)>> = Lazy::new(NoMoveVec::new);
+static mut TRAIT_TYPES: Vec<(&'static TraitType, &'static str)> = Vec::new();
 
 /// Registers the value and returns its id if this is the initial
-fn register_thing<
-    K: Copy + Deref<Target = u32> + TryFrom<NonZeroU64>,
-    V: Copy + Hash + Eq,
-    const INITIAL_CAPACITY_BITS: u32,
->(
+fn register_thing<K: Copy + Deref<Target = u32> + TryFrom<NonZeroU64>, V: Copy + Hash + Eq>(
     global_name: &'static str,
     value: V,
     id_factory: &IdFactory<K>,
-    store: &NoMoveVec<(V, &'static str), INITIAL_CAPACITY_BITS>,
+    store: &mut Vec<(V, &'static str)>,
     map_by_name: &FxDashMap<&'static str, K>,
     map_by_value: &FxDashMap<V, K>,
 ) -> Option<K> {
     if let Entry::Vacant(e) = map_by_value.entry(value) {
         let new_id = id_factory.get();
         // SAFETY: this is a fresh id
-        unsafe {
-            store.insert(*new_id as usize, (value, global_name));
-        }
+        store.insert(*new_id as usize, (value, global_name));
         map_by_name.insert(global_name, new_id);
         e.insert(new_id);
         Some(new_id)
@@ -85,7 +79,10 @@ pub fn register_function(global_name: &'static str, func: &'static NativeFunctio
         global_name,
         func,
         &FUNCTION_ID_FACTORY,
-        &FUNCTIONS,
+        unsafe {
+            // Safety: This function is only called from the main thread, and is only called once.
+            &mut FUNCTIONS
+        },
         &FUNCTIONS_BY_NAME,
         &FUNCTIONS_BY_VALUE,
     );
@@ -100,11 +97,17 @@ pub fn get_function_id_by_global_name(global_name: &str) -> Option<FunctionId> {
 }
 
 pub fn get_function(id: FunctionId) -> &'static NativeFunction {
-    FUNCTIONS.get(*id as usize).unwrap().0
+    unsafe {
+        // Safety: Mutation is only done from the main thread, and is only done on the start.
+        FUNCTIONS.get_unchecked(*id as usize).0
+    }
 }
 
 pub fn get_function_global_name(id: FunctionId) -> &'static str {
-    FUNCTIONS.get(*id as usize).unwrap().1
+    unsafe {
+        // Safety: Mutation is only done from the main thread, and is only done on the start.
+        FUNCTIONS.get_unchecked(*id as usize).1
+    }
 }
 
 pub fn register_value_type(
@@ -115,7 +118,10 @@ pub fn register_value_type(
         global_name,
         ty,
         &VALUE_TYPE_ID_FACTORY,
-        &VALUE_TYPES,
+        unsafe {
+            // Safety: This function is only called from the main thread, and is only called once.
+            &mut VALUE_TYPES
+        },
         &VALUE_TYPES_BY_NAME,
         &VALUE_TYPES_BY_VALUE,
     )
@@ -130,11 +136,17 @@ pub fn get_value_type_id_by_global_name(global_name: &str) -> Option<ValueTypeId
 }
 
 pub fn get_value_type(id: ValueTypeId) -> &'static ValueType {
-    VALUE_TYPES.get(*id as usize).unwrap().0
+    unsafe {
+        // Safety: Mutation is only done from the main thread, and is only done on the start.
+        VALUE_TYPES.get_unchecked(*id as usize).0
+    }
 }
 
 pub fn get_value_type_global_name(id: ValueTypeId) -> &'static str {
-    VALUE_TYPES.get(*id as usize).unwrap().1
+    unsafe {
+        // Safety: Mutation is only done from the main thread, and is only done on the start.
+        VALUE_TYPES.get_unchecked(*id as usize).1
+    }
 }
 
 pub fn register_trait_type(global_name: &'static str, ty: &'static TraitType) {
@@ -142,7 +154,10 @@ pub fn register_trait_type(global_name: &'static str, ty: &'static TraitType) {
         global_name,
         ty,
         &TRAIT_TYPE_ID_FACTORY,
-        &TRAIT_TYPES,
+        unsafe {
+            // Safety: This function is only called from the main thread, and is only called once.
+            &mut TRAIT_TYPES
+        },
         &TRAIT_TYPES_BY_NAME,
         &TRAIT_TYPES_BY_VALUE,
     );
@@ -157,9 +172,15 @@ pub fn get_trait_type_id_by_global_name(global_name: &str) -> Option<TraitTypeId
 }
 
 pub fn get_trait(id: TraitTypeId) -> &'static TraitType {
-    TRAIT_TYPES.get(*id as usize).unwrap().0
+    unsafe {
+        // Safety: Mutation is only done from the main thread, and is only done on the start.
+        TRAIT_TYPES.get_unchecked(*id as usize).0
+    }
 }
 
 pub fn get_trait_type_global_name(id: TraitTypeId) -> &'static str {
-    TRAIT_TYPES.get(*id as usize).unwrap().1
+    unsafe {
+        // Safety: Mutation is only done from the main thread, and is only done on the start.
+        TRAIT_TYPES.get_unchecked(*id as usize).1
+    }
 }
