@@ -193,7 +193,7 @@ export const DEVTOOLS_PANEL_STYLES = css`
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 8px;
+    padding: 6px;
     color: var(--color-gray-600);
     border-radius: 4px;
     transition: all 0.2s ease;
