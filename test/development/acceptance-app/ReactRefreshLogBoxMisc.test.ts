@@ -2,12 +2,18 @@ import { createSandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import { outdent } from 'outdent'
+import {
+  getRedboxDescription,
+  getRedboxLabel,
+  getRedboxSource,
+} from 'next-test-utils'
 
 describe('ReactRefreshLogBox app', () => {
   const { isTurbopack, next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
   })
+  const isRspack = Boolean(process.env.NEXT_RSPACK)
 
   test('server-side only compilation errors', async () => {
     await using sandbox = await createSandbox(next)
@@ -44,6 +50,17 @@ describe('ReactRefreshLogBox app', () => {
          "stack": [],
        }
       `)
+    } else if (isRspack) {
+      await session.assertHasRedbox()
+      const redboxContent = await getRedboxDescription(browser)
+      const redboxLabel = await getRedboxLabel(browser)
+      const redboxSource = await getRedboxSource(browser)
+      expect(redboxContent).toContain(
+        '"getStaticProps" is not supported in app/'
+      )
+      expect(redboxLabel).toContain('Build Error')
+      expect(redboxSource).toContain('./app/page.js')
+      expect(redboxSource).toContain('export async function getStaticProps()')
     } else {
       await expect(browser).toDisplayRedbox(`
        {
