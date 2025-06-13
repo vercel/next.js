@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { connection } from 'next/server'
 
 export const experimental_ppr = true
 
@@ -7,6 +8,7 @@ export const generateMetadata = async ({ params }): Promise<Metadata> => {
   return { title: `${slug}` }
 }
 
-export default function Page() {
-  return null
+export default async function Page() {
+  await connection()
+  return <p>Page</p>
 }

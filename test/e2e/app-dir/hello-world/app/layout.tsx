@@ -1,4 +1,5 @@
-import type { ReactNode, JSX } from 'react'
+import { type ReactNode, type JSX, Suspense } from 'react'
+
 export default function AppLayout({
   children,
 }: {
@@ -117,7 +118,7 @@ export default function AppLayout({
         <p>{'asdsadiasdhasuidhasdiuasasdsadduhiuihueiohjewiohjewiohj'}</p>
         <p>{'asdasd'}</p>
         <p>{'asdasdasadasdasd232344234234234'}</p>
-        {children}
+        <Suspense>{children}</Suspense>
       </body>
     </html>
   )

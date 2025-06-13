@@ -9,7 +9,7 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   experimental: {
-    ppr: true,
+    dynamicIO: true,
   },
   redirects() {
     return [{ source: '/', destination: '/foo', permanent: false }]
