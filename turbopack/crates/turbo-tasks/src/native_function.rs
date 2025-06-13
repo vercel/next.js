@@ -145,7 +145,7 @@ pub struct FunctionMeta {
     /// the parent task.
     pub local: bool,
 
-    /// If true, the function will be allowed to call `get_invalidator` . If this is false, the
+    /// If true, the function will be allowed to call `get_invalidator`. If this is false, the
     /// `get_invalidator` function will panic on calls.
     pub invalidator: bool,
 
