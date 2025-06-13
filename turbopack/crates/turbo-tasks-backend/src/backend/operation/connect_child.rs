@@ -71,6 +71,7 @@ impl ConnectChildOperation {
             });
         }
 
+        // Immutable tasks cannot be invalidated, meaning that we never reschedule them.
         if !is_immutable && ctx.should_track_activeness() {
             queue.push(AggregationUpdateJob::IncreaseActiveCount {
                 task: child_task_id,
