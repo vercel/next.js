@@ -241,6 +241,12 @@ opt-level = 3
 [profile.release.package.serde]
 opt-level = 3
 
+# Use a custom profile for CI where many tests are performance sensitive but we still want the additional validation of debug-assertions
+[profile.dev-optimized]
+inherits = "release"
+debug-assertions = true
+overflow-checks = true
+
 [workspace.dependencies]
 # Workspace crates
 next-api = { path = "crates/next-api" }
