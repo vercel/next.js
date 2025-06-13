@@ -1,6 +1,7 @@
 import type { VersionInfo } from '../../../../server/dev/parse-version-info'
 import { getStaleness } from '../../../shared/version-staleness'
 import { cx } from '../../utils/cx'
+import { Eclipse } from '../../icons/eclipse'
 
 export function VersionStalenessInfo({
   versionInfo,
@@ -110,17 +111,3 @@ export const styles = `
     -webkit-text-fill-color: transparent;
   }
 `
-
-function Eclipse({ className }: { className: string }) {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 14 14"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <circle className={className} cx="7" cy="7" r="5.5" strokeWidth="3" />
-    </svg>
-  )
-}
