@@ -28,7 +28,7 @@ env:
 jobs:
   benchmark-tiny:
     name: Benchmark Rust Crates (tiny)
-    runs-on: ['self-hosted', 'linux', 'x64', 'metal']
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
