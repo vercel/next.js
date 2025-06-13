@@ -164,7 +164,7 @@ export async function createNext(
 
     setupTracing()
     return await trace('createNext').traceAsyncFn(async (rootSpan) => {
-      const useTurbo = !!process.env.TEST_WASM
+      const useTurbo = !!process.env.NEXT_TEST_WASM
         ? false
         : opts?.turbo ?? shouldRunTurboDevTest()
 
@@ -291,7 +291,8 @@ export function nextTestSetup(
     },
     get isTurbopack(): boolean {
       return Boolean(
-        !process.env.TEST_WASM && (options.turbo ?? shouldRunTurboDevTest())
+        !process.env.NEXT_TEST_WASM &&
+          (options.turbo ?? shouldRunTurboDevTest())
       )
     },
 

@@ -10,7 +10,7 @@ let loggedTurbopack = false
  * update test cases accordingly as turbopack changes enable more test cases.
  */
 export function shouldRunTurboDevTest(): boolean {
-  if (!!process.env.TEST_WASM) {
+  if (!!process.env.NEXT_TEST_WASM) {
     return false
   }
 
