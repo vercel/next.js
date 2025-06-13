@@ -37,7 +37,7 @@ export function ShadowPortal({ children }: { children: React.ReactNode }) {
     if (portalNode.current.shadowRoot === null) {
       shadowNode.current = portalNode.current.attachShadow({ mode: 'open' })
 
-      // Storybook injects the Tailwind style tag from .storybook/main.ts on each load.
+      // Storybook injects the Tailwind style tag from .storybook/main.ts on each full load.
       // When navigating to a different story, the injected style tag is removed within the iframe.
       // To re-inject the style tag, we need to call `unuse()` since the `use()` function only runs
       // once unless unused.
