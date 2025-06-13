@@ -51,6 +51,10 @@ import type { MetadataRouteLoaderOptions } from '../loaders/next-metadata-route-
 import type { FlightActionEntryLoaderActions } from '../loaders/next-flight-action-entry-loader'
 import getWebpackBundler from '../../../shared/lib/get-webpack-bundler'
 
+type WebpackEntryDependency = ReturnType<
+  typeof webpack.EntryPlugin.createDependency
+>
+
 interface Options {
   dev: boolean
   appDir: string
@@ -293,7 +297,7 @@ export class FlightClientEntryPlugin {
     > = []
     const createdSSRDependenciesForEntry: Record<
       string,
-      ReturnType<typeof this.injectClientEntryAndSSRModules>[3][]
+      WebpackEntryDependency[]
     > = {}
 
     const addActionEntryList: Array<ReturnType<typeof this.injectActionEntry>> =
@@ -432,17 +436,19 @@ export class FlightClientEntryPlugin {
       // and SSR modules.
       const dedupedCSSImports = deduplicateCSSImportsForEntry(mergedCSSimports)
       for (const clientEntryToInject of clientEntriesToInject) {
+        const clientImports = {
+          ...clientEntryToInject.clientComponentImports,
+          ...(
+            dedupedCSSImports[clientEntryToInject.absolutePagePath] || []
+          ).reduce<ClientComponentImports>((res, curr) => {
+            res[curr] = new Set()
+            return res
+          }, {}),
+        }
+
         const injected = this.injectClientEntryAndSSRModules({
           ...clientEntryToInject,
-          clientImports: {
-            ...clientEntryToInject.clientComponentImports,
-            ...(
-              dedupedCSSImports[clientEntryToInject.absolutePagePath] || []
-            ).reduce<ClientComponentImports>((res, curr) => {
-              res[curr] = new Set()
-              return res
-            }, {}),
-          },
+          clientImports,
         })
 
         // Track all created SSR dependencies for each entry from the server layer.
@@ -595,7 +601,7 @@ export class FlightClientEntryPlugin {
     dependencies,
   }: {
     compilation: webpack.Compilation
-    dependencies: ReturnType<typeof webpack.EntryPlugin.createDependency>[]
+    dependencies: WebpackEntryDependency[]
   }) {
     // action file path -> action names
     const collectedActions = new Map<string, ActionIdNamePair[]>()
@@ -809,7 +815,7 @@ export class FlightClientEntryPlugin {
     shouldInvalidate: boolean,
     addSSREntryPromise: Promise<void>,
     addRSCEntryPromise: Promise<void>,
-    ssrDep: ReturnType<typeof webpack.EntryPlugin.createDependency>,
+    ssrDep: WebpackEntryDependency,
   ] {
     const bundler = getWebpackBundler()
     let shouldInvalidate = false
@@ -845,6 +851,7 @@ export class FlightClientEntryPlugin {
 
     // Add for the client compilation
     // Inject the entry to the client compiler.
+
     if (this.dev) {
       const entries = getEntries(compiler.outputPath)
       const pageKey = getEntryKey(
@@ -878,7 +885,14 @@ export class FlightClientEntryPlugin {
         entryData.lastActiveTime = Date.now()
       }
     } else {
-      pluginState.injectedClientEntries[bundlePath] = clientBrowserLoader
+      // console.log(`isAppRouteRoute(entryName)`, isAppRouteRoute(entryName), entryName, modules.length)
+      // For app routes, we skip generating the browser bundle for client entries if there's no client references.
+      // For edge runtime, we always need to include the fixed output path of client reference manifest
+      const isNoClientReferenceAppRoute =
+        modules.length === 0 && isAppRouteRoute(entryName) && !this.isEdgeServer
+      if (!isNoClientReferenceAppRoute) {
+        pluginState.injectedClientEntries[bundlePath] = clientBrowserLoader
+      }
     }
 
     const clientComponentSSREntryDep = bundler.EntryPlugin.createDependency(
