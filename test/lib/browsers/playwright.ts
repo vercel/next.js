@@ -255,9 +255,13 @@ export class Playwright<TCurrent = undefined> {
           msg.args().map((handle) => handle.jsonValue().catch(() => {}))
         ).then((args) => ({ source: msg.type(), message: msg.text(), args }))
       )
+
+      if (msg.type() === 'error') {
+        throw new Error(`Console error: ${msg.text()}`)
+      }
     })
-    page.on('crash', () => {
-      console.error('page crashed')
+    page.on('crash', (page) => {
+      throw new Error('page crashed')
     })
     page.on('pageerror', (error) => {
       console.error('page error', error)
@@ -265,6 +269,8 @@ export class Playwright<TCurrent = undefined> {
       if (opts?.pushErrorAsConsoleLog) {
         pageLogs.push({ source: 'error', message: error.message, args: [] })
       }
+
+      throw new Error('page error', { cause: error })
     })
     page.on('request', (req) => {
       this.eventCallbacks.request.forEach((cb) => cb(req))
