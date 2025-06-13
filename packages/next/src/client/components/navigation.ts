@@ -3,10 +3,10 @@ import type { Params } from '../../server/request/params'
 
 import { useContext, useMemo } from 'react'
 import {
-  AppRouterContext,
   LayoutRouterContext,
   type AppRouterInstance,
 } from '../../shared/lib/app-router-context.shared-runtime'
+import { publicAppRouterInstance } from './app-router-instance'
 import {
   SearchParamsContext,
   PathnameContext,
@@ -123,12 +123,10 @@ export {
  */
 // Client components API
 export function useRouter(): AppRouterInstance {
-  const router = useContext(AppRouterContext)
-  if (router === null) {
+  if (publicAppRouterInstance === null) {
     throw new Error('invariant expected app router to be mounted')
   }
-
-  return router
+  return publicAppRouterInstance
 }
 
 /**
