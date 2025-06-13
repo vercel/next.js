@@ -193,6 +193,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 //   argument. (This could be fixed)
                 // - This only makes sense when a default implementation is present.
                 local: false,
+                invalidator: func_args.invalidator.is_some(),
             };
 
             let native_function_ident = get_trait_default_impl_function_ident(trait_ident, ident);
