@@ -1,4 +1,3 @@
-
 import type { OverlayDispatch, OverlayState } from '../../shared'
 
 import { Suspense, useRef } from 'react'
@@ -34,22 +33,17 @@ export function DevToolsPanel({
   }
 
   return (
-    <Overlay className="p-0 top-[10vh]">
-      <div
-        data-nextjs-devtools-panel
-        ref={dialogRef}
-      >
+    <Overlay data-nextjs-devtools-panel-overlay>
+      <div data-nextjs-devtools-panel-container ref={dialogRef}>
         <Dialog
+          data-nextjs-devtools-panel-dialog
           aria-labelledby="nextjs__container_dev_tools_panel_label"
           aria-describedby="nextjs__container_dev_tools_panel_desc"
-          className="dev-tools-panel-dialog-scroll"
           onClose={onClose}
         >
           <DialogContent>
             <DialogHeader></DialogHeader>
-            <DialogBody>
-              <div>DevToolsPanel</div>
-            </DialogBody>
+            <DialogBody></DialogBody>
           </DialogContent>
         </Dialog>
       </div>
@@ -58,24 +52,32 @@ export function DevToolsPanel({
 }
 
 export const DEVTOOLS_PANEL_STYLES = css`
-  [data-nextjs-devtools-panel] {
+  [data-nextjs-devtools-panel-overlay] {
+    padding: initial;
+    top: 10vh;
+  }
+
+  [data-nextjs-devtools-panel-container] {
     -webkit-font-smoothing: antialiased;
     display: flex;
     flex-direction: column;
     background: var(--color-background-100);
     background-clip: padding-box;
-    border: var(--next-dialog-border-width) solid var(--color-gray-400);
-    border-radius: 0 0 var(--next-dialog-radius) var(--next-dialog-radius);
-    box-shadow: var(--shadow-menu);
+    border: 1px solid var(--color-gray-400);
+    border-radius: var(--rounded-xl);
+    box-shadow: var(--shadow-lg);
     position: relative;
     overflow: hidden;
 
-    /* TODO: Better styling. This is a prototype. */
+    /* TODO: Remove once the content is filled. */
     min-width: 800px;
     min-height: 500px;
+
+    /* This is handled from dialog/styles.ts */
+    max-width: var(--next-dialog-max-width);
   }
 
-  .dev-tools-panel-dialog-scroll {
+  [data-nextjs-devtools-panel-dialog] {
     overflow-y: auto;
     height: 100%;
   }
