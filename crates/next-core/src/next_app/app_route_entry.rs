@@ -84,7 +84,8 @@ pub async fn get_app_route_entry(
             "VAR_USERLAND" => INNER.into(),
         },
         fxindexmap! {
-            "nextConfigOutput" => output_type
+            "nextConfigOutput" => output_type,
+            // "rootParamNames" => ... // TODO(root-params)
         },
         fxindexmap! {},
     )

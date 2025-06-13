@@ -135,6 +135,7 @@ export function createRequestStoreForRender(
 export function createRequestStoreForAPI(
   req: RequestContext['req'],
   url: RequestContext['url'],
+  rootParams: Params,
   implicitTags: RequestContext['implicitTags'],
   onUpdateCookies: RenderOpts['onUpdateCookies'],
   previewProps: WrapperRenderOpts['previewProps']
@@ -145,7 +146,7 @@ export function createRequestStoreForAPI(
     req,
     undefined,
     url,
-    {},
+    rootParams,
     implicitTags,
     onUpdateCookies,
     undefined,

@@ -33,11 +33,13 @@ import type { PageExtensions } from '../../../page-extensions-type'
 import { PARALLEL_ROUTE_DEFAULT_PATH } from '../../../../client/components/builtin/default'
 import type { Compilation } from 'webpack'
 import { createAppRouteCode } from './create-app-route-code'
+import type { ParamInfo } from '../next-root-params-loader'
 
 export type AppLoaderOptions = {
   name: string
   page: string
   pagePath: string
+  rootParams: ParamInfo[]
   appDir: string
   appPaths: readonly string[] | null
   preferredRegion: string | string[] | undefined
@@ -556,6 +558,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     appDir,
     appPaths,
     pagePath,
+    rootParams,
     pageExtensions,
     rootDir,
     tsconfigPath,
@@ -753,6 +756,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
       page: loaderOptions.page,
       name,
       pagePath,
+      rootParams,
       resolveAppRoute,
       pageExtensions,
       nextConfigOutput,

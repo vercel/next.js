@@ -172,6 +172,7 @@ export interface AppRouteRouteModuleOptions
   extends RouteModuleOptions<AppRouteRouteDefinition, AppRouteUserlandModule> {
   readonly resolvedPagePath: string
   readonly nextConfigOutput: NextConfig['output']
+  readonly rootParamNames: string[]
 }
 
 /**
@@ -207,6 +208,7 @@ export class AppRouteRouteModule extends RouteModule<
 
   public readonly resolvedPagePath: string
   public readonly nextConfigOutput: NextConfig['output'] | undefined
+  public readonly rootParamNames: AppRouteRouteModuleOptions['rootParamNames']
 
   private readonly methods: Record<HTTP_METHOD, AppRouteHandlerFn>
   private readonly hasNonStaticMethods: boolean
@@ -218,12 +220,14 @@ export class AppRouteRouteModule extends RouteModule<
     distDir,
     projectDir,
     resolvedPagePath,
+    rootParamNames,
     nextConfigOutput,
   }: AppRouteRouteModuleOptions) {
     super({ userland, definition, distDir, projectDir })
 
     this.resolvedPagePath = resolvedPagePath
     this.nextConfigOutput = nextConfigOutput
+    this.rootParamNames = rootParamNames
 
     // Automatically implement some methods if they aren't implemented by the
     // userland module.
@@ -696,6 +700,7 @@ export class AppRouteRouteModule extends RouteModule<
     const requestStore = createRequestStoreForAPI(
       req,
       req.nextUrl,
+      {}, // TODO: real rootParams
       implicitTags,
       undefined,
       context.prerenderManifest.preview
