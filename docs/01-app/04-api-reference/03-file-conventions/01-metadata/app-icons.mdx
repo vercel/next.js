@@ -169,7 +169,7 @@ export default function Icon() {
 > - By default, generated icons are [**statically optimized**](/docs/app/getting-started/partial-prerendering#static-rendering) (generated at build time and cached) unless they use [Dynamic APIs](/docs/app/getting-started/partial-prerendering#dynamic-rendering#dynamic-apis) or uncached data.
 > - You can generate multiple icons in the same file using [`generateImageMetadata`](/docs/app/api-reference/functions/generate-image-metadata).
 > - You cannot generate a `favicon` icon. Use [`icon`](#icon) or a [favicon.ico](#favicon) file instead.
-> - App icons are special Route Handlers that is cached by default unless it uses a [Dynamic API](/docs/app/deep-dive/caching#dynamic-apis) or [dynamic config](/docs/app/deep-dive/caching#segment-config-options) option.
+> - App icons are special Route Handlers that is cached by default unless it uses a [Dynamic API](/docs/app/guides/caching#dynamic-apis) or [dynamic config](/docs/app/guides/caching#segment-config-options) option.
 
 ### Props
 
@@ -250,7 +250,7 @@ export default function Icon() {}
 
 #### Route Segment Config
 
-`icon` and `apple-icon` are specialized [Route Handlers](/docs/app/building-your-application/routing/route-handlers) that can use the same [route segment configuration](/docs/app/api-reference/file-conventions/route-segment-config) options as Pages and Layouts.
+`icon` and `apple-icon` are specialized [Route Handlers](/docs/app/api-reference/file-conventions/route) that can use the same [route segment configuration](/docs/app/api-reference/file-conventions/route-segment-config) options as Pages and Layouts.
 
 ## Version History
 

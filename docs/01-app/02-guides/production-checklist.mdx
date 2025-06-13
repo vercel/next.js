@@ -18,7 +18,7 @@ These Next.js optimizations are enabled by default and require no configuration:
 - **[Code-splitting](/docs/app/getting-started/linking-and-navigating#how-navigation-works):** Server Components enable automatic code-splitting by route segments. You may also consider [lazy loading](/docs/app/guides/lazy-loading) Client Components and third-party libraries, where appropriate.
 - **[Prefetching](/docs/app/getting-started/linking-and-navigating#prefetching):** When a link to a new route enters the user's viewport, Next.js prefetches the route in background. This makes navigation to new routes almost instant. You can opt out of prefetching, where appropriate.
 - **[Static Rendering](/docs/app/getting-started/partial-prerendering#static-rendering):** Next.js statically renders Server and Client Components on the server at build time and caches the rendered result to improve your application's performance. You can opt into [Dynamic Rendering](/docs/app/getting-started/partial-prerendering#dynamic-rendering) for specific routes, where appropriate. {/* TODO: Update when PPR is stable */}
-- **[Caching](/docs/app/deep-dive/caching):** Next.js caches data requests, the rendered result of Server and Client Components, static assets, and more, to reduce the number of network requests to your server, database, and backend services. You may opt out of caching, where appropriate.
+- **[Caching](/docs/app/guides/caching):** Next.js caches data requests, the rendered result of Server and Client Components, static assets, and more, to reduce the number of network requests to your server, database, and backend services. You may opt out of caching, where appropriate.
 
 </AppOnly>
 
@@ -65,7 +65,7 @@ While building your application, we recommend using the following features to en
 - **[Route Handlers](/docs/app/api-reference/file-conventions/route):** Use Route Handlers to access your backend resources from Client Components. But do not call Route Handlers from Server Components to avoid an additional server request.
 - **[Streaming](/docs/app/api-reference/file-conventions/loading):** Use Loading UI and React Suspense to progressively send UI from the server to the client, and prevent the whole route from blocking while data is being fetched.
 - **[Parallel Data Fetching](/docs/app/getting-started/fetching-data#parallel-data-fetching):** Reduce network waterfalls by fetching data in parallel, where appropriate. Also, consider [preloading data](/docs/app/getting-started/fetching-data#preloading-data) where appropriate.
-- **[Data Caching](/docs/app/deep-dive/caching#data-cache):** Verify whether your data requests are being cached or not, and opt into caching, where appropriate. Ensure requests that don't use `fetch` are [cached](/docs/app/api-reference/functions/unstable_cache).
+- **[Data Caching](/docs/app/guides/caching#data-cache):** Verify whether your data requests are being cached or not, and opt into caching, where appropriate. Ensure requests that don't use `fetch` are [cached](/docs/app/api-reference/functions/unstable_cache).
 - **[Static Images](/docs/app/api-reference/file-conventions/public-folder):** Use the `public` directory to automatically cache your application's static assets, e.g. images.
 
 </AppOnly>

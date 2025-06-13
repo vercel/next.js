@@ -303,7 +303,7 @@ By default, the Full Route Cache is persistent. This means that the render outpu
 
 There are two ways you can invalidate the Full Route Cache:
 
-- **[Revalidating Data](/docs/app/deep-dive/caching#revalidating)**: Revalidating the [Data Cache](#data-cache), will in turn invalidate the Router Cache by re-rendering components on the server and caching the new render output.
+- **[Revalidating Data](/docs/app/guides/caching#revalidating)**: Revalidating the [Data Cache](#data-cache), will in turn invalidate the Router Cache by re-rendering components on the server and caching the new render output.
 - **Redeploying**: Unlike the Data Cache, which persists across deployments, the Full Route Cache is cleared on new deployments.
 
 ### Opting out

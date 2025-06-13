@@ -5,7 +5,7 @@ description: API reference for the extended fetch function.
 
 Next.js extends the [Web `fetch()` API](https://developer.mozilla.org/docs/Web/API/Fetch_API) to allow each request on the server to set its own persistent caching and revalidation semantics.
 
-In the browser, the `cache` option indicates how a fetch request will interact with the _browser's_ HTTP cache. With this extension, `cache` indicates how a _server-side_ fetch request will interact with the framework's persistent [Data Cache](/docs/app/deep-dive/caching#data-cache).
+In the browser, the `cache` option indicates how a fetch request will interact with the _browser's_ HTTP cache. With this extension, `cache` indicates how a _server-side_ fetch request will interact with the framework's persistent [Data Cache](/docs/app/guides/caching#data-cache).
 
 You can call `fetch` with `async` and `await` directly within Server Components.
 
@@ -43,7 +43,7 @@ Since Next.js extends the [Web `fetch()` API](https://developer.mozilla.org/docs
 
 ### `options.cache`
 
-Configure how the request should interact with Next.js [Data Cache](/docs/app/deep-dive/caching#data-cache).
+Configure how the request should interact with Next.js [Data Cache](/docs/app/guides/caching#data-cache).
 
 ```ts
 fetch(`https://...`, { cache: 'force-cache' | 'no-store' })

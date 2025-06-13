@@ -4,7 +4,7 @@ description: Learn how to override the invalidation time of the Client Router Ca
 version: experimental
 ---
 
-`staleTimes` is an experimental feature that enables caching of page segments in the [client-side router cache](/docs/app/deep-dive/caching#client-side-router-cache).
+`staleTimes` is an experimental feature that enables caching of page segments in the [client-side router cache](/docs/app/guides/caching#client-side-router-cache).
 
 You can enable this experimental feature and provide custom revalidation times by setting the experimental `staleTimes` flag:
 
@@ -26,16 +26,16 @@ The `static` and `dynamic` properties correspond with the time period (in second
 
 - The `dynamic` property is used when the page is neither statically generated nor fully prefetched (e.g. with `prefetch={true}`).
   - Default: 0 seconds (not cached)
-- The `static` property is used for statically generated pages, or when the `prefetch` prop on `Link` is set to `true`, or when calling [`router.prefetch`](/docs/app/deep-dive/caching#routerprefetch).
+- The `static` property is used for statically generated pages, or when the `prefetch` prop on `Link` is set to `true`, or when calling [`router.prefetch`](/docs/app/guides/caching#routerprefetch).
   - Default: 5 minutes
 
 > **Good to know:**
 >
 > - [Loading boundaries](/docs/app/api-reference/file-conventions/loading) are considered reusable for the `static` period defined in this configuration.
 > - This doesn't affect [partial rendering](/docs/app/getting-started/linking-and-navigating#client-side-transitions), **meaning shared layouts won't automatically be refetched on every navigation, only the page segment that changes.**
-> - This doesn't change [back/forward caching](/docs/app/deep-dive/caching#client-side-router-cache) behavior to prevent layout shift and to prevent losing the browser scroll position.
+> - This doesn't change [back/forward caching](/docs/app/guides/caching#client-side-router-cache) behavior to prevent layout shift and to prevent losing the browser scroll position.
 
-You can learn more about the Client Router Cache [here](/docs/app/deep-dive/caching#client-side-router-cache).
+You can learn more about the Client Router Cache [here](/docs/app/guides/caching#client-side-router-cache).
 
 ### Version History
 

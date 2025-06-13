@@ -110,4 +110,4 @@ export async function generateStaticParams() {
 }
 ```
 
-When using `fetch` inside the `generateStaticParams` function, the requests are [automatically deduplicated](/docs/app/deep-dive/caching#request-memoization). This avoids multiple network calls for the same data Layouts, Pages, and other `generateStaticParams` functions, speeding up build time.
+When using `fetch` inside the `generateStaticParams` function, the requests are [automatically deduplicated](/docs/app/guides/caching#request-memoization). This avoids multiple network calls for the same data Layouts, Pages, and other `generateStaticParams` functions, speeding up build time.

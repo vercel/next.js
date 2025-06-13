@@ -101,8 +101,8 @@ export default function Page({ params, searchParams }) {}
 > - Next.js will automatically resolve the metadata, and create the relevant `<head>` tags for the page.
 > - The `metadata` object and `generateMetadata` function exports are **only supported in Server Components**.
 > - You cannot export both the `metadata` object and `generateMetadata` function from the same route segment.
-> - `fetch` requests inside `generateMetadata` are automatically [memoized](/docs/app/deep-dive/caching#request-memoization) for the same data across `generateMetadata`, `generateStaticParams`, Layouts, Pages, and Server Components.
-> - React [`cache` can be used](/docs/app/deep-dive/caching#react-cache-function) if `fetch` is unavailable. -[ File-based metadata](/docs/app/api-reference/file-conventions/metadata) has the higher priority and will override the `metadata` object and `generateMetadata` function.
+> - `fetch` requests inside `generateMetadata` are automatically [memoized](/docs/app/guides/caching#request-memoization) for the same data across `generateMetadata`, `generateStaticParams`, Layouts, Pages, and Server Components.
+> - React [`cache` can be used](/docs/app/guides/caching#react-cache-function) if `fetch` is unavailable. -[ File-based metadata](/docs/app/api-reference/file-conventions/metadata) has the higher priority and will override the `metadata` object and `generateMetadata` function.
 
 ## Reference
 
@@ -137,7 +137,7 @@ export default function Page({ params, searchParams }) {}
 > **Good to know**:
 >
 > - If metadata doesn't depend on runtime information, it should be defined using the static [`metadata` object](#the-metadata-object) rather than `generateMetadata`.
-> - `fetch` requests are automatically [memoized](/docs/app/deep-dive/caching#request-memoization) for the same data across `generateMetadata`, `generateStaticParams`, Layouts, Pages, and Server Components. React [`cache` can be used](/docs/app/deep-dive/caching#react-cache-function) if `fetch` is unavailable.
+> - `fetch` requests are automatically [memoized](/docs/app/guides/caching#request-memoization) for the same data across `generateMetadata`, `generateStaticParams`, Layouts, Pages, and Server Components. React [`cache` can be used](/docs/app/guides/caching#react-cache-function) if `fetch` is unavailable.
 > - `searchParams` are only available in `page.js` segments.
 > - The [`redirect()`](/docs/app/api-reference/functions/redirect) and [`notFound()`](/docs/app/api-reference/functions/not-found) Next.js methods can also be used inside `generateMetadata`.
 
