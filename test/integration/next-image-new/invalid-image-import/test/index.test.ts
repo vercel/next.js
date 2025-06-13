@@ -41,7 +41,7 @@ function runTests({ isDev }) {
          Caused by:
          - Source code does not contain a <svg> root element
 
-         Example import traces:
+         Import traces:
            #1:
              ./test/integration/next-image-new/invalid-image-import/public/invalid.svg
              ./test/integration/next-image-new/invalid-image-import/pages/index.js [Browser]
