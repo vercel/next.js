@@ -894,6 +894,16 @@ export default async function getBaseWebpackConfig(
   const builtinModules = (require('module') as typeof import('module'))
     .builtinModules
 
+  // Add Bun builtins to externals
+  const bunExternals = [
+    'bun:ffi',
+    'bun:jsc',
+    'bun:sqlite',
+    'bun:test',
+    'bun:wrap',
+    'bun',
+  ]
+
   const shouldEnableSlowModuleDetection =
     !!config.experimental.slowModuleDetection && dev
 
@@ -967,6 +977,7 @@ export default async function getBaseWebpackConfig(
           ]
         : [
             ...builtinModules,
+            ...bunExternals,
             ({
               context,
               request,
