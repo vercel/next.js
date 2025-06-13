@@ -1,22 +1,22 @@
 error: methods taking `self` are not supported with `operation`
-  --> tests/function/fail_operation_method_self_type.rs:14:28
+  --> tests/function/fail_operation_method_self_type.rs:13:28
    |
-14 |     fn arbitrary_self_type(self: OperationVc<Self>) -> Vc<()> {
+13 |     fn arbitrary_self_type(self: OperationVc<Self>) -> Vc<()> {
    |                            ^^^^^^^^^^^^^^^^^^^^^^^
 
 error[E0307]: invalid `self` parameter type: `OperationVc<Foobar>`
-  --> tests/function/fail_operation_method_self_type.rs:14:34
+  --> tests/function/fail_operation_method_self_type.rs:13:34
    |
-14 |     fn arbitrary_self_type(self: OperationVc<Self>) -> Vc<()> {
+13 |     fn arbitrary_self_type(self: OperationVc<Self>) -> Vc<()> {
    |                                  ^^^^^^^^^^^^^^^^^
    |
    = note: type of `self` must be `Self` or some type implementing `Receiver`
    = help: consider changing to `self`, `&self`, `&mut self`, or a type implementing `Receiver` such as `self: Box<Self>`, `self: Rc<Self>`, or `self: Arc<Self>`
 
 error[E0277]: the trait bound `fn(OperationVc<Foobar>) -> Vc<()> {Foobar::arbitrary_self_type_turbo_tasks_function_inline}: turbo_tasks::task::function::IntoTaskFnWithThis<_, _, _>` is not satisfied
-  --> tests/function/fail_operation_method_self_type.rs:11:1
+  --> tests/function/fail_operation_method_self_type.rs:10:1
    |
-11 | #[turbo_tasks::value_impl]
+10 | #[turbo_tasks::value_impl]
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
    |
    = help: the trait `turbo_tasks::task::function::TaskFnInputFunctionWithThis<_, _, _>` is not implemented for fn item `fn(OperationVc<Foobar>) -> Vc<()> {Foobar::arbitrary_self_type_turbo_tasks_function_inline}`
