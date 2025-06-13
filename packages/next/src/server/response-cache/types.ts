@@ -226,6 +226,7 @@ export interface SetIncrementalFetchCacheContext {
   fetchUrl?: string
   fetchIdx?: number
   tags?: string[]
+  isImplicitBuildTimeCache?: boolean
 }
 
 export interface SetIncrementalResponseCacheContext {

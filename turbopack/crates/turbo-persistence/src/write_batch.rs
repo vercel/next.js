@@ -78,7 +78,7 @@ pub struct WriteBatch<K: StoreKey + Send, const FAMILIES: usize> {
     /// Collectors in use. The thread local collectors flush into these when they are full.
     collectors: [Mutex<GlobalCollectorState<K>>; FAMILIES],
     /// Meta file builders for each family.
-    meta_collectors: [Mutex<Vec<(u32, StaticSortedFileBuilderMeta)>>; FAMILIES],
+    meta_collectors: [Mutex<Vec<(u32, StaticSortedFileBuilderMeta<'static>)>>; FAMILIES],
     /// The list of new SST files that have been created.
     /// Tuple of (sequence number, file).
     new_sst_files: Mutex<Vec<(u32, File)>>,

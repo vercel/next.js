@@ -9,15 +9,15 @@ use byteorder::{BE, WriteBytesExt};
 
 use crate::static_sorted_file_builder::StaticSortedFileBuilderMeta;
 
-pub struct MetaFileBuilder {
+pub struct MetaFileBuilder<'a> {
     family: u32,
     /// Entries in the meta file, tuples of (sequence_number, StaticSortedFileBuilderMetaResult)
-    entries: Vec<(u32, StaticSortedFileBuilderMeta)>,
+    entries: Vec<(u32, StaticSortedFileBuilderMeta<'a>)>,
     /// Obsolete SST files, represented by their sequence numbers
     obsolete_sst_files: Vec<u32>,
 }
 
-impl MetaFileBuilder {
+impl<'a> MetaFileBuilder<'a> {
     pub fn new(family: u32) -> Self {
         Self {
             family,
@@ -26,7 +26,7 @@ impl MetaFileBuilder {
         }
     }
 
-    pub fn add(&mut self, sequence_number: u32, sst: StaticSortedFileBuilderMeta) {
+    pub fn add(&mut self, sequence_number: u32, sst: StaticSortedFileBuilderMeta<'a>) {
         self.entries.push((sequence_number, sst));
     }
 

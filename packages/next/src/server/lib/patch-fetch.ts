@@ -391,16 +391,24 @@ export function createPatchedFetcher(
             currentFetchCacheConfig === 'default') &&
           // eslint-disable-next-line eqeqeq
           currentFetchRevalidate == undefined
-        const autoNoCache =
-          // this condition is hit for null/undefined
-          // eslint-disable-next-line eqeqeq
-          (hasNoExplicitCacheConfig &&
-            // we disable automatic no caching behavior during build time SSG so that we can still
-            // leverage the fetch cache between SSG workers
-            !workStore.isPrerendering) ||
-          ((hasUnCacheableHeader || isUnCacheableMethod) &&
-            revalidateStore &&
-            revalidateStore.revalidate === 0)
+
+        let autoNoCache = Boolean(
+          (hasUnCacheableHeader || isUnCacheableMethod) &&
+            revalidateStore?.revalidate === 0
+        )
+
+        let isImplicitBuildTimeCache = false
+
+        if (!autoNoCache && hasNoExplicitCacheConfig) {
+          // We don't enable automatic no-cache behavior during build-time
+          // prerendering so that we can still leverage the fetch cache between
+          // export workers.
+          if (workStore.isBuildTimePrerendering) {
+            isImplicitBuildTimeCache = true
+          } else {
+            autoNoCache = true
+          }
+        }
 
         if (
           hasNoExplicitCacheConfig &&
@@ -670,7 +678,13 @@ export function createPatchedFetcher(
                       data: fetchedData,
                       revalidate: normalizedRevalidate,
                     },
-                    { fetchCache: true, fetchUrl, fetchIdx, tags }
+                    {
+                      fetchCache: true,
+                      fetchUrl,
+                      fetchIdx,
+                      tags,
+                      isImplicitBuildTimeCache,
+                    }
                   )
                   await handleUnlock()
 
@@ -716,7 +730,13 @@ export function createPatchedFetcher(
                             data: fetchedData,
                             revalidate: normalizedRevalidate,
                           },
-                          { fetchCache: true, fetchUrl, fetchIdx, tags }
+                          {
+                            fetchCache: true,
+                            fetchUrl,
+                            fetchIdx,
+                            tags,
+                            isImplicitBuildTimeCache,
+                          }
                         )
                       }
                     })
