@@ -161,7 +161,7 @@ export default (
         options['class-properties'] || {},
       ],
       [
-        require('next/dist/compiled/babel/plugin-proposal-object-rest-spread'),
+        require('next/dist/compiled/babel/plugin-transform-object-rest-spread'),
         {
           useBuiltIns: true,
         },

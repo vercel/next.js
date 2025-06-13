@@ -28,10 +28,10 @@ createNextDescribe(
       'server-only': 'latest',
     },
     resolutions: {
-      '@babel/core': '7.22.18',
-      '@babel/parser': '7.22.16',
-      '@babel/types': '7.22.17',
-      '@babel/traverse': '7.22.18',
+      '@babel/core': '7.27.4',
+      '@babel/parser': '7.27.5',
+      '@babel/types': '7.27.5',
+      '@babel/traverse': '7.27.4',
     },
   },
   ({ next, isNextDev, isNextStart, isTurbopack }) => {
