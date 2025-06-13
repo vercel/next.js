@@ -2418,6 +2418,10 @@ export default async function getBaseWebpackConfig(
     isDevFallback ? '-fallback' : ''
   }`
 
+  if (isRspack) {
+    ;(webpackConfig.experiments as any).incremental = true
+  }
+
   if (dev) {
     if (webpackConfig.module) {
       webpackConfig.module.unsafeCache = (module: any) =>
