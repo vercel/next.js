@@ -8,7 +8,7 @@ Reading search parameters through `useSearchParams()` without a Suspense boundar
 
 Common scenarios include:
 - Directly calling `useSearchParams()` in a page or nested component without wrapping it in `<Suspense>`.
-- A provider (e.g. a query or context provider) in the component tree using `useSearchParams()` without `<Suspense>, triggering the CSR bailout indirectly.
+- A provider (e.g. a query or context provider) in the component tree using `useSearchParams()` without `<Suspense>`, triggering the CSR bailout indirectly.
 
 ## Possible Ways to Fix It
 
