@@ -38,6 +38,7 @@ mod page_loader;
 pub mod pages_structure;
 pub mod tracing_presets;
 mod transform_options;
+pub mod types;
 pub mod url_node;
 pub mod util;
 

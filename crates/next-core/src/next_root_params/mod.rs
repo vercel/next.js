@@ -6,7 +6,7 @@ use indoc::formatdoc;
 use itertools::Itertools;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{FileContent, FileSystemPath};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
     issue::IssueExt,
@@ -19,6 +19,7 @@ use turbopack_core::{
         parse::Request,
         pattern::Pattern,
     },
+    virtual_output::VirtualOutputAsset,
     virtual_source::VirtualSource,
 };
 
@@ -241,4 +242,53 @@ impl ImportMappingReplacement for NextRootParamsMapper {
         // we want to return the same cell regardless of the arguments we received here.
         self.import_map_result()
     }
+}
+
+#[turbo_tasks::function]
+pub async fn get_next_root_params_declaration_asset(
+    collected_root_params: ResolvedVc<CollectedRootParams>,
+    types_path: ResolvedVc<FileSystemPath>,
+) -> Result<Vc<VirtualOutputAsset>> {
+    // Generate a declarations file for the virtual 'next/root-params' module
+    // based on the root params we collected.
+    let module_content = {
+        let collected_root_params = collected_root_params.await?;
+        // If there's no root params, export nothing.
+        if collected_root_params.is_empty() {
+            "export {}".to_string()
+        } else {
+            let declarations = collected_root_params
+                .iter()
+                .map(|param_name| {
+                    // TODO(root-params): type as string or string[] depending if the param can
+                    // be a catch-all
+                    let param_type = "string | string[] | undefined";
+                    formatdoc!(
+                        r#"
+                            /** Allows reading the '{PARAM_NAME}' root param. */
+                            export function {PARAM_NAME}(): Promise<{PARAM_TYPE}>
+                        "#,
+                        PARAM_NAME = param_name,
+                        PARAM_TYPE = param_type,
+                    )
+                })
+                .join("\n")
+                // indent declarations by two spaces
+                .lines()
+                .map(|line| format!("  {}", line))
+                .join("\n");
+
+            format!(
+                "declare module 'next/root-params' {{\n{}\n}}\n",
+                declarations
+            )
+        }
+    };
+
+    let output_path = types_path.join("root-params.d.ts".into());
+
+    Ok(VirtualOutputAsset::new(
+        output_path,
+        AssetContent::file(FileContent::Content(File::from(module_content)).cell()),
+    ))
 }
