@@ -17,6 +17,7 @@ import { formatAmpMessages } from '../build/output/index'
 import type { AmpPageStatus } from '../build/output/index'
 import * as Log from '../build/output/log'
 import {
+  OUTPUT_EXPORT_PAGE_COUNT_WARNING_THRESHOLD,
   RSC_SEGMENT_SUFFIX,
   RSC_SEGMENTS_DIR_SUFFIX,
   RSC_SUFFIX,
@@ -467,6 +468,28 @@ async function exportAppImpl(
 
   if (filteredPaths.length === 0) {
     return null
+  }
+
+  if (
+    nextConfig.output === 'export' &&
+    filteredPaths.length > OUTPUT_EXPORT_PAGE_COUNT_WARNING_THRESHOLD
+  ) {
+    Log.warn(
+      yellow(
+        `Attempting to statically export ${filteredPaths.length} pages with 'output: "export"'. ` +
+          `Generating over ${OUTPUT_EXPORT_PAGE_COUNT_WARNING_THRESHOLD} pages this way can lead to build issues due to Node.js limitations.`
+      ) +
+        `\n` +
+        yellow(
+          `For improved scalability with Next.js, consider removing 'output: "export"' and using ` +
+            bold(`Incremental Static Regeneration (ISR)`) +
+            ` with a compatible host (e.g., Vercel).`
+        ) +
+        `\n` +
+        yellow(
+          `Learn more: https://nextjs.org/docs/app/guides/incremental-static-regeneration`
+        )
+    )
   }
 
   if (prerenderManifest && !options.buildExport) {
