@@ -53,7 +53,7 @@ fn register_thing<K: Copy + Deref<Target = u32> + TryFrom<NonZeroU64>, V: Copy +
     if let Entry::Vacant(e) = map_by_value.entry(value) {
         let new_id = id_factory.get();
         // SAFETY: this is a fresh id
-        store.insert(*new_id as usize, (value, global_name));
+        store.insert((*new_id as usize) - 1, (value, global_name));
         map_by_name.insert(global_name, new_id);
         e.insert(new_id);
         Some(new_id)
@@ -99,14 +99,14 @@ pub fn get_function_id_by_global_name(global_name: &str) -> Option<FunctionId> {
 pub fn get_function(id: FunctionId) -> &'static NativeFunction {
     unsafe {
         // Safety: Mutation is only done from the main thread, and is only done on the start.
-        FUNCTIONS.get_unchecked(*id as usize).0
+        FUNCTIONS.get_unchecked((*id as usize) - 1).0
     }
 }
 
 pub fn get_function_global_name(id: FunctionId) -> &'static str {
     unsafe {
         // Safety: Mutation is only done from the main thread, and is only done on the start.
-        FUNCTIONS.get_unchecked(*id as usize).1
+        FUNCTIONS.get_unchecked((*id as usize) - 1).1
     }
 }
 
@@ -138,14 +138,14 @@ pub fn get_value_type_id_by_global_name(global_name: &str) -> Option<ValueTypeId
 pub fn get_value_type(id: ValueTypeId) -> &'static ValueType {
     unsafe {
         // Safety: Mutation is only done from the main thread, and is only done on the start.
-        VALUE_TYPES.get_unchecked(*id as usize).0
+        VALUE_TYPES.get_unchecked((*id as usize) - 1).0
     }
 }
 
 pub fn get_value_type_global_name(id: ValueTypeId) -> &'static str {
     unsafe {
         // Safety: Mutation is only done from the main thread, and is only done on the start.
-        VALUE_TYPES.get_unchecked(*id as usize).1
+        VALUE_TYPES.get_unchecked((*id as usize) - 1).1
     }
 }
 
@@ -174,13 +174,13 @@ pub fn get_trait_type_id_by_global_name(global_name: &str) -> Option<TraitTypeId
 pub fn get_trait(id: TraitTypeId) -> &'static TraitType {
     unsafe {
         // Safety: Mutation is only done from the main thread, and is only done on the start.
-        TRAIT_TYPES.get_unchecked(*id as usize).0
+        TRAIT_TYPES.get_unchecked((*id as usize) - 1).0
     }
 }
 
 pub fn get_trait_type_global_name(id: TraitTypeId) -> &'static str {
     unsafe {
         // Safety: Mutation is only done from the main thread, and is only done on the start.
-        TRAIT_TYPES.get_unchecked(*id as usize).1
+        TRAIT_TYPES.get_unchecked((*id as usize) - 1).1
     }
 }
