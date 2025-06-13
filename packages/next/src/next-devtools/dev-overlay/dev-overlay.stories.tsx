@@ -118,7 +118,6 @@ function useOverlayReducer() {
           return state
         }
       }
-      return state
     },
     initialState
   )
@@ -142,7 +141,7 @@ export const Default: Story = {
           }}
         />
         <DevOverlay
-          state={state}
+          state={{ ...state, isErrorOverlayOpen: true }}
           dispatch={dispatch}
           getSquashedHydrationErrorDetails={
             // Testing like App Router where we no longer quash hydration errors
@@ -176,7 +175,7 @@ export const WithPanel: Story = {
           }}
         />
         <DevOverlay
-          state={state}
+          state={{ ...state, isDevToolsPanelOpen: true }}
           dispatch={dispatch}
           getSquashedHydrationErrorDetails={
             // Testing like App Router where we no longer quash hydration errors
