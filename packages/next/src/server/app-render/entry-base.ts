@@ -45,12 +45,12 @@ import { Postpone } from './rsc/postpone'
 import { taintObjectReference } from './rsc/taint'
 export { collectSegmentData } from './collect-segment-data'
 
-let SegmentViewNode: typeof import('../../shared/lib/devtool/app-segment-tree').SegmentViewNode =
+let SegmentViewNode: typeof import('../../next-devtools/userspace/app/segment-explorer').SegmentViewNode =
   () => null
 if (process.env.NODE_ENV === 'development') {
-  const appSegmentTree: typeof import('../../shared/lib/devtool/app-segment-tree') =
-    require('../../shared/lib/devtool/app-segment-tree') as typeof import('../../shared/lib/devtool/app-segment-tree')
-  SegmentViewNode = appSegmentTree.SegmentViewNode
+  SegmentViewNode = (
+    require('../../next-devtools/userspace/app/segment-explorer') as typeof import('../../next-devtools/userspace/app/segment-explorer')
+  ).SegmentViewNode
 }
 
 // patchFetch makes use of APIs such as `React.unstable_postpone` which are only available

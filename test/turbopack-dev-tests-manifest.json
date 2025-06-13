@@ -516,101 +516,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/client/components/react-dev-overlay/server/get-next-error-feedback-middleware.test.ts": {
-    "passed": [
-      "getNextErrorFeedbackMiddleware calls next() if path does not match",
-      "getNextErrorFeedbackMiddleware records telemetry when feedback is submitted",
-      "getNextErrorFeedbackMiddleware returns 400 if params are missing",
-      "getNextErrorFeedbackMiddleware returns 500 if telemetry recording fails"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/client/components/react-dev-overlay/ui/components/code-frame/parse-code-frame.test.ts": {
-    "passed": [
-      "parse line numbers parse line numbers from code frame",
-      "parse line numbers parse line numbers when a token contains both break and spaces"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/client/components/react-dev-overlay/ui/components/errors/error-overlay-layout/error-overlay-layout.test.tsx": {
-    "passed": [
-      "ErrorOverlayLayout Component renders ErrorOverlayLayout with provided props",
-      "ErrorOverlayLayout Component sends feedback when clicking helpful button",
-      "ErrorOverlayLayout Component sends feedback when clicking not helpful button",
-      "ErrorOverlayLayout Component voting buttons have aria-hidden icons"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/client/components/react-dev-overlay/ui/utils/cx.test.ts": {
-    "passed": [
-      "cx should filter out falsy values",
-      "cx should handle all falsy values",
-      "cx should handle single string argument",
-      "cx should join multiple string arguments with spaces",
-      "cx should not add extra spaces when falsy values are between strings",
-      "cx should return an empty string for no arguments"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/client/components/react-dev-overlay/ui/utils/parse-url-from-text.test.ts": {
-    "passed": [
-      "parseUrlFromText should extract a URL from text",
-      "parseUrlFromText should extract multiple URLs from text",
-      "parseUrlFromText should filter URLs using matcherFunc",
-      "parseUrlFromText should handle URLs with paths and query parameters",
-      "parseUrlFromText should handle empty string input",
-      "parseUrlFromText should return empty array when no URLs are found"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/client/components/react-dev-overlay/utils/css.test.ts": {
-    "passed": [
-      "css template literal tag should combines strings and interpolations correctly",
-      "css template literal tag should handle CSS wildcard selector",
-      "css template literal tag should handle empty strings",
-      "css template literal tag should handle multiple interpolations",
-      "css template literal tag should remove CSS comments",
-      "css template literal tag should remove all whitespace",
-      "css template literal tag should remove multiline comments"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/client/components/react-dev-overlay/utils/launch-editor.test.ts": {
-    "passed": ["applescript string escaping should escape strings correctly"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/client/components/react-dev-overlay/utils/webpack-module-path.test.ts": {
-    "passed": [
-      "webpack-module-path formatFrameSourceFile should return the original file path",
-      "webpack-module-path isWebpackInternalResource should return false for non-webpack-internal paths",
-      "webpack-module-path isWebpackInternalResource should return true for webpack-internal paths"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "packages/next/src/client/components/redirect.test.ts": {
     "passed": ["test should throw a redirect error"],
     "failed": [],
@@ -952,6 +857,101 @@
       "writeConfigurationDefaults() appDir with tsconfig extends should not add strictNullChecks if base provides it",
       "writeConfigurationDefaults() appDir with tsconfig extends should replace includes when base is missing appTypes",
       "writeConfigurationDefaults() appDir with tsconfig extends should support empty includes when base provides it"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/next-devtools/dev-overlay/components/code-frame/parse-code-frame.test.ts": {
+    "passed": [
+      "parse line numbers parse line numbers from code frame",
+      "parse line numbers parse line numbers when a token contains both break and spaces"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/next-devtools/dev-overlay/components/errors/error-overlay-layout/error-overlay-layout.test.tsx": {
+    "passed": [
+      "ErrorOverlayLayout Component renders ErrorOverlayLayout with provided props",
+      "ErrorOverlayLayout Component sends feedback when clicking helpful button",
+      "ErrorOverlayLayout Component sends feedback when clicking not helpful button",
+      "ErrorOverlayLayout Component voting buttons have aria-hidden icons"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/next-devtools/dev-overlay/utils/css.test.ts": {
+    "passed": [
+      "css template literal tag should combines strings and interpolations correctly",
+      "css template literal tag should handle CSS wildcard selector",
+      "css template literal tag should handle empty strings",
+      "css template literal tag should handle multiple interpolations",
+      "css template literal tag should remove CSS comments",
+      "css template literal tag should remove all whitespace",
+      "css template literal tag should remove multiline comments"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/next-devtools/dev-overlay/utils/cx.test.ts": {
+    "passed": [
+      "cx should filter out falsy values",
+      "cx should handle all falsy values",
+      "cx should handle single string argument",
+      "cx should join multiple string arguments with spaces",
+      "cx should not add extra spaces when falsy values are between strings",
+      "cx should return an empty string for no arguments"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/next-devtools/dev-overlay/utils/parse-url-from-text.test.ts": {
+    "passed": [
+      "parseUrlFromText should extract a URL from text",
+      "parseUrlFromText should extract multiple URLs from text",
+      "parseUrlFromText should filter URLs using matcherFunc",
+      "parseUrlFromText should handle URLs with paths and query parameters",
+      "parseUrlFromText should handle empty string input",
+      "parseUrlFromText should return empty array when no URLs are found"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/next-devtools/server/get-next-error-feedback-middleware.test.ts": {
+    "passed": [
+      "getNextErrorFeedbackMiddleware calls next() if path does not match",
+      "getNextErrorFeedbackMiddleware records telemetry when feedback is submitted",
+      "getNextErrorFeedbackMiddleware returns 400 if params are missing",
+      "getNextErrorFeedbackMiddleware returns 500 if telemetry recording fails"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/next-devtools/server/launch-editor.test.ts": {
+    "passed": ["applescript string escaping should escape strings correctly"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/next-devtools/shared/webpack-module-path.test.ts": {
+    "passed": [
+      "webpack-module-path formatFrameSourceFile should return the original file path",
+      "webpack-module-path isWebpackInternalResource should return false for non-webpack-internal paths",
+      "webpack-module-path isWebpackInternalResource should return true for webpack-internal paths"
     ],
     "failed": [],
     "pending": [],

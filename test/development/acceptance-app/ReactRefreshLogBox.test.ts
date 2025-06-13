@@ -464,7 +464,7 @@ describe('ReactRefreshLogBox app', () => {
          "label": "Build Error",
          "source": "./index.module.css
        Parsing css source code failed
-       Selector is not pure (pure selectors must contain at least one local class or id), (lightningcss, Selector(button, specificity = 0x1))
+       Selector "button" is not pure. Pure selectors must contain at least one local class or id.
        Example import traces:
          #1:
            ./index.module.css [app-client]
