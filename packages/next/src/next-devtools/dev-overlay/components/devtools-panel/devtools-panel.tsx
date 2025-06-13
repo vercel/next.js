@@ -123,6 +123,10 @@ export function DevToolsPanel({
               <button data-nextjs-devtools-panel-footer-action-button>
                 <BugIcon width={16} height={16} />
               </button>
+              <div data-nextjs-devtools-panel-footer-tab>
+                <span>TURBOPACK</span>
+                <span>{process.env.TURBOPACK ? 'Enabled' : 'Disabled'}</span>
+              </div>
             </div>
           </div>
         </div>

@@ -39,3 +39,19 @@ export const WithIssues: Story = {
     issueCount: 3,
   },
 }
+
+export const Turbopack: Story = {
+  beforeEach: () => {
+    process.env.TURBOPACK = 'true'
+
+    // clean up callback function
+    return () => {
+      delete process.env.TURBOPACK
+    }
+  },
+  args: {
+    state,
+    dispatch: () => {},
+    issueCount: 0,
+  },
+}
