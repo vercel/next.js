@@ -55,36 +55,42 @@ export function DevToolsPanel({
             <DialogContent>
               <DialogHeader>
                 <div data-nextjs-devtools-panel-header>
-                  <div data-nextjs-devtools-panel-tab-group>
+                  <div data-nextjs-devtools-panel-header-tab-group>
                     <button
-                      data-nextjs-devtools-panel-tab={activeTab === 'issues'}
+                      data-nextjs-devtools-panel-header-tab={
+                        activeTab === 'issues'
+                      }
                       onClick={() => setActiveTab('issues')}
                     >
                       Issues
-                      <span data-nextjs-devtools-panel-tab-issues-badge>
+                      <span data-nextjs-devtools-panel-header-tab-issues-badge>
                         {issueCount}
                       </span>
                     </button>
                     <button
-                      data-nextjs-devtools-panel-tab={activeTab === 'route'}
+                      data-nextjs-devtools-panel-header-tab={
+                        activeTab === 'route'
+                      }
                       onClick={() => setActiveTab('route')}
                     >
                       Route Info
                     </button>
                     <button
-                      data-nextjs-devtools-panel-tab={activeTab === 'settings'}
+                      data-nextjs-devtools-panel-header-tab={
+                        activeTab === 'settings'
+                      }
                       onClick={() => setActiveTab('settings')}
                     >
                       Settings
                     </button>
                   </div>
-                  <div data-nextjs-devtools-panel-action-button-group>
+                  <div data-nextjs-devtools-panel-header-action-button-group>
                     {/* TODO: Currently no-op, will add fullscreen toggle. */}
-                    <button data-nextjs-devtools-panel-action-button>
+                    <button data-nextjs-devtools-panel-header-action-button>
                       <FullScreenIcon width={16} height={16} />
                     </button>
                     <button
-                      data-nextjs-devtools-panel-action-button
+                      data-nextjs-devtools-panel-header-action-button
                       onClick={onClose}
                     >
                       <Cross width={16} height={16} />
@@ -134,14 +140,14 @@ export const DEVTOOLS_PANEL_STYLES = css`
     border-bottom: 1px solid var(--color-gray-400);
   }
 
-  [data-nextjs-devtools-panel-tab-group] {
+  [data-nextjs-devtools-panel-header-tab-group] {
     display: flex;
     align-items: center;
     padding: 8px;
     gap: 6px;
   }
 
-  [data-nextjs-devtools-panel-tab] {
+  [data-nextjs-devtools-panel-header-tab] {
     display: flex;
     align-items: center;
     color: var(--color-gray-900);
@@ -161,12 +167,12 @@ export const DEVTOOLS_PANEL_STYLES = css`
     }
   }
 
-  [data-nextjs-devtools-panel-tab='true'] {
+  [data-nextjs-devtools-panel-header-tab='true'] {
     color: var(--color-gray-1000);
     background-color: var(--color-gray-100);
   }
 
-  [data-nextjs-devtools-panel-tab-issues-badge] {
+  [data-nextjs-devtools-panel-header-tab-issues-badge] {
     display: inline-block;
     margin-left: 8px;
     background-color: var(--color-red-400);
@@ -179,14 +185,14 @@ export const DEVTOOLS_PANEL_STYLES = css`
     font-weight: 500;
   }
 
-  [data-nextjs-devtools-panel-action-button-group] {
+  [data-nextjs-devtools-panel-header-action-button-group] {
     display: flex;
     align-items: center;
     gap: 4px;
     padding-right: 8px;
   }
 
-  [data-nextjs-devtools-panel-action-button] {
+  [data-nextjs-devtools-panel-header-action-button] {
     background: transparent;
     border: none;
     cursor: pointer;
