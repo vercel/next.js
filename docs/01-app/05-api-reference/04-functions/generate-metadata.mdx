@@ -1172,7 +1172,9 @@ There are two default `meta` tags that are always added even if a route doesn't 
 
 Metadata returned by `generateMetadata` is streamed to the client. This allows Next.js to inject metadata into the HTML as soon as it's resolved.
 
-Since page metadata primarily targets bots and crawlers, Next.js will stream metadata for bots that can execute JavaScript and inspect the full page DOM (e.g. `Googlebot`). However, metadata will continue blocking the render of the page for **HTML-limited** bots (e.g. `Twitterbot`) as these cannot execute JavaScript while crawling.
+Streamed metadata may end up in the `<body>` tag. Since metadata mainly targets bots and crawlers, Next.js streams metadata for bots that can execute JavaScript and inspect the full DOM (e.g. `Googlebot`). We have verified that these bots, interpret the metadata correctly.
+
+For **HTML-limited** bots that can’t run JavaScript (e.g. `Twitterbot`), metadata continues to block page rendering and is placed in the `<head>` tag.
 
 Next.js automatically detects the user agent of incoming requests to determine whether to serve streaming metadata or fallback to blocking metadata.
 
@@ -1194,7 +1196,9 @@ module.exports = {
 }
 ```
 
-Specifying a `htmlLimitedBots` config will override the Next.js' default list, allowing you full control over what user agents should opt into this behavior. This is advanced behavior, and the default should be sufficient for most cases.
+Specifying a `htmlLimitedBots` config will override the Next.js' default list, allowing you full control over what user agents should opt into this behavior.
+
+Overriding `htmlLimitedBots` could lead to longer response times. Streaming metadata is an advanced feature, and the default should be sufficient for most cases.
 
 ### Ordering
 
