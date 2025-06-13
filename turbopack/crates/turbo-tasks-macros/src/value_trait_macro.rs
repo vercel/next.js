@@ -123,10 +123,19 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 }
                 // Add a dummy implementation that derefences the box and delegates to the
                 // actual implementation.
-                dynamic_trait_fns.push(quote! {
-                    #sig {
-                        let reference: &dyn #trait_ident = &*self;
-                        reference.#ident(#(#args),*)
+                dynamic_trait_fns.push(if sig.asyncness.is_some() {
+                    quote! {
+                        #sig {
+                            let reference: &dyn #trait_ident = &*self;
+                            reference.#ident(#(#args),*).await
+                        }
+                    }
+                } else {
+                    quote! {
+                        #sig {
+                            let reference: &dyn #trait_ident = &*self;
+                            reference.#ident(#(#args),*)
+                        }
                     }
                 });
                 continue;
