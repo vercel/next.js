@@ -452,17 +452,17 @@ fn bench_update(bencher: divan::Bencher, module_count: usize, num_updates: usize
         });
 }
 
-#[divan::bench(sample_size = 1000, max_time = 60)]
+#[divan::bench(sample_size = 10000, max_time = 60)]
 fn hmr_updates_small_5(bencher: divan::Bencher) {
     bench_update(bencher, 100, 5);
 }
 
-#[divan::bench(sample_size = 1000, max_time = 60)]
+#[divan::bench(sample_size = 10000, max_time = 60)]
 fn hmr_updates_medium_10(bencher: divan::Bencher) {
     bench_update(bencher, 200, 10);
 }
 
-#[divan::bench(sample_size = 1000, max_time = 60)]
+#[divan::bench(sample_size = 10000, max_time = 60)]
 fn hmr_updates_large_20(bencher: divan::Bencher) {
     bench_update(bencher, 500, 20);
 }
