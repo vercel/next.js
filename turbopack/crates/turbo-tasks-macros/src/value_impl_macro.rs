@@ -6,15 +6,17 @@ use syn::{
     MetaNameValue, Path, Token, Type,
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote,
+    spanned::Spanned,
 };
 use turbo_tasks_macros_shared::{
     get_inherent_impl_function_id_ident, get_inherent_impl_function_ident, get_path_ident,
-    get_register_trait_methods_ident, get_trait_impl_function_id_ident,
-    get_trait_impl_function_ident, get_type_ident, is_self_used,
+    get_register_trait_impls_ident, get_register_trait_methods_ident,
+    get_trait_impl_function_id_ident, get_trait_impl_function_ident, get_type_ident, is_self_used,
 };
 
 use crate::func::{
-    DefinitionContext, NativeFn, TurboFn, filter_inline_attributes, split_function_attributes,
+    DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes,
+    split_function_attributes,
 };
 
 struct ValueImplArguments {
@@ -77,11 +79,20 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
             }) = item
             {
                 let ident = &sig.ident;
-                let (func_args, attrs) = split_function_attributes(item, attrs);
-                let Ok(func_args) =
-                    func_args.inspect_err(|err| errors.push(err.to_compile_error()))
-                else {
-                    continue;
+                let (func_args, attrs) = split_function_attributes(attrs);
+                let func_args = match func_args {
+                    Ok(None) => {
+                        item.span()
+                            .unwrap()
+                            .error("#[turbo_tasks::function] attribute missing")
+                            .emit();
+                        FunctionArguments::default()
+                    }
+                    Ok(Some(func_args)) => func_args,
+                    Err(error) => {
+                        errors.push(error.to_compile_error());
+                        FunctionArguments::default()
+                    }
                 };
                 let local = func_args.local.is_some();
                 let is_self_used = func_args.operation.is_some() || is_self_used(block);
@@ -169,10 +180,13 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
 
         let (impl_generics, _, where_clause) = generics.split_for_impl();
 
-        let register = get_register_trait_methods_ident(&trait_ident, ty_ident);
+        let register_trait_methods: Ident =
+            get_register_trait_methods_ident(&trait_ident, ty_ident);
+        let register_trait_impls: Ident = get_register_trait_impls_ident(&trait_ident, ty_ident);
 
         let mut trait_registers = Vec::new();
         let mut trait_functions = Vec::with_capacity(items.len());
+        let mut trait_items = Vec::new();
         let mut all_definitions = Vec::with_capacity(items.len());
         let mut errors = Vec::new();
 
@@ -183,13 +197,20 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
             {
                 let ident = &sig.ident;
 
-                let (func_args, attrs) = split_function_attributes(item, attrs);
-                let Ok(func_args) =
-                    func_args.inspect_err(|err| errors.push(err.to_compile_error()))
-                else {
-                    continue;
+                let (func_args, attrs) = split_function_attributes(attrs);
+                let func_args = match func_args {
+                    Ok(None) => {
+                        // Missing annotations are allowed if a turbo tasks trait has a trait item
+                        // that is not a turbo tasks function.
+                        trait_items.push(item);
+                        continue;
+                    }
+                    Ok(Some(func_args)) => func_args,
+                    Err(error) => {
+                        errors.push(error.to_compile_error());
+                        continue;
+                    }
                 };
-
                 let local = func_args.local.is_some();
                 let is_self_used = func_args.operation.is_some() || is_self_used(block);
 
@@ -280,9 +301,19 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
         quote! {
             #[doc(hidden)]
             #[allow(non_snake_case)]
-            pub(crate) fn #register(value: &mut turbo_tasks::ValueType) {
+            pub(crate) fn #register_trait_methods(value: &mut turbo_tasks::ValueType) {
                 value.register_trait(<Box<dyn #trait_path> as turbo_tasks::VcValueTrait>::get_trait_type_id());
                 #(#trait_registers)*
+            }
+            #[doc(hidden)]
+            #[allow(non_snake_case)]
+            pub(crate) fn #register_trait_impls(value_id: turbo_tasks::ValueTypeId) {
+                // NOTE(lukesandberg): This relies on the nightly ptr_metadata feature.  Alternatively
+                // we could generate a function that does the downcasting and pass that up to register_trait.
+                // This would avoid the nightly feature.
+                let fat_pointer: *const dyn #trait_path = ::std::ptr::null::<#ty>() as *const dyn #trait_path;
+                let metadata = turbo_tasks::macro_helpers::metadata(fat_pointer);
+                turbo_tasks::macro_helpers::register_trait_impl::<dyn #trait_path, Box<dyn #trait_path>>(value_id, metadata);
             }
 
             // NOTE(alexkirsz) We can't have a general `turbo_tasks::Upcast<Box<dyn Trait>> for T where T: Trait` because
@@ -291,6 +322,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
             unsafe impl #impl_generics turbo_tasks::Upcast<Box<dyn #trait_path>> for #ty #where_clause {}
 
             impl #impl_generics #trait_path for #ty #where_clause {
+                #(#trait_items)*
                 #(#trait_functions)*
             }
 

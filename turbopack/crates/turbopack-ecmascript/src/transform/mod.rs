@@ -298,9 +298,8 @@ pub struct UnsupportedServerActionIssue {
 
 #[turbo_tasks::value_impl]
 impl Issue for UnsupportedServerActionIssue {
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        IssueSeverity::Error.into()
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
     }
 
     #[turbo_tasks::function]

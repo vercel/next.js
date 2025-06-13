@@ -354,7 +354,7 @@ impl TypedCellContent {
 
 impl From<TypedSharedReference> for TypedCellContent {
     fn from(value: TypedSharedReference) -> Self {
-        TypedCellContent(value.0, CellContent(Some(value.1)))
+        TypedCellContent(value.type_id, CellContent(Some(value.reference)))
     }
 }
 
@@ -362,8 +362,8 @@ impl TryFrom<TypedCellContent> for TypedSharedReference {
     type Error = TypedCellContent;
 
     fn try_from(content: TypedCellContent) -> Result<Self, TypedCellContent> {
-        if let TypedCellContent(type_id, CellContent(Some(shared_reference))) = content {
-            Ok(TypedSharedReference(type_id, shared_reference))
+        if let TypedCellContent(type_id, CellContent(Some(reference))) = content {
+            Ok(TypedSharedReference { type_id, reference })
         } else {
             Err(content)
         }

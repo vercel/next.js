@@ -688,7 +688,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             add_cell_dependency(self, task, reader, cell, task_id, &mut ctx);
             return Ok(Ok(TypedCellContent(
                 cell.type_id,
-                CellContent(Some(content.1)),
+                CellContent(Some(content.reference)),
             )));
         }
 
@@ -2012,7 +2012,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let mut ctx = self.execute_context(turbo_tasks);
         let task = ctx.task(task_id, TaskDataCategory::Data);
         if let Some(content) = get!(task, CellData { cell }) {
-            Ok(CellContent(Some(content.1.clone())).into_typed(cell.type_id))
+            Ok(CellContent(Some(content.reference.clone())).into_typed(cell.type_id))
         } else {
             Ok(CellContent(None).into_typed(cell.type_id))
         }

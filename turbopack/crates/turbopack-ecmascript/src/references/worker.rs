@@ -70,7 +70,7 @@ impl WorkerAssetReference {
         };
         let Some(chunkable) = ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(module) else {
             CodeGenerationIssue {
-                severity: IssueSeverity::Bug.resolved_cell(),
+                severity: IssueSeverity::Bug,
                 title: StyledString::Text(rcstr!("non-ecmascript placeable asset")).resolved_cell(),
                 message: StyledString::Text(rcstr!("asset is not placeable in ESM chunks"))
                     .resolved_cell(),

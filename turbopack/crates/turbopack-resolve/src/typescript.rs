@@ -31,7 +31,7 @@ use crate::ecmascript::get_condition_maps;
 
 #[turbo_tasks::value(shared)]
 pub struct TsConfigIssue {
-    pub severity: ResolvedVc<IssueSeverity>,
+    pub severity: IssueSeverity,
     pub source_ident: ResolvedVc<AssetIdent>,
     pub message: RcStr,
 }
@@ -72,7 +72,7 @@ pub async fn read_tsconfigs(
                     write!(message, "{e}")?;
                 }
                 TsConfigIssue {
-                    severity: IssueSeverity::Error.resolved_cell(),
+                    severity: IssueSeverity::Error,
                     source_ident: tsconfig.ident().to_resolved().await?,
                     message: message.into(),
                 }
@@ -81,7 +81,7 @@ pub async fn read_tsconfigs(
             }
             FileJsonContent::NotFound => {
                 TsConfigIssue {
-                    severity: IssueSeverity::Error.resolved_cell(),
+                    severity: IssueSeverity::Error,
                     source_ident: tsconfig.ident().to_resolved().await?,
                     message: rcstr!("tsconfig not found"),
                 }
@@ -98,7 +98,7 @@ pub async fn read_tsconfigs(
                         continue;
                     } else {
                         TsConfigIssue {
-                            severity: IssueSeverity::Error.resolved_cell(),
+                            severity: IssueSeverity::Error,
                             source_ident: tsconfig.ident().to_resolved().await?,
                             message: format!("extends: \"{extends}\" doesn't resolve correctly")
                                 .into(),
@@ -295,7 +295,7 @@ pub async fn tsconfig_resolve_options(
                     );
                 } else {
                     TsConfigIssue {
-                        severity: IssueSeverity::Warning.resolved_cell(),
+                        severity: IssueSeverity::Warning,
                         source_ident: source.ident().to_resolved().await?,
                         message: format!(
                             "compilerOptions.paths[{key}] doesn't contains an array as \
@@ -501,9 +501,8 @@ async fn apply_typescript_types_options(
 
 #[turbo_tasks::value_impl]
 impl Issue for TsConfigIssue {
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        *self.severity
+    fn severity(&self) -> IssueSeverity {
+        self.severity
     }
 
     #[turbo_tasks::function]
