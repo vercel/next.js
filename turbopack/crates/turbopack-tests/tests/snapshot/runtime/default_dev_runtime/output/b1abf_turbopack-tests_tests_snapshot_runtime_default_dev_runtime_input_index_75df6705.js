@@ -356,12 +356,12 @@ relativeURL.prototype = URL.prototype;
 /// <reference path="../../../shared/runtime-utils.ts" />
 // Used in WebWorkers to tell the runtime about the chunk base path
 function normalizeChunkPath(path) {
-    if (path.startsWith("/")) {
+    if (path.startsWith('/')) {
         path = path.substring(1);
     } else if (path.startsWith('./')) {
         path = path.substring(2);
     }
-    if (path.endsWith("/")) {
+    if (path.endsWith('/')) {
         path = path.slice(0, -1);
     }
     return path;
@@ -572,7 +572,7 @@ function getPathFromScript(chunkScript) {
         return chunkScript;
     }
     let chunkUrl = typeof TURBOPACK_NEXT_CHUNK_URLS !== 'undefined' ? TURBOPACK_NEXT_CHUNK_URLS.pop() : chunkScript.getAttribute('src');
-    if (chunkUrl.startsWith("/")) {
+    if (chunkUrl.startsWith('/')) {
         chunkUrl = chunkUrl.substring(1);
     } else if (chunkUrl.startsWith('./')) {
         chunkUrl = chunkUrl.substring(2);
