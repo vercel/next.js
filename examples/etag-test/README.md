@@ -19,7 +19,7 @@ yarn create next-app --example hello-world hello-world-app
 ```
 
 ```bash
-pnpm create next-app --example hello-world hello-world-app
+pnpm create next-app --example etag-test etag-test-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
