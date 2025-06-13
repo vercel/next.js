@@ -9,7 +9,7 @@ import { useFocusTrap } from '../errors/dev-tools-indicator/utils'
 import { useDelayedRender } from '../../hooks/use-delayed-render'
 import { ACTION_DEVTOOLS_PANEL_TOGGLE } from '../../shared'
 import { css } from '../../utils/css'
-import { FullscreenIcon } from '../../icons/fullscreen'
+import { FullScreenIcon } from '../../icons/fullscreen'
 import { Cross } from '../../icons/cross'
 
 export function DevToolsPanel({
@@ -76,7 +76,7 @@ export function DevToolsPanel({
                   <div data-nextjs-devtools-panel-action-buttons>
                     {/* TODO: Currently no-op, will add fullscreen toggle. */}
                     <button data-nextjs-devtools-panel-fullscreen-button>
-                      <FullscreenIcon width={16} height={16} />
+                      <FullScreenIcon width={16} height={16} />
                     </button>
                     <button
                       data-nextjs-devtools-panel-close-button
@@ -126,12 +126,78 @@ export const DEVTOOLS_PANEL_STYLES = css`
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid var(--color-gray-300);
-    background: var(--color-gray-100);
+    border-bottom: 1px solid var(--color-gray-400);
   }
 
-  [data-nextjs-devtools-panel-tabs] {
+  [data-nextjs-devtools-panel-tab-group] {
     display: flex;
     align-items: center;
+    padding: 8px;
+    gap: 6px;
+  }
+
+  [data-nextjs-devtools-panel-tab] {
+    color: var(--color-gray-900);
+    border-radius: var(--rounded-md-2);
+    padding: 4px 12px;
+    font-size: 14px;
+    font-weight: 500;
+
+    transition: all 0.2s ease;
+
+    &:hover {
+      background-color: var(--color-gray-200);
+    }
+
+    &:active {
+      background-color: var(--color-gray-300);
+    }
+  }
+
+  [data-nextjs-devtools-panel-tab='true'] {
+    color: var(--color-gray-1000);
+    background-color: var(--color-gray-100);
+  }
+
+  [data-nextjs-devtools-panel-tab-issues-badge] {
+    display: inline-block;
+    margin-left: 8px;
+    background-color: var(--color-red-400);
+    color: var(--color-red-900);
+    font-size: 11px;
+    border-radius: var(--rounded-full);
+    padding: 2px 6px;
+    width: 20px;
+    height: 20px;
+    font-weight: 500;
+  }
+
+  [data-nextjs-devtools-panel-action-button-group] {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding-right: 8px;
+  }
+
+  [data-nextjs-devtools-panel-action-button] {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    color: var(--color-gray-600);
+    border-radius: 4px;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background-color: var(--color-gray-200);
+      color: var(--color-gray-900);
+    }
+
+    &:active {
+      background-color: var(--color-gray-300);
+    }
   }
 `
