@@ -57,7 +57,7 @@ export function DevToolsPanel({
             onClose={onClose}
           >
             <DialogContent>
-              <DialogHeader>
+              <DialogHeader data-nextjs-devtools-panel-dialog-header>
                 <div data-nextjs-devtools-panel-header>
                   <div data-nextjs-devtools-panel-header-tab-group>
                     <button
@@ -134,14 +134,25 @@ export const DEVTOOLS_PANEL_STYLES = css`
     border-radius: var(--rounded-xl);
     box-shadow: var(--shadow-lg);
     position: relative;
-    overflow: hidden;
 
-    /* TODO: Remove once the content is filled. */
-    min-width: 800px;
-    min-height: 500px;
+    width: 100%;
 
-    /* This is handled from dialog/styles.ts */
-    max-width: var(--next-dialog-max-width);
+    @media (min-width: 576px) {
+      max-width: 540px;
+    }
+
+    @media (min-width: 768px) {
+      max-width: 720px;
+    }
+
+    @media (min-width: 992px) {
+      max-width: 960px;
+    }
+  }
+
+  [data-nextjs-devtools-panel-dialog] [data-nextjs-dialog-body] {
+    overflow-y: auto;
+    max-height: 60vh;
   }
 
   [data-nextjs-devtools-panel-header] {
