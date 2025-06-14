@@ -966,7 +966,7 @@ impl EcmascriptModuleContentOptions {
 
             let part_code_gens = part_references
                 .iter()
-                .map(|r| r.code_generation(**chunking_context))
+                .map(|r| r.code_generation(**chunking_context, scope_hoisting_context))
                 .try_join()
                 .await?;
 
