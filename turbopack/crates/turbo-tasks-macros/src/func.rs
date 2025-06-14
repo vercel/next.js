@@ -1099,6 +1099,7 @@ pub struct NativeFn {
     pub filter_trait_call_args: Option<FilterTraitCallArgsTokens>,
     pub local: bool,
     pub invalidator: bool,
+    pub immutable: bool,
 }
 
 impl NativeFn {
@@ -1115,6 +1116,7 @@ impl NativeFn {
             filter_trait_call_args,
             local,
             invalidator,
+            immutable,
         } = self;
 
         if *is_method {
@@ -1142,6 +1144,7 @@ impl NativeFn {
                             turbo_tasks::macro_helpers::FunctionMeta {
                                 local: #local,
                                 invalidator: #invalidator,
+                                immutable: #immutable,
                             },
                             #arg_filter,
                             #function_path,
@@ -1157,6 +1160,7 @@ impl NativeFn {
                             turbo_tasks::macro_helpers::FunctionMeta {
                                 local: #local,
                                 invalidator: #invalidator,
+                                immutable: #immutable,
                             },
                             #arg_filter,
                             #function_path,
@@ -1173,6 +1177,7 @@ impl NativeFn {
                         turbo_tasks::macro_helpers::FunctionMeta {
                             local: #local,
                             invalidator: #invalidator,
+                            immutable: #immutable,
                         },
                         #function_path,
                     )
