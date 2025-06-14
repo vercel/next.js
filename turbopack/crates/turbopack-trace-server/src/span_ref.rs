@@ -153,8 +153,17 @@ impl<'a> SpanRef<'a> {
     }
 
     pub fn self_persistent_allocations(&self) -> u64 {
-        self.self_allocations()
-            .saturating_sub(self.span.self_deallocations)
+        let expected_total = self
+            .total_allocations()
+            .saturating_sub(self.total_deallocations());
+
+        let child_total = self
+            .children()
+            .map(|child| child.total_persistent_allocations())
+            .reduce(|a, b| a + b)
+            .unwrap_or_default();
+
+        expected_total.saturating_sub(child_total)
     }
 
     pub fn self_allocation_count(&self) -> u64 {

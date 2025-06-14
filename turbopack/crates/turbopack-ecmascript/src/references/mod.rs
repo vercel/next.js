@@ -729,7 +729,9 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     let handler = Handler::with_emitter(true, false, Box::new(emitter));
 
     let mut var_graph = {
-        let _span = tracing::info_span!("analyze variable values");
+        // This span messes with persistent caching because the resulting effects are freed in a
+        // different span
+        // let _span = tracing::info_span!("analyze variable values").entered();
         set_handler_and_globals(&handler, globals, || create_graph(program, eval_context))
     };
 
