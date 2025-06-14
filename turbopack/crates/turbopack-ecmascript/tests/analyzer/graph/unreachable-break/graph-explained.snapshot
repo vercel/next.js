@@ -1,0 +1,7 @@
+A = (...) => (undefined | FreeVar(undefined))
+
+B = (...) => (undefined | FreeVar(undefined))
+
+C = (...) => (undefined | FreeVar(undefined))
+
+v = arguments[0]

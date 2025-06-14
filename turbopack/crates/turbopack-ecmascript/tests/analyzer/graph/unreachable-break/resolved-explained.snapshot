@@ -1,0 +1,9 @@
+A = (...) => (undefined | FreeVar(undefined))
+
+B = (...) => (undefined | FreeVar(undefined))
+
+C = (...) => (undefined | FreeVar(undefined))
+
+v = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
