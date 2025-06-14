@@ -143,7 +143,7 @@ impl Request {
     }
 
     /// Internal construction function.  Should only be called with normalized patterns, or
-    /// recursively. Most users should call [Self::parse]` instead.
+    /// recursively. Most users should call [Self::parse] instead.
     fn parse_ref(request: Pattern) -> Self {
         match request {
             Pattern::Dynamic => Request::Dynamic,
