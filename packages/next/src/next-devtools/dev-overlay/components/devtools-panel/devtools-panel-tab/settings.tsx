@@ -5,6 +5,7 @@ import type {
 } from '../../../shared'
 
 import { useTheme } from '../hooks/use-theme'
+import { Select } from '../../select/select'
 import {
   ACTION_DEVTOOLS_INDICATOR_POSITION,
   ACTION_DEVTOOLS_SCALE,
@@ -19,35 +20,6 @@ import LightIcon from '../../../icons/light-icon'
 import DarkIcon from '../../../icons/dark-icon'
 import SystemIcon from '../../../icons/system-icon'
 import EyeIcon from '../../../icons/eye-icon'
-
-function ChevronDownIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden>
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M14.0607 5.49999L13.5303 6.03032L8.7071 10.8535C8.31658 11.2441 7.68341 11.2441 7.29289 10.8535L2.46966 6.03032L1.93933 5.49999L2.99999 4.43933L3.53032 4.96966L7.99999 9.43933L12.4697 4.96966L13 4.43933L14.0607 5.49999Z"
-        fill="currentColor"
-      />
-    </svg>
-  )
-}
-
-function Select({
-  children,
-  prefix,
-  ...props
-}: {
-  prefix?: React.ReactNode
-} & Omit<React.HTMLProps<HTMLSelectElement>, 'prefix'>) {
-  return (
-    <div className="select-button">
-      {prefix}
-      <select {...props}>{children}</select>
-      <ChevronDownIcon />
-    </div>
-  )
-}
 
 function ThemeIcon({ theme }: { theme: 'dark' | 'light' | 'system' }) {
   switch (theme) {
@@ -132,8 +104,6 @@ export function Settings({
       method: 'POST',
     })
   }
-
-  console.log({ scale: state.scale })
 
   return (
     <div>
@@ -334,7 +304,7 @@ export const DEVTOOLS_PANEL_TAB_SETTINGS_STYLES = css`
     margin: 0;
   }
 
-  .select-button,
+  [data-nextjs-select],
   .action-button {
     display: flex;
     align-items: center;
@@ -352,7 +322,7 @@ export const DEVTOOLS_PANEL_TAB_SETTINGS_STYLES = css`
     }
   }
 
-  .select-button {
+  [data-nextjs-select] {
     &:focus-within {
       outline: var(--focus-ring);
     }
