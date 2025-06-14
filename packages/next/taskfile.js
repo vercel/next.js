@@ -2390,6 +2390,14 @@ export async function ncc_https_proxy_agent(task, opts) {
     .target('src/compiled/https-proxy-agent')
 }
 
+externals['react-draggable'] = 'next/dist/compiled/react-draggable'
+export async function ncc_react_draggable(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('react-draggable')))
+    .ncc({ packageName: 'react-draggable', externals })
+    .target('src/compiled/react-draggable')
+}
+
 export async function precompile(task, opts) {
   await task.parallel(
     ['browser_polyfills', 'copy_ncced', 'copy_styled_jsx_assets'],
@@ -2537,6 +2545,7 @@ export async function ncc(task, opts) {
         'ncc_opentelemetry_api',
         'ncc_http_proxy_agent',
         'ncc_https_proxy_agent',
+        'ncc_react_draggable',
         'ncc_mini_css_extract_plugin',
       ],
       opts
