@@ -106,151 +106,144 @@ export function Settings({
   }
 
   return (
-    <div>
-      <h2 className="dev-tools-info-section-title">General</h2>
-      <div className="preferences-container">
-        <div className="preference-section">
-          <div className="preference-header">
-            <label htmlFor="theme">Theme</label>
-            <p className="preference-description">
-              Select your theme preference.
-            </p>
-          </div>
-          <Select
-            id="theme"
-            name="theme"
-            prefix={<ThemeIcon theme={theme as 'dark' | 'light' | 'system'} />}
-            value={theme}
-            onChange={handleThemeChange}
+    <div data-nextjs-devtools-panel-settings>
+      <div data-nextjs-devtools-panel-settings-section>
+        <div data-nextjs-devtools-panel-settings-section-header>
+          <label htmlFor="theme">Theme</label>
+          <p data-nextjs-devtools-panel-settings-section-description>
+            Select your theme preference.
+          </p>
+        </div>
+        <Select
+          id="theme"
+          name="theme"
+          prefix={<ThemeIcon theme={theme as 'dark' | 'light' | 'system'} />}
+          value={theme}
+          onChange={handleThemeChange}
+        >
+          <option value="system">System</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </Select>
+      </div>
+
+      <div data-nextjs-devtools-panel-settings-section>
+        <div data-nextjs-devtools-panel-settings-section-header>
+          <label htmlFor="position">Position</label>
+          <p data-nextjs-devtools-panel-settings-section-description>
+            Adjust the placement of your dev tools.
+          </p>
+        </div>
+        <Select
+          id="position"
+          name="position"
+          value={state.indicatorPosition}
+          onChange={handlePositionChange}
+        >
+          <option value="bottom-left">Bottom Left</option>
+          <option value="bottom-right">Bottom Right</option>
+          <option value="top-left">Top Left</option>
+          <option value="top-right">Top Right</option>
+        </Select>
+      </div>
+
+      <div data-nextjs-devtools-panel-settings-section>
+        <div data-nextjs-devtools-panel-settings-section-header>
+          <label htmlFor="size">Size</label>
+          <p data-nextjs-devtools-panel-settings-section-description>
+            Adjust the size of your dev tools.
+          </p>
+        </div>
+        <Select
+          id="size"
+          name="size"
+          value={state.scale}
+          onChange={handleSizeChange}
+        >
+          {Object.entries(NEXT_DEV_TOOLS_SCALE).map(([key, value]) => {
+            return (
+              <option value={value} key={key}>
+                {key}
+              </option>
+            )
+          })}
+        </Select>
+      </div>
+
+      <div data-nextjs-devtools-panel-settings-section>
+        <div data-nextjs-devtools-panel-settings-section-header>
+          <label id="hide-dev-tools">Hide Dev Tools for this session</label>
+          <p data-nextjs-devtools-panel-settings-section-description>
+            Hide Dev Tools until you restart your dev server, or 1 day.
+          </p>
+        </div>
+        <div>
+          <button
+            aria-describedby="hide-dev-tools"
+            name="hide-dev-tools"
+            data-hide-dev-tools
+            data-nextjs-devtools-panel-settings-section-action-button
+            onClick={hide}
           >
-            <option value="system">System</option>
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-          </Select>
-        </div>
-
-        <div className="preference-section">
-          <div className="preference-header">
-            <label htmlFor="position">Position</label>
-            <p className="preference-description">
-              Adjust the placement of your dev tools.
-            </p>
-          </div>
-          <Select
-            id="position"
-            name="position"
-            value={state.indicatorPosition}
-            onChange={handlePositionChange}
-          >
-            <option value="bottom-left">Bottom Left</option>
-            <option value="bottom-right">Bottom Right</option>
-            <option value="top-left">Top Left</option>
-            <option value="top-right">Top Right</option>
-          </Select>
-        </div>
-
-        <div className="preference-section">
-          <div className="preference-header">
-            <label htmlFor="size">Size</label>
-            <p className="preference-description">
-              Adjust the size of your dev tools.
-            </p>
-          </div>
-          <Select
-            id="size"
-            name="size"
-            value={state.scale}
-            onChange={handleSizeChange}
-          >
-            {Object.entries(NEXT_DEV_TOOLS_SCALE).map(([key, value]) => {
-              return (
-                <option value={value} key={key}>
-                  {key}
-                </option>
-              )
-            })}
-          </Select>
-        </div>
-
-        <div className="preference-section">
-          <div className="preference-header">
-            <label id="hide-dev-tools">Hide Dev Tools for this session</label>
-            <p className="preference-description">
-              Hide Dev Tools until you restart your dev server, or 1 day.
-            </p>
-          </div>
-          <div className="preference-control">
-            <button
-              aria-describedby="hide-dev-tools"
-              name="hide-dev-tools"
-              data-hide-dev-tools
-              className="action-button"
-              onClick={hide}
-            >
-              <EyeIcon />
-              <span>Hide</span>
-            </button>
-          </div>
-        </div>
-
-        <div className="preference-section">
-          <div className="preference-header">
-            <label>Disable Dev Tools for this project</label>
-            <p className="preference-description">
-              To disable this UI completely, set{' '}
-              <code className="dev-tools-info-code">devIndicators: false</code>{' '}
-              in your <code className="dev-tools-info-code">next.config</code>{' '}
-              file.
-            </p>
-          </div>
+            <EyeIcon />
+            <span>Hide</span>
+          </button>
         </div>
       </div>
-      <h2 className="dev-tools-info-section-title">Development Server</h2>
-      <div className="preferences-container">
-        <div className="preference-section">
-          <div className="preference-header">
-            <label id="restart-dev-server">Restart Dev Server</label>
-            <p className="preference-description">
-              Restarts the development server without needing to leave the
-              browser.
+
+      <div data-nextjs-devtools-panel-settings-section>
+        <div data-nextjs-devtools-panel-settings-section-header>
+          <label>Disable Dev Tools for this project</label>
+          <p data-nextjs-devtools-panel-settings-section-description>
+            To disable this UI completely, set{' '}
+            <code className="dev-tools-info-code">devIndicators: false</code> in
+            your <code className="dev-tools-info-code">next.config</code> file.
+          </p>
+        </div>
+      </div>
+
+      <div data-nextjs-devtools-panel-settings-section>
+        <div data-nextjs-devtools-panel-settings-section-header>
+          <label id="restart-dev-server">Restart Dev Server</label>
+          <p data-nextjs-devtools-panel-settings-section-description>
+            Restarts the development server without needing to leave the
+            browser.
+          </p>
+        </div>
+        <div>
+          <button
+            aria-describedby="restart-dev-server"
+            title="Restarts the development server without needing to leave the browser."
+            name="restart-dev-server"
+            data-restart-dev-server
+            data-nextjs-devtools-panel-settings-section-action-button
+            onClick={handleRestartDevServer}
+          >
+            <span>Restart</span>
+          </button>
+        </div>
+      </div>
+
+      {process.env.__NEXT_TURBOPACK_PERSISTENT_CACHE ? (
+        <div data-nextjs-devtools-panel-settings-section>
+          <div data-nextjs-devtools-panel-settings-section-header>
+            <label id="reset-bundler-cache">Reset Bundler Cache</label>
+            <p data-nextjs-devtools-panel-settings-section-description>
+              Clears the bundler cache and restarts the dev server. Helpful if
+              you are seeing stale errors or changes are not appearing.
             </p>
           </div>
-          <div className="preference-control">
+          <div>
             <button
-              aria-describedby="restart-dev-server"
-              title="Restarts the development server without needing to leave the browser."
-              name="restart-dev-server"
-              data-restart-dev-server
-              className="action-button"
+              aria-describedby="reset-bundler-cache"
+              title="Clears the bundler cache and restarts the dev server. Helpful if you are seeing stale errors or changes are not appearing."
+              name="reset-bundler-cache"
+              data-reset-bundler-cache
+              data-nextjs-devtools-panel-settings-section-action-button
               onClick={handleRestartDevServer}
             >
-              <span>Restart</span>
+              <span>Reset Cache</span>
             </button>
-          </div>
-        </div>
-      </div>
-      {process.env.__NEXT_TURBOPACK_PERSISTENT_CACHE ? (
-        <div className="preferences-container">
-          <div className="preference-section">
-            <div className="preference-header">
-              <label id="reset-bundler-cache">Reset Bundler Cache</label>
-              <p className="preference-description">
-                Clears the bundler cache and restarts the dev server. Helpful if
-                you are seeing stale errors or changes are not appearing.
-              </p>
-            </div>
-            <div className="preference-control">
-              <button
-                aria-describedby="reset-bundler-cache"
-                title="Clears the bundler cache and restarts the dev server. Helpful if you are seeing stale errors or changes are not appearing."
-                name="reset-bundler-cache"
-                data-reset-bundler-cache
-                className="action-button"
-                onClick={handleRestartDevServer}
-              >
-                <span>Reset Cache</span>
-              </button>
-            </div>
           </div>
         </div>
       ) : null}
@@ -259,21 +252,15 @@ export function Settings({
 }
 
 export const DEVTOOLS_PANEL_TAB_SETTINGS_STYLES = css`
-  .preferences-container {
-    width: 100%;
+  [data-nextjs-devtools-panel-settings] {
+    padding: 16px;
   }
 
-  @media (min-width: 576px) {
-    .preferences-container {
-      width: 480px;
-    }
-  }
-
-  .preference-section:first-child {
+  [data-nextjs-devtools-panel-settings-section]:first-child {
     padding-top: 0;
   }
 
-  .preference-section {
+  [data-nextjs-devtools-panel-settings-section] {
     padding: 12px 0;
     border-bottom: 1px solid var(--color-gray-400);
     display: flex;
@@ -282,30 +269,30 @@ export const DEVTOOLS_PANEL_TAB_SETTINGS_STYLES = css`
     gap: 24px;
   }
 
-  .preference-section:last-child {
+  [data-nextjs-devtools-panel-settings-section]:last-child {
     border-bottom: none;
   }
 
-  .preference-header {
+  [data-nextjs-devtools-panel-settings-section-header] {
     margin-bottom: 0;
     flex: 1;
   }
 
-  .preference-header label {
+  [data-nextjs-devtools-panel-settings-section-header] label {
     font-size: var(--size-14);
     font-weight: 500;
     color: var(--color-gray-1000);
     margin: 0;
   }
 
-  .preference-description {
+  [data-nextjs-devtools-panel-settings-section-description] {
     color: var(--color-gray-900);
     font-size: var(--size-14);
     margin: 0;
   }
 
   [data-nextjs-select],
-  .action-button {
+  [data-nextjs-devtools-panel-settings-section-action-button] {
     display: flex;
     align-items: center;
     gap: 8px;
