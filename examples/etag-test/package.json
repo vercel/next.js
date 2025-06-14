@@ -1,0 +1,23 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "20.10.8",
+    "@types/react": "18.2.47",
+    "@types/react-dom": "18.2.18",
+    "eslint": "8.57.1",
+    "eslint-config-next": "workspace:15.4.0-canary.80",
+    "typescript": "^5.3.3"
+  }
+}
