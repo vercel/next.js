@@ -2,9 +2,9 @@ import type { CSSProperties } from 'react'
 import type { OverlayState, OverlayDispatch } from '../../shared'
 import type { DevToolsScale } from '../errors/dev-tools-indicator/dev-tools-info/preferences'
 
-import { useState, useRef } from 'react'
+import { useState } from 'react'
+import { NextLogo } from './next-logo'
 import { Toast } from '../toast'
-import { NextLogo } from '../errors/dev-tools-indicator/next-logo'
 import {
   MENU_CURVE,
   MENU_DURATION_MS,
@@ -30,8 +30,6 @@ export function DevToolsIndicator({
 }) {
   const [open, setOpen] = useState(false)
   const [position, setPosition] = useState(getInitialPosition())
-
-  const triggerRef = useRef<HTMLButtonElement | null>(null)
 
   const [vertical, horizontal] = position.split('-', 2)
 
@@ -66,7 +64,6 @@ export function DevToolsIndicator({
       >
         {/* Trigger */}
         <NextLogo
-          ref={triggerRef}
           aria-haspopup="menu"
           aria-expanded={open}
           aria-controls="nextjs-dev-tools-menu"
