@@ -14,6 +14,14 @@ export type DevToolsIndicatorPosition =
   | 'top-left'
   | 'top-right'
 
+const BASE_SIZE = 16
+
+export const NEXT_DEV_TOOLS_SCALE = {
+  Small: BASE_SIZE / 14,
+  Medium: BASE_SIZE / 16,
+  Large: BASE_SIZE / 18,
+}
+
 type FastRefreshState =
   /** No refresh in progress. */
   | { type: 'idle' }
@@ -37,6 +45,7 @@ export interface OverlayState {
   isErrorOverlayOpen: boolean
   isDevToolsPanelOpen: boolean
   indicatorPosition: DevToolsIndicatorPosition
+  scale: number
 }
 export type OverlayDispatch = React.Dispatch<DispatcherEvent>
 
@@ -65,6 +74,7 @@ export const ACTION_DEVTOOLS_PANEL_CLOSE = 'devtools-panel-close'
 export const ACTION_DEVTOOLS_PANEL_TOGGLE = 'devtools-panel-toggle'
 
 export const ACTION_DEVTOOLS_INDICATOR_POSITION = 'devtools-indicator-position'
+export const ACTION_DEVTOOLS_SCALE = 'devtools-scale'
 
 export const STORAGE_KEY_THEME = '__nextjs-dev-tools-theme'
 export const STORAGE_KEY_POSITION = '__nextjs-dev-tools-position'
@@ -152,6 +162,11 @@ export interface DevToolsIndicatorPositionAction {
   indicatorPosition: DevToolsIndicatorPosition
 }
 
+export interface DevToolsScaleAction {
+  type: typeof ACTION_DEVTOOLS_SCALE
+  scale: number
+}
+
 export type DispatcherEvent =
   | BuildOkAction
   | BuildErrorAction
@@ -174,6 +189,7 @@ export type DispatcherEvent =
   | DevToolsPanelCloseAction
   | DevToolsPanelToggleAction
   | DevToolsIndicatorPositionAction
+  | DevToolsScaleAction
 
 const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX =
   // 1st group: v8
@@ -216,6 +232,10 @@ export const INITIAL_OVERLAY_STATE: Omit<
   indicatorPosition:
     (localStorage.getItem(STORAGE_KEY_POSITION) as DevToolsIndicatorPosition) ??
     'bottom-left',
+  scale:
+    localStorage.getItem(STORAGE_KEY_SCALE)
+      ? Number(localStorage.getItem(STORAGE_KEY_SCALE))
+      : NEXT_DEV_TOOLS_SCALE.Medium,
 }
 
 function getInitialState(
@@ -389,6 +409,9 @@ export function useErrorOverlayReducer(
         }
         case ACTION_DEVTOOLS_INDICATOR_POSITION: {
           return { ...state, indicatorPosition: action.indicatorPosition }
+        }
+        case ACTION_DEVTOOLS_SCALE: {
+          return { ...state, scale: action.scale }
         }
         default: {
           return state
