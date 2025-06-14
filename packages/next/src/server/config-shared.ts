@@ -229,7 +229,7 @@ export interface WebpackConfigContext {
   /** Number of total Next.js pages */
   totalPages: number
   /** The webpack configuration */
-  webpack: any
+  webpack: webpack.Configuration
   /** The current server runtime */
   nextRuntime?: 'nodejs' | 'edge'
 }
@@ -237,7 +237,7 @@ export interface WebpackConfigContext {
 export interface NextJsWebpackConfig {
   (
     /** Existing Webpack config */
-    config: any,
+    config: webpack.Configuration,
     context: WebpackConfigContext
   ): any
 }
