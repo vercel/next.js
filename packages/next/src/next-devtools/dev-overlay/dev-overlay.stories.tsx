@@ -11,6 +11,9 @@ import {
   ACTION_ERROR_OVERLAY_CLOSE,
   ACTION_ERROR_OVERLAY_OPEN,
   ACTION_ERROR_OVERLAY_TOGGLE,
+  ACTION_DEVTOOLS_INDICATOR_POSITION,
+  ACTION_DEVTOOLS_SCALE,
+  INITIAL_OVERLAY_STATE,
 } from './shared'
 
 const meta: Meta<typeof DevOverlay> = {
@@ -36,10 +39,8 @@ export default meta
 type Story = StoryObj<typeof DevOverlay>
 
 const initialState: OverlayState = {
-  nextId: 0,
+  ...INITIAL_OVERLAY_STATE,
   routerType: 'app',
-  buildError: null,
-  disableDevIndicator: false,
   showIndicator: true,
   errors: [
     {
@@ -84,12 +85,6 @@ const initialState: OverlayState = {
       type: 'runtime',
     },
   ],
-  refreshState: { type: 'idle' },
-  notFound: false,
-  buildingIndicator: false,
-  renderingIndicator: false,
-  staticIndicator: false,
-  debugInfo: { devtoolsFrontendUrl: undefined },
   versionInfo: {
     installed: '15.2.0',
     staleness: 'fresh',
@@ -113,6 +108,12 @@ function useOverlayReducer() {
         }
         case ACTION_DEVTOOLS_PANEL_TOGGLE: {
           return { ...state, isDevToolsPanelOpen: !state.isDevToolsPanelOpen }
+        }
+        case ACTION_DEVTOOLS_INDICATOR_POSITION: {
+          return { ...state, indicatorPosition: action.indicatorPosition }
+        }
+        case ACTION_DEVTOOLS_SCALE: {
+          return { ...state, scale: action.scale }
         }
         default: {
           return state

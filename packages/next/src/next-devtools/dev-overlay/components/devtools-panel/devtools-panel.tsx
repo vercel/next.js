@@ -103,7 +103,11 @@ export function DevToolsPanel({
                 </div>
               </DialogHeader>
               <DialogBody>
-                <DevToolsPanelTab activeTab={activeTab} />
+                <DevToolsPanelTab
+                  activeTab={activeTab}
+                  state={state}
+                  dispatch={dispatch}
+                />
               </DialogBody>
             </DialogContent>
           </Dialog>
