@@ -64,7 +64,7 @@ export const ACTION_DEVTOOLS_PANEL_OPEN = 'devtools-panel-open'
 export const ACTION_DEVTOOLS_PANEL_CLOSE = 'devtools-panel-close'
 export const ACTION_DEVTOOLS_PANEL_TOGGLE = 'devtools-panel-toggle'
 
-export const ACTION_DEVTOOLS_INDICATOR_POSITION = 'dev-tools-indicator-position'
+export const ACTION_DEVTOOLS_INDICATOR_POSITION = 'devtools-indicator-position'
 
 export const STORAGE_KEY_THEME = '__nextjs-dev-tools-theme'
 export const STORAGE_KEY_POSITION = '__nextjs-dev-tools-position'
