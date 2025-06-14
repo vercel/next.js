@@ -1,4 +1,6 @@
 import type { OverlayDispatch, OverlayState } from '../../shared'
+import type { ReadyRuntimeError } from '../../utils/get-error-by-type'
+import type { HydrationErrorState } from '../../../shared/hydration-error'
 
 import { Suspense, useRef, useState } from 'react'
 import Draggable from 'next/dist/compiled/react-draggable'
@@ -20,10 +22,14 @@ export function DevToolsPanel({
   state,
   dispatch,
   issueCount,
+  runtimeErrors,
+  getSquashedHydrationErrorDetails,
 }: {
   state: OverlayState
   dispatch: OverlayDispatch
   issueCount: number
+  runtimeErrors: ReadyRuntimeError[]
+  getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
 }) {
   const [activeTab, setActiveTab] = useState<'issues' | 'route' | 'settings'>(
     'settings'
@@ -107,6 +113,10 @@ export function DevToolsPanel({
                   activeTab={activeTab}
                   state={state}
                   dispatch={dispatch}
+                  runtimeErrors={runtimeErrors}
+                  getSquashedHydrationErrorDetails={
+                    getSquashedHydrationErrorDetails
+                  }
                 />
               </DialogBody>
             </DialogContent>
@@ -119,6 +129,11 @@ export function DevToolsPanel({
 }
 
 export const DEVTOOLS_PANEL_STYLES = css`
+  /* TODO: Better override dialog header style */
+  [data-nextjs-devtools-panel-dialog-header] {
+    margin-bottom: 0 !important;
+  }
+
   [data-nextjs-devtools-panel-overlay] {
     padding: initial;
     top: 10vh;
