@@ -315,4 +315,14 @@ describe('matchRemotePattern with URL', () => {
       false
     )
   })
+
+  it('should match URLs with wildcard patterns', () => {
+    const p = 'https://example.com/act123/**'
+    expect(m(new URL(p), new URL('https://example.com/act123/usr4?v=4'))).toBe(
+      true
+    )
+    expect(
+      m(new URL(`${p}/*`), new URL('https://example.com/act123/u/74867549?v=4'))
+    ).toBe(true)
+  })
 })

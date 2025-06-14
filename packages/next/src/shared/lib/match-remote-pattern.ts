@@ -27,10 +27,17 @@ export function matchRemotePattern(
     }
   }
 
-  if (pattern.search !== undefined) {
-    if (pattern.search !== url.search) {
+  const patternSearch = pattern.search ?? ''
+  const patternPath = pattern.pathname ?? '**'
+  const isSpecificWildcardPath =
+    patternPath.includes('**') && patternPath !== '**' && patternPath !== '/**'
+
+  if (patternSearch !== '') {
+    if (patternSearch !== url.search) {
       return false
     }
+  } else if (url.search && !isSpecificWildcardPath) {
+    return false
   }
 
   // Should be the same as writeImagesManifest()
