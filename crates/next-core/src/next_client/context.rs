@@ -521,7 +521,7 @@ pub async fn get_client_runtime_entries(
         // functions to be available.
         if let Some(request) = enable_react_refresh {
             runtime_entries.push(
-                RuntimeEntry::Request(
+                RuntimeEntry::PriorityRequest(
                     request.to_resolved().await?,
                     project_root.join(rcstr!("_")).to_resolved().await?,
                 )
