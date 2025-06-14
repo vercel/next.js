@@ -544,8 +544,9 @@ impl EsmAssetReference {
                             .as_ref()
                             .is_none_or(|e| matches!(e, ModulePart::Exports))
                     {
-                        // No need to import, the module is already available in the same scope
-                        // hoisting group (unless it's a namespace import)
+                        // No need to import, the module was already executed and is available in
+                        // the same scope hoisting group (unless it's a
+                        // namespace import)
                     } else if let Some(ident) = referenced_asset
                         .get_ident(chunking_context, None, scope_hoisting_context)
                         .await?
