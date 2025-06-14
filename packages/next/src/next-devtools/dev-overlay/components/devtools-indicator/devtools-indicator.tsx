@@ -9,7 +9,13 @@ import {
   MENU_CURVE,
   MENU_DURATION_MS,
 } from '../errors/dev-tools-indicator/utils'
-import { ACTION_ERROR_OVERLAY_TOGGLE, STORAGE_KEY_POSITION } from '../../shared'
+import {
+  ACTION_DEVTOOLS_PANEL_TOGGLE,
+  ACTION_ERROR_OVERLAY_TOGGLE,
+  ACTION_ERROR_OVERLAY_CLOSE,
+  STORAGE_KEY_POSITION,
+  ACTION_DEVTOOLS_PANEL_CLOSE,
+} from '../../shared'
 import { getInitialPosition } from '../errors/dev-tools-indicator/dev-tools-info/preferences'
 import { Draggable } from '../errors/dev-tools-indicator/draggable'
 
@@ -34,10 +40,14 @@ export function DevToolsIndicator({
   const [vertical, horizontal] = position.split('-', 2)
 
   const toggleErrorOverlay = () => {
+    dispatch({ type: ACTION_DEVTOOLS_PANEL_CLOSE })
     dispatch({ type: ACTION_ERROR_OVERLAY_TOGGLE })
   }
 
-  const onTriggerClick = () => {}
+  const toggleDevToolsPanel = () => {
+    dispatch({ type: ACTION_ERROR_OVERLAY_CLOSE })
+    dispatch({ type: ACTION_DEVTOOLS_PANEL_TOGGLE })
+  }
 
   return (
     <Toast
@@ -71,7 +81,7 @@ export function DevToolsIndicator({
           data-nextjs-dev-tools-button
           disabled={state.disableDevIndicator}
           issueCount={errorCount}
-          onTriggerClick={onTriggerClick}
+          onTriggerClick={toggleDevToolsPanel}
           toggleErrorOverlay={toggleErrorOverlay}
           isDevBuilding={state.buildingIndicator}
           isDevRendering={state.renderingIndicator}

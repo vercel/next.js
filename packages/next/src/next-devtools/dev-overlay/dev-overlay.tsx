@@ -12,6 +12,7 @@ import { DarkTheme } from './styles/dark-theme'
 import { useDevToolsScale } from './components/errors/dev-tools-indicator/dev-tools-info/preferences'
 import type { HydrationErrorState } from '../shared/hydration-error'
 import { DevToolsIndicator as DevToolsIndicatorNew } from './components/devtools-indicator/devtools-indicator'
+import { DevToolsPanel } from './components/devtools-panel/devtools-panel'
 
 export function DevOverlay({
   state,
@@ -38,13 +39,17 @@ export function DevOverlay({
             <>
               {state.showIndicator &&
                 (process.env.__NEXT_DEVTOOL_NEW_PANEL_UI ? (
-                  <DevToolsIndicatorNew
-                    scale={scale}
-                    state={state}
-                    dispatch={dispatch}
-                    errorCount={totalErrorCount}
-                    isBuildError={isBuildError}
-                  />
+                  <>
+                    <DevToolsIndicatorNew
+                      scale={scale}
+                      state={state}
+                      dispatch={dispatch}
+                      errorCount={totalErrorCount}
+                      isBuildError={isBuildError}
+                    />
+
+                    {state.isDevToolsPanelOpen && <DevToolsPanel />}
+                  </>
                 ) : (
                   <DevToolsIndicator
                     scale={scale}
