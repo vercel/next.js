@@ -1778,7 +1778,9 @@ pub fn emit<T: VcValueTrait + ?Sized>(collectible: ResolvedVc<T>) {
     })
 }
 
-pub async fn spawn_blocking<T: Send + 'static>(func: impl FnOnce() -> T + Send + 'static) -> T {
+pub async fn spawn_blocking_tokio<T: Send + 'static>(
+    func: impl FnOnce() -> T + Send + 'static,
+) -> T {
     let turbo_tasks = turbo_tasks();
     let span = Span::current();
     let (result, duration, alloc_info) = tokio::task::spawn_blocking(|| {
@@ -1790,6 +1792,27 @@ pub async fn spawn_blocking<T: Send + 'static>(func: impl FnOnce() -> T + Send +
     })
     .await
     .unwrap();
+    capture_future::add_duration(duration);
+    capture_future::add_allocation_info(alloc_info);
+    result
+}
+
+pub async fn spawn_blocking_rayon<T: Send + 'static>(
+    func: impl FnOnce() -> T + Send + 'static,
+) -> T {
+    let (tx, rx) = tokio::sync::oneshot::channel();
+
+    let turbo_tasks = turbo_tasks();
+    let span = Span::current();
+    rayon::spawn(|| {
+        let _guard = span.entered();
+        let start = Instant::now();
+        let start_allocations = TurboMalloc::allocation_counters();
+        let r = turbo_tasks_scope(turbo_tasks, func);
+        let _ = tx.send((r, start.elapsed(), start_allocations.until_now()));
+    });
+
+    let (result, duration, alloc_info) = rx.await.unwrap();
     capture_future::add_duration(duration);
     capture_future::add_allocation_info(alloc_info);
     result
