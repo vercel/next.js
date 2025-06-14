@@ -201,5 +201,24 @@ describe.each([[false], [true]])(
       await browser.elementByCss('button').click()
       expect(await browser.eval('document.title')).toBe('B')
     })
+
+    it('should warn when html or body tags are used in head', async () => {
+      const browser = await next.browser('/head-invalid-elements')
+      await browser.waitForElementByCss('#head-invalid-elements')
+      await waitFor(1000)
+      const browserLogs = await browser.log()
+      let foundHtmlWarning = false
+      let foundBodyWarning = false
+      browserLogs.forEach((log) => {
+        if (log.message.includes('Do not use <html> tags in next/head')) {
+          foundHtmlWarning = true
+        }
+        if (log.message.includes('Do not use <body> tags in next/head')) {
+          foundBodyWarning = true
+        }
+      })
+      expect(foundHtmlWarning).toEqual(true)
+      expect(foundBodyWarning).toEqual(true)
+    })
   }
 )
