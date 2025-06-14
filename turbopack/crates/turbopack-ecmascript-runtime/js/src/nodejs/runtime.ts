@@ -56,7 +56,7 @@ interface TurbopackNodeBuildContext extends TurbopackBaseContext<Module> {
 type ModuleFactory = (
   this: Module['exports'],
   context: TurbopackNodeBuildContext
-) => undefined
+) => unknown
 
 const url = require('url') as typeof import('url')
 const fs = require('fs/promises') as typeof import('fs/promises')
@@ -107,11 +107,19 @@ function loadChunkPath(chunkPath: ChunkPath, source?: SourceInfo): void {
 
   try {
     const resolved = path.resolve(RUNTIME_ROOT, chunkPath)
-    const chunkModules: ModuleFactories = require(resolved)
+    const chunkModules: CompressedModuleFactories = require(resolved)
 
     for (const [moduleId, moduleFactory] of Object.entries(chunkModules)) {
       if (!moduleFactories[moduleId]) {
-        moduleFactories[moduleId] = moduleFactory
+        if (Array.isArray(moduleFactory)) {
+          let [moduleFactoryFn, otherIds] = moduleFactory
+          moduleFactories[moduleId] = moduleFactoryFn
+          for (const otherModuleId of otherIds) {
+            moduleFactories[otherModuleId] = moduleFactoryFn
+          }
+        } else {
+          moduleFactories[moduleId] = moduleFactory
+        }
       }
     }
     loadedChunks.add(chunkPath)
@@ -165,10 +173,18 @@ async function loadChunkAsync(
         url.pathToFileURL(resolved)
     )(module, module.exports, localRequire, path.dirname(resolved), resolved)
 
-    const chunkModules: ModuleFactories = module.exports
+    const chunkModules: CompressedModuleFactories = module.exports
     for (const [moduleId, moduleFactory] of Object.entries(chunkModules)) {
       if (!moduleFactories[moduleId]) {
-        moduleFactories[moduleId] = moduleFactory
+        if (Array.isArray(moduleFactory)) {
+          let [moduleFactoryFn, otherIds] = moduleFactory
+          moduleFactories[moduleId] = moduleFactoryFn
+          for (const otherModuleId of otherIds) {
+            moduleFactories[otherModuleId] = moduleFactoryFn
+          }
+        } else {
+          moduleFactories[moduleId] = moduleFactory
+        }
       }
     }
     loadedChunks.add(chunkPath)
@@ -235,20 +251,6 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
     )
   }
 
-  let parents: ModuleId[]
-  switch (source.type) {
-    case SourceType.Runtime:
-      parents = []
-      break
-    case SourceType.Parent:
-      // No need to add this module as a child of the parent module here, this
-      // has already been taken care of in `getOrInstantiateModuleFromParent`.
-      parents = [source.parentId]
-      break
-    default:
-      invariant(source, (source) => `Unknown source type: ${source?.type}`)
-  }
-
   const module: Module = {
     exports: {},
     error: undefined,
@@ -270,10 +272,10 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
       y: externalImport,
       f: moduleContext,
       i: esmImport.bind(null, module),
-      s: esmExport.bind(null, module, module.exports),
-      j: dynamicExport.bind(null, module, module.exports),
-      v: exportValue.bind(null, module),
-      n: exportNamespace.bind(null, module),
+      s: esmExport.bind(null, module, module.exports, moduleCache),
+      j: dynamicExport.bind(null, module, module.exports, moduleCache),
+      v: exportValue.bind(null, module, moduleCache),
+      n: exportNamespace.bind(null, module, moduleCache),
       m: module,
       c: moduleCache,
       M: moduleFactories,

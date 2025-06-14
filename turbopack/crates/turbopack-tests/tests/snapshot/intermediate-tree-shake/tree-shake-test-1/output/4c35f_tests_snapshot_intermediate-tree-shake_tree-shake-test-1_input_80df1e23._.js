@@ -12,7 +12,7 @@ console.log(`I like ${(0, __TURBOPACK__imported__module__$5b$project$5d2f$turbop
 "use strict";
 
 __turbopack_context__.s({
-    "getCat": (()=>getCat)
+    "getCat": ()=>getCat
 });
 let cat = "cat";
 let dog = "dog";

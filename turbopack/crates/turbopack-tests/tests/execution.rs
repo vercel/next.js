@@ -243,6 +243,7 @@ struct TestOptions {
     tree_shaking_mode: Option<TreeShakingMode>,
     #[serde(default)]
     remove_unused_exports: bool,
+    scope_hoisting: Option<bool>,
 }
 
 #[turbo_tasks::value]
@@ -434,6 +435,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
             ..Default::default()
         },
     )
+    .module_merging(options.scope_hoisting.unwrap_or(true))
     .build();
 
     let jest_entry_source = FileSource::new(jest_entry_path);

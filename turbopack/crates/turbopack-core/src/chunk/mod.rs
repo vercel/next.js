@@ -36,6 +36,7 @@ pub use self::{
 };
 use crate::{
     asset::Asset,
+    chunk::availability_info::AvailabilityInfo,
     ident::AssetIdent,
     module::Module,
     module_graph::{
@@ -104,6 +105,93 @@ pub struct ChunkableModules(Vec<ResolvedVc<Box<dyn ChunkableModule>>>);
 impl ChunkableModules {
     #[turbo_tasks::function]
     pub fn interned(modules: Vec<ResolvedVc<Box<dyn ChunkableModule>>>) -> Vc<Self> {
+        Vc::cell(modules)
+    }
+}
+
+/// A [Module] that can be merged with other [Module]s (to perform scope hoisting)
+// TODO currently this is only used for ecmascript modules, and with the current API cannot be used
+// with other module types (as a MergeableModule cannot prevent itself from being merged with other
+// module types)
+#[turbo_tasks::value_trait]
+pub trait MergeableModule: Module + Asset {
+    /// Even though MergeableModule is implemented, this allows a dynamic condition to determine
+    /// mergeability
+    #[turbo_tasks::function]
+    fn is_mergeable(self: Vc<Self>) -> Vc<bool> {
+        Vc::cell(true)
+    }
+
+    /// Create a new module representing the merged content of the given `modules`.
+    ///
+    /// Group entry points are not referenced by any other module in the group. This list is needed
+    /// because the merged module is created by recursively inlining modules when they are imported,
+    /// but this process has to start somewhere (= with these entry points).
+    #[turbo_tasks::function]
+    fn merge(
+        self: Vc<Self>,
+        modules: Vc<MergeableModulesExposed>,
+        entry_points: Vc<MergeableModules>,
+    ) -> Vc<Box<dyn ChunkableModule>>;
+}
+#[turbo_tasks::value(transparent)]
+pub struct MergeableModules(Vec<ResolvedVc<Box<dyn MergeableModule>>>);
+
+#[turbo_tasks::value_impl]
+impl MergeableModules {
+    #[turbo_tasks::function]
+    pub fn interned(modules: Vec<ResolvedVc<Box<dyn MergeableModule>>>) -> Vc<Self> {
+        Vc::cell(modules)
+    }
+}
+
+/// Whether a given module needs to be exposed (depending on how it is imported by other modules)
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    TaskInput,
+    Hash,
+)]
+pub enum MergeableModuleExposure {
+    // Only individual export of this module are used, and only within this group.
+    None,
+    // Individual exports and the namespace object of this module are used, but only within this
+    // group.
+    Internal,
+    // The exports of this module are read from outside this group.
+    External,
+}
+
+impl MergeableModuleExposure {
+    pub fn is_exposed(&self) -> bool {
+        self != &MergeableModuleExposure::None
+    }
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct MergeableModulesExposed(
+    Vec<(
+        ResolvedVc<Box<dyn MergeableModule>>,
+        MergeableModuleExposure,
+    )>,
+);
+
+#[turbo_tasks::value_impl]
+impl MergeableModulesExposed {
+    #[turbo_tasks::function]
+    pub fn interned(
+        modules: Vec<(
+            ResolvedVc<Box<dyn MergeableModule>>,
+            MergeableModuleExposure,
+        )>,
+    ) -> Vc<Self> {
         Vc::cell(modules)
     }
 }
@@ -289,12 +377,12 @@ pub trait ChunkableModuleReference: ModuleReference + ValueToString {
     }
 }
 
-#[derive(Default)]
 pub struct ChunkGroupContent {
     pub chunkable_items: FxIndexSet<ChunkableModuleOrBatch>,
     pub batch_groups: FxIndexSet<ResolvedVc<ModuleBatchGroup>>,
     pub async_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
     pub traced_modules: FxIndexSet<ResolvedVc<Box<dyn Module>>>,
+    pub availability_info: AvailabilityInfo,
 }
 
 #[turbo_tasks::value_trait]

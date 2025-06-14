@@ -59,6 +59,26 @@ function defineProp(
   if (!hasOwnProperty.call(obj, name)) Object.defineProperty(obj, name, options)
 }
 
+function getOverwrittenModule(
+  moduleCache: ModuleCache<Module>,
+  id: ModuleId
+): Module {
+  let module = moduleCache[id]
+  if (!module) {
+    // This is invoked when a module is merged into another module, thus it wasn't invoced via
+    // instantiateModule and the cache entry wasn't created yet.
+    module = {
+      exports: {},
+      error: undefined,
+      loaded: false,
+      id,
+      namespaceObject: undefined,
+    }
+    moduleCache[id] = module
+  }
+  return module
+}
+
 /**
  * Adds the getters to the exports object.
  */
@@ -89,8 +109,14 @@ function esm(
 function esmExport(
   module: Module,
   exports: Exports,
-  getters: Record<string, () => any>
+  moduleCache: ModuleCache<Module>,
+  getters: Record<string, () => any>,
+  id: ModuleId | undefined
 ) {
+  if (id != null) {
+    module = getOverwrittenModule(moduleCache, id)
+    exports = module.exports
+  }
   module.namespaceObject = module.exports
   esm(exports, getters)
 }
@@ -134,8 +160,14 @@ function ensureDynamicExports(module: Module, exports: Exports) {
 function dynamicExport(
   module: Module,
   exports: Exports,
-  object: Record<string, any>
+  moduleCache: ModuleCache<Module>,
+  object: Record<string, any>,
+  id: ModuleId | undefined
 ) {
+  if (id != null) {
+    module = getOverwrittenModule(moduleCache, id)
+    exports = module.exports
+  }
   ensureDynamicExports(module, exports)
 
   if (typeof object === 'object' && object !== null) {
@@ -143,11 +175,27 @@ function dynamicExport(
   }
 }
 
-function exportValue(module: Module, value: any) {
+function exportValue(
+  module: Module,
+  moduleCache: ModuleCache<Module>,
+  value: any,
+  id: ModuleId | undefined
+) {
+  if (id != null) {
+    module = getOverwrittenModule(moduleCache, id)
+  }
   module.exports = value
 }
 
-function exportNamespace(module: Module, namespace: any) {
+function exportNamespace(
+  module: Module,
+  moduleCache: ModuleCache<Module>,
+  namespace: any,
+  id: ModuleId | undefined
+) {
+  if (id != null) {
+    module = getOverwrittenModule(moduleCache, id)
+  }
   module.exports = module.namespaceObject = namespace
 }
 

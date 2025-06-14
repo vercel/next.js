@@ -98,6 +98,8 @@ struct SnapshotOptions {
     tree_shaking_mode: Option<TreeShakingMode>,
     #[serde(default)]
     remove_unused_exports: bool,
+    #[serde(default)]
+    scope_hoisting: bool,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -125,6 +127,7 @@ impl Default for SnapshotOptions {
             environment: Default::default(),
             tree_shaking_mode: Default::default(),
             remove_unused_exports: false,
+            scope_hoisting: false,
         }
     }
 }
@@ -361,6 +364,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 env,
                 options.runtime_type,
             )
+            .module_merging(options.scope_hoisting)
             .build(),
         ),
         Runtime::NodeJs => Vc::upcast(
@@ -375,6 +379,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 options.runtime_type,
             )
             .minify_type(options.minify_type)
+            .module_merging(options.scope_hoisting)
             .build(),
         ),
     };
