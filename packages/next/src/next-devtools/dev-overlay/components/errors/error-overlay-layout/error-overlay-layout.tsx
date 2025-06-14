@@ -37,6 +37,7 @@ import { EnvironmentNameLabel } from '../environment-name-label/environment-name
 import { useFocusTrap } from '../dev-tools-indicator/utils'
 import { Fader } from '../../fader'
 import { Resizer } from '../../resizer'
+import { OverlayBackdrop } from '../../overlay'
 
 export interface ErrorOverlayLayoutProps extends ErrorBaseProps {
   errorMessage: ErrorMessageType
@@ -109,7 +110,8 @@ export function ErrorOverlayLayout({
   }
 
   return (
-    <ErrorOverlayOverlay fixed={isBuildError} {...animationProps}>
+    <ErrorOverlayOverlay {...animationProps}>
+      <OverlayBackdrop fixed={isBuildError} />
       <div
         data-nextjs-dialog-root
         onTransitionEnd={onTransitionEnd}
