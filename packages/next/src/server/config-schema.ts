@@ -533,7 +533,16 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .args()
       .returns(z.promise(z.array(zHeader)))
       .optional(),
-    htmlLimitedBots: z.instanceof(RegExp).optional(),
+    // The user configuration for htmlLimitedBots is a RegExp;
+    // The serialized next config value for next-server is a string.
+    // To match the NextConfig type, we use z.custom<RegExp> here,
+    // and dynamically assert the type at runtime.
+    htmlLimitedBots: z
+      .custom<RegExp>((val) => {
+        const proto = Object.prototype.toString.call(val)
+        return proto === '[object RegExp]' || proto === '[object String]'
+      })
+      .optional(),
     httpAgentOptions: z
       .strictObject({ keepAlive: z.boolean().optional() })
       .optional(),
