@@ -270,6 +270,7 @@ export const DEVTOOLS_PANEL_TAB_SETTINGS_STYLES = css`
   }
 
   [data-nextjs-devtools-panel-settings-section]:last-child {
+    padding-bottom: 0;
     border-bottom: none;
   }
 
