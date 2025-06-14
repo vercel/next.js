@@ -52,9 +52,10 @@ impl ConnectChildOperation {
         };
 
         // Quick skip if the child was already connected before
-        if !new_children.insert(child_task_id) {
+        if new_children.insert(child_task_id, is_immutable).is_some() {
             return;
         }
+
         if parent_task.has_key(&CachedDataItemKey::Child {
             task: child_task_id,
         }) {

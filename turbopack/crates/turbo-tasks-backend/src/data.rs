@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use rustc_hash::FxHashSet;
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     CellId, KeyValuePair, SessionId, TaskId, TraitTypeId, TypedSharedReference, ValueTypeId,
@@ -315,7 +315,9 @@ pub struct InProgressStateInner {
     pub done_event: Event,
     /// Children that should be connected to the task and have their active_count decremented
     /// once the task completes.
-    pub new_children: FxHashSet<TaskId>,
+    ///
+    /// The bool value is `is_immutable` of the child task.
+    pub new_children: FxHashMap<TaskId, bool>,
 }
 
 #[derive(Debug)]
