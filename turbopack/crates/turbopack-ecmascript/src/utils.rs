@@ -6,6 +6,7 @@ use swc_core::{
         visit::AstParentKind,
     },
 };
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{NonLocalValue, trace::TraceRawVcs};
 use turbopack_core::{chunk::ModuleId, resolve::pattern::Pattern};
 
@@ -27,16 +28,24 @@ pub fn unparen(expr: &Expr) -> &Expr {
 pub fn js_value_to_pattern(value: &JsValue) -> Pattern {
     let mut result = match value {
         JsValue::Constant(v) => Pattern::Constant(match v {
-            ConstantValue::Str(str) => str.as_str().into(),
-            ConstantValue::True => "true".into(),
-            ConstantValue::False => "false".into(),
-            ConstantValue::Null => "null".into(),
+            ConstantValue::Str(str) => {
+                // Normalize windows file paths when constructing the pattern.
+                // See PACK-3279
+                if str.as_str().contains("\\") {
+                    RcStr::from(str.to_string().replace('\\', "/"))
+                } else {
+                    str.as_rcstr()
+                }
+            }
+            ConstantValue::True => rcstr!("true"),
+            ConstantValue::False => rcstr!("false"),
+            ConstantValue::Null => rcstr!("null"),
             ConstantValue::Num(ConstantNumber(n)) => n.to_string().into(),
             ConstantValue::BigInt(n) => n.to_string().into(),
             ConstantValue::Regex(box (exp, flags)) => format!("/{exp}/{flags}").into(),
-            ConstantValue::Undefined => "undefined".into(),
+            ConstantValue::Undefined => rcstr!("undefined"),
         }),
-        JsValue::Url(v, JsValueUrlKind::Relative) => Pattern::Constant(v.as_str().into()),
+        JsValue::Url(v, JsValueUrlKind::Relative) => Pattern::Constant(v.as_rcstr()),
         JsValue::Alternatives {
             total_nodes: _,
             values,
