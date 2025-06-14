@@ -538,7 +538,7 @@ impl EvaluateContext for WebpackLoaderContext {
                 EvaluateEmittedErrorIssue {
                     file_path: self.context_ident_for_issue.path().to_resolved().await?,
                     error,
-                    severity: severity.resolved_cell(),
+                    severity,
                     assets_for_source_mapping: pool.assets_for_source_mapping,
                     assets_root: pool.assets_root,
                     project_dir: self.chunking_context.root_path().to_resolved().await?,
@@ -621,9 +621,9 @@ impl EvaluateContext for WebpackLoaderContext {
                 file_path: self.context_ident_for_issue.path().to_resolved().await?,
                 logging: logs,
                 severity: if has_errors {
-                    IssueSeverity::Error.resolved_cell()
+                    IssueSeverity::Error
                 } else {
-                    IssueSeverity::Warning.resolved_cell()
+                    IssueSeverity::Warning
                 },
                 assets_for_source_mapping: pool.assets_for_source_mapping,
                 assets_root: pool.assets_root,
@@ -728,9 +728,8 @@ pub struct BuildDependencyIssue {
 
 #[turbo_tasks::value_impl]
 impl Issue for BuildDependencyIssue {
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        IssueSeverity::Warning.into()
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Warning
     }
 
     #[turbo_tasks::function]
@@ -769,7 +768,7 @@ impl Issue for BuildDependencyIssue {
 #[turbo_tasks::value(shared)]
 pub struct EvaluateEmittedErrorIssue {
     pub file_path: ResolvedVc<FileSystemPath>,
-    pub severity: ResolvedVc<IssueSeverity>,
+    pub severity: IssueSeverity,
     pub error: StructuredError,
     pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
     pub assets_root: ResolvedVc<FileSystemPath>,
@@ -788,9 +787,8 @@ impl Issue for EvaluateEmittedErrorIssue {
         IssueStage::Transform.cell()
     }
 
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        *self.severity
+    fn severity(&self) -> IssueSeverity {
+        self.severity
     }
 
     #[turbo_tasks::function]
@@ -820,7 +818,7 @@ impl Issue for EvaluateEmittedErrorIssue {
 #[turbo_tasks::value(shared)]
 pub struct EvaluateErrorLoggingIssue {
     pub file_path: ResolvedVc<FileSystemPath>,
-    pub severity: ResolvedVc<IssueSeverity>,
+    pub severity: IssueSeverity,
     #[turbo_tasks(trace_ignore)]
     pub logging: Vec<LogInfo>,
     pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
@@ -840,9 +838,8 @@ impl Issue for EvaluateErrorLoggingIssue {
         IssueStage::Transform.cell()
     }
 
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        *self.severity
+    fn severity(&self) -> IssueSeverity {
+        self.severity
     }
 
     #[turbo_tasks::function]

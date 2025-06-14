@@ -90,7 +90,7 @@
       "test/e2e/app-dir/app-prefetch*/**/*",
       "test/e2e/app-dir/dynamic-io-*/**/*",
       "test/e2e/app-dir/dynamic-io/**/*",
-      "test/e2e/app-dir/empty-fallback-shells/**/*",
+      "test/e2e/app-dir/fallback-shells/**/*",
       "test/e2e/app-dir/front-redirect-issue/front-redirect-issue.test.ts",
       "test/e2e/app-dir/next-font/**/*",
       "test/e2e/app-dir/ppr-*/**/*",

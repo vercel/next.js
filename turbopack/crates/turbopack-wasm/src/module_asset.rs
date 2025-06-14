@@ -15,7 +15,7 @@ use turbopack_core::{
     output::OutputAssets,
     reference::{ModuleReferences, SingleChunkableModuleReference},
     reference_type::ReferenceType,
-    resolve::{origin::ResolveOrigin, parse::Request},
+    resolve::{ExportUsage, origin::ResolveOrigin, parse::Request},
     source::Source,
 };
 use turbopack_ecmascript::{
@@ -108,9 +108,13 @@ impl WebAssemblyModuleAsset {
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
         Ok(Vc::cell(vec![ResolvedVc::upcast(
-            SingleChunkableModuleReference::new(Vc::upcast(self.loader()), rcstr!("wasm loader"))
-                .to_resolved()
-                .await?,
+            SingleChunkableModuleReference::new(
+                Vc::upcast(self.loader()),
+                rcstr!("wasm loader"),
+                ExportUsage::all(),
+            )
+            .to_resolved()
+            .await?,
         )]))
     }
 }

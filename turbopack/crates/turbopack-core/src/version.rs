@@ -18,14 +18,17 @@ pub struct OptionVersionedContent(Option<ResolvedVc<Box<dyn VersionedContent>>>)
 #[turbo_tasks::value_trait]
 pub trait VersionedContent {
     /// The content of the [Asset].
+    #[turbo_tasks::function]
     fn content(self: Vc<Self>) -> Vc<AssetContent>;
 
     /// Get a [`Version`] implementor that contains enough information to
     /// identify and diff a future [`VersionedContent`] against it.
+    #[turbo_tasks::function]
     fn version(self: Vc<Self>) -> Vc<Box<dyn Version>>;
 
     /// Describes how to update the content from an earlier version to the
     /// latest available one.
+    #[turbo_tasks::function]
     async fn update(self: Vc<Self>, from: Vc<Box<dyn Version>>) -> Result<Vc<Update>> {
         // By default, since we can't make any assumptions about the versioning
         // scheme of the content, we ask for a full invalidation, except in the
@@ -128,6 +131,7 @@ pub trait Version {
     /// Get a unique identifier of the version as a string. There is no way
     /// to convert an id back to its original `Version`, so the original object
     /// needs to be stored somewhere.
+    #[turbo_tasks::function]
     fn id(self: Vc<Self>) -> Vc<RcStr>;
 }
 
@@ -138,6 +142,7 @@ pub trait Version {
 /// together.
 #[turbo_tasks::value_trait]
 pub trait MergeableVersionedContent: VersionedContent {
+    #[turbo_tasks::function]
     fn get_merger(self: Vc<Self>) -> Vc<Box<dyn VersionedContentMerger>>;
 }
 
@@ -145,6 +150,7 @@ pub trait MergeableVersionedContent: VersionedContent {
 /// single one.
 #[turbo_tasks::value_trait]
 pub trait VersionedContentMerger {
+    #[turbo_tasks::function]
     fn merge(self: Vc<Self>, contents: Vc<VersionedContents>) -> Vc<Box<dyn VersionedContent>>;
 }
 
@@ -266,7 +272,7 @@ pub struct VersionState {
 
 #[turbo_tasks::value_impl]
 impl VersionState {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(invalidator)]
     pub fn get(&self) -> Vc<Box<dyn Version>> {
         TraitRef::cell(self.version.get().0.clone())
     }

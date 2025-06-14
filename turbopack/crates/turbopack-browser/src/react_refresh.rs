@@ -80,9 +80,8 @@ pub struct ReactRefreshResolvingIssue {
 
 #[turbo_tasks::value_impl]
 impl Issue for ReactRefreshResolvingIssue {
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        IssueSeverity::Warning.into()
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Warning
     }
 
     #[turbo_tasks::function]

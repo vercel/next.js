@@ -1151,6 +1151,15 @@ async function loadWasm(importPath = '') {
             return Promise.resolve(true)
           },
         },
+        rspack: {
+          getModuleNamedExports: function (
+            _resourcePath: string
+          ): Promise<string[]> {
+            throw new Error(
+              '`rspack.getModuleNamedExports` is not supported by the wasm bindings.'
+            )
+          },
+        },
       }
       return wasmBindings
     } catch (e: any) {
@@ -1327,6 +1336,13 @@ function loadNative(importPath?: string) {
           return bindings.isReactCompilerRequired(filename)
         },
       },
+      rspack: {
+        getModuleNamedExports: function (
+          resourcePath: string
+        ): Promise<string[]> {
+          return bindings.getModuleNamedExports(resourcePath)
+        },
+      },
     }
     return nativeBindings
   }
@@ -1443,3 +1459,10 @@ export const teardownTraceSubscriber = once(() => {
     // Suppress exceptions, this fn allows to fail to load native bindings
   }
 })
+
+export async function getModuleNamedExports(
+  resourcePath: string
+): Promise<string[]> {
+  const bindings = await loadBindings()
+  return bindings.rspack.getModuleNamedExports(resourcePath)
+}

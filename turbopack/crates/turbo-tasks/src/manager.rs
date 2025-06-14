@@ -603,18 +603,24 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 self.schedule_local_task(task_type, persistence)
             }
             TaskPersistence::Transient => {
+                let immutable = registry::get_function(fn_type).function_meta.immutable;
                 let task_type = CachedTaskType { fn_type, this, arg };
+
                 RawVc::TaskOutput(self.backend.get_or_create_transient_task(
                     task_type,
                     current_task("turbo_function calls"),
+                    immutable,
                     self,
                 ))
             }
             TaskPersistence::Persistent => {
+                let immutable = registry::get_function(fn_type).function_meta.immutable;
                 let task_type = CachedTaskType { fn_type, this, arg };
+
                 RawVc::TaskOutput(self.backend.get_or_create_persistent_task(
                     task_type,
                     current_task("turbo_function calls"),
+                    immutable,
                     self,
                 ))
             }
@@ -1724,8 +1730,8 @@ pub fn mark_session_dependent() {
     });
 }
 
-/// Marks the current task as finished. This excludes it from waiting for
-/// strongly consistency.
+/// Marks the current task as a root in the aggregation graph.  This means it starts with the
+/// correct aggregation number instead of needing to recompute it after the fact.
 pub fn mark_root() {
     with_turbo_tasks(|tt| {
         tt.set_own_task_aggregation_number(current_task("turbo_tasks::mark_root()"), u32::MAX)

@@ -6,7 +6,7 @@ use swc_core::{
     quote,
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{
@@ -22,7 +22,8 @@ use turbopack_core::{
     reference::ModuleReference,
     reference_type::{EcmaScriptModulesReferenceSubType, ImportWithType},
     resolve::{
-        ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem, RequestKey,
+        ExportUsage, ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem,
+        RequestKey,
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
     },
@@ -143,7 +144,7 @@ impl EsmAssetReference {
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
         issue_source: IssueSource,
-        annotations: Value<ImportAnnotations>,
+        annotations: ImportAnnotations,
         export_name: Option<ModulePart>,
         import_externals: bool,
     ) -> Self {
@@ -151,7 +152,7 @@ impl EsmAssetReference {
             origin,
             request,
             issue_source,
-            annotations: annotations.into_value(),
+            annotations,
             export_name,
             import_externals,
         }
@@ -225,7 +226,7 @@ impl ModuleReference for EsmAssetReference {
         let result = esm_resolve(
             self.get_origin().resolve().await?,
             *self.request,
-            Value::new(ty),
+            ty,
             false,
             Some(self.issue_source.clone()),
         )
@@ -287,6 +288,15 @@ impl ChunkableModuleReference for EsmAssetReference {
                 })
             },
         ))
+    }
+
+    #[turbo_tasks::function]
+    fn export_usage(&self) -> Vc<ExportUsage> {
+        match &self.export_name {
+            Some(ModulePart::Export(export_name)) => ExportUsage::named(export_name.clone()),
+            Some(ModulePart::Evaluation) => ExportUsage::evaluation(),
+            _ => ExportUsage::all(),
+        }
     }
 }
 
@@ -445,9 +455,8 @@ pub struct InvalidExport {
 
 #[turbo_tasks::value_impl]
 impl Issue for InvalidExport {
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        IssueSeverity::Error.into()
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
     }
 
     #[turbo_tasks::function]

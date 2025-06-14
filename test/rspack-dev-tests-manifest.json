@@ -516,101 +516,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/client/components/react-dev-overlay/server/get-next-error-feedback-middleware.test.ts": {
-    "passed": [
-      "getNextErrorFeedbackMiddleware calls next() if path does not match",
-      "getNextErrorFeedbackMiddleware records telemetry when feedback is submitted",
-      "getNextErrorFeedbackMiddleware returns 400 if params are missing",
-      "getNextErrorFeedbackMiddleware returns 500 if telemetry recording fails"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/client/components/react-dev-overlay/ui/components/code-frame/parse-code-frame.test.ts": {
-    "passed": [
-      "parse line numbers parse line numbers from code frame",
-      "parse line numbers parse line numbers when a token contains both break and spaces"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/client/components/react-dev-overlay/ui/components/errors/error-overlay-layout/error-overlay-layout.test.tsx": {
-    "passed": [
-      "ErrorOverlayLayout Component renders ErrorOverlayLayout with provided props",
-      "ErrorOverlayLayout Component sends feedback when clicking helpful button",
-      "ErrorOverlayLayout Component sends feedback when clicking not helpful button",
-      "ErrorOverlayLayout Component voting buttons have aria-hidden icons"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/client/components/react-dev-overlay/ui/utils/cx.test.ts": {
-    "passed": [
-      "cx should filter out falsy values",
-      "cx should handle all falsy values",
-      "cx should handle single string argument",
-      "cx should join multiple string arguments with spaces",
-      "cx should not add extra spaces when falsy values are between strings",
-      "cx should return an empty string for no arguments"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/client/components/react-dev-overlay/ui/utils/parse-url-from-text.test.ts": {
-    "passed": [
-      "parseUrlFromText should extract a URL from text",
-      "parseUrlFromText should extract multiple URLs from text",
-      "parseUrlFromText should filter URLs using matcherFunc",
-      "parseUrlFromText should handle URLs with paths and query parameters",
-      "parseUrlFromText should handle empty string input",
-      "parseUrlFromText should return empty array when no URLs are found"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/client/components/react-dev-overlay/utils/css.test.ts": {
-    "passed": [
-      "css template literal tag should combines strings and interpolations correctly",
-      "css template literal tag should handle CSS wildcard selector",
-      "css template literal tag should handle empty strings",
-      "css template literal tag should handle multiple interpolations",
-      "css template literal tag should remove CSS comments",
-      "css template literal tag should remove all whitespace",
-      "css template literal tag should remove multiline comments"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/client/components/react-dev-overlay/utils/launch-editor.test.ts": {
-    "passed": ["applescript string escaping should escape strings correctly"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/client/components/react-dev-overlay/utils/webpack-module-path.test.ts": {
-    "passed": [
-      "webpack-module-path formatFrameSourceFile should return the original file path",
-      "webpack-module-path isWebpackInternalResource should return false for non-webpack-internal paths",
-      "webpack-module-path isWebpackInternalResource should return true for webpack-internal paths"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "packages/next/src/client/components/redirect.test.ts": {
     "passed": ["test should throw a redirect error"],
     "failed": [],
@@ -952,6 +857,111 @@
       "writeConfigurationDefaults() appDir with tsconfig extends should not add strictNullChecks if base provides it",
       "writeConfigurationDefaults() appDir with tsconfig extends should replace includes when base is missing appTypes",
       "writeConfigurationDefaults() appDir with tsconfig extends should support empty includes when base provides it"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/next-devtools/dev-overlay/components/code-frame/parse-code-frame.test.ts": {
+    "passed": [
+      "parse line numbers parse line numbers from code frame",
+      "parse line numbers parse line numbers when a token contains both break and spaces"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/next-devtools/dev-overlay/components/errors/error-overlay-layout/error-overlay-layout.test.tsx": {
+    "passed": [
+      "ErrorOverlayLayout Component renders ErrorOverlayLayout with provided props",
+      "ErrorOverlayLayout Component sends feedback when clicking helpful button",
+      "ErrorOverlayLayout Component sends feedback when clicking not helpful button",
+      "ErrorOverlayLayout Component voting buttons have aria-hidden icons"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/next-devtools/dev-overlay/segment-explorer.test.tsx": {
+    "passed": [
+      "Segment Explorer add complex structure",
+      "Segment Explorer remove node in the middle"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/next-devtools/dev-overlay/utils/css.test.ts": {
+    "passed": [
+      "css template literal tag should combines strings and interpolations correctly",
+      "css template literal tag should handle CSS wildcard selector",
+      "css template literal tag should handle empty strings",
+      "css template literal tag should handle multiple interpolations",
+      "css template literal tag should remove CSS comments",
+      "css template literal tag should remove all whitespace",
+      "css template literal tag should remove multiline comments"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/next-devtools/dev-overlay/utils/cx.test.ts": {
+    "passed": [
+      "cx should filter out falsy values",
+      "cx should handle all falsy values",
+      "cx should handle single string argument",
+      "cx should join multiple string arguments with spaces",
+      "cx should not add extra spaces when falsy values are between strings",
+      "cx should return an empty string for no arguments"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/next-devtools/dev-overlay/utils/parse-url-from-text.test.ts": {
+    "passed": [
+      "parseUrlFromText should extract a URL from text",
+      "parseUrlFromText should extract multiple URLs from text",
+      "parseUrlFromText should filter URLs using matcherFunc",
+      "parseUrlFromText should handle URLs with paths and query parameters",
+      "parseUrlFromText should handle empty string input",
+      "parseUrlFromText should return empty array when no URLs are found"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/next-devtools/server/get-next-error-feedback-middleware.test.ts": {
+    "passed": [
+      "getNextErrorFeedbackMiddleware calls next() if path does not match",
+      "getNextErrorFeedbackMiddleware records telemetry when feedback is submitted",
+      "getNextErrorFeedbackMiddleware returns 400 if params are missing",
+      "getNextErrorFeedbackMiddleware returns 500 if telemetry recording fails"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/next-devtools/server/launch-editor.test.ts": {
+    "passed": ["applescript string escaping should escape strings correctly"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/next-devtools/shared/webpack-module-path.test.ts": {
+    "passed": [
+      "webpack-module-path formatFrameSourceFile should return the original file path",
+      "webpack-module-path isWebpackInternalResource should return false for non-webpack-internal paths",
+      "webpack-module-path isWebpackInternalResource should return true for webpack-internal paths"
     ],
     "failed": [],
     "pending": [],
@@ -2454,6 +2464,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/error-overlay/duplicate-runtime-error/duplicate-runtime-error.test.ts": {
+    "passed": [
+      "duplicate-runtime-error should not rerender the overlay for the same runtime error"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-dir/error-overlay/error-ignored-frames/error-ignored-frames.test.ts": {
     "passed": [
       "error-ignored-frames should be able to collapse ignored frames in client component",
@@ -2639,7 +2658,11 @@
     "runtimeError": false
   },
   "test/development/app-dir/segment-explorer/segment-explorer.test.ts": {
-    "passed": ["segment-explorer should render the segment explorer"],
+    "passed": [
+      "segment-explorer should cleanup on soft navigation",
+      "segment-explorer should render the segment explorer for nested routes",
+      "segment-explorer should render the segment explorer for parallel routes"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -2943,14 +2966,14 @@
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover from 404 after a page has been added",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover from 404 after a page has been added with dynamic segments",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover from errors in getInitialProps in client",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover from errors in the render function",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should show the error on all pages"
     ],
     "failed": [
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should detect runtime errors on the module scope",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should not continously poll a custom error page",
-      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover after loader parse error in an imported file",
-      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover from errors in the render function"
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover after loader parse error in an imported file"
     ],
     "pending": [],
     "flakey": [],
@@ -3411,6 +3434,15 @@
       "dev indicator - route type getStaticPaths should be marked static on first load",
       "dev indicator - route type getStaticPaths should update when going from dynamic -> static",
       "dev indicator - route type should have route type as static by default for static page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/dev-indicator/dev-rendering-indicator.test.ts": {
+    "passed": [
+      "Dev Rendering Indicator Shows build indicator when page is built from modifying"
     ],
     "failed": [],
     "pending": [],
@@ -4286,6 +4318,7 @@
       "app-dir action handling should be possible to catch regular errors",
       "app-dir action handling should bundle external libraries if they are on the action layer",
       "app-dir action handling should forward action request to a worker that contains the action handler (edge)",
+      "app-dir action handling should forward action request to a worker that contains the action handler (node)",
       "app-dir action handling should handle action correctly with middleware rewrite",
       "app-dir action handling should handle actions executed in quick succession",
       "app-dir action handling should handle basic actions correctly",
@@ -4325,9 +4358,7 @@
       "app-dir action handling should trigger an error boundary for action responses with an invalid content-type",
       "app-dir action handling should work with interception routes"
     ],
-    "failed": [
-      "app-dir action handling should forward action request to a worker that contains the action handler (node)"
-    ],
+    "failed": [],
     "pending": [
       "app-dir action handling fetch actions should handle unstable_expireTag + redirect",
       "app-dir action handling server actions render client components client component imported action should support importing client components from actions"
@@ -5208,7 +5239,6 @@
       "app dir - basic searchParams prop server component should have the correct search params on middleware rewrite",
       "app dir - basic searchParams prop server component should have the correct search params on rewrite",
       "app dir - basic server components Loading should render loading.js in browser for slow layout",
-      "app dir - basic server components Loading should render loading.js in browser for slow layout and page",
       "app dir - basic server components Loading should render loading.js in browser for slow page",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout and page",
@@ -5223,6 +5253,7 @@
       "app dir - basic server components dynamic routes should only pass params that apply to the layout",
       "app dir - basic server components middleware should strip internal query parameters from requests to middleware for redirect",
       "app dir - basic server components middleware should strip internal query parameters from requests to middleware for rewrite",
+      "app dir - basic server components next/router should support router.back and router.forward",
       "app dir - basic server components should include client component layout with server component route should include it client-side",
       "app dir - basic server components should include client component layout with server component route should include it server-side",
       "app dir - basic server components should not serve .client.js as a path",
@@ -5266,7 +5297,7 @@
     ],
     "failed": [
       "app dir - basic <Link /> should navigate to pages dynamic route from pages page if it overlaps with an app page",
-      "app dir - basic server components next/router should support router.back and router.forward"
+      "app dir - basic server components Loading should render loading.js in browser for slow layout and page"
     ],
     "pending": [
       "app dir - basic HMR should HMR correctly when changing the component type",
@@ -6356,11 +6387,11 @@
   },
   "test/e2e/app-dir/error-on-next-codemod-comment/error-on-next-codemod-comment.test.ts": {
     "passed": [
-      "app-dir - error-on-next-codemod-comment should disappear the error when you replace with bypass comment"
+      "app-dir - error-on-next-codemod-comment should disappear the error when you replace with bypass comment",
+      "app-dir - error-on-next-codemod-comment should disappear the error when you rre the codemod comment",
+      "app-dir - error-on-next-codemod-comment should error with inline comment as well"
     ],
     "failed": [
-      "app-dir - error-on-next-codemod-comment should disappear the error when you rre the codemod comment",
-      "app-dir - error-on-next-codemod-comment should error with inline comment as well",
       "app-dir - error-on-next-codemod-comment should error with swc if you have codemod comments left"
     ],
     "pending": [],
@@ -8198,6 +8229,7 @@
       "ppr-metadata-streaming dynamic metadata should generate metadata in body when page is fully dynamic",
       "ppr-metadata-streaming partial shell should insert metadata into body with dynamic metadata and wrapped under layout Suspense boundary",
       "ppr-metadata-streaming partial shell should insert metadata into head with dynamic metadata and dynamic page wrapped under layout Suspense boundary",
+      "ppr-metadata-streaming partial shell should not yield hydration errors after revalidation",
       "ppr-metadata-streaming static metadata should generate metadata in head when page is fully static",
       "ppr-metadata-streaming static metadata should insert metadata in body when page is dynamic page content"
     ],
@@ -9632,6 +9664,7 @@
       "use-cache can reference server actions in \"use cache\" functions",
       "use-cache renders the not-found page when `notFound()` is used",
       "use-cache replays logs from \"use cache\" functions",
+      "use-cache shares caches between the page/layout and generateMetadata",
       "use-cache should be able to revalidate a page using unstable_expireTag",
       "use-cache should cache complex args",
       "use-cache should cache fetch without no-store",
@@ -10034,6 +10067,33 @@
     "passed": [
       "children-page with app dir should show the content if you have a page named children",
       "children-page with pages dir should show the content if you have a page named children"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/chrome-devtools-workspace/chrome-devtools-workspace-base-path.test.ts": {
+    "passed": [
+      "chrome-devtools-workspace basePath should be able to connect to Chrome DevTools in dev with a configured basePath"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/chrome-devtools-workspace/chrome-devtools-workspace-custom-disable.test.ts": {
+    "passed": [
+      "chrome-devtools-workspace custom disable can be disabled by providing your own endpoint"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/chrome-devtools-workspace/chrome-devtools-workspace.test.ts": {
+    "passed": [
+      "chrome-devtools-workspace default should be able to connect to Chrome DevTools in dev"
     ],
     "failed": [],
     "pending": [],

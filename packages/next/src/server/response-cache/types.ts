@@ -187,6 +187,7 @@ export type ResponseGenerator = (state: {
   hasResolved: boolean
   previousCacheEntry?: IncrementalResponseCacheEntry | null
   isRevalidating?: boolean
+  span?: any
 }) => Promise<ResponseCacheEntry | null>
 
 export const enum IncrementalCacheKind {
@@ -225,6 +226,7 @@ export interface SetIncrementalFetchCacheContext {
   fetchUrl?: string
   fetchIdx?: number
   tags?: string[]
+  isImplicitBuildTimeCache?: boolean
 }
 
 export interface SetIncrementalResponseCacheContext {

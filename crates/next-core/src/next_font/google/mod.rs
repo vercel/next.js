@@ -6,7 +6,7 @@ use indoc::formatdoc;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{Completion, FxIndexMap, ResolvedVc, Value, Vc};
+use turbo_tasks::{Completion, FxIndexMap, ResolvedVc, Vc};
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::{CommandLineProcessEnv, ProcessEnv};
 use turbo_tasks_fetch::{HttpResponseBody, fetch};
@@ -248,8 +248,8 @@ impl NextFontGoogleCssModuleReplacer {
                         NextFontIssue {
                             path: css_virtual_path.to_resolved().await?,
                             title: StyledString::Line(vec![
-                                StyledString::Code("next/font:".into()),
-                                StyledString::Text(" error:".into()),
+                                StyledString::Code(rcstr!("next/font:")),
+                                StyledString::Text(rcstr!(" error:")),
                             ])
                             .resolved_cell(),
                             description: StyledString::Text(
@@ -260,7 +260,7 @@ impl NextFontGoogleCssModuleReplacer {
                                 .into(),
                             )
                             .resolved_cell(),
-                            severity: IssueSeverity::Error.resolved_cell(),
+                            severity: IssueSeverity::Error,
                         }
                         .resolved_cell()
                         .emit();
@@ -272,8 +272,8 @@ impl NextFontGoogleCssModuleReplacer {
                         NextFontIssue {
                             path: css_virtual_path.to_resolved().await?,
                             title: StyledString::Line(vec![
-                                StyledString::Code("next/font:".into()),
-                                StyledString::Text(" warning:".into()),
+                                StyledString::Code(rcstr!("next/font:")),
+                                StyledString::Text(rcstr!(" warning:")),
                             ])
                             .resolved_cell(),
                             description: StyledString::Text(
@@ -285,7 +285,7 @@ impl NextFontGoogleCssModuleReplacer {
                                 .into(),
                             )
                             .resolved_cell(),
-                            severity: IssueSeverity::Warning.resolved_cell(),
+                            severity: IssueSeverity::Warning,
                         }
                         .resolved_cell()
                         .emit();
@@ -624,7 +624,7 @@ async fn font_options_from_query_map(
 
     let options =
         options_from_request(&parse_json_with_source_context(&json)?, &*font_data.await?)?;
-    Ok(NextFontGoogleOptions::new(Value::new(options)))
+    Ok(NextFontGoogleOptions::new(options))
 }
 fn font_file_options_from_query_map(query: &RcStr) -> Result<NextFontGoogleFontFileOptions> {
     let query_map = qstring::QString::from(query.as_str());
@@ -663,7 +663,7 @@ async fn fetch_from_google_fonts(
     Ok(match *result {
         Ok(r) => Some(*r.await?.body),
         Err(err) => {
-            err.to_issue(IssueSeverity::Warning.into(), virtual_path)
+            err.to_issue(IssueSeverity::Warning, virtual_path)
                 .to_resolved()
                 .await?
                 .emit();

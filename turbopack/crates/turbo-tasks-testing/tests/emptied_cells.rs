@@ -56,7 +56,7 @@ async fn compute(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
     Ok(Vc::cell(value))
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(invalidator)]
 async fn inner_compute(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
     println!("inner_compute()");
     let state_value = *input.await?.state.get();

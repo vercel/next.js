@@ -13,8 +13,8 @@ use serde::{Deserialize, Serialize};
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, NonLocalValue, OperationVc, ResolvedVc, TryJoinIterExt, TurboTasks, Value, Vc,
-    apply_effects, debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs,
+    Completion, NonLocalValue, OperationVc, ResolvedVc, TaskInput, TurboTasks, Vc, apply_effects,
+    debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs,
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_bytes::stream::SingleValue;
@@ -37,7 +37,7 @@ use turbopack_core::{
     context::AssetContext,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
-    issue::{Issue, IssueDescriptionExt},
+    issue::IssueDescriptionExt,
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
         ExternalTraced, ExternalType,
@@ -49,7 +49,7 @@ use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_node::{debug::should_debug, evaluate::evaluate};
 use turbopack_nodejs::NodeJsChunkingContext;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
-use turbopack_test_utils::jest::JestRunResult;
+use turbopack_test_utils::{jest::JestRunResult, snapshot::UPDATE};
 use turbopack_trace_utils::{
     filter_layer::FilterLayer, raw_trace::RawTraceLayer, trace_writer::TraceWriter,
     tracing_presets::TRACING_TURBO_TASKS_TARGETS,
@@ -74,7 +74,7 @@ struct JsResult {
 }
 
 #[turbo_tasks::value]
-#[derive(Copy, Clone, Debug, Hash)]
+#[derive(Copy, Clone, Debug, Hash, TaskInput)]
 enum IssueSnapshotMode {
     Snapshots,
     NoSnapshots,
@@ -193,15 +193,14 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
     let tt = TurboTasks::new(TurboTasksBackend::new(
         BackendOptions {
             storage_mode: None,
-            dependency_tracking: false,
+            dependency_tracking: *UPDATE,
             ..Default::default()
         },
         noop_backing_storage(),
     ));
     let result = tt
         .run_once(async move {
-            let emit_op =
-                run_inner_operation(resource.to_str().unwrap().into(), Value::new(snapshot_mode));
+            let emit_op = run_inner_operation(resource.to_str().unwrap().into(), snapshot_mode);
             let result = emit_op.read_strongly_consistent().owned().await?;
             apply_effects(emit_op).await?;
 
@@ -217,11 +216,11 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
 #[turbo_tasks::function(operation)]
 async fn run_inner_operation(
     resource: RcStr,
-    snapshot_mode: Value<IssueSnapshotMode>,
+    snapshot_mode: IssueSnapshotMode,
 ) -> Result<Vc<JsResult>> {
     let prepared_test = prepare_test(resource).to_resolved().await?;
     let run_result_op = run_test_operation(prepared_test);
-    if *snapshot_mode == IssueSnapshotMode::Snapshots {
+    if snapshot_mode == IssueSnapshotMode::Snapshots {
         snapshot_issues(*prepared_test, run_result_op).await?;
     }
 
@@ -242,6 +241,8 @@ async fn run_inner_operation(
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct TestOptions {
     tree_shaking_mode: Option<TreeShakingMode>,
+    #[serde(default)]
+    remove_unused_exports: bool,
 }
 
 #[turbo_tasks::value]
@@ -377,10 +378,12 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                 ContextCondition::InDirectory("node_modules".into()),
                 ModuleOptionsContext {
                     tree_shaking_mode: options.tree_shaking_mode,
+                    remove_unused_exports: options.remove_unused_exports,
                     ..Default::default()
                 }
                 .resolved_cell(),
             )],
+            remove_unused_exports: options.remove_unused_exports,
             ..Default::default()
         }
         .into(),
@@ -505,11 +508,7 @@ async fn snapshot_issues(
 
     let captured_issues = run_result_op.peek_issues_with_path().await?;
 
-    let plain_issues = captured_issues
-        .iter_with_shortest_path()
-        .map(|(issue_vc, path)| async move { issue_vc.into_plain(path).await })
-        .try_join()
-        .await?;
+    let plain_issues = captured_issues.get_plain_issues().await?;
 
     turbopack_test_utils::snapshot::snapshot_issues(
         plain_issues,

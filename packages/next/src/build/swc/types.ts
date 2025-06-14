@@ -43,6 +43,10 @@ export interface Binding {
   reactCompiler: {
     isReactCompilerRequired(filename: string): Promise<boolean>
   }
+
+  rspack: {
+    getModuleNamedExports(resourcePath: string): Promise<string[]>
+  }
 }
 
 export type StyledString =
@@ -95,6 +99,13 @@ export interface Issue {
     }
   }
   documentationLink: string
+  importTraces?: PlainTraceItem[][]
+}
+export interface PlainTraceItem {
+  fsName: string
+  path: string
+  rootPath: string
+  layer?: string
 }
 
 export interface Diagnostics {

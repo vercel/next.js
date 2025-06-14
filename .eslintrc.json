@@ -168,6 +168,7 @@
       "files": ["packages/**"],
       "excludedFiles": [
         "packages/next/taskfile*.js",
+        "packages/next/next-devtools.webpack-config.js",
         "packages/next/next-runtime.webpack-config.js"
       ],
       "rules": {
@@ -296,6 +297,17 @@
     "no-octal": "error",
     "no-octal-escape": "error",
     "no-regex-spaces": "error",
+    "no-restricted-imports": [
+      "error",
+      {
+        "patterns": [
+          {
+            "group": ["*/next-devtools/dev-overlay*"],
+            "message": "Use `next/dist/compiled/next-devtools` (`src/next-devtools/dev-overlay/entrypoint.ts`) instead. Prefer `src/next-devtools/shared/` for shared utils."
+          }
+        ]
+      }
+    ],
     "no-restricted-syntax": [
       "error",
       "WithStatement",

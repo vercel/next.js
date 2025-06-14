@@ -200,7 +200,6 @@
       "app-dir action handling should support setting cookies when redirecting (no javascript)",
       "app-dir action handling should support setting cookies when redirecting (with javascript)",
       "app-dir action handling should support uploading files",
-      "app-dir action handling should trace server action imported by client correctly",
       "app-dir action handling should trigger a refresh for a server action that also dispatches a navigation event",
       "app-dir action handling should trigger a refresh for a server action that gets discarded due to a navigation",
       "app-dir action handling should trigger an error boundary for action responses with an invalid content-type",
@@ -335,7 +334,6 @@
       "app-dir action handling should support setting cookies when redirecting (no javascript)",
       "app-dir action handling should support setting cookies when redirecting (with javascript)",
       "app-dir action handling should support uploading files",
-      "app-dir action handling should trace server action imported by client correctly",
       "app-dir action handling should trigger a refresh for a server action that also dispatches a navigation event",
       "app-dir action handling should trigger a refresh for a server action that gets discarded due to a navigation",
       "app-dir action handling should trigger an error boundary for action responses with an invalid content-type",
@@ -4497,6 +4495,7 @@
       "ppr-metadata-streaming html limited bots should serve partial static shell when normal UA requests the PPR page",
       "ppr-metadata-streaming partial shell should insert metadata into body with dynamic metadata and wrapped under layout Suspense boundary",
       "ppr-metadata-streaming partial shell should insert metadata into head with dynamic metadata and dynamic page wrapped under layout Suspense boundary",
+      "ppr-metadata-streaming partial shell should not yield hydration errors after revalidation",
       "ppr-metadata-streaming static metadata should generate metadata in head when page is fully static",
       "ppr-metadata-streaming static metadata should insert metadata in body when page is dynamic page content"
     ],
@@ -5434,6 +5433,7 @@
   },
   "test/e2e/app-dir/segment-cache/cdn-cache-busting/cdn-cache-busting.test.ts": {
     "passed": [
+      "segment cache (CDN cache busting) perform fully prefetched navigation when a third-party proxy performs a redirect",
       "segment cache (CDN cache busting) perform fully prefetched navigation with a CDN that doesn't respect the Vary header",
       "segment cache (CDN cache busting) prevent cache poisoning attacks by responding with an error if a custom header is sent during a prefetch without a corresponding cache-busting search param"
     ],
@@ -5985,6 +5985,7 @@
     "passed": [
       "use-cache can reference server actions in \"use cache\" functions",
       "use-cache renders the not-found page when `notFound()` is used",
+      "use-cache shares caches between the page/layout and generateMetadata",
       "use-cache should be able to revalidate a page using unstable_expireTag",
       "use-cache should cache complex args",
       "use-cache should cache fetch without no-store",
@@ -6391,6 +6392,33 @@
     "passed": [
       "children-page with app dir should show the content if you have a page named children",
       "children-page with pages dir should show the content if you have a page named children"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/chrome-devtools-workspace/chrome-devtools-workspace-base-path.test.ts": {
+    "passed": [
+      "chrome-devtools-workspace basePath should be able to connect to Chrome DevTools in dev with a configured basePath"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/chrome-devtools-workspace/chrome-devtools-workspace-custom-disable.test.ts": {
+    "passed": [
+      "chrome-devtools-workspace custom disable can be disabled by providing your own endpoint"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/chrome-devtools-workspace/chrome-devtools-workspace.test.ts": {
+    "passed": [
+      "chrome-devtools-workspace default should be able to connect to Chrome DevTools in dev"
     ],
     "failed": [],
     "pending": [],
@@ -10250,8 +10278,8 @@
     ],
     "failed": [],
     "pending": [
-      "CSS Modules: Importing Invalid Global CSS production mode should fail to build",
       "CSS Modules: Import Exports production mode should've emitted a single CSS file",
+      "CSS Modules: Importing Invalid Global CSS production mode should fail to build",
       "Custom Properties: Fail for :root {} in CSS Modules production mode should fail to build"
     ],
     "flakey": [],
@@ -10303,15 +10331,15 @@
       "Valid CSS Module Usage from within node_modules production mode should've prerendered with relevant data",
       "cssmodules-pure-no-check usage should apply styles correctly",
       "cssmodules-pure-no-check usage should have compiled successfully",
-      "cssmodules-pure-no-check usage should've emitted a CSS file",
-      "CSS Module Composes Usage (External) production mode should've emitted a single CSS file",
-      "Valid Nested CSS Module Usage from within node_modules production mode should've emitted a single CSS file",
-      "Valid Nested CSS Module Usage from within node_modules production mode should've prerendered with relevant data"
+      "cssmodules-pure-no-check usage should've emitted a CSS file"
     ],
     "failed": [],
     "pending": [
+      "CSS Module Composes Usage (External) production mode should've emitted a single CSS file",
       "Invalid CSS Module Usage in node_modules production mode should fail to build",
-      "Invalid Global CSS Module Usage in node_modules production mode should fail to build"
+      "Invalid Global CSS Module Usage in node_modules production mode should fail to build",
+      "Valid Nested CSS Module Usage from within node_modules production mode should've emitted a single CSS file",
+      "Valid Nested CSS Module Usage from within node_modules production mode should've prerendered with relevant data"
     ],
     "flakey": [],
     "runtimeError": false
@@ -15199,6 +15227,7 @@
       "nested index.js production mode should client render page /index/user",
       "nested index.js production mode should follow link to /",
       "nested index.js production mode should follow link to /index",
+      "nested index.js production mode should follow link to /index/index",
       "nested index.js production mode should follow link to /index/project",
       "nested index.js production mode should follow link to /index/user",
       "nested index.js production mode should not find a link to /index/index/index",
@@ -15208,9 +15237,7 @@
       "nested index.js production mode should ssr page /index/project",
       "nested index.js production mode should ssr page /index/user"
     ],
-    "failed": [
-      "nested index.js production mode should follow link to /index/index"
-    ],
+    "failed": [],
     "pending": [
       "nested index.js development mode should 404 on /index/index/index",
       "nested index.js development mode should client render page /",
@@ -16867,11 +16894,10 @@
   },
   "test/integration/prerender-export/test/index.test.js": {
     "passed": [
-      "SSG Prerender export production mode export mode should copy prerender files and honor exportTrailingSlash"
-    ],
-    "failed": [
+      "SSG Prerender export production mode export mode should copy prerender files and honor exportTrailingSlash",
       "SSG Prerender export production mode export mode should navigate between pages successfully"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -18234,6 +18260,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/production/app-dir/action-tracing/action-tracing.test.ts": {
+    "passed": [
+      "action-tracing should trace server action imported by client correctly"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/production/app-dir/actions-tree-shaking/basic/basic-edge.test.ts": {
     "passed": [
       "actions-tree-shaking - basic should not have the unused action in the manifest"
@@ -19068,8 +19103,9 @@
   },
   "test/production/exported-runtimes-value-validation/index.test.ts": {
     "passed": [
-      "Exported runtimes value validation fails to build on malformed input",
-      "Exported runtimes value validation warns on unrecognized runtimes value"
+      "Exported runtimes value validation fails the build on invalid middleware matcher",
+      "Exported runtimes value validation fails the build on unrecognized runtimes value",
+      "Exported runtimes value validation fails to build on malformed input"
     ],
     "failed": [],
     "pending": [],
@@ -19683,6 +19719,15 @@
   },
   "test/production/typescript-basic/typechecking.test.ts": {
     "passed": ["typechecking should typecheck"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/typescript-checked-side-effect-imports/index.test.ts": {
+    "passed": [
+      "Imports of server/client-only with noUncheckedSideEffectImports Should build without typescript errors"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],

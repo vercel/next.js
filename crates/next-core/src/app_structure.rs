@@ -590,7 +590,7 @@ fn conflict_issue(
             .into(),
         )
         .resolved_cell(),
-        severity: IssueSeverity::Error.resolved_cell(),
+        severity: IssueSeverity::Error,
     }
     .resolved_cell()
     .emit();
@@ -1529,16 +1529,15 @@ pub async fn get_global_metadata(
 
 #[turbo_tasks::value(shared)]
 struct DirectoryTreeIssue {
-    pub severity: ResolvedVc<IssueSeverity>,
+    pub severity: IssueSeverity,
     pub app_dir: ResolvedVc<FileSystemPath>,
     pub message: ResolvedVc<StyledString>,
 }
 
 #[turbo_tasks::value_impl]
 impl Issue for DirectoryTreeIssue {
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        *self.severity
+    fn severity(&self) -> IssueSeverity {
+        self.severity
     }
 
     #[turbo_tasks::function]

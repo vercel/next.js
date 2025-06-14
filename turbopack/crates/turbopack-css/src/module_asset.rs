@@ -328,7 +328,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
 
                         let Some(resolved_module) = &*resolved_module else {
                             CssModuleComposesIssue {
-                                severity: IssueSeverity::Error.resolved_cell(),
+                                severity: IssueSeverity::Error,
                                 source: self.module.ident().to_resolved().await?,
                                 message: formatdoc! {
                                     r#"
@@ -344,7 +344,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                             ResolvedVc::try_downcast_type::<ModuleCssAsset>(*resolved_module)
                         else {
                             CssModuleComposesIssue {
-                                severity: IssueSeverity::Error.resolved_cell(),
+                                severity: IssueSeverity::Error,
                                     source: self.module.ident().to_resolved().await?,
                                 message: formatdoc! {
                                     r#"
@@ -429,16 +429,15 @@ fn generate_minimal_source_map(filename: String, source: String) -> Result<Rope>
 
 #[turbo_tasks::value(shared)]
 struct CssModuleComposesIssue {
-    severity: ResolvedVc<IssueSeverity>,
+    severity: IssueSeverity,
     source: ResolvedVc<AssetIdent>,
     message: RcStr,
 }
 
 #[turbo_tasks::value_impl]
 impl Issue for CssModuleComposesIssue {
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        *self.severity
+    fn severity(&self) -> IssueSeverity {
+        self.severity
     }
 
     #[turbo_tasks::function]

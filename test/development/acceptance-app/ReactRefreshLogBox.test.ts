@@ -464,7 +464,18 @@ describe('ReactRefreshLogBox app', () => {
          "label": "Build Error",
          "source": "./index.module.css
        Parsing css source code failed
-       Selector is not pure (pure selectors must contain at least one local class or id), (lightningcss, Selector(button, specificity = 0x1))",
+       Selector "button" is not pure. Pure selectors must contain at least one local class or id.
+       Example import traces:
+         #1:
+           ./index.module.css [app-client]
+           ./index.js [app-client]
+           ./app/page.js [app-client]
+           ./app/page.js [app-rsc]
+         #2:
+           ./index.module.css [app-ssr]
+           ./index.js [app-ssr]
+           ./app/page.js [app-ssr]
+           ./app/page.js [app-rsc]",
          "stack": [],
        }
       `)
@@ -553,7 +564,7 @@ describe('ReactRefreshLogBox app', () => {
       await session.evaluate(
         () =>
           document
-            .querySelector('body > nextjs-portal')
+            .querySelector('body nextjs-portal')
             .shadowRoot.querySelectorAll('#nextjs__container_errors_desc a')
             .length
       )
@@ -563,7 +574,7 @@ describe('ReactRefreshLogBox app', () => {
         () =>
           (
             document
-              .querySelector('body > nextjs-portal')
+              .querySelector('body nextjs-portal')
               .shadowRoot.querySelector(
                 '#nextjs__container_errors_desc a:nth-of-type(1)'
               ) as any
@@ -635,7 +646,7 @@ describe('ReactRefreshLogBox app', () => {
       await session.evaluate(
         () =>
           document
-            .querySelector('body > nextjs-portal')
+            .querySelector('body nextjs-portal')
             .shadowRoot.querySelectorAll('#nextjs__container_errors_desc a')
             .length
       )
@@ -645,7 +656,7 @@ describe('ReactRefreshLogBox app', () => {
         () =>
           (
             document
-              .querySelector('body > nextjs-portal')
+              .querySelector('body nextjs-portal')
               .shadowRoot.querySelector(
                 '#nextjs__container_errors_desc a:nth-of-type(1)'
               ) as any
@@ -717,7 +728,7 @@ describe('ReactRefreshLogBox app', () => {
       await session.evaluate(
         () =>
           document
-            .querySelector('body > nextjs-portal')
+            .querySelector('body nextjs-portal')
             .shadowRoot.querySelectorAll('#nextjs__container_errors_desc a')
             .length
       )
@@ -727,7 +738,7 @@ describe('ReactRefreshLogBox app', () => {
         () =>
           (
             document
-              .querySelector('body > nextjs-portal')
+              .querySelector('body nextjs-portal')
               .shadowRoot.querySelector(
                 '#nextjs__container_errors_desc a:nth-of-type(1)'
               ) as any
@@ -800,7 +811,7 @@ describe('ReactRefreshLogBox app', () => {
       await session.evaluate(
         () =>
           document
-            .querySelector('body > nextjs-portal')
+            .querySelector('body nextjs-portal')
             .shadowRoot.querySelectorAll('#nextjs__container_errors_desc a')
             .length
       )
@@ -810,7 +821,7 @@ describe('ReactRefreshLogBox app', () => {
         () =>
           (
             document
-              .querySelector('body > nextjs-portal')
+              .querySelector('body nextjs-portal')
               .shadowRoot.querySelector(
                 '#nextjs__container_errors_desc a:nth-of-type(1)'
               ) as any
@@ -822,7 +833,7 @@ describe('ReactRefreshLogBox app', () => {
         () =>
           (
             document
-              .querySelector('body > nextjs-portal')
+              .querySelector('body nextjs-portal')
               .shadowRoot.querySelector(
                 '#nextjs__container_errors_desc a:nth-of-type(2)'
               ) as any

@@ -172,7 +172,7 @@ fn load_image_internal(
             )
             .resolved_cell(),
             title: Some(StyledString::Text(rcstr!("AVIF image not supported")).resolved_cell()),
-            issue_severity: Some(IssueSeverity::Warning.resolved_cell()),
+            issue_severity: Some(IssueSeverity::Warning),
         }
         .resolved_cell()
         .emit();
@@ -190,7 +190,7 @@ fn load_image_internal(
             )
             .resolved_cell(),
             title: Some(StyledString::Text(rcstr!("WEBP image not supported")).resolved_cell()),
-            issue_severity: Some(IssueSeverity::Warning.resolved_cell()),
+            issue_severity: Some(IssueSeverity::Warning),
         }
         .resolved_cell()
         .emit();
@@ -489,16 +489,13 @@ struct ImageProcessingIssue {
     path: ResolvedVc<FileSystemPath>,
     message: ResolvedVc<StyledString>,
     title: Option<ResolvedVc<StyledString>>,
-    issue_severity: Option<ResolvedVc<IssueSeverity>>,
+    issue_severity: Option<IssueSeverity>,
 }
 
 #[turbo_tasks::value_impl]
 impl Issue for ImageProcessingIssue {
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        self.issue_severity
-            .map(|s| *s)
-            .unwrap_or(IssueSeverity::Error.into())
+    fn severity(&self) -> IssueSeverity {
+        self.issue_severity.unwrap_or(IssueSeverity::Error)
     }
 
     #[turbo_tasks::function]

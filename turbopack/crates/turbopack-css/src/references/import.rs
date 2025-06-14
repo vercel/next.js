@@ -5,7 +5,7 @@ use lightningcss::{
     traits::ToCss,
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
     issue::IssueSource,
@@ -138,7 +138,7 @@ impl ModuleReference for ImportAssetReference {
         Ok(css_resolve(
             *self.origin,
             *self.request,
-            Value::new(CssReferenceSubType::AtImport(import_context)),
+            CssReferenceSubType::AtImport(import_context),
             Some(self.issue_source.clone()),
         ))
     }

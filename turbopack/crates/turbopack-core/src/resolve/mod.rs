@@ -13,7 +13,7 @@ use tracing::{Instrument, Level};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, SliceMap, TaskInput,
-    TryJoinIterExt, Value, ValueToString, Vc, trace::TraceRawVcs,
+    TryJoinIterExt, ValueToString, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{
     FileSystemEntryType, FileSystemPath, RealPathResult, util::normalize_request,
@@ -100,6 +100,35 @@ impl ModuleResolveResultItem {
             }
             _ => None,
         })
+    }
+}
+
+#[turbo_tasks::value]
+#[derive(Debug, Clone, Default, Hash)]
+pub enum ExportUsage {
+    Named(RcStr),
+    /// This means the whole content of the module is used.
+    #[default]
+    All,
+    /// Only side effects are used.
+    Evaluation,
+}
+
+#[turbo_tasks::value_impl]
+impl ExportUsage {
+    #[turbo_tasks::function]
+    pub fn all() -> Vc<Self> {
+        Self::All.cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn evaluation() -> Vc<Self> {
+        Self::Evaluation.cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn named(name: RcStr) -> Vc<Self> {
+        Self::Named(name).cell()
     }
 }
 
@@ -482,8 +511,8 @@ pub enum ResolveResultItem {
 /// A primary factor is the actual request string, but there are
 /// other factors like exports conditions that can affect resolting and become
 /// part of the key (assuming the condition is unknown at compile time)
-#[derive(Clone, Debug, Default, Hash)]
-#[turbo_tasks::value(serialization = "auto_for_input")]
+#[derive(Clone, Debug, Default, Hash, TaskInput)]
+#[turbo_tasks::value]
 pub struct RequestKey {
     pub request: Option<RcStr>,
     pub conditions: BTreeMap<String, bool>,
@@ -1016,9 +1045,8 @@ impl ResolveResult {
     pub fn with_replaced_request_key(
         &self,
         old_request_key: RcStr,
-        request_key: Value<RequestKey>,
+        request_key: RequestKey,
     ) -> Result<Vc<Self>> {
-        let request_key = request_key.into_value();
         let new_primary = self
             .primary
             .iter()
@@ -1323,13 +1351,13 @@ pub async fn find_context_file(
 pub async fn find_context_file_or_package_key(
     lookup_path: Vc<FileSystemPath>,
     names: Vc<Vec<RcStr>>,
-    package_key: Value<RcStr>,
+    package_key: RcStr,
 ) -> Result<Vc<FindContextFileResult>> {
     let mut refs = Vec::new();
     let package_json_path = lookup_path.join(rcstr!("package.json"));
     if let Some(package_json_path) = exists(package_json_path, &mut refs).await?
         && let Some(json) = &*read_package_json(*package_json_path).await?
-        && json.get(&**package_key).is_some()
+        && json.get(&*package_key).is_some()
     {
         return Ok(FindContextFileResult::Found(package_json_path, refs).into());
     }
@@ -1774,6 +1802,7 @@ async fn resolve_internal_inline(
     };
     async move {
         let options_value: &ResolveOptions = &*options.await?;
+
         let request_value = request.await?;
 
         // Apply import mappings if provided
@@ -2440,7 +2469,7 @@ async fn apply_in_package(
                         .with_fragment(fragment.clone()),
                     options,
                 )
-                .with_replaced_request_key(value.into(), Value::new(request_key))
+                .with_replaced_request_key(value.into(), request_key)
                 .with_affecting_sources(refs.into_iter().map(|src| *src).collect()),
             ));
         }
@@ -2597,7 +2626,7 @@ async fn resolve_module_request(
 
     let module_result =
         merge_results_with_affecting_sources(results, result.affecting_sources.clone())
-            .with_replaced_request_key(rcstr!("."), Value::new(RequestKey::new(module.into())));
+            .with_replaced_request_key(rcstr!("."), RequestKey::new(module.into()));
 
     if options_value.prefer_relative {
         let module_prefix: RcStr = format!("./{module}").into();
@@ -2612,7 +2641,7 @@ async fn resolve_module_request(
         let relative_result =
             Box::pin(resolve_internal_inline(lookup_path, *relative, options)).await?;
         let relative_result = relative_result
-            .with_replaced_request_key(module_prefix, Value::new(RequestKey::new(module.into())));
+            .with_replaced_request_key(module_prefix, RequestKey::new(module.into()));
 
         Ok(merge_results(vec![relative_result, module_result]))
     } else {
@@ -3076,9 +3105,9 @@ async fn emit_resolve_error_issue(
     source: Option<IssueSource>,
 ) -> Result<()> {
     let severity = if is_optional || resolve_options.await?.loose_errors {
-        IssueSeverity::Warning.resolved_cell()
+        IssueSeverity::Warning
     } else {
-        IssueSeverity::Error.resolved_cell()
+        IssueSeverity::Error
     };
     ResolvingIssue {
         severity,
@@ -3103,9 +3132,9 @@ async fn emit_unresolvable_issue(
     source: Option<IssueSource>,
 ) -> Result<()> {
     let severity = if is_optional || resolve_options.await?.loose_errors {
-        IssueSeverity::Warning.resolved_cell()
+        IssueSeverity::Warning
     } else {
-        IssueSeverity::Error.resolved_cell()
+        IssueSeverity::Error
     };
     ResolvingIssue {
         severity,
@@ -3121,11 +3150,11 @@ async fn emit_unresolvable_issue(
     Ok(())
 }
 
-async fn error_severity(resolve_options: Vc<ResolveOptions>) -> Result<ResolvedVc<IssueSeverity>> {
+async fn error_severity(resolve_options: Vc<ResolveOptions>) -> Result<IssueSeverity> {
     Ok(if resolve_options.await?.loose_errors {
-        IssueSeverity::Warning.resolved_cell()
+        IssueSeverity::Warning
     } else {
-        IssueSeverity::Error.resolved_cell()
+        IssueSeverity::Error
     })
 }
 

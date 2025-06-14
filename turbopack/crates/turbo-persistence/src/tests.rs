@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::{fs, time::Instant};
 
 use anyhow::Result;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -550,6 +550,102 @@ fn partial_compaction() -> Result<()> {
             check(&db, i, i)?;
             check(&db, i + 1, i)?;
             check(&db, i + 2, i)?;
+
+            db.shutdown()?;
+        }
+    }
+
+    Ok(())
+}
+
+#[test]
+fn merge_file_removal() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    let _ = fs::remove_dir_all(path);
+
+    const READ_COUNT: u32 = 2_000; // we'll read every 10th value, so writes are 10x this value
+    fn put(b: &WriteBatch<(u8, [u8; 4]), 1>, key: u8, value: u32) -> Result<()> {
+        for i in 0..(READ_COUNT * 10) {
+            b.put(
+                0,
+                (key, i.to_be_bytes()),
+                value.to_be_bytes().to_vec().into(),
+            )?;
+        }
+        Ok(())
+    }
+    fn check(db: &TurboPersistence, key: u8, value: u32) -> Result<()> {
+        for i in 0..READ_COUNT {
+            // read every 10th item
+            let i = i * 10;
+            assert_eq!(
+                db.get(0, &(key, i.to_be_bytes()))?.as_deref(),
+                Some(&value.to_be_bytes()[..]),
+                "Key {key} {i} expected {value}"
+            );
+        }
+        Ok(())
+    }
+    fn iter_bits(v: u32) -> impl Iterator<Item = u8> {
+        (0..32u8).filter(move |i| v & (1 << i) != 0)
+    }
+
+    {
+        println!("--- Init ---");
+        let db = TurboPersistence::open(path.to_path_buf())?;
+        let b = db.write_batch::<_, 1>()?;
+        for j in 0..=255 {
+            put(&b, j, 0)?;
+        }
+        db.commit_write_batch(b)?;
+        db.shutdown()?;
+    }
+
+    let mut expected_values = [0; 256];
+
+    for i in 1..50 {
+        println!("--- Iteration {i} ---");
+        let i = i * 37;
+        println!("Add more entries");
+        {
+            let db = TurboPersistence::open(path.to_path_buf())?;
+            let b = db.write_batch::<_, 1>()?;
+            for j in iter_bits(i) {
+                println!("Put {j} = {i}");
+                expected_values[j as usize] = i;
+                put(&b, j, i)?;
+            }
+            db.commit_write_batch(b)?;
+
+            for j in 0..32 {
+                check(&db, j, expected_values[j as usize])?;
+            }
+
+            db.shutdown()?;
+        }
+
+        println!("Compaction");
+        {
+            let db = TurboPersistence::open(path.to_path_buf())?;
+
+            db.compact(3.0, 3, u64::MAX)?;
+
+            for j in 0..32 {
+                check(&db, j, expected_values[j as usize])?;
+            }
+
+            db.shutdown()?;
+        }
+
+        println!("Restore check");
+        {
+            let db = TurboPersistence::open(path.to_path_buf())?;
+
+            for j in 0..32 {
+                check(&db, j, expected_values[j as usize])?;
+            }
 
             db.shutdown()?;
         }

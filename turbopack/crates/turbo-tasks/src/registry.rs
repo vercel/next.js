@@ -41,6 +41,7 @@ static TRAIT_TYPES_BY_VALUE: Lazy<FxDashMap<&'static TraitType, TraitTypeId>> =
     Lazy::new(FxDashMap::default);
 static TRAIT_TYPES: Lazy<NoMoveVec<(&'static TraitType, &'static str)>> = Lazy::new(NoMoveVec::new);
 
+/// Registers the value and returns its id if this is the initial
 fn register_thing<
     K: Copy + Deref<Target = u32> + TryFrom<NonZeroU64>,
     V: Copy + Hash + Eq,
@@ -52,7 +53,7 @@ fn register_thing<
     store: &NoMoveVec<(V, &'static str), INITIAL_CAPACITY_BITS>,
     map_by_name: &FxDashMap<&'static str, K>,
     map_by_value: &FxDashMap<V, K>,
-) {
+) -> Option<K> {
     if let Entry::Vacant(e) = map_by_value.entry(value) {
         let new_id = id_factory.get();
         // SAFETY: this is a fresh id
@@ -61,6 +62,9 @@ fn register_thing<
         }
         map_by_name.insert(global_name, new_id);
         e.insert(new_id);
+        Some(new_id)
+    } else {
+        None
     }
 }
 
@@ -84,7 +88,7 @@ pub fn register_function(global_name: &'static str, func: &'static NativeFunctio
         &FUNCTIONS,
         &FUNCTIONS_BY_NAME,
         &FUNCTIONS_BY_VALUE,
-    )
+    );
 }
 
 pub fn get_function_id(func: &'static NativeFunction) -> FunctionId {
@@ -103,7 +107,10 @@ pub fn get_function_global_name(id: FunctionId) -> &'static str {
     FUNCTIONS.get(*id as usize).unwrap().1
 }
 
-pub fn register_value_type(global_name: &'static str, ty: &'static ValueType) {
+pub fn register_value_type(
+    global_name: &'static str,
+    ty: &'static ValueType,
+) -> Option<ValueTypeId> {
     register_thing(
         global_name,
         ty,
@@ -138,7 +145,7 @@ pub fn register_trait_type(global_name: &'static str, ty: &'static TraitType) {
         &TRAIT_TYPES,
         &TRAIT_TYPES_BY_NAME,
         &TRAIT_TYPES_BY_VALUE,
-    )
+    );
 }
 
 pub fn get_trait_type_id(func: &'static TraitType) -> TraitTypeId {

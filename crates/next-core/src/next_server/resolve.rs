@@ -459,9 +459,8 @@ struct ExternalizeIssue {
 
 #[turbo_tasks::value_impl]
 impl Issue for ExternalizeIssue {
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        IssueSeverity::Warning.cell()
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Warning
     }
 
     #[turbo_tasks::function]

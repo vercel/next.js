@@ -26,7 +26,7 @@ use turbopack_core::{
     issue::{Issue, IssueSeverity, IssueStage, StyledString},
 };
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
+#[turbo_tasks::value]
 #[derive(Debug, Clone, Hash)]
 pub enum EcmascriptInputTransform {
     Plugin(ResolvedVc<TransformPlugin>),
@@ -88,7 +88,7 @@ impl CustomTransformer for TransformPlugin {
     }
 }
 
-#[turbo_tasks::value(transparent, serialization = "auto_for_input")]
+#[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone, Hash)]
 pub struct EcmascriptInputTransforms(Vec<EcmascriptInputTransform>);
 
@@ -298,9 +298,8 @@ pub struct UnsupportedServerActionIssue {
 
 #[turbo_tasks::value_impl]
 impl Issue for UnsupportedServerActionIssue {
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        IssueSeverity::Error.into()
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
     }
 
     #[turbo_tasks::function]

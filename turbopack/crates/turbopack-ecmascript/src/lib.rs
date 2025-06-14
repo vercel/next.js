@@ -22,6 +22,7 @@ mod path_visitor;
 pub mod references;
 pub mod runtime_functions;
 pub mod side_effect_optimization;
+pub mod simple_tree_shake;
 pub(crate) mod special_cases;
 pub(crate) mod static_code;
 mod swc_comments;
@@ -70,8 +71,8 @@ pub use transform::{
 };
 use turbo_rcstr::rcstr;
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Value,
-    ValueToString, Vc, trace::TraceRawVcs,
+    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString, Vc,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
@@ -106,12 +107,25 @@ use crate::{
         analyse_ecmascript_module, async_module::OptionAsyncModule, esm::base::EsmAssetReferences,
     },
     side_effect_optimization::reference::EcmascriptModulePartReference,
+    simple_tree_shake::{ModuleExportUsageInfo, get_module_export_usages},
     swc_comments::ImmutableComments,
     transform::remove_shebang,
 };
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Hash, Debug, Clone, Copy, Default, TaskInput)]
+#[derive(
+    Eq,
+    PartialEq,
+    Hash,
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    TaskInput,
+    TraceRawVcs,
+    NonLocalValue,
+    Serialize,
+    Deserialize,
+)]
 pub enum SpecifiedModuleType {
     #[default]
     Automatic,
@@ -131,9 +145,9 @@ pub enum SpecifiedModuleType {
     Default,
     Serialize,
     Deserialize,
+    TaskInput,
     TraceRawVcs,
     NonLocalValue,
-    TaskInput,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum TreeShakingMode {
@@ -145,7 +159,7 @@ pub enum TreeShakingMode {
 #[turbo_tasks::value(transparent)]
 pub struct OptionTreeShaking(pub Option<TreeShakingMode>);
 
-#[turbo_tasks::value(shared, serialization = "auto_for_input")]
+#[turbo_tasks::value(shared)]
 #[derive(Hash, Debug, Default, Copy, Clone)]
 pub struct EcmascriptOptions {
     pub refresh: bool,
@@ -171,10 +185,12 @@ pub struct EcmascriptOptions {
     /// parsing fails. This is useful to keep the module graph structure intact when syntax errors
     /// are temporarily introduced.
     pub keep_last_successful_parse: bool,
+
+    pub remove_unused_exports: bool,
 }
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Hash, Debug, Copy, Clone)]
+#[turbo_tasks::value]
+#[derive(Hash, Debug, Copy, Clone, TaskInput)]
 pub enum EcmascriptModuleAssetType {
     /// Module with EcmaScript code
     Ecmascript,
@@ -235,7 +251,7 @@ impl EcmascriptModuleAssetBuilder {
             EcmascriptModuleAsset::new_with_inner_assets(
                 *self.source,
                 *self.asset_context,
-                Value::new(self.ty),
+                self.ty,
                 *self.transforms,
                 *self.options,
                 *self.compile_time_info,
@@ -245,7 +261,7 @@ impl EcmascriptModuleAssetBuilder {
             EcmascriptModuleAsset::new(
                 *self.source,
                 *self.asset_context,
-                Value::new(self.ty),
+                self.ty,
                 *self.transforms,
                 *self.options,
                 *self.compile_time_info,
@@ -282,24 +298,30 @@ impl core::fmt::Debug for EcmascriptModuleAsset {
 
 #[turbo_tasks::value_trait]
 pub trait EcmascriptParsable {
+    #[turbo_tasks::function]
     fn failsafe_parse(self: Vc<Self>) -> Result<Vc<ParseResult>>;
 
+    #[turbo_tasks::function]
     fn parse_original(self: Vc<Self>) -> Result<Vc<ParseResult>>;
 
+    #[turbo_tasks::function]
     fn ty(self: Vc<Self>) -> Result<Vc<EcmascriptModuleAssetType>>;
 }
 
 #[turbo_tasks::value_trait]
 pub trait EcmascriptAnalyzable: Module + Asset {
+    #[turbo_tasks::function]
     fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult>;
 
     /// Generates module contents without an analysis pass. This is useful for
     /// transforming code that is not a module, e.g. runtime code.
+    #[turbo_tasks::function]
     async fn module_content_without_analysis(
         self: Vc<Self>,
         generate_source_map: bool,
     ) -> Result<Vc<EcmascriptModuleContent>>;
 
+    #[turbo_tasks::function]
     async fn module_content_options(
         self: Vc<Self>,
         module_graph: Vc<ModuleGraph>,
@@ -307,6 +329,7 @@ pub trait EcmascriptAnalyzable: Module + Asset {
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptModuleContentOptions>>;
 
+    #[turbo_tasks::function]
     async fn module_content(
         self: Vc<Self>,
         module_graph: Vc<ModuleGraph>,
@@ -372,7 +395,7 @@ impl ModuleTypeResult {
 
 #[turbo_tasks::value_impl]
 impl EcmascriptParsable for EcmascriptModuleAsset {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(invalidator)]
     async fn failsafe_parse(self: Vc<Self>) -> Result<Vc<ParseResult>> {
         let real_result = self.parse();
         let this = self.await?;
@@ -430,7 +453,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
 
     #[turbo_tasks::function]
     async fn module_content_options(
-        self: Vc<Self>,
+        self: ResolvedVc<Self>,
         module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         async_module_info: Option<ResolvedVc<AsyncModuleInfo>>,
@@ -442,8 +465,18 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
 
         let module_type_result = *self.determine_module_type().await?;
         let generate_source_map = *chunking_context
-            .reference_module_source_maps(Vc::upcast(self))
+            .reference_module_source_maps(Vc::upcast(*self))
             .await?;
+
+        let export_usage_info = if self.options().await?.remove_unused_exports {
+            Some(
+                get_module_export_usages(*module_graph, Vc::upcast(*self))
+                    .to_resolved()
+                    .await?,
+            )
+        } else {
+            None
+        };
 
         Ok(EcmascriptModuleContentOptions {
             parsed,
@@ -460,6 +493,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
             original_source_map: analyze_ref.source_map,
             exports: analyze_ref.exports,
             async_module_info,
+            export_usage_info,
         }
         .cell())
     }
@@ -501,8 +535,7 @@ impl EcmascriptModuleAsset {
     pub fn new(
         source: ResolvedVc<Box<dyn Source>>,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
-
-        ty: Value<EcmascriptModuleAssetType>,
+        ty: EcmascriptModuleAssetType,
         transforms: ResolvedVc<EcmascriptInputTransforms>,
         options: ResolvedVc<EcmascriptOptions>,
         compile_time_info: ResolvedVc<CompileTimeInfo>,
@@ -510,7 +543,7 @@ impl EcmascriptModuleAsset {
         Self::cell(EcmascriptModuleAsset {
             source,
             asset_context,
-            ty: ty.into_value(),
+            ty,
             transforms,
             options,
 
@@ -524,7 +557,7 @@ impl EcmascriptModuleAsset {
     pub async fn new_with_inner_assets(
         source: ResolvedVc<Box<dyn Source>>,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
-        ty: Value<EcmascriptModuleAssetType>,
+        ty: EcmascriptModuleAssetType,
         transforms: ResolvedVc<EcmascriptInputTransforms>,
         options: ResolvedVc<EcmascriptOptions>,
         compile_time_info: ResolvedVc<CompileTimeInfo>,
@@ -543,7 +576,7 @@ impl EcmascriptModuleAsset {
             Ok(Self::cell(EcmascriptModuleAsset {
                 source,
                 asset_context,
-                ty: ty.into_value(),
+                ty,
                 transforms,
                 options,
                 compile_time_info,
@@ -570,7 +603,7 @@ impl EcmascriptModuleAsset {
 
     #[turbo_tasks::function]
     pub fn parse(&self) -> Vc<ParseResult> {
-        parse(*self.source, Value::new(self.ty), *self.transforms)
+        parse(*self.source, self.ty, *self.transforms)
     }
 }
 
@@ -613,7 +646,7 @@ impl Module for EcmascriptModuleAsset {
         }
         ident.add_modifier(rcstr!("ecmascript"));
         ident.layer = Some(self.asset_context.layer().owned().await?);
-        Ok(AssetIdent::new(Value::new(ident)))
+        Ok(AssetIdent::new(ident))
     }
 
     #[turbo_tasks::function]
@@ -814,6 +847,7 @@ pub struct EcmascriptModuleContentOptions {
     original_source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
     exports: ResolvedVc<EcmascriptExports>,
     async_module_info: Option<ResolvedVc<AsyncModuleInfo>>,
+    export_usage_info: Option<ResolvedVc<ModuleExportUsageInfo>>,
 }
 
 impl EcmascriptModuleContentOptions {
@@ -829,6 +863,7 @@ impl EcmascriptModuleContentOptions {
             async_module,
             exports,
             async_module_info,
+            export_usage_info,
             ..
         } = self;
 
@@ -850,7 +885,7 @@ impl EcmascriptModuleContentOptions {
                 if let EcmascriptExports::EsmExports(exports) = *exports.await? {
                     Some(
                         exports
-                            .code_generation(**module_graph, **chunking_context, Some(**parsed))
+                            .code_generation(**chunking_context, Some(**parsed), *export_usage_info)
                             .await?,
                     )
                 } else {

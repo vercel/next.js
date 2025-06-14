@@ -28,11 +28,10 @@ async fn trait_ref() {
         assert_eq!(*counter_value.strongly_consistent().await?, 1);
 
         // `ref_counter` will still point to the same `counter` instance as `counter`.
-        let ref_counter = TraitRef::cell(
-            Vc::upcast::<Box<dyn CounterTrait>>(counter)
-                .into_trait_ref()
-                .await?,
-        );
+        let trait_ref_counter = Vc::upcast::<Box<dyn CounterTrait>>(counter)
+            .into_trait_ref()
+            .await?;
+        let ref_counter = TraitRef::cell(trait_ref_counter.clone());
         let ref_counter_value = ref_counter.get_value();
 
         // However, `local_counter_value` will point to the value of `counter_value`
@@ -46,7 +45,7 @@ async fn trait_ref() {
         .get_value();
 
         counter.await?.incr();
-
+        assert_eq!(trait_ref_counter.get_value_sync().0, 2);
         assert_eq!(*counter.get_value().strongly_consistent().await?, 2);
         assert_eq!(*counter_value.strongly_consistent().await?, 2);
         assert_eq!(*ref_counter_value.strongly_consistent().await?, 2);
@@ -59,6 +58,7 @@ async fn trait_ref() {
 }
 
 #[turbo_tasks::value(transparent)]
+#[derive(Copy, Clone)]
 struct CounterValue(usize);
 
 #[turbo_tasks::value(serialization = "none", cell = "new", eq = "manual")]
@@ -79,21 +79,29 @@ impl Counter {
 
 #[turbo_tasks::value_trait]
 trait CounterTrait {
+    #[turbo_tasks::function]
     fn get_value(&self) -> Vc<CounterValue>;
+
+    fn get_value_sync(&self) -> CounterValue;
 }
 
 #[turbo_tasks::value_impl]
 impl CounterTrait for Counter {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(invalidator)]
     async fn get_value(&self) -> Result<Vc<CounterValue>> {
         let mut lock = self.value.lock().unwrap();
         lock.1 = Some(get_invalidator());
         Ok(Vc::cell(lock.0))
     }
+
+    fn get_value_sync(&self) -> CounterValue {
+        CounterValue(self.value.lock().unwrap().0)
+    }
 }
 
 #[turbo_tasks::value_trait]
 trait CounterValueTrait {
+    #[turbo_tasks::function]
     fn get_value(&self) -> Vc<CounterValue>;
 }
 

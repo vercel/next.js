@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -9,7 +9,7 @@ use turbopack_core::{
     module::Module,
     module_graph::ModuleGraph,
     reference::{ModuleReferences, SingleChunkableModuleReference},
-    resolve::ModulePart,
+    resolve::{ExportUsage, ModulePart},
 };
 
 use crate::{
@@ -70,7 +70,7 @@ impl Module for SideEffectsModule {
             );
         }
 
-        Ok(AssetIdent::new(Value::new(ident)))
+        Ok(AssetIdent::new(ident))
     }
 
     #[turbo_tasks::function]
@@ -85,6 +85,7 @@ impl Module for SideEffectsModule {
                         SingleChunkableModuleReference::new(
                             *ResolvedVc::upcast(*side_effect),
                             rcstr!("side effect"),
+                            ExportUsage::evaluation(),
                         )
                         .to_resolved()
                         .await?,
@@ -98,6 +99,7 @@ impl Module for SideEffectsModule {
             SingleChunkableModuleReference::new(
                 *ResolvedVc::upcast(self.resolved_as),
                 rcstr!("resolved as"),
+                ExportUsage::all(),
             )
             .to_resolved()
             .await?,

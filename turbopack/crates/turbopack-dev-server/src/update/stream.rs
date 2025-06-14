@@ -5,7 +5,7 @@ use futures::prelude::*;
 use tokio::sync::mpsc::Sender;
 use tokio_stream::wrappers::ReceiverStream;
 use tracing::Instrument;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     IntoTraitRef, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TransientInstance, Vc,
     trace::{TraceRawVcs, TraceRawVcsContext},
@@ -125,13 +125,20 @@ async fn get_update_stream_item_operation(
         Ok(content) => content,
         Err(e) => {
             plain_issues.push(
-                FatalStreamIssue {
-                    resource,
-                    description: StyledString::Text(format!("{}", PrettyPrintError(&e)).into())
-                        .resolved_cell(),
-                }
-                .cell()
-                .into_plain(OptionIssueProcessingPathItems::none())
+                PlainIssue::from_issue(
+                    Vc::upcast(
+                        FatalStreamIssue {
+                            resource,
+                            description: StyledString::Text(
+                                format!("{}", PrettyPrintError(&e)).into(),
+                            )
+                            .resolved_cell(),
+                        }
+                        .cell(),
+                    ),
+                    None,
+                    OptionIssueProcessingPathItems::none(),
+                )
                 .await?,
             );
 
@@ -372,9 +379,8 @@ struct FatalStreamIssue {
 
 #[turbo_tasks::value_impl]
 impl Issue for FatalStreamIssue {
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        IssueSeverity::Fatal.into()
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Fatal
     }
 
     #[turbo_tasks::function]
@@ -389,7 +395,7 @@ impl Issue for FatalStreamIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Fatal error while getting content to stream".into()).cell()
+        StyledString::Text(rcstr!("Fatal error while getting content to stream")).cell()
     }
 
     #[turbo_tasks::function]

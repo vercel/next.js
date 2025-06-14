@@ -44,7 +44,7 @@ describe('use-cache-metadata-route-handler', () => {
     if (isNextDev) {
       expect(body).toMatchInlineSnapshot(`
        "<?xml version="1.0" encoding="UTF-8"?>
-       <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+       <urlset xmlns="https://www.sitemaps.org/schemas/sitemap/0.9">
        <url>
        <loc>https://acme.com?sentinel=runtime</loc>
        </url>
@@ -54,7 +54,7 @@ describe('use-cache-metadata-route-handler', () => {
     } else {
       expect(body).toMatchInlineSnapshot(`
        "<?xml version="1.0" encoding="UTF-8"?>
-       <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+       <urlset xmlns="https://www.sitemaps.org/schemas/sitemap/0.9">
        <url>
        <loc>https://acme.com?sentinel=buildtime</loc>
        </url>
@@ -74,7 +74,7 @@ describe('use-cache-metadata-route-handler', () => {
     if (isNextDev) {
       expect(body).toMatchInlineSnapshot(`
        "<?xml version="1.0" encoding="UTF-8"?>
-       <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+       <urlset xmlns="https://www.sitemaps.org/schemas/sitemap/0.9">
        <url>
        <loc>https://acme.com/1?sentinel=runtime</loc>
        </url>
@@ -84,7 +84,7 @@ describe('use-cache-metadata-route-handler', () => {
     } else {
       expect(body).toMatchInlineSnapshot(`
        "<?xml version="1.0" encoding="UTF-8"?>
-       <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+       <urlset xmlns="https://www.sitemaps.org/schemas/sitemap/0.9">
        <url>
        <loc>https://acme.com/1?sentinel=buildtime</loc>
        </url>

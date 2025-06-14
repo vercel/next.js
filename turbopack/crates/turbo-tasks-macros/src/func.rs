@@ -733,6 +733,9 @@ pub struct FunctionArguments {
     /// task-local state. The function call itself will not be cached, but cells will be created on
     /// the parent task.
     pub local: Option<Span>,
+    /// If true, the function will be allowed to call `get_invalidator` . If this is false, the
+    /// `get_invalidator` function will panic on calls.
+    pub invalidator: Option<Span>,
 }
 
 impl Parse for FunctionArguments {
@@ -760,11 +763,14 @@ impl Parse for FunctionArguments {
                 ("local", Meta::Path(_)) => {
                     parsed_args.local = Some(meta.span());
                 }
+                ("invalidator", Meta::Path(_)) => {
+                    parsed_args.invalidator = Some(meta.span());
+                }
                 (_, meta) => {
                     return Err(syn::Error::new_spanned(
                         meta,
                         "unexpected token, expected one of: \"fs\", \"network\", \"operation\", \
-                         \"local\"",
+                         \"local\", \"invalidator\"",
                     ));
                 }
             }
@@ -1092,6 +1098,8 @@ pub struct NativeFn {
     pub is_self_used: bool,
     pub filter_trait_call_args: Option<FilterTraitCallArgsTokens>,
     pub local: bool,
+    pub invalidator: bool,
+    pub immutable: bool,
 }
 
 impl NativeFn {
@@ -1107,6 +1115,8 @@ impl NativeFn {
             is_self_used,
             filter_trait_call_args,
             local,
+            invalidator,
+            immutable,
         } = self;
 
         if *is_method {
@@ -1133,6 +1143,8 @@ impl NativeFn {
                             #function_path_string.to_owned(),
                             turbo_tasks::macro_helpers::FunctionMeta {
                                 local: #local,
+                                invalidator: #invalidator,
+                                immutable: #immutable,
                             },
                             #arg_filter,
                             #function_path,
@@ -1147,6 +1159,8 @@ impl NativeFn {
                             #function_path_string.to_owned(),
                             turbo_tasks::macro_helpers::FunctionMeta {
                                 local: #local,
+                                invalidator: #invalidator,
+                                immutable: #immutable,
                             },
                             #arg_filter,
                             #function_path,
@@ -1162,6 +1176,8 @@ impl NativeFn {
                         #function_path_string.to_owned(),
                         turbo_tasks::macro_helpers::FunctionMeta {
                             local: #local,
+                            invalidator: #invalidator,
+                            immutable: #immutable,
                         },
                         #function_path,
                     )
@@ -1194,4 +1210,45 @@ pub fn filter_inline_attributes<'a>(
 pub fn inline_inputs_identifier_filter(arg_ident: &Ident) -> bool {
     // filter out underscore-prefixed (unused) arguments, we don't need to cache these
     !arg_ident.to_string().starts_with('_')
+}
+
+/// Returns true if this attribute is a turbo_tasks attribute with the given name.
+fn is_attribute(attr: &Attribute, name: &str) -> bool {
+    let path = &attr.path();
+    if path.leading_colon.is_some() {
+        return false;
+    }
+    let mut iter = path.segments.iter();
+    match iter.next() {
+        Some(seg) if seg.arguments.is_empty() && seg.ident == "turbo_tasks" => match iter.next() {
+            Some(seg) if seg.arguments.is_empty() && seg.ident == name => iter.next().is_none(),
+            _ => false,
+        },
+        _ => false,
+    }
+}
+
+/// Parses a `turbo_tasks::function` attribute out of the given attributes and then returns the
+/// remaining attributes.
+pub fn split_function_attributes(
+    attrs: &[Attribute],
+) -> (syn::Result<Option<FunctionArguments>>, Vec<&Attribute>) {
+    let (func_attrs_vec, attrs): (Vec<_>, Vec<_>) = attrs
+        .iter()
+        // TODO(alexkirsz) Replace this with function
+        .partition(|attr| is_attribute(attr, "function"));
+    let func_args = if let Some(func_attr) = func_attrs_vec.first() {
+        if func_attrs_vec.len() == 1 {
+            parse_with_optional_parens::<FunctionArguments>(func_attr).map(Some)
+        } else {
+            Err(syn::Error::new(
+                // Report the error on the second annotation.
+                func_attrs_vec[1].span(),
+                "Only one #[turbo_tasks::function] attribute is allowed per method",
+            ))
+        }
+    } else {
+        Ok(None)
+    };
+    (func_args, attrs)
 }

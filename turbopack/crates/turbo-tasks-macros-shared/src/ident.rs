@@ -15,6 +15,13 @@ pub fn get_register_trait_methods_ident(trait_ident: &Ident, struct_ident: &Iden
     )
 }
 
+pub fn get_register_trait_impls_ident(trait_ident: &Ident, struct_ident: &Ident) -> Ident {
+    Ident::new(
+        &format!("__register_{struct_ident}_{trait_ident}_trait_impls"),
+        trait_ident.span(),
+    )
+}
+
 pub fn get_native_function_ident(ident: &Ident) -> Ident {
     Ident::new(
         &format!("{}_FUNCTION", ident.to_string().to_uppercase()),
@@ -209,6 +216,15 @@ pub fn get_trait_default_impl_function_ident(trait_ident: &Ident, ident: &Ident)
 pub fn get_trait_type_id_ident(ident: &Ident) -> Ident {
     Ident::new(
         &format!("{}_TRAIT_TYPE_ID", ident.to_string().to_uppercase()),
+        ident.span(),
+    )
+}
+pub fn get_trait_type_vtable_registry(ident: &Ident) -> Ident {
+    Ident::new(
+        &format!(
+            "{}_TRAIT_TYPE_VTABLE_REGISTRY",
+            ident.to_string().to_uppercase()
+        ),
         ident.span(),
     )
 }

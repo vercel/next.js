@@ -1,7 +1,8 @@
+use std::sync::LazyLock;
+
 use anyhow::Result;
-use lazy_static::lazy_static;
 use rustc_hash::FxHashMap;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 use turbopack_core::{
@@ -21,24 +22,26 @@ use turbopack_core::{
 
 use crate::{next_server::ServerContextType, next_telemetry::ModuleFeatureTelemetry};
 
-lazy_static! {
-    // Set of the features we want to track, following existing references in webpack/plugins/telemetry-plugin.
-    static ref FEATURE_MODULES: FxHashMap<&'static str, Vec<&'static str>> = FxHashMap::from_iter([
-        (
-            "next",
-            vec![
-                "/image",
-                "/future/image",
-                "/legacy/image",
-                "/script",
-                "/dynamic",
-                "/font/google",
-                "/font/local"
-            ]
-        ),
-        ("@next", vec!["/font/google", "/font/local"])
-    ]);
-}
+// Set of the features we want to track, following existing references in
+// webpack/plugins/telemetry-plugin.
+static FEATURE_MODULES: LazyLock<FxHashMap<&'static str, Vec<&'static str>>> =
+    LazyLock::new(|| {
+        FxHashMap::from_iter([
+            (
+                "next",
+                vec![
+                    "/image",
+                    "/future/image",
+                    "/legacy/image",
+                    "/script",
+                    "/dynamic",
+                    "/font/google",
+                    "/font/local",
+                ],
+            ),
+            ("@next", vec!["/font/google", "/font/local"]),
+        ])
+    });
 
 #[turbo_tasks::value(shared)]
 pub struct InvalidImportModuleIssue {
@@ -49,9 +52,8 @@ pub struct InvalidImportModuleIssue {
 
 #[turbo_tasks::value_impl]
 impl Issue for InvalidImportModuleIssue {
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        IssueSeverity::Error.into()
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
     }
 
     #[turbo_tasks::function]
@@ -61,7 +63,7 @@ impl Issue for InvalidImportModuleIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Invalid import".into()).cell()
+        StyledString::Text(rcstr!("Invalid import")).cell()
     }
 
     #[turbo_tasks::function]
