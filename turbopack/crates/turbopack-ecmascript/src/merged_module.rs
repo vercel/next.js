@@ -156,7 +156,7 @@ impl EcmascriptChunkItem for MergedEcmascriptModuleChunkItem {
         let content = EcmascriptModuleContent::new_merged(
             modules.clone(),
             options,
-            entry_points.iter().map(|m| **m).collect(),
+            ResolvedVc::deref_vec(entry_points.clone()),
         );
 
         // Currently, merged modules never include async modules.
