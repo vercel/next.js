@@ -423,7 +423,7 @@ impl ProjectContainer {
 
 #[turbo_tasks::value_impl]
 impl ProjectContainer {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(invalidator)]
     pub async fn project(&self) -> Result<Vc<Project>> {
         let env_map: Vc<EnvMap>;
         let next_config;

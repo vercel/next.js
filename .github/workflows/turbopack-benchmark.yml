@@ -26,6 +26,29 @@ env:
   TURBO_TOKEN: ${{ secrets.HOSTED_TURBO_TOKEN }}
 
 jobs:
+  benchmark-tiny:
+    name: Benchmark Rust Crates (tiny)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/setup-rust
+
+      - name: Install cargo-codspeed
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-codspeed@2.10.1
+
+      - name: Build app build benchmarks
+        run: cargo codspeed build -p next-api
+
+      - name: Run the benchmarks
+        uses: CodSpeedHQ/action@v3
+        with:
+          run: cargo codspeed run
+          token: ${{ secrets.CODSPEED_TOKEN }}
+
   benchmark-small-apps:
     name: Benchmark Rust Crates (small apps)
     runs-on: ['self-hosted', 'linux', 'x64', 'metal']

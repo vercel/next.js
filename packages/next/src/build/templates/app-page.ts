@@ -365,9 +365,9 @@ export async function handler(
 
           // If the warmup is successful, we should use the resume data
           // cache from the warmup.
-          if (warmup.metadata.devRenderResumeDataCache) {
-            context.renderOpts.devRenderResumeDataCache =
-              warmup.metadata.devRenderResumeDataCache
+          if (warmup.metadata.renderResumeDataCache) {
+            context.renderOpts.renderResumeDataCache =
+              warmup.metadata.renderResumeDataCache
           }
         }
       }

@@ -12,6 +12,7 @@ import type {
 } from '../build/turborepo-access-trace'
 import type { FetchMetrics } from '../server/base-http'
 import type { RouteMetadata } from './routes/types'
+import type { RenderResumeDataCache } from '../server/resume-data-cache/resume-data-cache'
 
 export interface AmpValidation {
   page: string
@@ -21,12 +22,13 @@ export interface AmpValidation {
   }
 }
 
-type PathMap = ExportPathMap[keyof ExportPathMap]
+export type ExportPathEntry = ExportPathMap[keyof ExportPathMap] & {
+  path: string
+}
 
 export interface ExportPagesInput {
   buildId: string
-  paths: string[]
-  exportPathMap: ExportPathMap
+  exportPaths: ExportPathEntry[]
   parentSpanId: number
   dir: string
   distDir: string
@@ -39,12 +41,12 @@ export interface ExportPagesInput {
   cacheHandler: string | undefined
   fetchCacheKeyPrefix: string | undefined
   options: ExportAppOptions
+  renderResumeDataCachesByPage: Record<string, string> | undefined
 }
 
 export interface ExportPageInput {
   buildId: string
-  path: string
-  pathMap: PathMap
+  exportPath: ExportPathEntry
   distDir: string
   outDir: string
   pagesDataDir: string
@@ -62,6 +64,7 @@ export interface ExportPageInput {
   nextConfigOutput?: NextConfigComplete['output']
   enableExperimentalReact?: boolean
   sriEnabled: boolean
+  renderResumeDataCache: RenderResumeDataCache | undefined
 }
 
 export type ExportRouteResult =
@@ -73,6 +76,7 @@ export type ExportRouteResult =
       hasEmptyStaticShell?: boolean
       hasPostponed?: boolean
       fetchMetrics?: FetchMetrics
+      renderResumeDataCache?: string
     }
   | {
       error: boolean
@@ -86,6 +90,7 @@ export type ExportPageResult = ExportRouteResult & {
 export type ExportPagesResult = {
   result: ExportPageResult | undefined
   path: string
+  page: string
   pageKey: string
 }[]
 

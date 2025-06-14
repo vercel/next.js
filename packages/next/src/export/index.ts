@@ -2,8 +2,14 @@ import type {
   ExportAppResult,
   ExportAppOptions,
   WorkerRenderOptsPartial,
+  ExportPagesResult,
+  ExportPathEntry,
 } from './types'
-import { createStaticWorker, type PrerenderManifest } from '../build'
+import {
+  createStaticWorker,
+  type PrerenderManifest,
+  type StaticWorker,
+} from '../build'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 
 import { bold, yellow } from '../lib/picocolors'
@@ -445,50 +451,48 @@ async function exportAppImpl(
     }
   }
 
-  // make sure to prevent duplicates
-  const exportPaths = [
-    ...new Set(
-      Object.keys(exportPathMap).map((path) =>
-        denormalizePagePath(normalizePagePath(path))
-      )
-    ),
-  ]
+  const allExportPaths: ExportPathEntry[] = []
+  const seenExportPaths = new Set<string>()
+  const fallbackEnabledPages = new Set<string>()
 
-  const filteredPaths = exportPaths.filter(
-    (route) =>
-      exportPathMap[route]._isAppDir ||
-      // Remove API routes
-      !isAPIRoute(exportPathMap[route].page)
-  )
+  for (const [path, entry] of Object.entries(exportPathMap)) {
+    // make sure to prevent duplicates
+    const normalizedPath = denormalizePagePath(normalizePagePath(path))
 
-  if (filteredPaths.length !== exportPaths.length) {
-    hasApiRoutes = true
+    if (seenExportPaths.has(normalizedPath)) {
+      continue
+    }
+
+    seenExportPaths.add(normalizedPath)
+
+    if (!entry._isAppDir && isAPIRoute(entry.page)) {
+      hasApiRoutes = true
+      continue
+    }
+
+    allExportPaths.push({ ...entry, path: normalizedPath })
+
+    if (prerenderManifest && !options.buildExport) {
+      const prerenderInfo = prerenderManifest.dynamicRoutes[entry.page]
+
+      if (prerenderInfo && prerenderInfo.fallback !== false) {
+        fallbackEnabledPages.add(entry.page)
+      }
+    }
   }
 
-  if (filteredPaths.length === 0) {
+  if (allExportPaths.length === 0) {
     return null
   }
 
-  if (prerenderManifest && !options.buildExport) {
-    const fallbackEnabledPages = new Set()
-
-    for (const path of Object.keys(exportPathMap)) {
-      const page = exportPathMap[path].page
-      const prerenderInfo = prerenderManifest.dynamicRoutes[page]
-
-      if (prerenderInfo && prerenderInfo.fallback !== false) {
-        fallbackEnabledPages.add(page)
-      }
-    }
-
-    if (fallbackEnabledPages.size > 0) {
-      throw new ExportError(
-        `Found pages with \`fallback\` enabled:\n${[
-          ...fallbackEnabledPages,
-        ].join('\n')}\n${SSG_FALLBACK_EXPORT_ERROR}\n`
-      )
-    }
+  if (fallbackEnabledPages.size > 0) {
+    throw new ExportError(
+      `Found pages with \`fallback\` enabled:\n${[...fallbackEnabledPages].join(
+        '\n'
+      )}\n${SSG_FALLBACK_EXPORT_ERROR}\n`
+    )
   }
+
   let hasMiddleware = false
 
   if (!options.buildExport) {
@@ -554,32 +558,80 @@ async function exportAppImpl(
     )
   }
 
-  const failedExportAttemptsByPage: Map<string, boolean> = new Map()
+  const exportPagesInBatches = async (
+    worker: StaticWorker,
+    exportPaths: ExportPathEntry[],
+    renderResumeDataCachesByPage?: Record<string, string>
+  ): Promise<ExportPagesResult> => {
+    // Batch filtered pages into smaller batches, and call the export worker on
+    // each batch. We've set a default minimum of 25 pages per batch to ensure
+    // that even setups with only a few static pages can leverage a shared
+    // incremental cache, however this value can be configured.
+    const minPageCountPerBatch =
+      nextConfig.experimental.staticGenerationMinPagesPerWorker ?? 25
 
-  // Chunk filtered pages into smaller groups, and call the export worker on each group.
-  // We've set a default minimum of 25 pages per chunk to ensure that even setups
-  // with only a few static pages can leverage a shared incremental cache, however this
-  // value can be configured.
-  const minChunkSize =
-    nextConfig.experimental.staticGenerationMinPagesPerWorker ?? 25
-  // Calculate the number of workers needed to ensure each chunk has at least minChunkSize pages
-  const numWorkers = Math.min(
-    options.numWorkers,
-    Math.ceil(filteredPaths.length / minChunkSize)
-  )
-  // Calculate the chunk size based on the number of workers
-  const chunkSize = Math.ceil(filteredPaths.length / numWorkers)
-  const chunks = Array.from({ length: numWorkers }, (_, i) =>
-    filteredPaths.slice(i * chunkSize, (i + 1) * chunkSize)
-  )
-  // Distribute remaining pages
-  const remainingPages = filteredPaths.slice(numWorkers * chunkSize)
-  remainingPages.forEach((page, index) => {
-    chunks[index % chunks.length].push(page)
-  })
+    // Calculate the number of workers needed to ensure each batch has at least
+    // minPageCountPerBatch pages.
+    const numWorkers = Math.min(
+      options.numWorkers,
+      Math.ceil(exportPaths.length / minPageCountPerBatch)
+    )
+
+    // Calculate the page count per batch based on the number of workers.
+    const pageCountPerBatch = Math.ceil(exportPaths.length / numWorkers)
+
+    const batches = Array.from({ length: numWorkers }, (_, i) =>
+      exportPaths.slice(i * pageCountPerBatch, (i + 1) * pageCountPerBatch)
+    )
+
+    // Distribute remaining pages.
+    const remainingPages = exportPaths.slice(numWorkers * pageCountPerBatch)
+    remainingPages.forEach((page, index) => {
+      batches[index % batches.length].push(page)
+    })
+
+    return (
+      await Promise.all(
+        batches.map(async (batch) =>
+          worker.exportPages({
+            buildId,
+            exportPaths: batch,
+            parentSpanId: span.getId(),
+            pagesDataDir,
+            renderOpts,
+            options,
+            dir,
+            distDir,
+            outDir,
+            nextConfig,
+            cacheHandler: nextConfig.cacheHandler,
+            cacheMaxMemorySize: nextConfig.cacheMaxMemorySize,
+            fetchCache: true,
+            fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
+            renderResumeDataCachesByPage,
+          })
+        )
+      )
+    ).flat()
+  }
+
+  let initialPhaseExportPaths: ExportPathEntry[] = []
+  const finalPhaseExportPaths: ExportPathEntry[] = []
+
+  if (renderOpts.experimental.dynamicIO) {
+    for (const exportPath of allExportPaths) {
+      if (exportPath._allowEmptyStaticShell) {
+        finalPhaseExportPaths.push(exportPath)
+      } else {
+        initialPhaseExportPaths.push(exportPath)
+      }
+    }
+  } else {
+    initialPhaseExportPaths = allExportPaths
+  }
 
   const progress = createProgress(
-    filteredPaths.length,
+    initialPhaseExportPaths.length + finalPhaseExportPaths.length,
     options.statusMessage || 'Exporting'
   )
 
@@ -588,29 +640,35 @@ async function exportAppImpl(
     progress,
   })
 
-  const results = (
-    await Promise.all(
-      chunks.map((paths) =>
-        worker.exportPages({
-          buildId,
-          paths,
-          exportPathMap,
-          parentSpanId: span.getId(),
-          pagesDataDir,
-          renderOpts,
-          options,
-          dir,
-          distDir,
-          outDir,
-          nextConfig,
-          cacheHandler: nextConfig.cacheHandler,
-          cacheMaxMemorySize: nextConfig.cacheMaxMemorySize,
-          fetchCache: true,
-          fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
-        })
-      )
+  const results = await exportPagesInBatches(worker, initialPhaseExportPaths)
+
+  if (finalPhaseExportPaths.length > 0) {
+    const renderResumeDataCachesByPage: Record<string, string> = {}
+
+    for (const { page, result } of results) {
+      if (!result) {
+        continue
+      }
+
+      if ('renderResumeDataCache' in result && result.renderResumeDataCache) {
+        // The last RDC for each page is used. We only need one. It should have
+        // all the entries that the fallback shell also needs. We don't need to
+        // merge them per page.
+        renderResumeDataCachesByPage[page] = result.renderResumeDataCache
+        // Remove the RDC string from the result so that it can be garbage
+        // collected, when there are more results for the same page.
+        result.renderResumeDataCache = undefined
+      }
+    }
+
+    const finalPhaseResults = await exportPagesInBatches(
+      worker,
+      finalPhaseExportPaths,
+      renderResumeDataCachesByPage
     )
-  ).flat()
+
+    results.push(...finalPhaseResults)
+  }
 
   let hadValidationError = false
 
@@ -621,14 +679,14 @@ async function exportAppImpl(
     turborepoAccessTraceResults: new Map(),
   }
 
-  for (const { result, path, pageKey } of results) {
+  const failedExportAttemptsByPage: Map<string, boolean> = new Map()
+
+  for (const { result, path, page, pageKey } of results) {
     if (!result) continue
     if ('error' in result) {
       failedExportAttemptsByPage.set(pageKey, true)
       continue
     }
-
-    const { page } = exportPathMap[path]
 
     if (result.turborepoAccessTraceResult) {
       collector.turborepoAccessTraceResults?.set(
