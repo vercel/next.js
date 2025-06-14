@@ -10,6 +10,45 @@ use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher, encode_hex, hash_xxh
 
 use crate::resolve::ModulePart;
 
+/// A layer name identifies a distinct part of the module graph.
+#[derive(Clone, TaskInput, Hash, Debug, DeterministicHash)]
+#[turbo_tasks::value(shared)]
+pub struct LayerName {
+    name: RcStr,
+    user_friendly_name: Option<RcStr>,
+}
+
+impl LayerName {
+    pub fn new(name: RcStr) -> Self {
+        Self::new_impl(name, None)
+    }
+    pub fn with_user_friendly_name(name: RcStr, user_friendly_name: RcStr) -> Self {
+        Self::new_impl(name, Some(user_friendly_name))
+    }
+
+    fn new_impl(name: RcStr, user_friendly_name: Option<RcStr>) -> Self {
+        debug_assert!(!name.is_empty());
+        debug_assert!(
+            user_friendly_name.is_none() || !user_friendly_name.as_ref().unwrap().is_empty()
+        );
+        Self {
+            name,
+            user_friendly_name,
+        }
+    }
+
+    /// Returns a user friendly name for this layer
+    pub fn user_friendly_name(&self) -> RcStr {
+        self.user_friendly_name
+            .as_ref()
+            .unwrap_or(&self.name)
+            .clone()
+    }
+    pub fn name(&self) -> RcStr {
+        self.name.clone()
+    }
+}
+
 #[turbo_tasks::value]
 #[derive(Clone, Debug, Hash, TaskInput)]
 pub struct AssetIdent {
@@ -28,7 +67,7 @@ pub struct AssetIdent {
     /// The parts of the asset that are (ECMAScript) modules
     pub parts: Vec<ModulePart>,
     /// The asset layer the asset was created from.
-    pub layer: Option<RcStr>,
+    pub layer: Option<LayerName>,
     /// The MIME content type, if this asset was created from a data URL.
     pub content_type: Option<RcStr>,
 }
@@ -81,7 +120,7 @@ impl ValueToString for AssetIdent {
         }
 
         if let Some(layer) = &self.layer {
-            write!(s, " [{layer}]")?;
+            write!(s, " [{}]", layer.name)?;
         }
 
         if !self.modifiers.is_empty() {
@@ -182,9 +221,8 @@ impl AssetIdent {
     }
 
     #[turbo_tasks::function]
-    pub fn with_layer(&self, layer: RcStr) -> Vc<Self> {
+    pub fn with_layer(&self, layer: LayerName) -> Vc<Self> {
         let mut this = self.clone();
-        debug_assert!(!layer.is_empty(), "cannot set empty layers names");
         this.layer = Some(layer);
         Self::new(this)
     }

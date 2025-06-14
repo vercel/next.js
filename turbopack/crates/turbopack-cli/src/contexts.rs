@@ -21,6 +21,7 @@ use turbopack_core::{
     context::AssetContext,
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
     free_var_references,
+    ident::LayerName,
     resolve::options::{ImportMap, ImportMapping},
 };
 use turbopack_node::{
@@ -192,7 +193,7 @@ pub fn get_client_asset_context(
         compile_time_info,
         module_options_context,
         resolve_options_context,
-        rcstr!("client"),
+        LayerName::with_user_friendly_name(rcstr!("client"), rcstr!("Pages Router Client")),
     ));
 
     asset_context

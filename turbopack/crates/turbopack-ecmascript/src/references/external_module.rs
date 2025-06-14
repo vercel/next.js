@@ -8,7 +8,7 @@ use turbo_tasks_fs::{FileContent, FileSystem, VirtualFileSystem, glob::Glob, rop
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
-    ident::AssetIdent,
+    ident::{AssetIdent, LayerName},
     module::Module,
     module_graph::ModuleGraph,
     reference::{ModuleReference, ModuleReferences},
@@ -121,7 +121,7 @@ impl Module for CachedExternalModule {
         let fs = VirtualFileSystem::new_with_name(rcstr!("externals"));
 
         AssetIdent::from_path(fs.root().join(self.request.clone()))
-            .with_layer(rcstr!("external"))
+            .with_layer(LayerName::new(rcstr!("external")))
             .with_modifier(self.request.clone())
             .with_modifier(self.external_type.to_string().into())
     }

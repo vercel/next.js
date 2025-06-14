@@ -18,6 +18,6 @@ error - [bindings] [project]/turbopack/crates/turbopack-tests/tests/execution/tu
   | These are the exports of the module:
   | Abd, Eef, a, b, c
   | 
-  Example import trace:
+  Import trace:
     ./turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export/input/invalid-export/index.js
     ./turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export/input/index.js

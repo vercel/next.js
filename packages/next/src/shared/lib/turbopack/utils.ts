@@ -215,32 +215,29 @@ export function formatIssue(issue: Issue) {
     if (importTraces.length > 1) {
       // We end up with multiple traces when the file with the error is reachable from multiple
       // different entry points (e.g. ssr, client)
-      message += 'Example import traces:\n'
-      const tracesAndLayers: Array<[string | undefined, PlainTraceItem[]]> =
-        importTraces.map((trace) => [getLayer(trace), trace])
-      const everyTraceHasADistinctLayer =
-        new Set(
-          tracesAndLayers
-            .map(([layer, _trace]) => layer)
-            .filter((layer) => layer != null)
-        ).size === tracesAndLayers.length
-      for (let i = 0; i < tracesAndLayers.length; i++) {
-        const [layer, trace] = tracesAndLayers[i]
-        if (everyTraceHasADistinctLayer) {
+      message += 'Import traces:\n'
+      const everyTraceHasADistinctRootLayer =
+        new Set(importTraces.map((t) => t[0].layer).filter((l) => l != null))
+          .size === importTraces.length
+      for (let i = 0; i < importTraces.length; i++) {
+        const trace = importTraces[i]
+        const layer = trace[0].layer
+        if (everyTraceHasADistinctRootLayer) {
           message += `  ${layer}:\n`
         } else {
           message += `  #${i + 1}`
-          if (layer) {
-            message += ` [${layer}]`
+          let lableLayer = layer ?? trace[0].layer
+          if (lableLayer) {
+            message += ` [${lableLayer}]`
           }
           message += ':\n'
         }
-        message += formatIssueTrace(trace, '    ', layer === undefined)
+        message += formatIssueTrace(trace, '    ', !identicalLayers(trace))
       }
     } else {
       const trace = importTraces[0]
       // We only display the layer if there is more than one for the trace
-      message += `Example import trace:\n${formatIssueTrace(trace, '  ', getLayer(trace) === undefined)}`
+      message += `Import trace:\n${formatIssueTrace(trace, '  ', !identicalLayers(trace))}`
     }
   }
   if (documentationLink) {
@@ -249,13 +246,15 @@ export function formatIssue(issue: Issue) {
   return message
 }
 
-/** Returns the layer shared by all the items, or undefined if there isn't a unique one. */
-function getLayer(items: PlainTraceItem[]): string | undefined {
-  let array = Array.from(new Set(items.map((i) => i.layer)))
-  if (array.length === 1) {
-    return array[0]
+/** Returns whether or not all items share the same layer. */
+function identicalLayers(items: PlainTraceItem[]): boolean {
+  let layer = items[0].layer
+  for (let i = 1; i < items.length; i++) {
+    if (items[i].layer !== layer) {
+      return false
+    }
   }
-  return undefined
+  return true
 }
 
 function formatIssueTrace(

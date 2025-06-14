@@ -35,6 +35,7 @@ use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     context::{AssetContext, ProcessResult},
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
+    ident::LayerName,
     issue::{IssueExt, StyledString, module::ModuleIssue},
     module::Module,
     output::OutputAsset,
@@ -317,7 +318,7 @@ pub struct ModuleAssetContext {
     pub compile_time_info: ResolvedVc<CompileTimeInfo>,
     pub module_options_context: ResolvedVc<ModuleOptionsContext>,
     pub resolve_options_context: ResolvedVc<ResolveOptionsContext>,
-    pub layer: RcStr,
+    pub layer: LayerName,
     transition: Option<ResolvedVc<Box<dyn Transition>>>,
     /// Whether to replace external resolutions with CachedExternalModules. Used with
     /// ModuleOptionsContext.enable_externals_tracing to handle transitive external dependencies.
@@ -332,7 +333,7 @@ impl ModuleAssetContext {
         compile_time_info: ResolvedVc<CompileTimeInfo>,
         module_options_context: ResolvedVc<ModuleOptionsContext>,
         resolve_options_context: ResolvedVc<ResolveOptionsContext>,
-        layer: RcStr,
+        layer: LayerName,
     ) -> Vc<Self> {
         Self::cell(ModuleAssetContext {
             transitions,
@@ -351,7 +352,7 @@ impl ModuleAssetContext {
         compile_time_info: ResolvedVc<CompileTimeInfo>,
         module_options_context: ResolvedVc<ModuleOptionsContext>,
         resolve_options_context: ResolvedVc<ResolveOptionsContext>,
-        layer: RcStr,
+        layer: LayerName,
         transition: ResolvedVc<Box<dyn Transition>>,
     ) -> Vc<Self> {
         Self::cell(ModuleAssetContext {
@@ -371,7 +372,7 @@ impl ModuleAssetContext {
         compile_time_info: ResolvedVc<CompileTimeInfo>,
         module_options_context: ResolvedVc<ModuleOptionsContext>,
         resolve_options_context: ResolvedVc<ResolveOptionsContext>,
-        layer: RcStr,
+        layer: LayerName,
     ) -> Vc<Self> {
         Self::cell(ModuleAssetContext {
             transitions,
@@ -469,7 +470,7 @@ async fn process_default(
     if !span.is_disabled() {
         // Need to use record, otherwise future is not Send for some reason.
         let module_asset_context_ref = module_asset_context.await?;
-        span.record("layer", module_asset_context_ref.layer.as_str());
+        span.record("layer", module_asset_context_ref.layer.name().as_str());
     }
     process_default_internal(
         module_asset_context,
@@ -690,7 +691,7 @@ async fn externals_tracing_module_context(ty: ExternalType) -> Result<Vc<ModuleA
         }
         .cell(),
         resolve_options.cell(),
-        rcstr!("externals-tracing"),
+        LayerName::new(rcstr!("externals-tracing")),
     ))
 }
 
@@ -702,8 +703,8 @@ impl AssetContext for ModuleAssetContext {
     }
 
     #[turbo_tasks::function]
-    fn layer(&self) -> Vc<RcStr> {
-        Vc::cell(self.layer.clone())
+    fn layer(&self) -> Vc<LayerName> {
+        self.layer.clone().cell()
     }
 
     #[turbo_tasks::function]

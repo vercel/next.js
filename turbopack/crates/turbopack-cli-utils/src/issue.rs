@@ -12,7 +12,6 @@ use anyhow::{Result, anyhow};
 use crossterm::style::{StyledContent, Stylize};
 use owo_colors::{OwoColorize as _, Style};
 use rustc_hash::{FxHashMap, FxHashSet};
-use turbo_rcstr::RcStr;
 use turbo_tasks::{RawVc, ReadRef, TransientInstance, TransientValue, Vc};
 use turbo_tasks_fs::{FileLinesContent, source_context::get_source_context};
 use turbopack_core::issue::{
@@ -175,14 +174,14 @@ pub fn format_issue(
     if !traces.is_empty() {
         /// Returns the layer used by all items in the trace if it is unique.
         /// Returns None, if there are multiple different layers (or no layers)
-        fn get_layer(items: &[PlainTraceItem]) -> Option<RcStr> {
+        fn are_layers_identical(items: &[PlainTraceItem]) -> bool {
             let layer = items.first().and_then(|t| t.layer.clone());
             for item in items.iter().skip(1) {
                 if item.layer != layer {
-                    return None;
+                    return false;
                 }
             }
-            layer
+            true
         }
         fn format_trace_items(
             out: &mut String,
@@ -223,28 +222,27 @@ pub fn format_issue(
             // We don't put the layer in the header for the single case. Either they are all the
             // same in which case it should be clear from the filename or they are different and we
             // need to print them on the items anyway.
-            writeln!(styled_issue, "Example import trace:").unwrap();
-            format_trace_items(&mut styled_issue, "  ", get_layer(trace).is_none(), trace);
+            writeln!(styled_issue, "Import trace:").unwrap();
+            format_trace_items(&mut styled_issue, "  ", !are_layers_identical(trace), trace);
         } else {
             // When there are multiple traces we:
             // * display the layer in the header if the trace has a consistent layer
             // * label the traces with their index, unless the layer is sufficiently unique.
-            styled_issue.push_str("Example import traces:\n");
-            let traces_and_layers: Vec<_> = traces.iter().map(|t| (get_layer(t), t)).collect();
-            let every_trace_has_a_distinct_layer = traces_and_layers
+            styled_issue.push_str("Import traces:\n");
+            let every_trace_has_a_distinct_root_layer = traces
                 .iter()
-                .filter_map(|t| t.0.clone())
+                .filter_map(|t| t[0].layer.clone())
                 .collect::<FxHashSet<_>>()
                 .len()
-                == traces_and_layers.len();
-            if every_trace_has_a_distinct_layer {
-                for (layer, trace) in traces_and_layers {
-                    writeln!(styled_issue, "  {}:", layer.unwrap()).unwrap();
+                == traces.len();
+            if every_trace_has_a_distinct_root_layer {
+                for trace in traces {
+                    writeln!(styled_issue, "  {}:", trace[0].layer.as_ref().unwrap()).unwrap();
                     format_trace_items(&mut styled_issue, "    ", false, trace);
                 }
             } else {
-                for (index, (layer, trace)) in traces_and_layers.iter().enumerate() {
-                    let print_layers = match layer {
+                for (index, trace) in traces.iter().enumerate() {
+                    let printed_layer = match trace[0].layer.as_ref() {
                         Some(layer) => {
                             writeln!(styled_issue, "  #{} [{layer}]:", index + 1).unwrap();
                             false
@@ -254,7 +252,12 @@ pub fn format_issue(
                             true
                         }
                     };
-                    format_trace_items(&mut styled_issue, "    ", print_layers, trace);
+                    format_trace_items(
+                        &mut styled_issue,
+                        "    ",
+                        !printed_layer || !are_layers_identical(trace),
+                        trace,
+                    );
                 }
             }
         }
