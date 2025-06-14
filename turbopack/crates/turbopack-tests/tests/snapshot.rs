@@ -308,10 +308,12 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             rules: vec![(
                 ContextCondition::InDirectory("node_modules".into()),
                 ModuleOptionsContext {
-                    remove_unused_exports: options.remove_unused_exports,
                     css: CssOptionsContext {
                         ..Default::default()
                     },
+                    preset_env_versions: Some(env),
+                    tree_shaking_mode: options.tree_shaking_mode,
+                    remove_unused_exports: options.remove_unused_exports,
                     ..Default::default()
                 }
                 .resolved_cell(),

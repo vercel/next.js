@@ -241,8 +241,7 @@ async fn run_inner_operation(
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct TestOptions {
     tree_shaking_mode: Option<TreeShakingMode>,
-    #[serde(default)]
-    remove_unused_exports: bool,
+    remove_unused_exports: Option<bool>,
 }
 
 #[turbo_tasks::value]
@@ -361,6 +360,8 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
             .resolved_cell(),
     );
 
+    let remove_unused_exports = options.remove_unused_exports.unwrap_or(true);
+
     let asset_context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(
         Default::default(),
         compile_time_info,
@@ -378,12 +379,12 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                 ContextCondition::InDirectory("node_modules".into()),
                 ModuleOptionsContext {
                     tree_shaking_mode: options.tree_shaking_mode,
-                    remove_unused_exports: options.remove_unused_exports,
+                    remove_unused_exports,
                     ..Default::default()
                 }
                 .resolved_cell(),
             )],
-            remove_unused_exports: options.remove_unused_exports,
+            remove_unused_exports,
             ..Default::default()
         }
         .into(),
