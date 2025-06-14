@@ -43,9 +43,7 @@ jobs:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
       - name: Setup corepack
-        run: |
-          npm i -g corepack@0.31
-          corepack enable
+        run: npm i -g corepack@0.31
       - name: Determine deploy target
         # 'force-preview' performs a full preview build but only if acknowledged i.e. workflow_dispatch
         # 'automated-preview' for pushes on branches other than 'canary' for integration testing.
@@ -93,9 +91,7 @@ jobs:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
       - name: Setup corepack
-        run: |
-          npm i -g corepack@0.31
-          corepack enable
+        run: npm i -g corepack@0.31
 
       - uses: actions/checkout@v4
         with:
@@ -329,9 +325,7 @@ jobs:
           check-latest: true
 
       - name: Setup corepack
-        run: |
-          npm i -g corepack@0.31
-          corepack enable
+        run: npm i -g corepack@0.31
 
       # we always want to run this to set environment variables
       - name: Install Rust
@@ -502,9 +496,7 @@ jobs:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
       - name: Setup corepack
-        run: |
-          npm i -g corepack@0.31
-          corepack enable
+        run: npm i -g corepack@0.31
 
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
@@ -565,9 +557,7 @@ jobs:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
       - name: Setup corepack
-        run: |
-          npm i -g corepack@0.31
-          corepack enable
+        run: npm i -g corepack@0.31
 
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
@@ -650,9 +640,7 @@ jobs:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
       - name: Setup corepack
-        run: |
-          npm i -g corepack@0.31
-          corepack enable
+        run: npm i -g corepack@0.31
 
       - uses: ./.github/actions/setup-rust
         with:
