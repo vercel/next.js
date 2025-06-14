@@ -7,4 +7,5 @@ module.exports = {
     cfg.devtool = 'source-map'
     return cfg
   },
+  productionBrowserSourceMaps: true,
 }
