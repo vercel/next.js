@@ -240,19 +240,6 @@ export default function LoadingIndicator() {
 }
 ```
 
-```tsx
-'use client'
-
-import { useLinkStatus } from 'next/link'
-
-export default function LoadingIndicator() {
-  const { pending } = useLinkStatus()
-  return pending ? (
-    <div role="status" aria-label="Loading" className="spinner" />
-  ) : null
-}
-```
-
 You can "debounce" the loading indicator by adding an initial animation delay (e.g. 100ms) and starting the animation as invisible (e.g. `opacity: 0`). This means the loading indicator will only be shown if the navigation takes longer than the specified delay.
 
 ```css
