@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { assertNoConsoleErrors } from 'next-test-utils'
 
 describe('fallback-shells', () => {
   const { next, isNextDev, isNextDeploy, isNextStart } = nextTestSetup({
@@ -28,14 +29,15 @@ describe('fallback-shells', () => {
       describe('and the params accessed in the cached page', () => {
         it('resumes a postponed fallback shell', async () => {
           const { browser, response } = await next.browserWithResponse(
-            '/with-cached-io/with-suspense/params-in-page/bar'
+            '/with-cached-io/with-suspense/params-in-page/bar',
+            { pushErrorAsConsoleLog: true }
           )
 
           const lastModified = await browser.elementById('last-modified').text()
           expect(lastModified).toInclude('Page /bar')
           expect(lastModified).toInclude('runtime')
 
-          const layout = await browser.elementById('layout').text()
+          const layout = await browser.elementById('root-layout').text()
           expect(layout).toInclude(isNextDev ? 'runtime' : 'buildtime')
 
           const headers = response.headers()
@@ -48,6 +50,96 @@ describe('fallback-shells', () => {
             expect(headers['x-nextjs-postponed']).toBe('1')
           }
         })
+
+        // TODO: To be implemented in NAR-136.
+        it.skip('does not produce hydration errors when resuming a fallback shell containing a layout with unused params', async () => {
+          const browser = await next.browser(
+            '/with-cached-io/with-suspense/params-in-page/bar',
+            { pushErrorAsConsoleLog: true }
+          )
+
+          const layout = await browser.elementById('layout').text()
+
+          // When prerendered, this should be restored from the RDC during the
+          // resume of the fallback shell, so it should be "buildtime". If the
+          // layout is unexpectedly a cache miss, then it will be "runtime".
+          expect(layout).toInclude(isNextDev ? 'runtime' : 'buildtime')
+
+          // There should also be no hydration errors due to a buildtime date
+          // being replaced by a new runtime date.
+          await assertNoConsoleErrors(browser)
+        })
+
+        // TODO: Activate for deploy tests once background revalidation for
+        // prerendered pages is not triggered anymore on the first visit.
+        if (!isNextDeploy) {
+          it('shares a cached parent layout between a prerendered route shell and the fallback shell', async () => {
+            // `/foo` was prerendered
+            const browser = await next.browser(
+              '/with-cached-io/with-suspense/params-in-page/foo'
+            )
+
+            const layoutDateRouteShell = await browser
+              .elementById('root-layout')
+              .text()
+
+            expect(layoutDateRouteShell).toInclude(
+              isNextDev ? 'runtime' : 'buildtime'
+            )
+
+            // `/bar` was not prerendered, and thus resumes the fallback shell.
+            await browser.loadPage(
+              new URL(
+                '/with-cached-io/with-suspense/params-in-page/bar',
+                next.url
+              ).href
+            )
+
+            const layoutDateFallbackShell = await browser
+              .elementById('root-layout')
+              .text()
+
+            expect(layoutDateRouteShell).toInclude(
+              isNextDev ? 'runtime' : 'buildtime'
+            )
+
+            expect(layoutDateFallbackShell).toBe(layoutDateRouteShell)
+          })
+
+          // TODO: To be implemented in NAR-136.
+          it.skip('shares a cached layout with unused params between a prerendered route shell and the fallback shell', async () => {
+            // `/foo` was prerendered
+            const browser = await next.browser(
+              '/with-cached-io/with-suspense/params-in-page/foo'
+            )
+
+            const layoutDateRouteShell = await browser
+              .elementById('layout')
+              .text()
+
+            expect(layoutDateRouteShell).toInclude(
+              isNextDev ? 'runtime' : 'buildtime'
+            )
+
+            // `/bar` was not prerendered, and thus resumes the fallback shell.
+            await browser.loadPage(
+              new URL(
+                '/with-cached-io/with-suspense/params-in-page/bar',
+                next.url
+              ).href
+            )
+
+            const layoutDateFallbackShell = await browser
+              .elementById('layout')
+              .text()
+
+            expect(layoutDateRouteShell).toInclude(
+              isNextDev ? 'runtime' : 'buildtime'
+            )
+
+            expect(layoutDateFallbackShell).toBe(layoutDateRouteShell)
+          })
+        }
       })
 
       describe('and the params accessed in cached non-page function', () => {
@@ -60,7 +152,7 @@ describe('fallback-shells', () => {
           expect(lastModified).toInclude('Page /bar')
           expect(lastModified).toInclude('runtime')
 
-          const layout = await browser.elementById('layout').text()
+          const layout = await browser.elementById('root-layout').text()
           expect(layout).toInclude(isNextDev ? 'runtime' : 'buildtime')
 
           const headers = response.headers()
@@ -85,7 +177,7 @@ describe('fallback-shells', () => {
           expect(lastModified).toInclude('Page /bar')
           expect(lastModified).toInclude('runtime')
 
-          const layout = await browser.elementById('layout').text()
+          const layout = await browser.elementById('root-layout').text()
           expect(layout).toInclude(isNextDev ? 'runtime' : 'buildtime')
 
           const headers = response.headers()
@@ -112,7 +204,7 @@ describe('fallback-shells', () => {
           expect(lastModified).toInclude('Page /bar')
           expect(lastModified).toInclude('runtime')
 
-          const layout = await browser.elementById('layout').text()
+          const layout = await browser.elementById('root-layout').text()
           expect(layout).toInclude('runtime')
 
           const headers = response.headers()
@@ -154,7 +246,7 @@ describe('fallback-shells', () => {
           expect(lastModified).toInclude('Page /bar')
           expect(lastModified).toInclude('runtime')
 
-          const layout = await browser.elementById('layout').text()
+          const layout = await browser.elementById('root-layout').text()
           expect(layout).toInclude('runtime')
 
           const headers = response.headers()
@@ -179,7 +271,7 @@ describe('fallback-shells', () => {
           expect(lastModified).toInclude('Page /bar')
           expect(lastModified).toInclude('runtime')
 
-          const layout = await browser.elementById('layout').text()
+          const layout = await browser.elementById('root-layout').text()
           expect(layout).toInclude('runtime')
 
           const headers = response.headers()

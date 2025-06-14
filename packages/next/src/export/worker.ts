@@ -49,6 +49,7 @@ import { isStaticGenBailoutError } from '../client/components/static-generation-
 import type { PagesRenderContext, PagesSharedContext } from '../server/render'
 import type { AppSharedContext } from '../server/app-render/app-render'
 import { MultiFileWriter } from '../lib/multi-file-writer'
+import { createRenderResumeDataCache } from '../server/resume-data-cache/resume-data-cache'
 
 const envConfig =
   require('../shared/lib/runtime-config.external') as typeof import('../shared/lib/runtime-config.external')
@@ -86,6 +87,7 @@ async function exportPageImpl(
     renderOpts: commonRenderOpts,
     outDir: commonOutDir,
     buildId,
+    renderResumeDataCache,
   } = input
 
   if (enableExperimentalReact) {
@@ -276,6 +278,7 @@ async function exportPageImpl(
       ...commonRenderOpts.experimental,
       isRoutePPREnabled,
     },
+    renderResumeDataCache,
   }
 
   if (hasNextSupport) {
@@ -355,6 +358,7 @@ export async function exportPages(
     renderOpts,
     nextConfig,
     options,
+    renderResumeDataCachesByPage = {},
   } = input
 
   if (nextConfig.experimental.enablePrerenderSourceMaps) {
@@ -399,6 +403,10 @@ export async function exportPages(
       // Also tests for `inspect-brk`
       process.env.NODE_OPTIONS?.includes('--inspect')
 
+    const renderResumeDataCache = renderResumeDataCachesByPage[page]
+      ? createRenderResumeDataCache(renderResumeDataCachesByPage[page])
+      : undefined
+
     while (attempt < maxAttempts) {
       try {
         result = await Promise.race<ExportPageResult | undefined>([
@@ -423,6 +431,7 @@ export async function exportPages(
             enableExperimentalReact: needsExperimentalReact(nextConfig),
             sriEnabled: Boolean(nextConfig.experimental.sri?.algorithm),
             buildId: input.buildId,
+            renderResumeDataCache,
           }),
           hasDebuggerAttached
             ? // With a debugger attached, exporting can take infinitely if we paused script execution.
@@ -591,15 +600,9 @@ async function exportPage(
 
   // Otherwise we can return the result.
   return {
+    ...result,
     duration: Date.now() - start,
-    ampValidations: result.ampValidations,
-    cacheControl: result.cacheControl,
-    metadata: result.metadata,
-    ssgNotFound: result.ssgNotFound,
-    hasEmptyStaticShell: result.hasEmptyStaticShell,
-    hasPostponed: result.hasPostponed,
     turborepoAccessTraceResult: turborepoAccessTraceResult.serialize(),
-    fetchMetrics: result.fetchMetrics,
   }
 }
 
