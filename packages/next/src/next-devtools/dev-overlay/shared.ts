@@ -53,9 +53,9 @@ export const ACTION_BUILDING_INDICATOR_HIDE = 'building-indicator-hide'
 export const ACTION_RENDERING_INDICATOR_SHOW = 'rendering-indicator-show'
 export const ACTION_RENDERING_INDICATOR_HIDE = 'rendering-indicator-hide'
 
-export const ACTION_DEVTOOLS_PANEL_OPEN = 'dev-tools-panel-open'
-export const ACTION_DEVTOOLS_PANEL_CLOSE = 'dev-tools-panel-close'
-export const ACTION_DEVTOOLS_PANEL_TOGGLE = 'dev-tools-panel-toggle'
+export const ACTION_DEVTOOLS_PANEL_OPEN = 'devtools-panel-open'
+export const ACTION_DEVTOOLS_PANEL_CLOSE = 'devtools-panel-close'
+export const ACTION_DEVTOOLS_PANEL_TOGGLE = 'devtools-panel-toggle'
 
 export const STORAGE_KEY_THEME = '__nextjs-dev-tools-theme'
 export const STORAGE_KEY_POSITION = '__nextjs-dev-tools-position'
