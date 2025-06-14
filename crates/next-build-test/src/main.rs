@@ -73,7 +73,6 @@ fn main() {
             tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
                 .on_thread_stop(|| {
-                    TurboMalloc::thread_stop();
                     tracing::debug!("threads stopped");
                 })
                 .build()
@@ -127,8 +126,8 @@ fn main() {
                         noop_backing_storage(),
                     ));
                     let result = main_inner(&tt, strat, factor, limit, files).await;
-                    let memory = TurboMalloc::memory_usage();
-                    tracing::info!("memory usage: {} MiB", memory / 1024 / 1024);
+                    let memory = TurboMalloc::global_allocation_counters();
+                    tracing::info!("memory usage: {}", memory);
                     let start = Instant::now();
                     drop(tt);
                     tracing::info!("drop {:?}", start.elapsed());

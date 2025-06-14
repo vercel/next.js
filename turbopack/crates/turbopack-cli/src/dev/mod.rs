@@ -14,8 +14,7 @@ use rustc_hash::FxHashSet;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     NonLocalValue, OperationVc, ResolvedVc, TransientInstance, TurboTasks, UpdateInfo, Vc,
-    trace::TraceRawVcs,
-    util::{FormatBytes, FormatDuration},
+    trace::TraceRawVcs, util::FormatDuration,
 };
 use turbo_tasks_backend::{
     BackendOptions, NoopBackingStorage, TurboTasksBackend, noop_backing_storage,
@@ -444,7 +443,7 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
                 "{event_type} - initial compilation {start} ({memory})",
                 event_type = "event".purple(),
                 start = FormatDuration(start.elapsed()),
-                memory = FormatBytes(TurboMalloc::memory_usage())
+                memory = TurboMalloc::global_allocation_counters()
             );
         }
 
@@ -470,7 +469,7 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
                             event_type = "event".purple(),
                             duration = FormatDuration(duration),
                             tasks = tasks,
-                            memory = FormatBytes(TurboMalloc::memory_usage())
+                            memory = TurboMalloc::global_allocation_counters()
                         );
                     }
                     (true, false) => {
@@ -480,7 +479,7 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
                             event_type = "event".purple(),
                             duration = FormatDuration(duration),
                             tasks = tasks,
-                            memory = FormatBytes(TurboMalloc::memory_usage())
+                            memory = TurboMalloc::global_allocation_counters()
                         );
                     }
                     (false, true) => {
@@ -506,7 +505,7 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
                     print!(
                         "\x1b[2K{event_type} - updating for {progress_counter}s... ({memory})\r",
                         event_type = "event".purple(),
-                        memory = FormatBytes(TurboMalloc::memory_usage())
+                        memory = TurboMalloc::global_allocation_counters()
                     );
                 } else {
                     print!(

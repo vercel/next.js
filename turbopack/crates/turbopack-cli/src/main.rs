@@ -25,9 +25,7 @@ fn main() {
     let args = Arguments::parse();
 
     let mut rt = tokio::runtime::Builder::new_multi_thread();
-    rt.enable_all().on_thread_stop(|| {
-        TurboMalloc::thread_stop();
-    });
+    rt.enable_all();
 
     #[cfg(not(codspeed))]
     rt.disable_lifo_slot();

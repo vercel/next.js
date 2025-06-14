@@ -84,9 +84,6 @@ fn init() {
 
     let rt = Builder::new_multi_thread()
         .enable_all()
-        .on_thread_stop(|| {
-            TurboMalloc::thread_stop();
-        })
         .disable_lifo_slot()
         .build()
         .unwrap();
