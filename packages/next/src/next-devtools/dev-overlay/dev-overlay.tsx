@@ -41,7 +41,6 @@ export function DevOverlay({
                 (process.env.__NEXT_DEVTOOL_NEW_PANEL_UI ? (
                   <>
                     <DevToolsIndicatorNew
-                      scale={scale}
                       state={state}
                       dispatch={dispatch}
                       errorCount={totalErrorCount}
