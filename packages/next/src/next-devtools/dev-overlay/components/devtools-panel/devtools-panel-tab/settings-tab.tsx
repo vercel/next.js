@@ -34,7 +34,7 @@ function ThemeIcon({ theme }: { theme: 'dark' | 'light' | 'system' }) {
   }
 }
 
-export function Settings({
+export function SettingsTab({
   state,
   dispatch,
 }: {
