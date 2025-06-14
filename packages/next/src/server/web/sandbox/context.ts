@@ -20,7 +20,7 @@ import EventsImplementation from 'node:events'
 import AssertImplementation from 'node:assert'
 import UtilImplementation from 'node:util'
 import AsyncHooksImplementation from 'node:async_hooks'
-import { intervalsManager, timeoutsManager } from './resource-managers'
+import { createWebTimers, type TimersManager } from './resource-managers'
 import { createLocalRequestContext } from '../../after/builtin-request-context'
 import {
   patchErrorInspectEdgeLite,
@@ -31,6 +31,7 @@ interface ModuleContext {
   runtime: EdgeRuntime
   paths: Map<string, string>
   warnedEvals: Set<string>
+  timersManager: TimersManager
 }
 
 let getServerError: typeof import('../../dev/node-stack-frames').getServerError
@@ -53,18 +54,28 @@ if (process.env.NODE_ENV === 'development') {
  * to have a different cache scoped per module name or depending on the
  * provided module key on creation.
  */
-const moduleContexts = new Map<string, ModuleContext>()
+let moduleContexts = new Map<string, ModuleContext>()
 
-const pendingModuleCaches = new Map<string, Promise<ModuleContext>>()
+let pendingModuleCaches = new Map<string, Promise<ModuleContext>>()
 
 /**
  * Same as clearModuleContext but for all module contexts.
  */
 export async function clearAllModuleContexts() {
-  intervalsManager.removeAll()
-  timeoutsManager.removeAll()
-  moduleContexts.clear()
-  pendingModuleCaches.clear()
+  const oldModuleContexts = moduleContexts
+  moduleContexts = new Map()
+  const oldPendingModuleCaches = pendingModuleCaches
+  pendingModuleCaches = new Map()
+
+  for (const [, context] of oldModuleContexts) {
+    destroyModuleContext(context)
+  }
+
+  await Promise.all(
+    [...oldPendingModuleCaches.values()].map(async (contextPromise) => {
+      destroyModuleContext(await contextPromise)
+    })
+  )
 }
 
 /**
@@ -76,16 +87,14 @@ export async function clearAllModuleContexts() {
  * module context.
  */
 export async function clearModuleContext(path: string) {
-  intervalsManager.removeAll()
-  timeoutsManager.removeAll()
-
   const handleContext = (
     key: string,
-    cache: ReturnType<(typeof moduleContexts)['get']>,
-    context: typeof moduleContexts | typeof pendingModuleCaches
+    context: ModuleContext,
+    contexts: typeof moduleContexts | typeof pendingModuleCaches
   ) => {
-    if (cache?.paths.has(path)) {
-      context.delete(key)
+    if (context.paths.has(path)) {
+      contexts.delete(key)
+      destroyModuleContext(context)
     }
   }
 
@@ -256,11 +265,14 @@ export const edgeSandboxNextRequestContext = createLocalRequestContext()
  * Create a module cache specific for the provided parameters. It includes
  * a runtime context, require cache and paths cache.
  */
-async function createModuleContext(options: ModuleContextOptions) {
+async function createModuleContext(
+  options: ModuleContextOptions
+): Promise<ModuleContext> {
   const warnedEvals = new Set<string>()
   const warnedWasmCodegens = new Set<string>()
   const { edgeFunctionEntry } = options
   const wasm = await loadWasm(edgeFunctionEntry.wasm ?? [])
+
   const runtime = new EdgeRuntime({
     codeGeneration:
       process.env.NODE_ENV !== 'production'
@@ -428,22 +440,6 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
 
       context.AsyncLocalStorage = AsyncLocalStorage
 
-      // @ts-ignore the timeouts have weird types in the edge runtime
-      context.setInterval = (...args: Parameters<typeof setInterval>) =>
-        intervalsManager.add(args)
-
-      // @ts-ignore the timeouts have weird types in the edge runtime
-      context.clearInterval = (interval: number) =>
-        intervalsManager.remove(interval)
-
-      // @ts-ignore the timeouts have weird types in the edge runtime
-      context.setTimeout = (...args: Parameters<typeof setTimeout>) =>
-        timeoutsManager.add(args)
-
-      // @ts-ignore the timeouts have weird types in the edge runtime
-      context.clearTimeout = (timeout: number) =>
-        timeoutsManager.remove(timeout)
-
       // Duplicated from packages/next/src/server/after/builtin-request-context.ts
       // because we need to use the sandboxed `Symbol.for`, not the one from the outside
       const NEXT_REQUEST_CONTEXT_SYMBOL = context.Symbol.for(
@@ -457,6 +453,23 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
       return context
     },
   })
+
+  const timersManager = createWebTimers(
+    // unintuitively, when passing it to a function from inside the VM,
+    // `runtime.context` is not referentially equal to `runtime.evaluate('globalThis')`.
+    // this is probably some cross-realm thing, but idk
+    runtime.evaluate('globalThis'),
+    {
+      setInterval,
+      clearInterval,
+      setTimeout,
+      clearTimeout,
+    }
+  )
+  runtime.context.setInterval = timersManager.timers.setInterval
+  runtime.context.clearInterval = timersManager.timers.clearInterval
+  runtime.context.setTimeout = timersManager.timers.setTimeout
+  runtime.context.clearTimeout = timersManager.timers.clearTimeout
 
   const decorateUnhandledError = getDecorateUnhandledError(runtime)
   runtime.context.addEventListener('error', decorateUnhandledError)
@@ -475,6 +488,7 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
     runtime,
     paths: new Map<string, string>(),
     warnedEvals: new Set<string>(),
+    timersManager,
   }
 }
 
@@ -485,6 +499,10 @@ interface ModuleContextOptions {
   useCache: boolean
   distDir: string
   edgeFunctionEntry: Pick<EdgeFunctionDefinition, 'assets' | 'wasm' | 'env'>
+}
+
+function destroyModuleContext(context: ModuleContext) {
+  context.timersManager.destroy()
 }
 
 function getModuleContextShared(options: ModuleContextOptions) {
