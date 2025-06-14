@@ -54,6 +54,10 @@ export function DevOverlay({
                         state={state}
                         dispatch={dispatch}
                         issueCount={totalErrorCount}
+                        runtimeErrors={runtimeErrors}
+                        getSquashedHydrationErrorDetails={
+                          getSquashedHydrationErrorDetails
+                        }
                       />
                     )}
                   </>
