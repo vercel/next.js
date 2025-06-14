@@ -11,7 +11,7 @@ This example demonstrates the differences in ETag behavior between Next.js 14 an
 ## How to use
 
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
-
+npx create-next-app --example etag-test etag-test-app
 ```bash
 npx create-next-app --example hello-world hello-world-app
 ```
