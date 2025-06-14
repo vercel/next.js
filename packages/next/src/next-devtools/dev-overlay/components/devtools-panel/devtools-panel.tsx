@@ -12,6 +12,9 @@ import { css } from '../../utils/css'
 import { FullScreenIcon } from '../../icons/fullscreen'
 import { Cross } from '../../icons/cross'
 import { DevToolsPanelFooter } from './devtools-panel-footer'
+import { DevToolsPanelTab } from './devtools-panel-tab/devtools-panel-tab'
+
+export type DevToolsPanelTabType = 'issues' | 'route' | 'settings'
 
 export function DevToolsPanel({
   state,
@@ -99,7 +102,9 @@ export function DevToolsPanel({
                   </div>
                 </div>
               </DialogHeader>
-              <DialogBody></DialogBody>
+              <DialogBody>
+                <DevToolsPanelTab activeTab={activeTab} />
+              </DialogBody>
             </DialogContent>
           </Dialog>
           <DevToolsPanelFooter versionInfo={state.versionInfo} />
