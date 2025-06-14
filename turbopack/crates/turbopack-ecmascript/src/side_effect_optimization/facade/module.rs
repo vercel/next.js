@@ -1,12 +1,15 @@
 use std::collections::BTreeMap;
 
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileContent, glob::Glob};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, EvaluatableAsset},
+    chunk::{
+        AsyncModuleInfo, ChunkableModule, ChunkingContext, EvaluatableAsset, MergeableModule,
+        MergeableModules, MergeableModulesExposed,
+    },
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
@@ -17,7 +20,7 @@ use turbopack_core::{
 use super::chunk_item::EcmascriptModuleFacadeChunkItem;
 use crate::{
     AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptModuleContent,
-    EcmascriptModuleContentOptions, SpecifiedModuleType,
+    EcmascriptModuleContentOptions, EcmascriptOptions, MergedEcmascriptModule, SpecifiedModuleType,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::CodeGens,
     parse::ParseResult,
@@ -34,9 +37,9 @@ use crate::{
 /// [EcmascriptModuleLocalsModule]. It allows to follow
 #[turbo_tasks::value]
 pub struct EcmascriptModuleFacadeModule {
-    pub module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
-    pub ty: ModulePart,
-    pub remove_unused_exports: bool,
+    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    ty: ModulePart,
+    remove_unused_exports: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -150,7 +153,7 @@ impl EcmascriptModuleFacadeModule {
             ModulePart::RenamedNamespace { .. } => (
                 EsmAssetReferences::empty().to_resolved().await?,
                 vec![
-                    EcmascriptModulePartReference::new(*self.module, self.remove_unused_exports)
+                    EcmascriptModulePartReference::new_normal(*self.module, self.ty.clone())
                         .to_resolved()
                         .await?,
                 ],
@@ -158,7 +161,7 @@ impl EcmascriptModuleFacadeModule {
             ModulePart::RenamedExport { .. } => (
                 EsmAssetReferences::empty().to_resolved().await?,
                 vec![
-                    EcmascriptModulePartReference::new(*self.module, self.remove_unused_exports)
+                    EcmascriptModulePartReference::new_normal(*self.module, self.ty.clone())
                         .to_resolved()
                         .await?,
                 ],
@@ -371,9 +374,9 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                     export.clone(),
                     EsmExport::ImportedBinding(
                         ResolvedVc::upcast(
-                            EcmascriptModulePartReference::new(
+                            EcmascriptModulePartReference::new_normal(
                                 *self.module,
-                                self.remove_unused_exports,
+                                self.ty.clone(),
                             )
                             .to_resolved()
                             .await?,
@@ -387,12 +390,9 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                 exports.insert(
                     export.clone(),
                     EsmExport::ImportedNamespace(ResolvedVc::upcast(
-                        EcmascriptModulePartReference::new(
-                            *self.module,
-                            self.remove_unused_exports,
-                        )
-                        .to_resolved()
-                        .await?,
+                        EcmascriptModulePartReference::new_normal(*self.module, self.ty.clone())
+                            .to_resolved()
+                            .await?,
                     )),
                 );
             }
@@ -453,3 +453,36 @@ impl ChunkableModule for EcmascriptModuleFacadeModule {
 
 #[turbo_tasks::value_impl]
 impl EvaluatableAsset for EcmascriptModuleFacadeModule {}
+
+#[turbo_tasks::value_impl]
+impl MergeableModule for EcmascriptModuleFacadeModule {
+    #[turbo_tasks::function]
+    async fn merge(
+        self: Vc<Self>,
+        modules: Vc<MergeableModulesExposed>,
+        entry_points: Vc<MergeableModules>,
+    ) -> Result<Vc<Box<dyn ChunkableModule>>> {
+        Ok(Vc::upcast(*MergedEcmascriptModule::new(
+            modules
+                .await?
+                .iter()
+                .map(|(m, exposed)| {
+                    Ok((
+                        ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(*m)
+                            .context("expected EcmascriptAnalyzable")?,
+                        *exposed,
+                    ))
+                })
+                .collect::<Result<Vec<_>>>()?,
+            entry_points
+                .await?
+                .iter()
+                .map(|m| {
+                    ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(*m)
+                        .context("expected EcmascriptAnalyzable")
+                })
+                .collect::<Result<Vec<_>>>()?,
+            EcmascriptOptions::default().resolved_cell(),
+        )))
+    }
+}
