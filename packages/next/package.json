@@ -304,6 +304,7 @@
     "punycode": "2.1.1",
     "querystring-es3": "0.2.1",
     "raw-body": "2.4.1",
+    "react-draggable": "4.4.6",
     "react-refresh": "0.12.0",
     "recast": "0.23.11",
     "regenerator-runtime": "0.13.4",

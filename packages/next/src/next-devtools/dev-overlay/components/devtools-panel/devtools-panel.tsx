@@ -1,6 +1,8 @@
 import type { OverlayDispatch, OverlayState } from '../../shared'
 
 import { Suspense, useRef } from 'react'
+import Draggable from 'next/dist/compiled/react-draggable'
+
 import { Dialog, DialogContent, DialogHeader, DialogBody } from '../dialog'
 import { Overlay } from '../overlay/overlay'
 import { useFocusTrap } from '../errors/dev-tools-indicator/utils'
@@ -15,7 +17,7 @@ export function DevToolsPanel({
   state: OverlayState
   dispatch: OverlayDispatch
 }) {
-  const dialogRef = useRef<HTMLDivElement>(null)
+  const dialogRef = useRef<HTMLDivElement>(null as unknown as HTMLDivElement)
 
   // This hook lets us do an exit animation before unmounting the component
   const { mounted, rendered } = useDelayedRender(state.isDevToolsPanelOpen)
@@ -34,19 +36,21 @@ export function DevToolsPanel({
 
   return (
     <Overlay data-nextjs-devtools-panel-overlay>
-      <div data-nextjs-devtools-panel-container ref={dialogRef}>
-        <Dialog
-          data-nextjs-devtools-panel-dialog
-          aria-labelledby="nextjs__container_dev_tools_panel_label"
-          aria-describedby="nextjs__container_dev_tools_panel_desc"
-          onClose={onClose}
-        >
-          <DialogContent>
-            <DialogHeader></DialogHeader>
-            <DialogBody></DialogBody>
-          </DialogContent>
-        </Dialog>
-      </div>
+      <Draggable nodeRef={dialogRef}>
+        <div data-nextjs-devtools-panel-container ref={dialogRef}>
+          <Dialog
+            data-nextjs-devtools-panel-dialog
+            aria-labelledby="nextjs__container_dev_tools_panel_label"
+            aria-describedby="nextjs__container_dev_tools_panel_desc"
+            onClose={onClose}
+          >
+            <DialogContent>
+              <DialogHeader></DialogHeader>
+              <DialogBody></DialogBody>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </Draggable>
     </Overlay>
   )
 }
