@@ -277,6 +277,8 @@ export async function walkTreeWithFlightRouterState({
       if (
         subPath[0] === DEFAULT_SEGMENT_KEY &&
         flightRouterState &&
+        flightRouterState[1][parallelRouteKey] &&
+        Array.isArray(flightRouterState[1][parallelRouteKey]) &&
         !!flightRouterState[1][parallelRouteKey][0] &&
         flightRouterState[1][parallelRouteKey][3] !== 'refetch'
       ) {
