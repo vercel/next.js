@@ -32,11 +32,11 @@ function isNextjsLink(text: string): boolean {
   return text.startsWith('https://nextjs.org')
 }
 
-function HydrationErrorDescription({ message }: { message: string }) {
+export function HydrationErrorDescription({ message }: { message: string }) {
   return <HotlinkedText text={message} matcher={isNextjsLink} />
 }
 
-function GenericErrorDescription({ error }: { error: Error }) {
+export function GenericErrorDescription({ error }: { error: Error }) {
   const environmentName =
     'environmentName' in error ? error.environmentName : ''
   const envPrefix = environmentName ? `[ ${environmentName} ] ` : ''
@@ -55,7 +55,7 @@ function GenericErrorDescription({ error }: { error: Error }) {
   )
 }
 
-function getErrorTypeLabel(
+export function getErrorTypeLabel(
   error: Error,
   type: ReadyRuntimeError['type']
 ): ErrorOverlayLayoutProps['errorType'] {
@@ -73,7 +73,7 @@ const noErrorDetails = {
   notes: null,
   reactOutputComponentDiff: null,
 }
-function useErrorDetails(
+export function useErrorDetails(
   error: Error | undefined,
   getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
 ): {
