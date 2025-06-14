@@ -27,6 +27,7 @@ import { RESTART_SERVER_BUTTON_STYLES } from '../components/errors/error-overlay
 import { DEVTOOLS_PANEL_STYLES } from '../components/devtools-panel/devtools-panel'
 import { DEVTOOLS_PANEL_FOOTER_STYLES } from '../components/devtools-panel/devtools-panel-footer'
 import { DEVTOOLS_PANEL_VERSION_INFO_STYLES } from '../components/devtools-panel/devtools-panel-version-info'
+import { DEVTOOLS_PANEL_TAB_SETTINGS_STYLES } from '../components/devtools-panel/devtools-panel-tab/settings'
 
 export function ComponentStyles() {
   return (
@@ -60,6 +61,7 @@ export function ComponentStyles() {
         ${DEVTOOLS_PANEL_STYLES}
         ${DEVTOOLS_PANEL_FOOTER_STYLES}
         ${DEVTOOLS_PANEL_VERSION_INFO_STYLES}
+        ${DEVTOOLS_PANEL_TAB_SETTINGS_STYLES}
       `}
     </style>
   )

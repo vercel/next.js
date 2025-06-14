@@ -1,12 +1,14 @@
 import type { DevToolsPanelTabType } from '../devtools-panel'
 
+import { Settings } from './settings'
+
 export function DevToolsPanelTab({
   activeTab,
 }: {
   activeTab: DevToolsPanelTabType
 }) {
   if (activeTab === 'settings') {
-    return <div>Settings</div>
+    return <Settings />
   }
 
   if (activeTab === 'route') {
