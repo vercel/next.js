@@ -709,6 +709,11 @@ declare module 'next/dist/compiled/shell-quote' {
   export = m
 }
 
+declare module 'next/dist/compiled/react-draggable' {
+  import * as m from 'react-draggable'
+  export = m
+}
+
 declare module 'next/dist/compiled/@vercel/og/satori-types' {
   export * from 'satori'
 }
