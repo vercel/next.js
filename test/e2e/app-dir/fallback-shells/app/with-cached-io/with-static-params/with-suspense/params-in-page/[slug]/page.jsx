@@ -1,7 +1,9 @@
-import { CachedLastModified } from '../../../last-modified'
+'use cache'
+
+import { LastModified } from '../../../../last-modified'
 
 export default async function Page({ params }) {
-  return <CachedLastModified params={params} />
+  return <LastModified params={params} />
 }
 
 export async function generateStaticParams() {
