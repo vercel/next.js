@@ -30,8 +30,7 @@ describe('fallback-shells', () => {
         describe('and the params accessed in the cached page', () => {
           it('resumes a postponed fallback shell', async () => {
             const { browser, response } = await next.browserWithResponse(
-              '/with-cached-io/with-static-params/with-suspense/params-in-page/bar',
-              { pushErrorAsConsoleLog: true }
+              '/with-cached-io/with-static-params/with-suspense/params-in-page/bar'
             )
 
             const lastModified = await browser
@@ -54,11 +53,21 @@ describe('fallback-shells', () => {
             }
           })
 
-          // TODO: To be implemented in NAR-136.
-          it.skip('does not produce hydration errors when resuming a fallback shell containing a layout with unused params', async () => {
+          it('does not produce hydration errors when resuming a fallback shell containing a layout with unused params', async () => {
             const browser = await next.browser(
               '/with-cached-io/with-static-params/with-suspense/params-in-page/bar',
               { pushErrorAsConsoleLog: true }
+            )
+
+            // There should also be no hydration errors due to a buildtime date
+            // being replaced by a new runtime date.
+            await assertNoConsoleErrors(browser)
+          })
+
+          // TODO: To be implemented in NAR-136.
+          it.skip('includes a cached layout with unused params in the fallback shell', async () => {
+            const browser = await next.browser(
+              '/with-cached-io/with-static-params/with-suspense/params-in-page/bar'
             )
 
             const layout = await browser.elementById('layout').text()
@@ -67,10 +76,6 @@ describe('fallback-shells', () => {
             // resume of the fallback shell, so it should be "buildtime". If the
             // layout is unexpectedly a cache miss, then it will be "runtime".
             expect(layout).toInclude(isNextDev ? 'runtime' : 'buildtime')
-
-            // There should also be no hydration errors due to a buildtime date
-            // being replaced by a new runtime date.
-            await assertNoConsoleErrors(browser)
           })
 
           // TODO: Activate for deploy tests once background revalidation for
@@ -198,6 +203,33 @@ describe('fallback-shells', () => {
             }
           })
         })
+
+        describe('and the params transformed with an async function and then passed to a cached function', () => {
+          it('resumes a postponed fallback shell', async () => {
+            const { browser, response } = await next.browserWithResponse(
+              '/with-cached-io/with-static-params/with-suspense/params-transformed/bar'
+            )
+
+            const lastModified = await browser
+              .elementById('last-modified')
+              .text()
+            expect(lastModified).toInclude('Page /bar')
+            expect(lastModified).toInclude('runtime')
+
+            const layout = await browser.elementById('root-layout').text()
+            expect(layout).toInclude(isNextDev ? 'runtime' : 'buildtime')
+
+            const headers = response.headers()
+
+            if (isNextDeploy) {
+              expect(headers['x-matched-path']).toBe(
+                '/with-cached-io/with-static-params/with-suspense/params-transformed/[slug]'
+              )
+            } else if (isNextStart) {
+              expect(headers['x-nextjs-postponed']).toBe('1')
+            }
+          })
+        })
       })
 
       describe('and the page not wrapped in Suspense', () => {
@@ -300,6 +332,33 @@ describe('fallback-shells', () => {
             }
           })
         })
+
+        describe('and the params transformed with an async function and then passed to a cached function', () => {
+          it('does not resume a postponed fallback shell', async () => {
+            const { browser, response } = await next.browserWithResponse(
+              '/with-cached-io/with-static-params/without-suspense/params-transformed/bar'
+            )
+
+            const lastModified = await browser
+              .elementById('last-modified')
+              .text()
+            expect(lastModified).toInclude('Page /bar')
+            expect(lastModified).toInclude('runtime')
+
+            const layout = await browser.elementById('root-layout').text()
+            expect(layout).toInclude('runtime')
+
+            const headers = response.headers()
+
+            if (isNextDeploy) {
+              expect(headers['x-matched-path']).toBe(
+                '/with-cached-io/with-static-params/without-suspense/params-transformed/[slug]'
+              )
+            } else if (isNextStart) {
+              expect(headers['x-nextjs-postponed']).not.toBe('1')
+            }
+          })
+        })
       })
     })
 
@@ -307,8 +366,7 @@ describe('fallback-shells', () => {
       describe('and the params accessed in the cached page', () => {
         it('resumes a postponed fallback shell', async () => {
           const { browser, response } = await next.browserWithResponse(
-            '/with-cached-io/without-static-params/params-in-page/foo',
-            { pushErrorAsConsoleLog: true }
+            '/with-cached-io/without-static-params/params-in-page/foo'
           )
 
           const lastModified = await browser.elementById('last-modified').text()
@@ -327,6 +385,32 @@ describe('fallback-shells', () => {
           } else if (isNextStart) {
             expect(headers['x-nextjs-postponed']).toBe('1')
           }
+        })
+
+        // TODO: To be implemented in NAR-136.
+        it.skip('does not produce hydration errors when resuming a fallback shell containing a layout with unused params', async () => {
+          const browser = await next.browser(
+            '/with-cached-io/without-static-params/params-in-page/bar',
+            { pushErrorAsConsoleLog: true }
+          )
+
+          // There should also be no hydration errors due to a buildtime date
+          // being replaced by a new runtime date.
+          await assertNoConsoleErrors(browser)
+        })
+
+        // TODO: To be implemented in NAR-136.
+        it.skip('includes a cached layout with unused params in the fallback shell', async () => {
+          const browser = await next.browser(
+            '/with-cached-io/without-static-params/params-in-page/bar'
+          )
+
+          const layout = await browser.elementById('layout').text()
+
+          // When prerendered, this should be restored from the RDC during the
+          // resume of the fallback shell, so it should be "buildtime". If the
+          // layout is unexpectedly a cache miss, then it will be "runtime".
+          expect(layout).toInclude(isNextDev ? 'runtime' : 'buildtime')
         })
       })
 
