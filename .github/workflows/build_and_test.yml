@@ -473,15 +473,12 @@ jobs:
       skipNativeInstall: 'yes'
       afterBuild: |
         rustup target add wasm32-unknown-unknown
-        curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
         node ./scripts/normalize-version-bump.js
         pnpm dlx turbo@${TURBO_VERSION} run build-wasm -- --target nodejs
         git checkout .
-        mv crates/wasm/pkg crates/wasm/pkg-nodejs
-        node ./scripts/setup-wasm.mjs
 
         export NEXT_TEST_MODE=start
-        export TEST_WASM=true
+        export NEXT_TEST_WASM=true
         node run-tests.js \
           test/production/pages-dir/production/test/index.test.ts \
           test/e2e/streaming-ssr/index.test.ts

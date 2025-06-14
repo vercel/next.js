@@ -707,5 +707,6 @@
   "706": "Invariant: static responses cannot be streamed %s",
   "707": "Invariant app-page handler received invalid cache entry %s",
   "708": "Failed to persist Chrome DevTools workspace UUID. The Chrome DevTools Workspace needs to be reconnected after the next page reload.",
-  "709": "`rspack.getModuleNamedExports` is not supported by the wasm bindings."
+  "709": "`rspack.getModuleNamedExports` is not supported by the wasm bindings.",
+  "710": "cannot run loadNative when `NEXT_TEST_WASM` is set"
 }
