@@ -142,8 +142,8 @@ impl Request {
         })
     }
 
-    /// Internal construction function.  Should only be called with normalized patterns, or recursively.
-    /// Most users should call [Self::parse]` instead.
+    /// Internal construction function.  Should only be called with normalized patterns, or
+    /// recursively. Most users should call [Self::parse]` instead.
     fn parse_ref(request: Pattern) -> Self {
         match request {
             Pattern::Dynamic => Request::Dynamic,
@@ -210,9 +210,9 @@ impl Request {
             && let (Some(protocol), Some(remainder)) = (caps.get(1), caps.get(2))
         {
             if let Some(caps) = DATA_URI_REMAINDER.captures(remainder.as_str()) {
-                let media_type = caps.get(1).map_or("", |m| m.as_str()).into();
-                let encoding = caps.get(2).map_or("", |e| e.as_str()).into();
-                let data = caps.get(3).map_or("", |d| d.as_str()).into();
+                let media_type = caps.get(1).map_or(RcStr::default(), |m| m.as_str().into());
+                let encoding = caps.get(2).map_or(RcStr::default(), |e| e.as_str().into());
+                let data = caps.get(3).map_or(RcStr::default(), |d| d.as_str().into());
 
                 return Request::DataUri {
                     media_type,
@@ -295,18 +295,6 @@ impl Request {
         result
     }
 
-    async fn parse_alternatives_pattern(list: Vec<Pattern>) -> Result<Self> {
-        Ok(Request::Alternatives {
-            requests: list
-                .into_iter()
-                // We can call parse_inner directly because these patterns are already normalized.
-                .map(Request::parse_inner)
-                .map(|v| async move { v.to_resolved().await })
-                .try_join()
-                .await?,
-        })
-    }
-
     pub fn parse_string(request: RcStr) -> Vc<Self> {
         Self::parse(request.into())
     }
@@ -324,9 +312,18 @@ impl Request {
     async fn parse_inner(request: Pattern) -> Result<Vc<Self>> {
         // Because we are normalized, we should handle alternatives here
         if let Pattern::Alternatives(alts) = request {
-            Ok(Self::cell(Self::parse_alternatives_pattern(alts).await?))
+            Ok(Self::cell(Self::Alternatives {
+                requests: alts
+                    .into_iter()
+                    // We can call parse_inner directly because these patterns are already
+                    // normalized.  We don't call `Self::parse_ref` so we can try to get a cache hit
+                    // on the sub-patterns
+                    .map(|p| Self::parse_inner(p).to_resolved())
+                    .try_join()
+                    .await?,
+            }))
         } else {
-            Ok(Self::cell(Request::parse_ref(request)))
+            Ok(Self::cell(Self::parse_ref(request)))
         }
     }
 
