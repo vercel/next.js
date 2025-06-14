@@ -1,4 +1,3 @@
-// app/page.tsx or app/page.js
 export const dynamic = "force-static";
 
 export default function Page() {
