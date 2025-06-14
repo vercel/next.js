@@ -699,6 +699,11 @@ export interface ExperimentalConfig {
    * Enable segment viewer for the app directory in dev tool.
    */
   devtoolSegmentExplorer?: boolean
+
+  /**
+   * Enable new panel UI for the dev tool.
+   */
+  devtoolNewPanelUI?: boolean
 }
 
 export type ExportPathMap = {
