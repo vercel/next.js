@@ -1,19 +1,24 @@
+import type {
+  OverlayDispatch,
+  OverlayState,
+  DevToolsIndicatorPosition,
+} from '../../../shared'
+
+import { useTheme } from '../hooks/use-theme'
+import {
+  ACTION_DEVTOOLS_INDICATOR_POSITION,
+  ACTION_DEVTOOLS_SCALE,
+  STORAGE_KEY_POSITION,
+  STORAGE_KEY_SCALE,
+  STORAGE_KEY_THEME,
+  NEXT_DEV_TOOLS_SCALE,
+} from '../../../shared'
+import { css } from '../../../utils/css'
+
 import LightIcon from '../../../icons/light-icon'
 import DarkIcon from '../../../icons/dark-icon'
 import SystemIcon from '../../../icons/system-icon'
 import EyeIcon from '../../../icons/eye-icon'
-
-import {
-  NEXT_DEV_TOOLS_SCALE,
-  useDevToolsScale,
-} from '../hooks/use-devtools-scale'
-import { useTheme } from '../hooks/use-theme'
-import { STORAGE_KEY_POSITION, STORAGE_KEY_THEME } from '../../../shared'
-import {
-  useDevToolsIndicatorPosition,
-  type DevToolsIndicatorPosition,
-} from '../hooks/use-devtools-indicator-position'
-import { css } from '../../../utils/css'
 
 function ChevronDownIcon() {
   return (
@@ -57,10 +62,14 @@ function ThemeIcon({ theme }: { theme: 'dark' | 'light' | 'system' }) {
   }
 }
 
-export function Settings() {
-  const [scale, setScale] = useDevToolsScale()
+export function Settings({
+  state,
+  dispatch,
+}: {
+  state: OverlayState
+  dispatch: OverlayDispatch
+}) {
   const [theme, setTheme] = useTheme()
-  const [position, setPosition] = useDevToolsIndicatorPosition()
 
   const handleThemeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const portal = document.querySelector('nextjs-portal')
@@ -87,13 +96,20 @@ export function Settings() {
   }
 
   function handlePositionChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    setPosition(e.target.value as DevToolsIndicatorPosition)
+    dispatch({
+      type: ACTION_DEVTOOLS_INDICATOR_POSITION,
+      indicatorPosition: e.target.value as DevToolsIndicatorPosition,
+    })
     localStorage.setItem(STORAGE_KEY_POSITION, e.target.value)
   }
 
   function handleSizeChange({ target }: React.ChangeEvent<HTMLSelectElement>) {
     const value = Number(target.value)
-    setScale(value)
+    dispatch({
+      type: ACTION_DEVTOOLS_SCALE,
+      scale: value,
+    })
+    localStorage.setItem(STORAGE_KEY_SCALE, value.toString())
   }
 
   function handleRestartDevServer() {
@@ -116,6 +132,8 @@ export function Settings() {
       method: 'POST',
     })
   }
+
+  console.log({ scale: state.scale })
 
   return (
     <div>
@@ -151,7 +169,7 @@ export function Settings() {
           <Select
             id="position"
             name="position"
-            value={position}
+            value={state.indicatorPosition}
             onChange={handlePositionChange}
           >
             <option value="bottom-left">Bottom Left</option>
@@ -171,7 +189,7 @@ export function Settings() {
           <Select
             id="size"
             name="size"
-            value={scale}
+            value={state.scale}
             onChange={handleSizeChange}
           >
             {Object.entries(NEXT_DEV_TOOLS_SCALE).map(([key, value]) => {
