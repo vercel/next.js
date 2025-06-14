@@ -27,7 +27,9 @@ export function DevOverlay({
   return (
     <ShadowPortal>
       <CssReset />
-      <Base scale={scale} />
+      <Base
+        scale={process.env.__NEXT_DEVTOOL_NEW_PANEL_UI ? state.scale : scale}
+      />
       <Colors />
       <ComponentStyles />
       <DarkTheme />
