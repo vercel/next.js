@@ -310,13 +310,15 @@ jobs:
     with:
       nodeVersion: 18.18.2
       afterBuild: |
-        export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-build-tests-manifest.json"
+        export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-build-tests-manifest.json test/deploy-tests-manifest.json"
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_BUILD=1
-        export NEXT_TEST_MODE=start
+        export NEXT_TEST_MODE=deploy
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
+        export NEXT_E2E_TEST_TIMEOUT=240000
 
-        node run-tests.js --timings -g ${{ matrix.group }} --type production
+        npm i -g vercel@latest
+        node run-tests.js --timings -g ${{ matrix.group }} -c 2 --type e2e
       stepName: 'test-turbopack-production-react-${{ matrix.react }}-${{ matrix.group }}'
     secrets: inherit
 
